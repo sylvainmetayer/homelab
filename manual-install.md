@@ -193,3 +193,7 @@ Address:          10.100.60.11
 ```
 
 ![External DNS](image.png)
+
+Je n'ai pour l'instant pas trouvé d'autre solution que de définir manuellement l'IP cible souhaitée en tant qu'annotation dans mon ingress afin que la bonne IP soit affectée.
+
+Reste maintenant à configurer le routeur de la box pour rediriger le port 443 vers le port 32443 de notre $TALOS_IP, et nous devrions pouvoir accéder à notre application via internet !
