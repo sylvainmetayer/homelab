@@ -80,3 +80,88 @@ Commercial support is available at
 ```
 
 On accède à notre application depuis l'IP de notre node ! Il nous reste le certificat à gérer, ainsi que la configuration automatique des enregistrements DNS afin de pouvoir déployer notre application de manière plus ou moins automatisée.
+
+Commençons par installer les outils nécessaires pour générer un certificat pour notre ingress. J'utilise la validation ACME DNS avec mon domaine OVH, qui va déclarer un enregistrement DNS pour valider que l'on est bien le propriétaire du domaine. Ainsi, pas la peine d'ouvrir le port 80 pour valider le domaine via HTTP. On installe donc cert-manager et le plugin OVH associé. Pour cela, il faudra bien évidemment avoir des identifants pour interagir avec OVH, on se génère donc une clé d'API [ici](https://www.ovh.com/auth/api/createToken?GET=/*&POST=/*&PUT=/*&DELETE=/*)
+
+```bash
+cp values/cert-manager-ovh.EXAMPLE.yaml values/cert-manager-ovh.yaml
+# on mets à jour avec son domaine et ses clés d'API
+vim values/cert-manager-ovh.yaml
+
+# J'ai essayé de jouer avec les secrets helmfile et une intégration sops, mais n'arrive pas à merger les values et les secrets correctement, on va donc rester sur un fichier en mode gitignore pour l'instant.
+
+# Il faut installer en premier la release cert-manager qui installe les CRDs utilisés par le deuxième chart.
+helmfile apply -l module=cert-manager
+
+helmfile apply
+
+```
+
+Il nous reste à modifier notre ingress pour ajouter une annotation et la partie TLS, et notre certificat sera ensuite automatiquement généré par cert-manager.
+
+```bash
+k apply -f 02-test-ingress.yaml
+```
+
+Quand on regarde les logs de cert-manager, on voit que l'enregistrement est créé et qu'après quelques minutes, notre certificat est disponible !
+
+```
+I0303 21:51:07.162136       1 dns.go:90] "presenting DNS01 challenge for domain" logger="cert-manager.controller.Present" resource_name="nginx-sylvain-cloud-tls-1-772529587-1208554888" resource_namespace="default" resource_kind="Challenge" resource_version="v1" dnsName="nginx.sylvain.cloud" type="DNS-01" resource_name="nginx-sylvain-cloud-tls-1-772529587-1208554888" resource_namespace="default" resource_kind="Challenge" resource_version="v1" domain="nginx.sylvain.cloud"
+E0303 21:51:07.633314       1 sync.go:208] "propagation check failed" err="DNS record for \"nginx.sylvain.cloud\" not yet propagated" logger="cert-manager.controller" resource_name="nginx-sylvain-cloud-tls-1-772529587-1208554888" resource_namespace="default" resource_kind="Challenge" resource_version="v1" dnsName="nginx.sylvain.cloud" type="DNS-01"
+E0303 21:51:07.662802       1 sync.go:208] "propagation check failed" err="DNS record for \"nginx.sylvain.cloud\" not yet propagated" logger="cert-manager.controller" resource_name="nginx-sylvain-cloud-tls-1-772529587-1208554888" resource_namespace="default" resource_kind="Challenge" resource_version="v1" dnsName="nginx.sylvain.cloud" type="DNS-01"
+I0303 21:52:20.573016       1 acme.go:236] "certificate issued" logger="cert-manager.controller.sign" resource_name="nginx-sylvain-cloud-tls-1" resource_namespace="default"
+```
+
+```
+Name:         nginx-sylvain-cloud-tls
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  cert-manager.io/v1
+Kind:         Certificate
+Metadata:
+  Creation Timestamp:  2025-03-03T21:51:05Z
+  Generation:          1
+  Owner References:
+    API Version:           networking.k8s.io/v1
+    Block Owner Deletion:  true
+    Controller:            true
+    Kind:                  Ingress
+    Name:                  nginx
+    UID:                   4f18dc90-d006-4e69-932e-c960a0b2f37a
+  Resource Version:        5784
+  UID:                     9735a549-b349-4944-9996-933b4381a10b
+Spec:
+  Dns Names:
+    nginx.sylvain.cloud
+  Issuer Ref:
+    Group:      cert-manager.io
+    Kind:       ClusterIssuer
+    Name:       ovh
+  Secret Name:  nginx-sylvain-cloud-tls
+  Usages:
+    digital signature
+    key encipherment
+Status:
+  Conditions:
+    Last Transition Time:  2025-03-03T21:52:20Z
+    Message:               Certificate is up to date and has not expired
+    Observed Generation:   1
+    Reason:                Ready
+    Status:                True
+    Type:                  Ready
+  Not After:               2025-06-01T20:53:48Z
+  Not Before:              2025-03-03T20:53:49Z
+  Renewal Time:            2025-05-02T20:53:48Z
+  Revision:                1
+Events:
+  Type    Reason     Age    From                                       Message
+  ----    ------     ----   ----                                       -------
+  Normal  Issuing    2m53s  cert-manager-certificates-trigger          Issuing certificate as Secret does not exist
+  Normal  Generated  2m53s  cert-manager-certificates-key-manager      Stored new private key in temporary Secret resource "nginx-sylvain-cloud-tls-twvz7"
+  Normal  Requested  2m53s  cert-manager-certificates-request-manager  Created new CertificateRequest resource "nginx-sylvain-cloud-tls-1"
+  Normal  Issuing    98s    cert-manager-certificates-issuing          The certificate has been successfully issued
+```
+
+Il nous reste maintenant à trouver comment définir automatiquement l'enregistrement DNS pour accéder à notre service.
+
