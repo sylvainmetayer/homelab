@@ -1,0 +1,10 @@
+machine:
+  install:
+    extraKernelArgs:
+      - net.ifnames=0 # to get eth0 interfaces name
+cluster:
+  allowSchedulingOnControlPlanes: true
+  apiServer:
+    certSANs:
+      - 192.168.1.187
+      - 127.0.0.1
