@@ -163,5 +163,33 @@ Events:
   Normal  Issuing    98s    cert-manager-certificates-issuing          The certificate has been successfully issued
 ```
 
-Il nous reste maintenant à trouver comment définir automatiquement l'enregistrement DNS pour accéder à notre service.
+Il nous reste maintenant à trouver comment définir automatiquement l'enregistrement DNS pour accéder à notre service. Pour cela, nous allons installer ExternalDNS, qui va automatiquement créer les enregistrements DNS. OVH n'étant pas un provider compatible via le [chart helm](https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns#providers), on va suivre la [documentation disponible](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/ovh.md)
 
+```bash
+cp 03-external-dns.EXAMPLE.yaml 03-external-dns.yaml
+# on mets à jour avec son domaine et ses clés d'API
+vim 03-external-dns.yaml
+k apply -f 03-external-dns.yaml
+```
+
+Une fois installé, on peut voir qu'ExternalDNS va directement appliquer les changements de notre domaine par rapport à ce qui été définis dans nos ingress et nos services.
+
+```
+time="2025-03-03T22:19:25Z" level=info msg="OVH: 1 zones found"
+time="2025-03-03T22:19:26Z" level=info msg="OVH: 9 changes will be done"
+time="2025-03-03T22:19:26Z" level=info msg="OVH: 1 zones will be refreshed"
+time="2025-03-03T22:20:25Z" level=info msg="OVH: 1 zones found"
+time="2025-03-03T22:20:25Z" level=info msg="OVH: 14 endpoints have been found"
+time="2025-03-03T22:20:25Z" level=info msg="All records are already up to date"
+```
+
+Cependant, l'IP associée à l'enregistrement DNS est l'IP du service, et non mon IP externe.
+
+```
+Name:             nginx
+Labels:           <none>
+Namespace:        default
+Address:          10.100.60.11
+```
+
+![External DNS](image.png)

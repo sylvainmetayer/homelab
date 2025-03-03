@@ -3,3 +3,4 @@ secrets.yaml
 worker.yaml
 talosconfig
 values/cert-manager-ovh.yaml
+03-external-dns.yaml
