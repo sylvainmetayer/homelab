@@ -17,15 +17,21 @@ metadata:
   name: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: ovh
 spec:
   ingressClassName: nginx
   rules:
-  - http:
-      paths:
-      - path: /nginx
-        pathType: Prefix
-        backend:
-          service:
-            name: nginx
-            port:
-              number: 80
+    - host: nginx.sylvain.cloud
+      http:
+        paths:
+        - pathType: Prefix
+          path: /
+          backend:
+            service:
+              name: nginx
+              port:
+                number: 80
+  tls:
+  - hosts:
+    - nginx.sylvain.cloud
+    secretName: nginx-sylvain-cloud-tls

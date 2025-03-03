@@ -1,6 +1,10 @@
 repositories:
 - name: ingress-nginx
   url: https://kubernetes.github.io/ingress-nginx
+- name: cert-manager
+  url: https://charts.jetstack.io
+- name: cert-manager-webhook-ovh-charts
+  url: https://aureq.github.io/cert-manager-webhook-ovh/
 
 releases:
 - name: ingress-nginx
@@ -8,3 +12,21 @@ releases:
   chart: ingress-nginx/ingress-nginx
   values:
     - values/ingress-nginx.yaml
+- name: cert-manager
+  labels:
+    module: cert-manager
+  namespace: cert-manager
+  chart: cert-manager/cert-manager
+  createNamespace: true
+  version: v1.17.0
+  values:
+    - values/cert-manager.yaml
+- name: cert-manager-ovh
+  needs:
+    - cert-manager
+  namespace: cert-manager
+  chart: cert-manager-webhook-ovh-charts/cert-manager-webhook-ovh
+  version: 0.7.3
+  values:
+    - values/cert-manager-ovh.yaml
+
