@@ -5,6 +5,8 @@ repositories:
   url: https://charts.jetstack.io
 - name: cert-manager-webhook-ovh-charts
   url: https://aureq.github.io/cert-manager-webhook-ovh/
+- name: synology-csi-chart
+  url: https://zebernst.github.io/synology-csi-talos
 
 releases:
 - name: ingress-nginx
@@ -29,4 +31,9 @@ releases:
   version: 0.7.3
   values:
     - values/cert-manager-ovh.yaml
-
+- name: synology-csi
+  namespace: synology-csi
+  chart: synology-csi-chart/synology-csi
+  version: 0.9.5-pre.1
+  values:
+    - values/synology-csi.yaml

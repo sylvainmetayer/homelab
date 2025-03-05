@@ -192,8 +192,63 @@ Namespace:        default
 Address:          10.100.60.11
 ```
 
-![External DNS](image.png)
+![External DNS](images/external_dns.png)
 
 Je n'ai pour l'instant pas trouvé d'autre solution que de définir manuellement l'IP cible souhaitée en tant qu'annotation dans mon ingress afin que la bonne IP soit affectée.
 
 Reste maintenant à configurer le routeur de la box pour rediriger le port 443 vers le port 32443 de notre $TALOS_IP, et nous devrions pouvoir accéder à notre application via internet !
+
+Prochaine brique : la persistence de données. Pour cela, je souhaite utiliser mon NAS (DS216j), qui va pouvoir servir à provisionner de manière dynamique des volumes. Talos propose un [guide](https://www.talos.dev/v1.9/kubernetes-guides/configuration/synology-csi/) pour configurer cela, on va donc le suivre.
+
+TODO : Trouver comment appliquer de manière distante un kustomization
+
+```bash
+init.sh
+kubectl apply -f external_templates
+```
+
+Un inconvénient est que Synology nécessite un compte avec des privilèges administrateurs, comme indiqué sur [cet article](https://faber.sh/Docs/Synology#Setup+CSI+provider+on+OpenShift). Heureusement, il est possible de limiter l'accès, on va donc suivre la procédure décrite dans l'article pour créer l'utilisateur avec des droits restreints, et installer le chart.
+
+```bash
+cp values/synology-csi.EXAMPLE.yaml values/synology-csi.yaml
+vim values/synology-csi.yaml # définir le mot de passe, nom d'utilisateur et IP du NAS
+kubectl create ns synology-csi
+kubectl label namespace synology-csi pod-security.kubernetes.io/enforce=privileged
+helmfile apply
+```
+
+Comme on peut le voir, il est nécessaire d'autoriser le namespace synology a avoir des politiques de sécurité plus permissives, car les droits par défaut sont trop restrictif pour permettre l'installation du chart. On ajoute donc, comme indiqué dans la [documentation](https://www.talos.dev/v1.9/kubernetes-guides/configuration/pod-security/), un label sur le namespace dans lequel on va installer le chart.
+
+Il nous reste à configurer les storageClass et à faire un test pour voir si le provisionnement fonctionne correctement.
+
+```bash
+kubectl apply -f 04-storage-class.yaml
+kubectl apply -f 05-perfs.yaml
+```
+
+On constate alors le résultat suivant si l'on regarde les évènements du namespace `default`:
+
+```text
+MountVolume.MountDevice failed for volume "pvc-5616d110-e3f7-45a8-b113-32cc717dad55" : rpc error: code = Internal desc = rpc error: code = Internal desc = Failed to login with target iqn [iqn.2000-01.com.synology:sylvain-data.pvc-5616d110-e3f7-45a8-113-32cc717dad55[], err: nsenter: cannot open /proc//ns/mnt: No such file or directory
+```
+
+![LUN](images/nas-lun.png)
+
+Dans mon NAS, je vois bien le LUN créé, cependant, on dirait qu'il nous manque quelque chose. Comme indiqué dans la documentation, il faut utiliser une image avec les extensions ISCI installées. Pour cela, se rendre sur [fatory.talos.dev](https://factory.talos.dev/?arch=amd64&cmdline-set=true&extensions=-&extensions=siderolabs%2Fiscsi-tools&platform=nocloud&target=cloud&version=1.9.4) et installer l'image custom. Si comme dans notre cas, on a déjà un Talos d'installé, on peut alors le mettre à jour
+
+```bash
+talosctl --talosconfig=./talosconfig upgrade -e $TALOS_IP -n $TALOS_IP --image factory.talos.dev/installer/c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac:v1.9.4
+```
+
+Notre node va alors redémarrer et installer l'extension manquante. On peut alors consulter les logs de nos 2 pods pour voir les performances
+
+```text
+# écriture
+2147479552 bytes (2.1 GB, 2.0 GiB) copied, 30.4492 s, 70.5 MB/s
+# lecture
+2147479552 bytes (2.1 GB, 2.0 GiB) copied, 25.2459 s, 85.1 MB/s
+```
+
+On est loin de performance extraordinaire, et il est surement possible d'avoir de meilleures performances en configurant mieux le réseau et/ou le chart, cependant, ça fonctionne !
+
+Prochaine étape : Tout supprimer, et réinstaller ça *as code* !
