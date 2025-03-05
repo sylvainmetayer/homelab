@@ -1,0 +1,28 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  name: synology
+provisioner: csi.san.synology.com
+parameters:
+  fsType: 'ext4'
+  protocol: iscsi
+  dsm: '192.168.1.28'
+  location: '/volume1'
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: synology
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+driver: csi.san.synology.com
+deletionPolicy: Delete
+parameters:
+  description: 'Kubernetes CSI'
+  is_locked: 'false'
+

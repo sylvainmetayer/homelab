@@ -1,9 +1,11 @@
 [env]
 SOPS_AGE_KEY_FILE = '~/.age.key'
 TALOS_IP="192.168.1.187"
+TALOSCONFIG="~/homelab/talosconfig"
 
 [tools]
 helm = "3.17"
 helmfile = "0.171"
 kubectl = "1.32"
+kubectx = "0.9"
 # opentofu = '1.9.0'
