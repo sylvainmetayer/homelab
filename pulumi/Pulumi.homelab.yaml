@@ -1,0 +1,6 @@
+encryptionsalt: v1:W5vvxSFefwE=:v1:xuBzeaK8ICwFvWAO:57f5QGQ7+PPYfg0Ozp//YYlUvprSGQ==
+config:
+  homelab:proxmox_api_token:
+    secure: v1:sFb3Z8yNcj6ymxtK:bm0FXSV11DuBE6DpIFjbkquYiuyNe5g8AyxXI7mjg24UxOp5Pi+OJMat5/xEy+55Um6jn5PcOhJ/J404In6KKinOX6c=
+  homelab:proxmox_endpoint:
+    secure: v1:et5/3f5RSAHQLFjw:1L0Nk1P6UPkOMNR7q7LbepfC7vO+VUJHN9ItlR23i6NnD1X5sGFsNoTSfciGaA==
