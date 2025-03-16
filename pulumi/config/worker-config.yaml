@@ -1,0 +1,13 @@
+machine:
+  type: worker
+  install:
+    disk: "/dev/sda"
+    extraKernelArgs:
+      - net.ifnames=0 # to get eth0 interfaces name
+#cluster:
+  # TODO
+  # proxy:
+  #   disabled: true
+  # network:
+  #   cni:
+  #     name: none # On installera Cilium manuellement
