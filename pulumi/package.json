@@ -1,15 +1,20 @@
 {
     "name": "homelab",
     "main": "index.ts",
+    "type": "module",
     "scripts": {
         "start": "pulumi up"
     },
     "devDependencies": {
+        "@types/js-yaml": "^4.0.9",
         "@types/node": "^18",
         "typescript": "^5.0.0"
     },
     "dependencies": {
+        "ts-node": "^10.4.0",
         "@muhlba91/pulumi-proxmoxve": "^6.18.1",
-        "@pulumi/pulumi": "^3.113.0"
+        "@pulumi/pulumi": "^3.113.0",
+        "@pulumiverse/talos": "^0.5.2",
+        "js-yaml": "^4.1.0"
     }
 }

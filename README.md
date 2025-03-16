@@ -15,6 +15,7 @@ mise plugins add pulumni https://github.com/canha/asdf-pulumi.git
 ### Configuration State pulumi
 
 ```
+cd pulumi
 aws configure # définir access/secret key et `fr-par` en région
 pulumi login 's3://pulumi-state?endpoint=https://s3.fr-par.scw.cloud&s3ForcePathStyle=true&region=fr-par'
 ```
@@ -32,4 +33,41 @@ pulumi up
 ```
 
 On est capable de récupérer des informations et de communiquer avec Promox, on va pouvoir créer des VMs !
+
+Un fois la configuration ajoutée pour la VM, on peut constater qu'elle est créé dans Proxmox.
+
+On configure donc avec le provider Pulumi notre machineConfig avec notre patch pour démarrer notre cluster Talos. On note ici qu'on a également rajouté un worker.
+
+Côté Pulumi, il est nécessaire de wrapper les outputs dans des promesses pour récupérer les valeurs des IPs. TODO il y a surement une manière plus propre de faire cela => on peut faire de l'async/await
+
+```
+pulumi up
+pulumi refresh 
+pulumi up --diff
+# FIXME pulumi refresh + import worker boostrap sinon, les boostrap requests sont en double ?
+```
+
+Je n'ai pour l'instant pas trouvé comment récupérer les IPs assignées par le DHCP autrement qu'en faisant un premier refresh et ensuite un autre apply.
+
+```
+
+pulumi stack output talosConfig --show-secrets > talosconfig
+talosctl kubeconfig -n CONTROL_PLANE_IP
+# on peut omettre talosconfig avec la variable d'env TALOSCONFIG, voir mise.toml
+
+talosctl config endpoint CONTROL_PLANE_IP
+talosctl config nodes CONTROL_PLANE_IP WORKER_IP
+
+talosctl health --talosconfig=./talosconfig
+talosctl dmesg --talosconfig=./talosconfig
+```
+
+Et on a maintenant un cluster Kubernetes fonctionnel ! 
+
+```
+$ kubectl get nodes
+NAME       STATUS   ROLES           AGE     VERSION
+host-003   Ready    control-plane   3m13s   v1.32.0
+host-010   Ready    <none>          3m22s   v1.32.0
+```
 
