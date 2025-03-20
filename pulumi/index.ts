@@ -155,3 +155,6 @@ const workerBootstrap = new talos.machine.Bootstrap("workerBoostrap", {
 }, { dependsOn: [workerConfigurationApply, controlPlaneConfigurationApply] });
 
 export const talosConfig = talosConfiguration.talosConfig;
+
+// https://www.pulumi.com/registry/packages/talos/api-docs/cluster/getkubeconfig/
+// https://www.pulumi.com/registry/packages/flux/api-docs/fluxbootstrapgit/
