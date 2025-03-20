@@ -4,9 +4,11 @@ PULUMI_CONFIG_PASSPHRASE_FILE=".pulumi_passphrase.key"
 
 [tools]
 aws = "2"
+flux2 = "2"
 helm = "3.17"
 helmfile = "0.171"
 jq = "1"
+k9s = "latest"
 kubectl = "1.32"
 kubectx = "0.9"
 node = "23"

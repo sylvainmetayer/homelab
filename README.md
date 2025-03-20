@@ -40,14 +40,14 @@ On configure donc avec le provider Pulumi notre machineConfig avec notre patch p
 
 Côté Pulumi, il est nécessaire de wrapper les outputs dans des promesses pour récupérer les valeurs des IPs. TODO il y a surement une manière plus propre de faire cela => on peut faire de l'async/await
 
-```
+```shell
 pulumi up
 pulumi refresh 
 pulumi up --diff
 # FIXME pulumi refresh + import worker boostrap sinon, les boostrap requests sont en double ?
 ```
 
-Je n'ai pour l'instant pas trouvé comment récupérer les IPs assignées par le DHCP autrement qu'en faisant un premier refresh et ensuite un autre apply.
+Je n'ai pour l'instant pas trouvé comment récupérer les IPs assignées par le DHCP autrement qu'en faisant un premier refresh et ensuite un autre apply. Une option serait de définir les IPs en dur dans la config talos des worker et du control plane.
 
 ```
 
@@ -58,8 +58,8 @@ talosctl kubeconfig -n CONTROL_PLANE_IP
 talosctl config endpoint CONTROL_PLANE_IP
 talosctl config nodes CONTROL_PLANE_IP WORKER_IP
 
-talosctl health --talosconfig=./talosconfig
-talosctl dmesg --talosconfig=./talosconfig
+talosctl health -n CONTROL_PLANE_IP 
+talosctl dmesg
 ```
 
 Et on a maintenant un cluster Kubernetes fonctionnel ! 
@@ -71,3 +71,21 @@ host-003   Ready    control-plane   3m13s   v1.32.0
 host-010   Ready    <none>          3m22s   v1.32.0
 ```
 
+On va maintenant brancher flux pour automatiser l'installation des ressources du cluter en mode GitOps. Pour l'instant, on va suivre bêtement la [documentation](https://fluxcd.io/flux/get-started/) et on verra plus tard comme automatiser ça.
+
+Pour les permissions du token, il faut à minima ça (en considérant que le dépôt existe déjà) 
+
+![github-token-permission.png](images/github-token-permission.png)
+
+```
+flux bootstrap github \
+  --owner=$GITHUB_USER \
+  --repository=homelab \
+  --branch=main \
+  --path=./clusters/homelab \
+  --personal
+```
+
+On continue le tuto, et on commit dans notre dossier "clusters/homelab/default" l'application podinfo, qui va automatiquement être rajoutée au cluster. 
+
+Prochaine étape : installer les composants de notre cluster via flux !
