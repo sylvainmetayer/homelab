@@ -1,0 +1,10 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: homelab
+spec:
+  interval: 5m
+  ref:
+    branch: main
+  url: ssh://git@github.com/sylvainmetayer/homelab

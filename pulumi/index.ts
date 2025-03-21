@@ -158,3 +158,4 @@ export const talosConfig = talosConfiguration.talosConfig;
 
 // https://www.pulumi.com/registry/packages/talos/api-docs/cluster/getkubeconfig/
 // https://www.pulumi.com/registry/packages/flux/api-docs/fluxbootstrapgit/
+// https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/
