@@ -1,6 +1,6 @@
 [env]
-TALOSCONFIG="./talosconfig"
-PULUMI_CONFIG_PASSPHRASE_FILE=".pulumi_passphrase.key"
+TALOSCONFIG = "./talosconfig"
+PULUMI_CONFIG_PASSPHRASE_FILE = ".pulumi_passphrase.key"
 
 [tools]
 aws = "2"

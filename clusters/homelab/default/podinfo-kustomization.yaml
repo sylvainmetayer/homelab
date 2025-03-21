@@ -4,6 +4,8 @@ metadata:
   name: podinfo
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: flux-system
   interval: 30m0s
   path: ./kustomize
   prune: true
