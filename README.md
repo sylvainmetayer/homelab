@@ -44,21 +44,16 @@ Côté Pulumi, il est nécessaire de wrapper les outputs dans des promesses pour
 pulumi up
 pulumi refresh 
 pulumi up --diff
-# FIXME pulumi refresh + import worker boostrap sinon, les boostrap requests sont en double ?
-```
-
-Je n'ai pour l'instant pas trouvé comment récupérer les IPs assignées par le DHCP autrement qu'en faisant un premier refresh et ensuite un autre apply. Une option serait de définir les IPs en dur dans la config talos des worker et du control plane.
-
-```
+# FIXME pulumi refresh + import worker boostrap sinon, les boostrap sont en double ?
 
 pulumi stack output talosConfig --show-secrets > talosconfig
-talosctl kubeconfig -n CONTROL_PLANE_IP
+talosctl kubeconfig -n 192.168.1.201
 # on peut omettre talosconfig avec la variable d'env TALOSCONFIG, voir mise.toml
 
-talosctl config endpoint CONTROL_PLANE_IP
-talosctl config nodes CONTROL_PLANE_IP WORKER_IP
+talosctl config endpoint 192.168.1.201 
+talosctl config nodes 192.168.1.201 192.168.1.211 192.168.1.212 192.168.1.213
 
-talosctl health -n CONTROL_PLANE_IP 
+talosctl health -n 192.168.1.201 
 talosctl dmesg
 ```
 
@@ -89,3 +84,10 @@ flux bootstrap github \
 On continue le tuto, et on commit dans notre dossier "clusters/homelab/default" l'application podinfo, qui va automatiquement être rajoutée au cluster. 
 
 Prochaine étape : installer les composants de notre cluster via flux !
+
+Avant cela, on fait un peu évoluer le code pulumi, pour ajouter des IPs statiques côté DHCP de ma box. Je n'ai pas trouvé comment faire autrement qu'en figeant les MACs côté Proxmox pour le moment, mais cela fonctionne. 
+
+J'aurai pu me baser sur le hostname de la machine, mais je me retrouve constamment avec des hostname `Host-001`, ... qui ne sont pas constant.
+
+J'en profite également pour partir sur 3 machines pour les workers, et ajouter une [VIP](https://www.talos.dev/v1.9/talos-guides/network/vip/) pour permettre d'avoir un seul point d'entrée sur l'API Kubernetes (même si ce n'est pas très utile avec un seul CP, on verra plus tard quand on en ajoute d'autres).
+

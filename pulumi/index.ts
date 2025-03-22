@@ -6,7 +6,8 @@ import * as talos from "@pulumiverse/talos";
 import * as yaml from 'js-yaml';
 import { readFileSync } from 'fs';
 import { ConfigurationApplyArgs, GetConfigurationOutputArgs } from "@pulumiverse/talos/machine";
-
+import { commonVmParams, macIpMapping } from "./config";
+import { Bootstrap } from "@pulumiverse/talos/machine/bootstrap";
 // support for async/await : https://github.com/pulumi/pulumi/issues/5161#issuecomment-1010018506
 const config = new Config();
 
@@ -22,90 +23,58 @@ const talosVersion = "1.9.5";
 const url = await talos.imagefactory.getUrls({ schematicId, talosVersion, platform: "nocloud" })
 const talosIso = new proxmox.download.File("talos", { datastoreId: "local", url: url.urls.iso, nodeName: "proxmox", fileName: "talos-ext.iso", contentType: "iso" }, { provider });
 
-const hardwareRequirements: Partial<VirtualMachineArgs> = {
-    cpu: {
-        cores: 2,
-        sockets: 1,
-        type: "x86-64-v2-AES",
-    },
-    memory: {
-        dedicated: 4096,
-        floating: 4096
-    },
-    cdrom: {
-        enabled: true,
-        fileId: pulumi.interpolate`${talosIso.datastoreId}:${talosIso.contentType}/${talosIso.fileName}`,
-    },
-    disks: [{
-        speed: {
-            iopsRead: 0,
-            iopsReadBurstable: 0,
-            iopsWrite: 0,
-            iopsWriteBurstable: 0,
-            read: 0,
-            readBurstable: 0,
-            write: 0,
-            writeBurstable: 0
-        },
-        interface: "scsi0",
-        datastoreId: "local-lvm",
-        fileFormat: "raw",
-        size: 32,
-    }],
-    networkDevices: [{
-        enabled: true,
-        bridge: "vmbr0",
-        model: "virtio",
-        firewall: true
-    }],
-}
+const vmIpDefinitions = macIpMapping;
 
-const talosControlPlane = new VirtualMachine("talos-control-plane", {
-    name: "talos-control-plane",
-    nodeName: "proxmox",
-    poolId: "Kubernetes",
-    tags: ["k8s", "pulumi", "cp"],
-    ...hardwareRequirements,
-    onBoot: true,
-    agent: {
-        enabled: true
-    }
-}, { provider, ignoreChanges: ["disks[0].speed"] });
+const controlPlanes: Array<{ ip: string, vm: VirtualMachine }> = [];
+const computeNodes: Array<{ ip: string, vm: VirtualMachine }> = [];
 
-const talosCompute = new VirtualMachine("talos-compute-01", {
-    name: "talos-compute-01",
-    nodeName: "proxmox",
-    poolId: "Kubernetes",
-    tags: ["k8s", "pulumi", "compute"],
-    ...hardwareRequirements,
-    onBoot: true,
-    agent: {
-        enabled: true
-    }
-}, { provider, ignoreChanges: ["disks[0].speed"] });
+vmIpDefinitions.controlPlane.forEach((element, i) => {
+    i = i + 1;
+    const name = `talos-control-plane-${i}`;
+    const vm = new VirtualMachine(name, {
+        name,
+        tags: ["k8s", "pulumi", "cp"],
+        ...commonVmParams(
+            pulumi.interpolate`${talosIso.datastoreId}:${talosIso.contentType}/${talosIso.fileName}`,
+            element.macAddress
+        )
 
+    }, { provider, ignoreChanges: ["disks[0].speed"] });
+    controlPlanes.push({ ip: element.ip, vm });
+});
+
+vmIpDefinitions.worker.forEach((element, i) => {
+    i = i + 1;
+    const name = `talos-compute-${i}`;
+    const vm = new VirtualMachine(name, {
+        name,
+        tags: ["k8s", "pulumi", "compute"],
+        ...commonVmParams(
+            pulumi.interpolate`${talosIso.datastoreId}:${talosIso.contentType}/${talosIso.fileName}`,
+            element.macAddress
+        )
+
+    }, { provider, ignoreChanges: ["disks[0].speed"] });
+    computeNodes.push({ ip: element.ip, vm });
+});
 
 // TALOS
-const talosSecrets = new talos.machine.Secrets("homelab", { talosVersion }, { dependsOn: [talosCompute, talosControlPlane] });
 
-// TODO filter empty, remove 127.0.0.1
-// FIXME Why [7][0] ?;
+const vmDependsOn = [...controlPlanes.map(i => i.vm), ...computeNodes.map(i => i.vm)];
+const clusterEndpoint = vmIpDefinitions.controlPlane[0].ip;
 
-export const controlPlaneIp = talosControlPlane.ipv4Addresses[7][0];
-export const computeIp = talosCompute.ipv4Addresses[7][0];
-
-const nodes = [controlPlaneIp, computeIp];
+const talosSecrets = new talos.machine.Secrets("homelab", { talosVersion }, { dependsOn: vmDependsOn });
 
 const talosConfiguration = talos.client.getConfigurationOutput({
     clusterName: "homelab",
-    endpoints: [pulumi.interpolate`${controlPlaneIp}`],
-    nodes,
+    endpoints: vmIpDefinitions.controlPlane.map(i => i.ip),
+    nodes: vmIpDefinitions.controlPlane.map(i => i.ip).concat(vmIpDefinitions.worker.map(i => i.ip)),
     clientConfiguration: talosSecrets.clientConfiguration
-}, { dependsOn: [talosCompute, talosControlPlane] });
+}, { dependsOn: vmDependsOn });
 
 const commonConfig: Omit<GetConfigurationOutputArgs, "machineType"> = {
     clusterName: "homelab",
-    clusterEndpoint: pulumi.interpolate`https://${controlPlaneIp}:6443`,
+    clusterEndpoint: `https://${clusterEndpoint}:6443`,
     machineSecrets: talosSecrets.machineSecrets,
     talosVersion
 }
@@ -113,49 +82,62 @@ const commonConfig: Omit<GetConfigurationOutputArgs, "machineType"> = {
 const controlPlaneMachineConfiguration = talos.machine.getConfigurationOutput({
     ...commonConfig,
     machineType: "controlplane",
-}, { dependsOn: [talosCompute, talosControlPlane] });
+}, { dependsOn: vmDependsOn });
 
 const workerMachineConfiguration = talos.machine.getConfigurationOutput({
     ...commonConfig,
     machineType: "worker"
-}, { dependsOn: [talosCompute, talosControlPlane] });
+}, { dependsOn: vmDependsOn });
 
-const configurationApply = (filename: 'control-plane' | 'worker-config'): Omit<ConfigurationApplyArgs, "node" | "machineConfigurationInput"> => ({
-    configPatches: [
-        JSON.stringify(
-            yaml.load(
-                readFileSync(`config/${filename}.yaml`, { encoding: 'utf-8' })
+const boostrapDependsOn: Bootstrap[] = [];
+vmIpDefinitions.controlPlane.forEach((item, i) => {
+    i = i + 1;
+    const suffix = `control-plane-${i}`;
+    const controlPlaneConfigurationApply = new talos.machine.ConfigurationApply(`talos-config-${suffix}`, {
+        configPatches: [
+            JSON.stringify(
+                yaml.load(
+                    readFileSync(`config/control-plane.yaml`, { encoding: 'utf-8' }).replace("{HOSTNAME}", `homelab-cp-${i}`).replace("{IP}", item.ip)
+                )
             )
-        )
-    ],
-    clientConfiguration: talosSecrets.clientConfiguration
+        ],
+        clientConfiguration: talosSecrets.clientConfiguration,
+        node: item.ip,
+        machineConfigurationInput: controlPlaneMachineConfiguration.machineConfiguration
+    }, { dependsOn: vmDependsOn });
+
+    const controlPlaneBootstrap = new talos.machine.Bootstrap(`talos-boostrap-${suffix}`, {
+        node: item.ip,
+        clientConfiguration: talosSecrets.clientConfiguration
+    }, { dependsOn: controlPlaneConfigurationApply });
+    boostrapDependsOn.push(controlPlaneBootstrap);
 });
 
-const controlPlaneConfigurationApply = new talos.machine.ConfigurationApply("controlPlaneConfigurationApply", {
-    ...configurationApply("control-plane"),
-    node: controlPlaneIp,
-    machineConfigurationInput: controlPlaneMachineConfiguration.machineConfiguration
-}, { dependsOn: [talosControlPlane, talosCompute] });
+vmIpDefinitions.worker.forEach((item, i) => {
+    i = i + 1;
+    const suffix = `worker-${i}`;
+    const controlPlaneConfigurationApply = new talos.machine.ConfigurationApply(`talos-config-${suffix}`, {
+        configPatches: [
+            JSON.stringify(
+                yaml.load(
+                    readFileSync(`config/worker-config.yaml`, { encoding: 'utf-8' }).replace("{HOSTNAME}", `homelab-wo-${i}`).replace("{IP}", item.ip)
+                )
+            )
+        ],
+        clientConfiguration: talosSecrets.clientConfiguration,
+        node: item.ip,
+        machineConfigurationInput: workerMachineConfiguration.machineConfiguration
+    }, { dependsOn: vmDependsOn });
 
-const workerConfigurationApply = new talos.machine.ConfigurationApply("workerConfigurationApply", {
-    ...configurationApply("worker-config"),
-    node: computeIp,
-    machineConfigurationInput: workerMachineConfiguration.machineConfiguration
-}, { dependsOn: [talosControlPlane, talosCompute] });
-
-const controlPlaneBootstrap = new talos.machine.Bootstrap("controlPlaneBoostrap", {
-    node: controlPlaneIp,
-    clientConfiguration: talosSecrets.clientConfiguration
-}, { dependsOn: controlPlaneConfigurationApply });
-
-
-const workerBootstrap = new talos.machine.Bootstrap("workerBoostrap", {
-    node: computeIp,
-    clientConfiguration: talosSecrets.clientConfiguration
-}, { dependsOn: [workerConfigurationApply, controlPlaneConfigurationApply] });
+    const controlPlaneBootstrap = new talos.machine.Bootstrap(`talos-boostrap-${suffix}`, {
+        node: item.ip,
+        clientConfiguration: talosSecrets.clientConfiguration
+    }, { dependsOn: [...boostrapDependsOn, controlPlaneConfigurationApply] });
+})
 
 export const talosConfig = talosConfiguration.talosConfig;
 
 // https://www.pulumi.com/registry/packages/talos/api-docs/cluster/getkubeconfig/
 // https://www.pulumi.com/registry/packages/flux/api-docs/fluxbootstrapgit/
 // https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/
+// https://github.com/siderolabs/talos/discussions/6970
