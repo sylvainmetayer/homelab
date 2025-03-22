@@ -1,4 +1,20 @@
 machine:
+  network:
+    hostname: {HOSTNAME}
+    interfaces:
+          - interface: eth0
+            vip:
+              ip: 192.168.1.200
+            addresses:
+              - "{IP}/24"
+            routes:
+              - network: "0.0.0.0/0"
+                gateway: 192.168.1.254
+                metric: 1024
+            mtu: 1500
+    nameservers:
+        - 192.168.1.254
+        - 9.9.9.9
   type: controlplane
   install:
     disk: "/dev/sda"
@@ -11,4 +27,4 @@ cluster:
   # network:
   #   cni:
   #     name: none # On installera Cilium manuellement
-  allowSchedulingOnControlPlanes: true
+  allowSchedulingOnControlPlanes: false
