@@ -63,6 +63,7 @@ export const commonVmParams = (fileId: Output<string>, macAddress: string) => ({
     onBoot: true,
     agent: {
         enabled: true
-    }
+    },
+    started: true,
 });
 

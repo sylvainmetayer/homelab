@@ -47,7 +47,8 @@ pulumi up --diff
 # FIXME pulumi refresh + import worker boostrap sinon, les boostrap sont en double ?
 
 pulumi stack output talosConfig --show-secrets > talosconfig
-talosctl kubeconfig -n 192.168.1.201
+mkdir -p ~/.kube
+pulumi stack output kubeconfig --show-secrets > ~/.kube/config
 # on peut omettre talosconfig avec la variable d'env TALOSCONFIG, voir mise.toml
 
 talosctl config endpoint 192.168.1.201 
@@ -55,6 +56,7 @@ talosctl config nodes 192.168.1.201 192.168.1.211 192.168.1.212 192.168.1.213
 
 talosctl health -n 192.168.1.201 
 talosctl dmesg
+talosctl dashboard 
 ```
 
 Et on a maintenant un cluster Kubernetes fonctionnel ! 
