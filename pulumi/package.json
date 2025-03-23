@@ -11,10 +11,13 @@
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "ts-node": "^10.4.0",
         "@muhlba91/pulumi-proxmoxve": "^6.18.1",
+        "@pulumi/github": "^6.7.0",
         "@pulumi/pulumi": "^3.113.0",
+        "@pulumi/tls": "^5.1.1",
         "@pulumiverse/talos": "^0.5.2",
-        "js-yaml": "^4.1.0"
+        "@worawat/flux": "^1.0.1",
+        "js-yaml": "^4.1.0",
+        "ts-node": "^10.4.0"
     }
 }

@@ -4,3 +4,5 @@ config:
     secure: v1:sFb3Z8yNcj6ymxtK:bm0FXSV11DuBE6DpIFjbkquYiuyNe5g8AyxXI7mjg24UxOp5Pi+OJMat5/xEy+55Um6jn5PcOhJ/J404In6KKinOX6c=
   homelab:proxmox_endpoint:
     secure: v1:et5/3f5RSAHQLFjw:1L0Nk1P6UPkOMNR7q7LbepfC7vO+VUJHN9ItlR23i6NnD1X5sGFsNoTSfciGaA==
+  github:token:
+    secure: v1:5Nl0GZgKc9x8jkhm:PnMQd/mMVnXvfygR+hzn45PP5xl//WkveMak6ImkNuESi+KVQA9weTZrEo/sEIj+c5UpTBH7npn5oq484IQ3YexiEFuxUwRkA862eaQYOehV2G05iqRPGWaYAaf5W+0lhr2ULlXyEWhj/sbwXA==

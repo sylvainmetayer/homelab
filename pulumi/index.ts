@@ -8,6 +8,10 @@ import { readFileSync } from 'fs';
 import { ConfigurationApplyArgs, GetConfigurationOutputArgs } from "@pulumiverse/talos/machine";
 import { commonVmParams, macIpMapping } from "./config";
 import { Bootstrap } from "@pulumiverse/talos/machine/bootstrap";
+import { CertRequest, LocallySignedCert, PrivateKey, SelfSignedCert } from "@pulumi/tls";
+import { RepositoryDeployKey } from "@pulumi/github";
+import * as flux from "@worawat/flux";
+
 // support for async/await : https://github.com/pulumi/pulumi/issues/5161#issuecomment-1010018506
 const config = new Config();
 
@@ -53,7 +57,6 @@ vmIpDefinitions.worker.forEach((element, i) => {
             pulumi.interpolate`${talosIso.datastoreId}:${talosIso.contentType}/${talosIso.fileName}`,
             element.macAddress
         )
-
     }, { provider, ignoreChanges: ["disks[0].speed"] });
     computeNodes.push({ ip: element.ip, vm });
 });
@@ -129,11 +132,27 @@ vmIpDefinitions.worker.forEach((item, i) => {
         machineConfigurationInput: workerMachineConfiguration.machineConfiguration
     }, { dependsOn: vmDependsOn });
 
-    const controlPlaneBootstrap = new talos.machine.Bootstrap(`talos-boostrap-${suffix}`, {
-        node: item.ip,
-        clientConfiguration: talosSecrets.clientConfiguration
-    }, { dependsOn: [...boostrapDependsOn, controlPlaneConfigurationApply] });
+    // Trust me, they are already boostraped. Eventually uncomment this if needed.
+    // const controlPlaneBootstrap = new talos.machine.Bootstrap(`talos-boostrap-${suffix}`, {
+    //     node: item.ip,
+    //     clientConfiguration: talosSecrets.clientConfiguration
+    // }, { dependsOn: [...boostrapDependsOn, controlPlaneConfigurationApply] });
+    // boostrapDependsOn.push(controlPlaneBootstrap);
 })
+
+const getKubeconfig = (): Promise<string> => new Promise(resolve => {
+    talosConfiguration.clientConfiguration.apply(async c => {
+        const kubeconfigResult = await talos.cluster.getKubeconfig({
+            clientConfiguration: c,
+            node: clusterEndpoint,
+        });
+        return resolve(kubeconfigResult.kubeconfigRaw);
+    })
+})
+
+// https://archive.pulumi.com/t/12112464/hi-all-any-solution-for-argument-of-type-output-lt-string-gt#064d59d8-7726-466d-8363-24176958b557
+export const kubeconfig = pulumi.secret(await getKubeconfig());
+
 
 export const talosConfig = talosConfiguration.talosConfig;
 
