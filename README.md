@@ -104,3 +104,10 @@ pulumi up
 ```
 
 Il nous reste à modifier les sources dans notre dépôt Git pour déployer nos applications. En théorie, nous n'aurons plus à toucher au code pulumi, le reste sera côté YAML.
+
+En modifiant la kustomization dans le dossier `flux`, on va pouvoir déclarer petit à petit nos applications dépendantes. Et à la prochaine synchronisation, on devrait voir notre service de test se déployer (ou on peut forcer une synchro avec la [commande](https://duyhenryer.github.io/docs/flux/#useful-commands) `flux reconcile source git flux-system` si on est impatient !)
+
+## Sources
+
+- https://une-tasse-de.cafe/blog/talos/
+- https://gitlab.com/davinkevin.fr/home-server
