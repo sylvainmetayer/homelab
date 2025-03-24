@@ -107,6 +107,12 @@ Il nous reste à modifier les sources dans notre dépôt Git pour déployer nos 
 
 En modifiant la kustomization dans le dossier `flux`, on va pouvoir déclarer petit à petit nos applications dépendantes. Et à la prochaine synchronisation, on devrait voir notre service de test se déployer (ou on peut forcer une synchro avec la [commande](https://duyhenryer.github.io/docs/flux/#useful-commands) `flux reconcile source git flux-system` si on est impatient !)
 
+Quelques typos plus tard, nous voilà avec notre première kustomization déployée... Qui certes, ne fait rien à part déclarer un service, mais cela signifie que toutes les briques sont présentes et fonctionnelles !
+
+![typo](images/typo.png)
+
+![Kustomization](images/kustomization.png)
+
 ## Sources
 
 - https://une-tasse-de.cafe/blog/talos/
