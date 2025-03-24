@@ -93,3 +93,14 @@ J'aurai pu me baser sur le hostname de la machine, mais je me retrouve constamme
 
 J'en profite également pour partir sur 3 machines pour les workers, et ajouter une [VIP](https://www.talos.dev/v1.9/talos-guides/network/vip/) pour permettre d'avoir un seul point d'entrée sur l'API Kubernetes (même si ce n'est pas très utile avec un seul CP, on verra plus tard quand on en ajoute d'autres).
 
+On va maintenant voir pour installer fluxCD depuis pulumi, afin d'avoir le bootstrap des configuration de notre cluster. Pour cela, il faut commencer par générer une clé SSH et la définir dans les paramètres du dépôt Github. Il nous faut donc un token Github avec les droits `Read code` et `Read/Write Administration`, uniquement sur notre dépôt que l'on défini en tant que secret avec la commande `pulumi config set github:token GITHUB_PAT --secret`
+
+En suivant l'exemple disponible [ici](https://github.com/oun/pulumi-flux/blob/main/examples/nodejs/flux-sync/index.ts), on voit que l'on peut créer une installation de Flux puis récupérer la synchronisation de notre dépôt. Je n'ai pas commit les fichiers comme dans l'exemple, car je préfère laisser renovate faire les mises à jour et que flux CD soit 100% en lecture seule (on y viendra plus tard).
+
+```
+pulumi up
+# Attention, il faut potentiellement l'appliquer 2 fois, en cas d'erreur de CRD manquante
+pulumi up
+```
+
+Il nous reste à modifier les sources dans notre dépôt Git pour déployer nos applications. En théorie, nous n'aurons plus à toucher au code pulumi, le reste sera côté YAML.

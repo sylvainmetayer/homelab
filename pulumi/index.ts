@@ -4,13 +4,15 @@ import { VirtualMachine, VirtualMachineArgs } from "@muhlba91/pulumi-proxmoxve/v
 import { Config, Output } from "@pulumi/pulumi";
 import * as talos from "@pulumiverse/talos";
 import * as yaml from 'js-yaml';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { ConfigurationApplyArgs, GetConfigurationOutputArgs } from "@pulumiverse/talos/machine";
 import { commonVmParams, macIpMapping } from "./config";
 import { Bootstrap } from "@pulumiverse/talos/machine/bootstrap";
 import { CertRequest, LocallySignedCert, PrivateKey, SelfSignedCert } from "@pulumi/tls";
 import { RepositoryDeployKey } from "@pulumi/github";
 import * as flux from "@worawat/flux";
+import { homedir } from "os";
+import * as k8s from "@pulumi/kubernetes";
 
 // support for async/await : https://github.com/pulumi/pulumi/issues/5161#issuecomment-1010018506
 const config = new Config();
@@ -152,6 +154,88 @@ const getKubeconfig = (): Promise<string> => new Promise(resolve => {
 
 // https://archive.pulumi.com/t/12112464/hi-all-any-solution-for-argument-of-type-output-lt-string-gt#064d59d8-7726-466d-8363-24176958b557
 export const kubeconfig = pulumi.secret(await getKubeconfig());
+
+const fluxCdDependsOn = [...boostrapDependsOn];
+
+const key = new PrivateKey("flux-cd-deploy-key", {
+    algorithm: "ECDSA",
+    ecdsaCurve: "P256",
+}, { dependsOn: fluxCdDependsOn });
+
+const githubOwner = "sylvainmetayer";
+const repoName = "homelab";
+const branch = "main";
+const knownHosts =
+    "github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=";
+
+const deployKey = new RepositoryDeployKey("fluxcd-key", {
+    title: "pulumi-fluxcd",
+    repository: repoName,
+    key: key.publicKeyOpenssh,
+    readOnly: true,
+});
+
+const targetPath = 'clusters/homelab/flux/flux-system';
+
+// TODO pass kubeconfig as parameter in provider configuration.
+if (existsSync(`${homedir()}/.kube/config`)) {
+
+    const k8sProvider = new k8s.Provider('k8s_provider', { kubeconfig: await getKubeconfig() });
+    const fluxProvider = new flux.Provider("flux_provider", {
+        kubernetes: {
+            configPath: "~/.kube/config",
+        },
+        git: {
+            url: `ssh://git@github.com/${githubOwner}/${repoName}.git`,
+            branch,
+            ssh: {
+                username: "git",
+                privateKey: key.privateKeyPem,
+            },
+        },
+    });
+
+    const fluxInstall = await flux.getFluxInstall({
+        // TODO renovate upgrade comment
+        version: 'v2.5.1',
+        targetPath: targetPath,
+    });
+
+    const fluxSync = await flux.getFluxSync({
+        targetPath: 'clusters/homelab/flux/flux-system',
+        secret: 'flux-ssh-key',
+        url: `ssh://git@github.com/${githubOwner}/${repoName}.git`,
+        branch: branch,
+    });
+
+    // Create kubernetes resource from generated manifests
+    const install = new k8s.yaml.ConfigGroup("flux-install", {
+        yaml: fluxInstall.content,
+    });
+
+    const sync = new k8s.yaml.ConfigGroup("flux-sync", {
+        yaml: fluxSync.content,
+    }, {dependsOn: install});
+
+    //writeFileSync("flux_sync.yaml", fluxSync.content);
+    //writeFileSync("flux_install.yaml", fluxInstall.content);
+
+    const fluxSshKey = new k8s.core.v1.Secret(
+        "flux",
+        {
+            metadata: {
+                name: fluxSync.secret,
+                namespace: fluxSync.namespace,
+            },
+            stringData: {
+                identity: key.privateKeyPem,
+                "identity.pub": key.publicKeyPem,
+                known_hosts: knownHosts,
+            },
+        },
+        { dependsOn: [install] }
+    );
+}
 
 
 export const talosConfig = talosConfiguration.talosConfig;
