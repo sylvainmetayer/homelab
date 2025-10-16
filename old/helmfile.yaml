@@ -34,6 +34,6 @@ releases:
 - name: synology-csi
   namespace: synology-csi
   chart: synology-csi-chart/synology-csi
-  version: 0.9.5-pre.1
+  version: 0.9.5-pre.4
   values:
     - values/synology-csi.yaml
