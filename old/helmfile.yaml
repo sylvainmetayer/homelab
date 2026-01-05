@@ -20,7 +20,7 @@ releases:
   namespace: cert-manager
   chart: cert-manager/cert-manager
   createNamespace: true
-  version: v1.17.0
+  version: v1.19.2
   values:
     - values/cert-manager.yaml
 - name: cert-manager-ovh
