@@ -28,7 +28,7 @@ releases:
     - cert-manager
   namespace: cert-manager
   chart: cert-manager-webhook-ovh-charts/cert-manager-webhook-ovh
-  version: 0.7.3
+  version: 0.8.0
   values:
     - values/cert-manager-ovh.yaml
 - name: synology-csi
