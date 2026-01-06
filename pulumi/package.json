@@ -16,7 +16,7 @@
         "@pulumi/kubernetes": "^4.22.1",
         "@pulumi/pulumi": "^3.113.0",
         "@pulumi/tls": "^5.1.1",
-        "@pulumiverse/talos": "^0.5.2",
+        "@pulumiverse/talos": "^0.7.0",
         "@worawat/flux": "^1.0.1",
         "js-yaml": "^4.1.0",
         "ts-node": "^10.4.0"
