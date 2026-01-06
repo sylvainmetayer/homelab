@@ -11,7 +11,7 @@
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "@muhlba91/pulumi-proxmoxve": "^6.18.1",
+        "@muhlba91/pulumi-proxmoxve": "^7.0.0",
         "@pulumi/github": "^6.7.0",
         "@pulumi/kubernetes": "^4.22.1",
         "@pulumi/pulumi": "^3.113.0",
