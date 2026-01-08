@@ -1,9 +1,0 @@
-clientInfoSecret:
-  clients:
-  - host: 192.168.1.28
-    https: false
-    password: REPLACE_ME
-    port: 5000
-    username: csi
-  create: true
-installCSIDriver: true
