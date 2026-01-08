@@ -7,3 +7,13 @@ age = 'latest'
 SOPS_AGE_KEY_FILE = '~/.age.key'
 # Variable are available in the tasks
 _.file = { path = "secrets.sops.yaml", redact = true }
+
+[tasks.init]
+run = "tofu init"
+dir = "tofu"
+
+[tasks.lint]
+description = "Tofu linting"
+run = "tofu fmt -check && tofu validate"
+dir = "tofu"
+depends = "init"
