@@ -20,3 +20,4 @@ L'image inclut :
 - [Donner accès en lecture seulement au socket docker](https://www.it-connect.fr/docker-comment-ameliorer-la-securite-avec-un-docker-socket-proxy/)
 - pour que ça marche, pangolin newt doit être dans le même network docker que les conteneurs
 - https://github.com/orgs/fosrl/discussions/402#discussion-8123152
+- https://pangolin.net/blog/posts/blueprints

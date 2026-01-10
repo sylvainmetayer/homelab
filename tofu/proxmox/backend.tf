@@ -4,7 +4,7 @@ terraform {
       s3 = "https://nbg1.your-objectstorage.com"
     }
     bucket                      = "homelab-state"
-    key                         = "homelab/hetzner-vm.tfstate"
+    key                         = "homelab/proxmox.tfstate"
     region                      = "nbg1"
     skip_region_validation      = true
     skip_credentials_validation = true

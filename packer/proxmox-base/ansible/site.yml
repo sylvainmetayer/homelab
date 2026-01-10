@@ -1,0 +1,8 @@
+---
+- name: Provision Proxmox base image
+  hosts: all
+  become: true
+
+  roles:
+    - role: "{{ playbook_dir }}/../../ansible/roles/docker"
+    - role: "{{ playbook_dir }}/../../ansible/roles/security"

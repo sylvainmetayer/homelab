@@ -3,7 +3,15 @@
   hosts: all
   become: true
 
+  vars:
+    ufw_allowed_ports:
+      - { port: "22", proto: tcp }
+      - { port: "80", proto: tcp }
+      - { port: "443", proto: tcp }
+      - { port: "51820", proto: udp }
+      - { port: "21820", proto: udp }
+
   roles:
-    - docker
-    - security
+    - role: "{{ playbook_dir }}/../../ansible/roles/docker"
+    - role: "{{ playbook_dir }}/../../ansible/roles/security"
     - pangolin

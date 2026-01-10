@@ -51,12 +51,7 @@
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
-  loop:
-    - { port: "22", proto: tcp }
-    - { port: "80", proto: tcp }
-    - { port: "443", proto: tcp }
-    - { port: "51820", proto: udp }
-    - { port: "21820", proto: udp }
+  loop: "{{ ufw_allowed_ports }}"
 
 - name: Enable UFW
   community.general.ufw:

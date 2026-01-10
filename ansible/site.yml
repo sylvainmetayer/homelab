@@ -1,0 +1,6 @@
+---
+- name: Configure Proxmox VMs
+  hosts: proxmox
+  
+  roles:
+    - base
