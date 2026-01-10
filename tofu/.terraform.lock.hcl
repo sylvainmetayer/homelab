@@ -1,6 +1,21 @@
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
+provider "registry.opentofu.org/carlpett/sops" {
+  version     = "1.3.0"
+  constraints = "~> 1.3"
+  hashes = [
+    "h1:zRkZ+Sud+Lxp6Ygk7/pvgTmJG+1p6gZDhh3+FgtITAI=",
+    "zh:3ea1911d6e5f45aa4f3cadc4457a69c57af599df7ee12c7f46977212f1477e06",
+    "zh:54a0c509596392908213ccde07c9be140fc707dbd8699bb68a5d248e1c454ee8",
+    "zh:67683b36e11a7f5cd790467798428834bee7d7640017673e658435734d4fea6b",
+    "zh:8949626f40b6c7dfaaccb82587b0903cfea8b086b573153b2133143125bf8734",
+    "zh:c295b628dacecf54c53ad149427a6940c97e4ac70dce0efebb2a8784ed57b8dc",
+    "zh:e0c01959d8bb5153a85e77283cc11ec9615d979029e3ad0b0be34706354fffe2",
+    "zh:e2f8085f8f7c3aa43302229963e64decfdf2e0b6dd43ee1eaf365d31bcd488e4",
+  ]
+}
+
 provider "registry.opentofu.org/hetznercloud/hcloud" {
   version     = "1.58.0"
   constraints = "~> 1.58"
@@ -19,5 +34,27 @@ provider "registry.opentofu.org/hetznercloud/hcloud" {
     "zh:dc58701b7fbc749fb15ced8949e7719b08718536a0f38cab24b4e8f0a4171cab",
     "zh:dc77b35ff3d03133a9359a1b04abeee1678fbec01e18764b3c74f460afae1b03",
     "zh:e9401f8640713ed173210bed114330c53439c6b6b0959088f52c4f05158a510c",
+  ]
+}
+
+provider "registry.opentofu.org/ovh/ovh" {
+  version     = "2.10.0"
+  constraints = "< 3.0.0"
+  hashes = [
+    "h1:6CHM/tHZ7vAvQKtdqurs6ExO+46gpFooZ0zdaW74DKE=",
+    "zh:1582485c59b5e25fa407417de3040dfc31bfec3f9b884d51953f6625b930d2f6",
+    "zh:15b425716d5e05992cb1d68a49d58f0e9e0cbd7dbaa35ea9793404fa1ec45bed",
+    "zh:1c1547ff469c2f772d478f67d148d08b38468d43c9517b723b622a085625d949",
+    "zh:2491be291a8876da2dc1e71490428706cdca39002a1e89d10dd060474f59ce19",
+    "zh:2d9c7589764f838f04d38a87a0e6c9db6b560b6c5b510b69eabf2d67caa38d2b",
+    "zh:56c5b16a55dc4ac5f3eed69072e5ae74aafac2a4a8a84ba27fa06528320037cc",
+    "zh:629d2c7f709fc01adabba1c8b98ec7485dfebcc4b9f72f4bd4d36509166eb42c",
+    "zh:82f4b8b35a31a468d7a2a5aa4630f432ef64d9abfed8066afdaab0502886a72a",
+    "zh:84c5e65122efaee5e34c266cd750576969bd788c2bdbb804a7ffc08728ac3987",
+    "zh:85db08f3e1b27fda723b080bc5132069b6b7ba9699567cd44fb0a2207456a76c",
+    "zh:a84c043c96a01230e570163706f58c33ee59699fcc857d3db0f6e0b2a6b08bc6",
+    "zh:ad984516009930efc6ec465046287c6b293b6b219e3167aa4c0b900b903c6a50",
+    "zh:bd0114d45ec72134cf930a7619b70b0068e439759febba5717abb76219b85800",
+    "zh:f243a50dcf87687881972fcaba9226b4247588b6dc7368b0ef98168f643ee159",
   ]
 }

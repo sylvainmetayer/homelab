@@ -9,7 +9,7 @@ variable "server_type" {
 }
 
 variable "image" {
-  description = "Image du système d'exploitation"
+  description = "Image du système d'exploitation ou ID du snapshot Packer"
   type        = string
   default     = "debian-13"
 }
@@ -25,12 +25,6 @@ variable "ssh_key_name" {
   type        = string
 }
 
-variable "ssh_allowed_ips" {
-  description = "IPs autorisées pour l'accès SSH"
-  type        = list(string)
-  default     = ["0.0.0.0/0", "::/0"]
-}
-
 variable "labels" {
   description = "Labels pour la VM"
   type        = map(string)
@@ -40,8 +34,11 @@ variable "labels" {
   }
 }
 
-variable "user_data" {
-  description = "Script d'initialisation cloud-init (optionnel)"
-  type        = string
-  default     = ""
+variable "pangolin_config" {
+  description = "Configuration Pangolin (config.yml)"
+  type = object({
+    dashboard_url = string
+    base_domain   = string
+    log_level     = optional(string, "info")
+  })
 }

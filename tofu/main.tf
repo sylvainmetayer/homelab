@@ -11,11 +11,13 @@ resource "hcloud_ssh_key" "keepassxc" {
   labels     = var.labels
 }
 
-resource "hcloud_server" "vm" {
-  name        = var.vm_name
-  server_type = var.server_type
-  image       = var.image
-  location    = var.location
+resource "hcloud_server" "pangolin" {
+  firewall_ids = [hcloud_firewall.pangolin.id]
+  backups      = true
+  name         = var.vm_name
+  server_type  = var.server_type
+  image        = var.image
+  location     = var.location
 
   ssh_keys = [hcloud_ssh_key.keepassxc.id]
 
@@ -30,17 +32,42 @@ resource "hcloud_server" "vm" {
 
   labels = var.labels
 
-  user_data = var.user_data
+  user_data = templatefile("${path.root}/user_data.yaml", {
+    pangolin_password      = local.pangolin_password
+    public_ssh_key         = file("${path.root}/../key.pub")
+    pangolin_dashboard_url = var.pangolin_config.dashboard_url
+    pangolin_base_domain   = var.pangolin_config.base_domain
+    pangolin_log_level     = var.pangolin_config.log_level
+    pangolin_secret        = local.pangolin_secret
+    smtp_user              = local.smtp_user
+    smtp_pass              = local.smtp_pass
+    le_email               = local.le_email
+  })
 }
 
-resource "hcloud_firewall" "vm_firewall" {
-  name = "firewall"
+resource "hcloud_firewall" "pangolin" {
+  name = "pangolin"
+
+  // https://docs.pangolin.net/self-host/quick-install#prerequisites
+  rule {
+    direction  = "in"
+    protocol   = "udp"
+    port       = "51820"
+    source_ips = local.public_ips
+  }
+
+  rule {
+    direction  = "in"
+    protocol   = "udp"
+    port       = "21820"
+    source_ips = local.public_ips
+  }
 
   rule {
     direction  = "in"
     protocol   = "tcp"
     port       = "22"
-    source_ips = var.ssh_allowed_ips
+    source_ips = local.public_ips
   }
 
   rule {
@@ -70,7 +97,18 @@ resource "hcloud_firewall" "vm_firewall" {
   }
 }
 
-resource "hcloud_firewall_attachment" "vm_firewall" {
-  firewall_id = hcloud_firewall.vm_firewall.id
-  server_ids  = [hcloud_server.vm.id]
+resource "ovh_domain_zone_record" "pangolin" {
+  zone      = "sylvain.cloud"
+  subdomain = "pangolin"
+  fieldtype = "A"
+  ttl       = 300
+  target    = hcloud_server.pangolin.ipv4_address
+}
+
+resource "ovh_domain_zone_record" "test" {
+  zone      = "sylvain.cloud"
+  subdomain = "test"
+  fieldtype = "A"
+  ttl       = 300
+  target    = hcloud_server.pangolin.ipv4_address
 }

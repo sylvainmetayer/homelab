@@ -1,0 +1,47 @@
+---
+- name: Create Pangolin directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ pangolin_dir }}"
+    - "{{ pangolin_dir }}/config"
+    - "{{ pangolin_dir }}/config/traefik"
+    - "{{ pangolin_dir }}/config/traefik/logs"
+    - "{{ pangolin_dir }}/config/letsencrypt"
+
+- name: Download GeoLite2-Country database
+  ansible.builtin.get_url:
+    url: https://git.io/GeoLite2-Country.mmdb
+    dest: "{{ pangolin_dir }}/config/GeoLite2-Country.mmdb"
+    mode: "0644"
+
+- name: Create docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ pangolin_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Create Pangolin systemd service
+  ansible.builtin.template:
+    src: pangolin.service.j2
+    dest: /etc/systemd/system/pangolin.service
+    mode: "0644"
+
+- name: Enable Pangolin service
+  ansible.builtin.systemd:
+    name: pangolin
+    enabled: false
+    daemon_reload: true
+
+- name: Configure cloud-init for Hetzner
+  ansible.builtin.template:
+    src: cloud-init.cfg.j2
+    dest: /etc/cloud/cloud.cfg.d/99-pangolin.cfg
+    mode: "0644"
+
+- name: Clean apt cache
+  ansible.builtin.apt:
+    autoclean: true
+    autoremove: true

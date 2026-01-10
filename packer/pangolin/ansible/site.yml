@@ -1,0 +1,9 @@
+---
+- name: Provision Pangolin Zero Trust base image
+  hosts: all
+  become: true
+
+  roles:
+    - docker
+    - security
+    - pangolin
