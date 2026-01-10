@@ -26,4 +26,7 @@ terraform.rc
 .decrypted*.yaml
 
 # If debugging state
-tofu/state.json
+state.json
+
+# Secret variable files for Proxmox
+*.tfvars.secret

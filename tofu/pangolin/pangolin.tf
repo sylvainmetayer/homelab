@@ -7,11 +7,16 @@ locals {
 
 resource "hcloud_ssh_key" "keepassxc" {
   name       = var.ssh_key_name
-  public_key = file("${path.root}/../key.pub")
+  public_key = file("${path.root}/../../key.pub")
   labels     = var.labels
 }
 
 resource "hcloud_server" "pangolin" {
+  lifecycle {
+    ignore_changes = [ user_data, network ]
+    prevent_destroy = true
+  }
+
   firewall_ids = [hcloud_firewall.pangolin.id]
   backups      = true
   name         = var.vm_name
@@ -34,7 +39,7 @@ resource "hcloud_server" "pangolin" {
 
   user_data = templatefile("${path.root}/user_data.yaml", {
     pangolin_password      = local.pangolin_password
-    public_ssh_key         = file("${path.root}/../key.pub")
+    public_ssh_key         = file("${path.root}/../../key.pub")
     pangolin_dashboard_url = var.pangolin_config.dashboard_url
     pangolin_base_domain   = var.pangolin_config.base_domain
     pangolin_log_level     = var.pangolin_config.log_level
@@ -97,18 +102,15 @@ resource "hcloud_firewall" "pangolin" {
   }
 }
 
-resource "ovh_domain_zone_record" "pangolin" {
-  zone      = "sylvain.cloud"
-  subdomain = "pangolin"
-  fieldtype = "A"
-  ttl       = 300
-  target    = hcloud_server.pangolin.ipv4_address
+resource "hcloud_network" "main" {
+  name     = "private-network"
+  ip_range = "10.0.0.0/16"
+  labels   = var.labels
 }
 
-resource "ovh_domain_zone_record" "test" {
-  zone      = "sylvain.cloud"
-  subdomain = "test"
-  fieldtype = "A"
-  ttl       = 300
-  target    = hcloud_server.pangolin.ipv4_address
+resource "hcloud_network_subnet" "main" {
+  network_id   = hcloud_network.main.id
+  type         = "cloud"
+  network_zone = "eu-central"
+  ip_range     = "10.0.1.0/24"
 }

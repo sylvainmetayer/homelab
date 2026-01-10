@@ -1,0 +1,8 @@
+---
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - vim
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

@@ -1,0 +1,5 @@
+# Static fallback inventory
+# Use this if dynamic inventory is not working or for testing
+
+# [proxmox]
+# debian-base ansible_host=192.168.1.100 ansible_user=bob

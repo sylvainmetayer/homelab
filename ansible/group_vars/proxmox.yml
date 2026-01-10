@@ -1,0 +1,3 @@
+---
+ansible_user: bob
+ansible_become: true
