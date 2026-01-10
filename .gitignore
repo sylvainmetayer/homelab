@@ -24,3 +24,6 @@ terraform.rc
 
 # Extension SOPS, just in case
 .decrypted*.yaml
+
+# If debugging state
+tofu/state.json
