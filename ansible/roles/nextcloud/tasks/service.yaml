@@ -1,0 +1,16 @@
+---
+- name: Copy nextcloud service
+  template:
+    src: ./templates/nextcloud.service.j2
+    dest: ~/.config/systemd/user/nextcloud.service
+    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_user_uid }}"
+    mode: "0644"
+
+- name: Make sure nextcloud service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: nextcloud
+    scope: user
+    enabled: true

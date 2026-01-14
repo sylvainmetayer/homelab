@@ -1,0 +1,69 @@
+---
+- name: Ensure restic config folder exists
+  file:
+    path: "~/.config/resticprofile"
+    state: directory
+    mode: "0755"
+
+- name: Read sops password file
+  set_fact:
+    resticprofile_password: "{{ lookup('file','password.json') | community.sops.decrypt(input_type='json', output_type='json') }}"
+
+- name: Create password file
+  copy:
+    content: "{{ resticprofile_password.data }}"
+    dest: "~/.restic.password.txt"
+
+- name: Install restic
+  become: true
+  ansible.builtin.package:
+    name: restic
+    state: present
+
+- name: Self-update restic
+  become: true
+  shell:
+    cmd: restic self-update
+  register: restic_update
+
+- name: Output logs
+  debug:
+    var: restic_update
+
+- name: Get restic profile stats
+  ansible.builtin.stat:
+    path: /usr/local/bin/resticprofile
+  register: sym
+
+# https://creativeprojects.github.io/resticprofile/configuration/getting_started/index.html
+- name: Install resticprofile
+  when: sym.stat.exists == False
+  block:
+  - name: Download resticprofile installation script
+    ansible.builtin.get_url:
+      url: https://raw.githubusercontent.com/creativeprojects/resticprofile/master/install.sh
+      dest: /tmp/install_restic_profile.sh
+      mode: '0777'
+  - name: Install resticprofile
+    register: resticprofile
+    become: true
+    shell:
+      chdir: /tmp
+      cmd: ./install_restic_profile.sh -b /usr/local/bin
+      creates: /usr/local/bin/resticprofile
+  - name: Output logs
+    debug:
+      var: resticprofile
+
+- name: Create configuration file
+  ansible.builtin.file:
+    path: ~/.config/resticprofile/profiles.yaml
+    state: touch
+    mode: u=rw,g=r
+
+- name: Add base configuration
+  ansible.builtin.blockinfile:
+    path: ~/.config/resticprofile/profiles.yaml
+    insertbefore: "BOF"
+    block: "{{ lookup('ansible.builtin.file', 'files/resticprofile.yaml') }}"
+    marker: "# {mark} restic_role ANSIBLE MANAGED"

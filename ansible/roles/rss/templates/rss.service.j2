@@ -1,0 +1,19 @@
+# Thanks https://github.com/MiGoller/dc-systemd-template#creating-docker-compose-powered-services-using-systemd-templates
+[Unit]
+Description=RSS service powered by docker compose
+
+[Service]
+Restart=on-success
+TimeoutStartSec=60
+
+WorkingDirectory={{ rss_base_path }}
+
+#ExecStartPre=/usr/bin/docker compose down
+#ExecStartPre=/usr/bin/docker compose rm -f
+#ExecStartPre=/usr/bin/docker compose pull
+
+ExecStart=/usr/bin/docker compose up
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target

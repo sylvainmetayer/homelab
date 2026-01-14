@@ -1,0 +1,25 @@
+---
+- name: Ensure Newt app folder exists
+  file:
+    mode: "0755"
+    path: "{{ newt_base_path }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+
+- name: Template compose configuration
+  notify: restart newt service
+  template:
+    src: "templates/compose.yaml"
+    dest: "{{ newt_base_path }}/compose.yaml"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0644"
+
+- name: Make sure newt service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@newt
+    scope: user
+    enabled: true

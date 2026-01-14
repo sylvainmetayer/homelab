@@ -30,3 +30,8 @@ state.json
 
 # Secret variable files for Proxmox
 *.tfvars.secret
+
+ansible/galaxy_roles/
+ansible/collections/
+ansible/run.log
+ansible/facts/

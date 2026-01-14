@@ -1,0 +1,161 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Tofu: Init Pangolin",
+      "type": "shell",
+      "command": "tofu init",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tofu: Plan Pangolin",
+      "type": "shell",
+      "command": "tofu plan",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Tofu: Init Pangolin"]
+    },
+    {
+      "label": "Tofu: Apply Pangolin",
+      "type": "shell",
+      "command": "tofu apply",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Tofu: Init Pangolin"]
+    },
+    {
+      "label": "Tofu: Init Proxmox",
+      "type": "shell",
+      "command": "tofu init",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/proxmox"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Tofu: Plan Proxmox",
+      "type": "shell",
+      "command": "tofu plan",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/proxmox"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Tofu: Init Proxmox"]
+    },
+    {
+      "label": "Tofu: Apply Proxmox",
+      "type": "shell",
+      "command": "tofu apply",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu/proxmox"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Tofu: Init Proxmox"]
+    },
+    {
+      "label": "Tofu: Format & Validate (all)",
+      "type": "shell",
+      "command": "tofu fmt -recursive && tofu validate",
+      "options": {
+        "cwd": "${workspaceFolder}/tofu"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Packer: Init Pangolin",
+      "type": "shell",
+      "command": "packer init .",
+      "options": {
+        "cwd": "${workspaceFolder}/packer/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Packer: Validate Pangolin",
+      "type": "shell",
+      "command": "packer validate .",
+      "options": {
+        "cwd": "${workspaceFolder}/packer/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Packer: Init Pangolin"]
+    },
+    {
+      "label": "Packer: Build Pangolin",
+      "type": "shell",
+      "command": "packer build .",
+      "options": {
+        "cwd": "${workspaceFolder}/packer/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Packer: Init Pangolin"]
+    },
+    {
+      "label": "Packer: Format Pangolin",
+      "type": "shell",
+      "command": "packer fmt .",
+      "options": {
+        "cwd": "${workspaceFolder}/packer/pangolin"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Ansible: Lint",
+      "type": "shell",
+      "command": "ansible-lint",
+      "options": {
+        "cwd": "${workspaceFolder}/ansible"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Ansible: Run Playbook",
+      "type": "shell",
+      "command": "ansible-playbook -i inventory/hosts site.yml",
+      "options": {
+        "cwd": "${workspaceFolder}/ansible"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Ansible: Run Playbook (Check Mode)",
+      "type": "shell",
+      "command": "ansible-playbook -i inventory/hosts site.yml --check",
+      "options": {
+        "cwd": "${workspaceFolder}/ansible"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Ansible: Lint Packer Roles",
+      "type": "shell",
+      "command": "ansible-lint",
+      "options": {
+        "cwd": "${workspaceFolder}/packer/ansible/roles"
+      },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

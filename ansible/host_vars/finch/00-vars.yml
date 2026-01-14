@@ -1,0 +1,4 @@
+---
+root_domain: sylvain.cloud
+# Will be dynamically defined be apps roles
+certbot_certs: []

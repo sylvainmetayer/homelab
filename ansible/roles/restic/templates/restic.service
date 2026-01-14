@@ -1,0 +1,23 @@
+# @see https://tdem.in/post/restic-with-systemd/
+# @see https://github.com/larsks/restic-systemd-units
+# @see https://github.com/peperunas/configs/blob/master/restic/systemd/run-backup%40.service
+
+[Unit]
+# this unit can be activated with a parameter, e.g. in
+#   systemctl start restic@your-repo.service --user
+# %I is "your-repo"
+Description=Restic backup on %I
+After=syslog.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ ansible_user_id }}
+ExecStart=/usr/local/bin/restic backup --files-from /etc/restic/%I.files
+ExecStartPost=/bin/sh -c "restic forget --verbose --prune --keep-daily $RETENTION_DAYS --keep-weekly $RETENTION_WEEKS --keep-monthly $RETENTION_MONTHS --keep-yearly $RETENTION_YEARS"
+EnvironmentFile=/etc/restic/%I.env
+#AmbientCapabilities=CAP_DAC_READ_SEARCH
+
+[Install]
+WantedBy=multi-user.target
+

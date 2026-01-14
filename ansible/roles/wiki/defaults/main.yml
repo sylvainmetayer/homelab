@@ -1,0 +1,6 @@
+---
+wiki_base_path: /opt/wiki
+wiki_domain: wiki.sylvain.cloud
+wiki_local_port: 9001
+wiki_db_password: "wiki"
+wiki_healthcheck_url: "REPLACE_ME"

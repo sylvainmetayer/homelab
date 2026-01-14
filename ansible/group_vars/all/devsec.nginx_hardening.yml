@@ -1,0 +1,2 @@
+---
+nginx_limit_conn: default 1000

@@ -1,0 +1,6 @@
+[Unit]
+Description=Download latest pictures using rclone
+
+[Service]
+Type=simple
+ExecStart={{ ansible_user_dir }}/rclone.sh

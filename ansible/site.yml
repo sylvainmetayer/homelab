@@ -1,6 +1,19 @@
 ---
 - name: Configure Proxmox VMs
-  hosts: proxmox
-  
+  hosts: docker
+  pre_tasks:
+    # WARNING : You cannot override variables with this, make sure variable is not defined before.
+    # Export your age key in environment
+    # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
   roles:
-    - base
+    - name: geerlingguy.docker
+      become: true
+    - docker_service
+    - newt
+    - betisier

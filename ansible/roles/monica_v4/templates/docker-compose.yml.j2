@@ -1,0 +1,26 @@
+---
+services:
+  crm:
+    container_name: monica_v4
+    image: monica:3.7.0-apache@sha256:ceb1ba4196ab2d371f504f284f4516174f4b99fe9339f2aa69a86c31d6ba414f
+    env_file: .env
+    ports:
+      - 127.0.0.1:{{ monica_v4_local_port }}:80
+    volumes:
+      - ./data:/var/www/html/storage
+    restart: unless-stopped
+
+  monica_v4_db:
+    image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
+    container_name: monica_v4_db
+    environment:
+      - PUID={{ ansible_user_uid }}
+      - PGID={{ ansible_user_gid }}
+      - TZ=Europe/Paris
+      - MYSQL_ROOT_PASSWORD={{ monica_v4_db_password }}
+      - MYSQL_DATABASE=monica
+      - MYSQL_USER=monica
+      - MYSQL_PASSWORD={{ monica_v4_db_password }}
+    volumes:
+      - ./db_data:/config
+    restart: unless-stopped
