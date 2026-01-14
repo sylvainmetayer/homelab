@@ -1,0 +1,15 @@
+[Unit]
+Description=Restic PostgreSQL backup on %I
+After=syslog.target
+After=network-online.target
+After=mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=oneshot
+User={{ ansible_user_id }}
+ExecStart={{ ansible_user_id }}/backup-db.sh %I
+EnvironmentFile=/etc/restic/%I.env
+
+[Install]
+WantedBy=multi-user.target

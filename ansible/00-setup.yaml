@@ -1,0 +1,65 @@
+---
+- hosts: setup
+  tasks:
+    - name: Load secrets variable into global namespace
+      # WARNING : You cannot override variables with this, make sure variable is not defined before.
+      # Export your age key in environment
+      # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+    - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    - name: "Install basic packages"
+      become: true
+      ansible.builtin.package:
+        name:
+          - git
+          - git-lfs
+          - make
+          - unzip
+          - htop
+          - wget
+          - curl
+          - tmux
+          - vim
+          - rsync
+          - jq
+          - gnupg2
+          - nginx
+          - fzf
+          - apt-transport-https
+        state: present
+
+    - name: Create user
+      become: true
+      ansible.builtin.user:
+        name: "sylvain"
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+        generate_ssh_key: yes
+        ssh_key_file: .ssh/id_ed25519
+        ssh_key_type: ed25519
+        password: "{{ password | password_hash('sha512') }}"
+
+    - name: Set authorized key taken from file
+      ansible.posix.authorized_key:
+        user: "sylvain"
+        state: present
+        key: "{{ lookup('file', playbook_dir + '/../key.pub') }}"
+
+    - name: Ensure required folder exists
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+        owner: "sylvain"
+        group: "sylvain"
+      with_items:
+        - "/home/sylvain/.ssh"
+        - "/home/sylvain/.config/systemd/user/"

@@ -10,20 +10,6 @@ variable "proxmox_node" {
   default     = "pve"
 }
 
-variable "proxmox_vm" {
-  description = "Configuration de la VM Proxmox"
-  type = object({
-    name        = optional(string, "debian-base")
-    template_id = optional(number, 9000)
-    cores       = optional(number, 2)
-    memory      = optional(number, 2048)
-    disk_size   = optional(number, 20)
-    storage     = optional(string, "local-lvm")
-    bridge      = optional(string, "vmbr0")
-  })
-  default = {}
-}
-
 variable "newt_lxc" {
   description = "Configuration de la VM Newt"
   type = object({
@@ -41,4 +27,38 @@ variable "newt_lxc" {
 
 variable "pangolin_url" {
   type = string
+}
+
+variable "debian13_image_url" {
+  description = "URL de l'image Debian 13 Trixie"
+  type        = string
+  default     = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+}
+
+variable "debian13_image_checksum_algorithm" {
+  description = "Algorithme de somme de contrôle pour l'image Debian 13"
+  type        = string
+  default     = "sha512"
+}
+
+variable "debian13_image_checksum" {
+  description = "Somme de contrôle SHA512 de l'image Debian 13"
+  type        = string
+  default     = ""
+}
+
+variable "docker_vm" {
+  description = "Configuration de la VM Debian 13"
+  type = object({
+    name      = optional(string, "debian-13")
+    vm_id     = optional(number, 300)
+    hostname  = optional(string, "debian-13-vm")
+    username  = optional(string, "sylvain")
+    cores     = optional(number, 2)
+    memory    = optional(number, 2048)
+    disk_size = optional(number, 20)
+    storage   = optional(string, "local-lvm")
+    bridge    = optional(string, "vmbr0")
+  })
+  default = {}
 }

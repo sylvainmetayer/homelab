@@ -27,21 +27,6 @@ jobs:
       - name: Check Packer format (pangolin)
         run: packer fmt -check packer/pangolin
 
-      - name: Init Packer plugins (proxmox-base)
-        run: packer init packer/proxmox-base
-
-      - name: Validate Packer (proxmox-base)
-        run: |
-          packer validate \
-            -var "proxmox_url=https://test:8006/api2/json" \
-            -var "proxmox_username=test" \
-            -var "proxmox_token=test" \
-            -var "proxmox_node=test" \
-            packer/proxmox-base
-
-      - name: Check Packer format (proxmox-base)
-        run: packer fmt -check packer/proxmox-base
-
   tofu:
     name: OpenTofu
     runs-on: ubuntu-latest
@@ -53,13 +38,21 @@ jobs:
         with:
           tofu_version: latest
 
-      - name: Init OpenTofu
+      - name: Init OpenTofu (Pangolin)
         run: tofu init -backend=false
-        working-directory: tofu
+        working-directory: tofu/pangolin
 
-      - name: Validate OpenTofu
+      - name: Validate OpenTofu (Pangolin)
         run: tofu validate
-        working-directory: tofu
+        working-directory: tofu/pangolin
+
+      - name: Init OpenTofu (Proxmox)
+        run: tofu init -backend=false
+        working-directory: tofu/proxmox
+
+      - name: Validate OpenTofu (Proxmox)
+        run: tofu validate
+        working-directory: tofu/proxmox
 
       - name: Check OpenTofu format
         run: tofu fmt -check -recursive

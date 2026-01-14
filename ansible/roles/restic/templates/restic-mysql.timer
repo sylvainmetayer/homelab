@@ -1,0 +1,8 @@
+[Unit]
+Description=Run Restic on MariaDB at 12:00 AM
+
+[Timer]
+OnCalendar=*-*-* 1:00:00
+
+[Install]
+WantedBy=timers.target

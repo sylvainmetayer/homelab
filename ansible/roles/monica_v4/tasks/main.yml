@@ -1,0 +1,49 @@
+---
+- name: Ensure Monica v4 app folder exists
+  become: true
+  file:
+    mode: "0700"
+    path: "{{ monica_v4_base_path }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+
+- name: Add restic profile
+  tags: backup
+  ansible.builtin.blockinfile:
+    path: ~/.config/resticprofile/profiles.yaml
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
+    marker: "# {mark} monica_v4 ANSIBLE MANAGED"
+
+- name: Template docker-compose configuration
+  template:
+    src: "templates/docker-compose.yml.j2"
+    dest: "{{ monica_v4_base_path }}/docker-compose.yml"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0644"
+
+- name: Template nginx host
+  become: true
+  template:
+    src: templates/nginx.conf.j2
+    dest: /etc/nginx/sites-available/monica_v4.conf
+    owner: "root"
+    group: "root"
+    mode: "0644"
+
+- name: Enable nginx host
+  become: true
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/monica_v4.conf
+    dest: /etc/nginx/sites-enabled/monica_v4.conf
+    owner: root
+    group: root
+    state: link
+
+- name: Add domain to certificate to be generated
+  set_fact:
+    certbot_certs: '{{ certbot_certs + [ { "domains": [monica_v4_domain] } ] }}'
+
+- import_tasks: service.yaml

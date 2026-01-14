@@ -1,0 +1,13 @@
+---
+photoprism_base_path: /opt/photoprism
+photoprism_domain: photos.sylvain.cloud
+photoprism_local_port: 9001
+
+photoprism_admin_user: "admin"
+photoprism_admin_password: "password"
+photoprism_db_user: "password"
+photoprism_db_password: "password"
+
+photoprism_healthcheck_url: "REPLACE_ME"
+
+rclone_base_path: ""

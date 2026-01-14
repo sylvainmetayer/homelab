@@ -1,3 +1,8 @@
 ---
-ansible_user: bob
-ansible_become: true
+ansible_user: sylvain
+ansible_ssh_private_key_file: "~/.ssh/keepassxc.pub"
+#ansible_become: true
+
+docker_base_path: /opt/apps
+
+newt_endpoint: https://pangolin.sylvain.cloud

@@ -1,64 +1,97 @@
-resource "proxmox_virtual_environment_file" "vm" {
+# Téléchargement de l'image Debian 13 Trixie cloud
+resource "proxmox_virtual_environment_download_file" "debian_13" {
+  content_type       = "iso"
+  datastore_id       = "local"
+  file_name          = "debian-13-generic-amd64.img"
+  node_name          = var.proxmox_node
+  url                = var.debian13_image_url
+  checksum           = var.debian13_image_checksum
+  checksum_algorithm = var.debian13_image_checksum_algorithm
+  overwrite          = true
+  overwrite_unmanaged = true
+}
+
+# Fichier Cloud-Init vendor-config pour Debian 13
+resource "proxmox_virtual_environment_file" "docker_vendor_config" {
   content_type = "snippets"
   datastore_id = "local"
-  node_name = var.proxmox_node
+  node_name    = var.proxmox_node
 
   source_raw {
     data = <<-EOF
     #cloud-config
-    hostname: test-ubuntu
-    timezone: America/Toronto
-    users:
-      - name: sylvain
-        groups:
-          - sudo
-        shell: /bin/bash
-        ssh_authorized_keys:
-          - ${trimspace(file("${path.root}/../../key.pub"))}
-        sudo: ALL=(ALL) NOPASSWD:ALL
     package_update: true
     packages:
       - qemu-guest-agent
-      - net-tools
-      - curl
     runcmd:
-      - systemctl enable qemu-guest-agent
-      - systemctl start qemu-guest-agent
-      - echo "done" > /tmp/cloud-config.done
+      - systemctl enable --now qemu-guest-agent
     EOF
 
-    file_name = "user-data-cloud-config-vm.yaml"
+    file_name = "docker-vendor-config.yaml"
   }
 }
 
-resource "proxmox_virtual_environment_vm" "debian_base" {
-  name      = var.proxmox_vm.name
-  node_name = var.proxmox_node
-  vm_id     = var.proxmox_vm.template_id + 1
+# Fichier Cloud-Init user-config pour Debian 13
+resource "proxmox_virtual_environment_file" "docker_user_config" {
+  content_type = "snippets"
+  datastore_id = "local"
+  node_name    = var.proxmox_node
 
-  clone {
-    vm_id = var.proxmox_vm.template_id
-    full  = true
+  source_raw {
+    data = <<-EOF
+    #cloud-config
+    hostname: ${var.docker_vm.hostname}
+    users:
+      - name: ${var.docker_vm.username}
+        ssh_authorized_keys:
+          - ${trimspace(file("${path.root}/../../key.pub"))}
+        lock_passwd: false
+        sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        shell: /bin/bash
+    EOF
+
+    file_name = "docker-user-config.yaml"
   }
+}
+
+resource "proxmox_virtual_environment_vm" "docker" {
+  depends_on = [
+    proxmox_virtual_environment_file.docker_user_config,
+    proxmox_virtual_environment_file.docker_vendor_config
+  ]
+
+  name        = var.docker_vm.name
+  description = "Docker apps"
+  tags        = ["tofu", "apps", "homelab"]
+  node_name   = var.proxmox_node
 
   cpu {
-    cores = var.proxmox_vm.cores
+    cores = var.docker_vm.cores
     type  = "host"
   }
 
   memory {
-    dedicated = var.proxmox_vm.memory
+    dedicated = var.docker_vm.memory
+    floating  = var.docker_vm.memory
   }
 
   disk {
-    datastore_id = var.proxmox_vm.storage
-    interface    = "scsi0"
-    size         = var.proxmox_vm.disk_size
+    datastore_id = var.docker_vm.storage
+    file_id      = proxmox_virtual_environment_download_file.debian_13.id
+    interface    = "virtio0"
+    iothread     = true
+    discard      = "on"
+    ssd          = true
+    size         = var.docker_vm.disk_size
   }
 
   network_device {
-    bridge = var.proxmox_vm.bridge
+    bridge = var.docker_vm.bridge
     model  = "virtio"
+  }
+
+  operating_system {
+    type = "l26"
   }
 
   agent {
@@ -66,23 +99,15 @@ resource "proxmox_virtual_environment_vm" "debian_base" {
   }
 
   initialization {
-    datastore_id = var.proxmox_vm.storage
-
-    user_account {
-      username = "bob"
-      keys     = [trimspace(file("${path.root}/../../key.pub"))]
-    }
-
     ip_config {
       ipv4 {
         address = "dhcp"
       }
     }
-  }
 
-  lifecycle {
-    ignore_changes = [initialization]
+    # Liaison des fichiers Cloud-Init
+    user_data_file_id   = proxmox_virtual_environment_file.docker_user_config.id
+    vendor_data_file_id = proxmox_virtual_environment_file.docker_vendor_config.id
   }
-
-  tags = ["managed-by-opentofu", "homelab"]
 }
+

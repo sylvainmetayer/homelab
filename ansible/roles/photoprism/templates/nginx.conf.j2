@@ -1,0 +1,61 @@
+upstream photoprism {
+    server 127.0.0.1:{{ photoprism_local_port }};
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ photoprism_domain }};
+    client_max_body_size 1G;
+
+    location = /robots.txt  { access_log off; log_not_found off; }
+    location = /favicon.ico { access_log off; log_not_found off; }
+    # Deny access to .htaccess files, if Apache's document root concurs with nginx's one
+    location /.ht {
+        deny  all;
+    }
+
+    # Deny access to hidden dotfiles (beginning with '.')
+    location /. {
+        deny all;
+    }
+
+    access_log  /var/log/nginx/{{ photoprism_domain }}.access.log combined;
+    error_log   /var/log/nginx/{{ photoprism_domain }}.error.log;
+
+    location / {
+        proxy_pass_request_headers      on;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+
+        proxy_pass http://photoprism;
+
+        proxy_buffering off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # https://blog.mozilla.org/security/2013/07/29/ocsp-stapling-in-firefox/
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 9.9.9.9;
+
+    # https://ssl-config.mozilla.org/#server=nginx&version=1.14.2&config=modern&openssl=1.1.1d&hsts=false&guideline=5.6
+    ssl_certificate         /etc/letsencrypt/live/{{ photoprism_domain }}/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/{{ photoprism_domain }}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ photoprism_domain }}/chain.pem;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
+    ssl_session_tickets off;
+
+    # modern configuration
+    ssl_protocols TLSv1.3;
+    ssl_prefer_server_ciphers off;
+}
+
+server {
+    listen 80;
+    server_name {{ photoprism_domain }};
+    return 301 https://$host$request_uri;
+}

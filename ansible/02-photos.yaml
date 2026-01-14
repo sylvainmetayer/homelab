@@ -1,0 +1,49 @@
+---
+- hosts: pi
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      # WARNING : You cannot override variables with this, make sure variable is not defined before.
+      # Export your age key in environment
+      # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+    - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: always
+  vars:
+    rclone_base_path: /opt/rclone_data
+  roles:
+    - role: geerlingguy.docker
+      become: true
+      tags: setup
+    - role: sylvainmetayer.workstation.commons
+      tags: setup
+    - role: sylvainmetayer.workstation.hostname
+      tags: setup
+      become: true
+    - role: restic
+      tags: backup
+    - role: devsec.hardening.ssh_hardening
+      tags: setup
+      become: true
+    - role: sudo_with_ssh_agent
+      become: true
+      tags: ssh
+    - role: andrewrothstein.starship
+      tags: setup,starship
+    - role: escalate.swap
+      become: true
+      tags: app
+      #tags: swap
+    - role: rclone
+      tags: app,kDrive
+    - role: photoprism
+      tags: app
+    - role: geerlingguy.certbot
+      become: true
+      tags: app

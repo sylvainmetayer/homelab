@@ -1,0 +1,12 @@
+# @see https://tdem.in/post/restic-with-systemd/
+# @see https://github.com/larsks/restic-systemd-units
+# @see https://github.com/peperunas/configs/blob/master/restic/systemd/run-backup%40.service
+
+[Unit]
+Description=Backup data with Restic
+
+[Timer]
+OnCalendar=*-*-* 1:00:00
+
+[Install]
+WantedBy=timers.target

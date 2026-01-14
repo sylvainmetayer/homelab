@@ -1,0 +1,72 @@
+# $schema: ../../../schema/resticprofile.json
+# https://creativeprojects.github.io/resticprofile/jsonschema/config-1.json
+
+betisier:
+  lock: "/tmp/resticprofile-profile-betisier.lock"
+  status-file: backup-betisier-status.json
+  repository: "s3:{{ restic_s3_endpoint }}"
+  password-file: "~/.restic.password.txt"
+  env:
+    AWS_ACCESS_KEY_ID: "{{ restic_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ restic_secret_key }}"
+  retention:
+    after-backup: false
+    keep-daily: 2
+    keep-weekly: 7
+    keep-monthly: 5
+    keep-yearly: 2
+  backup:
+    schedule-lock-mode: fail
+    retry-lock: 2m
+    schedule-lock-wait: 1h
+    option:
+      - s3.storage-class=ONEZONE_IA
+    run-before:
+      - curl {{ betisier_healthcheck_url }}/start
+      # Do not backup current database as we want to rollback it.
+    run-after:
+      - curl {{ betisier_healthcheck_url }}/0
+    run-after-fail:
+      - curl {{ betisier_healthcheck_url }}/fail
+    schedule: "03:00"
+    verbose: 2
+    tag:
+      - hetzner
+      - betisier
+    source:
+      - "/opt/betisier/docker-compose.yml"
+      - "/opt/betisier/config"
+      - "/opt/betisier/dump.sql"
+
+  forget:
+    schedule-lock-mode: fail
+    retry-lock: 2m
+    schedule-lock-wait: 1h
+    keep-daily: 1
+    keep-weekly: 1
+    keep-monthly: 1
+    keep-yearly: 1
+    prune: true
+    schedule: "05:00"
+    schedule-permission: user
+
+  prune:
+    schedule-lock-mode: fail
+    retry-lock: 2m
+    schedule-lock-wait: 1h
+    schedule:
+      - "sun 3:30"
+    schedule-permission: user
+
+  # Verify command
+  check:
+    schedule-lock-mode: fail
+    retry-lock: 2m
+    schedule-lock-wait: 1h
+    schedule: "06:00"
+    schedule-permission: user
+
+  description: Backup Betisier {{ betisier_domain }}
+
+  verbose: true
+  cleanup-cache: true

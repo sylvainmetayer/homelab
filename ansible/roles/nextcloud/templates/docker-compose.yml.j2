@@ -1,0 +1,40 @@
+---
+services:
+  nextcloud:
+    restart: unless-stopped
+    image: lscr.io/linuxserver/nextcloud:version-30.0.4@sha256:89caadc459745c31cb9e21381acdcf011fe5dd9f631a15aed2adf74b773ed08f
+    container_name: nextcloud
+    environment:
+      - PUID={{ ansible_user_uid }}
+      - PGID={{ ansible_user_gid }}
+      - TZ=Europe/Paris
+
+      # https://github.com/linuxserver/docker-mods/tree/nextcloud-memories
+      #- DOCKER_MODS=linuxserver/mods:nextcloud-memories
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    ports:
+      - "127.0.0.1:{{ nextcloud_local_port }}:80"
+
+  db:
+    container_name: db
+    restart: unless-stopped
+    image: mariadb:lts@sha256:e3432369d4d432ec2a3d777ff84ffca11ec8c2188cf1b6a0551a393ae5d833bb
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ nextcloud_db_password }}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: {{ nextcloud_db_password }}
+    volumes:
+      - ./db_data:/var/lib/mysql
+
+  cache:
+    restart: unless-stopped
+    image: redis:bookworm@sha256:a06cea905344470eb49c972f3d030e22f28f632c1b4f43bbe4a26a4329dd6be5
+    container_name: redis
+    command: redis-server --requirepass {{ nextcloud_redis_password }}
+    environment:
+      - REDIS_PASSWORD={{ nextcloud_redis_password }}
+    volumes:
+      - ./redis:/data

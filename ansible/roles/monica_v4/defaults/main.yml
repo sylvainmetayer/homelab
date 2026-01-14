@@ -1,0 +1,7 @@
+---
+monica_v4_base_path: /opt/monica_v4
+monica_v4_domain: crm.sylvain.dev
+monica_v4_local_port: 9003
+monica_v4_db_password: ""
+monica_v4_healthcheck_url: ""
+monica_v4_cron_healthcheck_url: ""

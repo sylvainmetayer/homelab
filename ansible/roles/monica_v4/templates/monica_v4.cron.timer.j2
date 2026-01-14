@@ -1,0 +1,11 @@
+[Unit]
+Description="Run Monica v4 cron"
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=24h
+OnCalendar=*:0/10
+Unit=monica_v4_cron.service
+
+[Install]
+WantedBy=multi-user.target

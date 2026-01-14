@@ -1,0 +1,10 @@
+[project]
+name = "setup_hosts"
+version = "0.1.0"
+description = "Ansible playbooks to setup and configure various hosts"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ansible>=13.2.0",
+    "ansible-lint>=25.12.2"
+]

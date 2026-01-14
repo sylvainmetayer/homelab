@@ -1,0 +1,9 @@
+# $schema: ../../../schema/resticprofile.json
+# https://creativeprojects.github.io/resticprofile/jsonschema/config-1.json
+
+version: "1"
+
+global:
+  default-command: snapshots
+  initialize: true
+

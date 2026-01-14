@@ -1,0 +1,16 @@
+---
+- name: Copy rss service
+  template:
+    src: ./templates/rss.service.j2
+    dest: ~/.config/systemd/user/rss.service
+    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_user_uid }}"
+    mode: "0644"
+
+- name: Make sure rss service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: rss
+    scope: user
+    enabled: true

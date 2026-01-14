@@ -1,12 +1,10 @@
 [tools]
 opentofu = '1.11.2'
 packer = 'latest'
-ansible-core = 'latest'
 sops = 'latest'
 age = 'latest'
 'github:fosrl/cli' = '0.2.1'
 'github:github/copilot-cli' = '0.0.377'
-uv = "latest"
 
 [env]
 # Variable are available in the tasks
@@ -20,31 +18,51 @@ arg "<password>" help="plain password to hash"
 run = 'mkpasswd --method=SHA-512 --rounds=4096 ${usage_password}'
 
 [tasks.init]
+description = "Tofu Init (Pangolin)"
 run = "tofu init"
-dir = "tofu"
+dir = "tofu/pangolin"
+
+[tasks.init-proxmox]
+description = "Tofu Init (Proxmox)"
+run = "tofu init"
+dir = "tofu/proxmox"
 
 [tasks.plan]
-description = "Tofu Plan"
+description = "Tofu Plan (Pangolin)"
 run = "tofu plan"
-dir = "tofu"
+dir = "tofu/pangolin"
+depends = ["init"]
+
+[tasks.plan-proxmox]
+description = "Tofu Plan (Proxmox)"
+run = "tofu plan"
+dir = "tofu/proxmox"
+depends = ["init-proxmox"]
 
 [tasks.apply]
-description = "Tofu Apply"
+description = "Tofu Apply (Pangolin)"
 run = "tofu apply"
 raw = true
-dir = "tofu"
+dir = "tofu/pangolin"
+depends = ["init"]
+
+[tasks.apply-proxmox]
+description = "Tofu Apply (Proxmox)"
+run = "tofu apply"
+raw = true
+dir = "tofu/proxmox"
+depends = ["init-proxmox"]
 
 [tasks.lint]
-description = "Tofu linting"
-run = "tofu fmt -check && tofu validate"
+description = "Tofu linting (all)"
+run = "tofu fmt -check -recursive && cd pangolin && tofu validate && cd ../proxmox && tofu validate"
 dir = "tofu"
-depends = "init"
+depends = ["init", "init-proxmox"]
 
 [tasks.fix-lint]
-description = "Tofu linting fix"
-run = "tofu fmt"
+description = "Tofu linting fix (all)"
+run = "tofu fmt -recursive"
 dir = "tofu"
-depends = "init"
 
 [tasks.get_state]
 description = "Get the current state of the tofu deployment"
@@ -67,4 +85,21 @@ description = "Build Pangolin image with Packer"
 run = "packer build ."
 dir = "packer/pangolin"
 depends = "packer-init"
+raw = true
+
+[tasks.ansible-lint]
+description = "Lint Ansible playbooks"
+run = "ansible-lint"
+dir = "ansible"
+
+[tasks.ansible-run]
+description = "Run Ansible playbook"
+run = "ansible-playbook -i inventory/hosts site.yml"
+dir = "ansible"
+raw = true
+
+[tasks.ansible-check]
+description = "Run Ansible playbook in check mode"
+run = "ansible-playbook -i inventory/hosts site.yml --check"
+dir = "ansible"
 raw = true

@@ -8,12 +8,13 @@ import json
 import subprocess
 import sys
 
+
 def get_tofu_state():
     """Get terraform state from tofu."""
     try:
         result = subprocess.run(
             ["tofu", "show", "-json"],
-            cwd="../tofu",
+            cwd="../tofu/proxmox",
             capture_output=True,
             text=True,
             check=True
@@ -41,12 +42,13 @@ def get_inventory():
         return inventory
 
     resources = state.get("values", {}).get("root_module", {}).get("resources", [])
-    
+
     for resource in resources:
-        if resource.get("type") == "proxmox_virtual_environment_vm":
+        resource_type = resource.get("type")
+        if resource_type in ["proxmox_virtual_environment_vm", "proxmox_virtual_environment_container"]:
             values = resource.get("values", {})
             name = values.get("name", "unknown")
-            
+
             # Get IP from ipv4_addresses (index 1 is usually the main interface)
             ipv4_addresses = values.get("ipv4_addresses", [])
             ip = None
@@ -54,12 +56,11 @@ def get_inventory():
                 ip = ipv4_addresses[1][0]
             elif len(ipv4_addresses) > 0 and ipv4_addresses[0]:
                 ip = ipv4_addresses[0][0]
-            
+
             if ip and ip != "127.0.0.1":
                 inventory["proxmox"]["hosts"].append(name)
                 inventory["_meta"]["hostvars"][name] = {
                     "ansible_host": ip,
-                    "ansible_user": "bob",
                     "vm_id": values.get("vm_id"),
                     "node_name": values.get("node_name")
                 }

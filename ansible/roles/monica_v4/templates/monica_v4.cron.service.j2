@@ -1,0 +1,13 @@
+# Thanks https://github.com/MiGoller/dc-systemd-template#creating-docker-compose-powered-services-using-systemd-templates
+[Unit]
+Description=Monica v4 cron service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ monica_v4_base_path }}
+
+ExecStartPre=/usr/bin/curl {{ monica_v4_cron_healthcheck_url }}
+ExecStart=docker compose -f /opt/monica_v4/docker-compose.yml exec -T crm  sh -c 'php artisan schedule:run'
+
+[Install]
+WantedBy=multi-user.target

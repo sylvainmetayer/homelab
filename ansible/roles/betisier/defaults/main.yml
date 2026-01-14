@@ -1,0 +1,6 @@
+---
+betisier_base_path: "{{ docker_base_path }}/betisier"
+betisier_domain: betisier.sylvain.cloud
+betisier_db_password: ""
+betisier_healthcheck_url: ""
+betisier_reset_healthcheck_url: ""

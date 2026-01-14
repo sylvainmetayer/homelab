@@ -1,0 +1,43 @@
+---
+- name: Ensure Betisier app folder exists
+  loop:
+    - "{{ betisier_base_path }}"
+    - "{{ betisier_base_path }}/config"
+  file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+
+- name: Get SQL dump
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/refs/heads/master/betisier-mysql/betisier.sql"
+    dest: "{{ betisier_base_path }}/dump.sql"
+    mode: "0644"
+
+# TODO Add config.inc.php file in config folder
+
+# - name: Add restic profile
+#   tags: backup
+#   ansible.builtin.blockinfile:
+#     path: ~/.config/resticprofile/profiles.yaml
+#     prepend_newline: true
+#     block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
+#     marker: "# {mark} betisier ANSIBLE MANAGED"
+
+- name: Template compose configuration
+  template:
+    src: "templates/compose.yaml"
+    dest: "{{ betisier_base_path }}/compose.yaml"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0644"
+
+# - name: Make sure betisier service is running
+#   ansible.builtin.systemd:
+#     state: started
+#     daemon_reload: true
+#     name: betisier
+#     scope: user
+#     enabled: true
