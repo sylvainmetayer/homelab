@@ -16,4 +16,5 @@
       become: true
     - docker_service
     - newt
+    - echo
     - betisier

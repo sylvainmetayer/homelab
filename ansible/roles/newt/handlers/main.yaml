@@ -1,5 +1,5 @@
 ---
-- name: restart newt service
+- name: Restart newt service
   ansible.builtin.systemd:
     name: dc@newt
     scope: user

@@ -1,6 +1,6 @@
 ---
 - name: Copy photoprism service
-  template:
+  ansible.builtin.template:
     src: ./templates/photoprism.service.j2
     dest: ~/.config/systemd/user/photoprism.service
     group: "{{ ansible_user_gid }}"

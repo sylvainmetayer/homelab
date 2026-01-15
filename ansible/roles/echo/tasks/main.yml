@@ -1,25 +1,24 @@
 ---
-- name: Ensure Newt app folder exists
+- name: Ensure echo app folder exists
   ansible.builtin.file:
     mode: "0755"
-    path: "{{ newt_base_path }}"
+    path: "{{ echo_base_path }}"
     state: directory
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
 
 - name: Template compose configuration
-  notify: restart newt service
   ansible.builtin.template:
     src: "templates/compose.yaml"
-    dest: "{{ newt_base_path }}/compose.yaml"
+    dest: "{{ echo_base_path }}/compose.yaml"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
     mode: "0644"
 
-- name: Make sure newt service is running
+- name: Make sure echo service is running
   ansible.builtin.systemd:
     state: started
     daemon_reload: true
-    name: dc@newt
+    name: dc@echo
     scope: user
     enabled: true

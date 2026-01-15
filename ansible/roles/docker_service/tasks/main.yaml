@@ -1,11 +1,10 @@
 ---
-
 - name: Ensure docker service app folder exists
   become: true
   loop:
     - "{{ docker_base_path }}"
     - "{{ ansible_env.HOME }}/.config/systemd/user"
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     mode: "0755"
     state: directory
@@ -14,7 +13,7 @@
 
 - name: Copy docker-compose systemd service
   notify: daemon reload
-  template:
+  ansible.builtin.template:
     src: ./templates/dc@.service.j2
     dest: ~/.config/systemd/user/dc@.service
     group: "{{ ansible_user_gid }}"

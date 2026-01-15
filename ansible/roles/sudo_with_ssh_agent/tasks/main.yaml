@@ -6,14 +6,14 @@
     state: present
 
 - name: Enable PAM module
-  lineinfile:
+  ansible.builtin.lineinfile:
     insertafter: "#%PAM-1.0"
     path: /etc/pam.d/sudo
     state: present
     line: "auth sufficient pam_ssh_agent_auth.so file=~/.ssh/authorized_keys"
 
 - name: Ensure SSH agent is forwarded to sudo
-  lineinfile:
+  ansible.builtin.lineinfile:
     insertbefore: BOF
     path: /etc/sudoers
     state: present

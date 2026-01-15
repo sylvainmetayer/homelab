@@ -1,7 +1,7 @@
 ---
 - name: Ensure Monica v4 app folder exists
   become: true
-  file:
+  ansible.builtin.file:
     mode: "0700"
     path: "{{ monica_v4_base_path }}"
     state: directory
@@ -17,7 +17,7 @@
     marker: "# {mark} monica_v4 ANSIBLE MANAGED"
 
 - name: Template docker-compose configuration
-  template:
+  ansible.builtin.template:
     src: "templates/docker-compose.yml.j2"
     dest: "{{ monica_v4_base_path }}/docker-compose.yml"
     owner: "{{ ansible_user_id }}"
@@ -26,7 +26,7 @@
 
 - name: Template nginx host
   become: true
-  template:
+  ansible.builtin.template:
     src: templates/nginx.conf.j2
     dest: /etc/nginx/sites-available/monica_v4.conf
     owner: "root"
@@ -43,7 +43,7 @@
     state: link
 
 - name: Add domain to certificate to be generated
-  set_fact:
-    certbot_certs: '{{ certbot_certs + [ { "domains": [monica_v4_domain] } ] }}'
+  ansible.builtin.set_fact:
+    certbot_certs: '{{ certbot_certs + [{"domains": [monica_v4_domain]}] }}'
 
-- import_tasks: service.yaml
+- ansible.builtin.import_tasks: service.yaml

@@ -1,6 +1,6 @@
 ---
 - name: Copy wiki service
-  template:
+  ansible.builtin.template:
     src: ./templates/wiki.service.j2
     dest: ~/.config/systemd/user/wiki.service
     group: "{{ ansible_user_gid }}"

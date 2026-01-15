@@ -2,12 +2,12 @@
 uv = "0.9"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 
+[settings]
+python.uv_venv_auto = true
+
 [env]
 # Use the project name derived from the current directory
 PROJECT_NAME = "{{ config_root | basename }}"
-
-# Automatic virtualenv activation
-_.python.venv = { path = ".venv", create = true }
 
 [tasks.info]
 description = "Print project information"
@@ -36,6 +36,6 @@ run = "ansible-lint --fix"
 description = "SSH into the managed host"
 run = '''
 ip=$(ansible-inventory --host docker  | jq -r '.ansible_default_ipv4.address')
-ssh -i ~/.ssh/keepassxc.pub $ip
+ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
 '''
 raw = true
