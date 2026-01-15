@@ -1,0 +1,17 @@
+---
+services:
+  echo-server:
+    labels:
+      - pangolin.public-resources.echo.name=Echo
+      - pangolin.public-resources.echo.full-domain={{ echo_domain }}
+      - pangolin.public-resources.echo.protocol=http
+      - pangolin.public-resources.echo.targets[0].method=http
+      - pangolin.public-resources.echo.targets[0].port=80
+      - pangolin.public-resources.echo.auth.sso-enabled=true
+    networks:
+      - newt
+    image: ealen/echo-server:0.9.2
+
+networks:
+  newt:
+    external: true

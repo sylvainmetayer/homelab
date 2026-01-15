@@ -1,6 +1,6 @@
 ---
 - name: Copy nextcloud service
-  template:
+  ansible.builtin.template:
     src: ./templates/nextcloud.service.j2
     dest: ~/.config/systemd/user/nextcloud.service
     group: "{{ ansible_user_gid }}"

@@ -1,6 +1,6 @@
 ---
 - name: Copy rss service
-  template:
+  ansible.builtin.template:
     src: ./templates/rss.service.j2
     dest: ~/.config/systemd/user/rss.service
     group: "{{ ansible_user_gid }}"

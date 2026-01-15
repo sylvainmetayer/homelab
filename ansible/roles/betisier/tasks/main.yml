@@ -3,7 +3,7 @@
   loop:
     - "{{ betisier_base_path }}"
     - "{{ betisier_base_path }}/config"
-  file:
+  ansible.builtin.file:
     mode: "0755"
     path: "{{ item }}"
     state: directory
@@ -27,17 +27,17 @@
 #     marker: "# {mark} betisier ANSIBLE MANAGED"
 
 - name: Template compose configuration
-  template:
+  ansible.builtin.template:
     src: "templates/compose.yaml"
     dest: "{{ betisier_base_path }}/compose.yaml"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
     mode: "0644"
 
-# - name: Make sure betisier service is running
-#   ansible.builtin.systemd:
-#     state: started
-#     daemon_reload: true
-#     name: betisier
-#     scope: user
-#     enabled: true
+- name: Make sure betisier service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@betisier
+    scope: user
+    enabled: true

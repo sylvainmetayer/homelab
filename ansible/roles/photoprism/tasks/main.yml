@@ -1,7 +1,7 @@
 ---
 - name: Ensure Photoprism app folder exists
   become: true
-  file:
+  ansible.builtin.file:
     mode: "0700"
     path: "{{ item }}"
     state: directory
@@ -19,7 +19,7 @@
     marker: "# {mark} photoprism ANSIBLE MANAGED"
 
 - name: Template docker-compose configuration
-  template:
+  ansible.builtin.template:
     src: "templates/docker-compose.yml.j2"
     dest: "{{ photoprism_base_path }}/docker-compose.yml"
     owner: "{{ ansible_user_id }}"
@@ -28,7 +28,7 @@
 
 - name: Template nginx host
   become: true
-  template:
+  ansible.builtin.template:
     src: templates/nginx.conf.j2
     dest: /etc/nginx/sites-available/photoprism.conf
     owner: "root"
@@ -46,8 +46,7 @@
   # notify: reload nginx
 
 - name: Add domain to certificate to be generated
-  set_fact:
-    certbot_certs: '{{ certbot_certs + [ { "domains": [photoprism_domain] } ] }}'
+  ansible.builtin.set_fact:
+    certbot_certs: '{{ certbot_certs + [{"domains": [photoprism_domain]}] }}'
 
-- import_tasks: service.yaml
-
+- ansible.builtin.import_tasks: service.yaml

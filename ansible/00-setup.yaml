@@ -12,7 +12,7 @@
     - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
       become: true
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
         cache_valid_time: 3600
     - name: "Install basic packages"
       become: true
@@ -41,8 +41,8 @@
         name: "sylvain"
         shell: /bin/bash
         groups: sudo
-        append: yes
-        generate_ssh_key: yes
+        append: true
+        generate_ssh_key: true
         ssh_key_file: .ssh/id_ed25519
         ssh_key_type: ed25519
         password: "{{ password | password_hash('sha512') }}"
@@ -54,7 +54,7 @@
         key: "{{ lookup('file', playbook_dir + '/../key.pub') }}"
 
     - name: Ensure required folder exists
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: "0700"

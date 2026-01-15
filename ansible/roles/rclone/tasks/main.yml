@@ -7,7 +7,7 @@
 
 - name: Ensure Rclone app folder exists
   become: true
-  file:
+  ansible.builtin.file:
     mode: "0700"
     path: "{{ rclone_base_path }}"
     state: directory
@@ -15,7 +15,7 @@
     group: "{{ ansible_user_gid }}"
 
 - name: Template rclone script
-  template:
+  ansible.builtin.template:
     src: ./templates/rclone.sh.j2
     dest: "{{ ansible_user_dir }}/rclone.sh"
     group: "{{ ansible_user_gid }}"
@@ -23,7 +23,7 @@
     mode: "0744"
 
 - name: Template rclone service
-  template:
+  ansible.builtin.template:
     src: ./templates/rclone.service.j2
     dest: ~/.config/systemd/user/rclone.service
     group: "{{ ansible_user_gid }}"
@@ -31,7 +31,7 @@
     mode: "0644"
 
 - name: Template rclone config
-  template:
+  ansible.builtin.template:
     src: ./templates/rclone.conf.j2
     dest: ~/.config/rclone/rclone.conf
     group: "{{ ansible_user_gid }}"
