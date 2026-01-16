@@ -1,49 +1,36 @@
 ---
 - name: Ensure RSS app folder exists
-  become: true
+  loop:
+    - "{{ rss_base_path }}"
+    - "{{ rss_base_path }}/config"
   ansible.builtin.file:
-    mode: "0700"
-    path: "{{ rss_base_path }}"
+    mode: "0755"
+    path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
 
-- name: Add restic profile
-  tags: backup
-  ansible.builtin.blockinfile:
-    path: ~/.config/resticprofile/profiles.yaml
-    prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
-    marker: "# {mark} rss ANSIBLE MANAGED"
+# - name: Add restic profile
+#   tags: backup
+#   ansible.builtin.blockinfile:
+#     path: ~/.config/resticprofile/profiles.yaml
+#     prepend_newline: true
+#     block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
+#     marker: "# {mark} rss ANSIBLE MANAGED"
 
-- name: Template docker-compose configuration
+- name: Template compose configuration
+  notify: Restart rss service
   ansible.builtin.template:
-    src: "templates/docker-compose.yml.j2"
-    dest: "{{ rss_base_path }}/docker-compose.yml"
+    src: "templates/compose.yaml"
+    dest: "{{ rss_base_path }}/compose.yaml"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
     mode: "0644"
 
-- name: Template nginx host
-  become: true
-  ansible.builtin.template:
-    src: templates/nginx.conf.j2
-    dest: /etc/nginx/sites-available/rss.conf
-    owner: "root"
-    group: "root"
-    mode: "0644"
-
-- name: Enable nginx host
-  become: true
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/rss.conf
-    dest: /etc/nginx/sites-enabled/rss.conf
-    owner: root
-    group: root
-    state: link
-
-- name: Add domain to certificate to be generated
-  ansible.builtin.set_fact:
-    certbot_certs: '{{ certbot_certs + [{"domains": [rss_domain]}] }}'
-
-- ansible.builtin.import_tasks: service.yaml
+- name: Make sure rss service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@rss
+    scope: user
+    enabled: true

@@ -12,10 +12,19 @@
     group: "{{ ansible_user_gid }}"
 
 - name: Copy docker-compose systemd service
-  notify: daemon reload
+  notify: Daemon reload
   ansible.builtin.template:
     src: ./templates/dc@.service.j2
     dest: ~/.config/systemd/user/dc@.service
     group: "{{ ansible_user_gid }}"
     owner: "{{ ansible_user_uid }}"
     mode: "0644"
+
+- name: Enable lingering for user
+  become: true
+  ansible.builtin.file:
+    path: "/var/lib/systemd/linger/{{ ansible_user_id }}"
+    state: touch
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve

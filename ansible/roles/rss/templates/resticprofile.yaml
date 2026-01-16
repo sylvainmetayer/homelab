@@ -1,73 +1,74 @@
-# $schema: ../../../schema/resticprofile.json
-# https://creativeprojects.github.io/resticprofile/jsonschema/config-1.json
-
-rss:
-  lock: "/tmp/resticprofile-profile-rss.lock"
-  status-file: backup-rss-status.json
-  repository: "s3:{{ restic_s3_endpoint }}"
-  password-file: "~/.restic.password.txt"
-  env:
-    AWS_ACCESS_KEY_ID: "{{ restic_access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ restic_secret_key }}"
-  retention:
-    after-backup: false
-    keep-daily: 2
-    keep-weekly: 7
-    keep-monthly: 5
-    keep-yearly: 2
-  backup:
-    schedule-lock-mode: fail
-    retry-lock: 2m
-    schedule-lock-wait: 1h
-    option:
-      - s3.storage-class=ONEZONE_IA
-    run-before:
-      - curl {{ rss_healthcheck_url }}/start
-      - docker compose -f /opt/rss/docker-compose.yml exec -T rss_db sh -c 'mariadb-dump -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE' > /opt/rss/dump.sql
-      - docker compose -f /opt/rss/docker-compose.yml exec -T freshrss sh -c 'chmod 644 /config/log/logrotate.status'
-    run-after:
-      - curl {{ rss_healthcheck_url }}/0
-    run-after-fail:
-      - curl {{ rss_healthcheck_url }}/fail
-    schedule: "03:00"
-    verbose: 2
-    tag:
-      - hetzner
-      - rss
-    source:
-      - "/opt/rss/docker-compose.yml"
-      - "/opt/rss/config"
-      - "/opt/rss/dump.sql"
-
-  forget:
-    schedule-lock-mode: fail
-    retry-lock: 2m
-    schedule-lock-wait: 1h
-    keep-daily: 7
-    keep-weekly: 8
-    keep-monthly: 12
-    keep-yearly: 10
-    prune: true
-    schedule: "05:00"
-    schedule-permission: user
-
-  prune:
-    schedule-lock-mode: fail
-    retry-lock: 2m
-    schedule-lock-wait: 1h
-    schedule:
-      - "sun 3:30"
-    schedule-permission: user
-
-  # Verify command
-  check:
-    schedule-lock-mode: fail
-    retry-lock: 2m
-    schedule-lock-wait: 1h
-    schedule: "06:00"
-    schedule-permission: user
-
-  description: Backup RSS {{ rss_domain }}
-
-  verbose: true
-  cleanup-cache: true
+# TODO: À revoir plus tard
+# # $schema: ../../../schema/resticprofile.json
+# # https://creativeprojects.github.io/resticprofile/jsonschema/config-1.json
+#
+# rss:
+#   lock: "/tmp/resticprofile-profile-rss.lock"
+#   status-file: backup-rss-status.json
+#   repository: "s3:{{ restic_s3_endpoint }}"
+#   password-file: "~/.restic.password.txt"
+#   env:
+#     AWS_ACCESS_KEY_ID: "{{ restic_access_key }}"
+#     AWS_SECRET_ACCESS_KEY: "{{ restic_secret_key }}"
+#   retention:
+#     after-backup: false
+#     keep-daily: 2
+#     keep-weekly: 7
+#     keep-monthly: 5
+#     keep-yearly: 2
+#   backup:
+#     schedule-lock-mode: fail
+#     retry-lock: 2m
+#     schedule-lock-wait: 1h
+#     option:
+#       - s3.storage-class=ONEZONE_IA
+#     run-before:
+#       - curl {{ rss_healthcheck_url }}/start
+#       - docker compose -f /opt/rss/docker-compose.yml exec -T rss_db sh -c 'mariadb-dump -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE' > /opt/rss/dump.sql
+#       - docker compose -f /opt/rss/docker-compose.yml exec -T freshrss sh -c 'chmod 644 /config/log/logrotate.status'
+#     run-after:
+#       - curl {{ rss_healthcheck_url }}/0
+#     run-after-fail:
+#       - curl {{ rss_healthcheck_url }}/fail
+#     schedule: "03:00"
+#     verbose: 2
+#     tag:
+#       - hetzner
+#       - rss
+#     source:
+#       - "/opt/rss/docker-compose.yml"
+#       - "/opt/rss/config"
+#       - "/opt/rss/dump.sql"
+#
+#   forget:
+#     schedule-lock-mode: fail
+#     retry-lock: 2m
+#     schedule-lock-wait: 1h
+#     keep-daily: 7
+#     keep-weekly: 8
+#     keep-monthly: 12
+#     keep-yearly: 10
+#     prune: true
+#     schedule: "05:00"
+#     schedule-permission: user
+#
+#   prune:
+#     schedule-lock-mode: fail
+#     retry-lock: 2m
+#     schedule-lock-wait: 1h
+#     schedule:
+#       - "sun 3:30"
+#     schedule-permission: user
+#
+#   # Verify command
+#   check:
+#     schedule-lock-mode: fail
+#     retry-lock: 2m
+#     schedule-lock-wait: 1h
+#     schedule: "06:00"
+#     schedule-permission: user
+#
+#   description: Backup RSS {{ rss_domain }}
+#
+#   verbose: true
+#   cleanup-cache: true

@@ -1,0 +1,36 @@
+# https://github.com/linuxserver/docker-mods/tree/universal-stdout-logs
+---
+services:
+  freshrss:
+    container_name: rss
+    labels:
+      - pangolin.public-resources.rss.name=RSS
+      - pangolin.public-resources.rss.full-domain={{ rss_domain }}
+      - pangolin.public-resources.rss.protocol=http
+      - pangolin.public-resources.rss.targets[0].method=http
+      - pangolin.public-resources.rss.targets[0].port=8080
+      - pangolin.public-resources.rss.auth.sso-enabled=true
+    image: freshrss/freshrss:1.28.0
+    environment:
+      # Timezone configuration
+      - TZ=Europe/Paris
+      # Production mode
+      - FRESHRSS_ENV=production
+      # Automatic update cron (every 15 minutes)
+      - CRON_MIN=*/15
+    volumes:
+      - freshrss_data:/var/www/FreshRSS/data
+      - freshrss_extensions:/var/www/FreshRSS/extensions
+    restart: unless-stopped
+    networks:
+      - newt
+
+volumes:
+  freshrss_data:
+    driver: local
+  freshrss_extensions:
+    driver: local
+
+networks:
+  newt:
+    external: true
