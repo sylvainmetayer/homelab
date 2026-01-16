@@ -1,0 +1,6 @@
+---
+- name: Restart rss service
+  ansible.builtin.systemd:
+    name: dc@rss
+    scope: user
+    state: restarted

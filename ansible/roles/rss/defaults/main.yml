@@ -1,6 +1,5 @@
 ---
-rss_base_path: /opt/rss
-rss_domain: rss.sylvain.cloud
-rss_local_port: 9002
+rss_base_path: "{{ docker_base_path }}/rss"
+rss_domain: news.sylvain.cloud
 rss_db_password: ""
 rss_healthcheck_url: ""
