@@ -8,7 +8,7 @@ resource "ovh_domain_zone_record" "pangolin" {
 
 resource "ovh_domain_zone_record" "test" {
   zone      = "sylvain.cloud"
-  subdomain = "test"
+  subdomain = "*"
   fieldtype = "A"
   ttl       = 300
   target    = hcloud_server.pangolin.ipv4_address

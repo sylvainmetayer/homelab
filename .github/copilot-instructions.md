@@ -109,6 +109,9 @@ Ansible collections (from `requirements.yml`):
 - Ansible facts cache: `ansible/facts/`
 - Check mode: `mise run ansible-check`
 - Verbose: Add `-v`, `-vv`, or `-vvv` to ansible commands
+- rclone: `sudo -i rclone ls backup:`
+- borgmatic : `sudo -i borgmatic --list --config /etc/borgmatic.d/<config>.yaml`
+- borgmatic info: `sudo -i borgmatic --info`
 
 ## Key External Dependencies
 

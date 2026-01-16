@@ -1,0 +1,116 @@
+---
+- name: Install dependencies for pipx
+  become: true
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+      - python3-venv
+      - pipx
+    state: present
+    update_cache: true
+
+- name: Ensure pipx path for root
+  become: true
+  ansible.builtin.command: pipx ensurepath
+  register: pipx_ensurepath
+  changed_when: "'already in PATH' not in pipx_ensurepath.stdout"
+
+- name: Ensure /root/.local/bin is in PATH for root
+  become: true
+  ansible.builtin.lineinfile:
+    path: "/root/.bashrc"
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    regexp: '^export PATH="\$HOME/\.local/bin:\$PATH"'
+    state: present
+    create: true
+    mode: "0644"
+
+- name: Install borgmatic via pipx for root
+  become: true
+  community.general.pipx:
+    name: "borgmatic"
+    state: present
+
+- name: Ensure /root/.local/bin directory exists
+  become: true
+  ansible.builtin.file:
+    path: "/root/.local/bin"
+    state: directory
+    mode: "0755"
+    owner: "root"
+    group: "root"
+
+- name: Download borgbackup binary from GitHub releases for root
+  become: true
+  ansible.builtin.get_url:
+    url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux-glibc231-x86_64"
+    dest: "/root/.local/bin/borg"
+    mode: "0755"
+    owner: "root"
+    group: "root"
+
+- name: Ensure borgmatic config directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_config_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "root"
+    group: "root"
+
+- name: Create borgmatic systemd service
+  when: borgmatic_enable_timer
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.service.j2
+    dest: /etc/systemd/system/borgmatic.service
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Create borgmatic systemd timer
+  when: borgmatic_enable_timer
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.timer.j2
+    dest: /etc/systemd/system/borgmatic.timer
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Enable and start borgmatic timer
+  when: borgmatic_enable_timer
+  become: true
+  ansible.builtin.systemd:
+    name: borgmatic.timer
+    # WIP
+    enabled: false
+    state: started
+    daemon_reload: true
+
+- name: Install rclone
+  become: true
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+
+- name: Ensure rclone config directory exists for root
+  become: true
+  ansible.builtin.file:
+    path: "{{ rclone_config_dir }}"
+    state: directory
+    mode: "0700"
+    owner: "root"
+    group: "root"
+
+- name: Create rclone configuration file for root
+  become: true
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: "{{ rclone_config_dir }}/rclone.conf"
+    mode: "0600"
+    owner: "root"
+    group: "root"

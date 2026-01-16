@@ -13,7 +13,7 @@ resource "hcloud_ssh_key" "keepassxc" {
 
 resource "hcloud_server" "pangolin" {
   lifecycle {
-    ignore_changes = [ user_data, network ]
+    ignore_changes  = [user_data, network]
     prevent_destroy = true
   }
 
