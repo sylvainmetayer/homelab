@@ -1,0 +1,9 @@
+[backup]
+type = s3
+provider = Other
+env_auth = true
+access_key_id = {{ rclone_s3_access_key_id }}
+secret_access_key = {{ rclone_s3_secret_access_key }}
+endpoint = {{ rclone_s3_endpoint }}
+acl = private
+region = {{ rclone_s3_region }}

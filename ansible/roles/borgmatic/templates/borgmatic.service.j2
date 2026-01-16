@@ -1,0 +1,13 @@
+[Unit]
+Description=borgmatic backup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ borgmatic_user }}
+Group={{ borgmatic_user }}
+ExecStart=/root/.local/bin/borgmatic --verbosity -1 --syslog-verbosity 1
+
+[Install]
+WantedBy=multi-user.target

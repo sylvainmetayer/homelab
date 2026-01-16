@@ -18,3 +18,8 @@ pangolin_config = {
   base_domain   = "sylvain.cloud"
   log_level     = "info"
 }
+
+# Configuration S3 Hetzner
+s3_bucket_name        = "homelab-backup-sylvain"
+s3_versioning_enabled = false
+s3_endpoint           = "https://nbg1.your-objectstorage.com"
