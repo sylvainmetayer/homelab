@@ -28,3 +28,6 @@
     mode: "0644"
     modification_time: preserve
     access_time: preserve
+
+- name: Reset ssh connection to allow user changes to take effect
+  ansible.builtin.meta: reset_connection

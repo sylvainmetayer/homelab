@@ -21,3 +21,12 @@ L'image inclut :
 - pour que ça marche, pangolin newt doit être dans le même network docker que les conteneurs
 - https://github.com/orgs/fosrl/discussions/402#discussion-8123152
 - https://pangolin.net/blog/posts/blueprints
+
+
+## Restauration
+
+Pour restaurer une sauvegarde avec borgmatic :
+
+```bash
+sudo borgmatic -i --restore --archive 'nom_de_votre_archive' --target-path /
+```

@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Betisier password reset
+Requires=betisier-reset.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

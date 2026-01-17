@@ -32,6 +32,32 @@
     scope: user
     enabled: true
 
+- name: Template betisier-reset service
+  ansible.builtin.template:
+    src: "templates/betisier-reset.service.j2"
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/betisier-reset.service"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0644"
+  notify: Reload systemd user
+
+- name: Template betisier-reset timer
+  ansible.builtin.template:
+    src: "templates/betisier-reset.timer.j2"
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/betisier-reset.timer"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    mode: "0644"
+  notify: Reload systemd user
+
+- name: Enable and start betisier-reset timer
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: betisier-reset.timer
+    scope: user
+    enabled: true
+
 # Borgmatic backup configuration
 - name: Configure borgmatic backup for Betisier
   when: betisier_backup_enabled

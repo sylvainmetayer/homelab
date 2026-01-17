@@ -31,9 +31,6 @@
     - role: devsec.hardening.ssh_hardening
       tags: setup
       become: true
-    - role: sudo_with_ssh_agent
-      become: true
-      tags: ssh
     - role: andrewrothstein.starship
       tags: setup,starship
     - role: escalate.swap
@@ -43,7 +40,4 @@
     - role: rclone
       tags: app,kDrive
     - role: photoprism
-      tags: app
-    - role: geerlingguy.certbot
-      become: true
       tags: app
