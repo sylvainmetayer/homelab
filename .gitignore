@@ -35,3 +35,5 @@ ansible/galaxy_roles/
 ansible/collections/
 ansible/run.log
 ansible/facts/
+
+.ansible/

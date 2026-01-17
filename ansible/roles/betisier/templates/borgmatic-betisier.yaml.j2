@@ -1,4 +1,4 @@
-# Borgmatic configuration for RSS backup
+# Borgmatic configuration for Betisier backup
 # See https://torsion.org/borgmatic/reference/configuration/ for full reference
 #
 # IMPORTANT: With Borg 2.x, S3/B2 credentials are embedded in the repository URL.
@@ -7,9 +7,16 @@
 # List of source directories and files to back up. Globs and tildes
 # are expanded. Do not backslash spaces in path names.
 source_directories:
-    - {{ rss_base_path }}/freshrss_data
-    - {{ rss_base_path }}/freshrss_extensions
-    - {{ rss_base_path }}/compose.yaml
+    - {{ betisier_base_path }}/config
+    - {{ betisier_base_path }}/dump.sql
+    - {{ betisier_base_path }}/compose.yaml
+
+mysql_databases:
+    - container: betisier_db
+      port: 3306
+      name: betisier
+      username: betisier
+      password: {{ betisier_db_password }}
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start
@@ -33,18 +40,18 @@ local_path: /root/.local/bin/borg
 # ReadWritePaths list.
 repositories:
     # The local path or Borg URL of the repository.
-    - path: {{ rss_backup_borgmatic_target }}
+    - path: {{ betisier_backup_borgmatic_target }}
       # An optional label for the repository, used in logging
       # and to make selecting the repository easier on the
       # command-line.
-      label: rss-s3
+      label: betisier-s3
 
 # Passphrase to unlock the encryption key with. Only use on
 # repositories that were initialized with passphrase/repokey/keyfile
 # encryption. Quote the value if it contains punctuation, so it parses
 # correctly. And backslash any quote or backslash literals as well.
 # Defaults to not set. Supports the "{credential ...}" syntax.
-encryption_passphrase: {{ rss_backup_encryption_passphrase }}
+encryption_passphrase: {{ betisier_backup_encryption_passphrase }}
 
 # Type of compression to use when creating archives. (Compression
 # level can be added separated with a comma, like "zstd,7".) See
@@ -105,7 +112,7 @@ checks:
 # can be targeted together. When running actions like repo-list,
 # info, or check, borgmatic automatically tries to match only
 # archives created with this name format.
-archive_name_format: 'rss-{now:%Y-%m-%dT%H:%M:%S}'
+archive_name_format: 'betisier-{now:%Y-%m-%dT%H:%M:%S}'
 
 # List of one or more command hooks to execute, triggered at
 # particular points during borgmatic's execution. For each command
@@ -133,7 +140,7 @@ commands:
       # List of one or more shell commands or scripts to
       # run when this command hook is triggered. Required.
       run:
-          - echo "Starting RSS backup at $(date)"
+          - echo "Starting Betisier backup at $(date)"
 
     # Name for the point in borgmatic's execution that
     # the commands should be run after (required if
@@ -158,12 +165,12 @@ commands:
       # List of one or more shell commands or scripts to
       # run when this command hook is triggered. Required.
       run:
-          - echo "RSS backup completed at $(date)"
+          - echo "Betisier backup completed at $(date)"
 
-{% if rss_backup_healthcheck_url is defined and rss_backup_healthcheck_url %}
+{% if betisier_backup_healthcheck_url is defined and betisier_backup_healthcheck_url %}
 # https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
 uptime_kuma:
-    push_url: {{ rss_backup_healthcheck_url }}
+    push_url: {{ betisier_backup_healthcheck_url }}
     states:
         - start
         - finish

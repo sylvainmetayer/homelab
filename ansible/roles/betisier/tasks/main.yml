@@ -16,16 +16,6 @@
     dest: "{{ betisier_base_path }}/dump.sql"
     mode: "0644"
 
-# TODO Add config.inc.php file in config folder
-
-# - name: Add restic profile
-#   tags: backup
-#   ansible.builtin.blockinfile:
-#     path: ~/.config/resticprofile/profiles.yaml
-#     prepend_newline: true
-#     block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
-#     marker: "# {mark} betisier ANSIBLE MANAGED"
-
 - name: Template compose configuration
   ansible.builtin.template:
     src: "templates/compose.yaml"
@@ -41,3 +31,27 @@
     name: dc@betisier
     scope: user
     enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Betisier
+  when: betisier_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Betisier
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-betisier.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/betisier.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Betisier
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/betisier.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr
