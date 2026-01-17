@@ -2,12 +2,15 @@
 docker_users:
   - "{{ ansible_user_id }}"
 
-# RSS backup configuration
+borgmatic_config_dir: "/etc/borgmatic.d"
+borgmatic_encryption_mode: repokey-aes-ocb
+
 rss_backup_enabled: true
 rss_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/rss"
 rss_backup_encryption_passphrase: "{{ backup_passphrase }}"
 # TMP URL, will be deleted
 rss_backup_healthcheck_url: "https://status.sylvain.cloud/api/push/01SRDYJe7RpwRvfuWulQU2ut1xFZ71RS"
 
-borgmatic_config_dir: "/etc/borgmatic.d"
-borgmatic_encryption_mode: repokey-aes-ocb
+betisier_backup_enabled: true
+betisier_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/betisier"
+betisier_backup_encryption_passphrase: "{{ backup_passphrase }}"

@@ -32,10 +32,6 @@
   when: rss_backup_enabled
   tags: backup
   block:
-    - name: Ensure borgmatic is installed
-      ansible.builtin.include_role:
-        name: borgmatic
-
     - name: Create borgmatic configuration for RSS
       become: true
       ansible.builtin.template:

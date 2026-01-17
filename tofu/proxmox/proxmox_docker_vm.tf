@@ -1,13 +1,13 @@
 # Téléchargement de l'image Debian 13 Trixie cloud
 resource "proxmox_virtual_environment_download_file" "debian_13" {
-  content_type       = "iso"
-  datastore_id       = "local"
-  file_name          = "debian-13-generic-amd64.img"
-  node_name          = var.proxmox_node
-  url                = var.debian13_image_url
-  checksum           = var.debian13_image_checksum
-  checksum_algorithm = var.debian13_image_checksum_algorithm
-  overwrite          = true
+  content_type        = "iso"
+  datastore_id        = "local"
+  file_name           = "debian-13-generic-amd64.img"
+  node_name           = var.proxmox_node
+  url                 = var.debian13_image_url
+  checksum            = var.debian13_image_checksum
+  checksum_algorithm  = var.debian13_image_checksum_algorithm
+  overwrite           = true
   overwrite_unmanaged = true
 }
 

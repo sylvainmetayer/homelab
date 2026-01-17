@@ -4,3 +4,9 @@ betisier_domain: betisier.sylvain.cloud
 betisier_db_password: ""
 betisier_healthcheck_url: ""
 betisier_reset_healthcheck_url: ""
+
+# Borgmatic backup configuration
+betisier_backup_enabled: true
+betisier_backup_borgmatic_target: ""
+betisier_backup_encryption_passphrase: ""
+betisier_backup_healthcheck_url: ""

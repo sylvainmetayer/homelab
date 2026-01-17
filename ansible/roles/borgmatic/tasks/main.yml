@@ -114,3 +114,12 @@
     mode: "0600"
     owner: "root"
     group: "root"
+
+- name: Ensure mysqldump and pg_dump are installed
+  become: true
+  ansible.builtin.apt:
+    name:
+      - mariadb-client
+      - postgresql-client
+    state: present
+    update_cache: true

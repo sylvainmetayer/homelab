@@ -15,6 +15,7 @@
     - name: geerlingguy.docker
       become: true
     - name: docker_service
+    - name: borgmatic
     - name: newt
       tags: newt
     - name: echo

@@ -9,18 +9,18 @@ resource "proxmox_virtual_environment_download_file" "debian" {
 }
 
 resource "random_password" "newt_password" {
-  length           = 16
-  special          = false
-  min_lower = 1
+  length      = 16
+  special     = false
+  min_lower   = 1
   min_numeric = 1
-  min_upper = 1
+  min_upper   = 1
 }
 
 # FIXME Si ça arrive à s'intégrer avec un LXC container...
 resource "proxmox_virtual_environment_file" "lxc" {
   content_type = "snippets"
   datastore_id = "local"
-  node_name = var.proxmox_node
+  node_name    = var.proxmox_node
 
   source_raw {
     data = <<-EOF
@@ -68,7 +68,7 @@ resource "proxmox_virtual_environment_container" "newt" {
     }
 
     user_account {
-      keys = [trimspace(file("${path.root}/../../key.pub"))]
+      keys     = [trimspace(file("${path.root}/../../key.pub"))]
       password = random_password.newt_password.result
     }
   }
@@ -102,7 +102,7 @@ resource "proxmox_virtual_environment_container" "newt" {
   }
 
   startup {
-    order = 3
+    order      = 3
     up_delay   = "60"
     down_delay = "60"
   }
