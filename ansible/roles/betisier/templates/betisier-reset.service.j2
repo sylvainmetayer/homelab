@@ -1,0 +1,33 @@
+[Unit]
+Description=Reset Betisier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ betisier_base_path }}
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Stop the betisier service
+ExecStart=/usr/bin/systemctl --user stop dc@betisier
+
+# Wait for service to stop
+ExecStart=/bin/sleep 2
+
+# Docker compose down
+ExecStart=/usr/bin/docker compose down
+
+# Restart the betisier service
+ExecStart=/usr/bin/systemctl --user start dc@betisier
+
+# Wait for service to be ready
+ExecStart=/bin/sleep 10
+
+# Reset the database password
+ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e "UPDATE personne set per_pwd = '\''73fd51e2fbe484ff3b05e124f253ebd1'\'';"'
+
+# Restart policy
+Restart=no
+
+[Install]
+WantedBy=default.target

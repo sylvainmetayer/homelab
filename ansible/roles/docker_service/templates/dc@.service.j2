@@ -3,15 +3,9 @@
 Description=%i service powered by docker compose
 
 [Service]
-# Restart each day by resetting data - https://stackoverflow.com/a/50332245
-# Only for betisier
-#RuntimeMaxSec=1d
-
 Restart=always
 RestartSec=15s
 TimeoutStartSec=300
-#   Create a directory for each docker composed service at /opt/dockerfiles.
-#   Name the directory as the service.
 WorkingDirectory=/opt/apps/%i
 
 #   Remove old containers, images and volumes and update it
@@ -20,14 +14,8 @@ WorkingDirectory=/opt/apps/%i
 #   Comment the following to not automatically update your images!
 #ExecStartPre=/usr/bin/docker compose pull
 
-#   Run Compose up on service start.
 ExecStart=/usr/bin/docker compose up
-
-#   Run Compose down, remove containers and volumes on service stop.
 ExecStop=/usr/bin/docker compose stop
-
-# TODO init container docker compose instead of curl
-#ExecStartPre=/usr/bin/curl healcheckurl
 
 [Install]
 WantedBy=multi-user.target
