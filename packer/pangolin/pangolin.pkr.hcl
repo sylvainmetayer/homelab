@@ -51,6 +51,8 @@ build {
     user                    = "root"
     galaxy_file             = "${path.root}/ansible/requirements.yml"
     galaxy_force_install    = true
+    roles_path              = "${path.root}/../../ansible/galaxy_roles:${path.root}/../../ansible/roles"
+    ansible_env_vars        = ["ANSIBLE_ROLES_PATH=${path.root}/../../ansible/galaxy_roles:${path.root}/../../ansible/roles"]
   }
 
   # Clean up for cloud-init re-run
