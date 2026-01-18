@@ -85,8 +85,7 @@
   become: true
   ansible.builtin.systemd:
     name: borgmatic.timer
-    # WIP
-    enabled: false
+    enabled: true
     state: started
     daemon_reload: true
 

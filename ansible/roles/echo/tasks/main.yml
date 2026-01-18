@@ -8,6 +8,7 @@
     group: "{{ ansible_user_gid }}"
 
 - name: Template compose configuration
+  notify: Restart echo
   ansible.builtin.template:
     src: "templates/compose.yaml"
     dest: "{{ echo_base_path }}/compose.yaml"

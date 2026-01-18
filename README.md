@@ -25,8 +25,20 @@ L'image inclut :
 
 ## Restauration
 
-Pour restaurer une sauvegarde avec borgmatic :
+Pour restaurer une sauvegarde avec borgmatic (à améliorer), exemple avec betisier
 
 ```bash
-sudo borgmatic -i --restore --archive 'nom_de_votre_archive' --target-path /
+sudo -s # root obligatoire
+cd /opt/apps/betisier
+borgmatic extract --archive latest --repo betisier-s3 -v 2 --strip-components all --path /opt/apps/betisier
+mv betisier/* .
+rm -rf betisier
+# pour la partie DB
+rm -rf borgmatic
+# En tant qu'user
+systemctl start dc@betisier --user
+# pour le container db soit up
+# retour root
+sudo -s
+borgmatic restore --archive latest --repo betisier-s3
 ```

@@ -17,6 +17,7 @@
     mode: "0644"
 
 - name: Template compose configuration
+  notify: Restart betisier
   ansible.builtin.template:
     src: "templates/compose.yaml"
     dest: "{{ betisier_base_path }}/compose.yaml"
@@ -39,7 +40,9 @@
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gid }}"
     mode: "0644"
-  notify: Reload systemd user
+  notify:
+  - Reload systemd user
+  - Restart betisier
 
 - name: Template betisier-reset timer
   ansible.builtin.template:

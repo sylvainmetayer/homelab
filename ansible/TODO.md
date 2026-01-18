@@ -7,3 +7,4 @@
 - docker logs to journalctl
 - andrewrothstein.starship
 - sylvainmetayer.workstation.commons
+- Post-first install, reboot VM

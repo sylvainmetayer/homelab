@@ -4,11 +4,19 @@ services:
     container_name: betisier
     labels:
       - pangolin.public-resources.betisier.name=Betisier
-      - pangolin.public-resources.betisier.full-domain=betisier.sylvain.cloud
+      - pangolin.public-resources.betisier.full-domain=betisier.sylvain.dev
       - pangolin.public-resources.betisier.protocol=http
       - pangolin.public-resources.betisier.targets[0].method=http
       - pangolin.public-resources.betisier.targets[0].port=80
-      - pangolin.public-resources.betisier.auth.sso-enabled=true
+      - pangolin.public-resources.betisier.auth.sso-enabled=false
+      - pangolin.public-resources.betisier.healthcheck.hostname=betisier
+      - pangolin.public-resources.betisier.healthcheck.port=80
+      - pangolin.public-resources.betisier.healthcheck.enabled=true
+      - pangolin.public-resources.betisier.healthcheck.path=/
+      - pangolin.public-resources.betisier.healthcheck.interval=30
+      - pangolin.public-resources.betisier.healthcheck.timeout=5
+      - pangolin.public-resources.betisier.healthcheck.method=GET
+      - pangolin.public-resources.betisier.healthcheck.status=200
     networks:
       - newt
       - betisier
