@@ -18,5 +18,5 @@
 
   roles:
     - role: geerlingguy.docker
-    - role: "{{ playbook_dir }}/../../ansible/roles/security"
-    - role: "{{ playbook_dir }}/../../ansible/roles/pangolin"
+    - role: security
+    - role: pangolin
