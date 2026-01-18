@@ -1,5 +1,10 @@
 # Infra 2026
 
+## Deps
+
+- mise install
+- uv sync
+
 ## Packer
 
 Une image Packer est disponible pour déployer Pangolin Zero Trust sur Hetzner :

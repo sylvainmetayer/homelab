@@ -1,5 +1,5 @@
 [project]
-name = "setup_hosts"
+name = "homelab"
 version = "0.1.0"
 description = "Ansible playbooks to setup and configure various hosts"
 readme = "README.md"

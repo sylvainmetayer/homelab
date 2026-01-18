@@ -5,8 +5,23 @@ sops = 'latest'
 age = 'latest'
 'github:fosrl/cli' = '0.2.1'
 'github:github/copilot-cli' = '0.0.377'
+uv = "0.9"
+python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+
+[settings]
+python.uv_venv_auto = true
+
+[tasks.info]
+description = "Print project information"
+run = '''
+echo "Project: $PROJECT_NAME"
+echo "Virtual Environment: $VIRTUAL_ENV"
+'''
 
 [env]
+# Use the project name derived from the current directory
+PROJECT_NAME = "{{ config_root | basename }}"
+
 # Variable are available in the tasks
 _.file = { path = "secrets.sops.yaml", redact = true}
 

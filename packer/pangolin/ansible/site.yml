@@ -10,8 +10,13 @@
       - { port: "443", proto: tcp }
       - { port: "51820", proto: udp }
       - { port: "21820", proto: udp }
+    docker_users:
+      - "{{ ansible_user_id }}"
+    # Disable Pangolin config deployment in Packer build
+    # Configuration will be deployed via cloud-init or later via Ansible playbook
+    deploy_pangolin_config: false
 
   roles:
-    - role: "{{ playbook_dir }}/../../ansible/roles/docker"
+    - role: geerlingguy.docker
     - role: "{{ playbook_dir }}/../../ansible/roles/security"
-    - pangolin
+    - role: "{{ playbook_dir }}/../../ansible/roles/pangolin"
