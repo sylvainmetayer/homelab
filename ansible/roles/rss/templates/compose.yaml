@@ -9,6 +9,14 @@ services:
       - pangolin.public-resources.rss.targets[0].method=http
       - pangolin.public-resources.rss.targets[0].port=80
       - pangolin.public-resources.rss.auth.sso-enabled=true
+      - pangolin.public-resources.rss.healthcheck.hostname=rss
+      - pangolin.public-resources.rss.healthcheck.port=80
+      - pangolin.public-resources.rss.healthcheck.enabled=true
+      - pangolin.public-resources.rss.healthcheck.path=/
+      - pangolin.public-resources.rss.healthcheck.interval=30
+      - pangolin.public-resources.rss.healthcheck.timeout=5
+      - pangolin.public-resources.rss.healthcheck.method=GET
+      - pangolin.public-resources.rss.healthcheck.status=200
     image: freshrss/freshrss:1.28.0
     environment:
       # Timezone configuration

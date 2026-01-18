@@ -17,13 +17,16 @@
   roles:
     - name: geerlingguy.docker
       become: true
+      tags: setup
     - name: docker_service
+      tags: setup
     - name: borgmatic
+      tags: backup,setup
     - name: newt
-      tags: newt
+      tags: newt,setup
     - name: echo
-      tags: echo
+      tags: echo,app
     - name: rss
-      tags: rss
+      tags: rss,app
     - name: betisier
-      tags: betisier
+      tags: betisier,app
