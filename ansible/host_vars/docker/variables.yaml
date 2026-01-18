@@ -1,6 +1,4 @@
 ---
-docker_users:
-  - "{{ ansible_user_id }}"
 
 borgmatic_config_dir: "/etc/borgmatic.d"
 borgmatic_encryption_mode: repokey-aes-ocb

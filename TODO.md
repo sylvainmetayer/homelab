@@ -8,3 +8,4 @@
 - andrewrothstein.starship
 - sylvainmetayer.workstation.commons
 - Post-first install, reboot VM
+- Migrate to OVH S3 (hetzner S3 is expensive)

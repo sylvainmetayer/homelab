@@ -37,3 +37,4 @@ ansible/run.log
 ansible/facts/
 
 .ansible/
+.venv/

@@ -1,0 +1,35 @@
+gerbil:
+  start_port: 51820
+  base_endpoint: {{ pangolin_dashboard_url }}
+
+app:
+  dashboard_url: https://{{ pangolin_dashboard_url }}
+  log_level: {{ pangolin_log_level }}
+  telemetry:
+    anonymous_usage: false
+
+domains:
+  domain1:
+    base_domain: {{ pangolin_base_domain }}
+
+server:
+  secret: {{ pangolin_secret }}
+  cors:
+      origins: ["https://{{ pangolin_dashboard_url }}"]
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+      allowed_headers: ["X-CSRF-Token", "Content-Type"]
+      credentials: false
+  maxmind_db_path: "./config/GeoLite2-Country.mmdb"
+
+email:
+  smtp_host: "mail.infomaniak.com"
+  smtp_port: 465
+  smtp_user: "{{ smtp_user }}"
+  smtp_pass: "{{ smtp_pass }}"
+  no_reply: "{{ smtp_user }}"
+
+flags:
+    require_email_verification: true
+    disable_signup_without_invite: true
+    disable_user_create_org: false
+    allow_raw_resources: true

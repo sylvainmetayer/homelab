@@ -3,3 +3,10 @@
 
 # [proxmox]
 # debian-base ansible_host=192.168.1.100 ansible_user=bob
+
+# [pangolin]
+# Pangolin Zero Trust server
+# Dynamic inventory is provided by hetzner.py
+# Add your Pangolin host here manually only if dynamic inventory is not working
+# Example:
+# pangolin ansible_host=pangolin.example.com ansible_user=sylvain
