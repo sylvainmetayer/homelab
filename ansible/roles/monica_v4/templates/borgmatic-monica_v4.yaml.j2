@@ -1,0 +1,63 @@
+# Borgmatic configuration for monica_v4 backup
+# See https://torsion.org/borgmatic/reference/configuration/ for full reference
+
+source_directories:
+    - {{ monica_v4_base_path }}/data
+    - {{ monica_v4_base_path }}/db_data
+    - {{ monica_v4_base_path }}/compose.yaml
+    - {{ monica_v4_base_path }}/.env
+
+mysql_databases:
+    - container: monica_v4_db
+      port: 3306
+      name: monica
+      username: monica
+      password: {{ monica_v4_db_password }}
+
+exclude_patterns:
+    - '*.log'
+    - '*.tmp'
+    - 'cache/*'
+
+local_path: /root/.local/bin/borg
+
+repositories:
+    - path: {{ monica_v4_backup_borgmatic_target }}
+      label: monica-s3
+
+encryption_passphrase: {{ monica_v4_backup_encryption_passphrase }}
+
+compression: auto,zstd
+
+archive_name_format: '{hostname}-monica-v4-{now:%Y-%m-%dT%H:%M:%S}'
+
+retention:
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+
+consistency:
+    checks:
+        - name: repository
+          frequency: 2 weeks
+        - name: archives
+          frequency: 4 weeks
+
+before_backup:
+    - echo "Starting backup for monica_v4 at {now}"
+
+after_backup:
+    - echo "Completed backup for monica_v4 at {now}"
+
+on_error:
+    - echo "Error during backup for monica_v4 at {now}"
+
+{% if monica_v4_backup_healthcheck_url is defined and monica_v4_backup_healthcheck_url %}
+# https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
+uptime_kuma:
+    push_url: {{ monica_v4_backup_healthcheck_url }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}
