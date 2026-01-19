@@ -1,13 +1,6 @@
 ---
-- name: Copy monica_v4 service
-  ansible.builtin.template:
-    src: ./templates/monica_v4.service.j2
-    dest: ~/.config/systemd/user/monica_v4.service
-    group: "{{ ansible_facts['user_gid'] }}"
-    owner: "{{ ansible_facts['user_uid'] }}"
-    mode: "0644"
-
 - name: Copy monica_v4 cron service
+  notify: Restart monica_v4 cron
   ansible.builtin.template:
     src: ./templates/monica_v4.cron.service.j2
     dest: ~/.config/systemd/user/monica_v4_cron.service
@@ -16,6 +9,7 @@
     mode: "0644"
 
 - name: Copy monica_v4 cron timer
+  notify: Restart monica_v4 cron
   ansible.builtin.template:
     src: ./templates/monica_v4.cron.timer.j2
     dest: ~/.config/systemd/user/monica_v4_cron.timer
@@ -23,15 +17,7 @@
     owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
-- name: Make sure monica_v4 service is running
-  ansible.builtin.systemd:
-    state: started
-    daemon_reload: true
-    name: monica_v4
-    scope: user
-    enabled: true
-
-- name: Make sure monica_v4 cron is running
+- name: Make sure monica_v4 cron timer is running
   ansible.builtin.systemd:
     state: started
     daemon_reload: true
