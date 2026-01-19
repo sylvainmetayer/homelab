@@ -59,6 +59,8 @@
     src: compose.yaml
     dest: "{{ pangolin_dir }}/compose.yaml"
     mode: "0644"
+    owner: root
+    group: root
 
 - name: Create Pangolin systemd service
   ansible.builtin.template:

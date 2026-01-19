@@ -19,6 +19,7 @@ echo "Virtual Environment: $VIRTUAL_ENV"
 '''
 
 [env]
+_.path = [".venv/bin"]
 # Use the project name derived from the current directory
 PROJECT_NAME = "{{ config_root | basename }}"
 
