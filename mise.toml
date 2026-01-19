@@ -9,7 +9,7 @@ uv = "0.9"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 
 [settings]
-python.uv_venv_auto = true
+#python.uv_venv_auto = true
 
 [tasks.info]
 description = "Print project information"

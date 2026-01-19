@@ -12,37 +12,52 @@
     - "{{ pangolin_dir }}/config/letsencrypt"
 
 - name: Download GeoLite2-Country database
+  become: true
   ansible.builtin.get_url:
     url: https://git.io/GeoLite2-Country.mmdb
     dest: "{{ pangolin_dir }}/config/GeoLite2-Country.mmdb"
     mode: "0644"
+    owner: root
+    group: root
   when: deploy_pangolin_config | bool
 
 - name: Create Traefik dynamic configuration
+  become: true
   ansible.builtin.template:
     src: traefik_dynamic_config.yml.j2
     dest: "{{ pangolin_dir }}/config/traefik/dynamic_config.yml"
     mode: "0644"
+    owner: root
+    group: root
   when: deploy_pangolin_config | bool
 
 - name: Create Traefik configuration
+  become: true
+  notify: Restart Pangolin service
   ansible.builtin.template:
     src: traefik_config.yml.j2
     dest: "{{ pangolin_dir }}/config/traefik/traefik_config.yml"
     mode: "0644"
+    owner: root
+    group: root
   when: deploy_pangolin_config | bool
 
 - name: Create Pangolin configuration
+  become: true
+  notify: Restart Pangolin service
   ansible.builtin.template:
     src: pangolin_config.yml.j2
     dest: "{{ pangolin_dir }}/config/config.yml"
     mode: "0600"
+    owner: root
+    group: root
   when: deploy_pangolin_config | bool
 
-- name: Create docker-compose.yml
+- name: Create compose.yml
+  notify: Restart Pangolin service
   ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ pangolin_dir }}/docker-compose.yml"
+    src: compose.yaml
+    dest: "{{ pangolin_dir }}/compose.yaml"
     mode: "0644"
 
 - name: Create Pangolin systemd service
@@ -54,16 +69,7 @@
 - name: Enable Pangolin service
   ansible.builtin.systemd:
     name: pangolin
-    enabled: false
+    enabled: true
+    state: started
     daemon_reload: true
-
-- name: Configure cloud-init for Hetzner
-  ansible.builtin.template:
-    src: cloud-init.cfg.j2
-    dest: /etc/cloud/cloud.cfg.d/99-pangolin.cfg
-    mode: "0644"
-
-- name: Clean apt cache
-  ansible.builtin.apt:
-    autoclean: true
-    autoremove: true
+  when: deploy_pangolin_config | bool

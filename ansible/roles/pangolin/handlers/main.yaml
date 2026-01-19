@@ -1,0 +1,7 @@
+---
+- name: Restart Pangolin service
+  become: true
+  ansible.builtin.systemd:
+    name: pangolin
+    state: restarted
+  when: deploy_pangolin_config | bool

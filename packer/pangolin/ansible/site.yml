@@ -20,3 +20,18 @@
     - role: geerlingguy.docker
     - role: security
     - role: pangolin
+
+  post_tasks:
+    - name: Configure cloud-init for Hetzner
+      become: true
+      ansible.builtin.template:
+        src: cloud-init.cfg.j2
+        dest: /etc/cloud/cloud.cfg.d/99-pangolin.cfg
+        mode: "0644"
+
+    - name: Clean apt cache
+      become: true
+      ansible.builtin.apt:
+        autoclean: true
+        autoremove: true
+        purge: true
