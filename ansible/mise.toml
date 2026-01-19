@@ -1,5 +1,3 @@
-[tools]
-
 [tasks.install]
 description = "Install project dependencies"
 run = [
