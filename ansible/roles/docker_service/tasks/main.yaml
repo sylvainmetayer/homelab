@@ -3,27 +3,27 @@
   become: true
   loop:
     - "{{ docker_base_path }}"
-    - "{{ ansible_env.HOME }}/.config/systemd/user"
+    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
   ansible.builtin.file:
     path: "{{ item }}"
     mode: "0755"
     state: directory
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Copy docker-compose systemd service
   notify: Daemon reload
   ansible.builtin.template:
     src: ./templates/dc@.service.j2
     dest: ~/.config/systemd/user/dc@.service
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 - name: Enable lingering for user
   become: true
   ansible.builtin.file:
-    path: "/var/lib/systemd/linger/{{ ansible_user_id }}"
+    path: "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
     state: touch
     mode: "0644"
     modification_time: preserve

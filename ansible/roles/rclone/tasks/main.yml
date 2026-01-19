@@ -11,29 +11,29 @@
     mode: "0700"
     path: "{{ rclone_base_path }}"
     state: directory
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template rclone script
   ansible.builtin.template:
     src: ./templates/rclone.sh.j2
-    dest: "{{ ansible_user_dir }}/rclone.sh"
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    dest: "{{ ansible_facts['user_dir'] }}/rclone.sh"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0744"
 
 - name: Template rclone service
   ansible.builtin.template:
     src: ./templates/rclone.service.j2
     dest: ~/.config/systemd/user/rclone.service
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 - name: Template rclone config
   ansible.builtin.template:
     src: ./templates/rclone.conf.j2
     dest: ~/.config/rclone/rclone.conf
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0600"

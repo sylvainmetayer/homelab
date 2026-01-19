@@ -7,16 +7,16 @@
     mode: "0755"
     path: "{{ item }}"
     state: directory
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template compose configuration
   notify: Restart rss service
   ansible.builtin.template:
     src: "templates/compose.yaml"
     dest: "{{ rss_base_path }}/compose.yaml"
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
 - name: Make sure rss service is running

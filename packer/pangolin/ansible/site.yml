@@ -11,7 +11,7 @@
       - { port: "51820", proto: udp }
       - { port: "21820", proto: udp }
     docker_users:
-      - "{{ ansible_user_id }}"
+      - "{{ ansible_facts['user_id'] }}"
     # Disable Pangolin config deployment in Packer build
     # Configuration will be deployed via cloud-init or later via Ansible playbook
     deploy_pangolin_config: false
