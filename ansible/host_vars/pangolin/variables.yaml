@@ -13,7 +13,7 @@ pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 # Log level (DEBUG, INFO, WARNING, ERROR)
 pangolin_log_level: "INFO"
 
-# Let's Encrypt email for certificate generation
+# Let's Encrypt email for certificate generation (values should be in secrets.sops.yaml)
 le_email: "admin@example.com"
 
 # SMTP configuration (values should be in secrets.sops.yaml)
