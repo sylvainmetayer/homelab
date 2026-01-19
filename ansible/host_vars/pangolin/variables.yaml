@@ -13,15 +13,15 @@ pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 # Log level (DEBUG, INFO, WARNING, ERROR)
 pangolin_log_level: "INFO"
 
-# Let's Encrypt email for certificate generation (values should be in secrets.sops.yaml)
-le_email: "admin@example.com"
+# Let's Encrypt email for certificate generation
+le_email: "{{ pangolin_le_email }}"
 
 # SMTP configuration (values should be in secrets.sops.yaml)
-# smtp_user: "{{ pangolin_smtp_user }}"
-# smtp_pass: "{{ pangolin_smtp_pass }}"
+smtp_user: "{{ pangolin_smtp_user }}"
+smtp_pass: "{{ pangolin_smtp_pass }}"
 
 # Pangolin secret (should be in secrets.sops.yaml)
-# pangolin_secret: "{{ pangolin_server_secret }}"
+pangolin_secret: "{{ pangolin_server_secret }}"
 
 ufw_allowed_ports:
   - { port: "22", proto: tcp }
