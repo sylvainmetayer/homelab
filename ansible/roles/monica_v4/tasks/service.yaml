@@ -3,24 +3,24 @@
   ansible.builtin.template:
     src: ./templates/monica_v4.service.j2
     dest: ~/.config/systemd/user/monica_v4.service
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 - name: Copy monica_v4 cron service
   ansible.builtin.template:
     src: ./templates/monica_v4.cron.service.j2
     dest: ~/.config/systemd/user/monica_v4_cron.service
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 - name: Copy monica_v4 cron timer
   ansible.builtin.template:
     src: ./templates/monica_v4.cron.timer.j2
     dest: ~/.config/systemd/user/monica_v4_cron.timer
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 - name: Make sure monica_v4 service is running

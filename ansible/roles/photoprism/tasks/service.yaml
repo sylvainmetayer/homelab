@@ -3,8 +3,8 @@
   ansible.builtin.template:
     src: ./templates/photoprism.service.j2
     dest: ~/.config/systemd/user/photoprism.service
-    group: "{{ ansible_user_gid }}"
-    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
 #- name: Make sure photoprism service is running

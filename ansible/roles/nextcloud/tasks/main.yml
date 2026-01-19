@@ -5,8 +5,8 @@
     mode: "0700"
     path: "{{ nextcloud_base_path }}"
     state: directory
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Add restic profile
   tags: backup
@@ -20,8 +20,8 @@
   ansible.builtin.template:
     src: "templates/docker-compose.yml.j2"
     dest: "{{ nextcloud_base_path }}/docker-compose.yml"
-    owner: "{{ ansible_user_id }}"
-    group: "{{ ansible_user_gid }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
 - name: Template nginx host

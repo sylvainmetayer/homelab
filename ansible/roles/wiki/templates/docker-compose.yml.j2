@@ -4,8 +4,8 @@ services:
     image: lscr.io/linuxserver/bookstack:25.07.20250804@sha256:4c6b0f491dc6ffe6ed00bdcc734c24883d8bdd1c3ca4497f516c2a5ad2eb9360
     container_name: bookstack
     environment:
-      - PUID={{ ansible_user_uid }}
-      - PGID={{ ansible_user_gid }}
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
       - TZ=Europe/Paris
       - APP_URL=https://{{ wiki_domain }}
       - DB_HOST=bookstack_db
@@ -25,8 +25,8 @@ services:
     image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
     container_name: bookstack_db
     environment:
-      - PUID={{ ansible_user_uid }}
-      - PGID={{ ansible_user_gid }}
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
       - TZ=Europe/Paris
       - MYSQL_ROOT_PASSWORD={{ wiki_db_password }}
       - MYSQL_DATABASE=bookstack
