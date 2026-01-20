@@ -15,3 +15,5 @@
 - https://dominikbritz.com/posts/victoria-metrics-grafana/#victorialogs
 - https://github.com/geerlingguy/ansible-role-security
 - https://github.com/geerlingguy/ansible-role-node_exporter
+- https://github.com/BigBoot/AutoKuma
+- https://github.com/Peppershade/uptimekuma-migrator
