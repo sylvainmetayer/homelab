@@ -113,6 +113,56 @@ Ansible collections (from `requirements.yml`):
 - borgmatic : `sudo -i borgmatic --list --config /etc/borgmatic.d/<config>.yaml`
 - borgmatic info: `sudo -i borgmatic --info`
 
+## Borgmatic Configuration Standards
+
+**CRITICAL**: Always use the exact structure from `ansible/roles/betisier/templates/borgmatic-betisier.yaml.j2` as the reference template. Key differences from simplified borgmatic configs:
+
+1. **Retention**: Use top-level `keep_daily`, `keep_weekly`, `keep_monthly`, `keep_yearly` (NOT nested under `retention:`)
+2. **Checks**: Use top-level `checks:` with `name` and `frequency` (NOT nested under `consistency:`)
+3. **Commands**: Use `commands:` section with `before: action` and `after: action` hooks with `when: [create]` (NOT simplified `before_backup`/`after_backup`)
+4. **Archive format**: Use service-specific naming like `'service-{now:%Y-%m-%dT%H:%M:%S}'` (without hostname)
+5. **Compression**: Use `zstd,10` (NOT `auto,zstd`)
+6. **Comments**: Include full borgmatic documentation comments from reference template
+
+Correct structure (from betisier reference):
+```yaml
+# Retention (top-level, not nested)
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
+
+# Checks (top-level, not under consistency:)
+checks:
+    - name: repository
+      frequency: 2 weeks
+    - name: archives
+      frequency: 1 month
+
+# Archive naming
+archive_name_format: 'service-{now:%Y-%m-%dT%H:%M:%S}'
+
+# Commands (not before_backup/after_backup)
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - echo "Starting Service backup at $(date)"
+    - after: action
+      when:
+          - create
+      run:
+          - echo "Service backup completed at $(date)"
+```
+
+**NEVER use**:
+- `retention:` wrapper for keep_* directives
+- `consistency:` wrapper for checks
+- `before_backup:` / `after_backup:` / `on_error:` hooks
+- `{hostname}` prefix in archive names
+- `auto,zstd` compression
+
 ## Key External Dependencies
 
 - Hetzner Cloud (Pangolin deployment)

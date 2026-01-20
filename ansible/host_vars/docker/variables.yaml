@@ -18,7 +18,7 @@ monica_v4_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/mo
 monica_v4_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 # Wiki (Bookstack) configuration
-wiki_domain: "wiki.{{ pangolin_base_domain }}"
+wiki_domain: "wiki.sylvain.cloud"
 wiki_backup_enabled: true
 wiki_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/wiki"
 wiki_backup_borgmatic_password: "{{ backup_passphrase }}"

@@ -10,7 +10,7 @@ deploy_pangolin_config: true
 # These should be overridden in host_vars/pangolin/variables.yaml or via secrets
 pangolin_dashboard_url: ""
 pangolin_base_domain: ""
-pangolin_log_level: "INFO"
+pangolin_log_level: "info"
 pangolin_secret: ""
 
 # Let's Encrypt email
