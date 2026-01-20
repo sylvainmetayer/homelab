@@ -2,7 +2,7 @@
 services:
   crm:
     container_name: monica_v4
-    image: monica:3.7.0-apache@sha256:ceb1ba4196ab2d371f504f284f4516174f4b99fe9339f2aa69a86c31d6ba414f
+    image: monica:4.1.2-apache@sha256:cd39bb454ab6d91a3301a7d9bacd05b31b9f5670ea6285f3caa977388726ca5a
     env_file: .env
     labels:
       # Configuration Pangolin pour routing public
