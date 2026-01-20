@@ -1,16 +1,121 @@
-[env]
-TALOSCONFIG = "./talosconfig"
-PULUMI_CONFIG_PASSPHRASE_FILE = ".pulumi_passphrase.key"
-
 [tools]
-aws = "2"
-flux2 = "2"
-helm = "3.17"
-helmfile = "0.171"
-jq = "1"
-k9s = "latest"
-kubectl = "1.32"
-kubectx = "0.9"
-node = "23"
-pulumi = "3"
-talosctl = "1"
+opentofu = '1.11.2'
+packer = 'latest'
+sops = 'latest'
+age = 'latest'
+'github:fosrl/cli' = '0.2.1'
+'github:github/copilot-cli' = '0.0.377'
+uv = "0.9"
+python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+
+[settings]
+#python.uv_venv_auto = true
+
+[tasks.info]
+description = "Print project information"
+run = '''
+echo "Project: $PROJECT_NAME"
+echo "Virtual Environment: $VIRTUAL_ENV"
+'''
+
+[env]
+_.path = [".venv/bin"]
+# Use the project name derived from the current directory
+PROJECT_NAME = "{{ config_root | basename }}"
+
+# Variable are available in the tasks
+_.file = { path = "secrets.sops.yaml", redact = true}
+
+[tasks.generate_password]
+description = "Generate a password, to store it in the secrets file"
+usage = '''
+arg "<password>" help="plain password to hash"
+'''
+run = 'mkpasswd --method=SHA-512 --rounds=4096 ${usage_password}'
+
+[tasks.init]
+description = "Tofu Init (Pangolin)"
+run = "tofu init"
+dir = "tofu/pangolin"
+
+[tasks.init-proxmox]
+description = "Tofu Init (Proxmox)"
+run = "tofu init"
+dir = "tofu/proxmox"
+
+[tasks.plan]
+description = "Tofu Plan (Pangolin)"
+run = "tofu plan"
+dir = "tofu/pangolin"
+depends = ["init"]
+
+[tasks.plan-proxmox]
+description = "Tofu Plan (Proxmox)"
+run = "tofu plan"
+dir = "tofu/proxmox"
+depends = ["init-proxmox"]
+
+[tasks.apply]
+description = "Tofu Apply (Pangolin)"
+run = "tofu apply"
+raw = true
+dir = "tofu/pangolin"
+depends = ["init"]
+
+[tasks.apply-proxmox]
+description = "Tofu Apply (Proxmox)"
+run = "tofu apply"
+raw = true
+dir = "tofu/proxmox"
+depends = ["init-proxmox"]
+
+[tasks.lint]
+description = "Tofu linting (all)"
+run = "tofu fmt -check -recursive && cd pangolin && tofu validate && cd ../proxmox && tofu validate"
+dir = "tofu"
+depends = ["init", "init-proxmox"]
+
+[tasks.fix-lint]
+description = "Tofu linting fix (all)"
+run = "tofu fmt -recursive"
+dir = "tofu"
+
+[tasks.get_state]
+description = "Get the current state of the tofu deployment"
+run = "tofu state pull > state.json"
+dir = "tofu"
+
+[tasks.packer-init]
+description = "Initialize Packer plugins"
+run = "packer init ."
+dir = "packer/pangolin"
+
+[tasks.packer-validate]
+description = "Validate Packer configuration"
+run = "packer validate ."
+dir = "packer/pangolin"
+depends = "packer-init"
+
+[tasks.packer-build]
+description = "Build Pangolin image with Packer"
+run = "packer build ."
+dir = "packer/pangolin"
+depends = "packer-init"
+raw = true
+
+[tasks.ansible-lint]
+description = "Lint Ansible playbooks"
+run = "ansible-lint"
+dir = "ansible"
+
+[tasks.ansible-run]
+description = "Run Ansible playbook"
+run = "ansible-playbook -i inventory/hosts site.yml"
+dir = "ansible"
+raw = true
+
+[tasks.ansible-check]
+description = "Run Ansible playbook in check mode"
+run = "ansible-playbook -i inventory/hosts site.yml --check"
+dir = "ansible"
+raw = true

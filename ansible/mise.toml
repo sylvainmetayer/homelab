@@ -1,0 +1,28 @@
+[tasks.install]
+description = "Install project dependencies"
+run = [
+    'ansible-galaxy role install -r "requirements.yml"',
+    'ansible-galaxy collection install -r "requirements.yml"'
+]
+sources = ['requirements.yml']
+
+[tasks.lint]
+description = "Run ansible-lint"
+run = "ansible-lint"
+
+[tasks.lint-fix]
+description = "Run ansible-lint with auto-fix"
+run = "ansible-lint --fix"
+
+[tasks.ssh]
+description = "SSH into the managed host"
+run = '''
+ip=$(ansible-inventory --host docker | jq -r '.ansible_host')
+ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
+'''
+raw = true
+
+[tasks.docker]
+description = "Run ansible-playbook for Docker setup"
+run = "ansible-playbook site.yml"
+

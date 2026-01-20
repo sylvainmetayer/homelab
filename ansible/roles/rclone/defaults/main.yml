@@ -1,0 +1,5 @@
+---
+rclone_base_path: /opt/rclone_data
+rclone_password: ""
+rclone_user: ""
+rclone_url: ""

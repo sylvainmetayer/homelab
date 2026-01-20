@@ -1,0 +1,21 @@
+---
+services:
+  newt:
+    image: fosrl/newt:1.8.1
+    container_name: newt
+    restart: unless-stopped
+    environment:
+      - PANGOLIN_ENDPOINT={{ newt_endpoint }}
+      - NEWT_ID={{ newt_docker_client_id }}
+      - NEWT_SECRET={{ newt_docker_client_secret }}
+      - DOCKER_SOCKET=unix:///var/run/docker.sock
+      - DOCKER_ENFORCE_NETWORK_VALIDATION=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - newt
+
+networks:
+  newt:
+    name: newt
+    driver: bridge

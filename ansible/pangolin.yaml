@@ -1,0 +1,19 @@
+---
+- name: Configure Pangolin Zero Trust infrastructure
+  hosts: pangolin
+
+  pre_tasks:
+    - name: Load secrets from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
+    - name: geerlingguy.docker
+      become: true
+      tags: setup
+    - role: security
+      become: true
+      tags: security
+    - role: pangolin
+      tags: pangolin

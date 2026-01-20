@@ -1,0 +1,25 @@
+---
+- name: Ensure echo app folder exists
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ echo_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart echo
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ echo_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure echo service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@echo
+    scope: user
+    enabled: true

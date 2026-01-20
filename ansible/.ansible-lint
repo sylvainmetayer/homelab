@@ -1,0 +1,10 @@
+---
+skip_list: []
+
+warn_list: []
+
+exclude_paths:
+  - .ansible/
+  - .venv/
+  - collections/
+  - galaxy_roles/

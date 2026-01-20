@@ -1,0 +1,54 @@
+---
+services:
+  crm:
+    container_name: monica_v4
+    image: monica:3.7.0-apache@sha256:ceb1ba4196ab2d371f504f284f4516174f4b99fe9339f2aa69a86c31d6ba414f
+    env_file: .env
+    labels:
+      # Configuration Pangolin pour routing public
+      - pangolin.public-resources.monica.name=Monica CRM
+      - pangolin.public-resources.monica.full-domain={{ monica_v4_domain }}
+      - pangolin.public-resources.monica.protocol=http
+      - pangolin.public-resources.monica.targets[0].method=http
+      - pangolin.public-resources.monica.targets[0].port=80
+
+      # SSO enabled
+      - pangolin.public-resources.monica.auth.sso-enabled=true
+
+      # Healthcheck
+      - pangolin.public-resources.monica.healthcheck.hostname=monica_v4
+      - pangolin.public-resources.monica.healthcheck.port=80
+      - pangolin.public-resources.monica.healthcheck.enabled=true
+      - pangolin.public-resources.monica.healthcheck.path=/
+      - pangolin.public-resources.monica.healthcheck.interval=30
+      - pangolin.public-resources.monica.healthcheck.timeout=5
+      - pangolin.public-resources.monica.healthcheck.method=GET
+      - pangolin.public-resources.monica.healthcheck.status=200
+    volumes:
+      - ./data:/var/www/html/storage
+    networks:
+      - newt
+      - monica
+    restart: unless-stopped
+
+  monica_v4_db:
+    image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
+    container_name: monica_v4_db
+    networks:
+      - monica
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      - MYSQL_ROOT_PASSWORD={{ monica_v4_db_password }}
+      - MYSQL_DATABASE=monica
+      - MYSQL_USER=monica
+      - MYSQL_PASSWORD={{ monica_v4_db_password }}
+    volumes:
+      - ./db_data:/config
+    restart: unless-stopped
+
+networks:
+  monica:
+  newt:
+    external: true

@@ -1,0 +1,11 @@
+---
+- name: Reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+
+- name: Restart betisier
+  ansible.builtin.systemd:
+    name: dc@betisier
+    scope: user
+    state: restarted

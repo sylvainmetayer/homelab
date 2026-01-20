@@ -1,0 +1,52 @@
+---
+- name: Ensure wiki app folder exists
+  loop:
+    - "{{ wiki_base_path }}"
+    - "{{ wiki_base_path }}/config"
+    - "{{ wiki_base_path }}/db_data"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart wiki
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ wiki_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Configure borgmatic backup for wiki
+  when: wiki_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for wiki
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-wiki.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/wiki.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for wiki
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/wiki.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr
+
+- name: Make sure wiki service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@wiki
+    scope: user
+    enabled: true

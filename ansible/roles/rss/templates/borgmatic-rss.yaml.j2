@@ -1,0 +1,171 @@
+# Borgmatic configuration for RSS backup
+# See https://torsion.org/borgmatic/reference/configuration/ for full reference
+#
+# IMPORTANT: With Borg 2.x, S3/B2 credentials are embedded in the repository URL.
+# For S3-compatible endpoints (non-AWS), set BORG_S3_ENDPOINT_URL environment variable.
+
+# List of source directories and files to back up. Globs and tildes
+# are expanded. Do not backslash spaces in path names.
+source_directories:
+    - {{ rss_base_path }}/freshrss_data
+    - {{ rss_base_path }}/freshrss_extensions
+    - {{ rss_base_path }}/compose.yaml
+
+# Any paths matching these patterns are excluded from backups. Globs
+# and tildes are expanded. Note that a glob pattern must either start
+# with a glob or be an absolute path. Do not backslash spaces in path
+# names. See the output of "borg help patterns" for more details.
+exclude_patterns:
+    - '*.log'
+    - '*.tmp'
+    - 'cache/*'
+
+# Alternate Borg local executable. Defaults to "borg".
+local_path: /root/.local/bin/borg
+
+# A required list of local or remote repositories with paths and
+# optional labels (which can be used with the --repository flag to
+# select a repository). Tildes are expanded. Multiple repositories are
+# backed up to in sequence. Borg placeholders can be used. See the
+# output of "borg help placeholders" for details. See ssh_command for
+# SSH options like identity file or port. If systemd service is used,
+# then add local repository paths in the systemd service file to the
+# ReadWritePaths list.
+repositories:
+    # The local path or Borg URL of the repository.
+    - path: {{ rss_backup_borgmatic_target }}
+      # An optional label for the repository, used in logging
+      # and to make selecting the repository easier on the
+      # command-line.
+      label: rss-s3
+
+# Passphrase to unlock the encryption key with. Only use on
+# repositories that were initialized with passphrase/repokey/keyfile
+# encryption. Quote the value if it contains punctuation, so it parses
+# correctly. And backslash any quote or backslash literals as well.
+# Defaults to not set. Supports the "{credential ...}" syntax.
+encryption_passphrase: {{ rss_backup_encryption_passphrase }}
+
+# Type of compression to use when creating archives. (Compression
+# level can be added separated with a comma, like "zstd,7".) See
+# http://borgbackup.readthedocs.io/en/stable/usage/create.html for
+# details. Defaults to "lz4".
+compression: zstd,10
+
+# Number of daily archives to keep.
+keep_daily: 7
+
+# Number of weekly archives to keep.
+keep_weekly: 4
+
+# Number of monthly archives to keep.
+keep_monthly: 6
+
+# Number of yearly archives to keep.
+keep_yearly: 1
+
+# List of one or more consistency checks to run on a periodic basis
+# (if "frequency" is set) or every time borgmatic runs checks (if
+# "frequency" is omitted).
+checks:
+    # Name of the consistency check to run:
+    #  * "repository" checks the consistency of the
+    # repository.
+    #  * "archives" checks all of the archives.
+    #  * "data" verifies the integrity of the data
+    # within the archives and implies the "archives"
+    # check as well.
+    #  * "spot" checks that some percentage of source
+    # files are found in the most recent archive (with
+    # identical contents).
+    #  * "extract" does an extraction dry-run of the
+    # most recent archive.
+    #  * See "skip_actions" for disabling checks
+    # altogether.
+    - name: repository
+
+      # How frequently to run this type of consistency
+      # check (as a best effort). The value is a number
+      # followed by a unit of time. E.g., "2 weeks" to
+      # run this consistency check no more than every
+      # two weeks for a given repository or "1 month" to
+      # run it no more than monthly. Defaults to
+      # "always": running this check every time checks
+      # are run.
+      frequency: 2 weeks
+
+    - name: archives
+      frequency: 1 month
+
+# Name of the archive to create. Borg placeholders can be used. See
+# the output of "borg help placeholders" for details. Defaults to
+# "{hostname}-{now:%Y-%m-%dT%H:%M:%S.%f}" with Borg 1 and
+# "{hostname}" with Borg 2, as Borg 2 does not require unique
+# archive names; identical archive names form a common "series" that
+# can be targeted together. When running actions like repo-list,
+# info, or check, borgmatic automatically tries to match only
+# archives created with this name format.
+archive_name_format: 'rss-{now:%Y-%m-%dT%H:%M:%S}'
+
+# List of one or more command hooks to execute, triggered at
+# particular points during borgmatic's execution. For each command
+# hook, specify one of "before" or "after", not both.
+commands:
+    # Name for the point in borgmatic's execution that
+    # the commands should be run before (required if
+    # "after" isn't set):
+    #  * "action" runs before each action for each
+    # repository.
+    #  * "repository" runs before all actions for each
+    # repository.
+    #  * "configuration" runs before all actions and
+    # repositories in the current configuration file.
+    #  * "everything" runs before all configuration
+    # files.
+    - before: action
+
+      # Only trigger the hook when borgmatic is run with
+      # particular actions listed here. Defaults to
+      # running for all actions.
+      when:
+          - create
+
+      # List of one or more shell commands or scripts to
+      # run when this command hook is triggered. Required.
+      run:
+          - echo "Starting RSS backup at $(date)"
+
+    # Name for the point in borgmatic's execution that
+    # the commands should be run after (required if
+    # "before" isn't set):
+    #  * "action" runs after each action for each
+    # repository.
+    #  * "repository" runs after all actions for each
+    # repository.
+    #  * "configuration" runs after all actions and
+    # repositories in the current configuration file.
+    #  * "everything" runs after all configuration
+    # files.
+    #  * "error" runs after an error occurs.
+    - after: action
+
+      # Only trigger the hook when borgmatic is run with
+      # particular actions listed here. Defaults to
+      # running for all actions.
+      when:
+          - create
+
+      # List of one or more shell commands or scripts to
+      # run when this command hook is triggered. Required.
+      run:
+          - echo "RSS backup completed at $(date)"
+
+{% if rss_backup_healthcheck_url is defined and rss_backup_healthcheck_url %}
+# https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
+uptime_kuma:
+    push_url: {{ rss_backup_healthcheck_url }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}

@@ -1,0 +1,52 @@
+---
+- name: Ensure Photoprism app folder exists
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+  with_items:
+    - "{{ photoprism_base_path }}"
+
+- name: Add restic profile
+  tags: backup
+  ansible.builtin.blockinfile:
+    path: ~/.config/resticprofile/profiles.yaml
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
+    marker: "# {mark} photoprism ANSIBLE MANAGED"
+
+- name: Template docker-compose configuration
+  ansible.builtin.template:
+    src: "templates/docker-compose.yml.j2"
+    dest: "{{ photoprism_base_path }}/docker-compose.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template nginx host
+  become: true
+  ansible.builtin.template:
+    src: templates/nginx.conf.j2
+    dest: /etc/nginx/sites-available/photoprism.conf
+    owner: "root"
+    group: "root"
+    mode: "0644"
+
+- name: Enable nginx host
+  become: true
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/photoprism.conf
+    dest: /etc/nginx/sites-enabled/photoprism.conf
+    owner: root
+    group: root
+    state: link
+  # notify: reload nginx
+
+- name: Add domain to certificate to be generated
+  ansible.builtin.set_fact:
+    certbot_certs: '{{ certbot_certs + [{"domains": [photoprism_domain]}] }}'
+
+- ansible.builtin.import_tasks: service.yaml

@@ -1,0 +1,53 @@
+---
+services:
+  betisier:
+    container_name: betisier
+    labels:
+      - pangolin.public-resources.betisier.name=Betisier
+      - pangolin.public-resources.betisier.full-domain=betisier.sylvain.dev
+      - pangolin.public-resources.betisier.protocol=http
+      - pangolin.public-resources.betisier.targets[0].method=http
+      - pangolin.public-resources.betisier.targets[0].port=80
+      - pangolin.public-resources.betisier.auth.sso-enabled=false
+      - pangolin.public-resources.betisier.healthcheck.hostname=betisier
+      - pangolin.public-resources.betisier.healthcheck.port=80
+      - pangolin.public-resources.betisier.healthcheck.enabled=true
+      - pangolin.public-resources.betisier.healthcheck.path=/
+      - pangolin.public-resources.betisier.healthcheck.interval=30
+      - pangolin.public-resources.betisier.healthcheck.timeout=5
+      - pangolin.public-resources.betisier.healthcheck.method=GET
+      - pangolin.public-resources.betisier.healthcheck.status=200
+    networks:
+      - newt
+      - betisier
+    image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:083bdcae175dbbe2d131d0b1fd60ff4d77004f124c671033db478a90e542ad00
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+
+  betisier_db:
+    networks:
+      - betisier
+    image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
+    container_name: betisier_db
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      - MYSQL_ROOT_PASSWORD={{ betisier_db_password }}
+      - MYSQL_DATABASE=betisier
+      - MYSQL_USER=betisier
+      - MYSQL_PASSWORD={{ betisier_db_password }}
+    volumes:
+      # No DB volume, since we want to reset database on restart
+      - ./dump.sql:/config/initdb.d/betisier.sql:ro
+    restart: unless-stopped
+
+networks:
+  betisier:
+  newt:
+    external: true

@@ -1,0 +1,52 @@
+---
+- name: Ensure RSS app folder exists
+  loop:
+    - "{{ rss_base_path }}"
+    - "{{ rss_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart rss service
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ rss_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure rss service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@rss
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for RSS
+  when: rss_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for RSS
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-rss.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/rss.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for RSS
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/rss.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr

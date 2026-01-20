@@ -1,0 +1,27 @@
+---
+# Borgmatic configuration directory
+borgmatic_config_dir: "/etc/borgmatic.d"
+
+# Borg version to download from GitHub releases
+borg_version: "2.0.0b20"
+
+# Borg repository encryption mode (for repo-create)
+# Common values: repokey-aes-ocb, repokey-chacha20-poly1305, none
+borgmatic_encryption_mode: repokey-aes-ocb
+
+# Whether to enable systemd timer for automatic backups
+borgmatic_enable_timer: true
+
+# Timer schedule (systemd OnCalendar format)
+# Default: daily at 3 AM
+borgmatic_timer_schedule: "*-*-* 03:00:00"
+
+# User for systemd service (root for Docker volumes access)
+borgmatic_user: "root"
+
+# Rclone configuration
+rclone_config_dir: "/root/.config/rclone"
+rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
+rclone_s3_secret_access_key: "{{ rclone_secret_access_key | default('') }}"
+rclone_s3_endpoint: "nbg1.your-objectstorage.com"
+rclone_s3_region: "nbg1"

@@ -1,0 +1,86 @@
+---
+- name: Ensure Betisier app folder exists
+  loop:
+    - "{{ betisier_base_path }}"
+    - "{{ betisier_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Get SQL dump
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/refs/heads/master/betisier-mysql/betisier.sql"
+    dest: "{{ betisier_base_path }}/dump.sql"
+    mode: "0644"
+
+- name: Template compose configuration
+  notify: Restart betisier
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ betisier_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure betisier service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@betisier
+    scope: user
+    enabled: true
+
+- name: Template betisier-reset service
+  ansible.builtin.template:
+    src: "templates/betisier-reset.service.j2"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/betisier-reset.service"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+  notify:
+  - Reload systemd user
+  - Restart betisier
+
+- name: Template betisier-reset timer
+  ansible.builtin.template:
+    src: "templates/betisier-reset.timer.j2"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/betisier-reset.timer"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+  notify: Reload systemd user
+
+- name: Enable and start betisier-reset timer
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: betisier-reset.timer
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Betisier
+  when: betisier_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Betisier
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-betisier.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/betisier.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Betisier
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/betisier.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr

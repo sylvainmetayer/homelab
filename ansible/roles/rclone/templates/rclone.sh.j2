@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# https://support.lucidlink.com/hc/en-us/articles/12691498575245-Rclone-systemd-timer-transfer-script
+if [[ "`pidof -x $(basename $0) -o %PPID`" ]]; then
+  echo "rclone.sh is already running"
+  exit
+fi
+
+rclone sync -v --fast-list kDrive:// {{ rclone_base_path }}
