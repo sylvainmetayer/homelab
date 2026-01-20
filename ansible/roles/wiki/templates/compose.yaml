@@ -1,0 +1,65 @@
+---
+services:
+  bookstack:
+    container_name: bookstack
+    labels:
+      # Configuration Pangolin pour routing public
+      - pangolin.public-resources.wiki.name=Wiki (Bookstack)
+      - pangolin.public-resources.wiki.full-domain={{ wiki_domain }}
+      - pangolin.public-resources.wiki.protocol=http
+      - pangolin.public-resources.wiki.targets[0].method=http
+      - pangolin.public-resources.wiki.targets[0].port=80
+
+      # SSO enabled
+      - pangolin.public-resources.wiki.auth.sso-enabled=true
+
+      # Healthcheck
+      - pangolin.public-resources.wiki.healthcheck.hostname=bookstack
+      - pangolin.public-resources.wiki.healthcheck.port=80
+      - pangolin.public-resources.wiki.healthcheck.enabled=true
+      - pangolin.public-resources.wiki.healthcheck.path=/
+      - pangolin.public-resources.wiki.healthcheck.interval=30
+      - pangolin.public-resources.wiki.healthcheck.timeout=5
+      - pangolin.public-resources.wiki.healthcheck.method=GET
+      - pangolin.public-resources.wiki.healthcheck.status=200
+    networks:
+      - newt    # Réseau externe pour accès Pangolin/Traefik
+      - wiki    # Réseau interne pour communication avec la DB
+    image: lscr.io/linuxserver/bookstack:25.07.20250804@sha256:4c6b0f491dc6ffe6ed00bdcc734c24883d8bdd1c3ca4497f516c2a5ad2eb9360
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      - APP_URL=https://{{ wiki_domain }}
+      - DB_HOST=bookstack_db
+      - DB_PORT=3306
+      - DB_USER=bookstack
+      - DB_PASS={{ wiki_db_password }}
+      - DB_DATABASE=bookstack
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+    depends_on:
+      - bookstack_db
+
+  bookstack_db:
+    container_name: bookstack_db
+    networks:
+      - wiki    # Réseau interne uniquement
+    image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      - MYSQL_ROOT_PASSWORD={{ wiki_db_password }}
+      - MYSQL_DATABASE=bookstack
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD={{ wiki_db_password }}
+    volumes:
+      - ./db_data:/config
+    restart: unless-stopped
+
+networks:
+  wiki:      # Réseau interne (créé automatiquement)
+  newt:
+    external: true  # Réseau créé par le rôle newt

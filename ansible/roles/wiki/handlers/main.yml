@@ -1,6 +1,8 @@
 ---
-- name: Reload nginx
-  become: true
-  ansible.builtin.service:
-    name: nginx
-    state: reloaded
+- name: Restart wiki
+  ansible.builtin.systemd:
+    state: restarted
+    name: dc@wiki
+    scope: user
+    daemon_reload: true
+  listen: Restart wiki

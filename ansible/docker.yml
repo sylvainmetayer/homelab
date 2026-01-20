@@ -30,5 +30,7 @@
       tags: rss,app
     - name: betisier
       tags: betisier,app
-    # - name: monica_v4
-    #   tags: monica,app
+    - name: monica_v4
+      tags: monica,app
+    - role: wiki
+      tags: wiki,app
