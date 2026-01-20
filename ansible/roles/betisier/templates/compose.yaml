@@ -32,7 +32,7 @@ services:
   betisier_db:
     networks:
       - betisier
-    image: lscr.io/linuxserver/mariadb@sha256:aab0f8bdcbe5ed275e6682c84f274dccf38094f2dda75d563edfa7b5c85e0fbf
+    image: lscr.io/linuxserver/mariadb@sha256:d33fb3da7766dbe445f4781b0a78e42fcf7e87d8cb4c9f2d5a37abaa8c4316ca
     container_name: betisier_db
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
