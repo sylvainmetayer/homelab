@@ -1,2 +1,6 @@
 ---
 ansible_ssh_private_key_file: "~/.ssh/keepassxc.pub"
+
+# Backup configuration (used by all hosts)
+backup_s3_bucket_name: homelab-backup-sylvain
+backup_s3_endpoint: https://nbg1.your-objectstorage.com

@@ -1,0 +1,62 @@
+# Borgmatic configuration for wiki (Bookstack) backup
+# See https://torsion.org/borgmatic/reference/configuration/ for full reference
+
+source_directories:
+    - {{ wiki_base_path }}/config
+    - {{ wiki_base_path }}/db_data
+    - {{ wiki_base_path }}/compose.yaml
+
+mysql_databases:
+    - container: bookstack_db
+      port: 3306
+      name: bookstack
+      username: bookstack
+      password: {{ wiki_db_password }}
+
+exclude_patterns:
+    - '*.log'
+    - '*.tmp'
+    - 'cache/*'
+
+local_path: /root/.local/bin/borg
+
+repositories:
+    - path: {{ wiki_backup_borgmatic_target }}
+      label: wiki-s3
+
+encryption_passphrase: {{ wiki_backup_borgmatic_password }}
+
+compression: auto,zstd
+
+archive_name_format: '{hostname}-wiki-{now:%Y-%m-%dT%H:%M:%S}'
+
+retention:
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+
+consistency:
+    checks:
+        - name: repository
+          frequency: 2 weeks
+        - name: archives
+          frequency: 4 weeks
+
+before_backup:
+    - echo "Starting backup for wiki at {now}"
+
+after_backup:
+    - echo "Completed backup for wiki at {now}"
+
+on_error:
+    - echo "Error during backup for wiki at {now}"
+
+{% if wiki_backup_healthcheck_url is defined and wiki_backup_healthcheck_url %}
+# https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
+uptime_kuma:
+    push_url: {{ wiki_backup_healthcheck_url }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}
