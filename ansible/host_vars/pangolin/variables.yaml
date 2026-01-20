@@ -10,8 +10,8 @@ pangolin_base_domain: "sylvain.cloud"
 # Pangolin Dashboard URL (without https://)
 pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 
-# Log level (DEBUG, INFO, WARNING, ERROR)
-pangolin_log_level: "INFO"
+# Log level (DEBUG, INFO, WARNING, ERROR) lowercase
+pangolin_log_level: "info"
 
 # Let's Encrypt email for certificate generation
 le_email: "{{ pangolin_le_email }}"
