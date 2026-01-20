@@ -36,6 +36,11 @@
           - apt-transport-https
         state: present
 
+    - name: Set timezone to Europe/Paris
+      become: true
+      community.general.timezone:
+        name: Europe/Paris
+
     - name: Create user
       become: true
       ansible.builtin.user:
