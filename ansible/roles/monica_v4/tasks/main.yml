@@ -1,15 +1,22 @@
 ---
 - name: Ensure Monica v4 app folder exists
   loop:
-    - "{{ monica_v4_base_path }}"
-    - "{{ monica_v4_base_path }}/data"
-    - "{{ monica_v4_base_path }}/db_data"
+    - path: "{{ monica_v4_base_path }}"
+      user: "{{ ansible_facts['user_id'] }}"
+      group: "{{ ansible_facts['user_gid'] }}"
+    - path: "{{ monica_v4_base_path }}/data"
+      user: "www-data"
+      group: "www-data"
+    - path: "{{ monica_v4_base_path }}/db_data"
+      user: "{{ ansible_facts['user_id'] }}"
+      group: "{{ ansible_facts['user_gid'] }}"
+  become: true
   ansible.builtin.file:
     mode: "0755"
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ item.user }}"
+    group: "{{ item.group }}"
 
 - name: Template compose configuration
   notify: Restart monica_v4
