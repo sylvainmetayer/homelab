@@ -1,0 +1,37 @@
+---
+- name: Provision Pangolin Zero Trust base image
+  hosts: all
+  become: true
+
+  vars:
+    ufw_allowed_ports:
+      - { port: "22", proto: tcp }
+      - { port: "80", proto: tcp }
+      - { port: "443", proto: tcp }
+      - { port: "51820", proto: udp }
+      - { port: "21820", proto: udp }
+    docker_users:
+      - "{{ ansible_facts['user_id'] }}"
+    # Disable Pangolin config deployment in Packer build
+    # Configuration will be deployed via cloud-init or later via Ansible playbook
+    deploy_pangolin_config: false
+
+  roles:
+    - role: geerlingguy.docker
+    - role: security
+    - role: pangolin
+
+  post_tasks:
+    - name: Configure cloud-init for Hetzner
+      become: true
+      ansible.builtin.template:
+        src: cloud-init.cfg.j2
+        dest: /etc/cloud/cloud.cfg.d/99-pangolin.cfg
+        mode: "0644"
+
+    - name: Clean apt cache
+      become: true
+      ansible.builtin.apt:
+        autoclean: true
+        autoremove: true
+        purge: true

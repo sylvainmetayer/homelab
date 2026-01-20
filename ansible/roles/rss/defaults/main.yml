@@ -1,0 +1,11 @@
+---
+rss_base_path: "{{ docker_base_path }}/rss"
+rss_domain: news.sylvain.cloud
+rss_db_password: ""
+rss_healthcheck_url: ""
+
+# Borgmatic backup configuration
+rss_backup_enabled: true
+rss_backup_borgmatic_target: ""
+rss_backup_encryption_passphrase: ""
+rss_backup_healthcheck_url: ""

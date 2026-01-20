@@ -1,0 +1,16 @@
+---
+- name: Restart monica_v4
+  ansible.builtin.systemd:
+    state: restarted
+    name: dc@monica_v4
+    scope: user
+    daemon_reload: true
+  listen: Restart monica_v4
+
+- name: Restart monica_v4 cron
+  ansible.builtin.systemd:
+    state: restarted
+    name: monica_v4_cron.timer
+    scope: user
+    daemon_reload: true
+  listen: Restart monica_v4 cron

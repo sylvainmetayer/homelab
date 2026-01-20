@@ -1,0 +1,12 @@
+---
+ansible_user: sylvain
+
+docker_base_path: /opt/apps
+
+newt_endpoint: https://pangolin.sylvain.cloud
+
+backup_s3_bucket_name: homelab-backup-sylvain
+backup_s3_endpoint: https://nbg1.your-objectstorage.com
+
+rclone_access_key_id: "{{ backup_s3_access_key }}"
+rclone_secret_access_key: "{{ backup_s3_secret_key }}"

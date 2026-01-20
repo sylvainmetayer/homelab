@@ -1,0 +1,55 @@
+---
+- name: Ensure Monica v4 app folder exists
+  loop:
+    - "{{ monica_v4_base_path }}"
+    - "{{ monica_v4_base_path }}/data"
+    - "{{ monica_v4_base_path }}/db_data"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart monica_v4
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ monica_v4_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Configure borgmatic backup for monica_v4
+  when: monica_v4_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for monica_v4
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-monica_v4.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/monica_v4.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for monica_v4
+      become: true
+      ansible.builtin.command:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/monica_v4.yaml repo-create --encryption repokey-aes-ocb"
+      register: monica_v4_borg_repo_create
+      changed_when: "'repository already exists' not in monica_v4_borg_repo_create.stderr"
+      failed_when: >
+        monica_v4_borg_repo_create.rc != 0 and
+        'repository already exists' not in monica_v4_borg_repo_create.stderr
+
+- name: Make sure monica_v4 service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@monica_v4
+    scope: user
+    enabled: true
+
+- name: Configure monica_v4 cron
+  ansible.builtin.import_tasks: cron.yaml

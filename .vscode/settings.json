@@ -1,6 +1,3 @@
 {
-    "debug.javascript.defaultRuntimeExecutable": {
-        "pwa-node": "/root/.local/share/mise/shims/node"
-    },
-    "workbench.editor.enablePreview": false
+    "ansible.python.interpreterPath": "/bin/python"
 }

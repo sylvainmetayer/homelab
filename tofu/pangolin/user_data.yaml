@@ -1,0 +1,19 @@
+#cloud-config
+users:
+  - name: sylvain
+    groups: sudo, docker
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    lock_passwd: false
+    passwd: ${pangolin_password}
+    ssh_authorized_keys:
+      - ${public_ssh_key}
+
+ssh_pwauth: false
+disable_root: true
+
+runcmd:
+  # Configuration Pangolin via Ansible sera effectuée après le déploiement
+  # Utiliser: ansible-playbook -i inventory/hosts pangolin.yaml
+  - echo "Cloud-init configuration completed at $(date)" >> /var/log/cloud-init.log
+  - echo "Run Ansible playbook to configure Pangolin services" >> /var/log/cloud-init.log

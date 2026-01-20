@@ -1,0 +1,7 @@
+---
+nextcloud_base_path: /opt/nextcloud
+nextcloud_domain: sylvain.cloud
+nextcloud_local_port: 9000
+nextcloud_db_password: "nextcloud"
+nextcloud_redis_password: "redis"
+nextcloud_healthcheck_url: "REPLACE_ME"

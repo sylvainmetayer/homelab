@@ -1,0 +1,97 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  packer:
+    name: Packer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: latest
+
+      - name: Init Packer plugins (pangolin)
+        run: packer init packer/pangolin
+
+      - name: Validate Packer (pangolin)
+        run: packer validate packer/pangolin
+
+      - name: Check Packer format (pangolin)
+        run: packer fmt -check packer/pangolin
+
+  tofu:
+    name: OpenTofu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+
+      - name: Init OpenTofu (Pangolin)
+        run: tofu init -backend=false
+        working-directory: tofu/pangolin
+
+      - name: Validate OpenTofu (Pangolin)
+        run: tofu validate
+        working-directory: tofu/pangolin
+
+      - name: Init OpenTofu (Proxmox)
+        run: tofu init -backend=false
+        working-directory: tofu/proxmox
+
+      - name: Validate OpenTofu (Proxmox)
+        run: tofu validate
+        working-directory: tofu/proxmox
+
+      - name: Check OpenTofu format
+        run: tofu fmt -check -recursive
+        working-directory: tofu
+
+  ansible:
+    name: Ansible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install ansible-lint
+        run: pip install ansible-lint
+
+      - name: Lint Ansible (main)
+        run: ansible-lint
+        working-directory: ansible
+
+      - name: Lint Ansible (packer roles)
+        run: ansible-lint packer/ansible/roles
+
+  yaml:
+    name: YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: yamllint -d relaxed .

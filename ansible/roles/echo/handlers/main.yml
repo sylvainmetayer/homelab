@@ -1,0 +1,6 @@
+---
+- name: Restart echo
+  ansible.builtin.systemd:
+    name: dc@echo
+    scope: user
+    state: restarted
