@@ -1,0 +1,39 @@
+name: OLM Connectivity Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-olm-connection:
+    runs-on: ubuntu-latest
+
+    services:
+      olm:
+        image: fosrl/olm
+        options: >-
+          --cap-add=NET_ADMIN
+          --device=/dev/net/tun:/dev/net/tun
+        env:
+          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
+          OLM_ID: ${{ secrets.OLM_ID }}
+          OLM_SECRET: ${{ secrets.OLM_SECRET }}
+
+    steps:
+      - name: Wait for OLM to establish connection
+        run: |
+          echo "Waiting for OLM connection to establish..."
+          sleep 30
+
+      - name: Ping docker-apps.internal
+        run: |
+          echo "Attempting to ping docker-apps.internal through OLM tunnel..."
+          for i in {1..10}; do
+            if ping -c 3 -W 5 docker-apps.internal; then
+              echo "✓ Successfully pinged docker-apps.internal"
+              exit 0
+            fi
+            echo "Attempt $i failed, waiting 10 seconds..."
+            sleep 10
+          done
+          echo "✗ Failed to ping docker-apps.internal after 10 attempts"
+          exit 1
