@@ -7,34 +7,23 @@ jobs:
   test-olm-connection:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Start OLM container with host network
-        run: |
-          docker run -d \
-            --name olm \
-            --network host \
-            --cap-add NET_ADMIN \
-            --device /dev/net/tun:/dev/net/tun \
-            -e PANGOLIN_ENDPOINT="${{ secrets.PANGOLIN_ENDPOINT }}" \
-            -e OLM_ID="${{ secrets.OLM_ID }}" \
-            -e OLM_SECRET="${{ secrets.OLM_SECRET }}" \
-            fosrl/olm
+    services:
+      olm:
+        image: fosrl/olm
+        options: >-
+          --cap-add=NET_ADMIN
+          --device=/dev/net/tun:/dev/net/tun
+        env:
+          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
+          OLM_ID: ${{ secrets.OLM_ID }}
+          OLM_SECRET: ${{ secrets.OLM_SECRET }}
+          OVERRIDE_DNS: true
 
+    steps:
       - name: Wait for OLM to establish connection
         run: |
           echo "Waiting for OLM connection to establish..."
           sleep 30
-          docker logs olm
-
-      - name: Configure DNS to use OLM tunnel
-        run: |
-          # Get OLM DNS server (typically provided by Pangolin)
-          OLM_DNS=$(docker exec olm cat /etc/resolv.conf | grep nameserver | head -1 | awk '{print $2}')
-          echo "OLM DNS server: $OLM_DNS"
-
-          # Configure system to use OLM DNS
-          echo "nameserver $OLM_DNS" | sudo tee /etc/resolv.conf > /dev/null
-          cat /etc/resolv.conf
 
       - name: Ping docker-apps.internal
         run: |
@@ -49,11 +38,3 @@ jobs:
           done
           echo "✗ Failed to ping docker-apps.internal after 10 attempts"
           exit 1
-
-      - name: Show OLM logs on failure
-        if: failure()
-        run: docker logs olm
-
-      - name: Cleanup
-        if: always()
-        run: docker rm -f olm || true
