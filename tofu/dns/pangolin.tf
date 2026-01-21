@@ -3,7 +3,7 @@ resource "ovh_domain_zone_record" "pangolin" {
   subdomain = "pangolin"
   fieldtype = "A"
   ttl       = 300
-  target    = hcloud_server.pangolin.ipv4_address
+  target    = local.pangolin_ip
 }
 
 resource "ovh_domain_zone_record" "sylvain_cloud" {
@@ -11,7 +11,7 @@ resource "ovh_domain_zone_record" "sylvain_cloud" {
   subdomain = "*"
   fieldtype = "A"
   ttl       = 300
-  target    = hcloud_server.pangolin.ipv4_address
+  target    = local.pangolin_ip
 }
 
 resource "ovh_domain_zone_record" "sylvain_dev" {
@@ -19,10 +19,5 @@ resource "ovh_domain_zone_record" "sylvain_dev" {
   subdomain = "*"
   fieldtype = "A"
   ttl       = 300
-  target    = hcloud_server.pangolin.ipv4_address
-}
-
-moved {
-  from = ovh_domain_zone_record.test
-  to = ovh_domain_zone_record.sylvain_cloud
+  target    = local.pangolin_ip
 }
