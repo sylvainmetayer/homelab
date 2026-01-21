@@ -32,5 +32,7 @@
       tags: betisier,app
     - name: monica_v4
       tags: monica,app
-    - role: wiki
+    - name: wiki
       tags: wiki,app
+    - name: davis
+      tags: davis,app
