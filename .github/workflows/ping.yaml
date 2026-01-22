@@ -26,6 +26,10 @@ jobs:
           sudo systemctl daemon-reload
           sudo systemctl restart systemd-networkd
           sudo systemctl restart systemd-resolved
+          sleep 5
+          nslookup docker-apps.internal
+          dig docker-apps.internal
+
 
       - name: Wait for OLM to establish connection
         run: |
