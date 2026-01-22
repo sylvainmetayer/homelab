@@ -28,6 +28,7 @@ jobs:
           sudo systemctl restart systemd-resolved
           sleep 5
           nslookup docker-apps.internal || true
+          dig @100.96.128.1 docker-apps.internal || true
           dig docker-apps.internal || true
 
 
