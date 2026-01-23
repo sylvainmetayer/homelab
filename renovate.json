@@ -14,7 +14,8 @@
       "matchPackagePatterns": [
         "^fosrl/pangolin$",
         "^fosrl/gerbil$",
-        "^fosrl/newt$"
+        "^fosrl/newt$",
+        "^fosrl/olm$"
       ]
     }
   ]
