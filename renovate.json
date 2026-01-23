@@ -8,7 +8,7 @@
   },
   "packageRules": [
     {
-      "description": "Group Pangolin and Newt updates together",
+      "description": "Group Pangolin ecosystem updates together",
       "groupName": "pangolin-ecosystem",
       "matchDatasources": ["docker"],
       "matchPackagePatterns": [
