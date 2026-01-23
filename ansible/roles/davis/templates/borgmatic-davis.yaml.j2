@@ -2,7 +2,7 @@
 # Generated from role davis templates
 
 source_directories:
-  - {{ davis_base_path }}/config
+  - {{ davis_base_path }}/database
   - {{ davis_base_path }}/compose.yaml
 
 exclude_patterns:
@@ -20,7 +20,7 @@ encryption_passphrase: {{ davis_backup_borgmatic_password }}
 
 compression: zstd,10
 
-archive_name_format: 'davis_-{now:%Y-%m-%dT%H:%M:%S}'
+archive_name_format: 'davis-{now:%Y-%m-%dT%H:%M:%S}'
 
 keep_daily: 7
 keep_weekly: 4
@@ -38,12 +38,12 @@ commands:
     when:
       - create
     run:
-      - echo "Starting davis_ backup at $(date)"
+      - echo "Starting davis backup at $(date)"
   - after: action
     when:
       - create
     run:
-      - echo "davis_ backup completed at $(date)"
+      - echo "davis backup completed at $(date)"
 
 {% if davis_backup_healthcheck_url is defined and davis_backup_healthcheck_url %}
 # Uptime Kuma push

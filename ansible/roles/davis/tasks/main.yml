@@ -1,6 +1,6 @@
 ---
 # Tasks for davis role (migration to Pangolin/Traefik + borgmatic backups)
-- name: Ensure davis_ directories exist
+- name: Ensure davis directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -46,7 +46,7 @@
         borg_repo_create.rc != 0 and
         'repository already exists' not in borg_repo_create.stderr
 
-- name: Ensure davis davis_ (systemd user) is running
+- name: Ensure davis service (systemd user) is running
   ansible.builtin.systemd:
     name: "dc@{{ davis_name }}"
     scope: user
