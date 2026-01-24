@@ -1,0 +1,63 @@
+---
+services:
+  nextcloud:
+    restart: unless-stopped
+    image: lscr.io/linuxserver/nextcloud:version-31.0.9
+    container_name: nextcloud
+    labels:
+      - pangolin.public-resources.nextcloud.name=nextcloud
+      - pangolin.public-resources.nextcloud.full-domain={{ nextcloud_domain }}
+      - pangolin.public-resources.nextcloud.protocol=http
+      - pangolin.public-resources.nextcloud.targets[0].method=http
+      - pangolin.public-resources.nextcloud.targets[0].port=80
+      - pangolin.public-resources.nextcloud.healthcheck.hostname=nextcloud
+      - pangolin.public-resources.nextcloud.healthcheck.port=80
+      - pangolin.public-resources.nextcloud.healthcheck.enabled=true
+      - pangolin.public-resources.nextcloud.healthcheck.path=/
+      - pangolin.public-resources.nextcloud.healthcheck.interval=30
+      - pangolin.public-resources.nextcloud.healthcheck.timeout=5
+      - pangolin.public-resources.nextcloud.healthcheck.method=GET
+      - pangolin.public-resources.nextcloud.healthcheck.status=200
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      # https://github.com/linuxserver/docker-mods/tree/nextcloud-memories
+      #- DOCKER_MODS=linuxserver/mods:nextcloud-memories
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    networks:
+      - newt
+      - nextcloud
+
+  db:
+    container_name: nextcloud_db
+    restart: unless-stopped
+    image: mariadb:lts@sha256:e3432369d4d432ec2a3d777ff84ffca11ec8c2188cf1b6a0551a393ae5d833bb
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ nextcloud_db_password }}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: {{ nextcloud_db_password }}
+    volumes:
+      - ./db_data:/var/lib/mysql
+    networks:
+      - nextcloud
+
+  cache:
+    restart: unless-stopped
+    image: redis:bookworm@sha256:a06cea905344470eb49c972f3d030e22f28f632c1b4f43bbe4a26a4329dd6be5
+    container_name: nextcloud_redis
+    command: redis-server --requirepass {{ nextcloud_redis_password }}
+    environment:
+      - REDIS_PASSWORD={{ nextcloud_redis_password }}
+    volumes:
+      - ./redis:/data
+    networks:
+      - nextcloud
+
+networks:
+  nextcloud: {}
+  newt:
+    external: true

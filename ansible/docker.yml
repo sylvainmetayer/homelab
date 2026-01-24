@@ -34,3 +34,5 @@
       tags: monica,app
     - role: wiki
       tags: wiki,app
+    - role: nextcloud
+      tags: nextcloud,app

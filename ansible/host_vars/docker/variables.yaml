@@ -22,3 +22,7 @@ wiki_domain: "wiki.sylvain.cloud"
 wiki_backup_enabled: true
 wiki_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/wiki"
 wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
+
+nextcloud_backup_enabled: true
+nextcloud_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/nextcloud"
+nextcloud_backup_borgmatic_password: "{{ backup_passphrase }}"
