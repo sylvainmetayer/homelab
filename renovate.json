@@ -3,19 +3,24 @@
   "extends": [
     "config:recommended"
   ],
-  "docker": {
-    "pinDigests": true
-  },
   "packageRules": [
+    {
+      "matchCategories": [
+        "docker"
+      ],
+      "pinDigests": true
+    },
     {
       "description": "Group Pangolin ecosystem updates together",
       "groupName": "pangolin-ecosystem",
-      "matchDatasources": ["docker"],
-      "matchPackagePatterns": [
-        "^fosrl/pangolin$",
-        "^fosrl/gerbil$",
-        "^fosrl/newt$",
-        "^fosrl/olm$"
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^fosrl/pangolin$/",
+        "/^fosrl/gerbil$/",
+        "/^fosrl/newt$/",
+        "/^fosrl/olm$/"
       ]
     }
   ]
