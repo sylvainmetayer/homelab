@@ -17,7 +17,7 @@ postgresql_databases:
       # FIXME Update with correct credentials
       name: spliit
       username: spliit
-      password: 1234
+      password: "1234"
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start
@@ -52,7 +52,7 @@ repositories:
 # encryption. Quote the value if it contains punctuation, so it parses
 # correctly. And backslash any quote or backslash literals as well.
 # Defaults to not set. Supports the "{credential ...}" syntax.
-encryption_passphrase: {{ spliit_backup_encryption_passphrase }}
+encryption_passphrase: {{ spliit_backup_borgmatic_password }}
 
 # Type of compression to use when creating archives. (Compression
 # level can be added separated with a comma, like "zstd,7".) See

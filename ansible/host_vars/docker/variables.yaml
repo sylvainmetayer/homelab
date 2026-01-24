@@ -26,5 +26,5 @@ wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
 # Spliit
 spliit_domain: "spend.sylvain.cloud"
 spliit_base_path: "{{ docker_base_path }}/spliit"
-spliit_backup_borgmatic_target: "rclone:backup:{{ inventory_hostname }}/spliit"
+spliit_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/spliit"
 spliit_backup_borgmatic_password: "{{ backup_passphrase }}"
