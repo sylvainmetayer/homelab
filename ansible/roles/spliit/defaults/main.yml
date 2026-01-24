@@ -1,0 +1,13 @@
+---
+# Defaults for spliit role
+spliit_base_path: "{{ docker_base_path }}/spliit"
+spliit_domain: "spliit.example.com"
+
+# Backup (borgmatic) settings
+spliit_backup_enabled: true
+spliit_backup_borgmatic_target: ""  # définir dans host_vars
+spliit_backup_borgmatic_password: ""  # définir dans secrets.sops.yaml
+spliit_backup_healthcheck_url: ""
+
+# Image and runtime
+spliit_image: ""

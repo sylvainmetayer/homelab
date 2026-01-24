@@ -1,0 +1,47 @@
+services:
+  spliit:
+    container_name: spliit
+    image: "ghcr.io/spliit-app/spliit:1.19.0"
+    env_file:
+      - .env
+    labels:
+      - pangolin.public-resources.service.name=spliit
+      - pangolin.public-resources.service.full-domain={{ spliit_domain }}
+      - pangolin.public-resources.service.protocol=http
+      - pangolin.public-resources.service.targets[0].method=http
+      - pangolin.public-resources.service.targets[0].port=3000
+      - pangolin.public-resources.service.auth.sso-enabled=true
+      - pangolin.public-resources.service.healthcheck.hostname=spliit
+      - pangolin.public-resources.service.healthcheck.port=3000
+      - pangolin.public-resources.service.healthcheck.enabled=true
+      - pangolin.public-resources.service.healthcheck.path=/
+      - pangolin.public-resources.service.healthcheck.interval=30
+      - pangolin.public-resources.service.healthcheck.timeout=5
+      - pangolin.public-resources.service.healthcheck.method=GET
+      - pangolin.public-resources.service.healthcheck.status=200
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - newt
+      - spliit
+    restart: unless-stopped
+
+  db:
+    container_name: spliit_db
+    image: postgres:18
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_PASSWORD=1234
+      - TZ=Europe/Paris
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    networks:
+      - spliit
+    restart: unless-stopped
+
+networks:
+  spliit:
+  newt:
+    external: true

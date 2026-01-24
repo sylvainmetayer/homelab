@@ -1,0 +1,7 @@
+---
+- name: Restart spliit service
+  ansible.builtin.systemd:
+    name: dc@spliit
+    scope: user
+    state: restarted
+  listen: Restart spliit service

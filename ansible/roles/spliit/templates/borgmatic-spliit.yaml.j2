@@ -1,0 +1,55 @@
+# Borgmatic configuration for spliit
+# See https://torsion.org/borgmatic/reference/configuration/
+
+source_directories:
+  - {{ spliit_base_path }}/config
+  - {{ spliit_base_path }}/compose.yaml
+
+exclude_patterns:
+  - '*.log'
+  - '*.tmp'
+  - 'cache/*'
+
+local_path: /root/.local/bin/borg
+
+repositories:
+  - path: {{ spliit_backup_borgmatic_target }}
+    label: spliit
+
+encryption_passphrase: {{ spliit_backup_borgmatic_password }}
+
+compression: zstd,10
+
+archive_name_format: 'spliit-{now:%Y-%m-%dT%H:%M:%S}'
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
+
+checks:
+  - name: repository
+    frequency: 2 weeks
+  - name: archives
+    frequency: 1 month
+
+commands:
+  - before: action
+    when:
+      - create
+    run:
+      - echo "Starting spliit backup at $(date)"
+  - after: action
+    when:
+      - create
+    run:
+      - echo "Spliit backup completed at $(date)"
+
+{% if spliit_backup_healthcheck_url is defined and spliit_backup_healthcheck_url %}
+uptime_kuma:
+  push_url: {{ spliit_backup_healthcheck_url }}
+  states:
+    - start
+    - finish
+    - fail
+{% endif %}
