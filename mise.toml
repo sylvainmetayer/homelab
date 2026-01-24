@@ -6,7 +6,7 @@ age = 'latest'
 'github:fosrl/cli' = '0.2.1'
 'github:github/copilot-cli' = '0.0.377'
 uv = "0.9"
-python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+python = "3.14.2"
 
 [settings]
 #python.uv_venv_auto = true
