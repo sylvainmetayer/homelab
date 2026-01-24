@@ -32,9 +32,6 @@ services:
     image: postgres:18
     env_file:
       - .env
-    environment:
-      - POSTGRES_PASSWORD=1234
-      - TZ=Europe/Paris
     volumes:
       - ./db_data:/var/lib/postgresql/data
     networks:
