@@ -46,7 +46,7 @@ services:
     container_name: bookstack_db
     networks:
       - wiki    # Réseau interne uniquement
-    image: lscr.io/linuxserver/mariadb:11.4.8
+    image: lscr.io/linuxserver/mariadb:11.4.8@sha256:d33fb3da7766dbe445f4781b0a78e42fcf7e87d8cb4c9f2d5a37abaa8c4316ca
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
