@@ -34,3 +34,5 @@
       tags: monica,app
     - role: wiki
       tags: wiki,app
+    - name: spliit
+      tags: spliit,app
