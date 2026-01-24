@@ -8,43 +8,42 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-- name: Add restic profile
-  tags: backup
-  ansible.builtin.blockinfile:
-    path: ~/.config/resticprofile/profiles.yaml
-    prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
-    marker: "# {mark} nextcloud ANSIBLE MANAGED"
-
 - name: Template docker-compose configuration
   ansible.builtin.template:
-    src: "templates/docker-compose.yml.j2"
-    dest: "{{ nextcloud_base_path }}/docker-compose.yml"
+    src: "templates/compose.yaml"
+    dest: "{{ nextcloud_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
+  notify: Restart nextcloud service
 
-- name: Template nginx host
-  become: true
-  ansible.builtin.template:
-    src: templates/nginx.conf.j2
-    dest: /etc/nginx/sites-available/nextcloud.conf
-    owner: "root"
-    group: "root"
-    mode: "0644"
+- name: Configure borgmatic backup for nextcloud
+  when: nextcloud_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for nextcloud
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-nextcloud.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/nextcloud.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
 
-- name: Enable nginx host
-  become: true
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/nextcloud.conf
-    dest: /etc/nginx/sites-enabled/nextcloud.conf
-    owner: root
-    group: root
-    state: link
-  # notify: reload nginx
+    - name: Initialize borg repository for nextcloud
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/nextcloud.yaml repo-create --encryption {{ nextcloud_backup_borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr
 
-- name: Add domain to certificate to be generated
-  ansible.builtin.set_fact:
-    certbot_certs: '{{ certbot_certs + [{"domains": [nextcloud_domain]}] }}'
-
-- ansible.builtin.import_tasks: service.yaml
+- name: Make sure nextcloud service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@nextcloud
+    scope: user
+    enabled: true

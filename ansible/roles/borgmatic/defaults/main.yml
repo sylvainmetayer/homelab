@@ -14,7 +14,7 @@ borgmatic_enable_timer: true
 
 # Timer schedule (systemd OnCalendar format)
 # Default: daily at 3 AM
-borgmatic_timer_schedule: "*-*-* 03:00:00"
+borgmatic_timer_schedule: "*-*-* 01:00:00"
 
 # User for systemd service (root for Docker volumes access)
 borgmatic_user: "root"

@@ -1,6 +1,7 @@
 ---
-- name: Reload nginx
-  become: true
-  ansible.builtin.service:
-    name: nginx
-    state: reloaded
+- name: Restart nextcloud service
+  ansible.builtin.systemd:
+    state: restarted
+    name: dc@nextcloud
+    scope: user
+    daemon_reload: true
