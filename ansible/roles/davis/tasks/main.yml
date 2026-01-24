@@ -1,0 +1,55 @@
+---
+# Tasks for davis role (migration to Pangolin/Traefik + borgmatic backups)
+- name: Ensure davis directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ davis_user }}"
+    group: "{{ davis_group }}"
+  loop:
+    - "{{ davis_base_path }}"
+
+- name: Template compose configuration
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ davis_user }}"
+    group: "{{ davis_group }}"
+    mode: "0644"
+  loop:
+    - src: "compose.yaml"
+      dest: "{{ davis_base_path }}/compose.yaml"
+    - src: ".env.j2"
+      dest: "{{ davis_base_path }}/.env"
+  notify: Restart davis service
+
+- name: Configure borgmatic backup for davis
+  when: davis_backup_enabled
+  block:
+    - name: Create borgmatic configuration for davis
+      become: true
+      ansible.builtin.template:
+        src: "borgmatic-davis.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/davis.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Initialize borg repository for davis
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/davis.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr
+
+- name: Ensure davis service (systemd user) is running
+  ansible.builtin.systemd:
+    name: "dc@{{ davis_name }}"
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true

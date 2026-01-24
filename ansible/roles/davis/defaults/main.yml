@@ -1,0 +1,15 @@
+---
+# Defaults for ansible role davis
+davis_name: davis
+davis_base_path: "{{ docker_base_path }}/davis"
+davis_domain: "contacts.example.com"
+
+# Backup (borgmatic)
+davis_backup_enabled: true
+davis_backup_borgmatic_target: ""  # définir dans host_vars
+davis_backup_borgmatic_password: ""  # stocker dans secrets.sops.yaml
+davis_backup_healthcheck_url: ""  # optionnel
+
+# Other sensible defaults
+davis_user: "{{ ansible_facts['user_id'] }}"
+davis_group: "{{ ansible_facts['user_gid'] }}"

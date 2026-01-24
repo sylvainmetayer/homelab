@@ -22,3 +22,9 @@ wiki_domain: "wiki.sylvain.cloud"
 wiki_backup_enabled: true
 wiki_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/wiki"
 wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
+
+# Davis (Contacts) configuration
+davis_domain: "contacts.sylvain.cloud"
+davis_backup_enabled: true
+davis_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/davis"
+davis_backup_borgmatic_password: "{{ backup_passphrase }}"

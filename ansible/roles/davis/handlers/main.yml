@@ -1,0 +1,8 @@
+---
+- name: Restart davis service
+  ansible.builtin.systemd:
+    name: "dc@{{ davis_name }}"
+    scope: user
+    state: restarted
+    daemon_reload: true
+  listen: Restart davis service
