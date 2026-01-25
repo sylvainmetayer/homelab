@@ -3,9 +3,9 @@ nextcloud_base_path: "{{ docker_base_path }}/nextcloud"
 nextcloud_domain: sylvain.cloud
 nextcloud_db_password: "nextcloud"
 nextcloud_redis_password: "redis"
-nextcloud_healthcheck_url: "REPLACE_ME"
 
 # Backup (borgmatic)
 nextcloud_backup_enabled: true
 nextcloud_backup_borgmatic_target: ""
 nextcloud_backup_borgmatic_password: ""
+nextcloud_backup_healthcheck_url: ""
