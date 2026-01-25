@@ -3,7 +3,7 @@ opentofu = '1.11.4'
 packer = 'latest'
 sops = 'latest'
 age = 'latest'
-'github:fosrl/cli' = '0.2.1'
+"github:fosrl/cli" = "latest"
 'github:github/copilot-cli' = '0.0.377'
 uv = "0.9"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
@@ -20,11 +20,11 @@ echo "Virtual Environment: $VIRTUAL_ENV"
 
 [env]
 _.path = [".venv/bin"]
-# Use the project name derived from the current directory
-PROJECT_NAME = "{{ config_root | basename }}"
 
 # Variable are available in the tasks
 _.file = { path = "secrets.sops.yaml", redact = true}
+# Use the project name derived from the current directory
+PROJECT_NAME = "{{ config_root | basename }}"
 
 [tasks.generate_password]
 description = "Generate a password, to store it in the secrets file"

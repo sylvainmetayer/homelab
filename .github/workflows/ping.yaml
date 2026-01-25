@@ -22,15 +22,16 @@ jobs:
     steps:
       - name: Override DNS
         run: |
+          dig @100.96.128.1 docker-apps.internal || true
+          dig docker-apps.internal || true
           sudo sed -i 's/#DNS=/DNS=100.96.128.1 1.1.1.1/g' /etc/systemd/resolved.conf
           sudo systemctl daemon-reload
           sudo systemctl restart systemd-networkd
           sudo systemctl restart systemd-resolved
           sleep 5
-          nslookup docker-apps.internal || true
           dig @100.96.128.1 docker-apps.internal || true
           dig docker-apps.internal || true
-
+          ssh sylvain@docker-apps.internal -v || true
 
       - name: Wait for OLM to establish connection
         run: |
@@ -46,6 +47,7 @@ jobs:
               exit 0
             fi
             echo "Attempt $i failed, waiting 10 seconds..."
+            ssh sylvain@docker-apps.internal -v || true
             sleep 5
           done
           echo "✗ Failed to ping docker-apps.internal after 10 attempts"
