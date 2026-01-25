@@ -1,6 +1,16 @@
 ---
 ansible_ssh_private_key_file: "~/.ssh/keepassxc.pub"
+ansible_user: sylvain
 
 # Backup configuration (used by all hosts)
+borgmatic_config_dir: "/etc/borgmatic.d"
+borgmatic_encryption_mode: repokey-aes-ocb
 backup_s3_bucket_name: homelab-backup-sylvain
 backup_s3_endpoint: https://nbg1.your-objectstorage.com
+
+docker_base_path: /opt/apps
+
+newt_endpoint: https://pangolin.sylvain.cloud
+
+rclone_access_key_id: "{{ backup_s3_access_key }}"
+rclone_secret_access_key: "{{ backup_s3_secret_key }}"

@@ -10,3 +10,6 @@
 # Add your Pangolin host here manually only if dynamic inventory is not working
 # Example:
 # pangolin ansible_host=pangolin.example.com ansible_user=sylvain
+
+[raspberrypi]
+pi ansible_host=192.168.1.96 ansible_user=sylvain

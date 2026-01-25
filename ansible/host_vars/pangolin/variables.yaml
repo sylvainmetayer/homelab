@@ -1,16 +1,12 @@
 ---
 # Pangolin Zero Trust configuration variables
-#
-# Override these values with your specific configuration
-# Sensitive values should be stored in secrets.sops.yaml
 
-# Base domain for Pangolin
 pangolin_base_domain: "sylvain.cloud"
 
 # Pangolin Dashboard URL (without https://)
 pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 
-# Log level (DEBUG, INFO, WARNING, ERROR) lowercase
+# Log level (debug, info, warning, error)
 pangolin_log_level: "info"
 
 # Let's Encrypt email for certificate generation
