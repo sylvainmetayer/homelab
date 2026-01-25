@@ -7,19 +7,21 @@ jobs:
   test-olm-connection:
     runs-on: ubuntu-latest
 
-    services:
-      olm:
-        image: fosrl/olm
-        options: >-
-          --cap-add=NET_ADMIN
-          --device=/dev/net/tun:/dev/net/tun
-        env:
-          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
-          OLM_ID: ${{ secrets.OLM_ID }}
-          OLM_SECRET: ${{ secrets.OLM_SECRET }}
-          OVERRIDE_DNS: true
+    # The former `services:` usage breaks DNS resolution in the runner.
+    # Start the OLM container via `docker run` instead so DNS stays intact.
 
     steps:
+      - name: Start OLM container
+        run: |
+          docker run -d --name olm \
+            --cap-add=NET_ADMIN \
+            --device=/dev/net/tun:/dev/net/tun \
+            -e PANGOLIN_ENDPOINT="${{ secrets.PANGOLIN_ENDPOINT }}" \
+            -e OLM_ID="${{ secrets.OLM_ID }}" \
+            -e OLM_SECRET="${{ secrets.OLM_SECRET }}" \
+            -e OVERRIDE_DNS=true \
+            fosrl/olm || true
+
       - name: Override DNS
         run: |
           dig @100.96.128.1 docker-apps.internal || true
