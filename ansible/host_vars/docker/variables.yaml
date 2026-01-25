@@ -1,8 +1,4 @@
 ---
-
-borgmatic_config_dir: "/etc/borgmatic.d"
-borgmatic_encryption_mode: repokey-aes-ocb
-
 rss_backup_enabled: true
 rss_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/rss"
 rss_backup_encryption_passphrase: "{{ backup_passphrase }}"
@@ -15,7 +11,6 @@ monica_v4_backup_enabled: true
 monica_v4_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/monica_v4"
 monica_v4_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
-# Wiki (Bookstack) configuration
 wiki_domain: "wiki.sylvain.cloud"
 wiki_backup_enabled: true
 wiki_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/wiki"

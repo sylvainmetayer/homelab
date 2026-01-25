@@ -2,8 +2,8 @@
 - name: Setup all servers
   import_playbook: 00-setup.yaml
 
-- name: Configure Proxmox VMs
-  hosts: docker
+- name: Configure PI
+  hosts: pi
   pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment

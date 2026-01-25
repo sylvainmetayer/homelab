@@ -1,0 +1,3 @@
+---
+newt_docker_client_id: "{{ newt_pi_client_id }}"
+newt_docker_client_secret: "{{ newt_pi_client_secret }}"
