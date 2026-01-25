@@ -7,7 +7,7 @@ locals {
 
 resource "hcloud_ssh_key" "keepassxc" {
   name       = var.ssh_key_name
-  public_key = file("${path.root}/../../key.pub")
+  public_key = file("${path.root}/../../keys/perso.pub")
   labels     = var.labels
 }
 
@@ -39,7 +39,7 @@ resource "hcloud_server" "pangolin" {
 
   user_data = templatefile("${path.root}/user_data.yaml", {
     pangolin_password      = local.pangolin_password
-    public_ssh_key         = file("${path.root}/../../key.pub")
+    public_ssh_key         = file("${path.root}/../../keys/perso.pub")
     pangolin_dashboard_url = var.pangolin_config.dashboard_url
     pangolin_base_domain   = var.pangolin_config.base_domain
     pangolin_log_level     = var.pangolin_config.log_level

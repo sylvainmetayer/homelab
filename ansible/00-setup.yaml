@@ -48,4 +48,11 @@
         shell: /bin/bash
         groups: sudo
         append: true
-        password: "{{ password | password_hash('sha512') }}"
+        password: "{{ password | password_hash('sha512', password) }}"
+
+    - name: Set public keys
+      loop: "{{ lookup('fileglob', playbook_dir + '/../keys/*.pub', wantlist=True) }}"
+      ansible.posix.authorized_key:
+        user: sylvain
+        state: present
+        key: "{{ lookup('file', item) }}"

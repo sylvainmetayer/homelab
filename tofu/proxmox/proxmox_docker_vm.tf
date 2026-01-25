@@ -44,7 +44,7 @@ resource "proxmox_virtual_environment_file" "docker_user_config" {
     users:
       - name: ${var.docker_vm.username}
         ssh_authorized_keys:
-          - ${trimspace(file("${path.root}/../../key.pub"))}
+          - ${trimspace(file("${path.root}/../../keys/perso.pub"))}
         lock_passwd: false
         sudo: ['ALL=(ALL) NOPASSWD:ALL']
         shell: /bin/bash

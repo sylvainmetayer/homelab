@@ -34,7 +34,7 @@ resource "proxmox_virtual_environment_file" "lxc" {
           - sudo
         shell: /bin/bash
         ssh_authorized_keys:
-          - ${trimspace(file("${path.root}/../../key.pub"))}
+          - ${trimspace(file("${path.root}/../../keys/perso.pub"))}
         sudo: ALL=(ALL) NOPASSWD:ALL
     package_update: true
     packages:
@@ -68,7 +68,7 @@ resource "proxmox_virtual_environment_container" "newt" {
     }
 
     user_account {
-      keys     = [trimspace(file("${path.root}/../../key.pub"))]
+      keys     = [trimspace(file("${path.root}/../../keys/perso.pub"))]
       password = random_password.newt_password.result
     }
   }
