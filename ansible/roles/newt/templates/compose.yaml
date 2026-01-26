@@ -1,13 +1,13 @@
 ---
 services:
   newt:
-    image: fosrl/newt:1.8.1
+    image: fosrl/newt:1.9.0
     container_name: newt
     restart: unless-stopped
     environment:
       - PANGOLIN_ENDPOINT={{ newt_endpoint }}
-      - NEWT_ID={{ newt_docker_client_id }}
-      - NEWT_SECRET={{ newt_docker_client_secret }}
+      - NEWT_ID={{ newt_client_id }}
+      - NEWT_SECRET={{ newt_client_secret }}
       - DOCKER_SOCKET=unix:///var/run/docker.sock
       - DOCKER_ENFORCE_NETWORK_VALIDATION=true
     volumes:

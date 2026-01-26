@@ -43,7 +43,7 @@
 - name: Download borgbackup binary from GitHub releases for root
   become: true
   ansible.builtin.get_url:
-    url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux-glibc231-x86_64"
+    url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux-glibc235-{{ ansible_facts['architecture'] }}"
     dest: "/root/.local/bin/borg"
     mode: "0755"
     owner: "root"

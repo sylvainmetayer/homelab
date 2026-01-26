@@ -1,5 +1,5 @@
 ---
 newt_base_path: "{{ docker_base_path }}/newt"
-newt_docker_client_id: ""
-newt_docker_client_secret: ""
+newt_client_id: ""
+newt_client_secret: ""
 newt_endpoint: ""

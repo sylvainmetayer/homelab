@@ -1,13 +1,19 @@
 ---
-photoprism_base_path: /opt/photoprism
+photoprism_base_path: "{{ docker_base_path }}/photoprism"
 photoprism_domain: photos.sylvain.cloud
-photoprism_local_port: 9001
 
 photoprism_admin_user: "admin"
 photoprism_admin_password: "password"
 photoprism_db_user: "password"
 photoprism_db_password: "password"
 
-photoprism_healthcheck_url: "REPLACE_ME"
+rclone_base_path: "{{ photoprism_base_path }}/rclone_data"
+rclone_password: ""
+rclone_user: ""
+rclone_url: ""
 
-rclone_base_path: ""
+# Borgmatic backup variables (set in host_vars or secrets.sops.yaml)
+photoprism_backup_enabled: true
+photoprism_backup_borgmatic_target: ""
+photoprism_backup_borgmatic_password: ""
+photoprism_backup_healthcheck_url: ""

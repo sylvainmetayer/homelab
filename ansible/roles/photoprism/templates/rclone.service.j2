@@ -3,4 +3,4 @@ Description=Download latest pictures using rclone
 
 [Service]
 Type=simple
-ExecStart={{ ansible_facts['user_dir'] }}/rclone.sh
+ExecStart={{ photoprism_base_path }}/rclone.sh
