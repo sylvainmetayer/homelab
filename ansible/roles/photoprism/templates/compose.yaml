@@ -1,3 +1,4 @@
+---
 # Example Docker Compose config file for PhotoPrism (Raspberry Pi 3/4 and other ARM64-based devices)
 #
 # Note:
@@ -34,7 +35,7 @@
 
 services:
   photoprism:
-    ## Use photoprism/photoprism:preview-arm64 for testing preview builds:
+    container_name: photoprism
     image: photoprism/photoprism:arm64@sha256:a6c3e9a77926748b45d43569f244d20f2f8c98e69f879b38b69f2a008e148e99
     platform: "linux/arm64"
     ## Don't enable automatic restarts until PhotoPrism has been properly configured and tested!
@@ -47,12 +48,21 @@ services:
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
-    ## Server port mapping in the format "Host:Container". To use a different port, change the host port on
-    ## the left-hand side and keep the container port, e.g. "80:2342" (for HTTP) or "443:2342 (for HTTPS):
-    ports:
-      - "127.0.0.1:{{ photoprism_local_port }}:2342"
-    ## Before you start the service, please check the following config options (and change them as needed):
-    ## https://docs.photoprism.app/getting-started/config-options/
+    labels:
+      - pangolin.public-resources.service.name=photoprism
+      - pangolin.public-resources.service.full-domain={{ photoprism_domain }}
+      - pangolin.public-resources.service.protocol=http
+      - pangolin.public-resources.service.targets[0].method=http
+      - pangolin.public-resources.service.targets[0].port=2342
+      - pangolin.public-resources.service.auth.sso-enabled=true
+      - pangolin.public-resources.service.healthcheck.hostname=photoprism
+      - pangolin.public-resources.service.healthcheck.port=2342
+      - pangolin.public-resources.service.healthcheck.enabled=true
+      - pangolin.public-resources.service.healthcheck.path=/
+      - pangolin.public-resources.service.healthcheck.interval=30
+      - pangolin.public-resources.service.healthcheck.timeout=5
+      - pangolin.public-resources.service.healthcheck.method=GET
+      - pangolin.public-resources.service.healthcheck.status=200
     environment:
       PHOTOPRISM_DEFAULT_LOCALE: "fr"
       PHOTOPRISM_DISABLE_RESTART: "false"
@@ -113,8 +123,12 @@ services:
       - "{{ rclone_base_path }}/Common\ documents/Top\ nous/Photos/:/photoprism/originals/top_nous:ro" # Only rclone script can edit.
       - "{{ rclone_base_path }}/Shared/Photos/:/photoprism/originals/perso:ro" # Only rclone script can edit.
       - "./storage:/photoprism/storage"
+    networks:
+      - newt
+      - photoprism
 
   mariadb:
+    container_name: photoprism_db
     image: arm64v8/mariadb:12@sha256:b85d084080278f6e846064791ecd1a25b78709c28ba7ebe30d36490814c4061f # ARM64 IMAGE ONLY, DOES NOT WORK ON ARMv7, AMD or Intel
     platform: "linux/arm64"
     ## If MariaDB gets stuck in a restart loop, this points to a memory or filesystem issue:
@@ -134,3 +148,10 @@ services:
       MARIADB_USER: "{{ photoprism_db_user }}"
       MARIADB_PASSWORD: "{{ photoprism_db_password }}"
       MARIADB_ROOT_PASSWORD: "{{ photoprism_db_password }}"
+    networks:
+      - photoprism
+
+networks:
+  photoprism:
+  newt:
+    external: true

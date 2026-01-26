@@ -1,6 +1,7 @@
 ---
-- name: Reload nginx
-  become: true
-  ansible.builtin.service:
-    name: nginx
-    state: reloaded
+- name: Restart photoprism service
+  ansible.builtin.systemd:
+    name: dc@photoprism
+    state: restarted
+    scope: user
+    daemon_reload: true

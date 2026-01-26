@@ -1,0 +1,10 @@
+[Unit]
+Description=Run rclone sync every 6 hours
+
+[Timer]
+OnUnitActiveSec=6h
+Persistent=true
+Unit=rclone.service
+
+[Install]
+WantedBy=timers.target

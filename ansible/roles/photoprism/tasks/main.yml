@@ -10,43 +10,46 @@
   with_items:
     - "{{ photoprism_base_path }}"
 
-- name: Add restic profile
-  tags: backup
-  ansible.builtin.blockinfile:
-    path: ~/.config/resticprofile/profiles.yaml
-    prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'templates/resticprofile.yaml') }}"
-    marker: "# {mark} photoprism ANSIBLE MANAGED"
-
 - name: Template docker-compose configuration
+  notify: Restart photoprism service
   ansible.builtin.template:
-    src: "templates/docker-compose.yml.j2"
-    dest: "{{ photoprism_base_path }}/docker-compose.yml"
+    src: "templates/compose.yaml"
+    dest: "{{ photoprism_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
-- name: Template nginx host
-  become: true
-  ansible.builtin.template:
-    src: templates/nginx.conf.j2
-    dest: /etc/nginx/sites-available/photoprism.conf
-    owner: "root"
-    group: "root"
-    mode: "0644"
+- name: Configure rclone to fetch photoprism photos
+  when: rclone_url != ""
+  ansible.builtin.import_tasks: rclone.yaml
 
-- name: Enable nginx host
-  become: true
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/photoprism.conf
-    dest: /etc/nginx/sites-enabled/photoprism.conf
-    owner: root
-    group: root
-    state: link
-  # notify: reload nginx
+- name: Configure borgmatic backup for photoprism
+  when: photoprism_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for photoprism
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-photoprism.yaml.j2"
+        dest: "{{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/photoprism.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
 
-- name: Add domain to certificate to be generated
-  ansible.builtin.set_fact:
-    certbot_certs: '{{ certbot_certs + [{"domains": [photoprism_domain]}] }}'
+    - name: Initialize borg repository for photoprism
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/photoprism.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr
 
-- ansible.builtin.import_tasks: service.yaml
+- name: Ensure photoprism systemd user service is enabled and running
+  ansible.builtin.systemd:
+    name: dc@photoprism
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true

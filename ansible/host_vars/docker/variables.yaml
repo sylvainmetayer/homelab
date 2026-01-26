@@ -1,4 +1,7 @@
 ---
+newt_client_id: "{{ newt_docker_client_id }}"
+newt_client_secret: "{{ newt_docker_client_secret }}"
+
 rss_backup_enabled: true
 rss_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/rss"
 rss_backup_encryption_passphrase: "{{ backup_passphrase }}"
