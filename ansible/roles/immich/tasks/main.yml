@@ -1,0 +1,55 @@
+---
+# Tasks for immich role
+- name: Ensure immich app folders exist
+  loop:
+    - "{{ immich_base_path }}"
+    - "{{ immich_base_path }}/config"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0755"
+
+- name: Template compose configuration
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ immich_base_path }}/{{ item.dest }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0640"
+  loop:
+    - src: "compose.yaml"
+      dest: "compose.yaml"
+    - src: "env.j2"
+      dest: ".env"
+  notify: Restart immich service
+
+- name: Ensure immich service is running (user systemd)
+  ansible.builtin.systemd:
+    name: dc@immich
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Configure borgmatic backup for immich
+  when: immich_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for immich
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-immich.yaml.j2"
+        dest: "{{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/immich.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Initialize borg repository for immich
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/immich.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: borg_repo_create.rc != 0 and 'repository already exists' not in borg_repo_create.stderr

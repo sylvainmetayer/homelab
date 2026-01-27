@@ -1,0 +1,8 @@
+---
+- name: Restart immich service
+  ansible.builtin.systemd:
+    name: dc@immich
+    scope: user
+    daemon_reload: true
+    state: restarted
+  listen: Restart immich service
