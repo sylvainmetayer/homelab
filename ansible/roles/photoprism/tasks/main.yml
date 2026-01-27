@@ -19,6 +19,19 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
+- name: Copy scripts
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ photoprism_base_path }}/{{ item }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0755"
+  with_items:
+    - "reindex.sh"
+    - "cpu.sh"
+    - "check_throttle.sh"
+
 - name: Configure rclone to fetch photoprism photos
   when: rclone_url != ""
   ansible.builtin.import_tasks: rclone.yaml
