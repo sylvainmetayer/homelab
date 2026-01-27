@@ -1,7 +1,4 @@
 ---
-- name: Setup all servers
-  import_playbook: 00-setup.yaml
-
 - name: Configure PI
   hosts: pi
   pre_tasks:
