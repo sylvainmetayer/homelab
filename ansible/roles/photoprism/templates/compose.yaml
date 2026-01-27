@@ -36,7 +36,7 @@
 services:
   photoprism:
     container_name: photoprism
-    image: photoprism/photoprism:arm64@sha256:a6c3e9a77926748b45d43569f244d20f2f8c98e69f879b38b69f2a008e148e99
+    image: photoprism/photoprism:arm64@sha256:972f066c647f0470ed22968076a59cc3a60e8ea006ae18f3fd6957bff6782ce3
     platform: "linux/arm64"
     ## Don't enable automatic restarts until PhotoPrism has been properly configured and tested!
     ## If the service gets stuck in a restart loop, this points to a memory, filesystem, network, or database issue:
