@@ -1,9 +1,12 @@
 ---
 - name: Create Pangolin directories
+  become: true
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: "0755"
+    owner: root
+    group: root
   loop:
     - "{{ pangolin_dir }}"
     - "{{ pangolin_dir }}/config"
@@ -55,6 +58,7 @@
 
 - name: Create compose.yml
   notify: Restart Pangolin service
+  become: true
   ansible.builtin.template:
     src: compose.yaml
     dest: "{{ pangolin_dir }}/compose.yaml"
@@ -63,12 +67,14 @@
     group: root
 
 - name: Create Pangolin systemd service
+  become: true
   ansible.builtin.template:
     src: pangolin.service.j2
     dest: /etc/systemd/system/pangolin.service
     mode: "0644"
 
 - name: Enable Pangolin service
+  become: true
   ansible.builtin.systemd:
     name: pangolin
     enabled: true

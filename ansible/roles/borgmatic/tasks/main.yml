@@ -40,10 +40,19 @@
     owner: "root"
     group: "root"
 
+- name: Set download url for borg
+  ansible.builtin.set_fact:
+    borg_architecture: >
+      {% if ansible_facts['architecture'] == 'aarch64' %}
+      arm64
+      {% else %}
+      {{ ansible_facts['architecture'] }}
+      {% endif %}
+
 - name: Download borgbackup binary from GitHub releases for root
   become: true
   ansible.builtin.get_url:
-    url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux-glibc235-{{ ansible_facts['architecture'] }}"
+    url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux-glibc235-{{ borg_architecture | trim | replace('\n', '') }}-gh"
     dest: "/root/.local/bin/borg"
     mode: "0755"
     owner: "root"

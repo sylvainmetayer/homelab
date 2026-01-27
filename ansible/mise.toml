@@ -22,7 +22,10 @@ ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
 '''
 raw = true
 
-[tasks.docker]
-description = "Run ansible-playbook for Docker setup"
-run = "ansible-playbook site.yml"
-
+[tasks.ssh_pi]
+description = "SSH into the managed host"
+run = '''
+ip=$(ansible-inventory --host pi | jq -r '.ansible_host')
+ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
+'''
+raw = true
