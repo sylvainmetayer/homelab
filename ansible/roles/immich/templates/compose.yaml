@@ -6,13 +6,26 @@
 # https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml
 #
 # The compose file on main may not be compatible with the latest release.
-
 name: immich
-
 services:
   immich-server:
+    labels:
+      - pangolin.public-resources.immich.name=Immich
+      - pangolin.public-resources.immich.full-domain={{ immich_domain }}
+      - pangolin.public-resources.immich.protocol=http
+      - pangolin.public-resources.immich.targets[0].method=http
+      - pangolin.public-resources.immich.targets[0].port=2283
+      - pangolin.public-resources.immich.auth.sso-enabled=true
+      - pangolin.public-resources.immich.healthcheck.hostname=immich
+      - pangolin.public-resources.immich.healthcheck.port=2283
+      - pangolin.public-resources.immich.healthcheck.enabled=true
+      - pangolin.public-resources.immich.healthcheck.path=/
+      - pangolin.public-resources.immich.healthcheck.interval=30
+      - pangolin.public-resources.immich.healthcheck.timeout=5
+      - pangolin.public-resources.immich.healthcheck.method=GET
+      - pangolin.public-resources.immich.healthcheck.status=200
     container_name: immich_server
-    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    image: ghcr.io/immich-app/immich-server:v2.4.1
     # extends:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
@@ -20,13 +33,19 @@ services:
       # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
       - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
+      - "{{ rclone_base_path }}/Common\ documents/Top\ nous/Photos/:/home/user/top_nous:ro" # Only rclone script can edit.
+      - "{{ rclone_base_path }}/Shared/Photos/:/home/user/perso:ro" # Only rclone script can edit.
+      - "{{ rclone_base_path }}/Shared/Camera/:/home/user/instant_uploads:ro" # Only rclone script can edit.
     env_file:
       - .env
-    ports:
-      - '2283:2283'
+    # ports:
+    #   - '2283:2283'
     depends_on:
       - redis
       - database
+    networks:
+      - newt
+      - immich
     restart: always
     healthcheck:
       disable: false
@@ -35,7 +54,7 @@ services:
     container_name: immich_machine_learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    image: ghcr.io/immich-app/immich-machine-learning:v2.4.1
     # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
     #   file: hwaccel.ml.yml
     #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
@@ -43,6 +62,8 @@ services:
       - model-cache:/cache
     env_file:
       - .env
+    networks:
+      - immich
     restart: always
     healthcheck:
       disable: false
@@ -53,6 +74,8 @@ services:
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always
+    networks:
+      - immich
 
   database:
     container_name: immich_postgres
@@ -69,6 +92,13 @@ services:
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
     shm_size: 128mb
     restart: always
+    networks:
+      - immich
 
 volumes:
   model-cache:
+
+networks:
+  immich:
+  newt:
+    external: true
