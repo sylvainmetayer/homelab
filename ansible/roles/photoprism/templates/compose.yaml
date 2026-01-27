@@ -122,6 +122,7 @@ services:
     volumes:
       - "{{ rclone_base_path }}/Common\ documents/Top\ nous/Photos/:/photoprism/originals/top_nous:ro" # Only rclone script can edit.
       - "{{ rclone_base_path }}/Shared/Photos/:/photoprism/originals/perso:ro" # Only rclone script can edit.
+      - "{{ rclone_base_path }}/Shared/Camera/:/photoprism/originals/instant_uploads:ro" # Only rclone script can edit.
       - "./storage:/photoprism/storage"
     networks:
       - newt
