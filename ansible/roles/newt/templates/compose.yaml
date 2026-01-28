@@ -1,7 +1,7 @@
 ---
 services:
   newt:
-    image: fosrl/newt:1.9.0
+    image: fosrl/newt:1.9.0@sha256:22edec551d81c500a9a3c790a41cd8f7eada3b47ba0a31a187c80d61318e4cc6
     container_name: newt
     restart: unless-stopped
     environment:
