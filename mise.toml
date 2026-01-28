@@ -7,6 +7,7 @@ age = 'latest'
 'github:github/copilot-cli' = '0.0.377'
 uv = "0.9"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+"github:simulot/immich-go" = "latest"
 
 [settings]
 #python.uv_venv_auto = true
