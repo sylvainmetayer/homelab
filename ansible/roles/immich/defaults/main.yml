@@ -2,6 +2,8 @@
 # Default variables for immich role
 immich_base_path: "{{ docker_base_path }}/immich"
 immich_domain: ""
+immich_pin: ""
+immich_db_password: ""
 
 # Backup (borgmatic)
 immich_backup_enabled: true

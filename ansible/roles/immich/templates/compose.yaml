@@ -12,6 +12,7 @@ services:
     labels:
       - pangolin.public-resources.immich.name=Immich
       - pangolin.public-resources.immich.full-domain={{ immich_domain }}
+      - pangolin.public-resources.immich.auth.pincode={{ immich_pin }}
       - pangolin.public-resources.immich.protocol=http
       - pangolin.public-resources.immich.targets[0].method=http
       - pangolin.public-resources.immich.targets[0].port=2283
