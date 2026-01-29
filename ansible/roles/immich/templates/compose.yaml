@@ -37,9 +37,6 @@ services:
       # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
       - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
-      - "{{ rclone_base_path }}/Common\ documents/Top\ nous/Photos/:/home/user/top_nous:ro" # Only rclone script can edit.
-      - "{{ rclone_base_path }}/Shared/Photos/:/home/user/perso:ro" # Only rclone script can edit.
-      - "{{ rclone_base_path }}/Shared/Camera/:/home/user/instant_uploads:ro" # Only rclone script can edit.
     env_file:
       - .env
     # ports:

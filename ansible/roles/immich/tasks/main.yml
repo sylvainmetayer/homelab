@@ -3,7 +3,7 @@
 - name: Ensure immich app folders exist
   loop:
     - "{{ immich_base_path }}"
-    - "{{ immich_base_path }}/config"
+    - "{{ immich_base_path }}/library"
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
