@@ -25,6 +25,9 @@ services:
       - pangolin.public-resources.immich.healthcheck.timeout=5
       - pangolin.public-resources.immich.healthcheck.method=GET
       - pangolin.public-resources.immich.healthcheck.status=200
+      - pangolin.public-resources.immich.rules[0].action=allow
+      - pangolin.public-resources.immich.rules[0].match=ip
+      - pangolin.public-resources.immich.rules[0].value=176.129.132.36
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:v2.5.0@sha256:6c011eaa315b871f3207d68f97205d92b3e600104466a75b01eb2c3868e72ca1
     # extends:
@@ -87,7 +90,7 @@ services:
       POSTGRES_DB: ${DB_DATABASE_NAME}
       POSTGRES_INITDB_ARGS: '--data-checksums'
       # Uncomment the DB_STORAGE_TYPE: 'HDD' var if your database isn't stored on SSDs
-      # DB_STORAGE_TYPE: 'HDD'
+      DB_STORAGE_TYPE: 'HDD'
     volumes:
       # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data

@@ -24,7 +24,7 @@ docker_vm = {
   username  = "sylvain"
   cores     = 4
   memory    = 8192
-  disk_size = 100
+  disk_size = 50
   storage   = "local-lvm"
   bridge    = "vmbr0"
 }

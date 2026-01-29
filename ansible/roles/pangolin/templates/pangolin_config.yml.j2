@@ -5,6 +5,10 @@ gerbil:
 app:
   dashboard_url: https://{{ pangolin_dashboard_url }}
   log_level: {{ pangolin_log_level }}
+  log_failed_attempts: true
+  notifications:
+    product_updates: true
+    new_releases: true
   telemetry:
     anonymous_usage: false
 
@@ -14,6 +18,8 @@ domains:
 
 server:
   secret: {{ pangolin_secret }}
+  dashboard_session_length_hours: 72
+  resource_session_length_hours: 72
   cors:
       origins: ["https://{{ pangolin_dashboard_url }}"]
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
@@ -24,6 +30,7 @@ server:
 email:
   smtp_host: "mail.infomaniak.com"
   smtp_port: 465
+  smtp_secure: true
   smtp_user: "{{ smtp_user }}"
   smtp_pass: "{{ smtp_pass }}"
   no_reply: "{{ smtp_user }}"
@@ -31,5 +38,15 @@ email:
 flags:
     require_email_verification: true
     disable_signup_without_invite: true
-    disable_user_create_org: false
+    disable_user_create_org: true
     allow_raw_resources: true
+    enable_integration_api: false
+    disable_config_managed_domains: false
+
+rate_limits:
+  global:
+    window_minutes: 1
+    max_requests: 6000
+  auth:
+    window_minutes: 1
+    max_requests: 20

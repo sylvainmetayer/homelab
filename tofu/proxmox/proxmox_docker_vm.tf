@@ -81,7 +81,7 @@ resource "proxmox_virtual_environment_vm" "docker" {
     interface    = "virtio0"
     iothread     = true
     discard      = "on"
-    ssd          = true
+    ssd          = false
     size         = var.docker_vm.disk_size
   }
 
