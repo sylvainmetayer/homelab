@@ -21,7 +21,7 @@
       tags: backup,setup
     - name: newt
       tags: newt,setup
-    - role: photoprism
-      tags: app,photoprism
+    # - role: photoprism
+    #   tags: app,photoprism
     - role: immich
       tags: app,immich
