@@ -22,6 +22,13 @@
         "/^fosrl/newt$/",
         "/^fosrl/olm$/"
       ]
+    },
+    {
+      "description": "Group all Immich role dependencies together",
+      "groupName": "immich-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/immich/**"
+      ]
     }
   ]
 }
