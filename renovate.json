@@ -61,7 +61,7 @@
     },
     {
       "description": "Group all Monica role dependencies together",
-      "groupName": "monica-role-dependencies",
+      "groupName": "monica-v4-role-dependencies",
       "matchFileNames": [
         "ansible/roles/monica_v4/**"
       ]
