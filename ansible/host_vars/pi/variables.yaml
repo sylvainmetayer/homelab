@@ -7,7 +7,7 @@ photoprism_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/p
 photoprism_backup_borgmatic_password: "{{ backup_passphrase }}"
 
 immich_backup_enabled: true
-immich_domain: "immich.sylvain.cloud"
+immich_domain: "photos.sylvain.cloud"
 immich_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/immich"
 immich_backup_borgmatic_password: "{{ backup_passphrase }}"
 immich_backup_healthcheck_url: ""

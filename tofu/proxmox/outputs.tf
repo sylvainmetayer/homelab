@@ -7,3 +7,9 @@ output "debian_13_ip_address" {
   description = "Adresse IP de la VM Docker"
   value       = proxmox_virtual_environment_vm.docker.ipv4_addresses
 }
+
+# user = root
+output "lxc_password" {
+  value = random_password.newt_password.result
+  sensitive = true
+}

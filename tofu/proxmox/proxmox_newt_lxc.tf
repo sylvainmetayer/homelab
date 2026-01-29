@@ -124,7 +124,7 @@ resource "proxmox_virtual_environment_container" "newt" {
   #   inline = [
   #     "apt-get update",
   #     "apt-get install -y curl ca-certificates",
-  #     "curl -L https://github.com/fosrl/newt/releases/download/1.8.1/newt_linux_amd64 -o /usr/local/bin/newt",
+  #     "curl -L https://github.com/fosrl/newt/releases/download/1.9.0/newt_linux_amd64 -o /usr/local/bin/newt",
   #     "chmod +x /usr/local/bin/newt",
   #     "cat > /etc/systemd/system/newt.service <<EOF",
   #     "[Unit]",
