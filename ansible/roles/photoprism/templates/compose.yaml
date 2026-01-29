@@ -130,7 +130,7 @@ services:
 
   mariadb:
     container_name: photoprism_db
-    image: arm64v8/mariadb:12@sha256:b85d084080278f6e846064791ecd1a25b78709c28ba7ebe30d36490814c4061f # ARM64 IMAGE ONLY, DOES NOT WORK ON ARMv7, AMD or Intel
+    image: arm64v8/mariadb:12@sha256:7099eb0c63e4196f658b0c1b419853606658870b7a1f95385f54bc7b357e717a # ARM64 IMAGE ONLY, DOES NOT WORK ON ARMv7, AMD or Intel
     platform: "linux/arm64"
     ## If MariaDB gets stuck in a restart loop, this points to a memory or filesystem issue:
     ## https://docs.photoprism.app/getting-started/troubleshooting/#fatal-server-errors
