@@ -11,16 +11,66 @@
       "pinDigests": true
     },
     {
-      "description": "Group Pangolin ecosystem updates together",
-      "groupName": "pangolin-ecosystem",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "/^fosrl/pangolin$/",
-        "/^fosrl/gerbil$/",
-        "/^fosrl/newt$/",
-        "/^fosrl/olm$/"
+      "description": "Group all Pangolin role dependencies together",
+      "groupName": "pangolin-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/pangolin/**"
+      ]
+    },
+    {
+      "description": "Group all Betisier role dependencies together",
+      "groupName": "betisier-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/betisier/**"
+      ]
+    },
+    {
+      "description": "Group all Photoprism role dependencies together",
+      "groupName": "photoprism-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/photoprism/**"
+      ]
+    },
+    {
+      "description": "Group all Nextcloud role dependencies together",
+      "groupName": "nextcloud-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/nextcloud/**"
+      ]
+    },
+    {
+      "description": "Group all Wiki role dependencies together",
+      "groupName": "wiki-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/wiki/**"
+      ]
+    },
+    {
+      "description": "Group all RSS role dependencies together",
+      "groupName": "rss-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/rss/**"
+      ]
+    },
+    {
+      "description": "Group all Newt role dependencies together",
+      "groupName": "newt-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/newt/**"
+      ]
+    },
+    {
+      "description": "Group all Monica role dependencies together",
+      "groupName": "monica-v4-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/monica_v4/**"
+      ]
+    },
+    {
+      "description": "Group all Immich role dependencies together",
+      "groupName": "immich-role-dependencies",
+      "matchFileNames": [
+        "ansible/roles/immich/**"
       ]
     }
   ]
