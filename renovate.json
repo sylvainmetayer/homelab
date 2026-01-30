@@ -14,7 +14,8 @@
       "description": "Group all Pangolin role dependencies together",
       "groupName": "pangolin-role-dependencies",
       "matchFileNames": [
-        "ansible/roles/pangolin/**"
+        "ansible/roles/pangolin/**",
+        "ansible/roles/newt/**"
       ]
     },
     {
@@ -53,13 +54,6 @@
       ]
     },
     {
-      "description": "Group all Newt role dependencies together",
-      "groupName": "newt-role-dependencies",
-      "matchFileNames": [
-        "ansible/roles/newt/**"
-      ]
-    },
-    {
       "description": "Group all Monica role dependencies together",
       "groupName": "monica-v4-role-dependencies",
       "matchFileNames": [
@@ -70,7 +64,8 @@
       "description": "Group all Immich role dependencies together",
       "groupName": "immich-role-dependencies",
       "matchFileNames": [
-        "ansible/roles/immich/**"
+        "ansible/roles/immich/**",
+        "compose/immich/**"
       ]
     }
   ]

@@ -13,7 +13,5 @@ ssh_pwauth: false
 disable_root: true
 
 runcmd:
-  # Configuration Pangolin via Ansible sera effectuée après le déploiement
-  # Utiliser: ansible-playbook -i inventory/hosts pangolin.yaml
   - echo "Cloud-init configuration completed at $(date)" >> /var/log/cloud-init.log
   - echo "Run Ansible playbook to configure Pangolin services" >> /var/log/cloud-init.log
