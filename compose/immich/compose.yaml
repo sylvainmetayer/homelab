@@ -1,6 +1,15 @@
+---
 name: immich_remote_ml
-
 services:
+  immich-server-remote:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:v2.5.0@sha256:6c011eaa315b871f3207d68f97205d92b3e600104466a75b01eb2c3868e72ca1
+    volumes:
+      - ./library:/data # Mount SSHFS first !!
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    restart: unless-stopped
   immich-machine-learning:
     container_name: immich_machine_learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.

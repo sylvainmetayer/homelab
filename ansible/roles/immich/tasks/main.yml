@@ -1,14 +1,23 @@
 ---
-# Tasks for immich role
 - name: Ensure immich app folders exist
   loop:
     - "{{ immich_base_path }}"
-    - "{{ immich_base_path }}/library"
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0755"
+
+- name: Ensure immich app folders exist
+  become: true
+  loop:
+    - "{{ immich_base_path }}/library"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "root"
+    group: "root"
     mode: "0755"
 
 - name: Template compose configuration
