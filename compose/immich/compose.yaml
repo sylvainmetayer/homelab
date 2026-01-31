@@ -3,7 +3,7 @@ name: immich_remote_ml
 services:
   immich-server-remote:
     container_name: immich_server
-    image: ghcr.io/immich-app/immich-server:v2.5.2
+    image: ghcr.io/immich-app/immich-server:v2.5.2@sha256:8ac5a6d471fbb6fcfec6bc34854dd5a947c1795547f0d9345d9bf1803d1209e3
     volumes:
       - ./library:/data # Mount SSHFS first !!
       - /etc/localtime:/etc/localtime:ro
@@ -14,7 +14,7 @@ services:
     container_name: immich_machine_learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:v2.5.2
+    image: ghcr.io/immich-app/immich-machine-learning:v2.5.2@sha256:531d2bccbe20d0412496e36455715a18d692911eca5e2ee37d32e1e4f50e14bb
     # extends:
     #   file: hwaccel.ml.yml
     #   service: # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
