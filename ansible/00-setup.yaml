@@ -1,7 +1,7 @@
 ---
 - hosts: all
   tags: setup
-  tasks:
+  pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment
     # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
@@ -56,3 +56,7 @@
         user: sylvain
         state: present
         key: "{{ lookup('file', item) }}"
+
+  roles:
+    - role: andrewrothstein.starship
+      tags: setup,starship

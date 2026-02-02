@@ -11,3 +11,4 @@ collections:
 roles:
   - src: geerlingguy.docker
     version: 8.0.0
+  - src: andrewrothstein.starship
