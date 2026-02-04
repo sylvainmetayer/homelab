@@ -1,6 +1,18 @@
 ---
 - hosts: all
   tags: setup
+  post_tasks:
+    - name: Ensure starship is initialized in .bashrc
+      ansible.builtin.lineinfile:
+        path: /home/sylvain/.bashrc
+        line: |-
+          source /usr/share/doc/fzf/examples/key-bindings.bash
+          eval "$(starship init bash)"
+        insertafter: EOF
+        state: present
+        create: false
+
+
   pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment

@@ -11,3 +11,10 @@ immich_domain: "photos.sylvain.cloud"
 immich_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/immich"
 immich_backup_borgmatic_password: "{{ backup_passphrase }}"
 immich_backup_healthcheck_url: ""
+
+starship_os_map:
+  Linux: unknown-linux-musl
+
+starship_checksums:
+  v1.24.2:
+    aarch64-unknown-linux-musl: sha256:56b9ff412bbf374d29b99e5ac09a849124cb37a0a13121e8470df32de53c1ea6
