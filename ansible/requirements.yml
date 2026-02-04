@@ -12,4 +12,4 @@ roles:
   - src: geerlingguy.docker
     version: 8.0.0
   - src: andrewrothstein.starship
-    version: v0.47.0
+    version: v1.3.0
