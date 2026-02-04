@@ -101,6 +101,31 @@ services:
     networks:
       - immich
 
+  # No ARM support :(
+  # immich-swipe:
+  #   labels:
+  #     - pangolin.public-resources.immich.name=Immich Swipe
+  #     - pangolin.public-resources.immich.full-domain=swipe-{{ immich_domain }}
+  #     # - pangolin.public-resources.immich.auth.pincode={{ immich_pin }}
+  #     - pangolin.public-resources.immich.protocol=http
+  #     - pangolin.public-resources.immich.targets[0].method=http
+  #     - pangolin.public-resources.immich.targets[0].port=80
+  #     - pangolin.public-resources.immich.auth.sso-enabled=true
+  #     - pangolin.public-resources.immich.auth.sso-roles[0]=Immich
+  #     - pangolin.public-resources.immich.healthcheck.hostname=immich-swipe
+  #     - pangolin.public-resources.immich.healthcheck.port=80
+  #     - pangolin.public-resources.immich.healthcheck.enabled=true
+  #     - pangolin.public-resources.immich.healthcheck.path=/
+  #     - pangolin.public-resources.immich.healthcheck.interval=30
+  #     - pangolin.public-resources.immich.healthcheck.timeout=5
+  #     - pangolin.public-resources.immich.healthcheck.method=GET
+  #     - pangolin.public-resources.immich.healthcheck.status=200
+  #     # - pangolin.public-resources.immich.rules[0].action=allow
+  #     # - pangolin.public-resources.immich.rules[0].match=ip
+  #     # - pangolin.public-resources.immich.rules[0].value=176.129.132.36
+  #   image: ghcr.io/dev-nick421/immich-swipe:sha-a487c3e
+  #   container_name: immich-swipe
+
 volumes:
   model-cache:
 
