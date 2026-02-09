@@ -21,5 +21,5 @@ resource "ovh_domain_zone_record" "talks" {
     fieldtype = "TXT"
     subdomain = each.value.record_name
     ttl       = 300
-    target    = each.value.record_value
+    target    = "\"${each.value.record_value}\""
 }
