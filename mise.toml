@@ -6,7 +6,7 @@ age = 'latest'
 "github:fosrl/cli" = "latest"
 'github:github/copilot-cli' = '0.0.377'
 uv = "0.10.2"
-python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+python = "3.14.3"
 "github:simulot/immich-go" = "latest"
 
 [settings]
