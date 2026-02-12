@@ -30,7 +30,7 @@ services:
       - pangolin.public-resources.immich.rules[0].match=ip
       - pangolin.public-resources.immich.rules[0].value=176.129.132.36
     container_name: immich_server
-    image: ghcr.io/immich-app/immich-server:v2.5.2@sha256:8ac5a6d471fbb6fcfec6bc34854dd5a947c1795547f0d9345d9bf1803d1209e3
+    image: ghcr.io/immich-app/immich-server:v2.5.6@sha256:aa163d2e1cc2b16a9515dd1fef901e6f5231befad7024f093d7be1f2da14341a
     # extends:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
@@ -56,7 +56,7 @@ services:
     container_name: immich_machine_learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:v2.5.2@sha256:531d2bccbe20d0412496e36455715a18d692911eca5e2ee37d32e1e4f50e14bb
+    image: ghcr.io/immich-app/immich-machine-learning:v2.5.6@sha256:b213fa3c82d27a21a299c46ffbb38a091f18384db1ad67d409a3b34fe0fce556
     # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
     #   file: hwaccel.ml.yml
     #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
@@ -72,7 +72,7 @@ services:
 
   redis:
     container_name: immich_redis
-    image: docker.io/valkey/valkey:9@sha256:546304417feac0874c3dd576e0952c6bb8f06bb4093ea0c9ca303c73cf458f63
+    image: docker.io/valkey/valkey:9@sha256:930b41430fb727f533c5982fe509b6f04233e26d0f7354e04de4b0d5c706e44e
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always
@@ -120,7 +120,7 @@ services:
       - pangolin.public-resources.immich_swipe.healthcheck.timeout=5
       - pangolin.public-resources.immich_swipe.healthcheck.method=GET
       - pangolin.public-resources.immich_swipe.healthcheck.status=200
-    image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff
+    image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
     networks:
       - newt
