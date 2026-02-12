@@ -1,7 +1,7 @@
 name: pangolin
 services:
   pangolin:
-    image: docker.io/fosrl/pangolin:1.15.1@sha256:f2bfeb321984a33d126a2ac1cef70022ffa460a4ad11ab23eb6c1aae58c1e5b9
+    image: docker.io/fosrl/pangolin:1.15.3@sha256:4723179055b20007a4e58e47f899004008732ac805b96460d38698beb804b016
     container_name: pangolin
     restart: unless-stopped
     volumes:
@@ -35,7 +35,7 @@ services:
       - 80:80
 
   traefik:
-    image: docker.io/traefik:v3.6.7@sha256:a9890c898f379c1905ee5b28342f6b408dc863f08db2dab20e46c267d1ff463a
+    image: docker.io/traefik:v3.6.8@sha256:90099f8948c828ecf0ababd711a4359a2443eba12261c1df2f548a3b1d815938
     container_name: traefik
     restart: unless-stopped
     network_mode: service:gerbil
