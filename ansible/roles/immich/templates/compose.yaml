@@ -28,7 +28,7 @@ services:
       - pangolin.public-resources.immich.healthcheck.status=200
       - pangolin.public-resources.immich.rules[0].action=allow
       - pangolin.public-resources.immich.rules[0].match=ip
-      - pangolin.public-resources.immich.rules[0].value=REDACTED_IP
+      - pangolin.public-resources.immich.rules[0].value={{ home_ip }}
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:v2.5.6@sha256:aa163d2e1cc2b16a9515dd1fef901e6f5231befad7024f093d7be1f2da14341a
     # extends:
