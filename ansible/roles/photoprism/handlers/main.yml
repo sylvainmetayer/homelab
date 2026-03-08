@@ -1,7 +1,0 @@
----
-- name: Restart photoprism service
-  ansible.builtin.systemd:
-    name: dc@photoprism
-    state: restarted
-    scope: user
-    daemon_reload: true
