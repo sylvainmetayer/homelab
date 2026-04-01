@@ -5,7 +5,7 @@ sops = 'latest'
 age = 'latest'
 "github:fosrl/cli" = "latest"
 'github:github/copilot-cli' = '1.0.12'
-uv = "0.11.2"
+uv = "0.11.3"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 "github:simulot/immich-go" = "latest"
 
