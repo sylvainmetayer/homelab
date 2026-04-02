@@ -1,0 +1,62 @@
+---
+services:
+  ansible-tower:
+    container_name: ansible-tower
+    image: ghcr.io/ansible/awx:24.6.0
+    labels:
+      - pangolin.public-resources.ansible-tower.name=Ansible Tower
+      - pangolin.public-resources.ansible-tower.full-domain={{ ansible_tower_domain }}
+      - pangolin.public-resources.ansible-tower.protocol=http
+      - pangolin.public-resources.ansible-tower.targets[0].method=http
+      - pangolin.public-resources.ansible-tower.targets[0].port=8052
+      - pangolin.public-resources.ansible-tower.auth.sso-enabled=true
+      - pangolin.public-resources.ansible-tower.healthcheck.hostname=ansible-tower
+      - pangolin.public-resources.ansible-tower.healthcheck.port=8052
+      - pangolin.public-resources.ansible-tower.healthcheck.enabled=true
+      - pangolin.public-resources.ansible-tower.healthcheck.path=/api/v2/ping/
+      - pangolin.public-resources.ansible-tower.healthcheck.interval=30
+      - pangolin.public-resources.ansible-tower.healthcheck.timeout=10
+      - pangolin.public-resources.ansible-tower.healthcheck.method=GET
+      - pangolin.public-resources.ansible-tower.healthcheck.status=200
+    environment:
+      - SECRET_KEY={{ ansible_tower_secret_key }}
+      - AWX_ADMIN_USER={{ ansible_tower_admin_user }}
+      - AWX_ADMIN_PASSWORD={{ ansible_tower_admin_password }}
+      - AWX_ADMIN_EMAIL={{ ansible_tower_admin_email }}
+      - DATABASE_USER=awx
+      - DATABASE_PASSWORD={{ ansible_tower_db_password }}
+      - DATABASE_NAME=awx
+      - DATABASE_PORT=5432
+      - DATABASE_HOST=ansible-tower-db
+    depends_on:
+      - ansible-tower-db
+      - ansible-tower-redis
+    networks:
+      - ansible-tower
+      - newt
+    restart: unless-stopped
+
+  ansible-tower-db:
+    container_name: ansible-tower-db
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=awx
+      - POSTGRES_PASSWORD={{ ansible_tower_db_password }}
+      - POSTGRES_DB=awx
+    volumes:
+      - "{{ ansible_tower_base_path }}/pgdata:/var/lib/postgresql/data"
+    networks:
+      - ansible-tower
+    restart: unless-stopped
+
+  ansible-tower-redis:
+    container_name: ansible-tower-redis
+    image: redis:7
+    networks:
+      - ansible-tower
+    restart: unless-stopped
+
+networks:
+  ansible-tower:
+  newt:
+    external: true

@@ -22,3 +22,10 @@ wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
 nextcloud_backup_enabled: true
 nextcloud_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/nextcloud"
 nextcloud_backup_borgmatic_password: "{{ backup_passphrase }}"
+
+# ansible_tower secrets must be defined in secrets.sops.yaml
+ansible_tower_domain: "ansible-tower.sylvain.cloud"
+ansible_tower_admin_email: "{{ ansible_tower_admin_email_address }}"
+ansible_tower_admin_password: "{{ ansible_tower_admin_password_secret }}"
+ansible_tower_secret_key: "{{ ansible_tower_secret_key_value }}"
+ansible_tower_db_password: "{{ ansible_tower_db_password_secret }}"

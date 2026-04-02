@@ -1,0 +1,6 @@
+---
+- name: Restart ansible_tower
+  ansible.builtin.systemd:
+    name: dc@ansible-tower
+    scope: user
+    state: restarted

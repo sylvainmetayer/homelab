@@ -33,3 +33,5 @@
       tags: wiki,app
     - role: nextcloud
       tags: nextcloud,app
+    - role: ansible_tower
+      tags: ansible-tower,app
