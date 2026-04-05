@@ -33,7 +33,7 @@
     - name: Initialize borg repository for nextcloud
       become: true
       ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/nextcloud.yaml repo-create --encryption {{ nextcloud_backup_borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/nextcloud.yaml repo-create --encryption {{ nextcloud_backup_borgmatic_encryption_mode | default('repokey-blake2') }}"
       register: borg_repo_create
       changed_when: "'repository already exists' not in borg_repo_create.stderr"
       failed_when: >

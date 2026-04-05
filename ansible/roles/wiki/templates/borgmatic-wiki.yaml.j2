@@ -1,8 +1,8 @@
 # Borgmatic configuration for wiki (Bookstack) backup
 # See https://torsion.org/borgmatic/reference/configuration/ for full reference
 #
-# IMPORTANT: With Borg 2.x, S3/B2 credentials are embedded in the repository URL.
-# For S3-compatible endpoints (non-AWS), set BORG_S3_ENDPOINT_URL environment variable.
+# Backup storage: Hetzner Storage Box via SSH/SFTP
+# Public key authentication is used for SSH connections.
 
 # List of source directories and files to back up. Globs and tildes
 # are expanded. Do not backslash spaces in path names.
@@ -44,7 +44,9 @@ repositories:
       # An optional label for the repository, used in logging
       # and to make selecting the repository easier on the
       # command-line.
-      label: wiki-s3
+      label: wiki-backup
+
+ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
 
 # Passphrase to unlock the encryption key with. Only use on
 # repositories that were initialized with passphrase/repokey/keyfile

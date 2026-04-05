@@ -43,7 +43,7 @@
     - name: Initialize borg repository for monica_v4
       become: true
       ansible.builtin.command:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/monica_v4.yaml repo-create --encryption repokey-aes-ocb"
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/monica_v4.yaml repo-create --encryption repokey-blake2"
       register: monica_v4_borg_repo_create
       changed_when: "'repository already exists' not in monica_v4_borg_repo_create.stderr"
       failed_when: >

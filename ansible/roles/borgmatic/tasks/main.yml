@@ -49,6 +49,10 @@
       {{ ansible_facts['architecture'] }}
       {% endif %}
 
+
+# With hetzner storage box, we need to use the 1.x version
+# ssh STORAGE_BOX borg --version
+# borg 1.2.9
 - name: Download borgbackup binary from GitHub releases for root
   become: true
   ansible.builtin.get_url:
@@ -114,14 +118,11 @@
     owner: "root"
     group: "root"
 
-- name: Create rclone configuration file for root
+- name: Ensure rclone configuration file for root is absent
   become: true
-  ansible.builtin.template:
-    src: rclone.conf.j2
-    dest: "{{ rclone_config_dir }}/rclone.conf"
-    mode: "0600"
-    owner: "root"
-    group: "root"
+  ansible.builtin.file:
+    state: absent
+    path: "{{ rclone_config_dir }}/rclone.conf"
 
 - name: Ensure mysqldump and pg_dump are installed
   become: true
@@ -131,3 +132,26 @@
       - postgresql-client
     state: present
     update_cache: true
+
+- name: Create SSH key from secrets to access backup storage box
+  become: true
+  ansible.builtin.copy:
+    dest: "/root/.ssh/backup_storage_box_key"
+    content: "{{ backup_storage_box_ssh_key }}"
+    mode: "0600"
+    owner: "root"
+    group: "root"
+
+- name: Create SSH config to access backup storage box
+  become: true
+  ansible.builtin.copy:
+    dest: "/root/.ssh/config"
+    content: |
+      Host backup_storage_box
+        HostName {{ backup_storage_box_hostname }}
+        User {{ backup_storage_box_username }}
+        IdentityFile /root/.ssh/backup_storage_box_key
+        Port 23
+    mode: "0600"
+    owner: "root"
+    group: "root"

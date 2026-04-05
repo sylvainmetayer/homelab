@@ -1,0 +1,9 @@
+---
+backup_folders:
+  - "immich"
+  - "photoprism"
+  - "wiki"
+  - "nextcloud"
+  - "monica_v4"
+  - "rss"
+  - "betisier"

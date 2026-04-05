@@ -4,9 +4,10 @@ ansible_user: sylvain
 
 # Backup configuration (used by all hosts)
 borgmatic_config_dir: "/etc/borgmatic.d"
-borgmatic_encryption_mode: repokey-aes-ocb
-backup_s3_bucket_name: homelab-backup-sylvain
-backup_s3_endpoint: https://nbg1.your-objectstorage.com
+borgmatic_encryption_mode: repokey-blake2
+
+# Storage Box Hetzner pour les backups (remplace S3)
+backup_storage_box_path: "./backup"
 
 docker_base_path: /opt/apps
 

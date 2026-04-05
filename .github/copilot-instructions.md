@@ -56,6 +56,13 @@ Roles split by host:
 - `finch`: Personal workstation (nextcloud, wiki, rss, monica, etc.)
 - `docker`: Proxmox VM running Docker services (newt, echo, rss, betisier)
 - `pi`: Raspberry Pi (photoprism backups)
+- `backups`: Hetzner Storage Box host for remote backup folders
+
+**Storage Box Backup Pattern**:
+- Borgmatic targets must use SSH Storage Box paths: `ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/<service>`
+- Remote folders are created by `ansible/backup.yaml`
+- Because Storage Box uses a restricted shell, `ansible/backup.yaml` must use `gather_facts: false` and `ansible.builtin.raw` (not `ansible.builtin.file`)
+- Folder list is managed in `ansible/host_vars/backups/variables.yaml` via `backup_folders`
 
 ### Infrastructure Provisioning
 
@@ -167,6 +174,7 @@ commands:
 
 - Hetzner Cloud (Pangolin deployment)
 - Proxmox VE (local homelab)
+- Hetzner Storage Box (Borg repositories)
 - S3-compatible object storage (Tofu state)
 - Cloudflare DNS (configured in `tofu/pangolin/dns.tf`)
 - Pangolin Zero Trust platform (for secure access)

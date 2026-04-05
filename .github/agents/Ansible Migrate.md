@@ -7,7 +7,7 @@ Ce document décrit la procédure standardisée pour migrer un rôle Ansible ver
 La nouvelle infrastructure utilise :
 
 - **Traefik/Pangolin** pour le routing HTTP (au lieu de Nginx + Certbot)
-- **Borgmatic** pour les backups (au lieu de Restic)
+- **Borgmatic** pour les backups vers **Hetzner Storage Box** (au lieu de Restic/S3)
 - **Systemd user service** `dc@<service>` déjà créé par le rôle `docker_service`
 - **compose.yaml** comme nom standard (au lieu de docker-compose.yml)
 
@@ -64,7 +64,7 @@ service_base_path: "{{ docker_base_path }}/service"
     - name: Initialize borg repository for <service>
       become: true
       ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/service.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/service.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
       register: borg_repo_create
       changed_when: "'repository already exists' not in borg_repo_create.stderr"
       failed_when: >
@@ -99,34 +99,36 @@ local_path: /root/.local/bin/borg
 
 repositories:
     - path: {{ service_backup_borgmatic_target }}
-      label: service-s3
+      label: service-storage-box
 
 encryption_passphrase: {{ service_backup_borgmatic_password }}
 
-compression: auto,zstd
+compression: zstd,10
 
-archive_name_format: '{hostname}-service-{now:%Y-%m-%dT%H:%M:%S}'
+archive_name_format: 'service-{now:%Y-%m-%dT%H:%M:%S}'
 
-retention:
-    keep_daily: 7
-    keep_weekly: 4
-    keep_monthly: 6
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
 
-consistency:
-    checks:
-        - name: repository
-          frequency: 2 weeks
-        - name: archives
-          frequency: 4 weeks
+checks:
+    - name: repository
+      frequency: 2 weeks
+    - name: archives
+      frequency: 1 month
 
-before_backup:
-    - echo "Starting backup for service at {now}"
-
-after_backup:
-    - echo "Completed backup for service at {now}"
-
-on_error:
-    - echo "Error during backup for service at {now}"
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - echo "Starting service backup at $(date)"
+    - after: action
+      when:
+          - create
+      run:
+          - echo "Service backup completed at $(date)"
 
 {% if service_backup_healthcheck_url is defined and service_backup_healthcheck_url %}
 # https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
@@ -142,12 +144,27 @@ uptime_kuma:
 **Variables dans `defaults/main.yml` :**
 ```yaml
 service_backup_enabled: true
-service_backup_borgmatic_target: ""  # À définir dans host_vars
+service_backup_borgmatic_target: ""  # Format: ssh://<user>@<storage-box-host>/{{ backup_storage_box_path }}/<service>
 service_backup_borgmatic_password: ""  # À définir dans secrets.sops.yaml
 service_backup_healthcheck_url: ""  # Optionnel - URL de healthcheck Uptime Kuma
 ```
 
 **Note importante :** La variable `borgmatic_config_dir` est définie globalement dans `group_vars/all/variables.yml` (valeur par défaut: `/etc/borgmatic.d`). Ne pas la redéfinir dans les rôles.
+
+### 2.1 Initialisation des dossiers sur Storage Box
+
+Avant les premiers backups, créer les dossiers distants avec la playbook dédiée `ansible/backup.yaml`.
+
+- Cette playbook cible le groupe `backups`
+- Elle doit utiliser `gather_facts: false` + `ansible.builtin.raw` (shell Hetzner restreint)
+- La liste des dossiers est définie dans `ansible/host_vars/backups/variables.yaml` via `backup_folders`
+
+Exemple de commande:
+
+```bash
+cd ansible
+ansible-playbook backup.yaml
+```
 
 ### 3. Template Docker Compose
 

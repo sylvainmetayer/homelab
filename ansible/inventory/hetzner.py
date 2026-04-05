@@ -46,6 +46,26 @@ def get_inventory():
 
     for resource in resources:
         resource_type = resource.get("type")
+
+        if resource_type == "hcloud_storage_box":
+            values = resource.get("values", {})
+            name = values.get("name", "unknown")
+
+            # Get IPv4 address from Hetzner server
+            ipv4_address = values.get("server")
+            user = values.get("username")
+
+            if ipv4_address and ipv4_address != "127.0.0.1":
+                inventory["hetzner"]["hosts"].append(name)
+                inventory["_meta"]["hostvars"][name] = {
+                    "ansible_host": ipv4_address,
+                    "ansible_user": user,
+                    # Storage Boxes use port 23 for SSH access
+                    "ansible_port": 23,
+                    "location": values.get("location"),
+                    "datacenter": values.get("datacenter")
+                }
+
         if resource_type == "hcloud_server":
             values = resource.get("values", {})
             name = values.get("name", "unknown")
