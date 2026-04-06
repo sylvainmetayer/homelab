@@ -29,3 +29,7 @@ ansible_tower_admin_email: "{{ ansible_tower_admin_email_address }}"
 ansible_tower_admin_password: "{{ ansible_tower_admin_password_secret }}"
 ansible_tower_secret_key: "{{ ansible_tower_secret_key_value }}"
 ansible_tower_db_password: "{{ ansible_tower_db_password_secret }}"
+
+ansible_tower_backup_enabled: true
+ansible_tower_backup_borgmatic_target: "rclone:backup:{{ backup_s3_bucket_name }}/ansible-tower"
+ansible_tower_backup_borgmatic_password: "{{ backup_passphrase }}"

@@ -2,3 +2,10 @@
 ansible_tower_base_path: "{{ docker_base_path }}/ansible-tower"
 ansible_tower_domain: "ansible-tower.sylvain.cloud"
 ansible_tower_admin_user: admin
+ansible_tower_db_password: ""
+
+# Backup (borgmatic)
+ansible_tower_backup_enabled: true
+ansible_tower_backup_borgmatic_target: ""
+ansible_tower_backup_borgmatic_password: ""
+ansible_tower_backup_healthcheck_url: ""

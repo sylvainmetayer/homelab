@@ -25,3 +25,25 @@
     name: dc@ansible-tower
     scope: user
     enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for ansible_tower
+  when: ansible_tower_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for ansible_tower
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-ansible-tower.yaml.j2"
+        dest: "{{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/ansible-tower.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Initialize borg repository for ansible_tower
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/ansible-tower.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-aes-ocb') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: borg_repo_create.rc != 0 and 'repository already exists' not in borg_repo_create.stderr
