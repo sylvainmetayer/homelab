@@ -1,0 +1,14 @@
+---
+semaphore_base_path: "{{ docker_base_path }}/semaphore"
+semaphore_domain: semaphore.sylvain.cloud
+semaphore_admin_password: ""
+semaphore_admin_name: "admin"
+semaphore_admin_email: "admin@sylvain.cloud"
+semaphore_admin: "admin"
+semaphore_access_key_encryption: ""
+
+# Borgmatic backup configuration
+semaphore_backup_enabled: true
+semaphore_backup_borgmatic_target: ""
+semaphore_backup_encryption_passphrase: ""
+semaphore_backup_healthcheck_url: ""
