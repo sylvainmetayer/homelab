@@ -1,10 +1,12 @@
 ---
 semaphore_base_path: "{{ docker_base_path }}/semaphore"
 semaphore_domain: semaphore.sylvain.cloud
+# Sensitive: must be set in secrets.sops.yaml
 semaphore_admin_password: ""
 semaphore_admin_name: "admin"
 semaphore_admin_email: "admin@sylvain.cloud"
 semaphore_admin: "admin"
+# Sensitive: must be set in secrets.sops.yaml (random 32-char string)
 semaphore_access_key_encryption: ""
 
 # Borgmatic backup configuration

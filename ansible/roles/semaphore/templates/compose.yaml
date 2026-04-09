@@ -17,7 +17,7 @@ services:
       - pangolin.public-resources.semaphore.healthcheck.timeout=5
       - pangolin.public-resources.semaphore.healthcheck.method=GET
       - pangolin.public-resources.semaphore.healthcheck.status=200
-    image: semaphoreui/semaphore:latest
+    image: semaphoreui/semaphore:v2.10.1
     environment:
       - SEMAPHORE_DB_DIALECT=bolt
       - SEMAPHORE_ADMIN_PASSWORD={{ semaphore_admin_password }}
