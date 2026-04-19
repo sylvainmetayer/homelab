@@ -5,7 +5,7 @@ sops = 'latest'
 age = 'latest'
 'github:github/copilot-cli' = '1.0.28'
 uv = "0.11.7"
-python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+python = "3.14.4"
 "github:simulot/immich-go" = "latest"
 
 [settings]
