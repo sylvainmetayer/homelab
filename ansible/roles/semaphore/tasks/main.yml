@@ -1,0 +1,52 @@
+---
+- name: Ensure Semaphore app folder exists
+  loop:
+    - "{{ semaphore_base_path }}"
+    - "{{ semaphore_base_path }}/data"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart semaphore
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ semaphore_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure semaphore service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@semaphore
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Semaphore
+  when: semaphore_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Semaphore
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-semaphore.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/semaphore.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Semaphore
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/semaphore.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr

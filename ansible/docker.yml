@@ -33,3 +33,5 @@
       tags: wiki,app
     - role: nextcloud
       tags: nextcloud,app
+    - role: semaphore
+      tags: semaphore,app

@@ -1,0 +1,37 @@
+---
+services:
+  semaphore:
+    container_name: semaphore
+    labels:
+      - pangolin.public-resources.semaphore.name=Semaphore
+      - pangolin.public-resources.semaphore.full-domain={{ semaphore_domain }}
+      - pangolin.public-resources.semaphore.protocol=http
+      - pangolin.public-resources.semaphore.targets[0].method=http
+      - pangolin.public-resources.semaphore.targets[0].port=3000
+      - pangolin.public-resources.semaphore.auth.sso-enabled=true
+      - pangolin.public-resources.semaphore.healthcheck.hostname=semaphore
+      - pangolin.public-resources.semaphore.healthcheck.port=3000
+      - pangolin.public-resources.semaphore.healthcheck.enabled=true
+      - pangolin.public-resources.semaphore.healthcheck.path=/
+      - pangolin.public-resources.semaphore.healthcheck.interval=30
+      - pangolin.public-resources.semaphore.healthcheck.timeout=5
+      - pangolin.public-resources.semaphore.healthcheck.method=GET
+      - pangolin.public-resources.semaphore.healthcheck.status=200
+    image: semaphoreui/semaphore:v2.10.1
+    environment:
+      - SEMAPHORE_DB_DIALECT=bolt
+      - SEMAPHORE_ADMIN_PASSWORD={{ semaphore_admin_password }}
+      - SEMAPHORE_ADMIN_NAME={{ semaphore_admin_name }}
+      - SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email }}
+      - SEMAPHORE_ADMIN={{ semaphore_admin }}
+      - SEMAPHORE_ACCESS_KEY_ENCRYPTION={{ semaphore_access_key_encryption }}
+      - TZ=Europe/Paris
+    volumes:
+      - ./data:/home/semaphore
+    restart: unless-stopped
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true
