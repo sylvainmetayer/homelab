@@ -3,7 +3,7 @@
 services:
   postgres:
     container_name: semaphore_postgres
-    image: postgres:14
+    image: postgres:14@sha256:bbb8851608e3ff4901156bf6a4bf90735a9d44ae014c03811bfdb2f9c354b18b
     hostname: postgres
     restart: unless-stopped
     environment:
@@ -32,7 +32,7 @@ services:
       - pangolin.public-resources.semaphore.healthcheck.timeout=5
       - pangolin.public-resources.semaphore.healthcheck.method=GET
       - pangolin.public-resources.semaphore.healthcheck.status=200
-    image: semaphoreui/semaphore:v2.17.38
+    image: semaphoreui/semaphore:v2.17.38@sha256:6771256a64d848324f3726f07b688883fbb5dc257def079f0b16e6fb4d86e9dc
     environment:
       - SEMAPHORE_PLAYBOOK_PATH= /tmp/semaphore/
       - SEMAPHORE_DB_DIALECT=postgres
