@@ -26,3 +26,5 @@ nextcloud_backup_borgmatic_password: "{{ backup_passphrase }}"
 semaphore_backup_enabled: true
 semaphore_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/semaphore"
 semaphore_backup_encryption_passphrase: "{{ backup_passphrase }}"
+semaphore_domain: console.sylvain.cloud
+semaphore_admin_email: "semaphore@sylvain.cloud"

@@ -7,8 +7,14 @@
 # List of source directories and files to back up. Globs and tildes
 # are expanded. Do not backslash spaces in path names.
 source_directories:
-    - {{ semaphore_base_path }}/data
     - {{ semaphore_base_path }}/compose.yaml
+
+postgresql_databases:
+    - container: semaphore_postgres
+      port: 5432
+      name: {{ semaphore_db_name }}
+      username: {{ semaphore_db_user }}
+      password: {{ semaphore_db_password }}
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start

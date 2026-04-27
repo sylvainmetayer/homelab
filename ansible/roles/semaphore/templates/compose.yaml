@@ -1,5 +1,20 @@
 ---
+# https://semaphoreui.com/docs/admin-guide/installation/docker
 services:
+  postgres:
+    container_name: semaphore_postgres
+    image: postgres:14
+    hostname: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER={{ semaphore_db_user }}
+      - POSTGRES_PASSWORD={{ semaphore_db_password }}
+      - POSTGRES_DB={{ semaphore_db_name }}
+    volumes:
+      - semaphore-postgres:/var/lib/postgresql/data
+    networks:
+      - semaphore-internal
+
   semaphore:
     container_name: semaphore
     labels:
@@ -17,21 +32,34 @@ services:
       - pangolin.public-resources.semaphore.healthcheck.timeout=5
       - pangolin.public-resources.semaphore.healthcheck.method=GET
       - pangolin.public-resources.semaphore.healthcheck.status=200
-    image: semaphoreui/semaphore:v2.10.1
+    image: semaphoreui/semaphore:v2.17.38
     environment:
-      - SEMAPHORE_DB_DIALECT=bolt
+      - SEMAPHORE_PLAYBOOK_PATH= /tmp/semaphore/
+      - SEMAPHORE_DB_DIALECT=postgres
+      - SEMAPHORE_DB_HOST=postgres
+      - SEMAPHORE_DB_PORT=5432
+      - SEMAPHORE_DB_USER={{ semaphore_db_user }}
+      - SEMAPHORE_DB_PASS={{ semaphore_db_password }}
+      - SEMAPHORE_DB={{ semaphore_db_name }}
       - SEMAPHORE_ADMIN_PASSWORD={{ semaphore_admin_password }}
       - SEMAPHORE_ADMIN_NAME={{ semaphore_admin_name }}
       - SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email }}
       - SEMAPHORE_ADMIN={{ semaphore_admin }}
       - SEMAPHORE_ACCESS_KEY_ENCRYPTION={{ semaphore_access_key_encryption }}
       - TZ=Europe/Paris
-    volumes:
-      - ./data:/home/semaphore
     restart: unless-stopped
+    #volumes:
+    #  - ./requirements.txt:/etc/semaphore/requirements.txt
+    depends_on:
+      - postgres
     networks:
       - newt
+      - semaphore-internal
 
 networks:
   newt:
     external: true
+  semaphore-internal:
+
+volumes:
+  semaphore-postgres:

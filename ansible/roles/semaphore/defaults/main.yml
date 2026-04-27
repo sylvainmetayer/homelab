@@ -9,6 +9,12 @@ semaphore_admin: "admin"
 # Sensitive: must be set in secrets.sops.yaml (random 32-char string)
 semaphore_access_key_encryption: ""
 
+# PostgreSQL database configuration
+semaphore_db_user: "semaphore"
+semaphore_db_name: "semaphore"
+# Sensitive: must be set in secrets.sops.yaml
+semaphore_db_password: ""
+
 # Borgmatic backup configuration
 semaphore_backup_enabled: true
 semaphore_backup_borgmatic_target: ""
