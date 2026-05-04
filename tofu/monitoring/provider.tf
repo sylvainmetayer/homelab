@@ -2,7 +2,7 @@ terraform {
   required_providers {
     uptimekuma = {
       source  = "breml/uptimekuma"
-      version = "~> 0.2.0"
+      version = "~> 0.3.0"
     }
     sops = {
       source  = "carlpett/sops"
