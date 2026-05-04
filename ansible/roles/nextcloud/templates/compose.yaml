@@ -2,7 +2,7 @@
 services:
   nextcloud:
     restart: unless-stopped
-    image: ghcr.io/linuxserver/nextcloud:33.0.2@sha256:b06a868994d366aff8cc69851f478a6f235134971d50fd44936c60937c64a15e
+    image: ghcr.io/linuxserver/nextcloud:33.0.3@sha256:8bf953d27c081b3f0c894ab237968fe945448b77e2e78c0dc5ffaaae867b4021
     container_name: nextcloud
     labels:
       - pangolin.public-resources.nextcloud.name=nextcloud
