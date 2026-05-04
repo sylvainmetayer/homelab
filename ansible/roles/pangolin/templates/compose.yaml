@@ -1,7 +1,7 @@
 name: pangolin
 services:
   pangolin:
-    image: docker.io/fosrl/pangolin:ee-1.18.2
+    image: docker.io/fosrl/pangolin:ee-1.18.2@sha256:cc4739cd629eb2a186dddee3dfe9b377fcb11f8d35a8d48d436c905265b05be9
     container_name: pangolin
     restart: unless-stopped
     volumes:
