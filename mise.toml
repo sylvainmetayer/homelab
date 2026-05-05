@@ -4,7 +4,7 @@ packer = 'latest'
 sops = 'latest'
 age = 'latest'
 'github:github/copilot-cli' = '1.0.40'
-uv = "0.11.9"
+uv = "0.11.8"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 "github:simulot/immich-go" = "latest"
 
