@@ -1,0 +1,47 @@
+name: Build and push semaphore image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - compose/semaphore/Containerfile
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/sylvainmetayer/homelab/semaphore
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract semaphore version
+        id: version
+        run: |
+          VERSION=$(grep '^FROM' compose/semaphore/Containerfile | grep -oP 'semaphore:v\K[^@]+')
+          echo "value=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: compose/semaphore
+          file: compose/semaphore/Containerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+            ${{ env.IMAGE_NAME }}:latest

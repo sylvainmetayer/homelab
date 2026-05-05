@@ -32,7 +32,7 @@ services:
       - pangolin.public-resources.semaphore.healthcheck.timeout=5
       - pangolin.public-resources.semaphore.healthcheck.method=GET
       - pangolin.public-resources.semaphore.healthcheck.status=200
-    image: semaphoreui/semaphore:v2.18.1@sha256:e49c76938a77f2ffa50d642e24bde7ddf27b7e35ab880813d72e8ea3ef5da90e
+    image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.18.1
     environment:
       - SEMAPHORE_PLAYBOOK_PATH= /tmp/semaphore/
       - SEMAPHORE_DB_DIALECT=postgres
