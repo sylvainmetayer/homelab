@@ -20,12 +20,16 @@ resource "hcloud_storage_box" "backups" {
   password         = random_password.storage_box_password.result
 
   ssh_keys = [
+    trimspace(tls_private_key.storage_box.public_key_openssh),
     trimspace(file("${path.root}/../../keys/perso.pub")),
-    trimspace(tls_private_key.storage_box.public_key_openssh)
+    trimspace(file("${path.root}/../../ansible/roles/semaphore/files/key.pub")),
+    trimspace(file("${path.root}/../../keys/pro.pub")),
+    trimspace(file("${path.root}/../../keys/android.pub"))
   ]
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes = [ssh_keys]
   }
 
   access_settings = {
