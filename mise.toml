@@ -3,8 +3,8 @@ opentofu = '1.12.0'
 packer = 'latest'
 sops = 'latest'
 age = 'latest'
-'github:github/copilot-cli' = '1.0.40'
-uv = "0.11.14"
+'github:github/copilot-cli' = 'latest'
+uv = "latest"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 "github:simulot/immich-go" = "latest"
 
