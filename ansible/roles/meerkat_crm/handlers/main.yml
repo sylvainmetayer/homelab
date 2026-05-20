@@ -1,0 +1,11 @@
+---
+- name: Reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+
+- name: Restart meerkat_crm
+  ansible.builtin.systemd:
+    name: dc@meerkat_crm
+    scope: user
+    state: restarted

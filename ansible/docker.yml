@@ -35,3 +35,5 @@
       tags: nextcloud,app
     - role: semaphore
       tags: semaphore,app
+    - role: meerkat_crm
+      tags: meerkat_crm,app

@@ -1,0 +1,11 @@
+---
+meerkat_crm_base_path: "{{ docker_base_path }}/meerkat_crm"
+meerkat_crm_domain: crm.sylvain.cloud
+meerkat_crm_jwt_secret: ""
+meerkat_crm_healthcheck_url: ""
+
+# Borgmatic backup configuration
+meerkat_crm_backup_enabled: true
+meerkat_crm_backup_borgmatic_target: ""
+meerkat_crm_backup_encryption_passphrase: ""
+meerkat_crm_backup_healthcheck_url: ""

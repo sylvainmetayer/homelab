@@ -1,0 +1,57 @@
+---
+services:
+  meerkat-backend:
+    image: ghcr.io/fbuchner/meerkat-crm-backend:latest
+    container_name: meerkat_crm_backend
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      - PUID={{ ansible_facts['user_uid'] }}
+      - PGID={{ ansible_facts['user_gid'] }}
+    volumes:
+      - ./data:/app/data
+      - ./photos:/app/static/photos
+    networks:
+      - meerkat_crm
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  meerkat-frontend:
+    image: ghcr.io/fbuchner/meerkat-crm-frontend:latest
+    container_name: meerkat_crm_frontend
+    restart: unless-stopped
+    labels:
+      - pangolin.public-resources.meerkat-crm.name=Meerkat CRM
+      - pangolin.public-resources.meerkat-crm.full-domain={{ meerkat_crm_domain }}
+      - pangolin.public-resources.meerkat-crm.protocol=http
+      - pangolin.public-resources.meerkat-crm.targets[0].method=http
+      - pangolin.public-resources.meerkat-crm.targets[0].port=8080
+
+      # SSO enabled
+      - pangolin.public-resources.meerkat-crm.auth.sso-enabled=true
+
+      # Healthcheck
+      - pangolin.public-resources.meerkat-crm.healthcheck.hostname=meerkat_crm_frontend
+      - pangolin.public-resources.meerkat-crm.healthcheck.port=8080
+      - pangolin.public-resources.meerkat-crm.healthcheck.enabled=true
+      - pangolin.public-resources.meerkat-crm.healthcheck.path=/
+      - pangolin.public-resources.meerkat-crm.healthcheck.interval=30
+      - pangolin.public-resources.meerkat-crm.healthcheck.timeout=5
+      - pangolin.public-resources.meerkat-crm.healthcheck.method=GET
+      - pangolin.public-resources.meerkat-crm.healthcheck.status=200
+    networks:
+      - newt
+      - meerkat_crm
+    depends_on:
+      meerkat-backend:
+        condition: service_healthy
+
+networks:
+  meerkat_crm:
+  newt:
+    external: true

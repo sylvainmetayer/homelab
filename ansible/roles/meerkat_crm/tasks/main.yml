@@ -1,0 +1,61 @@
+---
+- name: Ensure Meerkat CRM app folder exists
+  loop:
+    - "{{ meerkat_crm_base_path }}"
+    - "{{ meerkat_crm_base_path }}/data"
+    - "{{ meerkat_crm_base_path }}/photos"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart meerkat_crm
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ meerkat_crm_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart meerkat_crm
+  ansible.builtin.template:
+    src: "templates/env.docker.j2"
+    dest: "{{ meerkat_crm_base_path }}/.env.docker"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Configure borgmatic backup for Meerkat CRM
+  when: meerkat_crm_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Meerkat CRM
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-meerkat_crm.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/meerkat_crm.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Meerkat CRM
+      become: true
+      ansible.builtin.command:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/meerkat_crm.yaml repo-create --encryption repokey-blake2"
+      register: meerkat_crm_borg_repo_create
+      changed_when: "'repository already exists' not in meerkat_crm_borg_repo_create.stderr"
+      failed_when: >
+        meerkat_crm_borg_repo_create.rc != 0 and
+        'repository already exists' not in meerkat_crm_borg_repo_create.stderr
+
+- name: Make sure meerkat_crm service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@meerkat_crm
+    scope: user
+    enabled: true
