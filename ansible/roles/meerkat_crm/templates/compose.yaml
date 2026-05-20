@@ -23,7 +23,7 @@ services:
 
   meerkat-frontend:
     image: ghcr.io/fbuchner/meerkat-crm-frontend:latest
-    container_name: meerkat_crm_frontend
+    container_name: meerkat-frontend
     restart: unless-stopped
     labels:
       - pangolin.public-resources.meerkat-crm.name=Meerkat CRM
@@ -36,7 +36,7 @@ services:
       - pangolin.public-resources.meerkat-crm.auth.sso-enabled=true
 
       # Healthcheck
-      - pangolin.public-resources.meerkat-crm.healthcheck.hostname=meerkat_crm_frontend
+      - pangolin.public-resources.meerkat-crm.healthcheck.hostname=meerkat-frontend
       - pangolin.public-resources.meerkat-crm.healthcheck.port=8080
       - pangolin.public-resources.meerkat-crm.healthcheck.enabled=true
       - pangolin.public-resources.meerkat-crm.healthcheck.path=/
