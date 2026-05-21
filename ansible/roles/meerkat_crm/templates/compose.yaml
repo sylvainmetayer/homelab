@@ -1,6 +1,6 @@
 ---
 services:
-  meerkat-backend:
+  backend:
     image: ghcr.io/fbuchner/meerkat-crm-backend:v1.4.0@sha256:b38de4a4fbaddcd97b290c5670fa0fd97465a001884832b0337481d06a70e964
     container_name: meerkat_crm_backend
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
       retries: 3
       start_period: 10s
 
-  meerkat-frontend:
+  frontend:
     image: ghcr.io/fbuchner/meerkat-crm-frontend:v1.4.0@sha256:d60b26d0b971c02d2f7a651c018787fcf871ca7b914050ee907f184b4fc4b1dc
     container_name: meerkat-frontend
     restart: unless-stopped
@@ -48,7 +48,7 @@ services:
       - newt
       - meerkat_crm
     depends_on:
-      meerkat-backend:
+      backend:
         condition: service_healthy
 
 networks:
