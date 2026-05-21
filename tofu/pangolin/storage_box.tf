@@ -22,7 +22,7 @@ resource "hcloud_storage_box" "backups" {
   ssh_keys = [
     trimspace(tls_private_key.storage_box.public_key_openssh),
     trimspace(file("${path.root}/../../keys/perso.pub")),
-    trimspace(file("${path.root}/../../ansible/roles/semaphore/files/key.pub")),
+    trimspace(file("${path.root}/../../keys/semaphore.pub")),
     trimspace(file("${path.root}/../../keys/pro.pub")),
     trimspace(file("${path.root}/../../keys/android.pub"))
   ]
