@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 
   monica_v4_db:
-    image: lscr.io/linuxserver/mariadb:11.4.10@sha256:93fb1eebb9ef4e4e820c90827e217dfafe7e8cb5839a1ff3cd40ac4f205c06ea
+    image: lscr.io/linuxserver/mariadb:11.4.12@sha256:adbb0142f55abd0e913b8fdd017f637d2318d434e74755908c768399e96403ec
     container_name: monica_v4_db
     networks:
       - monica
