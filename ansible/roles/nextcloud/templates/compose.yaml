@@ -2,7 +2,7 @@
 services:
   nextcloud:
     restart: unless-stopped
-    image: ghcr.io/linuxserver/nextcloud:33.0.3@sha256:ef955d3b2faf91bad4b3e83e9325a8e1652727136007567e46f17856a57b0727
+    image: ghcr.io/linuxserver/nextcloud:33.0.5@sha256:3beb1716beba8cff05b1f13d9122cc4180aacbecca7dcc6fe281a6d054cc6835
     container_name: nextcloud
     labels:
       - pangolin.public-resources.nextcloud.name=nextcloud
@@ -34,7 +34,7 @@ services:
   db:
     container_name: nextcloud_db
     restart: unless-stopped
-    image: mariadb:lts@sha256:78a5047d3ba33975f183f183c2464cc7f1eab13ec8667e57cc9a5821d6da7577
+    image: mariadb:lts@sha256:b1c7bf836e64ed9406a8984af29509f40089d55cea14b32f12c4726a1f17104b
     environment:
       MYSQL_ROOT_PASSWORD: {{ nextcloud_db_password }}
       MYSQL_DATABASE: nextcloud
