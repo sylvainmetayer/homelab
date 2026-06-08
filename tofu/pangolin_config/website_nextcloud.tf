@@ -4,6 +4,7 @@ resource "pangolin_resource" "nextcloud" {
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
   sso       = false
+  apply_rules = true
 }
 
 resource "pangolin_target" "nextcloud" {
@@ -14,7 +15,7 @@ resource "pangolin_target" "nextcloud" {
   method      = "http"
 
   hc_enabled             = true
-  hc_path                = "/"
+  hc_path                = "/login"
   hc_method              = "GET"
   hc_status              = 200
   hc_headers             = []

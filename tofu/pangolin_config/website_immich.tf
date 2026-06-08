@@ -4,6 +4,7 @@ resource "pangolin_resource" "immich" {
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
   sso       = true
+  apply_rules = true
 }
 
 resource "pangolin_resource_role" "immich" {
@@ -14,7 +15,7 @@ resource "pangolin_resource_role" "immich" {
 resource "pangolin_target" "immich" {
   resource_id = pangolin_resource.immich.id
   site_id     = pangolin_site.pi.id
-  ip          = "immich"
+  ip          = "immich_server"
   port        = 2283
   method      = "http"
 
@@ -22,7 +23,6 @@ resource "pangolin_target" "immich" {
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10

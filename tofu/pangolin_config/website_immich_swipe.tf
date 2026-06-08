@@ -4,6 +4,7 @@ resource "pangolin_resource" "immich_swipe" {
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
   sso       = true
+  apply_rules = true
 }
 
 resource "pangolin_resource_role" "immich_swipe" {
@@ -60,20 +61,4 @@ resource "uptimekuma_monitor_http" "immich_swipe" {
   })
   expiry_notification = true
   tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
-}
-
-resource "uptimekuma_monitor_push" "backup_immich_swipe" {
-  name = "Backup ${pangolin_resource.immich_swipe.name}"
-
-  interval = 60 * 60 * 24
-
-  retry_interval = 20
-  active         = true
-  tags           = [{ tag_id : uptimekuma_tag.backup.id }]
-}
-
-output "uptime_backup_immich_swipe_url" {
-  description = "IMMICH_SWIPE - URL pour envoyer les heartbeats push"
-  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_immich_swipe.push_token}"
-  sensitive   = true
 }

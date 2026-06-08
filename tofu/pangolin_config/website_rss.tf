@@ -4,6 +4,7 @@ resource "pangolin_resource" "rss" {
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
   sso       = true
+  apply_rules = true
 }
 
 resource "pangolin_resource_role" "rss" {

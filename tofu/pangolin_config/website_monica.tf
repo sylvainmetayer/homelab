@@ -4,6 +4,7 @@ resource "pangolin_resource" "monica" {
   domain_id = local.domain_ids["sylvain.dev"]
   protocol  = "tcp"
   sso       = true
+  apply_rules = true
 }
 
 resource "pangolin_resource_role" "monica" {
