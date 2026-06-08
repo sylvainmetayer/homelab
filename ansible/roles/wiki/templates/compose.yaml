@@ -25,7 +25,7 @@ services:
     networks:
       - newt    # Réseau externe pour accès Pangolin/Traefik
       - wiki    # Réseau interne pour communication avec la DB
-    image: lscr.io/linuxserver/bookstack:26.03.20260315@sha256:e85aa4adac2ec0e5ea66f247af545139b5c1fc58632c0b4232ef53be1f3489bb
+    image: lscr.io/linuxserver/bookstack:26.05.20260601@sha256:f9a5db5237be651381b0db685457dae65f49e6a6b860d2637c7654745cd12776
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
@@ -46,7 +46,7 @@ services:
     container_name: bookstack_db
     networks:
       - wiki    # Réseau interne uniquement
-    image: lscr.io/linuxserver/mariadb:11.4.10@sha256:93fb1eebb9ef4e4e820c90827e217dfafe7e8cb5839a1ff3cd40ac4f205c06ea
+    image: lscr.io/linuxserver/mariadb:11.4.12@sha256:adbb0142f55abd0e913b8fdd017f637d2318d434e74755908c768399e96403ec
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
