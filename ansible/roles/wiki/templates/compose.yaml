@@ -2,26 +2,6 @@
 services:
   bookstack:
     container_name: bookstack
-    labels:
-      # Configuration Pangolin pour routing public
-      - pangolin.public-resources.wiki.name=Wiki (Bookstack)
-      - pangolin.public-resources.wiki.full-domain={{ wiki_domain }}
-      - pangolin.public-resources.wiki.protocol=http
-      - pangolin.public-resources.wiki.targets[0].method=http
-      - pangolin.public-resources.wiki.targets[0].port=80
-
-      # SSO enabled
-      - pangolin.public-resources.wiki.auth.sso-enabled=true
-
-      # Healthcheck
-      - pangolin.public-resources.wiki.healthcheck.hostname=bookstack
-      - pangolin.public-resources.wiki.healthcheck.port=80
-      - pangolin.public-resources.wiki.healthcheck.enabled=true
-      - pangolin.public-resources.wiki.healthcheck.path=/
-      - pangolin.public-resources.wiki.healthcheck.interval=30
-      - pangolin.public-resources.wiki.healthcheck.timeout=5
-      - pangolin.public-resources.wiki.healthcheck.method=GET
-      - pangolin.public-resources.wiki.healthcheck.status=200
     networks:
       - newt    # Réseau externe pour accès Pangolin/Traefik
       - wiki    # Réseau interne pour communication avec la DB

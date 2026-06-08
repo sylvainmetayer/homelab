@@ -4,20 +4,6 @@ services:
     restart: unless-stopped
     image: ghcr.io/linuxserver/nextcloud:33.0.5@sha256:3beb1716beba8cff05b1f13d9122cc4180aacbecca7dcc6fe281a6d054cc6835
     container_name: nextcloud
-    labels:
-      - pangolin.public-resources.nextcloud.name=nextcloud
-      - pangolin.public-resources.nextcloud.full-domain={{ nextcloud_domain }}
-      - pangolin.public-resources.nextcloud.protocol=http
-      - pangolin.public-resources.nextcloud.targets[0].method=http
-      - pangolin.public-resources.nextcloud.targets[0].port=80
-      - pangolin.public-resources.nextcloud.healthcheck.hostname=nextcloud
-      - pangolin.public-resources.nextcloud.healthcheck.port=80
-      - pangolin.public-resources.nextcloud.healthcheck.enabled=true
-      - pangolin.public-resources.nextcloud.healthcheck.path=/
-      - pangolin.public-resources.nextcloud.healthcheck.interval=30
-      - pangolin.public-resources.nextcloud.healthcheck.timeout=5
-      - pangolin.public-resources.nextcloud.healthcheck.method=GET
-      - pangolin.public-resources.nextcloud.healthcheck.status=200
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}

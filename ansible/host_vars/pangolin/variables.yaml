@@ -6,6 +6,9 @@ pangolin_base_domain: "sylvain.cloud"
 # Pangolin Dashboard URL (without https://)
 pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 
+# Pangolin API URL (without https://)
+pangolin_api_url: "pangolin-api.{{ pangolin_base_domain }}"
+
 # Log level (debug, info, warning, error)
 pangolin_log_level: "info"
 

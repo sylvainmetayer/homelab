@@ -1,0 +1,242 @@
+2026-06-06T22:27:22.575+0200 [INFO]  OpenTofu version: 1.12.0
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/hashicorp/go-getter v1.8.5
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/hashicorp/hcl v1.0.1-vault-7
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8
+2026-06-06T22:27:22.575+0200 [DEBUG] using github.com/zclconf/go-cty v1.18.0
+2026-06-06T22:27:22.575+0200 [INFO]  Go runtime version: go1.26.3
+2026-06-06T22:27:22.575+0200 [INFO]  CLI args: []string{"tofu", "apply"}
+2026-06-06T22:27:22.575+0200 [DEBUG] Attempting to open CLI config file: /home/sylvain/.tofurc
+2026-06-06T22:27:22.575+0200 [DEBUG] File doesn't exist, but doesn't need to. Ignoring.
+2026-06-06T22:27:22.576+0200 [DEBUG] Found the config directory: /home/sylvain/.terraform.d
+2026-06-06T22:27:22.576+0200 [INFO]  CLI command args: []string{"apply"}
+2026-06-06T22:27:22.583+0200 [DEBUG] backend-s3.aws-base: Resolving credentials provider
+2026-06-06T22:27:22.583+0200 [DEBUG] backend-s3.aws-base: Loading configuration
+2026-06-06T22:27:22.584+0200 [DEBUG] backend-s3.aws-base: Retrieving credentials
+2026-06-06T22:27:22.584+0200 [INFO]  backend-s3.aws-base: Retrieved credentials: tf_aws.credentials_source=EnvConfigCredentials
+2026-06-06T22:27:22.584+0200 [DEBUG] backend-s3.aws-base: Loading configuration
+2026-06-06T22:27:23.211+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:23.212+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0 id=173859
+2026-06-06T22:27:23.212+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:23.220+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:23.223+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 id=173854
+2026-06-06T22:27:23.223+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:23.275+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:23.275+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:23.279+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 args=[".terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1"]
+2026-06-06T22:27:23.279+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 pid=173875
+2026-06-06T22:27:23.279+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1
+2026-06-06T22:27:23.293+0200 [INFO]  provider.terraform-provider-sops_v1.4.1: configuring server automatic mTLS: timestamp="2026-06-06T22:27:23.293+0200"
+2026-06-06T22:27:23.306+0200 [DEBUG] provider.terraform-provider-sops_v1.4.1: plugin address: address=/tmp/plugin3147349773 network=unix timestamp="2026-06-06T22:27:23.306+0200"
+2026-06-06T22:27:23.306+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:23.315+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:23.316+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:23.318+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 id=173875
+2026-06-06T22:27:23.318+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:25.148+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:25.148+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:25.152+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/hashicorp/aws/6.49.0/linux_amd64/terraform-provider-aws args=[".terraform/providers/registry.opentofu.org/hashicorp/aws/6.49.0/linux_amd64/terraform-provider-aws"]
+2026-06-06T22:27:25.153+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/hashicorp/aws/6.49.0/linux_amd64/terraform-provider-aws pid=173888
+2026-06-06T22:27:25.153+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/hashicorp/aws/6.49.0/linux_amd64/terraform-provider-aws
+2026-06-06T22:27:25.282+0200 [DEBUG] provider.terraform-provider-aws: Starting github.com/hashicorp/terraform-provider-aws@dev (go1.26.3)...
+2026-06-06T22:27:25.282+0200 [DEBUG] provider.terraform-provider-aws: Creating Terraform AWS Provider (SDKv2-style)...
+2026-06-06T22:27:25.282+0200 [DEBUG] provider.terraform-provider-aws: Initializing Terraform AWS Provider (SDKv2-style)...
+2026-06-06T22:27:25.307+0200 [DEBUG] provider.terraform-provider-aws: Creating Terraform AWS Provider (Framework-style)...
+2026-06-06T22:27:25.307+0200 [DEBUG] provider.terraform-provider-aws: Initializing Terraform AWS Provider (Framework-style)...
+2026-06-06T22:27:25.309+0200 [INFO]  provider.terraform-provider-aws: configuring server automatic mTLS: timestamp="2026-06-06T22:27:25.308+0200"
+2026-06-06T22:27:25.325+0200 [DEBUG] provider.terraform-provider-aws: plugin address: address=/tmp/plugin2869362616 network=unix timestamp="2026-06-06T22:27:25.324+0200"
+2026-06-06T22:27:25.325+0200 [DEBUG] provider: using plugin: version=5
+2026-06-06T22:27:26.787+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:26.813+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/hashicorp/aws/6.49.0/linux_amd64/terraform-provider-aws id=173888
+2026-06-06T22:27:26.813+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:26.813+0200 [DEBUG] Building and walking validate graph
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_site.proxmox_lxc" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "data.pangolin_sites.all" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "data.sops_file.secrets" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/carlpett/sops"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_site.pi" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_target.nextcloud" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "uptimekuma_tag.self_hosted" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_resource.nextcloud" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "uptimekuma_monitor_push.backup_nextcloud" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_site_resource.app_proxy" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "uptimekuma_tag.backup" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "data.pangolin_domains.all" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_role.apps" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_resource_access_token.nextcloud" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "pangolin_site.proxmox_docker" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.814+0200 [DEBUG] ProviderTransformer: "uptimekuma_monitor_http.nextcloud" (*tofu.NodeValidatableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.815+0200 [DEBUG] pruning unused provider["registry.opentofu.org/hashicorp/aws"]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_site.pi" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "var.s3_endpoint (expand, reference)" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.pangolin_url (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_target.nextcloud" references: [pangolin_site.proxmox_docker pangolin_resource.nextcloud]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "uptimekuma_tag.self_hosted" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_resource.nextcloud" references: [local.main_domain_id (expand)]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "uptimekuma_monitor_push.backup_nextcloud" references: [uptimekuma_tag.backup]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.pangolin_org_id (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.main_domain_id (expand)" references: [data.pangolin_domains.all]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_site_resource.app_proxy" references: [pangolin_site.proxmox_lxc local.main_domain_id (expand)]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "uptimekuma_tag.backup" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_password (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.s3_access_key (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.pangolin_api_key (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "output.online_sites (expand)" references: [data.pangolin_sites.all]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "output.domains (expand)" references: [data.pangolin_domains.all]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "data.pangolin_domains.all" references: []
+2026-06-06T22:27:26.816+0200 [INFO]  ReferenceTransformer: reference not found: "each.value"
+2026-06-06T22:27:26.816+0200 [INFO]  ReferenceTransformer: reference not found: "each.value"
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_role.apps" references: [local.apps (expand)]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_resource_access_token.nextcloud" references: [pangolin_resource.nextcloud pangolin_resource.nextcloud]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "output.uptime_backup_nextcloud_url (expand)" references: [local.uptimekuma_endpoint (expand) uptimekuma_monitor_push.backup_nextcloud]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/stackopshq/pangolin\"]" references: [local.pangolin_api_key (expand) local.pangolin_org_id (expand) local.pangolin_url (expand)]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_site.proxmox_docker" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "uptimekuma_monitor_http.nextcloud" references: [uptimekuma_tag.self_hosted pangolin_resource.nextcloud pangolin_resource_access_token.nextcloud pangolin_resource_access_token.nextcloud]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.main_domain_name (expand)" references: [data.pangolin_domains.all]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.apps (expand)" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_endpoint (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.s3_secret_key (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "pangolin_site.proxmox_lxc" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "data.pangolin_sites.all" references: []
+2026-06-06T22:27:26.816+0200 [INFO]  ReferenceTransformer: reference not found: "path.root"
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "data.sops_file.secrets" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_username (expand)" references: [data.sops_file.secrets]
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/carlpett/sops\"]" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/breml/uptimekuma\"]" references: []
+2026-06-06T22:27:26.816+0200 [DEBUG] ReferenceTransformer: "var.s3_endpoint" references: []
+2026-06-06T22:27:26.818+0200 [DEBUG] Starting graph walk: walkValidate
+2026-06-06T22:27:26.818+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:26.818+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:26.822+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 args=[".terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1"]
+2026-06-06T22:27:26.823+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 pid=173902
+2026-06-06T22:27:26.823+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1
+2026-06-06T22:27:26.835+0200 [INFO]  provider.terraform-provider-sops_v1.4.1: configuring server automatic mTLS: timestamp="2026-06-06T22:27:26.835+0200"
+2026-06-06T22:27:26.846+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:26.846+0200 [DEBUG] provider.terraform-provider-sops_v1.4.1: plugin address: network=unix address=/tmp/plugin1883460063 timestamp="2026-06-06T22:27:26.846+0200"
+2026-06-06T22:27:26.854+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:26.854+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:26.856+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:26.858+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:26.859+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 args=[".terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3"]
+2026-06-06T22:27:26.860+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 pid=173913
+2026-06-06T22:27:26.860+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3
+2026-06-06T22:27:26.862+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 id=173902
+2026-06-06T22:27:26.862+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:26.864+0200 [INFO]  provider.terraform-provider-uptimekuma_v0.3.3: configuring server automatic mTLS: timestamp="2026-06-06T22:27:26.864+0200"
+2026-06-06T22:27:26.874+0200 [DEBUG] provider.terraform-provider-uptimekuma_v0.3.3: plugin address: address=/tmp/plugin2404329970 network=unix timestamp="2026-06-06T22:27:26.874+0200"
+2026-06-06T22:27:26.875+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:26.882+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:26.882+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:26.887+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0 args=[".terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0"]
+2026-06-06T22:27:26.888+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0 pid=173925
+2026-06-06T22:27:26.888+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0
+2026-06-06T22:27:26.894+0200 [INFO]  provider.terraform-provider-pangolin_v1.4.0: configuring server automatic mTLS: timestamp="2026-06-06T22:27:26.892+0200"
+2026-06-06T22:27:26.901+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:26.905+0200 [DEBUG] provider.terraform-provider-pangolin_v1.4.0: plugin address: address=/tmp/plugin1092475139 network=unix timestamp="2026-06-06T22:27:26.905+0200"
+2026-06-06T22:27:26.905+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:26.909+0200 [DEBUG] skipping FixUpBlockAttrs
+2026-06-06T22:27:26.923+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:26.925+0200 [DEBUG] skipping FixUpBlockAttrs
+2026-06-06T22:27:26.925+0200 [DEBUG] skipping FixUpBlockAttrs
+2026-06-06T22:27:26.928+0200 [DEBUG] skipping FixUpBlockAttrs
+2026-06-06T22:27:26.931+0200 [DEBUG] skipping FixUpBlockAttrs
+2026-06-06T22:27:26.932+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:26.933+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/stackopshq/pangolin/1.4.0/linux_amd64/terraform-provider-pangolin_v1.4.0 id=173925
+2026-06-06T22:27:26.933+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:26.934+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:26.936+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 id=173913
+2026-06-06T22:27:26.936+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:26.936+0200 [INFO]  backend/local: apply calling Plan
+2026-06-06T22:27:26.936+0200 [DEBUG] Building and walking plan graph for NormalMode
+2026-06-06T22:27:26.936+0200 [DEBUG] ProviderTransformer: "uptimekuma_monitor_http.nextcloud (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_role.apps (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_resource_access_token.nextcloud (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "data.pangolin_sites.all (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "uptimekuma_tag.self_hosted (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_site.pi (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "data.sops_file.secrets (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/carlpett/sops"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "data.pangolin_domains.all (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_site.proxmox_lxc (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_resource.nextcloud (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_site.proxmox_docker (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_target.nextcloud (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "pangolin_site_resource.app_proxy (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/stackopshq/pangolin"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "uptimekuma_tag.backup (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.937+0200 [DEBUG] ProviderTransformer: "uptimekuma_monitor_push.backup_nextcloud (expand)" (*tofu.nodeExpandPlannableResource) needs provider["registry.opentofu.org/breml/uptimekuma"]
+2026-06-06T22:27:26.938+0200 [DEBUG] pruning unused provider["registry.opentofu.org/hashicorp/aws"]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "pangolin_site.proxmox_docker (expand)" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_username (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "output.domains (expand)" references: [data.pangolin_domains.all (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "pangolin_target.nextcloud (expand)" references: [pangolin_site.proxmox_docker (expand) pangolin_resource.nextcloud (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "pangolin_site_resource.app_proxy (expand)" references: [local.main_domain_id (expand) pangolin_site.proxmox_lxc (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_endpoint (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "uptimekuma_tag.backup (expand)" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "uptimekuma_monitor_push.backup_nextcloud (expand)" references: [uptimekuma_tag.backup (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/carlpett/sops\"]" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/stackopshq/pangolin\"]" references: [local.pangolin_url (expand) local.pangolin_api_key (expand) local.pangolin_org_id (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "uptimekuma_monitor_http.nextcloud (expand)" references: [pangolin_resource_access_token.nextcloud (expand) pangolin_resource_access_token.nextcloud (expand) uptimekuma_tag.self_hosted (expand) pangolin_resource.nextcloud (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "var.s3_endpoint" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "local.pangolin_org_id (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "var.s3_endpoint (expand, reference)" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "local.main_domain_name (expand)" references: [data.pangolin_domains.all (expand)]
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "local.apps (expand)" references: []
+2026-06-06T22:27:26.938+0200 [DEBUG] ReferenceTransformer: "output.online_sites (expand)" references: [data.pangolin_sites.all (expand)]
+2026-06-06T22:27:26.939+0200 [INFO]  ReferenceTransformer: reference not found: "each.value"
+2026-06-06T22:27:26.939+0200 [INFO]  ReferenceTransformer: reference not found: "each.value"
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "pangolin_role.apps (expand)" references: [local.apps (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "pangolin_resource_access_token.nextcloud (expand)" references: [pangolin_resource.nextcloud (expand) pangolin_resource.nextcloud (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "data.pangolin_sites.all (expand)" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.pangolin_url (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.pangolin_api_key (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "output.uptime_backup_nextcloud_url (expand)" references: [local.uptimekuma_endpoint (expand) uptimekuma_monitor_push.backup_nextcloud (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "provider[\"registry.opentofu.org/breml/uptimekuma\"]" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "uptimekuma_tag.self_hosted (expand)" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "pangolin_site.pi (expand)" references: []
+2026-06-06T22:27:26.939+0200 [INFO]  ReferenceTransformer: reference not found: "path.root"
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "data.sops_file.secrets (expand)" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "data.pangolin_domains.all (expand)" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.uptimekuma_password (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "pangolin_site.proxmox_lxc (expand)" references: []
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.s3_access_key (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.main_domain_id (expand)" references: [data.pangolin_domains.all (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "local.s3_secret_key (expand)" references: [data.sops_file.secrets (expand)]
+2026-06-06T22:27:26.939+0200 [DEBUG] ReferenceTransformer: "pangolin_resource.nextcloud (expand)" references: [local.main_domain_id (expand)]
+2026-06-06T22:27:26.940+0200 [DEBUG] Starting graph walk: walkPlan
+2026-06-06T22:27:26.941+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:26.941+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:26.945+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 args=[".terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1"]
+2026-06-06T22:27:26.946+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 pid=173940
+2026-06-06T22:27:26.946+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1
+2026-06-06T22:27:26.959+0200 [INFO]  provider.terraform-provider-sops_v1.4.1: configuring server automatic mTLS: timestamp="2026-06-06T22:27:26.959+0200"
+2026-06-06T22:27:26.969+0200 [DEBUG] provider.terraform-provider-sops_v1.4.1: plugin address: address=/tmp/plugin178533815 network=unix timestamp="2026-06-06T22:27:26.969+0200"
+2026-06-06T22:27:26.969+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:26.980+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:26.981+0200 [DEBUG] created provider logger: level=debug
+2026-06-06T22:27:26.981+0200 [INFO]  provider: configuring client automatic mTLS
+2026-06-06T22:27:26.981+0200 [INFO]  ReferenceTransformer: reference not found: "path.root"
+2026-06-06T22:27:26.981+0200 [DEBUG] ReferenceTransformer: "data.sops_file.secrets" references: []
+2026-06-06T22:27:26.985+0200 [DEBUG] provider.terraform-provider-sops_v1.4.1: Value switched to prior value due to semantic equality logic: @caller=/home/runner/go/pkg/mod/github.com/hashicorp/terraform-plugin-framework@v1.18.0/internal/fwschemadata/value_semantic_equality.go:91 tf_attribute_path=source_file tf_provider_addr=registry.terraform.io/carlpett/sops tf_rpc=ReadDataSource @module=sdk.framework tf_data_source_type=sops_file tf_req_id=0f44b400-9272-ebf0-6752-88305c095163 timestamp="2026-06-06T22:27:26.985+0200"
+2026-06-06T22:27:26.986+0200 [DEBUG] provider: starting plugin: path=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 args=[".terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3"]
+2026-06-06T22:27:26.988+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:26.989+0200 [DEBUG] provider: plugin started: path=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 pid=173953
+2026-06-06T22:27:26.989+0200 [DEBUG] provider: waiting for RPC address: plugin=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3
+2026-06-06T22:27:26.992+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/carlpett/sops/1.4.1/linux_amd64/terraform-provider-sops_v1.4.1 id=173940
+2026-06-06T22:27:26.992+0200 [DEBUG] provider: plugin exited
+2026-06-06T22:27:26.995+0200 [INFO]  provider.terraform-provider-uptimekuma_v0.3.3: configuring server automatic mTLS: timestamp="2026-06-06T22:27:26.995+0200"
+2026-06-06T22:27:27.011+0200 [DEBUG] provider.terraform-provider-uptimekuma_v0.3.3: plugin address: address=/tmp/plugin4189219802 network=unix timestamp="2026-06-06T22:27:27.011+0200"
+2026-06-06T22:27:27.011+0200 [DEBUG] provider: using plugin: version=6
+2026-06-06T22:27:27.039+0200 [DEBUG] No provider meta schema returned
+2026-06-06T22:27:57.049+0200 [ERROR] provider.terraform-provider-uptimekuma_v0.3.3: Response contains error diagnostic: tf_req_id=1f1ca67e-5cdd-17c6-95c6-486503f47af9 diagnostic_detail="create pooled connection: connection timed out after 6 attempt(s): connect to server: context deadline exceeded" tf_rpc=ConfigureProvider @caller=github.com/hashicorp/terraform-plugin-go@v0.31.0/tfprotov6/internal/diag/diagnostics.go:58 @module=sdk.proto diagnostic_severity=ERROR diagnostic_summary="failed to create client" tf_proto_version=6.11 tf_provider_addr=registry.terraform.io/breml/uptimekuma timestamp="2026-06-06T22:27:57.049+0200"
+2026-06-06T22:27:57.050+0200 [ERROR] vertex "provider[\"registry.opentofu.org/breml/uptimekuma\"]" error: failed to create client
+╷
+│ Error: failed to create client
+│
+│   with provider["registry.opentofu.org/breml/uptimekuma"],
+│   on provider.tf line 20, in provider "uptimekuma":
+│   20: provider "uptimekuma" {
+│
+│ create pooled connection: connection timed out after 6 attempt(s): connect to server: context deadline exceeded
+╵
+2026-06-06T22:27:57.818+0200 [DEBUG] provider.stdio: received EOF, stopping recv loop: err="rpc error: code = Unavailable desc = error reading from server: EOF"
+2026-06-06T22:27:57.819+0200 [INFO]  provider: plugin process exited: plugin=.terraform/providers/registry.opentofu.org/breml/uptimekuma/0.3.3/linux_amd64/terraform-provider-uptimekuma_v0.3.3 id=173953
+2026-06-06T22:27:57.819+0200 [DEBUG] provider: plugin exited

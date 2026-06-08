@@ -25,25 +25,6 @@ services:
     image: ghcr.io/fbuchner/meerkat-crm-frontend:v1.4.0@sha256:d60b26d0b971c02d2f7a651c018787fcf871ca7b914050ee907f184b4fc4b1dc
     container_name: meerkat-frontend
     restart: unless-stopped
-    labels:
-      - pangolin.public-resources.meerkat-crm.name=Meerkat CRM
-      - pangolin.public-resources.meerkat-crm.full-domain={{ meerkat_crm_domain }}
-      - pangolin.public-resources.meerkat-crm.protocol=http
-      - pangolin.public-resources.meerkat-crm.targets[0].method=http
-      - pangolin.public-resources.meerkat-crm.targets[0].port=8080
-
-      # SSO enabled
-      - pangolin.public-resources.meerkat-crm.auth.sso-enabled=true
-
-      # Healthcheck
-      - pangolin.public-resources.meerkat-crm.healthcheck.hostname=meerkat-frontend
-      - pangolin.public-resources.meerkat-crm.healthcheck.port=8080
-      - pangolin.public-resources.meerkat-crm.healthcheck.enabled=true
-      - pangolin.public-resources.meerkat-crm.healthcheck.path=/
-      - pangolin.public-resources.meerkat-crm.healthcheck.interval=30
-      - pangolin.public-resources.meerkat-crm.healthcheck.timeout=5
-      - pangolin.public-resources.meerkat-crm.healthcheck.method=GET
-      - pangolin.public-resources.meerkat-crm.healthcheck.status=200
     networks:
       - newt
       - meerkat_crm
