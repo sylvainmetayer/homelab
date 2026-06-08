@@ -9,26 +9,6 @@
 name: immich
 services:
   immich-server:
-    labels:
-      - pangolin.public-resources.immich.name=Immich
-      - pangolin.public-resources.immich.full-domain={{ immich_domain }}
-      - pangolin.public-resources.immich.auth.pincode={{ immich_pin }}
-      - pangolin.public-resources.immich.protocol=http
-      - pangolin.public-resources.immich.targets[0].method=http
-      - pangolin.public-resources.immich.targets[0].port=2283
-      - pangolin.public-resources.immich.auth.sso-enabled=true
-      - pangolin.public-resources.immich.auth.sso-roles[0]=Immich
-      - pangolin.public-resources.immich.healthcheck.hostname=immich
-      - pangolin.public-resources.immich.healthcheck.port=2283
-      - pangolin.public-resources.immich.healthcheck.enabled=true
-      - pangolin.public-resources.immich.healthcheck.path=/
-      - pangolin.public-resources.immich.healthcheck.interval=30
-      - pangolin.public-resources.immich.healthcheck.timeout=5
-      - pangolin.public-resources.immich.healthcheck.method=GET
-      - pangolin.public-resources.immich.healthcheck.status=200
-      - pangolin.public-resources.immich.rules[0].action=allow
-      - pangolin.public-resources.immich.rules[0].match=ip
-      - pangolin.public-resources.immich.rules[0].value={{ home_ip }}
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:v2.7.5@sha256:c15bff75068effb03f4355997d03dc7e0fc58720c2b54ad6f7f10d1bc57efaa5
     # extends:
@@ -104,22 +84,6 @@ services:
   # https://github.com/fosrl/pangolin/issues/2369
   # CORS setup needed
   immich-swipe:
-    labels:
-      - pangolin.public-resources.immich_swipe.name=Immich Swipe
-      - pangolin.public-resources.immich_swipe.full-domain=swipe-{{ immich_domain }}
-      - pangolin.public-resources.immich_swipe.protocol=http
-      - pangolin.public-resources.immich_swipe.targets[0].method=http
-      - pangolin.public-resources.immich_swipe.targets[0].port=80
-      - pangolin.public-resources.immich_swipe.auth.sso-enabled=true
-      - pangolin.public-resources.immich_swipe.auth.sso-roles[0]=Immich
-      - pangolin.public-resources.immich_swipe.healthcheck.hostname=immich-swipe
-      - pangolin.public-resources.immich_swipe.healthcheck.port=80
-      - pangolin.public-resources.immich_swipe.healthcheck.enabled=true
-      - pangolin.public-resources.immich_swipe.healthcheck.path=/
-      - pangolin.public-resources.immich_swipe.healthcheck.interval=30
-      - pangolin.public-resources.immich_swipe.healthcheck.timeout=5
-      - pangolin.public-resources.immich_swipe.healthcheck.method=GET
-      - pangolin.public-resources.immich_swipe.healthcheck.status=200
     image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
     networks:
