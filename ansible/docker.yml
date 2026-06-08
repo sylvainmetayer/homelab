@@ -1,6 +1,6 @@
 ---
-- name: Configure Proxmox VMs
-  hosts: docker
+- name: Configure shared runtime for app LXCs
+  hosts: proxmox_apps
   pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment
@@ -12,28 +12,114 @@
         expressions: evaluate-on-load
 
   roles:
-    - name: geerlingguy.docker
+    - role: geerlingguy.docker
       become: true
       tags: setup
-    - name: docker_service
+    - role: docker_service
       tags: setup
-    - name: borgmatic
+    - role: borgmatic
       tags: backup,setup
-    - name: newt
-      tags: newt,setup
-    - name: echo
+
+- name: Configure echo app LXC
+  hosts: echo
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
+    - role: echo
       tags: echo,app
-    - name: rss
+
+- name: Configure rss app LXC
+  hosts: rss
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
+    - role: rss
       tags: rss,app
-    - name: betisier
+
+- name: Configure betisier app LXC
+  hosts: betisier
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
+    - role: betisier
       tags: betisier,app
-    - name: monica_v4
+
+- name: Configure monica_v4 app LXC
+  hosts: monica_v4
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
+    - role: monica_v4
       tags: monica,app
+
+- name: Configure wiki app LXC
+  hosts: wiki
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
     - role: wiki
       tags: wiki,app
+
+- name: Configure nextcloud app LXC
+  hosts: nextcloud
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
     - role: nextcloud
       tags: nextcloud,app
+
+- name: Configure semaphore app LXC
+  hosts: semaphore
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
     - role: semaphore
       tags: semaphore,app
+
+- name: Configure meerkat_crm app LXC
+  hosts: meerkat_crm
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+  roles:
     - role: meerkat_crm
       tags: meerkat_crm,app
