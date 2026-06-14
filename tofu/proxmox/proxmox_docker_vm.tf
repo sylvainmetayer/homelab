@@ -85,6 +85,12 @@ resource "proxmox_virtual_environment_vm" "docker" {
     size         = var.docker_vm.disk_size
   }
 
+  lifecycle {
+    ignore_changes = [
+      disk[0].file_id
+    ]
+  }
+
   network_device {
     bridge = var.docker_vm.bridge
     model  = "virtio"

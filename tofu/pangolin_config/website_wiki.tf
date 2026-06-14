@@ -20,7 +20,7 @@ resource "pangolin_target" "wiki" {
   method      = "http"
 
   hc_enabled             = true
-  hc_path                = "/"
+  hc_path                = "/login"
   hc_method              = "GET"
   hc_status              = 200
   hc_headers             = []

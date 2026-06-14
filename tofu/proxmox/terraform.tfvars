@@ -15,7 +15,7 @@ newt_lxc = {
 }
 
 # Configuration Debian 13 (vérifier la somme SHA512 sur https://cloud.debian.org/images/cloud/trixie/latest/)
-debian13_image_checksum = "f0442f3cd0087a609ecd5241109ddef0cbf4a1e05372e13d82c97fc77b35b2d8ecff85aea67709154d84220059672758508afbb0691c41ba8aa6d76818d89d65"
+debian13_image_checksum = "97675b27e69153002c4e13644e36200c8f9067f661dca00918c54f1cacbdb88d4bff8c0fbf5cf5d63a0397bdf0cc472d7a6372bae5281bf7ced756249c10f8a2"
 
 docker_vm = {
   name      = "docker"
@@ -24,7 +24,7 @@ docker_vm = {
   username  = "sylvain"
   cores     = 4
   memory    = 8192
-  disk_size = 50
+  disk_size = 90
   storage   = "local-lvm"
   bridge    = "vmbr0"
 }
