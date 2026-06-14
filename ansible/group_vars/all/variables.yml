@@ -1,5 +1,5 @@
 ---
-ansible_ssh_private_key_file: "~/.ssh/keepassxc.pub"
+ansible_ssh_private_key_file: "~/.ssh/keepassxc"
 ansible_user: sylvain
 
 # Backup configuration (used by all hosts)

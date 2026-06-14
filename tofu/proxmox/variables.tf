@@ -25,6 +25,23 @@ variable "newt_lxc" {
   default = {}
 }
 
+variable "lxc_apps" {
+  description = "Configuration des LXC applicatifs (1 role applicatif = 1 LXC)"
+  type = map(object({
+    vm_id        = number
+    hostname     = string
+    ipv4_address = string
+    gateway      = string
+    cores        = optional(number, 1)
+    memory       = optional(number, 1024)
+    disk_size    = optional(number, 12)
+    storage      = optional(string, "local-lvm")
+    bridge       = optional(string, "vmbr0")
+    tags         = optional(list(string), [])
+  }))
+  default = {}
+}
+
 variable "pangolin_url" {
   type = string
 }
