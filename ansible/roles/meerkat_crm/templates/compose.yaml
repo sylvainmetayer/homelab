@@ -1,7 +1,7 @@
 ---
 services:
   backend:
-    image: ghcr.io/fbuchner/meerkat-crm-backend:v1.4.0@sha256:b38de4a4fbaddcd97b290c5670fa0fd97465a001884832b0337481d06a70e964
+    image: ghcr.io/fbuchner/meerkat-crm-backend:1.4.1@sha256:0642a596d453db30f4a2b7ddf9d5a2c6bf0a9916ba0f12790c563c1b7130359b
     container_name: meerkat_crm_backend
     restart: unless-stopped
     env_file:
