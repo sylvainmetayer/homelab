@@ -1,0 +1,4 @@
+---
+rss_backup_enabled: true
+rss_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/rss"
+rss_backup_encryption_passphrase: "{{ backup_passphrase }}"

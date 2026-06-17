@@ -1,0 +1,5 @@
+---
+wiki_domain: "wiki.sylvain.cloud"
+wiki_backup_enabled: true
+wiki_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/wiki"
+wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
