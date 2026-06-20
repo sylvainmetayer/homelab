@@ -73,8 +73,24 @@ resource "uptimekuma_monitor_push" "backup_monica" {
   tags           = [{ tag_id : uptimekuma_tag.backup.id }]
 }
 
+resource "uptimekuma_monitor_push" "cron_monica" {
+  name = "Cron ${pangolin_resource.monica.name}"
+
+  interval = 60 * 15
+
+  retry_interval = 20
+  active         = true
+  tags           = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+}
+
 output "uptime_backup_monica_url" {
   description = "MONICA - URL pour envoyer les heartbeats push"
   value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_monica.push_token}"
+  sensitive   = true
+}
+
+output "uptime_cron_monica_url" {
+  description = "MONICA - URL pour envoyer les heartbeats push du cron"
+  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.cron_monica.push_token}"
   sensitive   = true
 }

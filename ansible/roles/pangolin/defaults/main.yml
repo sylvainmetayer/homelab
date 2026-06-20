@@ -20,3 +20,11 @@ le_email: ""
 # SMTP configuration
 smtp_user: ""
 smtp_pass: ""
+
+# Backup healthcheck URL loaded from Terraform state outputs.
+pangolin_backup_healthcheck_url: ""
+
+# Backup (borgmatic)
+pangolin_backup_enabled: true
+pangolin_backup_borgmatic_target: ""
+pangolin_backup_encryption_passphrase: ""

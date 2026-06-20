@@ -1,6 +1,10 @@
 ---
 - name: Configure Proxmox VMs
   hosts: docker
+  vars:
+    tfstate_bucket: homelab-state
+    tfstate_object_key: homelab/pangolin_config.tfstate
+    tfstate_s3_endpoint: https://nbg1.your-objectstorage.com
   pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment
@@ -10,6 +14,30 @@
       community.sops.load_vars:
         file: "{{ playbook_dir }}/secrets.sops.yaml"
         expressions: evaluate-on-load
+
+    - name: Read Terraform state from S3 bucket
+      delegate_to: localhost
+      amazon.aws.s3_object:
+        mode: getstr
+        bucket: "{{ tfstate_bucket }}"
+        object: "{{ tfstate_object_key }}"
+        endpoint_url: "{{ tfstate_s3_endpoint }}"
+        aws_access_key: "{{ backup_s3_access_key }}"
+        aws_secret_key: "{{ backup_s3_secret_key }}"
+      register: terraform_state_raw
+
+    - name: Load healthcheck URLs from Terraform state outputs
+      ansible.builtin.set_fact:
+        nextcloud_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nextcloud_url.value | default('') }}"
+        wiki_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wiki_url.value | default('') }}"
+        rss_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_rss_url.value | default('') }}"
+        monica_v4_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_monica_url.value | default('') }}"
+        monica_v4_cron_healthcheck_url: "{{ terraform_outputs.uptime_cron_monica_url.value | default('') }}"
+        betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
+        semaphore_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_semaphore_url.value | default('') }}"
+        meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
+      vars:
+        terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
   roles:
     - name: geerlingguy.docker
