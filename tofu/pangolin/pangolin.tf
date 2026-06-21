@@ -18,7 +18,7 @@ resource "hcloud_server" "pangolin" {
   }
 
   firewall_ids = [hcloud_firewall.pangolin.id]
-  backups      = true
+  backups      = false
   name         = var.vm_name
   server_type  = var.server_type
   image        = var.image
