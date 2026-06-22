@@ -11,3 +11,4 @@ backup_folders:
   - "semaphore"
   - "meerkat_crm"
   - "pangolin"
+  - "paperless"

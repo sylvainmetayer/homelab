@@ -36,3 +36,7 @@ semaphore_admin_email: "semaphore@sylvain.cloud"
 meerkat_crm_backup_enabled: true
 meerkat_crm_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/meerkat_crm"
 meerkat_crm_backup_encryption_passphrase: "{{ backup_passphrase }}"
+
+paperless_backup_enabled: true
+paperless_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/paperless"
+paperless_backup_encryption_passphrase: "{{ backup_passphrase }}"

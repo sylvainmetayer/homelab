@@ -1,0 +1,8 @@
+---
+- name: Restart paperless
+  ansible.builtin.systemd:
+    state: restarted
+    name: dc@paperless
+    scope: user
+    daemon_reload: true
+  listen: Restart paperless

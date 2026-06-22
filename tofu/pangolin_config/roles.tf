@@ -10,7 +10,8 @@ locals {
     "rss",
     "searxng",
     "semaphore",
-    "wiki"
+    "wiki",
+    "paperless"
   ]
 }
 
