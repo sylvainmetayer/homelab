@@ -1,6 +1,6 @@
 ---
 searxng_base_path: "{{ docker_base_path }}/searxng"
-searxng_domain: searxng.sylvain.cloud
+searxng_domain: search.sylvain.cloud
 # Sensitive: must be set in secrets.sops.yaml
 searxng_secret_key: ""
 

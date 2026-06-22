@@ -54,7 +54,7 @@
     - name: rss
       tags: rss,app
     - name: searxng
-      tags: searxng,app
+      tags: searxng,app,search
     - name: betisier
       tags: betisier,app
     - name: monica_v4

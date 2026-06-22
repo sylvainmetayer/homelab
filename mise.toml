@@ -7,7 +7,6 @@ age = 'latest'
 uv = "latest"
 python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
 "github:simulot/immich-go" = "latest"
-rclone = "latest"
 
 [settings]
 #python.uv_venv_auto = true

@@ -1,6 +1,6 @@
 resource "pangolin_resource" "searxng" {
   name        = "SearXNG"
-  subdomain   = "searxng"
+  subdomain   = "search"
   domain_id   = local.domain_ids["sylvain.cloud"]
   protocol    = "tcp"
   sso         = true
