@@ -1,0 +1,55 @@
+---
+- name: Ensure Paperless-ngx app folders exist
+  loop:
+    - "{{ paperless_base_path }}"
+    - "{{ paperless_base_path }}/data"
+    - "{{ paperless_base_path }}/media"
+    - "{{ paperless_base_path }}/export"
+    - "{{ paperless_base_path }}/consume"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart paperless
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ paperless_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure paperless service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@paperless
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Paperless-ngx
+  when: paperless_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Paperless-ngx
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-paperless.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/paperless.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Paperless-ngx
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/paperless.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr

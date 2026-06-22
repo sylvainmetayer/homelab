@@ -1,0 +1,24 @@
+---
+paperless_base_path: "{{ docker_base_path }}/paperless"
+paperless_domain: papiers.sylvain.cloud
+
+# Sensitive: must be set in secrets.sops.yaml
+paperless_secret_key: ""
+paperless_admin_user: "admin"
+# Sensitive: must be set in secrets.sops.yaml
+paperless_admin_password: ""
+# Sensitive: must be set in secrets.sops.yaml
+paperless_admin_email: ""
+
+paperless_db_user: "paperless"
+paperless_db_name: "paperless"
+# Sensitive: must be set in secrets.sops.yaml
+paperless_db_password: ""
+
+paperless_ocr_language: "fra+eng"
+
+# Borgmatic backup configuration
+paperless_backup_enabled: true
+paperless_backup_borgmatic_target: ""
+paperless_backup_encryption_passphrase: ""
+paperless_backup_healthcheck_url: ""

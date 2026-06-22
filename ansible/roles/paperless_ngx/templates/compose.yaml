@@ -1,0 +1,83 @@
+---
+# https://docs.paperless-ngx.com/setup/#docker
+services:
+  broker:
+    container_name: paperless_redis
+    image: redis:7-bookworm
+    restart: unless-stopped
+    networks:
+      - paperless-internal
+
+  db:
+    container_name: paperless_db
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB={{ paperless_db_name }}
+      - POSTGRES_USER={{ paperless_db_user }}
+      - POSTGRES_PASSWORD={{ paperless_db_password }}
+    volumes:
+      - paperless-db:/var/lib/postgresql/data
+    networks:
+      - paperless-internal
+
+  gotenberg:
+    container_name: paperless_gotenberg
+    image: gotenberg/gotenberg:8.21
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+    networks:
+      - paperless-internal
+
+  tika:
+    container_name: paperless_tika
+    image: ghcr.io/paperless-ngx/tika:latest
+    restart: unless-stopped
+    networks:
+      - paperless-internal
+
+  webserver:
+    container_name: paperless
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.18.4
+    restart: unless-stopped
+    depends_on:
+      - db
+      - broker
+      - gotenberg
+      - tika
+    environment:
+      - USERMAP_UID={{ ansible_facts['user_uid'] }}
+      - USERMAP_GID={{ ansible_facts['user_gid'] }}
+      - TZ=Europe/Paris
+      - PAPERLESS_REDIS=redis://paperless_redis:6379
+      - PAPERLESS_DBHOST=paperless_db
+      - PAPERLESS_DBNAME={{ paperless_db_name }}
+      - PAPERLESS_DBUSER={{ paperless_db_user }}
+      - PAPERLESS_DBPASS={{ paperless_db_password }}
+      - PAPERLESS_SECRET_KEY={{ paperless_secret_key }}
+      - PAPERLESS_URL=https://{{ paperless_domain }}
+      - PAPERLESS_ADMIN_USER={{ paperless_admin_user }}
+      - PAPERLESS_ADMIN_PASSWORD={{ paperless_admin_password }}
+      - PAPERLESS_ADMIN_MAIL={{ paperless_admin_email }}
+      - PAPERLESS_OCR_LANGUAGE={{ paperless_ocr_language }}
+      - PAPERLESS_TIKA_ENABLED=1
+      - PAPERLESS_TIKA_GOTENBERG_ENDPOINT=http://paperless_gotenberg:3000
+      - PAPERLESS_TIKA_ENDPOINT=http://paperless_tika:9998
+    volumes:
+      - ./data:/usr/src/paperless/data
+      - ./media:/usr/src/paperless/media
+      - ./export:/usr/src/paperless/export
+      - ./consume:/usr/src/paperless/consume
+    networks:
+      - newt
+      - paperless-internal
+
+networks:
+  newt:
+    external: true
+  paperless-internal:
+
+volumes:
+  paperless-db:

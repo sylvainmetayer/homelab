@@ -37,3 +37,5 @@
       tags: semaphore,app
     - role: meerkat_crm
       tags: meerkat_crm,app
+    - name: paperless_ngx
+      tags: paperless,app

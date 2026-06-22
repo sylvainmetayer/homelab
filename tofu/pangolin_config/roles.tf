@@ -9,7 +9,8 @@ locals {
     "monica",
     "rss",
     "semaphore",
-    "wiki"
+    "wiki",
+    "paperless"
   ]
 }
 
