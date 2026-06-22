@@ -6,6 +6,7 @@ backup_folders:
   - "nextcloud"
   - "monica_v4"
   - "rss"
+  - "searxng"
   - "betisier"
   - "semaphore"
   - "meerkat_crm"

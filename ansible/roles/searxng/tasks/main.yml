@@ -1,0 +1,66 @@
+---
+- name: Ensure SearXNG app folder exists
+  loop:
+    - "{{ searxng_base_path }}"
+    - "{{ searxng_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Ensure SearXNG secret key is defined
+  ansible.builtin.fail:
+    msg: "searxng_secret_key must be set in ansible/secrets.sops.yaml before running ansible/docker.yml"
+  when: searxng_secret_key | length == 0
+
+- name: Template SearXNG settings
+  notify: Restart searxng service
+  ansible.builtin.template:
+    src: "templates/settings.yml.j2"
+    dest: "{{ searxng_base_path }}/config/settings.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template compose configuration
+  notify: Restart searxng service
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ searxng_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure searxng service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@searxng
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for SearXNG
+  when: searxng_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for SearXNG
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-searxng.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/searxng.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for SearXNG
+      become: true
+      ansible.builtin.shell:
+        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/searxng.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
+      register: borg_repo_create
+      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      failed_when: >
+        borg_repo_create.rc != 0 and
+        'repository already exists' not in borg_repo_create.stderr

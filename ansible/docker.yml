@@ -53,6 +53,8 @@
       tags: echo,app
     - name: rss
       tags: rss,app
+    - name: searxng
+      tags: searxng,app
     - name: betisier
       tags: betisier,app
     - name: monica_v4

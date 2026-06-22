@@ -1,0 +1,11 @@
+---
+searxng_base_path: "{{ docker_base_path }}/searxng"
+searxng_domain: searxng.sylvain.cloud
+# Sensitive: must be set in secrets.sops.yaml
+searxng_secret_key: ""
+
+# Borgmatic backup configuration
+searxng_backup_enabled: true
+searxng_backup_borgmatic_target: ""
+searxng_backup_encryption_passphrase: ""
+searxng_backup_healthcheck_url: ""
