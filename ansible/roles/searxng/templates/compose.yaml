@@ -1,0 +1,16 @@
+---
+services:
+  searxng:
+    container_name: searxng
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=https://{{ searxng_domain }}/
+    volumes:
+      - ./config:/etc/searxng:rw
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

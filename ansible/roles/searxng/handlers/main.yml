@@ -1,0 +1,6 @@
+---
+- name: Restart searxng service
+  ansible.builtin.systemd:
+    name: dc@searxng
+    scope: user
+    state: restarted

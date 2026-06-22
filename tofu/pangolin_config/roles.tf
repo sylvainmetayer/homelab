@@ -8,6 +8,7 @@ locals {
     "meerkat",
     "monica",
     "rss",
+    "searxng",
     "semaphore",
     "wiki"
   ]
