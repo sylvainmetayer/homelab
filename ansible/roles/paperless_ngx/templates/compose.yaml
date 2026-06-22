@@ -1,83 +1,85 @@
 ---
-# https://docs.paperless-ngx.com/setup/#docker
 services:
   broker:
     container_name: paperless_redis
-    image: redis:7-bookworm
+    image: docker.io/library/redis:8
     restart: unless-stopped
+    volumes:
+      - ./redis:/data
     networks:
-      - paperless-internal
+      - paperless
 
   db:
     container_name: paperless_db
-    image: postgres:17
+    image: docker.io/library/postgres:18
     restart: unless-stopped
-    environment:
-      - POSTGRES_DB={{ paperless_db_name }}
-      - POSTGRES_USER={{ paperless_db_user }}
-      - POSTGRES_PASSWORD={{ paperless_db_password }}
     volumes:
-      - paperless-db:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: {{ paperless_db_name }}
+      POSTGRES_USER: {{ paperless_db_user }}
+      POSTGRES_PASSWORD: {{ paperless_db_password }}
     networks:
-      - paperless-internal
-
-  gotenberg:
-    container_name: paperless_gotenberg
-    image: gotenberg/gotenberg:8.21
-    restart: unless-stopped
-    command:
-      - "gotenberg"
-      - "--chromium-disable-javascript=true"
-    networks:
-      - paperless-internal
-
-  tika:
-    container_name: paperless_tika
-    image: ghcr.io/paperless-ngx/tika:latest
-    restart: unless-stopped
-    networks:
-      - paperless-internal
+      - paperless
 
   webserver:
     container_name: paperless
-    image: ghcr.io/paperless-ngx/paperless-ngx:2.18.4
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
     restart: unless-stopped
     depends_on:
       - db
       - broker
       - gotenberg
       - tika
-    environment:
-      - USERMAP_UID={{ ansible_facts['user_uid'] }}
-      - USERMAP_GID={{ ansible_facts['user_gid'] }}
-      - TZ=Europe/Paris
-      - PAPERLESS_REDIS=redis://paperless_redis:6379
-      - PAPERLESS_DBHOST=paperless_db
-      - PAPERLESS_DBNAME={{ paperless_db_name }}
-      - PAPERLESS_DBUSER={{ paperless_db_user }}
-      - PAPERLESS_DBPASS={{ paperless_db_password }}
-      - PAPERLESS_SECRET_KEY={{ paperless_secret_key }}
-      - PAPERLESS_URL=https://{{ paperless_domain }}
-      - PAPERLESS_ADMIN_USER={{ paperless_admin_user }}
-      - PAPERLESS_ADMIN_PASSWORD={{ paperless_admin_password }}
-      - PAPERLESS_ADMIN_MAIL={{ paperless_admin_email }}
-      - PAPERLESS_OCR_LANGUAGE={{ paperless_ocr_language }}
-      - PAPERLESS_TIKA_ENABLED=1
-      - PAPERLESS_TIKA_GOTENBERG_ENDPOINT=http://paperless_gotenberg:3000
-      - PAPERLESS_TIKA_ENDPOINT=http://paperless_tika:9998
     volumes:
       - ./data:/usr/src/paperless/data
       - ./media:/usr/src/paperless/media
       - ./export:/usr/src/paperless/export
       - ./consume:/usr/src/paperless/consume
+    environment:
+      PUID: {{ ansible_facts['user_uid'] }}
+      PGID: {{ ansible_facts['user_gid'] }}
+      TZ: Europe/Paris
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBNAME: {{ paperless_db_name }}
+      PAPERLESS_DBUSER: {{ paperless_db_user }}
+      PAPERLESS_DBPASS: {{ paperless_db_password }}
+      PAPERLESS_SECRET_KEY: {{ paperless_secret_key }}
+      PAPERLESS_URL: https://{{ paperless_domain }}
+      PAPERLESS_ADMIN_USER: {{ paperless_admin_user }}
+      PAPERLESS_ADMIN_PASSWORD: {{ paperless_admin_password }}
+      PAPERLESS_ADMIN_MAIL: {{ paperless_admin_email }}
+      PAPERLESS_OCR_LANGUAGE: {{ paperless_ocr_language }}
+      PAPERLESS_TIME_ZONE: Europe/Paris
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://tika:9998
     networks:
+      - paperless
       - newt
-      - paperless-internal
+
+  gotenberg:
+    container_name: paperless_gotenberg
+    image: docker.io/gotenberg/gotenberg:8.25
+    restart: unless-stopped
+    # The gotenberg chromium route is used to convert .eml files. We do not
+    # want to allow external content like tracking pixels or even javascript.
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+    networks:
+      - paperless
+
+  tika:
+    container_name: paperless_tika
+    image: docker.io/apache/tika:latest
+    restart: unless-stopped
+    networks:
+      - paperless
 
 networks:
+  paperless: {}
   newt:
     external: true
-  paperless-internal:
-
-volumes:
-  paperless-db:

@@ -4,7 +4,8 @@ paperless_domain: papiers.sylvain.cloud
 
 # Sensitive: must be set in secrets.sops.yaml
 paperless_secret_key: ""
-paperless_admin_user: "admin"
+# Sensitive: must be set in secrets.sops.yaml
+paperless_admin_user: ""
 # Sensitive: must be set in secrets.sops.yaml
 paperless_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml

@@ -1,6 +1,6 @@
 resource "pangolin_resource" "paperless" {
   name        = "Paperless-ngx"
-  subdomain   = "paperless"
+  subdomain   = "papiers"
   domain_id   = local.domain_ids["sylvain.cloud"]
   protocol    = "tcp"
   sso         = true
