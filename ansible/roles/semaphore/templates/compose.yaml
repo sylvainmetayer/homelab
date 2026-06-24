@@ -3,7 +3,7 @@
 services:
   postgres:
     container_name: semaphore_postgres
-    image: postgres:14@sha256:d462928b1898dd74b749ef486797968828c1e7fc9befb5e5ca03a33bfbc32d64
+    image: postgres:18@sha256:1a5b3e745bbd82d6deb146505e504da3c2f248cac15e431951b148fbe4f8613a
     hostname: postgres
     restart: unless-stopped
     environment:
