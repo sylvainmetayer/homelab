@@ -1,5 +1,6 @@
 ---
 - name: Ensure SearXNG app folder exists
+  become: true
   loop:
     - "{{ searxng_base_path }}"
     - "{{ searxng_base_path }}/config"
@@ -16,6 +17,7 @@
   when: searxng_secret_key | length == 0
 
 - name: Template SearXNG settings
+  become: true
   notify: Restart searxng service
   ansible.builtin.template:
     src: "templates/settings.yml.j2"
