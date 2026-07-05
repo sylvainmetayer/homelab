@@ -20,6 +20,7 @@ resource "pangolin_target" "searxng" {
   method      = "http"
 
   hc_enabled             = true
+  hc_hostname            = "searxng"
   hc_path                = "/"
   hc_method              = "GET"
   hc_headers             = []

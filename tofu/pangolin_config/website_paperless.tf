@@ -20,6 +20,7 @@ resource "pangolin_target" "paperless" {
   method      = "http"
 
   hc_enabled             = true
+  hc_hostname            = "paperless"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
