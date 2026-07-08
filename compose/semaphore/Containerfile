@@ -1,4 +1,4 @@
-FROM semaphoreui/semaphore:v2.18.20@sha256:9d9eaaf87f4ceab1852e5fe883f11733e54d4ee031bff9ff7dbf1592475d5c0a
+FROM semaphoreui/semaphore:v2.18.22@sha256:4e846b32f42e82406361a6c1ced1c3a6e5abb7069ce490083ccc836ccdb93d98
 
 ARG SOPS_VERSION=3.9.4
 ARG AGE_VERSION=1.2.1
