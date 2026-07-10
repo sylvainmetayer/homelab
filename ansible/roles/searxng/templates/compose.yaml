@@ -2,7 +2,7 @@
 services:
   searxng:
     container_name: searxng
-    image: searxng/searxng:latest@sha256:a87eb8a2b2b65243c431979938aec37d86534f278f44b8115970212a08c32f23
+    image: searxng/searxng:latest@sha256:4ebe6ab0297397426fe7ca015caab8f5ed3b50784cf968bfbda7887ea6b16f6e
     restart: unless-stopped
     environment:
       - SEARXNG_BASE_URL=https://{{ searxng_domain }}/
