@@ -2,7 +2,7 @@
 services:
   nextcloud:
     restart: unless-stopped
-    image: ghcr.io/linuxserver/nextcloud:34.0.1@sha256:a5f914b3284eba90d9fe059fffaba9718dc194432a8b6cabe856b88d17436ec2
+    image: ghcr.io/linuxserver/nextcloud:34.0.1@sha256:f31cb07f2728b4ea327e6f7e0a1baff50a7d1fae65466153380fa7bae99e9297
     container_name: nextcloud
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
