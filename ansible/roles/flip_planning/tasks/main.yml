@@ -1,0 +1,73 @@
+---
+- name: Ensure Flip Planning app folders exist
+  loop:
+    - "{{ flip_planning_base_path }}"
+    - "{{ flip_planning_base_path }}/pgadmin"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# The GHCR package is private, docker needs credentials to pull the image.
+- name: Log in to GitHub Container Registry
+  no_log: true
+  changed_when: false
+  ansible.builtin.command:
+    cmd: "docker login {{ flip_planning_ghcr_registry }} --username {{ flip_planning_ghcr_username }} --password-stdin"
+    stdin: "{{ flip_planning_ghcr_token }}"
+
+- name: Template pgAdmin servers configuration
+  when: flip_planning_pgadmin_enabled
+  notify: Restart flip_planning
+  ansible.builtin.template:
+    src: "templates/servers.json.j2"
+    dest: "{{ flip_planning_base_path }}/pgadmin/servers.json"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template compose configuration
+  notify: Restart flip_planning
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ flip_planning_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Make sure flip_planning service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@flip_planning
+    scope: user
+    enabled: true
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Flip Planning
+  when: flip_planning_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Flip Planning
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-flip_planning.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/flip_planning.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Flip Planning
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/flip_planning.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: flip_planning_borg_repo_create
+      changed_when: "'repository already exists' not in flip_planning_borg_repo_create.stderr"
+      failed_when: >
+        flip_planning_borg_repo_create.rc != 0 and
+        'repository already exists' not in flip_planning_borg_repo_create.stderr

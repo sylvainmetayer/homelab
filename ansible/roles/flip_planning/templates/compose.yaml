@@ -1,0 +1,71 @@
+---
+services:
+  app:
+    container_name: flip-planning
+    image: {{ flip_planning_image }}
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/{{ flip_planning_db_name }}
+      DB_USER: {{ flip_planning_db_user }}
+      DB_PASSWORD: {{ flip_planning_db_password }}
+      HTTP_PORT: 8080
+      TZ: Europe/Paris
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - flip-planning
+      - newt
+
+  postgres:
+    container_name: flip-planning-db
+    image: postgres:17@sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ flip_planning_db_name }}
+      POSTGRES_USER: {{ flip_planning_db_user }}
+      POSTGRES_PASSWORD: {{ flip_planning_db_password }}
+      TZ: Europe/Paris
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ flip_planning_db_user }} -d {{ flip_planning_db_name }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - flip-planning
+{% if flip_planning_pgadmin_enabled %}
+
+  pgadmin:
+    container_name: flip-planning-pgadmin
+    image: dpage/pgadmin4:9@sha256:40fa840c5bb7c8463957f1255b01283732c2d8c9396a956d180f8e6c296753b3
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: {{ flip_planning_pgadmin_email }}
+      PGADMIN_DEFAULT_PASSWORD: {{ flip_planning_pgadmin_password }}
+      # Served behind Pangolin on a sub-path, pgAdmin must know its root
+      SCRIPT_NAME: {{ flip_planning_pgadmin_path }}
+      TZ: Europe/Paris
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - flip-planning
+      - newt
+{% endif %}
+
+networks:
+  flip-planning:
+  newt:
+    external: true
+
+volumes:
+  postgres_data:
+{% if flip_planning_pgadmin_enabled %}
+  pgadmin_data:
+{% endif %}

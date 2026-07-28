@@ -1,0 +1,31 @@
+---
+flip_planning_base_path: "{{ docker_base_path }}/flip_planning"
+flip_planning_domain: flip-planning.sylvain.cloud
+
+# Image published on GitHub Container Registry (private package)
+flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main"
+
+# GHCR authentication (private package): needs a PAT with read:packages
+flip_planning_ghcr_registry: "ghcr.io"
+flip_planning_ghcr_username: "sylvainmetayer"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_ghcr_token: ""
+
+# PostgreSQL database configuration
+flip_planning_db_user: "festival"
+flip_planning_db_name: "festival"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_db_password: ""
+
+# pgAdmin, exposed on the /db sub-path of flip_planning_domain
+flip_planning_pgadmin_enabled: true
+flip_planning_pgadmin_path: "/db"
+flip_planning_pgadmin_email: "admin@sylvain.cloud"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_pgadmin_password: ""
+
+# Borgmatic backup configuration
+flip_planning_backup_enabled: true
+flip_planning_backup_borgmatic_target: ""
+flip_planning_backup_encryption_passphrase: ""
+flip_planning_backup_healthcheck_url: ""

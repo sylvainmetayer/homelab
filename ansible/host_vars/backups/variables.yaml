@@ -12,3 +12,4 @@ backup_folders:
   - "meerkat_crm"
   - "pangolin"
   - "paperless"
+  - "flip_planning"

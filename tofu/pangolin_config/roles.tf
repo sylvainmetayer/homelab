@@ -11,7 +11,8 @@ locals {
     "searxng",
     "semaphore",
     "wiki",
-    "paperless"
+    "paperless",
+    "flip-planning"
   ]
 }
 

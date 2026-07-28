@@ -1,0 +1,6 @@
+---
+- name: Restart flip_planning
+  ansible.builtin.systemd:
+    name: dc@flip_planning
+    scope: user
+    state: restarted
