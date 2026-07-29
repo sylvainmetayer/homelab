@@ -1,0 +1,23 @@
+---
+sparky_fitness_base_path: "{{ docker_base_path }}/sparky_fitness"
+sparky_fitness_domain: sante.sylvain.cloud
+
+sparky_fitness_db_name: sparkyfitness_db
+sparky_fitness_db_user: sparky
+sparky_fitness_db_password: "{{ (backup_passphrase ~ '-sparky-fitness-db') | hash('sha256') }}"
+sparky_fitness_app_db_user: sparky_app
+sparky_fitness_app_db_password: "{{ (backup_passphrase ~ '-sparky-fitness-app-db') | hash('sha256') }}"
+
+sparky_fitness_log_level: ERROR
+sparky_fitness_timezone: Europe/Paris
+sparky_fitness_disable_signup: "false"
+sparky_fitness_force_email_login: "true"
+
+sparky_fitness_api_encryption_key: "{{ (backup_passphrase ~ '-sparky-fitness-api') | hash('sha256') }}"
+sparky_fitness_better_auth_secret: "{{ (backup_passphrase ~ '-sparky-fitness-auth') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+sparky_fitness_backup_enabled: true
+sparky_fitness_backup_borgmatic_target: ""
+sparky_fitness_backup_encryption_passphrase: ""
+sparky_fitness_backup_healthcheck_url: ""

@@ -12,7 +12,8 @@ locals {
     "semaphore",
     "wiki",
     "paperless",
-    "flip-planning"
+    "flip-planning",
+    "sparky-fitness"
   ]
 }
 
