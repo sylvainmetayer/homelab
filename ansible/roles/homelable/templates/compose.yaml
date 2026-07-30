@@ -1,0 +1,31 @@
+---
+services:
+  # Service name must stay "backend": the frontend's nginx config proxies
+  # /api and /ws to the hardcoded upstream "backend:8000".
+  backend:
+    container_name: homelable-backend
+    image: ghcr.io/pouzor/homelable-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    volumes:
+      - ./data:/app/data
+    networks:
+      - homelable
+    cap_add:
+      - NET_RAW
+
+  homelable-frontend:
+    container_name: homelable-frontend
+    image: ghcr.io/pouzor/homelable-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - homelable    # Réseau interne pour communication avec le backend
+      - newt         # Réseau externe pour accès Pangolin/Traefik
+
+networks:
+  homelable:
+  newt:
+    external: true  # Réseau créé par le rôle newt

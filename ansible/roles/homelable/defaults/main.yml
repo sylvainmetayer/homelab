@@ -1,0 +1,20 @@
+---
+homelable_base_path: "{{ docker_base_path }}/homelable"
+homelable_domain: "homelab.sylvain.cloud"
+
+homelable_secret_key: "{{ (backup_passphrase ~ '-homelable-secret') | hash('sha256') }}"
+
+# Local auth (default: admin / admin, from upstream .env.example). Override
+# homelable_auth_password_hash with a bcrypt hash to change the password:
+# python3 -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
+homelable_auth_username: admin
+homelable_auth_password_hash: '$2b$12$RtMbyw17l4N5UGzeXMNAWuzCaVV.XFBY7ZetWheQhxcBDcxahapkG'
+
+# JSON array of CIDR ranges the network scanner is allowed to probe.
+homelable_scanner_ranges: '["192.168.1.0/24"]'
+
+# Borgmatic backup configuration
+homelable_backup_enabled: true
+homelable_backup_borgmatic_target: ""
+homelable_backup_encryption_passphrase: ""
+homelable_backup_healthcheck_url: ""

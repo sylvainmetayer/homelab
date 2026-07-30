@@ -13,7 +13,8 @@ locals {
     "wiki",
     "paperless",
     "flip-planning",
-    "sparky-fitness"
+    "sparky-fitness",
+    "homelable"
   ]
 }
 

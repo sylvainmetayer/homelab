@@ -38,6 +38,7 @@
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         flip_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
         sparky_fitness_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_sparky_fitness_url.value | default('') }}"
+        homelable_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homelable_url.value | default('') }}"
       vars:
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
@@ -75,3 +76,5 @@
       tags: flip_planning,app
     - role: sparky_fitness
       tags: sparky_fitness,app
+    - role: homelable
+      tags: homelable,app
