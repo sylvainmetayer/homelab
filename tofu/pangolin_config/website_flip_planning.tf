@@ -22,7 +22,7 @@ resource "pangolin_target" "flip_planning" {
   # Catch-all target, must have a lower priority than the pgAdmin one.
   path            = "/"
   path_match_type = "prefix"
-  priority        = 100
+  priority        = 1
 
   hc_enabled             = true
   hc_hostname            = "flip-planning"
@@ -49,7 +49,7 @@ resource "pangolin_target" "flip_planning_pgadmin" {
 
   path            = "/db"
   path_match_type = "prefix"
-  priority        = 1
+  priority        = 2
 
   hc_enabled             = true
   hc_hostname            = "flip-planning-pgadmin"
