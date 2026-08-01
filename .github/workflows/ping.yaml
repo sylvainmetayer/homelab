@@ -113,10 +113,14 @@ jobs:
 
           echo "Testing SSH reachability of docker-apps.internal (private Pangolin resource)"
 
-          banner="$(timeout 10 bash -c 'exec 3<>/dev/tcp/docker-apps.internal/22 && head -n1 <&3')"
-          echo "Banner: $banner"
+          set +e
+          output="$(timeout 10 bash -c 'exec 3<>/dev/tcp/docker-apps.internal/22 && head -n1 <&3' 2>&1)"
+          rc=$?
+          set -e
+          echo "exit code: $rc"
+          echo "output: $output"
 
-          case "$banner" in
+          case "$output" in
             SSH-*) echo "✓ docker-apps.internal:22 reachable, SSH banner received" ;;
             *) echo "✗ Did not receive an SSH banner from docker-apps.internal:22"; exit 1 ;;
           esac
