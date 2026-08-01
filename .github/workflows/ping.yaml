@@ -1,99 +1,133 @@
-name: OLM Connectivity Test
+name: Test OLM Connection
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   test-olm-connection:
-    runs-on: ubuntu-latest
+    name: test-olm-connection
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
 
     steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install network tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            dnsutils \
+            netcat-openbsd \
+            curl
+
       - name: Start OLM container
+        env:
+          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
+          OLM_ID: ${{ secrets.OLM_ID }}
+          OLM_SECRET: ${{ secrets.OLM_SECRET }}
         run: |
           docker run -d --rm \
             --name olm \
             --network host \
             --cap-add=NET_ADMIN \
             --device /dev/net/tun:/dev/net/tun \
-            -e PANGOLIN_ENDPOINT="${{ secrets.PANGOLIN_ENDPOINT }}" \
-            -e OLM_ID="${{ secrets.OLM_ID }}" \
-            -e OLM_SECRET="${{ secrets.OLM_SECRET }}" \
+            -e PANGOLIN_ENDPOINT="$PANGOLIN_ENDPOINT" \
+            -e OLM_ID="$OLM_ID" \
+            -e OLM_SECRET="$OLM_SECRET" \
             -e OVERRIDE_DNS=true \
             fosrl/olm
 
       - name: Wait for OLM tunnel and DNS
+        shell: bash
         run: |
-          echo "Waiting for OLM DNS proxy..."
+          echo "Waiting for OLM..."
 
-          for i in {1..10}; do
-            echo "Attempt $i/10"
+          for i in {1..15}; do
+            echo ""
+            echo "Attempt $i/15"
 
-            if nc -z -w1 100.96.128.1 53; then
-              echo "✓ OLM DNS proxy reachable"
+            if ip addr show olm >/dev/null 2>&1; then
+              echo "✓ OLM interface exists"
+            else
+              echo "Waiting for OLM interface..."
+              docker logs --tail 20 olm || true
+              sleep 2
+              continue
+            fi
+
+            if ip route | grep -q "100.96.128.0/24"; then
+              echo "✓ OLM route installed"
+            else
+              echo "Waiting for OLM route..."
+              sleep 2
+              continue
+            fi
+
+            if dig @100.96.128.1 example.com +time=2 +tries=1; then
+              echo "✓ OLM DNS proxy works"
               exit 0
             fi
 
-            docker logs --tail 20 olm || true
+            echo "DNS not ready yet"
             sleep 2
           done
 
-          echo "✗ OLM DNS proxy not reachable"
+          echo "✗ OLM failed readiness check"
 
-          echo "=== Routes ==="
+          echo "===== ROUTES ====="
           ip route
 
-          echo "=== Interfaces ==="
+          echo "===== INTERFACES ====="
           ip addr
 
-          echo "=== OLM logs ==="
-          docker logs olm
+          echo "===== RESOLV.CONF ====="
+          cat /etc/resolv.conf || true
+
+          echo "===== OLM LOGS ====="
+          docker logs olm || true
 
           exit 1
 
-      - name: Check OLM network state
+      - name: Test DNS resolution through OLM
         run: |
-          echo "=== Routes ==="
-          ip route
+          echo "Testing DNS resolution"
 
-          echo
-          echo "=== Resolver configuration ==="
-          cat /etc/resolv.conf
+          dig @100.96.128.1 github.com
 
-          echo
-          echo "=== DNS port test ==="
-          nc -vz 100.96.128.1 53
+          dig @100.96.128.1 google.com
 
-      - name: Test internal DNS resolution
+      - name: Test HTTPS connectivity
         run: |
-          echo "Testing OLM DNS resolver"
+          echo "Testing external connectivity"
 
-          echo "--- Direct query ---"
-          dig @100.96.128.1 docker-apps.internal
+          curl -v \
+            --connect-timeout 10 \
+            https://github.com \
+            -o /dev/null
 
-          echo "--- System resolver ---"
-          dig docker-apps.internal
-
-          echo "--- libc resolver ---"
-          getent hosts docker-apps.internal
-
-      - name: Test SSH connectivity
-        run: |
-          echo "Testing SSH through OLM tunnel"
-
-          ssh \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=10 \
-            -v \
-            sylvain@docker-apps.internal \
-            true
-
-      - name: Test ICMP connectivity
-        run: |
-          echo "Testing ping"
-
-          ping -c 3 docker-apps.internal || true
-
-      - name: Dump OLM logs on exit
+      - name: OLM diagnostics
         if: always()
         run: |
+          echo "===== Docker status ====="
+          docker ps -a
+
+          echo "===== OLM logs ====="
           docker logs olm || true
+
+          echo "===== Routes ====="
+          ip route
+
+          echo "===== Interfaces ====="
+          ip addr
+
+      - name: Stop OLM
+        if: always()
+        run: |
+          docker stop olm || true
