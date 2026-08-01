@@ -2,9 +2,6 @@ name: Test OLM Connection
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   test-olm-connection:
@@ -16,18 +13,15 @@ jobs:
 
     steps:
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install network tools
+      - name: Install tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
             dnsutils \
-            netcat-openbsd \
-            curl
+            curl \
+            iproute2
 
-      - name: Start OLM container
+      - name: Start OLM
         env:
           PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
           OLM_ID: ${{ secrets.OLM_ID }}
@@ -44,90 +38,85 @@ jobs:
             -e OVERRIDE_DNS=true \
             fosrl/olm
 
-      - name: Wait for OLM tunnel and DNS
+      - name: Wait OLM startup
         shell: bash
         run: |
-          echo "Waiting for OLM..."
+          for i in {1..20}; do
+            echo "Check $i/20"
 
-          for i in {1..15}; do
-            echo ""
-            echo "Attempt $i/15"
-
-            if ip addr show olm >/dev/null 2>&1; then
-              echo "✓ OLM interface exists"
-            else
-              echo "Waiting for OLM interface..."
-              docker logs --tail 20 olm || true
-              sleep 2
-              continue
+            if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+              echo "✓ DNS proxy started"
+              break
             fi
 
-            if ip route | grep -q "100.96.128.0/24"; then
-              echo "✓ OLM route installed"
-            else
-              echo "Waiting for OLM route..."
-              sleep 2
-              continue
-            fi
-
-            if dig @100.96.128.1 example.com +time=2 +tries=1; then
-              echo "✓ OLM DNS proxy works"
-              exit 0
-            fi
-
-            echo "DNS not ready yet"
+            docker logs --tail 5 olm || true
             sleep 2
           done
 
-          echo "✗ OLM failed readiness check"
+          if ! docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+            echo "OLM startup failed"
+            docker logs olm
+            exit 1
+          fi
 
-          echo "===== ROUTES ====="
-          ip route
 
-          echo "===== INTERFACES ====="
+      - name: Validate tunnel
+        run: |
+          echo "=== Interfaces ==="
           ip addr
 
-          echo "===== RESOLV.CONF ====="
-          cat /etc/resolv.conf || true
+          echo "=== Routes ==="
+          ip route
 
-          echo "===== OLM LOGS ====="
-          docker logs olm || true
+          ip addr show olm
+          ip route | grep 100.96.128.0/24
 
-          exit 1
 
-      - name: Test DNS resolution through OLM
+      - name: Validate DNS proxy
         run: |
-          echo "Testing DNS resolution"
+          echo "Testing OLM DNS"
 
-          dig @100.96.128.1 github.com
+          dig \
+            @100.96.128.1 \
+            github.com \
+            +time=5 \
+            +tries=2
 
-          dig @100.96.128.1 google.com
+          dig \
+            @100.96.128.1 \
+            example.com \
+            +time=5 \
+            +tries=2
 
-      - name: Test HTTPS connectivity
+
+      - name: Validate network access
         run: |
-          echo "Testing external connectivity"
+          echo "Testing HTTPS"
 
-          curl -v \
+          curl \
+            --fail \
             --connect-timeout 10 \
             https://github.com \
             -o /dev/null
 
-      - name: OLM diagnostics
+
+      - name: Collect diagnostics
         if: always()
         run: |
-          echo "===== Docker status ====="
-          docker ps -a
-
-          echo "===== OLM logs ====="
+          echo "===== OLM LOGS ====="
           docker logs olm || true
 
-          echo "===== Routes ====="
+          echo "===== ROUTES ====="
           ip route
 
-          echo "===== Interfaces ====="
-          ip addr
+          echo "===== DNS ====="
+          cat /etc/resolv.conf || true
 
-      - name: Stop OLM
+          echo "===== PROCESSES ====="
+          ps aux | grep olm || true
+
+
+      - name: Cleanup
         if: always()
         run: |
           docker stop olm || true
