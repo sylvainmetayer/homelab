@@ -71,33 +71,59 @@ jobs:
           ip addr show olm
           ip route | grep 100.96.128.0/24
 
+      # OLM runs inside a Docker container. Even with --network host it shares
+      # the runner's network namespace, but NOT its mount namespace: its
+      # OVERRIDE_DNS=true only rewrites /etc/resolv.conf *inside the
+      # container*, which the runner's own resolver never sees. That's why
+      # `dig @100.96.128.1 ...` works from the runner (the route to the OLM
+      # DNS proxy exists at the network level) while plain `dig`/`nslookup`
+      # (using the system resolver) does not. Point the runner's own resolver
+      # at the OLM DNS proxy directly, the same way a local WireGuard/OLM
+      # client reconfigures the host's DNS.
+      - name: Point host DNS at OLM tunnel
+        run: |
+          echo "=== Before ==="
+          resolvectl status 2>/dev/null || cat /etc/resolv.conf
+
+          sudo rm -f /etc/resolv.conf
+          echo "nameserver 100.96.128.1" | sudo tee /etc/resolv.conf > /dev/null
+
+          echo "=== After ==="
+          cat /etc/resolv.conf
 
       - name: Validate DNS proxy
         run: |
-          echo "Testing OLM DNS"
+          echo "Testing system DNS resolution through the OLM tunnel"
 
-          dig \
-            @100.96.128.1 \
-            github.com \
-            +time=5 \
-            +tries=2
+          dig github.com +time=5 +tries=2
 
-          dig \
-            @100.96.128.1 \
-            example.com \
-            +time=5 \
-            +tries=2
-
+          echo "Resolving the private Pangolin resource"
+          dig docker-apps.internal +time=5 +tries=2
+          getent hosts docker-apps.internal
 
       - name: Validate network access
         run: |
-          echo "Testing HTTPS"
+          echo "Testing public HTTPS still works"
 
           curl \
             --fail \
             --connect-timeout 10 \
             https://github.com \
             -o /dev/null
+
+          echo "Testing SSH reachability of docker-apps.internal (private Pangolin resource)"
+
+          set +e
+          output="$(timeout 10 bash -c 'exec 3<>/dev/tcp/docker-apps.internal/22 && head -n1 <&3' 2>&1)"
+          rc=$?
+          set -e
+          echo "exit code: $rc"
+          echo "output: $output"
+
+          case "$output" in
+            SSH-*) echo "✓ docker-apps.internal:22 reachable, SSH banner received" ;;
+            *) echo "✗ Did not receive an SSH banner from docker-apps.internal:22"; exit 1 ;;
+          esac
 
 
       - name: Collect diagnostics
