@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Start OLM
+      - name: Start OLM container
         run: |
           docker run -d --rm \
             --name olm \
@@ -18,15 +18,18 @@ jobs:
             -e PANGOLIN_ENDPOINT="${{ secrets.PANGOLIN_ENDPOINT }}" \
             -e OLM_ID="${{ secrets.OLM_ID }}" \
             -e OLM_SECRET="${{ secrets.OLM_SECRET }}" \
+            -e OVERRIDE_DNS=true \
             fosrl/olm
 
-      - name: Wait for tunnel
+      - name: Wait for OLM tunnel and DNS
         run: |
-          echo "Waiting for tunnel..."
+          echo "Waiting for OLM DNS proxy..."
 
-          for i in {1..60}; do
-            if ping -c1 -W1 100.96.128.1 >/dev/null 2>&1; then
-              echo "Tunnel is up."
+          for i in {1..10}; do
+            echo "Attempt $i/10"
+
+            if nc -z -w1 100.96.128.1 53; then
+              echo "✓ OLM DNS proxy reachable"
               exit 0
             fi
 
@@ -34,35 +37,63 @@ jobs:
             sleep 2
           done
 
-          echo "Tunnel never came up."
+          echo "✗ OLM DNS proxy not reachable"
+
+          echo "=== Routes ==="
+          ip route
+
+          echo "=== Interfaces ==="
+          ip addr
+
+          echo "=== OLM logs ==="
           docker logs olm
+
           exit 1
 
-      - name: Switch runner DNS
+      - name: Check OLM network state
         run: |
-          sudo cp /etc/resolv.conf /tmp/resolv.conf.bak || true
+          echo "=== Routes ==="
+          ip route
 
-          cat <<EOF | sudo tee /etc/resolv.conf
-          nameserver 100.96.128.1
-          nameserver 1.1.1.1
-          options timeout:1 attempts:2
-          EOF
-
-          echo "Current resolv.conf:"
+          echo
+          echo "=== Resolver configuration ==="
           cat /etc/resolv.conf
 
-      - name: Verify DNS
+          echo
+          echo "=== DNS port test ==="
+          nc -vz 100.96.128.1 53
+
+      - name: Test internal DNS resolution
         run: |
+          echo "Testing OLM DNS resolver"
+
+          echo "--- Direct query ---"
           dig @100.96.128.1 docker-apps.internal
+
+          echo "--- System resolver ---"
           dig docker-apps.internal
+
+          echo "--- libc resolver ---"
           getent hosts docker-apps.internal
 
-      - name: Test connectivity
+      - name: Test SSH connectivity
         run: |
-          ping -c3 docker-apps.internal
+          echo "Testing SSH through OLM tunnel"
+
           ssh \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             -v \
             sylvain@docker-apps.internal \
             true
+
+      - name: Test ICMP connectivity
+        run: |
+          echo "Testing ping"
+
+          ping -c 3 docker-apps.internal || true
+
+      - name: Dump OLM logs on exit
+        if: always()
+        run: |
+          docker logs olm || true
