@@ -7,50 +7,62 @@ jobs:
   test-olm-connection:
     runs-on: ubuntu-latest
 
-    # The former `services:` usage breaks DNS resolution in the runner.
-    # Start the OLM container via `docker run` instead so DNS stays intact.
-
     steps:
-      - name: Start OLM container
+      - name: Start OLM
         run: |
-          docker run -d --name olm \
+          docker run -d --rm \
+            --name olm \
+            --network host \
             --cap-add=NET_ADMIN \
-            --device=/dev/net/tun:/dev/net/tun \
+            --device /dev/net/tun:/dev/net/tun \
             -e PANGOLIN_ENDPOINT="${{ secrets.PANGOLIN_ENDPOINT }}" \
             -e OLM_ID="${{ secrets.OLM_ID }}" \
             -e OLM_SECRET="${{ secrets.OLM_SECRET }}" \
-            -e OVERRIDE_DNS=true \
-            fosrl/olm || true
+            fosrl/olm
 
-      - name: Override DNS
+      - name: Wait for tunnel
         run: |
-          dig @100.96.128.1 docker-apps.internal || true
-          dig docker-apps.internal || true
-          sudo sed -i 's/#DNS=/DNS=100.96.128.1 1.1.1.1/g' /etc/systemd/resolved.conf
-          sudo systemctl daemon-reload
-          sudo systemctl restart systemd-networkd
-          sudo systemctl restart systemd-resolved
-          sleep 5
-          dig @100.96.128.1 docker-apps.internal || true
-          dig docker-apps.internal || true
-          ssh sylvain@docker-apps.internal -v || true
+          echo "Waiting for tunnel..."
 
-      - name: Wait for OLM to establish connection
-        run: |
-          echo "Waiting for OLM connection to establish..."
-          sleep 10
-
-      - name: Ping docker-apps.internal
-        run: |
-          echo "Attempting to ping docker-apps.internal through OLM tunnel..."
-          for i in {1..10}; do
-            if ping -c 3 -W 5 docker-apps.internal; then
-              echo "✓ Successfully pinged docker-apps.internal"
+          for i in {1..60}; do
+            if ping -c1 -W1 100.96.128.1 >/dev/null 2>&1; then
+              echo "Tunnel is up."
               exit 0
             fi
-            echo "Attempt $i failed, waiting 10 seconds..."
-            ssh sylvain@docker-apps.internal -v || true
-            sleep 5
+
+            docker logs --tail 20 olm || true
+            sleep 2
           done
-          echo "✗ Failed to ping docker-apps.internal after 10 attempts"
+
+          echo "Tunnel never came up."
+          docker logs olm
           exit 1
+
+      - name: Switch runner DNS
+        run: |
+          sudo cp /etc/resolv.conf /tmp/resolv.conf.bak || true
+
+          cat <<EOF | sudo tee /etc/resolv.conf
+          nameserver 100.96.128.1
+          nameserver 1.1.1.1
+          options timeout:1 attempts:2
+          EOF
+
+          echo "Current resolv.conf:"
+          cat /etc/resolv.conf
+
+      - name: Verify DNS
+        run: |
+          dig @100.96.128.1 docker-apps.internal
+          dig docker-apps.internal
+          getent hosts docker-apps.internal
+
+      - name: Test connectivity
+        run: |
+          ping -c3 docker-apps.internal
+          ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
+            -v \
+            sylvain@docker-apps.internal \
+            true
