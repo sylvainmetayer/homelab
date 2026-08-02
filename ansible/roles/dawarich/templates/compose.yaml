@@ -1,7 +1,7 @@
 ---
 services:
   dawarich-redis:
-    image: redis:7.4-alpine
+    image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: dawarich-redis
     command: >
       redis-server
@@ -21,7 +21,7 @@ services:
       - dawarich
 
   dawarich-db:
-    image: postgis/postgis:17-3.5-alpine
+    image: postgis/postgis:17-3.5-alpine@sha256:2db2d29dbde9379103076851c39f50f4fd9c7ee4297251ed006ed94d586df958
     container_name: dawarich-db
     restart: unless-stopped
     shm_size: 1G
@@ -41,7 +41,7 @@ services:
       - dawarich
 
   dawarich-app:
-    image: freikin/dawarich:1.10.3
+    image: freikin/dawarich:1.10.3@sha256:d7457e7b27a9992f2fdd367fe22a515b1b44fc6e0cfb7a68f3c69c439c465a6b
     container_name: dawarich-app
     restart: unless-stopped
     stdin_open: true
@@ -73,7 +73,7 @@ services:
       - newt
 
   dawarich-sidekiq:
-    image: freikin/dawarich:1.10.3
+    image: freikin/dawarich:1.10.3@sha256:d7457e7b27a9992f2fdd367fe22a515b1b44fc6e0cfb7a68f3c69c439c465a6b
     container_name: dawarich-sidekiq
     restart: unless-stopped
     stdin_open: true
