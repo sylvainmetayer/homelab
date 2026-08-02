@@ -14,7 +14,8 @@ locals {
     "paperless",
     "flip-planning",
     "sparky-fitness",
-    "homelable"
+    "homelable",
+    "gramps"
   ]
 }
 
