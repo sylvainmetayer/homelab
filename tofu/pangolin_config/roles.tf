@@ -15,7 +15,8 @@ locals {
     "flip-planning",
     "sparky-fitness",
     "homelable",
-    "gramps"
+    "gramps",
+    "dawarich"
   ]
 }
 

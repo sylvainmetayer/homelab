@@ -3,21 +3,26 @@
 services:
   postgres:
     container_name: semaphore_postgres
-    image: postgres:14@sha256:caf49e3b10d377aa2cfee478591d623808527beb27125d38797b418013f72d81
+    image: postgres:18@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad26da0df1334744a
     hostname: postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER={{ semaphore_db_user }}
       - POSTGRES_PASSWORD={{ semaphore_db_password }}
       - POSTGRES_DB={{ semaphore_db_name }}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ semaphore_db_user }} -d {{ semaphore_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
-      - semaphore-postgres:/var/lib/postgresql/data
+      - semaphore-postgres:/var/lib/postgresql
     networks:
       - semaphore-internal
 
   semaphore:
     container_name: semaphore
-    image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.18.28@sha256:d404767e7e412c4e43103b9350221d88f4c33b3db0761983513096d836312133
+    image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.18.29@sha256:51dcbf0baf6377353eea99c4826fcf143ffbc4c7a2cd418899a9b925bed6ad38
     environment:
       - SEMAPHORE_PLAYBOOK_PATH= /tmp/semaphore/
       - SEMAPHORE_DB_DIALECT=postgres
@@ -36,7 +41,8 @@ services:
     #volumes:
     #  - ./requirements.txt:/etc/semaphore/requirements.txt
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - newt
       - semaphore-internal

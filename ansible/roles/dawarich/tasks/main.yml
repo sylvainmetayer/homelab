@@ -1,0 +1,68 @@
+---
+- name: Ensure Dawarich app folders exist
+  loop:
+    - "{{ dawarich_base_path }}"
+    - "{{ dawarich_base_path }}/postgresql"
+    - "{{ dawarich_base_path }}/redis"
+    - "{{ dawarich_base_path }}/public"
+    - "{{ dawarich_base_path }}/watched"
+    - "{{ dawarich_base_path }}/storage"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart dawarich
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ dawarich_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart dawarich
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ dawarich_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Dawarich
+  when: dawarich_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Dawarich
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-dawarich.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/dawarich.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Dawarich
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/dawarich.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: dawarich_borg_repo_create
+      changed_when: "'repository already exists' not in dawarich_borg_repo_create.stderr"
+      failed_when: >
+        dawarich_borg_repo_create.rc != 0 and
+        'repository already exists' not in dawarich_borg_repo_create.stderr
+
+- name: Make sure dawarich service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@dawarich
+    scope: user
+    enabled: true

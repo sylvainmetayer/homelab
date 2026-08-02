@@ -1,0 +1,19 @@
+---
+dawarich_base_path: "{{ docker_base_path }}/dawarich"
+dawarich_domain: tracks.sylvain.cloud
+
+dawarich_db_name: dawarich
+dawarich_db_user: dawarich
+dawarich_db_password: "{{ (backup_passphrase ~ '-dawarich-db') | hash('sha256') }}"
+
+dawarich_secret_key_base: "{{ (backup_passphrase ~ '-dawarich-secret-key-base') | hash('sha256') }}"
+dawarich_jwt_secret_key: "{{ (backup_passphrase ~ '-dawarich-jwt-secret') | hash('sha256') }}"
+dawarich_auth_jwt_secret_key: "{{ (backup_passphrase ~ '-dawarich-auth-jwt-secret') | hash('sha256') }}"
+
+dawarich_timezone: Europe/Paris
+
+# Borgmatic backup configuration
+dawarich_backup_enabled: true
+dawarich_backup_borgmatic_target: ""
+dawarich_backup_encryption_passphrase: ""
+dawarich_backup_healthcheck_url: ""

@@ -1,0 +1,111 @@
+---
+services:
+  dawarich-redis:
+    image: redis:7.4-alpine
+    container_name: dawarich-redis
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --appendonly no
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - ./redis:/data
+    networks:
+      - dawarich
+
+  dawarich-db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: dawarich-db
+    restart: unless-stopped
+    shm_size: 1G
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:?Variable is required and must be set}
+      POSTGRES_USER: ${DATABASE_USERNAME:?Variable is required and must be set}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Variable is required and must be set}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${DATABASE_NAME}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+    networks:
+      - dawarich
+
+  dawarich-app:
+    image: freikin/dawarich:1.10.3
+    container_name: dawarich-app
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    entrypoint: web-entrypoint.sh
+    command: ["bin/rails", "server", "-p", "3000", "-b", "::"]
+    env_file:
+      - .env
+    environment:
+      PUID: "{{ ansible_facts['user_uid'] }}"
+      PGID: "{{ ansible_facts['user_gid'] }}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\"\\s*:\\s*\"ok\"'"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      dawarich-db:
+        condition: service_healthy
+      dawarich-redis:
+        condition: service_healthy
+    volumes:
+      - ./public:/var/app/public
+      - ./watched:/var/app/tmp/imports/watched
+      - ./storage:/var/app/storage
+    networks:
+      - dawarich
+      - newt
+
+  dawarich-sidekiq:
+    image: freikin/dawarich:1.10.3
+    container_name: dawarich-sidekiq
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    entrypoint: sidekiq-entrypoint.sh
+    command: ["sidekiq"]
+    env_file:
+      - .env
+    environment:
+      PUID: "{{ ansible_facts['user_uid'] }}"
+      PGID: "{{ ansible_facts['user_gid'] }}"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      dawarich-db:
+        condition: service_healthy
+      dawarich-redis:
+        condition: service_healthy
+      dawarich-app:
+        condition: service_healthy
+    volumes:
+      - ./public:/var/app/public
+      - ./watched:/var/app/tmp/imports/watched
+      - ./storage:/var/app/storage
+    networks:
+      - dawarich
+
+networks:
+  dawarich:
+  newt:
+    external: true

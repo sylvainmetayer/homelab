@@ -40,6 +40,7 @@
         sparky_fitness_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_sparky_fitness_url.value | default('') }}"
         homelable_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homelable_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
+        dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
       vars:
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
@@ -81,3 +82,5 @@
       tags: homelable,app
     - role: gramps
       tags: gramps,app
+    - role: dawarich
+      tags: dawarich,app

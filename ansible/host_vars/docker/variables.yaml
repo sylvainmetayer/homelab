@@ -56,3 +56,6 @@ homelable_backup_encryption_passphrase: "{{ backup_passphrase }}"
 gramps_backup_enabled: true
 gramps_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/gramps"
 gramps_backup_encryption_passphrase: "{{ backup_passphrase }}"
+dawarich_backup_enabled: true
+dawarich_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/dawarich"
+dawarich_backup_encryption_passphrase: "{{ backup_passphrase }}"
