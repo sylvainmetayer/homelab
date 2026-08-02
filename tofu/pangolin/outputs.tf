@@ -13,6 +13,16 @@ output "s3_bucket_arn" {
   value       = aws_s3_bucket.backup.arn
 }
 
+output "ovh_s3_bucket_name" {
+  description = "Nom du bucket S3 OVH"
+  value       = aws_s3_bucket.ovh_backup.id
+}
+
+output "ovh_s3_bucket_arn" {
+  description = "ARN du bucket S3 OVH"
+  value       = aws_s3_bucket.ovh_backup.arn
+}
+
 output "storage_box_hostname" {
   description = "Hostname du Storage Box Hetzner"
   value       = hcloud_storage_box.backups.server

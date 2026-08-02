@@ -23,3 +23,8 @@ pangolin_config = {
 s3_bucket_name        = "homelab-backup-sylvain"
 s3_versioning_enabled = false
 s3_endpoint           = "https://nbg1.your-objectstorage.com"
+
+# Configuration S3 OVH (Object Storage)
+ovh_s3_bucket_name = "homelab-backup-ovh-sylvain"
+ovh_s3_region      = "gra"
+ovh_s3_endpoint    = "https://s3.gra.io.cloud.ovh.net"

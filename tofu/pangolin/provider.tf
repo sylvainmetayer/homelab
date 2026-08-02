@@ -41,3 +41,20 @@ provider "aws" {
     s3 = var.s3_endpoint
   }
 }
+
+# Provider AWS configuré pour l'endpoint S3 compatible OVH (Object Storage)
+provider "aws" {
+  alias      = "ovh_s3"
+  region     = var.ovh_s3_region
+  access_key = local.ovh_s3_access_key
+  secret_key = local.ovh_s3_secret_key
+
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+  skip_region_validation      = true
+
+  endpoints {
+    s3 = var.ovh_s3_endpoint
+  }
+}

@@ -59,3 +59,20 @@ variable "s3_endpoint" {
   type        = string
   default     = "https://nbg1.your-objectstorage.com"
 }
+
+variable "ovh_s3_bucket_name" {
+  description = "Nom du bucket S3 OVH (Object Storage)"
+  type        = string
+}
+
+variable "ovh_s3_region" {
+  description = "Région OVH Object Storage (ex: gra, sbg, de, uk)"
+  type        = string
+  default     = "gra"
+}
+
+variable "ovh_s3_endpoint" {
+  description = "Endpoint S3 OVH (Object Storage)"
+  type        = string
+  default     = "https://s3.gra.io.cloud.ovh.net"
+}
