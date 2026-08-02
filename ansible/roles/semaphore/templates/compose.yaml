@@ -22,7 +22,7 @@ services:
 
   semaphore:
     container_name: semaphore
-    image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.18.28@sha256:d404767e7e412c4e43103b9350221d88f4c33b3db0761983513096d836312133
+    image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.18.29@sha256:51dcbf0baf6377353eea99c4826fcf143ffbc4c7a2cd418899a9b925bed6ad38
     environment:
       - SEMAPHORE_PLAYBOOK_PATH= /tmp/semaphore/
       - SEMAPHORE_DB_DIALECT=postgres
