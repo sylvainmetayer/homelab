@@ -1,0 +1,6 @@
+---
+- name: Restart dawarich
+  ansible.builtin.systemd:
+    name: dc@dawarich
+    scope: user
+    state: restarted
