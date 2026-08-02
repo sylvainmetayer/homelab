@@ -107,7 +107,8 @@ resource "proxmox_virtual_environment_vm" "docker" {
   initialization {
     ip_config {
       ipv4 {
-        address = "dhcp"
+        address = "192.168.1.216/24"
+        gateway = "192.168.1.254"
       }
     }
 
