@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - semaphore-postgres:/var/lib/postgresql/data
+      - semaphore-postgres:/var/lib/postgresql
     networks:
       - semaphore-internal
 
