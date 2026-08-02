@@ -1,0 +1,6 @@
+---
+- name: Restart gramps
+  ansible.builtin.systemd:
+    name: dc@gramps
+    scope: user
+    state: restarted

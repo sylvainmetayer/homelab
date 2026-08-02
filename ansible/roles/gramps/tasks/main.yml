@@ -1,0 +1,63 @@
+---
+- name: Ensure Gramps app folders exist
+  loop:
+    - "{{ gramps_base_path }}"
+    - "{{ gramps_base_path }}/users"
+    - "{{ gramps_base_path }}/indexdir"
+    - "{{ gramps_base_path }}/thumbnail_cache"
+    - "{{ gramps_base_path }}/cache"
+    - "{{ gramps_base_path }}/secret"
+    - "{{ gramps_base_path }}/grampsdb"
+    - "{{ gramps_base_path }}/media"
+    - "{{ gramps_base_path }}/tmp"
+    - "{{ gramps_base_path }}/redis"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart gramps
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ gramps_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Gramps
+  when: gramps_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Gramps
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-gramps.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/gramps.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Gramps
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/gramps.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: gramps_borg_repo_create
+      changed_when: "'repository already exists' not in gramps_borg_repo_create.stderr"
+      failed_when: >
+        gramps_borg_repo_create.rc != 0 and
+        'repository already exists' not in gramps_borg_repo_create.stderr
+
+- name: Make sure gramps service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@gramps
+    scope: user
+    enabled: true

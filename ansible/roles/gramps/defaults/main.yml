@@ -1,0 +1,10 @@
+---
+gramps_base_path: "{{ docker_base_path }}/gramps"
+gramps_domain: trees.sylvain.cloud
+gramps_tree_name: "Gramps Web"
+
+# Borgmatic backup configuration
+gramps_backup_enabled: true
+gramps_backup_borgmatic_target: ""
+gramps_backup_encryption_passphrase: ""
+gramps_backup_healthcheck_url: ""

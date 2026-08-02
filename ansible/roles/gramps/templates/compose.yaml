@@ -1,0 +1,64 @@
+---
+services:
+  grampsweb:
+    image: ghcr.io/gramps-project/grampsweb:26.7.1@sha256:6f81fa942f1d447a953e24eeddf17b28db9f5d55e5ba10ce2a76cfcf8896bb59
+    container_name: grampsweb
+    restart: unless-stopped
+    environment:
+      GRAMPSWEB_TREE: "{{ gramps_tree_name }}"
+      GRAMPSWEB_CELERY_CONFIG__broker_url: redis://grampsweb_redis:6379/0
+      GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
+      GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
+    depends_on:
+      - grampsweb_redis
+    volumes:
+      - ./users:/app/users
+      - ./indexdir:/app/indexdir
+      - ./thumbnail_cache:/app/thumbnail_cache
+      - ./cache:/app/cache
+      - ./secret:/app/secret
+      - ./grampsdb:/root/.gramps/grampsdb
+      - ./media:/app/media
+      - ./tmp:/tmp
+    networks:
+      - gramps
+      - newt
+
+  grampsweb_celery:
+    image: ghcr.io/gramps-project/grampsweb:26.7.1@sha256:6f81fa942f1d447a953e24eeddf17b28db9f5d55e5ba10ce2a76cfcf8896bb59
+    container_name: grampsweb_celery
+    restart: unless-stopped
+    command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
+    environment:
+      GRAMPSWEB_TREE: "{{ gramps_tree_name }}"
+      GRAMPSWEB_CELERY_CONFIG__broker_url: redis://grampsweb_redis:6379/0
+      GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
+      GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
+    depends_on:
+      - grampsweb
+      - grampsweb_redis
+    volumes:
+      - ./users:/app/users
+      - ./indexdir:/app/indexdir
+      - ./thumbnail_cache:/app/thumbnail_cache
+      - ./cache:/app/cache
+      - ./secret:/app/secret
+      - ./grampsdb:/root/.gramps/grampsdb
+      - ./media:/app/media
+      - ./tmp:/tmp
+    networks:
+      - gramps
+
+  grampsweb_redis:
+    image: docker.io/valkey/valkey:8-alpine@sha256:a038175878d66b9d274fbf8be73c0305e93798b83917647f167e18cef3c71eec
+    container_name: grampsweb_redis
+    restart: unless-stopped
+    volumes:
+      - ./redis:/data
+    networks:
+      - gramps
+
+networks:
+  gramps: {}
+  newt:
+    external: true
