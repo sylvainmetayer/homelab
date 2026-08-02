@@ -1,0 +1,67 @@
+# Borgmatic configuration for Dawarich backup
+
+source_directories:
+    - {{ dawarich_base_path }}/postgresql
+    - {{ dawarich_base_path }}/redis
+    - {{ dawarich_base_path }}/public
+    - {{ dawarich_base_path }}/watched
+    - {{ dawarich_base_path }}/storage
+    - {{ dawarich_base_path }}/compose.yaml
+    - {{ dawarich_base_path }}/.env
+
+postgresql_databases:
+    - container: dawarich-db
+      port: 5432
+      name: {{ dawarich_db_name }}
+      username: {{ dawarich_db_user }}
+      password: {{ dawarich_db_password }}
+
+exclude_patterns:
+    - '*.log'
+    - '*.tmp'
+    - 'cache/*'
+
+local_path: /root/.local/bin/borg
+
+repositories:
+    - path: {{ dawarich_backup_borgmatic_target }}
+      label: dawarich-backup
+
+ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
+
+encryption_passphrase: {{ dawarich_backup_encryption_passphrase }}
+compression: zstd,10
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
+
+checks:
+    - name: repository
+      frequency: 2 weeks
+    - name: archives
+      frequency: 1 month
+
+archive_name_format: 'dawarich-{now:%Y-%m-%dT%H:%M:%S}'
+
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - echo "Starting Dawarich backup at $(date)"
+    - after: action
+      when:
+          - create
+      run:
+          - echo "Dawarich backup completed at $(date)"
+
+{% if dawarich_backup_healthcheck_url is defined and dawarich_backup_healthcheck_url %}
+uptime_kuma:
+    push_url: {{ dawarich_backup_healthcheck_url }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}
