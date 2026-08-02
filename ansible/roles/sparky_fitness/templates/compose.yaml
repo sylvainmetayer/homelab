@@ -1,7 +1,7 @@
 ---
 services:
   sparkyfitness-db:
-    image: postgres:18.3-alpine
+    image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
     container_name: sparkyfitness-db
     restart: always
     environment:
@@ -16,7 +16,7 @@ services:
       - sparkyfitness-network
 
   sparkyfitness-server:
-    image: codewithcj/sparkyfitness_server:latest
+    image: codewithcj/sparkyfitness_server:latest@sha256:33c3741bbb10ac847aaae323795cbcd1c538f65987d61b4e1d14eb141f947b4b
     environment:
       SPARKY_FITNESS_LOG_LEVEL: ${SPARKY_FITNESS_LOG_LEVEL}
       ALLOW_PRIVATE_NETWORK_CORS: ${ALLOW_PRIVATE_NETWORK_CORS:-false}
@@ -46,7 +46,7 @@ services:
       - ./uploads:/app/SparkyFitnessServer/uploads
 
   sparkyfitness-frontend:
-    image: codewithcj/sparkyfitness:latest
+    image: codewithcj/sparkyfitness:latest@sha256:622ebc4c854bc85ffcb3a31a1d8246ebfa98376ff2073ba3b03341e18f0f9846
     container_name: sparkyfitness-frontend
     environment:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL}
