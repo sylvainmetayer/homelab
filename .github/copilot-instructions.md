@@ -15,6 +15,7 @@ knowledge, it will be wrong in specific ways for this repo.
 | Task | Read first | Or run |
 |---|---|---|
 | Add/deploy a new self-hosted app | `.github/instructions/new-app.instructions.md` | `/new-app` |
+| Remove/decommission a self-hosted app | `.github/instructions/remove-app.instructions.md` | `/remove-app` |
 | Add/fix Pangolin routing, healthchecks, or SSO (`tofu/pangolin_config/**`) | `.github/instructions/pangolin-route.instructions.md` | `/pangolin-route` |
 | Add/fix a Borgmatic backup for a service | `.github/instructions/borgmatic-backup.instructions.md` | `/borgmatic-backup` |
 | Review a homelab diff before `tofu apply` / `ansible-playbook` | switch to the **homelab-reviewer** chat mode | — |

@@ -124,6 +124,22 @@ current checklist — it also delegates to **`pangolin-route`** and
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
+### Removing an app role
+
+Use the **`remove-app`** project skill (`.claude/skills/remove-app/`) for the
+full checklist — it's the reverse of `new-app` and touches the same files.
+Summary: run the reusable `ansible/roles/decommission_app` role (registered
+in `docker.yml`/`pi.yml` under `tags: [decommission, never]`, so it only ever
+runs when invoked explicitly via `--tags decommission`) to stop/disable the
+`dc@<service>` unit and delete containers/volumes/data/borgmatic config, then
+delete the role directory, deregister it from the playbook (role entry +
+healthcheck `set_fact` line), remove its `host_vars`/`backup_folders`/secrets
+entries, delete its `tofu/pangolin_config/website_<service>.tf` and its slug
+from `roles.tf`'s `apps` list (then `tofu apply`), and finally grep the whole
+repo for the service name to confirm nothing was missed. That last step
+matters: the `photoprism` removal (commit `7e848ed`) skipped it and left
+orphaned `host_vars`/`secrets.sops.yaml` entries that are still there today.
+
 ### Config layering
 
 - `ansible/group_vars/all/variables.yml` — shared defaults (`docker_base_path: /opt/apps`, `borgmatic_config_dir`, `newt_endpoint`, SSH user, etc.), plus vendored-role var files (`devsec.ssh_hardening.yml`, `geerlingguy.docker.yml`).

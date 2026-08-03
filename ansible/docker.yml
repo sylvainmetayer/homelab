@@ -52,6 +52,8 @@
       tags: setup
     - name: borgmatic
       tags: backup,setup
+    - name: decommission_app
+      tags: [decommission, never]
     - name: newt
       tags: newt,setup
     - name: echo

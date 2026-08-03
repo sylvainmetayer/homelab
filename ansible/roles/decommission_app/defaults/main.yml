@@ -1,0 +1,18 @@
+# Safety switch: this role deletes containers, volumes, config and data.
+# It must be enabled explicitly via -e for every run, it is never on by default.
+decommission_app_confirm: false
+
+# Required, always pass explicitly:
+#   -e decommission_app_service=<service>   (matches dc@<service> and role/base_path naming)
+#   -e decommission_app_base_path=<path>    (usually "{{ <service>_base_path }}")
+decommission_app_service: ""
+decommission_app_base_path: ""
+
+# Toggle individual destructive steps off if you only want part of the teardown.
+decommission_app_remove_borgmatic_config: true
+decommission_app_remove_data: true
+
+# Deleting the remote Borg repository is irreversible (no more restore points
+# for this app) and off by default. Only set true once you're sure you won't
+# need the backup history.
+decommission_app_destroy_remote_backup: false

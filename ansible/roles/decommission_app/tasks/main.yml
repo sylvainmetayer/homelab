@@ -1,0 +1,52 @@
+---
+- name: Refuse to run without an explicit confirmation
+  ansible.builtin.assert:
+    that:
+      - decommission_app_confirm | bool
+      - decommission_app_service | length > 0
+      - decommission_app_base_path | length > 0
+    fail_msg: >-
+      This role stops containers and deletes data. Re-run with
+      -e decommission_app_confirm=true -e decommission_app_service=<service>
+      -e decommission_app_base_path=<path> to proceed.
+
+- name: Stop and disable the app's systemd unit
+  ansible.builtin.systemd:
+    name: "dc@{{ decommission_app_service }}"
+    scope: user
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Tear down containers, networks and volumes
+  ansible.builtin.command:
+    cmd: docker compose down --volumes --remove-orphans
+    chdir: "{{ decommission_app_base_path }}"
+  register: decommission_app_compose_down
+  changed_when: decommission_app_compose_down.rc == 0
+  failed_when: false
+
+- name: Destroy the remote Borg repository (irreversible, no more restore points)
+  become: true
+  when: decommission_app_destroy_remote_backup
+  ansible.builtin.command:
+    cmd: >-
+      /root/.local/bin/borgmatic
+      --config {{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml
+      repo-delete --force
+  register: decommission_app_repo_delete
+  changed_when: decommission_app_repo_delete.rc == 0
+  failed_when: false
+
+- name: Remove borgmatic configuration
+  become: true
+  when: decommission_app_remove_borgmatic_config
+  ansible.builtin.file:
+    path: "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml"
+    state: absent
+
+- name: Remove app data directory
+  when: decommission_app_remove_data
+  ansible.builtin.file:
+    path: "{{ decommission_app_base_path }}"
+    state: absent
