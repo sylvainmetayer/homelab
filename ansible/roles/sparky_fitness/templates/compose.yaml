@@ -46,7 +46,7 @@ services:
       - ./uploads:/app/SparkyFitnessServer/uploads
 
   sparkyfitness-frontend:
-    image: codewithcj/sparkyfitness:latest@sha256:622ebc4c854bc85ffcb3a31a1d8246ebfa98376ff2073ba3b03341e18f0f9846
+    image: codewithcj/sparkyfitness:latest@sha256:092090994d27c968d4d5ea7808f8d566aa9c323508b564f0bd4762720b358979
     container_name: sparkyfitness-frontend
     environment:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL}
