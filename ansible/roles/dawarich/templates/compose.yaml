@@ -44,6 +44,7 @@ services:
     image: freikin/dawarich:1.11.0@sha256:4e3c55c4cd572373624e75c9e02075ff436c83a3ea952595ae0d4ffc4c7ae52b
     container_name: dawarich-app
     restart: unless-stopped
+    mem_limit: 3g
     stdin_open: true
     tty: true
     entrypoint: web-entrypoint.sh
@@ -76,6 +77,7 @@ services:
     image: freikin/dawarich:1.11.0@sha256:4e3c55c4cd572373624e75c9e02075ff436c83a3ea952595ae0d4ffc4c7ae52b
     container_name: dawarich-sidekiq
     restart: unless-stopped
+    mem_limit: 3g
     stdin_open: true
     tty: true
     entrypoint: sidekiq-entrypoint.sh
