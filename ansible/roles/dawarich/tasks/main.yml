@@ -1,5 +1,6 @@
 ---
 - name: Ensure Dawarich app folders exist
+  become: true
   loop:
     - "{{ dawarich_base_path }}"
     - "{{ dawarich_base_path }}/postgresql"
