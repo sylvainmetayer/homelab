@@ -1,4 +1,12 @@
 ---
+# Requis par le driver de volume "local" de Docker quand des options NFS
+# (type: "nfs") sont utilisées — dockerd délègue le montage à mount.nfs.
+- name: Install nfs-common for NFS-backed Docker volumes
+  become: true
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+
 - name: Ensure docker service app folder exists
   become: true
   loop:

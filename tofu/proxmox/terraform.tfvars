@@ -28,3 +28,11 @@ docker_vm = {
   storage   = "local-lvm"
   bridge    = "vmbr0"
 }
+
+# Un disque par service nécessitant une BDD isolée sur le storage Proxmox
+# "iscsi-lvm" (LUN iSCSI NAS "docker-pool" — voir
+# nas-storage-docker/homelab-storage-architecture.md, section 2). Prérequis :
+# le storage "iscsi-lvm" doit déjà exister côté Proxmox avant `tofu apply`.
+docker_vm_data_disks = {
+  demo_test = { size_gb = 10 }
+}
