@@ -54,6 +54,12 @@ resource "proxmox_virtual_environment_file" "docker_user_config" {
   }
 }
 
+locals {
+  # scsi0, scsi1, ... — un disque par service, ordre alphabétique stable
+  # d'un apply à l'autre tant qu'on n'insère pas de nouvelle clé au milieu.
+  docker_vm_data_disk_index = { for idx, name in sort(keys(var.docker_vm_data_disks)) : name => idx }
+}
+
 resource "proxmox_virtual_environment_vm" "docker" {
   depends_on = [
     proxmox_virtual_environment_file.docker_user_config,
@@ -83,6 +89,22 @@ resource "proxmox_virtual_environment_vm" "docker" {
     discard      = "on"
     ssd          = false
     size         = var.docker_vm.disk_size
+  }
+
+  # Un disque par service listé dans var.docker_vm_data_disks, sur le storage
+  # Proxmox "iscsi-lvm" (LUN iSCSI NAS partagé, une LV par service). Ansible
+  # formate/monte ensuite ce disque brut sous /dev/sdX dans la VM.
+  dynamic "disk" {
+    for_each = var.docker_vm_data_disks
+    iterator = svc
+    content {
+      datastore_id = "iscsi-lvm"
+      interface    = "scsi${local.docker_vm_data_disk_index[svc.key]}"
+      size         = svc.value.size_gb
+      file_format  = "raw"
+      ssd          = false
+      discard      = "on"
+    }
   }
 
   lifecycle {

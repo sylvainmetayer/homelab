@@ -1,0 +1,19 @@
+name: nginx-nas
+
+services:
+  nginx:
+    image: docker.io/library/nginx:stable-alpine
+    container_name: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - nginx_data:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+volumes:
+  nginx_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=192.168.1.137,nfsvers=3,ro,soft,tcp"
+      device: "192.168.1.137:/volume1/apps/nginx-html"

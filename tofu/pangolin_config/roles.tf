@@ -16,7 +16,8 @@ locals {
     "sparky-fitness",
     "homelable",
     "gramps",
-    "dawarich"
+    "dawarich",
+    "nginx-demo"
   ]
 }
 

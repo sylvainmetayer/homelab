@@ -62,3 +62,17 @@ variable "docker_vm" {
   })
   default = {}
 }
+
+variable "docker_vm_data_disks" {
+  description = <<-EOT
+    Disques par service nécessitant une BDD isolée du reste de la VM, backés
+    par le storage Proxmox "iscsi-lvm" (LVM sur le LUN iSCSI unique du NAS,
+    voir nas-storage-docker/homelab-storage-architecture.md). Ce storage est
+    créé une fois, à la main, côté Proxmox (pvesm add iscsi / pvesm add lvm)
+    — pas de ressource Tofu pour cette étape.
+  EOT
+  type = map(object({
+    size_gb = number
+  }))
+  default = {}
+}
