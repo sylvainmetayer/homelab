@@ -16,3 +16,4 @@ backup_folders:
   - "dawarich"
   - "scanopy"
   - "trek"
+  - "nginx_demo"
