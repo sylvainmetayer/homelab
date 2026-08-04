@@ -1,0 +1,6 @@
+---
+- name: Restart nginx_demo
+  ansible.builtin.systemd:
+    name: dc@nginx_demo
+    scope: user
+    state: restarted

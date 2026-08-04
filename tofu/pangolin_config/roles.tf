@@ -19,7 +19,8 @@ locals {
     "dawarich",
     "trek",
     "karakeep",
-    "wishlist"
+    "wishlist",
+    "nginx-demo"
   ]
 }
 
