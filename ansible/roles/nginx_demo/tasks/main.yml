@@ -1,0 +1,102 @@
+---
+- name: Ensure Nginx Demo app folder exists
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ nginx_demo_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Cherche le filesystem par UUID fixe plutôt que par chemin /dev/sdX : ce
+# dernier peut se décaler entre deux boots dès qu'un second disque iSCSI/LVM
+# est attaché à la VM. rc == 0 => le filesystem existe déjà quelque part
+# (peu importe sur quel /dev/sdX il est aujourd'hui) => on ne reformate pas.
+- name: Check whether the demo_test filesystem already exists (by UUID)
+  ansible.builtin.command: "blkid -U {{ nginx_demo_data_uuid }}"
+  register: nginx_demo_uuid_lookup
+  changed_when: false
+  failed_when: false
+
+# Disque scsi0, attaché par Tofu (docker_vm_data_disks.demo_test) sur le
+# storage Proxmox "iscsi-lvm". Ne tourne qu'au tout premier run (cf. tâche
+# précédente) — /dev/sda n'est fiable que pour ce mkfs initial, sur une VM où
+# c'est encore le seul disque iSCSI/LVM attaché. Le filesystem est créé avec
+# un UUID fixé (nginx_demo_data_uuid) pour ne plus jamais dépendre du chemin
+# ensuite.
+- name: Create ext4 filesystem on the demo_test iSCSI/LVM disk (first run only)
+  become: true
+  when: nginx_demo_uuid_lookup.rc != 0
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ nginx_demo_data_device }}"
+    opts: "-U {{ nginx_demo_data_uuid }}"
+
+- name: Create Postgres data mount point
+  ansible.builtin.file:
+    path: "{{ nginx_demo_data_mount }}"
+    state: directory
+    mode: "0750"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Mount the demo_test disk by UUID and persist in fstab
+  become: true
+  ansible.posix.mount:
+    path: "{{ nginx_demo_data_mount }}"
+    src: "UUID={{ nginx_demo_data_uuid }}"
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted
+
+- name: Template compose configuration
+  notify: Restart nginx_demo
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ nginx_demo_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart nginx_demo
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ nginx_demo_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Nginx Demo
+  when: nginx_demo_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Nginx Demo
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-nginx_demo.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/nginx_demo.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Nginx Demo
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/nginx_demo.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: nginx_demo_borg_repo_create
+      changed_when: "'repository already exists' not in nginx_demo_borg_repo_create.stderr"
+      failed_when: >
+        nginx_demo_borg_repo_create.rc != 0 and
+        'repository already exists' not in nginx_demo_borg_repo_create.stderr
+
+- name: Make sure nginx_demo service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@nginx_demo
+    scope: user
+    enabled: true

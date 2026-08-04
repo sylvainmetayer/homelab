@@ -1,0 +1,79 @@
+---
+# Playbook d'exemple — configuration de la VM Docker host
+# (les disques scsi1+ sont déjà attachés par Terraform avant de lancer ce playbook)
+
+- name: Configure Docker host VM — volumes NFS + iSCSI, déploiement des stacks
+  hosts: docker_host
+  become: true
+
+  vars:
+    nas_ip: 192.168.1.137
+    nfs_apps_root: /volume1/apps
+
+    # Un disque bloc (iSCSI/LVM) par service, attaché par Terraform en scsi1, scsi2, ...
+    # ATTENTION : /dev/sdX n'est pas garanti stable d'un boot à l'autre.
+    # Pour une conf durable, remplacer "device" par l'UUID (blkid) après le premier
+    # formatage, ou par /dev/disk/by-id/scsi-<serial> si Proxmox l'expose de façon stable.
+    block_services:
+      postgres_nextcloud:
+        device: /dev/sdb
+        mount: /mnt/services/postgres_nextcloud
+      postgres_vaultwarden:
+        device: /dev/sdc
+        mount: /mnt/services/postgres_vaultwarden
+      postgres_authelia:
+        device: /dev/sdd
+        mount: /mnt/services/postgres_authelia
+
+  tasks:
+    - name: Installer les paquets nécessaires (client NFS, Docker)
+      ansible.builtin.apt:
+        name:
+          - nfs-common
+          - docker.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Créer le filesystem ext4 sur chaque disque de service
+      # idempotent par défaut : ne reformate pas un disque déjà formaté,
+      # donc sûr à relancer sans perdre les données existantes
+      community.general.filesystem:
+        fstype: ext4
+        dev: "{{ item.value.device }}"
+      loop: "{{ block_services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Créer les points de montage
+      ansible.builtin.file:
+        path: "{{ item.value.mount }}"
+        state: directory
+        mode: "0750"
+      loop: "{{ block_services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Monter les disques et persister dans fstab
+      ansible.posix.mount:
+        path: "{{ item.value.mount }}"
+        src: "{{ item.value.device }}"
+        fstype: ext4
+        opts: defaults,nofail
+        state: mounted
+      loop: "{{ block_services | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Déployer les fichiers docker-compose.yml de chaque stack
+      ansible.builtin.copy:
+        src: "compose/{{ item }}/docker-compose.yml"
+        dest: "/opt/{{ item }}/docker-compose.yml"
+        mode: "0644"
+      loop: "{{ block_services.keys() | list }}"
+
+    - name: Lancer chaque stack
+      community.docker.docker_compose_v2:
+        project_src: "/opt/{{ item }}"
+        state: present
+      loop: "{{ block_services.keys() | list }}"

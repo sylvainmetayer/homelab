@@ -41,6 +41,7 @@
         homelable_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homelable_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
+        nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
       vars:
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
@@ -86,3 +87,5 @@
       tags: gramps,app
     - role: dawarich
       tags: dawarich,app
+    - role: nginx_demo
+      tags: nginx_demo,app

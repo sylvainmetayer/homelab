@@ -1,0 +1,31 @@
+---
+nginx_demo_base_path: "{{ docker_base_path }}/nginx_demo"
+nginx_demo_domain: nginx.sylvain.cloud
+
+# BDD postgres — démo/validation du chemin de stockage bloc (iSCSI + LVM,
+# LUN "demo_test" attaché en scsi0 par Tofu, voir tofu/proxmox). N'est pas
+# consommée par nginx, sert uniquement à valider le mécanisme de LUN dédié.
+nginx_demo_db_name: nginx_demo_db
+nginx_demo_db_user: nginx_demo
+nginx_demo_db_password: "{{ (backup_passphrase ~ '-nginx-demo-db') | hash('sha256') }}"
+
+# Disque scsi0 = premier (et seul, pour l'instant) disque du storage
+# "iscsi-lvm" attaché à la VM (voir docker_vm_data_disks.demo_test dans
+# tofu/proxmox). /dev/sda n'est utilisé QUE pour le tout premier mkfs — dès
+# que le filesystem existe, il est retrouvé et monté par UUID (fixé ici, via
+# `mkfs -U` à la création), donc plus jamais par chemin /dev/sdX. C'est ce qui
+# rend ce montage stable même après ajout d'un second disque iSCSI/LVM qui
+# décalerait la numérotation scsi/sdX à un reboot ultérieur.
+nginx_demo_data_device: /dev/sda
+nginx_demo_data_uuid: 8bb22809-3c57-45c5-82dc-a15837cdc52e
+nginx_demo_data_mount: "{{ nginx_demo_base_path }}/postgresql"
+
+# Volume fichier — export NFS du NAS, sous-dossier dédié à cette appli.
+nginx_demo_nas_ip: 192.168.1.137
+nginx_demo_nfs_export: /volume1/apps/nginx_demo
+
+# Borgmatic backup configuration
+nginx_demo_backup_enabled: true
+nginx_demo_backup_borgmatic_target: ""
+nginx_demo_backup_encryption_passphrase: ""
+nginx_demo_backup_healthcheck_url: ""
