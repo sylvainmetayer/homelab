@@ -213,7 +213,7 @@ jobs:
           docker ansible_host=docker-apps.internal
 
           [pi]
-          pi ansible_host=pi-apps.internal
+          pi ansible_host=pi.internal
           EOF
 
       - name: Deploy docker
