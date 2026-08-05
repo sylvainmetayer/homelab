@@ -1,0 +1,9 @@
+---
+actualbudget_base_path: "{{ docker_base_path }}/actualbudget"
+actualbudget_domain: budget.sylvain.cloud
+
+# Borgmatic backup configuration
+actualbudget_backup_enabled: true
+actualbudget_backup_borgmatic_target: ""
+actualbudget_backup_encryption_passphrase: ""
+actualbudget_backup_healthcheck_url: ""

@@ -1,0 +1,55 @@
+---
+- name: Ensure ActualBudget app folders exist
+  loop:
+    - "{{ actualbudget_base_path }}"
+    - "{{ actualbudget_base_path }}/data"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart actualbudget
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ actualbudget_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for ActualBudget
+  when: actualbudget_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for ActualBudget
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-actualbudget.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/actualbudget.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for ActualBudget
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/actualbudget.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: actualbudget_borg_repo_create
+      changed_when: "'repository already exists' not in actualbudget_borg_repo_create.stderr"
+      failed_when: >
+        actualbudget_borg_repo_create.rc != 0 and
+        'repository already exists' not in actualbudget_borg_repo_create.stderr
+
+- name: Make sure actualbudget service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@actualbudget
+    scope: user
+    enabled: true
