@@ -60,6 +60,14 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/deploy-docker-app.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Resolve ansible tags
         id: resolve-tags
         env:
@@ -95,12 +103,23 @@ jobs:
           curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
           chmod +x /usr/local/bin/sops
 
+      - name: Cache ansible-galaxy roles and collections
+        if: steps.resolve-tags.outputs.tags != ''
+        uses: actions/cache@v4
+        with:
+          path: |
+            ansible/galaxy_roles
+            ansible/collections
+          key: ${{ runner.os }}-ansible-galaxy-${{ hashFiles('ansible/requirements.yml') }}
+
       - name: Install ansible roles and collections
         if: steps.resolve-tags.outputs.tags != ''
         working-directory: ansible
+        # No --force: with the cache above restored, an already-satisfied
+        # requirement is skipped instead of being re-downloaded every run.
         run: |
-          ansible-galaxy role install -r requirements.yml --force
-          ansible-galaxy collection install -r requirements.yml --force
+          ansible-galaxy role install -r requirements.yml
+          ansible-galaxy collection install -r requirements.yml
 
       - name: Install network tools
         if: steps.resolve-tags.outputs.tags != ''
