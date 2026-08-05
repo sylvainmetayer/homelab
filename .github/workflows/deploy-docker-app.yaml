@@ -10,8 +10,17 @@ on:
       - ansible/roles/**
   workflow_dispatch:
     inputs:
+      playbook:
+        description: "Which playbook 'tags' applies to (ignored if 'tags' is empty)"
+        required: false
+        type: choice
+        options:
+          - both
+          - docker
+          - pi
+        default: both
       tags:
-        description: "Comma-separated ansible tags to force (skips auto-detection)"
+        description: "Comma-separated ansible tags/roles to force (skips auto-detection)"
         required: false
         default: ""
 
@@ -80,17 +89,26 @@ jobs:
       - name: Resolve ansible tags
         id: resolve-tags
         env:
+          INPUT_PLAYBOOK: ${{ inputs.playbook }}
           INPUT_TAGS: ${{ inputs.tags }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
         run: |
           pip install --quiet pyyaml
 
           if [ -n "$INPUT_TAGS" ]; then
-            # A manually forced tag list is applied to both playbooks;
+            # A manually forced tag list defaults to both playbooks; pick
+            # "docker" or "pi" in the dispatch form to target just one.
             # ansible-playbook --tags with no matching task is a no-op, so
-            # forcing e.g. "immich" just runs nothing on docker.yml.
-            echo "docker_tags=$INPUT_TAGS" >> "$GITHUB_OUTPUT"
-            echo "pi_tags=$INPUT_TAGS" >> "$GITHUB_OUTPUT"
+            # forcing e.g. "immich" on both just runs nothing on docker.yml.
+            docker_tags=""
+            pi_tags=""
+            case "$INPUT_PLAYBOOK" in
+              docker) docker_tags="$INPUT_TAGS" ;;
+              pi) pi_tags="$INPUT_TAGS" ;;
+              *) docker_tags="$INPUT_TAGS"; pi_tags="$INPUT_TAGS" ;;
+            esac
+            echo "docker_tags=$docker_tags" >> "$GITHUB_OUTPUT"
+            echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
