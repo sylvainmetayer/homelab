@@ -1,11 +1,11 @@
 terraform {
   backend "s3" {
     endpoints = {
-      s3 = "https://nbg1.your-objectstorage.com"
+      s3 = "https://s3.eu-west-par.io.cloud.ovh.net"
     }
-    bucket                      = "homelab-state"
+    bucket                      = "homelab-tf-state-sylvain"
     key                         = "homelab/s3_state.tfstate"
-    region                      = "nbg1"
+    region                      = "eu-west-par"
     skip_region_validation      = true
     skip_credentials_validation = true
     use_path_style              = true

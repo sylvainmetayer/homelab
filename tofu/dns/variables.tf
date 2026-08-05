@@ -1,5 +1,5 @@
 variable "s3_endpoint" {
-  description = "Endpoint S3 Hetzner"
+  description = "Endpoint S3"
   type        = string
-  default     = "https://nbg1.your-objectstorage.com"
+  default     = "https://s3.eu-west-par.io.cloud.ovh.net"
 }
