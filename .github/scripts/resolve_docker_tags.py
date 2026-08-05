@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Map changed files to the ansible-playbook --tags needed to redeploy the
-affected docker.yml role(s).
+affected role(s), for one or more playbooks.
 
-Usage: resolve_docker_tags.py <path-to-docker.yml> < changed-files.txt
+Usage: resolve_docker_tags.py <playbook.yml> [<playbook.yml> ...] < changed-files.txt
 Changed file paths are read one per line from stdin.
-Prints the resolved comma-separated tag list to stdout (empty if nothing to do).
+Prints a JSON object {playbook_path: "tag1,tag2"} to stdout, one entry per
+playbook argument (value is "" when nothing changed for that playbook).
 """
+import json
 import re
 import sys
 
@@ -49,21 +51,27 @@ def resolve_tags(role_tags, roles):
 
 
 def main():
-    (playbook_path,) = sys.argv[1:]
+    playbook_paths = sys.argv[1:]
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
-
-    role_tags = load_role_tags(playbook_path)
     roles = changed_roles(changed_files)
-    matched, resolved = resolve_tags(role_tags, roles)
 
-    for role, tags in matched.items():
-        print(f"::notice::role '{role}' changed -> tags [{', '.join(tags)}]", file=sys.stderr)
+    result = {}
+    all_matched_roles = set()
+    for playbook_path in playbook_paths:
+        role_tags = load_role_tags(playbook_path)
+        matched, resolved = resolve_tags(role_tags, roles)
+        all_matched_roles |= matched.keys()
 
-    unmatched_roles = roles - matched.keys()
+        for role, tags in matched.items():
+            print(f"::notice::role '{role}' changed -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
+
+        result[playbook_path] = ",".join(sorted(resolved))
+
+    unmatched_roles = roles - all_matched_roles
     for role in unmatched_roles:
-        print(f"::warning::role '{role}' changed but is not referenced in {playbook_path}, ignoring", file=sys.stderr)
+        print(f"::warning::role '{role}' changed but is not referenced in any of {', '.join(playbook_paths)}, ignoring", file=sys.stderr)
 
-    print(",".join(sorted(resolved)))
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":
