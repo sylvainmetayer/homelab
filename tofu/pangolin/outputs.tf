@@ -13,16 +13,6 @@ output "s3_bucket_arn" {
   value       = aws_s3_bucket.backup.arn
 }
 
-output "ovh_s3_bucket_name" {
-  description = "Nom du bucket S3 OVH"
-  value       = aws_s3_bucket.ovh_backup.id
-}
-
-output "ovh_s3_bucket_arn" {
-  description = "ARN du bucket S3 OVH"
-  value       = aws_s3_bucket.ovh_backup.arn
-}
-
 output "storage_box_hostname" {
   description = "Hostname du Storage Box Hetzner"
   value       = hcloud_storage_box.backups.server
@@ -41,13 +31,13 @@ output "storage_box_id" {
 output "storage_box_password" {
   description = "Mot de passe du Storage Box Hetzner"
   value       = random_password.storage_box_password.result
-  sensitive = true
+  sensitive   = true
 }
 
 output "storage_box_ssh_private_key" {
   description = "Clé privée SSH pour accéder à la Storage Box Hetzner"
   value       = tls_private_key.storage_box.private_key_pem
-  sensitive = true
+  sensitive   = true
 }
 
 output "storage_box_ssh_public_key" {

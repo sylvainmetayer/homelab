@@ -54,26 +54,28 @@ Le state OpenTofu de chaque stack (`tofu/dns`, `tofu/pangolin`, `tofu/pangolin_c
 `tofu/proxmox`) est actuellement stocké dans le bucket S3 Hetzner `homelab-state`
 (voir `backend.tf` de chaque stack). Pour migrer vers un bucket S3 OVH :
 
-1. **Créer le bucket de state sur OVH** (en dehors d'OpenTofu, comme `homelab-state`
-   sur Hetzner : un stack ne doit pas gérer le bucket qui contient son propre state).
-   - Activer Object Storage sur le projet Public Cloud OVH, choisir une région
-     (ex: `gra` = Gravelines) et créer un utilisateur S3 dédié (Public Cloud >
-     Object Storage > Utilisateurs) pour obtenir une paire `access_key`/`secret_key`.
-     Ce sont des identifiants S3, différents de `OVH_APPLICATION_KEY/SECRET`
-     (clés API OVH utilisées par le provider `ovh` pour la gestion DNS).
-   - Créer le bucket, par exemple avec l'AWS CLI :
+1. **Créer le bucket de state via le stack `tofu/s3_state`** (volontairement séparé
+   des autres stacks : un stack ne doit pas gérer le bucket qui contient son propre
+   state). Ce stack utilise la ressource native `ovh_cloud_project_storage` du
+   provider `ovh` (et non le provider `aws`) pour créer le bucket Object Storage
+   `homelab-tf-state-sylvain`.
+   - Renseigner `ovh_service_name` (l'ID du projet Public Cloud OVH) dans
+     `tofu/s3_state/terraform.tfvars`.
+   - Appliquer le stack :
      ```bash
-     export AWS_ACCESS_KEY_ID=<ovh_s3_access_key>
-     export AWS_SECRET_ACCESS_KEY=<ovh_s3_secret_key>
-     aws s3 mb s3://homelab-state-ovh --endpoint-url https://s3.gra.io.cloud.ovh.net
-     aws s3api put-bucket-versioning --bucket homelab-state-ovh \
-       --versioning-configuration Status=Enabled \
-       --endpoint-url https://s3.gra.io.cloud.ovh.net
+     cd tofu/s3_state
+     tofu init
+     tofu apply
      ```
+   - Créer ensuite un utilisateur S3 dédié (Public Cloud > Object Storage >
+     Utilisateurs) sur ce bucket pour obtenir une paire `access_key`/`secret_key`.
+     Ce sont des identifiants S3, différents de `OVH_APPLICATION_KEY/SECRET`
+     (clés API OVH utilisées par le provider `ovh` pour la gestion DNS et pour
+     créer le bucket lui-même).
 
 2. **Ajouter les secrets** `OVH_S3_ACCESS_KEY` et `OVH_S3_SECRET_KEY` dans
-   `secrets.sops.yaml` (`sops secrets.sops.yaml`) — utilisés par le bucket S3 OVH
-   applicatif défini dans `tofu/pangolin/s3.tf` et par la migration ci-dessous.
+   `secrets.sops.yaml` (`sops secrets.sops.yaml`) — utilisés uniquement pour la
+   migration ci-dessous (backend S3 des autres stacks).
 
 3. **Mettre à jour `backend.tf`** de chaque stack en remplaçant l'endpoint Hetzner
    par l'endpoint OVH (garder la même clé `key` pour préserver le chemin du state) :
@@ -81,7 +83,7 @@ Le state OpenTofu de chaque stack (`tofu/dns`, `tofu/pangolin`, `tofu/pangolin_c
    terraform {
      backend "s3" {
        endpoints = { s3 = "https://s3.gra.io.cloud.ovh.net" }
-       bucket                      = "homelab-state-ovh"
+       bucket                      = "homelab-tf-state-sylvain"
        key                         = "homelab/pangolin.tfstate" # inchangé
        region                      = "gra"
        skip_region_validation      = true
