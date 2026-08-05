@@ -2,9 +2,9 @@
 - name: Configure PI
   hosts: pi
   vars:
-    tfstate_bucket: homelab-state
+    tfstate_bucket: homelab-tf-state-sylvain
     tfstate_object_key: homelab/pangolin_config.tfstate
-    tfstate_s3_endpoint: https://nbg1.your-objectstorage.com
+    tfstate_s3_endpoint: https://s3.eu-west-par.io.cloud.ovh.net
   pre_tasks:
     # WARNING : You cannot override variables with this, make sure variable is not defined before.
     # Export your age key in environment
@@ -22,8 +22,8 @@
         bucket: "{{ tfstate_bucket }}"
         object: "{{ tfstate_object_key }}"
         endpoint_url: "{{ tfstate_s3_endpoint }}"
-        aws_access_key: "{{ backup_s3_access_key }}"
-        aws_secret_key: "{{ backup_s3_secret_key }}"
+        aws_access_key: "{{ state_s3_access_key }}"
+        aws_secret_key: "{{ state_s3_secret_key }}"
       register: terraform_state_raw
 
     - name: Load healthcheck URLs from Terraform state outputs

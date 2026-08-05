@@ -91,7 +91,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 | `pi.yml` | `pi` | Raspberry Pi — Docker, `docker_service`, `borgmatic`, `newt`, `immich` |
 | `backup.yaml` | `backups` | Storage Box only: `mkdir -p` remote backup folders (see below) |
 
-`docker.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-state` bucket at `nbg1.your-objectstorage.com`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
+`docker.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
 
 ### The `docker_service` role (systemd pattern)
 
@@ -152,7 +152,7 @@ orphaned `host_vars`/`secrets.sops.yaml` entries that are still there today.
 - `tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, an S3 bucket, and Hetzner Storage Box config (see `STORAGE_BOX_SETUP.md` there for the manual setup steps SSH/rsync require).
 - `tofu/pangolin_config/` — Pangolin-side application config (roles, rules, private resources, per-app `website_*.tf` files defining public routing + Uptime Kuma checks) applied against the running Pangolin instance, separate from the VM provisioning itself. Its state is what `docker.yml`/`pangolin.yaml`/`pi.yml` read at Ansible time for healthcheck URLs.
 - `tofu/dns/` — Cloudflare DNS records (root domain, redirects, GitHub Pages, email, Pangolin subdomain).
-- All backends are S3-compatible object storage (`homelab-state` bucket at `https://nbg1.your-objectstorage.com`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.
+- All backends are S3-compatible object storage (`homelab-tf-state-sylvain` bucket at `https://s3.eu-west-par.io.cloud.ovh.net`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.
 
 ## CI (GitHub Actions)
 

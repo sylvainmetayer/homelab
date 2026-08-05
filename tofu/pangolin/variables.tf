@@ -57,5 +57,5 @@ variable "s3_versioning_enabled" {
 variable "s3_endpoint" {
   description = "Endpoint S3 Hetzner"
   type        = string
-  default     = "https://nbg1.your-objectstorage.com"
+  default     = "https://s3.eu-west-par.io.cloud.ovh.net"
 }
