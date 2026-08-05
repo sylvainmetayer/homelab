@@ -31,13 +31,13 @@ output "storage_box_id" {
 output "storage_box_password" {
   description = "Mot de passe du Storage Box Hetzner"
   value       = random_password.storage_box_password.result
-  sensitive = true
+  sensitive   = true
 }
 
 output "storage_box_ssh_private_key" {
   description = "Clé privée SSH pour accéder à la Storage Box Hetzner"
   value       = tls_private_key.storage_box.private_key_pem
-  sensitive = true
+  sensitive   = true
 }
 
 output "storage_box_ssh_public_key" {

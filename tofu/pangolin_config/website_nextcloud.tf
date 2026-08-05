@@ -1,9 +1,9 @@
 resource "pangolin_resource" "nextcloud" {
-  name      = "nextcloud"
-  subdomain = null
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = false
+  name        = "nextcloud"
+  subdomain   = null
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = false
   apply_rules = true
 }
 

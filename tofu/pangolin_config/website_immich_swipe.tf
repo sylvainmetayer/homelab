@@ -1,9 +1,9 @@
 resource "pangolin_resource" "immich_swipe" {
-  name      = "Immich Swipe"
-  subdomain = "swipe-photos"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Immich Swipe"
+  subdomain   = "swipe-photos"
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 

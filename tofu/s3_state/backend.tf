@@ -4,7 +4,7 @@ terraform {
       s3 = "https://s3.eu-west-par.io.cloud.ovh.net"
     }
     bucket                      = "homelab-tf-state-sylvain"
-    key                         = "homelab/proxmox.tfstate"
+    key                         = "homelab/s3_state.tfstate"
     region                      = "eu-west-par"
     skip_region_validation      = true
     skip_credentials_validation = true

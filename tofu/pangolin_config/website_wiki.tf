@@ -1,9 +1,9 @@
 resource "pangolin_resource" "wiki" {
-  name      = "Wiki (Bookstack)"
-  subdomain = "wiki"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Wiki (Bookstack)"
+  subdomain   = "wiki"
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 

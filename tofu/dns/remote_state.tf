@@ -4,9 +4,9 @@ data "terraform_remote_state" "pangolin" {
     endpoints = {
       s3 = var.s3_endpoint
     }
-    bucket                      = "homelab-state"
+    bucket                      = "homelab-tf-state-sylvain"
     key                         = "homelab/pangolin.tfstate"
-    region                      = "nbg1"
+    region                      = "eu-west-par"
     skip_region_validation      = true
     skip_credentials_validation = true
     use_path_style              = true

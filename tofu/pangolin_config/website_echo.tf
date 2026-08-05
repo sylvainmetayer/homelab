@@ -1,9 +1,9 @@
 resource "pangolin_resource" "echo" {
-  name      = "Echo"
-  subdomain = "echo"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Echo"
+  subdomain   = "echo"
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 
