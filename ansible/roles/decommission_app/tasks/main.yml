@@ -28,7 +28,7 @@
 
 - name: Destroy the remote Borg repository (irreversible, no more restore points)
   become: true
-  when: decommission_app_destroy_remote_backup
+  when: decommission_app_destroy_remote_backup | bool
   ansible.builtin.command:
     cmd: >-
       /root/.local/bin/borgmatic
@@ -46,6 +46,7 @@
     state: absent
 
 - name: Remove app data directory
+  become: true
   when: decommission_app_remove_data
   ansible.builtin.file:
     path: "{{ decommission_app_base_path }}"

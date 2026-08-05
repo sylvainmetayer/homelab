@@ -1,6 +1,0 @@
----
-- name: Restart sparky_fitness
-  ansible.builtin.systemd:
-    name: dc@sparky_fitness
-    scope: user
-    state: restarted

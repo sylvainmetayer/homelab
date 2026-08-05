@@ -26,7 +26,7 @@ access to the resource created below.
 
 ## 2. Create/extend `tofu/pangolin_config/website_<service>.tf`
 
-Model it on `tofu/pangolin_config/website_sparky_fitness.tf` (simple,
+Model it on `tofu/pangolin_config/website_gramps.tf` (simple,
 single-target) or `tofu/pangolin_config/website_flip_planning.tf`
 (multi-target, path-based sub-routing):
 

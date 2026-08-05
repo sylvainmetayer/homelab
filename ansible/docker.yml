@@ -39,7 +39,6 @@
         semaphore_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_semaphore_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         flip_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
-        sparky_fitness_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_sparky_fitness_url.value | default('') }}"
         homelable_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homelable_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
@@ -80,8 +79,6 @@
       tags: paperless,app
     - role: flip_planning
       tags: flip_planning,app
-    - role: sparky_fitness
-      tags: sparky_fitness,app
     - role: homelable
       tags: homelable,app
     - role: gramps

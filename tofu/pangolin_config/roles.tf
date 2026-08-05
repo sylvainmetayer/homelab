@@ -13,7 +13,6 @@ locals {
     "wiki",
     "paperless",
     "flip-planning",
-    "sparky-fitness",
     "homelable",
     "gramps",
     "dawarich"

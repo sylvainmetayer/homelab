@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A personal homelab infrastructure-as-code project (French comments/docs, English code). It provisions and configures two deployment targets:
 
 1. **Pangolin** — a Hetzner Cloud VM running Pangolin Zero Trust (Traefik-based reverse proxy / tunnel), provisioned by `tofu/pangolin` and configured by `ansible/pangolin.yaml`.
-2. **Proxmox** — a local Docker VM (+ a Newt LXC container) provisioned by `tofu/proxmox` and configured by `ansible/docker.yml`, running all the self-hosted apps (Nextcloud, Immich, Paperless-ngx, Monica, Wiki.js-style wiki, RSS reader, SearXNG, Semaphore, Betisier, Meerkat CRM, Flip Planning, SparkyFitness, Homelable, etc.).
+2. **Proxmox** — a local Docker VM (+ a Newt LXC container) provisioned by `tofu/proxmox` and configured by `ansible/docker.yml`, running all the self-hosted apps (Nextcloud, Immich, Paperless-ngx, Monica, Wiki.js-style wiki, RSS reader, SearXNG, Semaphore, Betisier, Meerkat CRM, Flip Planning, Homelable, etc.).
 
 There's also a Raspberry Pi (`ansible/pi.yml`, Immich) and a Hetzner Storage Box used purely as an Ansible group (`backups`) for remote backup folder provisioning.
 
@@ -109,7 +109,7 @@ current checklist — it also delegates to **`pangolin-route`** and
 **`homelab-reviewer`** agent to sanity-check the resulting diff before
 `tofu apply`/`ansible-playbook`. Summary:
 
-- Role skeleton: `defaults/`, `handlers/`, `tasks/`, `templates/` under `ansible/roles/<service>/`. `ansible/roles/sparky_fitness` and `ansible/roles/homelable` are the most current reference implementations.
+- Role skeleton: `defaults/`, `handlers/`, `tasks/`, `templates/` under `ansible/roles/<service>/`. `ansible/roles/gramps` and `ansible/roles/homelable` are the most current reference implementations.
 - Compose file is always named `compose.yaml` (not `docker-compose.yml`).
 - **Public HTTP routing is entirely OpenTofu-managed, not Docker labels.** Each exposed app gets a `tofu/pangolin_config/website_<service>.tf` defining a `pangolin_resource` + `pangolin_target` (+ SSO role binding + Uptime Kuma monitors) against the Pangolin provider — Newt only reads the Docker socket to confirm the container is on its network, it doesn't parse any `pangolin.public-resources.*` labels (an earlier pattern, no longer used anywhere in this repo). The container must join the external `newt` Docker network (created by the `newt` role) for Pangolin to reach it. If the app has its own DB, put the DB on a second, internal, service-named network — never on `newt`. Two easy-to-miss details: every `pangolin_target` needs `hc_hostname` set explicitly (not inferred from `ip`), and multi-target path routing needs the catch-all `"/"` at the *lowest* `priority` number, not the highest.
 - PUID/PGID come from `ansible_facts['user_uid']`/`user_gid'`, not hardcoded.
