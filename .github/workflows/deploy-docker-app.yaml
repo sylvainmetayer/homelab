@@ -228,5 +228,14 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
+          # Restore the runner's own resolver before tearing down OLM: the
+          # "Point host DNS at OLM tunnel" step overwrote /etc/resolv.conf to
+          # point solely at OLM's DNS proxy, replacing the symlink to
+          # systemd-resolved's stub. Left in place after OLM is killed, the
+          # runner is stuck with a dead resolver, which can hang the runner
+          # agent's own post-job network calls (log upload, job completion)
+          # indefinitely even though every step above reported success.
+          sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
           docker stop -t 0 olm || true
           rm -f "$HOME/.ssh/ci_deploy_key"
