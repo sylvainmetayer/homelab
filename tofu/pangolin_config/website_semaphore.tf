@@ -1,9 +1,9 @@
 resource "pangolin_resource" "semaphore" {
-  name      = "Semaphore"
-  subdomain = "console"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Semaphore"
+  subdomain   = "console"
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 

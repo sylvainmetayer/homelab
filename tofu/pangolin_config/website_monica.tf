@@ -1,9 +1,9 @@
 resource "pangolin_resource" "monica" {
-  name      = "Monica CRM"
-  subdomain = "crm"
-  domain_id = local.domain_ids["sylvain.dev"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Monica CRM"
+  subdomain   = "crm"
+  domain_id   = local.domain_ids["sylvain.dev"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 

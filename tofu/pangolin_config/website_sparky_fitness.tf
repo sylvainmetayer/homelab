@@ -20,7 +20,7 @@ resource "pangolin_target" "sparky_fitness" {
   method      = "http"
 
   hc_enabled             = true
-  hc_hostname                = "sparkyfitness-frontend"
+  hc_hostname            = "sparkyfitness-frontend"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200

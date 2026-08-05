@@ -1,9 +1,9 @@
 resource "pangolin_resource" "betisier" {
-  name      = "Betisier"
-  subdomain = "betisier"
-  domain_id = local.domain_ids["sylvain.dev"]
-  protocol  = "tcp"
-  sso       = false
+  name        = "Betisier"
+  subdomain   = "betisier"
+  domain_id   = local.domain_ids["sylvain.dev"]
+  protocol    = "tcp"
+  sso         = false
   apply_rules = true
 }
 

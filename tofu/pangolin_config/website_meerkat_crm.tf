@@ -1,9 +1,9 @@
 resource "pangolin_resource" "meerkat_crm" {
-  name      = "Meerkat CRM"
-  subdomain = "crm"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+  name        = "Meerkat CRM"
+  subdomain   = "crm"
+  domain_id   = local.domain_ids["sylvain.cloud"]
+  protocol    = "tcp"
+  sso         = true
   apply_rules = true
 }
 

@@ -10,6 +10,6 @@ output "debian_13_ip_address" {
 
 # user = root
 output "lxc_password" {
-  value = random_password.newt_password.result
+  value     = random_password.newt_password.result
   sensitive = true
 }
