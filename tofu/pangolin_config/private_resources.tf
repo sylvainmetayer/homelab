@@ -16,11 +16,6 @@ resource "pangolin_site_resource" "app_proxy" {
   destination_port = 80
 }
 
-# These two already existed on the live server (created outside of Tofu) -
-# adopted here via `tofu import` so the OLM-client access grants below can
-# reference them. Both are raw L4 tunnels off the proxmox-lxc site's Newt
-# agent (which has LAN visibility), not off the docker/pi sites themselves -
-# same pattern as the BBOX resource above.
 resource "pangolin_site_resource" "docker_apps" {
   site_id        = pangolin_site.proxmox_lxc.id
   name           = "Docker Apps"
@@ -39,18 +34,10 @@ resource "pangolin_site_resource" "pi" {
   alias          = "pi.internal"
   destination    = "192.168.1.96"
   disable_icmp   = false
-  tcp_port_range = "*"
+  tcp_port_range = "22"
   udp_port_range = "*"
 }
 
-# Tofu-managed replacement for the manually-created "runner" OLM client
-# (id 6) that GitHub Actions CI currently authenticates as. The API only
-# returns a client's secret at creation time (it can't be read back on
-# import), so - like tls_private_key.ci_deploy in tofu/github/ssh_key.tf -
-# regenerating this resource rotates CI's OLM credentials on the next
-# apply. After a successful apply + a green CI run on the new credentials,
-# archive/delete the old "runner" client (id 6) from the Pangolin
-# dashboard; it's superseded by this one.
 resource "pangolin_client" "ci_runner" {
   name = "ci-runner"
 }
