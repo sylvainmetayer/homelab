@@ -201,5 +201,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop olm || true
+          docker stop -t 0 olm || true
           rm -f "$HOME/.ssh/ci_deploy_key"
