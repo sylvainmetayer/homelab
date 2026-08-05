@@ -43,17 +43,39 @@ resource "pangolin_site_resource" "pi" {
   udp_port_range = "*"
 }
 
+# Tofu-managed replacement for the manually-created "runner" OLM client
+# (id 6) that GitHub Actions CI currently authenticates as. The API only
+# returns a client's secret at creation time (it can't be read back on
+# import), so - like tls_private_key.ci_deploy in tofu/github/ssh_key.tf -
+# regenerating this resource rotates CI's OLM credentials on the next
+# apply. After a successful apply + a green CI run on the new credentials,
+# archive/delete the old "runner" client (id 6) from the Pangolin
+# dashboard; it's superseded by this one.
+resource "pangolin_client" "ci_runner" {
+  name = "ci-runner"
+}
+
+output "ci_olm_id" {
+  description = "OLM ID for the CI's Tofu-managed OLM client. Consumed by tofu/github to set the OLM_ID Actions secret."
+  value       = pangolin_client.ci_runner.olm_id
+}
+
+output "ci_olm_secret" {
+  description = "OLM secret for the CI's Tofu-managed OLM client. Consumed by tofu/github to set the OLM_SECRET Actions secret."
+  value       = pangolin_client.ci_runner.secret
+  sensitive   = true
+}
+
 # Pangolin denies DNS resolution / access to a private site resource unless
 # the connecting OLM client is explicitly granted it - a missing grant here
 # is why the CI runner's OLM tunnel can resolve one of these aliases but not
-# the other. client_id is the CI's OLM client (the one identified by the
-# OLM_ID/OLM_SECRET GitHub Actions secrets).
+# the other.
 resource "pangolin_site_resource_client" "docker_apps_ci" {
-  client_id        = var.ci_olm_client_id
+  client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.docker_apps.id
 }
 
 resource "pangolin_site_resource_client" "pi_ci" {
-  client_id        = var.ci_olm_client_id
+  client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.pi.id
 }
