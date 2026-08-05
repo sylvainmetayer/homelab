@@ -81,7 +81,12 @@ jobs:
 
       - name: Install ansible + deps
         if: steps.resolve-tags.outputs.tags != ''
-        run: pip install --quiet ansible boto3 botocore passlib
+        # ansible-core is pinned: unpinned installs have hit a Python 3.12.13
+        # argparse regression that crashes the ssh connection plugin's TTY
+        # detection during "Gathering Facts" (argparse.ArgumentError: argument
+        # -o: expected one argument). 2.20.1 matches the version already
+        # verified to work in this repo's local .venv.
+        run: pip install --quiet ansible-core==2.20.1 boto3 botocore passlib
 
       - name: Install sops
         if: steps.resolve-tags.outputs.tags != ''
