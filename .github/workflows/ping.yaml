@@ -145,4 +145,10 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop olm || true
+          # See deploy-docker-app.yaml's Cleanup step: without restoring the
+          # resolver, the runner is left with a dead DNS server after OLM is
+          # killed, which can hang the runner agent's own post-job network
+          # calls indefinitely even though every step above succeeded.
+          sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+          docker stop -t 0 olm || true
