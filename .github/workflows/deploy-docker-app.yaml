@@ -70,7 +70,7 @@ jobs:
           python-version: "3.14"
 
       - name: Cache pip packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/deploy-docker-app.yaml') }}
@@ -122,7 +122,7 @@ jobs:
 
       - name: Cache ansible-galaxy roles and collections
         if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ansible/galaxy_roles
