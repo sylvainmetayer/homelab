@@ -17,6 +17,7 @@
 
     - name: Read Terraform state from S3 bucket
       delegate_to: localhost
+      tags: always
       amazon.aws.s3_object:
         mode: getstr
         bucket: "{{ tfstate_bucket }}"
@@ -27,6 +28,7 @@
       register: terraform_state_raw
 
     - name: Load healthcheck URLs from Terraform state outputs
+      tags: always
       ansible.builtin.set_fact:
         immich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_immich_url.value | default('') }}"
       vars:

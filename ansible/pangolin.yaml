@@ -8,11 +8,13 @@
 
   pre_tasks:
     - name: Load secrets from SOPS
+      tags: always
       community.sops.load_vars:
         file: "{{ playbook_dir }}/secrets.sops.yaml"
         expressions: evaluate-on-load
 
     - name: Read Terraform state from S3 bucket
+      tags: always
       delegate_to: localhost
       amazon.aws.s3_object:
         mode: getstr
@@ -24,6 +26,7 @@
       register: terraform_state_raw
 
     - name: Load Pangolin backup healthcheck URL from Terraform state outputs
+      tags: always
       ansible.builtin.set_fact:
         pangolin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pangolin_url.value | default('') }}"
       vars:
