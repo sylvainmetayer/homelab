@@ -59,8 +59,8 @@ Le state OpenTofu de chaque stack (`tofu/dns`, `tofu/pangolin`, `tofu/pangolin_c
    state). Ce stack utilise la ressource native `ovh_cloud_project_storage` du
    provider `ovh` (et non le provider `aws`) pour créer le bucket Object Storage
    `homelab-tf-state-sylvain`.
-   - Renseigner `ovh_service_name` (l'ID du projet Public Cloud OVH) dans
-     `tofu/s3_state/terraform.tfvars`.
+   - Renseigner `OVH_CLOUD_PROJECT_ID` (l'ID du projet Public Cloud OVH) dans
+     `secrets.sops.yaml` (`sops secrets.sops.yaml`) — lu par `tofu/s3_state/secrets.tf`.
    - Appliquer le stack :
      ```bash
      cd tofu/s3_state
@@ -82,10 +82,10 @@ Le state OpenTofu de chaque stack (`tofu/dns`, `tofu/pangolin`, `tofu/pangolin_c
    ```hcl
    terraform {
      backend "s3" {
-       endpoints = { s3 = "https://s3.gra.io.cloud.ovh.net" }
+       endpoints = { s3 = "https://s3.eu-west-par.io.cloud.ovh.net" }
        bucket                      = "homelab-tf-state-sylvain"
        key                         = "homelab/pangolin.tfstate" # inchangé
-       region                      = "gra"
+       region                      = "eu-west-par"
        skip_region_validation      = true
        skip_credentials_validation = true
        use_path_style              = true

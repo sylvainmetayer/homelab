@@ -1,8 +1,3 @@
-variable "ovh_service_name" {
-  description = "ID du projet Public Cloud OVH (Object Storage)"
-  type        = string
-}
-
 variable "bucket_name" {
   description = "Nom du bucket S3 OVH utilisé comme backend de state Terraform/OpenTofu"
   type        = string
@@ -10,7 +5,7 @@ variable "bucket_name" {
 }
 
 variable "region_name" {
-  description = "Région OVH Object Storage (ex: GRA, SBG, DE, UK)"
+  description = "Région OVH Object Storage. Doit être une région 3-AZ (ex: EU-WEST-PAR) pour que le bucket soit répliqué sur 3 zones de disponibilité ; les régions classiques (GRA, SBG, DE, UK...) ne sont que sur 1 AZ."
   type        = string
-  default     = "GRA"
+  default     = "EU-WEST-PAR"
 }

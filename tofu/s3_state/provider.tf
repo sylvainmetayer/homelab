@@ -6,6 +6,10 @@ terraform {
       source  = "ovh/ovh"
       version = "< 3.0.0"
     }
+    sops = {
+      source  = "carlpett/sops"
+      version = "~> 1.3"
+    }
   }
 }
 
