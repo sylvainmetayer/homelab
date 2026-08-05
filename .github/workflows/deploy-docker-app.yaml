@@ -184,11 +184,15 @@ jobs:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
           TAGS: ${{ steps.resolve-tags.outputs.tags }}
         run: |
+          # Extra vars are passed as a JSON object, not the flat "key=value"
+          # shorthand: ansible's own key=value CLI parser re-splits on
+          # whitespace, which silently truncated ansible_ssh_common_args to
+          # just "-o" (everything after the first space, including the second
+          # -o flag, was dropped and misparsed as unrelated top-level vars).
           ansible-playbook docker.yml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e ansible_ssh_private_key_file="$HOME/.ssh/ci_deploy_key" \
-            -e ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
 
       - name: No matching role changed
         if: steps.resolve-tags.outputs.tags == ''
