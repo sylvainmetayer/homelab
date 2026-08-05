@@ -7,6 +7,7 @@ on:
     paths:
       - ansible/docker.yml
       - ansible/pi.yml
+      - ansible/pangolin.yaml
       - ansible/roles/**
   workflow_dispatch:
     inputs:
@@ -15,10 +16,11 @@ on:
         required: false
         type: choice
         options:
-          - both
+          - all
           - docker
           - pi
-        default: both
+          - pangolin
+        default: all
       tags:
         description: "Comma-separated ansible tags/roles to force (skips auto-detection)"
         required: false
@@ -96,34 +98,40 @@ jobs:
           pip install --quiet pyyaml
 
           if [ -n "$INPUT_TAGS" ]; then
-            # A manually forced tag list defaults to both playbooks; pick
-            # "docker" or "pi" in the dispatch form to target just one.
-            # ansible-playbook --tags with no matching task is a no-op, so
-            # forcing e.g. "immich" on both just runs nothing on docker.yml.
+            # A manually forced tag list defaults to all playbooks; pick
+            # "docker", "pi", or "pangolin" in the dispatch form to target
+            # just one. ansible-playbook --tags with no matching task is a
+            # no-op, so forcing e.g. "immich" on all just runs nothing on
+            # docker.yml/pangolin.yaml.
             docker_tags=""
             pi_tags=""
+            pangolin_tags=""
             case "$INPUT_PLAYBOOK" in
               docker) docker_tags="$INPUT_TAGS" ;;
               pi) pi_tags="$INPUT_TAGS" ;;
-              *) docker_tags="$INPUT_TAGS"; pi_tags="$INPUT_TAGS" ;;
+              pangolin) pangolin_tags="$INPUT_TAGS" ;;
+              *) docker_tags="$INPUT_TAGS"; pi_tags="$INPUT_TAGS"; pangolin_tags="$INPUT_TAGS" ;;
             esac
             echo "docker_tags=$docker_tags" >> "$GITHUB_OUTPUT"
             echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
+            echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          result="$(printf '%s\n' "$CHANGED_FILES" | python3 .github/scripts/resolve_docker_tags.py ansible/docker.yml ansible/pi.yml)"
+          result="$(printf '%s\n' "$CHANGED_FILES" | python3 .github/scripts/resolve_docker_tags.py ansible/docker.yml ansible/pi.yml ansible/pangolin.yaml)"
           echo "Resolved: $result"
 
           docker_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/docker.yml"])' "$result")"
           pi_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/pi.yml"])' "$result")"
+          pangolin_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/pangolin.yaml"])' "$result")"
 
           echo "docker_tags=$docker_tags" >> "$GITHUB_OUTPUT"
           echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
+          echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Install ansible + deps
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         # ansible-core is pinned: unpinned installs have hit a Python 3.12.13
         # argparse regression that crashes the ssh connection plugin's TTY
         # detection during "Gathering Facts" (argparse.ArgumentError: argument
@@ -132,14 +140,14 @@ jobs:
         run: pip install --quiet ansible-core==2.20.1 boto3 botocore passlib
 
       - name: Install sops
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         run: |
           version="$(curl -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
           curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
           chmod +x /usr/local/bin/sops
 
       - name: Cache ansible-galaxy roles and collections
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         uses: actions/cache@v6
         with:
           path: |
@@ -148,7 +156,7 @@ jobs:
           key: ${{ runner.os }}-ansible-galaxy-${{ hashFiles('ansible/requirements.yml') }}
 
       - name: Install ansible roles and collections
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         working-directory: ansible
         # No --force: with the cache above restored, an already-satisfied
         # requirement is skipped instead of being re-downloaded every run.
@@ -157,13 +165,13 @@ jobs:
           ansible-galaxy collection install -r requirements.yml
 
       - name: Install network tools
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y dnsutils
 
       - name: Start OLM
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         env:
           PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
           OLM_ID: ${{ secrets.OLM_ID }}
@@ -181,7 +189,7 @@ jobs:
             fosrl/olm
 
       - name: Wait OLM startup
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         shell: bash
         run: |
           for i in {1..20}; do
@@ -205,13 +213,13 @@ jobs:
       # See .github/workflows/ping.yaml for why the runner's own resolver
       # needs to be pointed at the OLM DNS proxy directly.
       - name: Point host DNS at OLM tunnel
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         run: |
           sudo rm -f /etc/resolv.conf
           echo "nameserver 100.96.128.1" | sudo tee /etc/resolv.conf > /dev/null
 
       - name: Set up deploy SSH key
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -220,18 +228,24 @@ jobs:
           chmod 600 "$HOME/.ssh/ci_deploy_key"
 
       - name: Write CI inventory
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != ''
+        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != ''
         working-directory: ansible
         run: |
-          # inventory_hostname must stay "docker"/"pi" so host_vars/docker/*
-          # and host_vars/pi/* still apply; only the connection address is
-          # overridden to reach each host through the OLM tunnel.
+          # inventory_hostname must stay "docker"/"pi"/"pangolin" so
+          # host_vars/docker/*, host_vars/pi/*, host_vars/pangolin/* still
+          # apply; only the connection address is overridden. docker/pi are
+          # only reachable through the OLM tunnel's private mesh; pangolin
+          # is the mesh's own server, so it's reached directly over its
+          # public DNS name instead.
           cat > ci-inventory.ini << 'EOF'
           [docker]
           docker ansible_host=docker-apps.internal
 
           [pi]
           pi ansible_host=pi.internal
+
+          [pangolin]
+          pangolin ansible_host=pangolin.sylvain.cloud
           EOF
 
       - name: Deploy docker
@@ -263,9 +277,21 @@ jobs:
             --tags "$TAGS" \
             -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
 
+      - name: Deploy pangolin
+        if: steps.resolve-tags.outputs.pangolin_tags != ''
+        working-directory: ansible
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+          TAGS: ${{ steps.resolve-tags.outputs.pangolin_tags }}
+        run: |
+          ansible-playbook pangolin.yaml \
+            -i ci-inventory.ini \
+            --tags "$TAGS" \
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
+
       - name: No matching role changed
-        if: steps.resolve-tags.outputs.docker_tags == '' && steps.resolve-tags.outputs.pi_tags == ''
-        run: echo "No ansible/roles/** change mapped to a docker.yml or pi.yml tag, nothing to deploy."
+        if: steps.resolve-tags.outputs.docker_tags == '' && steps.resolve-tags.outputs.pi_tags == '' && steps.resolve-tags.outputs.pangolin_tags == ''
+        run: echo "No ansible/roles/** change mapped to a docker.yml, pi.yml, or pangolin.yaml tag, nothing to deploy."
 
       - name: Cleanup
         if: always()
