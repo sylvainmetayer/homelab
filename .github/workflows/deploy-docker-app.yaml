@@ -14,6 +14,14 @@ on:
         required: false
         default: ""
 
+# Pangolin's OLM VPN rejects a second concurrent connection with the same
+# credentials, so runs must be serialized rather than run in parallel.
+# cancel-in-progress: false queues later runs instead of cancelling earlier
+# ones, so every push still gets deployed.
+concurrency:
+  group: deploy-docker-app
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: deploy-docker-app
