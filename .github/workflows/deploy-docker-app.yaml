@@ -1,0 +1,196 @@
+name: Deploy changed docker app
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ansible/docker.yml
+      - ansible/roles/**
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Comma-separated ansible tags to force (skips auto-detection)"
+        required: false
+        default: ""
+
+jobs:
+  deploy:
+    name: deploy-docker-app
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed files
+        id: changed-files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "files=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+            # New branch or force-push with an unknown base: fall back to the last commit only.
+            files="$(git show --name-only --pretty=format: "$AFTER_SHA")"
+          else
+            files="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+          fi
+
+          echo "$files"
+          delimiter="EOF_$(date +%s%N)"
+          {
+            echo "files<<$delimiter"
+            echo "$files"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve ansible tags
+        id: resolve-tags
+        env:
+          INPUT_TAGS: ${{ inputs.tags }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+        run: |
+          pip install --quiet pyyaml
+
+          if [ -n "$INPUT_TAGS" ]; then
+            echo "tags=$INPUT_TAGS" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          tags="$(printf '%s\n' "$CHANGED_FILES" | python3 .github/scripts/resolve_docker_tags.py ansible/docker.yml)"
+
+          echo "Resolved tags: $tags"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Install ansible + deps
+        if: steps.resolve-tags.outputs.tags != ''
+        run: pip install --quiet ansible boto3 botocore passlib
+
+      - name: Install sops
+        if: steps.resolve-tags.outputs.tags != ''
+        run: |
+          version="$(curl -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+          curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
+          chmod +x /usr/local/bin/sops
+
+      - name: Install ansible roles and collections
+        if: steps.resolve-tags.outputs.tags != ''
+        working-directory: ansible
+        run: |
+          ansible-galaxy role install -r requirements.yml --force
+          ansible-galaxy collection install -r requirements.yml --force
+
+      - name: Install network tools
+        if: steps.resolve-tags.outputs.tags != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y dnsutils
+
+      - name: Start OLM
+        if: steps.resolve-tags.outputs.tags != ''
+        env:
+          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
+          OLM_ID: ${{ secrets.OLM_ID }}
+          OLM_SECRET: ${{ secrets.OLM_SECRET }}
+        run: |
+          docker run -d --rm \
+            --name olm \
+            --network host \
+            --cap-add=NET_ADMIN \
+            --device /dev/net/tun:/dev/net/tun \
+            -e PANGOLIN_ENDPOINT="$PANGOLIN_ENDPOINT" \
+            -e OLM_ID="$OLM_ID" \
+            -e OLM_SECRET="$OLM_SECRET" \
+            -e OVERRIDE_DNS=true \
+            fosrl/olm
+
+      - name: Wait OLM startup
+        if: steps.resolve-tags.outputs.tags != ''
+        shell: bash
+        run: |
+          for i in {1..20}; do
+            echo "Check $i/20"
+
+            if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+              echo "DNS proxy started"
+              break
+            fi
+
+            docker logs --tail 5 olm || true
+            sleep 2
+          done
+
+          if ! docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+            echo "OLM startup failed"
+            docker logs olm
+            exit 1
+          fi
+
+      # See .github/workflows/ping.yaml for why the runner's own resolver
+      # needs to be pointed at the OLM DNS proxy directly.
+      - name: Point host DNS at OLM tunnel
+        if: steps.resolve-tags.outputs.tags != ''
+        run: |
+          sudo rm -f /etc/resolv.conf
+          echo "nameserver 100.96.128.1" | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Set up deploy SSH key
+        if: steps.resolve-tags.outputs.tags != ''
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/ci_deploy_key"
+          chmod 600 "$HOME/.ssh/ci_deploy_key"
+
+      - name: Write CI inventory
+        if: steps.resolve-tags.outputs.tags != ''
+        working-directory: ansible
+        run: |
+          # inventory_hostname must stay "docker" so host_vars/docker/*
+          # still applies; only the connection address is overridden to
+          # reach the host through the OLM tunnel.
+          cat > ci-inventory.ini << 'EOF'
+          [docker]
+          docker ansible_host=docker-apps.internal
+          EOF
+
+      - name: Deploy
+        if: steps.resolve-tags.outputs.tags != ''
+        working-directory: ansible
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+          TAGS: ${{ steps.resolve-tags.outputs.tags }}
+        run: |
+          ansible-playbook docker.yml \
+            -i ci-inventory.ini \
+            --tags "$TAGS" \
+            -e ansible_ssh_private_key_file="$HOME/.ssh/ci_deploy_key" \
+            -e ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+      - name: No matching role changed
+        if: steps.resolve-tags.outputs.tags == ''
+        run: echo "No ansible/roles/** change mapped to a docker.yml tag, nothing to deploy."
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop olm || true
+          rm -f "$HOME/.ssh/ci_deploy_key"
