@@ -50,7 +50,7 @@ services:
       - gramps
 
   grampsweb_redis:
-    image: docker.io/valkey/valkey:8-alpine@sha256:a038175878d66b9d274fbf8be73c0305e93798b83917647f167e18cef3c71eec
+    image: docker.io/valkey/valkey:9-alpine@sha256:ee91f7a174ac4d6a6b0685b3a60e321f0a9dbbb691f9b0e285be2ba1d1be8328
     container_name: grampsweb_redis
     restart: unless-stopped
     volumes:
