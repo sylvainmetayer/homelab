@@ -1,0 +1,67 @@
+---
+- name: Ensure scanopy app folders exist
+  become: true
+  loop:
+    - "{{ scanopy_base_path }}"
+    - "{{ scanopy_base_path }}/daemon-config"
+    - "{{ scanopy_base_path }}/postgresql"
+    - "{{ scanopy_base_path }}/data"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart scanopy
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ scanopy_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart scanopy
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ scanopy_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Scanopy
+  when: scanopy_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Scanopy
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-scanopy.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/scanopy.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Scanopy
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/scanopy.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: scanopy_borg_repo_create
+      changed_when: "'repository already exists' not in scanopy_borg_repo_create.stderr"
+      failed_when: >
+        scanopy_borg_repo_create.rc != 0 and
+        'repository already exists' not in scanopy_borg_repo_create.stderr
+
+- name: Make sure scanopy service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@scanopy
+    scope: user
+    enabled: true
