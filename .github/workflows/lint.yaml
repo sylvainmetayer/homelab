@@ -1,0 +1,78 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/lint.yaml
+      - ansible/**
+      - tofu/**
+      - pyproject.toml
+      - mise.toml
+  workflow_dispatch:
+
+jobs:
+  ansible:
+    name: Ansible lint
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install ansible + deps
+        run: pip install --quiet ansible-core==2.20.1 ansible-lint boto3 botocore passlib
+
+      - name: Install ansible roles and collections
+        working-directory: ansible
+        run: |
+          ansible-galaxy role install -r requirements.yml
+          ansible-galaxy collection install -r requirements.yml
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        run: ansible-lint
+
+  tofu:
+    name: OpenTofu lint
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+
+      - name: Check formatting
+        run: tofu fmt -check -recursive tofu
+
+      - name: Validate modules
+        run: |
+          modules=(
+            tofu/pangolin
+            tofu/proxmox
+            tofu/pangolin_config
+            tofu/dns
+            tofu/github
+            tofu/s3_state
+          )
+
+          for module in "${modules[@]}"; do
+            echo "Validating $module"
+            tofu -chdir="$module" init -backend=false -input=false
+            tofu -chdir="$module" validate -no-color
+          done
