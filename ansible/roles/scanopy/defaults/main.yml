@@ -1,0 +1,11 @@
+---
+scanopy_base_path: "{{ docker_base_path }}/scanopy"
+scanopy_domain: scan.sylvain.cloud
+scanopy_log_level: info
+scanopy_postgres_password: "{{ (backup_passphrase ~ '-scanopy-postgres') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+scanopy_backup_enabled: true
+scanopy_backup_borgmatic_target: ""
+scanopy_backup_encryption_passphrase: ""
+scanopy_backup_healthcheck_url: ""
