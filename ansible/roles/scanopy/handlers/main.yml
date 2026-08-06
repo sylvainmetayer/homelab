@@ -1,0 +1,7 @@
+---
+- name: Restart scanopy
+  ansible.builtin.systemd:
+    name: dc@scanopy
+    scope: user
+    state: restarted
+    daemon_reload: true

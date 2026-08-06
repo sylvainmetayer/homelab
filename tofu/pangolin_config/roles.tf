@@ -15,7 +15,8 @@ locals {
     "flip-planning",
     "homelable",
     "gramps",
-    "dawarich"
+    "dawarich",
+    "scanopy"
   ]
 }
 
