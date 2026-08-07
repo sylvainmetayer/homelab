@@ -16,7 +16,8 @@ locals {
     "homelable",
     "gramps",
     "dawarich",
-    "scanopy"
+    "scanopy",
+    "trek"
   ]
 }
 
