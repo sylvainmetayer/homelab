@@ -10,6 +10,8 @@ services:
       DB_PASSWORD: {{ flip_planning_db_password }}
       HTTP_PORT: 8080
       TZ: Europe/Paris
+      SENTRY_DSN: https://e80c2fb7991244f293e4319b7e3d74ba@sylvainmetayer.bugsink.com/1
+      SENTRY_ENVIRONMENT: production
     depends_on:
       postgres:
         condition: service_healthy
