@@ -12,6 +12,8 @@ services:
       TZ: Europe/Paris
       SENTRY_DSN: https://e80c2fb7991244f293e4319b7e3d74ba@sylvainmetayer.bugsink.com/1
       SENTRY_ENVIRONMENT: production
+      POSTHOG_API_KEY: phc_B9Zo9ZGVHohsBjMZErEzemPLmQbh3iCbEVZrwqN72NLM
+      POSTHOG_HOST: https://eu.i.posthog.com
     depends_on:
       postgres:
         condition: service_healthy
