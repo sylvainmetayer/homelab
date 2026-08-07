@@ -1,0 +1,6 @@
+---
+- name: Restart actualbudget
+  ansible.builtin.systemd:
+    name: dc@actualbudget
+    scope: user
+    state: restarted
