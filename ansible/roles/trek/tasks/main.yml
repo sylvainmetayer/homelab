@@ -1,0 +1,65 @@
+---
+- name: Ensure Trek app folders exist
+  loop:
+    - "{{ trek_base_path }}"
+    - "{{ trek_base_path }}/data"
+    - "{{ trek_base_path }}/uploads"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart trek
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ trek_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart trek
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ trek_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Trek
+  when: trek_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Trek
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-trek.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/trek.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Trek
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/trek.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: trek_borg_repo_create
+      changed_when: "'repository already exists' not in trek_borg_repo_create.stderr"
+      failed_when: >
+        trek_borg_repo_create.rc != 0 and
+        'repository already exists' not in trek_borg_repo_create.stderr
+
+- name: Make sure trek service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@trek
+    scope: user
+    enabled: true

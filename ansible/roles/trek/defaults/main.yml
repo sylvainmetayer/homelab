@@ -1,0 +1,11 @@
+---
+trek_base_path: "{{ docker_base_path }}/trek"
+trek_domain: travels.sylvain.cloud
+trek_timezone: Europe/Paris
+trek_encryption_key: "{{ (backup_passphrase ~ '-trek-encryption') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+trek_backup_enabled: true
+trek_backup_borgmatic_target: ""
+trek_backup_encryption_passphrase: ""
+trek_backup_healthcheck_url: ""
