@@ -1,0 +1,6 @@
+---
+- name: Restart trek
+  ansible.builtin.systemd:
+    name: dc@trek
+    scope: user
+    state: restarted
