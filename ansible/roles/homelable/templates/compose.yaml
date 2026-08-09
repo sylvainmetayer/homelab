@@ -4,7 +4,7 @@ services:
   # /api and /ws to the hardcoded upstream "backend:8000".
   backend:
     container_name: homelable-backend
-    image: ghcr.io/pouzor/homelable-backend:latest@sha256:1d7ffebcbbc2de6363ce6c46009e6dd59be8603fcba75b0c6d9bc473ab104d81
+    image: ghcr.io/pouzor/homelable-backend:latest@sha256:af3014ab7bd3844b4e07fbcb8132e9a98a30d65d31480d4d328d592f0e68b6aa
     restart: unless-stopped
     env_file:
       - .env.docker
