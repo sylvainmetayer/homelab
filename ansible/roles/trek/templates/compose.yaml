@@ -1,7 +1,7 @@
 ---
 services:
   app:
-    image: docker.io/mauriceboe/trek:latest@sha256:ce7fab639b89a6f62d484d1175a7d489a536a8c77291f56c03fec20608d4a3eb
+    image: docker.io/mauriceboe/trek:latest
     container_name: trek
     read_only: true
     security_opt:

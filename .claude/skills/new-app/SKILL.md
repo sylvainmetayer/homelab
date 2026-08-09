@@ -28,6 +28,8 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   **internal**, service-named network only — never put a database on `newt`.
   Container names matter: they're what the Pangolin target's `ip`/`hc_hostname`
   will reference in step 6.
+  For image references, use the repository policy requested in review: keep the
+  image on `:latest` (no digest pin like `@sha256:...`).
 - `templates/env.j2` (or `env.docker.j2`): templated `.env`, mode `0600`.
 - `templates/borgmatic-<service>.yaml.j2`: **don't write this from generic
   borgmatic docs** — copy the structure from `ansible/roles/betisier/templates/borgmatic-betisier.yaml.j2`
