@@ -16,6 +16,10 @@ image(s), the port to expose, and the subdomain if not already given, then:
 5. Run the validate/apply/deploy sequence from step 7 of the instructions.
 6. Verify per step 8.
 
+When creating `templates/compose.yaml`, keep image references on `:latest`
+without digest pinning (`@sha256:...`) unless the user explicitly asks
+otherwise.
+
 Call out explicitly, before finishing, whether `hc_hostname` was set on every
 new `pangolin_target` and whether any multi-target `priority` values follow
 the catch-all-gets-lowest-number rule — these are the two mistakes this repo
