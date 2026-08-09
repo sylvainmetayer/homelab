@@ -1,7 +1,7 @@
 ---
 services:
   app:
-    image: docker.io/mauriceboe/trek:latest
+    image: docker.io/mauriceboe/trek:3.4.1
     container_name: trek
     read_only: true
     security_opt:
