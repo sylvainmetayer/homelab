@@ -16,9 +16,10 @@ image(s), the port to expose, and the subdomain if not already given, then:
 5. Run the validate/apply/deploy sequence from step 7 of the instructions.
 6. Verify per step 8.
 
-When creating `templates/compose.yaml`, keep image references on `:latest`
-without digest pinning (`@sha256:...`) unless the user explicitly asks
-otherwise.
+When creating `templates/compose.yaml`, use a concrete version tag matching the
+latest available release (for example `:3.4.1`) rather than the floating
+`:latest` tag, and avoid digest pinning (`@sha256:...`) unless the user
+explicitly asks otherwise.
 
 Call out explicitly, before finishing, whether `hc_hostname` was set on every
 new `pangolin_target` and whether any multi-target `priority` values follow
