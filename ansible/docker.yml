@@ -87,10 +87,7 @@
       tags: gramps,app
     - role: dawarich
       tags: dawarich,app
-<<<<<<< HEAD
     - role: scanopy
       tags: scanopy,app
-=======
     - role: trek
       tags: trek,app
->>>>>>> e39bd99 (feat: add TREK app and travels routing)
