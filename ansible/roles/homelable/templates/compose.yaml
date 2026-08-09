@@ -17,7 +17,7 @@ services:
 
   homelable-frontend:
     container_name: homelable-frontend
-    image: ghcr.io/pouzor/homelable-frontend:latest@sha256:3c2fa58a512042bd2a5e07340d6b7d7660fa00591e09e646e0302d47e7911230
+    image: ghcr.io/pouzor/homelable-frontend:latest@sha256:9b638f020bf5c3a010582d2a40e3469b0e073cb06662b76d205931727b7b1ce8
     restart: unless-stopped
     depends_on:
       - backend
