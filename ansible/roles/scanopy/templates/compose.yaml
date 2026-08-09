@@ -1,7 +1,7 @@
 ---
 services:
   scanopy-daemon:
-    image: ghcr.io/scanopy/scanopy/daemon:latest
+    image: ghcr.io/scanopy/scanopy/daemon:v0.17.9
     container_name: scanopy-daemon
     network_mode: host
     privileged: true
@@ -34,7 +34,7 @@ services:
       - scanopy
 
   scanopy-server:
-    image: ghcr.io/scanopy/scanopy/server:latest
+    image: ghcr.io/scanopy/scanopy/server:v0.17.9
     container_name: scanopy-server
     restart: unless-stopped
     ports:
