@@ -31,9 +31,9 @@ email:
   smtp_host: "mail.infomaniak.com"
   smtp_port: 465
   smtp_secure: true
-  smtp_user: "{{ smtp_user }}"
-  smtp_pass: "{{ smtp_pass }}"
-  no_reply: "{{ smtp_user }}"
+  smtp_user: "{{ pangolin_smtp_user }}"
+  smtp_pass: "{{ pangolin_smtp_pass }}"
+  no_reply: "{{ pangolin_smtp_user }}"
 
 flags:
     require_email_verification: true

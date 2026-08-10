@@ -4,7 +4,7 @@ pangolin_dir: /opt/pangolin
 # Deploy Pangolin configuration files (Traefik, config.yml)
 # Set to false when building Packer image (config will be deployed via cloud-init)
 # Set to true when running playbook to update existing server
-deploy_pangolin_config: true
+pangolin_deploy_config: true
 
 # Pangolin configuration variables
 # These should be overridden in host_vars/pangolin/variables.yaml or via secrets
@@ -15,11 +15,11 @@ pangolin_log_level: "info"
 pangolin_secret: ""
 
 # Let's Encrypt email
-le_email: ""
+pangolin_le_email: ""
 
 # SMTP configuration
-smtp_user: ""
-smtp_pass: ""
+pangolin_smtp_user: ""
+pangolin_smtp_pass: ""
 
 # Backup healthcheck URL loaded from Terraform state outputs.
 pangolin_backup_healthcheck_url: ""

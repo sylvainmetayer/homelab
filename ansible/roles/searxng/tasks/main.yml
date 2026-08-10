@@ -59,10 +59,12 @@
 
     - name: Initialize borg repository for SearXNG
       become: true
-      ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/searxng.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
-      register: borg_repo_create
-      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/searxng.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: searxng_borg_repo_create
+      changed_when: "'repository already exists' not in searxng_borg_repo_create.stderr"
       failed_when: >
-        borg_repo_create.rc != 0 and
-        'repository already exists' not in borg_repo_create.stderr
+        searxng_borg_repo_create.rc != 0 and
+        'repository already exists' not in searxng_borg_repo_create.stderr

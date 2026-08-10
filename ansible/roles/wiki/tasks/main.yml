@@ -35,13 +35,15 @@
 
     - name: Initialize borg repository for wiki
       become: true
-      ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/wiki.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
-      register: borg_repo_create
-      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/wiki.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: wiki_borg_repo_create
+      changed_when: "'repository already exists' not in wiki_borg_repo_create.stderr"
       failed_when: >
-        borg_repo_create.rc != 0 and
-        'repository already exists' not in borg_repo_create.stderr
+        wiki_borg_repo_create.rc != 0 and
+        'repository already exists' not in wiki_borg_repo_create.stderr
 
 - name: Make sure wiki service is running
   ansible.builtin.systemd:

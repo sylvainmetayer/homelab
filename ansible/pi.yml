@@ -35,16 +35,16 @@
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
   roles:
-    - name: geerlingguy.docker
+    - role: geerlingguy.docker
       become: true
       tags: setup
-    - name: docker_service
+    - role: docker_service
       tags: setup
-    - name: borgmatic
+    - role: borgmatic
       tags: backup,setup
-    - name: decommission_app
+    - role: decommission_app
       tags: [decommission, never]
-    - name: newt
+    - role: newt
       tags: newt,setup
     # - role: photoprism
     #   tags: app,photoprism

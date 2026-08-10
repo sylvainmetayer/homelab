@@ -33,10 +33,10 @@
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
   roles:
-    - name: geerlingguy.docker
+    - role: geerlingguy.docker
       become: true
       tags: setup
-    - name: borgmatic
+    - role: borgmatic
       tags: backup,setup
     - role: security
       become: true

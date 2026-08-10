@@ -8,3 +8,6 @@ exclude_paths:
   - .venv/
   - collections/
   - galaxy_roles/
+  # SOPS-encrypted: ciphertext lines can't be reformatted by hand without
+  # breaking the file's MAC; content is machine-generated, not authored.
+  - secrets.sops.yaml

@@ -1,5 +1,6 @@
 ---
-- hosts: all,!backups
+- name: Base host setup
+  hosts: all,!backups
   tags: setup
   post_tasks:
     - name: Ensure starship is initialized in .bashrc
