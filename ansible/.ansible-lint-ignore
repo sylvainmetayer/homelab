@@ -1,0 +1,8 @@
+# paperless_ngx vars are intentionally unprefixed (paperless_*, not
+# paperless_ngx_*) so they line up 1:1 with the corresponding keys in
+# ansible/secrets.sops.yaml (community.sops.load_vars overrides the empty
+# role defaults by matching name). Renaming these would require decrypting
+# and re-encrypting secrets.sops.yaml, which isn't available in this
+# environment (no age key) - left as-is rather than risk breaking secret
+# injection.
+roles/paperless_ngx/defaults/main.yml var-naming[no-role-prefix]

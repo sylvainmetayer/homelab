@@ -12,13 +12,6 @@ pangolin_api_url: "pangolin-api.{{ pangolin_base_domain }}"
 # Log level (debug, info, warning, error)
 pangolin_log_level: "info"
 
-# Let's Encrypt email for certificate generation
-le_email: "{{ pangolin_le_email }}"
-
-# SMTP configuration (values should be in secrets.sops.yaml)
-smtp_user: "{{ pangolin_smtp_user }}"
-smtp_pass: "{{ pangolin_smtp_pass }}"
-
 # Pangolin secret (should be in secrets.sops.yaml)
 pangolin_secret: "{{ pangolin_server_secret }}"
 
@@ -26,7 +19,7 @@ pangolin_backup_enabled: true
 pangolin_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/pangolin"
 pangolin_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
-ufw_allowed_ports:
+security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
   - { port: "80", proto: tcp }
   - { port: "443", proto: tcp }

@@ -48,26 +48,26 @@
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
   roles:
-    - name: geerlingguy.docker
+    - role: geerlingguy.docker
       become: true
       tags: setup
-    - name: docker_service
+    - role: docker_service
       tags: setup
-    - name: borgmatic
+    - role: borgmatic
       tags: backup,setup
-    - name: decommission_app
+    - role: decommission_app
       tags: [decommission, never]
-    - name: newt
+    - role: newt
       tags: newt,setup
-    - name: echo
+    - role: echo
       tags: echo,app
-    - name: rss
+    - role: rss
       tags: rss,app
-    - name: searxng
+    - role: searxng
       tags: searxng,app,search
-    - name: betisier
+    - role: betisier
       tags: betisier,app
-    - name: monica_v4
+    - role: monica_v4
       tags: monica,app
     - role: wiki
       tags: wiki,app
@@ -77,7 +77,7 @@
       tags: semaphore,app
     - role: meerkat_crm
       tags: meerkat_crm,app
-    - name: paperless_ngx
+    - role: paperless_ngx
       tags: paperless,app
     - role: flip_planning
       tags: flip_planning,app

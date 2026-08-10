@@ -28,7 +28,7 @@ certificatesResolvers:
     acme:
       httpChallenge:
         entryPoint: web
-      email: "{{ le_email }}"
+      email: "{{ pangolin_le_email }}"
       storage: "/letsencrypt/acme.json"
       caServer: "https://acme-v02.api.letsencrypt.org/directory"
 

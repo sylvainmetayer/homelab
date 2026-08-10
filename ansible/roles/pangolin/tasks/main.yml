@@ -22,7 +22,7 @@
     mode: "0644"
     owner: root
     group: root
-  when: deploy_pangolin_config | bool
+  when: pangolin_deploy_config | bool
 
 - name: Create Traefik dynamic configuration
   become: true
@@ -32,7 +32,7 @@
     mode: "0644"
     owner: root
     group: root
-  when: deploy_pangolin_config | bool
+  when: pangolin_deploy_config | bool
 
 - name: Create Traefik configuration
   become: true
@@ -43,7 +43,7 @@
     mode: "0644"
     owner: root
     group: root
-  when: deploy_pangolin_config | bool
+  when: pangolin_deploy_config | bool
 
 - name: Create Pangolin configuration
   become: true
@@ -54,7 +54,7 @@
     mode: "0600"
     owner: root
     group: root
-  when: deploy_pangolin_config | bool
+  when: pangolin_deploy_config | bool
 
 - name: Create compose.yml
   notify: Restart Pangolin service
@@ -80,7 +80,7 @@
     enabled: true
     state: started
     daemon_reload: true
-  when: deploy_pangolin_config | bool
+  when: pangolin_deploy_config | bool
 
 - name: Configure borgmatic backup for Pangolin
   when: pangolin_backup_enabled
@@ -97,10 +97,12 @@
 
     - name: Initialize borg repository for Pangolin
       become: true
-      ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/pangolin.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
-      register: borg_repo_create
-      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/pangolin.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: pangolin_borg_repo_create
+      changed_when: "'repository already exists' not in pangolin_borg_repo_create.stderr"
       failed_when: >
-        borg_repo_create.rc != 0 and
-        'repository already exists' not in borg_repo_create.stderr
+        pangolin_borg_repo_create.rc != 0 and
+        'repository already exists' not in pangolin_borg_repo_create.stderr

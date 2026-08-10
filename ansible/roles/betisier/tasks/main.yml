@@ -41,8 +41,8 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
   notify:
-  - Reload systemd user
-  - Restart betisier
+    - Reload systemd user
+    - Restart betisier
 
 - name: Template betisier-reset timer
   ansible.builtin.template:
@@ -77,10 +77,12 @@
 
     - name: Initialize borg repository for Betisier
       become: true
-      ansible.builtin.shell:
-        cmd: "/root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/betisier.yaml repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}"
-      register: borg_repo_create
-      changed_when: "'repository already exists' not in borg_repo_create.stderr"
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic --config {{ borgmatic_config_dir }}/betisier.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: betisier_borg_repo_create
+      changed_when: "'repository already exists' not in betisier_borg_repo_create.stderr"
       failed_when: >
-        borg_repo_create.rc != 0 and
-        'repository already exists' not in borg_repo_create.stderr
+        betisier_borg_repo_create.rc != 0 and
+        'repository already exists' not in betisier_borg_repo_create.stderr

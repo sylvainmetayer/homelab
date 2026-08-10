@@ -3,7 +3,7 @@
 borgmatic_config_dir: "/etc/borgmatic.d"
 
 # Borg version to download from GitHub releases
-borg_version: "1.4.4"
+borgmatic_borg_version: "1.4.4"
 
 # Borg repository encryption mode (for repo-create)
 # Common values: repokey-blake2, repokey-chacha20-poly1305, none
@@ -20,8 +20,8 @@ borgmatic_timer_schedule: "*-*-* 01:00:00"
 borgmatic_user: "root"
 
 # Rclone configuration
-rclone_config_dir: "/root/.config/rclone"
-rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
-rclone_s3_secret_access_key: "{{ rclone_secret_access_key | default('') }}"
-rclone_s3_endpoint: "s3.eu-west-par.io.cloud.ovh.net"
-rclone_s3_region: "EU-WEST-PAR"
+borgmatic_rclone_config_dir: "/root/.config/rclone"
+borgmatic_rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
+borgmatic_rclone_s3_secret_access_key: "{{ rclone_secret_access_key | default('') }}"
+borgmatic_rclone_s3_endpoint: "s3.eu-west-par.io.cloud.ovh.net"
+borgmatic_rclone_s3_region: "EU-WEST-PAR"
