@@ -4,7 +4,6 @@
   loop:
     - "{{ dawarich_base_path }}"
     - "{{ dawarich_base_path }}/postgresql"
-    - "{{ dawarich_base_path }}/redis"
     - "{{ dawarich_base_path }}/public"
     - "{{ dawarich_base_path }}/watched"
     - "{{ dawarich_base_path }}/storage"
@@ -14,6 +13,15 @@
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Ensure Dawarich redis folder exists with redis image uid/gid
+  become: true
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ dawarich_base_path }}/redis"
+    state: directory
+    owner: "999"
+    group: "999"
 
 - name: Template compose configuration
   notify: Restart dawarich
