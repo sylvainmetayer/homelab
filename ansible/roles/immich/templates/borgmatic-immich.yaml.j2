@@ -19,6 +19,13 @@ postgresql_databases:
       name: immich
       username: postgres
       password: {{ immich_db_password }}
+      # Run pg_dump inside the immich_postgres container itself instead of
+      # the host's pg_dump binary, so the client version always matches the
+      # server version (avoids "server version mismatch" errors on Postgres
+      # major-version upgrades). "--env PGPASSWORD" (no value) forwards the
+      # PGPASSWORD borgmatic sets on the host into the container, since
+      # `docker exec` doesn't inherit the host environment by default.
+      pg_dump_command: docker exec --env PGPASSWORD immich_postgres pg_dump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start

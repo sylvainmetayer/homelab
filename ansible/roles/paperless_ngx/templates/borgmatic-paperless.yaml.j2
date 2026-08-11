@@ -19,6 +19,13 @@ postgresql_databases:
       name: {{ paperless_db_name }}
       username: {{ paperless_db_user }}
       password: {{ paperless_db_password }}
+      # Run pg_dump inside the paperless_db container itself instead of the
+      # host's pg_dump binary, so the client version always matches the
+      # server version (avoids "server version mismatch" errors on Postgres
+      # major-version upgrades). "--env PGPASSWORD" (no value) forwards the
+      # PGPASSWORD borgmatic sets on the host into the container, since
+      # `docker exec` doesn't inherit the host environment by default.
+      pg_dump_command: docker exec --env PGPASSWORD paperless_db pg_dump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start

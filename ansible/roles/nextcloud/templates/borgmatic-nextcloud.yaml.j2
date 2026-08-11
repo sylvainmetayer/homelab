@@ -19,6 +19,16 @@ mysql_databases:
       name: nextcloud
       username: nextcloud
       password: {{ nextcloud_db_password }}
+      # Run mysqldump inside the nextcloud_db container itself instead of the
+      # host's mysqldump binary, so the client version always matches the
+      # server version (avoids version-mismatch errors on MySQL/MariaDB
+      # upgrades). password_transport must be "environment" (not the default
+      # "pipe") since the client isn't on the host, and "--env MYSQL_PWD" (no
+      # value) forwards the password borgmatic sets on the host into the
+      # container, since `docker exec` doesn't inherit the host environment
+      # by default.
+      password_transport: environment
+      mysql_dump_command: docker exec --env MYSQL_PWD nextcloud_db mysqldump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start

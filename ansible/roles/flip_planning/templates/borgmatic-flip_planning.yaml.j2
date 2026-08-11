@@ -16,6 +16,13 @@ postgresql_databases:
       name: {{ flip_planning_db_name }}
       username: {{ flip_planning_db_user }}
       password: {{ flip_planning_db_password }}
+      # Run pg_dump inside the flip-planning-db container itself instead of
+      # the host's pg_dump binary, so the client version always matches the
+      # server version (avoids "server version mismatch" errors on Postgres
+      # major-version upgrades). "--env PGPASSWORD" (no value) forwards the
+      # PGPASSWORD borgmatic sets on the host into the container, since
+      # `docker exec` doesn't inherit the host environment by default.
+      pg_dump_command: docker exec --env PGPASSWORD flip-planning-db pg_dump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start
