@@ -1,0 +1,66 @@
+---
+- name: Ensure keeper app folders exist
+  become: true
+  loop:
+    - "{{ keeper_base_path }}"
+    - "{{ keeper_base_path }}/postgresql"
+    - "{{ keeper_base_path }}/redis"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart keeper
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ keeper_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Template environment configuration
+  notify: Restart keeper
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ keeper_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Keeper
+  when: keeper_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Keeper
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-keeper.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/keeper.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Keeper
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/keeper.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: keeper_borg_repo_create
+      changed_when: "'repository already exists' not in keeper_borg_repo_create.stderr"
+      failed_when: >
+        keeper_borg_repo_create.rc != 0 and
+        'repository already exists' not in keeper_borg_repo_create.stderr
+
+- name: Make sure keeper service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@keeper
+    scope: user
+    enabled: true

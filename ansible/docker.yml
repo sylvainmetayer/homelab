@@ -44,6 +44,7 @@
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         scanopy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_scanopy_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
+        keeper_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_keeper_url.value | default('') }}"
       vars:
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
@@ -91,3 +92,5 @@
       tags: scanopy,app
     - role: trek
       tags: trek,app
+    - role: keeper
+      tags: keeper,app

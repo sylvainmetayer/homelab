@@ -1,0 +1,65 @@
+# Borgmatic configuration for Keeper backup
+
+source_directories:
+    - {{ keeper_base_path }}/postgresql
+    - {{ keeper_base_path }}/redis
+    - {{ keeper_base_path }}/compose.yaml
+    - {{ keeper_base_path }}/.env
+
+postgresql_databases:
+    - container: keeper-postgres
+      port: 5432
+      name: {{ keeper_db_name }}
+      username: {{ keeper_db_user }}
+      password: {{ keeper_db_password }}
+      pg_dump_command: docker exec --env PGPASSWORD keeper-postgres pg_dump
+
+exclude_patterns:
+    - '*.log'
+    - '*.tmp'
+    - 'cache/*'
+
+local_path: /root/.local/bin/borg
+
+repositories:
+    - path: {{ keeper_backup_borgmatic_target }}
+      label: keeper-backup
+
+ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
+
+encryption_passphrase: {{ keeper_backup_encryption_passphrase }}
+compression: zstd,10
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
+
+checks:
+    - name: repository
+      frequency: 2 weeks
+    - name: archives
+      frequency: 1 month
+
+archive_name_format: 'keeper-{now:%Y-%m-%dT%H:%M:%S}'
+
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - echo "Starting Keeper backup at $(date)"
+    - after: action
+      when:
+          - create
+      run:
+          - echo "Keeper backup completed at $(date)"
+
+{% if keeper_backup_healthcheck_url is defined and keeper_backup_healthcheck_url %}
+uptime_kuma:
+    push_url: {{ keeper_backup_healthcheck_url }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}

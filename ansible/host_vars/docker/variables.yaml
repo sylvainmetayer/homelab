@@ -63,3 +63,7 @@ scanopy_backup_encryption_passphrase: "{{ backup_passphrase }}"
 trek_backup_enabled: true
 trek_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/trek"
 trek_backup_encryption_passphrase: "{{ backup_passphrase }}"
+
+keeper_backup_enabled: true
+keeper_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/keeper"
+keeper_backup_encryption_passphrase: "{{ backup_passphrase }}"

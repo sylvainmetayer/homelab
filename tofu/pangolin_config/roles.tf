@@ -17,7 +17,8 @@ locals {
     "gramps",
     "dawarich",
     "scanopy",
-    "trek"
+    "trek",
+    "keeper"
   ]
 }
 

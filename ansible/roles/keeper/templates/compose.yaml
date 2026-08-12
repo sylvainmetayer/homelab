@@ -1,0 +1,56 @@
+---
+services:
+  keeper-postgres:
+    image: postgres:17
+    container_name: keeper-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+    networks:
+      - keeper
+
+  keeper-redis:
+    image: redis:7-alpine
+    container_name: keeper-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./redis:/data
+    networks:
+      - keeper
+
+  keeper-app:
+    image: ghcr.io/ridafkih/keeper-services:2.14
+    container_name: keeper-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      keeper-postgres:
+        condition: service_healthy
+      keeper-redis:
+        condition: service_healthy
+    networks:
+      - keeper
+      - newt
+
+networks:
+  keeper:
+  newt:
+    external: true

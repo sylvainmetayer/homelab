@@ -1,0 +1,7 @@
+---
+- name: Restart keeper
+  ansible.builtin.systemd:
+    name: dc@keeper
+    scope: user
+    state: restarted
+    daemon_reload: true

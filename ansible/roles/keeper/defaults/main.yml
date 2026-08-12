@@ -1,0 +1,21 @@
+---
+keeper_base_path: "{{ docker_base_path }}/keeper"
+keeper_domain: cal-sync.sylvain.cloud
+
+keeper_db_name: keeper
+keeper_db_user: keeper
+keeper_db_password: "{{ (backup_passphrase ~ '-keeper-db') | hash('sha256') }}"
+keeper_auth_secret: "{{ (backup_passphrase ~ '-keeper-auth-secret') | hash('sha256') }}"
+keeper_encryption_key: "{{ (backup_passphrase ~ '-keeper-encryption-key') | hash('sha256') }}"
+keeper_trusted_origins: "https://{{ keeper_domain }}"
+
+keeper_google_client_id: ""
+keeper_google_client_secret: ""
+keeper_microsoft_client_id: ""
+keeper_microsoft_client_secret: ""
+
+# Borgmatic backup configuration
+keeper_backup_enabled: true
+keeper_backup_borgmatic_target: ""
+keeper_backup_encryption_passphrase: ""
+keeper_backup_healthcheck_url: ""
