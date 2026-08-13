@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-HEALTHCHECK_URL="{{ ssh_login_healthcheck_url | default('') }}"
+HEALTHCHECK_URL="{{ ssh_login_notification_healthcheck_url | default('') }}"
 
 if [[ -z "${HEALTHCHECK_URL}" ]]; then
   exit 0

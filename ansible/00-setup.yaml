@@ -44,7 +44,7 @@
     - name: Load SSH login healthcheck URL from Terraform state outputs
       tags: always
       ansible.builtin.set_fact:
-        ssh_login_healthcheck_url: "{{ terraform_outputs.uptime_ssh_login_url.value | default('') }}"
+        ssh_login_notification_healthcheck_url: "{{ terraform_outputs.uptime_ssh_login_url.value | default('') }}"
       vars:
         terraform_outputs: "{{ (terraform_state_raw.contents | default('{}') | from_json).outputs | default({}) }}"
 
