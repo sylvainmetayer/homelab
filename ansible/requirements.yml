@@ -18,3 +18,4 @@ roles:
   - src: andrewrothstein.starship
     version: v1.3.0
   - src: escalate.swap
+    version: v2.1.0
