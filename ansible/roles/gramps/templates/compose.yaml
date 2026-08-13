@@ -1,7 +1,7 @@
 ---
 services:
   grampsweb:
-    image: ghcr.io/gramps-project/grampsweb:26.7.1@sha256:6f81fa942f1d447a953e24eeddf17b28db9f5d55e5ba10ce2a76cfcf8896bb59
+    image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb
     restart: unless-stopped
     environment:
@@ -25,7 +25,7 @@ services:
       - newt
 
   grampsweb_celery:
-    image: ghcr.io/gramps-project/grampsweb:26.7.1@sha256:6f81fa942f1d447a953e24eeddf17b28db9f5d55e5ba10ce2a76cfcf8896bb59
+    image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb_celery
     restart: unless-stopped
     command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
