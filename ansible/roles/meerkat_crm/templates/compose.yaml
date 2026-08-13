@@ -22,7 +22,7 @@ services:
       start_period: 10s
 
   frontend:
-    image: ghcr.io/fbuchner/meerkat-crm-frontend:1.6.2@sha256:8c382e77befb9595ac0164b0c59c19021d373a54538f08dee49c3d426529718c
+    image: ghcr.io/fbuchner/meerkat-crm-frontend:1.7.0@sha256:610a9a1e7605e08f1d24658c1daa9537e4d350635053cff19e2afe83dbcccfc9
     container_name: meerkat-frontend
     restart: unless-stopped
     networks:
