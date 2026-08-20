@@ -30,12 +30,17 @@
 
 - name: Template compose configuration
   notify: Restart flip_planning
+  loop:
+    - src: "templates/compose.yaml"
+      dest: "compose.yaml"
+    - src: "templates/env.j2"
+      dest: ".env"
   ansible.builtin.template:
-    src: "templates/compose.yaml"
-    dest: "{{ flip_planning_base_path }}/compose.yaml"
+    src: "{{ item.src }}"
+    dest: "{{ flip_planning_base_path }}/{{ item.dest }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0640"
 
 - name: Make sure flip_planning service is running
   ansible.builtin.systemd:

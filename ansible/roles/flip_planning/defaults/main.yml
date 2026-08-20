@@ -17,6 +17,14 @@ flip_planning_db_name: "festival"
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_db_password: ""
 
+# App secrets
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_mcp_api_key: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_admin_password: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_session_encryption_key: ""
+
 # pgAdmin, exposed on the /db sub-path of flip_planning_domain
 flip_planning_pgadmin_enabled: true
 flip_planning_pgadmin_path: "/db"

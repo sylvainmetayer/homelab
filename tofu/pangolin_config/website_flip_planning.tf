@@ -64,6 +64,30 @@ resource "pangolin_target" "flip_planning_pgadmin" {
   hc_unhealthy_threshold = 3
 }
 
+resource "pangolin_target" "flip_planning_pgadmin" {
+  resource_id = pangolin_resource.flip_planning.id
+  site_id     = pangolin_site.proxmox_docker.id
+  ip          = "flip-planning-mailpit"
+  port        = 8025
+  method      = "http"
+
+  path            = "/mail"
+  path_match_type = "prefix"
+  priority        = 3
+
+  hc_enabled             = true
+  hc_hostname            = "flip-planning-mailpit"
+  hc_path                = "/livez"
+  hc_method              = "GET"
+  hc_status              = 200
+  hc_headers             = []
+  hc_interval            = 30
+  hc_unhealthy_interval  = 10
+  hc_timeout             = 5
+  hc_healthy_threshold   = 2
+  hc_unhealthy_threshold = 3
+}
+
 resource "pangolin_resource_access_token" "flip_planning" {
   resource_id = pangolin_resource.flip_planning.id
   title       = "Healthcheck ${pangolin_resource.flip_planning.name}"

@@ -4,16 +4,8 @@ services:
     container_name: flip-planning
     image: {{ flip_planning_image }}
     restart: unless-stopped
-    environment:
-      DB_URL: jdbc:postgresql://postgres:5432/{{ flip_planning_db_name }}
-      DB_USER: {{ flip_planning_db_user }}
-      DB_PASSWORD: {{ flip_planning_db_password }}
-      HTTP_PORT: 8080
-      TZ: Europe/Paris
-      SENTRY_DSN: https://e80c2fb7991244f293e4319b7e3d74ba@sylvainmetayer.bugsink.com/1
-      SENTRY_ENVIRONMENT: production
-      POSTHOG_API_KEY: phc_B9Zo9ZGVHohsBjMZErEzemPLmQbh3iCbEVZrwqN72NLM
-      POSTHOG_HOST: https://eu.i.posthog.com
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +32,15 @@ services:
       - postgres_data:/var/lib/postgresql
     networks:
       - flip-planning
+
+  # Local SMTP sink for the échange notification mails (issue #165): catches
+  # everything, delivers nothing. Web UI on http://localhost:8025.
+  mailpit:
+    networks:
+      - flip-planning
+      - newt
+    image: axllent/mailpit
+
 {% if flip_planning_pgadmin_enabled %}
 
   pgadmin:
