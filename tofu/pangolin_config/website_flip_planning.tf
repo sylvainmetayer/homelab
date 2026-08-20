@@ -64,7 +64,7 @@ resource "pangolin_target" "flip_planning_pgadmin" {
   hc_unhealthy_threshold = 3
 }
 
-resource "pangolin_target" "flip_planning_pgadmin" {
+resource "pangolin_target" "flip_planning_mailpit" {
   resource_id = pangolin_resource.flip_planning.id
   site_id     = pangolin_site.proxmox_docker.id
   ip          = "flip-planning-mailpit"
