@@ -77,7 +77,7 @@ resource "pangolin_target" "flip_planning_mailpit" {
 
   hc_enabled             = true
   hc_hostname            = "flip-planning-mailpit"
-  hc_path                = "/livez"
+  hc_path                = "/mail/livez"
   hc_method              = "GET"
   hc_status              = 200
   hc_headers             = []

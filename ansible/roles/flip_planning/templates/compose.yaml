@@ -36,6 +36,9 @@ services:
   # Local SMTP sink for the échange notification mails (issue #165): catches
   # everything, delivers nothing. Web UI on http://localhost:8025.
   mailpit:
+    container_name: flip-planning-mailpit
+    environment:
+      MP_WEBROOT: /mail/
     networks:
       - flip-planning
       - newt
