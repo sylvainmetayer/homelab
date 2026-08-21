@@ -38,7 +38,7 @@
       ]
     },
     {
-      "description": "flip-planning is our own image: take digest updates as soon as they are published, no 1 day cooldown",
+      "description": "flip-planning is our own image: take digest updates as soon as they are published, no 1 day cooldown, and automerge once the lint workflow passes (merging on main triggers the deploy workflow)",
       "matchDatasources": [
         "docker"
       ],
@@ -48,7 +48,8 @@
       "minimumReleaseAge": null,
       "schedule": [
         "at any time"
-      ]
+      ],
+      "automerge": true
     }
   ],
   "customManagers": [
