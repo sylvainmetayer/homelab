@@ -21,6 +21,10 @@ flip_planning_db_password: ""
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_mcp_api_key: ""
 # Sensitive: must be set in secrets.sops.yaml
+flip_planning_mcp_pangolin_access_token_id: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_mcp_pangolin_access_token: ""
+# Sensitive: must be set in secrets.sops.yaml
 flip_planning_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_session_encryption_key: ""
