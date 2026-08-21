@@ -3,7 +3,10 @@ flip_planning_base_path: "{{ docker_base_path }}/flip_planning"
 flip_planning_domain: flip-planning.sylvain.cloud
 
 # Image published on GitHub Container Registry (private package)
-flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main"
+# Digest pinned so Ansible redeploys deterministically; Renovate bumps it
+# (see the custom manager in renovate.json)
+# renovate: datasource=docker depName=ghcr.io/sylvainmetayer/flip-planning
+flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main@sha256:5d4d14d8aedb1eccc89dac79f1fa031e0d9da8108940386856085ff858431ac6"
 
 # GHCR authentication (private package): needs a PAT with read:packages
 flip_planning_ghcr_registry: "ghcr.io"

@@ -36,6 +36,40 @@
         "ansible/roles/immich/**",
         "compose/immich/**"
       ]
+    },
+    {
+      "description": "flip-planning is our own image: take digest updates as soon as they are published, no 1 day cooldown",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/flip-planning"
+      ],
+      "minimumReleaseAge": null,
+      "schedule": [
+        "at any time"
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the flip-planning image pinned in the Ansible role defaults (plain var, no manager covers it)",
+      "managerFilePatterns": [
+        "/^ansible/roles/flip_planning/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*flip_planning_image:\\s*\"[^\":]+:(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
+      ]
+    }
+  ],
+  "hostRules": [
+    {
+      "description": "Read-only PAT so Renovate can look up digests of the private flip-planning package. GHCR_TOKEN is uploaded as an App Secret in the Mend Developer Portal, not stored here",
+      "hostType": "docker",
+      "matchHost": "ghcr.io",
+      "username": "sylvainmetayer",
+      "password": "{{ secrets.GHCR_TOKEN }}"
     }
   ]
 }
