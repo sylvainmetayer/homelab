@@ -2,6 +2,14 @@
 newt_client_id: "{{ newt_pi_client_id }}"
 newt_client_secret: "{{ newt_pi_client_secret }}"
 
+# Raspberry Pi 5 (8 GB): 4 GB swap to absorb ML/import bursts without excessive swap usage.
+# If an external SSD is mounted, set this to something like /mnt/ssd/swapfile to reduce SD wear.
+pi_swapfile_path: "/var/swap"
+swap_enabled: true
+swap_config:
+  CONF_SWAPSIZE: 4096
+  CONF_SWAPFILE: "{{ pi_swapfile_path }}"
+
 photoprism_backup_enabled: true
 photoprism_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/photoprism"
 photoprism_backup_borgmatic_password: "{{ backup_passphrase }}"
