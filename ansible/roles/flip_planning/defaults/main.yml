@@ -2,11 +2,15 @@
 flip_planning_base_path: "{{ docker_base_path }}/flip_planning"
 flip_planning_domain: flip-planning.sylvain.cloud
 
-# Image published on GitHub Container Registry (private package)
-# Digest pinned so Ansible redeploys deterministically; Renovate bumps it
-# (see the custom manager in renovate.json)
+# Image published on GitHub Container Registry (private package).
+# A NAMED release, never :main. :main is the recipe image, rebuilt on every
+# merge; what runs here has to be nameable in an incident report, and "the
+# Tuesday image" is not a name. See docs/versioning.md in the flip-planning
+# repository for what a number promises.
+# Renovate follows the published X.Y.Z tags and re-pins the digest behind them,
+# so Ansible still redeploys deterministically (custom manager in renovate.json).
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/flip-planning
-flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main@sha256:0fdb63c29fd0809b3a23280f14502835b74334b60b4527a214a027fcc660c713"
+flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:1.0.0"
 
 # GHCR authentication (private package): needs a PAT with read:packages
 flip_planning_ghcr_registry: "ghcr.io"

@@ -38,18 +38,47 @@
       ]
     },
     {
-      "description": "flip-planning is our own image: take digest updates as soon as they are published, no 1 day cooldown, and automerge once the lint workflow passes (merging on main triggers the deploy workflow)",
+      "description": "flip-planning is our own image: follow its published releases, not the :main recipe image which is rebuilt on every merge. semver versioning is what makes Renovate ignore main, latest, sha-xxxxxxx and the floating 1.2 tag that the publish workflow also pushes: only a full X.Y.Z is a version",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "ghcr.io/sylvainmetayer/flip-planning"
       ],
+      "versioning": "semver",
       "minimumReleaseAge": null,
       "schedule": [
         "at any time"
+      ]
+    },
+    {
+      "description": "Minor and patch releases automerge once the lint workflow passes. Merging on main triggers the deploy workflow, so this really is an automatic deployment: it is allowed because the version contract promises a minor or a patch needs no operator action",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/flip-planning"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
       ],
       "automerge": true
+    },
+    {
+      "description": "A major is never deployed on its own: it may change the YAML scenario format, drop an environment variable, or carry an irreversible Flyway migration that a rollback to the previous image will not undo. It waits to be ticked on the dependency dashboard",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/flip-planning"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "dependencyDashboardApproval": true
     }
   ],
   "customManagers": [
