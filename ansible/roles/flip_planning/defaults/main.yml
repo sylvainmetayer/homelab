@@ -6,7 +6,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 # Digest pinned so Ansible redeploys deterministically; Renovate bumps it
 # (see the custom manager in renovate.json)
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/flip-planning
-flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main@sha256:954ef294aadb96c172a5e56f4f381758ad4727a444efa3084cdbc29be02f3758"
+flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main@sha256:0ff585b11ba92b426fa2b5db953c91728819c2769cefa3f448641e4490a657d8"
 
 # GHCR authentication (private package): needs a PAT with read:packages
 flip_planning_ghcr_registry: "ghcr.io"
