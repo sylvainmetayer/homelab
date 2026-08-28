@@ -35,6 +35,9 @@
         terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
 
   roles:
+    - role: escalate.swap
+      become: true
+      tags: swap,setup
     - role: geerlingguy.docker
       become: true
       tags: setup
