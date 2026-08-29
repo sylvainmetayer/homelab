@@ -109,7 +109,7 @@ current checklist — it also delegates to **`pangolin-route`** and
 **`homelab-reviewer`** agent to sanity-check the resulting diff before
 `tofu apply`/`ansible-playbook`. Summary:
 
-- Role skeleton: `defaults/`, `handlers/`, `tasks/`, `templates/` under `ansible/roles/<service>/`. `ansible/roles/gramps` and `ansible/roles/homelable` are the most current reference implementations.
+- Role skeleton: `defaults/`, `handlers/`, `tasks/`, `templates/` under `ansible/roles/<service>/`. `ansible/roles/gramps` and `ansible/roles/trek` are the most current reference implementations.
 - Compose file is always named `compose.yaml` (not `docker-compose.yml`).
 - **Public HTTP routing is entirely OpenTofu-managed, not Docker labels.** Each exposed app gets a `tofu/pangolin_config/website_<service>.tf` defining a `pangolin_resource` + `pangolin_target` (+ SSO role binding + Uptime Kuma monitors) against the Pangolin provider — Newt only reads the Docker socket to confirm the container is on its network, it doesn't parse any `pangolin.public-resources.*` labels (an earlier pattern, no longer used anywhere in this repo). The container must join the external `newt` Docker network (created by the `newt` role) for Pangolin to reach it. If the app has its own DB, put the DB on a second, internal, service-named network — never on `newt`. Two easy-to-miss details: every `pangolin_target` needs `hc_hostname` set explicitly (not inferred from `ip`), and multi-target path routing needs the catch-all `"/"` at the *lowest* `priority` number, not the highest.
 - PUID/PGID come from `ansible_facts['user_uid']`/`user_gid'`, not hardcoded.
@@ -138,7 +138,7 @@ entries, delete its `tofu/pangolin_config/website_<service>.tf` and its slug
 from `roles.tf`'s `apps` list (then `tofu apply`), and finally grep the whole
 repo for the service name to confirm nothing was missed. That last step
 matters: the `photoprism` removal (commit `7e848ed`) skipped it and left
-orphaned `host_vars`/`secrets.sops.yaml` entries that are still there today.
+orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 
 ### Config layering
 

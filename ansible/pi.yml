@@ -46,7 +46,5 @@
       tags: [decommission, never]
     - role: newt
       tags: newt,setup
-    # - role: photoprism
-    #   tags: app,photoprism
     - role: immich
       tags: app,immich
