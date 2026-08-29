@@ -1,6 +1,8 @@
 ---
 services:
   freshrss:
+    cpus: 0.75
+    mem_limit: 512m
     container_name: rss
     image: freshrss/freshrss:1.29.1@sha256:ab6b363102ccdbc39f6a62db926f567c61a5289bf25ba460f1c34423d8cc1a4d
     environment:

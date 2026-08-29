@@ -1,6 +1,8 @@
 ---
 services:
   searxng:
+    cpus: 1.00
+    mem_limit: 512m
     container_name: searxng
     image: searxng/searxng:latest@sha256:1808478ceb295bdb87e70f069e3d4ef1a0abd318e2a10d550f0a31fc839a745d
     restart: unless-stopped

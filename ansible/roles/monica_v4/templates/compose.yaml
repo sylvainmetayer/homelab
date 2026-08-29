@@ -1,6 +1,8 @@
 ---
 services:
   crm:
+    cpus: 1.00
+    mem_limit: 1g
     container_name: monica_v4
     image: monica:3.7.0-apache@sha256:ceb1ba4196ab2d371f504f284f4516174f4b99fe9339f2aa69a86c31d6ba414f
     env_file: .env
@@ -12,6 +14,8 @@ services:
     restart: unless-stopped
 
   monica_v4_db:
+    cpus: 0.50
+    mem_limit: 768m
     image: lscr.io/linuxserver/mariadb:11.8.8@sha256:2497453facccec79cd5e3bb3c1bd304a9def22af2f48a8d6b2fc8377904ce2d5
     container_name: monica_v4_db
     networks:

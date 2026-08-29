@@ -1,6 +1,8 @@
 ---
 services:
   scanopy-daemon:
+    cpus: 0.50
+    mem_limit: 512m
     image: ghcr.io/scanopy/scanopy/daemon:v0.17.11@sha256:fa393a8b1ddbc11297a0c0afc7d6b02f74032999ed2f49ec92c819b4645969db
     container_name: scanopy-daemon
     network_mode: host
@@ -15,6 +17,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   scanopy-postgres:
+    cpus: 0.50
+    mem_limit: 512m
     image: docker.io/postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     container_name: scanopy-postgres
     restart: unless-stopped
@@ -34,6 +38,8 @@ services:
       - scanopy
 
   scanopy-server:
+    cpus: 1.00
+    mem_limit: 1g
     image: ghcr.io/scanopy/scanopy/server:v0.17.11@sha256:e2c1b0ae624c68ce45dfe2035a6b58c1d6614f034fbfde35ff3f3369991de73e
     container_name: scanopy-server
     restart: unless-stopped

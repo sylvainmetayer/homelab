@@ -1,6 +1,8 @@
 ---
 services:
   grampsweb:
+    cpus: 1.00
+    mem_limit: 1g
     image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb
     restart: unless-stopped
@@ -25,6 +27,8 @@ services:
       - newt
 
   grampsweb_celery:
+    cpus: 1.00
+    mem_limit: 768m
     image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb_celery
     restart: unless-stopped
@@ -50,6 +54,8 @@ services:
       - gramps
 
   grampsweb_redis:
+    cpus: 0.25
+    mem_limit: 256m
     image: docker.io/valkey/valkey:8-alpine@sha256:e0eb7c480958d32bdc4357a74bdd70653ae15f2f9b4c93c4a5a9fad1dc471c84
     container_name: grampsweb_redis
     restart: unless-stopped

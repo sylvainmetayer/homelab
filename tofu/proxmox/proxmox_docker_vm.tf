@@ -72,7 +72,9 @@ resource "proxmox_virtual_environment_vm" "docker" {
 
   memory {
     dedicated = var.docker_vm.memory
-    floating  = var.docker_vm.memory
+    # Ballooning désactivé : les mem_limit des composes sont calibrées sur une
+    # RAM fixe, un ballon pourrait faire descendre le dispo sous var.docker_vm.memory.
+    floating = 0
   }
 
   disk {

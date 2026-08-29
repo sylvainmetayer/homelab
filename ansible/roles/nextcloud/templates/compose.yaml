@@ -1,6 +1,8 @@
 ---
 services:
   nextcloud:
+    cpus: 1.50
+    mem_limit: 1536m
     restart: unless-stopped
     image: ghcr.io/linuxserver/nextcloud:34.0.3@sha256:84995ab93bde4250b8e3e3ec1ff95ce3c0526ba5cb01185de8f692d8518801ed
     container_name: nextcloud
@@ -18,6 +20,8 @@ services:
       - nextcloud
 
   db:
+    cpus: 0.75
+    mem_limit: 1g
     container_name: nextcloud_db
     restart: unless-stopped
     image: mariadb:lts@sha256:759869cb6f003234a95c6384cdee245b4bce7de26913fe607a8110362c0c007d
@@ -32,6 +36,8 @@ services:
       - nextcloud
 
   cache:
+    cpus: 0.25
+    mem_limit: 256m
     restart: unless-stopped
     image: redis:bookworm@sha256:c22af04bb576503bf16b3e34a1fd2fd82de0f765afd866d2e380145e0af30d78
     container_name: nextcloud_redis

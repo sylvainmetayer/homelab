@@ -1,6 +1,8 @@
 ---
 services:
   broker:
+    cpus: 0.25
+    mem_limit: 256m
     container_name: paperless_redis
     image: docker.io/library/redis:8@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5
     restart: unless-stopped
@@ -10,6 +12,8 @@ services:
       - paperless
 
   db:
+    cpus: 0.50
+    mem_limit: 512m
     container_name: paperless_db
     image: docker.io/library/postgres:18@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
     restart: unless-stopped
@@ -23,6 +27,8 @@ services:
       - paperless
 
   webserver:
+    cpus: 1.50
+    mem_limit: 1536m
     container_name: paperless
     image: ghcr.io/paperless-ngx/paperless-ngx:3.0@sha256:65a4cabf0169ea7fbd90ab7bb28ba3f8b5909613635acda1a03ad606f34b456b
     restart: unless-stopped
@@ -60,6 +66,8 @@ services:
       - newt
 
   gotenberg:
+    cpus: 1.00
+    mem_limit: 512m
     container_name: paperless_gotenberg
     image: docker.io/gotenberg/gotenberg:8.36@sha256:87c16b9f364279d321bc9772d31fa58aa6abe036423c270698bd636c3a8e9466
     restart: unless-stopped
@@ -73,6 +81,8 @@ services:
       - paperless
 
   tika:
+    cpus: 1.00
+    mem_limit: 768m
     container_name: paperless_tika
     image: docker.io/apache/tika:latest@sha256:90b7fa1dc018434075fce9e1d9b88b1e3d0ea6979d0cf86e116c79a8073ae973
     restart: unless-stopped

@@ -1,6 +1,8 @@
 ---
 services:
   dawarich-redis:
+    cpus: 0.25
+    mem_limit: 256m
     image: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     container_name: dawarich-redis
     command: >
@@ -21,6 +23,8 @@ services:
       - dawarich
 
   dawarich-db:
+    cpus: 0.50
+    mem_limit: 1g
     image: postgis/postgis:17-3.5-alpine@sha256:08f4b1e1f4a571008c60272ceb9e0d1f9f8f643792d006b74a35b1bec44c2218
     container_name: dawarich-db
     restart: unless-stopped
@@ -41,10 +45,11 @@ services:
       - dawarich
 
   dawarich-app:
+    cpus: 1.50
+    mem_limit: 2g
     image: freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
     container_name: dawarich-app
     restart: unless-stopped
-    mem_limit: 3g
     stdin_open: true
     tty: true
     entrypoint: web-entrypoint.sh
@@ -74,10 +79,11 @@ services:
       - newt
 
   dawarich-sidekiq:
+    cpus: 1.00
+    mem_limit: 1g
     image: freikin/dawarich:1.14.0@sha256:f251f08d6330a9b22506c862407e53b0b4aec620a63953a446e19cd610d7d476
     container_name: dawarich-sidekiq
     restart: unless-stopped
-    mem_limit: 3g
     stdin_open: true
     tty: true
     entrypoint: sidekiq-entrypoint.sh

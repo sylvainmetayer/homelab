@@ -2,6 +2,8 @@
 # https://semaphoreui.com/docs/admin-guide/installation/docker
 services:
   postgres:
+    cpus: 0.50
+    mem_limit: 512m
     container_name: semaphore_postgres
     image: postgres:18@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
     hostname: postgres
@@ -21,6 +23,8 @@ services:
       - semaphore-internal
 
   semaphore:
+    cpus: 1.00
+    mem_limit: 1g
     container_name: semaphore
     image: ghcr.io/sylvainmetayer/homelab/semaphore:v2.19.8@sha256:bcb90677d54cc1d157710b3faeb8de6df40317e64c6376baa92657d1778a8833
     environment:
