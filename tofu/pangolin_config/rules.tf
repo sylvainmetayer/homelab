@@ -2,7 +2,7 @@
 # only the first page of the API response (pageSize 20) and exposes no way to
 # ask for more, which left resources beyond the 20th with no firewall rules at
 # all and made the `for_each` keys unstable between plans.
-# See ../../issue.md for the upstream bug report. Until it is fixed we query the
+# Reported upstream against stackopshq/pangolin. Until it is fixed we query the
 # API directly through the `http` provider so we can set `pageSize` and assert
 # completeness against `pagination.total`.
 data "http" "pangolin_resources" {
