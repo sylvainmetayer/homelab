@@ -24,7 +24,6 @@ resource "pangolin_target" "trek" {
   hc_path                = "/api/health"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5
