@@ -10,12 +10,24 @@
     - "{{ gramps_base_path }}/grampsdb"
     - "{{ gramps_base_path }}/media"
     - "{{ gramps_base_path }}/tmp"
-    - "{{ gramps_base_path }}/redis"
   ansible.builtin.file:
     mode: "0755"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Valkey drops to its own unprivileged uid inside the container and writes its
+# dump to /data, so this bind mount has to stay owned by that uid rather than
+# by the host user like the folders above. Needs become: chowning to a uid we
+# do not own is not permitted otherwise.
+- name: Ensure Gramps redis folder is owned by the valkey uid
+  become: true
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ gramps_base_path }}/redis"
+    state: directory
+    owner: "{{ gramps_redis_uid }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template compose configuration

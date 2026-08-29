@@ -3,6 +3,9 @@ gramps_base_path: "{{ docker_base_path }}/gramps"
 gramps_domain: trees.sylvain.cloud
 gramps_tree_name: "Gramps Web"
 
+# uid the valkey container runs as; it owns the ./redis bind mount.
+gramps_redis_uid: 999
+
 # Borgmatic backup configuration
 gramps_backup_enabled: true
 gramps_backup_borgmatic_target: ""
