@@ -27,12 +27,6 @@ nextcloud_backup_enabled: true
 nextcloud_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/nextcloud"
 nextcloud_backup_borgmatic_password: "{{ backup_passphrase }}"
 
-semaphore_backup_enabled: true
-semaphore_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/semaphore"
-semaphore_backup_encryption_passphrase: "{{ backup_passphrase }}"
-semaphore_domain: console.sylvain.cloud
-semaphore_admin_email: "semaphore@sylvain.cloud"
-
 meerkat_crm_backup_enabled: true
 meerkat_crm_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/meerkat_crm"
 meerkat_crm_backup_encryption_passphrase: "{{ backup_passphrase }}"
@@ -44,10 +38,6 @@ paperless_backup_encryption_passphrase: "{{ backup_passphrase }}"
 flip_planning_backup_enabled: true
 flip_planning_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/flip_planning"
 flip_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
-
-homelable_backup_enabled: true
-homelable_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/homelable"
-homelable_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 gramps_backup_enabled: true
 gramps_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/gramps"

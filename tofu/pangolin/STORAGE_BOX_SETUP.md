@@ -47,7 +47,7 @@ Or manually via Hetzner Robot:
 
 ```bash
 ssh -i ~/.ssh/storagebox u<ID>@u<ID>.your-storagebox.de << 'EOF'
-mkdir -p backup/{betisier,monica_v4,wiki,nextcloud,rss,immich,photoprism,pangolin}
+mkdir -p backup/{betisier,monica_v4,wiki,nextcloud,rss,immich,pangolin}
 chmod 700 backup
 EOF
 ```
@@ -113,7 +113,6 @@ ssh://u<ID>@u<ID>.your-storagebox.de:22/backup/
 ├── nextcloud/
 ├── rss/
 ├── immich/
-├── photoprism/
 └── pangolin/
 ```
 

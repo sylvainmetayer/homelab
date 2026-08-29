@@ -1,6 +1,0 @@
----
-- name: Restart semaphore
-  ansible.builtin.systemd:
-    name: dc@semaphore
-    scope: user
-    state: restarted

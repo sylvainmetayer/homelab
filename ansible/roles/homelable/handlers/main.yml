@@ -1,6 +1,0 @@
----
-- name: Restart homelable
-  ansible.builtin.systemd:
-    name: dc@homelable
-    scope: user
-    state: restarted

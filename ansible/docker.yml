@@ -36,10 +36,8 @@
         monica_v4_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_monica_url.value | default('') }}"
         monica_v4_cron_healthcheck_url: "{{ terraform_outputs.uptime_cron_monica_url.value | default('') }}"
         betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
-        semaphore_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_semaphore_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         flip_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
-        homelable_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homelable_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         scanopy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_scanopy_url.value | default('') }}"
@@ -73,16 +71,12 @@
       tags: wiki,app
     - role: nextcloud
       tags: nextcloud,app
-    - role: semaphore
-      tags: semaphore,app
     - role: meerkat_crm
       tags: meerkat_crm,app
     - role: paperless_ngx
       tags: paperless,app
     - role: flip_planning
       tags: flip_planning,app
-    - role: homelable
-      tags: homelable,app
     - role: gramps
       tags: gramps,app
     - role: dawarich
