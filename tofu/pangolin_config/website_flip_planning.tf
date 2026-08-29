@@ -3,8 +3,18 @@ resource "pangolin_resource" "flip_planning" {
   subdomain   = "flip-planning"
   domain_id   = local.domain_ids["sylvain.cloud"]
   protocol    = "tcp"
+  mode        = "http"
   sso         = true
   apply_rules = true
+
+  # These are optional+computed, so leaving them out made OpenTofu plan them
+  # as "(known after apply)" on every update. Pinned to the values Pangolin
+  # actually holds, read from GET /v1/resource/76.
+  ssl                     = true
+  enabled                 = true
+  block_access            = false
+  email_whitelist_enabled = false
+  sticky_session          = false
 
   # Set by hand in the Pangolin UI and declared here so Tofu stops planning
   # its removal: the provider cannot round-trip an emptied header list (the
