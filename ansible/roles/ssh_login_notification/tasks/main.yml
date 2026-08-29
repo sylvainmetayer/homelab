@@ -1,0 +1,32 @@
+---
+- name: Install SSH login notification script
+  ansible.builtin.template:
+    src: ssh-login-notify.sh.j2
+    dest: "{{ ssh_login_notification_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Enable ExposeAuthInfo in sshd configuration
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/50-expose-auth-info.conf
+    content: "ExposeAuthInfo yes\n"
+    owner: root
+    group: root
+    mode: "0644"
+  register: ssh_login_notification_sshd_config
+
+- name: Run SSH login notification script on each SSH session open
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/sshd
+    regexp: "^session\\s+optional\\s+pam_exec.so\\s+seteuid\\s+{{ ssh_login_notification_script_path | regex_escape }}$"
+    line: "session optional pam_exec.so seteuid {{ ssh_login_notification_script_path }}"
+    insertafter: EOF
+    state: present
+  register: ssh_login_notification_pam_config
+
+- name: Restart sshd when SSH notification configuration changes
+  ansible.builtin.systemd:
+    name: "{{ ssh_login_notification_sshd_service_name }}"
+    state: restarted
+  when: ssh_login_notification_sshd_config.changed or ssh_login_notification_pam_config.changed
