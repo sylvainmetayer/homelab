@@ -5,6 +5,17 @@ resource "pangolin_resource" "flip_planning" {
   protocol    = "tcp"
   sso         = true
   apply_rules = true
+
+  # Set by hand in the Pangolin UI and declared here so Tofu stops planning
+  # its removal: the provider cannot round-trip an emptied header list (the
+  # update response comes back as a string, not a list) and the apply fails
+  # with "cannot unmarshal string into ... headers of type []ResourceHeader".
+  headers = [
+    {
+      name  = "X-Pangolin"
+      value = "true"
+    },
+  ]
 }
 
 resource "pangolin_resource_role" "flip_planning" {
@@ -29,7 +40,6 @@ resource "pangolin_target" "flip_planning" {
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5
@@ -56,7 +66,6 @@ resource "pangolin_target" "flip_planning_pgadmin" {
   hc_path                = "/db/misc/ping"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5
@@ -80,7 +89,6 @@ resource "pangolin_target" "flip_planning_mailpit" {
   hc_path                = "/mail/livez"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5

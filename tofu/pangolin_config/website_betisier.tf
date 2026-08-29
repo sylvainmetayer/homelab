@@ -18,7 +18,6 @@ resource "pangolin_target" "betisier" {
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5

@@ -22,7 +22,6 @@ resource "pangolin_target" "rss" {
   hc_enabled             = true
   hc_path                = "/"
   hc_method              = "GET"
-  hc_headers             = []
   hc_status              = 200
   hc_interval            = 30
   hc_unhealthy_interval  = 10

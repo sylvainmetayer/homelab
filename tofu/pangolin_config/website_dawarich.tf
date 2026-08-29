@@ -24,7 +24,6 @@ resource "pangolin_target" "dawarich" {
   hc_path                = "/api/v1/health"
   hc_method              = "GET"
   hc_status              = 200
-  hc_headers             = []
   hc_interval            = 30
   hc_unhealthy_interval  = 10
   hc_timeout             = 5
