@@ -38,3 +38,5 @@ ansible/facts/
 
 .ansible/
 .venv/
+
+issue.md
