@@ -150,6 +150,8 @@ resource "uptimekuma_monitor_http" "flip_planning" {
   })
   expiry_notification = true
   tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_push" "backup_flip_planning" {
@@ -160,6 +162,8 @@ resource "uptimekuma_monitor_push" "backup_flip_planning" {
   retry_interval = 20
   active         = true
   tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 output "uptime_backup_flip_planning_url" {
