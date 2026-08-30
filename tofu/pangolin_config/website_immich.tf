@@ -77,6 +77,8 @@ resource "uptimekuma_monitor_http" "immich" {
   })
   expiry_notification = true
   tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_push" "backup_immich" {
@@ -87,6 +89,8 @@ resource "uptimekuma_monitor_push" "backup_immich" {
   retry_interval = 20
   active         = true
   tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 output "uptime_backup_immich_url" {

@@ -6,6 +6,8 @@ resource "uptimekuma_monitor_push" "backup_pangolin" {
   retry_interval = 20
   active         = true
   tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 output "uptime_backup_pangolin_url" {

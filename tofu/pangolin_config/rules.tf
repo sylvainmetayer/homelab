@@ -59,7 +59,6 @@ locals {
     "SSH PI"                    = 38 # enabled
     "00NTF - NAS"               = 75 # enabled
     "00NTF - Dashboard Traefik" = 2  # disabled in Pangolin
-    "00NTF - spliit"            = 12 # disabled in Pangolin
     "00NTF - BBOX"              = 15 # disabled in Pangolin
   }
 
@@ -158,4 +157,107 @@ resource "pangolin_resource_rule" "block_country" {
   match       = "COUNTRY"
   value       = "ALL"
   priority    = 99
+}
+
+# ---------------------------------------------------------------------------
+# Probe configuration audit.
+#
+# `hc_scheme` / `hc_mode` / `hc_port` are optional+computed on pangolin_target.
+# Left undeclared they mean "accept whatever the API decides", and Pangolin does
+# not reliably fill a default: it stored NULL for gramps and scanopy while
+# filling `http` for trek and dawarich, all four created by the same apply. A
+# probe with no scheme can never build a URL, so it always fails, the target is
+# marked unhealthy, Traefik drops it from the load balancer and the site serves
+# "no available server" - with `tofu plan` reporting "No changes" throughout,
+# because an undeclared computed attribute accepts any value the API holds.
+#
+# Every target now declares those three fields, so a plan compares them against
+# a literal and would surface the drift. This is the second net: it reads the
+# live probes and fails the plan outright.
+#
+# There is no org-wide targets endpoint, hence one request per managed resource.
+# ---------------------------------------------------------------------------
+data "http" "pangolin_targets" {
+  for_each = local.managed_resources
+
+  # No pagination argument here: unlike the resources endpoint this one
+  # rejects `pageSize` outright, and already defaults to a limit of 1000.
+  url = "${local.pangolin_url}/v1/resource/${each.value}/targets"
+
+  request_headers = {
+    Authorization = "Bearer ${local.pangolin_api_key}"
+    Accept        = "application/json"
+  }
+}
+
+locals {
+  # An audit that silently sees nothing is worse than no audit, so a response
+  # that does not decode into a target list is collected and reported below
+  # rather than being flattened away into an empty result.
+  failed_target_lookups = [
+    for name, response in data.http.pangolin_targets :
+    "${name} (HTTP ${response.status_code})"
+    if try(jsondecode(response.response_body).data.targets, null) == null
+  ]
+
+  live_targets = flatten([
+    for name, response in data.http.pangolin_targets : [
+      for target in try(jsondecode(response.response_body).data.targets, []) : {
+        label      = "${name}#${target.targetId}${try(target.path, null) == null ? "" : " ${target.path}"}"
+        hc_enabled = try(target.hcEnabled, false)
+        hc_scheme  = try(target.hcScheme, null)
+        hc_port    = try(target.hcPort, null)
+        hc_health  = try(target.hcHealth, "unknown")
+      }
+    ]
+  ])
+
+  # An enabled probe with no scheme or no port can only ever fail. This is the
+  # exact state gramps and scanopy sat in while both sites served 503.
+  unusable_probes = [
+    for target in local.live_targets : target.label
+    if target.hc_enabled && (target.hc_scheme == null || target.hc_port == null)
+  ]
+
+  unhealthy_targets = [
+    for target in local.live_targets : target.label
+    if target.hc_enabled && target.hc_health != "healthy"
+  ]
+}
+
+resource "terraform_data" "target_probe_config" {
+  input = length(local.live_targets)
+
+  lifecycle {
+    precondition {
+      condition = length(local.failed_target_lookups) == 0
+      error_message = join(" ", [
+        "Could not read the targets of:",
+        "${join(", ", local.failed_target_lookups)}.",
+        "The audit below cannot run, so the plan is stopped rather than passing on no data.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.unusable_probes) == 0
+      error_message = join(" ", [
+        "Health check enabled but no scheme and/or no port, so the probe can never",
+        "succeed and Pangolin will drop the target from the load balancer:",
+        "${join(", ", local.unusable_probes)}.",
+        "Declare hc_scheme / hc_mode / hc_port on the matching pangolin_target and apply.",
+      ])
+    }
+  }
+}
+
+# Deliberately a `check`, not a precondition: unlike the probe *configuration*
+# above, health is a runtime property. It is legitimately "unknown" for the few
+# seconds after a target is created, and legitimately "unhealthy" whenever an
+# app is genuinely down - neither should block an unrelated apply. Paging is
+# Uptime Kuma's job; this only makes the state visible while you are in here.
+check "target_health" {
+  assert {
+    condition     = length(local.unhealthy_targets) == 0
+    error_message = "Targets whose probe is currently failing: ${join(", ", local.unhealthy_targets)}."
+  }
 }

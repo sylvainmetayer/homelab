@@ -63,4 +63,6 @@ resource "uptimekuma_monitor_http" "immich_swipe" {
   })
   expiry_notification = true
   tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }

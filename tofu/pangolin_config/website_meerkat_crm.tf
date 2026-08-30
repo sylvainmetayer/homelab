@@ -63,6 +63,8 @@ resource "uptimekuma_monitor_http" "meerkat_crm" {
   })
   expiry_notification = true
   tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_push" "backup_meerkat_crm" {
@@ -73,6 +75,8 @@ resource "uptimekuma_monitor_push" "backup_meerkat_crm" {
   retry_interval = 20
   active         = true
   tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 output "uptime_backup_meerkat_crm_url" {
