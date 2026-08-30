@@ -20,6 +20,9 @@ resource "pangolin_target" "dawarich" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 3000
   hc_hostname            = "dawarich-app"
   hc_path                = "/api/v1/health"
   hc_method              = "GET"

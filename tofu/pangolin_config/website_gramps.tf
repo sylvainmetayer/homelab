@@ -20,6 +20,9 @@ resource "pangolin_target" "gramps" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 5000
   hc_hostname            = "grampsweb"
   hc_path                = "/"
   hc_method              = "GET"
