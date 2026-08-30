@@ -20,6 +20,9 @@ resource "pangolin_target" "searxng" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 8080
   hc_hostname            = "searxng"
   hc_path                = "/"
   hc_method              = "GET"

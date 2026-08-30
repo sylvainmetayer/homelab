@@ -20,6 +20,9 @@ resource "pangolin_target" "scanopy" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 60072
   hc_hostname            = "scanopy-server"
   hc_path                = "/"
   hc_method              = "GET"

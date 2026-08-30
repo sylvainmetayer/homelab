@@ -15,6 +15,9 @@ resource "pangolin_target" "betisier" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 80
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200

@@ -20,6 +20,9 @@ resource "pangolin_target" "trek" {
   method      = "http"
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_port                = 3000
   hc_hostname            = "trek"
   hc_path                = "/api/health"
   hc_method              = "GET"
