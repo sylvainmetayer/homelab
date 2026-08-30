@@ -62,6 +62,17 @@
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*flip_planning_image:\\s*\"[^\":]+:(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Track Traefik experimental plugin versions in the Pangolin static config (e.g. fosrl/badger); no built-in manager covers Traefik plugins",
+      "managerFilePatterns": [
+        "/^ansible/roles/pangolin/templates/traefik_config\\.yml\\.j2$/"
+      ],
+      "matchStrings": [
+        "moduleName:\\s*\"github\\.com/(?<depName>[^\"]+)\"\\s*\\n\\s*version:\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ],
   "hostRules": [
