@@ -45,8 +45,16 @@ resource "pangolin_target" "flip_planning" {
   path_match_type = "prefix"
   priority        = 1
 
+  # Health checks: `hc_scheme` / `hc_mode` / `hc_port` are optional+computed, and
+  # Pangolin stores them as NULL when Tofu does not send them - it does not fill
+  # in a default. A probe with no scheme never succeeds, so all three targets sat
+  # at hcHealth="unhealthy" and Traefik dropped them from the load balancer
+  # ("no available server"). Declared explicitly so the probes can actually run.
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
   hc_hostname            = "flip-planning"
+  hc_port                = 8080
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
@@ -72,7 +80,10 @@ resource "pangolin_target" "flip_planning_pgadmin" {
   priority        = 2
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
   hc_hostname            = "flip-planning-pgadmin"
+  hc_port                = 80
   hc_path                = "/db/misc/ping"
   hc_method              = "GET"
   hc_status              = 200
@@ -95,7 +106,10 @@ resource "pangolin_target" "flip_planning_mailpit" {
   priority        = 3
 
   hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
   hc_hostname            = "flip-planning-mailpit"
+  hc_port                = 8025
   hc_path                = "/mail/livez"
   hc_method              = "GET"
   hc_status              = 200
