@@ -32,6 +32,7 @@ locals {
   # Adding an app here is not optional - the coverage precondition below fails
   # the plan if a live resource has no entry.
   managed_resources = {
+    "00NTF - Proxmox"  = pangolin_resource.proxmox.id
     "Betisier"         = pangolin_resource.betisier.id
     "Dawarich"         = pangolin_resource.dawarich.id
     "Echo"             = pangolin_resource.echo.id
@@ -55,7 +56,6 @@ locals {
   # depend on a live lookup. The `enabled = false` ones are kept so this change
   # destroys no existing rule - prune them once they are confirmed dead.
   unmanaged_resources = {
-    "00NTF - Proxmox"           = 4  # enabled
     "SSH PI"                    = 38 # enabled
     "00NTF - NAS"               = 75 # enabled
     "00NTF - Dashboard Traefik" = 2  # disabled in Pangolin
@@ -259,5 +259,126 @@ check "target_health" {
   assert {
     condition     = length(local.unhealthy_targets) == 0
     error_message = "Targets whose probe is currently failing: ${join(", ", local.unhealthy_targets)}."
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Rule inventory audit.
+#
+# `terraform_data.geo_rule_coverage` above asks "does every enabled resource
+# have rules?" and stops there. It never asks "and nothing else?", which leaves
+# anything added by hand in the Pangolin UI completely invisible: 00NTF -
+# Proxmox carried ten leftover duplicate country rules while `tofu plan`
+# reported "No changes" throughout, and the ACCEPT/CIDR rule that lets Claude
+# reach Flip Planning lived only in Pangolin until it was found by reading the
+# API by hand. Both are the same blind spot - the plan only ever compared what
+# this configuration owns against itself.
+#
+# The comparison is on rule *ids*, not on (action, match, value, priority): two
+# rules can be semantically identical and still be two distinct rules, which is
+# exactly the shape the Proxmox duplicates had. Every rule Pangolin holds must
+# be one this configuration created.
+#
+# One request per resource; there is no org-wide rules endpoint.
+# ---------------------------------------------------------------------------
+data "http" "pangolin_rules" {
+  for_each = local.rule_targets
+
+  # This endpoint already defaults to a limit of 1000, and the truncation
+  # precondition below refuses to trust a response that says otherwise.
+  url = "${local.pangolin_url}/v1/resource/${each.value}/rules"
+
+  request_headers = {
+    Authorization = "Bearer ${local.pangolin_api_key}"
+    Accept        = "application/json"
+  }
+}
+
+locals {
+  # App-specific rules, listed one by one. HCL cannot enumerate the instances of
+  # a resource that has no `for_each`, so a new standalone pangolin_resource_rule
+  # has to be added here by hand or the audit reports it as undeclared. That the
+  # omission fails loudly is the point: the alternative is the silence above.
+  declared_extra_rules = [
+    pangolin_resource_rule.dawarich_home_ip,
+    pangolin_resource_rule.flip_planning_claude,
+    pangolin_resource_rule.immich_home_ip,
+    pangolin_resource_rule.trek_home_ip,
+  ]
+
+  # Stringified so the ids compare cleanly against the JSON numbers below.
+  declared_rule_ids = toset(concat(
+    [for rule in pangolin_resource_rule.allow_countries : tostring(rule.id)],
+    [for rule in pangolin_resource_rule.block_country : tostring(rule.id)],
+    [for rule in local.declared_extra_rules : tostring(rule.id)],
+  ))
+
+  # Same reasoning as failed_target_lookups: an audit that silently sees nothing
+  # is worse than no audit, so an undecodable response is reported, not skipped.
+  failed_rule_lookups = [
+    for name, response in data.http.pangolin_rules :
+    "${name} (HTTP ${response.status_code})"
+    if try(jsondecode(response.response_body).data.rules, null) == null
+  ]
+
+  truncated_rule_lists = [
+    for name, response in data.http.pangolin_rules : name
+    if try(
+      length(jsondecode(response.response_body).data.rules) != jsondecode(response.response_body).data.pagination.total,
+      false
+    )
+  ]
+
+  live_rules = flatten([
+    for name, response in data.http.pangolin_rules : [
+      for rule in try(jsondecode(response.response_body).data.rules, []) : {
+        id    = tostring(rule.ruleId)
+        label = "${name}#${rule.ruleId} (${rule.action} ${rule.match} ${rule.value}, priority ${rule.priority})"
+      }
+    ]
+  ])
+
+  # Live in Pangolin, created by something other than this configuration.
+  undeclared_rules = [
+    for rule in local.live_rules : rule.label
+    if !contains(local.declared_rule_ids, rule.id)
+  ]
+}
+
+resource "terraform_data" "rule_inventory" {
+  input = length(local.live_rules)
+
+  lifecycle {
+    precondition {
+      condition = length(local.failed_rule_lookups) == 0
+      error_message = join(" ", [
+        "Could not read the rules of:",
+        "${join(", ", local.failed_rule_lookups)}.",
+        "The audit below cannot run, so the plan is stopped rather than passing on no data.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.truncated_rule_lists) == 0
+      error_message = join(" ", [
+        "Pangolin returned a truncated rule list for:",
+        "${join(", ", local.truncated_rule_lists)}.",
+        "The audit below would not see the missing rules, so it is meaningless.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_rules) == 0
+      error_message = join(" ", [
+        "Rules live in Pangolin that this configuration did not create:",
+        "${join(", ", local.undeclared_rules)}.",
+        "Either declare them (a pangolin_resource_rule resource, plus an entry in",
+        "local.declared_extra_rules unless it comes from the loops above) or delete",
+        "them in Pangolin. Note that the provider cannot import a rule: its",
+        "ImportState trusts the `resourceId` of the API payload, which Pangolin",
+        "returns as null, so the import writes resource_id = 0 and the follow-up",
+        "read 404s. Delete the live rule and let an apply recreate it from config.",
+      ])
+    }
   }
 }

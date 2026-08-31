@@ -7,14 +7,13 @@ resource "pangolin_resource" "flip_planning" {
   sso         = true
   apply_rules = true
 
-  # These are optional+computed, so leaving them out made OpenTofu plan them
-  # as "(known after apply)" on every update. Pinned to the values Pangolin
-  # actually holds, read from GET /v1/resource/76.
-  ssl                     = true
-  enabled                 = true
-  block_access            = false
-  email_whitelist_enabled = false
-  sticky_session          = false
+  # Optional+computed: pinned so a plan can disagree with the API. See
+  # resource_defaults.tf.
+  ssl                     = local.resource_pins.ssl
+  enabled                 = local.resource_pins.enabled
+  block_access            = local.resource_pins.block_access
+  email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
+  sticky_session          = local.resource_pins.sticky_session
 
   # Set by hand in the Pangolin UI and declared here so Tofu stops planning
   # its removal: the provider cannot round-trip an emptied header list (the
@@ -26,11 +25,34 @@ resource "pangolin_resource" "flip_planning" {
       value = "true"
     },
   ]
+
+  # Maintenance screen served automatically while no target is healthy.
+  # See maintenance.tf.
+  maintenance_mode_enabled = local.maintenance.enabled
+  maintenance_mode_type    = local.maintenance.type
+  maintenance_title        = local.maintenance.title
+  maintenance_message      = local.maintenance.message
 }
 
 resource "pangolin_resource_role" "flip_planning" {
   resource_id = pangolin_resource.flip_planning.id
   role_id     = pangolin_role.apps["flip-planning"].id
+}
+
+# Claude reaches the FLIP MCP server from Anthropic's egress range, which is not
+# in FR/DE, so the catch-all `DROP COUNTRY ALL` (priority 99, in rules.tf) was
+# blocking it. Priority 98 puts this ACCEPT just above that catch-all and below
+# the country PASS rules, so it only rescues traffic the geo rules would drop.
+#
+# Unlike the country rules this one is app-specific, hence a standalone resource
+# here rather than an entry in the generic loops of rules.tf.
+resource "pangolin_resource_rule" "flip_planning_claude" {
+  resource_id = pangolin_resource.flip_planning.id
+  action      = "ACCEPT"
+  match       = "CIDR"
+  value       = "160.79.104.0/21"
+  priority    = 98
+  enabled     = true
 }
 
 resource "pangolin_target" "flip_planning" {
@@ -134,8 +156,11 @@ output "flip_planning_access_token" {
   sensitive = true
 }
 
-resource "uptimekuma_monitor_http" "flip_planning" {
-  name            = "Healthcheck ${pangolin_resource.flip_planning.name}"
+resource "uptimekuma_monitor_http_keyword" "flip_planning" {
+  name = "Healthcheck ${pangolin_resource.flip_planning.name}"
+
+  # Grouped under the Self-hosted folder. See uptime_globals.tf.
+  parent          = uptimekuma_monitor_group.self_hosted.id
   url             = "https://${pangolin_resource.flip_planning.full_domain}"
   interval        = 60
   timeout         = 30
@@ -144,12 +169,25 @@ resource "uptimekuma_monitor_http" "flip_planning" {
   resend_interval = 0
   active          = true
   method          = "GET"
+
+  # Pangolin's automatic maintenance page is a Next.js server component proxied
+  # by a Traefik router at priority 2000, so a service that is completely down
+  # answers 200 with that page instead of failing. A plain status-code monitor
+  # reads that as UP and never sends the downtime mail - the exact alerting the
+  # maintenance page was added on top of.
+  #
+  # Inverted keyword: finding the maintenance title means DOWN. The title is
+  # rendered server-side into the HTML (src/app/maintenance-screen/page.tsx), so
+  # it is visible to a plain GET, and it is the same local the resources use, so
+  # editing the page text cannot leave the monitors matching a stale string.
+  keyword        = local.maintenance.title
+  invert_keyword = true
   headers = jsonencode({
     "P-Access-Token-Id" = tostring(pangolin_resource_access_token.flip_planning.id),
     "P-Access-Token"    = pangolin_resource_access_token.flip_planning.token
   })
   expiry_notification = true
-  tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
+  tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }
@@ -157,11 +195,14 @@ resource "uptimekuma_monitor_http" "flip_planning" {
 resource "uptimekuma_monitor_push" "backup_flip_planning" {
   name = "Backup ${pangolin_resource.flip_planning.name}"
 
+  # Grouped under the Backup folder. See uptime_globals.tf.
+  parent = uptimekuma_monitor_group.backups.id
+
   interval = 60 * 60 * 24
 
   retry_interval = 20
   active         = true
-  tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }

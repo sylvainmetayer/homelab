@@ -1,11 +1,14 @@
 resource "uptimekuma_monitor_push" "backup_pangolin" {
   name = "Backup Pangolin"
 
+  # Grouped under the Backup folder. See uptime_globals.tf.
+  parent = uptimekuma_monitor_group.backups.id
+
   interval = 60 * 60 * 24
 
   retry_interval = 20
   active         = true
-  tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }
