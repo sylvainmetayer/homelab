@@ -32,23 +32,26 @@ locals {
   # Adding an app here is not optional - the coverage precondition below fails
   # the plan if a live resource has no entry.
   managed_resources = {
-    "00NTF - Proxmox"  = pangolin_resource.proxmox.id
-    "Betisier"         = pangolin_resource.betisier.id
-    "Dawarich"         = pangolin_resource.dawarich.id
-    "Echo"             = pangolin_resource.echo.id
-    "Flip Planning"    = pangolin_resource.flip_planning.id
-    "Gramps"           = pangolin_resource.gramps.id
-    "Immich"           = pangolin_resource.immich.id
-    "Immich Swipe"     = pangolin_resource.immich_swipe.id
-    "Meerkat CRM"      = pangolin_resource.meerkat_crm.id
-    "Monica CRM"       = pangolin_resource.monica.id
-    "Paperless-ngx"    = pangolin_resource.paperless.id
-    "RSS"              = pangolin_resource.rss.id
-    "Scanopy"          = pangolin_resource.scanopy.id
-    "SearXNG"          = pangolin_resource.searxng.id
-    "TREK"             = pangolin_resource.trek.id
-    "Wiki (Bookstack)" = pangolin_resource.wiki.id
-    "nextcloud"        = pangolin_resource.nextcloud.id
+    "BBOX"              = pangolin_resource.bbox.id
+    "Betisier"          = pangolin_resource.betisier.id
+    "Dashboard Traefik" = pangolin_resource.traefik_dashboard.id
+    "Dawarich"          = pangolin_resource.dawarich.id
+    "Echo"              = pangolin_resource.echo.id
+    "Flip Planning"     = pangolin_resource.flip_planning.id
+    "Gramps"            = pangolin_resource.gramps.id
+    "Immich"            = pangolin_resource.immich.id
+    "Immich Swipe"      = pangolin_resource.immich_swipe.id
+    "Meerkat CRM"       = pangolin_resource.meerkat_crm.id
+    "Monica CRM"        = pangolin_resource.monica.id
+    "NAS"               = pangolin_resource.nas.id
+    "nextcloud"         = pangolin_resource.nextcloud.id
+    "Paperless-ngx"     = pangolin_resource.paperless.id
+    "Proxmox"           = pangolin_resource.proxmox.id
+    "RSS"               = pangolin_resource.rss.id
+    "Scanopy"           = pangolin_resource.scanopy.id
+    "SearXNG"           = pangolin_resource.searxng.id
+    "TREK"              = pangolin_resource.trek.id
+    "Wiki (Bookstack)"  = pangolin_resource.wiki.id
   }
 
   # Resources created by hand in the Pangolin UI, outside this configuration.
@@ -56,10 +59,7 @@ locals {
   # depend on a live lookup. The `enabled = false` ones are kept so this change
   # destroys no existing rule - prune them once they are confirmed dead.
   unmanaged_resources = {
-    "SSH PI"                    = 38 # enabled
-    "00NTF - NAS"               = 75 # enabled
-    "00NTF - Dashboard Traefik" = 2  # disabled in Pangolin
-    "00NTF - BBOX"              = 15 # disabled in Pangolin
+    "SSH PI" = 38 # enabled
   }
 
   rule_targets = merge(local.managed_resources, local.unmanaged_resources)

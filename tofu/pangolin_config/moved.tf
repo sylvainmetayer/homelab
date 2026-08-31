@@ -98,3 +98,70 @@ moved {
   to   = pangolin_resource_rule.block_country["Gramps"]
 }
 
+
+# ---------------------------------------------------------------------------
+# The "00NTF" ("00 - non terraform") prefix was dropped once these four
+# resources were declared in this configuration. The rule keys are the Pangolin
+# names, so every one of them is re-keyed; without these blocks the twelve rules
+# below would be destroyed and recreated instead of moved.
+# ---------------------------------------------------------------------------
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - Proxmox-FR"]
+  to   = pangolin_resource_rule.allow_countries["Proxmox-FR"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - Proxmox-DE"]
+  to   = pangolin_resource_rule.allow_countries["Proxmox-DE"]
+}
+
+moved {
+  from = pangolin_resource_rule.block_country["00NTF - Proxmox"]
+  to   = pangolin_resource_rule.block_country["Proxmox"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - NAS-FR"]
+  to   = pangolin_resource_rule.allow_countries["NAS-FR"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - NAS-DE"]
+  to   = pangolin_resource_rule.allow_countries["NAS-DE"]
+}
+
+moved {
+  from = pangolin_resource_rule.block_country["00NTF - NAS"]
+  to   = pangolin_resource_rule.block_country["NAS"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - BBOX-FR"]
+  to   = pangolin_resource_rule.allow_countries["BBOX-FR"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - BBOX-DE"]
+  to   = pangolin_resource_rule.allow_countries["BBOX-DE"]
+}
+
+moved {
+  from = pangolin_resource_rule.block_country["00NTF - BBOX"]
+  to   = pangolin_resource_rule.block_country["BBOX"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - Dashboard Traefik-FR"]
+  to   = pangolin_resource_rule.allow_countries["Dashboard Traefik-FR"]
+}
+
+moved {
+  from = pangolin_resource_rule.allow_countries["00NTF - Dashboard Traefik-DE"]
+  to   = pangolin_resource_rule.allow_countries["Dashboard Traefik-DE"]
+}
+
+moved {
+  from = pangolin_resource_rule.block_country["00NTF - Dashboard Traefik"]
+  to   = pangolin_resource_rule.block_country["Dashboard Traefik"]
+}

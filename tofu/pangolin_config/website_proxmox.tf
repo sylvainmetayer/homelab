@@ -7,12 +7,15 @@
 # Uptime Kuma monitor stayed outside the code. Declared here so all three are
 # managed like every other public resource.
 #
+# Renamed from `00NTF - Proxmox`: the prefix stood for "00 - non terraform" and
+# stopped being true once this block existed.
+#
 # Values mirror GET /v1/resource/4 and /v1/resource/4/targets, so the import
 # below is a no-op apart from the monitor (see the bottom of this file).
 # ---------------------------------------------------------------------------
 
 resource "pangolin_resource" "proxmox" {
-  name      = "00NTF - Proxmox"
+  name      = "Proxmox"
   subdomain = "proxmox"
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
