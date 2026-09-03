@@ -25,7 +25,7 @@ services:
   dawarich-db:
     cpus: 0.50
     mem_limit: 1g
-    image: postgis/postgis:17-3.5-alpine@sha256:08f4b1e1f4a571008c60272ceb9e0d1f9f8f643792d006b74a35b1bec44c2218
+    image: postgis/postgis:17-3.5-alpine@sha256:894f570c0cf0664ed5576a8fd5d5bfb8fb1b19d592885b686c3a88c8bd90c41f
     container_name: dawarich-db
     restart: unless-stopped
     shm_size: 1G
