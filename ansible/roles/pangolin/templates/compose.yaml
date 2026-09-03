@@ -13,7 +13,7 @@ services:
       retries: 15
 
   gerbil:
-    image: docker.io/fosrl/gerbil:1.5.0@sha256:6da170863132c79c67c580ef6a76606ea05fec704706d87988f52b06ba6d6b93
+    image: docker.io/fosrl/gerbil:1.5.1@sha256:e8010d0354d7dc3b8cb1c80d1ae9d961c02e8b1fccc353ef1dfc37631722f7f6
     container_name: gerbil
     restart: unless-stopped
     depends_on:
