@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backup:/backup
+      - ./assets:/assets:ro
     env_file:
       - .env
     depends_on:
@@ -51,6 +52,22 @@ services:
       - flip-planning
       - newt
     image: axllent/mailpit
+
+  # BRANDING_LOGO_URL / MASCOT_URL are URLs the browser fetches, not file paths:
+  # the application only serves its Angular bundle (Quinoa, SPA fallback), so
+  # /assets/* would come back as index.html. This nginx serves the very same
+  # read-only directory the app container mounts for its PDFs, and Pangolin
+  # routes /assets to it on the same resource — hence behind the same SSO.
+  assets:
+    cpus: 0.25
+    mem_limit: 128m
+    container_name: flip-planning-assets
+    image: nginx:1-alpine
+    restart: unless-stopped
+    volumes:
+      - ./assets:/usr/share/nginx/html/assets:ro
+    networks:
+      - newt
 
 {% if flip_planning_pgadmin_enabled %}
 

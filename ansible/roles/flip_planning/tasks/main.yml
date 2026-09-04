@@ -3,6 +3,7 @@
   loop:
     - "{{ flip_planning_base_path }}"
     - "{{ flip_planning_base_path }}/pgadmin"
+    - "{{ flip_planning_base_path }}/assets"
   ansible.builtin.file:
     mode: "0755"
     path: "{{ item }}"
@@ -17,6 +18,24 @@
   ansible.builtin.command:
     cmd: "docker login {{ flip_planning_ghcr_registry }} --username {{ flip_planning_ghcr_username }} --password-stdin"
     stdin: "{{ flip_planning_ghcr_token }}"
+
+# Branding assets: the application image ships no visual of its own (the app
+# repo is public and carries no customer mark), so the festival's images are
+# part of this deployment and are mounted read-only on /assets.
+- name: Copy Flip Planning branding assets
+  notify: Restart flip_planning
+  loop:
+    - flip.png
+    - flip-logo.png
+    - flip-strip.png
+    - flip-woopy.png
+    - flip-woopy-loader.png
+  ansible.builtin.copy:
+    src: "{{ role_path }}/{{ item }}"
+    dest: "{{ flip_planning_base_path }}/assets/{{ item }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
 
 - name: Template pgAdmin servers configuration
   when: flip_planning_pgadmin_enabled

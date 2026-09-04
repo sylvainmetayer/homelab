@@ -142,6 +142,39 @@ resource "pangolin_target" "flip_planning_mailpit" {
   hc_unhealthy_threshold = 3
 }
 
+# The festival's visuals are part of the deployment, not of the image (the
+# application repository carries no customer mark). They are copied next to the
+# compose file, mounted read-only on the app container for the PDFs, and served
+# to the browser by a small nginx on this sub-path - same resource, so the same
+# SSO and the same role guard them.
+resource "pangolin_target" "flip_planning_assets" {
+  resource_id = pangolin_resource.flip_planning.id
+  site_id     = pangolin_site.proxmox_docker.id
+  ip          = "flip-planning-assets"
+  port        = 80
+  method      = "http"
+
+  path            = "/assets"
+  path_match_type = "prefix"
+  priority        = 4
+
+  # No dedicated probe endpoint on a static server: the logo itself is the
+  # healthcheck, and it is exactly the file whose absence would break the UI.
+  hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_hostname            = "flip-planning-assets"
+  hc_port                = 80
+  hc_path                = "/assets/flip.png"
+  hc_method              = "GET"
+  hc_status              = 200
+  hc_interval            = 30
+  hc_unhealthy_interval  = 10
+  hc_timeout             = 5
+  hc_healthy_threshold   = 2
+  hc_unhealthy_threshold = 3
+}
+
 resource "pangolin_resource_access_token" "flip_planning" {
   resource_id = pangolin_resource.flip_planning.id
   title       = "Healthcheck ${pangolin_resource.flip_planning.name}"
