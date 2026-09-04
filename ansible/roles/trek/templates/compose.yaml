@@ -3,7 +3,7 @@ services:
   app:
     cpus: 0.50
     mem_limit: 512m
-    image: docker.io/mauriceboe/trek:4.1.1@sha256:01d217fa047414b73e2132f7737703d7d39b1f468f670f804e801f5e327837f4
+    image: docker.io/mauriceboe/trek:4.2.0@sha256:281a44079910053089a77be73ca2148a0e131c80ca728ca1f71a28133b2eaef4
     container_name: trek
     read_only: true
     security_opt:
