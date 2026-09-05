@@ -129,3 +129,7 @@ Uptime Kuma.
   example.
 - Compose file is always named `compose.yaml`, never `docker-compose.yml`.
 - PUID/PGID (if the image needs them) come from `ansible_facts['user_uid']`/`user_gid'`, not hardcoded.
+- Resource limits follow the doctrine in `AGENTS.md`: `mem_limit` on every
+  service (≈2× expected peak), `mem_reservation` on DBs, **no `cpus:`** except
+  `cpus: 2.00` + `cpu_shares: 512` on batch workers. Check the image's default
+  worker count fits under the cap.

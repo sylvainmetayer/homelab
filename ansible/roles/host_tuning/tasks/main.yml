@@ -1,0 +1,65 @@
+---
+- name: Install zram-tools
+  become: true
+  ansible.builtin.apt:
+    name: zram-tools
+    state: present
+
+- name: Configure zram swap
+  become: true
+  notify: Restart zramswap
+  ansible.builtin.template:
+    src: zramswap.j2
+    dest: /etc/default/zramswap
+    owner: root
+    group: root
+    mode: "0644"
+
+# Le postinst du paquet démarre le service avec sa config par défaut (50 % de
+# la RAM) avant que notre template soit en place, et un simple restart ne
+# retaille pas un device zram déjà initialisé. On compare donc la taille live
+# à la config et on force le handler si elles divergent (device absent = 0,
+# donc divergent aussi : le handler recrée le device).
+- name: Read live zram device size
+  ansible.builtin.command:
+    cmd: cat /sys/block/zram0/disksize
+  register: host_tuning_zram_live_size
+  changed_when: false
+  failed_when: false
+
+- name: Flag zram swap for a resize when the live size differs from the configuration
+  ansible.builtin.command:
+    cmd: /bin/true
+  changed_when: (host_tuning_zram_live_size.stdout | default('0') | int) != (host_tuning_zram_size_mb | int) * 1048576
+  notify: Restart zramswap
+
+# Le handler doit passer *avant* le `state: started` ci-dessous : sur un device
+# cassé, `systemctl start zramswap` échoue et ferait planter le rôle.
+- name: Apply zram changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable zram swap service
+  become: true
+  ansible.builtin.systemd:
+    name: zramswap
+    enabled: true
+    state: started
+
+- name: Ensure journald drop-in directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Cap journald disk usage
+  become: true
+  notify: Restart journald
+  ansible.builtin.template:
+    src: journald-size.conf.j2
+    dest: /etc/systemd/journald.conf.d/50-size.conf
+    owner: root
+    group: root
+    mode: "0644"

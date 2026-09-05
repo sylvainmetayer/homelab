@@ -1,7 +1,6 @@
 ---
 services:
   app:
-    cpus: 1.00
     mem_limit: 1g
     container_name: flip-planning
     image: {{ flip_planning_image }}
@@ -19,8 +18,8 @@ services:
       - newt
 
   postgres:
-    cpus: 0.50
     mem_limit: 512m
+    mem_reservation: 128m
     container_name: flip-planning-db
     image: postgres:18
     restart: unless-stopped
@@ -43,7 +42,6 @@ services:
   # Local SMTP sink for the échange notification mails (issue #165): catches
   # everything, delivers nothing. Web UI on http://localhost:8025.
   mailpit:
-    cpus: 0.25
     mem_limit: 128m
     container_name: flip-planning-mailpit
     environment:
@@ -59,7 +57,6 @@ services:
   # read-only directory the app container mounts for its PDFs, and Pangolin
   # routes /assets to it on the same resource — hence behind the same SSO.
   assets:
-    cpus: 0.25
     mem_limit: 128m
     container_name: flip-planning-assets
     image: nginx:1-alpine
@@ -72,7 +69,6 @@ services:
 {% if flip_planning_pgadmin_enabled %}
 
   pgadmin:
-    cpus: 0.50
     mem_limit: 512m
     container_name: flip-planning-pgadmin
     image: dpage/pgadmin4:9@sha256:40fa840c5bb7c8463957f1255b01283732c2d8c9396a956d180f8e6c296753b3

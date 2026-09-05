@@ -1,3 +1,12 @@
 ---
 docker_users:
   - "{{ ansible_facts['user_id'] }}"
+
+# Rotation des logs json-file : sans ça les logs de conteneur grossissent sans
+# limite (et sont déjà dupliqués dans journald par `docker compose up` attaché).
+# Ne s'applique qu'aux conteneurs (re)créés après le changement.
+docker_daemon_options:
+  log-driver: json-file
+  log-opts:
+    max-size: 10m
+    max-file: "3"

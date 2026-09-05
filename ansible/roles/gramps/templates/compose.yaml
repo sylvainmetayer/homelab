@@ -1,13 +1,16 @@
 ---
 services:
   grampsweb:
-    cpus: 1.00
     mem_limit: 1g
     image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb
     restart: unless-stopped
     environment:
       GRAMPSWEB_TREE: "{{ gramps_tree_name }}"
+      # L'image lance 8 workers gunicorn par défaut, ~170 Mio chacun : ça
+      # dépasse le mem_limit et part en boucle OOM. 2 suffisent pour un usage
+      # familial.
+      GUNICORN_NUM_WORKERS: "2"
       GRAMPSWEB_CELERY_CONFIG__broker_url: redis://grampsweb_redis:6379/0
       GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
       GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
@@ -27,7 +30,8 @@ services:
       - newt
 
   grampsweb_celery:
-    cpus: 1.00
+    cpus: 2.00
+    cpu_shares: 512
     mem_limit: 768m
     image: ghcr.io/gramps-project/grampsweb:26.8.0@sha256:c401ff5ec29f71c849dea9467e31821acc148eb7dda36048bc6394c840b419bd
     container_name: grampsweb_celery
@@ -54,7 +58,6 @@ services:
       - gramps
 
   grampsweb_redis:
-    cpus: 0.25
     mem_limit: 256m
     image: docker.io/valkey/valkey:8-alpine@sha256:cfb2aa4c8352930130fd45eb231a57310ac326d7323edae12b384b9270c46dda
     container_name: grampsweb_redis

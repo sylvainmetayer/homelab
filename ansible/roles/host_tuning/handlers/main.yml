@@ -1,0 +1,26 @@
+---
+# `zramswap stop` fait `modprobe -r zram`, qui échoue ("module in use") juste
+# après le swapoff, et le `start` qui suit ne peut plus écrire disksize sur un
+# device encore initialisé : la taille ne change jamais. On vide donc le device
+# via sysfs (pas `zramctl --reset`, qui supprime carrément /dev/zram0 sur les
+# util-linux récents, et `zramswap start` ne le recrée pas tant que le module
+# est chargé : d'où la branche de secours qui décharge le module).
+- name: Restart zramswap
+  become: true
+  ansible.builtin.shell: |
+    set -e
+    systemctl stop zramswap || true
+    if [ -b /dev/zram0 ]; then
+      swapoff /dev/zram0 2>/dev/null || true
+      echo 1 > /sys/block/zram0/reset
+    else
+      modprobe -r zram || true
+    fi
+    systemctl start zramswap
+  changed_when: true
+
+- name: Restart journald
+  become: true
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted

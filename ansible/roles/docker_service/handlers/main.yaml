@@ -1,5 +1,7 @@
 ---
+# dc@.service est une unité *user* : c'est le manager de l'utilisateur qu'il
+# faut recharger, pas celui du système.
 - name: Daemon reload
-  become: true
   ansible.builtin.systemd:
     daemon_reload: true
+    scope: user

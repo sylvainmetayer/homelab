@@ -1,11 +1,18 @@
 # Thanks https://github.com/MiGoller/dc-systemd-template#creating-docker-compose-powered-services-using-systemd-templates
 [Unit]
 Description=%i service powered by docker compose
+# Une appli qui crashe en boucle refaisait `docker compose pull` toutes les
+# 15 s indéfiniment. Au-delà de 5 démarrages en 10 min, l'unité passe en
+# failed : `systemctl --user reset-failed dc@<svc>` pour la relancer.
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Restart=always
 RestartSec=15s
 TimeoutStartSec=300
+# Le défaut (90 s) a été dépassé lors d'un arrêt de gramps sous charge.
+TimeoutStopSec=120
 WorkingDirectory=/opt/apps/%i
 
 #   Remove old containers, images and volumes and update it

@@ -1,7 +1,6 @@
 ---
 services:
   betisier:
-    cpus: 0.50
     mem_limit: 512m
     container_name: betisier
     networks:
@@ -17,8 +16,8 @@ services:
     restart: unless-stopped
 
   betisier_db:
-    cpus: 0.50
     mem_limit: 512m
+    mem_reservation: 192m
     networks:
       - betisier
     image: lscr.io/linuxserver/mariadb:11.8.8@sha256:2497453facccec79cd5e3bb3c1bd304a9def22af2f48a8d6b2fc8377904ce2d5

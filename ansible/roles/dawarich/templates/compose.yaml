@@ -1,7 +1,6 @@
 ---
 services:
   dawarich-redis:
-    cpus: 0.25
     mem_limit: 256m
     image: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     container_name: dawarich-redis
@@ -23,8 +22,9 @@ services:
       - dawarich
 
   dawarich-db:
-    cpus: 0.50
-    mem_limit: 1g
+    # Mesuré collé à 1 Gio (page cache évincé en continu -> relectures disque).
+    mem_limit: 2g
+    mem_reservation: 1g
     image: postgis/postgis:17-3.5-alpine@sha256:894f570c0cf0664ed5576a8fd5d5bfb8fb1b19d592885b686c3a88c8bd90c41f
     container_name: dawarich-db
     restart: unless-stopped
@@ -45,7 +45,6 @@ services:
       - dawarich
 
   dawarich-app:
-    cpus: 1.50
     mem_limit: 2g
     image: freikin/dawarich:1.14.2@sha256:5de477cfc6f8d9d19d7660c262acb196ea8a15cebbcbb7db173e04a2860f3bb5
     container_name: dawarich-app
@@ -79,7 +78,8 @@ services:
       - newt
 
   dawarich-sidekiq:
-    cpus: 1.00
+    cpus: 2.00
+    cpu_shares: 512
     mem_limit: 1g
     image: freikin/dawarich:1.14.2@sha256:5de477cfc6f8d9d19d7660c262acb196ea8a15cebbcbb7db173e04a2860f3bb5
     container_name: dawarich-sidekiq

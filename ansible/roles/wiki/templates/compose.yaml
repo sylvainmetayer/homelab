@@ -1,7 +1,6 @@
 ---
 services:
   bookstack:
-    cpus: 1.00
     mem_limit: 768m
     container_name: bookstack
     networks:
@@ -25,8 +24,8 @@ services:
       - bookstack_db
 
   bookstack_db:
-    cpus: 0.50
     mem_limit: 512m
+    mem_reservation: 192m
     container_name: bookstack_db
     networks:
       - wiki    # Réseau interne uniquement

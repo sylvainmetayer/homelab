@@ -1,8 +1,8 @@
 ---
 services:
   app:
-    cpus: 0.50
-    mem_limit: 512m
+    # Pic mesuré à 409 Mio sous l'ancien plafond de 512m.
+    mem_limit: 768m
     image: docker.io/mauriceboe/trek:4.2.0@sha256:281a44079910053089a77be73ca2148a0e131c80ca728ca1f71a28133b2eaef4
     container_name: trek
     read_only: true
