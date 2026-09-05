@@ -56,7 +56,7 @@ services:
   grampsweb_redis:
     cpus: 0.25
     mem_limit: 256m
-    image: docker.io/valkey/valkey:8-alpine@sha256:e0eb7c480958d32bdc4357a74bdd70653ae15f2f9b4c93c4a5a9fad1dc471c84
+    image: docker.io/valkey/valkey:8-alpine@sha256:cfb2aa4c8352930130fd45eb231a57310ac326d7323edae12b384b9270c46dda
     container_name: grampsweb_redis
     restart: unless-stopped
     volumes:
