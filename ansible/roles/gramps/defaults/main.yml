@@ -3,6 +3,10 @@ gramps_base_path: "{{ docker_base_path }}/gramps"
 gramps_domain: trees.sylvain.cloud
 gramps_tree_name: "Gramps Web"
 
+# false : le service est arrêté et désactivé, mais les données, le compose et
+# le backup Borgmatic restent en place. Repasser à true pour le relancer.
+gramps_enabled: true
+
 # uid the valkey container runs as; it owns the ./redis bind mount.
 gramps_redis_uid: 999
 

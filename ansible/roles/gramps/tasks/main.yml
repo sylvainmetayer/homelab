@@ -66,10 +66,10 @@
         gramps_borg_repo_create.rc != 0 and
         'repository already exists' not in gramps_borg_repo_create.stderr
 
-- name: Make sure gramps service is running
+- name: Make sure gramps service is {{ 'running' if gramps_enabled else 'stopped' }}
   ansible.builtin.systemd:
-    state: started
+    state: "{{ 'started' if gramps_enabled else 'stopped' }}"
     daemon_reload: true
     name: dc@gramps
     scope: user
-    enabled: true
+    enabled: "{{ gramps_enabled }}"

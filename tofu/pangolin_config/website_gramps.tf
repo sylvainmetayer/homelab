@@ -74,8 +74,11 @@ resource "uptimekuma_monitor_http_keyword" "gramps" {
   max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
-  active          = true
-  method          = "GET"
+  # Gramps is stopped on purpose (gramps_enabled: false in
+  # ansible/host_vars/docker/variables.yaml): the maintenance page would keep
+  # this monitor DOWN and mailing. Flip both back together.
+  active = false
+  method = "GET"
 
   # Pangolin's automatic maintenance page is a Next.js server component proxied
   # by a Traefik router at priority 2000, so a service that is completely down
