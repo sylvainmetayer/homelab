@@ -32,6 +32,25 @@ flip_planning_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_session_encryption_key: ""
 
+# Reverse proxies the login lockout may believe when it reads X-Forwarded-For.
+#
+# Behind Pangolin the app never sees the client directly: Traefik writes the real
+# address into X-Forwarded-For, newt tunnels it at L4, and the peer the app
+# observes is the newt container on the shared bridge. That container address is
+# handed out at attach time and moves when the stacks restart in another order —
+# so what gets declared is the network's SUBNET, fixed at creation.
+#
+# Left empty, the subnet is read from the newt network at deploy time. Set it to
+# pin a value, or to declare something else (a literal address, or a
+# comma-separated mix of both).
+#
+# Without this, the lockout counts every visitor against newt's single address:
+# safe, but five failed logins from anyone lock the form for everyone.
+flip_planning_trusted_proxies: ""
+
+# The docker network newt attaches to; the app joins it to be reachable.
+flip_planning_newt_network: "newt"
+
 # pgAdmin, exposed on the /db sub-path of flip_planning_domain
 flip_planning_pgadmin_enabled: true
 flip_planning_pgadmin_path: "/db"
