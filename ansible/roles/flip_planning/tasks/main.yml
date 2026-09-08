@@ -47,6 +47,35 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
+# The value the application compares its peer against. Read from docker rather
+# than pinned: the subnet is stable for the life of the network, but docker
+# chooses it at creation, so hardcoding it here would be a guess that fails
+# silently — an entry that matches nothing means no header is trusted, and
+# nothing says so.
+- name: Read the newt network definition
+  when: not flip_planning_trusted_proxies
+  changed_when: false
+  ansible.builtin.command:
+    cmd: "docker network inspect {{ flip_planning_newt_network }}"
+  register: flip_planning_newt_network_info
+
+- name: Fail clearly when the newt network declares no subnet
+  when: not flip_planning_trusted_proxies
+  ansible.builtin.assert:
+    that:
+      - (flip_planning_newt_network_info.stdout | from_json)[0].IPAM.Config | default([]) | length > 0
+    fail_msg: >-
+      The {{ flip_planning_newt_network }} network has no IPAM subnet, so there is
+      nothing to declare as a trusted proxy. Set flip_planning_trusted_proxies
+      explicitly, or leave it empty to keep the login lockout counting every
+      visitor on one shared counter.
+
+- name: Use the newt subnet as the trusted proxy range
+  when: not flip_planning_trusted_proxies
+  ansible.builtin.set_fact:
+    flip_planning_trusted_proxies: >-
+      {{ (flip_planning_newt_network_info.stdout | from_json)[0].IPAM.Config[0].Subnet }}
+
 - name: Template compose configuration
   notify: Restart flip_planning
   loop:
