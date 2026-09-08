@@ -49,7 +49,7 @@
       "schedule": [
         "at any time"
       ],
-      "automerge": true
+      "automerge": false
     }
   ],
   "customManagers": [
