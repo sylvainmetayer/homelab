@@ -32,6 +32,38 @@ flip_planning_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_session_encryption_key: ""
 
+# Mentions légales, served publicly on /mentions-legales. Those of the
+# ORGANISER (the employer of the people being scheduled and the data
+# controller), not of the hoster. Left empty, the page announces itself as
+# incomplete. Names and addresses of real people: kept out of this public repo.
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_editeur: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_directeur_publication: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_hebergeur: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_contact: ""
+# Data controller (RGPD), when it differs from the LCEN publisher above.
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_responsable_traitement: ""
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_base_legale: ""
+# DISPLAYED to users and enforced by nobody: the purge is a yearly manual
+# operation (docs/exploitation.md in the app repo). Only announce what is kept.
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_legal_conservation: ""
+
+# Cloudflare Web Analytics beacon token. Empty = audience measurement off.
+# Set ⇒ a transfer outside the EU that the mentions légales must declare.
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_cloudflare_web_analytics_token: ""
+
+# Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
+# migration interrupted halfway blocks every later one, then back to false: it
+# also realigns checksums, which would hide an edited migration.
+flip_planning_flyway_repair_at_start: false
+
 # Reverse proxies the login lockout may believe when it reads X-Forwarded-For.
 #
 # Behind Pangolin the app never sees the client directly: Traefik writes the real
