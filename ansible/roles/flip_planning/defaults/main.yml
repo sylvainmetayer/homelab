@@ -56,7 +56,8 @@ flip_planning_legal_conservation: ""
 
 # Cloudflare Web Analytics beacon token. Empty = audience measurement off.
 # Set ⇒ a transfer outside the EU that the mentions légales must declare.
-# Sensitive: must be set in secrets.sops.yaml
+# A public identifier by construction (it ships in every page), so it lives in
+# plain text in host_vars/docker/variables.yaml rather than in sops.
 flip_planning_cloudflare_web_analytics_token: ""
 
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
