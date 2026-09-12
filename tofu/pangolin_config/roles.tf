@@ -12,6 +12,7 @@ locals {
     "wiki",
     "paperless",
     "flip-planning",
+    "demo-planning",
     "gramps",
     "dawarich",
     "scanopy",

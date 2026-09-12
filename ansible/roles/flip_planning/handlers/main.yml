@@ -1,6 +1,22 @@
 ---
+# One handler per instance, even though both do the same thing.
+#
+# Handler names are matched literally, so a single shared handler notified by
+# two applications of this role in the same play would run once, at the end of
+# the play, against whichever value of flip_planning_service happened to be in
+# scope — silently restarting one environment on behalf of the other. Tasks
+# notify "Restart {{ flip_planning_service }}" instead, which resolves at task
+# time, so each instance reaches its own unit.
+#
+# Adding an environment means adding its handler here.
 - name: Restart flip_planning
   ansible.builtin.systemd:
     name: dc@flip_planning
+    scope: user
+    state: restarted
+
+- name: Restart demo_planning
+  ansible.builtin.systemd:
+    name: dc@demo_planning
     scope: user
     state: restarted
