@@ -1,4 +1,4 @@
-# Borgmatic configuration for Flip Planning backup
+# Borgmatic configuration for the {{ flip_planning_service }} instance of Flip Planning
 # See https://torsion.org/borgmatic/reference/configuration/ for full reference
 #
 # Backup storage: Hetzner Storage Box via SSH/SFTP
@@ -11,18 +11,19 @@ source_directories:
     - {{ flip_planning_base_path }}/pgadmin
 
 postgresql_databases:
-    - container: flip-planning-db
+    - container: {{ flip_planning_container_prefix }}-db
       port: 5432
       name: {{ flip_planning_db_name }}
       username: {{ flip_planning_db_user }}
       password: {{ flip_planning_db_password }}
-      # Run pg_dump inside the flip-planning-db container itself instead of
-      # the host's pg_dump binary, so the client version always matches the
-      # server version (avoids "server version mismatch" errors on Postgres
-      # major-version upgrades). "--env PGPASSWORD" (no value) forwards the
-      # PGPASSWORD borgmatic sets on the host into the container, since
-      # `docker exec` doesn't inherit the host environment by default.
-      pg_dump_command: docker exec --env PGPASSWORD flip-planning-db pg_dump
+      # Run pg_dump inside the {{ flip_planning_container_prefix }}-db container
+      # itself instead of the host's pg_dump binary, so the client version
+      # always matches the server version (avoids "server version mismatch"
+      # errors on Postgres major-version upgrades). "--env PGPASSWORD" (no
+      # value) forwards the PGPASSWORD borgmatic sets on the host into the
+      # container, since `docker exec` doesn't inherit the host environment
+      # by default.
+      pg_dump_command: docker exec --env PGPASSWORD {{ flip_planning_container_prefix }}-db pg_dump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start
@@ -50,7 +51,7 @@ repositories:
       # An optional label for the repository, used in logging
       # and to make selecting the repository easier on the
       # command-line.
-      label: flip-planning-backup
+      label: {{ flip_planning_container_prefix }}-backup
 
 ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
 
@@ -120,7 +121,7 @@ checks:
 # can be targeted together. When running actions like repo-list,
 # info, or check, borgmatic automatically tries to match only
 # archives created with this name format.
-archive_name_format: 'flip-planning-{now:%Y-%m-%dT%H:%M:%S}'
+archive_name_format: '{{ flip_planning_container_prefix }}-{now:%Y-%m-%dT%H:%M:%S}'
 
 # List of one or more command hooks to execute, triggered at
 # particular points during borgmatic's execution. For each command
@@ -148,7 +149,7 @@ commands:
       # List of one or more shell commands or scripts to
       # run when this command hook is triggered. Required.
       run:
-          - echo "Starting Flip Planning backup at $(date)"
+          - echo "Starting {{ flip_planning_branding_product_name }} backup at $(date)"
 
     # Name for the point in borgmatic's execution that
     # the commands should be run after (required if
@@ -173,7 +174,7 @@ commands:
       # List of one or more shell commands or scripts to
       # run when this command hook is triggered. Required.
       run:
-          - echo "Flip Planning backup completed at $(date)"
+          - echo "{{ flip_planning_branding_product_name }} backup completed at $(date)"
 
 {% if flip_planning_backup_healthcheck_url is defined and flip_planning_backup_healthcheck_url %}
 # https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/

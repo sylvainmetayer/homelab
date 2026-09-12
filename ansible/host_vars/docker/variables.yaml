@@ -40,6 +40,14 @@ flip_planning_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@
 flip_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
 flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 
+# Demo environment of Flip Planning (demo-planning.sylvain.dev). The role is
+# applied a second time in docker.yml, which maps these onto its flip_planning_*
+# parameters; its own Borg repository, so restoring the demo can never touch the
+# production archives.
+demo_planning_backup_enabled: true
+demo_planning_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/demo_planning"
+demo_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
+
 # Inutilisé pour le moment : arrêté pour libérer les ressources, données et
 # backup conservés. Le moniteur Uptime Kuma est désactivé en face
 # (tofu/pangolin_config/website_gramps.tf).

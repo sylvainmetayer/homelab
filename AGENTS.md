@@ -130,6 +130,45 @@ current checklist — it also delegates to **`pangolin-route`** and
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
+### Running a second environment of an app
+
+`flip_planning` is applied twice by `docker.yml`: once for production
+(`flip-planning.sylvain.cloud`) and once for the demo
+(`demo-planning.sylvain.dev`). There is one role, not two — duplicating a role
+per environment is what leaves the copy behind on the next change.
+
+What makes a role instantiable is that everything two instances cannot share on
+one Docker host derives from two variables, set in `defaults/` and overridden as
+**role parameters** in the playbook:
+
+- `<service>_service` (snake_case) — the compose project directory under
+  `docker_base_path`, the systemd unit (`dc@<service>`) and the borgmatic config
+  filename. Compose derives its project name from that directory, so volumes and
+  internal networks are namespaced for free.
+- `<service>_container_prefix` (kebab-case) — every `container_name`, hence what
+  the Pangolin targets resolve on the `newt` network.
+
+Three non-obvious rules, each of which silently crosses the two environments if
+broken:
+
+- **Role parameters, not `host_vars`.** `vars:` on a `roles:` entry is
+  precedence 20 — above `host_vars` (9/10) and above `set_fact` (19). An
+  override placed in `host_vars` instead would apply to *both* instances.
+- **One handler per instance, notified through a variable.** Handler names are
+  matched literally and handlers run once, at the end of the play: a single
+  shared handler notified by both applications restarts whichever unit happened
+  to be in scope. Tasks do `notify: "Restart {{ <service>_service }}"` and
+  `handlers/main.yml` carries one static handler per environment.
+- **`set_fact` outlives the role application.** Anything a role `set_fact`s
+  leaks into the next instance in the same play. In `flip_planning` that is
+  `flip_planning_trusted_proxies`, and it is deliberately fine (same host, same
+  newt bridge, same subnet) — check that it is fine before adding another.
+
+On the Tofu side nothing is shared: a second `website_<instance>.tf`, a second
+slug in `roles.tf`'s `apps`, its own access token and its own Uptime Kuma
+monitors. Secrets are per-environment too (`demo_planning_*` in
+`secrets.sops.yaml`), so a leaked demo password cannot open the real planning.
+
 ### Removing an app role
 
 Use the **`remove-app`** project skill (`.claude/skills/remove-app/`) for the
