@@ -2,7 +2,7 @@
 services:
   grampsweb:
     mem_limit: 1g
-    image: ghcr.io/gramps-project/grampsweb:26.8.1@sha256:496a97ad6a937fe73b8fed6dbf7e5a2967ab60363c240735eb3b043ca6ba715c
+    image: ghcr.io/gramps-project/grampsweb:26.9.0@sha256:054b0cdf8003f1ae531ff7981a03ce374c3b13030ecc7ed38fc7f24be5b7acb2
     container_name: grampsweb
     restart: unless-stopped
     environment:
@@ -33,7 +33,7 @@ services:
     cpus: 2.00
     cpu_shares: 512
     mem_limit: 768m
-    image: ghcr.io/gramps-project/grampsweb:26.8.1@sha256:496a97ad6a937fe73b8fed6dbf7e5a2967ab60363c240735eb3b043ca6ba715c
+    image: ghcr.io/gramps-project/grampsweb:26.9.0@sha256:054b0cdf8003f1ae531ff7981a03ce374c3b13030ecc7ed38fc7f24be5b7acb2
     container_name: grampsweb_celery
     restart: unless-stopped
     command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
