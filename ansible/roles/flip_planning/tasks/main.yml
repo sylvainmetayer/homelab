@@ -1,5 +1,5 @@
 ---
-- name: Ensure Flip Planning app folders exist
+- name: Ensure app folders exist for {{ flip_planning_service }}
   loop:
     - "{{ flip_planning_base_path }}"
     - "{{ flip_planning_base_path }}/pgadmin"
@@ -22,8 +22,8 @@
 # Branding assets: the application image ships no visual of its own (the app
 # repo is public and carries no customer mark), so the festival's images are
 # part of this deployment and are mounted read-only on /assets.
-- name: Copy Flip Planning branding assets
-  notify: Restart flip_planning
+- name: Copy branding assets for {{ flip_planning_service }}
+  notify: "Restart {{ flip_planning_service }}"
   loop:
     - flip.png
     - flip-logo.png
@@ -37,9 +37,9 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
-- name: Template pgAdmin servers configuration
+- name: Template pgAdmin servers configuration for {{ flip_planning_service }}
   when: flip_planning_pgadmin_enabled
-  notify: Restart flip_planning
+  notify: "Restart {{ flip_planning_service }}"
   ansible.builtin.template:
     src: "templates/servers.json.j2"
     dest: "{{ flip_planning_base_path }}/pgadmin/servers.json"
@@ -52,6 +52,11 @@
 # chooses it at creation, so hardcoding it here would be a guess that fails
 # silently — an entry that matches nothing means no header is trusted, and
 # nothing says so.
+#
+# The set_fact below outlives this role application, so a second instance in the
+# same play finds the variable already set and skips the inspect. That is the
+# right answer rather than a leak: every instance on this host sits behind the
+# same newt container on the same bridge, hence the same subnet.
 - name: Read the newt network definition
   when: not flip_planning_trusted_proxies
   changed_when: false
@@ -76,8 +81,8 @@
     flip_planning_trusted_proxies: >-
       {{ (flip_planning_newt_network_info.stdout | from_json)[0].IPAM.Config[0].Subnet }}
 
-- name: Template compose configuration
-  notify: Restart flip_planning
+- name: Template compose configuration for {{ flip_planning_service }}
+  notify: "Restart {{ flip_planning_service }}"
   loop:
     - src: "templates/compose.yaml"
       dest: "compose.yaml"
@@ -90,34 +95,34 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0640"
 
-- name: Make sure flip_planning service is running
+- name: Make sure the systemd unit is started for {{ flip_planning_service }}
   ansible.builtin.systemd:
     state: started
     daemon_reload: true
-    name: dc@flip_planning
+    name: "dc@{{ flip_planning_service }}"
     scope: user
     enabled: true
 
 # Borgmatic backup configuration
-- name: Configure borgmatic backup for Flip Planning
+- name: Configure borgmatic backup for {{ flip_planning_service }}
   when: flip_planning_backup_enabled
   tags: backup
   block:
-    - name: Create borgmatic configuration for Flip Planning
+    - name: Create borgmatic configuration for {{ flip_planning_service }}
       become: true
       ansible.builtin.template:
         src: "templates/borgmatic-flip_planning.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/flip_planning.yaml"
+        dest: "{{ borgmatic_config_dir }}/{{ flip_planning_service }}.yaml"
         owner: "root"
         group: "root"
         mode: "0600"
 
-    - name: Initialize borg repository for Flip Planning
+    - name: Initialize borg repository for {{ flip_planning_service }}
       become: true
       ansible.builtin.command:
         cmd: >-
           /root/.local/bin/borgmatic
-          --config {{ borgmatic_config_dir }}/flip_planning.yaml
+          --config {{ borgmatic_config_dir }}/{{ flip_planning_service }}.yaml
           repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
       register: flip_planning_borg_repo_create
       changed_when: "'repository already exists' not in flip_planning_borg_repo_create.stderr"

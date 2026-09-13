@@ -1,5 +1,25 @@
 ---
-flip_planning_base_path: "{{ docker_base_path }}/flip_planning"
+# ---------------------------------------------------------------------------
+# Instance identity.
+#
+# This role is applied once per environment (see ansible/docker.yml): the
+# production instance keeps the values below, the demo instance overrides them
+# as role parameters. Everything two instances cannot share while living on the
+# same Docker host derives from these two variables — compose project
+# directory, systemd unit, container names, borgmatic config file — so a third
+# environment is a matter of overriding them again.
+#
+# The compose project directory under {{ docker_base_path }}, and the systemd
+# unit instance (dc@<service>). snake_case, and it must match a handler name in
+# handlers/main.yml (handler names cannot be templated, see the comment there).
+flip_planning_service: flip_planning
+# Prefix of every container name, so it is also what the Pangolin targets
+# resolve on the newt network — keep it in sync with the `ip` / `hc_hostname`
+# of tofu/pangolin_config/website_<instance>.tf. kebab-case.
+flip_planning_container_prefix: flip-planning
+# ---------------------------------------------------------------------------
+
+flip_planning_base_path: "{{ docker_base_path }}/{{ flip_planning_service }}"
 flip_planning_domain: flip-planning.sylvain.cloud
 
 # Image published on GitHub Container Registry (private package)
@@ -53,6 +73,16 @@ flip_planning_legal_base_legale: ""
 # operation (docs/exploitation.md in the app repo). Only announce what is kept.
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_legal_conservation: ""
+
+# Tags the Bugsink/Sentry issues with the environment they came from, so a
+# crash on the demo is not investigated as a production incident.
+flip_planning_sentry_environment: production
+
+# Product name shown in the application UI and on the generated PDFs. Carries
+# the environment for anything but production: two instances share the same
+# branding assets, and the only thing telling a screenshot of the demo from a
+# screenshot of the real planning is this string.
+flip_planning_branding_product_name: "Flip Planning"
 
 # Cloudflare Web Analytics beacon token. Empty = audience measurement off.
 # Set ⇒ a transfer outside the EU that the mentions légales must declare.

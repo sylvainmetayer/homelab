@@ -38,6 +38,7 @@
         betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         flip_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
+        demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         scanopy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_scanopy_url.value | default('') }}"
@@ -79,6 +80,37 @@
       tags: paperless,app
     - role: flip_planning
       tags: flip_planning,app
+    # Demo environment: the same role, a second time, with its own compose
+    # project, systemd unit, containers, database and Borg repository. Only
+    # what cannot be shared is overridden here — image, GHCR credentials,
+    # branding assets and mentions légales are inherited from the role defaults
+    # and from secrets.sops.yaml, so a change to the application deploys to both.
+    #
+    # These are role parameters, the highest precedence short of `-e`, so they
+    # also win over the flip_planning_* entries of host_vars/docker.
+    - role: flip_planning
+      tags: demo_planning,app
+      vars:
+        flip_planning_service: demo_planning
+        flip_planning_container_prefix: demo-planning
+        flip_planning_domain: demo-planning.sylvain.dev
+        flip_planning_sentry_environment: demo
+        flip_planning_branding_product_name: "Flip Planning — Démo"
+        # Demo traffic has no business in the production audience statistics.
+        flip_planning_cloudflare_web_analytics_token: ""
+        # Own credentials throughout: a leaked demo password must not open the
+        # real planning, and the MCP tokens are bound to the Pangolin resource.
+        flip_planning_db_password: "{{ demo_planning_db_password }}"
+        flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
+        flip_planning_admin_password: "{{ demo_planning_admin_password }}"
+        flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
+        flip_planning_mcp_pangolin_access_token_id: "{{ demo_planning_mcp_pangolin_access_token_id }}"
+        flip_planning_mcp_pangolin_access_token: "{{ demo_planning_mcp_pangolin_access_token }}"
+        flip_planning_backup_enabled: "{{ demo_planning_backup_enabled }}"
+        flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
+        flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
+        flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
     - role: gramps
       tags: gramps,app
     - role: dawarich
