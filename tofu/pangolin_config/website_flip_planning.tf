@@ -175,6 +175,85 @@ resource "pangolin_target" "flip_planning_assets" {
   hc_unhealthy_threshold = 3
 }
 
+# Keycloak, on the /auth sub-path of the same resource — hence the same domain
+# and the same certificate, which is why it is not an sso.* subdomain of its
+# own.
+resource "pangolin_target" "flip_planning_keycloak" {
+  count = var.flip_planning_keycloak_enabled ? 1 : 0
+
+  resource_id = pangolin_resource.flip_planning.id
+  site_id     = pangolin_site.proxmox_docker.id
+  ip          = "flip-planning-keycloak"
+  port        = 8080
+  method      = "http"
+
+  path            = "/auth"
+  path_match_type = "prefix"
+  priority        = 5
+
+  # Keycloak serves its health endpoints on the management port (9000 since
+  # 26.x), and KC_HTTP_RELATIVE_PATH prefixes THAT one too - verified against
+  # the real server: /health/ready is a 404 there, /auth/health/ready a 200.
+  hc_enabled             = true
+  hc_scheme              = "http"
+  hc_mode                = "http"
+  hc_hostname            = "flip-planning-keycloak"
+  hc_port                = 9000
+  hc_path                = "/auth/health/ready"
+  hc_method              = "GET"
+  hc_status              = 200
+  hc_interval            = 30
+  hc_unhealthy_interval  = 10
+  hc_timeout             = 5
+  hc_healthy_threshold   = 2
+  hc_unhealthy_threshold = 3
+}
+
+# ---------------------------------------------------------------------------
+# Carving /auth out of this resource's Pangolin SSO.
+#
+# This resource is `sso = true`: Pangolin demands its own login before anything
+# reaches the origin. For every other path that is exactly what we want. For an
+# identity provider it is a deadlock, and not only for the browser: Quarkus
+# fetches the realm's discovery document and its signing keys at startup, with
+# no session of any kind. Behind Pangolin SSO those two requests come back as
+# an HTML login page instead of JSON, discovery fails, and the APPLICATION DOES
+# NOT START. The browser half is a second deadlock — a login page you would
+# have to be logged in to reach.
+#
+# ACCEPT is what lifts it: in Pangolin it means "allow without authentication",
+# the same mechanism that lets the MCP client through above on this very
+# resource. The rule must be evaluated BEFORE the country PASS rules of
+# rules.tf (priorities 1 and 2), because the first matching rule wins and PASS
+# hands the request to the SSO layer — precisely what is being avoided. Hence
+# priority 0, the only slot below them.
+#
+# TWO CONSEQUENCES, both deliberate and neither free:
+#
+#  1. /auth is not geo-filtered either. It is the login surface of an identity
+#     provider that imposes a second factor on its administrators, which is the
+#     trade being made.
+#  2. The Keycloak admin console, at /auth/admin, becomes publicly reachable —
+#     protected by Keycloak's own login and nothing else. Narrowing the rule to
+#     /auth/realms (discovery, JWKS, authorize, token, logout) plus
+#     /auth/resources (the login page's own stylesheets, without which the form
+#     renders unstyled) would leave the console behind Pangolin SSO, but that
+#     needs two rules and priority 0 is a single slot: the country rules own 1
+#     and 2. Whether Pangolin accepts two rules at the same priority is not
+#     something this configuration can assert without trying it, so the simple
+#     form is what ships. Enable a second factor on the master realm after the
+#     first login.
+resource "pangolin_resource_rule" "flip_planning_keycloak_public" {
+  count = var.flip_planning_keycloak_enabled ? 1 : 0
+
+  resource_id = pangolin_resource.flip_planning.id
+  action      = "ACCEPT"
+  match       = "PATH"
+  value       = "/auth"
+  priority    = 0
+  enabled     = true
+}
+
 resource "pangolin_resource_access_token" "flip_planning" {
   resource_id = pangolin_resource.flip_planning.id
   title       = "Healthcheck ${pangolin_resource.flip_planning.name}"
