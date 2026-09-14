@@ -60,6 +60,68 @@ flip_planning_legal_conservation: ""
 # plain text in host_vars/docker/variables.yaml rather than in sops.
 flip_planning_cloudflare_web_analytics_token: ""
 
+# Keycloak / OIDC — off, and it stays off until an identity provider exists.
+#
+# Flipped on, this ONE switch replaces the three shared secrets the deployment
+# still runs on: the single ADMIN_PASSWORD, the six-digit e-mail code of the
+# espace animateur, and the MCP key. Named accounts, a second factor the realm
+# imposes on administrators, delegated roles.
+#
+# There is no Keycloak in this homelab yet, so everything below is wiring, not
+# a rollout: the variables exist so that turning the mode on is a value change
+# rather than a template change. Before flipping it, two things have to happen
+# in this order — stand up a realm, then run `ansible/keycloak-planning.yml`
+# FROM THE APPLICATION REPOSITORY against it (it creates the realm, the roles,
+# the clients and the second-factor flow, and prints the values to copy here).
+# Read docs/keycloak.md there first.
+#
+# Worth knowing before deciding: this resource is already behind Pangolin SSO
+# (sso = true in tofu/pangolin_config/website_flip_planning.tf). Turning OIDC
+# on stacks a second sign-in on top of that one rather than replacing it.
+flip_planning_oidc_enabled: false
+
+# PUBLIC url of the realm — the one browsers will see. It is what signs the
+# issuer of the tokens: an internal URL here and a public one in the browser
+# produce tokens that are systematically rejected, and the failure looks like
+# anything but a configuration mistake.
+flip_planning_oidc_auth_server_url: ""
+
+# Confidential client of the code flow. The secret must be AT LEAST 32
+# CHARACTERS: it is what encrypts the PKCE verifier in the state cookie, and
+# below that Quarkus draws a random key at every startup, so a login begun on one
+# instance can no longer finish on another nor survive a restart. The secrets
+# Keycloak generates are exactly 32.
+flip_planning_oidc_client_id: "planning-app"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_oidc_client_secret: ""
+
+# Realm role that opens the espace animateur — and the only thing it opens.
+# Deliberately NOT `user`: Keycloak hands `user` out as the ordinary "this
+# person exists" role, so building a privilege on it would give every future
+# account an animateur's access nobody granted.
+flip_planning_oidc_animateur_role: "animateur"
+
+# Audience `/mcp` requires on a bearer token. A token issued for any other
+# client of the same realm is refused.
+flip_planning_oidc_mcp_audience: "planning-mcp"
+
+# Where Keycloak sends the browser back after a logout.
+flip_planning_oidc_post_logout_path: "/login"
+
+# Provisioning: creating an animateur record creates the account that opens
+# their space; deleting the last record carrying an address DISABLES the
+# account, and never destroys it. Leave false when the accounts come from a
+# federated directory or from the playbook rather than from this application.
+flip_planning_oidc_provisioning_enabled: false
+# Root of the admin API — WITHOUT the /realms/… suffix, unlike the URL above.
+flip_planning_oidc_provisioning_server_url: ""
+flip_planning_oidc_provisioning_realm: "planning"
+flip_planning_oidc_provisioning_client_id: "planning-provisioning"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_oidc_provisioning_client_secret: ""
+# false to create accounts in bulk without sending 150 invitation mails.
+flip_planning_oidc_provisioning_send_invitation: true
+
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
 # migration interrupted halfway blocks every later one, then back to false: it
 # also realigns checksums, which would hide an edited migration.
