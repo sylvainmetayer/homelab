@@ -223,10 +223,18 @@ resource "pangolin_target" "flip_planning_keycloak" {
 #
 # ACCEPT is what lifts it: in Pangolin it means "allow without authentication",
 # the same mechanism that lets the MCP client through above on this very
-# resource. The rule must be evaluated BEFORE the country PASS rules of
-# rules.tf (priorities 1 and 2), because the first matching rule wins and PASS
-# hands the request to the SSO layer — precisely what is being avoided. Hence
-# priority 0, the only slot below them.
+# resource. Priority 3 gives the rule its own slot just below the `PASS
+# COUNTRY` rules of rules.tf (FR at 1, DE at 2) — the same placement, and the
+# same reasoning, as `dawarich_home_ip` and `immich_home_ip`: an ACCEPT that
+# grants bypass regardless of the geo rules, kept off a tie so the evaluation
+# order never rests on Pangolin arbitrating between two rules that both match.
+#
+# Not priority 0. An earlier draft of this rule reasoned that ACCEPT had to be
+# evaluated strictly before the country rules, and took the slot below them;
+# both halves were wrong. The provider rejects the value outright — « Attribute
+# priority value must be at least 1 » — and the two home-IP rules above already
+# show that an ACCEPT placed after the country rules is how this configuration
+# grants bypass everywhere else.
 #
 # TWO CONSEQUENCES, both deliberate and neither free:
 #
@@ -234,15 +242,16 @@ resource "pangolin_target" "flip_planning_keycloak" {
 #     provider that imposes a second factor on its administrators, which is the
 #     trade being made.
 #  2. The Keycloak admin console, at /auth/admin, becomes publicly reachable —
-#     protected by Keycloak's own login and nothing else. Narrowing the rule to
-#     /auth/realms (discovery, JWKS, authorize, token, logout) plus
-#     /auth/resources (the login page's own stylesheets, without which the form
-#     renders unstyled) would leave the console behind Pangolin SSO, but that
-#     needs two rules and priority 0 is a single slot: the country rules own 1
-#     and 2. Whether Pangolin accepts two rules at the same priority is not
-#     something this configuration can assert without trying it, so the simple
-#     form is what ships. Enable a second factor on the master realm after the
-#     first login.
+#     protected by Keycloak's own login and nothing else. Narrowing this to
+#     /auth/realms (discovery, JWKS, authorize, token, logout, login-actions)
+#     plus /auth/resources (the login page's own stylesheets, without which the
+#     form renders unstyled) would leave the console behind Pangolin SSO, and
+#     slots 4 and 5 are free for that second rule — the single-slot objection
+#     that kept the broad form here died with priority 0. What remains is a
+#     real trade rather than a constraint: narrowing means holding a Pangolin
+#     session before one can administer Keycloak at all. The broad form ships
+#     until that call is made. Enable a second factor on the master realm after
+#     the first login.
 resource "pangolin_resource_rule" "flip_planning_keycloak_public" {
   count = var.flip_planning_keycloak_enabled ? 1 : 0
 
@@ -250,7 +259,7 @@ resource "pangolin_resource_rule" "flip_planning_keycloak_public" {
   action      = "ACCEPT"
   match       = "PATH"
   value       = "/auth"
-  priority    = 0
+  priority    = 3
   enabled     = true
 }
 
