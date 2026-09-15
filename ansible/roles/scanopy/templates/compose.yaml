@@ -2,7 +2,7 @@
 services:
   scanopy-daemon:
     mem_limit: 512m
-    image: ghcr.io/scanopy/scanopy/daemon:v0.17.14@sha256:ad2e7c645d93f9b7c84e1346331c678e93be31cb149ab15f01449b9f81cdafcb
+    image: ghcr.io/scanopy/scanopy/daemon:v0.17.15@sha256:68e3346c9724fc9a5738047318c2a7aef362d612f3c6df4e7adaf1f254ea56bc
     container_name: scanopy-daemon
     network_mode: host
     privileged: true
