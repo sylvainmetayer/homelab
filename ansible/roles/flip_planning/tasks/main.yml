@@ -76,6 +76,33 @@
     flip_planning_trusted_proxies: >-
       {{ (flip_planning_newt_network_info.stdout | from_json)[0].IPAM.Config[0].Subnet }}
 
+# The application already refuses to start on a half-laid OIDC configuration.
+# Catching it here instead moves the failure from "the container restarted and
+# never came back" to "the deploy stopped and said which value is missing" —
+# the same verdict, minutes earlier, and without a running service being taken
+# down to find out.
+- name: Check the Keycloak configuration before restarting anything
+  when: flip_planning_oidc_enabled
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - flip_planning_oidc_auth_server_url | default('', true) | length > 0
+      - flip_planning_oidc_client_secret | default('', true) | length >= 32
+      - flip_planning_oidc_animateur_role != 'user'
+      - not flip_planning_oidc_provisioning_enabled
+        or (flip_planning_oidc_provisioning_server_url | default('', true) | length > 0
+            and flip_planning_oidc_provisioning_client_secret | default('', true) | length > 0)
+    fail_msg: >-
+      Incomplete Keycloak configuration. flip_planning_oidc_enabled=true needs
+      flip_planning_oidc_auth_server_url (the PUBLIC realm URL, the one that
+      signs the token issuer) and a flip_planning_oidc_client_secret of at least
+      32 characters — shorter, Quarkus draws the key that encrypts the PKCE
+      verifier at random on every start. flip_planning_oidc_animateur_role can
+      never be 'user': that is the role Keycloak gives everyone, so building the
+      espace animateur on it would open one to every account of the realm.
+      Provisioning additionally needs its server URL and its service-account
+      secret. Both secrets belong in secrets.sops.yaml.
+
 - name: Template compose configuration
   notify: Restart flip_planning
   loop:
