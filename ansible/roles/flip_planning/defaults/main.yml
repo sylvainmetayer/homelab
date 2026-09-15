@@ -65,6 +65,17 @@ flip_planning_cloudflare_web_analytics_token: ""
 # also realigns checksums, which would hide an edited migration.
 flip_planning_flyway_repair_at_start: false
 
+# Lets the Débogage page freeze the date — and, optionally, the time of day —
+# that the mode jour J screen and the espace animateur read, as a server under
+# `quarkus:dev` does. Off by default and meant to stay off here: this instance
+# serves the real festival, and a frozen date would make jour J describe a day
+# that is not today, then send the day-before reminders to real people on the
+# wrong one. Flip it to true TEMPORARILY to rehearse those two screens out of
+# season, then back to false — the application refuses to freeze *or* to
+# unfreeze the clock while the permission is not granted, so the way back is
+# through this variable, not through the page.
+flip_planning_horloge_simulee_autorisee: false
+
 # Reverse proxies the login lockout may believe when it reads X-Forwarded-For.
 #
 # Behind Pangolin the app never sees the client directly: Traefik writes the real
