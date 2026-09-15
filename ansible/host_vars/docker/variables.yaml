@@ -39,6 +39,14 @@ flip_planning_backup_enabled: true
 flip_planning_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/flip_planning"
 flip_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
 flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
+# Autorise la page Débogage à figer la date et l'heure que lisent le mode jour J
+# et l'espace animateur : ces deux écrans ne parlent que de la journée en cours,
+# donc hors saison c'est le seul moyen de les rejouer sur l'instance réelle.
+# Accorder ne fige rien — l'horloge reste réelle tant que personne ne la fige
+# depuis cette page ; pendant qu'une date est figée en revanche, les rappels de
+# la veille partent sur ce jour-là. Libérer l'horloge AVANT de repasser cette
+# variable à false (voir le commentaire du rôle).
+flip_planning_horloge_simulee_autorisee: true
 
 # Inutilisé pour le moment : arrêté pour libérer les ressources, données et
 # backup conservés. Le moniteur Uptime Kuma est désactivé en face
