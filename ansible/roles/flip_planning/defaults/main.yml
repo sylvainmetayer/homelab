@@ -67,23 +67,18 @@ flip_planning_flyway_repair_at_start: false
 
 # Lets the Débogage page freeze the date — and, optionally, the time of day —
 # that the mode jour J screen and the espace animateur read, as a server under
-# `quarkus:dev` does. Granted here on purpose: those two screens only describe
-# what is still ahead TODAY, so out of season the only way to exercise them on
-# the real deployment is to tell it which day it is.
+# `quarkus:dev` does. Off unless a host asks for it: those are the two screens
+# that only describe what is still ahead TODAY, and while a date is frozen they
+# describe a day that is not today — the night jobs' day-before reminders
+# included, which go out to real people. Granted on the docker host, see
+# host_vars/docker/variables.yaml.
 #
-# What that costs, so nobody is surprised: while a date is frozen, mode jour J
-# describes a day that is not today, and the night jobs' day-before reminders
-# go out against that frozen day — to real people. So freeze it for the
-# rehearsal and hand the clock back (Débogage, date vidée) as soon as it is
-# over. Granting the permission alone changes nothing: the clock stays real
-# until someone freezes it from that page.
-#
-# Only this variable can take the permission away, and taking it away while a
-# date is still frozen is the one thing to avoid: the application then ignores
-# the frozen value (it reads the real clock again) but also refuses to clear
-# the row, so the table keeps a date nobody can see. Unfreeze first, flip
-# after.
-flip_planning_horloge_simulee_autorisee: true
+# Granting it alone changes nothing: the clock stays real until someone freezes
+# it from that page. But taking the permission away while a date is still
+# frozen is the one move to avoid — the application then ignores the frozen
+# value (it reads the real clock again) *and* refuses to clear the row, so the
+# table keeps a date nobody can see. Unfreeze first, flip this after.
+flip_planning_horloge_simulee_autorisee: false
 
 # Reverse proxies the login lockout may believe when it reads X-Forwarded-For.
 #
