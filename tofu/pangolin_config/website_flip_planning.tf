@@ -15,23 +15,22 @@ resource "pangolin_resource" "flip_planning" {
   email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
   sticky_session          = local.resource_pins.sticky_session
 
-  # Set by hand in the Pangolin UI and declared here so Tofu stops planning
-  # its removal: the provider cannot round-trip an emptied header list (the
-  # update response comes back as a string, not a list) and the apply fails
-  # with "cannot unmarshal string into ... headers of type []ResourceHeader".
-  headers = [
-    {
-      name  = "X-Pangolin"
-      value = "true"
-    },
-  ]
-
   # Maintenance screen served automatically while no target is healthy.
   # See maintenance.tf.
   maintenance_mode_enabled = local.maintenance.enabled
   maintenance_mode_type    = local.maintenance.type
   maintenance_title        = local.maintenance.title
   maintenance_message      = local.maintenance.message
+
+  # No custom header any more: X-Pangolin was set by hand in the Pangolin UI
+  # for the application's MCP guard, which no longer requires it. Removing it
+  # is a manual step in the UI, not an apply - the provider cannot round-trip
+  # an emptied header list (the update response comes back as a string, not a
+  # list) and fails with "cannot unmarshal string into ... headers of type
+  # []ResourceHeader". Ignoring the attribute keeps Tofu from ever sending one.
+  lifecycle {
+    ignore_changes = [headers]
+  }
 }
 
 resource "pangolin_resource_role" "flip_planning" {
