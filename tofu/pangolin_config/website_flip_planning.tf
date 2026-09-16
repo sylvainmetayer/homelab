@@ -39,19 +39,39 @@ resource "pangolin_resource_role" "flip_planning" {
   role_id     = pangolin_role.apps["flip-planning"].id
 }
 
-# Claude reaches the FLIP MCP server from Anthropic's egress range, which is not
-# in FR/DE, so the catch-all `DROP COUNTRY ALL` (priority 99, in rules.tf) was
-# blocking it. Priority 98 puts this ACCEPT just above that catch-all and below
-# the country PASS rules, so it only rescues traffic the geo rules would drop.
+# The MCP server (`POST /mcp`, `GET /mcp/sse`) is driven by hosted assistants -
+# Claude, ChatGPT, Le Chat, Gemini. Only Anthropic publishes a stable egress
+# range, which is why this used to be an ACCEPT on CIDR 160.79.104.0/21: every
+# other assistant was dropped by the catch-all `DROP COUNTRY ALL` (priority 99,
+# in rules.tf), and calling from FR/DE would not have helped either - the
+# country rules only PASS, so the request landed on the SSO wall with no
+# session to show it.
+#
+# Matching on the path instead of on the caller takes geography out of the
+# question. Priority 0 puts this ahead of the country rules so it decides
+# first whatever the origin, and ACCEPT short-circuits authentication outright:
+# Pangolin evaluates rules before SSO, and an ACCEPT returns "allowed" without
+# running any auth method.
+#
+# This opens /mcp to the internet as far as Pangolin is concerned; it does not
+# open the MCP server. The application still demands its own shared key
+# (PLANNING_MCP_API_KEY, header X-Api-Key) and the X-Pangolin=true header this
+# resource injects (PLANNING_MCP_REQUIRED_HEADERS), and answers 401 without
+# them. The exposure is limited to that prefix: the UI, pgAdmin (/db), Mailpit
+# (/mail) and the assets keep both the SSO wall and the geo-filter.
+#
+# `/mcp/*` covers `/mcp` itself as well as everything under it - Pangolin's
+# matcher lets a trailing `*` segment match zero segments (server/lib/
+# pathMatch.ts).
 #
 # Unlike the country rules this one is app-specific, hence a standalone resource
 # here rather than an entry in the generic loops of rules.tf.
-resource "pangolin_resource_rule" "flip_planning_claude" {
+resource "pangolin_resource_rule" "flip_planning_mcp" {
   resource_id = pangolin_resource.flip_planning.id
   action      = "ACCEPT"
-  match       = "CIDR"
-  value       = "160.79.104.0/21"
-  priority    = 98
+  match       = "PATH"
+  value       = "/mcp/*"
+  priority    = 0
   enabled     = true
 }
 
