@@ -31,17 +31,18 @@ resource "pangolin_resource_role" "dawarich" {
 # Same pattern as `pangolin_resource_rule.immich_home_ip`: the home connection
 # is allowed in by IP regardless of the geo rules.
 #
-# Priority 3 sits just below the `PASS COUNTRY` rules generated in rules.tf (FR
-# at 1, DE at 2) and well above the catch-all `DROP COUNTRY ALL` at 99. Live had
-# it at 1, tied with the FR rule; with two rules at the same priority the
-# evaluation order is Pangolin's to decide, so the allowlist would stop being
-# predictable the day FR leaves `local.allowed_countries`. Moved to its own slot.
+# Priority 12 sits just below the `PASS COUNTRY` rules generated in rules.tf
+# (FR at 10, DE at 11) and well above the catch-all `DROP COUNTRY ALL` at 99.
+# Live had it at 1, tied with the FR rule; with two rules at the same priority
+# the evaluation order is Pangolin's to decide, so the allowlist would stop
+# being predictable the day FR leaves `local.allowed_countries`. Moved to its
+# own slot.
 resource "pangolin_resource_rule" "dawarich_home_ip" {
   resource_id = pangolin_resource.dawarich.id
   action      = "ACCEPT"
   match       = "IP"
   value       = local.home_ip
-  priority    = 3
+  priority    = 12
   enabled     = true
 }
 

@@ -24,6 +24,21 @@ locals {
   # Monitoring is located in Germany
   allowed_countries = ["FR", "DE"]
 
+  # Rules are evaluated in ascending priority order and the first one that
+  # matches decides, so the numbering is a layout rather than a label. The
+  # country rules only PASS - "carry on to the authentication methods" - so
+  # anything sitting behind them is never reached by a request coming from FR
+  # or DE. A bypass that has to hold whatever the caller's country therefore
+  # needs a slot in front of them, and the provider rejects a priority below 1,
+  # so the country band starts at 10 and leaves that room:
+  #
+  #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
+  #            (pangolin_resource_rule.flip_planning_mcp)
+  #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
+  #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
+  #   99       DROP COUNTRY ALL
+  country_rule_priority_base = 10
+
   # Apps managed by this configuration. The key is the resource's Pangolin
   # `name` and MUST be a literal: `for_each` keys have to be known at plan
   # time, while the id on the right may still be unknown for a resource that
@@ -69,7 +84,7 @@ locals {
     "${pair[0]}-${pair[1]}" => {
       resource_id = local.rule_targets[pair[0]]
       country     = pair[1]
-      priority    = index(local.allowed_countries, pair[1]) + 1
+      priority    = index(local.allowed_countries, pair[1]) + local.country_rule_priority_base
     }
   }
 }
