@@ -57,10 +57,9 @@ resource "pangolin_resource_role" "flip_planning" {
 #
 # This opens /mcp to the internet as far as Pangolin is concerned; it does not
 # open the MCP server. The application still demands its own shared key
-# (PLANNING_MCP_API_KEY, header X-Api-Key) and the X-Pangolin=true header this
-# resource injects (PLANNING_MCP_REQUIRED_HEADERS), and answers 401 without
-# them. The exposure is limited to that prefix: the UI, pgAdmin (/db), Mailpit
-# (/mail) and the assets keep both the SSO wall and the geo-filter.
+# (PLANNING_MCP_API_KEY, header X-Api-Key) and answers 401 without it. The
+# exposure is limited to that prefix: the UI, pgAdmin (/db), Mailpit (/mail)
+# and the assets keep both the SSO wall and the geo-filter.
 #
 # `/mcp/*` covers `/mcp` itself as well as everything under it - Pangolin's
 # matcher lets a trailing `*` segment match zero segments (server/lib/
