@@ -269,8 +269,8 @@ check "target_health" {
 # have rules?" and stops there. It never asks "and nothing else?", which leaves
 # anything added by hand in the Pangolin UI completely invisible: 00NTF -
 # Proxmox carried ten leftover duplicate country rules while `tofu plan`
-# reported "No changes" throughout, and the ACCEPT/CIDR rule that lets Claude
-# reach Flip Planning lived only in Pangolin until it was found by reading the
+# reported "No changes" throughout, and the ACCEPT rule that opens the Flip
+# Planning MCP server lived only in Pangolin until it was found by reading the
 # API by hand. Both are the same blind spot - the plan only ever compared what
 # this configuration owns against itself.
 #
@@ -301,7 +301,7 @@ locals {
   # omission fails loudly is the point: the alternative is the silence above.
   declared_extra_rules = [
     pangolin_resource_rule.dawarich_home_ip,
-    pangolin_resource_rule.flip_planning_claude,
+    pangolin_resource_rule.flip_planning_mcp,
     pangolin_resource_rule.immich_home_ip,
     pangolin_resource_rule.trek_home_ip,
   ]
