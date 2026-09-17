@@ -126,3 +126,66 @@ resource "github_branch_protection" "planning_equipes_main" {
     }
   }
 }
+
+# ---------------------------------------------------------------------------
+# Immutabilité des releases.
+#
+# "Disallow assets and tags from being modified once a release is published":
+# sans elle, un tag de release peut être redéplacé sur un autre commit et une
+# archive remplacée sous la même URL, sans que rien ne bouge côté git. C'est
+# précisément ce que le rôle Ansible flip_planning consomme en aval
+# (ghcr.io/sylvainmetayer/planning-equipes + assets de release).
+#
+# integrations/github 6.13.0 n'a ni attribut sur `github_repository` ni
+# ressource dédiée : les deux PR ajoutant `github_repository_immutable_releases`
+# (integrations/terraform-provider-github#3447 puis #3574) ont été fermées sans
+# merge, et la demande #2746 est toujours ouverte. L'API REST, elle, existe :
+# GET/PUT/DELETE /repos/{owner}/{repo}/immutable-releases.
+#
+# Plutôt que d'ajouter une ligne de plus à la liste des réglages manuels du
+# README - dont aucun ne se signale quand il manque - on lit l'état réel à
+# chaque plan et on le remet en place quand il a dérivé. Le jour où le provider
+# expose la ressource, ces deux blocs se remplacent par un `moved`/import.
+#
+# Dépendance : la CLI `gh`, qui porte son propre jeton. Le README demande déjà
+# `export GITHUB_TOKEN="$(gh auth token)"` avant tout `tofu plan` ici.
+# ---------------------------------------------------------------------------
+data "external" "planning_equipes_immutable_releases" {
+  # `--jq` est celui intégré à gh (pas de binaire jq à installer) ; le data
+  # source external exige une map de *chaînes*, d'où les `tostring` sur des
+  # champs qui sont des booléens côté API.
+  program = [
+    "gh", "api",
+    "repos/${var.github_owner}/${var.planning_equipes_repository}/immutable-releases",
+    "--jq", "{enabled: (.enabled|tostring), enforced_by_owner: (.enforced_by_owner|tostring)}",
+  ]
+
+  # Au premier apply le dépôt n'existe pas encore : sans ce depends_on, la
+  # lecture partirait au plan et échouerait en 404. Avec, elle est repoussée à
+  # l'apply, après la création.
+  depends_on = [github_repository.planning_equipes]
+}
+
+resource "terraform_data" "planning_equipes_immutable_releases" {
+  # L'état live fait partie du déclencheur : si le réglage est décoché dans
+  # l'interface, la lecture ci-dessus renvoie "false" au plan suivant, la
+  # ressource est remplacée et le PUT le réactive. C'est ce qui distingue ce
+  # bloc d'un simple provisioner joué une fois à la création.
+  triggers_replace = {
+    repository = github_repository.planning_equipes.name
+    live       = data.external.planning_equipes_immutable_releases.result.enabled
+  }
+
+  # PUT idempotent : rejouer sur un dépôt déjà immuable est un no-op côté API.
+  provisioner "local-exec" {
+    command = join(" ", [
+      "gh", "api", "--method", "PUT",
+      "repos/${var.github_owner}/${var.planning_equipes_repository}/immutable-releases",
+      "--silent",
+    ])
+  }
+
+  # Retirer ce bloc ne redésactive rien : le `destroy` ne joue aucun DELETE,
+  # volontairement. Désactiver l'immutabilité est une opération à faire à la
+  # main, en connaissance de cause.
+}

@@ -14,6 +14,10 @@ tofu -chdir=tofu/github init
 tofu -chdir=tofu/github plan
 ```
 
+La CLI `gh` doit être installée et authentifiée : l'immutabilité des releases
+n'a pas de ressource dans le provider et passe par elle (lecture à chaque plan,
+`PUT` à l'apply). Sans `gh` dans le `PATH`, le plan s'arrête.
+
 ## Ce que terraform pose sur `planning-equipes`
 
 | Réglage | Ressource |
@@ -25,6 +29,7 @@ tofu -chdir=tofu/github plan
 | Mises à jour Dependabot automatiques, **désactivées** au profit de Renovate | `github_repository_dependabot_security_updates.planning_equipes` |
 | `GITHUB_TOKEN` en lecture seule par défaut | `github_workflow_repository_permissions.planning_equipes` |
 | Protection de `main` : PR obligatoire, pas de suppression ni de force-push, conversations résolues | `github_branch_protection.planning_equipes_main` |
+| Immutabilité des releases (tags et assets figés une fois publiés) | `terraform_data.planning_equipes_immutable_releases`, via `gh` |
 | Checks requis sur `main` | même ressource, via `planning_equipes_required_checks` |
 
 Deux valeurs sont volontairement en retrait, et c'est là qu'il faut revenir :
@@ -59,6 +64,14 @@ attendre une revue qui ne viendra pas.
 
 Le provider `integrations/github` 6.x n'a pas de ressource pour ces réglages.
 Aucun ne se signale de lui-même quand il manque, d'où cette liste.
+
+(L'immutabilité des releases est dans le même cas - les PR
+`github_repository_immutable_releases`
+[#3447](https://github.com/integrations/terraform-provider-github/pull/3447) et
+[#3574](https://github.com/integrations/terraform-provider-github/pull/3574)
+ont été fermées sans merge, la demande
+[#2746](https://github.com/integrations/terraform-provider-github/issues/2746)
+reste ouverte - mais elle est tenue par `gh` depuis le terraform, pas à la main.)
 
 ### Avant la bascule publique
 
