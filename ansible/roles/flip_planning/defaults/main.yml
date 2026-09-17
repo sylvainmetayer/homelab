@@ -2,17 +2,12 @@
 flip_planning_base_path: "{{ docker_base_path }}/flip_planning"
 flip_planning_domain: flip-planning.sylvain.cloud
 
-# Image published on GitHub Container Registry (private package)
+# Image published on GitHub Container Registry, PUBLIC package: the pull needs
+# no credentials, which is why this role holds no registry login.
 # Digest pinned so Ansible redeploys deterministically; Renovate bumps it
 # (see the custom manager in renovate.json)
-# renovate: datasource=docker depName=ghcr.io/sylvainmetayer/flip-planning
-flip_planning_image: "ghcr.io/sylvainmetayer/flip-planning:main@sha256:d25124d1cf50a5546a21bda54c98f48e2b11a4f1c3c8911f28b6cbfc5c1c609d"
-
-# GHCR authentication (private package): needs a PAT with read:packages
-flip_planning_ghcr_registry: "ghcr.io"
-flip_planning_ghcr_username: "sylvainmetayer"
-# Sensitive: must be set in secrets.sops.yaml
-flip_planning_ghcr_token: ""
+# renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
+flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:9bcc58c15f27de6d2ddac97e2138c7fdf72d9b352a1cb3909f3b6bd891a12446"
 
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
