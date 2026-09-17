@@ -33,9 +33,9 @@ resource "github_repository" "planning_equipes" {
   # git-cliff reads conventional commits off main (flip-planning#248), so keep
   # merge commits available and make squash titles carry the pull request title
   # rather than "Merge pull request #n".
-  allow_merge_commit          = true
+  allow_merge_commit          = false
   allow_squash_merge          = true
-  allow_rebase_merge          = false
+  allow_rebase_merge          = true
   allow_auto_merge            = true
   allow_update_branch         = true
   delete_branch_on_merge      = true

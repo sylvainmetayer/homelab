@@ -24,7 +24,7 @@ variable "planning_equipes_repository" {
 variable "planning_equipes_visibility" {
   description = "Visibility of the planning-equipes repository"
   type        = string
-  default     = "private"
+  default     = "public"
 
   validation {
     condition     = contains(["private", "public"], var.planning_equipes_visibility)
