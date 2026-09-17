@@ -1,0 +1,11 @@
+---
+# Ansible runs a role once per play and skips a repeat application whose
+# parameters are identical. The demo instance passes different parameters, so
+# it would run anyway — but that is a property of the call site, not of the
+# role, and a future environment that happened to override nothing would be
+# skipped in silence. Say it here instead.
+#
+# No galaxy_info block: this role is not published, and ansible-lint's meta
+# schema then demands an author, a licence and a platform list that would
+# describe nothing.
+allow_duplicates: true
