@@ -11,6 +11,7 @@ backup_folders:
   - "pangolin"
   - "paperless"
   - "flip_planning"
+  - "demo_planning"
   - "gramps"
   - "dawarich"
   - "scanopy"

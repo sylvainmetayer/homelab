@@ -2,7 +2,7 @@
 services:
   app:
     mem_limit: 1g
-    container_name: flip-planning
+    container_name: {{ flip_planning_container_prefix }}
     image: {{ flip_planning_image }}
     restart: unless-stopped
     volumes:
@@ -14,13 +14,13 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - flip-planning
+      - {{ flip_planning_container_prefix }}
       - newt
 
   postgres:
     mem_limit: 512m
     mem_reservation: 128m
-    container_name: flip-planning-db
+    container_name: {{ flip_planning_container_prefix }}-db
     image: postgres:18
     restart: unless-stopped
     environment:
@@ -37,17 +37,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     networks:
-      - flip-planning
+      - {{ flip_planning_container_prefix }}
 
   # Local SMTP sink for the échange notification mails (issue #165): catches
   # everything, delivers nothing. Web UI on http://localhost:8025.
   mailpit:
     mem_limit: 128m
-    container_name: flip-planning-mailpit
+    container_name: {{ flip_planning_container_prefix }}-mailpit
     environment:
       MP_WEBROOT: /mail/
     networks:
-      - flip-planning
+      - {{ flip_planning_container_prefix }}
       - newt
     image: axllent/mailpit
 
@@ -58,7 +58,7 @@ services:
   # routes /assets to it on the same resource — hence behind the same SSO.
   assets:
     mem_limit: 128m
-    container_name: flip-planning-assets
+    container_name: {{ flip_planning_container_prefix }}-assets
     image: nginx:1-alpine
     restart: unless-stopped
     volumes:
@@ -70,7 +70,7 @@ services:
 
   pgadmin:
     mem_limit: 512m
-    container_name: flip-planning-pgadmin
+    container_name: {{ flip_planning_container_prefix }}-pgadmin
     image: dpage/pgadmin4:9@sha256:40fa840c5bb7c8463957f1255b01283732c2d8c9396a956d180f8e6c296753b3
     restart: unless-stopped
     environment:
@@ -86,12 +86,12 @@ services:
       - pgadmin_data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
     networks:
-      - flip-planning
+      - {{ flip_planning_container_prefix }}
       - newt
 {% endif %}
 
 networks:
-  flip-planning:
+  {{ flip_planning_container_prefix }}:
   newt:
     external: true
 
