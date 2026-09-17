@@ -24,6 +24,20 @@ postgresql_databases:
       # `docker exec` doesn't inherit the host environment by default.
       pg_dump_command: docker exec --env PGPASSWORD flip-planning-db pg_dump
 
+{% if flip_planning_keycloak_enabled %}
+    # The identity database. The realm itself is rebuildable — that is what
+    # `ansible/keycloak-planning.yml` is for — but what lives only here is
+    # everything the playbook deliberately does not create: the passwords
+    # people chose, the TOTP secrets they enrolled, and their sessions. Losing
+    # it means every animateur re-enrolling a second factor.
+    - container: flip-planning-keycloak-db
+      port: 5432
+      name: {{ flip_planning_keycloak_db_name }}
+      username: {{ flip_planning_keycloak_db_user }}
+      password: {{ flip_planning_keycloak_db_password }}
+      pg_dump_command: docker exec --env PGPASSWORD flip-planning-keycloak-db pg_dump
+{% endif %}
+
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start
 # with a glob or be an absolute path. Do not backslash spaces in path
