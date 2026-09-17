@@ -21,13 +21,19 @@ def load_role_tags(playbook_path):
     with open(playbook_path) as f:
         playbook = yaml.safe_load(f)
 
+    # A role can be applied more than once in the same play, one entry per
+    # environment (flip_planning: production and demo). Each entry carries its
+    # own tag, so the tags ACCUMULATE: assigning here instead would let the
+    # last entry shadow the earlier ones, and a change to the role would
+    # silently redeploy only the last environment.
     role_tags = {}
     for entry in playbook[0]["roles"]:
         if isinstance(entry, str):
             continue
         role_name = entry.get("role", entry.get("name"))
         tags = str(entry.get("tags", ""))
-        role_tags[role_name] = [t.strip() for t in tags.split(",") if t.strip()]
+        known = role_tags.setdefault(role_name, [])
+        known.extend(t.strip() for t in tags.split(",") if t.strip() and t.strip() not in known)
     return role_tags
 
 
