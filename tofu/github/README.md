@@ -87,7 +87,9 @@ Aucun ne se signale de lui-même quand il manque, d'où cette liste.
 - [ ] **Visibilité du paquet GHCR** —
   `https://github.com/users/sylvainmetayer/packages/container/planning-equipes/settings`
   → visibilité publique, pour que l'image soit tirable.
-- [ ] **Repointer le rôle Ansible** `ansible/roles/flip_planning` de ce dépôt :
-  il déploie `ghcr.io/sylvainmetayer/flip-planning`, l'image change de nom.
+- [x] **Repointer le rôle Ansible** `ansible/roles/flip_planning` de ce dépôt :
+  il déploie désormais `ghcr.io/sylvainmetayer/planning-equipes`. Le paquet étant
+  public, le `docker login` du rôle a disparu avec lui — reste à retirer
+  `flip_planning_ghcr_token` de `ansible/secrets.sops.yaml`, qui demande `sops`.
 - [ ] **Transférer les issues** de `planning-equipes-private`, puis supprimer
   ce dépôt de dépannage.

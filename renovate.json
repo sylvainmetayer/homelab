@@ -38,12 +38,12 @@
       ]
     },
     {
-      "description": "flip-planning is our own image: take digest updates as soon as they are published, no 1 day cooldown, and automerge once the lint workflow passes (merging on main triggers the deploy workflow)",
+      "description": "planning-equipes is our own image: take digest updates as soon as they are published, no 1 day cooldown, and automerge once the lint workflow passes (merging on main triggers the deploy workflow)",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
-        "ghcr.io/sylvainmetayer/flip-planning"
+        "ghcr.io/sylvainmetayer/planning-equipes"
       ],
       "minimumReleaseAge": null,
       "schedule": [
@@ -55,7 +55,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track the flip-planning image pinned in the Ansible role defaults (plain var, no manager covers it)",
+      "description": "Track the planning-equipes image pinned in the Ansible role defaults (plain var, no manager covers it)",
       "managerFilePatterns": [
         "/^ansible/roles/flip_planning/defaults/main\\.yml$/"
       ],
@@ -73,15 +73,6 @@
         "moduleName:\\s*\"github\\.com/(?<depName>[^\"]+)\"\\s*\\n\\s*version:\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-releases"
-    }
-  ],
-  "hostRules": [
-    {
-      "description": "Read-only PAT so Renovate can look up digests of the private flip-planning package. GHCR_TOKEN is uploaded as an App Secret in the Mend Developer Portal, not stored here",
-      "hostType": "docker",
-      "matchHost": "ghcr.io",
-      "username": "sylvainmetayer",
-      "password": "{{ secrets.GHCR_TOKEN }}"
     }
   ]
 }

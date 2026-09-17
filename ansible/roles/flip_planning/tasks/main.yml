@@ -11,14 +11,6 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-# The GHCR package is private, docker needs credentials to pull the image.
-- name: Log in to GitHub Container Registry
-  no_log: true
-  changed_when: false
-  ansible.builtin.command:
-    cmd: "docker login {{ flip_planning_ghcr_registry }} --username {{ flip_planning_ghcr_username }} --password-stdin"
-    stdin: "{{ flip_planning_ghcr_token }}"
-
 # Branding assets: the application image ships no visual of its own (the app
 # repo is public and carries no customer mark), so the festival's images are
 # part of this deployment and are mounted read-only on /assets.
