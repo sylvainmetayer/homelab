@@ -7,7 +7,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 # Digest pinned so Ansible redeploys deterministically; Renovate bumps it
 # (see the custom manager in renovate.json)
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
-flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:9bcc58c15f27de6d2ddac97e2138c7fdf72d9b352a1cb3909f3b6bd891a12446"
+flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:7f6f7a4e8d78b5bd7580e5e0ca4b88d9f7d5ced9219b9091bae426935bcf37aa"
 
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
