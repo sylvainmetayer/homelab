@@ -158,6 +158,7 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 - `tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, an S3 bucket, and Hetzner Storage Box config (see `STORAGE_BOX_SETUP.md` there for the manual setup steps SSH/rsync require).
 - `tofu/pangolin_config/` — Pangolin-side application config (roles, rules, private resources, per-app `website_*.tf` files defining public routing + Uptime Kuma checks) applied against the running Pangolin instance, separate from the VM provisioning itself. Its state is what `docker.yml`/`pangolin.yaml`/`pi.yml` read at Ansible time for healthcheck URLs.
 - `tofu/dns/` — Cloudflare DNS records (root domain, redirects, GitHub Pages, email, Pangolin subdomain).
+- `tofu/github/` — GitHub-side config: the Actions secrets of this repo (SOPS Age key, CI deploy key, OLM credentials read from `pangolin_config`'s state) and the `planning-equipes` repository itself — creation, visibility, `main` branch protection. The settings the provider can't reach (fork PR approval, private vulnerability reporting, GHCR package visibility, Renovate/GitGuardian) are a checklist in `tofu/github/README.md`.
 - All backends are S3-compatible object storage (`homelab-tf-state-sylvain` bucket at `https://s3.eu-west-par.io.cloud.ovh.net`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.
 
 ## CI (GitHub Actions)
