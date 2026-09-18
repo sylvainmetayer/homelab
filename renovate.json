@@ -38,7 +38,7 @@
       ]
     },
     {
-      "description": "planning-equipes is our own image: take digest updates as soon as they are published, no 1 day cooldown, and automerge once the lint workflow passes (merging on main triggers the deploy workflow)",
+      "description": "planning-equipes is our own image: no 1 day cooldown, take updates as soon as they are published. Merging on main triggers the deploy workflow. The custom manager sets depType to the channel (release or main, see the flip_planning role defaults)",
       "matchDatasources": [
         "docker"
       ],
@@ -48,19 +48,83 @@
       "minimumReleaseAge": null,
       "schedule": [
         "at any time"
+      ]
+    },
+    {
+      "description": "Production (flip_planning) follows the published releases. semver versioning keeps only a full X.Y.Z: main, latest, sha-xxxxxxx and the floating X.Y tag are ignored",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/planning-equipes"
+      ],
+      "matchDepTypes": [
+        "release"
+      ],
+      "versioning": "semver",
+      "commitMessageTopic": "planning-equipes release (flip_planning)"
+    },
+    {
+      "description": "Patch and minor releases automerge once the lint workflow passes, and so deploy to production",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/planning-equipes"
+      ],
+      "matchDepTypes": [
+        "release"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "A major release is never deployed on its own (YAML scenario format, environment variables, irreversible Flyway migrations): the PR waits for a manual merge. So does a digest change behind an existing X.Y.Z tag, which should not happen with immutable releases",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/planning-equipes"
+      ],
+      "matchDepTypes": [
+        "release"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "digest"
       ],
       "automerge": false
+    },
+    {
+      "description": "The demo (demo_planning) runs the latest main: every new digest automerges once the lint workflow passes",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/planning-equipes"
+      ],
+      "matchDepTypes": [
+        "main"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "commitMessageTopic": "planning-equipes main (demo_planning)",
+      "automerge": true
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track the planning-equipes image pinned in the Ansible role defaults (plain var, no manager covers it)",
+      "description": "Track the planning-equipes images pinned in the Ansible role defaults (plain vars, no manager covers them); the variable suffix becomes the depType: release (flip_planning) or main (demo_planning)",
       "managerFilePatterns": [
         "/^ansible/roles/flip_planning/defaults/main\\.yml$/"
       ],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*flip_planning_image:\\s*\"[^\":]+:(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*flip_planning_image_(?<depType>release|main):\\s*\"[^\":]+:(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
       ]
     },
     {
