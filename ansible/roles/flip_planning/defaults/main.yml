@@ -28,10 +28,23 @@ flip_planning_domain: flip-planning.sylvain.cloud
 
 # Image published on GitHub Container Registry, PUBLIC package: the pull needs
 # no credentials, which is why this role holds no registry login.
-# Digest pinned so Ansible redeploys deterministically; Renovate bumps it
-# (see the custom manager in renovate.json)
+#
+# Two channels, each digest pinned so Ansible redeploys deterministically;
+# Renovate bumps both (custom manager and packageRules in renovate.json):
+# - release: the published X.Y.Z tags (git tags vX.Y.Z). What production runs,
+#   so that a deployment has a name. Patch and minor automerge, a major waits
+#   for a manual merge.
+# - main: the image rebuilt on every merge upstream. What the demo runs; every
+#   new digest automerges.
+# Both live here rather than in docker.yml because the deploy workflow only
+# maps ansible/roles/** changes to tags: a bump of either one redeploys both
+# instances, and the one whose image did not move is a no-op.
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
-flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:9bcc58c15f27de6d2ddac97e2138c7fdf72d9b352a1cb3909f3b6bd891a12446"
+flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:1.0.0@sha256:dad695f4758c51ece8e0013557f140c3bc9608a0a3a577efc426f3531e5d0f0f"
+# renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
+flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:7f6f7a4e8d78b5bd7580e5e0ca4b88d9f7d5ced9219b9091bae426935bcf37aa"
+# The image this instance runs; the demo overrides it with the main channel.
+flip_planning_image: "{{ flip_planning_image_release }}"
 
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"

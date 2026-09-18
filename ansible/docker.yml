@@ -82,9 +82,10 @@
       tags: flip_planning,app
     # Demo environment: the same role, a second time, with its own compose
     # project directory, systemd unit, containers, docker network, database and
-    # Borg repository. Only what cannot be shared is overridden here — image,
-    # branding assets and mentions légales are inherited from the role defaults
-    # and from secrets.sops.yaml, so a change to the application deploys to both.
+    # Borg repository. Only what cannot be shared is overridden here — branding
+    # assets and mentions légales are inherited from the role defaults and from
+    # secrets.sops.yaml. The image is the exception: production follows the
+    # vX.Y.Z releases, the demo the latest main (see the role defaults).
     #
     # These are role parameters, the highest precedence short of `-e`, so they
     # also win over the flip_planning_* entries of host_vars/docker.
@@ -94,6 +95,7 @@
         flip_planning_service: demo_planning
         flip_planning_container_prefix: demo-planning
         flip_planning_domain: demo-planning.sylvain.dev
+        flip_planning_image: "{{ flip_planning_image_main }}"
         flip_planning_sentry_environment: demo
         flip_planning_branding_product_name: "Flip Planning — Démo"
         # Demo traffic has no business in the production audience statistics.
