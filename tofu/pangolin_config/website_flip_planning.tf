@@ -163,10 +163,11 @@ resource "pangolin_target" "flip_planning_mailpit" {
 }
 
 # The festival's visuals are part of the deployment, not of the image (the
-# application repository carries no customer mark). They are copied next to the
-# compose file, mounted read-only on the app container for the PDFs, and served
-# to the browser by a small nginx on this sub-path - same resource, so the same
-# SSO and the same role guard them.
+# application repository carries no customer mark). They are the
+# flip_planning_branding_* role parameters of this instance in
+# ansible/docker.yml: copied next to the compose file, mounted read-only on the
+# app container for the PDFs, and served to the browser by a small nginx on
+# this sub-path - same resource, so the same SSO and the same role guard them.
 resource "pangolin_target" "flip_planning_assets" {
   resource_id = pangolin_resource.flip_planning.id
   site_id     = pangolin_site.proxmox_docker.id
@@ -180,6 +181,7 @@ resource "pangolin_target" "flip_planning_assets" {
 
   # No dedicated probe endpoint on a static server: the logo itself is the
   # healthcheck, and it is exactly the file whose absence would break the UI.
+  # Its name is the basename of flip_planning_branding_logo in docker.yml.
   hc_enabled             = true
   hc_scheme              = "http"
   hc_mode                = "http"

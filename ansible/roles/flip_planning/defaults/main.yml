@@ -91,10 +91,47 @@ flip_planning_legal_conservation: ""
 flip_planning_sentry_environment: production
 
 # Product name shown in the application UI and on the generated PDFs. Carries
-# the environment for anything but production: two instances share the same
-# branding assets, and this string is the only thing telling a screenshot of
-# one from a screenshot of the other.
+# the environment for anything but production.
 flip_planning_branding_product_name: "Flip Planning"
+
+# Branding images. The application image ships no visual of its own (the app
+# repo is public and carries no customer mark), so a client's images are part
+# of its deployment: each file below is copied next to the compose file,
+# mounted read-only on /assets for the PDFs and served to the browser by the
+# assets nginx on the same sub-path.
+#
+# Each value is a source file on the controller — relative to this role's
+# files/ directory (files/flip/ holds the Festival Flip set), or absolute. The
+# file lands at /assets/<basename>, which is the URL and the path the
+# application gets. Empty means the application's own fallback: no logo, no
+# bandeau, no mascot (the Konami easter egg stays off and the loader falls back
+# to a Material icon). Empty by default on purpose: only the production
+# instance is the festival's, and a demo that carries no client visual cannot
+# be mistaken for it in a screenshot. Set as role parameters in docker.yml,
+# not in host_vars, which would brand every instance on the host.
+#
+# Basenames must be unique across the five: they share one directory.
+# BRANDING_LOGO_URL — toolbars and the login card
+flip_planning_branding_logo: ""
+# BRANDING_PDF_LOGO — header of the PDFs and of the HTML mails
+flip_planning_branding_pdf_logo: ""
+# BRANDING_PDF_STRIP — decorative bandeau on the first page of the individual planning
+flip_planning_branding_pdf_strip: ""
+# BRANDING_MASCOT_URL — full-size mascot behind the Konami code
+flip_planning_branding_mascot: ""
+# BRANDING_MASCOT_ICON_URL — the same mascot cut small, spinning during a solve
+flip_planning_branding_mascot_icon: ""
+
+# The non-empty sources above, as one list for the copy and the cleanup. A
+# default rather than a set_fact so that it is evaluated against each
+# instance's own parameters: a set_fact would carry the first instance's list
+# into the second (see ansible/docker.yml).
+flip_planning_branding_assets: >-
+  {{ [flip_planning_branding_logo,
+      flip_planning_branding_pdf_logo,
+      flip_planning_branding_pdf_strip,
+      flip_planning_branding_mascot,
+      flip_planning_branding_mascot_icon] | select | list }}
 
 # Cloudflare Web Analytics beacon token. Empty = audience measurement off.
 # Set ⇒ a transfer outside the EU that the mentions légales must declare.

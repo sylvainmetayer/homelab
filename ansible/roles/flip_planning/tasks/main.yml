@@ -11,23 +11,49 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-# Branding assets: the application image ships no visual of its own (the app
-# repo is public and carries no customer mark), so the festival's images are
-# part of this deployment and are mounted read-only on /assets.
+# Branding assets: the client's images declared in flip_planning_branding_*
+# (see defaults/main.yml), copied next to the compose file and mounted
+# read-only on /assets. An instance that declares none gets an empty directory
+# and the application's own fallbacks.
+- name: Fail clearly when two branding assets share a file name for {{ flip_planning_service }}
+  ansible.builtin.assert:
+    that:
+      - flip_planning_branding_assets | map('basename') | unique | length
+        == flip_planning_branding_assets | length
+    fail_msg: >-
+      Two flip_planning_branding_* sources share a basename and would overwrite
+      each other in {{ flip_planning_base_path }}/assets:
+      {{ flip_planning_branding_assets | join(', ') }}
+
 - name: Copy branding assets for {{ flip_planning_service }}
   notify: "Restart {{ flip_planning_service }}"
-  loop:
-    - flip.png
-    - flip-logo.png
-    - flip-strip.png
-    - flip-woopy.png
-    - flip-woopy-loader.png
+  loop: "{{ flip_planning_branding_assets }}"
   ansible.builtin.copy:
-    src: "{{ role_path }}/{{ item }}"
-    dest: "{{ flip_planning_base_path }}/assets/{{ item }}"
+    src: "{{ item }}"
+    dest: "{{ flip_planning_base_path }}/assets/{{ item | basename }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
+
+# The directory is served as-is by the assets nginx: a file left behind by an
+# earlier set (or by an instance that has since dropped its branding) would
+# stay reachable under /assets, so keep the directory to exactly what is
+# declared.
+- name: List the files present in the assets directory of {{ flip_planning_service }}
+  ansible.builtin.find:
+    paths: "{{ flip_planning_base_path }}/assets"
+    file_type: file
+  register: flip_planning_assets_present
+
+- name: Remove assets no longer declared for {{ flip_planning_service }}
+  notify: "Restart {{ flip_planning_service }}"
+  loop: >-
+    {{ flip_planning_assets_present.files | map(attribute='path')
+       | difference(flip_planning_branding_assets | map('basename')
+                    | map('regex_replace', '^', flip_planning_base_path ~ '/assets/')) }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
 
 - name: Template pgAdmin servers configuration for {{ flip_planning_service }}
   when: flip_planning_pgadmin_enabled

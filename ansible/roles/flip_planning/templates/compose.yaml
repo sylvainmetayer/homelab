@@ -56,6 +56,8 @@ services:
   # /assets/* would come back as index.html. This nginx serves the very same
   # read-only directory the app container mounts for its PDFs, and Pangolin
   # routes /assets to it on the same resource — hence behind the same SSO.
+  # Always present, even for an instance that declares no branding image: the
+  # Pangolin target and its healthcheck expect it.
   assets:
     mem_limit: 128m
     container_name: {{ flip_planning_container_prefix }}-assets

@@ -138,9 +138,11 @@ resource "pangolin_target" "demo_planning_mailpit" {
   hc_unhealthy_threshold = 3
 }
 
-# The demo serves the same visuals from its own nginx: the role copies the
-# assets into every instance's directory, so the two containers are independent
-# even though the files are identical.
+# The demo declares no branding image (ansible/docker.yml leaves the
+# flip_planning_branding_* parameters at their empty defaults): its assets
+# directory is empty and the application shows no logo. The nginx and this
+# target stay, so that the two instances keep the same shape and a demo that
+# one day gets its own visuals needs no routing change.
 resource "pangolin_target" "demo_planning_assets" {
   resource_id = pangolin_resource.demo_planning.id
   site_id     = pangolin_site.proxmox_docker.id
@@ -152,14 +154,14 @@ resource "pangolin_target" "demo_planning_assets" {
   path_match_type = "prefix"
   priority        = 4
 
-  # No dedicated probe endpoint on a static server: the logo itself is the
-  # healthcheck, and it is exactly the file whose absence would break the UI.
+  # Nothing to probe under /assets on an unbranded instance: nginx's own
+  # default page answers on /, which is enough to tell the container is up.
   hc_enabled             = true
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_hostname            = "demo-planning-assets"
   hc_port                = 80
-  hc_path                = "/assets/flip.png"
+  hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
   hc_interval            = 30

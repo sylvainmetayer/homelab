@@ -78,14 +78,28 @@
       tags: meerkat_crm,app
     - role: paperless_ngx
       tags: paperless,app
+    # Production: the festival's instance, hence the festival's visuals. Role
+    # parameters rather than host_vars so that they brand this instance only;
+    # paths are relative to the role's files/ directory. The Pangolin
+    # healthcheck of the assets target probes the logo by name, so a rename here
+    # must follow in tofu/pangolin_config/website_flip_planning.tf.
     - role: flip_planning
       tags: flip_planning,app
+      vars:
+        flip_planning_branding_logo: flip/flip.png
+        flip_planning_branding_pdf_logo: flip/flip-logo.png
+        flip_planning_branding_pdf_strip: flip/flip-strip.png
+        flip_planning_branding_mascot: flip/flip-woopy.png
+        flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
     # Demo environment: the same role, a second time, with its own compose
     # project directory, systemd unit, containers, docker network, database and
-    # Borg repository. Only what cannot be shared is overridden here — branding
-    # assets and mentions légales are inherited from the role defaults and from
+    # Borg repository. Only what cannot be shared is overridden here — the
+    # mentions légales are inherited from the role defaults and from
     # secrets.sops.yaml. The image is the exception: production follows the
-    # vX.Y.Z releases, the demo the latest main (see the role defaults).
+    # vX.Y.Z releases, the demo the latest main (see the role defaults). The
+    # branding images are deliberately NOT set: the demo runs unbranded (the
+    # role defaults are empty), so that a screenshot of it cannot pass for the
+    # festival's planning.
     #
     # These are role parameters, the highest precedence short of `-e`, so they
     # also win over the flip_planning_* entries of host_vars/docker.
