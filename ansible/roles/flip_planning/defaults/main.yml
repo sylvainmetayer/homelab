@@ -59,6 +59,19 @@ flip_planning_mcp_api_key: ""
 flip_planning_mcp_pangolin_access_token_id: ""
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_mcp_pangolin_access_token: ""
+
+# Rate ceiling on /mcp, per source address and per window. Every request is
+# counted, key or no key, and past the ceiling the answer is 429 — the filter
+# sits ahead of authentication, so it bounds someone trying the shared key as
+# much as someone holding it.
+#
+# 120 a minute is the application's own default and is wide for an assistant
+# driven by a human: a MCP session makes a handful of calls per question. Raise
+# it for an instance driven in batches; 0 or less switches the ceiling off,
+# which is only reasonable for an instance /mcp cannot be reached on from
+# outside — not the case here, both are published through Pangolin.
+flip_planning_mcp_max_requests: 120
+flip_planning_mcp_rate_window: PT1M
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml
@@ -159,7 +172,8 @@ flip_planning_flyway_repair_at_start: false
 # table keeps a date nobody can see. Unfreeze first, flip this after.
 flip_planning_horloge_simulee_autorisee: false
 
-# Reverse proxies the login lockout may believe when it reads X-Forwarded-For.
+# Reverse proxies the two address-counting guards may believe when they read
+# X-Forwarded-For: the login lockout, and the /mcp rate ceiling above.
 #
 # Behind Pangolin the app never sees the client directly: Traefik writes the real
 # address into X-Forwarded-For, newt tunnels it at L4, and the peer the app
@@ -171,8 +185,13 @@ flip_planning_horloge_simulee_autorisee: false
 # pin a value, or to declare something else (a literal address, or a
 # comma-separated mix of both).
 #
-# Without this, the lockout counts every visitor against newt's single address:
-# safe, but five failed logins from anyone lock the form for everyone.
+# Without this, both guards count every visitor against newt's single address.
+# For the lockout that is safe but rude — five failed logins from anyone lock
+# the form for everyone. For the /mcp ceiling it is worse, because that one
+# counts each REQUEST and not each failure: an anonymous caller, needing no key
+# since the filter runs before authentication, holds the legitimate MCP client
+# at 429 at two requests a second. Hence the deploy-time resolution below
+# rather than an empty value shipped quietly.
 flip_planning_trusted_proxies: ""
 
 # The docker network newt attaches to; the app joins it to be reachable.
