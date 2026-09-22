@@ -72,6 +72,18 @@ flip_planning_mcp_pangolin_access_token: ""
 # outside — not the case here, both are published through Pangolin.
 flip_planning_mcp_max_requests: 120
 flip_planning_mcp_rate_window: PT1M
+
+# Lockout on a run of REFUSED keys, the second guard on /mcp and a different
+# question from the one above: the ceiling bounds how fast a key — stolen or
+# not — can be used, this bounds how cheaply one can be guessed at. 120 requests
+# a minute leave thousands of tries an hour; five failures then ten minutes of
+# silence make a run cost time. Neither is what makes the key hard to guess:
+# that is its length, and both instances draw theirs from secrets.sops.yaml.
+#
+# It cannot lock out a client being set up: a request carrying no key counts for
+# nothing, and one that authenticates clears the run. 0 or less switches it off.
+flip_planning_mcp_max_failures: 5
+flip_planning_mcp_lockout_duration: PT10M
 # Sensitive: must be set in secrets.sops.yaml
 flip_planning_admin_password: ""
 # Sensitive: must be set in secrets.sops.yaml
