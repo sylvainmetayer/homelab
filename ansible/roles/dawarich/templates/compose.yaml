@@ -46,7 +46,7 @@ services:
 
   dawarich-app:
     mem_limit: 2g
-    image: freikin/dawarich:1.14.5@sha256:11826c67e4b1cfc1049033b5b6ad05f5134bcbfb7807045bd39d3376cbc79d89
+    image: freikin/dawarich:1.15.2@sha256:e58334ca56976feb4c885a8bd34b251ec2e3f45ffeabd4fd4371b5d2108fc70d
     container_name: dawarich-app
     restart: unless-stopped
     stdin_open: true
@@ -81,7 +81,7 @@ services:
     cpus: 2.00
     cpu_shares: 512
     mem_limit: 1g
-    image: freikin/dawarich:1.14.5@sha256:11826c67e4b1cfc1049033b5b6ad05f5134bcbfb7807045bd39d3376cbc79d89
+    image: freikin/dawarich:1.15.2@sha256:e58334ca56976feb4c885a8bd34b251ec2e3f45ffeabd4fd4371b5d2108fc70d
     container_name: dawarich-sidekiq
     restart: unless-stopped
     stdin_open: true
