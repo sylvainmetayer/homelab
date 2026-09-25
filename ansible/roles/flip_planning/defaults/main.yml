@@ -42,7 +42,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
 flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:1.2.0@sha256:d68438dfd837b03e039bb8a7cfe487138177100dcb1f7d9754ee5f0b2cc210a1"
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
-flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:e28f4b3b649e74027dd6c9134f11f31bee9c1beb45952c77881c9b27fc0e4821"
+flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:3f0b3f2d226be5b6833f6f32c09da70f22c12e5863779326a5daf68766f77ab2"
 # The image this instance runs; the demo overrides it with the main channel.
 flip_planning_image: "{{ flip_planning_image_release }}"
 
