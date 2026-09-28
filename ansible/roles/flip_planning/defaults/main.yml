@@ -46,6 +46,23 @@ flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:a
 # The image this instance runs; the demo overrides it with the main channel.
 flip_planning_image: "{{ flip_planning_image_release }}"
 
+# Memory of the app container, and the JVM options that size its heap from it.
+# The solver's local search allocates relentlessly: with the JVM's default heap
+# (25 % of the limit, 256 MiB under 1g) and its default collector it spends its
+# time collecting. Three quarters of 2g for the heap and the parallel collector
+# more than doubled the moves evaluated per second, and a solve peaked at about
+# 1.1 GiB with ~200 MiB outside the heap — 2g is the ~2× headroom the doctrine
+# asks for (AGENTS.md). Never keep 75 % under a 1g limit: too little is left
+# outside the heap, and the container dies mid-solve.
+#
+# JDK_JAVA_OPTIONS, not JAVA_TOOL_OPTIONS: only the `java` launcher reads it,
+# and it replaces the value images from the app's next release carry (same
+# options, see docs/exploitation.md « La mémoire de l'application » in the app
+# repo). Choosing another collector through JAVA_TOOL_OPTIONS on top of it
+# makes the JVM refuse to start (« Multiple garbage collectors selected »).
+flip_planning_mem_limit: 2g
+flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
+
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"
