@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -u
+
+HEALTHCHECK_URL="{{ ssh_login_notification_healthcheck_url | default('') }}"
+
+if [[ -z "${HEALTHCHECK_URL}" ]]; then
+  exit 0
+fi
+
+if [[ "${PAM_TYPE:-}" != "open_session" ]]; then
+  exit 0
+fi
+
+if [[ -z "${SSH_CONNECTION:-}" ]]; then
+  exit 0
+fi
+
+read -r client_ip client_port server_ip server_port <<<"${SSH_CONNECTION}"
+user="${PAM_USER:-unknown}"
+
+auth_info="unknown"
+if [[ -n "${SSH_USER_AUTH:-}" && -f "${SSH_USER_AUTH}" ]]; then
+  auth_method="$(awk 'NR==1 {print $1}' "${SSH_USER_AUTH}")"
+  key_type="$(awk 'NR==1 {print $2}' "${SSH_USER_AUTH}")"
+  key_value="$(awk 'NR==1 {print $3}' "${SSH_USER_AUTH}")"
+
+  if [[ "${auth_method}" == "publickey" && -n "${key_type}" && -n "${key_value}" ]] && command -v ssh-keygen >/dev/null 2>&1; then
+    key_fingerprint="$(printf '%s %s ssh-login\n' "${key_type}" "${key_value}" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')"
+    if [[ -n "${key_fingerprint}" ]]; then
+      auth_info="publickey:${key_type}:${key_fingerprint}"
+    fi
+  fi
+
+  if [[ "${auth_info}" == "unknown" ]]; then
+    auth_info="$(head -n 1 "${SSH_USER_AUTH}" | tr -d '\n' | cut -c1-200)"
+  fi
+fi
+
+message="SSH login user=${user} from=${client_ip}:${client_port} to=${server_ip}:${server_port} auth=${auth_info}"
+
+curl -fsS -G --max-time 10 \
+  --data-urlencode "status=up" \
+  --data-urlencode "msg=${message}" \
+  "${HEALTHCHECK_URL}" >/dev/null 2>&1 || true
