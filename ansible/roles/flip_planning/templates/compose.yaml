@@ -41,6 +41,12 @@ services:
         condition: service_healthy
     networks:
       - {{ flip_planning_container_prefix }}
+{% if flip_planning_keycloak_enabled %}
+      # Keycloak's admin API, for the account provisioning, on a dedicated
+      # internal network rather than over `newt`: that one exists for
+      # Pangolin's tunnel, and this traffic never leaves the host.
+      - {{ flip_planning_container_prefix }}-keycloak
+{% endif %}
       - newt
 
   postgres:
@@ -94,6 +100,87 @@ services:
     networks:
       - newt
 
+{% if flip_planning_keycloak_enabled %}
+
+  # The identity provider, on the /auth sub-path of the SAME domain as the
+  # application (Pangolin routes it there, see tofu/pangolin_config).
+  #
+  # KC_HTTP_RELATIVE_PATH is what makes a sub-path work at all: without it
+  # Keycloak builds every URL — issuer, authorization endpoint, JWKS, the login
+  # page's own stylesheets — from the root, and the browser fetches them where
+  # Pangolin routes the application. The issuer bites hardest: Quarkus refuses
+  # a token whose issuer is not the authority it discovered.
+  keycloak:
+    mem_limit: 1g
+    mem_reservation: 512m
+    container_name: {{ flip_planning_container_prefix }}-keycloak
+    image: {{ flip_planning_keycloak_image }}
+    restart: unless-stopped
+    # `start`, not `start --optimized` as in the application's own compose
+    # file: the image is pre-built for PostgreSQL, and the relative path is a
+    # BUILD option — `--optimized` would refuse a value that differs from the
+    # build. Plain `start` re-augments with /auth at every start (a few
+    # seconds), keeping the image's extension and theme.
+    command: ["start"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://{{ flip_planning_container_prefix }}-keycloak-db:5432/{{ flip_planning_keycloak_db_name }}
+      KC_DB_USERNAME: {{ flip_planning_keycloak_db_user }}
+      KC_DB_PASSWORD: {{ flip_planning_keycloak_db_password }}
+      KC_HTTP_RELATIVE_PATH: /auth
+      # The PUBLIC url with its prefix: it signs the issuer of the tokens.
+      KC_HOSTNAME: https://{{ flip_planning_domain }}/auth
+      # Traefik terminates TLS at Pangolin and newt tunnels to the origin:
+      # Keycloak speaks http and learns the real scheme from the headers.
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: {{ flip_planning_keycloak_admin_user }}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: {{ flip_planning_keycloak_admin_password }}
+      KEYCLOAK_BRAND_ACCENT: "{{ flip_planning_keycloak_brand_accent }}"
+      TZ: Europe/Paris
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      # The management port (9000), which KC_HTTP_RELATIVE_PATH prefixes too.
+      # No curl in the image, hence the bash redirection.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    networks:
+      - {{ flip_planning_container_prefix }}-keycloak
+      # Mailpit, for the invitations, codes and resets the realm sends.
+      - {{ flip_planning_container_prefix }}
+      - newt
+
+  keycloak-db:
+    mem_limit: 512m
+    mem_reservation: 128m
+    container_name: {{ flip_planning_container_prefix }}-keycloak-db
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ flip_planning_keycloak_db_name }}
+      POSTGRES_USER: {{ flip_planning_keycloak_db_user }}
+      POSTGRES_PASSWORD: {{ flip_planning_keycloak_db_password }}
+      TZ: Europe/Paris
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ flip_planning_keycloak_db_user }} -d {{ flip_planning_keycloak_db_name }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - keycloak_data:/var/lib/postgresql
+    # Its own network, never `newt`: the identity database is reachable from
+    # Keycloak and from nothing else.
+    networks:
+      - {{ flip_planning_container_prefix }}-keycloak
+{% endif %}
+
 {% if flip_planning_pgadmin_enabled %}
 
   pgadmin:
@@ -120,11 +207,17 @@ services:
 
 networks:
   {{ flip_planning_container_prefix }}:
+{% if flip_planning_keycloak_enabled %}
+  {{ flip_planning_container_prefix }}-keycloak:
+{% endif %}
   newt:
     external: true
 
 volumes:
   postgres_data:
+{% if flip_planning_keycloak_enabled %}
+  keycloak_data:
+{% endif %}
 {% if flip_planning_pgadmin_enabled %}
   pgadmin_data:
 {% endif %}
