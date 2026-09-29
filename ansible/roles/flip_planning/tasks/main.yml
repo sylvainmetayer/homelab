@@ -99,6 +99,36 @@
     flip_planning_trusted_proxies: >-
       {{ (flip_planning_newt_network_info.stdout | from_json)[0].IPAM.Config[0].Subnet }}
 
+# The application and Keycloak already refuse a half-laid configuration, but
+# only once restarted. Catching it here moves the failure from "the container
+# restarted and never came back" to "the deploy stopped and named the missing
+# value" — the same verdict, before a running service is taken down.
+- name: Check the Keycloak configuration of {{ flip_planning_service }}
+  when: flip_planning_keycloak_enabled or flip_planning_oidc_enabled
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - not flip_planning_keycloak_enabled
+        or (flip_planning_keycloak_image | length > 0
+            and flip_planning_keycloak_db_password | length > 0
+            and flip_planning_keycloak_admin_password | length > 0)
+      - not flip_planning_oidc_enabled
+        or (flip_planning_oidc_auth_server_url | length > 0
+            and flip_planning_oidc_client_secret | length >= 32)
+      - not (flip_planning_oidc_enabled and flip_planning_oidc_provisioning_enabled)
+        or (flip_planning_oidc_provisioning_server_url | length > 0
+            and flip_planning_oidc_provisioning_client_secret | length > 0)
+    fail_msg: >-
+      Incomplete Keycloak configuration for {{ flip_planning_service }}.
+      flip_planning_keycloak_enabled needs flip_planning_keycloak_image (the
+      application repo's Keycloak image, same version as the application) and
+      the two Keycloak passwords. flip_planning_oidc_enabled needs the realm's
+      PUBLIC url and a client secret of at least 32 characters — shorter,
+      Quarkus draws the key that encrypts the PKCE verifier at random on every
+      start — and, with provisioning, its server url and service-account
+      secret. The secrets belong in secrets.sops.yaml; terraform/keycloak of
+      the application repo prints the two client secrets.
+
 - name: Template compose configuration for {{ flip_planning_service }}
   notify: "Restart {{ flip_planning_service }}"
   loop:

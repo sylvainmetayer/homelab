@@ -181,6 +181,94 @@ flip_planning_branding_assets: >-
 # plain text in host_vars/flip/variables.yaml rather than in sops.
 flip_planning_cloudflare_web_analytics_token: ""
 
+# ---------------------------------------------------------------------------
+# Keycloak — the identity provider of an instance, in its own stack, on the
+# /auth sub-path of the instance's domain.
+#
+# Same domain rather than an sso.* subdomain, because Pangolin resources ARE
+# subdomains: a second one would mean a second certificate, a second set of geo
+# rules and a second resource to forget. The cost is that /auth has to be
+# carved out of the resource's Pangolin SSO — see the rule next to the
+# instance's pangolin_resource in tofu/pangolin_config.
+#
+# Off by default, for every instance: turning it on deploys a database and an
+# identity provider. The order to bring one up is in the application repository
+# (docs/keycloak.md § Mise en production): this flag, then the realm with the
+# app repo's terraform/keycloak against https://<domain>/auth, then the two
+# client secrets in secrets.sops.yaml, then flip_planning_oidc_enabled.
+flip_planning_keycloak_enabled: false
+
+# The application repository's Keycloak image — the official one plus the
+# e-mail code authenticator and the « planning » theme (login page, account
+# console, e-mails). ALWAYS the same version as flip_planning_image: the two
+# are published together under the same tags, and the theme and the
+# application's account links are made for each other. No default on purpose:
+# an instance that turns Keycloak on names it next to its application image.
+flip_planning_keycloak_image: ""
+
+flip_planning_keycloak_db_name: "keycloak"
+flip_planning_keycloak_db_user: "keycloak"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_keycloak_db_password: ""
+
+# Bootstrap administrator of the MASTER realm — the one terraform/keycloak
+# signs in with to create the planning realm, not an account of it. Keycloak
+# asks for it to be replaced by a permanent account from the console.
+flip_planning_keycloak_admin_user: "admin"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_keycloak_admin_password: ""
+
+# Accent colour of the Keycloak login page and e-mails (the account console
+# reads brand.css only). Empty: the product's own.
+flip_planning_keycloak_brand_accent: ""
+
+# ---------------------------------------------------------------------------
+# The application's side of Keycloak.
+#
+# Off: the application keeps its break-glass account open — the same single
+# ADMIN_PASSWORD it runs on today. From the release that makes Keycloak
+# mandatory (application ADR 0069), production refuses to start with neither,
+# which is why the role writes ADMIN_SECOURS_ENABLED=true whenever this is off:
+# the existing instances keep working when their image moves past it.
+#
+# On: named accounts, a second factor imposed on administrators, the espace
+# animateur opened by a Keycloak session instead of the e-mail code, and the
+# break-glass door closed (flip_planning_admin_secours_enabled).
+flip_planning_oidc_enabled: false
+
+# Whether the break-glass account stays open once Keycloak is on. Closed is
+# the production posture; open is the way back in when Keycloak is down.
+flip_planning_admin_secours_enabled: false
+
+# PUBLIC url of the realm — the one browsers see, and the one that signs the
+# issuer of the tokens: an internal URL here and a public one in the browser
+# produce tokens that are systematically rejected. Defaulted from the domain
+# when Keycloak is in this stack.
+flip_planning_oidc_auth_server_url: >-
+  {{ 'https://' ~ flip_planning_domain ~ '/auth/realms/' ~ flip_planning_oidc_provisioning_realm
+     if flip_planning_keycloak_enabled else '' }}
+
+# Confidential client of the code flow. AT LEAST 32 CHARACTERS: it encrypts the
+# PKCE verifier in the state cookie, and below that Quarkus draws a random key
+# at every start. terraform/keycloak prints it (`terraform output`).
+flip_planning_oidc_client_id: "planning-app"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_oidc_client_secret: ""
+
+# Provisioning: creating an animateur's fiche creates the Keycloak account that
+# opens their espace; an import creates the accounts without mailing anyone,
+# and the Animateurs screen sends the invitations.
+flip_planning_oidc_provisioning_enabled: true
+# Root of the admin API — WITHOUT /realms/…, and inside the stack: this traffic
+# never leaves the host.
+flip_planning_oidc_provisioning_server_url: >-
+  {{ 'http://' ~ flip_planning_container_prefix ~ '-keycloak:8080/auth'
+     if flip_planning_keycloak_enabled else '' }}
+flip_planning_oidc_provisioning_realm: "planning"
+flip_planning_oidc_provisioning_client_id: "planning-provisioning"
+# Sensitive: must be set in secrets.sops.yaml
+flip_planning_oidc_provisioning_client_secret: ""
+
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
 # migration interrupted halfway blocks every later one, then back to false: it
 # also realigns checksums, which would hide an edited migration.
