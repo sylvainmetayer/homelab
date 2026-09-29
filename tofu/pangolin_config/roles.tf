@@ -13,6 +13,7 @@ locals {
     "paperless",
     "flip-planning",
     "demo-planning",
+    "demo-planning-kc",
     "gramps",
     "dawarich",
     "scanopy",

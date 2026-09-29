@@ -145,3 +145,49 @@
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
+    # TEMPORARY third instance, demo-planning-kc.sylvain.dev: the pull request
+    # that makes Keycloak mandatory (planning-equipes#72), on a real domain in
+    # HTTPS — what passkeys need, and what the local stack cannot give — with
+    # its own Keycloak under /auth and the application's themed account
+    # console. Both images follow the PR's `pr-72` tag, published by the app
+    # repo's image workflows while the PR carries the `publier-image` label.
+    #
+    # Skipped until its secrets exist (the `when`), so a full run of this
+    # playbook before they are in secrets.sops.yaml changes nothing. Brought up
+    # in two passes, both automatic: Keycloak and the application first,
+    # break-glass door open; then, once terraform/keycloak of the app repo has
+    # created the realm and its two client secrets are in sops, the next run
+    # turns OIDC on by itself (flip_planning_oidc_enabled below).
+    #
+    # No backup and no Uptime Kuma push monitor: a test bench, torn down with
+    # the remove-app skill once the PR is merged.
+    - role: flip_planning
+      tags: demo_planning_kc,app
+      when: demo_planning_kc_db_password is defined
+      vars:
+        flip_planning_service: demo_planning_kc
+        flip_planning_container_prefix: demo-planning-kc
+        flip_planning_domain: demo-planning-kc.sylvain.dev
+        flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:pr-72"
+        flip_planning_sentry_environment: demo-kc
+        flip_planning_branding_product_name: "Flip Planning — Keycloak"
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_keycloak_enabled: true
+        flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
+        flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
+        flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
+        flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"
+        flip_planning_oidc_client_secret: "{{ demo_planning_kc_oidc_client_secret | default('') }}"
+        flip_planning_oidc_provisioning_client_secret: "{{ demo_planning_kc_oidc_provisioning_client_secret | default('') }}"
+        # A test bench: the break-glass door stays open next to Keycloak, the
+        # way back in when a realm change goes wrong.
+        flip_planning_admin_secours_enabled: true
+        flip_planning_db_password: "{{ demo_planning_kc_db_password }}"
+        flip_planning_pgadmin_password: "{{ demo_planning_kc_pgadmin_password }}"
+        flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
+        flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
+        flip_planning_mcp_pangolin_access_token_id: ""
+        flip_planning_mcp_pangolin_access_token: ""
+        flip_planning_backup_enabled: false
