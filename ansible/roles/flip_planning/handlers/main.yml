@@ -20,3 +20,9 @@
     name: dc@demo_planning
     scope: user
     state: restarted
+
+- name: Restart demo_planning_kc
+  ansible.builtin.systemd:
+    name: dc@demo_planning_kc
+    scope: user
+    state: restarted

@@ -34,7 +34,8 @@ locals {
   #
   #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
   #            (pangolin_resource_rule.flip_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_mcp)
+  #             pangolin_resource_rule.demo_planning_mcp,
+  #             pangolin_resource_rule.demo_planning_kc_keycloak)
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
   #   99       DROP COUNTRY ALL
@@ -53,6 +54,7 @@ locals {
     "Dashboard Traefik" = pangolin_resource.traefik_dashboard.id
     "Dawarich"          = pangolin_resource.dawarich.id
     "Demo Planning"     = pangolin_resource.demo_planning.id
+    "Demo Planning KC"  = pangolin_resource.demo_planning_kc.id
     "Echo"              = pangolin_resource.echo.id
     "Flip Planning"     = pangolin_resource.flip_planning.id
     "Gramps"            = pangolin_resource.gramps.id
@@ -318,6 +320,7 @@ locals {
   # omission fails loudly is the point: the alternative is the silence above.
   declared_extra_rules = [
     pangolin_resource_rule.dawarich_home_ip,
+    pangolin_resource_rule.demo_planning_kc_keycloak,
     pangolin_resource_rule.demo_planning_mcp,
     pangolin_resource_rule.flip_planning_mcp,
     pangolin_resource_rule.immich_home_ip,
