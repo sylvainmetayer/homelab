@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A personal homelab infrastructure-as-code project (French comments/docs, English code). It provisions and configures two deployment targets:
 
 1. **Pangolin** — a Hetzner Cloud VM running Pangolin Zero Trust (Traefik-based reverse proxy / tunnel), provisioned by `tofu/pangolin` and configured by `ansible/pangolin.yaml`.
-2. **Proxmox** — a local Docker VM (+ a Newt LXC container) provisioned by `tofu/proxmox` and configured by `ansible/docker.yml`, running all the self-hosted apps (Nextcloud, Immich, Paperless-ngx, Monica, Wiki.js-style wiki, RSS reader, SearXNG, Semaphore, Betisier, Meerkat CRM, Flip Planning, Homelable, etc.).
+2. **Proxmox** — a local Docker VM (+ a Newt LXC container) provisioned by `tofu/proxmox` and configured by `ansible/docker.yml`, running all the self-hosted apps (Nextcloud, Immich, Paperless-ngx, Monica, Wiki.js-style wiki, RSS reader, SearXNG, Semaphore, Betisier, Meerkat CRM, Homelable, etc.).
+3. **Flip** — a Hetzner Cloud VM with **no public IP** (private network only), provisioned by `tofu/pangolin/flip.tf` and configured by `ansible/flip.yml`, dedicated to Flip Planning (production + demo). Pangolin reaches it through the Newt running on it (site `flip`); it reaches the Internet through Pangolin, which NATs for the private network (`hcloud_network_route` in `tofu/pangolin/nat.tf`, roles `nat_gateway` on Pangolin and `nat_client` on flip).
 
 There's also a Raspberry Pi (`ansible/pi.yml`, Immich) and a Hetzner Storage Box used purely as an Ansible group (`backups`) for remote backup folder provisioning.
 
@@ -56,6 +57,7 @@ There is no test/lint/build for `tofu/pangolin_config` wired into `mise.toml` �
 ```bash
 ansible-playbook -i inventory/hosts 00-setup.yaml   # base host setup (user, packages, starship)
 ansible-playbook -i inventory/hosts docker.yml       # Proxmox docker host: all the app roles
+ansible-playbook -i inventory/hosts flip.yml         # Hetzner flip server: Flip Planning (prod + demo)
 ansible-playbook -i inventory/hosts pangolin.yaml    # Pangolin Hetzner VM
 ansible-playbook -i inventory/hosts pi.yml           # Raspberry Pi (Immich)
 ansible-playbook -i inventory/hosts backup.yaml      # creates remote backup folders on the Storage Box
@@ -64,7 +66,7 @@ ansible-playbook -i inventory/hosts test.yaml
 
 Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--tags betisier`), and `-v`/`-vv`/`-vvv` for verbosity. `ansible.cfg` sets `stdout_callback = debug` and logs every run to `ansible/run.log`; fact cache lives in `ansible/facts/`.
 
-**Inventory** is dynamic: `ansible/inventory/proxmox.py` and `ansible/inventory/hetzner.py` read the corresponding `tofu state -json` output (via `tofu show -json` run against `../tofu/proxmox` or `../tofu/pangolin`) to build host lists — so `tofu apply` must be current before an inventory-dependent Ansible run picks up new hosts. `ansible/inventory/hosts` is a static fallback (currently just the Raspberry Pi).
+**Inventory** is dynamic: `ansible/inventory/proxmox.py` and `ansible/inventory/hetzner.py` read the corresponding `tofu state -json` output (via `tofu show -json` run against `../tofu/proxmox` or `../tofu/pangolin`) to build host lists — so `tofu apply` must be current before an inventory-dependent Ansible run picks up new hosts. `ansible/inventory/hosts` is a static fallback (currently just the Raspberry Pi). A Hetzner server with no public IPv4 (flip) is emitted by `hetzner.py` with its private IP and `-o ProxyJump=sylvain@<pangolin public IP>` (Pangolin's sshd allows it via `security_ssh_allow_tcp_forwarding: local` in `host_vars/pangolin`); CI instead reaches it as `flip.internal`, a Pangolin private resource served by flip's own Newt.
 
 ### Secrets (SOPS + Age)
 
@@ -89,9 +91,10 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 | `docker.yml` | `docker` | Proxmox Docker VM — installs Docker, `docker_service`, `borgmatic`, `newt`, then every app role |
 | `pangolin.yaml` | `pangolin` | Hetzner Pangolin VM — Docker, `borgmatic`, `security` hardening, `pangolin` role |
 | `pi.yml` | `pi` | Raspberry Pi — Docker, `docker_service`, `borgmatic`, `newt`, `immich` |
+| `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×2 (prod + demo). Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
 | `backup.yaml` | `backups` | Storage Box only: `mkdir -p` remote backup folders (see below) |
 
-`docker.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
+`docker.yml`, `flip.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
 
 ### The `docker_service` role (systemd pattern)
 
@@ -132,7 +135,7 @@ current checklist — it also delegates to **`pangolin-route`** and
 
 ### Running a second environment of an app
 
-`flip_planning` is applied twice by `docker.yml`: once for production
+`flip_planning` is applied twice by `flip.yml`: once for production
 (`flip-planning.sylvain.cloud`) and once for the demo
 (`demo-planning.sylvain.dev`). There is one role, not two — duplicating a role
 per environment is what leaves the copy behind on the next change.
@@ -182,7 +185,7 @@ Kuma monitors. Secrets are per-environment too (`demo_planning_*` in
 Use the **`remove-app`** project skill (`.claude/skills/remove-app/`) for the
 full checklist — it's the reverse of `new-app` and touches the same files.
 Summary: run the reusable `ansible/roles/decommission_app` role (registered
-in `docker.yml`/`pi.yml` under `tags: [decommission, never]`, so it only ever
+in `docker.yml`/`pi.yml`/`flip.yml` under `tags: [decommission, never]`, so it only ever
 runs when invoked explicitly via `--tags decommission`) to stop/disable the
 `dc@<service>` unit and delete containers/volumes/data/borgmatic config, then
 delete the role directory, deregister it from the playbook (role entry +
@@ -202,8 +205,8 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 ## OpenTofu architecture
 
 - `tofu/proxmox/` — Proxmox VE provider: the Docker VM (`proxmox_docker_vm.tf`) and the Newt LXC container (`proxmox_newt_lxc.tf`) that `ansible/inventory/proxmox.py` reads back as inventory.
-- `tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, an S3 bucket, and Hetzner Storage Box config (see `STORAGE_BOX_SETUP.md` there for the manual setup steps SSH/rsync require).
-- `tofu/pangolin_config/` — Pangolin-side application config (roles, rules, private resources, per-app `website_*.tf` files defining public routing + Uptime Kuma checks) applied against the running Pangolin instance, separate from the VM provisioning itself. Its state is what `docker.yml`/`pangolin.yaml`/`pi.yml` read at Ansible time for healthcheck URLs.
+- `tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, the flip VM (private network only) and the network route that makes Pangolin its NAT gateway, an S3 bucket, and Hetzner Storage Box config (see `STORAGE_BOX_SETUP.md` there for the manual setup steps SSH/rsync require).
+- `tofu/pangolin_config/` — Pangolin-side application config (roles, rules, private resources, per-app `website_*.tf` files defining public routing + Uptime Kuma checks) applied against the running Pangolin instance, separate from the VM provisioning itself. Its state is what `docker.yml`/`flip.yml`/`pangolin.yaml`/`pi.yml` read at Ansible time for healthcheck URLs (and, for `flip.yml`, the Newt credentials). It reads `tofu/pangolin`'s state (`remote_state.tf`) for flip's private IP, so `tofu/pangolin` is applied first.
 - `tofu/dns/` — Cloudflare DNS records (root domain, redirects, GitHub Pages, email, Pangolin subdomain).
 - `tofu/github/` — GitHub-side config: the Actions secrets of this repo (SOPS Age key, CI deploy key, OLM credentials read from `pangolin_config`'s state) and the `planning-equipes` repository itself — creation, visibility, `main` branch protection. The settings the provider can't reach (fork PR approval, private vulnerability reporting, GHCR package visibility, Renovate/GitGuardian) are a checklist in `tofu/github/README.md`.
 - All backends are S3-compatible object storage (`homelab-tf-state-sylvain` bucket at `https://s3.eu-west-par.io.cloud.ovh.net`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.

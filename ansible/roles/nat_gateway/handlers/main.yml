@@ -1,0 +1,12 @@
+---
+# Restart = ExecStop (retire la règle avec les anciens paramètres, lus depuis
+# l'unité encore chargée) puis ExecStart avec les nouveaux, d'où le
+# daemon_reload fait ici et pas avant.
+- name: Restart nat-gateway
+  become: true
+  ansible.builtin.shell: |
+    set -e
+    systemctl stop nat-gateway || true
+    systemctl daemon-reload
+    systemctl start nat-gateway
+  changed_when: true

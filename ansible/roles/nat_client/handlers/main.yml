@@ -1,0 +1,13 @@
+---
+- name: Restart nat-default-route
+  become: true
+  ansible.builtin.systemd:
+    name: nat-default-route
+    state: restarted
+    daemon_reload: true
+
+- name: Restart systemd-resolved
+  become: true
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted

@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Route par défaut vers la passerelle NAT du réseau privé Hetzner (rôle nat_client).
+[Unit]
+Description=Default route through the Hetzner private network NAT gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/ip route replace default via {{ nat_client_gateway }}
+
+[Install]
+WantedBy=multi-user.target

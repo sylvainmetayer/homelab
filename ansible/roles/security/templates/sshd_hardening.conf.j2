@@ -7,7 +7,7 @@ MaxSessions 2
 ClientAliveInterval 600
 ClientAliveCountMax 2
 X11Forwarding no
-AllowTcpForwarding no
+AllowTcpForwarding {{ security_ssh_allow_tcp_forwarding }}
 PermitEmptyPasswords no
 Protocol 2
 UsePAM yes

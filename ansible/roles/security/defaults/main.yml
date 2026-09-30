@@ -3,3 +3,8 @@ security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
   - { port: "80", proto: tcp }
   - { port: "443", proto: tcp }
+
+# AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion
+# (ProxyJump) vers les serveurs sans IP publique : un ProxyJump n'est qu'un
+# forward local (direct-tcpip), "local" n'ouvre pas le forward distant (-R).
+security_ssh_allow_tcp_forwarding: "no"

@@ -29,3 +29,11 @@ ip=$(ansible-inventory --host pi | jq -r '.ansible_host')
 ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
 '''
 raw = true
+
+[tasks.ssh_flip]
+description = "SSH into the flip server (no public IP: ProxyJump via Pangolin, see inventory/hetzner.py)"
+run = '''
+host=$(ansible-inventory --host flip)
+ssh -i ~/.ssh/keepassxc.pub $(echo "$host" | jq -r '.ansible_ssh_common_args') sylvain@$(echo "$host" | jq -r '.ansible_host')
+'''
+raw = true

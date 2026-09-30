@@ -37,8 +37,6 @@
         monica_v4_cron_healthcheck_url: "{{ terraform_outputs.uptime_cron_monica_url.value | default('') }}"
         betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
-        flip_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
-        demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         scanopy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_scanopy_url.value | default('') }}"
@@ -78,59 +76,6 @@
       tags: meerkat_crm,app
     - role: paperless_ngx
       tags: paperless,app
-    # Production: the festival's instance, hence the festival's visuals. Role
-    # parameters rather than host_vars so that they brand this instance only;
-    # paths are relative to the role's files/ directory. The Pangolin
-    # healthcheck of the assets target probes the logo by name, so a rename here
-    # must follow in tofu/pangolin_config/website_flip_planning.tf.
-    - role: flip_planning
-      tags: flip_planning,app
-      vars:
-        flip_planning_branding_logo: flip/flip.png
-        flip_planning_branding_pdf_logo: flip/flip-logo.png
-        flip_planning_branding_pdf_strip: flip/flip-strip.png
-        flip_planning_branding_mascot: flip/flip-woopy.png
-        flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
-    # Demo environment: the same role, a second time, with its own compose
-    # project directory, systemd unit, containers, docker network, database and
-    # Borg repository. Only what cannot be shared is overridden here — the
-    # mentions légales are inherited from the role defaults and from
-    # secrets.sops.yaml. The image is the exception: production follows the
-    # vX.Y.Z releases, the demo the latest main (see the role defaults). The
-    # branding images are deliberately NOT set: the demo runs unbranded (the
-    # role defaults are empty), so that a screenshot of it cannot pass for the
-    # festival's planning.
-    #
-    # These are role parameters, the highest precedence short of `-e`, so they
-    # also win over the flip_planning_* entries of host_vars/docker.
-    - role: flip_planning
-      tags: demo_planning,app
-      vars:
-        flip_planning_service: demo_planning
-        flip_planning_container_prefix: demo-planning
-        flip_planning_domain: demo-planning.sylvain.dev
-        flip_planning_image: "{{ flip_planning_image_main }}"
-        flip_planning_sentry_environment: demo
-        flip_planning_branding_product_name: "Flip Planning — Démo"
-        # Demo traffic has no business in the production audience statistics.
-        flip_planning_cloudflare_web_analytics_token: ""
-        # Freezing the date is what a demo is for, and nothing real goes out
-        # from here: the mail sink delivers nothing and the animateurs of this
-        # instance are fictional.
-        flip_planning_horloge_simulee_autorisee: true
-        # Own credentials throughout: a leaked demo password must not open the
-        # real planning, and the MCP tokens are bound to the Pangolin resource.
-        flip_planning_db_password: "{{ demo_planning_db_password }}"
-        flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
-        flip_planning_admin_password: "{{ demo_planning_admin_password }}"
-        flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
-        flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
-        flip_planning_mcp_pangolin_access_token_id: "{{ demo_planning_mcp_pangolin_access_token_id }}"
-        flip_planning_mcp_pangolin_access_token: "{{ demo_planning_mcp_pangolin_access_token }}"
-        flip_planning_backup_enabled: "{{ demo_planning_backup_enabled }}"
-        flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
-        flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
-        flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
     - role: gramps
       tags: gramps,app
     - role: dawarich
