@@ -1,0 +1,14 @@
+#cloud-config
+# Uniquement de quoi laisser Ansible se connecter : sans NAT configuré, le
+# serveur n'a pas encore accès à Internet (voir ansible/flip.yml).
+users:
+  - name: sylvain
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${public_ssh_key}
+
+ssh_pwauth: false
+disable_root: true

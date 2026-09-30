@@ -1,0 +1,15 @@
+---
+# Passerelle NAT des serveurs Hetzner sans IP publique (flip).
+#
+# Le réseau privé Hetzner envoie tout ce qui n'est pas à lui vers Pangolin
+# (hcloud_network_route "nat", tofu/pangolin/nat.tf) : ce rôle fait le reste,
+# forward + masquerade sur l'interface publique.
+
+# Plage source autorisée à sortir : tout le réseau privé Hetzner
+# (hcloud_network.main dans tofu/pangolin/pangolin.tf).
+nat_gateway_source_cidr: 10.0.0.0/16
+
+# Passerelle du réseau privé Hetzner (toujours la première adresse du réseau) :
+# sert seulement à retrouver l'interface privée par `ip route get`, les noms
+# d'interface (eth0, enp7s0…) dépendant du type de serveur.
+nat_gateway_private_network_gateway: 10.0.0.1

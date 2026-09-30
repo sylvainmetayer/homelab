@@ -41,5 +41,9 @@
     - role: security
       become: true
       tags: security
+    # Internet egress of the servers with no public IP (flip). After security:
+    # the forwarding rule is an ufw rule.
+    - role: nat_gateway
+      tags: nat
     - role: pangolin
       tags: pangolin

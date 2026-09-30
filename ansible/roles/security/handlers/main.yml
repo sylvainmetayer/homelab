@@ -1,0 +1,8 @@
+---
+# Sans ce handler, un changement de sshd_hardening.conf n'était appliqué qu'au
+# prochain redémarrage de sshd. `sshd -t` d'abord : une configuration invalide
+# ne doit pas couper l'accès SSH.
+- name: Reload sshd
+  become: true
+  ansible.builtin.shell: sshd -t && systemctl reload ssh
+  changed_when: true

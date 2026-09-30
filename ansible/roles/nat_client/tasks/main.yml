@@ -1,0 +1,75 @@
+---
+# Rien dans ce rôle ne doit dépendre d'Internet : il tourne avant tout le reste
+# de flip.yml précisément pour le rendre accessible.
+
+# Une unité plutôt qu'un fichier de configuration réseau : la pile réseau de
+# l'image Hetzner (ifupdown, netplan…) n'a pas à être connue, et `ip route
+# replace` est idempotent.
+- name: Install the default route systemd unit
+  become: true
+  notify: Restart nat-default-route
+  ansible.builtin.template:
+    src: nat-default-route.service.j2
+    dest: /etc/systemd/system/nat-default-route.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Detect systemd-resolved
+  ansible.builtin.stat:
+    path: /run/systemd/resolve/stub-resolv.conf
+  register: nat_client_resolved
+
+- name: Configure DNS through systemd-resolved
+  when: nat_client_resolved.stat.exists
+  block:
+    - name: Ensure the resolved drop-in directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Set the DNS servers for systemd-resolved
+      become: true
+      notify: Restart systemd-resolved
+      ansible.builtin.template:
+        src: resolved-nat.conf.j2
+        dest: /etc/systemd/resolved.conf.d/50-nat.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Set the DNS servers in resolv.conf
+  when: not nat_client_resolved.stat.exists
+  become: true
+  ansible.builtin.template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply network changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the default route systemd unit
+  become: true
+  ansible.builtin.systemd:
+    name: nat-default-route
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Échouer ici, avec un message qui dit quoi vérifier, plutôt que plus loin sur
+# un apt ou un docker pull qui expire sans explication.
+- name: Check that the Internet is reachable through the NAT gateway
+  ansible.builtin.command:
+    cmd: getent ahostsv4 deb.debian.org
+  changed_when: false
+  register: nat_client_dns_check
+  retries: 5
+  delay: 3
+  until: nat_client_dns_check.rc == 0

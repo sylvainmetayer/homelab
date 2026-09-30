@@ -25,3 +25,7 @@ security_ufw_allowed_ports:
   - { port: "443", proto: tcp }
   - { port: "51820", proto: udp }
   - { port: "21820", proto: udp }
+
+# Pangolin sert de bastion (ProxyJump) vers les serveurs sans IP publique du
+# réseau privé : voir inventory/hetzner.py et le rôle security.
+security_ssh_allow_tcp_forwarding: local

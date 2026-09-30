@@ -17,6 +17,26 @@ resource "pangolin_site" "proxmox_docker" {
   docker_socket_enabled = true
 }
 
+# Hetzner server with no public IP, dedicated to Flip Planning (production and
+# demo, ansible/flip.yml). Its newt credentials are read from this state by
+# flip.yml (outputs below), not copied into secrets.sops.yaml.
+resource "pangolin_site" "flip" {
+  name                  = "flip"
+  docker_socket_enabled = true
+}
+
+output "flip_newt_id" {
+  description = "FLIP - Newt ID of the flip site, read by ansible/flip.yml"
+  value       = pangolin_site.flip.newt_id
+  sensitive   = true
+}
+
+output "flip_newt_secret" {
+  description = "FLIP - Newt secret of the flip site, read by ansible/flip.yml"
+  value       = pangolin_site.flip.newt_secret
+  sensitive   = true
+}
+
 resource "pangolin_site" "pi" {
   name                  = "Raspberry PI"
   docker_socket_enabled = true

@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Instance identity.
 #
-# This role is applied once per environment (see ansible/docker.yml): the
+# This role is applied once per environment (see ansible/flip.yml): the
 # production instance keeps the values below, any other instance overrides them
 # as role parameters. Everything two instances cannot share while living on the
 # same Docker host derives from these two variables — compose project
@@ -36,7 +36,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 #   for a manual merge.
 # - main: the image rebuilt on every merge upstream. What the demo runs; every
 #   new digest automerges.
-# Both live here rather than in docker.yml because the deploy workflow only
+# Both live here rather than in flip.yml because the deploy workflow only
 # maps ansible/roles/** changes to tags: a bump of either one redeploys both
 # instances, and the one whose image did not move is a no-op.
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
@@ -149,7 +149,7 @@ flip_planning_branding_product_name: "Flip Planning"
 # bandeau, no mascot (the Konami easter egg stays off and the loader falls back
 # to a Material icon). Empty by default on purpose: only the production
 # instance is the festival's, and a demo that carries no client visual cannot
-# be mistaken for it in a screenshot. Set as role parameters in docker.yml,
+# be mistaken for it in a screenshot. Set as role parameters in flip.yml,
 # not in host_vars, which would brand every instance on the host.
 #
 # Basenames must be unique across the five: they share one directory.
@@ -167,7 +167,7 @@ flip_planning_branding_mascot_icon: ""
 # The non-empty sources above, as one list for the copy and the cleanup. A
 # default rather than a set_fact so that it is evaluated against each
 # instance's own parameters: a set_fact would carry the first instance's list
-# into the second (see ansible/docker.yml).
+# into the second (see ansible/flip.yml).
 flip_planning_branding_assets: >-
   {{ [flip_planning_branding_logo,
       flip_planning_branding_pdf_logo,
@@ -178,7 +178,7 @@ flip_planning_branding_assets: >-
 # Cloudflare Web Analytics beacon token. Empty = audience measurement off.
 # Set ⇒ a transfer outside the EU that the mentions légales must declare.
 # A public identifier by construction (it ships in every page), so it lives in
-# plain text in host_vars/docker/variables.yaml rather than in sops.
+# plain text in host_vars/flip/variables.yaml rather than in sops.
 flip_planning_cloudflare_web_analytics_token: ""
 
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
@@ -191,8 +191,8 @@ flip_planning_flyway_repair_at_start: false
 # `quarkus:dev` does. Off unless a host asks for it: those are the two screens
 # that only describe what is still ahead TODAY, and while a date is frozen they
 # describe a day that is not today — the night jobs' day-before reminders
-# included, which go out to real people. Granted on the docker host, see
-# host_vars/docker/variables.yaml.
+# included, which go out to real people. Granted on the flip host, see
+# host_vars/flip/variables.yaml.
 #
 # Granting it alone changes nothing: the clock stays real until someone freezes
 # it from that page. But taking the permission away while a date is still

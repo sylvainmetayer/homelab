@@ -59,3 +59,15 @@ variable "s3_endpoint" {
   type        = string
   default     = "https://s3.eu-west-par.io.cloud.ovh.net"
 }
+
+variable "flip_server" {
+  description = "Serveur Flip Planning, sans IP publique (réseau privé uniquement)"
+  type = object({
+    name        = optional(string, "flip")
+    server_type = optional(string, "cx23")
+    image       = optional(string, "debian-13")
+    # Doit rester dans hcloud_network_subnet.main (10.0.1.0/24).
+    private_ip = optional(string, "10.0.1.10")
+  })
+  default = {}
+}

@@ -1,5 +1,5 @@
 # Demo instance of Flip Planning, deployed by the same Ansible role as the
-# production one (ansible/docker.yml applies it twice). This file mirrors
+# production one (ansible/flip.yml applies it twice). This file mirrors
 # website_flip_planning.tf: keep the two in step, and keep the `ip` /
 # `hc_hostname` values in step with flip_planning_container_prefix.
 resource "pangolin_resource" "demo_planning" {
@@ -56,7 +56,7 @@ resource "pangolin_resource_rule" "demo_planning_mcp" {
 
 resource "pangolin_target" "demo_planning" {
   resource_id = pangolin_resource.demo_planning.id
-  site_id     = pangolin_site.proxmox_docker.id
+  site_id     = pangolin_site.flip.id
   ip          = "demo-planning"
   port        = 8080
   method      = "http"
@@ -88,7 +88,7 @@ resource "pangolin_target" "demo_planning" {
 # SCRIPT_NAME=/db tells pgAdmin its root, so no path rewrite here.
 resource "pangolin_target" "demo_planning_pgadmin" {
   resource_id = pangolin_resource.demo_planning.id
-  site_id     = pangolin_site.proxmox_docker.id
+  site_id     = pangolin_site.flip.id
   ip          = "demo-planning-pgadmin"
   port        = 80
   method      = "http"
@@ -114,7 +114,7 @@ resource "pangolin_target" "demo_planning_pgadmin" {
 
 resource "pangolin_target" "demo_planning_mailpit" {
   resource_id = pangolin_resource.demo_planning.id
-  site_id     = pangolin_site.proxmox_docker.id
+  site_id     = pangolin_site.flip.id
   ip          = "demo-planning-mailpit"
   port        = 8025
   method      = "http"
@@ -138,14 +138,14 @@ resource "pangolin_target" "demo_planning_mailpit" {
   hc_unhealthy_threshold = 3
 }
 
-# The demo declares no branding image (ansible/docker.yml leaves the
+# The demo declares no branding image (ansible/flip.yml leaves the
 # flip_planning_branding_* parameters at their empty defaults): its assets
 # directory is empty and the application shows no logo. The nginx and this
 # target stay, so that the two instances keep the same shape and a demo that
 # one day gets its own visuals needs no routing change.
 resource "pangolin_target" "demo_planning_assets" {
   resource_id = pangolin_resource.demo_planning.id
-  site_id     = pangolin_site.proxmox_docker.id
+  site_id     = pangolin_site.flip.id
   ip          = "demo-planning-assets"
   port        = 80
   method      = "http"

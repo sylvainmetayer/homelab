@@ -1,0 +1,70 @@
+---
+# Les noms d'interface dépendent du type de serveur Hetzner : on les déduit des
+# routes plutôt que de les coder en dur. L'interface publique porte la route
+# par défaut, la privée la route vers la passerelle du réseau privé.
+- name: Find the private network interface
+  ansible.builtin.command:
+    cmd: "ip -o -4 route get {{ nat_gateway_private_network_gateway }}"
+  register: nat_gateway_private_route
+  changed_when: false
+
+- name: Set the NAT interfaces
+  ansible.builtin.set_fact:
+    nat_gateway_public_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
+    nat_gateway_private_interface: "{{ nat_gateway_private_route.stdout | regex_search('dev (\\S+)', '\\1') | first }}"
+
+- name: Fail clearly when the private and public interfaces are the same
+  ansible.builtin.assert:
+    that:
+      - nat_gateway_public_interface != nat_gateway_private_interface
+    fail_msg: >-
+      {{ nat_gateway_private_network_gateway }} and the default route both go
+      through {{ nat_gateway_public_interface }}: the server is not attached to
+      the private network, or the gateway address is wrong.
+
+# Docker l'active déjà, mais comme effet de bord : on ne veut pas que la sortie
+# de flip dépende de la présence de Docker sur Pangolin.
+- name: Enable IPv4 forwarding
+  become: true
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/90-nat-gateway.conf
+    state: present
+    reload: true
+
+# La politique FORWARD d'ufw (et celle posée par Docker) est DROP : il faut
+# autoriser explicitement le transit privé → public. Le retour est couvert par
+# la règle RELATED,ESTABLISHED des before.rules d'ufw.
+- name: Allow forwarding from the private network to the Internet
+  become: true
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_in: "{{ nat_gateway_private_interface }}"
+    interface_out: "{{ nat_gateway_public_interface }}"
+    from_ip: "{{ nat_gateway_source_cidr }}"
+
+# Le MASQUERADE n'est pas mis dans /etc/ufw/before.rules : ufw le rechargerait
+# en doublon à chaque `ufw reload` (sa table nat n'est jamais vidée, et la vider
+# emporterait les règles de Docker). Une unité dédiée l'ajoute s'il manque.
+- name: Install the NAT systemd unit
+  become: true
+  notify: Restart nat-gateway
+  ansible.builtin.template:
+    src: nat-gateway.service.j2
+    dest: /etc/systemd/system/nat-gateway.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply NAT changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the NAT systemd unit
+  become: true
+  ansible.builtin.systemd:
+    name: nat-gateway
+    enabled: true
+    state: started
+    daemon_reload: true

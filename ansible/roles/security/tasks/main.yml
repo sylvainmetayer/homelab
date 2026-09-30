@@ -13,6 +13,7 @@
     state: present
 
 - name: Configure SSH hardening
+  notify: Reload sshd
   ansible.builtin.template:
     src: sshd_hardening.conf.j2
     dest: /etc/ssh/sshd_config.d/99-custom.conf

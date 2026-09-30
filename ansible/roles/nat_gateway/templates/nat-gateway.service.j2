@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Masquerade du réseau privé Hetzner vers Internet (rôle nat_gateway).
+[Unit]
+Description=NAT gateway for the Hetzner private network
+After=network-online.target docker.service ufw.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# -C avant -A : idempotent, même si la règle a survécu à un arrêt raté.
+ExecStart=/bin/sh -c 'iptables -t nat -C POSTROUTING -s {{ nat_gateway_source_cidr }} -o {{ nat_gateway_public_interface }} -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s {{ nat_gateway_source_cidr }} -o {{ nat_gateway_public_interface }} -j MASQUERADE'
+ExecStop=/bin/sh -c 'while iptables -t nat -D POSTROUTING -s {{ nat_gateway_source_cidr }} -o {{ nat_gateway_public_interface }} -j MASQUERADE 2>/dev/null; do :; done'
+
+[Install]
+WantedBy=multi-user.target

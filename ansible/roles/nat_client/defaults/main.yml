@@ -1,0 +1,16 @@
+---
+# Sortie Internet d'un serveur Hetzner sans IP publique, par la passerelle NAT
+# (Pangolin, rôle nat_gateway).
+#
+# Le DHCP du réseau privé ne pousse que la route vers le réseau lui-même : ni
+# route par défaut, ni résolveur DNS. Ce rôle ajoute les deux.
+
+# Passerelle du réseau privé Hetzner (première adresse de hcloud_network.main).
+# Elle applique hcloud_network_route "nat" (tofu/pangolin/nat.tf) et renvoie
+# vers Pangolin : ce n'est pas l'IP de Pangolin qu'on met ici.
+nat_client_gateway: 10.0.0.1
+
+# Résolveurs récursifs de Hetzner, joints par le NAT comme le reste.
+nat_client_dns_servers:
+  - 185.12.64.1
+  - 185.12.64.2
