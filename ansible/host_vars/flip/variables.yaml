@@ -3,7 +3,8 @@
 # sont pas ici : flip.yml les lit dans le state de tofu/pangolin_config.
 
 # Pas d'IP publique, et newt n'écoute rien : seul SSH entre, depuis le réseau
-# privé (ProxyJump via Pangolin) ou depuis le newt local (flip.internal).
+# privé (ProxyJump via Pangolin, Ansible local et CI) ou depuis le newt local
+# (flip.internal, accès manuel par un client Pangolin).
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
 

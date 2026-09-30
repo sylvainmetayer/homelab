@@ -66,7 +66,8 @@ variable "flip_server" {
     name        = optional(string, "flip")
     server_type = optional(string, "cx23")
     image       = optional(string, "debian-13")
-    # Doit rester dans hcloud_network_subnet.main (10.0.1.0/24).
+    # Doit rester dans hcloud_network_subnet.main (10.0.1.0/24), et en phase
+    # avec l'ansible_host de flip dans .github/workflows/deploy-docker-app.yaml.
     private_ip = optional(string, "10.0.1.10")
   })
   default = {}

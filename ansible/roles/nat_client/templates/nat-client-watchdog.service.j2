@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Route par défaut et DNS via la passerelle NAT du réseau privé Hetzner (rôle
+# nat_client). Une boucle plutôt qu'un timer : un timer à la minute journalise
+# un démarrage d'unité par minute, la boucle ne parle que quand elle répare.
+[Unit]
+Description=Keep the default route and DNS through the Hetzner private network NAT gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/nat-client-watchdog
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,6 @@
 # {{ ansible_managed }}
+# Copié sur /etc/resolv.conf par nat-client-watchdog (rôle nat_client) dès que
+# le client DHCP ou ifupdown l'écrase.
 {% for server in nat_client_dns_servers %}
 nameserver {{ server }}
 {% endfor %}

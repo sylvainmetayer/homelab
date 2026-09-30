@@ -120,6 +120,10 @@ jobs:
             echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
             echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
             echo "flip_tags=$flip_tags" >> "$GITHUB_OUTPUT"
+            # One flag for the setup steps (OLM, SSH key, inventory...), so that
+            # adding a playbook does not mean editing each of their `if:`.
+            if [ -n "$docker_tags$pi_tags$pangolin_tags$flip_tags" ]; then any_tags=true; else any_tags=false; fi
+            echo "any_tags=$any_tags" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -135,10 +139,14 @@ jobs:
           echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
           echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
           echo "flip_tags=$flip_tags" >> "$GITHUB_OUTPUT"
+          # One flag for the setup steps (OLM, SSH key, inventory...), so that
+          # adding a playbook does not mean editing each of their `if:`.
+          if [ -n "$docker_tags$pi_tags$pangolin_tags$flip_tags" ]; then any_tags=true; else any_tags=false; fi
+          echo "any_tags=$any_tags" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Install ansible + deps
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         # ansible-core is pinned: unpinned installs have hit a Python 3.12.13
         # argparse regression that crashes the ssh connection plugin's TTY
         # detection during "Gathering Facts" (argparse.ArgumentError: argument
@@ -147,14 +155,14 @@ jobs:
         run: pip install --quiet ansible-core==2.20.1 boto3 botocore passlib
 
       - name: Install sops
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         run: |
           version="$(curl -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
           curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
           chmod +x /usr/local/bin/sops
 
       - name: Cache ansible-galaxy roles and collections
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         uses: actions/cache@v6
         with:
           path: |
@@ -163,7 +171,7 @@ jobs:
           key: ${{ runner.os }}-ansible-galaxy-${{ hashFiles('ansible/requirements.yml') }}
 
       - name: Install ansible roles and collections
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         working-directory: ansible
         # No --force: with the cache above restored, an already-satisfied
         # requirement is skipped instead of being re-downloaded every run.
@@ -172,13 +180,13 @@ jobs:
           ansible-galaxy collection install -r requirements.yml
 
       - name: Install network tools
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y dnsutils
 
       - name: Start OLM
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         env:
           PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
           OLM_ID: ${{ secrets.OLM_ID }}
@@ -196,7 +204,7 @@ jobs:
             fosrl/olm
 
       - name: Wait OLM startup
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         shell: bash
         run: |
           for i in {1..20}; do
@@ -220,13 +228,13 @@ jobs:
       # See .github/workflows/ping.yaml for why the runner's own resolver
       # needs to be pointed at the OLM DNS proxy directly.
       - name: Point host DNS at OLM tunnel
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         run: |
           sudo rm -f /etc/resolv.conf
           echo "nameserver 100.96.128.1" | sudo tee /etc/resolv.conf > /dev/null
 
       - name: Set up deploy SSH key
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -234,19 +242,34 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/ci_deploy_key"
           chmod 600 "$HOME/.ssh/ci_deploy_key"
 
+          # flip is reached through a ProxyJump via Pangolin (see "Deploy
+          # flip"). The jump runs its own ssh, which sees neither
+          # ansible_ssh_private_key_file nor the -o options Ansible passes:
+          # the bastion's key and host-key policy have to be in ssh_config.
+          cat > "$HOME/.ssh/config" << EOF
+          Host pangolin.sylvain.cloud
+            User sylvain
+            IdentityFile $HOME/.ssh/ci_deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+          chmod 600 "$HOME/.ssh/config"
+
       - name: Write CI inventory
-        if: steps.resolve-tags.outputs.docker_tags != '' || steps.resolve-tags.outputs.pi_tags != '' || steps.resolve-tags.outputs.pangolin_tags != '' || steps.resolve-tags.outputs.flip_tags != ''
+        if: steps.resolve-tags.outputs.any_tags == 'true'
         working-directory: ansible
         run: |
           # inventory_hostname must stay "docker"/"pi"/"pangolin"/"flip" so
           # host_vars/docker/*, host_vars/pi/*, host_vars/pangolin/*,
           # host_vars/flip/* still apply; only the connection address is
-          # overridden. docker/pi/flip are only reachable through the OLM
-          # tunnel's private mesh (flip has no public IP at all; its
-          # flip.internal resource is served by its own newt, so the very
-          # first deployment is a local one, see ansible/flip.yml); pangolin
-          # is the mesh's own server, so it's reached directly over its
-          # public DNS name instead.
+          # overridden. docker/pi are only reachable through the OLM tunnel's
+          # private mesh; pangolin is the mesh's own server, so it's reached
+          # directly over its public DNS name instead. flip has no public IP:
+          # it is reached on its private address (flip_server.private_ip in
+          # tofu/pangolin/terraform.tfvars) through a ProxyJump via pangolin,
+          # NOT through its flip.internal resource - that one is served by
+          # flip's own newt, which a deployment may restart mid-play.
           cat > ci-inventory.ini << 'EOF'
           [docker]
           docker ansible_host=docker-apps.internal
@@ -258,7 +281,7 @@ jobs:
           pangolin ansible_host=pangolin.sylvain.cloud
 
           [flip]
-          flip ansible_host=flip.internal
+          flip ansible_host=10.0.1.10
           EOF
 
       - name: Deploy docker
@@ -312,10 +335,10 @@ jobs:
           ansible-playbook flip.yml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyJump=pangolin.sylvain.cloud\"}"
 
       - name: No matching role changed
-        if: steps.resolve-tags.outputs.docker_tags == '' && steps.resolve-tags.outputs.pi_tags == '' && steps.resolve-tags.outputs.pangolin_tags == '' && steps.resolve-tags.outputs.flip_tags == ''
+        if: steps.resolve-tags.outputs.any_tags != 'true'
         run: echo "No ansible/roles/** change mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
 
       - name: Cleanup
@@ -331,4 +354,4 @@ jobs:
           sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
           docker stop -t 0 olm || true
-          rm -f "$HOME/.ssh/ci_deploy_key"
+          rm -f "$HOME/.ssh/ci_deploy_key" "$HOME/.ssh/config"

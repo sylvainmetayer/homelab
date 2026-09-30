@@ -7,8 +7,7 @@ A server with no public IPv4 (flip) is only on the private network: it is
 addressed by its private IP, through a ProxyJump via the bastion - the server
 named HETZNER_BASTION, Pangolin by default, which is also its NAT gateway. The
 bastion's sshd must allow local forwarding (security_ssh_allow_tcp_forwarding
-in host_vars/pangolin). The CI does not use this: it reaches such a server
-through its Pangolin private resource (flip.internal), see
+in host_vars/pangolin). The CI does the same with its own inventory, see
 .github/workflows/deploy-docker-app.yaml.
 
 Environment:
