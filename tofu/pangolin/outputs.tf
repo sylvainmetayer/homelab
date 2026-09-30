@@ -3,16 +3,6 @@ output "pangolin_ip" {
   value       = hcloud_server.pangolin.ipv4_address
 }
 
-output "s3_bucket_name" {
-  description = "Nom du bucket S3 Hetzner"
-  value       = aws_s3_bucket.backup.id
-}
-
-output "s3_bucket_arn" {
-  description = "ARN du bucket S3 Hetzner"
-  value       = aws_s3_bucket.backup.arn
-}
-
 output "storage_box_hostname" {
   description = "Hostname du Storage Box Hetzner"
   value       = hcloud_storage_box.backups.server

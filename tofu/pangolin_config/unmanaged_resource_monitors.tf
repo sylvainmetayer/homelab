@@ -38,7 +38,7 @@ resource "uptimekuma_monitor_http" "ssh_pi" {
   max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
-  active          = true
+  active          = false
   method          = "GET"
 
   headers = jsonencode({

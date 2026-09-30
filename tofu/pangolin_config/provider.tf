@@ -36,7 +36,7 @@ provider "pangolin" {
 
 # Provider AWS configuré pour l'endpoint S3 compatible Hetzner
 provider "aws" {
-  region     = "nbg1"
+  region     = "eu-west-par"
   access_key = local.s3_access_key
   secret_key = local.s3_secret_key
 

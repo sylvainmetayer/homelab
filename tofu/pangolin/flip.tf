@@ -28,7 +28,7 @@ resource "hcloud_server" "flip" {
   name        = var.flip_server.name
   server_type = var.flip_server.server_type
   image       = var.flip_server.image
-  location    = var.location
+  location    = "fsn1"
 
   ssh_keys = [hcloud_ssh_key.keepassxc.id]
 

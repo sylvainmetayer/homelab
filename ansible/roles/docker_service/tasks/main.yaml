@@ -29,5 +29,32 @@
     modification_time: preserve
     access_time: preserve
 
+# Le lingering garde le manager systemd de l'utilisateur en vie, avec les
+# groupes qu'il avait à son démarrage. Sur un hôte neuf il démarre avant que
+# geerlingguy.docker ajoute l'utilisateur au groupe docker : les unités dc@ se
+# voient refuser docker.sock alors qu'un shell SSH, lui, a le groupe.
+# reset_connection ci-dessous ne rafraîchit que la connexion d'Ansible.
+- name: Check that the user's systemd manager is in the docker group
+  ansible.builtin.shell: |
+    set -o pipefail
+    gid=$(getent group docker | cut -d: -f3)
+    pid=$(systemctl show -p MainPID --value user@{{ ansible_facts['user_uid'] }}.service)
+    if [ -n "$gid" ] && [ "${pid:-0}" -gt 0 ] && ! grep '^Groups:' "/proc/$pid/status" | grep -qw "$gid"; then
+      echo stale
+    fi
+  args:
+    executable: /bin/bash
+  register: docker_service_manager_groups
+  changed_when: false
+  check_mode: false
+
+# Redémarre aussi les unités dc@ déjà là : elles échouent toutes de toute façon.
+- name: Restart the user's systemd manager so that it joins the docker group
+  become: true
+  ansible.builtin.systemd:
+    name: "user@{{ ansible_facts['user_uid'] }}.service"
+    state: restarted
+  when: docker_service_manager_groups.stdout == 'stale'
+
 - name: Reset ssh connection to allow user changes to take effect
   ansible.builtin.meta: reset_connection
