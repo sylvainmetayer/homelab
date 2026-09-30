@@ -1,8 +1,8 @@
 ---
-- name: Restart nat-default-route
+- name: Restart nat-client-watchdog
   become: true
   ansible.builtin.systemd:
-    name: nat-default-route
+    name: nat-client-watchdog
     state: restarted
     daemon_reload: true
 

@@ -1,0 +1,25 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Maintient la sortie Internet de ce serveur sans IP publique (rôle nat_client).
+#
+# Ni la route par défaut ni le DNS ne viennent du DHCP du réseau privé Hetzner,
+# et rien ne garantit qu'ils survivent à ce qui touche au réseau ensuite : un
+# redémarrage de systemd-networkd (ManageForeignRoutes) supprime une route qu'il
+# n'a pas posée, un renouvellement de bail réécrit /etc/resolv.conf. Plutôt que
+# de dépendre de la pile réseau de l'image (ifupdown, netplan, networkd), on
+# revérifie en boucle et on ne réagit, et ne journalise, que sur un écart.
+set -u
+
+while :; do
+  if ! ip -4 route show default | grep -q "via {{ nat_client_gateway }} "; then
+    ip route replace default via {{ nat_client_gateway }} \
+      && echo "default route via {{ nat_client_gateway }} restored"
+  fi
+{% if nat_client_manage_resolv_conf | bool %}
+  if ! cmp -s /etc/nat-client/resolv.conf /etc/resolv.conf; then
+    cp /etc/nat-client/resolv.conf /etc/resolv.conf \
+      && echo "/etc/resolv.conf restored"
+  fi
+{% endif %}
+  sleep {{ nat_client_watchdog_interval }}
+done

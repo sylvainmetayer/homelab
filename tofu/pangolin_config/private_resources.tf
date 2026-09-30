@@ -38,11 +38,14 @@ resource "pangolin_site_resource" "pi" {
   udp_port_range = "*"
 }
 
-# SSH to the flip server, which has no public IP. Served by the newt running on
-# flip itself, so it only exists once flip.yml has deployed newt: the very first
-# run goes through a ProxyJump via Pangolin instead (ansible/inventory/
-# hetzner.py). The destination is the host's private address, reached from the
-# newt container through the docker bridge.
+# SSH to the flip server, which has no public IP, for manual access through a
+# Pangolin client. Not for Ansible, local or CI: this resource is served by the
+# newt running on flip itself, so a play that restarts newt or docker there
+# would cut its own connection. Ansible goes through a ProxyJump via Pangolin
+# instead (ansible/inventory/hetzner.py, .github/workflows/deploy-docker-app.yaml).
+# The destination is the host's private address, reached from the newt
+# container through the docker bridge. TCP 22 only: nothing else on flip is
+# meant to be reached this way.
 resource "pangolin_site_resource" "flip" {
   site_id        = pangolin_site.flip.id
   name           = "Flip"
@@ -51,7 +54,7 @@ resource "pangolin_site_resource" "flip" {
   destination    = data.terraform_remote_state.pangolin.outputs.flip_private_ip
   disable_icmp   = true
   tcp_port_range = "22"
-  udp_port_range = "*"
+  udp_port_range = ""
 }
 
 resource "pangolin_client" "ci_runner" {
@@ -81,9 +84,4 @@ resource "pangolin_site_resource_client" "docker_apps_ci" {
 resource "pangolin_site_resource_client" "pi_ci" {
   client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.pi.id
-}
-
-resource "pangolin_site_resource_client" "flip_ci" {
-  client_id        = pangolin_client.ci_runner.id
-  site_resource_id = pangolin_site_resource.flip.id
 }

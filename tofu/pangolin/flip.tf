@@ -7,15 +7,21 @@
 # - la sortie vers Internet (apt, pull des images, newt → Pangolin, borgmatic →
 #   Storage Box) passe par Pangolin, qui fait NAT : route 0.0.0.0/0 ci-dessous,
 #   rôles Ansible nat_gateway (Pangolin) et nat_client (flip) ;
-# - Ansible s'y connecte par un ProxyJump via Pangolin en local
-#   (inventory/hetzner.py) et par la ressource privée flip.internal en CI
-#   (tofu/pangolin_config/private_resources.tf).
+# - Ansible s'y connecte par un ProxyJump via Pangolin, en local
+#   (inventory/hetzner.py) comme en CI (deploy-docker-app.yaml). La ressource
+#   privée flip.internal (tofu/pangolin_config/private_resources.tf) ne sert
+#   qu'à un accès manuel par un client Pangolin.
 #
 # Pas de pare-feu Hetzner : ils ne s'appliquent qu'aux interfaces publiques.
 # Le filtrage entrant est fait par ufw (rôle security).
 resource "hcloud_server" "flip" {
+  # prevent_destroy : ce serveur porte les bases de production et de démo sur
+  # son disque (backups Hetzner désactivés). Changer image, IP privée ou
+  # location force son remplacement ; il doit être voulu, en levant ce verrou
+  # après une sauvegarde Borg vérifiée.
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes  = [user_data]
+    prevent_destroy = true
   }
 
   backups     = false
@@ -26,7 +32,8 @@ resource "hcloud_server" "flip" {
 
   ssh_keys = [hcloud_ssh_key.keepassxc.id]
 
-  # IP fixe : c'est la destination de la ressource privée flip.internal, et
+  # IP fixe : c'est l'adresse que visent l'inventaire CI
+  # (deploy-docker-app.yaml) et la ressource privée flip.internal, et
   # une adresse attribuée par DHCP pourrait changer à la recréation.
   network {
     network_id = hcloud_network.main.id

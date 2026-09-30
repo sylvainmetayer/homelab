@@ -3,7 +3,8 @@
 # (Pangolin, rôle nat_gateway).
 #
 # Le DHCP du réseau privé ne pousse que la route vers le réseau lui-même : ni
-# route par défaut, ni résolveur DNS. Ce rôle ajoute les deux.
+# route par défaut, ni résolveur DNS. Ce rôle ajoute les deux, et les maintient
+# (nat-client-watchdog).
 
 # Passerelle du réseau privé Hetzner (première adresse de hcloud_network.main).
 # Elle applique hcloud_network_route "nat" (tofu/pangolin/nat.tf) et renvoie
@@ -14,3 +15,8 @@ nat_client_gateway: 10.0.0.1
 nat_client_dns_servers:
   - 185.12.64.1
   - 185.12.64.2
+
+# Intervalle, en secondes, auquel nat-client-watchdog revérifie la route et le
+# DNS : c'est la durée maximale d'une coupure après qu'un redémarrage de la pile
+# réseau ou un renouvellement DHCP les a effacés.
+nat_client_watchdog_interval: 30

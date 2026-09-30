@@ -45,11 +45,6 @@ output "storage_box_ssh_public_key" {
   value       = tls_private_key.storage_box.public_key_openssh
 }
 
-output "pangolin_private_ip" {
-  description = "IP de Pangolin sur le réseau privé (passerelle NAT et bastion SSH)"
-  value       = one(hcloud_server.pangolin.network).ip
-}
-
 output "flip_private_ip" {
   description = "IP privée du serveur Flip Planning (lue par tofu/pangolin_config pour flip.internal)"
   value       = one(hcloud_server.flip.network).ip

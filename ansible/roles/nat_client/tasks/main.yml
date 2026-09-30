@@ -2,27 +2,23 @@
 # Rien dans ce rôle ne doit dépendre d'Internet : il tourne avant tout le reste
 # de flip.yml précisément pour le rendre accessible.
 
-# Une unité plutôt qu'un fichier de configuration réseau : la pile réseau de
-# l'image Hetzner (ifupdown, netplan…) n'a pas à être connue, et `ip route
-# replace` est idempotent.
-- name: Install the default route systemd unit
-  become: true
-  notify: Restart nat-default-route
-  ansible.builtin.template:
-    src: nat-default-route.service.j2
-    dest: /etc/systemd/system/nat-default-route.service
-    owner: root
-    group: root
-    # Seul systemd (root) lit l'unité : pas besoin qu'elle soit lisible par tous.
-    mode: "0640"
-
-- name: Detect systemd-resolved
+# systemd-resolved n'est en charge que si /etc/resolv.conf pointe réellement sur
+# lui : le service peut tourner à côté d'un resolv.conf statique, et son drop-in
+# n'aurait alors aucun effet.
+- name: Inspect /etc/resolv.conf
   ansible.builtin.stat:
-    path: /run/systemd/resolve/stub-resolv.conf
-  register: nat_client_resolved
+    path: /etc/resolv.conf
+    follow: false
+  register: nat_client_resolv_conf
+
+- name: Decide who owns the DNS configuration
+  ansible.builtin.set_fact:
+    nat_client_manage_resolv_conf: >-
+      {{ not (nat_client_resolv_conf.stat.islnk | default(false)
+              and '/run/systemd/resolve/' in (nat_client_resolv_conf.stat.lnk_source | default(''))) }}
 
 - name: Configure DNS through systemd-resolved
-  when: nat_client_resolved.stat.exists
+  when: not (nat_client_manage_resolv_conf | bool)
   block:
     - name: Ensure the resolved drop-in directory exists
       become: true
@@ -43,29 +39,65 @@
         group: root
         mode: "0644"
 
-- name: Set the DNS servers in resolv.conf
-  when: not nat_client_resolved.stat.exists
+# La référence que le watchdog recopie : le template ne touche pas
+# /etc/resolv.conf lui-même, que le watchdog restaure dans la seconde qui suit
+# son premier démarrage.
+- name: Write the reference resolv.conf
+  when: nat_client_manage_resolv_conf | bool
+  block:
+    - name: Ensure the nat-client directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/nat-client
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Template the reference resolv.conf
+      become: true
+      ansible.builtin.template:
+        src: resolv.conf.j2
+        dest: /etc/nat-client/resolv.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Install the watchdog script
   become: true
+  notify: Restart nat-client-watchdog
   ansible.builtin.template:
-    src: resolv.conf.j2
-    dest: /etc/resolv.conf
+    src: nat-client-watchdog.sh.j2
+    dest: /usr/local/sbin/nat-client-watchdog
     owner: root
     group: root
-    mode: "0644"
+    mode: "0750"
+
+- name: Install the watchdog systemd unit
+  become: true
+  notify: Restart nat-client-watchdog
+  ansible.builtin.template:
+    src: nat-client-watchdog.service.j2
+    dest: /etc/systemd/system/nat-client-watchdog.service
+    owner: root
+    group: root
+    # Seul systemd (root) lit l'unité : pas besoin qu'elle soit lisible par tous.
+    mode: "0640"
 
 - name: Apply network changes now
   ansible.builtin.meta: flush_handlers
 
-- name: Enable the default route systemd unit
+- name: Enable the watchdog
   become: true
   ansible.builtin.systemd:
-    name: nat-default-route
+    name: nat-client-watchdog
     enabled: true
     state: started
     daemon_reload: true
 
 # Échouer ici, avec un message qui dit quoi vérifier, plutôt que plus loin sur
-# un apt ou un docker pull qui expire sans explication.
+# un apt ou un docker pull qui expire sans explication. Les résolveurs étant
+# publics, une résolution qui aboutit prouve aussi la route par le NAT.
 - name: Check that the Internet is reachable through the NAT gateway
   ansible.builtin.command:
     cmd: getent ahostsv4 deb.debian.org

@@ -7,9 +7,19 @@
 # Ordre au premier déploiement :
 #   1. tofu/pangolin (serveur + route NAT), puis pangolin.yaml --tags nat,security
 #      (passerelle NAT, et AllowTcpForwarding local pour le ProxyJump) ;
-#   2. tofu/pangolin_config (site flip, ses identifiants newt, flip.internal) ;
-#   3. ce playbook, puis 00-setup.yaml --limit flip : 00-setup installe des
-#      paquets, il lui faut le NAT que le rôle nat_client pose ici en premier.
+#   2. tofu/pangolin_config, CIBLÉ sur le site pour ne pas encore basculer les
+#      targets : -target=pangolin_site.flip -target=pangolin_site_resource.flip ;
+#   3. ce playbook avec --skip-tags backup, puis 00-setup.yaml --limit flip :
+#      00-setup installe des paquets (il lui faut le NAT que nat_client pose ici
+#      en premier) et la clé github-actions.pub, sans laquelle la CI n'entre pas ;
+#   4. migration des données, apply complet de tofu/pangolin_config (bascule des
+#      targets), et AUSSITÔT decommission_app de flip_planning et demo_planning
+#      sur l'hôte docker (sans destroy_remote_backup). Tant que les deux
+#      instances tournent sur la même base de données copiée, les deux envoient
+#      les rappels de la veille aux animateurs ; et elles partagent les dépôts
+#      Borg et l'URL push Uptime Kuma, qu'un seul hôte doit alimenter ;
+#   5. ce playbook --tags backup : pas avant, sinon les archives de bases vides
+#      de flip s'ajoutent aux dépôts de production et comptent dans la rétention.
 - name: Configure the Flip Planning server
   hosts: flip
   vars:
