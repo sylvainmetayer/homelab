@@ -13,7 +13,8 @@
     dest: /etc/systemd/system/nat-default-route.service
     owner: root
     group: root
-    mode: "0644"
+    # Seul systemd (root) lit l'unité : pas besoin qu'elle soit lisible par tous.
+    mode: "0640"
 
 - name: Detect systemd-resolved
   ansible.builtin.stat:

@@ -56,7 +56,8 @@
     dest: /etc/systemd/system/nat-gateway.service
     owner: root
     group: root
-    mode: "0644"
+    # Seul systemd (root) lit l'unité : pas besoin qu'elle soit lisible par tous.
+    mode: "0640"
 
 - name: Apply NAT changes now
   ansible.builtin.meta: flush_handlers
