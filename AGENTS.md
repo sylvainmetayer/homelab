@@ -155,9 +155,17 @@ one Docker host derives from two variables, set in `defaults/` and overridden as
 Four non-obvious rules, each of which silently crosses the two environments if
 broken:
 
-- **Role parameters, not `host_vars`.** `vars:` on a `roles:` entry is
-  precedence 20 — above `host_vars` (9/10) and above `set_fact` (19). An
-  override placed in `host_vars` instead would apply to *both* instances.
+- **`vars:` on the `roles:` entry, not `host_vars` — and never a `set_fact`
+  of the same name.** `vars:` on a `roles:` entry wins over the role defaults,
+  `host_vars` and the keys loaded from `secrets.sops.yaml`, but it **loses to
+  a `set_fact`** (and to `include_vars`): checked, not assumed. An override
+  placed in `host_vars` would apply to *both* instances; a play-level
+  `set_fact` of a name the role reads silently beats every instance's
+  override. That is how the demo's backups pushed to the production Uptime
+  Kuma monitor until `flip.yml` stopped `set_fact`ing
+  `flip_planning_backup_healthcheck_url` itself (it now sets
+  `prod_planning_backup_healthcheck_url` and hands it to the production
+  instance).
 - **One handler per instance, notified through a variable.** Handler names are
   matched literally and handlers run once, at the end of the play: a single
   shared handler notified by both applications restarts whichever unit happened
