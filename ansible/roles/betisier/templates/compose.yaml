@@ -20,7 +20,7 @@ services:
     mem_reservation: 192m
     networks:
       - betisier
-    image: lscr.io/linuxserver/mariadb:11.8.8@sha256:75ffa39d652653e73848328a667d169a20a1e084fd51a66c4be3eb754a2492c9
+    image: lscr.io/linuxserver/mariadb:11.8.8@sha256:fb38247d1a4440239b2c62f0084c5285302715777268a92f61f77406dbc3552e
     container_name: betisier_db
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
