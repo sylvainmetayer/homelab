@@ -2,8 +2,9 @@
 #
 # Le realm est décrit par terraform/keycloak du dépôt applicatif ; ce dossier ne
 # fait que l'instancier avec un état distant. Le module porte son propre bloc
-# provider (url = var.keycloak_url) : l'identifiant d'administration vient de
-# KEYCLOAK_USER / KEYCLOAK_PASSWORD, le bootstrap admin du conteneur Keycloak.
+# provider : il se connecte avec le bootstrap admin du conteneur Keycloak, dont
+# le mot de passe est lu dans ansible/secrets.sops.yaml (secrets.tf). Aucune
+# variable d'environnement à exporter.
 #
 # Les trois secrets de client sont tirés ici, et vivent donc dans l'état (le
 # module les porte déjà en clair dans le sien). flip.yml les attend dans sops :
@@ -19,10 +20,13 @@ resource "random_password" "client" {
 }
 
 module "realm" {
-  source = "git::https://github.com/sylvainmetayer/planning-equipes.git//terraform/keycloak?ref=aa64656d26a837fb180db027c2056e8e169999e4"
+  source = "git::https://github.com/sylvainmetayer/planning-equipes.git//terraform/keycloak?ref=bb374eac0562365973530a1e8ec8f506fbc6c4d0"
 
   keycloak_url        = "https://demo-planning-kc.sylvain.dev/auth"
   planning_public_url = "https://demo-planning-kc.sylvain.dev"
+
+  admin_username = var.keycloak_admin_user
+  admin_password = local.keycloak_admin_password
 
   client_app_secret          = random_password.client["app"].result
   client_provisioning_secret = random_password.client["provisioning"].result
