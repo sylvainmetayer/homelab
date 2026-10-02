@@ -76,19 +76,38 @@ flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 flip_planning_cpu_shares: ""
 flip_planning_mem_reservation: ""
 
+# ---------------------------------------------------------------------------
+# The guard: a small Traefik container (<prefix>-guard) an instance can put in
+# front of its application. Off unless one of the two settings below asks for
+# it; when on, the instance's Pangolin catch-all target must point at the guard
+# (port 80) instead of the application — see
+# tofu/pangolin_config/website_exemple_planning.tf. Static configuration on the
+# compose command line, routing in ./guard/dynamic.yml.
+#
+# Paths refused with a 403 whatever the caller, as regular expressions on the
+# path Traefik routes on: DECODED and cleaned (`%64` is `d`, `//` and `..`
+# collapse), with encoded slashes refused outright. That is what Pangolin's
+# PATH rules cannot promise — they match the path as written, while the
+# application routes the decoded one, so `/api/%64atabase` could slip past a
+# rule naming `/api/database`. Keep the Pangolin rules as well: two layers,
+# the outer one cheaper.
+flip_planning_blocked_path_patterns: []
+
 # Hourly quota on the requests that START a solve (POST /api/solve/…,
-# POST /api/staffing/verification), shared by every visitor of the instance.
-# Empty: off. When set ({average, period}), a small Traefik container
-# (<prefix>-guard) sits between Pangolin and the application on those two
-# prefixes only — the Pangolin targets of the instance must route them to it,
-# see tofu/pangolin_config/website_exemple_planning.tf — and answers 429 past
-# the quota. Everything else, GETs on the same prefixes included, goes through
-# untouched.
+# POST /api/staffing/verification), shared by every visitor of the instance:
+# {average, period}, answered with 429 past it. Empty: no quota. Everything
+# else, GETs on the same prefixes included, goes through untouched.
 #
 # A stopgap until the application enforces its own quota (it then refuses with
 # a sentence the UI shows instead of a bare 429): in memory, so a restart of the
-# guard gives the quota back.
+# guard gives the quota back; and it counts requests, so one refused by the
+# application (not signed in, a solve already running) uses a slot too.
 flip_planning_solve_rate_limit: {}
+
+# Whether this instance runs the guard. Derived, evaluated per instance.
+flip_planning_guard_enabled: >-
+  {{ (flip_planning_blocked_path_patterns | length > 0)
+     or (flip_planning_solve_rate_limit | length > 0) }}
 
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"

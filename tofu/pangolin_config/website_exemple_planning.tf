@@ -14,7 +14,8 @@
 #   rules.tf): ahead of them because those only PASS, and a DROP behind a PASS
 #   would never be read.
 # - No Borg backup, hence no push monitor: the database is dropped every night.
-# - The requests that start a solve go through a quota guard (see below).
+# - Everything but /mail and /assets goes through the instance's guard (see the
+#   catch-all target below): blocked paths on the decoded path, solve quota.
 resource "pangolin_resource" "exemple_planning" {
   name        = "Exemple Planning"
   subdomain   = "exemple-planning"
@@ -66,6 +67,10 @@ locals {
     # the UI calls (it uses /api/solve/async*, under the 60 s ceiling and the
     # one-job queue). No wildcard: only that exact path.
     solve_sync = { priority = 4, value = "/api/solve" }
+    # Mailpit's send API: /mail is public so that visitors can READ what the
+    # showcase sent; the send endpoint would let anyone post arbitrary HTML
+    # into that inbox, served under this domain.
+    mailpit_send = { priority = 5, value = "/mail/api/v1/send" }
   }
 }
 
@@ -80,11 +85,17 @@ resource "pangolin_resource_rule" "exemple_planning_drop" {
   enabled     = true
 }
 
+# Catch-all target: the instance's guard (ansible flip_planning_guard_enabled),
+# not the application. The guard refuses the blocked paths on the DECODED path
+# — the second layer behind the DROP rules above, which match the path as
+# written — holds the solve quota, and passes everything else to the
+# application. Its health is probed through to the application (`/`), so the
+# maintenance screen still appears when the application is down.
 resource "pangolin_target" "exemple_planning" {
   resource_id = pangolin_resource.exemple_planning.id
   site_id     = pangolin_site.flip.id
-  ip          = "exemple-planning"
-  port        = 8080
+  ip          = "exemple-planning-guard"
+  port        = 80
   method      = "http"
 
   # Catch-all target, must have a lower priority than the sub-path ones.
@@ -98,8 +109,8 @@ resource "pangolin_target" "exemple_planning" {
   hc_enabled             = true
   hc_scheme              = "http"
   hc_mode                = "http"
-  hc_hostname            = "exemple-planning"
-  hc_port                = 8080
+  hc_hostname            = "exemple-planning-guard"
+  hc_port                = 80
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
@@ -169,47 +180,6 @@ resource "pangolin_target" "exemple_planning_assets" {
 
 # Kept although the resource has no SSO, like betisier: the monitor sends it
 # all the same, and the resource keeps working if SSO is ever turned back on.
-# The two prefixes under which a request can start a solve go through the
-# instance's guard container first (Traefik, ansible flip_planning_solve_rate_limit):
-# 12 solves an hour for all visitors together, the rest passed through as is.
-# A stopgap until the application enforces its own quota. Pangolin's rules run
-# before any target, so the DROP of the synchronous /api/solve above still holds.
-locals {
-  exemple_planning_guarded_paths = {
-    solve    = { priority = 5, path = "/api/solve" }
-    staffing = { priority = 6, path = "/api/staffing" }
-  }
-}
-
-resource "pangolin_target" "exemple_planning_guard" {
-  for_each = local.exemple_planning_guarded_paths
-
-  resource_id = pangolin_resource.exemple_planning.id
-  site_id     = pangolin_site.flip.id
-  ip          = "exemple-planning-guard"
-  port        = 80
-  method      = "http"
-
-  path            = each.value.path
-  path_match_type = "prefix"
-  priority        = each.value.priority
-
-  # Traefik's own ping endpoint (--ping on the web entry point).
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "exemple-planning-guard"
-  hc_port                = 80
-  hc_path                = "/ping"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
 resource "pangolin_resource_access_token" "exemple_planning" {
   resource_id = pangolin_resource.exemple_planning.id
   title       = "Healthcheck ${pangolin_resource.exemple_planning.name}"

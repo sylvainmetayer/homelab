@@ -14,7 +14,13 @@ set -euo pipefail
 cd {{ flip_planning_base_path }}
 
 # The role restores right after a deploy, possibly while the unit is still
-# bringing the stack up: wait for a healthy database rather than racing it.
+# bringing the stack up. Its attached `docker compose up` waits for a healthy
+# database before starting the application, so it could start the app again
+# AFTER the `stop` below, mid-restore (Flyway on a half-restored database).
+# Wait until the app has been started, whoever starts it, so that step is
+# behind us; an app that never gets healthy (the very reason to reset it) only
+# costs the timeout.
+docker compose up -d --wait --wait-timeout 300 app || true
 docker compose up -d --wait postgres
 docker compose stop app mailpit
 

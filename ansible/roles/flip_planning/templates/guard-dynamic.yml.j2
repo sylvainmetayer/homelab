@@ -1,18 +1,29 @@
 # {{ ansible_managed }}
-# Solve quota of {{ flip_planning_service }} — see flip_planning_solve_rate_limit
-# in defaults/main.yml.
+# The guard of {{ flip_planning_service }} — see flip_planning_guard_enabled in
+# defaults/main.yml.
 http:
   routers:
+{% if flip_planning_blocked_path_patterns %}
+    # Refused whatever the caller: no address is allowed by the `deny`
+    # middleware. Matched on the decoded, cleaned path.
+    blocked:
+      rule: "{{ flip_planning_blocked_path_patterns | map('regex_replace', '^(.*)$', 'PathRegexp(`\\1`)') | join(' || ') }}"
+      priority: 100
+      entryPoints: [web]
+      middlewares: [deny]
+      service: app
+{% endif %}
+{% if flip_planning_solve_rate_limit %}
     # The requests that start a solve: every visitor shares one bucket.
     solve:
       rule: >-
         Method(`POST`) &&
         (PathPrefix(`/api/solve/`) || Path(`/api/staffing/verification`))
+      priority: 50
       entryPoints: [web]
       middlewares: [solve-quota]
       service: app
-    # The rest of the two prefixes Pangolin sends here (GET /api/solve/entrees,
-    # the staffing reads): untouched.
+{% endif %}
     passthrough:
       rule: PathPrefix(`/`)
       priority: 1
@@ -20,15 +31,23 @@ http:
       service: app
 
   middlewares:
+{% if flip_planning_blocked_path_patterns %}
+    deny:
+      ipAllowList:
+        # TEST-NET-1: an address no request can come from.
+        sourceRange: ["192.0.2.1/32"]
+{% endif %}
+{% if flip_planning_solve_rate_limit %}
     solve-quota:
       rateLimit:
         average: {{ flip_planning_solve_rate_limit.average }}
         period: {{ flip_planning_solve_rate_limit.period }}
-        # The whole hour's allowance can be spent at once; then one more every
-        # period / average.
+        # The whole period's allowance can be spent at once; then one more
+        # every period / average.
         burst: {{ flip_planning_solve_rate_limit.average }}
         sourceCriterion:
           requestHost: true
+{% endif %}
 
   services:
     app:

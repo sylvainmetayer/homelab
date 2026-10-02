@@ -129,14 +129,16 @@
       secret. The secrets belong in secrets.sops.yaml; terraform/keycloak of
       the application repo prints the two client secrets.
 
-# Solve quota — see flip_planning_solve_rate_limit in defaults/main.yml.
-- name: Configure the solve quota guard of {{ flip_planning_service }}
-  when: flip_planning_solve_rate_limit | length > 0
+# The guard in front of the application — see flip_planning_guard_enabled in
+# defaults/main.yml.
+- name: Configure the guard of {{ flip_planning_service }}
+  when: flip_planning_guard_enabled | bool
   block:
     - name: Fail clearly when the solve quota is incomplete ({{ flip_planning_service }})
+      when: flip_planning_solve_rate_limit | length > 0
       ansible.builtin.assert:
         that:
-          - flip_planning_solve_rate_limit.average | int > 0
+          - flip_planning_solve_rate_limit.average | default(0) | int > 0
           - flip_planning_solve_rate_limit.period | default('') | length > 0
         fail_msg: >-
           flip_planning_solve_rate_limit needs a positive `average` (solves per

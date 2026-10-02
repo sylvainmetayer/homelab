@@ -107,14 +107,12 @@ services:
     networks:
       - newt
 
-{% if flip_planning_solve_rate_limit %}
+{% if flip_planning_guard_enabled | bool %}
 
-  # Hourly quota on the requests that start a solve — see
-  # flip_planning_solve_rate_limit in defaults/main.yml. Pangolin routes
-  # /api/solve and /api/staffing here; Traefik's own rateLimit middleware holds
-  # the quota (keyed on the host, so one bucket for every visitor) and passes
-  # everything else straight to the application. Static configuration on the
-  # command line, the routing in ./guard/dynamic.yml.
+  # The guard in front of the application — see flip_planning_guard_enabled in
+  # defaults/main.yml. Pangolin's catch-all target points here; refused paths
+  # and the solve quota are decided in ./guard/dynamic.yml, everything else is
+  # passed to the application as is.
   guard:
     mem_limit: 128m
     container_name: {{ flip_planning_container_prefix }}-guard
@@ -125,6 +123,10 @@ services:
       # Only newt reaches this port: keep the X-Forwarded-For Pangolin wrote,
       # which the application's address-keyed guards read.
       - --entryPoints.web.forwardedHeaders.insecure=true
+      # An encoded slash is answered 400: the refused paths are matched on the
+      # decoded path, and %2F is the one encoding that would keep a prefix
+      # from matching while the application still routes it.
+      - --entryPoints.web.http.encodedCharacters.allowEncodedSlash=false
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --ping=true
       - --ping.entryPoint=web
