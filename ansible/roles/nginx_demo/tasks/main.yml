@@ -90,12 +90,12 @@
   ansible.builtin.file:
     path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d"
     state: directory
-    mode: "0755"
+    mode: "0700"
 
 - name: Wait for the NAS before starting dc@nginx_demo
   ansible.builtin.copy:
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d/nas-storage.conf"
-    mode: "0644"
+    mode: "0600"
     content: |
       # Géré par Ansible (rôle nginx_demo).
       [Service]

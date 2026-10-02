@@ -42,8 +42,9 @@
     src: nas-storage-wait.j2
     dest: "{{ nas_storage_wait_command }}"
     owner: root
-    group: root
-    mode: "0755"
+    # Lancé par root (borgmatic) et par l'utilisateur des unités dc@.
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0750"
 
 # Ordre d'arrêt des conteneurs du NAS : voir templates/nas-storage.slice.j2.
 # Pas de Requires= ni de RequiresMountsFor= : rien n'attend le NAS au boot,
@@ -55,7 +56,7 @@
     dest: "/etc/systemd/system/{{ nas_storage_slice }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
 
 # Même ordre pour dockerd lui-même, qui arrête aussi les conteneurs.
 - name: Order docker before the NAS mount at shutdown
@@ -65,12 +66,12 @@
       ansible.builtin.file:
         path: /etc/systemd/system/docker.service.d
         state: directory
-        mode: "0755"
+        mode: "0750"
 
     - name: Template the docker.service drop-in
       ansible.builtin.copy:
         dest: /etc/systemd/system/docker.service.d/nas-storage.conf
-        mode: "0644"
+        mode: "0640"
         content: |
           # Géré par Ansible (rôle nas_storage).
           [Unit]
