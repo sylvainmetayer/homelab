@@ -98,12 +98,18 @@ disque local : ses fichiers restent sur le NAS et le dump borg ne change pas.
 - Installe `nfs-common`.
 - Déclare l'export dans `/etc/fstab` : `vers=4.1,hard,proto=tcp,noatime,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30`,
   puis démarre l'unité `.automount`.
-- Ordonne `docker.service` après le montage (drop-in `After=`, sans
-  dépendance). À l'arrêt de la VM, Postgres s'arrête avant que le NAS soit
-  démonté, au lieu de bloquer l'arrêt sur un montage `hard`.
-- Vérifie que `/mnt/nas/apps` est bien du NFS, avec un timeout de 60 s : un
-  NAS injoignable fait échouer le run tout de suite, au lieu de laisser un
-  conteneur ou un backup tomber plus tard.
+- Installe `/usr/local/bin/nas-storage-wait [timeout]` : attend que l'export
+  réponde (sondes `stat -f` tuées par `SIGKILL`, la seule chose qu'un
+  processus bloqué sur un montage `hard` écoute) puis sort 0, ou sort 1.
+- Installe la slice `nas-storage.slice`, ordonnée après le montage, et un
+  drop-in `docker.service` `After=` le montage. Les conteneurs du NAS y sont
+  placés (`cgroup_parent`) : à l'arrêt de la VM, systemd les arrête avant de
+  démonter le NAS et de couper le réseau. Sans ça, chaque conteneur est une
+  scope sans ordre vis-à-vis du montage, et le dernier checkpoint de Postgres
+  peut bloquer l'arrêt.
+- Vérifie que `/mnt/nas/apps` est bien du NFS (`stat -f` sur le point de
+  montage, timeout 60 s) : un NAS injoignable fait échouer le run tout de
+  suite, au lieu de laisser un conteneur ou un backup tomber plus tard.
 
 `x-systemd.automount` est le point important. Sans lui, un conteneur démarré
 avant le montage (NAS lent au boot) bind-monte le dossier **local vide**
@@ -126,14 +132,35 @@ Référence : `ansible/roles/nginx_demo`.
    dossiers y sont créés avec `become: true`, sans droits pour « others » :
    chacun appartient à l'uid/gid qui l'utilise dans le conteneur (postgres
    alpine 70, nginx alpine 101, l'utilisateur sinon).
-3. `compose.yaml` : bind mounts en chemin absolu vers `<service>_data_path`.
-   Pas de volume Docker `driver_opts: nfs`, que borg ne pourrait pas lire.
-4. Borgmatic : les dossiers de fichiers du NAS dans `source_directories`,
-   **sans** le data directory de la base. La base passe par
-   `postgresql_databases` / `mysql_databases` avec `pg_dump_command: docker exec …`.
-   Ajouter `source_directories_must_exist: true` : un export non monté fait
-   échouer le backup (alerte Uptime Kuma) au lieu de produire une archive vide
-   qui aurait l'air saine.
+3. `compose.yaml` : bind mounts en chemin absolu vers `<service>_data_path`
+   (pas de volume Docker `driver_opts: nfs`, que borg ne pourrait pas lire) et
+   `cgroup_parent: {{ nas_storage_slice }}` sur chaque conteneur.
+4. Drop-in utilisateur `dc@<service>.service.d/nas-storage.conf` avec
+   `ExecStartPre=/usr/local/bin/nas-storage-wait 200`. Au boot, la VM est
+   prête avant le NAS ; sans attente, chaque essai de `dc@<service>` échoue
+   en 30 s, l'unité atteint `StartLimitBurst` et reste en échec jusqu'à un
+   `reset-failed` manuel. Avec ~200 s par essai, elle réessaie jusqu'au
+   retour du NAS (rester sous le `TimeoutStartSec` de 300 s de `dc@`).
+5. Borgmatic :
+   - les dossiers de fichiers du NAS dans `source_directories`, **sans** le
+     data directory de la base, qui passe par `postgresql_databases` /
+     `mysql_databases` avec `pg_dump_command: docker exec …` ;
+   - `source_directories_must_exist: true` ;
+   - un hook `before: configuration` qui lance `nas-storage-wait 30`. Il n'y a
+     qu'un `borgmatic.service` pour toutes les applis : sur un NAS tombé, un
+     montage `hard` bloquerait le backup indéfiniment, et ceux des applis
+     suivantes avec lui. L'attente bornée fait échouer cette config seule
+     (alerte Uptime Kuma) et borgmatic passe à la suivante. Reste non couvert :
+     un NAS qui tombe en plein backup.
+6. Mot de passe de la base : tiré une fois et rangé sur le NAS à côté du
+   cluster (`<service>_data_path/db_password`, root 0600). Postgres ne lit
+   `POSTGRES_PASSWORD` qu'à l'initdb, donc un mot de passe dérivé d'un secret
+   partagé (`backup_passphrase`) divergerait de la base au premier changement
+   de ce secret, et `pg_dump` échouerait.
+7. Retrait de l'appli (`remove-app`) : passer `<service>_data_path` dans
+   `decommission_app_extra_paths`, sinon les fichiers et le cluster restent
+   orphelins sur le NAS, et un ré-ajout de l'appli réutiliserait en silence
+   l'ancien cluster.
 
 ## Mise en place côté NAS (une fois, à la main)
 
