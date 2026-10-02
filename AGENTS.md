@@ -176,9 +176,25 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
   borg can't read it.
 - Postgres/MariaDB data dirs may live there; **SQLite (and any mmap/lock-based
   embedded DB) never does** — it stays on the local disk.
+- Every NAS-backed container gets `cgroup_parent: {{ nas_storage_slice }}`:
+  that slice is ordered after the mount, so at VM shutdown the containers stop
+  before the NAS is unmounted and the network goes down (a `hard` mount would
+  otherwise hang Postgres' last checkpoint).
+- A `dc@<service>.service.d/nas-storage.conf` user drop-in with
+  `ExecStartPre={{ nas_storage_wait_command }} <timeout>`: at boot the VM is
+  up before the NAS, and without the wait `dc@<service>` hits
+  `StartLimitBurst` and stays failed. Keep the timeout under dc@'s
+  `TimeoutStartSec` (300 s), pull included.
 - Borgmatic: NAS file dirs in `source_directories`, the DB data dir **not**
-  (dump via `postgresql_databases` + `pg_dump_command: docker exec …`), and
-  `source_directories_must_exist: true` so an unmounted NAS fails the backup.
+  (dump via `postgresql_databases` + `pg_dump_command: docker exec …`),
+  `source_directories_must_exist: true`, and a `before: configuration` hook
+  running `{{ nas_storage_wait_command }} 30`: without it a dead NAS blocks
+  the single `borgmatic.service`, hence every app's backup.
+- DB passwords that Postgres only reads at initdb are drawn once and stored
+  next to the cluster on the NAS (`nginx_demo_db_password_path`), not derived
+  from `backup_passphrase`.
+- Decommissioning: pass `<service>_data_path` in
+  `decommission_app_extra_paths`, or the data stays orphaned on the NAS.
 - No iSCSI: considered and rejected (see the doc).
 
 ### Running a second environment of an app

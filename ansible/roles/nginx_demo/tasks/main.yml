@@ -35,7 +35,7 @@
 # Sur un premier --check, le dossier html n'existe pas encore.
 - name: Seed the demo page on the NAS
   become: true
-  when: not (ansible_check_mode and nginx_demo_data_dirs is changed)
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
   ansible.builtin.copy:
     src: index.html
     dest: "{{ nginx_demo_data_path }}/html/index.html"
@@ -43,6 +43,28 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "101"
     mode: "0640"
+
+# Tagué backup : `--tags backup` régénère la config borgmatic, qui en a
+# besoin.
+- name: Draw the database password once, next to its cluster
+  become: true
+  tags: backup
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
+  ansible.builtin.copy:
+    dest: "{{ nginx_demo_db_password_path }}"
+    content: "{{ lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']) }}"
+    force: false
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Read the database password
+  become: true
+  tags: backup
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
+  ansible.builtin.slurp:
+    src: "{{ nginx_demo_db_password_path }}"
+  register: nginx_demo_db_password_file
 
 - name: Template compose configuration
   notify: Restart nginx_demo
@@ -61,6 +83,23 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
+
+# dc@.service est commun à toutes les applis : l'attente du NAS est un
+# drop-in de cette instance seulement. Voir nginx_demo_nas_wait_timeout.
+- name: Ensure the dc@nginx_demo drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d"
+    state: directory
+    mode: "0755"
+
+- name: Wait for the NAS before starting dc@nginx_demo
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d/nas-storage.conf"
+    mode: "0644"
+    content: |
+      # Géré par Ansible (rôle nginx_demo).
+      [Service]
+      ExecStartPre={{ nas_storage_wait_command }} {{ nginx_demo_nas_wait_timeout }}
 
 # Borgmatic backup configuration
 - name: Configure borgmatic backup for Nginx Demo

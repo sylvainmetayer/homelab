@@ -7,6 +7,8 @@ services:
     image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     container_name: nginx-demo-db
     restart: always
+    # Arrêté avant le démontage du NAS : voir rôle nas_storage.
+    cgroup_parent: {{ nas_storage_slice }}
     # Pas encore mesurée : shared_buffers vaut 128 Mio par défaut, le reste
     # sert au cache de pages. À recaler sur memory.peak (≈ 2×).
     mem_limit: 512m
@@ -31,6 +33,7 @@ services:
     image: nginx:stable-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
     container_name: nginx-demo
     restart: unless-stopped
+    cgroup_parent: {{ nas_storage_slice }}
     mem_limit: 64m
     volumes:
       - {{ nginx_demo_data_path }}/html:/usr/share/nginx/html:ro

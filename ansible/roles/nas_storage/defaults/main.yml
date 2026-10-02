@@ -28,3 +28,11 @@ nas_storage_mount_options:
   - nofail
   - x-systemd.automount
   - x-systemd.mount-timeout=30
+
+# Slice systemd des conteneurs dont les données sont sur le NAS : voir
+# templates/nas-storage.slice.j2. À mettre en `cgroup_parent` dans le compose.
+nas_storage_slice: nas-storage.slice
+
+# Script d'attente du NAS, pour dc@<service> et borgmatic : voir
+# templates/nas-storage-wait.j2.
+nas_storage_wait_command: /usr/local/bin/nas-storage-wait
