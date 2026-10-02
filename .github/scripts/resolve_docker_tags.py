@@ -8,6 +8,7 @@ Prints a JSON object {playbook_path: "tag1,tag2"} to stdout, one entry per
 playbook argument (value is "" when nothing changed for that playbook).
 """
 import json
+import pathlib
 import re
 import sys
 
@@ -46,6 +47,26 @@ def changed_roles(changed_files):
     return roles
 
 
+def add_dependents(roles, roles_dir=pathlib.Path("ansible/roles")):
+    """A role pulled in only through meta/main.yml `dependencies` (nas_storage)
+    has no entry, hence no tag, in any playbook: redeploy the roles that
+    depend on it instead, since they run it under their own tags."""
+    dependents = {}
+    for meta in roles_dir.glob("*/meta/main.yml"):
+        for dep in (yaml.safe_load(meta.read_text()) or {}).get("dependencies") or []:
+            name = dep if isinstance(dep, str) else dep.get("role", dep.get("name"))
+            dependents.setdefault(name, set()).add(meta.parent.parent.name)
+
+    expanded = set(roles)
+    pending = list(roles)
+    while pending:
+        for dependent in dependents.get(pending.pop(), ()):
+            if dependent not in expanded:
+                expanded.add(dependent)
+                pending.append(dependent)
+    return expanded, {role for role in roles if role in dependents}
+
+
 def resolve_tags(role_tags, roles):
     matched = {role: role_tags[role] for role in roles if role in role_tags}
 
@@ -59,7 +80,7 @@ def resolve_tags(role_tags, roles):
 def main():
     playbook_paths = sys.argv[1:]
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
-    roles = changed_roles(changed_files)
+    roles, dependencies = add_dependents(changed_roles(changed_files))
 
     result = {}
     all_matched_roles = set()
@@ -73,7 +94,7 @@ def main():
 
         result[playbook_path] = ",".join(sorted(resolved))
 
-    unmatched_roles = roles - all_matched_roles
+    unmatched_roles = roles - all_matched_roles - dependencies
     for role in unmatched_roles:
         print(f"::warning::role '{role}' changed but is not referenced in any of {', '.join(playbook_paths)}, ignoring", file=sys.stderr)
 

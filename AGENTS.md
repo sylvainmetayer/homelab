@@ -133,6 +133,29 @@ current checklist — it also delegates to **`pangolin-route`** and
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
+### App data on the NAS
+
+Apps can keep their data on the Ugreen NAS (NFSv4.1 export mounted on the
+docker VM) while running on the VM; borg still backs everything up. Full
+rationale and NAS-side setup: `nas-storage-docker/homelab-storage-architecture.md`.
+Reference role: `ansible/roles/nginx_demo`. The rules:
+
+- Declare `dependencies: [{role: nas_storage}]` in the app's `meta/main.yml`
+  (not in `docker.yml`): it mounts `/mnt/nas/apps` (`hard`,
+  `x-systemd.automount`) and runs once per play whatever the number of apps.
+  `resolve_docker_tags.py` follows meta dependencies, so a `nas_storage`
+  change redeploys its dependents.
+- Data under `<service>_data_path: "{{ nas_storage_mount_path }}/<service>"`,
+  created with `become: true` (the NFS rule is "No mapping" for the VM's IP),
+  bind-mounted by absolute path. Never a Docker `driver_opts: nfs` volume:
+  borg can't read it.
+- Postgres/MariaDB data dirs may live there; **SQLite (and any mmap/lock-based
+  embedded DB) never does** — it stays on the local disk.
+- Borgmatic: NAS file dirs in `source_directories`, the DB data dir **not**
+  (dump via `postgresql_databases` + `pg_dump_command: docker exec …`), and
+  `source_directories_must_exist: true` so an unmounted NAS fails the backup.
+- No iSCSI: considered and rejected (see the doc).
+
 ### Running a second environment of an app
 
 `flip_planning` is applied twice by `flip.yml`: once for production
