@@ -7,9 +7,17 @@
 # List of source directories and files to back up. Globs and tildes
 # are expanded. Do not backslash spaces in path names.
 source_directories:
-    - {{ nginx_demo_base_path }}/postgresql
+    # Sur le NAS (export NFS, root non squashé pour l'IP de la VM : borg lit
+    # tout). Le data directory Postgres n'est volontairement pas listé : une
+    # copie de fichiers d'une base en marche n'est pas cohérente, le dump
+    # ci-dessous l'est.
+    - {{ nginx_demo_data_path }}/html
     - {{ nginx_demo_base_path }}/compose.yaml
     - {{ nginx_demo_base_path }}/.env
+
+# Un export NAS non monté fait échouer le backup (et pousse "fail" vers
+# Uptime Kuma) au lieu de produire une archive vide qui aurait l'air saine.
+source_directories_must_exist: true
 
 postgresql_databases:
     - container: nginx-demo-db
@@ -17,6 +25,9 @@ postgresql_databases:
       name: {{ nginx_demo_db_name }}
       username: {{ nginx_demo_db_user }}
       password: {{ nginx_demo_db_password }}
+      # pg_dump du conteneur lui-même : même version client/serveur. Voir
+      # roles/flip_planning/templates/borgmatic-flip_planning.yaml.j2.
+      pg_dump_command: docker exec --env PGPASSWORD nginx-demo-db pg_dump
 
 # Any paths matching these patterns are excluded from backups. Globs
 # and tildes are expanded. Note that a glob pattern must either start

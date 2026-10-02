@@ -1,46 +1,47 @@
 ---
 services:
-  # Démo/validation du chemin de stockage bloc — LUN iSCSI "demo_test" formaté
-  # et monté par Ansible sous ./postgresql (voir tasks/main.yml), bind-monté
-  # ici comme n'importe quelle autre BDD du repo.
+  # Postgres sur l'export NFS du NAS (montage `hard`, voir rôle nas_storage).
+  # Le socket unix reste dans le conteneur : seul le data directory est sur
+  # le NAS. Sauvegardé par pg_dump (borgmatic), jamais par copie de fichiers.
   nginx-demo-db:
     image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     container_name: nginx-demo-db
     restart: always
+    # BDD vide, pas encore mesurée : à recaler sur memory.peak.
+    mem_limit: 256m
+    mem_reservation: 64m
     environment:
       POSTGRES_DB: ${NGINX_DEMO_DB_NAME:?Variable is required and must be set}
       POSTGRES_USER: ${NGINX_DEMO_DB_USER:?Variable is required and must be set}
       POSTGRES_PASSWORD: ${NGINX_DEMO_DB_PASSWORD:?Variable is required and must be set}
-      PUID: {{ ansible_facts['user_uid'] }}
-      GUID: {{ ansible_facts['user_gid'] }}
     volumes:
-      - ./postgresql:/var/lib/postgresql
+      - {{ nginx_demo_data_path }}/postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
-      - nginx-demo-network
+      - nginx-demo
 
-  # Démo/validation du chemin de stockage fichier — contenu statique servi
-  # depuis l'export NFS du NAS (lecture seule).
+  # Contenu statique servi depuis le NAS, en lecture seule.
   nginx-demo:
     image: nginx:stable-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
     container_name: nginx-demo
     restart: unless-stopped
-    depends_on:
-      - nginx-demo-db
+    mem_limit: 64m
     volumes:
-      - nginx_demo_html:/usr/share/nginx/html:ro
+      - {{ nginx_demo_data_path }}/html:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
-      - nginx-demo-network
       - newt
 
 networks:
-  nginx-demo-network:
+  nginx-demo:
   newt:
     external: true # Réseau créé par le rôle newt
-
-volumes:
-  nginx_demo_html:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr={{ nginx_demo_nas_ip }},nfsvers=3,ro,soft,tcp"
-      device: "{{ nginx_demo_nas_ip }}:{{ nginx_demo_nfs_export }}"
