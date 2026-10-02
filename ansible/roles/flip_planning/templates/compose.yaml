@@ -2,6 +2,13 @@
 services:
   app:
     mem_limit: {{ flip_planning_mem_limit }}
+{% if flip_planning_mem_reservation %}
+    mem_reservation: {{ flip_planning_mem_reservation }}
+{% endif %}
+{% if flip_planning_cpu_shares %}
+    # A weight, not a quota: see flip_planning_cpu_shares in defaults/main.yml.
+    cpu_shares: {{ flip_planning_cpu_shares }}
+{% endif %}
     container_name: {{ flip_planning_container_prefix }}
     image: {{ flip_planning_image }}
     restart: unless-stopped
@@ -100,6 +107,33 @@ services:
     networks:
       - newt
 
+{% if flip_planning_solve_rate_limit %}
+
+  # Hourly quota on the requests that start a solve — see
+  # flip_planning_solve_rate_limit in defaults/main.yml. Pangolin routes
+  # /api/solve and /api/staffing here; Traefik's own rateLimit middleware holds
+  # the quota (keyed on the host, so one bucket for every visitor) and passes
+  # everything else straight to the application. Static configuration on the
+  # command line, the routing in ./guard/dynamic.yml.
+  guard:
+    mem_limit: 128m
+    container_name: {{ flip_planning_container_prefix }}-guard
+    image: docker.io/traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
+    restart: unless-stopped
+    command:
+      - --entryPoints.web.address=:80
+      # Only newt reaches this port: keep the X-Forwarded-For Pangolin wrote,
+      # which the application's address-keyed guards read.
+      - --entryPoints.web.forwardedHeaders.insecure=true
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --ping=true
+      - --ping.entryPoint=web
+      - --log.level=WARN
+    volumes:
+      - ./guard/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - newt
+{% endif %}
 {% if flip_planning_keycloak_enabled %}
 
   # The identity provider, on the /auth sub-path of the SAME domain as the

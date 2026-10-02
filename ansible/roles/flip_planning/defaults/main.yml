@@ -63,6 +63,33 @@ flip_planning_image: "{{ flip_planning_image_release }}"
 flip_planning_mem_limit: 2g
 flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 
+# Who wins when instances on the flip host compete (2 vCPU, 4 GiB for all of
+# them). Both empty by default: nothing is written to compose.yaml.
+#
+# - cpu_shares: a WEIGHT, not a quota (the doctrine forbids `cpus:` on an
+#   interactive service). An instance at 256 against the default 1024 gets
+#   about a fifth of the CPU while another one computes, and everything while
+#   the host is idle. The solver is single-threaded, so an instance never takes
+#   more than one vCPU anyway.
+# - mem_reservation: memory.low on cgroup v2 — the kernel reclaims from the
+#   other containers first when the host runs short. About the measured peak.
+flip_planning_cpu_shares: ""
+flip_planning_mem_reservation: ""
+
+# Hourly quota on the requests that START a solve (POST /api/solve/…,
+# POST /api/staffing/verification), shared by every visitor of the instance.
+# Empty: off. When set ({average, period}), a small Traefik container
+# (<prefix>-guard) sits between Pangolin and the application on those two
+# prefixes only — the Pangolin targets of the instance must route them to it,
+# see tofu/pangolin_config/website_exemple_planning.tf — and answers 429 past
+# the quota. Everything else, GETs on the same prefixes included, goes through
+# untouched.
+#
+# A stopgap until the application enforces its own quota (it then refuses with
+# a sentence the UI shows instead of a bare 429): in memory, so a restart of the
+# guard gives the quota back.
+flip_planning_solve_rate_limit: {}
+
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"

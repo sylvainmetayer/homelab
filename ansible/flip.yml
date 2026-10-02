@@ -112,6 +112,10 @@
         flip_planning_branding_mascot: flip/flip-woopy.png
         flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
+        # memory.low at about its measured solve peak: when the host runs short
+        # — four instances share 4 GiB — the kernel reclaims from the others
+        # first. See flip_planning_mem_reservation in the role defaults.
+        flip_planning_mem_reservation: 1g
     # Demo environment: the same role, a second time, with its own compose
     # project directory, systemd unit, containers, docker network, database and
     # Borg repository. Only what cannot be shared is overridden here — the
@@ -208,8 +212,8 @@
     # pre-solved reference database (files/exemple/, see
     # flip_planning_reset_dump in the role defaults and files/exemple/README.md
     # for how that dump is made). The solver stays usable, but under a 60 s
-    # operator ceiling: one job at a time (the application's queue), and never
-    # more than a minute of CPU each.
+    # operator ceiling (one job at a time through the application's queue,
+    # never more than a minute of CPU each) and an hourly quota (below).
     #
     # Being public, it is the instance that must not look like the festival's:
     # no branding image, no client palette, a fictional organisation. What the
@@ -252,3 +256,14 @@
         flip_planning_solver_seconds_limit_max: 60
         flip_planning_reset_dump: exemple/exemple-planning.dump
         flip_planning_backup_enabled: false
+        # It must never starve production on this 2 vCPU / 4 GiB host: a low
+        # CPU weight (it loses to the default 1024 whenever another instance
+        # computes, and costs nothing while the host is idle), less memory than
+        # the others — its problem is a fifth of the festival's, 1.5 GiB still
+        # leaves the JVM ~400 MiB outside the heap — and 12 solves an hour for
+        # all visitors together, so that at worst it computes 12 minutes in 60.
+        flip_planning_cpu_shares: 256
+        flip_planning_mem_limit: 1536m
+        flip_planning_solve_rate_limit:
+          average: 12
+          period: 1h
