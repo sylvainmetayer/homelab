@@ -7,9 +7,10 @@ services:
     image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     container_name: nginx-demo-db
     restart: always
-    # BDD vide, pas encore mesurée : à recaler sur memory.peak.
-    mem_limit: 256m
-    mem_reservation: 64m
+    # Pas encore mesurée : shared_buffers vaut 128 Mio par défaut, le reste
+    # sert au cache de pages. À recaler sur memory.peak (≈ 2×).
+    mem_limit: 512m
+    mem_reservation: 128m
     environment:
       POSTGRES_DB: ${NGINX_DEMO_DB_NAME:?Variable is required and must be set}
       POSTGRES_USER: ${NGINX_DEMO_DB_USER:?Variable is required and must be set}

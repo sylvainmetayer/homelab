@@ -30,6 +30,36 @@
   changed_when: false
   check_mode: false
 
+- name: Compute the mount unit name
+  ansible.builtin.command:
+    cmd: "systemd-escape --path --suffix=mount {{ nas_storage_mount_path }}"
+  register: nas_storage_mount_unit
+  changed_when: false
+  check_mode: false
+
+# Ordre seulement, pas de dépendance : à l'arrêt, systemd arrête docker (et
+# donc Postgres) avant de démonter le NAS et de couper le réseau. Sans ça, un
+# montage `hard` peut bloquer l'arrêt de la VM. Pas de Requires= ni de
+# RequiresMountsFor= : docker attendrait le NAS au boot, ce que `nofail` évite.
+# Pas de redémarrage de docker : l'ordre est relu au daemon_reload ci-dessous.
+- name: Order docker before the NAS mount at shutdown
+  become: true
+  block:
+    - name: Ensure the docker.service drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Template the docker.service drop-in
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/nas-storage.conf
+        mode: "0644"
+        content: |
+          # Géré par Ansible (rôle nas_storage).
+          [Unit]
+          After={{ nas_storage_mount_unit.stdout }} {{ nas_storage_automount_unit.stdout }}
+
 # daemon_reload : systemd génère l'unité .automount depuis fstab. Un
 # changement d'options ne s'applique qu'au prochain montage : si l'export est
 # déjà monté, arrêter les applis qui l'utilisent puis
