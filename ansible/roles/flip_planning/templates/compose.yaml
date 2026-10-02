@@ -107,35 +107,6 @@ services:
     networks:
       - newt
 
-{% if flip_planning_guard_enabled | bool %}
-
-  # The guard in front of the application — see flip_planning_guard_enabled in
-  # defaults/main.yml. Pangolin's catch-all target points here; refused paths
-  # and the solve quota are decided in ./guard/dynamic.yml, everything else is
-  # passed to the application as is.
-  guard:
-    mem_limit: 128m
-    container_name: {{ flip_planning_container_prefix }}-guard
-    image: docker.io/traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
-    restart: unless-stopped
-    command:
-      - --entryPoints.web.address=:80
-      # Only newt reaches this port: keep the X-Forwarded-For Pangolin wrote,
-      # which the application's address-keyed guards read.
-      - --entryPoints.web.forwardedHeaders.insecure=true
-      # An encoded slash is answered 400: the refused paths are matched on the
-      # decoded path, and %2F is the one encoding that would keep a prefix
-      # from matching while the application still routes it.
-      - --entryPoints.web.http.encodedCharacters.allowEncodedSlash=false
-      - --providers.file.filename=/etc/traefik/dynamic.yml
-      - --ping=true
-      - --ping.entryPoint=web
-      - --log.level=WARN
-    volumes:
-      - ./guard/dynamic.yml:/etc/traefik/dynamic.yml:ro
-    networks:
-      - newt
-{% endif %}
 {% if flip_planning_keycloak_enabled %}
 
   # The identity provider, on the /auth sub-path of the SAME domain as the

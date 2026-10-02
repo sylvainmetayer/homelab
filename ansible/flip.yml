@@ -213,14 +213,14 @@
     # flip_planning_reset_dump in the role defaults and files/exemple/README.md
     # for how that dump is made). The solver stays usable, but under a 60 s
     # operator ceiling (one job at a time through the application's queue,
-    # never more than a minute of CPU each) and an hourly quota (below).
+    # never more than a minute of CPU each) and the application's hourly quota
+    # (below; enforced from the first release after 1.4.0).
     #
     # Being public, it is the instance that must not look like the festival's:
     # no branding image, no client palette, a fictional organisation. What the
     # visitors must not reach — /mcp, the SQL dump routes, the outgoing
-    # webhooks, the synchronous solve — is dropped twice: by Pangolin
-    # (tofu/pangolin_config/website_exemple_planning.tf) and by the guard in
-    # front of the application (below); and pgAdmin is off.
+    # webhooks, the synchronous solve — is dropped by Pangolin
+    # (tofu/pangolin_config/website_exemple_planning.tf), and pgAdmin is off.
     #
     # Skipped until its secrets exist in secrets.sops.yaml (the `when`), like
     # the Keycloak bench above.
@@ -265,14 +265,7 @@
         # all visitors together, so that at worst it computes 12 minutes in 60.
         flip_planning_cpu_shares: 256
         flip_planning_mem_limit: 1536m
-        flip_planning_solve_rate_limit:
-          average: 12
-          period: 1h
-        # Refused by the guard on the decoded path, whatever its spelling: the
-        # Pangolin DROP rules of website_exemple_planning.tf match the path as
-        # written, which an encoding (/api/%64atabase) could slip past.
-        flip_planning_blocked_path_patterns:
-          - "^/mcp"
-          - "^/api/database"
-          - "^/api/webhooks"
-          - "^/api/solve/?$"
+        flip_planning_solver_max_solves_per_hour: 12
+        # One running, two waiting: twenty clicks are not twenty minutes of
+        # solving queued up behind each other.
+        flip_planning_solver_max_queued_jobs: 2
