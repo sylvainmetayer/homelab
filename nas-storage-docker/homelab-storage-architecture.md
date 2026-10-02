@@ -98,6 +98,9 @@ disque local : ses fichiers restent sur le NAS et le dump borg ne change pas.
 - Installe `nfs-common`.
 - Déclare l'export dans `/etc/fstab` : `vers=4.1,hard,proto=tcp,noatime,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30`,
   puis démarre l'unité `.automount`.
+- Ordonne `docker.service` après le montage (drop-in `After=`, sans
+  dépendance). À l'arrêt de la VM, Postgres s'arrête avant que le NAS soit
+  démonté, au lieu de bloquer l'arrêt sur un montage `hard`.
 - Vérifie que `/mnt/nas/apps` est bien du NFS, avec un timeout de 60 s : un
   NAS injoignable fait échouer le run tout de suite, au lieu de laisser un
   conteneur ou un backup tomber plus tard.
