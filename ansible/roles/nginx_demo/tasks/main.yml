@@ -7,46 +7,31 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-# Cherche le filesystem par UUID fixe plutôt que par chemin /dev/sdX : ce
-# dernier peut se décaler entre deux boots dès qu'un second disque iSCSI/LVM
-# est attaché à la VM. rc == 0 => le filesystem existe déjà quelque part
-# (peu importe sur quel /dev/sdX il est aujourd'hui) => on ne reformate pas.
-- name: Check whether the demo_test filesystem already exists (by UUID)
-  ansible.builtin.command: "blkid -U {{ nginx_demo_data_uuid }}"
-  register: nginx_demo_uuid_lookup
-  changed_when: false
-  failed_when: false
-
-# Disque scsi0, attaché par Tofu (docker_vm_data_disks.demo_test) sur le
-# storage Proxmox "iscsi-lvm". Ne tourne qu'au tout premier run (cf. tâche
-# précédente) — /dev/sda n'est fiable que pour ce mkfs initial, sur une VM où
-# c'est encore le seul disque iSCSI/LVM attaché. Le filesystem est créé avec
-# un UUID fixé (nginx_demo_data_uuid) pour ne plus jamais dépendre du chemin
-# ensuite.
-- name: Create ext4 filesystem on the demo_test iSCSI/LVM disk (first run only)
+# Sur le NAS. become : la règle NFS est en "No mapping" (no_root_squash) pour
+# l'IP de la VM, root y crée et chown comme sur un disque local.
+- name: Ensure Nginx Demo data folders exist on the NAS
   become: true
-  when: nginx_demo_uuid_lookup.rc != 0
-  community.general.filesystem:
-    fstype: ext4
-    dev: "{{ nginx_demo_data_device }}"
-    opts: "-U {{ nginx_demo_data_uuid }}"
-
-- name: Create Postgres data mount point
+  loop:
+    - "{{ nginx_demo_data_path }}"
+    - "{{ nginx_demo_data_path }}/html"
+    - "{{ nginx_demo_data_path }}/postgresql"
   ansible.builtin.file:
-    path: "{{ nginx_demo_data_mount }}"
+    mode: "0755"
+    path: "{{ item }}"
     state: directory
-    mode: "0750"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-- name: Mount the demo_test disk by UUID and persist in fstab
+# force: false : déposé une fois, puis c'est le contenu du NAS qui fait foi.
+- name: Seed the demo page on the NAS
   become: true
-  ansible.posix.mount:
-    path: "{{ nginx_demo_data_mount }}"
-    src: "UUID={{ nginx_demo_data_uuid }}"
-    fstype: ext4
-    opts: defaults,nofail
-    state: mounted
+  ansible.builtin.copy:
+    src: index.html
+    dest: "{{ nginx_demo_data_path }}/html/index.html"
+    force: false
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
 
 - name: Template compose configuration
   notify: Restart nginx_demo
