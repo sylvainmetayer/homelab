@@ -11,6 +11,9 @@ nginx_demo_data_path: "{{ nas_storage_mount_path }}/nginx_demo"
 # et se sauvegarde correctement sur NFS.
 nginx_demo_db_name: nginx_demo_db
 nginx_demo_db_user: nginx_demo
+# Lu par Postgres à l'initialisation du data directory seulement : changer
+# backup_passphrase change le .env et borgmatic, pas le mot de passe en base
+# (ALTER ROLE à la main, sinon pg_dump échoue).
 nginx_demo_db_password: "{{ (backup_passphrase ~ '-nginx-demo-db') | hash('sha256') }}"
 
 # Borgmatic backup configuration

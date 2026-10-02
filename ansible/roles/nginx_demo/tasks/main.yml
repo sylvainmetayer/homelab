@@ -15,6 +15,7 @@
     - "{{ nginx_demo_data_path }}"
     - "{{ nginx_demo_data_path }}/html"
     - "{{ nginx_demo_data_path }}/postgresql"
+  register: nginx_demo_data_dirs
   ansible.builtin.file:
     mode: "0755"
     path: "{{ item }}"
@@ -23,8 +24,10 @@
     group: "{{ ansible_facts['user_gid'] }}"
 
 # force: false : déposé une fois, puis c'est le contenu du NAS qui fait foi.
+# Sur un premier --check, le dossier html n'existe pas encore.
 - name: Seed the demo page on the NAS
   become: true
+  when: not (ansible_check_mode and nginx_demo_data_dirs is changed)
   ansible.builtin.copy:
     src: index.html
     dest: "{{ nginx_demo_data_path }}/html/index.html"
