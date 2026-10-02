@@ -50,21 +50,27 @@ def changed_roles(changed_files):
 def add_dependents(roles, roles_dir=pathlib.Path("ansible/roles")):
     """A role pulled in only through meta/main.yml `dependencies` (nas_storage)
     has no entry, hence no tag, in any playbook: redeploy the roles that
-    depend on it instead, since they run it under their own tags."""
+    depend on it instead, since they run it under their own tags.
+
+    Returns the expanded role set and, for each changed role, the roles that
+    depend on it (transitively)."""
     dependents = {}
     for meta in roles_dir.glob("*/meta/main.yml"):
         for dep in (yaml.safe_load(meta.read_text()) or {}).get("dependencies") or []:
             name = dep if isinstance(dep, str) else dep.get("role", dep.get("name"))
             dependents.setdefault(name, set()).add(meta.parent.parent.name)
 
-    expanded = set(roles)
-    pending = list(roles)
-    while pending:
-        for dependent in dependents.get(pending.pop(), ()):
-            if dependent not in expanded:
-                expanded.add(dependent)
-                pending.append(dependent)
-    return expanded, {role for role in roles if role in dependents}
+    pulled_by = {}
+    for role in roles:
+        seen = set()
+        pending = [role]
+        while pending:
+            for dependent in dependents.get(pending.pop(), ()):
+                if dependent not in seen:
+                    seen.add(dependent)
+                    pending.append(dependent)
+        pulled_by[role] = seen
+    return set(roles).union(*pulled_by.values()), pulled_by
 
 
 def resolve_tags(role_tags, roles):
@@ -80,7 +86,7 @@ def resolve_tags(role_tags, roles):
 def main():
     playbook_paths = sys.argv[1:]
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
-    roles, dependencies = add_dependents(changed_roles(changed_files))
+    roles, pulled_by = add_dependents(changed_roles(changed_files))
 
     result = {}
     all_matched_roles = set()
@@ -94,7 +100,11 @@ def main():
 
         result[playbook_path] = ",".join(sorted(resolved))
 
-    unmatched_roles = roles - all_matched_roles - dependencies
+    # A dependency counts as deployed only if one of its dependents is.
+    unmatched_roles = {
+        role for role in pulled_by
+        if role not in all_matched_roles and not pulled_by[role] & all_matched_roles
+    }
     for role in unmatched_roles:
         print(f"::warning::role '{role}' changed but is not referenced in any of {', '.join(playbook_paths)}, ignoring", file=sys.stderr)
 
