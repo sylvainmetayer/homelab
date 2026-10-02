@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Nightly reset of {{ flip_planning_service }}
+
+[Timer]
+OnCalendar={{ flip_planning_reset_on_calendar }}
+# A night missed while the host was down is caught up at boot.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

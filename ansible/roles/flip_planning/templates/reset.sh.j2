@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Puts {{ flip_planning_service }} back in its reference state: the database is
+# recreated from {{ flip_planning_reset_dump | basename }} and the application
+# restarted on it. Run nightly by {{ flip_planning_service }}-reset.timer, and by
+# the role whenever the dump changes. See flip_planning_reset_dump in
+# defaults/main.yml.
+#
+# Mailpit is restarted with the application: it keeps what it caught in a
+# temporary database deleted on exit, so the mails of the day go with the data.
+set -euo pipefail
+
+cd {{ flip_planning_base_path }}
+
+# The role restores right after a deploy, possibly while the unit is still
+# bringing the stack up. Its attached `docker compose up` waits for a healthy
+# database before starting the application, so it could start the app again
+# AFTER the `stop` below, mid-restore (Flyway on a half-restored database).
+# Wait until the app has been started, whoever starts it, so that step is
+# behind us; an app that never gets healthy (the very reason to reset it) only
+# costs the timeout.
+docker compose up -d --wait --wait-timeout 300 app || true
+docker compose up -d --wait postgres
+docker compose stop app mailpit
+
+# The database is dropped rather than emptied table by table: the dump carries
+# the schema and the Flyway history, and whatever a visitor created goes with it.
+# WITH (FORCE) closes what is still connected (pgAdmin, a stuck session).
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 \
+  -U {{ flip_planning_db_user }} -d postgres \
+  -c 'DROP DATABASE IF EXISTS "{{ flip_planning_db_name }}" WITH (FORCE)' \
+  -c 'CREATE DATABASE "{{ flip_planning_db_name }}" OWNER "{{ flip_planning_db_user }}"'
+
+docker compose exec -T postgres pg_restore --no-owner --no-acl --exit-on-error \
+  -U {{ flip_planning_db_user }} -d {{ flip_planning_db_name }} \
+  < seed/{{ flip_planning_reset_dump | basename }}
+
+# `up`, not `start`: on a first deploy the containers may not exist yet.
+# Flyway migrates the restored schema to the image's version on boot.
+docker compose up -d --no-deps mailpit app
