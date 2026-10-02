@@ -30,3 +30,11 @@ variable "cloudflare_github_installation_id" {
   type        = number
   default     = null
 }
+
+# Valeur fournie par Google Search Console pour une propriété « Domaine »
+# sylvain.dev (« google-site-verification=… »). null = pas d'enregistrement.
+variable "google_site_verification" {
+  description = "Jeton de vérification Google Search Console du domaine"
+  type        = string
+  default     = "google-site-verification=XROrcW2Xt6g7cyF4SDNyz08GZeMB90QlstI3SBnUsq0"
+}

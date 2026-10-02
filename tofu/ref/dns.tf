@@ -8,3 +8,16 @@ resource "ovh_domain_zone_record" "ref" {
   ttl       = 300
   target    = "${cloudflare_pages_project.ref.subdomain}."
 }
+
+# Vérification Google Search Console. Posée à l'apex et pas sur ref : un nom
+# porteur d'un CNAME ne peut avoir aucun autre enregistrement. La propriété
+# « Domaine » sylvain.dev couvre ref.sylvain.dev et les autres sous-domaines.
+resource "ovh_domain_zone_record" "google_site_verification" {
+  count = var.google_site_verification == null ? 0 : 1
+
+  zone      = var.domain_zone
+  subdomain = ""
+  fieldtype = "TXT"
+  ttl       = 300
+  target    = "\"${var.google_site_verification}\""
+}
