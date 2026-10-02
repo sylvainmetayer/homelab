@@ -36,7 +36,6 @@ postgresql_databases:
 exclude_patterns:
     - '*.log'
     - '*.tmp'
-    - 'cache/*'
 
 # Alternate Borg local executable. Defaults to "borg".
 local_path: /root/.local/bin/borg
@@ -131,6 +130,17 @@ archive_name_format: 'nginx-demo-{now:%Y-%m-%dT%H:%M:%S}'
 # particular points during borgmatic's execution. For each command
 # hook, specify one of "before" or "after", not both.
 commands:
+    # Sur un NAS tombé, le montage `hard` bloquerait ce backup indéfiniment,
+    # et avec lui ceux des applis suivantes (un seul borgmatic.service pour
+    # toutes les configs). L'attente bornée fait échouer cette config seule
+    # (fail poussé vers Uptime Kuma) et borgmatic passe à la suivante. Reste
+    # non couvert : un NAS qui tombe en plein backup.
+    - before: configuration
+      when:
+          - create
+      run:
+          - {{ nas_storage_wait_command }} 30
+
     # Name for the point in borgmatic's execution that
     # the commands should be run before (required if
     # "after" isn't set):
