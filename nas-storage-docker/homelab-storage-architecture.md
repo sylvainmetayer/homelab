@@ -123,8 +123,9 @@ Référence : `ansible/roles/nginx_demo`.
    (`.github/scripts/resolve_docker_tags.py`) suit ces dépendances : modifier
    `nas_storage` redéploie les applis qui en dépendent.
 2. `<service>_data_path: "{{ nas_storage_mount_path }}/<service>"`. Les
-   dossiers y sont créés avec `become: true` et appartiennent à
-   l'utilisateur.
+   dossiers y sont créés avec `become: true`, sans droits pour « others » :
+   chacun appartient à l'uid/gid qui l'utilise dans le conteneur (postgres
+   alpine 70, nginx alpine 101, l'utilisateur sinon).
 3. `compose.yaml` : bind mounts en chemin absolu vers `<service>_data_path`.
    Pas de volume Docker `driver_opts: nfs`, que borg ne pourrait pas lire.
 4. Borgmatic : les dossiers de fichiers du NAS dans `source_directories`,

@@ -1,7 +1,7 @@
 ---
 - name: Ensure Nginx Demo app folder exists
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0750"
     path: "{{ nginx_demo_base_path }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
@@ -9,19 +9,27 @@
 
 # Sur le NAS. become : la règle NFS est en "No mapping" (no_root_squash) pour
 # l'IP de la VM, root y crée et chown comme sur un disque local.
+# Rien n'est lisible par "others" : chaque conteneur a son propre accès.
+# - postgresql : à l'uid/gid postgres de l'image alpine (70), qui doit
+#   traverser ce dossier pour atteindre PGDATA (18/docker, créé par
+#   l'entrypoint).
+# - html : groupe nginx de l'image alpine (101), lecture seule. Un fichier
+#   déposé à la main sur le NAS doit garder ce groupe, sinon nginx répond 403.
 - name: Ensure Nginx Demo data folders exist on the NAS
   become: true
   loop:
-    - "{{ nginx_demo_data_path }}"
-    - "{{ nginx_demo_data_path }}/html"
-    - "{{ nginx_demo_data_path }}/postgresql"
+    - { path: "{{ nginx_demo_data_path }}", owner: "{{ ansible_facts['user_id'] }}", group: "{{ ansible_facts['user_gid'] }}", mode: "0750" }
+    - { path: "{{ nginx_demo_data_path }}/html", owner: "{{ ansible_facts['user_id'] }}", group: "101", mode: "0750" }
+    - { path: "{{ nginx_demo_data_path }}/postgresql", owner: "70", group: "70", mode: "0700" }
+  loop_control:
+    label: "{{ item.path }}"
   register: nginx_demo_data_dirs
   ansible.builtin.file:
-    mode: "0755"
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_gid'] }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
 
 # force: false : déposé une fois, puis c'est le contenu du NAS qui fait foi.
 # Sur un premier --check, le dossier html n'existe pas encore.
@@ -33,8 +41,8 @@
     dest: "{{ nginx_demo_data_path }}/html/index.html"
     force: false
     owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    group: "101"
+    mode: "0640"
 
 - name: Template compose configuration
   notify: Restart nginx_demo
@@ -43,7 +51,7 @@
     dest: "{{ nginx_demo_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0640"
 
 - name: Template environment configuration
   notify: Restart nginx_demo
