@@ -133,6 +133,45 @@ current checklist — it also delegates to **`pangolin-route`** and
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
+### App data on the NAS
+
+Apps can keep their data on the Ugreen NAS (NFSv4.1 export mounted on the
+docker VM) while running on the VM; borg still backs everything up. Full
+rationale and NAS-side setup: `nas-storage-docker/homelab-storage-architecture.md`.
+Reference role: `ansible/roles/nginx_demo`. The rules:
+
+- Declare `dependencies: [{role: nas_storage}]` in the app's `meta/main.yml`
+  (not in `docker.yml`): it mounts `/mnt/nas/apps` (`hard`,
+  `x-systemd.automount`) and runs once per play whatever the number of apps.
+  `resolve_docker_tags.py` follows meta dependencies, so a `nas_storage`
+  change redeploys its dependents.
+- Data under `<service>_data_path: "{{ nas_storage_mount_path }}/<service>"`,
+  created with `become: true` (the NFS rule is "No mapping" for the VM's IP),
+  bind-mounted by absolute path. Never a Docker `driver_opts: nfs` volume:
+  borg can't read it.
+- Postgres/MariaDB data dirs may live there; **SQLite (and any mmap/lock-based
+  embedded DB) never does** — it stays on the local disk.
+- Every NAS-backed container gets `cgroup_parent: {{ nas_storage_slice }}`:
+  that slice is ordered after the mount, so at VM shutdown the containers stop
+  before the NAS is unmounted and the network goes down (a `hard` mount would
+  otherwise hang Postgres' last checkpoint).
+- A `dc@<service>.service.d/nas-storage.conf` user drop-in with
+  `ExecStartPre={{ nas_storage_wait_command }} <timeout>`: at boot the VM is
+  up before the NAS, and without the wait `dc@<service>` hits
+  `StartLimitBurst` and stays failed. Keep the timeout under dc@'s
+  `TimeoutStartSec` (300 s), pull included.
+- Borgmatic: NAS file dirs in `source_directories`, the DB data dir **not**
+  (dump via `postgresql_databases` + `pg_dump_command: docker exec …`),
+  `source_directories_must_exist: true`, and a `before: configuration` hook
+  running `{{ nas_storage_wait_command }} 30`: without it a dead NAS blocks
+  the single `borgmatic.service`, hence every app's backup.
+- DB passwords that Postgres only reads at initdb are drawn once and stored
+  next to the cluster on the NAS (`nginx_demo_db_password_path`), not derived
+  from `backup_passphrase`.
+- Decommissioning: pass `<service>_data_path` in
+  `decommission_app_extra_paths`, or the data stays orphaned on the NAS.
+- No iSCSI: considered and rejected (see the doc).
+
 ### Running a second environment of an app
 
 `flip_planning` is applied twice by `flip.yml`: once for production

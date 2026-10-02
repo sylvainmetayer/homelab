@@ -51,3 +51,17 @@
   ansible.builtin.file:
     path: "{{ decommission_app_base_path }}"
     state: absent
+
+- name: Remove app data kept outside the base path (e.g. on the NAS)
+  become: true
+  when: decommission_app_remove_data
+  loop: "{{ decommission_app_extra_paths }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+
+# Per-instance drop-ins of the shared dc@ template (e.g. the NAS wait).
+- name: Remove the app's dc@ drop-ins
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@{{ decommission_app_service }}.service.d"
+    state: absent

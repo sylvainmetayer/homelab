@@ -1,0 +1,109 @@
+---
+- name: Install the NFS client
+  become: true
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+
+# `creates` plutôt que ansible.builtin.file : une fois l'automount actif, ce
+# chemin est la racine du partage NAS, et `file` y réappliquerait mode/owner.
+- name: Ensure the NAS mount point exists
+  become: true
+  ansible.builtin.command:
+    cmd: "mkdir -p {{ nas_storage_mount_path }}"
+    creates: "{{ nas_storage_mount_path }}"
+
+- name: Declare the NAS NFS export in fstab
+  become: true
+  ansible.posix.mount:
+    path: "{{ nas_storage_mount_path }}"
+    src: "{{ nas_storage_server }}:{{ nas_storage_export }}"
+    fstype: nfs
+    opts: "{{ nas_storage_mount_options | join(',') }}"
+    state: present
+  register: nas_storage_fstab
+
+# Nom d'unité systemd du point de montage (`mnt-nas-apps`), suffixé
+# ensuite en .mount / .automount.
+- name: Compute the mount unit name
+  ansible.builtin.command:
+    cmd: "systemd-escape --path {{ nas_storage_mount_path }}"
+  register: nas_storage_unit
+  changed_when: false
+  check_mode: false
+
+- name: Set the mount unit name prefix
+  ansible.builtin.set_fact:
+    nas_storage_unit_prefix: "{{ nas_storage_unit.stdout }}"
+
+- name: Install the NAS wait script
+  become: true
+  ansible.builtin.template:
+    src: nas-storage-wait.j2
+    dest: "{{ nas_storage_wait_command }}"
+    owner: root
+    # Lancé par root (borgmatic) et par l'utilisateur des unités dc@.
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0750"
+
+# Ordre d'arrêt des conteneurs du NAS : voir templates/nas-storage.slice.j2.
+# Pas de Requires= ni de RequiresMountsFor= : rien n'attend le NAS au boot,
+# ce que `nofail` évite. Relue au daemon_reload ci-dessous.
+- name: Install the slice of the containers with their data on the NAS
+  become: true
+  ansible.builtin.template:
+    src: nas-storage.slice.j2
+    dest: "/etc/systemd/system/{{ nas_storage_slice }}"
+    owner: root
+    group: root
+    mode: "0640"
+
+# Même ordre pour dockerd lui-même, qui arrête aussi les conteneurs.
+- name: Order docker before the NAS mount at shutdown
+  become: true
+  block:
+    - name: Ensure the docker.service drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        mode: "0750"
+
+    - name: Template the docker.service drop-in
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/nas-storage.conf
+        mode: "0640"
+        content: |
+          # Géré par Ansible (rôle nas_storage).
+          [Unit]
+          After={{ nas_storage_unit_prefix }}.mount {{ nas_storage_unit_prefix }}.automount
+
+# daemon_reload : systemd génère l'unité .automount depuis fstab. Un
+# changement d'options ne s'applique qu'au prochain montage : si l'export est
+# déjà monté, arrêter les applis qui l'utilisent puis
+# `systemctl restart <unité .mount>` (ou redémarrer la VM).
+- name: Start the NAS automount
+  become: true
+  # Sur un premier --check, fstab n'est pas écrit et l'unité n'existe pas.
+  when: not (ansible_check_mode and nas_storage_fstab is changed)
+  ansible.builtin.systemd:
+    name: "{{ nas_storage_unit_prefix }}.automount"
+    state: started
+    daemon_reload: true
+
+# statfs() sur le point de montage déclenche l'automount (LOOKUP_AUTOMOUNT)
+# sans avoir à traverser la racine du partage. Échoue ici, avec un
+# message lisible, plutôt qu'au démarrage d'un conteneur ou du backup. Le
+# timeout couvre un NAS injoignable : un montage `hard` attend indéfiniment.
+# become : la racine du partage peut être fermée à "others" (dossier créé par
+# UGOS) ; root n'est pas squashé, comme pour tout le reste du NAS.
+- name: Check that the NAS export is mounted
+  become: true
+  ansible.builtin.command:
+    cmd: "stat --file-system --format=%T {{ nas_storage_mount_path }}"
+  register: nas_storage_fs_type
+  changed_when: false
+  check_mode: false
+  timeout: 60
+  failed_when:
+    - not (ansible_check_mode and nas_storage_fstab is changed)
+    - nas_storage_fs_type.rc != 0 or nas_storage_fs_type.stdout != 'nfs'

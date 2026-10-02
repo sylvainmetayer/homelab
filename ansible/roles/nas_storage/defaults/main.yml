@@ -1,0 +1,38 @@
+---
+# Export NFS du NAS Ugreen DXP2800 (UGOS Pro), un sous-dossier par appli.
+# Voir nas-storage-docker/homelab-storage-architecture.md.
+nas_storage_server: 192.168.1.137
+nas_storage_export: /volume1/apps
+nas_storage_mount_path: /mnt/nas/apps
+
+# 4.1 : verrous intégrés au protocole (pas de lockd/statd), un seul port (2049).
+# Repli possible sur "3" sans autre changement : nfs-common fournit aussi
+# rpcbind/statd.
+nas_storage_nfs_version: "4.1"
+
+# - hard : sur une coupure du NAS, les écritures bloquent puis reprennent au
+#   lieu d'échouer. C'est la condition que pose PostgreSQL pour un data
+#   directory sur NFS ; `soft` peut perdre une écriture déjà acquittée.
+# - x-systemd.automount : le chemin n'est jamais un dossier local vide. Sans
+#   lui, un conteneur démarré avant le montage (NAS lent au boot) bind-monte le
+#   dossier vide de la VM et y écrit sans que rien ne le signale ; avec, le
+#   premier accès monte l'export ou échoue.
+# - nofail : un NAS absent ne bloque pas le boot de la VM (les applis sans
+#   données sur le NAS démarrent quand même).
+nas_storage_mount_options:
+  - "vers={{ nas_storage_nfs_version }}"
+  - hard
+  - proto=tcp
+  - noatime
+  - _netdev
+  - nofail
+  - x-systemd.automount
+  - x-systemd.mount-timeout=30
+
+# Slice systemd des conteneurs dont les données sont sur le NAS : voir
+# templates/nas-storage.slice.j2. À mettre en `cgroup_parent` dans le compose.
+nas_storage_slice: nas-storage.slice
+
+# Script d'attente du NAS, pour dc@<service> et borgmatic : voir
+# templates/nas-storage-wait.j2.
+nas_storage_wait_command: /usr/local/bin/nas-storage-wait

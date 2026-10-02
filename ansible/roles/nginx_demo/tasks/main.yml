@@ -1,0 +1,137 @@
+---
+- name: Ensure Nginx Demo app folder exists
+  ansible.builtin.file:
+    mode: "0750"
+    path: "{{ nginx_demo_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Sur le NAS. become : la règle NFS est en "No mapping" (no_root_squash) pour
+# l'IP de la VM, root y crée et chown comme sur un disque local.
+# Rien n'est lisible par "others" : chaque conteneur a son propre accès.
+# - postgresql : à l'uid/gid postgres de l'image alpine (70), qui doit
+#   traverser ce dossier pour atteindre PGDATA (18/docker, créé par
+#   l'entrypoint).
+# - html : groupe nginx de l'image alpine (101), lecture seule. Un fichier
+#   déposé à la main sur le NAS doit garder ce groupe, sinon nginx répond 403.
+- name: Ensure Nginx Demo data folders exist on the NAS
+  become: true
+  loop:
+    - { path: "{{ nginx_demo_data_path }}", owner: "{{ ansible_facts['user_id'] }}", group: "{{ ansible_facts['user_gid'] }}", mode: "0750" }
+    - { path: "{{ nginx_demo_data_path }}/html", owner: "{{ ansible_facts['user_id'] }}", group: "101", mode: "0750" }
+    - { path: "{{ nginx_demo_data_path }}/postgresql", owner: "70", group: "70", mode: "0700" }
+  loop_control:
+    label: "{{ item.path }}"
+  register: nginx_demo_data_dirs
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+
+# force: false : déposé une fois, puis c'est le contenu du NAS qui fait foi.
+# Sur un premier --check, le dossier html n'existe pas encore.
+- name: Seed the demo page on the NAS
+  become: true
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
+  ansible.builtin.copy:
+    src: index.html
+    dest: "{{ nginx_demo_data_path }}/html/index.html"
+    force: false
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "101"
+    mode: "0640"
+
+# Tagué backup : `--tags backup` régénère la config borgmatic, qui en a
+# besoin.
+- name: Draw the database password once, next to its cluster
+  become: true
+  tags: backup
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
+  ansible.builtin.copy:
+    dest: "{{ nginx_demo_db_password_path }}"
+    content: "{{ lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']) }}"
+    force: false
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Read the database password
+  become: true
+  tags: backup
+  when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
+  ansible.builtin.slurp:
+    src: "{{ nginx_demo_db_password_path }}"
+  register: nginx_demo_db_password_file
+
+- name: Template compose configuration
+  notify: Restart nginx_demo
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ nginx_demo_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0640"
+
+- name: Template environment configuration
+  notify: Restart nginx_demo
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ nginx_demo_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# dc@.service est commun à toutes les applis : l'attente du NAS est un
+# drop-in de cette instance seulement. Voir nginx_demo_nas_wait_timeout.
+- name: Ensure the dc@nginx_demo drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d"
+    state: directory
+    mode: "0700"
+
+- name: Wait for the NAS before starting dc@nginx_demo
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d/nas-storage.conf"
+    mode: "0600"
+    content: |
+      # Géré par Ansible (rôle nginx_demo).
+      [Service]
+      ExecStartPre={{ nas_storage_wait_command }} {{ nginx_demo_nas_wait_timeout }}
+
+# Borgmatic backup configuration
+- name: Configure borgmatic backup for Nginx Demo
+  when: nginx_demo_backup_enabled
+  tags: backup
+  block:
+    - name: Create borgmatic configuration for Nginx Demo
+      become: true
+      ansible.builtin.template:
+        src: "templates/borgmatic-nginx_demo.yaml.j2"
+        dest: "{{ borgmatic_config_dir }}/nginx_demo.yaml"
+        owner: "root"
+        group: "root"
+        mode: "0600"
+
+    - name: Initialize borg repository for Nginx Demo
+      become: true
+      ansible.builtin.command:
+        cmd: >-
+          /root/.local/bin/borgmatic
+          --config {{ borgmatic_config_dir }}/nginx_demo.yaml
+          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
+      register: nginx_demo_borg_repo_create
+      changed_when: "'repository already exists' not in nginx_demo_borg_repo_create.stderr"
+      failed_when: >
+        nginx_demo_borg_repo_create.rc != 0 and
+        'repository already exists' not in nginx_demo_borg_repo_create.stderr
+
+- name: Make sure nginx_demo service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@nginx_demo
+    scope: user
+    enabled: true

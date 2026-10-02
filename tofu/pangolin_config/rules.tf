@@ -63,6 +63,7 @@ locals {
     "Meerkat CRM"       = pangolin_resource.meerkat_crm.id
     "Monica CRM"        = pangolin_resource.monica.id
     "NAS"               = pangolin_resource.nas.id
+    "Nginx Demo"        = pangolin_resource.nginx_demo.id
     "nextcloud"         = pangolin_resource.nextcloud.id
     "Paperless-ngx"     = pangolin_resource.paperless.id
     "Proxmox"           = pangolin_resource.proxmox.id
