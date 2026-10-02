@@ -26,3 +26,19 @@
     name: dc@demo_planning_kc
     scope: user
     state: restarted
+
+- name: Restart exemple_planning
+  ansible.builtin.systemd:
+    name: dc@exemple_planning
+    scope: user
+    state: restarted
+
+# Only instances that set flip_planning_reset_dump notify one: restores the
+# reference database as soon as the dump (or the script) changes, rather than
+# at the next night. Listed after the restarts, so it runs after them — handlers
+# run in the order they are defined, not notified.
+- name: Reset exemple_planning
+  ansible.builtin.systemd:
+    name: exemple_planning-reset.service
+    scope: user
+    state: started

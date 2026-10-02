@@ -199,3 +199,56 @@
         flip_planning_mcp_pangolin_access_token_id: ""
         flip_planning_mcp_pangolin_access_token: ""
         flip_planning_backup_enabled: false
+    # Public showcase, exemple-planning.sylvain.dev: the instance the product's
+    # web page links to, open without Pangolin SSO and with its admin password
+    # printed on that page — hence "demo" below, in plain text on purpose.
+    #
+    # It runs the release channel, like production, so that what a prospect
+    # sees is what a deployment runs; and every night it goes back to a
+    # pre-solved reference database (files/exemple/, see
+    # flip_planning_reset_dump in the role defaults and files/exemple/README.md
+    # for how that dump is made). The solver stays usable, but under a 60 s
+    # operator ceiling: one job at a time (the application's queue), and never
+    # more than a minute of CPU each.
+    #
+    # Being public, it is the instance that must not look like the festival's:
+    # no branding image, no client palette, a fictional organisation. What the
+    # visitors must not reach — /mcp, the SQL dump routes, the outgoing
+    # webhooks, the synchronous solve — is dropped by Pangolin
+    # (tofu/pangolin_config/website_exemple_planning.tf), and pgAdmin is off.
+    #
+    # Skipped until its secrets exist in secrets.sops.yaml (the `when`), like
+    # the Keycloak bench above.
+    - role: flip_planning
+      tags: exemple_planning,app
+      when: exemple_planning_db_password is defined
+      vars:
+        flip_planning_service: exemple_planning
+        flip_planning_container_prefix: exemple-planning
+        flip_planning_domain: exemple-planning.sylvain.dev
+        flip_planning_image: "{{ flip_planning_image_release }}"
+        flip_planning_sentry_environment: exemple
+        flip_planning_branding_product_name: "Planning Équipes — Exemple"
+        flip_planning_branding_organisation: "Association fictive"
+        flip_planning_branding_client_palette: false
+        flip_planning_cloudflare_web_analytics_token: ""
+        # The reference database freezes the date on a day of its event, so
+        # that Aujourd'hui and the wall display have a day to show.
+        flip_planning_horloge_simulee_autorisee: true
+        # Fictional data only, and nobody's personal data to declare.
+        flip_planning_legal_demo_instance: true
+        flip_planning_pgadmin_enabled: false
+        flip_planning_admin_password: "demo"
+        flip_planning_db_password: "{{ exemple_planning_db_password }}"
+        flip_planning_session_encryption_key: "{{ exemple_planning_session_encryption_key }}"
+        # No MCP client is meant to reach it; Pangolin drops /mcp as well.
+        flip_planning_mcp_api_key: ""
+        flip_planning_mcp_pangolin_access_token_id: ""
+        flip_planning_mcp_pangolin_access_token: ""
+        # Ceiling = default: the application refuses a ceiling below the
+        # default, and the plateau limit has to come down with them.
+        flip_planning_solver_seconds_limit: 60
+        flip_planning_solver_unimproved_seconds_limit: 20
+        flip_planning_solver_seconds_limit_max: 60
+        flip_planning_reset_dump: exemple/exemple-planning.dump
+        flip_planning_backup_enabled: false

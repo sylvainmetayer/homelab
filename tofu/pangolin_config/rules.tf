@@ -32,10 +32,11 @@ locals {
   # needs a slot in front of them, and the provider rejects a priority below 1,
   # so the country band starts at 10 and leaves that room:
   #
-  #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
+  #    1 -  9  app-specific ACCEPTs and DROPs evaluated before the geo-filter
   #            (pangolin_resource_rule.flip_planning_mcp,
   #             pangolin_resource_rule.demo_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_kc_keycloak)
+  #             pangolin_resource_rule.demo_planning_kc_keycloak,
+  #             pangolin_resource_rule.exemple_planning_drop)
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
   #   99       DROP COUNTRY ALL
@@ -56,6 +57,7 @@ locals {
     "Demo Planning"     = pangolin_resource.demo_planning.id
     "Demo Planning KC"  = pangolin_resource.demo_planning_kc.id
     "Echo"              = pangolin_resource.echo.id
+    "Exemple Planning"  = pangolin_resource.exemple_planning.id
     "Flip Planning"     = pangolin_resource.flip_planning.id
     "Gramps"            = pangolin_resource.gramps.id
     "Immich"            = pangolin_resource.immich.id
@@ -318,14 +320,14 @@ locals {
   # a resource that has no `for_each`, so a new standalone pangolin_resource_rule
   # has to be added here by hand or the audit reports it as undeclared. That the
   # omission fails loudly is the point: the alternative is the silence above.
-  declared_extra_rules = [
+  declared_extra_rules = concat([
     pangolin_resource_rule.dawarich_home_ip,
     pangolin_resource_rule.demo_planning_kc_keycloak,
     pangolin_resource_rule.demo_planning_mcp,
     pangolin_resource_rule.flip_planning_mcp,
     pangolin_resource_rule.immich_home_ip,
     pangolin_resource_rule.trek_home_ip,
-  ]
+  ], values(pangolin_resource_rule.exemple_planning_drop))
 
   # Stringified so the ids compare cleanly against the JSON numbers below.
   declared_rule_ids = toset(concat(
