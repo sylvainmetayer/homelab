@@ -1,0 +1,15 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    # docker.yml lit cette URL dans les outputs du state pangolin_config.
+    - name: Load healthcheck URLs from (fake) Terraform state outputs
+      ansible.builtin.set_fact:
+        dawarich_backup_healthcheck_url: https://uptime.example.invalid/api/push/molecule-dawarich
+  roles:
+    - role: docker_service
+    - role: dawarich

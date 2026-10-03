@@ -1,0 +1,46 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Hôte neuf : le lingering démarre le manager systemd de sylvain avant que
+# geerlingguy.docker l'ajoute au groupe docker. Le manager garde les groupes
+# qu'il avait au démarrage, et le rôle doit le redémarrer (sinon les unités dc@
+# n'ont pas accès à docker.sock). On reproduit cet état.
+- name: Start the user manager without the docker group
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    molecule_stale_pid_file: /var/lib/molecule-stale-user-manager.pid
+  tasks:
+    - name: Remove sylvain from the docker group
+      ansible.builtin.command: gpasswd --delete sylvain docker
+      changed_when: true
+
+    - name: Restart the user manager of sylvain
+      ansible.builtin.systemd:
+        name: user@1000.service
+        state: restarted
+
+    - name: Wait for the user manager bus
+      ansible.builtin.wait_for:
+        path: /run/user/1000/bus
+        timeout: 60
+
+    - name: Add sylvain back to the docker group
+      ansible.builtin.user:
+        name: sylvain
+        groups: docker
+        append: true
+
+    - name: Read the stale user manager
+      ansible.builtin.systemd:
+        name: user@1000.service
+      register: molecule_stale_manager
+
+    # verify.yml s'assure que le rôle a bien remplacé ce processus.
+    - name: Record the PID of the stale user manager
+      ansible.builtin.copy:
+        dest: "{{ molecule_stale_pid_file }}"
+        content: "{{ molecule_stale_manager.status.MainPID }}\n"
+        mode: "0600"

@@ -1,0 +1,52 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Read the state of dc@scanopy
+      ansible.builtin.systemd:
+        name: dc@scanopy
+        scope: user
+      register: decommission_unit
+
+    - name: Assert dc@scanopy is stopped and disabled
+      ansible.builtin.assert:
+        that:
+          - decommission_unit.status.ActiveState == 'inactive'
+          - decommission_unit.status.UnitFileState != 'enabled'
+        fail_msg: >-
+          dc@scanopy : {{ decommission_unit.status.UnitFileState }} /
+          {{ decommission_unit.status.ActiveState }}
+
+    - name: Stat what the decommissioning removes or keeps
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ docker_base_path }}/scanopy"
+        - "{{ borgmatic_config_dir }}/scanopy.yaml"
+        - "{{ docker_base_path }}"
+        - "{{ borgmatic_config_dir }}"
+        - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
+      register: decommission_paths
+
+    # Données et configuration borgmatic de scanopy supprimées ; le dossier
+    # des applications, celui de borgmatic et le modèle dc@ restent.
+    - name: Assert only the scanopy data and borgmatic configuration are gone
+      ansible.builtin.assert:
+        that:
+          - not decommission_paths.results[0].stat.exists
+          - not decommission_paths.results[1].stat.exists
+          - decommission_paths.results[2].stat.isdir
+          - decommission_paths.results[3].stat.isdir
+          - decommission_paths.results[4].stat.exists
+        fail_msg: >-
+          {{ decommission_paths.results | map(attribute='item') | zip(decommission_paths.results
+             | map(attribute='stat.exists')) | list }}
+
+    # La voisine n'est pas touchée.
+    - name: Verify that echo is still deployed
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: echo

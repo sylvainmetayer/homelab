@@ -1,0 +1,100 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    scanopy_path: "{{ docker_base_path }}/scanopy"
+  tasks:
+    - name: Verify the scanopy deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: scanopy
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/scanopy.yaml"
+
+    - name: Stat the scanopy environment file
+      ansible.builtin.stat:
+        path: "{{ scanopy_path }}/.env"
+      register: scanopy_env_stat
+
+    # Il porte le mot de passe de la base.
+    - name: Assert the scanopy environment file is private
+      ansible.builtin.assert:
+        that:
+          - scanopy_env_stat.stat.exists
+          - scanopy_env_stat.stat.mode == '0600'
+          - scanopy_env_stat.stat.pw_name == ansible_facts['user_id']
+
+    - name: Read the scanopy files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ scanopy_path }}/.env"
+        - "{{ scanopy_path }}/compose.yaml"
+        - "{{ borgmatic_config_dir }}/scanopy.yaml"
+      register: scanopy_files
+
+    - name: Parse the scanopy files
+      ansible.builtin.set_fact:
+        scanopy_env: >-
+          {{ dict((scanopy_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        scanopy_compose: "{{ scanopy_files.results[1].content | b64decode | from_yaml }}"
+        scanopy_borgmatic: "{{ scanopy_files.results[2].content | b64decode | from_yaml }}"
+
+    - name: Assert the scanopy environment is complete
+      ansible.builtin.assert:
+        that:
+          - scanopy_env.POSTGRES_PASSWORD is match('^[0-9a-f]{64}$')
+          - scanopy_env.SCANOPY_PUBLIC_URL == 'https://scan.sylvain.cloud'
+          - scanopy_env.SCANOPY_LOG_LEVEL == 'info'
+        fail_msg: "Environnement scanopy incomplet : {{ scanopy_env.keys() | list }}"
+
+    # Le serveur seul est publié par Pangolin ; le démon scanne depuis le
+    # réseau de l'hôte, la base reste interne.
+    - name: Assert only the server joins the newt network
+      ansible.builtin.assert:
+        that:
+          - scanopy_compose.networks.newt.external
+          - scanopy_newt_services == ['scanopy-server']
+          - scanopy_compose.services['scanopy-daemon'].network_mode == 'host'
+          - scanopy_compose.services['scanopy-server'].environment.SCANOPY_DATABASE_URL is search('@' ~ scanopy_db_container ~ ':')
+        fail_msg: "Services sur newt : {{ scanopy_newt_services }}"
+      vars:
+        scanopy_db_container: "{{ scanopy_compose.services['scanopy-postgres'].container_name }}"
+        scanopy_newt_services: >-
+          {{ scanopy_compose.services | dict2items
+             | selectattr('value.networks', 'defined')
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    # Doctrine (AGENTS.md) : mem_limit partout, mem_reservation sur la base.
+    - name: Assert the scanopy resource limits follow the doctrine
+      ansible.builtin.assert:
+        that:
+          - scanopy_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
+          - scanopy_compose.services['scanopy-postgres'].mem_reservation is defined
+          - scanopy_compose.services['scanopy-postgres'].cpus is not defined
+        fail_msg: Limites de ressources de scanopy hors doctrine (cf. AGENTS.md)
+
+    - name: Assert the scanopy backup is wired
+      ansible.builtin.assert:
+        that:
+          - scanopy_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/molecule-scanopy'
+          - scanopy_borgmatic.repositories[0].path is search('/scanopy$')
+          - scanopy_borgmatic.encryption_passphrase == backup_passphrase
+          - scanopy_borgmatic.archive_name_format is match('scanopy-')
+
+    - name: Stat the scanopy backup sources
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ scanopy_borgmatic.source_directories }}"
+      register: scanopy_sources
+
+    - name: Assert every scanopy backup source exists
+      ansible.builtin.assert:
+        that:
+          - scanopy_sources.results | rejectattr('stat.exists') | list | length == 0
+        fail_msg: "Sources absentes : {{ scanopy_sources.results | rejectattr('stat.exists') | map(attribute='item') | list }}"

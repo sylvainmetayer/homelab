@@ -1,0 +1,4 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: paperless_ngx

@@ -1,0 +1,104 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    paperless_path: "{{ docker_base_path }}/paperless"
+  tasks:
+    - name: Verify the paperless deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: paperless
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/paperless.yaml"
+
+    - name: Read the paperless compose file
+      ansible.builtin.slurp:
+        src: "{{ paperless_path }}/compose.yaml"
+      register: paperless_compose_raw
+
+    - name: Read the paperless borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ borgmatic_config_dir }}/paperless.yaml"
+      register: paperless_borgmatic_raw
+
+    - name: Stat the paperless borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/paperless.yaml"
+      register: paperless_borgmatic_stat
+
+    - name: Parse the paperless configurations
+      ansible.builtin.set_fact:
+        paperless_compose: "{{ paperless_compose_raw.content | b64decode | from_yaml }}"
+        paperless_borgmatic: "{{ paperless_borgmatic_raw.content | b64decode | from_yaml }}"
+
+    # Seul le serveur web est joignable par Pangolin ; la base, redis, tika et
+    # gotenberg restent sur le réseau interne (cf. AGENTS.md).
+    - name: Assert only the webserver joins the newt network
+      ansible.builtin.assert:
+        that:
+          - paperless_compose.networks.newt.external
+          - paperless_newt_services == ['webserver']
+        fail_msg: "Services sur newt : {{ paperless_newt_services }}"
+      vars:
+        paperless_newt_services: >-
+          {{ paperless_compose.services | dict2items
+             | selectattr('value.networks', 'defined')
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    # Doctrine de ressources (AGENTS.md) : mem_limit partout, mem_reservation
+    # sur la base, pas de quota CPU sur la base ni redis, quota sur l'OCR.
+    - name: Assert the paperless resource limits follow the doctrine
+      ansible.builtin.assert:
+        that:
+          - paperless_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
+          - paperless_compose.services.db.mem_reservation is defined
+          - paperless_compose.services.db.cpus is not defined
+          - paperless_compose.services.broker.cpus is not defined
+          - paperless_compose.services.webserver.cpus is defined
+          - paperless_compose.services.webserver.cpu_shares is defined
+        fail_msg: Limites de ressources de paperless hors doctrine (cf. AGENTS.md)
+
+    - name: Assert the webserver gets its identity from the host
+      ansible.builtin.assert:
+        that:
+          - paperless_compose.services.webserver.environment.PAPERLESS_URL == 'https://papiers.sylvain.cloud'
+          - paperless_compose.services.webserver.environment.PUID | string == ansible_facts['user_uid'] | string
+          - paperless_compose.services.webserver.environment.PAPERLESS_DBPASS == paperless_db_password
+          - paperless_compose.services.db.environment.POSTGRES_PASSWORD == paperless_db_password
+
+    - name: Assert the paperless borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - paperless_borgmatic_stat.stat.pw_name == 'root'
+          - paperless_borgmatic_stat.stat.mode == '0600'
+
+    # Le dump doit viser le conteneur de la base du compose, avec ses identifiants.
+    - name: Assert borgmatic dumps the paperless database container
+      ansible.builtin.assert:
+        that:
+          - paperless_borgmatic.postgresql_databases[0].container == paperless_compose.services.db.container_name
+          - paperless_borgmatic.postgresql_databases[0].password == paperless_db_password
+          - paperless_borgmatic.repositories[0].path == paperless_expected_repository
+          - paperless_borgmatic.encryption_passphrase == backup_passphrase
+          - paperless_borgmatic.archive_name_format is match('paperless-')
+        fail_msg: "Configuration borgmatic de paperless incohérente : {{ paperless_borgmatic.repositories }}"
+      vars:
+        paperless_expected_repository: >-
+          ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/paperless
+
+    - name: Stat the paperless backup sources
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ paperless_borgmatic.source_directories }}"
+      register: paperless_sources
+
+    - name: Assert every paperless backup source exists
+      ansible.builtin.assert:
+        that:
+          - paperless_sources.results | rejectattr('stat.exists') | list | length == 0
+        fail_msg: "Sources absentes : {{ paperless_sources.results | rejectattr('stat.exists') | map(attribute='item') | list }}"

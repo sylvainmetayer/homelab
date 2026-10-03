@@ -1,0 +1,12 @@
+---
+# Comme docker.yml. Celui-ci ne charge pas d'URL de healthcheck de backup pour
+# paperless (paperless_backup_healthcheck_url reste au défaut '') : reproduit tel quel.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  roles:
+    - role: docker_service
+    - role: paperless_ngx

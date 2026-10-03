@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Teste le cas réel de host_vars/docker : gramps_enabled: false (service
+# arrêté, compose, données et backup conservés).
+scenario:
+  name: gramps

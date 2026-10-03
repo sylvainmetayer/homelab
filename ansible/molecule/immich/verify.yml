@@ -1,0 +1,89 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    immich_path: "{{ docker_base_path }}/immich"
+  tasks:
+    - name: Verify the immich deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: immich
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/immich.yaml"
+
+    - name: Stat the immich files
+      ansible.builtin.stat:
+        path: "{{ immich_path }}/{{ item }}"
+      loop:
+        - compose.yaml
+        - .env
+        - library
+      register: immich_stats
+
+    # compose et .env portent le mot de passe de la base et la clé d'API du
+    # timelapse : pas lisibles par les autres. library appartient à root, comme
+    # les fichiers qu'immich_server y écrit.
+    - name: Assert the immich files have the expected owners and modes
+      ansible.builtin.assert:
+        that:
+          - immich_stats.results[0].stat.mode == '0640'
+          - immich_stats.results[1].stat.mode == '0640'
+          - immich_stats.results[1].stat.pw_name == ansible_facts['user_id']
+          - immich_stats.results[2].stat.isdir
+          - immich_stats.results[2].stat.pw_name == 'root'
+        fail_msg: "{{ immich_stats.results | map(attribute='stat') | map(attribute='mode', default='absent') | list }}"
+
+    - name: Read the immich files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ immich_path }}/.env"
+        - "{{ immich_path }}/compose.yaml"
+        - "{{ borgmatic_config_dir }}/immich.yaml"
+      register: immich_files
+
+    - name: Parse the immich files
+      ansible.builtin.set_fact:
+        immich_env: >-
+          {{ dict((immich_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        immich_compose: "{{ immich_files.results[1].content | b64decode | from_yaml }}"
+        immich_borgmatic: "{{ immich_files.results[2].content | b64decode | from_yaml }}"
+
+    - name: Assert the immich wiring comes from host_vars/pi and the secrets
+      ansible.builtin.assert:
+        that:
+          - immich_env.DB_PASSWORD == immich_db_password
+          - immich_env.UPLOAD_LOCATION == './library'
+          - ('IMMICH_BASE_URL=https://photos.sylvain.cloud') in immich_timelapse_env
+          - ('IMMICH_API_KEY=' ~ immich_timelapse_api_key) in immich_timelapse_env
+      vars:
+        immich_timelapse_env: "{{ immich_compose.services['immich-selfie-timelapse'].environment }}"
+
+    # Le dump borgmatic doit viser la base du compose avec les identifiants du .env.
+    - name: Assert borgmatic dumps the immich database
+      ansible.builtin.assert:
+        that:
+          - immich_db.container == immich_compose.services.database.container_name
+          - immich_db.name == immich_env.DB_DATABASE_NAME
+          - immich_db.username == immich_env.DB_USERNAME
+          - immich_db.password == immich_env.DB_PASSWORD
+          - (immich_path ~ '/library') in immich_borgmatic.source_directories
+          - immich_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/molecule-immich'
+          - immich_borgmatic.repositories[0].path is search('/immich$')
+          - immich_borgmatic.encryption_passphrase == backup_passphrase
+          - immich_borgmatic.archive_name_format is match('immich-')
+      vars:
+        immich_db: "{{ immich_borgmatic.postgresql_databases[0] }}"
+
+    - name: Assert the database and redis stay off the newt network
+      ansible.builtin.assert:
+        that:
+          - immich_compose.networks.newt.external
+          - "'newt' in immich_compose.services['immich-server'].networks"
+          - "'newt' not in immich_compose.services.database.networks"
+          - "'newt' not in immich_compose.services.redis.networks"
+          - "'newt' not in immich_compose.services['immich-machine-learning'].networks"
