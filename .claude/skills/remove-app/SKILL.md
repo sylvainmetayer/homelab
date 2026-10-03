@@ -65,6 +65,12 @@ one generic role reused for every future removal.
 rm -rf ansible/roles/<service>
 ```
 
+## 2b. Delete the Molecule scenario
+
+`rm -r ansible/molecule/<service>/` (CI would otherwise keep testing a role
+that no longer exists), and remove the app's keys from
+`ansible/molecule/_shared/vars/fake_secrets.yml` along with its secrets.
+
 ## 3. Deregister from the playbook(s)
 
 In `ansible/docker.yml` (and/or `ansible/pi.yml`, whichever the app was on):
