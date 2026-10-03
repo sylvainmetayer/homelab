@@ -13,7 +13,11 @@
   become: true
   ansible.builtin.command: pipx ensurepath
   register: borgmatic_pipx_ensurepath
-  changed_when: "'already in PATH' not in borgmatic_pipx_ensurepath.stdout"
+  # Sous sudo, PATH vaut secure_path : pipx ne dit jamais "already in PATH",
+  # mais "has been been added to PATH, but you need to open a new terminal"
+  # une fois le PATH écrit dans les fichiers du shell. Seul "Success! Added"
+  # signale une écriture.
+  changed_when: "'Success! Added' in borgmatic_pipx_ensurepath.stdout"
 
 - name: Ensure /root/.local/bin is in PATH for root
   become: true
