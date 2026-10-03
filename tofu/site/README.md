@@ -55,7 +55,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 4 : pas de coupure.
    mise exec -- tofu -chdir=tofu/site apply
    ```
 
-7. **Netlify** : supprimer le site Netlify et le secret `netlify_webhook` du dépôt `site`.
+7. **Netlify** : supprimer le site Netlify, le secret `netlify_webhook` et le `netlify.toml` de transition du dépôt `site` (gardé jusque-là pour que Netlify continue de construire et de servir l'apex).
 8. **Sveltia CMS** : plus de fournisseur OAuth Netlify. Créer un fine-grained PAT limité au dépôt `site` (*Contents: Read and write*, *Pull requests: Read and write* pour le workflow éditorial) et utiliser « Sign In Using Access Token ».
 
 ## Vérifications
