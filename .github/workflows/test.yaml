@@ -126,8 +126,16 @@ jobs:
 
       # Providers mockés (mock_provider) et data sources surchargées
       # (override_data) : ni backend, ni credentials, ni secrets SOPS.
+      # Même remède que Galaxy : la matrice interroge le registre OpenTofu en
+      # même temps et une connexion coupée ne doit pas faire échouer le job.
       - name: Init without backend
-        run: tofu -chdir="${{ matrix.module }}" init -backend=false -input=false
+        run: |
+          for attempt in 1 2 3; do
+            tofu -chdir="${{ matrix.module }}" init -backend=false -input=false && exit 0
+            echo "tofu init failed (attempt $attempt), retrying in $((attempt * 10))s"
+            sleep $((attempt * 10))
+          done
+          exit 1
 
       - name: Run tofu test
         run: tofu -chdir="${{ matrix.module }}" test -no-color
