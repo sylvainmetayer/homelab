@@ -1,0 +1,11 @@
+---
+# Comme dans flip.yml (et docker.yml, pangolin.yaml, pi.yml) : le rôle sans
+# become au niveau du playbook, chaque tâche le demande elle-même.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  roles:
+    - role: borgmatic

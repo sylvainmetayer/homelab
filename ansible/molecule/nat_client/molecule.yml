@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml simule l'interface du réseau privé Hetzner et la résolution
+# d'Internet, absents d'un conteneur (cf. prepare.yml).
+scenario:
+  name: nat_client
+ansible:
+  playbooks:
+    prepare: prepare.yml

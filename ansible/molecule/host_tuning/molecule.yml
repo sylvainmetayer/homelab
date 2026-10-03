@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml remplace le device zram, impossible dans un conteneur, par un
+# faux zramswap qui garde intact le chemin du rôle (cf. prepare.yml).
+scenario:
+  name: host_tuning
+ansible:
+  playbooks:
+    prepare: prepare.yml

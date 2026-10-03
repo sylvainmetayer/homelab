@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le prepare commun suffit : réseau newt (dont le rôle lit le sous-réseau),
+# unités dc@ neutralisées et bouchon borgmatic.
+scenario:
+  name: flip_planning

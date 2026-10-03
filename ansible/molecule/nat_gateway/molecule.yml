@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml : celui du scénario security (le rôle s'applique après lui dans
+# pangolin.yaml, sa règle de forward est une règle ufw), plus une interface
+# factice pour le réseau privé Hetzner.
+scenario:
+  name: nat_gateway
+ansible:
+  playbooks:
+    prepare: prepare.yml

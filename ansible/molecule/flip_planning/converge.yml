@@ -1,0 +1,50 @@
+---
+# Reproduit flip.yml pour Flip Planning : le rôle appliqué deux fois sur le
+# même hôte, production puis démo, avec les paramètres de rôle du playbook
+# (recopiés tels quels). La troisième instance (demo_planning_kc, banc de test
+# temporaire) n'est pas reprise.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  pre_tasks:
+    # flip.yml les lit dans le state de tofu/pangolin_config et les pose par
+    # set_fact : même précédence ici, sous les mêmes noms. Jamais
+    # flip_planning_backup_healthcheck_url lui-même (cf. flip.yml).
+    - name: Load fake healthcheck URLs in place of the Terraform state outputs
+      ansible.builtin.set_fact:
+        prod_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
+        demo_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
+  roles:
+    - role: docker_service
+    - role: flip_planning
+      vars:
+        flip_planning_branding_logo: flip/flip.png
+        flip_planning_branding_pdf_logo: flip/flip-logo.png
+        flip_planning_branding_pdf_strip: flip/flip-strip.png
+        flip_planning_branding_mascot: flip/flip-woopy.png
+        flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
+        flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
+    - role: flip_planning
+      vars:
+        flip_planning_service: demo_planning
+        flip_planning_container_prefix: demo-planning
+        flip_planning_domain: demo-planning.sylvain.dev
+        flip_planning_image: "{{ flip_planning_image_main }}"
+        flip_planning_sentry_environment: demo
+        flip_planning_branding_product_name: "Flip Planning — Démo"
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_db_password: "{{ demo_planning_db_password }}"
+        flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
+        flip_planning_admin_password: "{{ demo_planning_admin_password }}"
+        flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
+        flip_planning_mcp_pangolin_access_token_id: "{{ demo_planning_mcp_pangolin_access_token_id }}"
+        flip_planning_mcp_pangolin_access_token: "{{ demo_planning_mcp_pangolin_access_token }}"
+        flip_planning_backup_enabled: "{{ demo_planning_backup_enabled }}"
+        flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
+        flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
+        flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"

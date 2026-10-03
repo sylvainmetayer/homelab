@@ -1,0 +1,109 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/security/defaults/main.yml
+    - ../../host_vars/pangolin/variables.yaml
+  tasks:
+    # --- sshd : la configuration effective, pas seulement le fichier ---
+
+    - name: Dump the effective sshd configuration
+      become: true
+      ansible.builtin.command: sshd -T
+      register: security_sshd_effective
+      changed_when: false
+
+    - name: Assert sshd runs with the hardened settings
+      ansible.builtin.assert:
+        that:
+          - security_sshd_effective.stdout_lines is contains('passwordauthentication no')
+          - security_sshd_effective.stdout_lines is contains('permitrootlogin no')
+          - security_sshd_effective.stdout_lines is contains('permitemptypasswords no')
+          - security_sshd_effective.stdout_lines is contains('x11forwarding no')
+          - security_sshd_effective.stdout_lines is contains('maxauthtries 3')
+          # Pangolin sert de bastion (ProxyJump) vers flip : forward local seulement.
+          - security_sshd_effective.stdout_lines is contains('allowtcpforwarding ' ~ security_ssh_allow_tcp_forwarding)
+        fail_msg: >-
+          sshd -T : {{ security_sshd_effective.stdout_lines
+                       | select('match', '^(passwordauthentication|permitrootlogin|allowtcpforwarding|maxauthtries) ') | list }}
+
+    - name: Read the state of sshd
+      ansible.builtin.systemd:
+        name: ssh
+      register: security_sshd_unit
+
+    - name: Assert sshd survived the reload
+      ansible.builtin.assert:
+        that:
+          - security_sshd_unit.status.ActiveState == 'active'
+
+    # --- ufw ---
+
+    - name: Read the ufw status
+      become: true
+      ansible.builtin.command: ufw status verbose
+      register: security_ufw_status
+      changed_when: false
+
+    - name: Assert ufw is active and denies incoming traffic by default
+      ansible.builtin.assert:
+        that:
+          - >-
+            security_ufw_status.stdout is search('^Status: active$', multiline=True)
+          - >-
+            security_ufw_status.stdout is search('^Default: deny \(incoming\), allow \(outgoing\)', multiline=True)
+        fail_msg: "{{ security_ufw_status.stdout }}"
+
+    - name: Assert every allowed port is open in ufw
+      ansible.builtin.assert:
+        that:
+          - security_ufw_status.stdout is search('^' ~ item.port ~ '/' ~ item.proto ~ '\s+ALLOW IN\s+Anywhere\s*$', multiline=True)
+        fail_msg: "{{ item.port }}/{{ item.proto }} absent de : {{ security_ufw_status.stdout }}"
+      loop: "{{ security_ufw_allowed_ports }}"
+      loop_control:
+        label: "{{ item.port }}/{{ item.proto }}"
+
+    # --- services de sécurité (activés, démarrés au prochain boot) ---
+
+    - name: Read the state of the security services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: security_services
+      loop:
+        - fail2ban
+        - auditd
+        - ufw
+
+    - name: Assert the security services are enabled
+      ansible.builtin.assert:
+        that:
+          - item.status.UnitFileState == 'enabled'
+        fail_msg: "{{ item.item }} : {{ item.status.UnitFileState }}"
+      loop: "{{ security_services.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # --- fichiers de configuration ---
+
+    - name: Read the security configuration files
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: security_files
+      loop:
+        - /etc/fail2ban/jail.local
+        - /etc/sysctl.d/99-hardening.conf
+        - /etc/apt/apt.conf.d/50unattended-upgrades
+
+    - name: Assert the configuration files carry the hardening
+      vars:
+        jail_local: "{{ security_files.results[0].content | b64decode }}"
+        sysctl_hardening: "{{ security_files.results[1].content | b64decode }}"
+        unattended_upgrades: "{{ security_files.results[2].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - jail_local is search('^\[sshd\]\nenabled = true$', multiline=True)
+          - sysctl_hardening is search('^fs\.suid_dumpable = 0$', multiline=True)
+          - sysctl_hardening is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+          # Seulement les mises à jour de sécurité, sans redémarrage automatique.
+          - unattended_upgrades is search('"\$\{distro_id\}:\$\{distro_codename\}-security";')
+          - unattended_upgrades is search('Automatic-Reboot "false"')

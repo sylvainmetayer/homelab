@@ -1,0 +1,12 @@
+---
+# Comme dans pangolin.yaml (le plus complet : ports UDP, bastion SSH) et
+# flip.yml : rôle appliqué avec become au niveau du playbook.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+  roles:
+    - role: security
+      become: true

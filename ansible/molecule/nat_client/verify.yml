@@ -1,0 +1,81 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/nat_client/defaults/main.yml
+  tasks:
+    - name: Read the state of nat-client-watchdog
+      ansible.builtin.systemd:
+        name: nat-client-watchdog
+      register: nat_client_watchdog_unit
+
+    - name: Assert the watchdog is enabled and running
+      ansible.builtin.assert:
+        that:
+          - nat_client_watchdog_unit.status.UnitFileState == 'enabled'
+          - nat_client_watchdog_unit.status.ActiveState == 'active'
+        fail_msg: "nat-client-watchdog : {{ nat_client_watchdog_unit.status.UnitFileState }} / {{ nat_client_watchdog_unit.status.ActiveState }}"
+
+    - name: Stat the watchdog files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      register: nat_client_files
+      loop:
+        - { path: /usr/local/sbin/nat-client-watchdog, mode: "0750" }
+        - { path: /etc/systemd/system/nat-client-watchdog.service, mode: "0640" }
+
+    - name: Assert the watchdog files belong to root with restricted modes
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == item.item.mode
+        fail_msg: "{{ item.item.path }} : {{ item.stat.mode | default('absent') }} (attendu {{ item.item.mode }})"
+      loop: "{{ nat_client_files.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    # Le travail du watchdog : la route par défaut passe par la passerelle du
+    # réseau privé (l'interface factice du prepare).
+    - name: Read the default route
+      ansible.builtin.command: ip -4 route show default
+      register: nat_client_default_route
+      changed_when: false
+
+    - name: Assert the default route goes through the private network gateway
+      ansible.builtin.assert:
+        that:
+          - nat_client_default_route.stdout_lines | length == 1
+          - ('default via ' ~ nat_client_gateway ~ ' dev enp7s0') in nat_client_default_route.stdout
+        fail_msg: "Route par défaut : {{ nat_client_default_route.stdout }}"
+
+    # /etc/resolv.conf du conteneur est un fichier ordinaire (pas un lien vers
+    # systemd-resolved) : c'est la branche « référence + watchdog » du rôle.
+    - name: Read the reference and live resolv.conf
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: nat_client_resolv
+      loop:
+        - /etc/nat-client/resolv.conf
+        - /etc/resolv.conf
+
+    - name: Assert the watchdog restored resolv.conf from the reference
+      vars:
+        reference: "{{ nat_client_resolv.results[0].content | b64decode }}"
+        live: "{{ nat_client_resolv.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - live == reference
+          - reference | regex_findall('^nameserver (\S+)$', multiline=True) == nat_client_dns_servers
+        fail_msg: "/etc/resolv.conf : {{ live }}"
+
+    - name: Stat the systemd-resolved drop-in
+      ansible.builtin.stat:
+        path: /etc/systemd/resolved.conf.d/50-nat.conf
+      register: nat_client_resolved_dropin
+
+    - name: Assert systemd-resolved was left alone
+      ansible.builtin.assert:
+        that:
+          - not nat_client_resolved_dropin.stat.exists

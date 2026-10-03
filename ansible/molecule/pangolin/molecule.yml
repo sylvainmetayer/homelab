@@ -1,0 +1,8 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml neutralise pangolin.service et le téléchargement GeoLite.
+scenario:
+  name: pangolin
+ansible:
+  playbooks:
+    prepare: prepare.yml

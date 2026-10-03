@@ -1,0 +1,61 @@
+---
+# pangolin.service lance la vraie pile (pull des images Pangolin, Gerbil et
+# Traefik, ports 80/443/51820, Gerbil avec NET_ADMIN et SYS_MODULE) : comme les
+# unités dc@ du prepare commun, il ne fait ici que valider le compose templaté.
+# La base GeoLite2 est déposée d'avance, comme sur une machine déjà déployée :
+# get_url ne retélécharge pas un fichier présent, et le scénario ne dépend pas
+# de git.io.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Neutralise the Pangolin stack
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    pangolin_molecule_dir: /opt/pangolin
+  tasks:
+    - name: Ensure the pangolin.service drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/pangolin.service.d
+        state: directory
+        mode: "0700"
+
+    # Unité oneshot + RemainAfterExit : elle reste active après un ExecStart
+    # qui ne fait rien.
+    - name: Neutralise docker compose pull/up in pangolin.service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/pangolin.service.d/molecule.conf
+        mode: "0600"
+        content: |
+          # Molecule : pas d'image tirée ni de conteneur lancé. L'unité échoue
+          # si le compose templaté est invalide.
+          [Service]
+          ExecStartPre=
+          ExecStartPre=/usr/bin/docker compose config --quiet
+          ExecStart=
+          ExecStart=/bin/true
+          ExecStop=
+          ExecReload=
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    # Mêmes propriétaires et modes que ceux que pose le rôle (idempotence).
+    - name: Create the Pangolin configuration directory
+      ansible.builtin.file:
+        path: "{{ pangolin_molecule_dir }}/config"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Provide a placeholder GeoLite2 database
+      ansible.builtin.copy:
+        dest: "{{ pangolin_molecule_dir }}/config/GeoLite2-Country.mmdb"
+        content: "molecule: base GeoLite2 factice\n"
+        owner: root
+        group: root
+        mode: "0644"
+        force: false

@@ -1,0 +1,97 @@
+---
+# zram est un module du noyau, et le noyau d'un conteneur est celui de l'hôte :
+# charger, retailler ou désactiver un swap zram depuis ici toucherait le runner
+# CI (le conteneur est privilégié). On garde donc tout le chemin du rôle
+# (paquet, template, lecture de la taille live, handler de retaille, service)
+# en ne simulant que le noyau :
+#   - /sys/block est recouvert, dans le seul espace de montage du conteneur,
+#     par un tmpfs qui reprend les entrées réelles sauf zram* : le
+#     /sys/block/zram0 qu'y crée le faux service est un simple fichier ;
+#   - zramswap.service exécute un faux zramswap qui écrit dans disksize la
+#     taille demandée par /etc/default/zramswap, comme le vrai sur un device ;
+#   - modprobe est neutralisé et /dev/zram* retiré du /dev du conteneur, pour
+#     que le handler ne puisse ni décharger un module ni désactiver un swap de
+#     l'hôte.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Simulate the zram kernel device
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Hide the host zram devices from the container /dev
+      ansible.builtin.shell: |
+        set -eu
+        found=0
+        for dev in /dev/zram*; do
+          [ -e "$dev" ] || continue
+          rm -f "$dev"
+          found=1
+        done
+        echo "$found"
+      register: host_tuning_zram_devs
+      changed_when: host_tuning_zram_devs.stdout == '1'
+
+    - name: Neutralise modprobe for root
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/modprobe
+        mode: "0700"
+        content: |
+          #!/bin/sh
+          # Molecule : aucun module du noyau de l'hôte chargé ou déchargé d'ici.
+          echo "molecule: modprobe $* ignoré" >&2
+          exit 0
+
+    - name: Shadow /sys/block with a tmpfs in the container mount namespace
+      ansible.builtin.shell: |
+        set -eu
+        if mountpoint -q /sys/block; then
+          echo unchanged
+          exit 0
+        fi
+        stage=$(mktemp -d /var/tmp/molecule-sys-block.XXXXXX)
+        for entry in /sys/block/*; do
+          case "$(basename "$entry")" in
+            zram*) ;;
+            *) cp -P "$entry" "$stage/" ;;
+          esac
+        done
+        mount -t tmpfs -o mode=0755 molecule-sys-block /sys/block
+        find "$stage" -mindepth 1 -maxdepth 1 -exec cp -P {} /sys/block/ \;
+        rm -rf "$stage"
+      register: host_tuning_sys_block
+      changed_when: host_tuning_sys_block.stdout != 'unchanged'
+
+    - name: Install the fake zramswap
+      ansible.builtin.copy:
+        src: molecule-zramswap.sh
+        dest: /usr/local/sbin/molecule-zramswap
+        mode: "0700"
+
+    - name: Ensure the zramswap drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/zramswap.service.d
+        state: directory
+        mode: "0700"
+
+    # Posé avant l'installation du paquet : son postinst démarre déjà le service.
+    - name: Point zramswap.service at the fake zramswap
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/zramswap.service.d/molecule.conf
+        mode: "0600"
+        content: |
+          # Molecule : pas de vrai device zram (cf. prepare.yml du scénario).
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=
+          ExecStart=/usr/local/sbin/molecule-zramswap start
+          ExecStop=
+          ExecStop=/usr/local/sbin/molecule-zramswap stop
+          ExecReload=
+          ExecReload=/usr/local/sbin/molecule-zramswap start
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true

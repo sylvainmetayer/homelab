@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml ajoute ce que le rôle trouve sur un vrai hôte (sshd en marche)
+# et protège les sysctls globaux du noyau de l'hôte.
+scenario:
+  name: security
+ansible:
+  playbooks:
+    prepare: prepare.yml

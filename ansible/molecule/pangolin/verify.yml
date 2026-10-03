@@ -1,0 +1,125 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/pangolin/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+  tasks:
+    # --- la pile ---
+
+    - name: Read the state of pangolin.service
+      ansible.builtin.systemd:
+        name: pangolin
+      register: pangolin_unit
+
+    # Démarrée = son ExecStartPre (docker compose config, cf. prepare.yml) a
+    # validé le compose templaté.
+    - name: Assert pangolin.service is enabled and started
+      ansible.builtin.assert:
+        that:
+          - pangolin_unit.status.UnitFileState == 'enabled'
+          - pangolin_unit.status.ActiveState == 'active'
+        fail_msg: "pangolin : {{ pangolin_unit.status.UnitFileState }} / {{ pangolin_unit.status.ActiveState }}"
+
+    - name: Render the compose model of Pangolin
+      become: true
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ pangolin_dir }}"
+      register: pangolin_compose_raw
+      changed_when: false
+
+    - name: Assert Traefik shares Gerbil's network namespace
+      vars:
+        pangolin_compose: "{{ pangolin_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_compose.name == 'pangolin'
+          - pangolin_compose.services.keys() | sort == ['gerbil', 'pangolin', 'traefik']
+          - pangolin_compose.services.traefik.network_mode == 'service:gerbil'
+
+    # --- configuration Pangolin (porte le secret serveur) ---
+
+    - name: Stat the Pangolin configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ pangolin_dir }}/config/config.yml"
+      register: pangolin_config_stat
+
+    - name: Assert the Pangolin configuration is private to root
+      ansible.builtin.assert:
+        that:
+          - pangolin_config_stat.stat.exists
+          - pangolin_config_stat.stat.mode == '0600'
+          - pangolin_config_stat.stat.pw_name == 'root'
+
+    - name: Read the Pangolin configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ pangolin_dir }}/config/config.yml"
+      register: pangolin_config_raw
+
+    - name: Assert the Pangolin configuration comes from host_vars and secrets
+      vars:
+        pangolin_config: "{{ pangolin_config_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_config.server.secret == pangolin_server_secret
+          - pangolin_config.app.dashboard_url == 'https://' ~ pangolin_dashboard_url
+          - pangolin_config.domains.domain1.base_domain == pangolin_base_domain
+          - pangolin_config.email.smtp_user == pangolin_smtp_user
+          - pangolin_config.email.smtp_pass == pangolin_smtp_pass
+          - pangolin_config.server.maxmind_db_path == './config/GeoLite2-Country.mmdb'
+          - pangolin_config.flags.disable_signup_without_invite
+
+    # --- Traefik ---
+
+    - name: Read the Traefik configurations
+      ansible.builtin.slurp:
+        src: "{{ pangolin_dir }}/config/traefik/{{ item }}"
+      register: pangolin_traefik
+      loop:
+        - traefik_config.yml
+        - dynamic_config.yml
+
+    - name: Assert Traefik routes the dashboard and the integration API
+      vars:
+        traefik_config: "{{ pangolin_traefik.results[0].content | b64decode | from_yaml }}"
+        dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - traefik_config.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
+          - dynamic_config.http.routers['next-router'].rule is search('Host\(`' ~ (pangolin_dashboard_url | regex_escape) ~ '`\)')
+          - dynamic_config.http.routers['int-api-router'].rule == 'Host(`' ~ pangolin_api_url ~ '`)'
+
+    # --- borgmatic ---
+
+    - name: Verify the borgmatic configuration of Pangolin
+      become: true
+      ansible.builtin.command: /opt/molecule-borgmatic/bin/borgmatic config validate --config {{ borgmatic_config_dir }}/pangolin.yaml
+      changed_when: false
+
+    - name: Stat the borgmatic configuration of Pangolin
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/pangolin.yaml"
+      register: pangolin_borgmatic_stat
+
+    - name: Read the borgmatic configuration of Pangolin
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ borgmatic_config_dir }}/pangolin.yaml"
+      register: pangolin_borgmatic_raw
+
+    - name: Assert the borgmatic configuration targets the Pangolin repository
+      vars:
+        borgmatic_config: "{{ pangolin_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_borgmatic_stat.stat.mode == '0600'
+          - pangolin_borgmatic_stat.stat.pw_name == 'root'
+          - borgmatic_config.repositories[0].path == pangolin_backup_borgmatic_target
+          - borgmatic_config.source_directories == [pangolin_dir ~ '/compose.yaml', pangolin_dir ~ '/config']
+          - borgmatic_config.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/pangolin_backup'

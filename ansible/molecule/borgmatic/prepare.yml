@@ -1,0 +1,13 @@
+---
+# Seulement ce qu'un vrai hôte a déjà : systemd démarré. Ni bouchon borgmatic,
+# ni Docker, ni réseau newt (cf. _shared/prepare.yml) : le rôle n'en a pas
+# besoin et doit installer le vrai borgmatic lui-même.
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Wait for systemd to finish booting
+      ansible.builtin.command: systemctl is-system-running --wait  # noqa: command-instead-of-module
+      register: borgmatic_systemd_state
+      changed_when: false
+      failed_when: borgmatic_systemd_state.stdout not in ['running', 'degraded']

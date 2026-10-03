@@ -1,0 +1,46 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather the installed packages
+      ansible.builtin.package_facts:
+
+    - name: Assert the PAM ssh-agent module is installed
+      ansible.builtin.assert:
+        that:
+          - "'libpam-ssh-agent-auth' in ansible_facts.packages"
+
+    - name: Read the sudo PAM stack
+      ansible.builtin.slurp:
+        src: /etc/pam.d/sudo
+      register: sudo_with_ssh_agent_pam
+
+    # Juste après l'en-tête, donc avant @include common-auth : une signature
+    # par l'agent SSH suffit, le mot de passe ne sert plus qu'en repli.
+    - name: Assert pam_ssh_agent_auth comes first in the sudo auth stack
+      vars:
+        pam_lines: "{{ sudo_with_ssh_agent_pam.content | b64decode | split('\n') }}"
+      ansible.builtin.assert:
+        that:
+          - pam_lines[0] == '#%PAM-1.0'
+          - pam_lines[1] == 'auth sufficient pam_ssh_agent_auth.so file=~/.ssh/authorized_keys'
+        fail_msg: "{{ pam_lines[:3] }}"
+
+    - name: Check the sudoers syntax
+      become: true
+      ansible.builtin.command: visudo -c
+      changed_when: false
+
+    # Ce que pam_ssh_agent_auth lit : le socket de l'agent doit traverser sudo.
+    - name: Run sudo with an SSH agent socket in the environment
+      ansible.builtin.command: sudo -n printenv SSH_AUTH_SOCK
+      environment:
+        SSH_AUTH_SOCK: /run/user/1000/molecule-agent.sock
+      register: sudo_with_ssh_agent_env
+      changed_when: false
+
+    - name: Assert sudo keeps SSH_AUTH_SOCK
+      ansible.builtin.assert:
+        that:
+          - sudo_with_ssh_agent_env.stdout == '/run/user/1000/molecule-agent.sock'
+        fail_msg: "SSH_AUTH_SOCK sous sudo : '{{ sudo_with_ssh_agent_env.stdout }}'"

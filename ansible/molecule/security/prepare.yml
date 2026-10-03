@@ -1,0 +1,43 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Prepare what the security role expects
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    # Présent sur tous les vrais hôtes (on y entre en SSH) ; le handler du rôle
+    # fait `sshd -t && systemctl reload ssh`.
+    - name: Install the SSH server
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+
+    - name: Start the SSH server
+      ansible.builtin.systemd:
+        name: ssh
+        state: started
+        enabled: true
+
+    # Conteneur privilégié : /proc/sys y est inscriptible, et fs.*, kernel.*
+    # et vm.* sont ceux du noyau de l'hôte (seul net.* est propre au conteneur).
+    # Le rôle ne fait qu'écrire /etc/sysctl.d/99-hardening.conf (fs.file-max,
+    # fs.suid_dumpable…) sans le charger ; s'il se mettait à le charger, ce
+    # scénario échouerait ici au lieu de baisser fs.file-max du runner CI.
+    - name: Make the host-global sysctls read-only in the container
+      ansible.builtin.shell: |
+        set -eu
+        changed=0
+        for dir in /proc/sys/fs /proc/sys/kernel /proc/sys/vm; do
+          opts=$(findmnt -n -o OPTIONS --mountpoint "$dir" || true)
+          case ",$opts," in
+            *,ro,*) continue ;;
+          esac
+          mountpoint -q "$dir" || mount --bind "$dir" "$dir"
+          mount -o remount,bind,ro "$dir"
+          changed=1
+        done
+        echo "$changed"
+      register: security_sysctl_guard
+      changed_when: security_sysctl_guard.stdout == '1'
