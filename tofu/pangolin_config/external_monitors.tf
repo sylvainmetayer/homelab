@@ -107,9 +107,30 @@ resource "uptimekuma_monitor_http" "redirect" {
   tags                       = [local.tofu_tag]
 }
 
+# Servi par Cloudflare Pages sur www depuis la migration (tofu/site).
 resource "uptimekuma_monitor_http" "blog" {
   name   = "Blog"
-  parent = uptimekuma_monitor_group.netlify.id
+  parent = uptimekuma_monitor_group.cloudflare.id
+  url    = "https://www.sylvain.dev"
+
+  interval        = 60
+  timeout         = 48
+  max_retries     = 0
+  retry_interval  = 60
+  resend_interval = 0
+  active          = true
+  method          = "GET"
+
+  domain_expiry_notification = true
+  expiry_notification        = true
+  tags                       = [local.tofu_tag]
+}
+
+# L'apex pointe vers Pangolin, dont Traefik redirige en 301 vers www
+# (pangolin_domain_redirects) : le moniteur suit la redirection.
+resource "uptimekuma_monitor_http" "blog_apex" {
+  name   = "Blog (apex)"
+  parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://sylvain.dev"
 
   interval        = 60

@@ -69,6 +69,7 @@ jobs:
             tofu/dns
             tofu/github
             tofu/s3_state
+            tofu/site
           )
 
           for module in "${modules[@]}"; do
