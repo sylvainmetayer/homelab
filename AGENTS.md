@@ -48,12 +48,28 @@ mise run ansible-lint
 mise run ansible-run       # ansible-playbook -i inventory/hosts site.yml  (NOTE: no site.yml exists — target a real playbook explicitly instead, see below)
 mise run ansible-check     # same, with --check
 
+# Tests (see "Tests" below)
+mise run molecule [role]   # Molecule scenario of one role (all when omitted); builds the test image first
+mise run tofu-test         # tofu test of every tofu/<module> that has a tests/ dir
+
 # Misc
 mise run generate_password "<plain>"   # mkpasswd sha512 for a host user password
 mise run get_state                     # dumps `tofu state pull` for the current dir to state.json
 ```
 
-There is no test/lint/build for `tofu/pangolin_config` wired into `mise.toml` — run `tofu fmt`/`validate`/`plan` manually from that directory when editing it.
+`mise run lint` only covers `tofu/pangolin` and `tofu/proxmox`; `tofu/pangolin_config` is covered by `mise run tofu-test` and by the `Lint`/`Tests` workflows.
+
+### Tests
+
+**Molecule** — one scenario per role, `ansible/molecule/<role>/` (scenario name = role name), run from `ansible/` (`molecule test -s <role>`).
+- Shared base config: `.config/molecule/config.yml` at the repo root (auto-loaded): docker driver, image `homelab-molecule:debian13` built from `ansible/molecule/_shared/Dockerfile` (Debian 13, systemd PID 1, Docker daemon, user `sylvain` with sudo — the playbooks' connection model), connection as `sylvain` with `XDG_RUNTIME_DIR` so `scope: user` tasks work.
+- Shared prepare `ansible/molecule/_shared/prepare.yml`: linger, Docker + `newt` network, a `dc@.service` drop-in that runs `docker compose config --quiet` then sleeps (no image is ever pulled), a `/root/.local/bin/borgmatic` stub that validates each config with a real borgmatic and fakes `repo-create`. A scenario needing more imports it from its own `prepare.yml`.
+- `converge.yml` loads `_shared/vars/fake_secrets.yml` (a dummy for every key of `secrets.sops.yaml` — add new keys there), `group_vars/all` and the **real** `host_vars/<host>` of the host running the role, then reproduces the playbook (roles before it, role-entry `vars:`, healthcheck `set_fact`s).
+- `verify.yml` uses `_shared/tasks/verify_app.yml` for `dc@` apps plus role-specific assertions. Idempotence must hold.
+- Never hardcode secret-looking literals in scenarios (GitGuardian fails the PR): compare against the fake-secret variables. Prefer 0700/0600 for files a prepare creates (SonarCloud).
+- A new role gets a scenario: copy `ansible/molecule/trek/`. CI discovers it automatically.
+
+**OpenTofu** — `tofu/<module>/tests/*.tftest.hcl`, run with `tofu init -backend=false && tofu test`: every provider is `mock_provider`, `sops_file` / `terraform_remote_state` / `http` data sources are `override_data`. Mostly `command = plan`; `apply` only where no `prevent_destroy` or provisioner exists. Some assertions read other repo files with `file()` (ansible inventory scripts, host_vars, playbooks) on purpose, to pin the Tofu ↔ Ansible contract. `keycloak_demo_planning_kc` cannot `init` while its `realm` module points at an unreachable planning-equipes commit.
 
 ### Running a specific Ansible playbook
 
@@ -228,6 +244,9 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 - All backends are S3-compatible object storage (`homelab-tf-state-sylvain` bucket at `https://s3.eu-west-par.io.cloud.ovh.net`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.
 
 ## CI (GitHub Actions)
+
+- `.github/workflows/lint.yaml` — `ansible-lint`, `tofu fmt -check` and `tofu validate` on every PR.
+- `.github/workflows/test.yaml` — discovers `ansible/molecule/*/molecule.yml` and `tofu/*/tests/` and runs one matrix job per Molecule scenario and per tested Tofu module (see "Tests" above).
 
 - `.github/workflows/semaphore-image.yaml` — builds/pushes `compose/semaphore/Containerfile` to GHCR (`ghcr.io/sylvainmetayer/homelab/semaphore`) on changes to that file, tagging with the Semaphore version parsed out of the `FROM` line.
 - `.github/workflows/ping.yaml` — manual (`workflow_dispatch`) connectivity test that starts an `fosrl/olm` (Pangolin's Outline-like mesh client) container on the runner, points the runner's system DNS at the OLM DNS proxy, and validates both public internet access and reachability of a private Pangolin resource (`docker-apps.internal:22`). Useful as a template if debugging OLM/Pangolin tunnel DNS issues — the key gotcha documented inline: `OVERRIDE_DNS=true` only rewrites `/etc/resolv.conf` *inside* the OLM container (different mount namespace), so the runner's own resolver must be repointed manually at `100.96.128.1`.

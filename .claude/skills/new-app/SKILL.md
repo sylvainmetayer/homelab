@@ -85,6 +85,15 @@ the encrypted blob, never commit plaintext). Remember: a variable loaded via
 `community.sops.load_vars` cannot override one already defined elsewhere —
 make sure no default under the same name exists in `group_vars`/`host_vars`.
 
+Add every new secret key to `ansible/molecule/_shared/vars/fake_secrets.yml`
+too, with a dummy value: the Molecule scenarios load it instead of SOPS.
+
+## 5b. Molecule scenario
+
+Copy `ansible/molecule/trek/` to `ansible/molecule/<service>/` and adapt it
+(scenario name, role, host_vars file, verify assertions). The `Tests` workflow
+picks it up automatically; `mise run molecule <service>` runs it locally.
+
 ## 6. Pangolin routing
 
 Delegate to the **pangolin-route** skill for `tofu/pangolin_config/roles.tf`
