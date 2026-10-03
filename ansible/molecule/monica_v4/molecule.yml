@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: monica_v4
+
+# Prepare propre : le .env de Monica, géré à la main sur l'hôte (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

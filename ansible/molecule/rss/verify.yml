@@ -1,0 +1,72 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the rss deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: rss
+        verify_app_borgmatic_config: /etc/borgmatic.d/rss.yaml
+
+    - name: Stat the rss borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/rss.yaml
+      register: rss_borgmatic_stat
+
+    # Elle contient la passphrase du dépôt borg.
+    - name: Assert the rss borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - rss_borgmatic_stat.stat.mode == '0600'
+          - rss_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/rss.yaml doit être 0600 root (passphrase borg)"
+
+    - name: Read the rss borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/rss.yaml
+      register: rss_borgmatic_raw
+
+    - name: Assert the rss backup targets its own repository and pushes to Uptime Kuma
+      vars:
+        rss_borgmatic: "{{ rss_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - rss_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/rss'
+          - rss_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - rss_borgmatic.archive_name_format is match('rss-')
+          - "'/opt/apps/rss/freshrss_data' in rss_borgmatic.source_directories"
+          - rss_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-rss-backup'
+        fail_msg: "Configuration borgmatic de rss inattendue : {{ rss_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for rss
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_rss.yaml
+      register: rss_repo_marker
+
+    - name: Assert the rss borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - rss_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour rss"
+
+    - name: Read the rss compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/rss/compose.yaml
+      register: rss_compose_raw
+
+    # Le service est mesuré collé à son plafond : la réservation protège son cache.
+    - name: Assert the rss container is on newt with its memory guarantees
+      vars:
+        rss_compose: "{{ rss_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - rss_compose.services.freshrss.container_name == 'rss'
+          - "'newt' in rss_compose.services.freshrss.networks"
+          - rss_compose.services.freshrss.mem_limit is defined
+          - rss_compose.services.freshrss.mem_reservation is defined
+        fail_msg: "Compose de rss inattendu : {{ rss_compose.services.freshrss }}"

@@ -1,0 +1,78 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the wiki deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: wiki
+        verify_app_borgmatic_config: /etc/borgmatic.d/wiki.yaml
+
+    - name: Read the wiki compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/wiki/compose.yaml
+      register: wiki_compose_raw
+
+    # BookStack et sa base partagent le mot de passe des secrets ; seule
+    # l'appli est sur newt, la base reste sur le réseau interne.
+    - name: Assert BookStack is wired to its database and only the app is on newt
+      vars:
+        wiki_compose: "{{ wiki_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - wiki_compose.services.bookstack.container_name == 'bookstack'
+          - "'newt' in wiki_compose.services.bookstack.networks"
+          - "'newt' not in wiki_compose.services.bookstack_db.networks"
+          - "'APP_URL=https://wiki.sylvain.cloud' in wiki_compose.services.bookstack.environment"
+          - "'DB_HOST=bookstack_db' in wiki_compose.services.bookstack.environment"
+          - "'DB_PASS=molecule-wiki-db-password' in wiki_compose.services.bookstack.environment"
+          - "'MYSQL_PASSWORD=molecule-wiki-db-password' in wiki_compose.services.bookstack_db.environment"
+        fail_msg: "Compose du wiki inattendu : {{ wiki_compose.services }}"
+
+    - name: Stat the wiki borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/wiki.yaml
+      register: wiki_borgmatic_stat
+
+    - name: Assert the wiki borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - wiki_borgmatic_stat.stat.mode == '0600'
+          - wiki_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/wiki.yaml doit être 0600 root (mots de passe)"
+
+    - name: Read the wiki borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/wiki.yaml
+      register: wiki_borgmatic_raw
+
+    # host_vars/docker passe la passphrase par wiki_backup_borgmatic_password
+    # (et non *_encryption_passphrase comme les autres rôles).
+    - name: Assert the wiki backup dumps the database and pushes to Uptime Kuma
+      vars:
+        wiki_borgmatic: "{{ wiki_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - wiki_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/wiki'
+          - wiki_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - wiki_borgmatic.archive_name_format is match('wiki-')
+          - wiki_borgmatic.mysql_databases[0].container == 'bookstack_db'
+          - wiki_borgmatic.mysql_databases[0].password == 'molecule-wiki-db-password'
+          - wiki_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-wiki-backup'
+        fail_msg: "Configuration borgmatic du wiki inattendue : {{ wiki_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for wiki
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_wiki.yaml
+      register: wiki_repo_marker
+
+    - name: Assert the wiki borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - wiki_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour le wiki"

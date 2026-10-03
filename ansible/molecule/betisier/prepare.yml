@@ -1,0 +1,29 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# betisier-reset.timer porte `Requires=betisier-reset.service` : le démarrer
+# (tâche « Enable and start betisier-reset timer ») lance aussitôt le reset,
+# qui arrête puis relance dc@betisier et fait un `docker exec` dans
+# betisier_db. Sans image ni conteneur, il échouerait et pourrait arrêter
+# dc@betisier au milieu du converge ou de l'idempotence. Le drop-in garde
+# l'unité et le timer du rôle tels quels mais remplace le reset par /bin/true.
+- name: Prepare betisier
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure the betisier-reset drop-in directory exists
+      ansible.builtin.file:
+        path: /home/sylvain/.config/systemd/user/betisier-reset.service.d
+        state: directory
+        mode: "0700"
+
+    - name: Neutralise the betisier reset
+      ansible.builtin.copy:
+        dest: /home/sylvain/.config/systemd/user/betisier-reset.service.d/molecule.conf
+        mode: "0600"
+        content: |
+          # Molecule : pas de conteneur betisier_db à réinitialiser.
+          [Service]
+          ExecStart=
+          ExecStart=/bin/true

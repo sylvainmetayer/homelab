@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: betisier
+
+# Prepare propre : neutralise betisier-reset.service (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

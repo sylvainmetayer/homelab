@@ -1,0 +1,102 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the meerkat_crm deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: meerkat_crm
+        verify_app_borgmatic_config: /etc/borgmatic.d/meerkat_crm.yaml
+
+    - name: Stat the Meerkat CRM environment file
+      ansible.builtin.stat:
+        path: /opt/apps/meerkat_crm/.env.docker
+      register: meerkat_crm_env
+
+    # Il porte le secret JWT et le mot de passe SMTP.
+    - name: Assert the Meerkat CRM environment file is private
+      ansible.builtin.assert:
+        that:
+          - meerkat_crm_env.stat.exists
+          - meerkat_crm_env.stat.mode == '0600'
+          - meerkat_crm_env.stat.pw_name == ansible_facts['user_id']
+        fail_msg: "/opt/apps/meerkat_crm/.env.docker doit être 0600 à {{ ansible_facts['user_id'] }}"
+
+    - name: Read the Meerkat CRM environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/meerkat_crm/.env.docker
+      register: meerkat_crm_env_raw
+
+    - name: Assert the Meerkat CRM environment carries the secrets and the public domain
+      vars:
+        meerkat_crm_env_lines: "{{ (meerkat_crm_env_raw.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'JWT_SECRET_KEY=molecule-meerkat-crm-jwt-secret' in meerkat_crm_env_lines"
+          - "'FRONTEND_URL=https://crm.sylvain.cloud' in meerkat_crm_env_lines"
+          - "\"COOKIE_DOMAIN='crm.sylvain.cloud'\" in meerkat_crm_env_lines"
+          - "'SMTP_PASSWORD=molecule-pangolin-smtp-pass' in meerkat_crm_env_lines"
+          - "'DISABLE_REGISTRATION=true' in meerkat_crm_env_lines"
+        fail_msg: "/opt/apps/meerkat_crm/.env.docker inattendu"
+
+    - name: Read the meerkat_crm compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/meerkat_crm/compose.yaml
+      register: meerkat_crm_compose_raw
+
+    # Seul le frontend (nginx qui proxifie l'API) est sur newt.
+    - name: Assert only the Meerkat CRM frontend is exposed on newt
+      vars:
+        meerkat_crm_compose: "{{ meerkat_crm_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'newt' in meerkat_crm_compose.services.frontend.networks"
+          - "'newt' not in meerkat_crm_compose.services.backend.networks"
+          - "'.env.docker' in meerkat_crm_compose.services.backend.env_file"
+        fail_msg: "Compose de meerkat_crm inattendu : {{ meerkat_crm_compose.services }}"
+
+    - name: Stat the meerkat_crm borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/meerkat_crm.yaml
+      register: meerkat_crm_borgmatic_stat
+
+    - name: Assert the meerkat_crm borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - meerkat_crm_borgmatic_stat.stat.mode == '0600'
+          - meerkat_crm_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/meerkat_crm.yaml doit être 0600 root (passphrase borg)"
+
+    - name: Read the meerkat_crm borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/meerkat_crm.yaml
+      register: meerkat_crm_borgmatic_raw
+
+    - name: Assert the meerkat_crm backup covers data and env and pushes to Uptime Kuma
+      vars:
+        meerkat_crm_borgmatic: "{{ meerkat_crm_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - meerkat_crm_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/meerkat_crm'
+          - meerkat_crm_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - meerkat_crm_borgmatic.archive_name_format is match('meerkat-crm-')
+          - "'/opt/apps/meerkat_crm/data' in meerkat_crm_borgmatic.source_directories"
+          - "'/opt/apps/meerkat_crm/.env.docker' in meerkat_crm_borgmatic.source_directories"
+          - meerkat_crm_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-meerkat-crm-backup'
+        fail_msg: "Configuration borgmatic de meerkat_crm inattendue : {{ meerkat_crm_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for meerkat_crm
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_meerkat_crm.yaml
+      register: meerkat_crm_repo_marker
+
+    - name: Assert the meerkat_crm borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - meerkat_crm_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour meerkat_crm"
