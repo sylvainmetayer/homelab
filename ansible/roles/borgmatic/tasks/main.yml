@@ -190,11 +190,12 @@
       loop:
         - service
         - timer
-      notify: Reload systemd daemon
+      register: borgmatic_restore_test_units
 
-    - name: Enable and start the restore test timer
+    # `started` would leave an already active timer on its previous OnCalendar.
+    - name: Enable and (re)start the restore test timer
       ansible.builtin.systemd:
         name: borgmatic-restore-test.timer
         enabled: true
-        state: started
-        daemon_reload: true
+        state: "{{ 'restarted' if borgmatic_restore_test_units is changed else 'started' }}"
+        daemon_reload: "{{ borgmatic_restore_test_units is changed }}"

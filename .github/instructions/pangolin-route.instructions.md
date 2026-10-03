@@ -139,7 +139,24 @@ path_match_type = "prefix"
 priority        = 1
 ```
 
-## 3. Validate and apply
+## 3. Register it in the audits
+
+`tofu plan` fails until the new objects are listed, by design: the audits in
+`rules.tf` and `inventory.tf` compare what Pangolin holds against what this
+configuration declares, and HCL cannot enumerate resources without
+`for_each`.
+
+- `rules.tf` → `local.managed_resources`: `"<Display Name>" = pangolin_resource.<service>.id`
+  (the key is the resource's Pangolin `name`, as a literal). Any standalone
+  `pangolin_resource_rule` also goes in `local.declared_extra_rules`.
+- `inventory.tf` → `local.declared_targets`: every new `pangolin_target`.
+- `inventory.tf` → `local.declared_access_tokens`: the new
+  `pangolin_resource_access_token`.
+
+Roles need nothing more: `pangolin_role.apps` is a `for_each`, the slug added
+in step 1 is enough.
+
+## 4. Validate and apply
 
 ```bash
 cd tofu/pangolin_config
@@ -149,7 +166,7 @@ tofu plan
 tofu apply
 ```
 
-## 4. Verify
+## 5. Verify
 
 ```bash
 curl -I https://<full_domain>

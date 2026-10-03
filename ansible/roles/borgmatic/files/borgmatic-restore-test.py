@@ -272,7 +272,10 @@ def main():
         try:
             for line in test_configuration(args, config):
                 print(f"{name}: OK {line}")
-        except (RestoreTestError, KeyError, ValueError) as error:
+        # Anything else too (a missing `docker` or `pg_restore` binary, an
+        # unexpected JSON shape): a crash would push nothing, and the monitor
+        # would only notice once its 8-day interval runs out, with no reason.
+        except Exception as error:
             print(f"{name}: FAILED {error}", file=sys.stderr)
             failures.append(f"{name}: {error}")
 
