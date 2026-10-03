@@ -71,6 +71,7 @@ jobs:
             tofu/ref
             tofu/s3_state
             tofu/site
+            tofu/1y
           )
 
           for module in "${modules[@]}"; do
