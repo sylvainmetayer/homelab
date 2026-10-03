@@ -11,3 +11,11 @@ dependencies = [
     "botocore>=1.43.24",
     "passlib>=1.7.4",
 ]
+
+[dependency-groups]
+# Tests Molecule des rôles Ansible (ansible/molecule/, workflow test.yaml).
+test = [
+    "docker>=7.1.0",
+    "molecule>=26.9.0",
+    "molecule-plugins[docker]>=26.9.28",
+]

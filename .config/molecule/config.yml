@@ -1,0 +1,64 @@
+---
+# Configuration de base Molecule, chargée automatiquement (racine du dépôt git)
+# par chaque scénario de ansible/molecule/<rôle>/. Un scénario ne déclare dans
+# son molecule.yml que ce qui diffère d'ici.
+#
+# Lancer depuis ansible/ : `molecule test -s <rôle>` (ou `mise run molecule <rôle>`).
+# L'image doit exister localement : `mise run molecule-image`.
+
+# Collections et rôles Galaxy installés une fois depuis ansible/requirements.yml
+# (CI, `mise run install`), pas par scénario.
+# prerun installerait aussi ansible/requirements.yml à chaque scénario.
+prerun: false
+
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+platforms:
+  # Nom unique par scénario : plusieurs scénarios peuvent tourner sur le même
+  # démon Docker sans se marcher dessus.
+  - name: molecule-${MOLECULE_SCENARIO_NAME}
+    image: ${MOLECULE_IMAGE:-homelab-molecule:debian13}
+    pre_build_image: true
+    pull: false
+    # systemd en PID 1 + démon Docker imbriqué : privilégié, cgroups de l'hôte.
+    privileged: true
+    cgroupns_mode: host
+    command: /lib/systemd/systemd
+    override_command: true
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+
+ansible:
+  cfg:
+    defaults:
+      roles_path: ${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/galaxy_roles
+      collections_path: ${MOLECULE_PROJECT_DIRECTORY}/collections:~/.ansible/collections:/usr/share/ansible/collections
+      callbacks_enabled: profile_tasks
+      stdout_callback: ansible.builtin.default
+      result_format: yaml
+  playbooks:
+    prepare: ../_shared/prepare.yml
+
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        # Comme les vrais hôtes : connexion en `sylvain`, root via sudo.
+        ansible_user: sylvain
+        # Sur un hôte, la session SSH (pam_systemd) fournit XDG_RUNTIME_DIR ;
+        # `docker exec` non, et les tâches `scope: user` en ont besoin.
+        ansible_docker_extra_env:
+          XDG_RUNTIME_DIR: /run/user/1000
+
+verifier:
+  name: ansible

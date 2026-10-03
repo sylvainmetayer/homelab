@@ -138,3 +138,35 @@ description = "Run Ansible playbook in check mode"
 run = "ansible-playbook -i inventory/hosts site.yml --check"
 dir = "ansible"
 raw = true
+
+[tasks.molecule-image]
+description = "Build the Molecule test image (Debian 13 + systemd)"
+run = "docker build --tag homelab-molecule:debian13 ansible/molecule/_shared"
+
+[tasks.molecule]
+description = "Molecule tests of the Ansible roles (all scenarios, or the one given)"
+usage = '''
+arg "[scenario]" help="scenario to run (= role name); every scenario when omitted"
+'''
+run = '''
+if [ -n "${usage_scenario:-}" ]; then
+  molecule test --scenario-name "${usage_scenario}"
+else
+  molecule test --all
+fi
+'''
+dir = "ansible"
+depends = ["molecule-image"]
+raw = true
+
+[tasks.tofu-test]
+description = "tofu test of every module that has tests (mocked providers, no backend)"
+run = '''
+for tests in */tests; do
+  module=${tests%/tests}
+  echo "== $module"
+  tofu -chdir="$module" init -backend=false -input=false > /dev/null
+  tofu -chdir="$module" test || exit 1
+done
+'''
+dir = "tofu"

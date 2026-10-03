@@ -1,0 +1,125 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/test.yaml
+      - .config/molecule/**
+      - ansible/**
+      - tofu/**
+      - pyproject.toml
+      - uv.lock
+  workflow_dispatch:
+
+jobs:
+  discover:
+    name: Discover test suites
+    runs-on: ubuntu-26.04
+
+    permissions:
+      contents: read
+
+    outputs:
+      scenarios: ${{ steps.discover.outputs.scenarios }}
+      modules: ${{ steps.discover.outputs.modules }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Un scénario par dossier ansible/molecule/<rôle>/ (sauf _shared), un
+      # module Tofu par dossier tofu/<module>/ qui a des tests : un nouveau
+      # scénario ou module testé entre dans la matrice sans toucher ce fichier.
+      - name: List Molecule scenarios and tested Tofu modules
+        id: discover
+        run: |
+          to_json='split("\n") | map(select(length > 0))'
+          scenarios=$(find ansible/molecule -mindepth 2 -maxdepth 2 -name molecule.yml -printf '%h\n' \
+            | xargs -r -n1 basename | sort | jq -Rsc "$to_json")
+          modules=$(find tofu -mindepth 2 -maxdepth 2 -type d -name tests -printf '%h\n' \
+            | sort | jq -Rsc "$to_json")
+          echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "Molecule: $scenarios"
+          echo "Tofu: $modules"
+
+  molecule:
+    name: Molecule (${{ matrix.scenario }})
+    needs: discover
+    if: needs.discover.outputs.scenarios != '[]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: ${{ fromJSON(needs.discover.outputs.scenarios) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install ansible + molecule
+        run: |
+          pip install --quiet uv
+          uv sync --locked --group test
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install ansible roles and collections
+        working-directory: ansible
+        run: |
+          ansible-galaxy role install -r requirements.yml
+          ansible-galaxy collection install -r requirements.yml
+
+      - name: Build the Molecule image
+        run: docker build --tag homelab-molecule:debian13 ansible/molecule/_shared
+
+      - name: Run molecule test
+        working-directory: ansible
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
+        run: molecule test --scenario-name "${{ matrix.scenario }}"
+
+  tofu:
+    name: OpenTofu test (${{ matrix.module }})
+    needs: discover
+    if: needs.discover.outputs.modules != '[]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      # Providers mockés (mock_provider) et data sources surchargées
+      # (override_data) : ni backend, ni credentials, ni secrets SOPS.
+      - name: Init without backend
+        run: tofu -chdir="${{ matrix.module }}" init -backend=false -input=false
+
+      - name: Run tofu test
+        run: tofu -chdir="${{ matrix.module }}" test -no-color
