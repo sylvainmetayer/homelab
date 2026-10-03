@@ -43,7 +43,7 @@
           - decommission_paths.results[4].stat.exists
         fail_msg: >-
           {{ decommission_paths.results | map(attribute='item') | zip(decommission_paths.results
-             | map(attribute='stat.exists')) | list }}
+             | map(attribute='stat.exists')) | list | string }}
 
     # La voisine n'est pas touchée.
     - name: Verify that echo is still deployed

@@ -33,7 +33,7 @@
           - immich_stats.results[1].stat.pw_name == ansible_facts['user_id']
           - immich_stats.results[2].stat.isdir
           - immich_stats.results[2].stat.pw_name == 'root'
-        fail_msg: "{{ immich_stats.results | map(attribute='stat') | map(attribute='mode', default='absent') | list }}"
+        fail_msg: "{{ immich_stats.results | map(attribute='stat') | map(attribute='mode', default='absent') | list | string }}"
 
     - name: Read the immich files
       become: true
