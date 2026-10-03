@@ -17,6 +17,14 @@ pangolin_secret: ""
 # Let's Encrypt email
 pangolin_le_email: ""
 
+# Domaines entièrement redirigés par Traefik (301, chemin conservé), hors des
+# ressources Pangolin : routeurs du fichier dynamique. Le domaine doit pointer
+# vers Pangolin pour obtenir son certificat (défi HTTP).
+#   - name: identifiant des routeurs/middleware (lettres, chiffres, tirets)
+#     host: domaine redirigé
+#     target: origine cible, sans slash final
+pangolin_domain_redirects: []
+
 # SMTP configuration
 pangolin_smtp_user: ""
 pangolin_smtp_pass: ""

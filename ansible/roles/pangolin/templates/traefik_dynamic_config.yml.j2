@@ -7,6 +7,15 @@ http:
     redirect-to-https:
       redirectScheme:
         scheme: https
+{% for redirect in pangolin_domain_redirects %}
+
+    # {{ redirect.host }} -> {{ redirect.target }} (301, chemin conservé)
+    redirect-{{ redirect.name }}:
+      redirectRegex:
+        regex: '^https?://{{ redirect.host | regex_escape }}(/.*)?$'
+        replacement: "{{ redirect.target }}${1}"
+        permanent: true
+{% endfor %}
 
   routers:
     # https://docs.pangolin.net/self-host/advanced/integration-api
@@ -71,6 +80,28 @@ http:
       tls:
         certResolver: letsencrypt
 
+{% for redirect in pangolin_domain_redirects %}
+    # Redirection de domaine entier (pangolin_domain_redirects) : HTTP et HTTPS
+    # vont directement vers la cible, sans passer par redirect-to-https.
+    redirect-{{ redirect.name }}-web:
+      rule: "Host(`{{ redirect.host }}`)"
+      service: noop@internal
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-{{ redirect.name }}
+
+    redirect-{{ redirect.name }}:
+      rule: "Host(`{{ redirect.host }}`)"
+      service: noop@internal
+      entryPoints:
+        - websecure
+      middlewares:
+        - redirect-{{ redirect.name }}
+      tls:
+        certResolver: letsencrypt
+
+{% endfor %}
   services:
     int-api-service:
       loadBalancer:
