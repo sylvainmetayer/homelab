@@ -1,0 +1,106 @@
+---
+# Prepare commun à tous les scénarios : ce qu'un vrai hôte a déjà quand les
+# playbooks appliquent un rôle (systemd démarré, manager user de `sylvain`,
+# Docker et son réseau `newt`), plus deux bouchons pour que les rôles
+# d'application tournent sans Internet ni Storage Box :
+#   - dc@<service> valide son compose (`docker compose config`) puis dort, au
+#     lieu de tirer et lancer les images ;
+#   - /root/.local/bin/borgmatic valide la configuration avec un vrai borgmatic
+#     puis simule `repo-create`, au lieu de joindre la Storage Box.
+# Un scénario qui a besoin de plus importe ce playbook depuis son propre prepare.yml.
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  vars:
+    molecule_borgmatic_venv: /opt/molecule-borgmatic
+  tasks:
+    - name: Wait for systemd to finish booting
+      ansible.builtin.command: systemctl is-system-running --wait  # noqa: command-instead-of-module
+      register: molecule_systemd_state
+      changed_when: false
+      failed_when: molecule_systemd_state.stdout not in ['running', 'degraded']
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    # Équivalent de la session SSH d'un vrai hôte : démarre user@1000.service,
+    # dont dépendent les tâches `scope: user` (dc@<service>).
+    - name: Enable lingering for sylvain
+      become: true
+      ansible.builtin.command: loginctl enable-linger sylvain
+      args:
+        creates: /var/lib/systemd/linger/sylvain
+
+    - name: Wait for the user manager bus
+      ansible.builtin.wait_for:
+        path: /run/user/1000/bus
+        timeout: 60
+
+    - name: Start Docker
+      become: true
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    # Créé sur les vrais hôtes par le compose du rôle newt.
+    - name: Check the newt network
+      ansible.builtin.command: docker network inspect newt
+      register: molecule_newt_network
+      changed_when: false
+      failed_when: false
+
+    - name: Create the newt network
+      ansible.builtin.command: docker network create --driver bridge newt
+      when: molecule_newt_network.rc != 0
+      changed_when: true
+
+    - name: Ensure the dc@ drop-in directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service.d"
+        state: directory
+        mode: "0755"
+
+    - name: Neutralise docker compose pull/up in dc@ units
+      ansible.builtin.copy:
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service.d/molecule.conf"
+        mode: "0644"
+        content: |
+          # Molecule : pas d'image tirée ni de conteneur lancé. L'unité échoue
+          # si le compose templaté est invalide, puis reste active.
+          [Service]
+          ExecStartPre=
+          ExecStartPre=/usr/bin/docker compose config --quiet
+          ExecStart=
+          ExecStart=/bin/sleep infinity
+          ExecStop=
+
+    - name: Install a real borgmatic to validate configurations
+      become: true
+      ansible.builtin.pip:
+        name: borgmatic
+        virtualenv: "{{ molecule_borgmatic_venv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Ensure /root/.local/bin exists
+      become: true
+      ansible.builtin.file:
+        path: /root/.local/bin
+        state: directory
+        mode: "0755"
+
+    - name: Install the borgmatic stub
+      become: true
+      ansible.builtin.template:
+        src: templates/borgmatic-stub.sh.j2
+        dest: /root/.local/bin/borgmatic
+        mode: "0755"
+        # Le rôle borgmatic, lui, installe le vrai : son scénario n'utilise pas ce prepare.
+        force: false
+
+    - name: Ensure the borgmatic configuration directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/borgmatic.d
+        state: directory
+        mode: "0700"

@@ -1,0 +1,41 @@
+#!/bin/sh
+# Bouchon Molecule de /root/.local/bin/borgmatic (cf. _shared/prepare.yml).
+# Valide chaque --config passée avec un vrai borgmatic, puis simule
+# `repo-create` comme la Storage Box : création au premier appel,
+# "repository already exists" ensuite (les rôles s'en servent pour
+# changed_when / failed_when).
+set -eu
+real={{ molecule_borgmatic_venv }}/bin/borgmatic
+state=/var/lib/molecule-borgmatic
+mkdir -p "$state"
+
+configs=""
+action=""
+prev=""
+for arg in "$@"; do
+  case "$prev" in
+    -c|--config) configs="$configs $arg" ;;
+  esac
+  case "$arg" in
+    repo-create|rcreate|create|list|repo-list|info|check|prune|compact|delete|repo-delete) action="$arg" ;;
+  esac
+  prev="$arg"
+done
+
+for config in $configs; do
+  "$real" config validate --config "$config" >&2
+done
+
+case "$action" in
+  repo-create|rcreate)
+    for config in $configs; do
+      marker="$state/$(echo "$config" | tr '/' '_')"
+      if [ -e "$marker" ]; then
+        echo "A repository already exists at $config." >&2
+        exit 2
+      fi
+      touch "$marker"
+    done
+    ;;
+esac
+exit 0

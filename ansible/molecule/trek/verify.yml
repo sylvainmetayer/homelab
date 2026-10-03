@@ -1,0 +1,33 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the trek deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: trek
+        verify_app_borgmatic_config: /etc/borgmatic.d/trek.yaml
+
+    - name: Stat the trek environment file
+      ansible.builtin.stat:
+        path: /opt/apps/trek/.env
+      register: trek_env
+
+    # Il porte la clé de chiffrement : jamais lisible par d'autres.
+    - name: Assert the trek environment file is private
+      ansible.builtin.assert:
+        that:
+          - trek_env.stat.exists
+          - trek_env.stat.mode == '0600'
+
+    - name: Read the trek environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/trek/.env
+      register: trek_env_content
+
+    - name: Assert the trek URL comes from the role domain
+      ansible.builtin.assert:
+        that:
+          - "'APP_URL=https://travels.sylvain.cloud' in (trek_env_content.content | b64decode)"
