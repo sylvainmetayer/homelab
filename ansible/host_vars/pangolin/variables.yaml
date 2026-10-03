@@ -9,6 +9,13 @@ pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
 # Pangolin API URL (without https://)
 pangolin_api_url: "pangolin-api.{{ pangolin_base_domain }}"
 
+# sylvain.dev est servi par Cloudflare Pages sur www (tofu/site) : Pages
+# n'accepte pas un apex hors zone Cloudflare, l'apex pointe donc ici.
+pangolin_domain_redirects:
+  - name: sylvain-dev-apex
+    host: sylvain.dev
+    target: https://www.sylvain.dev
+
 # Log level (debug, info, warning, error)
 pangolin_log_level: "info"
 
