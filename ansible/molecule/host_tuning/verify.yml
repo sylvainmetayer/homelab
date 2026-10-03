@@ -1,0 +1,64 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/host_tuning/defaults/main.yml
+  tasks:
+    - name: Read the zramswap configuration
+      ansible.builtin.slurp:
+        src: /etc/default/zramswap
+      register: host_tuning_zramswap_conf
+
+    - name: Assert the zramswap configuration comes from the role
+      ansible.builtin.assert:
+        that:
+          - ('\nSIZE=' ~ host_tuning_zram_size_mb ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
+          - ('\nALGO=' ~ host_tuning_zram_algo ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
+          - ('\nPRIORITY=' ~ host_tuning_zram_priority ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
+
+    - name: Read the state of zramswap
+      ansible.builtin.systemd:
+        name: zramswap
+      register: host_tuning_zramswap_unit
+
+    - name: Assert zramswap is enabled and started
+      ansible.builtin.assert:
+        that:
+          - host_tuning_zramswap_unit.status.UnitFileState == 'enabled'
+          - host_tuning_zramswap_unit.status.ActiveState == 'active'
+        fail_msg: "zramswap : {{ host_tuning_zramswap_unit.status.UnitFileState }} / {{ host_tuning_zramswap_unit.status.ActiveState }}"
+
+    # Le postinst a démarré zramswap avec 50 % de la RAM : seule la retaille du
+    # handler (déclenchée par la comparaison avec la taille live) donne la
+    # taille configurée. Device factice, cf. prepare.yml.
+    - name: Read the live zram device size
+      ansible.builtin.slurp:
+        src: /sys/block/zram0/disksize
+      register: host_tuning_zram_disksize
+
+    - name: Assert the zram device was resized to the configured size
+      ansible.builtin.assert:
+        that:
+          - (host_tuning_zram_disksize.content | b64decode | trim | int) == (host_tuning_zram_size_mb | int) * 1048576
+        fail_msg: "disksize = {{ host_tuning_zram_disksize.content | b64decode | trim }}, attendu {{ (host_tuning_zram_size_mb | int) * 1048576 }}"
+
+    - name: Read the journald size drop-in
+      ansible.builtin.slurp:
+        src: /etc/systemd/journald.conf.d/50-size.conf
+      register: host_tuning_journald_conf
+
+    - name: Assert journald disk usage is capped
+      ansible.builtin.assert:
+        that:
+          - "'[Journal]' in (host_tuning_journald_conf.content | b64decode)"
+          - ('\nSystemMaxUse=' ~ host_tuning_journald_system_max_use ~ '\n') in (host_tuning_journald_conf.content | b64decode)
+
+    - name: Read the state of journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+      register: host_tuning_journald_unit
+
+    - name: Assert journald survived its restart
+      ansible.builtin.assert:
+        that:
+          - host_tuning_journald_unit.status.ActiveState == 'active'

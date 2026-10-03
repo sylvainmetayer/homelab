@@ -1,0 +1,52 @@
+---
+# Le conteneur a sa propre pile réseau : on peut y rejouer flip sans rien
+# toucher de l'hôte.
+#   - enp7s0 (dummy) tient lieu d'interface du réseau privé Hetzner : la
+#     passerelle 10.0.0.1 y est joignable, donc le watchdog peut réellement
+#     poser la route par défaut, comme sur flip ;
+#   - il n'y a en revanche ni passerelle NAT derrière 10.0.0.1, ni accès aux
+#     résolveurs de Hetzner : la dernière tâche du rôle (getent ahostsv4
+#     deb.debian.org à travers le NAT) ne peut pas aboutir pour de vrai. On
+#     fait résoudre deb.debian.org par /etc/hosts : la tâche s'exécute (pas de
+#     test_sequence amputé), mais elle ne prouve ici que la résolution locale.
+#     La sortie Internet par le NAT ne se vérifie que sur flip.
+# Après le converge, le conteneur n'a plus d'Internet (route par défaut vers
+# le dummy) : rien ensuite n'en a besoin.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Simulate the Hetzner private network
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    nat_client_molecule_interface: enp7s0
+    nat_client_molecule_address: 10.0.1.3/16
+  tasks:
+    - name: Check the private network interface
+      ansible.builtin.command: ip link show {{ nat_client_molecule_interface }}
+      register: nat_client_molecule_link
+      changed_when: false
+      failed_when: false
+
+    - name: Create the private network interface
+      ansible.builtin.shell: |
+        set -eu
+        ip link add {{ nat_client_molecule_interface }} type dummy
+        ip address add {{ nat_client_molecule_address }} dev {{ nat_client_molecule_interface }}
+        ip link set {{ nat_client_molecule_interface }} up
+      when: nat_client_molecule_link.rc != 0
+      changed_when: true
+
+    # /etc/hosts est monté par Docker : on l'allonge sur place (un module qui
+    # le remplacerait par renommage échouerait sur le point de montage).
+    - name: Resolve deb.debian.org locally
+      ansible.builtin.shell: |
+        set -eu
+        if grep -q ' deb\.debian\.org$' /etc/hosts; then
+          echo unchanged
+        else
+          echo '192.0.2.80 deb.debian.org' >> /etc/hosts
+        fi
+      register: nat_client_molecule_hosts
+      changed_when: nat_client_molecule_hosts.stdout != 'unchanged'

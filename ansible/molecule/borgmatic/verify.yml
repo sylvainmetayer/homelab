@@ -1,0 +1,153 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../roles/borgmatic/defaults/main.yml
+  tasks:
+    # --- binaires ---
+
+    - name: Run borgmatic installed by pipx
+      become: true
+      ansible.builtin.command: /root/.local/bin/borgmatic --version
+      register: borgmatic_version
+      changed_when: false
+
+    - name: Stat the borg binary
+      become: true
+      ansible.builtin.stat:
+        path: /root/.local/bin/borg
+      register: borgmatic_borg
+
+    - name: Assert the borg binary is root's and executable
+      ansible.builtin.assert:
+        that:
+          - borgmatic_borg.stat.exists
+          - borgmatic_borg.stat.mode == '0755'
+          - borgmatic_borg.stat.pw_name == 'root'
+
+    # Binaire PyInstaller « onefile » : il s'extrait dans TMPDIR avant de
+    # s'exécuter, et le /tmp du conteneur est un tmpfs noexec (Docker).
+    - name: Run the borg binary
+      become: true
+      ansible.builtin.command: /root/.local/bin/borg --version
+      environment:
+        TMPDIR: /var/tmp
+      register: borgmatic_borg_version_output
+      changed_when: false
+
+    # La Storage Box Hetzner ne parle que borg 1.x : la version téléchargée
+    # doit être celle des defaults, pour l'architecture de l'hôte.
+    - name: Assert borg is the pinned 1.x release
+      ansible.builtin.assert:
+        that:
+          - borgmatic_borg_version_output.stdout == 'borg ' ~ borgmatic_borg_version
+          - borgmatic_borg_version is match('1\\.')
+        fail_msg: "borg --version : {{ borgmatic_borg_version_output.stdout }} (attendu {{ borgmatic_borg_version }})"
+
+    - name: Assert the database dump clients are installed
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: borgmatic_dump_clients
+      failed_when: not borgmatic_dump_clients.stat.exists
+      loop:
+        - /usr/bin/pg_dump
+        - /usr/bin/mariadb-dump
+
+    # --- unités systemd ---
+
+    - name: Read the state of the borgmatic timer
+      ansible.builtin.systemd:
+        name: borgmatic.timer
+      register: borgmatic_timer
+
+    - name: Assert the borgmatic timer is enabled and running
+      ansible.builtin.assert:
+        that:
+          - borgmatic_timer.status.UnitFileState == 'enabled'
+          - borgmatic_timer.status.ActiveState == 'active'
+        fail_msg: "borgmatic.timer : {{ borgmatic_timer.status.UnitFileState }} / {{ borgmatic_timer.status.ActiveState }}"
+
+    - name: Read the borgmatic units
+      ansible.builtin.slurp:
+        src: "/etc/systemd/system/{{ item }}"
+      register: borgmatic_units
+      loop:
+        - borgmatic.service
+        - borgmatic.timer
+
+    - name: Assert the units run the pipx borgmatic on the configured schedule
+      ansible.builtin.assert:
+        that:
+          - "'\nExecStart=/root/.local/bin/borgmatic ' in (borgmatic_units.results[0].content | b64decode)"
+          - "'\nUser=root\n' in (borgmatic_units.results[0].content | b64decode)"
+          - ('\nOnCalendar=' ~ borgmatic_timer_schedule ~ '\n') in (borgmatic_units.results[1].content | b64decode)
+
+    # --- accès à la Storage Box ---
+
+    - name: Stat the Storage Box SSH files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: borgmatic_ssh_files
+      loop:
+        - /root/.ssh/backup_storage_box_key
+        - /root/.ssh/config
+
+    - name: Assert the Storage Box SSH files are private to root
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == '0600'
+          - item.stat.pw_name == 'root'
+        fail_msg: "{{ item.item }} : {{ item.stat.mode | default('absent') }}"
+      loop: "{{ borgmatic_ssh_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the Storage Box SSH files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: borgmatic_ssh_content
+      loop:
+        - /root/.ssh/backup_storage_box_key
+        - /root/.ssh/config
+
+    - name: Assert the SSH key and config come from the secrets
+      ansible.builtin.assert:
+        that:
+          - (borgmatic_ssh_content.results[0].content | b64decode) == backup_storage_box_ssh_key
+          - ('HostName ' ~ backup_storage_box_hostname) in (borgmatic_ssh_content.results[1].content | b64decode)
+          - ('User ' ~ backup_storage_box_username) in (borgmatic_ssh_content.results[1].content | b64decode)
+          - "'Port 23' in (borgmatic_ssh_content.results[1].content | b64decode)"
+          - "'IdentityFile /root/.ssh/backup_storage_box_key' in (borgmatic_ssh_content.results[1].content | b64decode)"
+
+    # --- répertoires ---
+
+    - name: Stat the borgmatic configuration directory
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}"
+      register: borgmatic_config_dir_stat
+
+    - name: Assert the borgmatic configuration directory exists
+      ansible.builtin.assert:
+        that:
+          - borgmatic_config_dir_stat.stat.isdir | default(false)
+          - borgmatic_config_dir_stat.stat.pw_name == 'root'
+
+    # Les identifiants S3 ne doivent plus traîner chez root (rclone n'est plus
+    # configuré par ce rôle, seulement installé).
+    - name: Stat the rclone configuration file
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_rclone_config_dir }}/rclone.conf"
+      register: borgmatic_rclone_conf
+
+    - name: Assert no rclone configuration is left behind
+      ansible.builtin.assert:
+        that:
+          - not borgmatic_rclone_conf.stat.exists

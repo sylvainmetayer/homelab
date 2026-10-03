@@ -1,0 +1,17 @@
+---
+# Le rôle pangolin de pangolin.yaml. Les rôles qui le précèdent ont leurs
+# propres scénarios (security, nat_gateway, borgmatic : ce dernier
+# remplacerait le bouchon borgmatic du prepare commun) ; Docker est dans l'image.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+  pre_tasks:
+    # pangolin.yaml le lit dans le state de tofu/pangolin_config (set_fact).
+    - name: Load a fake healthcheck URL in place of the Terraform state output
+      ansible.builtin.set_fact:
+        pangolin_backup_healthcheck_url: "https://uptime.example.invalid/api/push/pangolin_backup"
+  roles:
+    - role: pangolin

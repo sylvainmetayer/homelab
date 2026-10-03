@@ -1,0 +1,10 @@
+---
+# Premier rôle de flip.yml, sans become au niveau du playbook.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  roles:
+    - role: nat_client

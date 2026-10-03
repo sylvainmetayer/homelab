@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Prepare propre : le prepare commun pose un faux /root/.local/bin/borgmatic,
+# or c'est précisément ce que ce rôle installe (pipx) avec borg (GitHub).
+scenario:
+  name: borgmatic
+ansible:
+  playbooks:
+    prepare: prepare.yml

@@ -1,0 +1,14 @@
+---
+# Comme pangolin.yaml : security (become) puis nat_gateway. Les rôles
+# geerlingguy.docker (Docker est dans l'image), borgmatic et pangolin ont leurs
+# propres scénarios.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+  roles:
+    - role: security
+      become: true
+    - role: nat_gateway

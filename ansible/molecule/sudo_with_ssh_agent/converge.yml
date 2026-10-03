@@ -1,0 +1,12 @@
+---
+# Aucun playbook n'applique ce rôle aujourd'hui. Ses tâches ne demandent pas
+# become elles-mêmes (paquet, /etc/pam.d/sudo, /etc/sudoers) : il s'applique
+# donc avec become au niveau du playbook, comme security.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  roles:
+    - role: sudo_with_ssh_agent
+      become: true

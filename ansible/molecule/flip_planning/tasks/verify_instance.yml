@@ -1,0 +1,162 @@
+---
+# Vérifications d'une instance de flip_planning (flip_instance, cf. verify.yml).
+- name: Verify the deployment of {{ flip_instance.service }}
+  ansible.builtin.include_tasks: ../../_shared/tasks/verify_app.yml
+  vars:
+    verify_app_service: "{{ flip_instance.service }}"
+    verify_app_borgmatic_config: "/etc/borgmatic.d/{{ flip_instance.service }}.yaml"
+
+# --- compose : nommage dérivé de flip_planning_service / _container_prefix ---
+
+- name: Render the compose model of {{ flip_instance.service }}
+  ansible.builtin.command: docker compose config --format json
+  args:
+    chdir: "/opt/apps/{{ flip_instance.service }}"
+  register: flip_planning_compose_raw
+  changed_when: false
+
+- name: Parse the compose model of {{ flip_instance.service }}
+  ansible.builtin.set_fact:
+    flip_planning_compose: "{{ flip_planning_compose_raw.stdout | from_json }}"
+
+- name: Assert the compose naming derives from the instance for {{ flip_instance.service }}
+  ansible.builtin.assert:
+    that:
+      # Projet compose = répertoire = unité dc@ : volumes et réseaux namespacés.
+      - flip_planning_compose.name == flip_instance.service
+      - flip_planning_compose.services.app.container_name == flip_instance.prefix
+      - flip_planning_compose.services.postgres.container_name == flip_instance.prefix ~ '-db'
+      - flip_planning_compose.services.assets.container_name == flip_instance.prefix ~ '-assets'
+      - flip_planning_compose.services.app.image == flip_instance.image
+      - flip_instance.prefix in flip_planning_compose.networks
+      - flip_planning_compose.networks.newt.external | default(false) | bool
+      # La base ne rejoint jamais newt.
+      - "'newt' not in flip_planning_compose.services.postgres.networks"
+      - "'newt' in flip_planning_compose.services.app.networks"
+    fail_msg: >-
+      Compose de {{ flip_instance.service }} inattendu :
+      {{ flip_planning_compose.services | dict2items | map(attribute='value.container_name') | list }}
+
+- name: Record the containers and private network of {{ flip_instance.service }}
+  ansible.builtin.set_fact:
+    flip_planning_containers: >-
+      {{ flip_planning_containers | default({})
+         | combine({flip_instance.service: flip_planning_compose.services | dict2items
+                                           | map(attribute='value.container_name') | list}) }}
+    flip_planning_private_networks: >-
+      {{ flip_planning_private_networks | default({})
+         | combine({flip_instance.service: flip_planning_compose.networks[flip_instance.prefix].name}) }}
+
+# --- .env ---
+
+- name: Stat the environment file of {{ flip_instance.service }}
+  ansible.builtin.stat:
+    path: "/opt/apps/{{ flip_instance.service }}/.env"
+  register: flip_planning_env_stat
+
+# Mots de passe de la base, de l'admin, clé de session : jamais lisible par tous.
+- name: Assert the environment file is not world-readable for {{ flip_instance.service }}
+  ansible.builtin.assert:
+    that:
+      - flip_planning_env_stat.stat.exists
+      - flip_planning_env_stat.stat.mode == '0640'
+      - flip_planning_env_stat.stat.pw_name == ansible_facts['user_id']
+    fail_msg: "{{ flip_planning_env_stat.stat.path | default('.env') }} : {{ flip_planning_env_stat.stat.mode | default('absent') }}"
+
+- name: Read the environment file of {{ flip_instance.service }}
+  ansible.builtin.slurp:
+    src: "/opt/apps/{{ flip_instance.service }}/.env"
+  register: flip_planning_env_raw
+
+- name: Assert the environment file carries the instance values for {{ flip_instance.service }}
+  vars:
+    env_content: "{{ flip_planning_env_raw.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - ("\nPUBLIC_URL=https://" ~ flip_instance.domain ~ "\n") in env_content
+      - ("\nSENTRY_ENVIRONMENT=" ~ flip_instance.sentry_environment ~ "\n") in env_content
+      - ("\nDB_PASSWORD=" ~ flip_instance.db_password ~ "\n") in env_content
+      - ("\nADMIN_PASSWORD=" ~ flip_instance.admin_password ~ "\n") in env_content
+      - ("\nPLANNING_MCP_API_KEY=" ~ flip_instance.mcp_api_key ~ "\n") in env_content
+      - ("\nMAIL_FROM=" ~ flip_instance.prefix ~ "@localhost\n") in env_content
+      - ("\nCLOUDFLARE_WEB_ANALYTICS_TOKEN=" ~ flip_instance.analytics_token ~ "\n") in env_content
+      - ("\nBRANDING_LOGO_URL=" ~ flip_instance.logo_url ~ "\n") in env_content
+      - ("\nHORLOGE_SIMULEE_AUTORISEE=true\n") in env_content
+      # Sous-réseau du réseau newt lu au déploiement : jamais vide.
+      - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_subnet ~ "\n") in env_content
+      # Sans Keycloak, la porte de secours reste ouverte.
+      - ("\nADMIN_SECOURS_ENABLED=true\n") in env_content
+    fail_msg: "Le .env de {{ flip_instance.service }} ne porte pas les valeurs de l'instance"
+
+- name: Assert the demo carries no production credential
+  when: flip_instance.service != 'flip_planning'
+  vars:
+    env_content: "{{ flip_planning_env_raw.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - flip_planning_db_password not in env_content
+      - flip_planning_admin_password not in env_content
+      - flip_planning_session_encryption_key not in env_content
+      - flip_planning_mcp_api_key not in env_content
+      - flip_planning_mcp_pangolin_access_token not in env_content
+    fail_msg: "Un secret de la production a fuité dans le .env de {{ flip_instance.service }}"
+
+# --- assets de marque : exactement ceux que l'instance déclare ---
+
+- name: List the branding assets of {{ flip_instance.service }}
+  ansible.builtin.find:
+    paths: "/opt/apps/{{ flip_instance.service }}/assets"
+    file_type: any
+  register: flip_planning_assets
+
+- name: Assert the branding assets match the instance for {{ flip_instance.service }}
+  ansible.builtin.assert:
+    that:
+      - flip_planning_assets.files | map(attribute='path') | map('basename') | sort == flip_instance.assets | sort
+    fail_msg: "Assets de {{ flip_instance.service }} : {{ flip_planning_assets.files | map(attribute='path') | map('basename') | list }}"
+
+# --- borgmatic ---
+
+- name: Stat the borgmatic configuration of {{ flip_instance.service }}
+  become: true
+  ansible.builtin.stat:
+    path: "/etc/borgmatic.d/{{ flip_instance.service }}.yaml"
+  register: flip_planning_borgmatic_stat
+
+# Elle contient la passphrase du dépôt et le mot de passe de la base.
+- name: Assert the borgmatic configuration is private for {{ flip_instance.service }}
+  ansible.builtin.assert:
+    that:
+      - flip_planning_borgmatic_stat.stat.exists
+      - flip_planning_borgmatic_stat.stat.mode == '0600'
+      - flip_planning_borgmatic_stat.stat.pw_name == 'root'
+
+- name: Read the borgmatic configuration of {{ flip_instance.service }}
+  become: true
+  ansible.builtin.slurp:
+    src: "/etc/borgmatic.d/{{ flip_instance.service }}.yaml"
+  register: flip_planning_borgmatic_raw
+
+- name: Assert the borgmatic configuration targets the instance for {{ flip_instance.service }}
+  vars:
+    borgmatic_config: "{{ flip_planning_borgmatic_raw.content | b64decode | from_yaml }}"
+  ansible.builtin.assert:
+    that:
+      - borgmatic_config.repositories | length == 1
+      - borgmatic_config.repositories[0].path == flip_instance.repository
+      - borgmatic_config.repositories[0].path.endswith('/' ~ flip_instance.service)
+      - borgmatic_config.source_directories[0] == '/opt/apps/' ~ flip_instance.service ~ '/compose.yaml'
+      - borgmatic_config.postgresql_databases[0].container == flip_instance.prefix ~ '-db'
+      - borgmatic_config.postgresql_databases[0].password == flip_instance.db_password
+      - borgmatic_config.archive_name_format.startswith(flip_instance.prefix ~ '-{now')
+      - borgmatic_config.uptime_kuma.push_url == flip_instance.healthcheck_url
+    fail_msg: >-
+      Configuration borgmatic de {{ flip_instance.service }} inattendue :
+      {{ borgmatic_config.repositories }} / {{ borgmatic_config.uptime_kuma | default('pas de uptime_kuma') }}
+
+- name: Record the Borg repository and push URL of {{ flip_instance.service }}
+  vars:
+    borgmatic_config: "{{ flip_planning_borgmatic_raw.content | b64decode | from_yaml }}"
+  ansible.builtin.set_fact:
+    flip_planning_repositories: "{{ flip_planning_repositories | default({}) | combine({flip_instance.service: borgmatic_config.repositories[0].path}) }}"
+    flip_planning_push_urls: "{{ flip_planning_push_urls | default({}) | combine({flip_instance.service: borgmatic_config.uptime_kuma.push_url}) }}"

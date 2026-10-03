@@ -1,0 +1,112 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/nat_gateway/defaults/main.yml
+  vars:
+    nat_gateway_expected_private_interface: enp7s0
+    nat_gateway_expected_public_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
+    nat_gateway_masquerade_rule: >-
+      -A POSTROUTING -s {{ nat_gateway_source_cidr }} -o {{ nat_gateway_expected_public_interface }} -j MASQUERADE
+  tasks:
+    # --- forward IPv4 (propre à l'espace réseau du conteneur) ---
+
+    - name: Read the live IPv4 forwarding setting
+      ansible.builtin.slurp:
+        src: /proc/sys/net/ipv4/ip_forward
+      register: nat_gateway_ip_forward
+
+    - name: Read the persisted IPv4 forwarding setting
+      ansible.builtin.slurp:
+        src: /etc/sysctl.d/90-nat-gateway.conf
+      register: nat_gateway_sysctl_file
+
+    - name: Assert IPv4 forwarding is on and survives a reboot
+      ansible.builtin.assert:
+        that:
+          - (nat_gateway_ip_forward.content | b64decode | trim) == '1'
+          - (nat_gateway_sysctl_file.content | b64decode) is search('^net\.ipv4\.ip_forward\s*=\s*1$', multiline=True)
+
+    # --- ufw : transit privé → public ---
+
+    - name: Read the ufw status
+      become: true
+      ansible.builtin.command: ufw status verbose
+      register: nat_gateway_ufw_status
+      changed_when: false
+
+    - name: Assert ufw lets the private network out through the public interface
+      ansible.builtin.assert:
+        that:
+          - >-
+            nat_gateway_ufw_status.stdout is search(
+              '^Anywhere on ' ~ nat_gateway_expected_public_interface ~ '\s+ALLOW FWD\s+'
+              ~ (nat_gateway_source_cidr | regex_escape) ~ ' on ' ~ nat_gateway_expected_private_interface ~ '\s*$',
+              multiline=True)
+        fail_msg: "{{ nat_gateway_ufw_status.stdout }}"
+
+    # --- MASQUERADE, posé par l'unité nat-gateway ---
+
+    - name: Read the state of nat-gateway
+      ansible.builtin.systemd:
+        name: nat-gateway
+      register: nat_gateway_unit
+
+    - name: Assert nat-gateway is enabled and started
+      ansible.builtin.assert:
+        that:
+          - nat_gateway_unit.status.UnitFileState == 'enabled'
+          - nat_gateway_unit.status.ActiveState == 'active'
+        fail_msg: "nat-gateway : {{ nat_gateway_unit.status.UnitFileState }} / {{ nat_gateway_unit.status.ActiveState }}"
+
+    - name: Stat the nat-gateway unit file
+      become: true
+      ansible.builtin.stat:
+        path: /etc/systemd/system/nat-gateway.service
+      register: nat_gateway_unit_file
+
+    - name: Assert the nat-gateway unit file is readable by root only
+      ansible.builtin.assert:
+        that:
+          - nat_gateway_unit_file.stat.mode == '0640'
+          - nat_gateway_unit_file.stat.pw_name == 'root'
+
+    - name: List the NAT POSTROUTING rules
+      become: true
+      ansible.builtin.command: iptables -t nat -S POSTROUTING
+      register: nat_gateway_postrouting
+      changed_when: false
+
+    # Exactement une : le converge, le handler (stop puis start) et
+    # l'idempotence sont passés, aucun ne doit l'avoir doublée.
+    - name: Assert the MASQUERADE rule is present exactly once
+      ansible.builtin.assert:
+        that:
+          - nat_gateway_postrouting.stdout_lines | select('equalto', nat_gateway_masquerade_rule) | list | length == 1
+        fail_msg: "{{ nat_gateway_postrouting.stdout_lines }}"
+
+    # ExecStop doit retirer la règle, sinon un changement d'interface
+    # laisserait l'ancienne en place.
+    - name: Stop nat-gateway
+      become: true
+      ansible.builtin.systemd:
+        name: nat-gateway
+        state: stopped
+
+    - name: List the NAT POSTROUTING rules once stopped
+      become: true
+      ansible.builtin.command: iptables -t nat -S POSTROUTING
+      register: nat_gateway_postrouting_stopped
+      changed_when: false
+
+    - name: Start nat-gateway again
+      become: true
+      ansible.builtin.systemd:
+        name: nat-gateway
+        state: started
+
+    - name: Assert stopping nat-gateway removes the MASQUERADE rule
+      ansible.builtin.assert:
+        that:
+          - nat_gateway_masquerade_rule not in nat_gateway_postrouting_stopped.stdout_lines
+        fail_msg: "{{ nat_gateway_postrouting_stopped.stdout_lines }}"

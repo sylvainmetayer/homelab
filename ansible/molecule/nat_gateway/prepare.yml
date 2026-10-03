@@ -1,0 +1,31 @@
+---
+# Le conteneur a sa propre pile réseau (forward, iptables, ufw) : on y rejoue
+# Pangolin sans rien toucher de l'hôte. Le rôle déduit ses interfaces des
+# routes : eth0 porte la route par défaut (l'interface publique), il faut une
+# seconde interface qui porte le réseau privé 10.0.0.0/16, d'où le dummy
+# enp7s0 (nom d'interface privée des serveurs Hetzner récents).
+- name: Prepare of the security scenario
+  ansible.builtin.import_playbook: ../security/prepare.yml
+
+- name: Simulate the Hetzner private network
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    nat_gateway_molecule_interface: enp7s0
+    nat_gateway_molecule_address: 10.0.1.2/16
+  tasks:
+    - name: Check the private network interface
+      ansible.builtin.command: ip link show {{ nat_gateway_molecule_interface }}
+      register: nat_gateway_molecule_link
+      changed_when: false
+      failed_when: false
+
+    - name: Create the private network interface
+      ansible.builtin.shell: |
+        set -eu
+        ip link add {{ nat_gateway_molecule_interface }} type dummy
+        ip address add {{ nat_gateway_molecule_address }} dev {{ nat_gateway_molecule_interface }}
+        ip link set {{ nat_gateway_molecule_interface }} up
+      when: nat_gateway_molecule_link.rc != 0
+      changed_when: true

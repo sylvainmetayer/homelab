@@ -1,0 +1,81 @@
+---
+# Deux instances du même rôle sur un même hôte : chacune doit être complète
+# (verify_instance.yml) et ne rien partager avec l'autre (fin de ce fichier).
+- name: Verify
+  hosts: all
+  # Les defaults du rôle d'abord (images des deux canaux) : les fichiers
+  # suivants l'emportent, comme les secrets et host_vars sur le rôle.
+  vars_files:
+    - ../../roles/flip_planning/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  vars:
+    flip_planning_instances:
+      - service: flip_planning
+        prefix: flip-planning
+        domain: flip-planning.sylvain.cloud
+        image: "{{ flip_planning_image_release }}"
+        sentry_environment: production
+        db_password: "{{ flip_planning_db_password }}"
+        admin_password: "{{ flip_planning_admin_password }}"
+        mcp_api_key: "{{ flip_planning_mcp_api_key }}"
+        repository: "{{ flip_planning_backup_borgmatic_target }}"
+        healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
+        analytics_token: "{{ flip_planning_cloudflare_web_analytics_token }}"
+        assets: [flip-logo.png, flip-strip.png, flip-woopy-loader.png, flip-woopy.png, flip.png]
+        logo_url: /assets/flip.png
+      - service: demo_planning
+        prefix: demo-planning
+        domain: demo-planning.sylvain.dev
+        image: "{{ flip_planning_image_main }}"
+        sentry_environment: demo
+        db_password: "{{ demo_planning_db_password }}"
+        admin_password: "{{ demo_planning_admin_password }}"
+        mcp_api_key: "{{ demo_planning_mcp_api_key }}"
+        repository: "{{ demo_planning_backup_borgmatic_target }}"
+        healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
+        analytics_token: ""
+        assets: []
+        logo_url: ""
+  tasks:
+    - name: Read the newt network definition
+      ansible.builtin.command: docker network inspect newt
+      register: flip_planning_newt_network
+      changed_when: false
+
+    - name: Extract the newt subnet
+      ansible.builtin.set_fact:
+        flip_planning_newt_subnet: "{{ (flip_planning_newt_network.stdout | from_json)[0].IPAM.Config[0].Subnet }}"
+
+    - name: Verify each Flip Planning instance
+      ansible.builtin.include_tasks: tasks/verify_instance.yml
+      loop: "{{ flip_planning_instances }}"
+      loop_control:
+        loop_var: flip_instance
+        label: "{{ flip_instance.service }}"
+
+    # Rempli par verify_instance.yml, une entrée par instance.
+    - name: Assert the two instances share no container name
+      ansible.builtin.assert:
+        that:
+          - flip_planning_containers['flip_planning'] | intersect(flip_planning_containers['demo_planning']) | length == 0
+        fail_msg: >-
+          Conteneurs en commun entre production et démo :
+          {{ flip_planning_containers['flip_planning'] | intersect(flip_planning_containers['demo_planning']) }}
+
+    - name: Assert the two instances have distinct private networks and Borg repositories
+      ansible.builtin.assert:
+        that:
+          - flip_planning_private_networks['flip_planning'] != flip_planning_private_networks['demo_planning']
+          - flip_planning_repositories['flip_planning'] != flip_planning_repositories['demo_planning']
+        fail_msg: "Réseau privé ou dépôt Borg partagé : {{ flip_planning_private_networks }} / {{ flip_planning_repositories }}"
+
+    # Régression documentée (flip.yml, AGENTS.md) : un set_fact de
+    # flip_planning_backup_healthcheck_url l'emportait sur les paramètres de
+    # rôle, et les sauvegardes de la démo poussaient sur le moniteur de prod.
+    - name: Assert the demo backups do not push to the production monitor
+      ansible.builtin.assert:
+        that:
+          - flip_planning_push_urls['demo_planning'] != flip_planning_push_urls['flip_planning']
+        fail_msg: "La démo pousse sur le moniteur Uptime Kuma de la production : {{ flip_planning_push_urls['demo_planning'] }}"
