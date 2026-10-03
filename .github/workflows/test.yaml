@@ -72,8 +72,8 @@ jobs:
 
       - name: Install ansible + molecule
         run: |
-          pip install --quiet uv
-          uv sync --locked --group test
+          pip install --quiet --only-binary :all: uv==0.12.23
+          uv sync --locked --no-build --group test
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install ansible roles and collections
@@ -112,7 +112,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up OpenTofu
-        uses: opentofu/setup-opentofu@v2
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
           tofu_wrapper: false
 

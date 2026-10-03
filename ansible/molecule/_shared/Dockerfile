@@ -12,15 +12,16 @@ ENV container=docker \
 
 # Les listes apt restent dans l'image : les rôles installent leurs paquets sans
 # toujours rafraîchir le cache, comme sur les hôtes réels.
-# docker.io + docker-compose : le démon sert à créer le réseau `newt` et aux
-# rôles qui inspectent Docker ; `docker compose config` valide les compose
-# templatés. Aucune image applicative n'est tirée (cf. _shared/prepare.yml).
+# docker.io + docker-cli + docker-compose (plugin `docker compose`) : le démon
+# sert à créer le réseau `newt` et aux rôles qui inspectent Docker ;
+# `docker compose config` valide les compose templatés. Aucune image applicative n'est tirée (cf. _shared/prepare.yml).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         dbus \
         dbus-user-session \
+        docker-cli \
         docker-compose \
         docker.io \
         gnupg \
@@ -33,7 +34,9 @@ RUN apt-get update \
         sudo \
         systemd \
         systemd-sysv \
-    && apt-get clean
+    && apt-get clean \
+    && docker --version \
+    && docker compose version
 
 # Les playbooks se connectent en `sylvain` et passent root par sudo : on
 # reproduit ce modèle, c'est lui que docker_service (unités user, lingering)
