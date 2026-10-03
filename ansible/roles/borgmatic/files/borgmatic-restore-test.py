@@ -34,6 +34,7 @@ import glob
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -56,6 +57,21 @@ DEFAULT_SETTINGS = {
     "wait_for_backup_seconds": 4 * 3600,
     "push_url": "",
 }
+
+
+# Hooks whose dumps this script knows how to check; the others are skipped.
+DATA_SOURCE_HOOKS = (
+    "mariadb_databases",
+    "mysql_databases",
+    "postgresql_databases",
+    "sqlite_databases",
+)
+
+# dumps.json comes out of the archive under test, so its fields are data, not
+# trusted paths: a name may not contain a separator nor be "." / "..", and a
+# container name follows Docker's own rule.
+SAFE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:@-]*")
+CONTAINER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
 
 class RestoreTestError(Exception):
@@ -118,12 +134,25 @@ def tail(path, size=4096):
 
 
 def dump_path(root, hook, dump):
-    """Mirror of borgmatic's make_data_source_dump_filename()."""
-    identifier = dump.get("label") or (
-        (dump.get("container") or dump.get("hostname") or "localhost")
-        + ("" if dump.get("port") is None else f":{dump['port']}")
+    """Mirror of borgmatic's make_data_source_dump_filename(), kept under root."""
+    identifier = str(
+        dump.get("label")
+        or (
+            (dump.get("container") or dump.get("hostname") or "localhost")
+            + ("" if dump.get("port") is None else f":{dump['port']}")
+        )
     )
-    return os.path.join(root, "borgmatic", hook, identifier, dump["data_source_name"])
+    name = str(dump["data_source_name"])
+    if not (SAFE_NAME.fullmatch(identifier) and SAFE_NAME.fullmatch(name)):
+        raise RestoreTestError(f"{hook}: unexpected dump name {identifier!r}/{name!r}")
+
+    base = os.path.realpath(os.path.join(root, "borgmatic", hook))
+    path = os.path.realpath(os.path.join(base, identifier, name))
+    if not path.startswith(base + os.sep):
+        raise RestoreTestError(
+            f"{hook}: dump {identifier}/{name} resolves outside the archive"
+        )
+    return path
 
 
 def check_dump(hook, dump, path):
@@ -146,6 +175,8 @@ def check_dump(hook, dump, path):
 
     if hook == "postgresql_databases" and magic == b"PGDMP":
         container = dump.get("container")
+        if container and not CONTAINER_NAME.fullmatch(str(container)):
+            raise RestoreTestError(f"{label}: unexpected container name {container!r}")
         if container:
             with open(path, "rb") as handle:
                 run(
@@ -238,10 +269,10 @@ def test_configuration(settings, config):
                     )
 
             dumps = 0
-            for metadata in glob.glob(
-                os.path.join(root, "borgmatic", "*_databases", "dumps.json")
-            ):
-                hook = os.path.basename(os.path.dirname(metadata))
+            for hook in DATA_SOURCE_HOOKS:
+                metadata = os.path.join(root, "borgmatic", hook, "dumps.json")
+                if not os.path.exists(metadata):
+                    continue
                 with open(metadata) as handle:
                     for dump in json.load(handle)["dumps"]:
                         check_dump(hook, dump, dump_path(root, hook, dump))
