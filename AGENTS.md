@@ -218,6 +218,7 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 - `tofu/dns/` — Cloudflare DNS records (root domain, redirects, GitHub Pages, email, Pangolin subdomain).
 - `tofu/github/` — GitHub-side config: the Actions secrets of this repo (SOPS Age key, CI deploy key, OLM credentials read from `pangolin_config`'s state) and the `planning-equipes` repository itself — creation, visibility, `main` branch protection. The settings the provider can't reach (fork PR approval, private vulnerability reporting, GHCR package visibility, Renovate/GitGuardian) are a checklist in `tofu/github/README.md`.
 - `tofu/ref/` — the referral site ref.sylvain.dev (repo `sylvainmetayer/ref`, 11ty on Cloudflare Pages): GitHub repository, Cloudflare Pages project + custom domain, Web Analytics site, and the OVH CNAME overriding the `*.sylvain.dev` wildcard. Needs `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` in `secrets.sops.yaml`; see its README.
+- `tofu/1y/` — the short-URL site r.sylvain.dev (repo `sylvainmetayer/1y`, 11ty on Cloudflare Pages, formerly Netlify): Cloudflare Pages project + custom domain and the OVH CNAME, same pattern and prerequisites as `tofu/ref` (the GitHub repository itself is not managed). See its README for the one-off DNS import of the Netlify-era record.
 - All backends are S3-compatible object storage (`homelab-tf-state-sylvain` bucket at `https://s3.eu-west-par.io.cloud.ovh.net`), not native AWS — `backend "s3" { endpoints = { s3 = ... } }`.
 
 ## CI (GitHub Actions)
