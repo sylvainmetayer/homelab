@@ -42,14 +42,15 @@
       ansible.builtin.systemd:
         daemon_reload: true
 
-    # Mêmes propriétaires et modes que ceux que pose le rôle (idempotence).
+    # Modes restreints : le rôle pose les siens (0755 / 0644) au premier
+    # converge, l'idempotence porte sur le second.
     - name: Create the Pangolin configuration directory
       ansible.builtin.file:
         path: "{{ pangolin_molecule_dir }}/config"
         state: directory
         owner: root
         group: root
-        mode: "0755"
+        mode: "0700"
 
     - name: Provide a placeholder GeoLite2 database
       ansible.builtin.copy:
@@ -57,5 +58,5 @@
         content: "molecule: base GeoLite2 factice\n"
         owner: root
         group: root
-        mode: "0644"
+        mode: "0600"
         force: false
