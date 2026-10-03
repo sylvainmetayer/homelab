@@ -7,7 +7,21 @@
 # Les valeurs calculées d'un provider mocké sont inconnues au plan : les
 # assertions ne portent que sur des valeurs issues de la configuration.
 
-mock_provider "proxmox" {}
+# Le provider valide dès le plan que les file_id référencés ont la forme
+# `datastore:type/fichier` : les identifiants aléatoires du mock ne passent pas.
+mock_provider "proxmox" {
+  mock_resource "proxmox_virtual_environment_download_file" {
+    defaults = {
+      id = "local:iso/mock-image.img"
+    }
+  }
+
+  mock_resource "proxmox_virtual_environment_file" {
+    defaults = {
+      id = "local:snippets/mock-cloud-init.yaml"
+    }
+  }
+}
 mock_provider "sops" {}
 mock_provider "random" {}
 
