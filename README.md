@@ -47,3 +47,26 @@ systemctl start dc@betisier --user
 sudo -s
 borgmatic restore --archive latest --repo betisier-s3
 ```
+
+### Test de restauration hebdomadaire
+
+Chaque hôte qui a le rôle `borgmatic` lance `borgmatic-restore-test.timer` le
+dimanche matin (`ansible/roles/borgmatic/files/borgmatic-restore-test.py`).
+Pour chaque config de `/etc/borgmatic.d`, le script vérifie que la dernière
+archive a moins de 48 h, extrait dans un dossier jetable tous les dumps de base
+de données plus un échantillon aléatoire de fichiers, puis contrôle le résultat
+(`pg_restore --list` dans le conteneur d'origine, fin de dump MySQL/SQLite
+présente, tailles des fichiers). Rien n'est restauré dans une base en service.
+Le résultat part sur le monitor push « Restore test <hôte> » d'Uptime Kuma.
+
+```bash
+sudo systemctl start borgmatic-restore-test.service   # à la demande
+journalctl -u borgmatic-restore-test.service          # détail par config
+```
+
+### Mot de passe Postgres d'Immich
+
+`POSTGRES_PASSWORD` n'est lu qu'à l'initialisation de la base. Pour changer
+`immich_db_password`, il suffit de le modifier dans `secrets.sops.yaml` puis de
+relancer `pi.yml --tags immich` : le rôle détecte que le mot de passe n'ouvre
+plus la base et l'applique avec `ALTER ROLE` via le socket local du conteneur.
