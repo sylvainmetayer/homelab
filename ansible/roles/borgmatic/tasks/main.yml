@@ -166,7 +166,8 @@
       ansible.builtin.copy:
         src: borgmatic-restore-test.py
         dest: /usr/local/bin/borgmatic-restore-test
-        mode: "0755"
+        # Only the root-run unit executes it.
+        mode: "0750"
         owner: root
         group: root
 
@@ -184,7 +185,8 @@
       ansible.builtin.template:
         src: "borgmatic-restore-test.{{ item }}.j2"
         dest: "/etc/systemd/system/borgmatic-restore-test.{{ item }}"
-        mode: "0644"
+        # Only systemd (root) reads the units: no need for world-readable.
+        mode: "0640"
         owner: root
         group: root
       loop:
