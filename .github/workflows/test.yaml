@@ -76,11 +76,19 @@ jobs:
           uv sync --locked --no-build --group test
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
+      # Toute la matrice interroge Galaxy en même temps : il lui arrive de
+      # couper une connexion (ECONNRESET), on retente avant d'échouer.
       - name: Install ansible roles and collections
         working-directory: ansible
         run: |
-          ansible-galaxy role install -r requirements.yml
-          ansible-galaxy collection install -r requirements.yml
+          for attempt in 1 2 3; do
+            ansible-galaxy role install -r requirements.yml \
+              && ansible-galaxy collection install -r requirements.yml \
+              && exit 0
+            echo "Galaxy install failed (attempt $attempt), retrying in $((attempt * 10))s"
+            sleep $((attempt * 10))
+          done
+          exit 1
 
       - name: Build the Molecule image
         run: docker build --tag homelab-molecule:debian13 ansible/molecule/_shared
