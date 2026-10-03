@@ -89,9 +89,11 @@ resource "uptimekuma_monitor_http" "agent_ready_netlify" {
   tags                       = [local.tofu_tag]
 }
 
+# r.sylvain.dev, the 1y short-URL site: moved from Netlify to Cloudflare Pages
+# (tofu/1y), so filed under the Cloudflare folder.
 resource "uptimekuma_monitor_http" "redirect" {
   name   = "Redirect"
-  parent = uptimekuma_monitor_group.netlify.id
+  parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://r.sylvain.dev"
 
   interval        = 60
