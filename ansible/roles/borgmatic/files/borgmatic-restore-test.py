@@ -22,9 +22,13 @@ Nothing is restored into a live database. The result is pushed to an Uptime
 Kuma push monitor: `up` when every configuration passed, `down` with the
 failures otherwise, and nothing at all if the script never runs - which the
 monitor reports by itself.
+
+It takes no argument and reads nothing from its environment: the only input is
+SETTINGS_FILE, written by the borgmatic Ansible role and readable by root only.
+Everything this script hands to borg, open() or urlopen() therefore comes from
+root-owned files or from borgmatic's own output.
 """
 
-import argparse
 import datetime
 import glob
 import json
@@ -36,6 +40,22 @@ import tempfile
 import time
 import urllib.parse
 import urllib.request
+
+
+SETTINGS_FILE = "/etc/borgmatic-restore-test.json"
+BORGMATIC = "/root/.local/bin/borgmatic"
+# The unit's StateDirectory=: root-only (0700), unlike /tmp or /var/tmp, and on
+# disk rather than in RAM, since database dumps can be large.
+WORK_DIR = "/var/lib/borgmatic-restore-test"
+
+DEFAULT_SETTINGS = {
+    "config_dir": "/etc/borgmatic.d",
+    "max_age_hours": 48,
+    "sample_files": 10,
+    "sample_max_bytes": 50 * 1024 * 1024,
+    "wait_for_backup_seconds": 4 * 3600,
+    "push_url": "",
+}
 
 
 class RestoreTestError(Exception):
@@ -152,8 +172,8 @@ def check_dump(hook, dump, path):
             )
 
 
-def test_configuration(args, config):
-    borgmatic = [args.borgmatic, "--config", config]
+def test_configuration(settings, config):
+    borgmatic = [BORGMATIC, "--config", config]
     results = json.loads(
         run(borgmatic + ["repo-list", "--json", "--last", "1"], "repo-list")
     )
@@ -170,10 +190,10 @@ def test_configuration(args, config):
         # Borg 1 reports archive times in the host's local time, without offset.
         created = datetime.datetime.fromisoformat(archive["time"])
         age = datetime.datetime.now() - created
-        if age > datetime.timedelta(hours=args.max_age_hours):
+        if age > datetime.timedelta(hours=settings["max_age_hours"]):
             raise RestoreTestError(
                 f"{repository}: latest archive {archive['name']} is {age.days}d "
-                f"{age.seconds // 3600}h old (limit {args.max_age_hours}h)"
+                f"{age.seconds // 3600}h old (limit {settings['max_age_hours']}h)"
             )
 
         selector = ["--repository", repository, "--archive", archive["name"]]
@@ -189,12 +209,16 @@ def test_configuration(args, config):
             )
             if entry.get("type") == "-"
             and not entry["path"].startswith("borgmatic/")
-            and entry.get("size", 0) <= args.sample_max_bytes
+            and entry.get("size", 0) <= settings["sample_max_bytes"]
         ]
-        sample = random.sample(files, min(args.sample_files, len(files)))
+        # Not a security decision, but SystemRandom costs nothing and keeps the
+        # sample out of anything a seeded PRNG could reproduce.
+        sample = random.SystemRandom().sample(
+            files, min(settings["sample_files"], len(files))
+        )
 
         with tempfile.TemporaryDirectory(
-            dir=args.work_dir, prefix=f"restore-test-{os.path.basename(config)}-"
+            dir=WORK_DIR, prefix=f"restore-test-{os.path.basename(config)}-"
         ) as root:
             command = borgmatic + ["extract"] + selector + ["--destination", root]
             # `borgmatic/` holds the database dumps and the bootstrap manifest,
@@ -238,39 +262,43 @@ def push(url, status, message):
         print(f"Could not push to Uptime Kuma: {error}", file=sys.stderr)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--config-dir", default="/etc/borgmatic.d")
-    parser.add_argument("--borgmatic", default="/root/.local/bin/borgmatic")
-    parser.add_argument("--work-dir", default="/var/tmp")
-    parser.add_argument("--max-age-hours", type=int, default=48)
-    parser.add_argument("--sample-files", type=int, default=10)
-    parser.add_argument("--sample-max-bytes", type=int, default=50 * 1024 * 1024)
-    parser.add_argument(
-        "--wait-for-backup",
-        type=int,
-        default=4 * 3600,
-        help="seconds to wait for a running borgmatic.service",
-    )
-    parser.add_argument(
-        "--push-url", default=os.environ.get("RESTORE_TEST_PUSH_URL", "")
-    )
-    args = parser.parse_args()
+def load_settings():
+    settings = dict(DEFAULT_SETTINGS)
+    with open(SETTINGS_FILE) as handle:
+        settings.update(json.load(handle))
+    for key in (
+        "max_age_hours",
+        "sample_files",
+        "sample_max_bytes",
+        "wait_for_backup_seconds",
+    ):
+        settings[key] = int(settings[key])
+    return settings
 
+
+def main():
     failures = []
     try:
-        wait_for_backup(args.wait_for_backup)
+        settings = load_settings()
+    except (OSError, ValueError) as error:
+        # Without settings there is no push URL either: the journal is all
+        # there is, and the monitor goes DOWN when its interval runs out.
+        print(f"Cannot read {SETTINGS_FILE}: {error}", file=sys.stderr)
+        return 1
+
+    try:
+        wait_for_backup(settings["wait_for_backup_seconds"])
     except RestoreTestError as error:
         failures.append(str(error))
 
-    configs = sorted(glob.glob(os.path.join(args.config_dir, "*.yaml")))
+    configs = sorted(glob.glob(os.path.join(settings["config_dir"], "*.yaml")))
     if not configs:
-        failures.append(f"no configuration in {args.config_dir}")
+        failures.append(f"no configuration in {settings['config_dir']}")
 
     for config in configs if not failures else []:
         name = os.path.splitext(os.path.basename(config))[0]
         try:
-            for line in test_configuration(args, config):
+            for line in test_configuration(settings, config):
                 print(f"{name}: OK {line}")
         # Anything else too (a missing `docker` or `pg_restore` binary, an
         # unexpected JSON shape): a crash would push nothing, and the monitor
@@ -281,9 +309,9 @@ def main():
 
     if failures:
         print("Restore test failed: " + "; ".join(failures), file=sys.stderr)
-        push(args.push_url, "down", "; ".join(failures))
+        push(settings["push_url"], "down", "; ".join(failures))
         return 1
-    push(args.push_url, "up", f"{len(configs)} configurations restored")
+    push(settings["push_url"], "up", f"{len(configs)} configurations restored")
     return 0
 
 

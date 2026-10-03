@@ -171,15 +171,22 @@
         owner: root
         group: root
 
-    # Kept out of the unit file: the push token is a credential.
-    - name: Store the restore test push URL
+    # The script's only input (it takes no argument and reads no environment
+    # variable). Root-only: the push token is a credential.
+    - name: Write the restore test settings
       ansible.builtin.copy:
-        dest: /etc/borgmatic-restore-test.env
-        content: |
-          RESTORE_TEST_PUSH_URL={{ borgmatic_restore_test_healthcheck_url }}
+        dest: /etc/borgmatic-restore-test.json
+        content: "{{ borgmatic_restore_test_settings | to_nice_json }}\n"
         mode: "0600"
         owner: root
         group: root
+      vars:
+        borgmatic_restore_test_settings:
+          config_dir: "{{ borgmatic_config_dir }}"
+          max_age_hours: "{{ borgmatic_restore_test_max_age_hours | int }}"
+          sample_files: "{{ borgmatic_restore_test_sample_files | int }}"
+          sample_max_bytes: "{{ borgmatic_restore_test_sample_max_bytes | int }}"
+          push_url: "{{ borgmatic_restore_test_healthcheck_url }}"
 
     - name: Create the restore test systemd units
       ansible.builtin.template:
