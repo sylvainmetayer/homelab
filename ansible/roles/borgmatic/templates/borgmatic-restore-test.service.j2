@@ -1,0 +1,18 @@
+[Unit]
+Description=borgmatic restore test
+Wants=network-online.target
+After=network-online.target borgmatic.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=-/etc/borgmatic-restore-test.env
+ExecStart=/usr/bin/python3 /usr/local/bin/borgmatic-restore-test \
+    --config-dir {{ borgmatic_config_dir }} \
+    --max-age-hours {{ borgmatic_restore_test_max_age_hours }} \
+    --sample-files {{ borgmatic_restore_test_sample_files }} \
+    --sample-max-bytes {{ borgmatic_restore_test_sample_max_bytes }}
+# Extraction is I/O heavy and nothing waits on it.
+Nice=10
+IOSchedulingClass=idle

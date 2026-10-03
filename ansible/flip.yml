@@ -62,6 +62,7 @@
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
+        borgmatic_restore_test_healthcheck_url: "{{ terraform_outputs.uptime_restore_test_urls.value['flip'] | default('') }}"
         newt_client_id: "{{ terraform_outputs.flip_newt_id.value | default('') }}"
         newt_client_secret: "{{ terraform_outputs.flip_newt_secret.value | default('') }}"
       vars:

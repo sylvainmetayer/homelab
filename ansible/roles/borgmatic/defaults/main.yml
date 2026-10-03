@@ -25,3 +25,20 @@ borgmatic_rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
 borgmatic_rclone_s3_secret_access_key: "{{ rclone_secret_access_key | default('') }}"
 borgmatic_rclone_s3_endpoint: "s3.eu-west-par.io.cloud.ovh.net"
 borgmatic_rclone_s3_region: "EU-WEST-PAR"
+
+# Weekly restore test (files/borgmatic-restore-test.py, issue #444): extracts
+# the database dumps and a random sample of files of every configuration's
+# latest archive into a throwaway directory and checks them. Weekly rather
+# than monthly because Uptime Kuma caps a push monitor's interval at 24 days.
+borgmatic_restore_test_enabled: true
+# Well after the nightly backup; the script also waits for a running one.
+borgmatic_restore_test_schedule: "Sun *-*-* 05:00:00"
+# A latest archive older than this fails the test.
+borgmatic_restore_test_max_age_hours: 48
+# Random files extracted per archive, on top of every database dump.
+borgmatic_restore_test_sample_files: 10
+borgmatic_restore_test_sample_max_bytes: "{{ 50 * 1024 * 1024 }}"
+# Uptime Kuma push URL (`uptime_restore_test_urls` output of
+# tofu/pangolin_config, set by each playbook). Empty: the result only goes to
+# the journal.
+borgmatic_restore_test_healthcheck_url: ""
