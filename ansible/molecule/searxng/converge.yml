@@ -1,0 +1,12 @@
+---
+# docker.yml ne set_fact aucune URL de healthcheck pour searxng : rien à
+# reproduire en pre_tasks.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  roles:
+    - role: docker_service
+    - role: searxng

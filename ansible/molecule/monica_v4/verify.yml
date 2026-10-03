@@ -1,0 +1,116 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the monica_v4 deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: monica_v4
+        verify_app_borgmatic_config: /etc/borgmatic.d/monica_v4.yaml
+
+    # L'image apache de Monica écrit son stockage en www-data.
+    - name: Stat the Monica v4 storage folder
+      ansible.builtin.stat:
+        path: /opt/apps/monica_v4/data
+      register: monica_v4_data
+
+    - name: Assert the Monica v4 storage folder belongs to www-data
+      ansible.builtin.assert:
+        that:
+          - monica_v4_data.stat.isdir
+          - monica_v4_data.stat.pw_name == 'www-data'
+          - monica_v4_data.stat.gr_name == 'www-data'
+        fail_msg: "/opt/apps/monica_v4/data doit appartenir à www-data:www-data"
+
+    - name: Read the monica_v4 compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/monica_v4/compose.yaml
+      register: monica_v4_compose_raw
+
+    # Seule l'appli est sur newt ; la base reste sur le réseau interne.
+    - name: Assert only the Monica v4 app is exposed on newt
+      vars:
+        monica_v4_compose: "{{ monica_v4_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - monica_v4_compose.services.crm.container_name == 'monica_v4'
+          - "'newt' in monica_v4_compose.services.crm.networks"
+          - "'newt' not in monica_v4_compose.services.monica_v4_db.networks"
+          - "'MYSQL_PASSWORD=molecule-monica-v4-db-password' in monica_v4_compose.services.monica_v4_db.environment"
+          - monica_v4_compose.services.monica_v4_db.mem_reservation is defined
+        fail_msg: "Compose de monica_v4 inattendu : {{ monica_v4_compose.services }}"
+
+    - name: Read the state of the Monica v4 cron timer
+      ansible.builtin.systemd:
+        name: monica_v4_cron.timer
+        scope: user
+      register: monica_v4_cron_timer
+
+    - name: Assert the Monica v4 cron timer is enabled and running
+      ansible.builtin.assert:
+        that:
+          - monica_v4_cron_timer.status.UnitFileState == 'enabled'
+          - monica_v4_cron_timer.status.ActiveState == 'active'
+        fail_msg: >-
+          monica_v4_cron.timer : {{ monica_v4_cron_timer.status.UnitFileState }} /
+          {{ monica_v4_cron_timer.status.ActiveState }}
+
+    - name: Read the Monica v4 cron service unit
+      ansible.builtin.slurp:
+        src: /home/sylvain/.config/systemd/user/monica_v4_cron.service
+      register: monica_v4_cron_unit
+
+    # L'URL vient du state Tofu (set_fact de docker.yml), pas des secrets.
+    - name: Assert the Monica v4 cron pings its Uptime Kuma monitor and runs the scheduler
+      ansible.builtin.assert:
+        that:
+          - "'ExecStartPre=/usr/bin/curl https://uptime.example.invalid/api/push/tofu-monica-cron' in (monica_v4_cron_unit.content | b64decode)"
+          - "'/opt/apps/monica_v4/compose.yaml exec -T crm' in (monica_v4_cron_unit.content | b64decode)"
+        fail_msg: "monica_v4_cron.service inattendu"
+
+    - name: Stat the monica_v4 borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/monica_v4.yaml
+      register: monica_v4_borgmatic_stat
+
+    - name: Assert the monica_v4 borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - monica_v4_borgmatic_stat.stat.mode == '0600'
+          - monica_v4_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/monica_v4.yaml doit être 0600 root (mots de passe)"
+
+    - name: Read the monica_v4 borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/monica_v4.yaml
+      register: monica_v4_borgmatic_raw
+
+    # Le .env n'est pas templaté par le rôle : la sauvegarde est sa seule copie.
+    - name: Assert the monica_v4 backup covers the database and the hand-managed .env
+      vars:
+        monica_v4_borgmatic: "{{ monica_v4_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - monica_v4_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/monica_v4'
+          - monica_v4_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - "'/opt/apps/monica_v4/.env' in monica_v4_borgmatic.source_directories"
+          - monica_v4_borgmatic.mysql_databases[0].container == 'monica_v4_db'
+          - monica_v4_borgmatic.mysql_databases[0].password == 'molecule-monica-v4-db-password'
+          - monica_v4_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-monica-backup'
+        fail_msg: "Configuration borgmatic de monica_v4 inattendue : {{ monica_v4_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for monica_v4
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_monica_v4.yaml
+      register: monica_v4_repo_marker
+
+    - name: Assert the monica_v4 borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - monica_v4_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour monica_v4"

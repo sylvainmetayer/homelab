@@ -1,0 +1,91 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the nextcloud deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: nextcloud
+        verify_app_borgmatic_config: /etc/borgmatic.d/nextcloud.yaml
+
+    # Il contiendra les fichiers des utilisateurs : fermé aux autres comptes.
+    - name: Stat the nextcloud app folder
+      ansible.builtin.stat:
+        path: /opt/apps/nextcloud
+      register: nextcloud_dir
+
+    - name: Assert the nextcloud app folder is private
+      ansible.builtin.assert:
+        that:
+          - nextcloud_dir.stat.mode == '0700'
+          - nextcloud_dir.stat.pw_name == ansible_facts['user_id']
+        fail_msg: "/opt/apps/nextcloud doit être 0700 à {{ ansible_facts['user_id'] }}"
+
+    - name: Read the nextcloud compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/nextcloud/compose.yaml
+      register: nextcloud_compose_raw
+
+    # Base et redis restent sur le réseau interne ; redis exige le mot de passe
+    # des secrets.
+    - name: Assert only Nextcloud is on newt and redis requires its password
+      vars:
+        nextcloud_compose: "{{ nextcloud_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'newt' in nextcloud_compose.services.nextcloud.networks"
+          - "'newt' not in nextcloud_compose.services.db.networks"
+          - "'newt' not in nextcloud_compose.services.cache.networks"
+          - nextcloud_compose.services.db.environment.MYSQL_PASSWORD == nextcloud_db_password
+          - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
+        fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
+
+    - name: Stat the nextcloud borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/nextcloud.yaml
+      register: nextcloud_borgmatic_stat
+
+    - name: Assert the nextcloud borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - nextcloud_borgmatic_stat.stat.mode == '0600'
+          - nextcloud_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/nextcloud.yaml doit être 0600 root (mots de passe)"
+
+    - name: Read the nextcloud borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/nextcloud.yaml
+      register: nextcloud_borgmatic_raw
+
+    # archive_name_format n'est pas vérifié : il vaut 'betisier-…' depuis
+    # l'origine dans ce dépôt nextcloud, et le changer ferait ignorer les
+    # anciennes archives par prune.
+    - name: Assert the nextcloud backup covers data and database and pushes to Uptime Kuma
+      vars:
+        nextcloud_borgmatic: "{{ nextcloud_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - nextcloud_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/nextcloud'
+          - nextcloud_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - "'/opt/apps/nextcloud/data' in nextcloud_borgmatic.source_directories"
+          - nextcloud_borgmatic.mysql_databases[0].container == 'nextcloud_db'
+          - nextcloud_borgmatic.mysql_databases[0].password == nextcloud_db_password
+          - nextcloud_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-nextcloud-backup'
+        fail_msg: "Configuration borgmatic de nextcloud inattendue : {{ nextcloud_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for nextcloud
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_nextcloud.yaml
+      register: nextcloud_repo_marker
+
+    - name: Assert the nextcloud borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - nextcloud_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour nextcloud"

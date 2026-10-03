@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Rôle sans état : pas de configuration borgmatic.
+    - name: Verify the echo deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: echo
+
+    - name: Read the echo compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/echo/compose.yaml
+      register: echo_compose_raw
+
+    # Pangolin résout la cible par nom de conteneur sur le réseau newt.
+    - name: Assert echo is reachable by Pangolin on the newt network
+      vars:
+        echo_compose: "{{ echo_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - echo_compose.services['echo-server'].container_name == 'echo'
+          - "'newt' in echo_compose.services['echo-server'].networks"
+          - echo_compose.networks.newt.external
+          - echo_compose.services['echo-server'].mem_limit is defined
+        fail_msg: "echo doit s'appeler 'echo', être sur le réseau externe newt et avoir un mem_limit"

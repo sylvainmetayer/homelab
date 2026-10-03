@@ -1,0 +1,86 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the searxng deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: searxng
+        verify_app_borgmatic_config: /etc/borgmatic.d/searxng.yaml
+
+    - name: Read the SearXNG settings
+      ansible.builtin.slurp:
+        src: /opt/apps/searxng/config/settings.yml
+      register: searxng_settings_raw
+
+    # La clé vient des secrets (le rôle échoue si elle est vide) et l'URL du
+    # domaine routé par Pangolin.
+    - name: Assert the SearXNG settings carry the secret key and public URL
+      vars:
+        searxng_settings: "{{ searxng_settings_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - searxng_settings.use_default_settings
+          - searxng_settings.server.secret_key == 'molecule-searxng-secret-key'
+          - searxng_settings.server.base_url == 'https://search.sylvain.cloud/'
+        fail_msg: "settings.yml de SearXNG inattendu : {{ searxng_settings.server }}"
+
+    - name: Read the searxng compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/searxng/compose.yaml
+      register: searxng_compose_raw
+
+    - name: Assert the searxng container mounts its settings and joins newt
+      vars:
+        searxng_compose: "{{ searxng_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - searxng_compose.services.searxng.container_name == 'searxng'
+          - "'newt' in searxng_compose.services.searxng.networks"
+          - "'./config:/etc/searxng:rw' in searxng_compose.services.searxng.volumes"
+          - "'SEARXNG_BASE_URL=https://search.sylvain.cloud/' in searxng_compose.services.searxng.environment"
+        fail_msg: "Compose de searxng inattendu : {{ searxng_compose.services.searxng }}"
+
+    - name: Stat the searxng borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/searxng.yaml
+      register: searxng_borgmatic_stat
+
+    - name: Assert the searxng borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - searxng_borgmatic_stat.stat.mode == '0600'
+          - searxng_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/searxng.yaml doit être 0600 root (passphrase borg)"
+
+    - name: Read the searxng borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/searxng.yaml
+      register: searxng_borgmatic_raw
+
+    - name: Assert the searxng backup targets its own repository
+      vars:
+        searxng_borgmatic: "{{ searxng_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - searxng_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/searxng'
+          - searxng_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - searxng_borgmatic.archive_name_format is match('searxng-')
+          - "'/opt/apps/searxng/config' in searxng_borgmatic.source_directories"
+        fail_msg: "Configuration borgmatic de searxng inattendue : {{ searxng_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for searxng
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_searxng.yaml
+      register: searxng_repo_marker
+
+    - name: Assert the searxng borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - searxng_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour searxng"

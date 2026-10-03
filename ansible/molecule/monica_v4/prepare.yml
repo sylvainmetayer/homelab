@@ -1,0 +1,42 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Le compose de monica_v4 charge `env_file: .env` (APP_KEY, accès à la base…),
+# que le rôle ne template pas : il est posé à la main sur l'hôte et seulement
+# sauvegardé par borgmatic. Sans lui, `docker compose config` échoue et
+# dc@monica_v4 ne démarre pas. On le pose comme sur l'hôte, avec de fausses
+# valeurs ; propriétaires et modes des dossiers identiques à ceux des rôles,
+# pour ne rien changer à l'idempotence.
+- name: Prepare monica_v4
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+  gather_facts: false
+  tasks:
+    - name: Ensure the Monica v4 app folder exists
+      become: true
+      loop:
+        - /opt/apps
+        - /opt/apps/monica_v4
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: sylvain
+        group: sylvain
+        # Le rôle (et docker_service pour /opt/apps) remet son propre mode
+        # au premier converge ; l'idempotence porte sur le second.
+        mode: "0700"
+
+    - name: Install the hand-managed Monica v4 environment file
+      ansible.builtin.copy:
+        dest: /opt/apps/monica_v4/.env
+        mode: "0600"
+        content: |
+          APP_ENV=production
+          APP_KEY=base64:{{ ('m' * 32) | b64encode }}
+          APP_URL=https://crm.sylvain.dev
+          DB_HOST=monica_v4_db
+          DB_DATABASE=monica
+          DB_USERNAME=monica
+          DB_PASSWORD={{ monica_v4_db_password }}

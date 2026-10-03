@@ -1,0 +1,17 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    # docker.yml lit ces URL dans les outputs du state pangolin_config :
+    # des set_fact, qui l'emportent sur les valeurs de fake_secrets.yml.
+    - name: Load healthcheck URLs as docker.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        monica_v4_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-monica-backup
+        monica_v4_cron_healthcheck_url: https://uptime.example.invalid/api/push/tofu-monica-cron
+  roles:
+    - role: docker_service
+    - role: monica_v4

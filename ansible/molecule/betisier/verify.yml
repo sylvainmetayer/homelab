@@ -1,0 +1,130 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the betisier deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: betisier
+        verify_app_borgmatic_config: /etc/borgmatic.d/betisier.yaml
+
+    # La base n'a pas de volume : elle est rechargée depuis ce dump à chaque
+    # démarrage, et sauvegardée avec.
+    - name: Stat the betisier SQL dump
+      ansible.builtin.stat:
+        path: /opt/apps/betisier/dump.sql
+      register: betisier_dump
+
+    - name: Assert the betisier SQL dump was downloaded
+      ansible.builtin.assert:
+        that:
+          - betisier_dump.stat.exists
+          - betisier_dump.stat.size > 0
+        fail_msg: "/opt/apps/betisier/dump.sql absent ou vide"
+
+    - name: Read the betisier compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/betisier/compose.yaml
+      register: betisier_compose_raw
+
+    # La base ne doit jamais être sur newt, seulement sur le réseau interne.
+    - name: Assert only the betisier front is exposed on newt
+      vars:
+        betisier_compose: "{{ betisier_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'newt' in betisier_compose.services.betisier.networks"
+          - "'newt' not in betisier_compose.services.betisier_db.networks"
+          - "'betisier' in betisier_compose.services.betisier_db.networks"
+          - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
+          - "'MYSQL_PASSWORD=molecule-betisier-db-password' in betisier_compose.services.betisier_db.environment"
+          - "'PUID=' ~ ansible_facts['user_uid'] in betisier_compose.services.betisier_db.environment"
+        fail_msg: "Compose de betisier inattendu : {{ betisier_compose.services }}"
+
+    - name: Read the state of the betisier reset timer
+      ansible.builtin.systemd:
+        name: betisier-reset.timer
+        scope: user
+      register: betisier_reset_timer
+
+    - name: Assert the betisier reset timer is enabled and running
+      ansible.builtin.assert:
+        that:
+          - betisier_reset_timer.status.UnitFileState == 'enabled'
+          - betisier_reset_timer.status.ActiveState == 'active'
+        fail_msg: >-
+          betisier-reset.timer : {{ betisier_reset_timer.status.UnitFileState }} /
+          {{ betisier_reset_timer.status.ActiveState }}
+
+    - name: Read the state of the betisier reset service
+      ansible.builtin.systemd:
+        name: betisier-reset.service
+        scope: user
+      register: betisier_reset_service
+
+    # Le reset arrête et relance dc@betisier : il doit cibler la bonne unité,
+    # depuis le dossier du projet compose.
+    - name: Assert the betisier reset service is loaded and targets the app
+      ansible.builtin.assert:
+        that:
+          - betisier_reset_service.status.LoadState == 'loaded'
+          - betisier_reset_service.status.WorkingDirectory == '/opt/apps/betisier'
+        fail_msg: "betisier-reset.service : {{ betisier_reset_service.status.LoadState }}"
+
+    - name: Read the betisier reset service unit
+      ansible.builtin.slurp:
+        src: /home/sylvain/.config/systemd/user/betisier-reset.service
+      register: betisier_reset_unit
+
+    - name: Assert the betisier reset restarts dc@betisier
+      ansible.builtin.assert:
+        that:
+          - "'ExecStart=/usr/bin/systemctl --user stop dc@betisier' in (betisier_reset_unit.content | b64decode)"
+          - "'ExecStart=/usr/bin/systemctl --user start dc@betisier' in (betisier_reset_unit.content | b64decode)"
+        fail_msg: "betisier-reset.service ne relance plus dc@betisier"
+
+    - name: Stat the betisier borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/betisier.yaml
+      register: betisier_borgmatic_stat
+
+    - name: Assert the betisier borgmatic configuration is private
+      ansible.builtin.assert:
+        that:
+          - betisier_borgmatic_stat.stat.mode == '0600'
+          - betisier_borgmatic_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/borgmatic.d/betisier.yaml doit être 0600 root (mots de passe)"
+
+    - name: Read the betisier borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/betisier.yaml
+      register: betisier_borgmatic_raw
+
+    - name: Assert the betisier backup dumps the database and pushes to Uptime Kuma
+      vars:
+        betisier_borgmatic: "{{ betisier_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - betisier_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/betisier'
+          - betisier_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
+          - betisier_borgmatic.archive_name_format is match('betisier-')
+          - betisier_borgmatic.mysql_databases[0].container == 'betisier_db'
+          - betisier_borgmatic.mysql_databases[0].password == 'molecule-betisier-db-password'
+          - betisier_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-betisier-backup'
+        fail_msg: "Configuration borgmatic de betisier inattendue : {{ betisier_borgmatic }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for betisier
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_betisier.yaml
+      register: betisier_repo_marker
+
+    - name: Assert the betisier borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - betisier_repo_marker.stat.exists
+        fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour betisier"
