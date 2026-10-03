@@ -59,12 +59,12 @@
       ansible.builtin.file:
         path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service.d"
         state: directory
-        mode: "0755"
+        mode: "0700"
 
     - name: Neutralise docker compose pull/up in dc@ units
       ansible.builtin.copy:
         dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service.d/molecule.conf"
-        mode: "0644"
+        mode: "0600"
         content: |
           # Molecule : pas d'image tirée ni de conteneur lancé. L'unité échoue
           # si le compose templaté est invalide, puis reste active.
@@ -87,14 +87,14 @@
       ansible.builtin.file:
         path: /root/.local/bin
         state: directory
-        mode: "0755"
+        mode: "0700"
 
     - name: Install the borgmatic stub
       become: true
       ansible.builtin.template:
         src: templates/borgmatic-stub.sh.j2
         dest: /root/.local/bin/borgmatic
-        mode: "0755"
+        mode: "0700"
         # Le rôle borgmatic, lui, installe le vrai : son scénario n'utilise pas ce prepare.
         force: false
 
