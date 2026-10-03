@@ -30,6 +30,7 @@ RUN apt-get update \
         procps \
         python3 \
         python3-apt \
+        python3-packaging \
         python3-venv \
         sudo \
         systemd \
