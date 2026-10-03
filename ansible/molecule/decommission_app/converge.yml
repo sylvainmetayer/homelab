@@ -1,0 +1,17 @@
+---
+# Comme `ansible-playbook docker.yml --tags decommission -e ...` (cf. le skill
+# remove-app) : avec ce tag, seul decommission_app tourne (docker_service et
+# les applications sont tagués setup/app), et les -e deviennent ici des vars
+# du rôle. decommission_app_destroy_remote_backup reste au défaut (false).
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  roles:
+    - role: decommission_app
+      vars:
+        decommission_app_confirm: true
+        decommission_app_service: scanopy
+        decommission_app_base_path: "{{ docker_base_path }}/scanopy"

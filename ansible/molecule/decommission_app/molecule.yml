@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml déploie scanopy (l'application à retirer) et echo (sa voisine,
+# qui doit survivre) ; converge.yml les décommissionne.
+scenario:
+  name: decommission_app
+ansible:
+  playbooks:
+    prepare: prepare.yml

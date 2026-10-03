@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# prepare.yml reproduit un hôte neuf : manager systemd de sylvain démarré
+# avant son ajout au groupe docker, que le rôle doit redémarrer.
+scenario:
+  name: docker_service
+ansible:
+  playbooks:
+    prepare: prepare.yml

@@ -1,0 +1,110 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  vars:
+    docker_service_unit_path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
+  tasks:
+    - name: Stat the dc@ unit template and the apps folder
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ docker_service_unit_path }}"
+        - "{{ docker_base_path }}"
+        - "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
+      register: docker_service_stats
+
+    - name: Assert the unit template, apps folder and linger file are in place
+      ansible.builtin.assert:
+        that:
+          - docker_service_stats.results[0].stat.exists
+          - docker_service_stats.results[0].stat.pw_name == ansible_facts['user_id']
+          - docker_service_stats.results[0].stat.mode == '0644'
+          - docker_service_stats.results[1].stat.isdir
+          - docker_service_stats.results[1].stat.pw_name == ansible_facts['user_id']
+          - docker_service_stats.results[1].stat.mode == '0755'
+          - docker_service_stats.results[2].stat.exists
+        fail_msg: "{{ docker_service_stats.results | map(attribute='item') | list }} : propriétaire, mode ou existence inattendus"
+
+    # Contenu du fichier lui-même : le drop-in Molecule (_shared/prepare.yml)
+    # remplace ExecStart* à l'exécution, pas dans ce fichier.
+    - name: Read the dc@ unit template
+      ansible.builtin.slurp:
+        src: "{{ docker_service_unit_path }}"
+      register: docker_service_unit_raw
+
+    # Les rôles d'application posent leur compose sous docker_base_path/<service> :
+    # WorkingDirectory doit pointer au même endroit.
+    - name: Assert the dc@ unit runs docker compose in the app folder
+      ansible.builtin.assert:
+        that:
+          - ('WorkingDirectory=' ~ docker_base_path ~ '/%i') in docker_service_unit_lines
+          - "'ExecStartPre=/usr/bin/docker compose pull' in docker_service_unit_lines"
+          - "'ExecStart=/usr/bin/docker compose up' in docker_service_unit_lines"
+          - "'ExecStop=/usr/bin/docker compose stop' in docker_service_unit_lines"
+          - "'Restart=always' in docker_service_unit_lines"
+          - "'StartLimitBurst=5' in docker_service_unit_lines"
+          - "'StartLimitIntervalSec=600' in docker_service_unit_lines"
+        fail_msg: "{{ docker_service_unit_path }} inattendu"
+      vars:
+        docker_service_unit_lines: "{{ (docker_service_unit_raw.content | b64decode).splitlines() }}"
+
+    # Une instance quelconque : le manager user a bien chargé ce fichier (le
+    # handler Daemon reload est passé).
+    - name: Read an instance of dc@
+      ansible.builtin.systemd:
+        name: dc@molecule
+        scope: user
+      register: docker_service_instance
+
+    - name: Assert the user manager loaded the dc@ unit template
+      ansible.builtin.assert:
+        that:
+          - docker_service_instance.status.LoadState == 'loaded'
+          - docker_service_instance.status.FragmentPath == docker_service_unit_path
+          - docker_service_instance.status.NeedDaemonReload == 'no'
+          - docker_service_instance.status.WorkingDirectory == docker_base_path ~ '/molecule'
+          - docker_service_instance.status.StartLimitBurst == '5'
+          - docker_service_instance.status.TimeoutStopUSec == '2min'
+        fail_msg: >-
+          dc@molecule : {{ docker_service_instance.status.LoadState }}
+          depuis {{ docker_service_instance.status.FragmentPath | default('?') }}
+
+    - name: Read the user manager of sylvain
+      ansible.builtin.systemd:
+        name: "user@{{ ansible_facts['user_uid'] }}.service"
+      register: docker_service_manager
+
+    - name: Read the PID of the stale user manager recorded by prepare
+      become: true
+      ansible.builtin.slurp:
+        src: /var/lib/molecule-stale-user-manager.pid
+      register: docker_service_stale_pid
+
+    - name: Read the docker group
+      ansible.builtin.getent:
+        database: group
+        key: docker
+
+    - name: Read the groups of the user manager
+      ansible.builtin.slurp:
+        src: "/proc/{{ docker_service_manager.status.MainPID }}/status"
+      register: docker_service_manager_proc
+
+    # prepare.yml a laissé un manager démarré sans le groupe docker : le rôle
+    # devait le redémarrer pour qu'il (et ses unités dc@) l'obtienne.
+    - name: Assert the user manager was restarted into the docker group
+      ansible.builtin.assert:
+        that:
+          - docker_service_manager.status.ActiveState == 'active'
+          - docker_service_manager.status.MainPID != (docker_service_stale_pid.content | b64decode | trim)
+          - ansible_facts['getent_group']['docker'][1] in docker_service_manager_groups
+        fail_msg: >-
+          user@{{ ansible_facts['user_uid'] }} (PID {{ docker_service_manager.status.MainPID }}) :
+          groupes {{ docker_service_manager_groups }}, docker =
+          {{ ansible_facts['getent_group']['docker'][1] }}
+      vars:
+        docker_service_manager_groups: >-
+          {{ (docker_service_manager_proc.content | b64decode).splitlines()
+             | select('match', '^Groups:') | first | regex_replace('^Groups:\s*', '') | split }}

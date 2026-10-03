@@ -1,0 +1,44 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the newt deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: newt
+
+    - name: Read the newt compose file
+      ansible.builtin.slurp:
+        src: "{{ docker_base_path }}/newt/compose.yaml"
+      register: newt_compose_raw
+
+    - name: Parse the newt compose file
+      ansible.builtin.set_fact:
+        newt_compose: "{{ newt_compose_raw.content | b64decode | from_yaml }}"
+        newt_env: "{{ (newt_compose_raw.content | b64decode | from_yaml).services.newt.environment }}"
+
+    # Identifiants du site docker (host_vars/docker), pas ceux du Pi.
+    - name: Assert newt connects to Pangolin as the docker site
+      ansible.builtin.assert:
+        that:
+          - ('PANGOLIN_ENDPOINT=' ~ newt_endpoint) in newt_env
+          - ('NEWT_ID=' ~ newt_docker_client_id) in newt_env
+          - ('NEWT_SECRET=' ~ newt_docker_client_secret) in newt_env
+        fail_msg: "Environnement de newt inattendu : {{ newt_env | map('regex_replace', '^(NEWT_SECRET)=.*', '\\1=***') | list }}"
+
+    # Les applications rejoignent `newt` en réseau externe : c'est ce compose
+    # qui le déclare sous ce nom exact. Newt lit le socket Docker (lecture
+    # seule) pour vérifier que la cible est sur son réseau.
+    - name: Assert newt owns the shared newt network and reads the Docker socket
+      ansible.builtin.assert:
+        that:
+          - newt_compose.networks.newt.name == 'newt'
+          - not (newt_compose.networks.newt.external | default(false))
+          - "'newt' in newt_compose.services.newt.networks"
+          - "'/var/run/docker.sock:/var/run/docker.sock:ro' in newt_compose.services.newt.volumes"
+          - "'DOCKER_SOCKET=unix:///var/run/docker.sock' in newt_env"
+          - "'DOCKER_ENFORCE_NETWORK_VALIDATION=true' in newt_env"
+          - newt_compose.services.newt.mem_limit is defined

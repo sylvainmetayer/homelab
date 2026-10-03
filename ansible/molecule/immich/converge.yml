@@ -1,0 +1,17 @@
+---
+# Comme pi.yml (le Raspberry Pi) : host_vars/pi.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pi/variables.yaml
+  pre_tasks:
+    # pi.yml lit cette URL dans les outputs du state pangolin_config ; ce
+    # set_fact l'emporte sur le '' de host_vars/pi, comme en production.
+    - name: Load healthcheck URLs from (fake) Terraform state outputs
+      ansible.builtin.set_fact:
+        immich_backup_healthcheck_url: https://uptime.example.invalid/api/push/molecule-immich
+  roles:
+    - role: docker_service
+    - role: immich

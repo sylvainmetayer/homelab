@@ -1,0 +1,107 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    gramps_path: "{{ docker_base_path }}/gramps"
+  tasks:
+    # gramps_enabled: false (host_vars/docker) : compose et backup en place,
+    # unité arrêtée.
+    - name: Verify the gramps deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: gramps
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/gramps.yaml"
+        verify_app_unit_started: false
+
+    - name: Read the state of dc@gramps
+      ansible.builtin.systemd:
+        name: dc@gramps
+        scope: user
+      register: gramps_unit
+
+    - name: Assert dc@gramps is stopped and disabled
+      ansible.builtin.assert:
+        that:
+          - gramps_unit.status.ActiveState == 'inactive'
+          - gramps_unit.status.UnitFileState != 'enabled'
+        fail_msg: >-
+          gramps_enabled: false mais dc@gramps est
+          {{ gramps_unit.status.UnitFileState }} / {{ gramps_unit.status.ActiveState }}
+
+    - name: Read the gramps compose file
+      ansible.builtin.slurp:
+        src: "{{ gramps_path }}/compose.yaml"
+      register: gramps_compose_raw
+
+    - name: Read the gramps borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ borgmatic_config_dir }}/gramps.yaml"
+      register: gramps_borgmatic_raw
+
+    - name: Parse the gramps configurations
+      ansible.builtin.set_fact:
+        gramps_compose: "{{ gramps_compose_raw.content | b64decode | from_yaml }}"
+        gramps_borgmatic: "{{ gramps_borgmatic_raw.content | b64decode | from_yaml }}"
+
+    - name: Assert only the web container joins the newt network
+      ansible.builtin.assert:
+        that:
+          - gramps_compose.networks.newt.external
+          - gramps_newt_services == ['grampsweb']
+        fail_msg: "Services sur newt : {{ gramps_newt_services }}"
+      vars:
+        gramps_newt_services: >-
+          {{ gramps_compose.services | dict2items
+             | selectattr('value.networks', 'defined')
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    # Doctrine (AGENTS.md) : mem_limit partout, quota CPU sur le worker celery
+    # seulement, et 2 workers gunicorn (8 par défaut partaient en boucle OOM).
+    - name: Assert the gramps resource limits follow the doctrine
+      ansible.builtin.assert:
+        that:
+          - gramps_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
+          - gramps_compose.services.grampsweb_celery.cpus is defined
+          - gramps_compose.services.grampsweb.cpus is not defined
+          - gramps_compose.services.grampsweb_redis.cpus is not defined
+          - gramps_compose.services.grampsweb.environment.GUNICORN_NUM_WORKERS | int <= 2
+        fail_msg: Limites de ressources de gramps hors doctrine (cf. AGENTS.md)
+
+    - name: Stat the gramps redis folder
+      ansible.builtin.stat:
+        path: "{{ gramps_path }}/redis"
+      register: gramps_redis_dir
+
+    # valkey écrit son dump sous son propre uid dans le conteneur.
+    - name: Assert the gramps redis folder belongs to the valkey uid
+      ansible.builtin.assert:
+        that:
+          - gramps_redis_dir.stat.isdir
+          - gramps_redis_dir.stat.uid == 999
+        fail_msg: "{{ gramps_path }}/redis appartient à l'uid {{ gramps_redis_dir.stat.uid | default('?') }}"
+
+    - name: Assert the gramps backup still reports to Uptime Kuma
+      ansible.builtin.assert:
+        that:
+          - gramps_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/molecule-gramps'
+          - gramps_borgmatic.repositories[0].path is match('ssh://' ~ backup_storage_box_username ~ '@')
+          - gramps_borgmatic.repositories[0].path is search('/gramps$')
+          - gramps_borgmatic.encryption_passphrase == backup_passphrase
+          - gramps_borgmatic.archive_name_format is match('gramps-')
+
+    - name: Stat the gramps backup sources
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ gramps_borgmatic.source_directories }}"
+      register: gramps_sources
+
+    - name: Assert every gramps backup source exists
+      ansible.builtin.assert:
+        that:
+          - gramps_sources.results | rejectattr('stat.exists') | list | length == 0
+        fail_msg: "Sources absentes : {{ gramps_sources.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
