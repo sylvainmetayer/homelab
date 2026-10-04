@@ -7,7 +7,10 @@ After=network-online.target
 Type=oneshot
 User={{ borgmatic_user }}
 Group={{ borgmatic_user }}
-ExecStart=/root/.local/bin/borgmatic --verbosity -1 --syslog-verbosity 1
+# Shared with borgmatic-restore-test.service: borg locks the repository and
+# waits 1 s for it by default, so a backup starting while the weekly restore
+# test is extracting would fail. Each now waits for the other to finish.
+ExecStart=/usr/bin/flock {{ borgmatic_lock_file }} /root/.local/bin/borgmatic --verbosity -1 --syslog-verbosity 1
 
 [Install]
 WantedBy=multi-user.target

@@ -19,6 +19,10 @@ borgmatic_timer_schedule: "*-*-* 01:00:00"
 # User for systemd service (root for Docker volumes access)
 borgmatic_user: "root"
 
+# flock(1) lock shared by borgmatic.service and borgmatic-restore-test.service,
+# so that neither runs into the other's borg repository lock.
+borgmatic_lock_file: /run/lock/borgmatic.lock
+
 # Rclone configuration
 borgmatic_rclone_config_dir: "/root/.config/rclone"
 borgmatic_rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
@@ -31,13 +35,16 @@ borgmatic_rclone_s3_region: "EU-WEST-PAR"
 # latest archive into a throwaway directory and checks them. Weekly rather
 # than monthly because Uptime Kuma caps a push monitor's interval at 24 days.
 borgmatic_restore_test_enabled: true
-# Well after the nightly backup; the script also waits for a running one.
+# Well after the nightly backup; both units share a flock, so a late backup
+# delays the test rather than colliding with it.
 borgmatic_restore_test_schedule: "Sun *-*-* 05:00:00"
 # A latest archive older than this fails the test.
 borgmatic_restore_test_max_age_hours: 48
 # Random files extracted per archive, on top of every database dump.
 borgmatic_restore_test_sample_files: 10
 borgmatic_restore_test_sample_max_bytes: "{{ 50 * 1024 * 1024 }}"
+# A run still going after this is killed (and its lock released).
+borgmatic_restore_test_timeout: 12h
 # Uptime Kuma push URL (`uptime_restore_test_urls` output of
 # tofu/pangolin_config, set by each playbook). Empty: the result only goes to
 # the journal.

@@ -13,10 +13,11 @@ configuration this script:
      archive plus a random sample of its files - borg verifies each chunk's
      MAC on extraction, so this is a real read of the repository, not a
      listing;
-  3. checks what came out: sampled files have the size the archive lists,
-     PostgreSQL custom-format dumps open with `pg_restore --list` (run inside
-     the dump's own container when there is one, so the client matches the
-     server version), plain SQL dumps end with their completion trailer.
+  3. checks what came out: there is at least one dump per database the
+     configuration declares, sampled files have the size the archive lists,
+     PostgreSQL custom-format dumps are read through by `pg_restore` (run
+     inside the dump's own container when there is one, so the client matches
+     the server version), plain SQL dumps end with their completion trailer.
 
 Nothing is restored into a live database. The result is pushed to an Uptime
 Kuma push monitor: `up` when every configuration passed, `down` with the
@@ -35,10 +36,10 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import urllib.parse
 import urllib.request
 
@@ -48,18 +49,19 @@ BORGMATIC = "/root/.local/bin/borgmatic"
 # The unit's StateDirectory=: root-only (0700), unlike /tmp or /var/tmp, and on
 # disk rather than in RAM, since database dumps can be large.
 WORK_DIR = "/var/lib/borgmatic-restore-test"
+WORK_PREFIX = "restore-test-"
 
 DEFAULT_SETTINGS = {
     "config_dir": "/etc/borgmatic.d",
     "max_age_hours": 48,
     "sample_files": 10,
     "sample_max_bytes": 50 * 1024 * 1024,
-    "wait_for_backup_seconds": 4 * 3600,
     "push_url": "",
 }
 
 
 # Hooks whose dumps this script knows how to check; the others are skipped.
+# The extraction itself still reads them: borg checks every chunk it returns.
 DATA_SOURCE_HOOKS = (
     "mariadb_databases",
     "mysql_databases",
@@ -67,9 +69,16 @@ DATA_SOURCE_HOOKS = (
     "sqlite_databases",
 )
 
-# dumps.json comes out of the archive under test, so its fields are data, not
-# trusted paths: a name may not contain a separator nor be "." / "..", and a
-# container name follows Docker's own rule.
+# A top-level hook key of a borgmatic configuration, e.g. `postgresql_databases:`
+# followed by its list on the next lines (an inline `[]` declares nothing).
+HOOK_KEY = re.compile(r"(%s):\s*" % "|".join(DATA_SOURCE_HOOKS))
+
+# One line of `borgmatic list --format "{type} {size} {path}{NL}"`.
+LISTING_LINE = re.compile(r"([-dlbcps]) (\d+) (.+)")
+
+# Names read from the archive under test are data, not trusted paths: a name
+# may not contain a separator nor be "." / "..", and a container name follows
+# Docker's own rule.
 SAFE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:@-]*")
 CONTAINER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
@@ -108,24 +117,6 @@ def run(command, what, **kwargs):
     return result.stdout
 
 
-def wait_for_backup(timeout):
-    """Borg locks the repository: do not race the nightly backup."""
-    deadline = time.monotonic() + timeout
-    while True:
-        state = subprocess.run(
-            ["systemctl", "is-active", "borgmatic.service"],
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        if state not in ("active", "activating"):
-            return
-        if time.monotonic() > deadline:
-            raise RestoreTestError(
-                "borgmatic.service still running, restore test skipped"
-            )
-        time.sleep(60)
-
-
 def tail(path, size=4096):
     with open(path, "rb") as handle:
         handle.seek(0, os.SEEK_END)
@@ -133,35 +124,87 @@ def tail(path, size=4096):
         return handle.read().decode("utf-8", errors="replace")
 
 
-def dump_path(root, hook, dump):
-    """Mirror of borgmatic's make_data_source_dump_filename(), kept under root."""
-    identifier = str(
-        dump.get("label")
-        or (
-            (dump.get("container") or dump.get("hostname") or "localhost")
-            + ("" if dump.get("port") is None else f":{dump['port']}")
-        )
-    )
-    name = str(dump["data_source_name"])
-    if not (SAFE_NAME.fullmatch(identifier) and SAFE_NAME.fullmatch(name)):
-        raise RestoreTestError(f"{hook}: unexpected dump name {identifier!r}/{name!r}")
+def declared_databases(config):
+    """Count the entries of each *_databases hook in a configuration file.
 
-    base = os.path.realpath(os.path.join(root, "borgmatic", hook))
-    path = os.path.realpath(os.path.join(base, identifier, name))
+    The configurations are templated by Ansible with the hooks as top-level
+    keys and their entries as `- ` items one level down, which is all this
+    reads. Nothing is imported to parse YAML: this runs on the host's python3.
+    """
+    counts = {}
+    hook = indent = None
+    with open(config) as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if not line[0].isspace():
+                match = HOOK_KEY.fullmatch(line.rstrip())
+                hook = match.group(1) if match else None
+                indent = None
+                if hook:
+                    counts.setdefault(hook, 0)
+                continue
+            if hook and stripped.startswith("- "):
+                depth = len(line) - len(line.lstrip())
+                indent = depth if indent is None else indent
+                if depth == indent:
+                    counts[hook] += 1
+    return counts
+
+
+def under(base, *parts):
+    """Join validated archive names under base, refusing anything that escapes."""
+    for part in parts:
+        if not SAFE_NAME.fullmatch(part):
+            raise RestoreTestError(f"unexpected name {part!r} in the archive")
+    base = os.path.realpath(base)
+    path = os.path.realpath(os.path.join(base, *parts))
     if not path.startswith(base + os.sep):
-        raise RestoreTestError(
-            f"{hook}: dump {identifier}/{name} resolves outside the archive"
-        )
+        raise RestoreTestError(f"{'/'.join(parts)} resolves outside the archive")
     return path
 
 
-def check_dump(hook, dump, path):
-    label = f"{hook}/{dump['data_source_name']}"
-    if not os.path.exists(path):
-        raise RestoreTestError(
-            f"{label}: listed in dumps.json but missing from the archive"
-        )
+def dump_metadata(hook_dir):
+    """Map "identifier/name" to the dumps.json entry borgmatic wrote, if any.
 
+    Mirrors borgmatic's make_data_source_dump_filename(). The file is only
+    used to find a dump's container: the dumps themselves are found on disk,
+    so an archive without it (older borgmatic) is still checked.
+    """
+    path = os.path.join(hook_dir, "dumps.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path) as handle:
+        dumps = json.load(handle).get("dumps", [])
+    metadata = {}
+    for dump in dumps:
+        identifier = dump.get("label") or (
+            (dump.get("container") or dump.get("hostname") or "localhost")
+            + ("" if dump.get("port") is None else f":{dump['port']}")
+        )
+        metadata[f"{identifier}/{dump.get('data_source_name')}"] = dump
+    return metadata
+
+
+def container_of(identifier, dump):
+    """The container to run pg_restore in, or None to run it on the host."""
+    container = dump.get("container")
+    if container is None and not dump:
+        # No dumps.json: the identifier of a container dump is its name, plus
+        # the port when one is set.
+        candidate = identifier.split(":", 1)[0]
+        inspect = subprocess.run(
+            ["docker", "container", "inspect", candidate],
+            capture_output=True,
+        )
+        container = candidate if inspect.returncode == 0 else None
+    if container is not None and not CONTAINER_NAME.fullmatch(str(container)):
+        raise RestoreTestError(f"unexpected container name {container!r}")
+    return container
+
+
+def check_dump(hook, label, path, container):
     if os.path.isdir(path):  # pg_dump --format=directory
         if not os.path.exists(os.path.join(path, "toc.dat")):
             raise RestoreTestError(f"{label}: directory dump without toc.dat")
@@ -174,18 +217,13 @@ def check_dump(hook, dump, path):
         magic = handle.read(5)
 
     if hook == "postgresql_databases" and magic == b"PGDMP":
-        container = dump.get("container")
-        if container and not CONTAINER_NAME.fullmatch(str(container)):
-            raise RestoreTestError(f"{label}: unexpected container name {container!r}")
+        # A full read, not `--list`: the table of contents sits at the start
+        # of a custom-format dump, so a dump cut short in its data still lists.
+        command = ["pg_restore", "-f", "/dev/null"]
         if container:
-            with open(path, "rb") as handle:
-                run(
-                    ["docker", "exec", "-i", container, "pg_restore", "--list"],
-                    f"{label}: pg_restore",
-                    stdin=handle,
-                )
-        else:
-            run(["pg_restore", "--list", path], f"{label}: pg_restore")
+            command = ["docker", "exec", "-i", container] + command
+        with open(path, "rb") as handle:
+            run(command, f"{label}: pg_restore", stdin=handle)
     elif hook == "postgresql_databases":
         if "PostgreSQL database dump complete" not in tail(path):
             raise RestoreTestError(
@@ -203,8 +241,82 @@ def check_dump(hook, dump, path):
             )
 
 
+def check_dumps(root, declared):
+    """Check every dump of the extracted archive; return how many there were."""
+    total = 0
+    for hook in DATA_SOURCE_HOOKS:
+        hook_dir = os.path.join(root, "borgmatic", hook)
+        found = 0
+        if os.path.isdir(hook_dir):
+            metadata = dump_metadata(hook_dir)
+            for identifier in sorted(os.listdir(hook_dir)):
+                identifier_dir = under(hook_dir, identifier)
+                if not os.path.isdir(identifier_dir):
+                    continue  # dumps.json
+                for name in sorted(os.listdir(identifier_dir)):
+                    key = f"{identifier}/{name}"
+                    dump = metadata.pop(key, {})
+                    check_dump(
+                        hook,
+                        f"{hook}/{key}",
+                        under(hook_dir, identifier, name),
+                        container_of(identifier, dump),
+                    )
+                    found += 1
+            if metadata:
+                raise RestoreTestError(
+                    f"{hook}: listed in dumps.json but missing from the archive: "
+                    + ", ".join(sorted(metadata))
+                )
+        # `name: all` dumps every database separately, hence at least.
+        if found < declared.get(hook, 0):
+            raise RestoreTestError(
+                f"{hook}: the configuration declares {declared[hook]} "
+                f"database(s), the archive holds {found} dump(s)"
+            )
+        total += found
+    return total
+
+
+def sample_files(command, what, size, max_bytes):
+    """Reservoir-sample regular files from a streamed archive listing.
+
+    The listing of a photo library runs to hundreds of thousands of lines:
+    it is read line by line and only `size` entries are ever kept.
+    """
+    rng = random.SystemRandom()
+    sample = []
+    seen = 0
+    with tempfile.TemporaryFile(dir=WORK_DIR) as errors:
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=errors, text=True
+        )
+        for line in process.stdout:
+            match = LISTING_LINE.fullmatch(line.rstrip("\n"))
+            if not match or match.group(1) != "-":
+                continue
+            path, length = match.group(3), int(match.group(2))
+            if path.startswith("borgmatic/") or length > max_bytes:
+                continue
+            seen += 1
+            if len(sample) < size:
+                sample.append((path, length))
+            else:
+                slot = rng.randrange(seen)
+                if slot < size:
+                    sample[slot] = (path, length)
+        if process.wait() != 0:
+            errors.seek(0)
+            raise RestoreTestError(
+                f"{what} exited {process.returncode}: "
+                + first_error(errors.read().decode("utf-8", errors="replace"))
+            )
+    return sample
+
+
 def test_configuration(settings, config):
     borgmatic = [BORGMATIC, "--config", config]
+    declared = declared_databases(config)
     results = json.loads(
         run(borgmatic + ["repo-list", "--json", "--last", "1"], "repo-list")
     )
@@ -228,55 +340,29 @@ def test_configuration(settings, config):
             )
 
         selector = ["--repository", repository, "--archive", archive["name"]]
-        listing = run(
-            borgmatic + ["list"] + selector + ["--json"], f"{repository}: list"
-        )
-        files = [
-            entry
-            for entry in (
-                json.loads(line)
-                for line in listing.splitlines()
-                if line.startswith("{")
-            )
-            if entry.get("type") == "-"
-            and not entry["path"].startswith("borgmatic/")
-            and entry.get("size", 0) <= settings["sample_max_bytes"]
-        ]
-        # Not a security decision, but SystemRandom costs nothing and keeps the
-        # sample out of anything a seeded PRNG could reproduce.
-        sample = random.SystemRandom().sample(
-            files, min(settings["sample_files"], len(files))
+        sample = sample_files(
+            borgmatic + ["list"] + selector + ["--format", "{type} {size} {path}{NL}"],
+            f"{repository}: list",
+            settings["sample_files"],
+            settings["sample_max_bytes"],
         )
 
         with tempfile.TemporaryDirectory(
-            dir=WORK_DIR, prefix=f"restore-test-{os.path.basename(config)}-"
+            dir=WORK_DIR, prefix=f"{WORK_PREFIX}{os.path.basename(config)}-"
         ) as root:
             command = borgmatic + ["extract"] + selector + ["--destination", root]
             # `borgmatic/` holds the database dumps and the bootstrap manifest,
             # so it is in every archive borgmatic 2 writes.
-            for path in ["borgmatic"] + [entry["path"] for entry in sample]:
+            for path in ["borgmatic"] + [path for path, _ in sample]:
                 command += ["--path", path]
             run(command, f"{repository}: extract")
 
-            for entry in sample:
-                restored = os.path.join(root, entry["path"])
-                if (
-                    not os.path.isfile(restored)
-                    or os.path.getsize(restored) != entry["size"]
-                ):
-                    raise RestoreTestError(
-                        f"{repository}: {entry['path']} not restored intact"
-                    )
+            for path, length in sample:
+                restored = os.path.join(root, path)
+                if not os.path.isfile(restored) or os.path.getsize(restored) != length:
+                    raise RestoreTestError(f"{repository}: {path} not restored intact")
 
-            dumps = 0
-            for hook in DATA_SOURCE_HOOKS:
-                metadata = os.path.join(root, "borgmatic", hook, "dumps.json")
-                if not os.path.exists(metadata):
-                    continue
-                with open(metadata) as handle:
-                    for dump in json.load(handle)["dumps"]:
-                        check_dump(hook, dump, dump_path(root, hook, dump))
-                        dumps += 1
+            dumps = check_dumps(root, declared)
 
         checked.append(f"{repository} ({len(sample)} files, {dumps} dumps)")
 
@@ -289,7 +375,9 @@ def push(url, status, message):
     query = urllib.parse.urlencode({"status": status, "msg": message[:250], "ping": ""})
     try:
         urllib.request.urlopen(f"{url}?{query}", timeout=30).read()
-    except OSError as error:  # the test result is still in the journal
+    # A malformed URL raises ValueError, not OSError; either way the result is
+    # already in the journal and must not turn into a traceback.
+    except Exception as error:
         print(f"Could not push to Uptime Kuma: {error}", file=sys.stderr)
 
 
@@ -297,12 +385,7 @@ def load_settings():
     settings = dict(DEFAULT_SETTINGS)
     with open(SETTINGS_FILE) as handle:
         settings.update(json.load(handle))
-    for key in (
-        "max_age_hours",
-        "sample_files",
-        "sample_max_bytes",
-        "wait_for_backup_seconds",
-    ):
+    for key in ("max_age_hours", "sample_files", "sample_max_bytes"):
         settings[key] = int(settings[key])
     return settings
 
@@ -317,10 +400,11 @@ def main():
         print(f"Cannot read {SETTINGS_FILE}: {error}", file=sys.stderr)
         return 1
 
-    try:
-        wait_for_backup(settings["wait_for_backup_seconds"])
-    except RestoreTestError as error:
-        failures.append(str(error))
+    # A run killed mid-extraction (OOM, reboot, TimeoutStartSec) never reaches
+    # TemporaryDirectory's cleanup, and the dumps it left can be gigabytes.
+    for leftover in os.listdir(WORK_DIR):
+        if leftover.startswith(WORK_PREFIX):
+            shutil.rmtree(os.path.join(WORK_DIR, leftover), ignore_errors=True)
 
     configs = sorted(glob.glob(os.path.join(settings["config_dir"], "*.yaml")))
     if not configs:
