@@ -92,7 +92,7 @@
     - name: Stat the repo-create marker of the borgmatic stub for meerkat_crm
       become: true
       ansible.builtin.stat:
-        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_meerkat_crm.yaml
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_meerkat_crm.yaml"
       register: meerkat_crm_repo_marker
 
     - name: Assert the meerkat_crm borg repository was initialised

@@ -106,7 +106,7 @@
     - name: Stat the repo-create marker of the borgmatic stub for monica_v4
       become: true
       ansible.builtin.stat:
-        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_monica_v4.yaml
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_monica_v4.yaml"
       register: monica_v4_repo_marker
 
     - name: Assert the monica_v4 borg repository was initialised

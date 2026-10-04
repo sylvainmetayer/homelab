@@ -81,7 +81,7 @@
     - name: Stat the repo-create marker of the borgmatic stub for nextcloud
       become: true
       ansible.builtin.stat:
-        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_nextcloud.yaml
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_nextcloud.yaml"
       register: nextcloud_repo_marker
 
     - name: Assert the nextcloud borg repository was initialised

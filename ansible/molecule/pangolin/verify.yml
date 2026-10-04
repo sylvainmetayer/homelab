@@ -98,7 +98,7 @@
 
     - name: Verify the borgmatic configuration of Pangolin
       become: true
-      ansible.builtin.command: /opt/molecule-borgmatic/bin/borgmatic config validate --config {{ borgmatic_config_dir }}/pangolin.yaml
+      ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config {{ borgmatic_config_dir }}/pangolin.yaml"
       changed_when: false
 
     - name: Stat the borgmatic configuration of Pangolin

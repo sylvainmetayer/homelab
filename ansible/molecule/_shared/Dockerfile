@@ -39,6 +39,16 @@ RUN apt-get update \
     && docker --version \
     && docker compose version
 
+# Vrai borgmatic, utilisé par le bouchon de /root/.local/bin/borgmatic et par
+# les verify pour valider les configurations templatées. Épinglé pour que la CI
+# ne change pas de validateur du jour au lendemain ; les hôtes, eux, gardent la
+# version que pipx a installée au premier déploiement.
+# renovate: datasource=pypi depName=borgmatic
+ARG BORGMATIC_VERSION=2.1.9
+RUN python3 -m venv /opt/molecule-borgmatic \
+    && /opt/molecule-borgmatic/bin/pip install --no-cache-dir --only-binary :all: "borgmatic==${BORGMATIC_VERSION}" \
+    && /opt/molecule-borgmatic/bin/borgmatic --version
+
 # Les playbooks se connectent en `sylvain` et passent root par sudo : on
 # reproduit ce modèle, c'est lui que docker_service (unités user, lingering)
 # et les `become` des rôles supposent.
