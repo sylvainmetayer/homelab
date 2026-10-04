@@ -54,10 +54,13 @@ Chaque hôte qui a le rôle `borgmatic` lance `borgmatic-restore-test.timer` le
 dimanche matin (`ansible/roles/borgmatic/files/borgmatic-restore-test.py`).
 Pour chaque config de `/etc/borgmatic.d`, le script vérifie que la dernière
 archive a moins de 48 h, extrait dans un dossier jetable tous les dumps de base
-de données plus un échantillon aléatoire de fichiers, puis contrôle le résultat
-(`pg_restore --list` dans le conteneur d'origine, fin de dump MySQL/SQLite
-présente, tailles des fichiers). Rien n'est restauré dans une base en service.
+de données plus un échantillon aléatoire de fichiers, puis contrôle le résultat :
+un dump au moins par base déclarée dans la config, dumps PostgreSQL relus en
+entier par `pg_restore` dans le conteneur d'origine, fin de dump MySQL/SQLite
+présente, tailles des fichiers. Rien n'est restauré dans une base en service.
 Le résultat part sur le monitor push « Restore test <hôte> » d'Uptime Kuma.
+Le test et `borgmatic.service` partagent un `flock` : l'un attend que l'autre
+ait fini.
 
 ```bash
 sudo systemctl start borgmatic-restore-test.service   # à la demande

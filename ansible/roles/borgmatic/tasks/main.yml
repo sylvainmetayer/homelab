@@ -171,6 +171,17 @@
         owner: root
         group: root
 
+    # A missing key (host renamed in the inventory, or not yet in
+    # restore_test_hosts of tofu/pangolin_config) still runs the test, but
+    # pushes nowhere: say so instead of letting the monitor time out.
+    - name: Warn when the restore test has no push URL
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: no restore test push URL for {{ inventory_hostname }}. Is it
+          in restore_test_hosts (tofu/pangolin_config/restore_tests.tf), and
+          was tofu applied? The result will only reach the journal.
+      when: borgmatic_restore_test_healthcheck_url | length == 0
+
     # The script's only input (it takes no argument and reads no environment
     # variable). Root-only: the push token is a credential.
     - name: Write the restore test settings
@@ -180,6 +191,9 @@
         mode: "0600"
         owner: root
         group: root
+      # The content holds the push token: keep it out of --diff and -vvv.
+      diff: false
+      no_log: true
       vars:
         borgmatic_restore_test_settings:
           config_dir: "{{ borgmatic_config_dir }}"

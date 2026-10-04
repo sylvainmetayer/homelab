@@ -9,8 +9,9 @@
 #
 # One monitor per host rather than one shared: each host runs its own test, and
 # a host whose timer stopped must go DOWN on its own instead of being kept UP
-# by the others. The keys are the inventory host names; each playbook reads
-# its own entry of the output below.
+# by the others. The keys are the inventory host names: each playbook reads
+# `uptime_restore_test_urls.value[inventory_hostname]`, and the borgmatic role
+# warns when a host has no entry.
 # ---------------------------------------------------------------------------
 
 locals {
