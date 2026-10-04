@@ -162,11 +162,23 @@ raw = true
 [tasks.tofu-test]
 description = "tofu test of every module that has tests (mocked providers, no backend)"
 run = '''
+failed=""
 for tests in */tests; do
   module=${tests%/tests}
+  if [ -e "$tests/.disabled" ]; then
+    echo "== $module: skipped, $(head -n1 "$tests/.disabled")"
+    continue
+  fi
   echo "== $module"
-  tofu -chdir="$module" init -backend=false -input=false > /dev/null
-  tofu -chdir="$module" test || exit 1
+  if ! tofu -chdir="$module" init -backend=false -input=false > /dev/null; then
+    failed="$failed $module(init)"
+    continue
+  fi
+  tofu -chdir="$module" test || failed="$failed $module"
 done
+if [ -n "$failed" ]; then
+  echo "Failed:$failed"
+  exit 1
+fi
 '''
 dir = "tofu"

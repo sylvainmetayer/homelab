@@ -39,7 +39,13 @@ jobs:
           to_json='split("\n") | map(select(length > 0))'
           scenarios=$(find ansible/molecule -mindepth 2 -maxdepth 2 -name molecule.yml -printf '%h\n' \
             | xargs -r -n1 basename | sort | jq -Rsc "$to_json")
-          modules=$(find tofu -mindepth 2 -maxdepth 2 -type d -name tests -printf '%h\n' \
+          # tests/.disabled écarte un module qui ne peut pas tourner, avec sa
+          # raison, affichée en avertissement sur chaque exécution.
+          for disabled in tofu/*/tests/.disabled; do
+            [ -e "$disabled" ] || continue
+            echo "::warning file=$disabled::${disabled%/tests/.disabled} non testé : $(head -n1 "$disabled")"
+          done
+          modules=$(find tofu -mindepth 2 -maxdepth 2 -type d -name tests ! -exec test -e '{}/.disabled' ';' -printf '%h\n' \
             | sort | jq -Rsc "$to_json")
           echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
           echo "modules=$modules" >> "$GITHUB_OUTPUT"
@@ -119,9 +125,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Même version qu'en local (mise.toml) : la sémantique des mocks et des
+      # overrides de `tofu test` évolue d'une version à l'autre.
+      - name: Read the OpenTofu version pinned in mise.toml
+        id: tofu-version
+        run: echo "version=$(sed -n "s/^opentofu = '\(.*\)'$/\1/p" mise.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Set up OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
+          tofu_version: ${{ steps.tofu-version.outputs.version }}
           tofu_wrapper: false
 
       # Providers mockés (mock_provider) et data sources surchargées
