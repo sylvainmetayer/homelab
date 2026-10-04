@@ -59,8 +59,11 @@
       become: true
       ansible.builtin.command:
         cmd: >-
-          /root/.local/bin/borgmatic --config {{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/immich.yaml
+          /root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir | default('/etc/borgmatic.d') }}/immich.yaml
           repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
       register: immich_borg_repo_create
-      changed_when: "'repository already exists' not in immich_borg_repo_create.stderr"
-      failed_when: immich_borg_repo_create.rc != 0 and 'repository already exists' not in immich_borg_repo_create.stderr
+      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
+      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
+      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
+      changed_when: "'already exists' not in ((immich_borg_repo_create.stdout ~ immich_borg_repo_create.stderr) | lower)"
+      failed_when: immich_borg_repo_create.rc != 0 and 'already exists' not in (immich_borg_repo_create.stderr | lower)

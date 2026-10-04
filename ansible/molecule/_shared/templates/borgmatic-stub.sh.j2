@@ -1,20 +1,24 @@
 #!/bin/sh
 # Bouchon Molecule de /root/.local/bin/borgmatic (cf. _shared/prepare.yml).
-# Valide chaque --config passée avec un vrai borgmatic, puis simule
-# `repo-create` comme la Storage Box : création au premier appel,
-# "repository already exists" ensuite (les rôles s'en servent pour
-# changed_when / failed_when).
+# Valide chaque --config passée avec le vrai borgmatic de l'image, puis simule
+# `repo-create` comme borgmatic 2.x face à la Storage Box : création au premier
+# appel ; ensuite, sortie 0 et « Repository already exists. Skipping
+# creation. » au niveau INFO, donc sur stdout et seulement avec --verbosity >= 1.
+# Les rôles détectent ce message pour leur changed_when : le bouchon ne leur
+# fait aucune faveur que le vrai borgmatic ne leur ferait pas.
 set -eu
-real={{ molecule_borgmatic_venv }}/bin/borgmatic
-state=/var/lib/molecule-borgmatic
+real={{ molecule_borgmatic_bin }}
+state={{ molecule_borgmatic_state_dir }}
 mkdir -p "$state"
 
 configs=""
 action=""
+verbosity=0
 prev=""
 for arg in "$@"; do
   case "$prev" in
     -c|--config) configs="$configs $arg" ;;
+    -v|--verbosity) verbosity="$arg" ;;
   esac
   case "$arg" in
     repo-create|rcreate|create|list|repo-list|info|check|prune|compact|delete|repo-delete) action="$arg" ;;
@@ -31,10 +35,11 @@ case "$action" in
     for config in $configs; do
       marker="$state/$(echo "$config" | tr '/' '_')"
       if [ -e "$marker" ]; then
-        echo "A repository already exists at $config." >&2
-        exit 2
+        [ "$verbosity" -ge 1 ] && echo "$config: Repository already exists. Skipping creation."
+      else
+        touch "$marker"
+        [ "$verbosity" -ge 1 ] && echo "$config: Creating repository"
       fi
-      touch "$marker"
     done
     ;;
 esac
