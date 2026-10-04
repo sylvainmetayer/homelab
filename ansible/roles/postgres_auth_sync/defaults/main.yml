@@ -1,0 +1,11 @@
+---
+# Converges the password of a postgres container's POSTGRES_USER on the value
+# Ansible holds. Imported by every app role that runs the official postgres
+# image (or one built on it), once per database container.
+postgres_auth_sync_container: ""
+postgres_auth_sync_user: ""
+postgres_auth_sync_database: ""
+postgres_auth_sync_password: ""
+# Handler to notify when the password had to be changed: the app has been
+# failing to connect since the drift, so it is restarted with the new value.
+postgres_auth_sync_notify: ""

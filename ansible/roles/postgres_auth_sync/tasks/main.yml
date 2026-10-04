@@ -1,0 +1,77 @@
+---
+# POSTGRES_PASSWORD only initialises an empty data directory: changing the
+# password in secrets.sops.yaml afterwards leaves postgres on the old one, and
+# the first thing to break is the borgmatic pg_dump - the app keeps running
+# until its next restart. So the password is converged here: checked the way
+# pg_dump uses it, and set through the container's local socket (trusted) when
+# it no longer opens the database. Rotating a database password is then: change
+# it in secrets.sops.yaml and run the playbook. See issue #96.
+#
+# The password only ever travels on stdin: Ansible's `environment:` would put it
+# on the remote command line (ps, and ansible/run.log at -vvv), and so would a
+# `psql -v`.
+- name: Converge the postgres password of {{ postgres_auth_sync_container }}
+  when: not ansible_check_mode
+  block:
+    - name: Wait for the database to accept connections in {{ postgres_auth_sync_container }}
+      ansible.builtin.command: >-
+        docker exec {{ postgres_auth_sync_container }}
+        pg_isready -U {{ postgres_auth_sync_user }} -d {{ postgres_auth_sync_database }}
+      register: postgres_auth_sync_ready
+      until: postgres_auth_sync_ready.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Read the docker networks of {{ postgres_auth_sync_container }}
+      ansible.builtin.command: docker inspect {{ postgres_auth_sync_container }}
+      register: postgres_auth_sync_inspect
+      changed_when: false
+
+    # Over the container's own address, not 127.0.0.1: initdb runs without
+    # --auth, so pg_hba.conf trusts loopback and only the final
+    # `host all all all scram-sha-256` line checks a password. borgmatic's
+    # pg_dump connects to that address too (it resolves the container's IP).
+    - name: Check that the configured password opens {{ postgres_auth_sync_database }}
+      ansible.builtin.command:
+        cmd: >-
+          docker exec -i {{ postgres_auth_sync_container }}
+          sh -c 'IFS= read -r PGPASSWORD; export PGPASSWORD;
+          exec psql -h "$1" -U "$2" -d "$3" -tAc "SELECT 1"'
+          sh {{ postgres_auth_sync_address }}
+          {{ postgres_auth_sync_user }} {{ postgres_auth_sync_database }}
+        stdin: "{{ postgres_auth_sync_password }}"
+      vars:
+        postgres_auth_sync_address: >-
+          {{ (postgres_auth_sync_inspect.stdout | from_json)[0].NetworkSettings.Networks
+             | dict2items | map(attribute='value.IPAddress') | select | first }}
+      register: postgres_auth_sync_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    # The check above is no_log (its stdin is the password), so its failures
+    # are reported here, from its stderr only.
+    - name: Report a check that failed for another reason than the password
+      ansible.builtin.fail:
+        msg: "{{ postgres_auth_sync_check.stderr | default('no output') }}"
+      when:
+        - postgres_auth_sync_check.rc != 0
+        - "'password authentication failed' not in (postgres_auth_sync_check.stderr | default(''))"
+
+    # `\prompt` reads the next stdin line into a psql variable when the script
+    # itself comes from stdin (-f -), and `:'pw'` quotes it.
+    - name: Set the postgres password of {{ postgres_auth_sync_container }}
+      ansible.builtin.command:
+        cmd: >-
+          docker exec -i {{ postgres_auth_sync_container }}
+          psql -U {{ postgres_auth_sync_user }} -d {{ postgres_auth_sync_database }}
+          -v ON_ERROR_STOP=1 -X -q -f -
+        stdin: |-
+          \prompt pw
+          {{ postgres_auth_sync_password }}
+          ALTER ROLE CURRENT_USER WITH PASSWORD :'pw';
+      when: postgres_auth_sync_check.rc != 0
+      changed_when: true
+      no_log: true
+      notify: "{{ postgres_auth_sync_notify }}"

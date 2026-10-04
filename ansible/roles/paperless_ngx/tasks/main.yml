@@ -55,3 +55,16 @@
       failed_when: >
         paperless_ngx_borg_repo_create.rc != 0 and
         'repository already exists' not in paperless_ngx_borg_repo_create.stderr
+
+# POSTGRES_PASSWORD only applies to an empty data directory: converge it on
+# paperless_db_password, or a rotation silently breaks the app and the
+# borgmatic pg_dump. #96
+- name: Keep the postgres password in sync with paperless_db_password
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: paperless_db
+    postgres_auth_sync_user: "{{ paperless_db_user }}"
+    postgres_auth_sync_database: "{{ paperless_db_name }}"
+    postgres_auth_sync_password: "{{ paperless_db_password }}"
+    postgres_auth_sync_notify: Restart paperless

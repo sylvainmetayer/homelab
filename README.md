@@ -64,9 +64,12 @@ sudo systemctl start borgmatic-restore-test.service   # à la demande
 journalctl -u borgmatic-restore-test.service          # détail par config
 ```
 
-### Mot de passe Postgres d'Immich
+### Mots de passe Postgres
 
-`POSTGRES_PASSWORD` n'est lu qu'à l'initialisation de la base. Pour changer
-`immich_db_password`, il suffit de le modifier dans `secrets.sops.yaml` puis de
-relancer `pi.yml --tags immich` : le rôle détecte que le mot de passe n'ouvre
-plus la base et l'applique avec `ALTER ROLE` via le socket local du conteneur.
+`POSTGRES_PASSWORD` n'est lu qu'à l'initialisation de la base. Pour changer le
+mot de passe d'une base Postgres (Immich, Paperless, Dawarich, Scanopy, Flip
+Planning et son Keycloak), il suffit de le modifier dans `secrets.sops.yaml`
+puis de relancer le playbook de l'app : le rôle `postgres_auth_sync` vérifie
+le mot de passe sur l'IP du conteneur (comme le `pg_dump` de borgmatic) et,
+s'il n'ouvre plus la base, l'applique avec `ALTER ROLE` via le socket local du
+conteneur.

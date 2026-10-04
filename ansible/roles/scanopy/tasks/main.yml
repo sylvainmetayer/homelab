@@ -65,3 +65,15 @@
     name: dc@scanopy
     scope: user
     enabled: true
+
+# POSTGRES_PASSWORD only applies to an empty data directory: converge it on
+# scanopy_postgres_password, or a rotation silently breaks the server. #96
+- name: Keep the postgres password in sync with scanopy_postgres_password
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: scanopy-postgres
+    postgres_auth_sync_user: postgres
+    postgres_auth_sync_database: scanopy
+    postgres_auth_sync_password: "{{ scanopy_postgres_password }}"
+    postgres_auth_sync_notify: Restart scanopy

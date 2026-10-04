@@ -42,49 +42,17 @@
     enabled: true
     daemon_reload: true
 
-# POSTGRES_PASSWORD only initialises an empty data directory: changing
-# immich_db_password afterwards leaves postgres on the old password, and the
-# first thing to break is the borgmatic pg_dump, which authenticates over TCP
-# with the new one - the app keeps running until its next restart. So the
-# password is converged here instead: check it the way pg_dump uses it, and
-# set it through the container's local socket (trust auth) when it no longer
-# opens the database. Rotating it is then: change it in secrets.sops.yaml and
-# run the playbook. See issue #96.
+# POSTGRES_PASSWORD only applies to an empty data directory: converge it on
+# immich_db_password, or a rotation silently breaks the borgmatic pg_dump. #96
 - name: Keep the postgres password in sync with immich_db_password
-  when: not ansible_check_mode
-  block:
-    - name: Wait for the immich database to accept connections
-      ansible.builtin.command: docker exec immich_postgres pg_isready -U postgres -d immich
-      register: immich_db_ready
-      until: immich_db_ready.rc == 0
-      retries: 30
-      delay: 5
-      changed_when: false
-
-    - name: Check that immich_db_password opens the database over TCP
-      ansible.builtin.command: docker exec --env PGPASSWORD immich_postgres psql -h 127.0.0.1 -U postgres -d immich -tAc "SELECT 1"
-      environment:
-        PGPASSWORD: "{{ immich_db_password }}"
-      register: immich_db_password_check
-      changed_when: false
-      failed_when:
-        - immich_db_password_check.rc != 0
-        - "'password authentication failed' not in immich_db_password_check.stderr"
-
-    # The password reaches psql as a variable (`:'pw'` quotes it), never on a
-    # command line where `ps` or the Ansible log would show it.
-    - name: Set the postgres password to immich_db_password
-      when: immich_db_password_check.rc != 0
-      ansible.builtin.command:
-        cmd: >-
-          docker exec -i --env IMMICH_DB_PASSWORD immich_postgres
-          sh -c 'psql -U postgres -d immich -v ON_ERROR_STOP=1 -v pw="$IMMICH_DB_PASSWORD"'
-        stdin: "ALTER ROLE postgres WITH PASSWORD :'pw';"
-      environment:
-        IMMICH_DB_PASSWORD: "{{ immich_db_password }}"
-      changed_when: true
-      no_log: true
-      notify: Restart immich service
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: immich_postgres
+    postgres_auth_sync_user: postgres
+    postgres_auth_sync_database: immich
+    postgres_auth_sync_password: "{{ immich_db_password }}"
+    postgres_auth_sync_notify: Restart immich service
 
 - name: Configure borgmatic backup for immich
   when: immich_backup_enabled
