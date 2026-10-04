@@ -1,3 +1,10 @@
+# Pas un secret, mais rangé dans secrets.sops.yaml avec le jeton : les tâches
+# mise *-ref le passent depuis CLOUDFLARE_ACCOUNT_ID.
+variable "cloudflare_account_id" {
+  description = "ID du compte Cloudflare"
+  type        = string
+}
+
 variable "github_owner" {
   description = "Compte GitHub propriétaire du dépôt"
   type        = string
@@ -29,12 +36,4 @@ variable "cloudflare_github_installation_id" {
   description = "ID d'installation de l'app GitHub Cloudflare (mode « Only select repositories »)"
   type        = number
   default     = null
-}
-
-# Valeur fournie par Google Search Console pour une propriété « Domaine »
-# sylvain.dev (« google-site-verification=… »). null = pas d'enregistrement.
-variable "google_site_verification" {
-  description = "Jeton de vérification Google Search Console du domaine"
-  type        = string
-  default     = "google-site-verification=XROrcW2Xt6g7cyF4SDNyz08GZeMB90QlstI3SBnUsq0"
 }

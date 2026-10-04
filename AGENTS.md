@@ -29,6 +29,11 @@ mise run init-proxmox
 mise run plan-proxmox
 mise run apply-proxmox
 
+# OpenTofu — ref.sylvain.dev (tofu/ref), GITHUB_TOKEN exporté avant
+mise run init-ref
+mise run plan-ref
+mise run apply-ref
+
 # OpenTofu linting (both targets)
 mise run lint             # tofu fmt -check -recursive && tofu validate (both dirs)
 mise run fix-lint          # tofu fmt -recursive

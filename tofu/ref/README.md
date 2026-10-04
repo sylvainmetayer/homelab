@@ -6,11 +6,15 @@ Infra du site de parrainage [ref.sylvain.dev](https://ref.sylvain.dev) (code : d
 |---|---|
 | `github_repository.ref` | Dépôt public, vide (poussé à la main), issues ouvertes (lien « Un code ne marche plus ? ») |
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
-| `github_branch_protection.ref_main` | Ni suppression ni force-push sur `main` ; pas de PR obligatoire (Sveltia CMS commite directement) |
+| `github_branch_protection.ref_main` | Ni suppression ni force-push sur `main`, propriétaire compris ; pas de PR obligatoire (Sveltia CMS commite directement) |
+| `github_workflow_repository_permissions.ref` | Jeton des workflows en lecture seule par défaut |
+| `github_repository_dependabot_security_updates.ref` | PR Dependabot pour les failles connues |
 | `cloudflare_pages_project.ref` | Build `npm run build` → `_site`, déploiement à chaque push, previews sur les branches |
 | `cloudflare_pages_domain.ref` | Domaine personnalisé `ref.sylvain.dev` |
 | `ovh_domain_zone_record.ref` | CNAME `ref` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
-| `cloudflare_web_analytics_site.ref` | Pages vues ; jeton du beacon en sortie `web_analytics_token` |
+| `cloudflare_web_analytics_site.ref` | Pages vues ; jeton du beacon en sortie `web_analytics_token`, comparé au plan à `site.json` du dépôt `ref` (`check "beacon_token"`) |
+
+La vérification Google Search Console de `sylvain.dev` (TXT à l'apex) vit dans `tofu/dns` : elle couvre tout le domaine, pas seulement ce site.
 
 Les bindings Pages (dataset Analytics Engine `ref_events`) sont déclarés dans le `wrangler.toml` du dépôt `ref`, pas ici.
 
@@ -45,22 +49,22 @@ Les bindings Pages (dataset Analytics Engine `ref_events`) sont déclarés dans 
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"
-mise exec -- tofu -chdir=tofu/ref init
-mise exec -- tofu -chdir=tofu/ref plan
+mise run plan-ref    # init puis plan
+mise run apply-ref
 ```
 
-`mise exec` charge `secrets.sops.yaml` (identifiants S3 du backend et OVH).
+mise charge `secrets.sops.yaml` (identifiants S3 du backend, OVH, `CLOUDFLARE_API_TOKEN` lu tel quel par le provider) ; les tâches passent `CLOUDFLARE_ACCOUNT_ID` en `TF_VAR_cloudflare_account_id`.
 
 ## Ordre des opérations
 
 1. `tofu apply` crée le dépôt vide, mais **le projet Pages a besoin d'un dépôt avec du contenu** : si la création échoue, pousser d'abord puis réappliquer :
 
    ```bash
-   cd ~/Documents/ref
-   git remote add origin "$(tofu -chdir=~/Documents/homelab/tofu/ref output -raw repository_ssh_url)"
-   git push -u origin main
+   # depuis la racine du dépôt homelab, où mise charge les identifiants du backend
+   git -C "$HOME/Documents/ref" remote add origin "$(mise exec -- tofu -chdir=tofu/ref output -raw repository_ssh_url)"
+   git -C "$HOME/Documents/ref" push -u origin main
    ```
 
-2. Reporter `tofu output -raw web_analytics_token` dans `src/_data/site.json` (`cfBeaconToken`) du dépôt `ref`.
+2. Reporter `tofu output -raw web_analytics_token` dans `src/_data/site.json` (`cfBeaconToken`) du dépôt `ref`. Tant que ce n'est pas fait, ou si le site Web Analytics est recréé, `tofu plan` affiche un avertissement `beacon_token`.
 3. Sur sylvain.dev (Netlify), rediriger l'ancienne page : `/parrainage  https://ref.sylvain.dev/  301`.
 4. Créer le jeton fine-grained GitHub pour Sveltia CMS (dépôt `ref`, *Contents: Read and write*) — pas de ressource provider pour ça.
