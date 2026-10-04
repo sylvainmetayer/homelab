@@ -15,6 +15,10 @@ pangolin_domain_redirects:
   - name: sylvain-dev-apex
     host: sylvain.dev
     target: https://www.sylvain.dev
+    # Retire l'ancien service worker (src/service-worker-retired.js du dépôt site)
+    service_worker:
+      path: /service-worker.js
+      replacement: /service-worker-retired.js
 
 # Log level (debug, info, warning, error)
 pangolin_log_level: "info"

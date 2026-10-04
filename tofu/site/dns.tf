@@ -9,15 +9,5 @@ resource "ovh_domain_zone_record" "www" {
   target    = "${cloudflare_pages_project.site.subdomain}."
 }
 
-# Apex vers Pangolin, dont Traefik redirige en 301 vers www (variable
-# pangolin_domain_redirects dans ansible/host_vars/pangolin). Pas d'AAAA :
-# Pangolin n'expose qu'une IPv4.
-resource "ovh_domain_zone_record" "apex" {
-  count = var.apex_to_pangolin ? 1 : 0
-
-  zone      = var.domain_zone
-  subdomain = ""
-  fieldtype = "A"
-  ttl       = 300
-  target    = local.pangolin_ip
-}
+# L'apex sylvain.dev (A vers Pangolin, redirection 301 vers www) est dans
+# tofu/dns/pangolin.tf, à côté du joker : variable sylvain_dev_apex_to_pangolin.

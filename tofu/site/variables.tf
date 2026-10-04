@@ -32,14 +32,6 @@ variable "subdomain" {
   default     = "www"
 }
 
-# false tant que l'apex est encore servi par Netlify : passer à true une fois
-# les anciens enregistrements de l'apex supprimés chez OVH (README.md, étape 4).
-variable "apex_to_pangolin" {
-  description = "Faire pointer l'apex de la zone vers Pangolin (redirection 301 vers www)"
-  type        = bool
-  default     = false
-}
-
 # ID de l'installation de l'app GitHub « Cloudflare Workers and Pages » sur le
 # compte : https://github.com/settings/installations/<id>. null = installation
 # en mode « All repositories » (rien à ajouter).
