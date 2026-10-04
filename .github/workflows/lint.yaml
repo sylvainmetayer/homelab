@@ -68,6 +68,7 @@ jobs:
             tofu/pangolin_config
             tofu/dns
             tofu/github
+            tofu/ref
             tofu/s3_state
             tofu/site
           )

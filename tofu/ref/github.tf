@@ -32,6 +32,10 @@ resource "github_repository" "ref" {
   }
 
   archive_on_destroy = true
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "github_repository_vulnerability_alerts" "ref" {
@@ -39,13 +43,29 @@ resource "github_repository_vulnerability_alerts" "ref" {
   enabled    = true
 }
 
+resource "github_repository_dependabot_security_updates" "ref" {
+  repository = github_repository.ref.name
+  enabled    = true
+
+  depends_on = [github_repository_vulnerability_alerts.ref]
+}
+
+# Jeton des workflows en lecture seule par défaut : un workflow ajouté plus tard
+# sans bloc `permissions:` n'écrit rien dans ce dépôt public.
+resource "github_workflow_repository_permissions" "ref" {
+  repository                       = github_repository.ref.name
+  default_workflow_permissions     = "read"
+  can_approve_pull_request_reviews = false
+}
+
 # Pas de PR obligatoire : Sveltia CMS commite directement sur main depuis le
-# téléphone. On protège seulement contre la perte d'historique.
+# téléphone. On protège seulement contre la perte d'historique, y compris contre
+# le propriétaire : c'est le seul qui pousse (à la main ou via le jeton du CMS).
 resource "github_branch_protection" "ref_main" {
   repository_id = github_repository.ref.node_id
   pattern       = "main"
 
-  enforce_admins      = false
+  enforce_admins      = true
   allows_deletions    = false
   allows_force_pushes = false
 }
