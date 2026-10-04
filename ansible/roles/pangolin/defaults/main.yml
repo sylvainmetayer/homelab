@@ -23,6 +23,9 @@ pangolin_le_email: ""
 #   - name: identifiant des routeurs/middleware (lettres, chiffres, tirets)
 #     host: domaine redirigé
 #     target: origine cible, sans slash final
+#     service_worker:            # optionnel, si l'ancien site en installait un
+#       path: chemin du worker sur l'ancien site, servi sans redirection
+#       replacement: chemin, sur target, d'un worker qui se désinstalle
 pangolin_domain_redirects: []
 
 # SMTP configuration

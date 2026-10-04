@@ -17,7 +17,9 @@ resource "github_app_installation_repository" "cloudflare" {
 # Build quotidien (articles programmés, date de construction) : le workflow
 # daily-build du dépôt site appelle ce deploy hook.
 resource "github_actions_secret" "pages_deploy_hook" {
-  count = local.pages_deploy_hook == null ? 0 : 1
+  # Les valeurs de sops_file sont sensibles, interdites dans count : seule la
+  # présence de la clé est utilisée ici, elle n'a rien de secret.
+  count = nonsensitive(local.pages_deploy_hook == null) ? 0 : 1
 
   repository      = data.github_repository.site.name
   secret_name     = "CLOUDFLARE_PAGES_DEPLOY_HOOK"

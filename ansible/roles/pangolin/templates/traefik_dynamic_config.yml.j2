@@ -9,12 +9,20 @@ http:
         scheme: https
 {% for redirect in pangolin_domain_redirects %}
 
-    # {{ redirect.host }} -> {{ redirect.target }} (301, chemin conservé)
+    # {{ redirect.host }} -> {{ redirect.target }} (301, chemin conservé). Le
+    # routeur choisit déjà l'hôte : la regex accepte n'importe lequel (casse,
+    # port explicite, point final), sinon la requête tomberait sur noop@internal.
     redirect-{{ redirect.name }}:
       redirectRegex:
-        regex: '^https?://{{ redirect.host | regex_escape }}(/.*)?$'
+        regex: '^https?://[^/]+(/.*)?$'
         replacement: "{{ redirect.target }}${1}"
         permanent: true
+{% if redirect.service_worker is defined %}
+
+    redirect-{{ redirect.name }}-sw:
+      replacePath:
+        path: "{{ redirect.service_worker.replacement }}"
+{% endif %}
 {% endfor %}
 
   routers:
@@ -100,6 +108,22 @@ http:
         - redirect-{{ redirect.name }}
       tls:
         certResolver: letsencrypt
+{% if redirect.service_worker is defined %}
+
+    # Un navigateur refuse de mettre à jour un service worker derrière une
+    # redirection : celui que l'ancien site a installé sur ce domaine
+    # resterait actif et servirait son cache. Ce chemin sert à la place un
+    # worker qui se désinstalle (règle plus longue, donc prioritaire).
+    redirect-{{ redirect.name }}-sw:
+      rule: "Host(`{{ redirect.host }}`) && Path(`{{ redirect.service_worker.path }}`)"
+      service: redirect-{{ redirect.name }}-sw
+      entryPoints:
+        - websecure
+      middlewares:
+        - redirect-{{ redirect.name }}-sw
+      tls:
+        certResolver: letsencrypt
+{% endif %}
 
 {% endfor %}
   services:
@@ -117,6 +141,14 @@ http:
       loadBalancer:
         servers:
           - url: "http://pangolin:3000"  # API/WebSocket server
+{% for redirect in pangolin_domain_redirects if redirect.service_worker is defined %}
+
+    redirect-{{ redirect.name }}-sw:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: "{{ redirect.target }}"
+{% endfor %}
 
 tcp:
   serversTransports:
