@@ -103,6 +103,9 @@ def first_error(output):
     if "summary:" in lines:
         lines = lines[lines.index("summary:") + 1 :]
     for line in lines:
+        # Skip borg's --log-json records too (prompts, progress): not errors.
+        if line.startswith("{"):
+            continue
         if not any(generic in line for generic in GENERIC_ERROR_LINES):
             return line
     return "no output"
@@ -194,6 +197,8 @@ def container_of(identifier, dump):
         # No dumps.json: the identifier of a container dump is its name, plus
         # the port when one is set.
         candidate = identifier.split(":", 1)[0]
+        if not CONTAINER_NAME.fullmatch(candidate):
+            return None
         inspect = subprocess.run(
             ["docker", "container", "inspect", candidate],
             capture_output=True,
