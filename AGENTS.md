@@ -186,8 +186,8 @@ slug in `roles.tf`'s `apps`, an entry in `rules.tf`'s `managed_resources` (the
 coverage precondition fails the plan without it) and, for a standalone rule, an
 entry in `declared_extra_rules`; then its own access token and its own Uptime
 Kuma monitors, each target and token listed in `inventory.tf`'s
-`declared_targets`/`declared_access_tokens` (same kind of audit, same failure
-when one is missing). Secrets are per-environment too (`demo_planning_*` in
+`declared_targets`/`declared_access_tokens` (a missing one is a `check`
+warning on every plan, not a failure: see the header of `inventory.tf`). Secrets are per-environment too (`demo_planning_*` in
 `secrets.sops.yaml`), so a leaked demo password cannot open the real planning.
 
 ### Removing an app role

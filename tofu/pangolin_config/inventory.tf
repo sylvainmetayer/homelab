@@ -9,28 +9,41 @@
 # plan compares what this configuration owns against itself and has no way to
 # see anything else. See issue #525.
 #
-# Same shape for all three: read the live list, refuse to run on a list that is
-# unreadable or truncated, then fail the plan on any live id this
-# configuration did not create and that is not listed as a known exception.
-# Each exception list also fails the plan when one of its entries no longer
-# exists, so deleting a leftover in the UI forces its entry to be removed too.
+# `check` blocks, not preconditions. The live lists are read at plan time,
+# before anything is applied, so in two legitimate cases they disagree with the
+# configuration for the length of one run:
 #
-# The ids are compared, not the names: the API is the only source for an id,
-# while two objects can share a title (two "MCP" tokens is a token too many).
+#   - removing an app: its token and role are still live but no longer
+#     declared;
+#   - replacing a target or a token: the plan-time list still holds the old
+#     id, and the new one only exists after the apply.
+#
+# A precondition turns both into a failed plan, or worse a failed apply after
+# the change has been made. A check only warns, and the warning is gone on the
+# next plan. The price is that real drift warns instead of blocking - it still
+# shows on every plan until it is dealt with.
+#
+# (A check with a scoped data source would be re-read after the apply and
+# avoid even the transient warning, but OpenTofu then prints every response
+# body in full on every plan: hundreds of lines, token hashes included.)
+#
+# The ids are compared, not the names: two objects can share a title (two "MCP"
+# tokens is a token too many). Every exception must match exactly one live
+# object, so a stale or duplicated exception warns too.
 # ---------------------------------------------------------------------------
 
 # --- Targets ----------------------------------------------------------------
 #
-# Reuses `data.http.pangolin_targets` (rules.tf), which covers every resource
-# in `local.managed_resources`; unreadable responses are already reported by
-# `terraform_data.target_probe_config`. Resources in `local.unmanaged_resources`
-# (SSH PI) are deliberately not read: their target belongs to the same
+# The resource list `data.http.pangolin_resources` (rules.tf) already carries
+# every resource's targets, and its truncation is already a precondition of
+# `terraform_data.geo_rule_coverage`. Resources in `local.unmanaged_resources`
+# (SSH PI) are deliberately left out: their target belongs to the same
 # exception as the resource itself, see unmanaged_resource_monitors.tf.
 
 locals {
   # HCL cannot enumerate the instances of a resource that has no `for_each`, so
-  # a new pangolin_target has to be added here by hand. Forgetting it fails the
-  # plan with the new target listed as undeclared - loud on purpose.
+  # a new pangolin_target has to be added here by hand. Forgetting it is
+  # reported as an undeclared target - on purpose.
   declared_targets = [
     pangolin_target.bbox,
     pangolin_target.betisier,
@@ -68,28 +81,27 @@ locals {
 
   declared_target_ids = toset([for target in local.declared_targets : tostring(target.id)])
 
+  audited_resource_ids = toset([for id in values(local.managed_resources) : tostring(id)])
+
   undeclared_targets = flatten([
-    for name, response in data.http.pangolin_targets : [
-      for target in try(jsondecode(response.response_body).data.targets, []) :
-      "${name}#${target.targetId} (${coalesce(try(target.ip, null), "?")}:${coalesce(try(target.port, null), "?")}${try(target.path, null) == null ? "" : " ${target.path}"})"
+    for resource in local.pangolin_live_raw.resources : [
+      for target in try(resource.targets, []) :
+      "${resource.name}#${target.targetId} (${coalesce(try(target.ip, null), "?")}:${coalesce(try(target.port, null), "?")})"
       if !contains(local.declared_target_ids, tostring(target.targetId))
-    ]
+    ] if contains(local.audited_resource_ids, tostring(resource.resourceId))
   ])
 }
 
-resource "terraform_data" "target_inventory" {
-  input = length(local.declared_targets)
-
-  lifecycle {
-    precondition {
-      condition = length(local.undeclared_targets) == 0
-      error_message = join(" ", [
-        "Targets live in Pangolin that this configuration did not create:",
-        "${join(", ", local.undeclared_targets)}.",
-        "Either declare them (a pangolin_target resource, plus an entry in",
-        "local.declared_targets) or delete them in Pangolin.",
-      ])
-    }
+check "target_inventory" {
+  assert {
+    condition = length(local.undeclared_targets) == 0
+    error_message = join(" ", [
+      "Targets live in Pangolin that this configuration did not create:",
+      "${join(", ", local.undeclared_targets)}.",
+      "Either declare them (a pangolin_target resource, plus an entry in",
+      "local.declared_targets) or delete them in Pangolin. Expected once while",
+      "a target is being replaced.",
+    ])
   }
 }
 
@@ -97,7 +109,7 @@ resource "terraform_data" "target_inventory" {
 
 data "http" "pangolin_access_tokens" {
   # `limit` already defaults to 1000; set explicitly because the truncation
-  # check below depends on it.
+  # assertion below depends on it.
   url = "${local.pangolin_url}/v1/org/${local.pangolin_org_id}/access-tokens?limit=1000"
 
   request_headers = {
@@ -130,6 +142,8 @@ locals {
     pangolin_resource_access_token.wiki,
   ]
 
+  declared_access_token_ids = toset([for token in local.declared_access_tokens : tostring(token.id)])
+
   # Tokens made by hand, keyed "<resource name> / <title>" since their ids are
   # not known to this configuration. Taking one over means recreating it - a
   # token's secret is only ever returned at creation - so whatever uses it has
@@ -145,20 +159,14 @@ locals {
 
   access_tokens_raw = try(jsondecode(data.http.pangolin_access_tokens.response_body).data, null)
 
-  # Both fields can be null (untitled token, left join on the resource), and
-  # `try` does not catch a null - `coalesce` does.
-  live_access_tokens = [
+  # Both label fields can be null (untitled token, left join on the resource),
+  # and `try` does not catch a null - `coalesce` does.
+  foreign_access_tokens = [
     for token in try(local.access_tokens_raw.accessTokens, []) : {
       id    = tostring(token.accessTokenId)
       label = "${coalesce(try(token.resourceName, null), "?")} / ${coalesce(try(token.title, null), "(untitled)")}"
     }
-  ]
-
-  declared_access_token_ids = toset([for token in local.declared_access_tokens : tostring(token.id)])
-
-  foreign_access_tokens = [
-    for token in local.live_access_tokens : token
-    if !contains(local.declared_access_token_ids, token.id)
+    if !contains(local.declared_access_token_ids, tostring(token.accessTokenId))
   ]
 
   undeclared_access_tokens = [
@@ -166,60 +174,41 @@ locals {
     if !contains(keys(local.unmanaged_access_tokens), token.label)
   ]
 
-  # An exception covers exactly one token: a second hand-made token with the
-  # same resource and title is a new token, not the one that was reviewed.
-  excused_access_tokens = [
-    for token in local.foreign_access_tokens : token.label
-    if contains(keys(local.unmanaged_access_tokens), token.label)
+  # An exception covers exactly one token: no match means it is stale, a
+  # second match is a new hand-made token, not the one that was reviewed.
+  misused_access_token_exceptions = [
+    for label in keys(local.unmanaged_access_tokens) : label
+    if length([for token in local.foreign_access_tokens : token if token.label == label]) != 1
   ]
-
-  dangling_access_token_exceptions = setsubtract(
-    keys(local.unmanaged_access_tokens),
-    local.excused_access_tokens
-  )
 }
 
-resource "terraform_data" "access_token_inventory" {
-  input = length(local.live_access_tokens)
+check "access_token_inventory" {
+  # `pagination.total` on this endpoint counts the org's *resources*, not its
+  # tokens (server/routers/accessToken/listAccessTokens.ts), so it cannot be
+  # compared against. A full page is the only reliable sign of truncation.
+  assert {
+    condition = (
+      try(local.access_tokens_raw.accessTokens, null) != null
+      && length(try(local.access_tokens_raw.accessTokens, [])) < 1000
+    )
+    error_message = "Could not read the full access token list (HTTP ${data.http.pangolin_access_tokens.status_code}; the API key needs the listAccessTokens action): the token audit did not run."
+  }
 
-  lifecycle {
-    precondition {
-      condition = local.access_tokens_raw != null && try(local.access_tokens_raw.accessTokens, null) != null
-      error_message = join(" ", [
-        "Could not read the access tokens (HTTP ${data.http.pangolin_access_tokens.status_code}).",
-        "The API key needs the listAccessTokens action.",
-        "The audit below cannot run, so the plan is stopped rather than passing on no data.",
-      ])
-    }
+  assert {
+    condition = length(local.undeclared_access_tokens) == 0
+    error_message = join(" ", [
+      "Access tokens live in Pangolin that this configuration did not create:",
+      "${join(", ", local.undeclared_access_tokens)}.",
+      "Either declare them (a pangolin_resource_access_token resource, plus an",
+      "entry in local.declared_access_tokens), delete them in Pangolin, or list",
+      "them in local.unmanaged_access_tokens with the reason they stay manual.",
+      "Expected once while an app is removed or a token replaced.",
+    ])
+  }
 
-    # `pagination.total` on this endpoint counts the org's *resources*, not its
-    # tokens (server/routers/accessToken/listAccessTokens.ts), so it cannot be
-    # compared against. A full page is the only reliable sign of truncation.
-    precondition {
-      condition     = length(local.live_access_tokens) < try(local.access_tokens_raw.pagination.limit, 1000)
-      error_message = "Pangolin returned a full page of access tokens (${length(local.live_access_tokens)}): the list may be truncated, so the audit below is meaningless."
-    }
-
-    precondition {
-      condition = length(local.undeclared_access_tokens) == 0
-      error_message = join(" ", [
-        "Access tokens live in Pangolin that this configuration did not create:",
-        "${join(", ", local.undeclared_access_tokens)}.",
-        "Either declare them (a pangolin_resource_access_token resource, plus an",
-        "entry in local.declared_access_tokens), delete them in Pangolin, or list",
-        "them in local.unmanaged_access_tokens with the reason they stay manual.",
-      ])
-    }
-
-    precondition {
-      condition     = length(local.excused_access_tokens) == length(distinct(local.excused_access_tokens))
-      error_message = "Several live access tokens match the same entry of local.unmanaged_access_tokens: ${join(", ", local.excused_access_tokens)}. Each exception covers one token; delete the extra ones."
-    }
-
-    precondition {
-      condition     = length(local.dangling_access_token_exceptions) == 0
-      error_message = "local.unmanaged_access_tokens lists tokens that no longer exist in Pangolin: ${join(", ", local.dangling_access_token_exceptions)}. Remove them."
-    }
+  assert {
+    condition     = length(local.misused_access_token_exceptions) == 0
+    error_message = "These entries of local.unmanaged_access_tokens do not match exactly one live token: ${join(", ", local.misused_access_token_exceptions)}. Remove an entry whose token is gone; delete the extra tokens of an entry that matches several."
   }
 }
 
@@ -238,6 +227,8 @@ data "http" "pangolin_roles" {
 }
 
 locals {
+  declared_role_ids = toset([for role in pangolin_role.apps : tostring(role.id)])
+
   # Roles this configuration does not own, by name, with the reason why.
   unmanaged_roles = {
     # Created with the organization; neither can be declared.
@@ -250,58 +241,50 @@ locals {
 
   roles_raw = try(jsondecode(data.http.pangolin_roles.response_body).data, null)
 
-  live_roles = [
+  foreign_roles = [
     for role in try(local.roles_raw.roles, []) : {
       id   = tostring(role.roleId)
       name = role.name
     }
+    if !contains(local.declared_role_ids, tostring(role.roleId))
   ]
-
-  declared_role_ids = toset([for role in pangolin_role.apps : tostring(role.id)])
 
   undeclared_roles = [
-    for role in local.live_roles : "${role.name} (${role.id})"
-    if !contains(local.declared_role_ids, role.id) && !contains(keys(local.unmanaged_roles), role.name)
+    for role in local.foreign_roles : "${role.name} (${role.id})"
+    if !contains(keys(local.unmanaged_roles), role.name)
   ]
 
-  dangling_role_exceptions = setsubtract(
-    keys(local.unmanaged_roles),
-    [for role in local.live_roles : role.name]
-  )
+  # Same rule as for the tokens: a second role carrying an excepted name is a
+  # new role, not the one that was reviewed.
+  misused_role_exceptions = [
+    for name in keys(local.unmanaged_roles) : name
+    if length([for role in local.foreign_roles : role if role.name == name]) != 1
+  ]
 }
 
-resource "terraform_data" "role_inventory" {
-  input = length(local.live_roles)
+check "role_inventory" {
+  assert {
+    condition = (
+      try(local.roles_raw.roles, null) != null
+      && length(try(local.roles_raw.roles, [])) == try(local.roles_raw.pagination.total, -1)
+    )
+    error_message = "Could not read the full role list (HTTP ${data.http.pangolin_roles.status_code}; the API key needs the listRoles action): the role audit did not run."
+  }
 
-  lifecycle {
-    precondition {
-      condition = local.roles_raw != null && try(local.roles_raw.roles, null) != null
-      error_message = join(" ", [
-        "Could not read the roles (HTTP ${data.http.pangolin_roles.status_code}).",
-        "The API key needs the listRoles action.",
-        "The audit below cannot run, so the plan is stopped rather than passing on no data.",
-      ])
-    }
+  assert {
+    condition = length(local.undeclared_roles) == 0
+    error_message = join(" ", [
+      "Roles live in Pangolin that this configuration did not create:",
+      "${join(", ", local.undeclared_roles)}.",
+      "Either declare them (add the slug to local.apps in roles.tf, or a",
+      "pangolin_role imported with `tofu import`), delete them in Pangolin, or",
+      "list them in local.unmanaged_roles with the reason they stay manual.",
+      "Expected once while an app is removed.",
+    ])
+  }
 
-    precondition {
-      condition     = length(local.live_roles) == try(local.roles_raw.pagination.total, -1)
-      error_message = "Pangolin role list is truncated: got ${length(local.live_roles)} of ${try(local.roles_raw.pagination.total, "?")}. The audit below would be meaningless."
-    }
-
-    precondition {
-      condition = length(local.undeclared_roles) == 0
-      error_message = join(" ", [
-        "Roles live in Pangolin that this configuration did not create:",
-        "${join(", ", local.undeclared_roles)}.",
-        "Either declare them (add the slug to local.apps in roles.tf, or a",
-        "pangolin_role imported with `tofu import`), delete them in Pangolin, or",
-        "list them in local.unmanaged_roles with the reason they stay manual.",
-      ])
-    }
-
-    precondition {
-      condition     = length(local.dangling_role_exceptions) == 0
-      error_message = "local.unmanaged_roles lists roles that no longer exist in Pangolin: ${join(", ", local.dangling_role_exceptions)}. Remove them."
-    }
+  assert {
+    condition     = length(local.misused_role_exceptions) == 0
+    error_message = "These entries of local.unmanaged_roles do not match exactly one live role: ${join(", ", local.misused_role_exceptions)}. Remove an entry whose role is gone; delete the duplicates of an entry that matches several."
   }
 }

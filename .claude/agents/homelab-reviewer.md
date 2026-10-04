@@ -70,8 +70,9 @@ For any `tofu/pangolin_config/website_<service>.tf` (new or modified):
 - [ ] The resource is in `rules.tf`'s `local.managed_resources`, and every
       new `pangolin_target` / `pangolin_resource_access_token` is in
       `inventory.tf`'s `local.declared_targets` / `local.declared_access_tokens`
-      (removed from them on a decommission) — otherwise the audit
-      preconditions fail the plan.
+      (removed from them on a decommission) — otherwise the rules.tf
+      preconditions fail the plan, or the inventory.tf checks warn on every
+      plan.
 - [ ] `uptimekuma_monitor_push` output name follows `uptime_backup_<service>_url`
       exactly — that's the name `ansible/docker.yml` etc. look up in
       Terraform state outputs.

@@ -141,10 +141,12 @@ priority        = 1
 
 ## 3. Register it in the audits
 
-`tofu plan` fails until the new objects are listed, by design: the audits in
-`rules.tf` and `inventory.tf` compare what Pangolin holds against what this
-configuration declares, and HCL cannot enumerate resources without
-`for_each`.
+The audits in `rules.tf` and `inventory.tf` compare what Pangolin holds
+against what this configuration declares, and HCL cannot enumerate resources
+without `for_each`, so the new objects have to be listed by hand. A missing
+`managed_resources` entry fails the plan (rules.tf preconditions); a missing
+target or token raises a `check` warning on every plan (inventory.tf) until it
+is listed.
 
 - `rules.tf` → `local.managed_resources`: `"<Display Name>" = pangolin_resource.<service>.id`
   (the key is the resource's Pangolin `name`, as a literal). Any standalone
