@@ -44,6 +44,6 @@
 
 - name: Validate the borgmatic configuration of {{ verify_app_service }}
   become: true
-  ansible.builtin.command: /opt/molecule-borgmatic/bin/borgmatic config validate --config {{ verify_app_borgmatic_config }}
+  ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config {{ verify_app_borgmatic_config }}"
   changed_when: false
   when: verify_app_borgmatic_config | default('') | length > 0

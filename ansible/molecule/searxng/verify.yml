@@ -76,7 +76,7 @@
     - name: Stat the repo-create marker of the borgmatic stub for searxng
       become: true
       ansible.builtin.stat:
-        path: /var/lib/molecule-borgmatic/_etc_borgmatic.d_searxng.yaml
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_searxng.yaml"
       register: searxng_repo_marker
 
     - name: Assert the searxng borg repository was initialised

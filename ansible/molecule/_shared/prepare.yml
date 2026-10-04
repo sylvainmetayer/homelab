@@ -5,14 +5,12 @@
 # d'application tournent sans Internet ni Storage Box :
 #   - dc@<service> valide son compose (`docker compose config`) puis dort, au
 #     lieu de tirer et lancer les images ;
-#   - /root/.local/bin/borgmatic valide la configuration avec un vrai borgmatic
-#     puis simule `repo-create`, au lieu de joindre la Storage Box.
+#   - /root/.local/bin/borgmatic valide la configuration avec le vrai borgmatic
+#     de l'image puis simule `repo-create`, au lieu de joindre la Storage Box.
 # Un scénario qui a besoin de plus importe ce playbook depuis son propre prepare.yml.
 - name: Prepare
   hosts: all
   gather_facts: false
-  vars:
-    molecule_borgmatic_venv: /opt/molecule-borgmatic
   tasks:
     - name: Wait for systemd to finish booting
       ansible.builtin.command: systemctl is-system-running --wait  # noqa: command-instead-of-module
@@ -74,13 +72,6 @@
           ExecStart=
           ExecStart=/bin/sleep infinity
           ExecStop=
-
-    - name: Install a real borgmatic to validate configurations
-      become: true
-      ansible.builtin.pip:
-        name: borgmatic
-        virtualenv: "{{ molecule_borgmatic_venv }}"
-        virtualenv_command: python3 -m venv
 
     - name: Ensure /root/.local/bin exists
       become: true
