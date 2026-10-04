@@ -1,0 +1,1 @@
+tofu init impossible : main.tf pointe le module realm sur le commit bb374ea de planning-equipes, atteignable depuis aucune branche ni aucun tag (terraform/keycloak n'existe plus sur son main). Retirer ce fichier une fois la source du module republiée ou vendorisée.

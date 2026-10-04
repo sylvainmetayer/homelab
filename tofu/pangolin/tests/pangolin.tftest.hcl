@@ -104,9 +104,10 @@ run "flip_private_ip_is_stable" {
     error_message = "L'IP privée de flip ne peut pas être la passerelle du réseau Hetzner (x.x.x.1)."
   }
 
-  # L'inventaire CI vise flip par son IP privée en dur.
+  # L'inventaire CI vise flip par son IP privée en dur. Ligne entière : un
+  # simple « contient » laisserait passer 10.0.1.1 face à 10.0.1.10.
   assert {
-    condition     = strcontains(file("${path.module}/../../.github/workflows/deploy-docker-app.yaml"), "flip ansible_host=${one(hcloud_server.flip.network).ip}")
+    condition     = length(regexall("(?m)^\\s*flip ansible_host=${replace(one(hcloud_server.flip.network).ip, ".", "\\.")}\\s*$", file("${path.module}/../../.github/workflows/deploy-docker-app.yaml"))) == 1
     error_message = "L'IP privée de flip doit rester en phase avec l'inventaire CI de .github/workflows/deploy-docker-app.yaml."
   }
 
