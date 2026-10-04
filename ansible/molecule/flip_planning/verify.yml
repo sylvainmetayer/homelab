@@ -79,3 +79,31 @@
         that:
           - flip_planning_push_urls['demo_planning'] != flip_planning_push_urls['flip_planning']
         fail_msg: "La démo pousse sur le moniteur Uptime Kuma de la production : {{ flip_planning_push_urls['demo_planning'] }}"
+
+    # Troisième instance de flip.yml (banc Keycloak temporaire) : déployée et
+    # démarrée comme les autres, sans rien partager avec elles. Ses contrôles
+    # de contenu restent ceux de verify_instance.yml pour les deux premières.
+    - name: Verify the Keycloak test bench deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: demo_planning_kc
+
+    - name: Read the effective compose model of demo_planning_kc
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/demo_planning_kc
+      register: flip_planning_kc_compose_raw
+      changed_when: false
+
+    - name: Assert the Keycloak test bench shares nothing with the two other instances
+      vars:
+        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
+        flip_planning_kc_containers: >-
+          {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.container_name') | list }}
+      ansible.builtin.assert:
+        that:
+          - flip_planning_kc_containers | intersect(flip_planning_containers['flip_planning']) | length == 0
+          - flip_planning_kc_containers | intersect(flip_planning_containers['demo_planning']) | length == 0
+          - flip_planning_kc_containers | select('match', '^demo-planning-kc') | list | length == flip_planning_kc_containers | length
+          - flip_planning_kc_compose.networks['demo-planning-kc'].name not in (flip_planning_private_networks.values() | list)
+        fail_msg: "Conteneurs ou réseau partagés par demo_planning_kc : {{ flip_planning_kc_containers }}"

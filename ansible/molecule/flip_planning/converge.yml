@@ -1,8 +1,9 @@
 ---
-# Reproduit flip.yml pour Flip Planning : le rôle appliqué deux fois sur le
-# même hôte, production puis démo, avec les paramètres de rôle du playbook
-# (recopiés tels quels). La troisième instance (demo_planning_kc, banc de test
-# temporaire) n'est pas reprise.
+# Reproduit flip.yml pour Flip Planning : le rôle appliqué trois fois sur le
+# même hôte (production, démo, banc Keycloak), avec les paramètres de rôle du
+# playbook. Les entrées sont recopiées, mais la première tâche compare la copie
+# à flip.yml : une instance ajoutée, retirée ou modifiée là-bas fait échouer le
+# scénario au lieu de laisser tester un instantané périmé.
 - name: Converge
   hosts: all
   vars_files:
@@ -10,6 +11,33 @@
     - ../../group_vars/all/variables.yml
     - ../../host_vars/flip/variables.yaml
   pre_tasks:
+    - name: Assert this converge applies flip_planning exactly as flip.yml does
+      ansible.builtin.assert:
+        that:
+          - converge_flip_instances == playbook_flip_instances
+          # Régression documentée (flip.yml, AGENTS.md) : un set_fact d'une
+          # variable du rôle l'emporte sur les `vars:` de chaque instance.
+          - playbook_flip_facts | select('match', '^flip_planning_') | list | length == 0
+        fail_msg: >-
+          ansible/flip.yml et ce converge divergent : recopier ici ses entrées
+          `- role: flip_planning` (sans les tags), ou retirer le set_fact d'une
+          variable flip_planning_* de ses pre_tasks ({{ playbook_flip_facts }}).
+      vars:
+        # Texte brut des deux fichiers : les gabarits ne sont pas évalués, ce
+        # sont bien les paramètres écrits qui sont comparés.
+        playbook_flip_play: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0] }}"
+        converge_flip_play: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/converge.yml') | from_yaml)[0] }}"
+        playbook_flip_instances: >-
+          {{ playbook_flip_play.roles | selectattr('role', 'equalto', 'flip_planning')
+             | map('ansible.utils.remove_keys', target=['tags']) | list }}
+        converge_flip_instances: >-
+          {{ converge_flip_play.roles | selectattr('role', 'equalto', 'flip_planning')
+             | map('ansible.utils.remove_keys', target=['tags']) | list }}
+        playbook_flip_facts: >-
+          {{ playbook_flip_play.pre_tasks | map('dict2items') | flatten(levels=1)
+             | selectattr('key', 'equalto', 'ansible.builtin.set_fact')
+             | map(attribute='value') | map('list') | flatten }}
+
     # flip.yml les lit dans le state de tofu/pangolin_config et les pose par
     # set_fact : même précédence ici, sous les mêmes noms. Jamais
     # flip_planning_backup_healthcheck_url lui-même (cf. flip.yml).
@@ -48,3 +76,30 @@
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
+    - role: flip_planning
+      when: demo_planning_kc_db_password is defined
+      vars:
+        flip_planning_service: demo_planning_kc
+        flip_planning_container_prefix: demo-planning-kc
+        flip_planning_domain: demo-planning-kc.sylvain.dev
+        flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:pr-72"
+        flip_planning_sentry_environment: demo-kc
+        flip_planning_branding_product_name: "Flip Planning — Keycloak"
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_keycloak_enabled: true
+        flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
+        flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
+        flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
+        flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"
+        flip_planning_oidc_client_secret: "{{ demo_planning_kc_oidc_client_secret | default('') }}"
+        flip_planning_oidc_provisioning_client_secret: "{{ demo_planning_kc_oidc_provisioning_client_secret | default('') }}"
+        flip_planning_admin_secours_enabled: true
+        flip_planning_db_password: "{{ demo_planning_kc_db_password }}"
+        flip_planning_pgadmin_password: "{{ demo_planning_kc_pgadmin_password }}"
+        flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
+        flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
+        flip_planning_mcp_pangolin_access_token_id: ""
+        flip_planning_mcp_pangolin_access_token: ""
+        flip_planning_backup_enabled: false
