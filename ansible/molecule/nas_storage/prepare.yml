@@ -1,0 +1,28 @@
+---
+# Un conteneur ne peut pas monter l'export NFS du NAS. Le rôle tourne donc avec
+# nas_storage_manage_mount: false (ni entrée fstab ni automount, la seule
+# partie non couverte ici) et nas_storage_fstype: tmpfs, et ce prepare monte un
+# tmpfs au point de montage à la place de l'export. Le contrôle du rôle, le
+# script d'attente, les dossiers des applis et leurs propriétaires (root non
+# squashé, comme la règle NFS) se comportent alors comme sur l'hôte. Le tmpfs
+# est fermé à "others", comme peut l'être la racine du partage créée par UGOS.
+# Réutilisé par le scénario nginx_demo.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Stand in for the NAS export
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Mount a tmpfs in place of the NFS export
+      ansible.builtin.shell: |
+        set -eu
+        if mountpoint -q /mnt/nas/apps; then
+          echo unchanged
+          exit 0
+        fi
+        mkdir -p /mnt/nas/apps
+        mount -t tmpfs -o mode=0700 molecule-nas /mnt/nas/apps
+      register: nas_storage_molecule_mount
+      changed_when: nas_storage_molecule_mount.stdout != 'unchanged'

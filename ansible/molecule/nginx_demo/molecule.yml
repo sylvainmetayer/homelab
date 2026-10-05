@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: nginx_demo
+
+# Prepare de nas_storage : un tmpfs tient lieu de l'export NFS du NAS.
+ansible:
+  playbooks:
+    prepare: ../nas_storage/prepare.yml

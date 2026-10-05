@@ -15,6 +15,7 @@
 
 - name: Declare the NAS NFS export in fstab
   become: true
+  when: nas_storage_manage_mount
   ansible.posix.mount:
     path: "{{ nas_storage_mount_path }}"
     src: "{{ nas_storage_server }}:{{ nas_storage_export }}"
@@ -84,7 +85,9 @@
 - name: Start the NAS automount
   become: true
   # Sur un premier --check, fstab n'est pas écrit et l'unité n'existe pas.
-  when: not (ansible_check_mode and nas_storage_fstab is changed)
+  when:
+    - nas_storage_manage_mount
+    - not (ansible_check_mode and nas_storage_fstab is changed)
   ansible.builtin.systemd:
     name: "{{ nas_storage_unit_prefix }}.automount"
     state: started
@@ -106,4 +109,4 @@
   timeout: 60
   failed_when:
     - not (ansible_check_mode and nas_storage_fstab is changed)
-    - nas_storage_fs_type.rc != 0 or nas_storage_fs_type.stdout != 'nfs'
+    - nas_storage_fs_type.rc != 0 or nas_storage_fs_type.stdout != nas_storage_fstype
