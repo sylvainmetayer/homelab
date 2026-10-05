@@ -192,6 +192,25 @@ run "betisier_redirect" {
   }
 }
 
+run "memoire_epsi_vers_pangolin" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.memoire_epsi.zone == "sylvainmetayer.fr"
+      && ovh_domain_zone_record.memoire_epsi.subdomain == "memoire.epsi"
+      && ovh_domain_zone_record.memoire_epsi.fieldtype == "A"
+      && ovh_domain_zone_record.memoire_epsi.target == "203.0.113.10"
+    )
+    error_message = "memoire.epsi.sylvainmetayer.fr doit pointer vers Pangolin, dont Traefik redirige vers le PDF du mémoire."
+  }
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"), "host: memoire.epsi.sylvainmetayer.fr")
+    error_message = "La redirection de memoire.epsi.sylvainmetayer.fr doit être déclarée dans pangolin_domain_redirects (ansible/host_vars/pangolin)."
+  }
+}
+
 # Vérification Google Search Console de sylvain.dev (search_console.tf) :
 # posée à l'apex, car un nom porteur d'un CNAME (ref, géré par tofu/ref) ne
 # peut porter aucun autre enregistrement.

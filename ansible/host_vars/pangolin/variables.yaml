@@ -19,6 +19,13 @@ pangolin_domain_redirects:
     service_worker:
       path: /service-worker.js
       replacement: /service-worker-retired.js
+  # Mémoire EPSI, lien publié sur le site (articles, CV) : vers le PDF de la
+  # dernière version, en 302 pour suivre une nouvelle release.
+  - name: memoire-epsi
+    host: memoire.epsi.sylvainmetayer.fr
+    target: https://github.com/sylvainmetayer/epsi-memoire/releases/download/v1.1.1/M19_SYLVAINMETAYER.pdf
+    keep_path: false
+    permanent: false
 
 # Log level (debug, info, warning, error)
 pangolin_log_level: "info"

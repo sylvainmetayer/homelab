@@ -9,14 +9,14 @@ http:
         scheme: https
 {% for redirect in pangolin_domain_redirects %}
 
-    # {{ redirect.host }} -> {{ redirect.target }} (301, chemin conservé). Le
+    # {{ redirect.host }} -> {{ redirect.target }} ({{ '301' if redirect.permanent | default(true) else '302' }}, chemin {{ 'conservé' if redirect.keep_path | default(true) else 'ignoré' }}). Le
     # routeur choisit déjà l'hôte : la regex accepte n'importe lequel (casse,
     # port explicite, point final), sinon la requête tomberait sur noop@internal.
     redirect-{{ redirect.name }}:
       redirectRegex:
         regex: '^https?://[^/]+(/.*)?$'
-        replacement: "{{ redirect.target }}${1}"
-        permanent: true
+        replacement: "{{ redirect.target }}{{ '${1}' if redirect.keep_path | default(true) else '' }}"
+        permanent: {{ redirect.permanent | default(true) | bool | lower }}
 {% if redirect.service_worker is defined %}
 
     redirect-{{ redirect.name }}-sw:
