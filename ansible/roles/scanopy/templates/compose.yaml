@@ -38,7 +38,7 @@ services:
 
   scanopy-server:
     mem_limit: 1g
-    image: ghcr.io/scanopy/scanopy/server:v0.17.18@sha256:629053b0bc0b1286ef63045aa37564d9fa1101e42121072e628ebbaa8f50c8e1
+    image: ghcr.io/scanopy/scanopy/server:v0.17.21@sha256:37c32b18d7b59e6b6177a654a72825dbeac678594aaba47ccfe3b5736668fcb0
     container_name: scanopy-server
     restart: unless-stopped
     ports:
