@@ -5,10 +5,8 @@ locals {
 # Prérequis : l'app GitHub « Cloudflare Workers and Pages » a accès au dépôt
 # (github_app_installation_repository dans github.tf, ou mode « All repositories »).
 #
-# Pas de deployment_configs : déclaré partiellement, il produit des diffs
-# permanents avec le provider v5 (champs calculés par l'API). Le site déduit
-# ELEVENTY_ENV de CF_PAGES_BRANCH (eleventy.config.js), il n'a besoin d'aucune
-# variable d'environnement.
+# Le site déduit ELEVENTY_ENV de CF_PAGES_BRANCH (eleventy.config.js). Seule
+# variable d'environnement : WEBMENTION_IO_TOKEN, en production uniquement.
 resource "cloudflare_pages_project" "site" {
   account_id        = local.cloudflare_account_id
   name              = var.project_name
@@ -32,6 +30,20 @@ resource "cloudflare_pages_project" "site" {
     build_command   = "npm run production"
     destination_dir = "dist"
     root_dir        = ""
+  }
+
+  # Sans jeton dans secrets.sops.yaml, deployment_configs reste non déclaré,
+  # comme avant.
+  deployment_configs = nonsensitive(local.webmention_io_token == null) ? null : {
+    production = {
+      env_vars = {
+        WEBMENTION_IO_TOKEN = {
+          type  = "secret_text"
+          value = local.webmention_io_token
+        }
+      }
+    }
+    preview = {}
   }
 }
 

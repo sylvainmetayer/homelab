@@ -7,7 +7,8 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `data.github_repository.site` | Dépôt existant, lu seulement (pas géré ici) |
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
 | `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets.sops.yaml`) |
-| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Pas de variables d'environnement : le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH` |
+| `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets.sops.yaml`) |
+| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH` ; seule variable : `WEBMENTION_IO_TOKEN` en production (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
 | `ovh_domain_zone_record.www` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
@@ -71,6 +72,21 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 6. **Supervision** : `tofu apply` dans `tofu/pangolin_config` (moniteurs Uptime Kuma `Blog` sur www et `Blog (apex)`).
 7. **Netlify** : supprimer le site Netlify, le secret `netlify_webhook` et le `netlify.toml` de transition du dépôt `site`.
 8. **Sveltia CMS** : plus de fournisseur OAuth Netlify. Créer un fine-grained PAT limité au dépôt `site` (*Contents: Read and write*, *Pull requests: Read and write* pour le workflow éditorial) et utiliser « Sign In Using Access Token ».
+
+## Webmentions et SonarCloud
+
+Les deux jetons sont optionnels : sans eux, le plan est le même qu'avant.
+
+1. **Webmentions** : jeton API sur <https://webmention.io/settings> (compte `www.sylvain.dev`). Le build de production le lit pour afficher les réactions sous les articles ; le build quotidien fait apparaître les nouvelles.
+2. **SonarCloud** : importer le dépôt sur <https://sonarcloud.io> (organisation `sylvainmetayer`, clé de projet `sylvainmetayer_site`, celles de `sonar-project.properties`), désactiver l'*Automatic Analysis* (*Administration → Analysis Method*), puis créer un jeton (*My Account → Security*).
+
+```bash
+sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<jeton webmention.io>"'
+sops set secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
+mise exec -- tofu -chdir=tofu/site apply
+```
+
+La variable d'environnement ne sert qu'aux builds suivants : relancer un déploiement de `main` (ou attendre le build quotidien). Après l'apply, `tofu plan` doit être vide ; s'il propose de réécrire `WEBMENTION_IO_TOKEN` à chaque fois (valeur `secret_text` non renvoyée par l'API), ajouter `ignore_changes` sur `deployment_configs`.
 
 ## Vérifications
 
