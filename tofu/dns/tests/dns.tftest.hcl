@@ -72,6 +72,42 @@ run "pangolin_a_records" {
   }
 }
 
+# sylvain.dev est servi par Cloudflare Pages sur www (tofu/site), qui n'accepte
+# pas un apex hors zone Cloudflare : l'apex pointe vers Pangolin, qui répond par
+# une 301 vers www. Bascule faite : c'est la valeur par défaut.
+run "apex_sylvain_dev_vers_pangolin" {
+  command = plan
+
+  assert {
+    condition     = length(ovh_domain_zone_record.sylvain_dev_root) == 1
+    error_message = "Bascule faite : l'apex sylvain.dev doit pointer vers Pangolin par défaut, sinon sylvain.dev est coupé."
+  }
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.sylvain_dev_root[0].zone == "sylvain.dev"
+      && ovh_domain_zone_record.sylvain_dev_root[0].subdomain == ""
+      && ovh_domain_zone_record.sylvain_dev_root[0].fieldtype == "A"
+      && ovh_domain_zone_record.sylvain_dev_root[0].target == "203.0.113.10"
+      && ovh_domain_zone_record.sylvain_dev_root[0].ttl == 300
+    )
+    error_message = "L'apex sylvain.dev doit être un A vers l'IP publique de Pangolin (TTL 300) : Pangolin n'expose qu'une IPv4."
+  }
+}
+
+run "apex_sylvain_dev_desactivable" {
+  command = plan
+
+  variables {
+    sylvain_dev_apex_to_pangolin = false
+  }
+
+  assert {
+    condition     = length(ovh_domain_zone_record.sylvain_dev_root) == 0
+    error_message = "sylvain_dev_apex_to_pangolin = false ne doit poser aucun A à l'apex de sylvain.dev."
+  }
+}
+
 # L'IP n'est pas écrite en dur : elle suit l'output du state de tofu/pangolin.
 run "a_records_follow_pangolin_state" {
   command = plan
