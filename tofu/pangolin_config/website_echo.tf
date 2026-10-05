@@ -38,6 +38,7 @@ resource "pangolin_target" "echo" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 80
+  hc_hostname            = "echo"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
@@ -96,25 +97,4 @@ resource "uptimekuma_monitor_http_keyword" "echo" {
   tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
-}
-
-resource "uptimekuma_monitor_push" "backup_echo" {
-  name = "Backup ${pangolin_resource.echo.name}"
-
-  # Grouped under the Backup folder. See uptime_globals.tf.
-  parent = uptimekuma_monitor_group.backups.id
-
-  interval = 60 * 60 * 24
-
-  retry_interval = 20
-  active         = true
-  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
-
-  notification_ids = [uptimekuma_notification_smtp.email.id]
-}
-
-output "uptime_backup_echo_url" {
-  description = "ECHO - URL pour envoyer les heartbeats push"
-  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_echo.push_token}"
-  sensitive   = true
 }
