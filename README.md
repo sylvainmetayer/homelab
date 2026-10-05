@@ -47,3 +47,32 @@ systemctl start dc@betisier --user
 sudo -s
 borgmatic restore --archive latest --repo betisier-s3
 ```
+
+### Test de restauration hebdomadaire
+
+Chaque hôte qui a le rôle `borgmatic` lance `borgmatic-restore-test.timer` le
+dimanche matin (`ansible/roles/borgmatic/files/borgmatic-restore-test.py`).
+Pour chaque config de `/etc/borgmatic.d`, le script vérifie que la dernière
+archive a moins de 48 h, extrait dans un dossier jetable tous les dumps de base
+de données plus un échantillon aléatoire de fichiers, puis contrôle le résultat :
+un dump au moins par base déclarée dans la config, dumps PostgreSQL relus en
+entier par `pg_restore` dans le conteneur d'origine, fin de dump MySQL/SQLite
+présente, tailles des fichiers. Rien n'est restauré dans une base en service.
+Le résultat part sur le monitor push « Restore test <hôte> » d'Uptime Kuma.
+Le test et `borgmatic.service` partagent un `flock` : l'un attend que l'autre
+ait fini.
+
+```bash
+sudo systemctl start borgmatic-restore-test.service   # à la demande
+journalctl -u borgmatic-restore-test.service          # détail par config
+```
+
+### Mots de passe Postgres
+
+`POSTGRES_PASSWORD` n'est lu qu'à l'initialisation de la base. Pour changer le
+mot de passe d'une base Postgres (Immich, Paperless, Dawarich, Scanopy, Flip
+Planning et son Keycloak), il suffit de le modifier dans `secrets.sops.yaml`
+puis de relancer le playbook de l'app : le rôle `postgres_auth_sync` vérifie
+le mot de passe sur l'IP du conteneur (comme le `pg_dump` de borgmatic) et,
+s'il n'ouvre plus la base, l'applique avec `ALTER ROLE` via le socket local du
+conteneur.

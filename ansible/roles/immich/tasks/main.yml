@@ -42,6 +42,18 @@
     enabled: true
     daemon_reload: true
 
+# POSTGRES_PASSWORD only applies to an empty data directory: converge it on
+# immich_db_password, or a rotation silently breaks the borgmatic pg_dump. #96
+- name: Keep the postgres password in sync with immich_db_password
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: immich_postgres
+    postgres_auth_sync_user: postgres
+    postgres_auth_sync_database: immich
+    postgres_auth_sync_password: "{{ immich_db_password }}"
+    postgres_auth_sync_notify: Restart immich service
+
 - name: Configure borgmatic backup for immich
   when: immich_backup_enabled
   tags: backup

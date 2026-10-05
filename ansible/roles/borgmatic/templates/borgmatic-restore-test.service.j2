@@ -1,0 +1,22 @@
+[Unit]
+Description=borgmatic restore test
+Wants=network-online.target
+After=network-online.target borgmatic.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+# Settings come from /etc/borgmatic-restore-test.json, written by Ansible.
+# The lock is borgmatic.service's: the test waits for a running backup, and a
+# backup due meanwhile waits for the test.
+ExecStart=/usr/bin/flock {{ borgmatic_lock_file }} /usr/bin/python3 /usr/local/bin/borgmatic-restore-test
+# A stuck run must not hold the lock, and so the backups, forever. The next run
+# removes what a killed one left in the state directory.
+TimeoutStartSec={{ borgmatic_restore_test_timeout }}
+# Extractions land in /var/lib/borgmatic-restore-test, root-only.
+StateDirectory=borgmatic-restore-test
+StateDirectoryMode=0700
+# Extraction is I/O heavy and nothing waits on it.
+Nice=10
+IOSchedulingClass=idle

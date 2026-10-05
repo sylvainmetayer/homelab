@@ -38,7 +38,9 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   rules this repo requires).
 - `tasks/main.yml`, in order: ensure app folders exist → template
   `compose.yaml` (notify `Restart <service>`) → template env file → borgmatic
-  block (`when: <service>_backup_enabled`, tags: `backup`) → `systemd: name=dc@<service> scope=user state=started enabled=true`.
+  block (`when: <service>_backup_enabled`, tags: `backup`) → `systemd: name=dc@<service> scope=user state=started enabled=true`
+  → for a postgres database, `import_role: postgres_auth_sync` (container,
+  user, database, password, `Restart <service>`), as in `paperless_ngx`.
 - `handlers/main.yml`: a `Restart <service>` handler that
   `systemd: state=restarted name=dc@<service> scope=user daemon_reload=true`.
 

@@ -157,3 +157,68 @@
     mode: "0600"
     owner: "root"
     group: "root"
+
+- name: Configure the borgmatic restore test
+  when: borgmatic_restore_test_enabled
+  become: true
+  block:
+    - name: Install the restore test script
+      ansible.builtin.copy:
+        src: borgmatic-restore-test.py
+        dest: /usr/local/bin/borgmatic-restore-test
+        # Only the root-run unit executes it.
+        mode: "0750"
+        owner: root
+        group: root
+
+    # A missing key (host renamed in the inventory, or not yet in
+    # restore_test_hosts of tofu/pangolin_config) still runs the test, but
+    # pushes nowhere: say so instead of letting the monitor time out.
+    - name: Warn when the restore test has no push URL
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: no restore test push URL for {{ inventory_hostname }}. Is it
+          in restore_test_hosts (tofu/pangolin_config/restore_tests.tf), and
+          was tofu applied? The result will only reach the journal.
+      when: borgmatic_restore_test_healthcheck_url | length == 0
+
+    # The script's only input (it takes no argument and reads no environment
+    # variable). Root-only: the push token is a credential.
+    - name: Write the restore test settings
+      ansible.builtin.copy:
+        dest: /etc/borgmatic-restore-test.json
+        content: "{{ borgmatic_restore_test_settings | to_nice_json }}\n"
+        mode: "0600"
+        owner: root
+        group: root
+      # The content holds the push token: keep it out of --diff and -vvv.
+      diff: false
+      no_log: true
+      vars:
+        borgmatic_restore_test_settings:
+          config_dir: "{{ borgmatic_config_dir }}"
+          max_age_hours: "{{ borgmatic_restore_test_max_age_hours | int }}"
+          sample_files: "{{ borgmatic_restore_test_sample_files | int }}"
+          sample_max_bytes: "{{ borgmatic_restore_test_sample_max_bytes | int }}"
+          push_url: "{{ borgmatic_restore_test_healthcheck_url }}"
+
+    - name: Create the restore test systemd units
+      ansible.builtin.template:
+        src: "borgmatic-restore-test.{{ item }}.j2"
+        dest: "/etc/systemd/system/borgmatic-restore-test.{{ item }}"
+        # Only systemd (root) reads the units: no need for world-readable.
+        mode: "0640"
+        owner: root
+        group: root
+      loop:
+        - service
+        - timer
+      register: borgmatic_restore_test_units
+
+    # `started` would leave an already active timer on its previous OnCalendar.
+    - name: Enable and (re)start the restore test timer
+      ansible.builtin.systemd:
+        name: borgmatic-restore-test.timer
+        enabled: true
+        state: "{{ 'restarted' if borgmatic_restore_test_units is changed else 'started' }}"
+        daemon_reload: "{{ borgmatic_restore_test_units is changed }}"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the borgmatic restore test
+
+[Timer]
+OnCalendar={{ borgmatic_restore_test_schedule }}
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

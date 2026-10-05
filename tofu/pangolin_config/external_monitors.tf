@@ -5,13 +5,14 @@
 # here after the August 2026 audit so the instance has no unmanaged corners
 # left, not because this repo deploys any of them.
 #
-# Everything below mirrors the live monitors, `tofu import` included. Two live
-# properties are mirrored rather than corrected, because fixing them is an
-# alerting change and not part of bringing the definitions into code:
+# Everything below was first mirrored from the live monitors, `tofu import`
+# included, with two live properties kept as they were: no notification
+# attached (FolderSync aside, Telegram, see below) and `max_retries = 0`.
 #
-#   - none of these monitors has a notification attached, so they page nobody;
-#     FolderSync is the single exception (Telegram, see below)
-#   - `max_retries = 0` means a single failed probe is a DOWN, with no retry
+# Both were then corrected together (issue #525): the HTTP monitors page by
+# email like the self-hosted ones, and retry twice before going DOWN. The
+# second goes with the first - with no retry, a single slow answer from a
+# third party would mail a DOWN and an UP within two minutes.
 #
 # The professional groups further down are folders only. Their children are
 # client URLs that have no place in this repository and stay defined by hand in
@@ -34,7 +35,7 @@ resource "uptimekuma_monitor_http" "actualbudget" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -43,6 +44,8 @@ resource "uptimekuma_monitor_http" "actualbudget" {
   domain_expiry_notification = true
   expiry_notification        = false
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_group" "netlify" {
@@ -58,7 +61,7 @@ resource "uptimekuma_monitor_http" "alias_gandi" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -67,6 +70,8 @@ resource "uptimekuma_monitor_http" "alias_gandi" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # Same name as the Cloudflare one below - they are two deployments of the same
@@ -78,7 +83,7 @@ resource "uptimekuma_monitor_http" "agent_ready_netlify" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -87,6 +92,8 @@ resource "uptimekuma_monitor_http" "agent_ready_netlify" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # r.sylvain.dev, the 1y short-URL site: moved from Netlify to Cloudflare Pages
@@ -98,7 +105,7 @@ resource "uptimekuma_monitor_http" "redirect" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -107,6 +114,8 @@ resource "uptimekuma_monitor_http" "redirect" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # Servi par Cloudflare Pages sur www depuis la migration (tofu/site).
@@ -137,7 +146,7 @@ resource "uptimekuma_monitor_http" "blog_apex" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -146,6 +155,8 @@ resource "uptimekuma_monitor_http" "blog_apex" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_group" "cloudflare" {
@@ -161,7 +172,7 @@ resource "uptimekuma_monitor_http" "agent_ready_cloudflare" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -170,6 +181,8 @@ resource "uptimekuma_monitor_http" "agent_ready_cloudflare" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # --- Third-party SaaS ------------------------------------------------------
@@ -187,7 +200,7 @@ resource "uptimekuma_monitor_http" "kdrive" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -196,6 +209,8 @@ resource "uptimekuma_monitor_http" "kdrive" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 resource "uptimekuma_monitor_http" "simplelogin" {
@@ -205,7 +220,7 @@ resource "uptimekuma_monitor_http" "simplelogin" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -214,6 +229,8 @@ resource "uptimekuma_monitor_http" "simplelogin" {
   domain_expiry_notification = false
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # --- Unfiled ---------------------------------------------------------------
@@ -224,7 +241,7 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
 
   interval        = 60
   timeout         = 48
-  max_retries     = 0
+  max_retries     = 2
   retry_interval  = 60
   resend_interval = 0
   active          = true
@@ -233,6 +250,8 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
   domain_expiry_notification = true
   expiry_notification        = true
   tags                       = [local.tofu_tag]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
 # Pushed by something outside this repository (Ansible never touches this

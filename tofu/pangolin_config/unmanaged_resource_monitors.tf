@@ -7,6 +7,12 @@
 # bastion, not an HTTP resource - `pam_mode`, `auth_daemon_*` and an ssh-mode
 # target make it a different shape from every other block in this directory.
 #
+# Decided exception, not pending work (issue #525): the resource and its target
+# stay manual. The audits treat them that way - `local.unmanaged_resources`
+# keeps its rules managed, and `terraform_data.target_inventory` (inventory.tf)
+# only reads the targets of managed resources. Only the access token below is
+# declared, and it is audited like the others.
+#
 # Deliberately `uptimekuma_monitor_http` and not the inverted-keyword form used
 # by the managed healthchecks: this resource has no maintenance page, so a
 # service that is down still answers with Traefik's error rather than a 200, and

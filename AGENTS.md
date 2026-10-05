@@ -135,6 +135,7 @@ current checklist — it also delegates to **`pangolin-route`** and
   - `compression: zstd,10`, not `auto,zstd`.
   - Target format: `ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/<service>`.
 - New remote backup folders must be added to `backup_folders` in `ansible/host_vars/backups/variables.yaml` (created by `ansible/backup.yaml`, which must stay `gather_facts: false` + use `ansible.builtin.raw` because the Storage Box has a restricted shell — normal file modules don't work there).
+- An app on the official postgres image (or one built on it) imports the `postgres_auth_sync` role after its `dc@<service>` start task (see `ansible/roles/paperless_ngx/tasks/main.yml`): `POSTGRES_PASSWORD` only applies to an empty data directory, so without it a password rotation silently breaks the app and its borgmatic dump.
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
@@ -190,7 +191,9 @@ On the Tofu side nothing is shared: a second `website_<instance>.tf`, a second
 slug in `roles.tf`'s `apps`, an entry in `rules.tf`'s `managed_resources` (the
 coverage precondition fails the plan without it) and, for a standalone rule, an
 entry in `declared_extra_rules`; then its own access token and its own Uptime
-Kuma monitors. Secrets are per-environment too (`demo_planning_*` in
+Kuma monitors, each target and token listed in `inventory.tf`'s
+`declared_targets`/`declared_access_tokens` (a missing one is a `check`
+warning on every plan, not a failure: see the header of `inventory.tf`). Secrets are per-environment too (`demo_planning_*` in
 `secrets.sops.yaml`), so a leaked demo password cannot open the real planning.
 
 ### Removing an app role

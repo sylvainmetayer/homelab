@@ -151,6 +151,31 @@
     scope: user
     enabled: true
 
+# POSTGRES_PASSWORD only applies to an empty data directory: converge both
+# databases on their password, or a rotation silently breaks the app and the
+# borgmatic pg_dump. The handler is this instance's own, like every notify of
+# this role (see handlers/main.yml). #96
+- name: Keep the postgres password in sync for {{ flip_planning_service }}
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: "{{ flip_planning_container_prefix }}-db"
+    postgres_auth_sync_user: "{{ flip_planning_db_user }}"
+    postgres_auth_sync_database: "{{ flip_planning_db_name }}"
+    postgres_auth_sync_password: "{{ flip_planning_db_password }}"
+    postgres_auth_sync_notify: "Restart {{ flip_planning_service }}"
+
+- name: Keep the Keycloak postgres password in sync for {{ flip_planning_service }}
+  when: flip_planning_keycloak_enabled
+  ansible.builtin.import_role:
+    name: postgres_auth_sync
+  vars:
+    postgres_auth_sync_container: "{{ flip_planning_container_prefix }}-keycloak-db"
+    postgres_auth_sync_user: "{{ flip_planning_keycloak_db_user }}"
+    postgres_auth_sync_database: "{{ flip_planning_keycloak_db_name }}"
+    postgres_auth_sync_password: "{{ flip_planning_keycloak_db_password }}"
+    postgres_auth_sync_notify: "Restart {{ flip_planning_service }}"
+
 # Borgmatic backup configuration
 - name: Configure borgmatic backup for {{ flip_planning_service }}
   when: flip_planning_backup_enabled

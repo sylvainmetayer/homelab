@@ -77,6 +77,7 @@ locals {
   # Short, static list; the ids are pinned deliberately so the rules no longer
   # depend on a live lookup. The `enabled = false` ones are kept so this change
   # destroys no existing rule - prune them once they are confirmed dead.
+  # SSH PI stays here on purpose, see unmanaged_resource_monitors.tf.
   unmanaged_resources = {
     "SSH PI" = 38 # enabled
   }

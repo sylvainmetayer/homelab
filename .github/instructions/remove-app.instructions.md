@@ -104,6 +104,14 @@ so removal is two edits + an apply:
   `tofu/pangolin_config/roles.tf`'s `locals` block (this destroys its
   `pangolin_role`, which also revokes any SSO/user access to it — nothing
   else to clean up there, Pangolin doesn't track per-user role grants in Tofu).
+- Remove its entries from the audit lists, or the plan fails on a reference
+  to a resource that no longer exists: `local.managed_resources` (and
+  `local.declared_extra_rules` if it had standalone rules) in `rules.tf`,
+  `local.declared_targets` and `local.declared_access_tokens` in
+  `inventory.tf`.
+  The plan of the removal then warns once that the app's token and role are
+  live but undeclared (the `inventory.tf` checks read Pangolin before the
+  apply): expected, it is gone on the next plan.
 - Apply so Tofu actually destroys what's provisioned (deleting the `.tf` file
   alone only drops it from the *next* plan, it doesn't tear down existing
   resources):
@@ -116,9 +124,9 @@ tofu apply
 tofu state list | grep <service>   # should print nothing once applied
 ```
 
-Two things that don't need touching, for context: `rules.tf`'s country-allow
-rules are generated with `for_each` over `data.pangolin_resources.all.resources`,
-so they disappear automatically once the resource is destroyed; and
+Two things that don't need touching, for context: `rules.tf`'s country rules
+are generated with `for_each` over `local.managed_resources`, so they
+disappear with its entry; and
 `tofu/dns/pangolin.tf` is a single wildcard (`subdomain = "*"`) record, not
 per-app, so there's no DNS record to remove either.
 
