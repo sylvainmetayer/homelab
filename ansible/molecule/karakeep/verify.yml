@@ -1,0 +1,116 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the karakeep deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: karakeep
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/karakeep.yaml"
+
+    - name: Read the karakeep files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/karakeep/.env
+        - /opt/apps/karakeep/compose.yaml
+        - "{{ borgmatic_config_dir }}/karakeep.yaml"
+      register: karakeep_files
+
+    - name: Stat the karakeep environment and borgmatic files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/karakeep/.env
+        - "{{ borgmatic_config_dir }}/karakeep.yaml"
+      register: karakeep_stats
+
+    - name: Parse the karakeep files
+      ansible.builtin.set_fact:
+        karakeep_env: >-
+          {{ dict((karakeep_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        karakeep_compose: "{{ karakeep_files.results[1].content | b64decode | from_yaml }}"
+        karakeep_borgmatic: "{{ karakeep_files.results[2].content | b64decode | from_yaml }}"
+
+    # Le .env porte NEXTAUTH_SECRET, la clé Meilisearch et le mot de passe SMTP.
+    - name: Assert the karakeep secret files are private
+      ansible.builtin.assert:
+        that:
+          - karakeep_stats.results[0].stat.mode == '0600'
+          - karakeep_stats.results[0].stat.pw_name == ansible_facts['user_id']
+          - karakeep_stats.results[1].stat.mode == '0600'
+          - karakeep_stats.results[1].stat.pw_name == 'root'
+        fail_msg: "{{ karakeep_stats.results | map(attribute='stat.mode') | list }} : .env et config borgmatic doivent être 0600"
+
+    # Secrets dérivés de la variable backup_passphrase (aucune entrée SOPS),
+    # distincts entre eux ; même clé Meilisearch côté web et côté moteur.
+    - name: Assert the karakeep environment comes from the role and the secrets
+      ansible.builtin.assert:
+        that:
+          - karakeep_env.NEXTAUTH_URL == 'https://keep.sylvain.cloud'
+          - karakeep_env.NEXTAUTH_SECRET is match('^[0-9a-f]{64}$')
+          - karakeep_env.MEILI_MASTER_KEY is match('^[0-9a-f]{64}$')
+          - karakeep_env.NEXTAUTH_SECRET != karakeep_env.MEILI_MASTER_KEY
+          - karakeep_env.MEILI_MASTER_KEY == karakeep_compose.services.meilisearch.environment.MEILI_MASTER_KEY
+          - karakeep_env.DISABLE_SIGNUPS == 'true'
+          - karakeep_env.SMTP_USER == pangolin_smtp_user
+          - karakeep_env.SMTP_PASSWORD == pangolin_smtp_pass
+          - karakeep_env.CRAWLER_YTDLP_ARGS == '--match-filter%%extractor_key!=Youtube'
+        fail_msg: "Environnement de karakeep inattendu : {{ karakeep_env.keys() | list }}"
+
+    # Seul le web est joignable par Pangolin ; chrome et Meilisearch restent
+    # sur le réseau du projet.
+    - name: Assert only the karakeep web container joins newt
+      ansible.builtin.assert:
+        that:
+          - karakeep_compose.networks.newt.external
+          - "'newt' in karakeep_compose.services.web.networks"
+          - "'newt' not in karakeep_compose.services.chrome.networks"
+          - "'newt' not in karakeep_compose.services.meilisearch.networks"
+          - karakeep_compose.services.web.container_name == 'karakeep'
+        fail_msg: "Réseaux de karakeep inattendus : {{ karakeep_compose.services | dict2items | map(attribute='key') | list }}"
+
+    # Doctrine de ressources (AGENTS.md) : mem_limit partout, mem_reservation
+    # sur le moteur de recherche, quota CPU seulement sur le crawler (chrome).
+    - name: Assert the karakeep resource limits follow the doctrine
+      ansible.builtin.assert:
+        that:
+          - karakeep_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
+          - karakeep_compose.services.meilisearch.mem_reservation is defined
+          - karakeep_compose.services.meilisearch.cpus is not defined
+          - karakeep_compose.services.web.cpus is not defined
+          - karakeep_compose.services.chrome.cpus is defined
+          - karakeep_compose.services.chrome.cpu_shares is defined
+        fail_msg: Limites de ressources de karakeep hors doctrine (cf. AGENTS.md)
+
+    - name: Assert the karakeep backup targets its own repository and pushes to Uptime Kuma
+      ansible.builtin.assert:
+        that:
+          - karakeep_borgmatic.repositories[0].path == karakeep_expected_repository
+          - karakeep_borgmatic.encryption_passphrase == backup_passphrase
+          - karakeep_borgmatic.archive_name_format is match('karakeep-')
+          - "'/opt/apps/karakeep/data' in karakeep_borgmatic.source_directories"
+          - "'/opt/apps/karakeep/.env' in karakeep_borgmatic.source_directories"
+          - karakeep_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-karakeep-backup'
+        fail_msg: "Configuration borgmatic de karakeep inattendue : {{ karakeep_borgmatic.repositories }}"
+      vars:
+        karakeep_expected_repository: >-
+          ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/karakeep
+
+    - name: Stat the repo-create marker of the borgmatic stub for karakeep
+      become: true
+      ansible.builtin.stat:
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_karakeep.yaml"
+      register: karakeep_repo_marker
+
+    - name: Assert the karakeep borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - karakeep_repo_marker.stat.exists
+        fail_msg: repo-create n'a pas été appelé pour karakeep
