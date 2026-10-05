@@ -40,5 +40,10 @@ mise exec -- tofu -chdir=tofu/1y plan
 
    S'il n'existe pas d'enregistrement `r` (domaine délégué autrement, redirection OVH…), sauter cette étape.
 3. `tofu apply` : crée le projet Pages, le domaine personnalisé et bascule le CNAME vers `<projet>.pages.dev`. Le nom `1y.pages.dev` est probablement déjà pris : Cloudflare attribue alors `1y-xxx.pages.dev`, repris automatiquement par le CNAME (sortie `pages_subdomain`).
-4. Si le premier déploiement ne part pas tout seul, le relancer depuis le dashboard ou via `POST …/pages/projects/1y/deployments` (`branch=master`).
+4. **Lancer le premier déploiement** : Pages ne builde qu'au push suivant sa création, et le CNAME bascule dès l'apply — tant qu'il n'y a pas de déploiement, `r.sylvain.dev` répond 522. Depuis le dashboard, ou :
+
+   ```bash
+   curl -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -F branch=master \
+     "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/1y/deployments"
+   ```
 5. Vérifier `curl -sI https://r.sylvain.dev/signal` (301), puis supprimer le site et le domaine `r.sylvain.dev` côté Netlify.
