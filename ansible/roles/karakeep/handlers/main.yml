@@ -1,0 +1,6 @@
+---
+- name: Restart karakeep
+  ansible.builtin.systemd:
+    name: dc@karakeep
+    scope: user
+    state: restarted

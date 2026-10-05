@@ -1,0 +1,19 @@
+---
+karakeep_base_path: "{{ docker_base_path }}/karakeep"
+karakeep_domain: keep.sylvain.cloud
+
+# Dérivés de backup_passphrase comme trek_encryption_key : pas d'entrée SOPS à
+# maintenir. Changer NEXTAUTH_SECRET déconnecte les sessions ; changer
+# MEILI_MASTER_KEY demande de vider ./meilisearch et de réindexer.
+karakeep_nextauth_secret: "{{ (backup_passphrase ~ '-karakeep-nextauth') | hash('sha256') }}"
+karakeep_meili_master_key: "{{ (backup_passphrase ~ '-karakeep-meili') | hash('sha256') }}"
+
+# Le premier compte créé est administrateur (fait). Repasser à false le temps
+# d'ouvrir un compte supplémentaire, ou le créer depuis l'admin.
+karakeep_disable_signups: true
+
+# Borgmatic backup configuration
+karakeep_backup_enabled: true
+karakeep_backup_borgmatic_target: ""
+karakeep_backup_encryption_passphrase: ""
+karakeep_backup_healthcheck_url: ""

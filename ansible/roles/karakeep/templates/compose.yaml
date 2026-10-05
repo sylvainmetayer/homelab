@@ -1,0 +1,63 @@
+---
+services:
+  web:
+    # Pas encore mesuré : Next.js + workers (crawler, recherche, assets) dans
+    # le même conteneur. À recaler sur memory.peak après quelques jours.
+    mem_limit: 1g
+    image: ghcr.io/karakeep-app/karakeep:0.33.2
+    container_name: karakeep
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MEILI_ADDR: http://karakeep-meilisearch:7700
+      BROWSER_WEB_URL: http://karakeep-chrome:9222
+      DATA_DIR: /data
+    depends_on:
+      - chrome
+      - meilisearch
+    volumes:
+      - ./data:/data
+    networks:
+      - karakeep
+      - newt
+
+  chrome:
+    # Chromium headless du crawler : charge de fond, il cède sous contention.
+    cpus: 2.00
+    cpu_shares: 512
+    mem_limit: 1g
+    # Upstream ne publie que release/latest pour cette image, pas de tag versionné.
+    image: ghcr.io/karakeep-app/karakeep-chrome:release
+    container_name: karakeep-chrome
+    restart: unless-stopped
+    init: true
+    command:
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --hide-scrollbars
+      - --disable-blink-features=AutomationControlled
+      - --window-size=1440,900
+    networks:
+      - karakeep
+
+  meilisearch:
+    mem_limit: 512m
+    mem_reservation: 256m
+    image: docker.io/getmeili/meilisearch:v1.54.3
+    container_name: karakeep-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: "{{ karakeep_meili_master_key }}"
+    volumes:
+      - ./meilisearch:/meili_data
+    networks:
+      - karakeep
+
+# Pas `internal: true` : le crawler (chrome) et le web vont chercher les pages
+# sur Internet.
+networks:
+  karakeep:
+  newt:
+    external: true
