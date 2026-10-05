@@ -8,6 +8,7 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
 | `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets.sops.yaml`) |
 | `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets.sops.yaml`) |
+| `check.daily_build_deploy_hook` | Avertit au plan si `SITE_PAGES_DEPLOY_HOOK` manque (Daily Build en échec) |
 | `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH` ; seule variable : `WEBMENTION_IO_TOKEN` en production (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
@@ -73,20 +74,61 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 7. **Netlify** : supprimer le site Netlify, le secret `netlify_webhook` et le `netlify.toml` de transition du dépôt `site`.
 8. **Sveltia CMS** : plus de fournisseur OAuth Netlify. Créer un fine-grained PAT limité au dépôt `site` (*Contents: Read and write*, *Pull requests: Read and write* pour le workflow éditorial) et utiliser « Sign In Using Access Token ».
 
-## Webmentions et SonarCloud
+## Secrets du dépôt site
 
-Les deux jetons sont optionnels : sans eux, le plan est le même qu'avant.
+Trois clés de `secrets.sops.yaml` (racine du dépôt), toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
 
-1. **Webmentions** : jeton API sur <https://webmention.io/settings> (compte `www.sylvain.dev`). Le build de production le lit pour afficher les réactions sous les articles ; le build quotidien fait apparaître les nouvelles.
-2. **SonarCloud** : importer le dépôt sur <https://sonarcloud.io> (organisation `sylvainmetayer-github`, clé de projet `sylvainmetayer_site`, celles de `sonar-project.properties`), désactiver l'*Automatic Analysis* (*Administration → Analysis Method*), puis créer un jeton (*My Account → Security*).
+| Clé sops | Ce que l'apply en fait | Utilisée par |
+|---|---|---|
+| `SITE_PAGES_DEPLOY_HOOK` | secret GitHub `CLOUDFLARE_PAGES_DEPLOY_HOOK` | workflow *Daily Build* (articles programmés, nouvelles webmentions) |
+| `SITE_WEBMENTION_IO_TOKEN` | variable `WEBMENTION_IO_TOKEN` (secret, production) du projet Pages | `src/_data/webmentions.js` au build |
+| `SITE_SONAR_TOKEN` | secret GitHub `SONAR_TOKEN` | workflow *SonarCloud* |
+
+### 1. Obtenir les valeurs
+
+- **Build quotidien** : *Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks → Add deploy hook*, nom `daily-build`, branche `main`. Copier l'URL (`https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/…`). Pas d'API documentée pour le créer, d'où l'étape manuelle.
+- **Webmentions** : se connecter sur <https://webmention.io> avec `www.sylvain.dev`, puis copier l'*API Key* de <https://webmention.io/settings>.
+- **SonarCloud** : sur <https://sonarcloud.io>, *+ → Analyze new project*, organisation `sylvainmetayer-github`, dépôt `site` (clé de projet `sylvainmetayer_site`, celle de `sonar-project.properties`). Dans le projet, *Administration → Analysis Method* : désactiver l'*Automatic Analysis*. Puis *My Account → Security → Generate Tokens*, type *Project Analysis Token* sur `sylvainmetayer_site`, sans expiration ou avec un rappel.
+
+### 2. Les ajouter à sops
+
+Depuis la racine du dépôt homelab (la clé age perso ou pro doit être disponible, comme pour `tofu plan`). `sops set` chiffre la valeur en place, sans fichier en clair sur le disque ; la valeur est une chaîne JSON, d'où les guillemets doubles à l'intérieur des simples :
 
 ```bash
-sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<jeton webmention.io>"'
+sops set secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/<id>"'
+sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
 sops set secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
-mise exec -- tofu -chdir=tofu/site apply
 ```
 
-La variable d'environnement ne sert qu'aux builds suivants : relancer un déploiement de `main` (ou attendre le build quotidien). Après l'apply, `tofu plan` doit être vide ; s'il propose de réécrire `WEBMENTION_IO_TOKEN` à chaque fois (valeur `secret_text` non renvoyée par l'API), ajouter `ignore_changes` sur `deployment_configs`.
+Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets.sops.yaml` et ajouter les trois lignes `CLE: valeur` dans l'éditeur.
+
+Vérifier (noms seulement, sans afficher les valeurs) :
+
+```bash
+sops -d secrets.sops.yaml | grep -oE '^SITE_[A-Z_]+'
+```
+
+Puis commiter `secrets.sops.yaml` (il reste chiffré).
+
+### 3. Appliquer
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+mise exec -- tofu -chdir=tofu/site plan    # 2 secrets GitHub à créer, projet Pages modifié, plus d'avertissement
+mise exec -- tofu -chdir=tofu/site apply
+mise exec -- tofu -chdir=tofu/site plan    # doit être vide
+```
+
+Si le second plan propose encore de réécrire `WEBMENTION_IO_TOKEN` (valeur `secret_text` non renvoyée par l'API), ajouter `ignore_changes = [deployment_configs]` au projet Pages.
+
+### 4. Vérifier
+
+```bash
+gh secret list -R sylvainmetayer/site                          # CLOUDFLARE_PAGES_DEPLOY_HOOK et SONAR_TOKEN
+gh workflow run daily_build.yml -R sylvainmetayer/site          # déclenche un build Pages de main
+```
+
+Le build lancé par le hook prend la nouvelle variable : les réactions apparaissent sous les articles qui en ont. Sur la prochaine PR du site, le job *SonarCloud* analyse au lieu d'afficher « SONAR_TOKEN absent ».
 
 ## Vérifications
 
