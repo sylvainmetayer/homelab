@@ -16,6 +16,14 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 
 **Version de Node** : Pages ne lit pas `mise.toml` (seulement `.nvmrc`/`.node-version`), d'où `NODE_VERSION`. Pour monter de version : merger d'abord la PR du dépôt `1y` qui change `mise.toml`, puis passer `var.node_version` à la même valeur. Tant que les deux divergent, `plan` et `apply` échouent sur la précondition.
 
+⚠️ Au premier apply (provider cloudflare 5.27.0), l'API a enregistré `NODE_VERSION` **vide** en production (la preview avait bien la valeur), alors que le state indiquait la bonne : le `plan` suivant n'était pas vide. Après un changement de version, relancer `plan` ; s'il montre encore `NODE_VERSION`, corriger la production directement :
+
+```bash
+mise exec -- bash -c 'curl -s -X PATCH -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+  -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"NODE_VERSION\":{\"type\":\"plain_text\",\"value\":\"26\"}}}}}" \
+  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/1y"'
+```
+
 Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
 
 ## Prérequis
