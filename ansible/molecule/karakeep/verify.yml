@@ -61,8 +61,21 @@
           - karakeep_env.DISABLE_SIGNUPS == 'true'
           - karakeep_env.SMTP_USER == pangolin_smtp_user
           - karakeep_env.SMTP_PASSWORD == pangolin_smtp_pass
-          - karakeep_env.CRAWLER_YTDLP_ARGS == '--match-filter%%extractor_key!=Youtube'
         fail_msg: "Environnement de karakeep inattendu : {{ karakeep_env.keys() | list }}"
+
+    # Arguments yt-dlp séparés par %% : YouTube exclu (la playlist « À regarder
+    # plus tard » ne garde que les liens), et la limite de taille passée à
+    # yt-dlp (--max-filesize, le `-f best[filesize<N]` de Karakeep ne voit rien
+    # sur les flux HLS de X) reste celle que Karakeep applique.
+    - name: Assert the yt-dlp arguments exclude YouTube and cap the size like Karakeep
+      ansible.builtin.assert:
+        that:
+          - karakeep_ytdlp[:2] == ['--match-filter', 'extractor_key!=Youtube']
+          - "'--max-filesize' in karakeep_ytdlp"
+          - karakeep_ytdlp[karakeep_ytdlp.index('--max-filesize') + 1] == karakeep_env.CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE ~ 'M'
+        fail_msg: "CRAWLER_YTDLP_ARGS inattendu : {{ karakeep_ytdlp }}"
+      vars:
+        karakeep_ytdlp: "{{ karakeep_env.CRAWLER_YTDLP_ARGS.split('%%') }}"
 
     # Seul le web est joignable par Pangolin ; chrome et Meilisearch restent
     # sur le réseau du projet.
