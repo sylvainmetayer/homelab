@@ -77,13 +77,13 @@ dir = "tofu/ref"
 
 [tasks.plan-ref]
 description = "Tofu Plan (ref.sylvain.dev)"
-run = 'TF_VAR_cloudflare_account_id="$CLOUDFLARE_ACCOUNT_ID" tofu plan'
+run = "tofu plan"
 dir = "tofu/ref"
 depends = ["init-ref"]
 
 [tasks.apply-ref]
 description = "Tofu Apply (ref.sylvain.dev)"
-run = 'TF_VAR_cloudflare_account_id="$CLOUDFLARE_ACCOUNT_ID" tofu apply'
+run = "tofu apply"
 raw = true
 dir = "tofu/ref"
 depends = ["init-ref"]
