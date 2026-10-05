@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  vars:
+    # Cf. prepare.yml : pas de montage NFS possible dans un conteneur.
+    nas_storage_manage_mount: false
+    nas_storage_fstype: tmpfs
+  roles:
+    - role: nas_storage

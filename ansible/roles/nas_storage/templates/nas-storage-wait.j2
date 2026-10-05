@@ -16,7 +16,7 @@
 # montage NFS `hard` ignore SIGTERM, pas SIGKILL.
 deadline=$(( $(date +%s) + ${1:-30} ))
 while :; do
-  if [ "$(timeout -s KILL 15 stat --file-system --format=%T '{{ nas_storage_mount_path }}' 2>/dev/null)" = nfs ]; then
+  if [ "$(timeout -s KILL 15 stat --file-system --format=%T '{{ nas_storage_mount_path }}' 2>/dev/null)" = '{{ nas_storage_fstype }}' ]; then
     exit 0
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
