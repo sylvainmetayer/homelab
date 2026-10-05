@@ -7,6 +7,9 @@ services:
     restart: unless-stopped
     environment:
       - SEARXNG_BASE_URL=https://{{ searxng_domain }}/
+    # SEARXNG_SECRET (server.secret_key), hors de settings.yml.
+    env_file:
+      - .env
     volumes:
       - ./config:/etc/searxng:rw
     networks:

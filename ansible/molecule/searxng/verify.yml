@@ -2,6 +2,7 @@
 - name: Verify
   hosts: all
   vars_files:
+    - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
   tasks:
     - name: Verify the searxng deployment
@@ -15,17 +16,37 @@
         src: /opt/apps/searxng/config/settings.yml
       register: searxng_settings_raw
 
-    # La clé vient des secrets (le rôle échoue si elle est vide) et l'URL du
-    # domaine routé par Pangolin.
-    - name: Assert the SearXNG settings carry the secret key and public URL
+    # settings.yml est lisible par le conteneur (qui le reprend à son uid) : il
+    # ne porte plus la clé, qui passe par SEARXNG_SECRET.
+    - name: Assert the SearXNG settings carry the public URL but no secret
       vars:
         searxng_settings: "{{ searxng_settings_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
           - searxng_settings.use_default_settings
-          - searxng_settings.server.secret_key == 'molecule-searxng-secret-key'
+          - searxng_settings.server.secret_key is not defined
           - searxng_settings.server.base_url == 'https://search.sylvain.cloud/'
+          - searxng_secret_key not in (searxng_settings_raw.content | b64decode)
         fail_msg: "settings.yml de SearXNG inattendu : {{ searxng_settings.server }}"
+
+    - name: Stat the SearXNG environment file
+      ansible.builtin.stat:
+        path: /opt/apps/searxng/.env
+      register: searxng_env_stat
+
+    - name: Read the SearXNG environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/searxng/.env
+      register: searxng_env_raw
+
+    # La clé vient des secrets (le rôle échoue si elle est vide).
+    - name: Assert the SearXNG secret key lives in a private environment file
+      ansible.builtin.assert:
+        that:
+          - searxng_env_stat.stat.mode == '0600'
+          - searxng_env_stat.stat.pw_name == ansible_facts['user_id']
+          - ('SEARXNG_SECRET=' ~ searxng_secret_key) in (searxng_env_raw.content | b64decode).splitlines()
+        fail_msg: /opt/apps/searxng/.env doit être 0600 et porter SEARXNG_SECRET
 
     - name: Read the searxng compose file
       ansible.builtin.slurp:
@@ -41,6 +62,7 @@
           - "'newt' in searxng_compose.services.searxng.networks"
           - "'./config:/etc/searxng:rw' in searxng_compose.services.searxng.volumes"
           - "'SEARXNG_BASE_URL=https://search.sylvain.cloud/' in searxng_compose.services.searxng.environment"
+          - "'.env' in searxng_compose.services.searxng.env_file"
         fail_msg: "Compose de searxng inattendu : {{ searxng_compose.services.searxng }}"
 
     - name: Stat the searxng borgmatic configuration
@@ -71,6 +93,8 @@
           - searxng_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - searxng_borgmatic.archive_name_format is match('searxng-')
           - "'/opt/apps/searxng/config' in searxng_borgmatic.source_directories"
+          - "'/opt/apps/searxng/.env' in searxng_borgmatic.source_directories"
+          - searxng_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-searxng-backup'
         fail_msg: "Configuration borgmatic de searxng inattendue : {{ searxng_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for searxng

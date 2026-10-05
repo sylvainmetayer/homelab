@@ -14,7 +14,8 @@
     dest: "{{ newt_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    # Porte NEWT_SECRET ; seul docker compose (en tant que l'utilisateur) le lit.
+    mode: "0600"
 
 - name: Make sure newt service is running
   ansible.builtin.systemd:
