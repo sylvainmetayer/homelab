@@ -12,6 +12,13 @@ karakeep_meili_master_key: "{{ (backup_passphrase ~ '-karakeep-meili') | hash('s
 # d'ouvrir un compte supplémentaire, ou le créer depuis l'admin.
 karakeep_disable_signups: true
 
+# Téléchargement des vidéos au crawl (yt-dlp), plafond en Mo par vidéo.
+karakeep_video_download: true
+karakeep_video_download_max_size_mb: 100
+karakeep_ytdlp_args:
+  - "--match-filter"
+  - "extractor_key!=Youtube"
+
 # Borgmatic backup configuration
 karakeep_backup_enabled: true
 karakeep_backup_borgmatic_target: ""
