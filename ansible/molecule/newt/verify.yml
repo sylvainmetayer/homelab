@@ -10,6 +10,19 @@
       vars:
         verify_app_service: newt
 
+    - name: Stat the newt compose file
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/newt/compose.yaml"
+      register: newt_compose_stat
+
+    # Il porte NEWT_SECRET : personne d'autre que l'utilisateur ne le lit.
+    - name: Assert the newt compose file is private
+      ansible.builtin.assert:
+        that:
+          - newt_compose_stat.stat.mode == '0600'
+          - newt_compose_stat.stat.pw_name == ansible_facts['user_id']
+        fail_msg: "{{ docker_base_path }}/newt/compose.yaml doit être 0600 à {{ ansible_facts['user_id'] }}"
+
     - name: Read the newt compose file
       ansible.builtin.slurp:
         src: "{{ docker_base_path }}/newt/compose.yaml"

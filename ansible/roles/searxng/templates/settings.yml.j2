@@ -10,4 +10,5 @@ server:
   base_url: "https://{{ searxng_domain }}/"
   limiter: false
   image_proxy: true
-  secret_key: "{{ searxng_secret_key }}"
+  # secret_key vient de SEARXNG_SECRET (.env, 0600) : ce fichier-ci est
+  # lisible par le conteneur, qui le reprend à son uid au démarrage.

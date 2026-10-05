@@ -26,6 +26,15 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
+- name: Template SearXNG environment
+  notify: Restart searxng service
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ searxng_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
 - name: Template compose configuration
   notify: Restart searxng service
   ansible.builtin.template:
