@@ -19,6 +19,7 @@ resource "cloudflare_pages_project" "ref" {
     config = {
       owner                          = var.github_owner
       repo_name                      = github_repository.ref.name
+      production_branch              = "main"
       production_deployments_enabled = true
       preview_deployment_setting     = "all"
       pr_comments_enabled            = true
@@ -30,6 +31,14 @@ resource "cloudflare_pages_project" "ref" {
   build_config = {
     build_command   = "npm run build"
     destination_dir = "_site"
+    root_dir        = ""
+  }
+
+  # wrangler.toml fait foi pour deployment_configs, et Cloudflare y renvoie
+  # wrangler_config_hash (optionnel, non calculé côté provider) : sans ce
+  # ignore_changes, chaque plan propose de l'effacer, diff permanent.
+  lifecycle {
+    ignore_changes = [deployment_configs]
   }
 }
 
@@ -55,13 +64,17 @@ resource "cloudflare_web_analytics_site" "ref" {
 # Le jeton est recopié à la main dans le dépôt ref (README, étape 2). Si le site
 # Web Analytics est recréé (changement d'hôte…), le plan le signale au lieu de
 # laisser les pages vues se perdre sans bruit.
-check "beacon_token" {
-  data "github_repository_file" "site_json" {
-    repository = github_repository.ref.name
-    file       = "src/_data/site.json"
-    branch     = "main"
-  }
+#
+# Data source hors du bloc check : à l'intérieur, OpenTofu reporte toujours sa
+# lecture à l'apply et le plan n'est jamais vide. var.repository plutôt que
+# github_repository.ref.name, pour qu'il soit lu au plan dans tous les cas.
+data "github_repository_file" "site_json" {
+  repository = var.repository
+  file       = "src/_data/site.json"
+  branch     = "main"
+}
 
+check "beacon_token" {
   assert {
     condition     = try(jsondecode(data.github_repository_file.site_json.content).cfBeaconToken, null) == cloudflare_web_analytics_site.ref.site_token
     error_message = "cfBeaconToken de src/_data/site.json (dépôt ref) ne correspond pas à `tofu output -raw web_analytics_token`."
