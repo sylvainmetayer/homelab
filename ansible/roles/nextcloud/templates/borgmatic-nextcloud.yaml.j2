@@ -126,7 +126,14 @@ checks:
 # can be targeted together. When running actions like repo-list,
 # info, or check, borgmatic automatically tries to match only
 # archives created with this name format.
-archive_name_format: 'betisier-{now:%Y-%m-%dT%H:%M:%S}'
+archive_name_format: 'nextcloud-{now:%Y-%m-%dT%H:%M:%S}'
+
+# Les archives de ce dépôt se sont appelées 'betisier-…' (copier-coller) avant
+# d'être renommées 'nextcloud-…'. Sans match_archives, borgmatic dériverait
+# 'sh:nextcloud-*' de archive_name_format et prune / check ignoreraient les
+# anciennes archives, qui ne seraient plus jamais purgées. Le dépôt ne contient
+# que nextcloud : toutes ses archives sont concernées.
+match_archives: '*'
 
 # List of one or more command hooks to execute, triggered at
 # particular points during borgmatic's execution. For each command
