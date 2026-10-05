@@ -18,6 +18,14 @@ karakeep_video_download_max_size_mb: 100
 karakeep_ytdlp_args:
   - "--match-filter"
   - "extractor_key!=Youtube"
+  # Karakeep passe `-f best[filesize<N]`, qui ne trouve rien sur X : image et
+  # son y sont des flux HLS séparés, sans taille connue d'avance. Le dernier
+  # `-f` l'emporte ; ffmpeg (présent dans l'image) fusionne, et la limite de
+  # taille passe par --max-filesize.
+  - "-f"
+  - "bv*+ba/b"
+  - "--max-filesize"
+  - "{{ karakeep_video_download_max_size_mb }}M"
 
 # Borgmatic backup configuration
 karakeep_backup_enabled: true
