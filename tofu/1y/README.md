@@ -10,19 +10,11 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 | `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
 | `github_app_installation_repository.cloudflare` / `.renovate` | Accès des apps GitHub Cloudflare et Renovate au dépôt (si `*_github_installation_id` est renseigné) |
 | `cloudflare_pages_project.r` | Build `npm run build` → `_site`, déploiement à chaque push sur `master`, previews sur les autres branches |
-| `data.github_repository_file.mise` | `mise.toml` du dépôt : une précondition de `cloudflare_pages_project.r` vérifie que `var.node_version` (variable `NODE_VERSION` du build Pages) correspond à sa version de Node |
+| `data.github_repository_file.mise` / `.wrangler` | `mise.toml` et `wrangler.toml` du dépôt : une précondition de `cloudflare_pages_project.r` vérifie qu'ils déclarent la même version de Node |
 | `cloudflare_pages_domain.r` | Domaine personnalisé `r.sylvain.dev` |
 | `ovh_domain_zone_record.r` | CNAME `r` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
-**Version de Node** : Pages ne lit pas `mise.toml` (seulement `.nvmrc`/`.node-version`), d'où `NODE_VERSION`. Pour monter de version : merger d'abord la PR du dépôt `1y` qui change `mise.toml`, puis passer `var.node_version` à la même valeur. Tant que les deux divergent, `plan` et `apply` échouent sur la précondition.
-
-⚠️ Au premier apply (provider cloudflare 5.27.0), l'API a enregistré `NODE_VERSION` **vide** en production (la preview avait bien la valeur), alors que le state indiquait la bonne : le `plan` suivant n'était pas vide. Après un changement de version, relancer `plan` ; s'il montre encore `NODE_VERSION`, corriger la production directement :
-
-```bash
-mise exec -- bash -c 'curl -s -X PATCH -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-  -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"NODE_VERSION\":{\"type\":\"plain_text\",\"value\":\"26\"}}}}}" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/1y"'
-```
+**Version de Node** : avec un `wrangler.toml`, le build Pages ignore les variables du dashboard (log : `Build environment variables: (none found)`) et ne lit pas `mise.toml`. La version vient donc de `[vars] NODE_VERSION` dans `wrangler.toml`, gérée côté dépôt `1y` (Renovate met à jour les deux fichiers ensemble, un workflow vérifie qu'ils sont égaux). Ici, la précondition fait échouer `plan` et `apply` si les deux divergent sur la branche de production.
 
 Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
 
