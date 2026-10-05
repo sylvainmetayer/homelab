@@ -35,8 +35,7 @@ locals {
   #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
   #            (pangolin_resource_rule.flip_planning_mcp,
   #             pangolin_resource_rule.demo_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_kc_keycloak,
-  #             pangolin_resource_rule.karakeep_api)
+  #             pangolin_resource_rule.demo_planning_kc_keycloak)
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
   #   99       DROP COUNTRY ALL
@@ -326,7 +325,6 @@ locals {
     pangolin_resource_rule.demo_planning_mcp,
     pangolin_resource_rule.flip_planning_mcp,
     pangolin_resource_rule.immich_home_ip,
-    pangolin_resource_rule.karakeep_api,
     pangolin_resource_rule.trek_home_ip,
   ]
 

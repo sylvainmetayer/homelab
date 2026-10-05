@@ -27,22 +27,32 @@ resource "pangolin_resource_role" "karakeep" {
   role_id     = pangolin_role.apps["karakeep"].id
 }
 
-# The browser extension and the mobile apps call the REST API with a Karakeep
-# API key and cannot go through the Pangolin SSO wall. `/api/v1/*` is let
-# through ahead of the geo-filter (priority band 1 - 9, see rules.tf); Karakeep
-# itself rejects any call without a valid key. The UI, its tRPC endpoints
-# (/api/trpc) and NextAuth (/api/auth) keep both the SSO wall and the
-# geo-filter.
+# The mobile app, the browser extension and the MCP server cannot go through the
+# Pangolin SSO wall. Rather than letting `/api/*` bypass it, each one sends a
+# Pangolin access token in its custom headers (P-Access-Token-Id /
+# P-Access-Token) on top of its Karakeep API key: the whole resource stays
+# behind both the SSO wall and the geo-filter, and the mobile app's tRPC calls
+# (/api/trpc), which the former `/api/v1/*` bypass never covered, get through
+# too.
 #
-# Unlike the country rules this one is app-specific, hence a standalone resource
-# here rather than an entry in the generic loops of rules.tf.
-resource "pangolin_resource_rule" "karakeep_api" {
+# One token per client, so a lost phone is revoked without touching the others.
+# Read them with `tofu output -json karakeep_client_access_tokens`.
+resource "pangolin_resource_access_token" "karakeep_clients" {
+  for_each = toset(["mobile", "extension", "mcp"])
+
   resource_id = pangolin_resource.karakeep.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = "/api/v1/*"
-  priority    = 2
-  enabled     = true
+  title       = "${pangolin_resource.karakeep.name} ${each.key}"
+}
+
+output "karakeep_client_access_tokens" {
+  description = "KARAKEEP - En-têtes Pangolin des clients (app mobile, extension, MCP)"
+  value = {
+    for client, token in pangolin_resource_access_token.karakeep_clients : client => {
+      "P-Access-Token-Id" = tostring(token.id)
+      "P-Access-Token"    = token.token
+    }
+  }
+  sensitive = true
 }
 
 resource "pangolin_target" "karakeep" {
