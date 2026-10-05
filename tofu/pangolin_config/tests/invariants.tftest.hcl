@@ -133,9 +133,14 @@ override_resource {
   values = { id = 2006 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.karakeep_api
+  values = { id = 2007 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 22 ressources gérées, la
+# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
 # ressource faite à la main "SSH PI" (épinglée dans local.unmanaged_resources)
 # et un reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il
 # n'est pas servi.
@@ -156,6 +161,7 @@ override_data {
         {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
+        {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 75, "niceId": "nas", "name": "NAS", "fullDomain": "nas.sylvain.cloud", "sso": true, "enabled": true},
@@ -169,7 +175,7 @@ override_data {
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 24, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 25, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -201,7 +207,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# six règles spécifiques : si l'une d'elles disparaît de
+# sept règles spécifiques : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -212,12 +218,13 @@ override_data {
         {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/api/v1/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -306,6 +313,11 @@ override_resource {
 override_resource {
   target = pangolin_resource.immich_swipe
   values = { id = 23 }
+}
+
+override_resource {
+  target = pangolin_resource.karakeep
+  values = { id = 62 }
 }
 
 override_resource {
@@ -473,6 +485,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup_karakeep
+  values = { push_token = "push-karakeep" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup_wiki
   values = { push_token = "push-wiki" }
 }
@@ -511,11 +528,13 @@ run "every_probed_target_declares_scheme_mode_and_port" {
         pangolin_target.gramps,
         pangolin_target.immich,
         pangolin_target.immich_swipe,
+        pangolin_target.karakeep,
         pangolin_target.meerkat_crm,
         pangolin_target.monica,
         pangolin_target.nextcloud,
         pangolin_target.immich,
         pangolin_target.immich_swipe,
+        pangolin_target.karakeep,
         pangolin_target.meerkat_crm,
         pangolin_target.monica,
         pangolin_target.nextcloud,
@@ -666,18 +685,18 @@ run "catch_all_target_has_lowest_priority" {
   }
 }
 
-# Les règles pays sont dérivées de la configuration : 22 ressources gérées plus
+# Les règles pays sont dérivées de la configuration : 23 ressources gérées plus
 # SSH PI (épinglée), chacune avec PASS FR, PASS DE et DROP ALL.
 run "country_rules_cover_every_resource" {
   command = plan
 
   assert {
-    condition     = length(pangolin_resource_rule.block_country) == 23
-    error_message = "Il faut une règle DROP COUNTRY ALL par ressource couverte (22 gérées + SSH PI)."
+    condition     = length(pangolin_resource_rule.block_country) == 24
+    error_message = "Il faut une règle DROP COUNTRY ALL par ressource couverte (23 gérées + SSH PI)."
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == 23 * 2
+    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 2
     error_message = "Il faut une règle PASS par ressource couverte et par pays autorisé (FR, DE)."
   }
 
@@ -733,6 +752,7 @@ run "bypass_rules_sit_in_their_priority_band" {
         pangolin_resource_rule.flip_planning_mcp,
         pangolin_resource_rule.demo_planning_mcp,
         pangolin_resource_rule.demo_planning_kc_keycloak,
+        pangolin_resource_rule.karakeep_api,
       ] :
       rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
       && rule.priority >= 1 && rule.priority < 10
@@ -745,8 +765,9 @@ run "bypass_rules_sit_in_their_priority_band" {
       pangolin_resource_rule.flip_planning_mcp.value == "/mcp/*"
       && pangolin_resource_rule.demo_planning_mcp.value == "/mcp/*"
       && pangolin_resource_rule.demo_planning_kc_keycloak.value == "/auth/*"
+      && pangolin_resource_rule.karakeep_api.value == "/api/v1/*"
     )
-    error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC)."
+    error_message = "Le contournement doit se limiter à /mcp/* (planning), /auth/* (Keycloak du banc KC) et /api/v1/* (API de Karakeep)."
   }
 
   assert {
@@ -774,13 +795,13 @@ run "resources_have_unique_fqdns_on_the_right_domains" {
         pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
         pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.meerkat_crm,
+        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
         pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
         pangolin_resource.wiki,
       ] : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
-    ])) == 22
+    ])) == 23
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
   }
 
@@ -810,7 +831,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
         pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
         pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.meerkat_crm,
+        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
         pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
@@ -834,6 +855,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
         uptimekuma_monitor_http_keyword.gramps,
         uptimekuma_monitor_http_keyword.immich,
         uptimekuma_monitor_http_keyword.immich_swipe,
+        uptimekuma_monitor_http_keyword.karakeep,
         uptimekuma_monitor_http_keyword.meerkat_crm,
         uptimekuma_monitor_http_keyword.monica,
         uptimekuma_monitor_http_keyword.nas,
@@ -889,7 +911,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
         pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.meerkat_crm,
+        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
         pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
@@ -908,7 +930,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # Garde-fou du test lui-même : sans identifiants distincts, l'égalité
   # ci-dessus serait vraie par construction.
   assert {
-    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == 23
+    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == 24
     error_message = "Les identifiants simulés des ressources doivent être distincts pour que ce run prouve quelque chose."
   }
 
@@ -920,6 +942,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
+      && pangolin_resource_rule.karakeep_api.resource_id == pangolin_resource.karakeep.id
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
   }
@@ -989,6 +1012,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
+    condition     = output.uptime_backup_karakeep_url == "https://uptime.example.test/api/push/push-karakeep"
+    error_message = "uptime_backup_karakeep_url (docker.yml) ne pointe pas sur le moniteur Backup Karakeep."
+  }
+
+  assert {
     condition     = output.uptime_backup_searxng_url == "https://uptime.example.test/api/push/push-searxng"
     error_message = "uptime_backup_searxng_url (docker.yml) ne pointe pas sur le moniteur Backup SearXNG."
   }
@@ -1035,13 +1063,14 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_dawarich_url,
       output.uptime_backup_scanopy_url,
       output.uptime_backup_trek_url,
+      output.uptime_backup_karakeep_url,
       output.uptime_backup_searxng_url,
       output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
       output.uptime_backup_demo_planning_url,
       output.uptime_backup_immich_url,
       output.uptime_backup_pangolin_url,
-    ])) == 17
+    ])) == 18
     error_message = "Deux sorties lues par Ansible pointent sur le même moniteur push."
   }
 
@@ -1237,6 +1266,7 @@ run "monitors_are_filed_and_notify_by_email" {
         uptimekuma_monitor_push.backup_flip_planning,
         uptimekuma_monitor_push.backup_gramps,
         uptimekuma_monitor_push.backup_immich,
+        uptimekuma_monitor_push.backup_karakeep,
         uptimekuma_monitor_push.backup_meerkat_crm,
         uptimekuma_monitor_push.backup_monica,
         uptimekuma_monitor_push.backup_nextcloud,
@@ -1275,6 +1305,7 @@ run "monitors_are_filed_and_notify_by_email" {
         uptimekuma_monitor_http_keyword.gramps,
         uptimekuma_monitor_http_keyword.immich,
         uptimekuma_monitor_http_keyword.immich_swipe,
+        uptimekuma_monitor_http_keyword.karakeep,
         uptimekuma_monitor_http_keyword.meerkat_crm,
         uptimekuma_monitor_http_keyword.monica,
         uptimekuma_monitor_http_keyword.nas,

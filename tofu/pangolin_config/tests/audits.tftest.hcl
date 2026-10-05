@@ -130,9 +130,14 @@ override_resource {
   values = { id = 2006 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.karakeep_api
+  values = { id = 2007 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 22 ressources gérées, la
+# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
 # ressource faite à la main "SSH PI" (épinglée dans local.unmanaged_resources)
 # et un reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il
 # n'est pas servi.
@@ -153,6 +158,7 @@ override_data {
         {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
+        {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 75, "niceId": "nas", "name": "NAS", "fullDomain": "nas.sylvain.cloud", "sso": true, "enabled": true},
@@ -166,7 +172,7 @@ override_data {
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 24, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 25, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -198,7 +204,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# six règles spécifiques : si l'une d'elles disparaît de
+# sept règles spécifiques : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -209,12 +215,13 @@ override_data {
         {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/api/v1/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -232,18 +239,18 @@ run "audits_pass_on_realistic_api_responses" {
   command = apply
 
   assert {
-    condition     = terraform_data.geo_rule_coverage.output == 23
-    error_message = "geo_rule_coverage doit porter sur les 22 ressources gérées plus SSH PI."
+    condition     = terraform_data.geo_rule_coverage.output == 24
+    error_message = "geo_rule_coverage doit porter sur les 23 ressources gérées plus SSH PI."
   }
 
   assert {
-    condition     = terraform_data.target_probe_config.output == 22 * 2
-    error_message = "target_probe_config doit lire les cibles des 22 ressources gérées (2 cibles chacune dans la réponse simulée)."
+    condition     = terraform_data.target_probe_config.output == 23 * 2
+    error_message = "target_probe_config doit lire les cibles des 23 ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == 23 * 8
-    error_message = "rule_inventory doit lire les règles des 23 ressources couvertes (8 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == 24 * 9
+    error_message = "rule_inventory doit lire les règles des 24 ressources couvertes (9 règles chacune dans la réponse simulée)."
   }
 }
 
