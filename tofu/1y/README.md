@@ -4,12 +4,16 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 
 | Ressource | Rôle |
 |---|---|
-| `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
+| `github_repository.r` | Dépôt `1y`, **importé** (bloc `import` de `github.tf`) : description, sujets, options de fusion, scan de secrets |
+| `github_repository_vulnerability_alerts.r` / `github_repository_dependabot_security_updates.r` | Alertes Dependabot oui, PR Dependabot non : Renovate (`renovate.json` du dépôt) gère les montées |
+| `github_workflow_repository_permissions.r` | `GITHUB_TOKEN` en lecture seule par défaut |
+| `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
+| `github_app_installation_repository.cloudflare` / `.renovate` | Accès des apps GitHub Cloudflare et Renovate au dépôt (si `*_github_installation_id` est renseigné) |
 | `cloudflare_pages_project.r` | Build `npm run build` → `_site`, déploiement à chaque push sur `master`, previews sur les autres branches |
 | `cloudflare_pages_domain.r` | Domaine personnalisé `r.sylvain.dev` |
 | `ovh_domain_zone_record.r` | CNAME `r` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
-Le dépôt GitHub lui-même n'est pas géré ici (il existe depuis 2020). Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
+Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
 
 ## Prérequis
 
@@ -17,6 +21,7 @@ Les mêmes que [`tofu/ref`](../ref/README.md#prérequis) : `CLOUDFLARE_API_TOKEN
 
 ```bash
 export TF_VAR_cloudflare_github_installation_id=<id>   # même ID que pour tofu/ref
+export TF_VAR_renovate_github_installation_id=<id>     # idem pour l'app Renovate, si en mode sélectif
 export GITHUB_TOKEN=<PAT classique, scope repo>
 ```
 

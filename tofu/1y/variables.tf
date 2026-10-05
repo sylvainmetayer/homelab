@@ -36,3 +36,13 @@ variable "cloudflare_github_installation_id" {
   type        = number
   default     = null
 }
+
+# ID de l'installation de l'app GitHub Renovate sur le compte :
+# https://github.com/settings/installations/<id>. null = installation en mode
+# « All repositories », ou dépôt déjà sélectionné à la main (Renovate y a ouvert
+# son onboarding en 2024, il y a donc déjà eu accès).
+variable "renovate_github_installation_id" {
+  description = "ID d'installation de l'app GitHub Renovate (mode « Only select repositories »)"
+  type        = number
+  default     = null
+}
