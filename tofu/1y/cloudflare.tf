@@ -3,13 +3,21 @@ locals {
 
   # Première ligne `node = "…"` du fichier, c'est-à-dire celle de [tools].
   mise_node_version = try(regex("(?m)^node\\s*=\\s*[\"']([^\"']+)[\"']", data.github_repository_file.mise.content)[0], null)
+  # [vars] NODE_VERSION, la seule version que le build Pages lit.
+  wrangler_node_version = try(regex("(?m)^NODE_VERSION\\s*=\\s*[\"']([^\"']+)[\"']", data.github_repository_file.wrangler.content)[0], null)
 }
 
-# var.repository plutôt que github_repository.r.name : le fichier est lu au plan
-# même quand le dépôt a des modifications en attente, la précondition aussi.
+# var.repository plutôt que github_repository.r.name : les fichiers sont lus au
+# plan même quand le dépôt a des modifications en attente, la précondition aussi.
 data "github_repository_file" "mise" {
   repository = var.repository
   file       = "mise.toml"
+  branch     = var.production_branch
+}
+
+data "github_repository_file" "wrangler" {
+  repository = var.repository
+  file       = "wrangler.toml"
   branch     = var.production_branch
 }
 
@@ -21,10 +29,10 @@ data "github_repository_file" "mise" {
 # dépôt, qui fait foi pour Pages dès qu'il déclare pages_build_output_dir. Les
 # redirections sont générées par 11ty dans _site/_redirects.
 #
-# Version de Node du build : Pages ne lit que .nvmrc/.node-version, pas le
-# mise.toml du dépôt. Sans NODE_VERSION, il builde avec sa version par défaut
-# (22.x en v3) ; la précondition bloque le plan si var.node_version et mise.toml
-# (branche de production) divergent.
+# Version de Node du build : Pages ne lit ni mise.toml ni, avec un wrangler.toml,
+# les variables du dashboard (deployment_configs.env_vars est ignoré au build).
+# Elle vient donc du [vars] NODE_VERSION de wrangler.toml ; la précondition
+# bloque le plan s'il diverge de mise.toml (branche de production).
 resource "cloudflare_pages_project" "r" {
   account_id        = local.cloudflare_account_id
   name              = var.repository
@@ -50,23 +58,11 @@ resource "cloudflare_pages_project" "r" {
     root_dir        = ""
   }
 
-  deployment_configs = {
-    production = {
-      env_vars = {
-        NODE_VERSION = { type = "plain_text", value = var.node_version }
-      }
-    }
-    preview = {
-      env_vars = {
-        NODE_VERSION = { type = "plain_text", value = var.node_version }
-      }
-    }
-  }
 
   lifecycle {
     precondition {
-      condition     = local.mise_node_version == var.node_version
-      error_message = "var.node_version (${var.node_version}) ne correspond pas à la version de Node du mise.toml du dépôt ${var.repository}, branche ${var.production_branch} (${coalesce(local.mise_node_version, "introuvable")})."
+      condition     = local.mise_node_version != null && local.wrangler_node_version == local.mise_node_version
+      error_message = "Dépôt ${var.repository}, branche ${var.production_branch} : NODE_VERSION de wrangler.toml (${coalesce(local.wrangler_node_version, "introuvable")}) ne correspond pas à [tools] node de mise.toml (${coalesce(local.mise_node_version, "introuvable")}). Le build Pages n'utilise que wrangler.toml."
     }
   }
 }

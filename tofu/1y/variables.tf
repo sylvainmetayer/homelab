@@ -47,10 +47,3 @@ variable "renovate_github_installation_id" {
   default     = null
 }
 
-# À changer en même temps que [tools] node dans le mise.toml du dépôt (la
-# précondition de cloudflare.tf le vérifie), une fois la PR mergée.
-variable "node_version" {
-  description = "Version de Node.js du build Pages (NODE_VERSION), identique au mise.toml du dépôt"
-  type        = string
-  default     = "26"
-}
