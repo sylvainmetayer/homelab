@@ -27,7 +27,7 @@ resource "github_actions_secret" "pages_deploy_hook" {
 }
 
 # Analyse SonarCloud du dépôt site (workflow sonarcloud.yml, organisation
-# sylvainmetayer, projet sylvainmetayer_site). Le projet SonarCloud lui-même
+# sylvainmetayer-github, projet sylvainmetayer_site). Le projet SonarCloud lui-même
 # est créé à la main, voir README.md.
 resource "github_actions_secret" "sonar_token" {
   count = nonsensitive(local.sonar_token == null) ? 0 : 1
