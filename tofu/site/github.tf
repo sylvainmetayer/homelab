@@ -25,3 +25,14 @@ resource "github_actions_secret" "pages_deploy_hook" {
   secret_name     = "CLOUDFLARE_PAGES_DEPLOY_HOOK"
   plaintext_value = local.pages_deploy_hook
 }
+
+# Analyse SonarCloud du dépôt site (workflow sonarcloud.yml, organisation
+# sylvainmetayer, projet sylvainmetayer_site). Le projet SonarCloud lui-même
+# est créé à la main, voir README.md.
+resource "github_actions_secret" "sonar_token" {
+  count = nonsensitive(local.sonar_token == null) ? 0 : 1
+
+  repository      = data.github_repository.site.name
+  secret_name     = "SONAR_TOKEN"
+  plaintext_value = local.sonar_token
+}
