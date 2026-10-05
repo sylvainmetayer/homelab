@@ -38,6 +38,7 @@ resource "pangolin_target" "immich" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 2283
+  hc_hostname            = "immich_server"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200

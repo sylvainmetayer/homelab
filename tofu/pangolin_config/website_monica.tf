@@ -38,6 +38,7 @@ resource "pangolin_target" "monica" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 80
+  hc_hostname            = "monica_v4"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200

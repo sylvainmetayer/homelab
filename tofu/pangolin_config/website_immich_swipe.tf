@@ -38,6 +38,7 @@ resource "pangolin_target" "immich_swipe" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 80
+  hc_hostname            = "immich-swipe"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
