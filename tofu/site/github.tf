@@ -21,9 +21,9 @@ resource "github_actions_secret" "pages_deploy_hook" {
   # présence de la clé est utilisée ici, elle n'a rien de secret.
   count = nonsensitive(local.pages_deploy_hook == null) ? 0 : 1
 
-  repository      = data.github_repository.site.name
-  secret_name     = "CLOUDFLARE_PAGES_DEPLOY_HOOK"
-  plaintext_value = local.pages_deploy_hook
+  repository  = data.github_repository.site.name
+  secret_name = "CLOUDFLARE_PAGES_DEPLOY_HOOK"
+  value       = local.pages_deploy_hook
 }
 
 # Analyse SonarCloud du dépôt site (workflow sonarcloud.yml, organisation
@@ -32,9 +32,9 @@ resource "github_actions_secret" "pages_deploy_hook" {
 resource "github_actions_secret" "sonar_token" {
   count = nonsensitive(local.sonar_token == null) ? 0 : 1
 
-  repository      = data.github_repository.site.name
-  secret_name     = "SONAR_TOKEN"
-  plaintext_value = local.sonar_token
+  repository  = data.github_repository.site.name
+  secret_name = "SONAR_TOKEN"
+  value       = local.sonar_token
 }
 
 # Sans deploy hook, le workflow Daily Build du dépôt site échoue chaque matin
