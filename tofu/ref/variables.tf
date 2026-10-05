@@ -1,10 +1,3 @@
-# Pas un secret, mais rangé dans secrets.sops.yaml avec le jeton : les tâches
-# mise *-ref le passent depuis CLOUDFLARE_ACCOUNT_ID.
-variable "cloudflare_account_id" {
-  description = "ID du compte Cloudflare"
-  type        = string
-}
-
 variable "github_owner" {
   description = "Compte GitHub propriétaire du dépôt"
   type        = string

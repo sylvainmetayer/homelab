@@ -14,6 +14,10 @@ terraform {
       source  = "ovh/ovh"
       version = "< 3.0.0"
     }
+    sops = {
+      source  = "carlpett/sops"
+      version = "~> 1.3"
+    }
   }
 }
 
@@ -22,9 +26,9 @@ provider "github" {
   owner = var.github_owner
 }
 
-# CLOUDFLARE_API_TOKEN (Cloudflare Pages Edit + Account Analytics Read + Web
-# Analytics Edit, voir README.md) : chargé par mise depuis secrets.sops.yaml.
-provider "cloudflare" {}
+provider "cloudflare" {
+  api_token = local.cloudflare_api_token
+}
 
 # OVH_APPLICATION_KEY/SECRET, OVH_CONSUMER_KEY : chargés par mise depuis secrets.sops.yaml
 provider "ovh" {

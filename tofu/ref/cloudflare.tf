@@ -10,7 +10,7 @@ locals {
 # ne sont PAS ici : ils vivent dans wrangler.toml du dépôt, qui fait foi pour
 # Pages dès qu'il déclare pages_build_output_dir.
 resource "cloudflare_pages_project" "ref" {
-  account_id        = var.cloudflare_account_id
+  account_id        = local.cloudflare_account_id
   name              = var.repository
   production_branch = "main"
 
@@ -36,7 +36,7 @@ resource "cloudflare_pages_project" "ref" {
 # Cloudflare valide le domaine dès sa création : sans le CNAME, ref.sylvain.dev
 # résout encore par le joker vers Pangolin et le domaine reste en échec.
 resource "cloudflare_pages_domain" "ref" {
-  account_id   = var.cloudflare_account_id
+  account_id   = local.cloudflare_account_id
   project_name = cloudflare_pages_project.ref.name
   name         = local.hostname
 
@@ -47,7 +47,7 @@ resource "cloudflare_pages_domain" "ref" {
 # automatique, le site insère le beacon avec le jeton exporté en sortie
 # (site.json → cfBeaconToken).
 resource "cloudflare_web_analytics_site" "ref" {
-  account_id   = var.cloudflare_account_id
+  account_id   = local.cloudflare_account_id
   host         = local.hostname
   auto_install = false
 }

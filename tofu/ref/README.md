@@ -53,7 +53,7 @@ mise run plan-ref    # init puis plan
 mise run apply-ref
 ```
 
-mise charge `secrets.sops.yaml` (identifiants S3 du backend, OVH, `CLOUDFLARE_API_TOKEN` lu tel quel par le provider) ; les tâches passent `CLOUDFLARE_ACCOUNT_ID` en `TF_VAR_cloudflare_account_id`.
+mise charge `secrets.sops.yaml` dans l'environnement (identifiants S3 du backend, OVH) ; `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` sont lus directement par le provider `sops` (`secrets.tf`), comme dans `tofu/site`.
 
 ## Ordre des opérations
 
