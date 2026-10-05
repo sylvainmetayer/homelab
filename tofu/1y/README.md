@@ -10,8 +10,11 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 | `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
 | `github_app_installation_repository.cloudflare` / `.renovate` | Accès des apps GitHub Cloudflare et Renovate au dépôt (si `*_github_installation_id` est renseigné) |
 | `cloudflare_pages_project.r` | Build `npm run build` → `_site`, déploiement à chaque push sur `master`, previews sur les autres branches |
+| `data.github_repository_file.mise` | `mise.toml` du dépôt : une précondition de `cloudflare_pages_project.r` vérifie que `var.node_version` (variable `NODE_VERSION` du build Pages) correspond à sa version de Node |
 | `cloudflare_pages_domain.r` | Domaine personnalisé `r.sylvain.dev` |
 | `ovh_domain_zone_record.r` | CNAME `r` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+
+**Version de Node** : Pages ne lit pas `mise.toml` (seulement `.nvmrc`/`.node-version`), d'où `NODE_VERSION`. Pour monter de version : merger d'abord la PR du dépôt `1y` qui change `mise.toml`, puis passer `var.node_version` à la même valeur. Tant que les deux divergent, `plan` et `apply` échouent sur la précondition.
 
 Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
 
