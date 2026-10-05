@@ -1,12 +1,16 @@
 ---
-# docker.yml ne set_fact aucune URL de healthcheck pour searxng : rien à
-# reproduire en pre_tasks.
 - name: Converge
   hosts: all
   vars_files:
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    # docker.yml lit cette URL dans les outputs du state pangolin_config :
+    # un set_fact, qui l'emporte sur la valeur de fake_secrets.yml.
+    - name: Load healthcheck URLs as docker.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        searxng_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-searxng-backup
   roles:
     - role: docker_service
     - role: searxng

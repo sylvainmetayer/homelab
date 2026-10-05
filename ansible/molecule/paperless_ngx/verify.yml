@@ -86,6 +86,7 @@
           - paperless_borgmatic.repositories[0].path == paperless_expected_repository
           - paperless_borgmatic.encryption_passphrase == backup_passphrase
           - paperless_borgmatic.archive_name_format is match('paperless-')
+          - paperless_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-paperless-backup'
         fail_msg: "Configuration borgmatic de paperless incohérente : {{ paperless_borgmatic.repositories }}"
       vars:
         paperless_expected_repository: >-

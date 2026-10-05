@@ -408,11 +408,6 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_echo
-  values = { push_token = "push-echo" }
-}
-
-override_resource {
   target = uptimekuma_monitor_push.backup_flip_planning
   values = { push_token = "push-flip-planning" }
 }
@@ -508,6 +503,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
         pangolin_target.demo_planning_kc_assets,
         pangolin_target.demo_planning_kc_keycloak,
         pangolin_target.echo,
+        pangolin_target.echo,
         pangolin_target.flip_planning,
         pangolin_target.flip_planning_pgadmin,
         pangolin_target.flip_planning_mailpit,
@@ -518,8 +514,14 @@ run "every_probed_target_declares_scheme_mode_and_port" {
         pangolin_target.meerkat_crm,
         pangolin_target.monica,
         pangolin_target.nextcloud,
+        pangolin_target.immich,
+        pangolin_target.immich_swipe,
+        pangolin_target.meerkat_crm,
+        pangolin_target.monica,
+        pangolin_target.nextcloud,
         pangolin_target.paperless,
         pangolin_target.proxmox,
+        pangolin_target.rss,
         pangolin_target.rss,
         pangolin_target.scanopy,
         pangolin_target.searxng,
@@ -537,11 +539,6 @@ run "every_probed_target_declares_scheme_mode_and_port" {
 
 # hc_hostname explicite et égal à `ip` : la sonde envoie le bon Host au bon
 # conteneur. Le provider ne le déduit pas de `ip`.
-#
-# ATTENTION : ne couvre que les cibles déjà conformes. betisier, echo, immich,
-# immich_swipe, meerkat_crm, monica, nextcloud, rss et wiki n'ont PAS de
-# hc_hostname aujourd'hui (écart à AGENTS.md) ; les ajouter à cette liste une
-# fois corrigées.
 run "probed_targets_set_hc_hostname_to_their_ip" {
   command = plan
 
@@ -549,6 +546,7 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
     condition = alltrue([
       for t in [
         pangolin_target.bbox,
+        pangolin_target.betisier,
         pangolin_target.dawarich,
         pangolin_target.demo_planning,
         pangolin_target.demo_planning_pgadmin,
@@ -569,9 +567,22 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
         pangolin_target.scanopy,
         pangolin_target.searxng,
         pangolin_target.trek,
+        pangolin_target.wiki,
       ] : t.hc_hostname == t.ip
     ])
     error_message = "Une cible a un hc_hostname absent ou différent de son ip."
+  }
+
+  # La liste ci-dessus ne voit pas une cible ajoutée plus tard : on vérifie
+  # aussi, fichier par fichier, au moins autant de hc_hostname que de sondes
+  # actives (bbox en garde un sur sa sonde désactivée).
+  assert {
+    condition = alltrue([
+      for f in fileset(path.module, "website_*.tf") :
+      length(regexall("hc_enabled\\s*=\\s*true", file("${path.module}/${f}")))
+      <= length(regexall("hc_hostname\\s*=", file("${path.module}/${f}")))
+    ]) && pangolin_target.trek.hc_hostname == pangolin_target.trek.ip
+    error_message = "Un website_*.tf déclare une sonde (hc_enabled = true) sans hc_hostname."
   }
 }
 
@@ -977,6 +988,16 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_backup_trek_url (docker.yml) ne pointe pas sur le moniteur Backup TREK."
   }
 
+  assert {
+    condition     = output.uptime_backup_searxng_url == "https://uptime.example.test/api/push/push-searxng"
+    error_message = "uptime_backup_searxng_url (docker.yml) ne pointe pas sur le moniteur Backup SearXNG."
+  }
+
+  assert {
+    condition     = output.uptime_backup_paperless_url == "https://uptime.example.test/api/push/push-paperless"
+    error_message = "uptime_backup_paperless_url (docker.yml) ne pointe pas sur le moniteur Backup Paperless."
+  }
+
   # flip.yml
   assert {
     condition     = output.uptime_backup_flip_planning_url == "https://uptime.example.test/api/push/push-flip-planning"
@@ -1014,12 +1035,31 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_dawarich_url,
       output.uptime_backup_scanopy_url,
       output.uptime_backup_trek_url,
+      output.uptime_backup_searxng_url,
+      output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
       output.uptime_backup_demo_planning_url,
       output.uptime_backup_immich_url,
       output.uptime_backup_pangolin_url,
-    ])) == 15
+    ])) == 17
     error_message = "Deux sorties lues par Ansible pointent sur le même moniteur push."
+  }
+
+  # Dans l'autre sens : un moniteur push dont aucun playbook ne lit l'URL ne
+  # reçoit jamais de battement et reste rouge (searxng et paperless jusqu'à
+  # leur ajout dans docker.yml, echo qui n'a pas de sauvegarde).
+  assert {
+    condition = alltrue([
+      for name in flatten([
+        for f in fileset(path.module, "*.tf") :
+        regexall("output \"(uptime_(?:backup|cron)_\\w+_url)\"", file("${path.module}/${f}"))
+      ]) :
+      anytrue([
+        for playbook in ["docker.yml", "flip.yml", "pi.yml", "pangolin.yaml"] :
+        strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.${name}.value")
+      ])
+    ]) && output.uptime_backup_trek_url != ""
+    error_message = "Une sortie uptime_*_url n'est lue par aucun playbook : son moniteur push ne recevra jamais rien."
   }
 }
 
@@ -1194,7 +1234,6 @@ run "monitors_are_filed_and_notify_by_email" {
         uptimekuma_monitor_push.backup_betisier,
         uptimekuma_monitor_push.backup_dawarich,
         uptimekuma_monitor_push.backup_demo_planning,
-        uptimekuma_monitor_push.backup_echo,
         uptimekuma_monitor_push.backup_flip_planning,
         uptimekuma_monitor_push.backup_gramps,
         uptimekuma_monitor_push.backup_immich,
