@@ -40,3 +40,18 @@ variable "cloudflare_github_installation_id" {
   type        = number
   default     = null
 }
+
+# Checks qui doivent être verts pour fusionner sur main (ruleset, github.tf) :
+# jobs du workflow CI, analyses CodeQL et SonarCloud.
+variable "required_checks" {
+  description = "Contextes de checks requis par le ruleset de main"
+  type        = list(string)
+  default = [
+    "build",
+    "html",
+    "accessibility",
+    "analyze (javascript-typescript)",
+    "analyze (actions)",
+    "SonarCloud Code Analysis",
+  ]
+}

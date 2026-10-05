@@ -16,7 +16,7 @@ resource "cloudflare_pages_project" "site" {
     type = "github"
     config = {
       owner                          = var.github_owner
-      repo_name                      = data.github_repository.site.name
+      repo_name                      = github_repository.site.name
       production_branch              = "main"
       production_deployments_enabled = true
       preview_deployment_setting     = "all"
