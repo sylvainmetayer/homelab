@@ -15,6 +15,18 @@
         - "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
       register: docker_service_stats
 
+    - name: Stat the stale user-scope multi-user.target links
+      ansible.builtin.stat:
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/multi-user.target.wants"
+      register: docker_service_stale_wants
+
+    # prepare.yml en a laissé un, comme sur un hôte déployé avant la correction.
+    - name: Assert the stale multi-user.target links were removed
+      ansible.builtin.assert:
+        that:
+          - not docker_service_stale_wants.stat.exists
+        fail_msg: multi-user.target.wants subsiste dans ~/.config/systemd/user
+
     - name: Assert the unit template, apps folder and linger file are in place
       ansible.builtin.assert:
         that:
@@ -46,6 +58,9 @@
           - "'Restart=always' in docker_service_unit_lines"
           - "'StartLimitBurst=5' in docker_service_unit_lines"
           - "'StartLimitIntervalSec=600' in docker_service_unit_lines"
+          # Unité user : default.target, pas multi-user.target (absente du
+          # manager user), sinon rien ne démarre au boot.
+          - "'WantedBy=default.target' in docker_service_unit_lines"
         fail_msg: "{{ docker_service_unit_path }} inattendu"
       vars:
         docker_service_unit_lines: "{{ (docker_service_unit_raw.content | b64decode).splitlines() }}"

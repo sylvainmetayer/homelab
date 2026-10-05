@@ -53,6 +53,9 @@
         that:
           - monica_v4_cron_timer.status.UnitFileState == 'enabled'
           - monica_v4_cron_timer.status.ActiveState == 'active'
+          # Le manager user n'a pas de multi-user.target : seul timers.target
+          # démarre le timer au boot.
+          - "'timers.target' in monica_v4_cron_timer.status.WantedBy"
         fail_msg: >-
           monica_v4_cron.timer : {{ monica_v4_cron_timer.status.UnitFileState }} /
           {{ monica_v4_cron_timer.status.ActiveState }}

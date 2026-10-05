@@ -20,6 +20,18 @@
     owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0644"
 
+# Les unités user (dc@<service>, monica_v4_cron.timer) visaient
+# multi-user.target, qui n'existe que pour le manager système : leurs liens
+# vivaient dans ce dossier que personne ne lit, et rien ne démarrait au boot.
+# Tant qu'il existe, `systemctl --user is-enabled` répond « enabled » et la
+# tâche `enabled: true` de chaque rôle n'en recrée pas de nouveau selon le
+# [Install] corrigé (default.target, timers.target). Le supprimer suffit : le
+# prochain passage de chaque rôle réactive son unité au bon endroit.
+- name: Remove the user-scope multi-user.target links
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/multi-user.target.wants"
+    state: absent
+
 - name: Enable lingering for user
   become: true
   ansible.builtin.file:

@@ -44,3 +44,23 @@
         dest: "{{ molecule_stale_pid_file }}"
         content: "{{ molecule_stale_manager.status.MainPID }}\n"
         mode: "0600"
+
+# Hôte déjà déployé avant le passage de dc@ à WantedBy=default.target : ses
+# unités étaient liées sous multi-user.target.wants, que le rôle doit retirer.
+- name: Leave a stale multi-user.target link
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ensure the stale wants directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/multi-user.target.wants"
+        state: directory
+        mode: "0700"
+
+    - name: Link an old dc@ instance under multi-user.target.wants
+      ansible.builtin.file:
+        src: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/multi-user.target.wants/dc@molecule.service"
+        state: link
+        force: true
+        follow: false
