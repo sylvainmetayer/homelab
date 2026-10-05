@@ -151,6 +151,67 @@
     scope: user
     enabled: true
 
+# Nightly reset to a reference database — see flip_planning_reset_dump in
+# defaults/main.yml. Placed after the unit is started: the first restore needs
+# the postgres container up.
+- name: Configure the nightly reset of {{ flip_planning_service }}
+  when: flip_planning_reset_dump | length > 0
+  block:
+    # An instance that resets every night has nothing to back up, and its
+    # archives would only fill a Borg repository with the same dump.
+    - name: Refuse a nightly reset on a backed-up instance ({{ flip_planning_service }})
+      ansible.builtin.assert:
+        that:
+          - not flip_planning_backup_enabled
+        fail_msg: >-
+          {{ flip_planning_service }} sets flip_planning_reset_dump, which drops
+          its database every night, and flip_planning_backup_enabled. Turn the
+          backup off: a reset instance holds nothing worth keeping, and an
+          instance whose data matters must not be reset.
+
+    - name: Ensure the seed folder exists for {{ flip_planning_service }}
+      ansible.builtin.file:
+        path: "{{ flip_planning_base_path }}/seed"
+        state: directory
+        mode: "0750"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+
+    - name: Copy the reference dump of {{ flip_planning_service }}
+      notify: "Reset {{ flip_planning_service }}"
+      ansible.builtin.copy:
+        src: "{{ flip_planning_reset_dump }}"
+        dest: "{{ flip_planning_base_path }}/seed/{{ flip_planning_reset_dump | basename }}"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0640"
+
+    - name: Template the reset script of {{ flip_planning_service }}
+      notify: "Reset {{ flip_planning_service }}"
+      ansible.builtin.template:
+        src: "templates/reset.sh.j2"
+        dest: "{{ flip_planning_base_path }}/reset.sh"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0750"
+
+    - name: Template the reset units of {{ flip_planning_service }}
+      loop: [service, timer]
+      ansible.builtin.template:
+        src: "templates/reset.{{ item }}.j2"
+        dest: "~/.config/systemd/user/{{ flip_planning_service }}-reset.{{ item }}"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0644"
+
+    - name: Enable the nightly reset timer of {{ flip_planning_service }}
+      ansible.builtin.systemd:
+        name: "{{ flip_planning_service }}-reset.timer"
+        scope: user
+        state: started
+        enabled: true
+        daemon_reload: true
+
 # Borgmatic backup configuration
 - name: Configure borgmatic backup for {{ flip_planning_service }}
   when: flip_planning_backup_enabled

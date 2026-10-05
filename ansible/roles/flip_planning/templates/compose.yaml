@@ -2,6 +2,13 @@
 services:
   app:
     mem_limit: {{ flip_planning_mem_limit }}
+{% if flip_planning_mem_reservation %}
+    mem_reservation: {{ flip_planning_mem_reservation }}
+{% endif %}
+{% if flip_planning_cpu_shares %}
+    # A weight, not a quota: see flip_planning_cpu_shares in defaults/main.yml.
+    cpu_shares: {{ flip_planning_cpu_shares }}
+{% endif %}
     container_name: {{ flip_planning_container_prefix }}
     image: {{ flip_planning_image }}
     restart: unless-stopped

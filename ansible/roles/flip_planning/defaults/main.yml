@@ -63,6 +63,19 @@ flip_planning_image: "{{ flip_planning_image_release }}"
 flip_planning_mem_limit: 2g
 flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 
+# Who wins when instances on the flip host compete (2 vCPU, 4 GiB for all of
+# them). Both empty by default: nothing is written to compose.yaml.
+#
+# - cpu_shares: a WEIGHT, not a quota (the doctrine forbids `cpus:` on an
+#   interactive service). An instance at 256 against the default 1024 gets
+#   about a fifth of the CPU while another one computes, and everything while
+#   the host is idle. The solver is single-threaded, so an instance never takes
+#   more than one vCPU anyway.
+# - mem_reservation: memory.low on cgroup v2 — the kernel reclaims from the
+#   other containers first when the host runs short. About the measured peak.
+flip_planning_cpu_shares: ""
+flip_planning_mem_reservation: ""
+
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"
@@ -135,6 +148,14 @@ flip_planning_sentry_environment: production
 # Product name shown in the application UI and on the generated PDFs. Carries
 # the environment for anything but production.
 flip_planning_branding_product_name: "Flip Planning"
+
+# Organisation named in the UI and on the PDFs, and whether the festival's
+# colours (accent and PDF palette) are applied. Both are the client's: an
+# instance that must not pass for the festival's — the public showcase — names
+# its own organisation and turns the palette off, and the application then
+# falls back to its own colours.
+flip_planning_branding_organisation: "Festival Flip — Parthenay"
+flip_planning_branding_client_palette: true
 
 # Branding images. The application image ships no visual of its own (the app
 # repo is public and carries no customer mark), so a client's images are part
@@ -288,6 +309,56 @@ flip_planning_flyway_repair_at_start: false
 # value (it reads the real clock again) *and* refuses to clear the row, so the
 # table keeps a date nobody can see. Unfreeze first, flip this after.
 flip_planning_horloge_simulee_autorisee: false
+
+# Declares the instance as not in service (LEGAL_DEMO_INSTANCE): the
+# application then boots with its mentions légales left empty instead of
+# refusing to. Only for an instance that holds no real person's data.
+flip_planning_legal_demo_instance: false
+
+# ---------------------------------------------------------------------------
+# Solver budget: the default of a solve, and the operator ceiling no edition
+# can raise — from the Solveur screen, a launch (?seconds=) or MCP. Empty means
+# the application's own values (900 s / 300 s, ceiling 3600 s), and nothing is
+# written to .env: an empty value is not an unset one (see env.j2).
+#
+# The application refuses to boot when a ceiling is below the matching default,
+# so lowering the ceiling means lowering both defaults with it. A budget stored
+# in the database above the ceiling runs AT the ceiling, with a warning on the
+# job.
+flip_planning_solver_seconds_limit: ""
+flip_planning_solver_unimproved_seconds_limit: ""
+flip_planning_solver_seconds_limit_max: ""
+
+# How much solving the instance accepts, whoever asks: at most so many solver
+# runs in the last sixty minutes (SOLVER_MAX_SOLVES_PER_HOUR), and at most so
+# many jobs waiting behind the running one (SOLVER_MAX_QUEUED_JOBS). Counted by
+# the application at submission — screen, API, MCP and the staffing check —
+# and refused with a sentence the UI shows, naming when the next run is
+# possible. Empty: not written, the application's default (off). Images up to
+# 1.4.0 ignore both: the quota ships with the next release.
+flip_planning_solver_max_solves_per_hour: ""
+flip_planning_solver_max_queued_jobs: ""
+
+# ---------------------------------------------------------------------------
+# Nightly reset to a reference database.
+#
+# Empty: off, the instance keeps its data. Otherwise a pg_dump in custom format
+# (`pg_dump -Fc --no-owner --no-acl`), as a path relative to this role's
+# files/ directory or absolute. The role copies it next to the compose file,
+# and a systemd user timer (<service>-reset.timer) stops the application,
+# recreates its database from that dump and starts it again — Mailpit too,
+# which empties the mails it caught. Flyway then migrates the restored schema
+# to the image's version on boot, so a dump taken on an older release keeps
+# working after the image moves on; one taken on a NEWER release than the
+# image is refused by the application (schema ahead of the binary).
+#
+# A changed dump is restored at once by the handler, not at the next night.
+#
+# The database is dropped every night: never set this on an instance whose
+# data matters, and leave its Borg backup off — there is nothing to keep.
+flip_planning_reset_dump: ""
+# systemd OnCalendar expression, timezone included.
+flip_planning_reset_on_calendar: "*-*-* 04:30:00 Europe/Paris"
 
 # Reverse proxies the two address-counting guards may believe when they read
 # X-Forwarded-For: the login lockout, and the /mcp rate ceiling above.

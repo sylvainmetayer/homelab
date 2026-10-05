@@ -62,7 +62,7 @@ There is no test/lint/build for `tofu/pangolin_config` wired into `mise.toml` �
 ```bash
 ansible-playbook -i inventory/hosts 00-setup.yaml   # base host setup (user, packages, starship)
 ansible-playbook -i inventory/hosts docker.yml       # Proxmox docker host: all the app roles
-ansible-playbook -i inventory/hosts flip.yml         # Hetzner flip server: Flip Planning (prod + demo)
+ansible-playbook -i inventory/hosts flip.yml         # Hetzner flip server: Flip Planning (prod, demo, public showcase)
 ansible-playbook -i inventory/hosts pangolin.yaml    # Pangolin Hetzner VM
 ansible-playbook -i inventory/hosts pi.yml           # Raspberry Pi (Immich)
 ansible-playbook -i inventory/hosts backup.yaml      # creates remote backup folders on the Storage Box
@@ -96,7 +96,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 | `docker.yml` | `docker` | Proxmox Docker VM — installs Docker, `docker_service`, `borgmatic`, `newt`, then every app role |
 | `pangolin.yaml` | `pangolin` | Hetzner Pangolin VM — Docker, `borgmatic`, `security` hardening, `pangolin` role |
 | `pi.yml` | `pi` | Raspberry Pi — Docker, `docker_service`, `borgmatic`, `newt`, `immich` |
-| `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×2 (prod + demo). Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
+| `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` once per environment (prod, demo, the public showcase `exemple_planning`, and the temporary Keycloak bench). Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
 | `backup.yaml` | `backups` | Storage Box only: `mkdir -p` remote backup folders (see below) |
 
 `docker.yml`, `flip.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
@@ -140,9 +140,11 @@ current checklist — it also delegates to **`pangolin-route`** and
 
 ### Running a second environment of an app
 
-`flip_planning` is applied twice by `flip.yml`: once for production
-(`flip-planning.sylvain.cloud`) and once for the demo
-(`demo-planning.sylvain.dev`). There is one role, not two — duplicating a role
+`flip_planning` is applied once per environment by `flip.yml`: production
+(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`, latest
+`main`, behind SSO) and the public showcase (`exemple-planning.sylvain.dev`,
+latest release, no SSO, its database reset every night from a reference dump —
+`flip_planning_reset_dump`). There is one role, not two — duplicating a role
 per environment is what leaves the copy behind on the next change.
 
 What makes a role instantiable is that everything two instances cannot share on
