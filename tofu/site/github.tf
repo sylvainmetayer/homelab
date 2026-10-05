@@ -36,3 +36,14 @@ resource "github_actions_secret" "sonar_token" {
   secret_name     = "SONAR_TOKEN"
   plaintext_value = local.sonar_token
 }
+
+# Sans deploy hook, le workflow Daily Build du dépôt site échoue chaque matin
+# (secret CLOUDFLARE_PAGES_DEPLOY_HOOK absent) : articles programmés jamais
+# publiés, webmentions jamais rafraîchies. Le plan le signale (avertissement,
+# pas d'erreur) tant que la clé manque dans secrets.sops.yaml.
+check "daily_build_deploy_hook" {
+  assert {
+    condition     = nonsensitive(local.pages_deploy_hook != null)
+    error_message = "SITE_PAGES_DEPLOY_HOOK absent de secrets.sops.yaml : le Daily Build du dépôt site échouera. Voir tofu/site/README.md, « Secrets du dépôt site »."
+  }
+}
