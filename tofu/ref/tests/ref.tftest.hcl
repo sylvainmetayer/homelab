@@ -35,6 +35,15 @@ override_resource {
   }
 }
 
+# src/_data/site.json du dépôt ref, lu par le check beacon_token : à jour, il
+# porte le jeton du site Web Analytics.
+override_data {
+  target = data.github_repository_file.site_json
+  values = {
+    content = "{\"title\": \"Parrainage\", \"cfBeaconToken\": \"fake-beacon-token\"}"
+  }
+}
+
 run "depot_github" {
   command = plan
 
@@ -83,6 +92,21 @@ run "depot_github" {
     condition     = github_repository_vulnerability_alerts.ref.enabled == true
     error_message = "Les alertes Dependabot doivent rester activées sur ref."
   }
+
+  assert {
+    condition     = github_repository_dependabot_security_updates.ref.enabled == true
+    error_message = "Les mises à jour de sécurité Dependabot doivent rester activées sur ref."
+  }
+
+  # Dépôt public : un workflow ajouté plus tard sans bloc `permissions:` ne
+  # doit rien pouvoir y écrire.
+  assert {
+    condition = (
+      github_workflow_repository_permissions.ref.default_workflow_permissions == "read"
+      && github_workflow_repository_permissions.ref.can_approve_pull_request_reviews == false
+    )
+    error_message = "Le jeton des workflows de ref doit rester en lecture seule, sans droit d'approuver une PR."
+  }
 }
 
 # Sveltia CMS commite directement sur main depuis le téléphone : pas de PR
@@ -108,6 +132,12 @@ run "protection_de_main_sans_pr" {
   assert {
     condition     = github_branch_protection.ref_main.allows_force_pushes == false && github_branch_protection.ref_main.allows_deletions == false
     error_message = "Ni force-push ni suppression de main."
+  }
+
+  # Le propriétaire est le seul à pousser : la protection doit aussi le viser.
+  assert {
+    condition     = github_branch_protection.ref_main.enforce_admins == true
+    error_message = "enforce_admins doit rester à true : sans lui, la protection ne s'applique pas au seul qui pousse."
   }
 }
 
@@ -165,6 +195,22 @@ run "web_analytics" {
     condition     = output.web_analytics_token == "fake-beacon-token"
     error_message = "La sortie web_analytics_token (cfBeaconToken de site.json) doit être le site_token du site Web Analytics."
   }
+}
+
+# Site Web Analytics recréé (nouveau jeton) sans recopier le jeton dans
+# site.json : le check beacon_token doit le signaler au lieu de laisser les
+# pages vues se perdre sans bruit.
+run "jeton_beacon_desynchronise_signale" {
+  command = plan
+
+  override_data {
+    target = data.github_repository_file.site_json
+    values = {
+      content = "{\"title\": \"Parrainage\", \"cfBeaconToken\": \"ancien-jeton\"}"
+    }
+  }
+
+  expect_failures = [check.beacon_token]
 }
 
 run "cname_ovh_court_circuite_le_joker" {
