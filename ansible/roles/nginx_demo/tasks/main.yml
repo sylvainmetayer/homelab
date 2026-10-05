@@ -119,14 +119,17 @@
       become: true
       ansible.builtin.command:
         cmd: >-
-          /root/.local/bin/borgmatic
+          /root/.local/bin/borgmatic --verbosity 1
           --config {{ borgmatic_config_dir }}/nginx_demo.yaml
           repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
       register: nginx_demo_borg_repo_create
-      changed_when: "'repository already exists' not in nginx_demo_borg_repo_create.stderr"
+      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
+      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
+      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
+      changed_when: "'already exists' not in ((nginx_demo_borg_repo_create.stdout ~ nginx_demo_borg_repo_create.stderr) | lower)"
       failed_when: >
         nginx_demo_borg_repo_create.rc != 0 and
-        'repository already exists' not in nginx_demo_borg_repo_create.stderr
+        'already exists' not in (nginx_demo_borg_repo_create.stderr | lower)
 
 - name: Make sure nginx_demo service is running
   ansible.builtin.systemd:

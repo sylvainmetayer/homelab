@@ -5,6 +5,15 @@ nas_storage_server: 192.168.1.137
 nas_storage_export: /volume1/apps
 nas_storage_mount_path: /mnt/nas/apps
 
+# Type de système de fichiers attendu au point de montage (contrôle du rôle et
+# script d'attente). Seul le scénario Molecule le change.
+nas_storage_fstype: nfs
+
+# false : ni entrée fstab ni automount. Pour Molecule seulement : un conteneur
+# ne peut pas monter le NAS, le scénario monte un tmpfs au point de montage
+# (et nas_storage_fstype: tmpfs) ; tout le reste du rôle tourne normalement.
+nas_storage_manage_mount: true
+
 # 4.1 : verrous intégrés au protocole (pas de lockd/statd), un seul port (2049).
 # Repli possible sur "3" sans autre changement : nfs-common fournit aussi
 # rpcbind/statd.

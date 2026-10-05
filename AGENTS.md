@@ -195,6 +195,10 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
   from `backup_passphrase`.
 - Decommissioning: pass `<service>_data_path` in
   `decommission_app_extra_paths`, or the data stays orphaned on the NAS.
+- Molecule: a container cannot mount the NFS export. Scenarios set
+  `nas_storage_manage_mount: false` + `nas_storage_fstype: tmpfs` and reuse
+  `ansible/molecule/nas_storage/prepare.yml`, which mounts a tmpfs (closed to
+  "others") in its place: everything but the fstab/automount path is covered.
 - No iSCSI: considered and rejected (see the doc).
 
 ### Running a second environment of an app
