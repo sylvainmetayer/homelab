@@ -155,3 +155,27 @@ run "betisier_redirect" {
     error_message = "betisier.sylvainmetayer.fr doit rediriger (301 visible) vers https://betisier.sylvain.dev."
   }
 }
+
+# Vérification Google Search Console de sylvain.dev (search_console.tf) :
+# posée à l'apex, car un nom porteur d'un CNAME (ref, géré par tofu/ref) ne
+# peut porter aucun autre enregistrement.
+run "verification_google_a_l_apex" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.sylvain_dev_google_site_verification.subdomain == "" &&
+      ovh_domain_zone_record.sylvain_dev_google_site_verification.fieldtype == "TXT" &&
+      ovh_domain_zone_record.sylvain_dev_google_site_verification.zone == "sylvain.dev"
+    )
+    error_message = "La vérification Google doit être un TXT à l'apex de sylvain.dev, pas sur ref.sylvain.dev (porteur du CNAME de tofu/ref)."
+  }
+
+  assert {
+    condition = (
+      startswith(ovh_domain_zone_record.sylvain_dev_google_site_verification.target, "\"google-site-verification=") &&
+      endswith(ovh_domain_zone_record.sylvain_dev_google_site_verification.target, "\"")
+    )
+    error_message = "La valeur du TXT doit être le jeton google-site-verification=… entre guillemets."
+  }
+}

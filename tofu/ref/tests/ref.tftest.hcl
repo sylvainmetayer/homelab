@@ -197,47 +197,6 @@ run "cname_ovh_court_circuite_le_joker" {
   }
 }
 
-# Posée à l'apex : un nom porteur d'un CNAME (ref) ne peut porter aucun autre
-# enregistrement.
-run "verification_google_a_l_apex" {
-  command = plan
-
-  assert {
-    condition     = length(ovh_domain_zone_record.google_site_verification) == 1
-    error_message = "Avec un jeton, l'enregistrement de vérification Google doit exister."
-  }
-
-  assert {
-    condition = (
-      ovh_domain_zone_record.google_site_verification[0].subdomain == "" &&
-      ovh_domain_zone_record.google_site_verification[0].fieldtype == "TXT" &&
-      ovh_domain_zone_record.google_site_verification[0].zone == "sylvain.dev"
-    )
-    error_message = "La vérification Google doit être un TXT à l'apex de sylvain.dev, pas sur ref (porteur du CNAME)."
-  }
-
-  assert {
-    condition = (
-      startswith(ovh_domain_zone_record.google_site_verification[0].target, "\"google-site-verification=") &&
-      endswith(ovh_domain_zone_record.google_site_verification[0].target, "\"")
-    )
-    error_message = "La valeur du TXT doit être le jeton google-site-verification=… entre guillemets."
-  }
-}
-
-run "sans_verification_google" {
-  command = plan
-
-  variables {
-    google_site_verification = null
-  }
-
-  assert {
-    condition     = length(ovh_domain_zone_record.google_site_verification) == 0
-    error_message = "google_site_verification = null ne doit poser aucun TXT."
-  }
-}
-
 # Mode « All repositories » ou installation pas encore faite : rien à poser.
 run "app_cloudflare_absente_par_defaut" {
   command = plan
