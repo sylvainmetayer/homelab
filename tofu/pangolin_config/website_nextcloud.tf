@@ -33,6 +33,7 @@ resource "pangolin_target" "nextcloud" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 80
+  hc_hostname            = "nextcloud"
   hc_path                = "/login"
   hc_method              = "GET"
   hc_status              = 200

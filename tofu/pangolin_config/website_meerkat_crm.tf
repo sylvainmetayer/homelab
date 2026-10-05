@@ -38,6 +38,7 @@ resource "pangolin_target" "meerkat_crm" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 8080
+  hc_hostname            = "meerkat-frontend"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200

@@ -33,6 +33,7 @@ resource "pangolin_target" "betisier" {
   hc_scheme              = "http"
   hc_mode                = "http"
   hc_port                = 80
+  hc_hostname            = "betisier"
   hc_path                = "/"
   hc_method              = "GET"
   hc_status              = 200
