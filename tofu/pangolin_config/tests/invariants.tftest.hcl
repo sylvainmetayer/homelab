@@ -133,11 +133,6 @@ override_resource {
   values = { id = 2006 }
 }
 
-override_resource {
-  target = pangolin_resource_rule.karakeep_api
-  values = { id = 2007 }
-}
-
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
@@ -207,7 +202,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# sept règles spécifiques : si l'une d'elles disparaît de
+# six règles spécifiques : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -218,13 +213,12 @@ override_data {
         {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
         {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
-        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/api/v1/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -752,7 +746,6 @@ run "bypass_rules_sit_in_their_priority_band" {
         pangolin_resource_rule.flip_planning_mcp,
         pangolin_resource_rule.demo_planning_mcp,
         pangolin_resource_rule.demo_planning_kc_keycloak,
-        pangolin_resource_rule.karakeep_api,
       ] :
       rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
       && rule.priority >= 1 && rule.priority < 10
@@ -765,9 +758,8 @@ run "bypass_rules_sit_in_their_priority_band" {
       pangolin_resource_rule.flip_planning_mcp.value == "/mcp/*"
       && pangolin_resource_rule.demo_planning_mcp.value == "/mcp/*"
       && pangolin_resource_rule.demo_planning_kc_keycloak.value == "/auth/*"
-      && pangolin_resource_rule.karakeep_api.value == "/api/v1/*"
     )
-    error_message = "Le contournement doit se limiter à /mcp/* (planning), /auth/* (Keycloak du banc KC) et /api/v1/* (API de Karakeep)."
+    error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC)."
   }
 
   assert {
@@ -781,6 +773,37 @@ run "bypass_rules_sit_in_their_priority_band" {
       && rule.priority == 12 && rule.enabled == true
     ])
     error_message = "Les ACCEPT de l'IP maison doivent être à la priorité 12, après les PASS pays (10-11) et avant le DROP (99)."
+  }
+}
+
+# Karakeep reste derrière le mur SSO et le filtre pays : ses clients (app
+# mobile, extension, MCP) passent avec un jeton d'accès Pangolin chacun, pas
+# par un contournement de chemin. Un jeton par client, pour en révoquer un
+# seul (téléphone perdu) sans toucher aux autres.
+run "karakeep_clients_use_access_tokens_not_a_bypass" {
+  command = plan
+
+  assert {
+    condition     = pangolin_resource.karakeep.sso == true
+    error_message = "Karakeep doit rester derrière le mur SSO de Pangolin."
+  }
+
+  assert {
+    condition     = toset(keys(pangolin_resource_access_token.karakeep_clients)) == toset(["mobile", "extension", "mcp"])
+    error_message = "Un jeton d'accès Pangolin par client de Karakeep : mobile, extension, mcp."
+  }
+
+  assert {
+    condition = alltrue([
+      for token in pangolin_resource_access_token.karakeep_clients :
+      token.resource_id == pangolin_resource.karakeep.id
+    ])
+    error_message = "Les jetons des clients de Karakeep doivent viser la ressource Karakeep."
+  }
+
+  assert {
+    condition     = length(distinct([for token in pangolin_resource_access_token.karakeep_clients : token.title])) == 3
+    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
   }
 }
 
@@ -942,7 +965,6 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
-      && pangolin_resource_rule.karakeep_api.resource_id == pangolin_resource.karakeep.id
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
   }

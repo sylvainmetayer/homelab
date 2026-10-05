@@ -1,0 +1,5 @@
+bloc import de github.tf : tofu test (OpenTofu 1.13) panique sur un import, même avec mock_provider (« Importing is not supported in testing context »).
+Le bloc `import { to = github_repository.site }` ne sert qu'au premier apply :
+une fois le dépôt site dans l'état, il peut être supprimé, et ce fichier avec
+lui. Les tests de site.tftest.hcl passent tous (12/12) sur une copie du module
+sans ce bloc ; ils restent ici pour reprendre du service dès sa suppression.
