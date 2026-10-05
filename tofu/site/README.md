@@ -78,7 +78,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 Les deux jetons sont optionnels : sans eux, le plan est le même qu'avant.
 
 1. **Webmentions** : jeton API sur <https://webmention.io/settings> (compte `www.sylvain.dev`). Le build de production le lit pour afficher les réactions sous les articles ; le build quotidien fait apparaître les nouvelles.
-2. **SonarCloud** : importer le dépôt sur <https://sonarcloud.io> (organisation `sylvainmetayer`, clé de projet `sylvainmetayer_site`, celles de `sonar-project.properties`), désactiver l'*Automatic Analysis* (*Administration → Analysis Method*), puis créer un jeton (*My Account → Security*).
+2. **SonarCloud** : importer le dépôt sur <https://sonarcloud.io> (organisation `sylvainmetayer-github`, clé de projet `sylvainmetayer_site`, celles de `sonar-project.properties`), désactiver l'*Automatic Analysis* (*Administration → Analysis Method*), puis créer un jeton (*My Account → Security*).
 
 ```bash
 sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<jeton webmention.io>"'
