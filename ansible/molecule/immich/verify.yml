@@ -23,6 +23,7 @@
           - redis
         verify_compose_healthy_dependencies:
           - { service: immich-server, dependency: redis }
+          - { service: immich-server, dependency: database }
 
     - name: Stat the immich files
       ansible.builtin.stat:
