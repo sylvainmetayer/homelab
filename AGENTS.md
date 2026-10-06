@@ -143,13 +143,15 @@ current checklist — it also delegates to **`pangolin-route`** and
   - **No `cpus:` on DBs, redis/valkey or interactive services.** A CFS quota below 1 core throttles any single-threaded burst even on an idle host.
   - Only batch-capable containers (OCR, document conversion, Celery/Sidekiq workers) get `cpus: 2.00` + `cpu_shares: 512`: the cap always leaves one core to the rest, the weight makes them lose under contention and costs nothing when idle.
   - Check images' default worker counts (`GUNICORN_NUM_WORKERS`, `pm.max_children`…) against the cap: gramps defaulted to 8 gunicorn workers of 170 MiB under a 1 GiB cap and OOM-looped.
-- Backups use Borgmatic, not Restic. Reference template: `ansible/roles/betisier/templates/borgmatic-betisier.yaml.j2`. Non-obvious structural rules (deviating from these breaks Borgmatic):
+- Backups use Borgmatic, not Restic. There is **one** config template for every app, `ansible/roles/borgmatic/templates/app.yaml.j2`, rendered by `ansible/roles/borgmatic/tasks/app.yml`: an app role calls it with `include_role: name=borgmatic tasks_from=app.yml` (+ `apply: tags: backup`) and `borgmatic_app_*` vars (name, sources, DB dumps, excludes, target, passphrase, healthcheck URL — documented in the role's `defaults/main.yml`); it never ships its own borgmatic template or repo-create task. Non-obvious structural rules the shared template keeps (deviating from these breaks Borgmatic):
   - Retention keys (`keep_daily`/`keep_weekly`/`keep_monthly`/`keep_yearly`) are **top-level**, not nested under `retention:`.
   - `checks:` (with `name`/`frequency`) is **top-level**, not nested under `consistency:`.
   - Use `commands:` with `before/after: action` + `when: [create]` hooks, not `before_backup`/`after_backup`/`on_error`.
   - `archive_name_format` is `'<service>-{now:%Y-%m-%dT%H:%M:%S}'` — no `{hostname}` prefix.
   - `compression: zstd,10`, not `auto,zstd`.
-  - Target format: `ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/<service>`.
+  - Target: `<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"` in the role defaults (`backup_storage_box_url` is a group var: `ssh://<user>@<host>/<path>`), passphrase `<service>_backup_encryption_passphrase: "{{ backup_passphrase }}"` there too — not in `host_vars`.
+  - Never back up a live database directory: PostgreSQL/MySQL are dumped by the client inside the DB container (`borgmatic_app_postgresql_databases` / `_mysql_databases`), SQLite files by the host's `sqlite3` (`borgmatic_app_sqlite_databases`, globs resolved at deploy time; their live copy is excluded).
+  - `exclude_patterns` are borg `fm:` patterns matched from the start of the archived path: `'*.log'` works anywhere, a relative `'cache/*'` matches nothing — app-specific excludes are absolute paths.
 - New remote backup folders must be added to `backup_folders` in `ansible/host_vars/backups/variables.yaml` (created by `ansible/backup.yaml`, which must stay `gather_facts: false` + use `ansible.builtin.raw` because the Storage Box has a restricted shell — normal file modules don't work there).
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.

@@ -31,29 +31,34 @@ For any new or modified app role (`ansible/roles/<service>/`):
 - [ ] `tasks/main.yml` ends with `systemd: name=dc@<service> scope=user
       state=started enabled=true` — no bespoke `.service` file template (the
       `docker_service` role already provides the generic `dc@.service` unit).
-- [ ] If a borgmatic block exists, it's guarded by
-      `when: <service>_backup_enabled`, tagged `backup`, and the repo-create
-      task uses the idempotency idiom (`changed_when`/`failed_when` checking
-      for `'repository already exists' not in ....stderr`) rather than
-      failing on every re-run.
+- [ ] The backup is an `include_role: borgmatic` / `tasks_from: app.yml`
+      call guarded by `when: <service>_backup_enabled`, tagged `backup` (with
+      `apply: tags: backup`) — not a role-local borgmatic template or
+      repo-create task (both live in the `borgmatic` role now).
 - [ ] The role was actually registered: `- role: <service>` +
       `tags: <service>,app` present in the right playbook (`ansible/docker.yml`,
       `pangolin.yaml`, or `pi.yml`), and if it has a backup healthcheck, a
       matching `<service>_backup_healthcheck_url` line was added to that
       playbook's `pre_tasks` `set_fact` block.
 
-For any `templates/borgmatic-<service>.yaml.j2`:
+For any backup wiring (`borgmatic_app_*` vars of the `include_role`):
 
-- [ ] `keep_daily`/`keep_weekly`/`keep_monthly`/`keep_yearly` are top-level
-      (not nested under `retention:`).
-- [ ] `checks:` is top-level (not nested under `consistency:`).
-- [ ] Uses `commands:` with `before`/`after: action` + `when: [create]` —
-      not `before_backup`/`after_backup`/`on_error`.
-- [ ] `archive_name_format` has no `{hostname}` prefix.
-- [ ] `compression: zstd,10`, not `auto,zstd`.
+- [ ] No live database directory in `borgmatic_app_source_directories`:
+      PostgreSQL/MySQL go through `borgmatic_app_postgresql_databases` /
+      `_mysql_databases` (dumped inside the DB container), SQLite files
+      through `borgmatic_app_sqlite_databases` globs.
+- [ ] Every `borgmatic_app_exclude_patterns` entry is an absolute path (a
+      relative `cache/*` matches nothing in borg's `fm:` style).
+- [ ] Rebuildable caches/indexes are left out of the sources.
+- [ ] If the shared template `ansible/roles/borgmatic/templates/app.yaml.j2`
+      changed: retention keys and `checks:` top-level, `commands:` with
+      `before`/`after: action` + `when: [create]`, `archive_name_format`
+      without `{hostname}`, `compression: zstd,10`.
 - [ ] If this is a new service, confirm `ansible/host_vars/backups/variables.yaml`
-      gained the matching `backup_folders` entry, and that `ansible/host_vars/<host>/variables.yaml`
-      has the three `<service>_backup_*` vars.
+      gained the matching `backup_folders` entry, and that the role defaults
+      declare `<service>_backup_enabled` / `_borgmatic_target` (from
+      `backup_storage_box_url`) / `_encryption_passphrase` /
+      `_healthcheck_url`.
 
 For any `tofu/pangolin_config/website_<service>.tf` (new or modified):
 

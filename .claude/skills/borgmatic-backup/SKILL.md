@@ -5,79 +5,102 @@ description: Wire up or fix a Borgmatic backup for a service on the docker/pango
 
 # Borgmatic backup wiring
 
-**Don't write a borgmatic config from generic Borgmatic docs.** This repo
-requires a specific structure that deviates from Borgmatic's own examples in
-several places. Always copy
-`ansible/roles/betisier/templates/borgmatic-betisier.yaml.j2` as your
-starting point.
+**Don't write a borgmatic config by hand.** Every app's config is rendered
+by one shared template, `ansible/roles/borgmatic/templates/app.yaml.j2`,
+through `ansible/roles/borgmatic/tasks/app.yml`. An app role only declares
+*what* to back up; the structure (which deviates from Borgmatic's own
+examples in several places) lives in that one template. The interface — the
+`borgmatic_app_*` variables — is documented in
+`ansible/roles/borgmatic/defaults/main.yml`.
 
-## Required structure (deviations from generic Borgmatic configs)
+## Structure the shared template guarantees (don't "fix" it)
 
 - `keep_daily` / `keep_weekly` / `keep_monthly` / `keep_yearly` are
   **top-level** — not nested under `retention:`.
 - `checks:` (with `name` / `frequency`) is **top-level** — not nested under
   `consistency:`.
-- Use `commands:` with `before: action` / `after: action` + `when: [create]`
+- `commands:` with `before: action` / `after: action` + `when: [create]`
   hooks — not `before_backup:` / `after_backup:` / `on_error:`.
-- `archive_name_format: '<service>-{now:%Y-%m-%dT%H:%M:%S}'` — no
-  `{hostname}` prefix.
+- `archive_name_format: '<prefix>-{now:%Y-%m-%dT%H:%M:%S}'` — no
+  `{hostname}` prefix. The prefix defaults to the app name with `_` → `-`;
+  changing it takes the existing archives out of `prune`'s reach.
 - `compression: zstd,10` — not `auto,zstd`.
-- `ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23` — the Storage
-  Box uses a non-standard port and a dedicated key, not the default SSH
-  config.
-- `local_path: /root/.local/bin/borg` (borgmatic/borg are installed to the
-  root user's local bin by the `borgmatic` role, not system-wide).
-- Optional `uptime_kuma:` push block, guarded by
-  `{% if <service>_backup_healthcheck_url is defined and <service>_backup_healthcheck_url %}`,
-  with `states: [start, finish, fail]`.
-- If the service has a MySQL/MariaDB database, add a top-level
-  `mysql_databases:` block (`container`, `port`, `name`, `username`,
-  `password`) rather than relying on filesystem backup of the DB volume.
+- `ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23` and
+  `local_path: /root/.local/bin/borg` (installed by the `borgmatic` role).
+- `uptime_kuma:` push block with `states: [start, finish, fail]` when a
+  healthcheck URL is given.
+- `exclude_patterns` are borg `fm:` patterns anchored at the start of the
+  archived path: `'*.log'` works anywhere, but a relative `'cache/*'` matches
+  nothing. App-specific excludes must be **absolute paths**.
 
-## 1. Template + role wiring
+## 1. Role wiring
 
-- Create `templates/borgmatic-<service>.yaml.j2` in the service's role,
-  copied from the betisier reference and adapted (source_directories, DB
-  block if any, target path, passphrase).
-- In `defaults/main.yml`: `<service>_backup_enabled: true`, plus empty
-  placeholders for target/passphrase (real values live in `host_vars`).
-- In `tasks/main.yml`, add a block guarded by `when: <service>_backup_enabled`,
-  tagged `backup`:
-  1. Template `borgmatic-<service>.yaml.j2` → `{{ borgmatic_config_dir }}/<service>.yaml`, owner/group `root`, mode `0600`.
-  2. Initialize the repo with the exact idempotency idiom used everywhere
-     else in this repo (copy verbatim, don't rewrite it):
-     ```yaml
-     - name: Initialize borg repository for <Service>
-       become: true
-       ansible.builtin.command:
-         cmd: >-
-           /root/.local/bin/borgmatic
-           --config {{ borgmatic_config_dir }}/<service>.yaml
-           repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-       register: <service>_borg_repo_create
-       changed_when: "'repository already exists' not in <service>_borg_repo_create.stderr"
-       failed_when: >
-         <service>_borg_repo_create.rc != 0 and
-         'repository already exists' not in <service>_borg_repo_create.stderr
-     ```
+In the app role's `tasks/main.yml`, after the compose/env templating:
 
-## 2. Host vars
+```yaml
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for <Service>
+  when: <service>_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: <service>            # /etc/borgmatic.d/<service>.yaml
+    borgmatic_app_title: <Service>           # hook messages, task names
+    borgmatic_app_target: "{{ <service>_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ <service>_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ <service>_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ <service>_base_path }}/data"
+      - "{{ <service>_base_path }}/compose.yaml"
+    # Pick what the app uses — never the live data directory of a database:
+    borgmatic_app_postgresql_databases:     # pg_dump runs in the DB container
+      - container: <service>_db
+        name: <db>
+        username: <user>
+        password: "{{ <service>_db_password }}"
+    borgmatic_app_mysql_databases: []        # same keys, mysqldump in the container
+    borgmatic_app_sqlite_databases:          # globs, resolved at deploy time
+      - "{{ <service>_base_path }}/data/*.db"
+    borgmatic_app_exclude_patterns:          # absolute paths only
+      - "{{ <service>_base_path }}/data/cache"
+```
 
-Append to `ansible/host_vars/<host>/variables.yaml` (`docker`, `pangolin`, or
-`pi` — match where the service actually runs):
+- **Databases:** PostgreSQL/MySQL are dumped by the client *inside* the DB
+  container (`docker exec`), so client and server versions always match.
+  SQLite files matched by the globs (and checked to really be SQLite) are
+  dumped by the host's `sqlite3` (`.dump` reads in one transaction:
+  consistent while the app runs), and their live copy (`-wal`, `-shm`,
+  `-journal` too) is excluded. A database created after the deploy is picked
+  up on the next run of the role.
+- Other knobs (`borgmatic_app_archive_prefix`, `borgmatic_app_label`,
+  `borgmatic_app_before_commands` / `_after_commands`,
+  `borgmatic_app_extra_options`): see the borgmatic role defaults.
+- The task also runs `repo-create` with the repo's idempotency idiom
+  (borgmatic 2.x prints "Repository already exists. Skipping creation.").
+
+In `defaults/main.yml` of the app role:
 
 ```yaml
 <service>_backup_enabled: true
-<service>_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/<service>"
+<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"
 <service>_backup_encryption_passphrase: "{{ backup_passphrase }}"
+<service>_backup_healthcheck_url: ""
 ```
 
-## 3. Register the remote folder
+`backup_storage_box_url` is a group var (`group_vars/all/variables.yml`).
+Nothing goes in `host_vars` unless one host needs to override the target or
+passphrase.
+
+## 2. Register the remote folder
 
 Append `"<service>"` to `backup_folders` in
-`ansible/host_vars/backups/variables.yaml`, then run once (creates the
-directory on the Storage Box — a normal Ansible run against the app host
-won't do this for you):
+`ansible/host_vars/backups/variables.yaml` (it must match the last path
+segment of the target), then run once (creates the directory on the Storage
+Box — a normal Ansible run against the app host won't do this for you):
 
 ```bash
 cd ansible && ansible-playbook -i inventory/hosts backup.yaml
@@ -87,18 +110,26 @@ cd ansible && ansible-playbook -i inventory/hosts backup.yaml
 instead of `ansible.builtin.file` — the Storage Box exposes a restricted
 shell that breaks normal file modules.
 
-## 4. Optional: healthcheck push URL
+## 3. Optional: healthcheck push URL
 
 If you want backup success/failure pushed to Uptime Kuma, get the push URL
 from the `pangolin-route` skill's `uptimekuma_monitor_push` output, then wire
 `<service>_backup_healthcheck_url` into the relevant playbook's
 `pre_tasks` → `set_fact` block (see `ansible/docker.yml` for the existing
-pattern) so it reaches the `{% if %}` guard in the template.
+pattern).
+
+## 4. Molecule
+
+The scenario's `verify.yml` reads `/etc/borgmatic.d/<service>.yaml`; the
+shared `verify_app.yml` validates it with the real borgmatic pinned in
+`ansible/molecule/_shared/Dockerfile`. `ansible/molecule/trek/` shows how to
+seed a SQLite database in `prepare.yml` and assert it is dumped.
 
 ## Verify
 
 ```bash
 ansible-playbook -i inventory/hosts <playbook>.yml --check --tags backup
-sudo borgmatic --config /etc/borgmatic.d/<service>.yaml --list
-sudo borgmatic --config /etc/borgmatic.d/<service>.yaml create --dry-run
+sudo /root/.local/bin/borgmatic config validate --config /etc/borgmatic.d/<service>.yaml
+sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/<service>.yaml create --dry-run
+sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/<service>.yaml list --archive latest
 ```

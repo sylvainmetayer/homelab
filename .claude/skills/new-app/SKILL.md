@@ -22,7 +22,7 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
 `templates/` (mirror `ansible/roles/gramps/`):
 
 - `defaults/main.yml`: `<service>_base_path: "{{ docker_base_path }}/<service>"`
-  plus placeholder backup vars (real values go in `host_vars`, see step 4).
+  plus the backup vars (see step 4).
 - `templates/compose.yaml`: the container that must be publicly reachable
   joins the **external** `newt` network; anything DB/backend-only goes on an
   **internal**, service-named network only — never put a database on `newt`.
@@ -32,13 +32,12 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   latest available release (for example `:3.4.1`), not the floating `:latest`
   tag and not a digest pin like `@sha256:...` unless the user explicitly asks.
 - `templates/env.j2` (or `env.docker.j2`): templated `.env`, mode `0600`.
-- `templates/borgmatic-<service>.yaml.j2`: **don't write this from generic
-  borgmatic docs** — copy the structure from `ansible/roles/betisier/templates/borgmatic-betisier.yaml.j2`
-  exactly (see the `borgmatic-backup` skill for the non-obvious structural
-  rules this repo requires).
+- No borgmatic template in the role: every config is rendered by the
+  `borgmatic` role (`tasks_from: app.yml`), the role only declares its
+  sources and databases (see the `borgmatic-backup` skill).
 - `tasks/main.yml`, in order: ensure app folders exist → template
   `compose.yaml` (notify `Restart <service>`) → template env file → borgmatic
-  block (`when: <service>_backup_enabled`, tags: `backup`) → `systemd: name=dc@<service> scope=user state=started enabled=true`.
+  `include_role` (`when: <service>_backup_enabled`, tags: `backup`) → `systemd: name=dc@<service> scope=user state=started enabled=true`.
 - `handlers/main.yml`: a `Restart <service>` handler that
   `systemd: state=restarted name=dc@<service> scope=user daemon_reload=true`.
 
@@ -67,14 +66,16 @@ cd ansible && ansible-playbook -i inventory/hosts backup.yaml
 `ansible.builtin.raw` because the Hetzner Storage Box has a restricted shell —
 normal file modules don't work there.)
 
-## 4. Host vars for the backup
+## 4. Backup vars
 
-Append to `ansible/host_vars/docker/variables.yaml`:
+In the role's `defaults/main.yml` (nothing in `host_vars` unless a host must
+override them):
 
 ```yaml
 <service>_backup_enabled: true
-<service>_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/<service>"
+<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"
 <service>_backup_encryption_passphrase: "{{ backup_passphrase }}"
+<service>_backup_healthcheck_url: ""
 ```
 
 ## 5. Secrets

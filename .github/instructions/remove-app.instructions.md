@@ -76,9 +76,10 @@ touched the `set_fact`. Delete, don't comment out.)
 
 ## 4. Remove host_vars
 
-- Delete the `<service>_backup_enabled` / `_backup_borgmatic_target` /
-  `_backup_encryption_passphrase` block from
-  `ansible/host_vars/<host>/variables.yaml`.
+- Delete any `<service>_*` entry from
+  `ansible/host_vars/<host>/variables.yaml` (`<service>_backup_enabled`,
+  domain, overrides; the backup target and passphrase normally live in
+  the role defaults and go away with the role).
 - Remove `"<service>"` from `backup_folders` in
   `ansible/host_vars/backups/variables.yaml`. This only stops the folder from
   being (re)created — it does **not** delete anything already on the Storage
