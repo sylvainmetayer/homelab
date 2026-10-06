@@ -199,9 +199,7 @@ resource "uptimekuma_monitor_http_keyword" "demo_planning" {
   active          = true
   method          = "GET"
 
-  # Inverted keyword: finding the maintenance title means DOWN. Pangolin's
-  # maintenance page answers 200, so a plain status-code monitor would read a
-  # dead service as UP. See website_flip_planning.tf.
+  # Inverted keyword on the maintenance title. See maintenance.tf.
   keyword        = local.maintenance.title
   invert_keyword = true
   headers = jsonencode({

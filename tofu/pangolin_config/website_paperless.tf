@@ -94,16 +94,7 @@ resource "uptimekuma_monitor_http_keyword" "paperless" {
   active          = true
   method          = "GET"
 
-  # Pangolin's automatic maintenance page is a Next.js server component proxied
-  # by a Traefik router at priority 2000, so a service that is completely down
-  # answers 200 with that page instead of failing. A plain status-code monitor
-  # reads that as UP and never sends the downtime mail - the exact alerting the
-  # maintenance page was added on top of.
-  #
-  # Inverted keyword: finding the maintenance title means DOWN. The title is
-  # rendered server-side into the HTML (src/app/maintenance-screen/page.tsx), so
-  # it is visible to a plain GET, and it is the same local the resources use, so
-  # editing the page text cannot leave the monitors matching a stale string.
+  # Inverted keyword on the maintenance title. See maintenance.tf.
   keyword        = local.maintenance.title
   invert_keyword = true
   headers = jsonencode({
