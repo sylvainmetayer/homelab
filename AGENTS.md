@@ -122,7 +122,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 Every containerized app runs as a **systemd user service** via a shared template instantiated per-service:
 
 - `docker_service` role installs a `dc@.service` systemd *user* unit template (`roles/docker_service/templates/dc@.service.j2`) to `~/.config/systemd/user/dc@.service`, and enables lingering for the user (so services survive logout).
-- Each app's compose project lives at `{{ docker_base_path }}/<service>` (default `docker_base_path: /opt/apps`), and is started as `dc@<service>.service` (`WorkingDirectory=/opt/apps/%i`, runs `docker compose pull && up`).
+- Each app's compose project lives at `{{ docker_base_path }}/<service>` (default `docker_base_path: /opt/apps`), and is started as `dc@<service>.service` (`WorkingDirectory={{ docker_base_path }}/%i`). The unit waits (bounded) for the Docker daemon, then runs `docker compose up --remove-orphans` with no pull: each service's `pull_policy` (default `missing`) decides, so a registry outage at boot cannot stop an app whose image is already present (images are digest-pinned, Renovate bumps them). It restarts without a permanent give-up (`StartLimitIntervalSec=0`, `RestartSteps` back-off on systemd >= 254). An instance that must follow a mutable tag sets `pull_policy: always` on that service (e.g. `flip_planning_image_pull_policy` for the Keycloak bench).
 - App roles just template a `compose.yaml` into that directory and `systemd: name=dc@<service> scope=user state=started enabled=true`, notifying a `Restart <service>` handler on change.
 
 ### Adding a new app role
