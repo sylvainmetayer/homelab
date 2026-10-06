@@ -31,3 +31,12 @@
       ansible.builtin.assert:
         that:
           - "'APP_URL=https://travels.sylvain.cloud' in (trek_env_content.content | b64decode)"
+
+    # Nextcloud lit le flux iCal en HTTP direct sur le réseau newt : la
+    # redirection de FORCE_HTTPS l'enverrait derrière le SSO de Pangolin. HSTS et
+    # le cookie Secure tiennent à NODE_ENV=production.
+    - name: Assert trek serves plain HTTP on newt and stays in production mode
+      ansible.builtin.assert:
+        that:
+          - "'FORCE_HTTPS=false' in (trek_env_content.content | b64decode)"
+          - "'NODE_ENV=production' in (trek_env_content.content | b64decode)"
