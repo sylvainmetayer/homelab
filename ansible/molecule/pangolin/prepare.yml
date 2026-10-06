@@ -29,8 +29,10 @@
         mode: "0600"
         content: |
           # Molecule : pas d'image tirée ni de conteneur lancé. L'unité échoue
-          # si le compose templaté est invalide.
+          # si le compose templaté est invalide. Restart=no : sinon elle
+          # réessaierait sans fin, job de démarrage ouvert (JobRunningTimeoutSec).
           [Service]
+          Restart=no
           ExecStartPre=
           ExecStartPre=/usr/bin/docker compose config --quiet
           ExecStart=

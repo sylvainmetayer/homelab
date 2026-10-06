@@ -52,12 +52,19 @@
       ansible.builtin.assert:
         that:
           - ('WorkingDirectory=' ~ docker_base_path ~ '/%i') in docker_service_unit_lines
-          - "'ExecStartPre=/usr/bin/docker compose pull' in docker_service_unit_lines"
-          - "'ExecStart=/usr/bin/docker compose up' in docker_service_unit_lines"
+          # Pas de pull fatal au démarrage : un registre en panne n'empêche
+          # pas de relancer une appli dont les images sont déjà là.
+          - docker_service_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list | length == 0
+          - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in docker_service_unit_lines"
+          - docker_service_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
           - "'ExecStop=/usr/bin/docker compose stop' in docker_service_unit_lines"
           - "'Restart=always' in docker_service_unit_lines"
-          - "'StartLimitBurst=5' in docker_service_unit_lines"
-          - "'StartLimitIntervalSec=600' in docker_service_unit_lines"
+          # Jamais d'abandon définitif (plus de StartLimitBurst).
+          - "'StartLimitIntervalSec=0' in docker_service_unit_lines"
+          - docker_service_unit_lines | select('match', '^StartLimitBurst=') | list | length == 0
+          # Debian 13 (systemd 257) : backoff exponentiel.
+          - "'RestartSteps=6' in docker_service_unit_lines"
+          - "'RestartMaxDelaySec=10min' in docker_service_unit_lines"
           # Unité user : default.target, pas multi-user.target (absente du
           # manager user), sinon rien ne démarre au boot.
           - "'WantedBy=default.target' in docker_service_unit_lines"
@@ -80,7 +87,9 @@
           - docker_service_instance.status.FragmentPath == docker_service_unit_path
           - docker_service_instance.status.NeedDaemonReload == 'no'
           - docker_service_instance.status.WorkingDirectory == docker_base_path ~ '/molecule'
-          - docker_service_instance.status.StartLimitBurst == '5'
+          - docker_service_instance.status.StartLimitIntervalUSec == '0'
+          - docker_service_instance.status.RestartMaxDelayUSec == '10min'
+          - docker_service_instance.status.JobRunningTimeoutUSec == '10min'
           - docker_service_instance.status.TimeoutStopUSec == '2min'
         fail_msg: >-
           dc@molecule : {{ docker_service_instance.status.LoadState }}

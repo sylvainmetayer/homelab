@@ -45,6 +45,14 @@ flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:1.4.0"
 flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:5699e82877fad674e5fce184ef166f86332d9d9cfddee725a7f00cb06a3d839b"
 # The image this instance runs; the demo overrides it with the main channel.
 flip_planning_image: "{{ flip_planning_image_release }}"
+# When compose pulls this instance's images (application and Keycloak). The
+# dc@ unit no longer pulls at every start, so that a registry outage at boot
+# cannot keep the application down: `missing` only fetches an image that is
+# not there yet, which is all an immutable reference needs (an X.Y.Z release,
+# a digest). An instance following a MOVING tag (the KC bench's pr-72) sets
+# `always`, so that a restart picks up the latest push, at the price of not
+# starting while the registry is unreachable.
+flip_planning_image_pull_policy: missing
 
 # Memory of the app container, and the JVM options that size its heap from it.
 # The solver's local search allocates relentlessly: with the JVM's default heap

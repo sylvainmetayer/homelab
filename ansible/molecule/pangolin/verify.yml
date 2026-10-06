@@ -40,6 +40,28 @@
           - pangolin_compose.services.keys() | sort == ['gerbil', 'pangolin', 'traefik']
           - pangolin_compose.services.traefik.network_mode == 'service:gerbil'
 
+    # Contenu du fichier lui-même : le drop-in de prepare.yml remplace
+    # ExecStart*, ExecStop, ExecReload et Restart à l'exécution.
+    - name: Read the pangolin.service unit file
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/pangolin.service
+      register: pangolin_unit_raw
+
+    - name: Assert pangolin.service survives a registry outage and transient failures
+      vars:
+        pangolin_unit_lines: "{{ (pangolin_unit_raw.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list | length == 0
+          - "'ExecStart=/usr/bin/docker compose up -d --pull missing --remove-orphans' in pangolin_unit_lines"
+          - "'Restart=on-failure' in pangolin_unit_lines"
+          - "'StartLimitIntervalSec=0' in pangolin_unit_lines"
+          - "'Wants=docker.service' in pangolin_unit_lines"
+          - "'Requires=docker.service' not in pangolin_unit_lines"
+          - "'ExecStop=/usr/bin/docker compose down' in pangolin_unit_lines"
+          - ('WorkingDirectory=' ~ pangolin_dir) in pangolin_unit_lines
+        fail_msg: /etc/systemd/system/pangolin.service inattendu
+
     # --- configuration Pangolin (porte le secret serveur) ---
 
     - name: Stat the Pangolin configuration

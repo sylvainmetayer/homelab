@@ -5,6 +5,7 @@ services:
     container_name: {{ flip_planning_container_prefix }}
     image: {{ flip_planning_image }}
     restart: unless-stopped
+    pull_policy: {{ flip_planning_image_pull_policy }}
     volumes:
       - ./backup:/backup
       - ./assets:/assets:ro
@@ -116,6 +117,7 @@ services:
     container_name: {{ flip_planning_container_prefix }}-keycloak
     image: {{ flip_planning_keycloak_image }}
     restart: unless-stopped
+    pull_policy: {{ flip_planning_image_pull_policy }}
     # `start`, not `start --optimized` as in the application's own compose
     # file: the image is pre-built for PostgreSQL, and the relative path is a
     # BUILD option — `--optimized` would refuse a value that differs from the
