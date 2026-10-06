@@ -78,6 +78,8 @@
           - nextcloud_borgmatic.match_archives == '*'
           - nextcloud_borgmatic.mysql_databases[0].container == 'nextcloud_db'
           - nextcloud_borgmatic.mysql_databases[0].password == nextcloud_db_password
+          # mariadb:lts n'a pas de mysqldump.
+          - nextcloud_borgmatic.mysql_databases[0].mysql_dump_command == 'docker exec --env MYSQL_PWD nextcloud_db mariadb-dump'
           - nextcloud_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-nextcloud-backup'
         fail_msg: "Configuration borgmatic de nextcloud inattendue : {{ nextcloud_borgmatic }}"
 

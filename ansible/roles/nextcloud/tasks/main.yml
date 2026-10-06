@@ -39,11 +39,14 @@
       - "{{ nextcloud_base_path }}/config"
       - "{{ nextcloud_base_path }}/data"
       - "{{ nextcloud_base_path }}/redis"
+    # Image officielle mariadb (11.x) : pas de mysqldump, seulement
+    # mariadb-dump.
     borgmatic_app_mysql_databases:
       - container: nextcloud_db
         name: nextcloud
         username: nextcloud
         password: "{{ nextcloud_db_password }}"
+        dump_command: mariadb-dump
     # Les archives de ce dépôt se sont appelées 'betisier-…' (copier-coller)
     # avant d'être renommées 'nextcloud-…'. Sans match_archives, borgmatic
     # dériverait 'sh:nextcloud-*' de archive_name_format et prune / check

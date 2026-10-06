@@ -62,7 +62,8 @@ In the app role's `tasks/main.yml`, after the compose/env templating:
         name: <db>
         username: <user>
         password: "{{ <service>_db_password }}"
-    borgmatic_app_mysql_databases: []        # same keys, mysqldump in the container
+    borgmatic_app_mysql_databases: []        # same keys (+ dump_command: mariadb-dump
+                                             # for the official mariadb image)
     borgmatic_app_sqlite_databases:          # globs, resolved at deploy time
       - "{{ <service>_base_path }}/data/*.db"
     borgmatic_app_exclude_patterns:          # absolute paths only
@@ -75,7 +76,9 @@ In the app role's `tasks/main.yml`, after the compose/env templating:
   dumped by the host's `sqlite3` (`.dump` reads in one transaction:
   consistent while the app runs), and their live copy (`-wal`, `-shm`,
   `-journal` too) is excluded. A database created after the deploy is picked
-  up on the next run of the role.
+  up on the next run of the role, a deleted one fails the backup until then.
+  `borgmatic restore` recreates a SQLite file as root: stop the app first and
+  `chown` the file back to its previous owner afterwards.
 - Other knobs (`borgmatic_app_archive_prefix`, `borgmatic_app_label`,
   `borgmatic_app_before_commands` / `_after_commands`,
   `borgmatic_app_extra_options`): see the borgmatic role defaults.

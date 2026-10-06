@@ -80,12 +80,18 @@ borgmatic_app_exclude_patterns: []
 # de la base n'a alors rien à faire dans les sources : copié à chaud, il
 # n'est pas cohérent.
 borgmatic_app_postgresql_databases: []
+# Entrées MySQL/MariaDB : dump_command en plus (mysqldump par défaut). L'image
+# officielle mariadb n'a plus que mariadb-dump depuis la 11.0 (les liens
+# mysql* sont dans mariadb-client-compat, qu'elle n'installe pas) ; celle de
+# linuxserver a les deux.
 borgmatic_app_mysql_databases: []
 # Globs (chemins absolus sur l'hôte) des bases SQLite de l'application,
 # résolus au déploiement. Chaque fichier trouvé qui est bien une base SQLite
 # est dumpé par le sqlite3 de l'hôte (« .dump » lit dans une seule
 # transaction : un instantané cohérent, même application démarrée), et sa
-# copie vivante (base, -wal, -shm, -journal) est exclue de l'archive.
+# copie vivante (base, -wal, -shm, -journal) est exclue de l'archive. Une
+# base supprimée après coup (son dossier avec elle) fait échouer le backup
+# jusqu'au déploiement suivant, qui la retire de la configuration.
 borgmatic_app_sqlite_databases: []
 # Commandes en plus des messages de début et de fin (hooks before/after
 # action, create seulement).
