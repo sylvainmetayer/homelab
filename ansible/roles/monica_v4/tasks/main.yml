@@ -43,9 +43,10 @@
     borgmatic_app_target: "{{ monica_v4_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ monica_v4_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ monica_v4_backup_healthcheck_url }}"
+    # Pas db_data : la base MariaDB n'héberge que la base monica, que le dump
+    # couvre ; copié à chaud, son dossier n'est pas cohérent.
     borgmatic_app_source_directories:
       - "{{ monica_v4_base_path }}/data"
-      - "{{ monica_v4_base_path }}/db_data"
       - "{{ monica_v4_base_path }}/compose.yaml"
       - "{{ monica_v4_base_path }}/.env"
     borgmatic_app_mysql_databases:

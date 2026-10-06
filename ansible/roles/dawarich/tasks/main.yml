@@ -56,8 +56,9 @@
     borgmatic_app_target: "{{ dawarich_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ dawarich_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ dawarich_backup_healthcheck_url }}"
+    # Pas postgresql : la base de Dawarich (seule base du serveur) est
+    # dumpée ; copié à chaud, son dossier de données n'est pas cohérent.
     borgmatic_app_source_directories:
-      - "{{ dawarich_base_path }}/postgresql"
       - "{{ dawarich_base_path }}/redis"
       - "{{ dawarich_base_path }}/public"
       - "{{ dawarich_base_path }}/watched"
