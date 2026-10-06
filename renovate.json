@@ -13,6 +13,24 @@
       "pinDigests": true
     },
     {
+      "description": "Stateful images: a MAJOR upgrade changes the on-disk format of the data they keep. PostgreSQL (and postgis, Immich's postgres) refuses to start on a data directory of the previous major (scanopy 17 -> 18 would have left it down: dump/restore or pg_upgrade first); MariaDB/MySQL need mariadb-upgrade and have no way back; Meilisearch needs a dump/import; Redis/Valkey change their RDB/AOF format. Renovate only lists these on the Dependency Dashboard and opens the PR once its box is ticked, so a migration is planned instead of merged as a routine bump. Minor, patch and digest updates are unaffected. Regexes because the same image is written docker.io/postgres, docker.io/library/postgres or postgres depending on the compose file",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^(docker\\.io/)?(library/)?(postgres|mariadb|mysql|redis)$/",
+        "/^(docker\\.io/)?postgis/postgis$/",
+        "/^((docker\\.io|lscr\\.io|ghcr\\.io)/)?linuxserver/mariadb$/",
+        "/^(docker\\.io/)?valkey/valkey$/",
+        "/^(docker\\.io/)?getmeili/meilisearch$/",
+        "ghcr.io/immich-app/postgres"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
       "description": "Group all Pangolin role dependencies together",
       "groupName": "pangolin-role-dependencies",
       "matchFileNames": [
