@@ -18,6 +18,8 @@
           - monica_v4_db
         verify_compose_healthy_dependencies:
           - { service: crm, dependency: monica_v4_db }
+        verify_compose_internal_networks:
+          - monica
 
     # L'image apache de Monica écrit son stockage en www-data.
     - name: Stat the Monica v4 storage folder

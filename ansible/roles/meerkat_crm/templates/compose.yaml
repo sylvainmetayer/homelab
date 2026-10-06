@@ -34,6 +34,8 @@ services:
       backend:
         condition: service_healthy
 
+# Pas `internal: true` : le backend, sur ce seul réseau, envoie les rappels
+# par SMTP (mail.infomaniak.com, cf. env.docker.j2).
 networks:
   meerkat_crm:
   newt:

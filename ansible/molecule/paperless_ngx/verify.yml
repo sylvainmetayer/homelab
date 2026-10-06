@@ -24,6 +24,8 @@
         verify_compose_healthy_dependencies:
           - { service: webserver, dependency: db }
           - { service: webserver, dependency: broker }
+        verify_compose_internal_networks:
+          - paperless
 
     - name: Read the paperless compose file
       ansible.builtin.slurp:

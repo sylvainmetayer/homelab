@@ -98,6 +98,8 @@
         verify_compose_healthy_dependencies:
           - { service: app, dependency: postgres }
           - { service: keycloak, dependency: keycloak-db }
+        verify_compose_internal_networks:
+          - demo-planning-kc-keycloak
 
     - name: Read the effective compose model of demo_planning_kc
       ansible.builtin.command: docker compose config --format json

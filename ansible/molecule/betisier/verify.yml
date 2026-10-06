@@ -18,6 +18,8 @@
           - betisier_db
         verify_compose_healthy_dependencies:
           - { service: betisier, dependency: betisier_db }
+        verify_compose_internal_networks:
+          - betisier
 
     # La base n'a pas de volume : elle est rechargée depuis ce dump à chaque
     # démarrage, et sauvegardée avec.
