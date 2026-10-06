@@ -96,8 +96,9 @@ override_data {
 
 # Les identifiants des règles sont des attributs calculés : sans valeur fixe,
 # le mock leur donne à toutes la même valeur et l'audit d'inventaire ne
-# comparerait rien. Une instance for_each ne peut pas être surchargée seule,
-# d'où un identifiant commun à toutes les règles pays PASS, et un autre aux DROP.
+# comparerait rien. Une surcharge sans clé vise toutes les instances d'un
+# for_each : un identifiant commun à toutes les règles pays PASS, un autre aux
+# DROP.
 override_resource {
   target = pangolin_resource_rule.allow_countries
   values = { id = 1010 }
@@ -123,7 +124,7 @@ override_resource {
   values = { id = 2006 }
 }
 
-# Un identifiant commun à toutes les instances, comme pour les autres for_each.
+# Un identifiant commun à toutes les instances, comme pour les règles pays.
 override_resource {
   target = pangolin_resource_rule.backslash_guard
   values = { id = 2008 }

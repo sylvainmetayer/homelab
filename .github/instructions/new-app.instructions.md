@@ -89,8 +89,9 @@ make sure no default under the same name exists in `group_vars`/`host_vars`.
 ## 6. Pangolin routing
 
 See `.github/instructions/pangolin-route.instructions.md` for
-`tofu/pangolin_config/roles.tf` + `tofu/pangolin_config/website_<service>.tf`.
-Pay special attention to its two documented pitfalls (missing `hc_hostname`,
+`tofu/pangolin_config/roles.tf` + `tofu/pangolin_config/website_<service>.tf`
+(an entry of `local.websites`, listed in `websites.tf`, which generates the
+resource, target and monitors). Pay special attention to its two documented pitfalls (missing `hc_hostname`,
 target `priority` ordering) — both come from real bugs shipped in this repo.
 
 ## 7. Apply and deploy, in this order

@@ -103,12 +103,17 @@ password, API keys, its own `_backup_healthcheck_url`), remove them via
 
 ## 6. Remove Pangolin/Tofu routing
 
-Everything the `pangolin-route` skill creates for a service (`pangolin_resource`,
-`pangolin_resource_role`, `pangolin_target`, `pangolin_resource_access_token`,
-`uptimekuma_monitor_http`, `uptimekuma_monitor_push`, plus the two Terraform
-outputs) lives in one file, so removal is two edits + an apply:
+Everything the `pangolin-route` skill creates for a service (its
+`local.<service>_website` entry, from which `websites.tf` generates the
+`pangolin_resource`, `pangolin_resource_role`, `pangolin_target`(s),
+`pangolin_resource_access_token`, `uptimekuma_monitor_http_keyword` and
+`uptimekuma_monitor_push`, plus its path rules and the two Terraform outputs)
+lives in one file and one line, so removal is three edits + an apply:
 
 - Delete `tofu/pangolin_config/website_<service>.tf` in full.
+- Remove its `<service> = local.<service>_website` line from `local.websites`
+  in `tofu/pangolin_config/websites.tf`, and its entry from
+  `local.path_bypasses` in `rules.tf` if it had path rules.
 - Remove the service's kebab-case slug from the `apps` list in
   `tofu/pangolin_config/roles.tf`'s `locals` block (this destroys its
   `pangolin_role`, which also revokes any SSO/user access to it — nothing
@@ -125,9 +130,10 @@ tofu apply
 tofu state list | grep <service>   # should print nothing once applied
 ```
 
-Two things you don't need to touch, for context: `rules.tf`'s country-allow
-rules are generated with `for_each` over `data.pangolin_resources.all.resources`,
-so they disappear automatically once the resource is destroyed; and
+Two things you don't need to touch, for context: `rules.tf`'s country rules
+are generated with `for_each` over `local.managed_resources`, itself derived
+from `local.websites`, so they disappear automatically once the resource is
+destroyed; and
 `tofu/dns/pangolin.tf` is a single wildcard (`subdomain = "*"`) record, not
 per-app, so there's no DNS record to remove either.
 

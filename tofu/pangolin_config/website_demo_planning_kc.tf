@@ -3,42 +3,73 @@
 # domain in HTTPS (passkeys need it) with its own Keycloak on the /auth
 # sub-path. Deployed by the same Ansible role (ansible/flip.yml). Same shape as
 # website_demo_planning.tf, minus what a test bench does not need: no MCP
-# bypass, no backup push monitor. Torn down with the remove-app skill once the
-# pull request is merged.
-resource "pangolin_resource" "demo_planning_kc" {
-  name        = "Demo Planning KC"
-  subdomain   = "demo-planning-kc"
-  domain_id   = local.domain_ids["sylvain.dev"]
-  protocol    = "tcp"
-  sso         = true
-  apply_rules = true
+# bypass, no healthcheck, no backup push monitor. Torn down with the
+# remove-app skill once the pull request is merged.
+#
+# Resource and targets: local.websites (websites.tf). Same as the other two
+# resources, `headers` is ignored: the provider cannot round-trip an emptied
+# header list, so the attribute is never sent.
+locals {
+  demo_planning_kc_website = {
+    name        = "Demo Planning KC"
+    subdomain   = "demo-planning-kc"
+    domain_id   = local.domain_ids["sylvain.dev"]
+    role        = "demo-planning-kc"
+    healthcheck = false
 
-  # Optional+computed: pinned so a plan can disagree with the API. See
-  # resource_defaults.tf.
-  mode                    = local.resource_pins.mode
-  ssl                     = local.resource_pins.ssl
-  enabled                 = local.resource_pins.enabled
-  block_access            = local.resource_pins.block_access
-  email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
-  sticky_session          = local.resource_pins.sticky_session
+    # Catch-all target, must have a lower priority than the sub-path ones.
+    target = {
+      site_id  = pangolin_site.flip.id
+      ip       = "demo-planning-kc"
+      port     = 8080
+      path     = "/"
+      priority = 1
+    }
 
-  # Maintenance screen served automatically while no target is healthy.
-  # See maintenance.tf.
-  maintenance_mode_enabled = local.maintenance.enabled
-  maintenance_mode_type    = local.maintenance.type
-  maintenance_title        = local.maintenance.title
-  maintenance_message      = local.maintenance.message
+    sub_targets = {
+      pgadmin = {
+        site_id  = pangolin_site.flip.id
+        ip       = "demo-planning-kc-pgadmin"
+        port     = 80
+        path     = "/db"
+        priority = 2
+        hc_path  = "/db/misc/ping"
+      }
 
-  # Same reason as the other two resources: the provider cannot round-trip an
-  # emptied header list, so the attribute is never sent.
-  lifecycle {
-    ignore_changes = [headers]
+      # Mailpit catches what BOTH the application and Keycloak send —
+      # invitations, sign-in codes, resets — so /mail is where a tester reads
+      # them. Behind the SSO, like the rest.
+      mailpit = {
+        site_id  = pangolin_site.flip.id
+        ip       = "demo-planning-kc-mailpit"
+        port     = 8025
+        path     = "/mail"
+        priority = 3
+        hc_path  = "/mail/livez"
+      }
+
+      assets = {
+        site_id  = pangolin_site.flip.id
+        ip       = "demo-planning-kc-assets"
+        port     = 80
+        path     = "/assets"
+        priority = 4
+      }
+
+      # Keycloak, on /auth. Its health endpoints live on the management port
+      # (9000), which KC_HTTP_RELATIVE_PATH prefixes too: /auth/health/ready,
+      # not /health/ready.
+      keycloak = {
+        site_id  = pangolin_site.flip.id
+        ip       = "demo-planning-kc-keycloak"
+        port     = 8080
+        path     = "/auth"
+        priority = 5
+        hc_port  = 9000
+        hc_path  = "/auth/health/ready"
+      }
+    }
   }
-}
-
-resource "pangolin_resource_role" "demo_planning_kc" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  role_id     = pangolin_role.apps["demo-planning-kc"].id
 }
 
 # ---------------------------------------------------------------------------
@@ -71,144 +102,4 @@ locals {
   demo_planning_kc_keycloak_paths = {
     "/auth/*" = 2
   }
-}
-
-resource "pangolin_target" "demo_planning_kc" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  site_id     = pangolin_site.flip.id
-  ip          = "demo-planning-kc"
-  port        = 8080
-  method      = "http"
-
-  # Catch-all target, must have a lower priority than the sub-path ones.
-  path            = "/"
-  path_match_type = "prefix"
-  priority        = 1
-
-  # All three of hc_scheme / hc_mode / hc_port are sent explicitly: Pangolin
-  # stores them as NULL otherwise and the probe never succeeds. See the
-  # production file.
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "demo-planning-kc"
-  hc_port                = 8080
-  hc_path                = "/"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-resource "pangolin_target" "demo_planning_kc_pgadmin" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  site_id     = pangolin_site.flip.id
-  ip          = "demo-planning-kc-pgadmin"
-  port        = 80
-  method      = "http"
-
-  path            = "/db"
-  path_match_type = "prefix"
-  priority        = 2
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "demo-planning-kc-pgadmin"
-  hc_port                = 80
-  hc_path                = "/db/misc/ping"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-# Mailpit catches what BOTH the application and Keycloak send — invitations,
-# sign-in codes, resets — so /mail is where a tester reads them. Behind the
-# SSO, like the rest.
-resource "pangolin_target" "demo_planning_kc_mailpit" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  site_id     = pangolin_site.flip.id
-  ip          = "demo-planning-kc-mailpit"
-  port        = 8025
-  method      = "http"
-
-  path            = "/mail"
-  path_match_type = "prefix"
-  priority        = 3
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "demo-planning-kc-mailpit"
-  hc_port                = 8025
-  hc_path                = "/mail/livez"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-resource "pangolin_target" "demo_planning_kc_assets" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  site_id     = pangolin_site.flip.id
-  ip          = "demo-planning-kc-assets"
-  port        = 80
-  method      = "http"
-
-  path            = "/assets"
-  path_match_type = "prefix"
-  priority        = 4
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "demo-planning-kc-assets"
-  hc_port                = 80
-  hc_path                = "/"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-# Keycloak, on /auth. Its health endpoints live on the management port (9000),
-# which KC_HTTP_RELATIVE_PATH prefixes too: /auth/health/ready, not
-# /health/ready.
-resource "pangolin_target" "demo_planning_kc_keycloak" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  site_id     = pangolin_site.flip.id
-  ip          = "demo-planning-kc-keycloak"
-  port        = 8080
-  method      = "http"
-
-  path            = "/auth"
-  path_match_type = "prefix"
-  priority        = 5
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "demo-planning-kc-keycloak"
-  hc_port                = 9000
-  hc_path                = "/auth/health/ready"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
 }

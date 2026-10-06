@@ -98,8 +98,9 @@ override_data {
 
 # Les identifiants des règles sont des attributs calculés : sans valeur fixe,
 # le mock leur donne à toutes la même valeur et l'audit d'inventaire ne
-# comparerait rien. Une instance for_each ne peut pas être surchargée seule,
-# d'où un identifiant commun à toutes les règles pays PASS, et un autre aux DROP.
+# comparerait rien. Une surcharge sans clé vise toutes les instances d'un
+# for_each : un identifiant commun à toutes les règles pays PASS, un autre aux
+# DROP.
 override_resource {
   target = pangolin_resource_rule.allow_countries
   values = { id = 1010 }
@@ -125,7 +126,7 @@ override_resource {
   values = { id = 2006 }
 }
 
-# Un identifiant commun à toutes les instances, comme pour les autres for_each.
+# Un identifiant commun à toutes les instances, comme pour les règles pays.
 override_resource {
   target = pangolin_resource_rule.backslash_guard
   values = { id = 2008 }
@@ -291,126 +292,129 @@ override_resource {
   values = { id = 5, newt_id = "newt-flip", newt_secret = "secret-flip" }
 }
 
-# Ressources publiques : un identifiant par ressource, ceux de l'API quand un
-# commentaire du code les cite (Proxmox 4, NAS 75).
+# Ressources publiques : un identifiant par instance de pangolin_resource.website
+# (une surcharge peut viser une seule instance d'un for_each, vérifié sur
+# OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite
+# (Proxmox 4, NAS 75).
 override_resource {
-  target = pangolin_resource.betisier
+  target = pangolin_resource.website["betisier"]
   values = { id = 21 }
 }
 
 override_resource {
-  target = pangolin_resource.dawarich
+  target = pangolin_resource.website["dawarich"]
   values = { id = 60 }
 }
 
 override_resource {
-  target = pangolin_resource.demo_planning
+  target = pangolin_resource.website["demo_planning"]
   values = { id = 81, full_domain = "demo-planning.sylvain.dev" }
 }
 
 override_resource {
-  target = pangolin_resource.demo_planning_kc
+  target = pangolin_resource.website["demo_planning_kc"]
   values = { id = 82, full_domain = "demo-planning-kc.sylvain.dev" }
 }
 
 override_resource {
-  target = pangolin_resource.echo
+  target = pangolin_resource.website["echo"]
   values = { id = 22 }
 }
 
 override_resource {
-  target = pangolin_resource.flip_planning
+  target = pangolin_resource.website["flip_planning"]
   values = { id = 80, full_domain = "flip-planning.sylvain.cloud" }
 }
 
 override_resource {
-  target = pangolin_resource.gramps
+  target = pangolin_resource.website["gramps"]
   values = { id = 55 }
 }
 
 override_resource {
-  target = pangolin_resource.immich
+  target = pangolin_resource.website["immich"]
   values = { id = 10 }
 }
 
 override_resource {
-  target = pangolin_resource.immich_swipe
+  target = pangolin_resource.website["immich_swipe"]
   values = { id = 23 }
 }
 
 override_resource {
-  target = pangolin_resource.karakeep
+  target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
 
 override_resource {
-  target = pangolin_resource.meerkat_crm
+  target = pangolin_resource.website["meerkat_crm"]
   values = { id = 30 }
 }
 
 override_resource {
-  target = pangolin_resource.monica
+  target = pangolin_resource.website["monica"]
   values = { id = 31 }
 }
 
 override_resource {
-  target = pangolin_resource.nas
+  target = pangolin_resource.website["nas"]
   values = { id = 75 }
 }
 
 override_resource {
-  target = pangolin_resource.nextcloud
+  target = pangolin_resource.website["nextcloud"]
   values = { id = 11 }
 }
 
 override_resource {
-  target = pangolin_resource.paperless
+  target = pangolin_resource.website["paperless"]
   values = { id = 40 }
 }
 
 override_resource {
-  target = pangolin_resource.proxmox
+  target = pangolin_resource.website["proxmox"]
   values = { id = 4 }
 }
 
 override_resource {
-  target = pangolin_resource.rss
+  target = pangolin_resource.website["rss"]
   values = { id = 32 }
 }
 
 override_resource {
-  target = pangolin_resource.scanopy
+  target = pangolin_resource.website["scanopy"]
   values = { id = 56 }
 }
 
 override_resource {
-  target = pangolin_resource.searxng
+  target = pangolin_resource.website["searxng"]
   values = { id = 41 }
 }
 
 override_resource {
-  target = pangolin_resource.trek
+  target = pangolin_resource.website["trek"]
   values = { id = 61, full_domain = "travels.sylvain.cloud" }
 }
 
 override_resource {
-  target = pangolin_resource.wiki
+  target = pangolin_resource.website["wiki"]
   values = { id = 33 }
 }
 
-# Jetons d'accès des healthchecks de Flip Planning : un par environnement.
+# Jetons d'accès : ceux des clients MCP de TREK, et ceux des healthchecks de
+# Flip Planning, un par environnement.
 override_resource {
   target = pangolin_resource_access_token.trek_mcp_clients
   values = { id = "tok-trek-mcp", token = "jeton-trek-mcp" }
 }
 
 override_resource {
-  target = pangolin_resource_access_token.flip_planning
+  target = pangolin_resource_access_token.healthcheck["flip_planning"]
   values = { id = "tok-flip-planning", token = "jeton-flip-planning" }
 }
 
 override_resource {
-  target = pangolin_resource_access_token.demo_planning
+  target = pangolin_resource_access_token.healthcheck["demo_planning"]
   values = { id = "tok-demo-planning", token = "jeton-demo-planning" }
 }
 
@@ -430,45 +434,47 @@ override_resource {
   values = { id = 12 }
 }
 
-# Jetons push : un par moniteur, pour prouver que chaque sortie lue par Ansible
-# pointe sur SON moniteur (la démo a déjà poussé sur celui de la production).
+# Jetons push : un par moniteur (une surcharge par instance de
+# uptimekuma_monitor_push.backup), pour prouver que chaque sortie lue par
+# Ansible pointe sur SON moniteur (la démo a déjà poussé sur celui de la
+# production).
 override_resource {
-  target = uptimekuma_monitor_push.backup_betisier
+  target = uptimekuma_monitor_push.backup["betisier"]
   values = { push_token = "push-betisier" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_dawarich
+  target = uptimekuma_monitor_push.backup["dawarich"]
   values = { push_token = "push-dawarich" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_demo_planning
+  target = uptimekuma_monitor_push.backup["demo_planning"]
   values = { push_token = "push-demo-planning" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_flip_planning
+  target = uptimekuma_monitor_push.backup["flip_planning"]
   values = { push_token = "push-flip-planning" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_gramps
+  target = uptimekuma_monitor_push.backup["gramps"]
   values = { push_token = "push-gramps" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_immich
+  target = uptimekuma_monitor_push.backup["immich"]
   values = { push_token = "push-immich" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_meerkat_crm
+  target = uptimekuma_monitor_push.backup["meerkat_crm"]
   values = { push_token = "push-meerkat-crm" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_monica
+  target = uptimekuma_monitor_push.backup["monica"]
   values = { push_token = "push-monica" }
 }
 
@@ -478,7 +484,7 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_nextcloud
+  target = uptimekuma_monitor_push.backup["nextcloud"]
   values = { push_token = "push-nextcloud" }
 }
 
@@ -488,37 +494,37 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_paperless
+  target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_rss
+  target = uptimekuma_monitor_push.backup["rss"]
   values = { push_token = "push-rss" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_scanopy
+  target = uptimekuma_monitor_push.backup["scanopy"]
   values = { push_token = "push-scanopy" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_searxng
+  target = uptimekuma_monitor_push.backup["searxng"]
   values = { push_token = "push-searxng" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_trek
+  target = uptimekuma_monitor_push.backup["trek"]
   values = { push_token = "push-trek" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_karakeep
+  target = uptimekuma_monitor_push.backup["karakeep"]
   values = { push_token = "push-karakeep" }
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup_wiki
+  target = uptimekuma_monitor_push.backup["wiki"]
   values = { push_token = "push-wiki" }
 }
 
@@ -531,46 +537,16 @@ override_resource {
 # scanopy, la sonde ne pouvait jamais réussir et les deux sites ont servi
 # "no available server" pendant que `tofu plan` ne voyait rien.
 #
-# La liste compte autant de cibles que le module déclare de sondes actives
-# (`hc_enabled = true`) : une sonde ajoutée sans être listée ici fait échouer
-# le run au lieu de passer inaperçue.
+# Les cibles des applications sont les instances de pangolin_target.website
+# (websites.tf), plus celle de Proxmox, recopiée de l'API ; seule celle du NAS
+# n'a pas de sonde. Les clés sont les anciens noms des ressources, ceux que
+# moved.tf vise : une clé qui change recréerait la cible.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
   assert {
     condition = alltrue([
-      for t in [
-        pangolin_target.betisier,
-        pangolin_target.dawarich,
-        pangolin_target.demo_planning,
-        pangolin_target.demo_planning_pgadmin,
-        pangolin_target.demo_planning_mailpit,
-        pangolin_target.demo_planning_assets,
-        pangolin_target.demo_planning_kc,
-        pangolin_target.demo_planning_kc_pgadmin,
-        pangolin_target.demo_planning_kc_mailpit,
-        pangolin_target.demo_planning_kc_assets,
-        pangolin_target.demo_planning_kc_keycloak,
-        pangolin_target.echo,
-        pangolin_target.flip_planning,
-        pangolin_target.flip_planning_pgadmin,
-        pangolin_target.flip_planning_mailpit,
-        pangolin_target.flip_planning_assets,
-        pangolin_target.gramps,
-        pangolin_target.immich,
-        pangolin_target.immich_swipe,
-        pangolin_target.karakeep,
-        pangolin_target.meerkat_crm,
-        pangolin_target.monica,
-        pangolin_target.nextcloud,
-        pangolin_target.paperless,
-        pangolin_target.proxmox,
-        pangolin_target.rss,
-        pangolin_target.scanopy,
-        pangolin_target.searxng,
-        pangolin_target.trek,
-        pangolin_target.wiki,
-      ] :
+      for t in concat(values(pangolin_target.website), [pangolin_target.proxmox]) :
       t.hc_enabled == true
       && contains(["http", "https"], t.hc_scheme)
       && t.hc_mode == "http"
@@ -580,98 +556,34 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   }
 
   assert {
-    condition = length([
-      pangolin_target.betisier,
-      pangolin_target.dawarich,
-      pangolin_target.demo_planning,
-      pangolin_target.demo_planning_pgadmin,
-      pangolin_target.demo_planning_mailpit,
-      pangolin_target.demo_planning_assets,
-      pangolin_target.demo_planning_kc,
-      pangolin_target.demo_planning_kc_pgadmin,
-      pangolin_target.demo_planning_kc_mailpit,
-      pangolin_target.demo_planning_kc_assets,
-      pangolin_target.demo_planning_kc_keycloak,
-      pangolin_target.echo,
-      pangolin_target.flip_planning,
-      pangolin_target.flip_planning_pgadmin,
-      pangolin_target.flip_planning_mailpit,
-      pangolin_target.flip_planning_assets,
-      pangolin_target.gramps,
-      pangolin_target.immich,
-      pangolin_target.immich_swipe,
-      pangolin_target.karakeep,
-      pangolin_target.meerkat_crm,
-      pangolin_target.monica,
-      pangolin_target.nextcloud,
-      pangolin_target.paperless,
-      pangolin_target.proxmox,
-      pangolin_target.rss,
-      pangolin_target.scanopy,
-      pangolin_target.searxng,
-      pangolin_target.trek,
-      pangolin_target.wiki,
-      ]) == length(flatten([
-        for f in fileset(path.module, "*.tf") :
-        regexall("hc_enabled\\s*=\\s*true", file("${path.module}/${f}"))
-    ]))
-    error_message = "Le module déclare une sonde active qui manque à la liste de ce run (ou la liste en compte une de trop)."
+    condition = toset(keys(pangolin_target.website)) == toset([
+      "betisier", "dawarich", "echo", "gramps", "immich", "immich_swipe", "karakeep",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "rss", "scanopy", "searxng", "trek", "wiki",
+      "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
+      "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
+      "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
+      "demo_planning_kc_keycloak",
+    ])
+    error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (moved.tf), et une nouvelle cible être listée ici."
+  }
+
+  assert {
+    condition     = pangolin_target.nas.hc_enabled == false
+    error_message = "La cible du NAS est la seule sans sonde, recopiée de l'API (website_nas.tf)."
   }
 }
 
 # hc_hostname explicite et égal à `ip` : la sonde envoie le bon Host au bon
-# conteneur. Le provider ne le déduit pas de `ip`. Même liste que le run
-# précédent, qui la tient complète.
+# conteneur. Le provider ne le déduit pas de `ip`.
 run "probed_targets_set_hc_hostname_to_their_ip" {
   command = plan
 
   assert {
     condition = alltrue([
-      for t in [
-        pangolin_target.betisier,
-        pangolin_target.dawarich,
-        pangolin_target.demo_planning,
-        pangolin_target.demo_planning_pgadmin,
-        pangolin_target.demo_planning_mailpit,
-        pangolin_target.demo_planning_assets,
-        pangolin_target.demo_planning_kc,
-        pangolin_target.demo_planning_kc_pgadmin,
-        pangolin_target.demo_planning_kc_mailpit,
-        pangolin_target.demo_planning_kc_assets,
-        pangolin_target.demo_planning_kc_keycloak,
-        pangolin_target.echo,
-        pangolin_target.flip_planning,
-        pangolin_target.flip_planning_pgadmin,
-        pangolin_target.flip_planning_mailpit,
-        pangolin_target.flip_planning_assets,
-        pangolin_target.gramps,
-        pangolin_target.immich,
-        pangolin_target.immich_swipe,
-        pangolin_target.karakeep,
-        pangolin_target.meerkat_crm,
-        pangolin_target.monica,
-        pangolin_target.nextcloud,
-        pangolin_target.paperless,
-        pangolin_target.proxmox,
-        pangolin_target.rss,
-        pangolin_target.scanopy,
-        pangolin_target.searxng,
-        pangolin_target.trek,
-        pangolin_target.wiki,
-      ] : t.hc_hostname == t.ip
+      for t in concat(values(pangolin_target.website), [pangolin_target.proxmox]) :
+      t.hc_hostname == t.ip
     ])
     error_message = "Une cible a un hc_hostname absent ou différent de son ip."
-  }
-
-  # Filet par fichier, indépendant de la liste : au moins autant de
-  # hc_hostname que de sondes actives.
-  assert {
-    condition = alltrue([
-      for f in fileset(path.module, "website_*.tf") :
-      length(regexall("hc_enabled\\s*=\\s*true", file("${path.module}/${f}")))
-      <= length(regexall("hc_hostname\\s*=", file("${path.module}/${f}")))
-    ])
-    error_message = "Un website_*.tf déclare une sonde (hc_enabled = true) sans hc_hostname."
   }
 }
 
@@ -683,13 +595,13 @@ run "catch_all_target_has_lowest_priority" {
 
   assert {
     condition = (
-      pangolin_target.flip_planning.path == "/"
+      pangolin_target.website["flip_planning"].path == "/"
       && alltrue([
         for t in [
-          pangolin_target.flip_planning_pgadmin,
-          pangolin_target.flip_planning_mailpit,
-          pangolin_target.flip_planning_assets,
-        ] : t.path != "/" && t.priority > pangolin_target.flip_planning.priority
+          pangolin_target.website["flip_planning_pgadmin"],
+          pangolin_target.website["flip_planning_mailpit"],
+          pangolin_target.website["flip_planning_assets"],
+        ] : t.path != "/" && t.priority > pangolin_target.website["flip_planning"].priority
       ])
     )
     error_message = "Flip Planning : la cible \"/\" doit avoir une priorité plus basse que /db, /mail et /assets."
@@ -697,13 +609,13 @@ run "catch_all_target_has_lowest_priority" {
 
   assert {
     condition = (
-      pangolin_target.demo_planning.path == "/"
+      pangolin_target.website["demo_planning"].path == "/"
       && alltrue([
         for t in [
-          pangolin_target.demo_planning_pgadmin,
-          pangolin_target.demo_planning_mailpit,
-          pangolin_target.demo_planning_assets,
-        ] : t.path != "/" && t.priority > pangolin_target.demo_planning.priority
+          pangolin_target.website["demo_planning_pgadmin"],
+          pangolin_target.website["demo_planning_mailpit"],
+          pangolin_target.website["demo_planning_assets"],
+        ] : t.path != "/" && t.priority > pangolin_target.website["demo_planning"].priority
       ])
     )
     error_message = "Demo Planning : la cible \"/\" doit avoir une priorité plus basse que /db, /mail et /assets."
@@ -711,14 +623,14 @@ run "catch_all_target_has_lowest_priority" {
 
   assert {
     condition = (
-      pangolin_target.demo_planning_kc.path == "/"
+      pangolin_target.website["demo_planning_kc"].path == "/"
       && alltrue([
         for t in [
-          pangolin_target.demo_planning_kc_pgadmin,
-          pangolin_target.demo_planning_kc_mailpit,
-          pangolin_target.demo_planning_kc_assets,
-          pangolin_target.demo_planning_kc_keycloak,
-        ] : t.path != "/" && t.priority > pangolin_target.demo_planning_kc.priority
+          pangolin_target.website["demo_planning_kc_pgadmin"],
+          pangolin_target.website["demo_planning_kc_mailpit"],
+          pangolin_target.website["demo_planning_kc_assets"],
+          pangolin_target.website["demo_planning_kc_keycloak"],
+        ] : t.path != "/" && t.priority > pangolin_target.website["demo_planning_kc"].priority
       ])
     )
     error_message = "Demo Planning KC : la cible \"/\" doit avoir une priorité plus basse que /db, /mail, /assets et /auth."
@@ -728,23 +640,23 @@ run "catch_all_target_has_lowest_priority" {
     condition = alltrue([
       for group in [
         [
-          pangolin_target.flip_planning,
-          pangolin_target.flip_planning_pgadmin,
-          pangolin_target.flip_planning_mailpit,
-          pangolin_target.flip_planning_assets,
+          pangolin_target.website["flip_planning"],
+          pangolin_target.website["flip_planning_pgadmin"],
+          pangolin_target.website["flip_planning_mailpit"],
+          pangolin_target.website["flip_planning_assets"],
         ],
         [
-          pangolin_target.demo_planning,
-          pangolin_target.demo_planning_pgadmin,
-          pangolin_target.demo_planning_mailpit,
-          pangolin_target.demo_planning_assets,
+          pangolin_target.website["demo_planning"],
+          pangolin_target.website["demo_planning_pgadmin"],
+          pangolin_target.website["demo_planning_mailpit"],
+          pangolin_target.website["demo_planning_assets"],
         ],
         [
-          pangolin_target.demo_planning_kc,
-          pangolin_target.demo_planning_kc_pgadmin,
-          pangolin_target.demo_planning_kc_mailpit,
-          pangolin_target.demo_planning_kc_assets,
-          pangolin_target.demo_planning_kc_keycloak,
+          pangolin_target.website["demo_planning_kc"],
+          pangolin_target.website["demo_planning_kc_pgadmin"],
+          pangolin_target.website["demo_planning_kc_mailpit"],
+          pangolin_target.website["demo_planning_kc_assets"],
+          pangolin_target.website["demo_planning_kc_keycloak"],
         ],
       ] :
       length(distinct([for t in group : t.priority])) == length(group)
@@ -1240,7 +1152,7 @@ run "karakeep_clients_use_access_tokens_not_a_bypass" {
   command = plan
 
   assert {
-    condition     = pangolin_resource.karakeep.sso == true
+    condition     = pangolin_resource.website["karakeep"].sso == true
     error_message = "Karakeep doit rester derrière le mur SSO de Pangolin."
   }
 
@@ -1252,7 +1164,7 @@ run "karakeep_clients_use_access_tokens_not_a_bypass" {
   assert {
     condition = alltrue([
       for token in pangolin_resource_access_token.karakeep_clients :
-      token.resource_id == pangolin_resource.karakeep.id
+      token.resource_id == pangolin_resource.website["karakeep"].id
     ])
     error_message = "Les jetons des clients de Karakeep doivent viser la ressource Karakeep."
   }
@@ -1270,7 +1182,7 @@ run "trek_mcp_clients_use_access_tokens" {
   command = plan
 
   assert {
-    condition     = pangolin_resource.trek.sso == true
+    condition     = pangolin_resource.website["trek"].sso == true
     error_message = "TREK doit rester derrière le mur SSO de Pangolin."
   }
 
@@ -1282,7 +1194,7 @@ run "trek_mcp_clients_use_access_tokens" {
   assert {
     condition = alltrue([
       for token in pangolin_resource_access_token.trek_mcp_clients :
-      token.resource_id == pangolin_resource.trek.id
+      token.resource_id == pangolin_resource.website["trek"].id
     ])
     error_message = "Les jetons des clients MCP doivent viser la ressource TREK."
   }
@@ -1359,59 +1271,40 @@ run "every_public_resource_applies_its_rules" {
   command = plan
 
   assert {
-    condition = alltrue([
-      for r in [
-        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-        pangolin_resource.wiki,
-      ] : r.apply_rules == true
-    ])
+    condition     = alltrue([for r in pangolin_resource.website : r.apply_rules == true])
     error_message = "Une ressource publique a apply_rules = false : ses règles pays existent mais ne sont pas évaluées."
   }
 
   # Une ressource sans SSO n'a que son application pour la protéger. La liste
   # est fermée : en ajouter une est une décision, pas un oubli.
   assert {
-    condition = toset([
-      for r in [
-        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-        pangolin_resource.wiki,
-      ] : r.name if r.sso == false
-    ]) == toset(["Betisier"])
+    condition     = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == toset(["Betisier"])
     error_message = "La seule ressource sans SSO doit être Betisier."
   }
 
-  # Les deux listes ci-dessus ne voient pas une ressource ajoutée plus tard :
-  # chaque `resource "pangolin_resource"` du module doit être une entrée de
-  # local.managed_resources, et la liste doit les nommer toutes.
+  # Toutes les ressources publiques sont des instances de
+  # pangolin_resource.website : aucune n'échappe aux épinglages, à la page de
+  # maintenance ni à local.managed_resources, qui en est dérivée.
   assert {
     condition = (
       length(flatten([
         for f in fileset(path.module, "*.tf") :
         regexall("resource\\s+\"pangolin_resource\"\\s+\"", file("${path.module}/${f}"))
-      ])) == length(local.managed_resources)
-      && toset([
-        for r in [
-          pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-          pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-          pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-          pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-          pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-          pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-          pangolin_resource.wiki,
-        ] : r.name
-      ]) == toset(keys(local.managed_resources))
+      ])) == 1
+      && toset([for r in pangolin_resource.website : r.name]) == toset(keys(local.managed_resources))
+      && length(pangolin_resource.website) == 21
     )
-    error_message = "Une ressource Pangolin manque à local.managed_resources ou aux listes de ce test."
+    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), ou manque à local.managed_resources."
+  }
+
+  # local.websites liste à la main les entrées local.<app>_website des
+  # website_*.tf : une entrée oubliée là ne créerait rien, sans un mot.
+  assert {
+    condition = toset(flatten([
+      for f in fileset(path.module, "website_*.tf") :
+      [for m in regexall("(?m)^  (\\w+)_website = \\{", file("${path.module}/${f}")) : m[0]]
+    ])) == toset(keys(local.websites))
+    error_message = "Une entrée local.<app>_website d'un website_*.tf manque à local.websites (websites.tf), ou l'inverse."
   }
 }
 
@@ -1427,13 +1320,15 @@ run "every_resource_declares_the_pinned_attributes" {
   # arrêté, sa ressource désactivée.
   assert {
     condition = alltrue([
-      for key in keys(local.resource_pins) :
-      length(flatten([
-        for f in fileset(path.module, "website_*.tf") :
-        regexall("(?m)^  ${key}\\s*=\\s*local\\.resource_pins\\.${key}$", file("${path.module}/${f}"))
-      ])) == length(local.managed_resources) - lookup({ enabled = 1 }, key, 0)
+      for key, r in pangolin_resource.website :
+      r.mode == local.resource_pins.mode
+      && r.ssl == local.resource_pins.ssl
+      && r.enabled == (key == "gramps" ? r.enabled : local.resource_pins.enabled)
+      && r.block_access == local.resource_pins.block_access
+      && r.email_whitelist_enabled == local.resource_pins.email_whitelist_enabled
+      && r.sticky_session == local.resource_pins.sticky_session
     ])
-    error_message = "Une ressource Pangolin ne déclare pas un attribut de local.resource_pins (mode, ssl, enabled...), ou y déroge sans être Gramps."
+    error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...), ou y déroge sans être Gramps."
   }
 
   # La ressource suit l'état du service côté Ansible : désactivée tant que
@@ -1441,14 +1336,12 @@ run "every_resource_declares_the_pinned_attributes" {
   assert {
     condition = (
       local.resource_pins.enabled == true
-      && pangolin_resource.gramps.enabled == local.gramps_enabled
-      && uptimekuma_monitor_http_keyword.gramps.active == local.gramps_enabled
-      && local.gramps_enabled == !strcontains(
+      && pangolin_resource.website["gramps"].enabled == !strcontains(
         file("${path.module}/../../ansible/host_vars/docker/variables.yaml"),
         "\ngramps_enabled: false\n"
       )
     )
-    error_message = "pangolin_resource.gramps.enabled doit suivre gramps_enabled (ansible/host_vars/docker/variables.yaml), et toutes les autres ressources rester actives."
+    error_message = "L'entrée gramps de local.websites doit suivre gramps_enabled (ansible/host_vars/docker/variables.yaml), et toutes les autres ressources rester actives."
   }
 }
 
@@ -1459,28 +1352,20 @@ run "resources_have_unique_fqdns_on_the_right_domains" {
 
   assert {
     condition = length(distinct([
-      for r in [
-        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-        pangolin_resource.wiki,
-      ] : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
+      for r in pangolin_resource.website : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
     ])) == length(local.managed_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
   }
 
   assert {
-    condition     = pangolin_resource.flip_planning.domain_id == "dom-cloud" && pangolin_resource.flip_planning.subdomain == "flip-planning"
+    condition     = pangolin_resource.website["flip_planning"].domain_id == "dom-cloud" && pangolin_resource.website["flip_planning"].subdomain == "flip-planning"
     error_message = "La production de Flip Planning est servie sur flip-planning.sylvain.cloud."
   }
 
   assert {
     condition = (
-      pangolin_resource.demo_planning.domain_id == "dom-dev" && pangolin_resource.demo_planning.subdomain == "demo-planning"
-      && pangolin_resource.demo_planning_kc.domain_id == "dom-dev" && pangolin_resource.demo_planning_kc.subdomain == "demo-planning-kc"
+      pangolin_resource.website["demo_planning"].domain_id == "dom-dev" && pangolin_resource.website["demo_planning"].subdomain == "demo-planning"
+      && pangolin_resource.website["demo_planning_kc"].domain_id == "dom-dev" && pangolin_resource.website["demo_planning_kc"].subdomain == "demo-planning-kc"
     )
     error_message = "Les démos de Flip Planning sont servies sur sylvain.dev (demo-planning, demo-planning-kc)."
   }
@@ -1493,100 +1378,50 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   command = plan
 
   assert {
-    condition = alltrue([
-      for r in [
-        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-        pangolin_resource.wiki,
-      ] :
-      r.maintenance_mode_enabled == true
-      && r.maintenance_mode_type == "automatic"
-      && r.maintenance_title == pangolin_resource.flip_planning.maintenance_title
-    ])
-    error_message = "Chaque ressource doit servir la page de maintenance en mode automatic, avec le même titre."
-  }
-
-  # Indépendant de la liste ci-dessus : chaque ressource gérée lit ses quatre
-  # attributs de maintenance dans local.maintenance.
-  assert {
     condition = local.maintenance.type == "automatic" && alltrue([
-      for attribute, key in {
-        maintenance_mode_enabled = "enabled"
-        maintenance_mode_type    = "type"
-        maintenance_title        = "title"
-        maintenance_message      = "message"
-      } :
-      length(flatten([
-        for f in fileset(path.module, "website_*.tf") :
-        regexall("(?m)^  ${attribute}\\s*=\\s*local\\.maintenance\\.${key}$", file("${path.module}/${f}"))
-      ])) == length(local.managed_resources)
+      for r in pangolin_resource.website :
+      r.maintenance_mode_enabled == local.maintenance.enabled
+      && r.maintenance_mode_type == local.maintenance.type
+      && r.maintenance_title == local.maintenance.title
+      && r.maintenance_message == local.maintenance.message
     ])
-    error_message = "Une ressource gérée ne déclare pas sa page de maintenance depuis local.maintenance (maintenance.tf)."
+    error_message = "Chaque ressource doit servir la page de maintenance de local.maintenance (maintenance.tf), en mode automatic."
   }
 
-  # La liste des healthchecks ci-dessous compte autant de moniteurs que le
-  # module en déclare : un healthcheck ajouté sans être listé fait échouer le run.
+  # Un healthcheck par application, sauf le banc KC (healthcheck = false) :
+  # une application ajoutée l'a d'office, en retirer un est une décision.
   assert {
-    condition = length([
-      uptimekuma_monitor_http_keyword.betisier,
-      uptimekuma_monitor_http_keyword.dawarich,
-      uptimekuma_monitor_http_keyword.demo_planning,
-      uptimekuma_monitor_http_keyword.echo,
-      uptimekuma_monitor_http_keyword.flip_planning,
-      uptimekuma_monitor_http_keyword.gramps,
-      uptimekuma_monitor_http_keyword.immich,
-      uptimekuma_monitor_http_keyword.immich_swipe,
-      uptimekuma_monitor_http_keyword.karakeep,
-      uptimekuma_monitor_http_keyword.meerkat_crm,
-      uptimekuma_monitor_http_keyword.monica,
-      uptimekuma_monitor_http_keyword.nas,
-      uptimekuma_monitor_http_keyword.nextcloud,
-      uptimekuma_monitor_http_keyword.paperless,
-      uptimekuma_monitor_http_keyword.proxmox,
-      uptimekuma_monitor_http_keyword.rss,
-      uptimekuma_monitor_http_keyword.scanopy,
-      uptimekuma_monitor_http_keyword.searxng,
-      uptimekuma_monitor_http_keyword.trek,
-      uptimekuma_monitor_http_keyword.wiki,
-      ]) == length(flatten([
-        for f in fileset(path.module, "*.tf") :
-        regexall("resource\\s+\"uptimekuma_monitor_http_keyword\"\\s+\"", file("${path.module}/${f}"))
-    ]))
-    error_message = "Un uptimekuma_monitor_http_keyword du module manque aux listes de healthchecks des tests."
+    condition     = toset(keys(uptimekuma_monitor_http_keyword.healthcheck)) == setsubtract(toset(keys(local.websites)), ["demo_planning_kc"])
+    error_message = "Chaque application a son healthcheck, sauf demo_planning_kc."
   }
 
   assert {
     condition = alltrue([
-      for m in [
-        uptimekuma_monitor_http_keyword.betisier,
-        uptimekuma_monitor_http_keyword.dawarich,
-        uptimekuma_monitor_http_keyword.demo_planning,
-        uptimekuma_monitor_http_keyword.echo,
-        uptimekuma_monitor_http_keyword.flip_planning,
-        uptimekuma_monitor_http_keyword.gramps,
-        uptimekuma_monitor_http_keyword.immich,
-        uptimekuma_monitor_http_keyword.immich_swipe,
-        uptimekuma_monitor_http_keyword.karakeep,
-        uptimekuma_monitor_http_keyword.meerkat_crm,
-        uptimekuma_monitor_http_keyword.monica,
-        uptimekuma_monitor_http_keyword.nas,
-        uptimekuma_monitor_http_keyword.nextcloud,
-        uptimekuma_monitor_http_keyword.paperless,
-        uptimekuma_monitor_http_keyword.proxmox,
-        uptimekuma_monitor_http_keyword.rss,
-        uptimekuma_monitor_http_keyword.scanopy,
-        uptimekuma_monitor_http_keyword.searxng,
-        uptimekuma_monitor_http_keyword.trek,
-        uptimekuma_monitor_http_keyword.wiki,
-      ] :
+      for m in uptimekuma_monitor_http_keyword.healthcheck :
       m.invert_keyword == true
-      && m.keyword == pangolin_resource.flip_planning.maintenance_title
+      && m.keyword == pangolin_resource.website["flip_planning"].maintenance_title
     ])
     error_message = "Chaque healthcheck doit chercher le titre de la page de maintenance en mot-clé inversé : sinon la page (HTTP 200) passe pour un service sain."
+  }
+
+  # Un moniteur actif sur une ressource désactivée ne pourrait qu'être DOWN et
+  # écrire : Gramps, arrêté, a les deux siens inactifs.
+  assert {
+    condition = alltrue([
+      for key, m in uptimekuma_monitor_http_keyword.healthcheck :
+      m.active == (key != "gramps")
+    ])
+    error_message = "Tous les healthchecks sont actifs, sauf celui de Gramps, arrêté."
+  }
+
+  # Les noms de moniteurs n'ont pas bougé avec la factorisation : Uptime Kuma
+  # les affiche, et les mails d'alerte les citent.
+  assert {
+    condition = alltrue([
+      for key, m in uptimekuma_monitor_http_keyword.healthcheck :
+      m.name == "Healthcheck ${local.websites[key].name}"
+    ])
+    error_message = "Un healthcheck ne s'appelle plus « Healthcheck <nom de la ressource> »."
   }
 }
 
@@ -1639,16 +1474,26 @@ run "one_role_per_app_slug" {
   }
 
   # Un rôle qu'aucun pangolin_resource_role ne lie n'ouvre rien et encombre la
-  # liste des rôles (betisier et meerkat l'ont fait).
+  # liste des rôles (betisier et meerkat l'ont fait). Dans l'autre sens, une
+  # entrée de local.websites qui nomme un rôle absent de roles.tf ferait
+  # échouer le plan sur pangolin_role.apps[...].
   assert {
-    condition = alltrue([
-      for slug in keys(pangolin_role.apps) :
-      anytrue([
-        for f in fileset(path.module, "website_*.tf") :
-        length(regexall("role_id\\s*=\\s*pangolin_role\\.apps\\[\"${slug}\"\\]", file("${path.module}/${f}"))) > 0
-      ])
-    ])
-    error_message = "Un slug de roles.tf n'est lié à aucune ressource par un pangolin_resource_role : le retirer, ou le lier."
+    condition = (
+      toset(keys(pangolin_role.apps))
+      == toset([for website in values(local.websites) : lookup(website, "role", null) if lookup(website, "role", null) != null])
+    )
+    error_message = "Un slug de roles.tf n'est lié à aucune ressource par une entrée de local.websites (champ role), ou l'inverse : le retirer, ou le lier."
+  }
+
+  # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
+  # Betisier (sans SSO), NAS et Proxmox (l'administrateur seul). Immich Swipe
+  # prend celui d'Immich.
+  assert {
+    condition = (
+      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nas", "proxmox"])
+      && local.websites["immich_swipe"].role == "immich"
+    )
+    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich), sauf NAS et Proxmox."
   }
 }
 
@@ -1664,18 +1509,10 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   command = apply
 
   # Compte les ressources qui passent plutôt qu'un alltrue : une ressource
-  # absente de la liste fait aussi échouer le run.
+  # sans ses règles fait aussi échouer le run.
   assert {
     condition = length([
-      for r in [
-        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
-        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
-        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
-        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
-        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
-        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
-        pangolin_resource.wiki,
-      ] :
+      for r in pangolin_resource.website :
       r.name if try(
         pangolin_resource_rule.block_country[r.name].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-FR"].resource_id == r.id
@@ -1695,30 +1532,30 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
 
   assert {
     condition = (
-      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].resource_id == pangolin_resource.flip_planning.id
-      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].resource_id == pangolin_resource.demo_planning.id
-      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].resource_id == pangolin_resource.demo_planning_kc.id
-      && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
-      && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
-      && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
-      && pangolin_resource_rule.backslash_guard["Karakeep"].resource_id == pangolin_resource.karakeep.id
-      && pangolin_resource_rule.backslash_guard["TREK"].resource_id == pangolin_resource.trek.id
-      && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.trek.id
-      && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.paperless.id
-      && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.dawarich.id
-      && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.rss.id
-      && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.monica.id
-      && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.meerkat_crm.id
-      && pangolin_resource_rule.path_bypass["nextcloud /remote.php/*"].resource_id == pangolin_resource.nextcloud.id
-      && pangolin_resource_rule.backslash_guard["nextcloud"].resource_id == pangolin_resource.nextcloud.id
-      && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.trek.id
+      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].resource_id == pangolin_resource.website["flip_planning"].id
+      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].resource_id == pangolin_resource.website["demo_planning"].id
+      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].resource_id == pangolin_resource.website["demo_planning_kc"].id
+      && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.website["immich"].id
+      && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.website["dawarich"].id
+      && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.website["trek"].id
+      && pangolin_resource_rule.backslash_guard["Karakeep"].resource_id == pangolin_resource.website["karakeep"].id
+      && pangolin_resource_rule.backslash_guard["TREK"].resource_id == pangolin_resource.website["trek"].id
+      && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.website["trek"].id
+      && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.website["paperless"].id
+      && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.website["dawarich"].id
+      && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.website["rss"].id
+      && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.website["monica"].id
+      && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.website["meerkat_crm"].id
+      && pangolin_resource_rule.path_bypass["nextcloud /remote.php/*"].resource_id == pangolin_resource.website["nextcloud"].id
+      && pangolin_resource_rule.backslash_guard["nextcloud"].resource_id == pangolin_resource.website["nextcloud"].id
+      && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id
       && alltrue([
         for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.trek.id if startswith(key, "TREK ")
+        rule.resource_id == pangolin_resource.website["trek"].id if startswith(key, "TREK ")
       ])
       && alltrue([
         for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.karakeep.id if startswith(key, "Karakeep ")
+        rule.resource_id == pangolin_resource.website["karakeep"].id if startswith(key, "Karakeep ")
       ])
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
@@ -1914,27 +1751,27 @@ run "demo_and_production_planning_share_nothing" {
 
   assert {
     condition = (
-      pangolin_resource_access_token.flip_planning.resource_id == pangolin_resource.flip_planning.id
-      && pangolin_resource_access_token.demo_planning.resource_id == pangolin_resource.demo_planning.id
-      && pangolin_resource_access_token.flip_planning.token != pangolin_resource_access_token.demo_planning.token
+      pangolin_resource_access_token.healthcheck["flip_planning"].resource_id == pangolin_resource.website["flip_planning"].id
+      && pangolin_resource_access_token.healthcheck["demo_planning"].resource_id == pangolin_resource.website["demo_planning"].id
+      && pangolin_resource_access_token.healthcheck["flip_planning"].token != pangolin_resource_access_token.healthcheck["demo_planning"].token
     )
     error_message = "Chaque environnement doit avoir son propre jeton d'accès, rattaché à sa propre ressource."
   }
 
   assert {
     condition = (
-      jsondecode(uptimekuma_monitor_http_keyword.flip_planning.headers)["P-Access-Token-Id"] == "tok-flip-planning"
-      && jsondecode(uptimekuma_monitor_http_keyword.flip_planning.headers)["P-Access-Token"] == "jeton-flip-planning"
-      && jsondecode(uptimekuma_monitor_http_keyword.demo_planning.headers)["P-Access-Token-Id"] == "tok-demo-planning"
-      && jsondecode(uptimekuma_monitor_http_keyword.demo_planning.headers)["P-Access-Token"] == "jeton-demo-planning"
+      jsondecode(uptimekuma_monitor_http_keyword.healthcheck["flip_planning"].headers)["P-Access-Token-Id"] == "tok-flip-planning"
+      && jsondecode(uptimekuma_monitor_http_keyword.healthcheck["flip_planning"].headers)["P-Access-Token"] == "jeton-flip-planning"
+      && jsondecode(uptimekuma_monitor_http_keyword.healthcheck["demo_planning"].headers)["P-Access-Token-Id"] == "tok-demo-planning"
+      && jsondecode(uptimekuma_monitor_http_keyword.healthcheck["demo_planning"].headers)["P-Access-Token"] == "jeton-demo-planning"
     )
     error_message = "Chaque healthcheck doit s'authentifier avec le jeton de SON environnement."
   }
 
   assert {
     condition = (
-      uptimekuma_monitor_http_keyword.flip_planning.url == "https://flip-planning.sylvain.cloud"
-      && uptimekuma_monitor_http_keyword.demo_planning.url == "https://demo-planning.sylvain.dev"
+      uptimekuma_monitor_http_keyword.healthcheck["flip_planning"].url == "https://flip-planning.sylvain.cloud"
+      && uptimekuma_monitor_http_keyword.healthcheck["demo_planning"].url == "https://demo-planning.sylvain.dev"
     )
     error_message = "Chaque healthcheck doit sonder le FQDN de son environnement."
   }
@@ -1949,24 +1786,24 @@ run "demo_and_production_planning_share_nothing" {
 
   assert {
     condition = (
-      uptimekuma_monitor_push.backup_flip_planning.name == "Backup Flip Planning"
-      && uptimekuma_monitor_push.backup_demo_planning.name == "Backup Demo Planning"
+      uptimekuma_monitor_push.backup["flip_planning"].name == "Backup Flip Planning"
+      && uptimekuma_monitor_push.backup["demo_planning"].name == "Backup Demo Planning"
     )
     error_message = "Chaque environnement doit avoir son propre moniteur de sauvegarde."
   }
 
   assert {
     condition = (
-      pangolin_resource_role.flip_planning.resource_id == pangolin_resource.flip_planning.id
-      && pangolin_resource_role.demo_planning.resource_id == pangolin_resource.demo_planning.id
-      && pangolin_resource_role.demo_planning_kc.resource_id == pangolin_resource.demo_planning_kc.id
+      pangolin_resource_role.website["flip_planning"].resource_id == pangolin_resource.website["flip_planning"].id
+      && pangolin_resource_role.website["demo_planning"].resource_id == pangolin_resource.website["demo_planning"].id
+      && pangolin_resource_role.website["demo_planning_kc"].resource_id == pangolin_resource.website["demo_planning_kc"].id
     )
     error_message = "Chaque ressource de Flip Planning porte sa propre liaison de rôle."
   }
 
   assert {
     condition = alltrue([
-      for r in [pangolin_resource.flip_planning, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc] :
+      for r in [pangolin_resource.website["flip_planning"], pangolin_resource.website["demo_planning"], pangolin_resource.website["demo_planning_kc"]] :
       r.sso == true && r.apply_rules == true && r.enabled == true
     ])
     error_message = "Les trois environnements de Flip Planning restent derrière le SSO, avec les règles appliquées."
@@ -1975,11 +1812,11 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = alltrue([
       for t in [
-        pangolin_target.flip_planning,
-        pangolin_target.flip_planning_pgadmin,
-        pangolin_target.flip_planning_mailpit,
-        pangolin_target.flip_planning_assets,
-      ] : t.resource_id == pangolin_resource.flip_planning.id && t.site_id == pangolin_site.flip.id
+        pangolin_target.website["flip_planning"],
+        pangolin_target.website["flip_planning_pgadmin"],
+        pangolin_target.website["flip_planning_mailpit"],
+        pangolin_target.website["flip_planning_assets"],
+      ] : t.resource_id == pangolin_resource.website["flip_planning"].id && t.site_id == pangolin_site.flip.id
     ])
     error_message = "Les cibles de production doivent appartenir à la ressource Flip Planning, sur le site flip."
   }
@@ -1987,11 +1824,11 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = alltrue([
       for t in [
-        pangolin_target.demo_planning,
-        pangolin_target.demo_planning_pgadmin,
-        pangolin_target.demo_planning_mailpit,
-        pangolin_target.demo_planning_assets,
-      ] : t.resource_id == pangolin_resource.demo_planning.id && t.site_id == pangolin_site.flip.id
+        pangolin_target.website["demo_planning"],
+        pangolin_target.website["demo_planning_pgadmin"],
+        pangolin_target.website["demo_planning_mailpit"],
+        pangolin_target.website["demo_planning_assets"],
+      ] : t.resource_id == pangolin_resource.website["demo_planning"].id && t.site_id == pangolin_site.flip.id
     ])
     error_message = "Les cibles de démo doivent appartenir à la ressource Demo Planning, sur le site flip."
   }
@@ -1999,12 +1836,12 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = alltrue([
       for t in [
-        pangolin_target.demo_planning_kc,
-        pangolin_target.demo_planning_kc_pgadmin,
-        pangolin_target.demo_planning_kc_mailpit,
-        pangolin_target.demo_planning_kc_assets,
-        pangolin_target.demo_planning_kc_keycloak,
-      ] : t.resource_id == pangolin_resource.demo_planning_kc.id && t.site_id == pangolin_site.flip.id
+        pangolin_target.website["demo_planning_kc"],
+        pangolin_target.website["demo_planning_kc_pgadmin"],
+        pangolin_target.website["demo_planning_kc_mailpit"],
+        pangolin_target.website["demo_planning_kc_assets"],
+        pangolin_target.website["demo_planning_kc_keycloak"],
+      ] : t.resource_id == pangolin_resource.website["demo_planning_kc"].id && t.site_id == pangolin_site.flip.id
     ])
     error_message = "Les cibles du banc KC doivent appartenir à la ressource Demo Planning KC, sur le site flip."
   }
@@ -2012,18 +1849,18 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = (
       toset([
-        pangolin_target.flip_planning.ip,
-        pangolin_target.flip_planning_pgadmin.ip,
-        pangolin_target.flip_planning_mailpit.ip,
-        pangolin_target.flip_planning_assets.ip,
+        pangolin_target.website["flip_planning"].ip,
+        pangolin_target.website["flip_planning_pgadmin"].ip,
+        pangolin_target.website["flip_planning_mailpit"].ip,
+        pangolin_target.website["flip_planning_assets"].ip,
         ]) == toset([
         "flip-planning", "flip-planning-pgadmin", "flip-planning-mailpit", "flip-planning-assets",
       ])
       && toset([
-        pangolin_target.demo_planning.ip,
-        pangolin_target.demo_planning_pgadmin.ip,
-        pangolin_target.demo_planning_mailpit.ip,
-        pangolin_target.demo_planning_assets.ip,
+        pangolin_target.website["demo_planning"].ip,
+        pangolin_target.website["demo_planning_pgadmin"].ip,
+        pangolin_target.website["demo_planning_mailpit"].ip,
+        pangolin_target.website["demo_planning_assets"].ip,
         ]) == toset([
         "demo-planning", "demo-planning-pgadmin", "demo-planning-mailpit", "demo-planning-assets",
       ])
@@ -2042,38 +1879,36 @@ run "demo_and_production_planning_share_nothing" {
 run "monitors_are_filed_and_notify_by_email" {
   command = apply
 
-  # Compté contre les `uptimekuma_monitor_push "backup_*"` du module : un
-  # moniteur de sauvegarde absent de la liste fait aussi échouer le run.
+  # Les moniteurs de sauvegarde sont les instances de
+  # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
+  # plus celui de Pangolin. Les clés sont épinglées : en ajouter ou en retirer
+  # un est une décision, et chacune garde l'adresse que moved.tf lui a donnée.
   assert {
-    condition = length([
-      for m in [
-        uptimekuma_monitor_push.backup_betisier,
-        uptimekuma_monitor_push.backup_dawarich,
-        uptimekuma_monitor_push.backup_demo_planning,
-        uptimekuma_monitor_push.backup_flip_planning,
-        uptimekuma_monitor_push.backup_gramps,
-        uptimekuma_monitor_push.backup_immich,
-        uptimekuma_monitor_push.backup_karakeep,
-        uptimekuma_monitor_push.backup_meerkat_crm,
-        uptimekuma_monitor_push.backup_monica,
-        uptimekuma_monitor_push.backup_nextcloud,
-        uptimekuma_monitor_push.backup_pangolin,
-        uptimekuma_monitor_push.backup_paperless,
-        uptimekuma_monitor_push.backup_rss,
-        uptimekuma_monitor_push.backup_scanopy,
-        uptimekuma_monitor_push.backup_searxng,
-        uptimekuma_monitor_push.backup_trek,
-        uptimekuma_monitor_push.backup_wiki,
-      ] :
-      m.name if m.parent == uptimekuma_monitor_group.backups.id
+    condition = toset(keys(uptimekuma_monitor_push.backup)) == toset([
+      "betisier", "dawarich", "demo_planning", "flip_planning", "gramps", "immich", "karakeep",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "rss", "scanopy", "searxng", "trek", "wiki",
+    ])
+    error_message = "Les moniteurs de sauvegarde ont changé : relire les champs backup de local.websites."
+  }
+
+  assert {
+    condition = alltrue([
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin]) :
+      m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
       && m.active == true
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
-      ]) == length(flatten([
-        for f in fileset(path.module, "*.tf") :
-        regexall("resource\\s+\"uptimekuma_monitor_push\"\\s+\"backup_", file("${path.module}/${f}"))
-    ]))
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (Gramps compris : sa sauvegarde tourne toujours) et notifié par e-mail."
+    ])
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
+  }
+
+  # Les noms n'ont pas bougé avec la factorisation : « Backup <ressource> ».
+  assert {
+    condition = alltrue([
+      for key, m in uptimekuma_monitor_push.backup :
+      m.name == "Backup ${local.websites[key].name}"
+    ])
+    error_message = "Un moniteur de sauvegarde ne s'appelle plus « Backup <nom de la ressource> »."
   }
 
   assert {
@@ -2086,29 +1921,7 @@ run "monitors_are_filed_and_notify_by_email" {
 
   assert {
     condition = alltrue([
-      for m in [
-        uptimekuma_monitor_http_keyword.betisier,
-        uptimekuma_monitor_http_keyword.dawarich,
-        uptimekuma_monitor_http_keyword.demo_planning,
-        uptimekuma_monitor_http_keyword.echo,
-        uptimekuma_monitor_http_keyword.flip_planning,
-        uptimekuma_monitor_http_keyword.gramps,
-        uptimekuma_monitor_http_keyword.immich,
-        uptimekuma_monitor_http_keyword.immich_swipe,
-        uptimekuma_monitor_http_keyword.karakeep,
-        uptimekuma_monitor_http_keyword.meerkat_crm,
-        uptimekuma_monitor_http_keyword.monica,
-        uptimekuma_monitor_http_keyword.nas,
-        uptimekuma_monitor_http_keyword.nextcloud,
-        uptimekuma_monitor_http_keyword.paperless,
-        uptimekuma_monitor_http_keyword.proxmox,
-        uptimekuma_monitor_http_keyword.rss,
-        uptimekuma_monitor_http_keyword.scanopy,
-        uptimekuma_monitor_http_keyword.searxng,
-        uptimekuma_monitor_http_keyword.trek,
-        uptimekuma_monitor_http_keyword.wiki,
-        uptimekuma_monitor_http.pangolin_dashboard,
-      ] :
+      for m in concat(values(uptimekuma_monitor_http_keyword.healthcheck), [uptimekuma_monitor_http.pangolin_dashboard]) :
       m.parent == uptimekuma_monitor_group.self_hosted.id
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])

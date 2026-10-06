@@ -102,7 +102,9 @@ picks it up automatically; `mise run molecule <service>` runs it locally.
 ## 6. Pangolin routing
 
 Delegate to the **pangolin-route** skill for `tofu/pangolin_config/roles.tf`
-+ `tofu/pangolin_config/website_<service>.tf`. Pay special attention to its
++ `tofu/pangolin_config/website_<service>.tf` (an entry of `local.websites`,
+listed in `websites.tf`, which generates the resource, target and monitors).
+Pay special attention to its
 two documented pitfalls (missing `hc_hostname`, target `priority` ordering) —
 both come from real bugs shipped in this repo.
 

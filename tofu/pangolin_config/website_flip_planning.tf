@@ -1,41 +1,66 @@
-resource "pangolin_resource" "flip_planning" {
-  name        = "Flip Planning"
-  subdomain   = "flip-planning"
-  domain_id   = local.domain_ids["sylvain.cloud"]
-  protocol    = "tcp"
-  sso         = true
-  apply_rules = true
+# Resource, targets and monitors: local.websites (websites.tf). The resource
+# ignores its `headers`: see the lifecycle block there.
+locals {
+  flip_planning_website = {
+    name      = "Flip Planning"
+    subdomain = "flip-planning"
+    domain_id = local.domain_ids["sylvain.cloud"]
+    role      = "flip-planning"
+    backup    = true
 
-  # Optional+computed: pinned so a plan can disagree with the API. See
-  # resource_defaults.tf.
-  mode                    = local.resource_pins.mode
-  ssl                     = local.resource_pins.ssl
-  enabled                 = local.resource_pins.enabled
-  block_access            = local.resource_pins.block_access
-  email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
-  sticky_session          = local.resource_pins.sticky_session
+    # Catch-all target, must have a lower priority than the pgAdmin one.
+    target = {
+      site_id  = pangolin_site.flip.id
+      ip       = "flip-planning"
+      port     = 8080
+      path     = "/"
+      priority = 1
+    }
 
-  # Maintenance screen served automatically while no target is healthy.
-  # See maintenance.tf.
-  maintenance_mode_enabled = local.maintenance.enabled
-  maintenance_mode_type    = local.maintenance.type
-  maintenance_title        = local.maintenance.title
-  maintenance_message      = local.maintenance.message
+    sub_targets = {
+      # pgAdmin is served on the /db sub-path of the same resource, so it is
+      # protected by the same SSO / role. pgAdmin is told about its root via
+      # SCRIPT_NAME=/db, hence no path rewrite here.
+      pgadmin = {
+        site_id  = pangolin_site.flip.id
+        ip       = "flip-planning-pgadmin"
+        port     = 80
+        path     = "/db"
+        priority = 2
+        hc_path  = "/db/misc/ping"
+      }
 
-  # No custom header any more: X-Pangolin was set by hand in the Pangolin UI
-  # for the application's MCP guard, which no longer requires it. Removing it
-  # is a manual step in the UI, not an apply - the provider cannot round-trip
-  # an emptied header list (the update response comes back as a string, not a
-  # list) and fails with "cannot unmarshal string into ... headers of type
-  # []ResourceHeader". Ignoring the attribute keeps Tofu from ever sending one.
-  lifecycle {
-    ignore_changes = [headers]
+      mailpit = {
+        site_id  = pangolin_site.flip.id
+        ip       = "flip-planning-mailpit"
+        port     = 8025
+        path     = "/mail"
+        priority = 3
+        hc_path  = "/mail/livez"
+      }
+
+      # The festival's visuals are part of the deployment, not of the image
+      # (the application repository carries no customer mark). They are the
+      # flip_planning_branding_* role parameters of this instance in
+      # ansible/flip.yml: copied next to the compose file, mounted read-only on
+      # the app container for the PDFs, and served to the browser by a small
+      # nginx on this sub-path - same resource, so the same SSO and the same
+      # role guard them.
+      #
+      # No dedicated probe endpoint on a static server: the logo itself is the
+      # healthcheck, and it is exactly the file whose absence would break the
+      # UI. Its name is the basename of flip_planning_branding_logo in
+      # flip.yml.
+      assets = {
+        site_id  = pangolin_site.flip.id
+        ip       = "flip-planning-assets"
+        port     = 80
+        path     = "/assets"
+        priority = 4
+        hc_path  = "/assets/flip.png"
+      }
+    }
   }
-}
-
-resource "pangolin_resource_role" "flip_planning" {
-  resource_id = pangolin_resource.flip_planning.id
-  role_id     = pangolin_role.apps["flip-planning"].id
 }
 
 # The MCP server (`POST /mcp`, `GET /mcp/sse`) is driven by hosted assistants -
@@ -72,186 +97,14 @@ locals {
   }
 }
 
-resource "pangolin_target" "flip_planning" {
-  resource_id = pangolin_resource.flip_planning.id
-  site_id     = pangolin_site.flip.id
-  ip          = "flip-planning"
-  port        = 8080
-  method      = "http"
-
-  # Catch-all target, must have a lower priority than the pgAdmin one.
-  path            = "/"
-  path_match_type = "prefix"
-  priority        = 1
-
-  # Health checks: `hc_scheme` / `hc_mode` / `hc_port` are optional+computed, and
-  # Pangolin stores them as NULL when Tofu does not send them - it does not fill
-  # in a default. A probe with no scheme never succeeds, so all three targets sat
-  # at hcHealth="unhealthy" and Traefik dropped them from the load balancer
-  # ("no available server"). Declared explicitly so the probes can actually run.
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "flip-planning"
-  hc_port                = 8080
-  hc_path                = "/"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-# pgAdmin is served on the /db sub-path of the same resource, so it is protected
-# by the same SSO / role. pgAdmin is told about its root via SCRIPT_NAME=/db,
-# hence no path rewrite here.
-resource "pangolin_target" "flip_planning_pgadmin" {
-  resource_id = pangolin_resource.flip_planning.id
-  site_id     = pangolin_site.flip.id
-  ip          = "flip-planning-pgadmin"
-  port        = 80
-  method      = "http"
-
-  path            = "/db"
-  path_match_type = "prefix"
-  priority        = 2
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "flip-planning-pgadmin"
-  hc_port                = 80
-  hc_path                = "/db/misc/ping"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-resource "pangolin_target" "flip_planning_mailpit" {
-  resource_id = pangolin_resource.flip_planning.id
-  site_id     = pangolin_site.flip.id
-  ip          = "flip-planning-mailpit"
-  port        = 8025
-  method      = "http"
-
-  path            = "/mail"
-  path_match_type = "prefix"
-  priority        = 3
-
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "flip-planning-mailpit"
-  hc_port                = 8025
-  hc_path                = "/mail/livez"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-# The festival's visuals are part of the deployment, not of the image (the
-# application repository carries no customer mark). They are the
-# flip_planning_branding_* role parameters of this instance in
-# ansible/flip.yml: copied next to the compose file, mounted read-only on the
-# app container for the PDFs, and served to the browser by a small nginx on
-# this sub-path - same resource, so the same SSO and the same role guard them.
-resource "pangolin_target" "flip_planning_assets" {
-  resource_id = pangolin_resource.flip_planning.id
-  site_id     = pangolin_site.flip.id
-  ip          = "flip-planning-assets"
-  port        = 80
-  method      = "http"
-
-  path            = "/assets"
-  path_match_type = "prefix"
-  priority        = 4
-
-  # No dedicated probe endpoint on a static server: the logo itself is the
-  # healthcheck, and it is exactly the file whose absence would break the UI.
-  # Its name is the basename of flip_planning_branding_logo in flip.yml.
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_hostname            = "flip-planning-assets"
-  hc_port                = 80
-  hc_path                = "/assets/flip.png"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-resource "pangolin_resource_access_token" "flip_planning" {
-  resource_id = pangolin_resource.flip_planning.id
-  title       = "Healthcheck ${pangolin_resource.flip_planning.name}"
-}
-
 output "flip_planning_access_token" {
   description = "FLIP_PLANNING - Token d'accès pour les healthchecks"
-  value = jsonencode({
-    id    = pangolin_resource_access_token.flip_planning.id,
-    token = pangolin_resource_access_token.flip_planning.token
-  })
-  sensitive = true
-}
-
-resource "uptimekuma_monitor_http_keyword" "flip_planning" {
-  name = "Healthcheck ${pangolin_resource.flip_planning.name}"
-
-  # Grouped under the Self-hosted folder. See uptime_globals.tf.
-  parent          = uptimekuma_monitor_group.self_hosted.id
-  url             = "https://${pangolin_resource.flip_planning.full_domain}"
-  interval        = 60
-  timeout         = 30
-  max_retries     = 2
-  retry_interval  = 60
-  resend_interval = 0
-  active          = true
-  method          = "GET"
-
-  # Inverted keyword on the maintenance title. See maintenance.tf.
-  keyword        = local.maintenance.title
-  invert_keyword = true
-  headers = jsonencode({
-    "P-Access-Token-Id" = tostring(pangolin_resource_access_token.flip_planning.id),
-    "P-Access-Token"    = pangolin_resource_access_token.flip_planning.token
-  })
-  expiry_notification = true
-  tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
-
-  notification_ids = [uptimekuma_notification_smtp.email.id]
-}
-
-resource "uptimekuma_monitor_push" "backup_flip_planning" {
-  name = "Backup ${pangolin_resource.flip_planning.name}"
-
-  # Grouped under the Backup folder. See uptime_globals.tf.
-  parent = uptimekuma_monitor_group.backups.id
-
-  interval = 60 * 60 * 24
-
-  retry_interval = 20
-  active         = true
-  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
-
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  value       = local.healthcheck_access_tokens["flip_planning"]
+  sensitive   = true
 }
 
 output "uptime_backup_flip_planning_url" {
   description = "FLIP_PLANNING - URL pour envoyer les heartbeats push"
-  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_flip_planning.push_token}"
+  value       = local.backup_push_urls["flip_planning"]
   sensitive   = true
 }
