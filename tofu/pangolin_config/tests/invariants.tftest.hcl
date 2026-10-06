@@ -528,6 +528,10 @@ override_resource {
 # optionnels+calculés : non déclarés, Pangolin a stocké NULL pour gramps et
 # scanopy, la sonde ne pouvait jamais réussir et les deux sites ont servi
 # "no available server" pendant que `tofu plan` ne voyait rien.
+#
+# La liste compte autant de cibles que le module déclare de sondes actives
+# (`hc_enabled = true`) : une sonde ajoutée sans être listée ici fait échouer
+# le run au lieu de passer inaperçue.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
@@ -546,7 +550,6 @@ run "every_probed_target_declares_scheme_mode_and_port" {
         pangolin_target.demo_planning_kc_assets,
         pangolin_target.demo_planning_kc_keycloak,
         pangolin_target.echo,
-        pangolin_target.echo,
         pangolin_target.flip_planning,
         pangolin_target.flip_planning_pgadmin,
         pangolin_target.flip_planning_mailpit,
@@ -558,15 +561,8 @@ run "every_probed_target_declares_scheme_mode_and_port" {
         pangolin_target.meerkat_crm,
         pangolin_target.monica,
         pangolin_target.nextcloud,
-        pangolin_target.immich,
-        pangolin_target.immich_swipe,
-        pangolin_target.karakeep,
-        pangolin_target.meerkat_crm,
-        pangolin_target.monica,
-        pangolin_target.nextcloud,
         pangolin_target.paperless,
         pangolin_target.proxmox,
-        pangolin_target.rss,
         pangolin_target.rss,
         pangolin_target.scanopy,
         pangolin_target.searxng,
@@ -580,10 +576,50 @@ run "every_probed_target_declares_scheme_mode_and_port" {
     ])
     error_message = "Une cible sondée n'a pas hc_scheme (http/https), hc_mode = \"http\" ou hc_port : Pangolin stockerait NULL et la sonde échouerait toujours."
   }
+
+  assert {
+    condition = length([
+      pangolin_target.betisier,
+      pangolin_target.dawarich,
+      pangolin_target.demo_planning,
+      pangolin_target.demo_planning_pgadmin,
+      pangolin_target.demo_planning_mailpit,
+      pangolin_target.demo_planning_assets,
+      pangolin_target.demo_planning_kc,
+      pangolin_target.demo_planning_kc_pgadmin,
+      pangolin_target.demo_planning_kc_mailpit,
+      pangolin_target.demo_planning_kc_assets,
+      pangolin_target.demo_planning_kc_keycloak,
+      pangolin_target.echo,
+      pangolin_target.flip_planning,
+      pangolin_target.flip_planning_pgadmin,
+      pangolin_target.flip_planning_mailpit,
+      pangolin_target.flip_planning_assets,
+      pangolin_target.gramps,
+      pangolin_target.immich,
+      pangolin_target.immich_swipe,
+      pangolin_target.karakeep,
+      pangolin_target.meerkat_crm,
+      pangolin_target.monica,
+      pangolin_target.nextcloud,
+      pangolin_target.paperless,
+      pangolin_target.proxmox,
+      pangolin_target.rss,
+      pangolin_target.scanopy,
+      pangolin_target.searxng,
+      pangolin_target.trek,
+      pangolin_target.wiki,
+      ]) == length(flatten([
+        for f in fileset(path.module, "*.tf") :
+        regexall("hc_enabled\\s*=\\s*true", file("${path.module}/${f}"))
+    ]))
+    error_message = "Le module déclare une sonde active qui manque à la liste de ce run (ou la liste en compte une de trop)."
+  }
 }
 
 # hc_hostname explicite et égal à `ip` : la sonde envoie le bon Host au bon
-# conteneur. Le provider ne le déduit pas de `ip`.
+# conteneur. Le provider ne le déduit pas de `ip`. Même liste que le run
+# précédent, qui la tient complète.
 run "probed_targets_set_hc_hostname_to_their_ip" {
   command = plan
 
@@ -601,13 +637,21 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
         pangolin_target.demo_planning_kc_mailpit,
         pangolin_target.demo_planning_kc_assets,
         pangolin_target.demo_planning_kc_keycloak,
+        pangolin_target.echo,
         pangolin_target.flip_planning,
         pangolin_target.flip_planning_pgadmin,
         pangolin_target.flip_planning_mailpit,
         pangolin_target.flip_planning_assets,
         pangolin_target.gramps,
+        pangolin_target.immich,
+        pangolin_target.immich_swipe,
+        pangolin_target.karakeep,
+        pangolin_target.meerkat_crm,
+        pangolin_target.monica,
+        pangolin_target.nextcloud,
         pangolin_target.paperless,
         pangolin_target.proxmox,
+        pangolin_target.rss,
         pangolin_target.scanopy,
         pangolin_target.searxng,
         pangolin_target.trek,
@@ -617,15 +661,14 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
     error_message = "Une cible a un hc_hostname absent ou différent de son ip."
   }
 
-  # La liste ci-dessus ne voit pas une cible ajoutée plus tard : on vérifie
-  # aussi, fichier par fichier, au moins autant de hc_hostname que de sondes
-  # actives.
+  # Filet par fichier, indépendant de la liste : au moins autant de
+  # hc_hostname que de sondes actives.
   assert {
     condition = alltrue([
       for f in fileset(path.module, "website_*.tf") :
       length(regexall("hc_enabled\\s*=\\s*true", file("${path.module}/${f}")))
       <= length(regexall("hc_hostname\\s*=", file("${path.module}/${f}")))
-    ]) && pangolin_target.trek.hc_hostname == pangolin_target.trek.ip
+    ])
     error_message = "Un website_*.tf déclare une sonde (hc_enabled = true) sans hc_hostname."
   }
 }
@@ -1406,6 +1449,55 @@ run "maintenance_page_and_inverted_keyword_monitors" {
     error_message = "Chaque ressource doit servir la page de maintenance en mode automatic, avec le même titre."
   }
 
+  # Indépendant de la liste ci-dessus : chaque ressource gérée lit ses quatre
+  # attributs de maintenance dans local.maintenance.
+  assert {
+    condition = local.maintenance.type == "automatic" && alltrue([
+      for attribute, key in {
+        maintenance_mode_enabled = "enabled"
+        maintenance_mode_type    = "type"
+        maintenance_title        = "title"
+        maintenance_message      = "message"
+      } :
+      length(flatten([
+        for f in fileset(path.module, "website_*.tf") :
+        regexall("(?m)^  ${attribute}\\s*=\\s*local\\.maintenance\\.${key}$", file("${path.module}/${f}"))
+      ])) == length(local.managed_resources)
+    ])
+    error_message = "Une ressource gérée ne déclare pas sa page de maintenance depuis local.maintenance (maintenance.tf)."
+  }
+
+  # La liste des healthchecks ci-dessous compte autant de moniteurs que le
+  # module en déclare : un healthcheck ajouté sans être listé fait échouer le run.
+  assert {
+    condition = length([
+      uptimekuma_monitor_http_keyword.betisier,
+      uptimekuma_monitor_http_keyword.dawarich,
+      uptimekuma_monitor_http_keyword.demo_planning,
+      uptimekuma_monitor_http_keyword.echo,
+      uptimekuma_monitor_http_keyword.flip_planning,
+      uptimekuma_monitor_http_keyword.gramps,
+      uptimekuma_monitor_http_keyword.immich,
+      uptimekuma_monitor_http_keyword.immich_swipe,
+      uptimekuma_monitor_http_keyword.karakeep,
+      uptimekuma_monitor_http_keyword.meerkat_crm,
+      uptimekuma_monitor_http_keyword.monica,
+      uptimekuma_monitor_http_keyword.nas,
+      uptimekuma_monitor_http_keyword.nextcloud,
+      uptimekuma_monitor_http_keyword.paperless,
+      uptimekuma_monitor_http_keyword.proxmox,
+      uptimekuma_monitor_http_keyword.rss,
+      uptimekuma_monitor_http_keyword.scanopy,
+      uptimekuma_monitor_http_keyword.searxng,
+      uptimekuma_monitor_http_keyword.trek,
+      uptimekuma_monitor_http_keyword.wiki,
+      ]) == length(flatten([
+        for f in fileset(path.module, "*.tf") :
+        regexall("resource\\s+\"uptimekuma_monitor_http_keyword\"\\s+\"", file("${path.module}/${f}"))
+    ]))
+    error_message = "Un uptimekuma_monitor_http_keyword du module manque aux listes de healthchecks des tests."
+  }
+
   assert {
     condition = alltrue([
       for m in [
@@ -1511,8 +1603,10 @@ run "one_role_per_app_slug" {
 run "country_rules_attach_to_the_resource_named_by_their_key" {
   command = apply
 
+  # Compte les ressources qui passent plutôt qu'un alltrue : une ressource
+  # absente de la liste fait aussi échouer le run.
   assert {
-    condition = alltrue([
+    condition = length([
       for r in [
         pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
@@ -1522,14 +1616,14 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
         pangolin_resource.wiki,
       ] :
-      try(
+      r.name if try(
         pangolin_resource_rule.block_country[r.name].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-FR"].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-DE"].resource_id == r.id,
         false
       )
-    ])
-    error_message = "Une entrée de local.managed_resources ne porte pas le nom exact de la ressource vers laquelle elle pointe."
+    ]) == length(local.managed_resources)
+    error_message = "Une entrée de local.managed_resources ne porte pas le nom exact de la ressource vers laquelle elle pointe (ou la ressource manque à la liste de ce run)."
   }
 
   # Garde-fou du test lui-même : sans identifiants distincts, l'égalité
@@ -1671,6 +1765,8 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
+  # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
+  # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
   assert {
     condition = length(distinct([
       output.uptime_backup_nextcloud_url,
@@ -1691,8 +1787,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_demo_planning_url,
       output.uptime_backup_immich_url,
       output.uptime_backup_pangolin_url,
-    ])) == 18
-    error_message = "Deux sorties lues par Ansible pointent sur le même moniteur push."
+      ])) == length(flatten([
+      for f in fileset(path.module, "*.tf") :
+      regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
+    ]))
+    error_message = "Deux sorties lues par Ansible pointent sur le même moniteur push, ou une sortie uptime_*_url manque à cette liste."
   }
 
   # Dans l'autre sens : un moniteur push dont aucun playbook ne lit l'URL ne
@@ -1881,8 +1980,10 @@ run "demo_and_production_planning_share_nothing" {
 run "monitors_are_filed_and_notify_by_email" {
   command = apply
 
+  # Compté contre les `uptimekuma_monitor_push "backup_*"` du module : un
+  # moniteur de sauvegarde absent de la liste fait aussi échouer le run.
   assert {
-    condition = alltrue([
+    condition = length([
       for m in [
         uptimekuma_monitor_push.backup_betisier,
         uptimekuma_monitor_push.backup_dawarich,
@@ -1902,11 +2003,14 @@ run "monitors_are_filed_and_notify_by_email" {
         uptimekuma_monitor_push.backup_trek,
         uptimekuma_monitor_push.backup_wiki,
       ] :
-      m.parent == uptimekuma_monitor_group.backups.id
+      m.name if m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
       && m.active == (m.name != "Backup Gramps")
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
-    ])
+      ]) == length(flatten([
+        for f in fileset(path.module, "*.tf") :
+        regexall("resource\\s+\"uptimekuma_monitor_push\"\\s+\"backup_", file("${path.module}/${f}"))
+    ]))
     error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
   }
 
