@@ -323,6 +323,6 @@ flip_planning_pgadmin_password: ""
 
 # Borgmatic backup configuration
 flip_planning_backup_enabled: true
-flip_planning_backup_borgmatic_target: ""
-flip_planning_backup_encryption_passphrase: ""
+flip_planning_backup_borgmatic_target: "{{ backup_storage_box_url }}/{{ flip_planning_service }}"
+flip_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
 flip_planning_backup_healthcheck_url: ""

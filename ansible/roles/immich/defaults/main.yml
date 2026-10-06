@@ -7,6 +7,7 @@ immich_db_password: ""
 
 # Backup (borgmatic)
 immich_backup_enabled: true
-immich_backup_borgmatic_target: ""
-immich_backup_borgmatic_password: ""
+immich_backup_borgmatic_target: "{{ backup_storage_box_url }}/immich"
+# Ancien nom de la passphrase, encore lu s'il est défini (host_vars).
+immich_backup_encryption_passphrase: "{{ immich_backup_borgmatic_password | default(backup_passphrase) }}"
 immich_backup_healthcheck_url: ""

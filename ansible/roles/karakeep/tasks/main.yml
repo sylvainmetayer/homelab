@@ -29,35 +29,27 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Karakeep
   when: karakeep_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for Karakeep
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-karakeep.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/karakeep.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for Karakeep
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1
-          --config {{ borgmatic_config_dir }}/karakeep.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: karakeep_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((karakeep_borg_repo_create.stdout ~ karakeep_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        karakeep_borg_repo_create.rc != 0 and
-        'already exists' not in (karakeep_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: karakeep
+    borgmatic_app_title: Karakeep
+    borgmatic_app_target: "{{ karakeep_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ karakeep_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ karakeep_backup_healthcheck_url }}"
+    # ./meilisearch n'est pas sauvegardé : l'index se reconstruit depuis la
+    # base (Paramètres admin > « Reindex all bookmarks »).
+    borgmatic_app_source_directories:
+      - "{{ karakeep_base_path }}/data"
+      - "{{ karakeep_base_path }}/compose.yaml"
+      - "{{ karakeep_base_path }}/.env"
 
 - name: Make sure karakeep service is running
   ansible.builtin.systemd:

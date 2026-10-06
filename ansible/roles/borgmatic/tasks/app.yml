@@ -1,0 +1,61 @@
+---
+# Sauvegarde borgmatic d'une application : sa configuration
+# {{ borgmatic_config_dir }}/<name>.yaml et son dépôt sur la Storage Box.
+# Appelé par chaque rôle d'application (include_role, tasks_from: app.yml) ;
+# l'interface (variables borgmatic_app_*) est décrite dans defaults/main.yml.
+# Le rôle borgmatic lui-même (borgmatic, borg, clients de dump, timer) doit
+# déjà être passé sur l'hôte.
+
+# Résolu à chaque déploiement : une base créée après coup (premier démarrage
+# d'une application) est prise au déploiement suivant ; d'ici là, sa copie
+# vivante reste dans l'archive, faute d'être exclue. Le test d'en-tête écarte
+# tout fichier du glob qui ne serait pas une base SQLite.
+- name: Find the SQLite databases of {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      for db in {{ borgmatic_app_sqlite_databases | join(' ') }}; do
+        [ -f "$db" ] || continue
+        [ "$(head -c 15 "$db")" = "SQLite format 3" ] && printf '%s\n' "$db"
+      done
+      exit 0
+  register: borgmatic_app_sqlite_found
+  changed_when: false
+  check_mode: false
+  when: borgmatic_app_sqlite_databases | length > 0
+
+- name: Report the missing SQLite databases of {{ borgmatic_app_title }}
+  ansible.builtin.debug:
+    msg: >-
+      Aucune base SQLite trouvée pour {{ borgmatic_app_sqlite_databases | join(', ') }} :
+      normal avant le premier démarrage de l'application, sinon le glob est à revoir.
+  when:
+    - borgmatic_app_sqlite_databases | length > 0
+    - borgmatic_app_sqlite_found.stdout_lines | default([]) | length == 0
+
+- name: Create borgmatic configuration for {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.template:
+    src: app.yaml.j2
+    dest: "{{ borgmatic_config_dir }}/{{ borgmatic_app_name }}.yaml"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+  vars:
+    borgmatic_app_sqlite_paths: "{{ borgmatic_app_sqlite_found.stdout_lines | default([]) | sort }}"
+
+- name: Initialize borg repository for {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      {{ borgmatic_bin }} --verbosity 1
+      --config {{ borgmatic_config_dir }}/{{ borgmatic_app_name }}.yaml
+      repo-create --encryption {{ borgmatic_app_encryption_mode }}
+  register: borgmatic_app_repo_create
+  # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
+  # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
+  # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
+  changed_when: "'already exists' not in ((borgmatic_app_repo_create.stdout ~ borgmatic_app_repo_create.stderr) | lower)"
+  failed_when: >
+    borgmatic_app_repo_create.rc != 0 and
+    'already exists' not in (borgmatic_app_repo_create.stderr | lower)

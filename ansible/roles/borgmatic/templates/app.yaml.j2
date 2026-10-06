@@ -1,0 +1,128 @@
+# Configuration borgmatic de {{ borgmatic_app_title }}, générée par le rôle
+# borgmatic (tasks/app.yml) : toute modification ici est écrasée au prochain
+# déploiement. Référence : https://torsion.org/borgmatic/reference/configuration/
+#
+# Dépôt : Storage Box Hetzner en SSH (clé /root/.ssh/backup_storage_box_key).
+
+# Fichiers et dossiers sauvegardés tels quels.
+source_directories:
+{% for source in borgmatic_app_source_directories %}
+    - {{ source | to_json }}
+{% endfor %}
+{% if borgmatic_app_postgresql_databases | length > 0 %}
+
+# pg_dump tourne dans le conteneur de la base : client et serveur toujours de
+# même version. « --env PGPASSWORD » sans valeur transmet au conteneur le mot
+# de passe que borgmatic pose dans l'environnement de l'hôte (docker exec
+# n'hérite pas de cet environnement).
+postgresql_databases:
+{% for database in borgmatic_app_postgresql_databases %}
+    - container: {{ database.container | to_json }}
+      port: {{ database.port | default(5432) }}
+      name: {{ database.name | to_json }}
+      username: {{ database.username | to_json }}
+      password: {{ database.password | to_json }}
+      pg_dump_command: {{ ('docker exec --env PGPASSWORD ' ~ database.container ~ ' pg_dump') | to_json }}
+{% endfor %}
+{% endif %}
+{% if borgmatic_app_mysql_databases | length > 0 %}
+
+# mysqldump tourne dans le conteneur de la base, pour la même raison. Le mot
+# de passe passe donc par l'environnement (password_transport) et non par le
+# tube par défaut, et « --env MYSQL_PWD » le transmet au conteneur.
+mysql_databases:
+{% for database in borgmatic_app_mysql_databases %}
+    - container: {{ database.container | to_json }}
+      port: {{ database.port | default(3306) }}
+      name: {{ database.name | to_json }}
+      username: {{ database.username | to_json }}
+      password: {{ database.password | to_json }}
+      password_transport: environment
+      mysql_dump_command: {{ ('docker exec --env MYSQL_PWD ' ~ database.container ~ ' mysqldump') | to_json }}
+{% endfor %}
+{% endif %}
+{% if borgmatic_app_sqlite_paths | length > 0 %}
+
+# Bases SQLite trouvées au déploiement, dumpées par le sqlite3 de l'hôte :
+# « .dump » lit dans une transaction, l'instantané est cohérent même
+# application démarrée. « .timeout » attend un verrou d'écriture en cours au
+# lieu d'échouer sur « database is locked ». Restauration :
+# borgmatic restore --archive <archive> --data-source <name>.
+sqlite_databases:
+{% for path in borgmatic_app_sqlite_paths %}
+    - name: {{ (path | regex_replace('^/', '') | replace('/', '_')) | to_json }}
+      path: {{ path | to_json }}
+      sqlite_command: 'sqlite3 -cmd ".timeout 60000"'
+{% endfor %}
+{% endif %}
+
+# Motifs exclus (style fm: de borg, cf. borgmatic_exclude_patterns). La copie
+# vivante des bases SQLite dumpées ci-dessus en fait partie.
+exclude_patterns:
+{% for pattern in borgmatic_exclude_patterns + borgmatic_app_exclude_patterns %}
+    - {{ pattern | to_json }}
+{% endfor %}
+{% for path in borgmatic_app_sqlite_paths %}
+{% for suffix in ['', '-wal', '-shm', '-journal'] %}
+    - {{ (path ~ suffix) | to_json }}
+{% endfor %}
+{% endfor %}
+
+local_path: /root/.local/bin/borg
+
+repositories:
+    - path: {{ borgmatic_app_target | to_json }}
+      label: {{ borgmatic_app_label | to_json }}
+
+ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
+
+encryption_passphrase: {{ borgmatic_app_passphrase | to_json }}
+
+compression: zstd,10
+
+# Rétention : clés de premier niveau (pas sous « retention: »).
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+keep_yearly: 1
+
+# Vérifications : premier niveau aussi (pas sous « consistency: »).
+checks:
+    - name: repository
+      frequency: 2 weeks
+    - name: archives
+      frequency: 1 month
+
+archive_name_format: '{{ borgmatic_app_archive_prefix }}-{now:%Y-%m-%dT%H:%M:%S}'
+{% if borgmatic_app_extra_options | length > 0 %}
+
+{{ borgmatic_app_extra_options | to_nice_yaml(indent=4) | trim }}
+{% endif %}
+
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - echo "Starting {{ borgmatic_app_title }} backup at $(date)"
+{% for command in borgmatic_app_before_commands %}
+          - {{ command | to_json }}
+{% endfor %}
+    - after: action
+      when:
+          - create
+      run:
+          - echo "{{ borgmatic_app_title }} backup completed at $(date)"
+{% for command in borgmatic_app_after_commands %}
+          - {{ command | to_json }}
+{% endfor %}
+{% if borgmatic_app_healthcheck_url %}
+
+# https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
+uptime_kuma:
+    push_url: {{ borgmatic_app_healthcheck_url | to_json }}
+    states:
+        - start
+        - finish
+        - fail
+{% endif %}

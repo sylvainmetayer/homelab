@@ -17,33 +17,40 @@
     mode: "0644"
   notify: Restart nextcloud service
 
-- name: Configure borgmatic backup for nextcloud
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for Nextcloud
   when: nextcloud_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for nextcloud
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-nextcloud.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/nextcloud.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for nextcloud
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir }}/nextcloud.yaml
-          repo-create --encryption {{ nextcloud_backup_borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: nextcloud_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((nextcloud_borg_repo_create.stdout ~ nextcloud_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        nextcloud_borg_repo_create.rc != 0 and
-        'already exists' not in (nextcloud_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: nextcloud
+    borgmatic_app_title: Nextcloud
+    borgmatic_app_target: "{{ nextcloud_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ nextcloud_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ nextcloud_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ nextcloud_base_path }}/compose.yaml"
+      - "{{ nextcloud_base_path }}/config"
+      - "{{ nextcloud_base_path }}/data"
+      - "{{ nextcloud_base_path }}/db_data"
+      - "{{ nextcloud_base_path }}/redis"
+    borgmatic_app_mysql_databases:
+      - container: nextcloud_db
+        name: nextcloud
+        username: nextcloud
+        password: "{{ nextcloud_db_password }}"
+    # Les archives de ce dépôt se sont appelées 'betisier-…' (copier-coller)
+    # avant d'être renommées 'nextcloud-…'. Sans match_archives, borgmatic
+    # dériverait 'sh:nextcloud-*' de archive_name_format et prune / check
+    # ignoreraient les anciennes archives, qui ne seraient plus jamais
+    # purgées. Le dépôt ne contient que nextcloud : toutes ses archives sont
+    # concernées.
+    borgmatic_app_extra_options:
+      match_archives: "*"
 
 - name: Make sure nextcloud service is running
   ansible.builtin.systemd:

@@ -151,32 +151,41 @@
     scope: user
     enabled: true
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for {{ flip_planning_service }}
   when: flip_planning_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for {{ flip_planning_service }}
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-flip_planning.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/{{ flip_planning_service }}.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for {{ flip_planning_service }}
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1
-          --config {{ borgmatic_config_dir }}/{{ flip_planning_service }}.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: flip_planning_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((flip_planning_borg_repo_create.stdout ~ flip_planning_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        flip_planning_borg_repo_create.rc != 0 and
-        'already exists' not in (flip_planning_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: "{{ flip_planning_service }}"
+    borgmatic_app_title: "{{ flip_planning_branding_product_name }}"
+    # Préfixe des conteneurs (kebab-case) et non le nom du service : celui
+    # des archives et du label depuis la première instance.
+    borgmatic_app_archive_prefix: "{{ flip_planning_container_prefix }}"
+    borgmatic_app_target: "{{ flip_planning_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ flip_planning_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ flip_planning_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ flip_planning_base_path }}/compose.yaml"
+      - "{{ flip_planning_base_path }}/pgadmin"
+    # Avec Keycloak, sa base aussi : le realm se reconstruit (c'est le rôle de
+    # terraform/keycloak du dépôt de l'application), mais pas ce qui ne vit
+    # qu'ici et qu'il ne crée volontairement pas : les mots de passe choisis,
+    # les passkeys et secrets TOTP enrôlés. La perdre, c'est faire réenrôler
+    # chaque animateur.
+    borgmatic_app_postgresql_databases: >-
+      {{
+        [{'container': flip_planning_container_prefix ~ '-db',
+          'name': flip_planning_db_name,
+          'username': flip_planning_db_user,
+          'password': flip_planning_db_password}]
+        + ([{'container': flip_planning_container_prefix ~ '-keycloak-db',
+             'name': flip_planning_keycloak_db_name,
+             'username': flip_planning_keycloak_db_user,
+             'password': flip_planning_keycloak_db_password}]
+           if flip_planning_keycloak_enabled | bool else [])
+      }}

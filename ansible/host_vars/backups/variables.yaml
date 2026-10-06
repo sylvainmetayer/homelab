@@ -1,4 +1,7 @@
 ---
+# Un dossier par dépôt Borg : le dernier segment de chaque
+# <service>_backup_borgmatic_target ("{{ backup_storage_box_url }}/<dossier>",
+# defaults des rôles ; flip_planning en a un par instance).
 backup_folders:
   - "immich"
   - "wiki"

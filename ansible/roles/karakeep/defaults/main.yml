@@ -29,6 +29,6 @@ karakeep_ytdlp_args:
 
 # Borgmatic backup configuration
 karakeep_backup_enabled: true
-karakeep_backup_borgmatic_target: ""
-karakeep_backup_encryption_passphrase: ""
+karakeep_backup_borgmatic_target: "{{ backup_storage_box_url }}/karakeep"
+karakeep_backup_encryption_passphrase: "{{ backup_passphrase }}"
 karakeep_backup_healthcheck_url: ""

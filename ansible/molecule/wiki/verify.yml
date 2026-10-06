@@ -50,8 +50,9 @@
         src: /etc/borgmatic.d/wiki.yaml
       register: wiki_borgmatic_raw
 
-    # host_vars/docker passe la passphrase par wiki_backup_borgmatic_password
-    # (et non *_encryption_passphrase comme les autres rôles).
+    # Passphrase par défaut : backup_passphrase, par
+    # wiki_backup_encryption_passphrase comme les autres rôles (l'ancien
+    # wiki_backup_borgmatic_password reste lu s'il est défini).
     - name: Assert the wiki backup dumps the database and pushes to Uptime Kuma
       vars:
         wiki_borgmatic: "{{ wiki_borgmatic_raw.content | b64decode | from_yaml }}"

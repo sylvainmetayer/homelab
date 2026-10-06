@@ -29,35 +29,26 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Trek
   when: trek_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for Trek
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-trek.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/trek.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for Trek
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1
-          --config {{ borgmatic_config_dir }}/trek.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: trek_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((trek_borg_repo_create.stdout ~ trek_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        trek_borg_repo_create.rc != 0 and
-        'already exists' not in (trek_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: trek
+    borgmatic_app_title: Trek
+    borgmatic_app_target: "{{ trek_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ trek_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ trek_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ trek_base_path }}/data"
+      - "{{ trek_base_path }}/uploads"
+      - "{{ trek_base_path }}/compose.yaml"
+      - "{{ trek_base_path }}/.env"
 
 - name: Make sure trek service is running
   ansible.builtin.systemd:

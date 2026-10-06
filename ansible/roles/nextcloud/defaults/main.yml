@@ -6,6 +6,7 @@ nextcloud_redis_password: "redis"
 
 # Backup (borgmatic)
 nextcloud_backup_enabled: true
-nextcloud_backup_borgmatic_target: ""
-nextcloud_backup_borgmatic_password: ""
+nextcloud_backup_borgmatic_target: "{{ backup_storage_box_url }}/nextcloud"
+# Ancien nom de la passphrase, encore lu s'il est défini (host_vars).
+nextcloud_backup_encryption_passphrase: "{{ nextcloud_backup_borgmatic_password | default(backup_passphrase) }}"
 nextcloud_backup_healthcheck_url: ""

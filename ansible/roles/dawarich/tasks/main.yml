@@ -41,35 +41,34 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Dawarich
   when: dawarich_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for Dawarich
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-dawarich.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/dawarich.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for Dawarich
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1
-          --config {{ borgmatic_config_dir }}/dawarich.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: dawarich_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((dawarich_borg_repo_create.stdout ~ dawarich_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        dawarich_borg_repo_create.rc != 0 and
-        'already exists' not in (dawarich_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: dawarich
+    borgmatic_app_title: Dawarich
+    borgmatic_app_target: "{{ dawarich_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ dawarich_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ dawarich_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ dawarich_base_path }}/postgresql"
+      - "{{ dawarich_base_path }}/redis"
+      - "{{ dawarich_base_path }}/public"
+      - "{{ dawarich_base_path }}/watched"
+      - "{{ dawarich_base_path }}/storage"
+      - "{{ dawarich_base_path }}/compose.yaml"
+      - "{{ dawarich_base_path }}/.env"
+    borgmatic_app_postgresql_databases:
+      - container: dawarich-db
+        name: "{{ dawarich_db_name }}"
+        username: "{{ dawarich_db_user }}"
+        password: "{{ dawarich_db_password }}"
 
 - name: Make sure dawarich service is running
   ansible.builtin.systemd:
