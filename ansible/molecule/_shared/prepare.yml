@@ -65,7 +65,8 @@
         mode: "0600"
         content: |
           # Molecule : pas d'image tirée ni de conteneur lancé (ExecStartPre=
-          # vide aussi l'attente de `docker info` de l'unité). L'unité échoue
+          # vide aussi l'attente de `docker info` et le pull des images
+          # absentes de l'unité). L'unité échoue
           # si le compose templaté est invalide, puis reste active.
           # Restart=no : sans lui l'unité réessaierait sans fin, et le job de
           # démarrage resterait ouvert jusqu'à JobRunningTimeoutSec au lieu
