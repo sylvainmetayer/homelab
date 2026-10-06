@@ -261,6 +261,41 @@ override_data {
   }
 }
 
+# GET /v1/org/{org}/site-resources?pageSize=1000 : les quatre ressources
+# privées déclarées dans private_resources.tf et les deux passerelles VPN
+# faites dans l'UI (mode gateway), que lit l'audit vpn_gateways. vpn-flip sort
+# par le site flip ; le site de vpn n'est pas vérifié par l'audit, celui-ci
+# n'est qu'un exemple.
+override_data {
+  target = data.http.pangolin_site_resources
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"siteResources": [
+        {"siteResourceId": 1, "niceId": "bbox", "name": "BBOX", "mode": "http", "destination": "192.168.1.254", "enabled": true,
+         "alias": null, "tcpPortRangeString": "443,80", "udpPortRangeString": "", "disableIcmp": true,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 2, "niceId": "docker-apps", "name": "Docker Apps", "mode": "host", "destination": "192.168.1.216", "enabled": true,
+         "alias": "docker-apps.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": true,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 3, "niceId": "raspberry-pi", "name": "Raspberry PI", "mode": "host", "destination": "192.168.1.96", "enabled": true,
+         "alias": "pi.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 4, "niceId": "flip", "name": "Flip", "mode": "host", "destination": "10.0.1.10", "enabled": true,
+         "alias": "flip.internal", "tcpPortRangeString": "22", "udpPortRangeString": "", "disableIcmp": true,
+         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+      ], "pagination": {"total": 6, "pageSize": 1000, "page": 1}},
+      "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
 # --- Identifiants calculés, fixés et distincts -----------------------------
 
 # Sites. flip porte les identifiants Newt que flip.yml lit dans ce state.
