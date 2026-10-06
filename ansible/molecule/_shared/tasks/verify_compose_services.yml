@@ -1,0 +1,63 @@
+---
+# Vérifications des services d'appui (bases, redis, meilisearch) d'un compose,
+# sur le modèle normalisé par `docker compose config` (depends_on en forme
+# longue, réseaux en dictionnaire) :
+#   - chaque base a un healthcheck et un stop_grace_period : le défaut (10 s)
+#     la tue d'un SIGKILL au `compose stop` de dc@ ;
+#   - chaque service listé a un healthcheck ;
+#   - chaque dépendance listée est attendue en service_healthy ;
+#   - chaque réseau listé est interne (pas de sortie vers Internet).
+#
+# Variables :
+#   verify_compose_service             nom du projet compose (obligatoire)
+#   verify_compose_databases           services de base de données
+#   verify_compose_healthchecks        autres services qui doivent avoir un healthcheck
+#   verify_compose_healthy_dependencies  liste de {service, dependency}
+#   verify_compose_internal_networks   clés de réseaux qui doivent être internes
+- name: Render the compose model of {{ verify_compose_service }}
+  ansible.builtin.command: docker compose config --format json
+  args:
+    chdir: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_compose_service }}"
+  register: verify_compose_raw
+  changed_when: false
+
+- name: Assert the databases are healthchecked and stopped gracefully in {{ verify_compose_service }}
+  vars:
+    verify_compose: "{{ verify_compose_raw.stdout | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - verify_compose.services[item].get('healthcheck', {}).get('test', []) | length > 0
+      - not verify_compose.services[item].get('healthcheck', {}).get('disable', false)
+      - verify_compose.services[item].stop_grace_period is defined
+    fail_msg: "{{ item }} : {{ verify_compose.services[item] | dict2items | selectattr('key', 'in', ['healthcheck', 'stop_grace_period']) | items2dict }}"
+  loop: "{{ verify_compose_databases | default([]) }}"
+
+- name: Assert the supporting services are healthchecked in {{ verify_compose_service }}
+  vars:
+    verify_compose: "{{ verify_compose_raw.stdout | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - verify_compose.services[item].get('healthcheck', {}).get('test', []) | length > 0
+      - not verify_compose.services[item].get('healthcheck', {}).get('disable', false)
+    fail_msg: "{{ item }} : healthcheck {{ verify_compose.services[item].get('healthcheck', 'absent') }}"
+  loop: "{{ verify_compose_healthchecks | default([]) }}"
+
+- name: Assert the dependencies are awaited until healthy in {{ verify_compose_service }}
+  vars:
+    verify_compose: "{{ verify_compose_raw.stdout | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - verify_compose.services[item.service].get('depends_on', {}).get(item.dependency, {}).get('condition') == 'service_healthy'
+    fail_msg: "{{ item.service }} -> {{ item.dependency }} : {{ verify_compose.services[item.service].get('depends_on', 'aucun depends_on') }}"
+  loop: "{{ verify_compose_healthy_dependencies | default([]) }}"
+  loop_control:
+    label: "{{ item.service }} -> {{ item.dependency }}"
+
+- name: Assert the private networks are internal in {{ verify_compose_service }}
+  vars:
+    verify_compose: "{{ verify_compose_raw.stdout | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - verify_compose.networks[item].get('internal', false)
+    fail_msg: "Réseau {{ item }} non interne : {{ verify_compose.networks.get(item, 'absent') }}"
+  loop: "{{ verify_compose_internal_networks | default([]) }}"

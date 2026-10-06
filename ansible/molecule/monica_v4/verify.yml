@@ -10,6 +10,15 @@
         verify_app_service: monica_v4
         verify_app_borgmatic_config: /etc/borgmatic.d/monica_v4.yaml
 
+    - name: Verify the supporting services of monica_v4
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: monica_v4
+        verify_compose_databases:
+          - monica_v4_db
+        verify_compose_healthy_dependencies:
+          - { service: crm, dependency: monica_v4_db }
+
     # L'image apache de Monica écrit son stockage en www-data.
     - name: Stat the Monica v4 storage folder
       ansible.builtin.stat:

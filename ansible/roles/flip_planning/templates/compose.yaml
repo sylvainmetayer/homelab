@@ -58,6 +58,8 @@ services:
   postgres:
     mem_limit: 512m
     mem_reservation: 128m
+    # The default (10 s) SIGKILLs the database on dc@'s `compose stop`.
+    stop_grace_period: 60s
     container_name: {{ flip_planning_container_prefix }}-db
     image: postgres:18.6@sha256:fc973eb97c9fd04bfa1840e0f510719a584ccb3be8debfe6a4144637a9dfe8cf
     restart: unless-stopped
@@ -166,6 +168,7 @@ services:
   keycloak-db:
     mem_limit: 512m
     mem_reservation: 128m
+    stop_grace_period: 60s
     container_name: {{ flip_planning_container_prefix }}-keycloak-db
     image: postgres:18.6@sha256:fc973eb97c9fd04bfa1840e0f510719a584ccb3be8debfe6a4144637a9dfe8cf
     restart: unless-stopped

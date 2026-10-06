@@ -10,6 +10,15 @@
         verify_app_service: betisier
         verify_app_borgmatic_config: /etc/borgmatic.d/betisier.yaml
 
+    - name: Verify the supporting services of betisier
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: betisier
+        verify_compose_databases:
+          - betisier_db
+        verify_compose_healthy_dependencies:
+          - { service: betisier, dependency: betisier_db }
+
     # La base n'a pas de volume : elle est rechargée depuis ce dump à chaque
     # démarrage, et sauvegardée avec.
     - name: Stat the betisier SQL dump

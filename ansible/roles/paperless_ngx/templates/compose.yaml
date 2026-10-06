@@ -9,10 +9,18 @@ services:
       - ./redis:/data
     networks:
       - paperless
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   db:
     mem_limit: 512m
     mem_reservation: 128m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     container_name: paperless_db
     image: docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
     restart: unless-stopped
@@ -24,6 +32,12 @@ services:
       POSTGRES_PASSWORD: {{ paperless_db_password }}
     networks:
       - paperless
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ paperless_db_user }} -d {{ paperless_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   webserver:
     # Le consumer (OCR) tourne dans ce conteneur : c'est un batch, cf. doctrine
@@ -35,10 +49,14 @@ services:
     image: ghcr.io/paperless-ngx/paperless-ngx:3.2@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79
     restart: unless-stopped
     depends_on:
-      - db
-      - broker
-      - gotenberg
-      - tika
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+      gotenberg:
+        condition: service_started
+      tika:
+        condition: service_started
     volumes:
       - ./data:/usr/src/paperless/data
       - ./media:/usr/src/paperless/media

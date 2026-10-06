@@ -16,6 +16,16 @@
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/gramps.yaml"
         verify_app_unit_started: false
 
+    - name: Verify the supporting services of gramps
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: gramps
+        verify_compose_healthchecks:
+          - grampsweb_redis
+        verify_compose_healthy_dependencies:
+          - { service: grampsweb, dependency: grampsweb_redis }
+          - { service: grampsweb_celery, dependency: grampsweb_redis }
+
     - name: Read the state of dc@gramps
       ansible.builtin.systemd:
         name: dc@gramps

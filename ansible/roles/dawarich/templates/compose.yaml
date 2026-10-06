@@ -25,6 +25,8 @@ services:
     # Mesuré collé à 1 Gio (page cache évincé en continu -> relectures disque).
     mem_limit: 2g
     mem_reservation: 1g
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     image: postgis/postgis:17-3.5-alpine@sha256:894f570c0cf0664ed5576a8fd5d5bfb8fb1b19d592885b686c3a88c8bd90c41f
     container_name: dawarich-db
     restart: unless-stopped

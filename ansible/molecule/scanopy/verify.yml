@@ -13,6 +13,15 @@
         verify_app_service: scanopy
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/scanopy.yaml"
 
+    - name: Verify the supporting services of scanopy
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: scanopy
+        verify_compose_databases:
+          - scanopy-postgres
+        verify_compose_healthy_dependencies:
+          - { service: scanopy-server, dependency: scanopy-postgres }
+
     - name: Stat the scanopy environment file
       ansible.builtin.stat:
         path: "{{ scanopy_path }}/.env"

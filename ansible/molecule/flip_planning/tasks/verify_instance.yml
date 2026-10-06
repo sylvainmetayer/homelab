@@ -6,6 +6,15 @@
     verify_app_service: "{{ flip_instance.service }}"
     verify_app_borgmatic_config: "/etc/borgmatic.d/{{ flip_instance.service }}.yaml"
 
+- name: Verify the supporting services of {{ flip_instance.service }}
+  ansible.builtin.include_tasks: ../../_shared/tasks/verify_compose_services.yml
+  vars:
+    verify_compose_service: "{{ flip_instance.service }}"
+    verify_compose_databases:
+      - postgres
+    verify_compose_healthy_dependencies:
+      - { service: app, dependency: postgres }
+
 # --- compose : nommage dérivé de flip_planning_service / _container_prefix ---
 
 - name: Render the compose model of {{ flip_instance.service }}

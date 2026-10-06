@@ -21,11 +21,14 @@ services:
       - ./config:/config
     restart: unless-stopped
     depends_on:
-      - bookstack_db
+      bookstack_db:
+        condition: service_healthy
 
   bookstack_db:
     mem_limit: 512m
     mem_reservation: 192m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     container_name: bookstack_db
     networks:
       - wiki    # Réseau interne uniquement
@@ -41,6 +44,16 @@ services:
     volumes:
       - ./db_data:/config
     restart: unless-stopped
+    # L'image linuxserver n'a pas le healthcheck.sh de l'image officielle.
+    # `mariadb-admin ping` sort en 0 dès que le serveur répond, même par un
+    # refus d'accès : pas de mot de passe dans la commande. En TCP, pour ne
+    # pas dépendre du chemin du socket.
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "--host=127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 networks:
   wiki:      # Réseau interne (créé automatiquement)

@@ -13,6 +13,18 @@
         verify_app_service: paperless
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/paperless.yaml"
 
+    - name: Verify the supporting services of paperless
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: paperless
+        verify_compose_databases:
+          - db
+        verify_compose_healthchecks:
+          - broker
+        verify_compose_healthy_dependencies:
+          - { service: webserver, dependency: db }
+          - { service: webserver, dependency: broker }
+
     - name: Read the paperless compose file
       ansible.builtin.slurp:
         src: "{{ paperless_path }}/compose.yaml"
