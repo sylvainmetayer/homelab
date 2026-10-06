@@ -59,7 +59,7 @@ override_data {
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
-# (valeur simulée par défaut) ferait échouer domains[0] et ces deux lookups.
+# (valeur simulée par défaut) ferait échouer ces deux lookups.
 # Tous les champs de l'objet imbriqué sont fournis, sans quoi la valeur ne se
 # convertit pas vers le type du schéma.
 override_data {
@@ -1418,6 +1418,20 @@ run "one_role_per_app_slug" {
       contains(keys(pangolin_role.apps), slug)
     ])
     error_message = "Chaque environnement de Flip Planning a son propre rôle : un rôle partagé ouvrirait la production aux testeurs de la démo."
+  }
+
+  # Un rôle qu'aucun pangolin_resource_role ne lie n'ouvre rien et encombre la
+  # liste des rôles (betisier et meerkat l'ont fait). Seul nextcloud attend
+  # encore sa liaison, pour son passage derrière le SSO.
+  assert {
+    condition = alltrue([
+      for slug in keys(pangolin_role.apps) :
+      slug == "nextcloud" || anytrue([
+        for f in fileset(path.module, "website_*.tf") :
+        length(regexall("role_id\\s*=\\s*pangolin_role\\.apps\\[\"${slug}\"\\]", file("${path.module}/${f}"))) > 0
+      ])
+    ])
+    error_message = "Un slug de roles.tf n'est lié à aucune ressource par un pangolin_resource_role : le retirer, ou le lier."
   }
 }
 

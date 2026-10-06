@@ -56,7 +56,7 @@ override_data {
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
-# (valeur simulée par défaut) ferait échouer domains[0] et ces deux lookups.
+# (valeur simulée par défaut) ferait échouer ces deux lookups.
 # Tous les champs de l'objet imbriqué sont fournis, sans quoi la valeur ne se
 # convertit pas vers le type du schéma.
 override_data {
