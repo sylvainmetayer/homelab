@@ -28,6 +28,9 @@
 # upgrade would plan a destroy and recreate of every resource that relied on
 # it, new id, new rules and new access tokens included. Declared everywhere, it
 # can only change here.
+#
+# A resource that has to differ from a pin overrides it with a literal and says
+# why next to it: Gramps' `enabled = false` is the only one.
 # ---------------------------------------------------------------------------
 
 locals {
