@@ -1,5 +1,8 @@
 ---
 # Vérifications communes d'un rôle d'application déployé en dc@<service> :
+#   - le compose templaté appartient à l'utilisateur de déploiement, en 0600 :
+#     il porte souvent des mots de passe en clair, et dc@ est une unité *user*
+#     qui le lit sous ce même utilisateur ;
 #   - le compose templaté est valide pour `docker compose` ;
 #   - l'unité user dc@<service> est activée et démarrée ;
 #   - la configuration borgmatic, si elle existe, passe `borgmatic config validate`.
@@ -13,12 +16,16 @@
     path: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_app_service }}/compose.yaml"
   register: verify_app_compose
 
-- name: Assert the compose file exists for {{ verify_app_service }}
+- name: Assert the compose file exists and is private for {{ verify_app_service }}
   ansible.builtin.assert:
     that:
       - verify_app_compose.stat.exists
       - verify_app_compose.stat.pw_name == ansible_facts['user_id']
-    fail_msg: "{{ verify_app_compose.stat.path | default('compose.yaml') }} absent ou pas à {{ ansible_facts['user_id'] }}"
+      - verify_app_compose.stat.mode == '0600'
+    fail_msg: >-
+      {{ verify_app_compose.stat.path | default('compose.yaml') }} absent, pas à
+      {{ ansible_facts['user_id'] }} ou pas en 0600
+      ({{ verify_app_compose.stat.mode | default('absent') }})
 
 - name: Validate the compose file of {{ verify_app_service }}
   ansible.builtin.command: docker compose config --quiet

@@ -28,8 +28,8 @@
     - name: Assert the immich files have the expected owners and modes
       ansible.builtin.assert:
         that:
-          - immich_stats.results[0].stat.mode == '0640'
-          - immich_stats.results[1].stat.mode == '0640'
+          - immich_stats.results[0].stat.mode == '0600'
+          - immich_stats.results[1].stat.mode == '0600'
           - immich_stats.results[1].stat.pw_name == ansible_facts['user_id']
           - immich_stats.results[2].stat.isdir
           - immich_stats.results[2].stat.pw_name == 'root'

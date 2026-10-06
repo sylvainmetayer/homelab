@@ -62,7 +62,7 @@
   ansible.builtin.assert:
     that:
       - flip_planning_env_stat.stat.exists
-      - flip_planning_env_stat.stat.mode == '0640'
+      - flip_planning_env_stat.stat.mode == '0600'
       - flip_planning_env_stat.stat.pw_name == ansible_facts['user_id']
     fail_msg: "{{ flip_planning_env_stat.stat.path | default('.env') }} : {{ flip_planning_env_stat.stat.mode | default('absent') }}"
 

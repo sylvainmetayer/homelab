@@ -23,6 +23,21 @@
           - pangolin_unit.status.ActiveState == 'active'
         fail_msg: "pangolin : {{ pangolin_unit.status.UnitFileState }} / {{ pangolin_unit.status.ActiveState }}"
 
+    - name: Stat the compose file of Pangolin
+      become: true
+      ansible.builtin.stat:
+        path: "{{ pangolin_dir }}/compose.yaml"
+      register: pangolin_compose_stat
+
+    # Même règle que les applications dc@ : 0600, ici à root qui lance la pile.
+    - name: Assert the compose file of Pangolin is private
+      ansible.builtin.assert:
+        that:
+          - pangolin_compose_stat.stat.exists
+          - pangolin_compose_stat.stat.pw_name == 'root'
+          - pangolin_compose_stat.stat.mode == '0600'
+        fail_msg: "{{ pangolin_dir }}/compose.yaml : {{ pangolin_compose_stat.stat.mode | default('absent') }}"
+
     - name: Render the compose model of Pangolin
       become: true
       ansible.builtin.command: docker compose config --format json
