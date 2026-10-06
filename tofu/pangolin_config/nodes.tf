@@ -1,6 +1,6 @@
+# Looked up by name everywhere: the API lists the domains in no documented
+# order, so the former `domains[0]` was whichever one Pangolin returned first.
 locals {
-  main_domain_id   = data.pangolin_domains.all.domains[0].domain_id
-  main_domain_name = data.pangolin_domains.all.domains[0].base_domain
   domain_ids = {
     for domain in data.pangolin_domains.all.domains :
     domain.base_domain => domain.domain_id
@@ -55,13 +55,6 @@ resource "pangolin_site" "pi" {
 resource "pangolin_site" "pangolin" {
   name                  = "pangolin"
   docker_socket_enabled = false
-}
-
-# Only to fetch node id when needed.
-data "pangolin_sites" "all" {}
-
-output "online_sites" {
-  value = [for s in data.pangolin_sites.all.sites : s if s.online]
 }
 
 data "pangolin_domains" "all" {}
