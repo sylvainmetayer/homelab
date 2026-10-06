@@ -26,6 +26,12 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
 - `templates/compose.yaml`: the container that must be publicly reachable
   joins the **external** `newt` network; anything DB/backend-only goes on an
   **internal**, service-named network only — never put a database on `newt`.
+  Declare that network `internal: true` unless a container attached only to
+  it needs the Internet. Databases, redis/valkey and meilisearch get a
+  `healthcheck` (binary present in the image), dependents wait with
+  `depends_on: {<db>: {condition: service_healthy}}`, and databases get
+  `stop_grace_period: 60s` — details in `AGENTS.md`; the Molecule scenario
+  lists them for `_shared/tasks/verify_compose_services.yml`.
   Container names matter: they're what the Pangolin target's `ip`/`hc_hostname`
   will reference in step 6.
   For image references, use a **concrete version tag** corresponding to the
