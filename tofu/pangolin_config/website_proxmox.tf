@@ -11,42 +11,34 @@
 # stopped being true once this block existed.
 #
 # Values mirror GET /v1/resource/4 and /v1/resource/4/targets, so the import
-# below is a no-op apart from the monitor (see the bottom of this file).
+# was a no-op apart from the monitor (see the note in the entry below).
+# Resource, access token and monitor: local.websites (websites.tf); the target,
+# whose probe differs from every other one, stays here.
 # ---------------------------------------------------------------------------
 
-resource "pangolin_resource" "proxmox" {
-  name      = "Proxmox"
-  subdomain = "proxmox"
-  domain_id = local.domain_ids["sylvain.cloud"]
-  protocol  = "tcp"
-  sso       = true
+locals {
+  proxmox_website = {
+    name      = "Proxmox"
+    subdomain = "proxmox"
+    domain_id = local.domain_ids["sylvain.cloud"]
 
-  # Was false in Pangolin and first mirrored as such, which left the country
-  # rules rules.tf creates for this resource in place but never evaluated: the
-  # hypervisor UI answered from any country, behind the SSO only. Enforced
-  # since, like on every other public resource (pinned by the
-  # `every_public_resource_applies_its_rules` test).
-  apply_rules = true
-
-  # Optional+computed: pinned so a plan can disagree with the API. See
-  # resource_defaults.tf.
-  mode                    = local.resource_pins.mode
-  ssl                     = local.resource_pins.ssl
-  enabled                 = local.resource_pins.enabled
-  block_access            = local.resource_pins.block_access
-  email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
-  sticky_session          = local.resource_pins.sticky_session
-
-  # Maintenance screen served automatically while no target is healthy.
-  # See maintenance.tf.
-  maintenance_mode_enabled = local.maintenance.enabled
-  maintenance_mode_type    = local.maintenance.type
-  maintenance_title        = local.maintenance.title
-  maintenance_message      = local.maintenance.message
+    # apply_rules (true on every entry) was false in Pangolin and first
+    # mirrored as such, which left the country rules rules.tf creates for this
+    # resource in place but never evaluated: the hypervisor UI answered from
+    # any country, behind the SSO only. Enforced since, like on every other
+    # public resource (pinned by the `every_public_resource_applies_its_rules`
+    # test).
+    #
+    # The live monitor (id 56) carries a hand-made access token, sits in the
+    # old "Auto-Hébergé" group and has no notification attached at all - it
+    # has never been able to page anyone. It is not imported: a fresh token and
+    # monitor built to the same shape as the other sixteen is what "rapatrier"
+    # means here. Delete monitor 56 and its access token once this is applied.
+  }
 }
 
 resource "pangolin_target" "proxmox" {
-  resource_id = pangolin_resource.proxmox.id
+  resource_id = pangolin_resource.website["proxmox"].id
   site_id     = pangolin_site.proxmox_lxc.id
   ip          = "pve.sylvain.cloud"
   port        = 8006
@@ -75,42 +67,4 @@ resource "pangolin_target" "proxmox" {
   hc_unhealthy_threshold = 1
   hc_follow_redirects    = true
   hc_tls_server_name     = ""
-}
-
-# The live monitor (id 56) carries a hand-made access token, sits in the old
-# "Auto-Hébergé" group and has no notification attached at all - it has never
-# been able to page anyone. It is not imported: a fresh token and monitor built
-# to the same shape as the other sixteen is what "rapatrier" means here. Delete
-# monitor 56 and its access token once this is applied.
-resource "pangolin_resource_access_token" "proxmox" {
-  resource_id = pangolin_resource.proxmox.id
-  title       = "Healthcheck ${pangolin_resource.proxmox.name}"
-}
-
-resource "uptimekuma_monitor_http_keyword" "proxmox" {
-  name = "Healthcheck ${pangolin_resource.proxmox.name}"
-
-  # Grouped under the Self-hosted folder. See uptime_globals.tf.
-  parent = uptimekuma_monitor_group.self_hosted.id
-
-  url             = "https://${pangolin_resource.proxmox.full_domain}"
-  interval        = 60
-  timeout         = 30
-  max_retries     = 2
-  retry_interval  = 60
-  resend_interval = 0
-  active          = true
-  method          = "GET"
-
-  # Inverted keyword on the maintenance title. See maintenance.tf.
-  keyword        = local.maintenance.title
-  invert_keyword = true
-  headers = jsonencode({
-    "P-Access-Token-Id" = tostring(pangolin_resource_access_token.proxmox.id),
-    "P-Access-Token"    = pangolin_resource_access_token.proxmox.token
-  })
-  expiry_notification = true
-  tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
-
-  notification_ids = [uptimekuma_notification_smtp.email.id]
 }

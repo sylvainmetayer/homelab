@@ -29,8 +29,10 @@
 # it, new id, new rules and new access tokens included. Declared everywhere, it
 # can only change here.
 #
-# A resource that has to differ from a pin overrides it with a literal and says
-# why next to it: Gramps' `enabled = false` is the only one.
+# They are applied once, by pangolin_resource.website (websites.tf). A resource
+# that has to differ from a pin says so in its local.websites entry, with the
+# reason next to it: Gramps' `enabled = false` (website_gramps.tf) is the only
+# one, and `enabled` the only pin an entry can override.
 # ---------------------------------------------------------------------------
 
 locals {

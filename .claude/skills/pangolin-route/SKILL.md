@@ -24,95 +24,64 @@ Append the service's **kebab-case** slug to the `apps` list in
 `tofu/pangolin_config/roles.tf`'s `locals` block. This controls who gets SSO
 access to the resource created below.
 
-## 2. Create/extend `tofu/pangolin_config/website_<service>.tf`
+## 2. Declare the app in `tofu/pangolin_config/website_<service>.tf`
 
-Model it on `tofu/pangolin_config/website_searxng.tf` (simple,
-single-target) or `tofu/pangolin_config/website_flip_planning.tf`
-(multi-target, path-based sub-routing):
+The resource, its SSO role binding, its target(s), the healthcheck access
+token, the inverted-keyword Uptime Kuma monitor and the backup push monitor
+are **not** written per app: `tofu/pangolin_config/websites.tf` creates them
+all with `for_each` over `local.websites`, with the pinned attributes
+(`local.resource_pins`), the maintenance page (`local.maintenance`) and the
+probe settings already set. An app only declares its entry and its outputs.
+Model it on `website_searxng.tf` (simple, single-target) or
+`website_flip_planning.tf` (multi-target, path-based sub-routing):
 
 ```hcl
-resource "pangolin_resource" "<service>" {
-  name        = "<Display Name>"
-  subdomain   = "<subdomain>"
-  domain_id   = local.domain_ids["sylvain.cloud"]
-  protocol    = "tcp"
-  sso         = true
-  apply_rules = true
-}
+# Resource, target and monitors: local.websites (websites.tf).
+locals {
+  <service>_website = {
+    name      = "<Display Name>"
+    subdomain = "<subdomain>"
+    domain_id = local.domain_ids["sylvain.cloud"]
+    role      = "<service-kebab>" # the slug added to roles.tf in step 1
+    backup    = true              # push monitor "Backup <Display Name>"
 
-resource "pangolin_resource_role" "<service>" {
-  resource_id = pangolin_resource.<service>.id
-  role_id     = pangolin_role.apps["<service-kebab>"].id
-}
-
-resource "pangolin_target" "<service>" {
-  resource_id = pangolin_resource.<service>.id
-  site_id     = pangolin_site.proxmox_docker.id
-  ip          = "<container_name>"
-  port        = <port>
-  method      = "http"
-
-  hc_enabled             = true
-  hc_hostname             = "<container_name>"   # REQUIRED, see pitfall below
-  hc_path                = "/"
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_headers             = []
-  hc_interval            = 30
-  hc_unhealthy_interval  = 10
-  hc_timeout             = 5
-  hc_healthy_threshold   = 2
-  hc_unhealthy_threshold = 3
-}
-
-resource "pangolin_resource_access_token" "<service>" {
-  resource_id = pangolin_resource.<service>.id
-  title       = "Healthcheck ${pangolin_resource.<service>.name}"
+    target = {
+      site_id = pangolin_site.proxmox_docker.id
+      ip      = "<container_name>" # also the probe's hc_hostname
+      port    = <port>
+      hc_path = "/health"          # optional, default "/"
+    }
+  }
 }
 
 output "<service>_access_token" {
   description = "<SERVICE> - Token d'accès pour les healthchecks"
-  value = jsonencode({
-    id    = pangolin_resource_access_token.<service>.id,
-    token = pangolin_resource_access_token.<service>.token
-  })
-  sensitive = true
-}
-
-resource "uptimekuma_monitor_http" "<service>" {
-  name            = "Healthcheck ${pangolin_resource.<service>.name}"
-  url             = "https://${pangolin_resource.<service>.full_domain}"
-  interval        = 60
-  timeout         = 30
-  max_retries     = 2
-  retry_interval  = 60
-  resend_interval = 0
-  active          = true
-  method          = "GET"
-  headers = jsonencode({
-    "P-Access-Token-Id" = tostring(pangolin_resource_access_token.<service>.id),
-    "P-Access-Token"    = pangolin_resource_access_token.<service>.token
-  })
-  expiry_notification = true
-  tags                = [{ tag_id : uptimekuma_tag.self_hosted.id }]
-}
-
-resource "uptimekuma_monitor_push" "backup_<service>" {
-  name = "Backup ${pangolin_resource.<service>.name}"
-
-  interval = 60 * 60 * 24
-
-  retry_interval = 20
-  active         = true
-  tags           = [{ tag_id : uptimekuma_tag.backup.id }]
+  value       = local.healthcheck_access_tokens["<service>"]
+  sensitive   = true
 }
 
 output "uptime_backup_<service>_url" {
   description = "<SERVICE> - URL pour envoyer les heartbeats push"
-  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_<service>.push_token}"
+  value       = local.backup_push_urls["<service>"]
   sensitive   = true
 }
 ```
+
+Then add `<service> = local.<service>_website` to `local.websites` in
+`websites.tf` (the `every_public_resource_applies_its_rules` test fails if an
+entry is left out). The key, snake_case, is what every generated address
+carries: `pangolin_resource.website["<service>"]`,
+`uptimekuma_monitor_push.backup["<service>"]`... Nothing else to register:
+`local.managed_resources` (the country rules and the audits of `rules.tf`) is
+derived from `local.websites`.
+
+The other fields of an entry, all optional, are documented at the top of
+`websites.tf`: `sso` (default true), `enabled` (default true; false also
+deactivates both monitors), `healthcheck` (default true), `backup` (default
+false), and on a target `hc_port` (default `port`), `path` and `priority`.
+What is specific to one app stays in its file: path rules
+(`local.<service>_*_paths`, turned into rules by `local.path_bypasses` in
+`rules.tf`), home-IP rules, extra access tokens, a pincode.
 
 The `uptime_backup_<service>_url` output is what `ansible/docker.yml` (or
 `pangolin.yaml`/`pi.yml`) reads back to populate
@@ -122,24 +91,27 @@ automatic, see the `borgmatic-backup` skill.
 ### Multi-target / sub-path routing
 
 If a second component of the same app needs to live under a sub-path of the
-same resource (e.g. pgAdmin under `/db`, see `website_flip_planning.tf`), add
-a second `pangolin_target` block with its own `ip`/`port`/`hc_hostname`, plus:
+same resource (e.g. pgAdmin under `/db`, see `website_flip_planning.tf`), give
+the catch-all target `path = "/"` and `priority = 1`, and add the component
+under `sub_targets`, keyed by a suffix (its address becomes
+`pangolin_target.website["<service>_<suffix>"]`):
 
 ```hcl
-path            = "/db"
-path_match_type = "prefix"
-priority        = 2
+    sub_targets = {
+      pgadmin = {
+        site_id  = pangolin_site.flip.id
+        ip       = "<service>-pgadmin"
+        port     = 80
+        path     = "/db"
+        priority = 2
+        hc_path  = "/db/misc/ping"
+      }
+    }
 ```
 
-on the second target, and on the catch-all target:
+A `path` always means a prefix match (`path_match_type = "prefix"`).
 
-```hcl
-path            = "/"
-path_match_type = "prefix"
-priority        = 1
-```
-
-## 2. Validate and apply
+## 3. Validate and apply
 
 ```bash
 cd tofu/pangolin_config
@@ -149,7 +121,7 @@ tofu plan
 tofu apply
 ```
 
-## 3. Verify
+## 4. Verify
 
 ```bash
 curl -I https://<full_domain>
@@ -161,8 +133,9 @@ in Pangolin/Uptime Kuma.
 ## Pitfalls (both come from real bugs shipped in this repo)
 
 - **`hc_hostname` is not inferred from `ip`.** Omitting it silently breaks
-  the healthcheck (fixed after the fact for `sparky_fitness`) — always set it
-  explicitly to the container name.
+  the healthcheck (fixed after the fact for `sparky_fitness`). The
+  generated targets of `websites.tf` set it to `ip`; a target written by
+  hand (NAS, Proxmox) must set it explicitly to the container name.
 - **`priority` is not "higher = matched first".** For path-based sub-routing,
   the catch-all `"/"` needs the *lowest* number and more specific paths need
   *higher* numbers — this was shipped backwards once for `flip_planning` and
