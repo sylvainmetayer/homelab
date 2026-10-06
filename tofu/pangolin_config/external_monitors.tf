@@ -5,9 +5,10 @@
 # here after the August 2026 audit so the instance has no unmanaged corners
 # left, not because this repo deploys any of them.
 #
-# Everything below mirrors the live monitors, `tofu import` included. Two live
-# properties are mirrored rather than corrected, because fixing them is an
-# alerting change and not part of bringing the definitions into code:
+# Everything below mirrors the live monitors, `tofu import` included - Ref,
+# added afterwards, being the one exception. Two live properties are mirrored
+# rather than corrected, because fixing them is an alerting change and not part
+# of bringing the definitions into code:
 #
 #   - none of these monitors has a notification attached, so they page nobody;
 #     FolderSync is the single exception (Telegram, see below)
@@ -152,6 +153,28 @@ resource "uptimekuma_monitor_group" "cloudflare" {
   name   = "Cloudflare"
   active = true
   tags   = [local.tofu_tag]
+}
+
+# ref.sylvain.dev, the referral site (tofu/ref, Cloudflare Pages). Not a mirror
+# of a live monitor: it had none. Same shape as Redirect and Blog, including
+# the absence of notification noted at the top of this file, so the folder stays
+# uniform until that alerting change is made for all of them at once.
+resource "uptimekuma_monitor_http" "ref" {
+  name   = "Ref"
+  parent = uptimekuma_monitor_group.cloudflare.id
+  url    = "https://ref.sylvain.dev"
+
+  interval        = 60
+  timeout         = 48
+  max_retries     = 0
+  retry_interval  = 60
+  resend_interval = 0
+  active          = true
+  method          = "GET"
+
+  domain_expiry_notification = true
+  expiry_notification        = true
+  tags                       = [local.tofu_tag]
 }
 
 resource "uptimekuma_monitor_http" "agent_ready_cloudflare" {
