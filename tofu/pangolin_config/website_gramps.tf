@@ -27,6 +27,19 @@ resource "pangolin_resource_role" "gramps" {
   role_id     = pangolin_role.apps["gramps"].id
 }
 
+# Anniversaries calendar (user settings > Access tokens > anniversaries
+# calendar): a calendar app subscribes to it and cannot go through the SSO
+# wall. Opened worldwide through local.path_bypasses (rules.tf). Read off
+# gramps-web-api v3.22: `/api/anniversaries.ics` is a plain Resource, not a
+# ProtectedResource, authenticated by `?token=` against a per-user access token
+# of scope `anniversaries_ics` (secrets.token_urlsafe(32), stored hashed).
+# Exact path: nothing else of the API is reachable.
+locals {
+  gramps_public_paths = {
+    "/api/anniversaries.ics" = 4
+  }
+}
+
 resource "pangolin_target" "gramps" {
   resource_id = pangolin_resource.gramps.id
   site_id     = pangolin_site.proxmox_docker.id

@@ -27,6 +27,23 @@ resource "pangolin_resource_role" "monica" {
   role_id     = pangolin_role.apps["monica"].id
 }
 
+# CardDAV/CalDAV for phone contact and calendar apps, which cannot go through
+# the SSO wall. Opened worldwide through local.path_bypasses (rules.tf). Read
+# off Monica v3.7.0: laravel-sabre on `/dav` (config/laravelsabre.php), behind
+# HTTP Basic where the password is a Monica personal access token
+# (AuthenticateWithTokenOnBasicAuth), not the account password. The two
+# `.well-known` paths answer a 301 to `/dav/` (routes/web.php).
+#
+# Monica only serves `/dav` when DAV_ENABLED=true in its .env, which this repo
+# does not template (env_file: .env, written by hand on the host).
+locals {
+  monica_dav_paths = {
+    "/dav/*"               = 4
+    "/.well-known/carddav" = 4
+    "/.well-known/caldav"  = 4
+  }
+}
+
 resource "pangolin_target" "monica" {
   resource_id = pangolin_resource.monica.id
   site_id     = pangolin_site.proxmox_docker.id

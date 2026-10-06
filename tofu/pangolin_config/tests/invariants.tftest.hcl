@@ -147,9 +147,15 @@ override_resource {
   values = { id = 2007 }
 }
 
+# Un identifiant commun à toutes les instances, comme pour les autres for_each.
 override_resource {
-  target = pangolin_resource_rule.karakeep_backslash
+  target = pangolin_resource_rule.backslash_guard
   values = { id = 2008 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass
+  values = { id = 2011 }
 }
 
 override_resource {
@@ -232,7 +238,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2010) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2011) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -249,10 +255,11 @@ override_data {
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
-        {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 2, "enabled": true},
-        {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 1, "enabled": true},
+        {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
+        {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
+        {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 12, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 13, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -935,16 +942,10 @@ run "bypass_rules_sit_in_their_priority_band" {
   # un `/` : sans ce DROP devant les ACCEPT, /public/lists/..\..\api/... mène
   # à l'API privée.
   assert {
-    condition = (
-      pangolin_resource_rule.karakeep_backslash.action == "DROP"
-      && pangolin_resource_rule.karakeep_backslash.match == "PATH"
-      && pangolin_resource_rule.karakeep_backslash.value == "/*/*%5C*/*"
-      && pangolin_resource_rule.karakeep_backslash.enabled == true
-      && alltrue([
-        for rule in pangolin_resource_rule.karakeep_public :
-        pangolin_resource_rule.karakeep_backslash.priority < rule.priority
-      ])
-    )
+    condition = alltrue([
+      for rule in pangolin_resource_rule.karakeep_public :
+      pangolin_resource_rule.backslash_guard["Karakeep"].priority < rule.priority
+    ])
     error_message = "Le DROP des chemins contenant un antislash doit précéder tous les ACCEPT publics de Karakeep."
   }
 
@@ -953,7 +954,7 @@ run "bypass_rules_sit_in_their_priority_band" {
   # D'où une comparaison sur les chemins, connus au plan.
   assert {
     condition = alltrue([
-      for rule in concat(values(pangolin_resource_rule.karakeep_public), [pangolin_resource_rule.karakeep_backslash]) :
+      for rule in concat(values(pangolin_resource_rule.karakeep_public), [pangolin_resource_rule.backslash_guard["Karakeep"]]) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
     error_message = "Chaque règle de Karakeep doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
@@ -1007,13 +1008,6 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Chaque règle MCP de TREK doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
   }
 
-  # Pangolin trie par priorité ; deux règles d'une même ressource à égalité
-  # laisseraient l'ordre au hasard de la base.
-  assert {
-    condition     = length(distinct([for rule in pangolin_resource_rule.karakeep_public : rule.priority])) == length(pangolin_resource_rule.karakeep_public)
-    error_message = "Chaque chemin public de Karakeep doit avoir sa propre priorité."
-  }
-
   assert {
     condition = alltrue([
       for rule in [
@@ -1022,9 +1016,126 @@ run "bypass_rules_sit_in_their_priority_band" {
         pangolin_resource_rule.trek_home_ip,
       ] :
       rule.action == "ACCEPT" && rule.match == "IP" && rule.value == "203.0.113.10"
-      && rule.priority == 12 && rule.enabled == true
+      && rule.priority == 9 && rule.enabled == true
     ])
-    error_message = "Les ACCEPT de l'IP maison doivent être à la priorité 12, après les PASS pays (10-11) et avant le DROP (99)."
+    error_message = "Les ACCEPT de l'IP maison doivent être à la priorité 9, devant les PASS pays (10-11) : derrière, l'IP maison (française) n'atteignait jamais la règle."
+  }
+}
+
+# Les ouvertures par chemin de local.path_bypasses (rules.tf) : exactement les
+# chemins relus dans les sources de chaque application, rien de plus large.
+# Ajouter un chemin oblige à le lister ici.
+run "path_bypasses_open_exactly_the_reviewed_paths" {
+  command = plan
+
+  assert {
+    condition = toset(keys(pangolin_resource_rule.path_bypass)) == toset([
+      "Dawarich /s/*",
+      "Dawarich /api/v1/shared/*",
+      "Dawarich /cable",
+      "Dawarich /shared/*",
+      "Dawarich /api/v1/maps/hexagons",
+      "Dawarich /assets/*",
+      "Dawarich /maps_maplibre/*",
+      "Dawarich /site.webmanifest",
+      "Dawarich /favicon.ico",
+      "Gramps /api/anniversaries.ics",
+      "Meerkat CRM /carddav/*",
+      "Meerkat CRM /.well-known/carddav",
+      "Monica CRM /dav/*",
+      "Monica CRM /.well-known/carddav",
+      "Monica CRM /.well-known/caldav",
+      "Paperless-ngx /share/*",
+      "RSS /api/greader.php/*",
+      "RSS /api/fever.php",
+      "TREK /assets/*",
+      "TREK /theme-boot.js",
+      "TREK /shell-guard.js",
+      "TREK /icons/icon.svg",
+      "TREK /icons/icon-white.svg",
+      "TREK /icons/apple-touch-icon-180x180.png",
+      "TREK /shared/*",
+      "TREK /api/shared/*",
+      "TREK /public/journey/*",
+      "TREK /api/public/journey/*",
+      "TREK /uploads/covers/*",
+      "TREK /uploads/places/*",
+    ])
+    error_message = "Les chemins ouverts sans SSO ont changé : relire la liste dans website_<app>.tf et la mettre à jour ici."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.path_bypass :
+      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
+      && rule.priority >= 2 && rule.priority < 10
+    ])
+    error_message = "Les ouvertures par chemin sont des ACCEPT PATH dans la bande 2 à 9 : derrière le DROP antislash (1), devant les règles pays (10)."
+  }
+
+  # Aucune ouverture ne doit rendre une interface d'administration ou d'API
+  # entière : ni racine, ni `/api/*`, ni `/i/*` de FreshRSS.
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.path_bypass :
+      !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
+    ])
+    error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
+  }
+}
+
+# Pangolin ne normalise pas l'antislash, que Node transforme en `/` : chaque
+# ressource qui a une règle par chemin a son DROP en priorité 1, seul dans sa
+# case, donc évalué avant toutes les autres.
+run "backslash_guard_covers_every_path_rule" {
+  command = plan
+
+  assert {
+    condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
+      "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning", "Gramps",
+      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "RSS", "TREK",
+    ])
+    error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.backslash_guard :
+      rule.action == "DROP" && rule.match == "PATH" && rule.value == "/*/*%5C*/*"
+      && rule.priority == 1 && rule.enabled == true
+    ])
+    error_message = "Le garde antislash est un DROP PATH /*/*%5C*/* en priorité 1."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in concat(
+        [pangolin_resource_rule.flip_planning_mcp, pangolin_resource_rule.demo_planning_mcp,
+        pangolin_resource_rule.demo_planning_kc_keycloak, pangolin_resource_rule.trek_mcp],
+        values(pangolin_resource_rule.trek_mcp_oauth),
+        values(pangolin_resource_rule.karakeep_public),
+        values(pangolin_resource_rule.path_bypass),
+      ) : rule.priority > 1
+    ])
+    error_message = "La priorité 1 est réservée au DROP antislash : une règle par chemin à égalité avec lui serait évaluée dans un ordre arbitraire."
+  }
+}
+
+# Pangolin départage deux règles de même priorité selon l'ordre de sa base.
+# Ce n'est sans conséquence que si elles ont la même action : une règle
+# spécifique ne partage sa priorité, sur une même ressource, qu'avec des règles
+# de la même action. Les identifiants de ressource sont calculés, d'où l'apply.
+run "tied_rules_share_their_action" {
+  command = apply
+
+  assert {
+    condition = alltrue([
+      for slot, actions in {
+        for rule in local.declared_extra_rules :
+        "${rule.resource_id}:${rule.priority}" => rule.action...
+      } : length(distinct(actions)) == 1
+    ])
+    error_message = "Deux règles d'une même ressource à la même priorité ont des actions différentes : leur ordre, laissé à Pangolin, change le résultat."
   }
 }
 
@@ -1115,7 +1226,9 @@ run "karakeep_public_paths_follow_the_image" {
   command = plan
 
   assert {
-    condition     = strcontains(file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"), "image: ghcr.io/karakeep-app/karakeep:0.33.2\n")
+    # Le tag seul : un épinglage du digest par Renovate (`:0.33.2@sha256:...`)
+    # ne change pas la version et ne doit pas faire échouer ce run.
+    condition     = length(regexall("image: ghcr\\.io/karakeep-app/karakeep:0\\.33\\.2(@|\\s)", file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"))) == 1
     error_message = "Karakeep n'est plus en 0.33.2 : relire dans les sources de la nouvelle version les chemins que charge /public/lists/<id> et mettre à jour karakeep_public_paths (website_karakeep.tf) avant cette version."
   }
 }
@@ -1278,7 +1391,15 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
-      && pangolin_resource_rule.karakeep_backslash.resource_id == pangolin_resource.karakeep.id
+      && pangolin_resource_rule.backslash_guard["Karakeep"].resource_id == pangolin_resource.karakeep.id
+      && pangolin_resource_rule.backslash_guard["TREK"].resource_id == pangolin_resource.trek.id
+      && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.trek.id
+      && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.paperless.id
+      && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.dawarich.id
+      && pangolin_resource_rule.path_bypass["Gramps /api/anniversaries.ics"].resource_id == pangolin_resource.gramps.id
+      && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.rss.id
+      && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.monica.id
+      && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.meerkat_crm.id
       && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.trek.id
       && alltrue([
         for rule in pangolin_resource_rule.trek_mcp_oauth :

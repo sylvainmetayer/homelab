@@ -165,3 +165,10 @@ moved {
   from = pangolin_resource_rule.block_country["00NTF - Dashboard Traefik"]
   to   = pangolin_resource_rule.block_country["Dashboard Traefik"]
 }
+
+# The Karakeep-only backslash DROP became the generic guard of rules.tf, which
+# covers every resource with a path rule. Same rule, new address: no recreate.
+moved {
+  from = pangolin_resource_rule.karakeep_backslash
+  to   = pangolin_resource_rule.backslash_guard["Karakeep"]
+}

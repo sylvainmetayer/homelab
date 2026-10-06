@@ -27,6 +27,22 @@ resource "pangolin_resource_role" "meerkat_crm" {
   role_id     = pangolin_role.apps["meerkat-crm"].id
 }
 
+# CardDAV for phone contact apps, which cannot go through the SSO wall.
+# Opened worldwide through local.path_bypasses (rules.tf). Read off Meerkat CRM
+# v1.7.0 (backend/routes/routes.go, backend/carddav/auth.go): `/carddav/*`
+# behind HTTP Basic with the account's username or e-mail and its password,
+# with per-account lockout and a rate limit; `/.well-known/carddav` answers a
+# 301 to `/carddav/`. The frontend nginx proxies both to the backend. Enabled
+# by CARDDAV_ENABLED in the role's env.
+#
+# Unlike Monica, this is the account password: keep it long.
+locals {
+  meerkat_crm_dav_paths = {
+    "/carddav/*"           = 4
+    "/.well-known/carddav" = 4
+  }
+}
+
 resource "pangolin_target" "meerkat_crm" {
   resource_id = pangolin_resource.meerkat_crm.id
   site_id     = pangolin_site.proxmox_docker.id

@@ -50,7 +50,7 @@ resource "pangolin_resource_rule" "demo_planning_mcp" {
   action      = "ACCEPT"
   match       = "PATH"
   value       = "/mcp/*"
-  priority    = 1
+  priority    = 2
   enabled     = true
 }
 
