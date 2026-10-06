@@ -571,6 +571,38 @@ run "every_probed_target_declares_scheme_mode_and_port" {
     condition     = pangolin_target.nas.hc_enabled == false
     error_message = "La cible du NAS est la seule sans sonde, recopiée de l'API (website_nas.tf)."
   }
+
+  # local.website_targets fusionne par merge() les clés des applications et les
+  # "<app>_<suffixe>" de leurs sub_targets : une collision (un sub_target `kc`
+  # de demo_planning contre l'application demo_planning_kc) écraserait une
+  # cible sans un mot. Aucune clé perdue : autant de cibles que déclarées.
+  assert {
+    condition = length(local.website_targets) == sum(concat([0], [
+      for website in values(local.websites) :
+      (lookup(website, "target", null) == null ? 0 : 1) + length(lookup(website, "sub_targets", {}))
+    ]))
+    error_message = "Deux cibles de local.website_targets ont la même clé (une application et le sub_target d'une autre) : l'une écrase l'autre."
+  }
+
+  # Filet par fichier, indépendant des listes ci-dessus : tout bloc
+  # `pangolin_target` du module, généré (websites.tf) ou écrit à la main (NAS,
+  # Proxmox, et celui qui viendra), qui active sa sonde déclare aussi
+  # hc_scheme, hc_mode, hc_port et hc_hostname.
+  assert {
+    condition = alltrue(flatten([
+      for f in fileset(path.module, "*.tf") : [
+        for block in regexall("(?s)resource\\s+\"pangolin_target\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) :
+        length(regexall("hc_enabled\\s*=\\s*true", block)) == 0 || alltrue([
+          for attribute in ["hc_scheme", "hc_mode", "hc_port", "hc_hostname"] :
+          length(regexall("(?m)^\\s*${attribute}\\s*=", block)) > 0
+        ])
+      ]
+      ])) && length(flatten([
+      for f in fileset(path.module, "*.tf") :
+      regexall("resource\\s+\"pangolin_target\"\\s+\"", file("${path.module}/${f}"))
+    ])) >= 3
+    error_message = "Un bloc pangolin_target active sa sonde sans déclarer hc_scheme, hc_mode, hc_port et hc_hostname : Pangolin stockerait NULL et la sonde échouerait toujours."
+  }
 }
 
 # hc_hostname explicite et égal à `ip` : la sonde envoie le bon Host au bon
@@ -994,6 +1026,17 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
     error_message = "Les chemins ouverts sans SSO ont changé : relire la liste dans website_<app>.tf et la mettre à jour ici."
   }
 
+  # Les tables fusionnées par merge() ne doivent partager aucun chemin : une
+  # clé commune garderait une seule des deux priorités, sans un mot. Même
+  # contrôle sur la fusion finale de path_bypass_rules.
+  assert {
+    condition = (
+      length(local.path_bypasses["TREK"]) == length(local.trek_mcp_public_paths) + length(local.trek_share_paths)
+      && length(local.path_bypass_rules) == sum([for paths in values(local.path_bypasses) : length(paths)])
+    )
+    error_message = "Deux tables de chemins fusionnées dans local.path_bypasses partagent une clé : l'une écrase l'autre."
+  }
+
   assert {
     condition = alltrue([
       for rule in pangolin_resource_rule.path_bypass :
@@ -1227,9 +1270,41 @@ run "every_public_resource_applies_its_rules" {
         regexall("resource\\s+\"pangolin_resource\"\\s+\"", file("${path.module}/${f}"))
       ])) == 1
       && toset([for r in pangolin_resource.website : r.name]) == toset(keys(local.managed_resources))
-      && length(pangolin_resource.website) == 21
     )
     error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), ou manque à local.managed_resources."
+  }
+
+  # Les noms Pangolin, écrits en toutes lettres : les règles pays et les
+  # audits de rules.tf en font leurs clés, si bien qu'un nom changé détruit et
+  # recrée toutes les règles de la ressource (aucun moved ne suit un nom). La
+  # clé de l'entrée, elle, est l'adresse que moved.tf a donnée à chaque
+  # ressource. Une nouvelle application s'ajoute ici (voir le skill
+  # pangolin-route).
+  assert {
+    condition = { for key, r in pangolin_resource.website : key => r.name } == {
+      betisier         = "Betisier"
+      dawarich         = "Dawarich"
+      demo_planning    = "Demo Planning"
+      demo_planning_kc = "Demo Planning KC"
+      echo             = "Echo"
+      flip_planning    = "Flip Planning"
+      gramps           = "Gramps"
+      immich           = "Immich"
+      immich_swipe     = "Immich Swipe"
+      karakeep         = "Karakeep"
+      meerkat_crm      = "Meerkat CRM"
+      monica           = "Monica CRM"
+      nas              = "NAS"
+      nextcloud        = "nextcloud"
+      paperless        = "Paperless-ngx"
+      proxmox          = "Proxmox"
+      rss              = "RSS"
+      scanopy          = "Scanopy"
+      searxng          = "SearXNG"
+      trek             = "TREK"
+      wiki             = "Wiki (Bookstack)"
+    }
+    error_message = "Les ressources publiques ont changé (clé ou nom) : un nom renommé recrée ses règles pays ; une application ajoutée se liste ici."
   }
 
   # local.websites liste à la main les entrées local.<app>_website des
@@ -1339,24 +1414,45 @@ run "maintenance_page_and_inverted_keyword_monitors" {
     error_message = "Chaque healthcheck doit chercher le titre de la page de maintenance en mot-clé inversé : sinon la page (HTTP 200) passe pour un service sain."
   }
 
-  # Un moniteur actif sur une ressource désactivée ne pourrait qu'être DOWN et
-  # écrire : Gramps, arrêté, a les deux siens inactifs.
+  # Un healthcheck actif sur une ressource désactivée ne pourrait qu'être DOWN
+  # et écrire : celui de Gramps suit local.gramps_enabled (website_gramps.tf),
+  # tous les autres sont actifs. Son moniteur de sauvegarde, lui, reste actif
+  # (monitors_are_filed_and_notify_by_email) : la sauvegarde tourne toujours.
   assert {
     condition = alltrue([
       for key, m in uptimekuma_monitor_http_keyword.healthcheck :
-      m.active == (key != "gramps")
+      m.active == (key == "gramps" ? local.gramps_enabled : true)
     ])
-    error_message = "Tous les healthchecks sont actifs, sauf celui de Gramps, arrêté."
+    error_message = "Le healthcheck de Gramps doit suivre local.gramps_enabled, et tous les autres être actifs."
   }
 
-  # Les noms de moniteurs n'ont pas bougé avec la factorisation : Uptime Kuma
-  # les affiche, et les mails d'alerte les citent.
+  # Les noms des moniteurs, écrits en toutes lettres : Uptime Kuma les
+  # affiche et les mails d'alerte les citent. Une nouvelle application
+  # s'ajoute ici (voir le skill pangolin-route).
   assert {
-    condition = alltrue([
-      for key, m in uptimekuma_monitor_http_keyword.healthcheck :
-      m.name == "Healthcheck ${local.websites[key].name}"
-    ])
-    error_message = "Un healthcheck ne s'appelle plus « Healthcheck <nom de la ressource> »."
+    condition = { for key, m in uptimekuma_monitor_http_keyword.healthcheck : key => m.name } == {
+      betisier      = "Healthcheck Betisier"
+      dawarich      = "Healthcheck Dawarich"
+      demo_planning = "Healthcheck Demo Planning"
+      echo          = "Healthcheck Echo"
+      flip_planning = "Healthcheck Flip Planning"
+      gramps        = "Healthcheck Gramps"
+      immich        = "Healthcheck Immich"
+      immich_swipe  = "Healthcheck Immich Swipe"
+      karakeep      = "Healthcheck Karakeep"
+      meerkat_crm   = "Healthcheck Meerkat CRM"
+      monica        = "Healthcheck Monica CRM"
+      nas           = "Healthcheck NAS"
+      nextcloud     = "Healthcheck nextcloud"
+      paperless     = "Healthcheck Paperless-ngx"
+      proxmox       = "Healthcheck Proxmox"
+      rss           = "Healthcheck RSS"
+      scanopy       = "Healthcheck Scanopy"
+      searxng       = "Healthcheck SearXNG"
+      trek          = "Healthcheck TREK"
+      wiki          = "Healthcheck Wiki (Bookstack)"
+    }
+    error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
   }
 }
 
@@ -1815,14 +1911,29 @@ run "monitors_are_filed_and_notify_by_email" {
 
   # Les moniteurs de sauvegarde sont les instances de
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
-  # plus celui de Pangolin. Les clés sont épinglées : en ajouter ou en retirer
-  # un est une décision, et chacune garde l'adresse que moved.tf lui a donnée.
+  # plus celui de Pangolin. Clés et noms sont écrits en toutes lettres : en
+  # ajouter ou en retirer un est une décision, chacun garde l'adresse que
+  # moved.tf lui a donnée et le nom qu'Uptime Kuma affiche.
   assert {
-    condition = toset(keys(uptimekuma_monitor_push.backup)) == toset([
-      "betisier", "dawarich", "demo_planning", "flip_planning", "gramps", "immich", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "rss", "scanopy", "searxng", "trek", "wiki",
-    ])
-    error_message = "Les moniteurs de sauvegarde ont changé : relire les champs backup de local.websites."
+    condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
+      betisier      = "Backup Betisier"
+      dawarich      = "Backup Dawarich"
+      demo_planning = "Backup Demo Planning"
+      flip_planning = "Backup Flip Planning"
+      gramps        = "Backup Gramps"
+      immich        = "Backup Immich"
+      karakeep      = "Backup Karakeep"
+      meerkat_crm   = "Backup Meerkat CRM"
+      monica        = "Backup Monica CRM"
+      nextcloud     = "Backup nextcloud"
+      paperless     = "Backup Paperless-ngx"
+      rss           = "Backup RSS"
+      scanopy       = "Backup Scanopy"
+      searxng       = "Backup SearXNG"
+      trek          = "Backup TREK"
+      wiki          = "Backup Wiki (Bookstack)"
+    }
+    error_message = "Les moniteurs de sauvegarde ont changé (clé ou nom) : relire les champs backup de local.websites, puis cette liste."
   }
 
   assert {
@@ -1836,14 +1947,6 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
   }
 
-  # Les noms n'ont pas bougé avec la factorisation : « Backup <ressource> ».
-  assert {
-    condition = alltrue([
-      for key, m in uptimekuma_monitor_push.backup :
-      m.name == "Backup ${local.websites[key].name}"
-    ])
-    error_message = "Un moniteur de sauvegarde ne s'appelle plus « Backup <nom de la ressource> »."
-  }
 
   assert {
     condition = (

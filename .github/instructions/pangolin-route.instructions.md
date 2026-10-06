@@ -71,13 +71,33 @@ Then add `<service> = local.<service>_website` to `local.websites` in
 `websites.tf` (the `every_public_resource_applies_its_rules` test fails if an
 entry is left out). The key, snake_case, is what every generated address
 carries: `pangolin_resource.website["<service>"]`,
-`uptimekuma_monitor_push.backup["<service>"]`... Nothing else to register:
-`local.managed_resources` (the country rules and the audits of `rules.tf`) is
-derived from `local.websites`.
+`uptimekuma_monitor_push.backup["<service>"]`... `local.managed_resources`
+(the country rules and the audits of `rules.tf`) is derived from
+`local.websites`, nothing to register there.
+
+`tests/invariants.tftest.hcl` pins the inventory on purpose, so that adding,
+renaming or dropping an app is a visible decision and not a side effect. Add
+the new app to:
+
+- the resource name map of `every_public_resource_applies_its_rules` (key =>
+  Pangolin name: a renamed name re-keys every country rule of the resource);
+- the target key list of `every_probed_target_declares_scheme_mode_and_port`
+  (one key per target, `<service>_<suffix>` for each sub_target);
+- the healthcheck name map of `maintenance_page_and_inverted_keyword_monitors`
+  (unless `healthcheck = false`);
+- with `backup = true`, the backup name map of
+  `monitors_are_filed_and_notify_by_email`, an `override_resource` giving
+  `uptimekuma_monitor_push.backup["<service>"]` its own `push_token`, and the
+  `uptime_backup_<service>_url` assertions of
+  `outputs_read_by_ansible_point_at_their_own_push_monitor`;
+- an `override_resource` giving `pangolin_resource.website["<service>"]` its
+  own `id` (the country-rule run needs distinct ids);
+- with path rules, the key list of `path_bypasses_open_exactly_the_reviewed_paths`.
 
 The other fields of an entry, all optional, are documented at the top of
 `websites.tf`: `sso` (default true), `enabled` (default true; false also
-deactivates both monitors), `healthcheck` (default true), `backup` (default
+pauses the healthcheck monitor, while the backup monitor stays active since
+the backup job keeps running), `healthcheck` (default true), `backup` (default
 false), and on a target `hc_port` (default `port`), `path` and `priority`.
 What is specific to one app stays in its file: path rules
 (`local.<service>_*_paths`, turned into rules by `local.path_bypasses` in

@@ -126,8 +126,10 @@ resource "pangolin_resource" "website" {
   # list) and fails with "cannot unmarshal string into ... headers of type
   # []ResourceHeader". Ignoring the attribute keeps Tofu from ever sending one.
   # It used to be ignored on those three resources only; a for_each cannot
-  # vary its lifecycle, and since no apply can remove a header anyway, ignoring
-  # it everywhere loses nothing Tofu could act on.
+  # vary its lifecycle (`ignore_changes` takes no expression), and since no
+  # apply can remove a header anyway, ignoring it everywhere loses nothing Tofu
+  # could act on. A deliberate behaviour change all the same: a header set by
+  # hand in the UI, on any public resource, no longer shows in a plan.
   lifecycle {
     ignore_changes = [headers]
   }
