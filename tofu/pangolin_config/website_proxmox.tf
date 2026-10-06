@@ -22,11 +22,12 @@ resource "pangolin_resource" "proxmox" {
   mode      = "http"
   sso       = true
 
-  # False in Pangolin, mirrored rather than "fixed": flipping it to true would
-  # start enforcing the country rules that rules.tf already creates for this
-  # resource, which is a live access change, not a refactor. See the note in
-  # local.managed_resources.
-  apply_rules = false
+  # Was false in Pangolin and first mirrored as such, which left the country
+  # rules rules.tf creates for this resource in place but never evaluated: the
+  # hypervisor UI answered from any country, behind the SSO only. Enforced
+  # since, like on every other public resource (pinned by the
+  # `every_public_resource_applies_its_rules` test).
+  apply_rules = true
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.

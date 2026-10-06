@@ -1249,6 +1249,70 @@ run "path_bypasses_follow_their_image" {
   }
 }
 
+# apply_rules = false laisse les règles pays en place mais Pangolin ne les
+# évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
+# SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
+# applique donc les siennes, et seules Betisier et nextcloud se passent du SSO.
+run "every_public_resource_applies_its_rules" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for r in [
+        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
+        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
+        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
+        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
+        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
+        pangolin_resource.wiki,
+      ] : r.apply_rules == true
+    ])
+    error_message = "Une ressource publique a apply_rules = false : ses règles pays existent mais ne sont pas évaluées."
+  }
+
+  # Une ressource sans SSO n'a que son application pour la protéger. La liste
+  # est fermée : en ajouter une est une décision, pas un oubli.
+  assert {
+    condition = toset([
+      for r in [
+        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+        pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
+        pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
+        pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
+        pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
+        pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
+        pangolin_resource.wiki,
+      ] : r.name if r.sso == false
+    ]) == toset(["Betisier", "nextcloud"])
+    error_message = "Les ressources sans SSO doivent être exactement Betisier et nextcloud."
+  }
+
+  # Les deux listes ci-dessus ne voient pas une ressource ajoutée plus tard :
+  # chaque `resource "pangolin_resource"` du module doit être une entrée de
+  # local.managed_resources, et la liste doit les nommer toutes.
+  assert {
+    condition = (
+      length(flatten([
+        for f in fileset(path.module, "*.tf") :
+        regexall("resource\\s+\"pangolin_resource\"\\s+\"", file("${path.module}/${f}"))
+      ])) == length(local.managed_resources)
+      && toset([
+        for r in [
+          pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+          pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
+          pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
+          pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
+          pangolin_resource.paperless, pangolin_resource.proxmox, pangolin_resource.rss,
+          pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
+          pangolin_resource.wiki,
+        ] : r.name
+      ]) == toset(keys(local.managed_resources))
+    )
+    error_message = "Une ressource Pangolin manque à local.managed_resources ou aux listes de ce test."
+  }
+}
+
 # Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les
 # environnements de Flip Planning sont chacun sur leur domaine.
 run "resources_have_unique_fqdns_on_the_right_domains" {

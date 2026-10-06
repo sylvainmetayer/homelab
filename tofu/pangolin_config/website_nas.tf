@@ -18,8 +18,9 @@ resource "pangolin_resource" "nas" {
   mode      = "http"
   sso       = true
 
-  # False in Pangolin, mirrored rather than "fixed" - same reasoning as Proxmox.
-  apply_rules = false
+  # Was false in Pangolin, mirrored at first: the country rules existed but were
+  # never evaluated. Enforced since - same history as Proxmox.
+  apply_rules = true
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.
