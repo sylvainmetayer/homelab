@@ -99,12 +99,16 @@ Everything the Pangolin routing setup creates for a service (its
 `pangolin_resource`, `pangolin_resource_role`, `pangolin_target`(s),
 `pangolin_resource_access_token`, `uptimekuma_monitor_http_keyword` and
 `uptimekuma_monitor_push`, plus its path rules and the two Terraform outputs)
-lives in one file and one line, so removal is three edits + an apply:
+lives in one file and one line, so removal is a few edits + an apply:
 
 - Delete `tofu/pangolin_config/website_<service>.tf` in full.
 - Remove its `<service> = local.<service>_website` line from `local.websites`
   in `tofu/pangolin_config/websites.tf`, and its entry from
   `local.path_bypasses` in `rules.tf` if it had path rules.
+- Remove it from the inventories `tests/invariants.tftest.hcl` pins on
+  purpose (the list is in the `pangolin-route` instructions): resource name map,
+  target keys, healthcheck and backup name maps, its `override_resource`
+  blocks, its `uptime_backup_<service>_url` assertions and its path keys.
 - Remove the service's kebab-case slug from the `apps` list in
   `tofu/pangolin_config/roles.tf`'s `locals` block (this destroys its
   `pangolin_role`, which also revokes any SSO/user access to it — nothing
