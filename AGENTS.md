@@ -254,5 +254,6 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 ## Notes / gotchas
 
 - SSH access to the Raspberry Pi is local-network only.
+- Every public Pangolin resource only lets FR and DE through (`tofu/pangolin_config/rules.tf`). For a trip, add the country with an end date to `travel_countries` (`tofu/pangolin_config/variables.tf`) and apply: it gets its own priority band (20-29), and the first apply after that date closes it again (the `travel_countries_expired` check then asks for the entry to be removed). Nothing applies `pangolin_config` on a schedule, so it stays open until someone does.
 - The Pangolin `newt` container must share a Docker network with any app it fronts (socket-proxy access requirement).
 - Cloud-init is cleaned in the Packer-built Pangolin image so it can be reconfigured on deploy.

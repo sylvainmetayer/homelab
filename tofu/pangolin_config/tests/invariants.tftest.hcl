@@ -19,6 +19,13 @@ mock_provider "uptimekuma" {}
 mock_provider "http" {}
 mock_provider "aws" {}
 
+# Les pays de voyage dépendent de l'horloge du plan (plantimestamp) : sans cette
+# valeur, le nombre de règles pays changerait le jour où un voyage se termine.
+# Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
+variables {
+  travel_countries = {}
+}
+
 # Toutes les clés lues dans secrets.tf (data.sops_file.secrets.data[...]).
 override_data {
   target = data.sops_file.secrets
@@ -133,6 +140,13 @@ override_resource {
   values = { id = 2006 }
 }
 
+# Une instance for_each ne peut pas être surchargée seule : identifiant commun
+# aux cinq chemins publics de Karakeep.
+override_resource {
+  target = pangolin_resource_rule.karakeep_public
+  values = { id = 2007 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
@@ -202,7 +216,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# six règles spécifiques : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2007) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -217,8 +231,9 @@ override_data {
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/*", "priority": 1, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -734,6 +749,73 @@ run "country_rules_cover_every_resource" {
   }
 }
 
+# Un pays de voyage ouvre une règle PASS par ressource couverte, dans sa propre
+# bande (20-29), sans toucher aux règles FR/DE ni à leurs priorités. Dates hors
+# d'atteinte pour que le run ne dépende pas du jour où il tourne.
+run "travel_countries_open_a_temporary_band" {
+  command = plan
+
+  variables {
+    travel_countries = {
+      IT = "2999-01-01T00:00:00Z"
+      GB = "2999-01-01T00:00:00Z"
+    }
+  }
+
+  assert {
+    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 4
+    error_message = "Chaque pays de voyage actif ajoute une règle PASS par ressource couverte."
+  }
+
+  assert {
+    condition = alltrue([
+      for key, rule in pangolin_resource_rule.allow_countries :
+      rule.action == "PASS" && rule.match == "COUNTRY" && rule.enabled == true
+      && endswith(key, "-${rule.value}")
+      && rule.priority == lookup({ FR = 10, DE = 11, GB = 20, IT = 21 }, rule.value, 0)
+    ])
+    error_message = "FR et DE gardent 10 et 11 ; les pays de voyage prennent 20, 21... dans l'ordre alphabétique."
+  }
+
+  assert {
+    condition     = length(pangolin_resource_rule.block_country) == 24
+    error_message = "Un voyage n'ajoute aucune règle DROP : le catch-all reste unique par ressource."
+  }
+
+  assert {
+    condition     = contains(keys(pangolin_resource_rule.allow_countries), "SSH PI-GB")
+    error_message = "Les ressources épinglées (SSH PI) s'ouvrent aussi au pays de voyage."
+  }
+}
+
+# Un voyage terminé ne produit plus aucune règle au plan suivant, et le check
+# rappelle de retirer l'entrée. Un pays déjà autorisé n'est pas dupliqué.
+run "expired_travel_country_opens_nothing" {
+  command = plan
+
+  variables {
+    travel_countries = {
+      GB = "2000-01-01T00:00:00Z"
+      FR = "2999-01-01T00:00:00Z"
+    }
+  }
+
+  expect_failures = [check.travel_countries_expired]
+
+  assert {
+    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 2
+    error_message = "Un pays de voyage échu ou déjà autorisé ne doit ajouter aucune règle."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.allow_countries :
+      rule.priority == (rule.value == "FR" ? 10 : 11)
+    ])
+    error_message = "FR, même listé comme pays de voyage, garde sa règle permanente à la priorité 10."
+  }
+}
+
 # La bande de priorités de rules.tf : les ACCEPT qui doivent passer quelle que
 # soit l'origine sont AVANT les PASS pays (1-9), les ACCEPT d'IP maison juste
 # après (12), et le DROP ALL en dernier (99).
@@ -762,6 +844,36 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC)."
   }
 
+  # Les listes publiques de Karakeep se lisent sans compte et de partout :
+  # devant les règles pays, et rien de plus large que ce que la page charge.
+  # Un `/api/*` ouvrirait toute l'API sans le mur SSO ni le filtre pays.
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.karakeep_public :
+      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
+      && rule.priority >= 1 && rule.priority < 10
+    ])
+    error_message = "Les chemins publics de Karakeep doivent être des ACCEPT PATH évalués avant les règles pays (priorités 1 à 9)."
+  }
+
+  assert {
+    condition = toset([for rule in pangolin_resource_rule.karakeep_public : rule.value]) == toset([
+      "/public/*",
+      "/_next/static/*",
+      "/api/public/*",
+      "/api/trpc/publicBookmarks.*",
+      "/api/v1/rss/lists/*",
+    ])
+    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC publicBookmarks, RSS des listes)."
+  }
+
+  # Pangolin trie par priorité ; deux règles d'une même ressource à égalité
+  # laisseraient l'ordre au hasard de la base.
+  assert {
+    condition     = length(distinct([for rule in pangolin_resource_rule.karakeep_public : rule.priority])) == length(pangolin_resource_rule.karakeep_public)
+    error_message = "Chaque chemin public de Karakeep doit avoir sa propre priorité."
+  }
+
   assert {
     condition = alltrue([
       for rule in [
@@ -778,8 +890,9 @@ run "bypass_rules_sit_in_their_priority_band" {
 
 # Karakeep reste derrière le mur SSO et le filtre pays : ses clients (app
 # mobile, extension, MCP) passent avec un jeton d'accès Pangolin chacun, pas
-# par un contournement de chemin. Un jeton par client, pour en révoquer un
-# seul (téléphone perdu) sans toucher aux autres.
+# par un contournement de chemin (seules les listes publiques en ont un, voir
+# bypass_rules_sit_in_their_priority_band). Un jeton par client, pour en
+# révoquer un seul (téléphone perdu) sans toucher aux autres.
 run "karakeep_clients_use_access_tokens_not_a_bypass" {
   command = plan
 
@@ -965,6 +1078,10 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
+      && alltrue([
+        for rule in pangolin_resource_rule.karakeep_public :
+        rule.resource_id == pangolin_resource.karakeep.id
+      ])
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
   }
