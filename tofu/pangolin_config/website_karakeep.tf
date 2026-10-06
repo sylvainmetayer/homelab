@@ -60,35 +60,39 @@ output "karakeep_client_access_tokens" {
 # account, wherever they are: these ACCEPTs sit in the 1 - 9 band of rules.tf,
 # in front of the country rules, and skip the SSO wall. Each path is one the
 # page /public/lists/<listId> actually requests, read off the Karakeep v0.33.2
-# sources (apps/web/app/public, components/public/lists, packages/api) - check
-# them again when bumping the image. Karakeep's own authorisation still applies
-# behind every one of them, so a list that is not public answers 404.
+# sources (apps/web/app/public, components/public/lists, packages/api); the
+# `karakeep_public_paths_follow_the_image` test fails when the image moves, so
+# that they are read again. Karakeep's own authorisation still applies behind
+# every one of them, so a list that is not public answers 404.
 #
 # Deliberately not opened: /api/auth/session (next-auth refetches it when the
 # tab regains focus; failing just logs a console error), /icons/* and
 # /apple-icon.png (the tab's favicon only), and anything broader under /api.
 locals {
   karakeep_public_paths = {
-    # The server-rendered page itself (first 20 bookmarks included).
-    "/public/*" = 1
+    # The server-rendered page itself (first 20 bookmarks included). The only
+    # route under /public.
+    "/public/lists/*" = 2
 
     # Next.js build output: JS chunks, CSS, the self-hosted Inter font and the
     # logo. Same bytes for every Karakeep install.
-    "/_next/static/*" = 2
+    "/_next/static/*" = 3
 
     # Banner images, screenshots and attached files. Served only with a token
     # the server signs per asset when it renders the list, with an expiry.
-    "/api/public/*" = 3
+    "/api/public/*" = 4
 
-    # Infinite scroll past the first page: client-side tRPC queries of the
-    # publicBookmarks router (getPublicBookmarksInList), public procedures.
-    # A batch that mixed in another procedure would still meet Karakeep's
-    # session check on that one.
-    "/api/trpc/publicBookmarks.*" = 4
+    # Infinite scroll past the first page, the only tRPC query the page sends.
+    # Spelled out in full, no wildcard: tRPC batches calls as a comma-joined
+    # list in this one segment, so `publicBookmarks.*` also matched
+    # `publicBookmarks.x,apiKeys.exchange` - a password-to-API-key exchange
+    # open to the whole world, without SSO or geo-filter. An exact segment
+    # matches a batch of this procedure alone and nothing else.
+    "/api/trpc/publicBookmarks.getPublicBookmarksInList" = 5
 
     # The page's RSS button. Answers for a public list, or for a private one
     # only with its rssToken in the query string.
-    "/api/v1/rss/lists/*" = 5
+    "/api/v1/rss/lists/*" = 6
   }
 }
 
@@ -100,6 +104,25 @@ resource "pangolin_resource_rule" "karakeep_public" {
   match       = "PATH"
   value       = each.key
   priority    = each.value
+  enabled     = true
+}
+
+# Evaluated before the ACCEPTs above: any path with a backslash in it is
+# refused. Pangolin resolves `..`, `%2e%2e` and `%2F` before matching
+# (server/lib/pathMatch.ts), but a backslash is just a character to it, so
+# `/public/lists/..\..\api/v1/bookmarks` matches `/public/lists/*`, while
+# the WHATWG URL parser on the Node side turns `\` into `/` and resolves the
+# same path to `/api/v1/bookmarks`. No legitimate Karakeep URL carries one.
+# `%5C` is the backslash: the pattern is decoded before matching, and an
+# encoded `\` in a request is decoded the same way. The leading and trailing
+# `*` take zero or more segments, the middle one is a single segment holding a
+# backslash anywhere.
+resource "pangolin_resource_rule" "karakeep_backslash" {
+  resource_id = pangolin_resource.karakeep.id
+  action      = "DROP"
+  match       = "PATH"
+  value       = "/*/*%5C*/*"
+  priority    = 1
   enabled     = true
 }
 
