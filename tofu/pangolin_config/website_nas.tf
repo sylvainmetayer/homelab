@@ -58,10 +58,9 @@ resource "pangolin_resource_access_token" "nas" {
   title       = "Healthcheck ${pangolin_resource.nas.name}"
 }
 
-# Inverted keyword like the other managed healthchecks: this resource now serves
-# the maintenance page, so a plain status monitor would read a down service as
-# UP. The NAS answers 307 to /, Uptime Kuma follows redirects by default and
-# lands on /desktop/ with a 200.
+# Inverted keyword on the maintenance title, see maintenance.tf. The NAS answers
+# 307 to /, Uptime Kuma follows redirects by default and lands on /desktop/ with
+# a 200.
 resource "uptimekuma_monitor_http_keyword" "nas" {
   name = "Healthcheck ${pangolin_resource.nas.name}"
 

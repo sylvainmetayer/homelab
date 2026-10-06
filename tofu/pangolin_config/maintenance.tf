@@ -25,9 +25,27 @@
 # cannot affect routing, unlike the probe fields.
 # ---------------------------------------------------------------------------
 
-# The title doubles as the keyword of the uptimekuma_monitor_http_keyword
-# monitors (inverted: matching it means DOWN), so it must stay a string that
-# appears nowhere in a healthy app's landing page.
+# Healthchecks: inverted keyword on the title.
+#
+# Pangolin's automatic maintenance page is a Next.js server component proxied
+# by a Traefik router at priority 2000, so a service that is completely down
+# answers 200 with that page instead of failing. A plain status-code monitor
+# reads that as UP and never sends the downtime mail - the exact alerting the
+# maintenance page was added on top of.
+#
+# So every resource healthcheck is an uptimekuma_monitor_http_keyword with
+# `keyword = local.maintenance.title` and `invert_keyword = true`: finding the
+# title means DOWN. The title is rendered server-side into the HTML
+# (src/app/maintenance-screen/page.tsx), so it is visible to a plain GET, and it
+# is the same local the resources use, so editing the page text cannot leave
+# the monitors matching a stale string. It must stay a string that appears
+# nowhere in a healthy app's landing page.
+#
+# A monitor on something that serves no maintenance page (an external site,
+# for instance) stays a plain uptimekuma_monitor_http: there is no title to
+# match, and a down service does fail there.
+# ---------------------------------------------------------------------------
+
 locals {
   maintenance = {
     enabled = true

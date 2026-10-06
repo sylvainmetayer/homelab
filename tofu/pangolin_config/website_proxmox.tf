@@ -102,8 +102,7 @@ resource "uptimekuma_monitor_http_keyword" "proxmox" {
   active          = true
   method          = "GET"
 
-  # Inverted keyword, same reasoning as the other healthchecks. See the comment
-  # in website_betisier.tf.
+  # Inverted keyword on the maintenance title. See maintenance.tf.
   keyword        = local.maintenance.title
   invert_keyword = true
   headers = jsonencode({
