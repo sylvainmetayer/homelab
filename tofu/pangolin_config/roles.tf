@@ -1,8 +1,6 @@
 # One SSO role per app, bound to its resource by a pangolin_resource_role in
-# website_<app>.tf. `nextcloud` is the only slug nothing binds yet: it is kept
-# for the resource's move behind the SSO. `betisier` (a public resource,
-# sso = false) and `meerkat` (an older slug of meerkat-crm) were bound by
-# nothing and are gone.
+# website_<app>.tf. `betisier` (a public resource, sso = false) and `meerkat`
+# (an older slug of meerkat-crm) were bound by nothing and are gone.
 locals {
   apps = [
     "immich",

@@ -245,6 +245,7 @@ locals {
     "Dawarich"      = local.dawarich_share_paths
     "Meerkat CRM"   = local.meerkat_crm_dav_paths
     "Monica CRM"    = local.monica_dav_paths
+    "nextcloud"     = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
     "Paperless-ngx" = local.paperless_share_paths
     "RSS"           = local.rss_api_paths
     "TREK"          = local.trek_share_paths
