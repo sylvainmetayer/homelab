@@ -56,7 +56,13 @@ resource "pangolin_resource_rule" "dawarich_home_ip" {
 #   Their viewer calls /api/v1/shared/<uuid>/{trip,points,route,photos,...},
 #   and a live link opens the ActionCable socket on /cable, which accepts a
 #   connection without a session only for a valid live share
-#   (app/channels/application_cable/connection.rb).
+#   (app/channels/application_cable/connection.rb). It also accepts the
+#   logged-in user's Rails session cookie, and so does
+#   /api/v1/maps/hexagons an API key: whoever holds one of those now reaches
+#   these two endpoints from any country without the SSO in front. Both are
+#   already full credentials for the account, and only these two endpoints
+#   answer them without the SSO - the rest of the app and of /api/v1 stays
+#   behind it.
 # - Shared month stats, achievements and yearly digest, `/shared/...`: their
 #   `sharing_uuid` plus `public_accessible?`. The month page draws its map from
 #   /api/v1/maps/hexagons, which skips the API key only when a sharing uuid is

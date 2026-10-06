@@ -876,9 +876,10 @@ run "expired_travel_country_opens_nothing" {
   }
 }
 
-# La bande de priorités de rules.tf : les ACCEPT qui doivent passer quelle que
-# soit l'origine sont AVANT les PASS pays (1-9), les ACCEPT d'IP maison juste
-# après (12), et le DROP ALL en dernier (99).
+# La bande de priorités de rules.tf : la priorité 1 est au DROP antislash, les
+# règles qui doivent passer quelle que soit l'origine (ACCEPT par chemin, PASS
+# /mcp de TREK) sont entre 2 et 8, les ACCEPT d'IP maison à 9, tous AVANT les
+# PASS pays (10-11, voyages à 20), et le DROP ALL en dernier (99).
 run "bypass_rules_sit_in_their_priority_band" {
   command = plan
 
@@ -890,7 +891,7 @@ run "bypass_rules_sit_in_their_priority_band" {
         pangolin_resource_rule.demo_planning_kc_keycloak,
       ] :
       rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 1 && rule.priority < 10
+      && rule.priority >= 2 && rule.priority < 10
     ])
     error_message = "Les ACCEPT par chemin doivent être évalués avant les règles pays (priorités 1 à 9) : un PASS pays ne les laisserait jamais atteindre."
   }
@@ -911,7 +912,7 @@ run "bypass_rules_sit_in_their_priority_band" {
     condition = alltrue([
       for rule in pangolin_resource_rule.karakeep_public :
       rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 1 && rule.priority < 10
+      && rule.priority >= 2 && rule.priority < 10
     ])
     error_message = "Les chemins publics de Karakeep doivent être des ACCEPT PATH évalués avant les règles pays (priorités 1 à 9)."
   }
@@ -969,7 +970,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       && pangolin_resource_rule.trek_mcp.match == "PATH"
       && pangolin_resource_rule.trek_mcp.value == "/mcp"
       && pangolin_resource_rule.trek_mcp.enabled == true
-      && pangolin_resource_rule.trek_mcp.priority >= 1 && pangolin_resource_rule.trek_mcp.priority < 10
+      && pangolin_resource_rule.trek_mcp.priority >= 2 && pangolin_resource_rule.trek_mcp.priority < 10
     )
     error_message = "/mcp de TREK doit être un PASS (pas un ACCEPT) sur le chemin exact, avant les règles pays : le jeton d'accès Pangolin reste exigé."
   }
@@ -978,7 +979,7 @@ run "bypass_rules_sit_in_their_priority_band" {
     condition = alltrue([
       for rule in pangolin_resource_rule.trek_mcp_oauth :
       rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 1 && rule.priority < 10 && !strcontains(rule.value, "*")
+      && rule.priority >= 2 && rule.priority < 10 && !strcontains(rule.value, "*")
     ])
     error_message = "La surface OAuth de TREK : des ACCEPT sur chemins exacts (sans joker), avant les règles pays."
   }
@@ -1136,6 +1137,20 @@ run "tied_rules_share_their_action" {
     ])
     error_message = "Deux règles d'une même ressource à la même priorité ont des actions différentes : leur ordre, laissé à Pangolin, change le résultat."
   }
+
+  # Le garde antislash est posé d'après une liste de noms
+  # (local.backslash_guarded_resources) : ce sont les règles réellement
+  # déclarées qui disent si elle est complète. Toute règle PATH d'une
+  # ressource, quelle qu'elle soit, impose un DROP antislash sur cette
+  # ressource.
+  assert {
+    condition = alltrue([
+      for rule in local.declared_extra_rules :
+      contains([for guard in pangolin_resource_rule.backslash_guard : guard.resource_id], rule.resource_id)
+      if rule.match == "PATH"
+    ])
+    error_message = "Une règle par chemin vise une ressource sans DROP antislash : ajouter son nom à local.standalone_path_rule_resources (rules.tf)."
+  }
 }
 
 # Karakeep reste derrière le mur SSO et le filtre pays : ses clients (app
@@ -1229,6 +1244,30 @@ run "karakeep_public_paths_follow_the_image" {
     # ne change pas la version et ne doit pas faire échouer ce run.
     condition     = length(regexall("image: ghcr\\.io/karakeep-app/karakeep:0\\.33\\.2(@|\\s)", file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"))) == 1
     error_message = "Karakeep n'est plus en 0.33.2 : relire dans les sources de la nouvelle version les chemins que charge /public/lists/<id> et mettre à jour karakeep_public_paths (website_karakeep.tf) avant cette version."
+  }
+}
+
+# Même garde-fou que pour Karakeep, pour chaque liste de local.path_bypasses :
+# ces chemins ont été relus dans les sources d'UNE version de l'image. Quand
+# Renovate la monte, une nouvelle route non authentifiée sous un préfixe ouvert
+# (ou un partage déplacé) changerait en silence ce qui répond au monde entier
+# sans SSO. Le tag seul est comparé : l'épinglage du digest ne compte pas.
+run "path_bypasses_follow_their_image" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for app, pin in {
+        "TREK (website_trek.tf)"               = { file = "trek", image = "docker\\.io/mauriceboe/trek:4\\.3\\.3" }
+        "Dawarich (website_dawarich.tf)"       = { file = "dawarich", image = "freikin/dawarich:1\\.15\\.3" }
+        "Paperless-ngx (website_paperless.tf)" = { file = "paperless_ngx", image = "ghcr\\.io/paperless-ngx/paperless-ngx:3\\.2" }
+        "FreshRSS (website_rss.tf)"            = { file = "rss", image = "freshrss/freshrss:1\\.30\\.0" }
+        "Monica (website_monica.tf)"           = { file = "monica_v4", image = "monica:3\\.7\\.0-apache" }
+        "Meerkat CRM (website_meerkat_crm.tf)" = { file = "meerkat_crm", image = "ghcr\\.io/fbuchner/meerkat-crm-backend:1\\.7\\.0" }
+      } :
+      length(regexall("image: ${pin.image}(@|\\s)", file("${path.module}/../../ansible/roles/${pin.file}/templates/compose.yaml"))) >= 1
+    ])
+    error_message = "Une image dont les chemins sont ouverts par local.path_bypasses a changé de version : relire dans les sources de la nouvelle version les routes sous les préfixes ouverts, mettre à jour la liste de chemins de l'app, puis la version attendue ici."
   }
 }
 

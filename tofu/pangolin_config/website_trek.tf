@@ -171,7 +171,14 @@ locals {
 
     # Trip covers (also the journey hero when it comes from the trip) and
     # uploaded place images. No token: Express serves them to anyone holding
-    # the UUID file name (platform.routes.ts), here worldwide.
+    # the UUID file name (platform.routes.ts), here worldwide - and, like
+    # /uploads/journey/* below, a URL handed out by a share keeps answering
+    # after that share is revoked or expires. Accepted here and not there:
+    # these are the trip's cover and its places' pictures, without which the
+    # shared trip renders as bare text, whereas the journey uploads are the
+    # trip's own photo album, and the journey page still works without them
+    # (photos go through /api/public/journey/*, which checks the token on
+    # every request).
     "/uploads/covers/*" = 4
     "/uploads/places/*" = 4
   }
