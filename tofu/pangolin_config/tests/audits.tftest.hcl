@@ -130,9 +130,38 @@ override_resource {
   values = { id = 2008 }
 }
 
+# Un identifiant commun aux ouvertures par chemin, et un identifiant propre à
+# cinq d'entre elles, anciennes règles autonomes passées dans
+# local.path_bypasses : la réponse simulée de l'API les porte, si bien que
+# l'une d'elles sortie de la configuration ferait échouer l'inventaire.
 override_resource {
   target = pangolin_resource_rule.path_bypass
   values = { id = 2011 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"]
+  values = { id = 2001 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"]
+  values = { id = 2002 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"]
+  values = { id = 2003 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["Karakeep /public/lists/*"]
+  values = { id = 2007 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["TREK /oauth/token"]
+  values = { id = 2010 }
 }
 
 override_resource {
@@ -205,7 +234,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2004 à 2011) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2011) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -213,15 +242,20 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"rules": [
+        {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 2, "enabled": true},
+        {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 2, "enabled": true},
+        {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
+        {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 13, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -284,8 +318,8 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == length(local.rule_targets) * 8
-    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (8 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 13
+    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (13 règles chacune dans la réponse simulée)."
   }
 
   assert {
@@ -483,7 +517,7 @@ run "truncated_rule_list_fails_plan" {
         {"data": {"rules": [
           {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
           {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-        ], "pagination": {"total": 8, "pageSize": 2, "page": 1}},
+        ], "pagination": {"total": 13, "pageSize": 2, "page": 1}},
         "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
       EOT
     }

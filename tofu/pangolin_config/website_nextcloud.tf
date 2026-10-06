@@ -7,13 +7,18 @@ locals {
     role      = "nextcloud"
     backup    = true
 
-    # The healthcheck stays on `/` with the access token, like every SSO app.
-    # The token was inert while the resource had no SSO; it is now what lets
-    # the probe past the wall (`/` redirects to Nextcloud's /login, which no
-    # path rule opens). The open /status.php would need no token but tells
-    # nothing more: the maintenance page answers on every path of the host.
-    # Same blind spot as the other SSO apps: a revoked token shows Pangolin's
-    # login page, which holds no maintenance title either.
+    # healthcheck (default true): the Uptime Kuma monitor of websites.tf, not
+    # the Pangolin probe of the target below. It requests `/` of the public
+    # host with the access token, like every SSO app. The token was inert
+    # while the resource had no SSO; it is now what lets the monitor past the
+    # wall (`/` redirects to Nextcloud's /login, which no path rule opens).
+    # The open /status.php would need no token but tells nothing more: the
+    # maintenance page answers on every path of the host. Same blind spot as
+    # the other SSO apps: a revoked token shows Pangolin's login page, which
+    # holds no maintenance title either.
+
+    # The Pangolin probe, from inside the newt network: /login, the page `/`
+    # redirects to.
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "nextcloud"
