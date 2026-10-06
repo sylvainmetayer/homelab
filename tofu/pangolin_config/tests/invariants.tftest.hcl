@@ -171,9 +171,9 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 21 ressources gérées et un
-# reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
-# servi.
+# GET /v1/org/{org}/resources?pageSize=1000 : les 21 ressources gérées, dont
+# Gramps désactivée, et un reste désactivé créé dans l'UI, que l'audit doit
+# ignorer puisqu'il n'est pas servi.
 override_data {
   target = data.http.pangolin_resources
   values = {
@@ -186,7 +186,7 @@ override_data {
         {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 22, "niceId": "echo", "name": "Echo", "fullDomain": "echo.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": true},
+        {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
@@ -1321,15 +1321,30 @@ run "every_public_resource_applies_its_rules" {
 run "every_resource_declares_the_pinned_attributes" {
   command = plan
 
+  # Une seule dérogation, écrite en clair dans website_gramps.tf : Gramps est
+  # arrêté, sa ressource désactivée.
   assert {
     condition = alltrue([
       for key in keys(local.resource_pins) :
       length(flatten([
         for f in fileset(path.module, "website_*.tf") :
         regexall("(?m)^  ${key}\\s*=\\s*local\\.resource_pins\\.${key}$", file("${path.module}/${f}"))
-      ])) == length(local.managed_resources)
+      ])) == length(local.managed_resources) - lookup({ enabled = 1 }, key, 0)
     ])
-    error_message = "Une ressource Pangolin ne déclare pas un attribut de local.resource_pins (mode, ssl, enabled...)."
+    error_message = "Une ressource Pangolin ne déclare pas un attribut de local.resource_pins (mode, ssl, enabled...), ou y déroge sans être Gramps."
+  }
+
+  # La ressource suit l'état du service côté Ansible : désactivée tant que
+  # gramps_enabled est false, à réactiver avec lui.
+  assert {
+    condition = (
+      local.resource_pins.enabled == true
+      && pangolin_resource.gramps.enabled == !strcontains(
+        file("${path.module}/../../ansible/host_vars/docker/variables.yaml"),
+        "\ngramps_enabled: false\n"
+      )
+    )
+    error_message = "pangolin_resource.gramps.enabled doit suivre gramps_enabled (ansible/host_vars/docker/variables.yaml), et toutes les autres ressources rester actives."
   }
 }
 
@@ -1829,7 +1844,10 @@ run "demo_and_production_planning_share_nothing" {
 # Rangement et alerting des moniteurs : chaque sauvegarde dans le dossier
 # Backup avec un battement quotidien, chaque healthcheck dans Self-hosted, et
 # tous reliés au canal e-mail (un moniteur sans notification ne prévient
-# personne, comme gramps et scanopy en 503 pendant des heures).
+# personne, comme gramps et scanopy en 503 pendant des heures). Tout moniteur
+# de sauvegarde est actif, sauf celui de Gramps, arrêté (website_gramps.tf) :
+# l'exception est nommée, et le test échoue aussi s'il redevient actif sans
+# qu'on la retire.
 run "monitors_are_filed_and_notify_by_email" {
   command = apply
 
@@ -1856,10 +1874,10 @@ run "monitors_are_filed_and_notify_by_email" {
       ] :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
-      && m.active == true
+      && m.active == (m.name != "Backup Gramps")
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
   }
 
   assert {

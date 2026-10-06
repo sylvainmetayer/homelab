@@ -8,9 +8,18 @@ resource "pangolin_resource" "gramps" {
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.
-  mode                    = local.resource_pins.mode
-  ssl                     = local.resource_pins.ssl
-  enabled                 = local.resource_pins.enabled
+  mode = local.resource_pins.mode
+  ssl  = local.resource_pins.ssl
+
+  # Overrides the pin: Gramps is stopped on purpose (gramps_enabled: false in
+  # ansible/host_vars/docker/variables.yaml, data and role kept), so Pangolin
+  # stops serving it rather than showing the maintenance page to whoever still
+  # has the link. Still in local.managed_resources: its country rules stay in
+  # place for the day it comes back, and the coverage audit only looks at
+  # enabled resources anyway. Flip back to local.resource_pins.enabled together
+  # with gramps_enabled and the two monitors below.
+  enabled = false
+
   block_access            = local.resource_pins.block_access
   email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
   sticky_session          = local.resource_pins.sticky_session
@@ -76,8 +85,8 @@ resource "uptimekuma_monitor_http_keyword" "gramps" {
   retry_interval  = 60
   resend_interval = 0
   # Gramps is stopped on purpose (gramps_enabled: false in
-  # ansible/host_vars/docker/variables.yaml): the maintenance page would keep
-  # this monitor DOWN and mailing. Flip both back together.
+  # ansible/host_vars/docker/variables.yaml) and its resource disabled above:
+  # this monitor could only be DOWN and mailing. Flip all of them back together.
   active = false
   method = "GET"
 
@@ -103,8 +112,16 @@ resource "uptimekuma_monitor_push" "backup_gramps" {
   interval = 60 * 60 * 24
 
   retry_interval = 20
-  active         = true
-  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
+
+  # Inactive while Gramps is stopped, with the healthcheck above. The only
+  # exception to "every backup monitor is active" in
+  # tests/invariants.tftest.hcl. Note that gramps_backup_enabled stays true in
+  # host_vars: borgmatic still archives the (frozen) data every night and its
+  # push to this inactive monitor is refused, which borgmatic only logs as a
+  # warning - a failing Gramps backup pages nobody until this is flipped back.
+  active = false
+
+  tags = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }
