@@ -50,6 +50,11 @@ services:
     environment:
       MEILI_NO_ANALYTICS: "true"
       MEILI_MASTER_KEY: "{{ karakeep_meili_master_key }}"
+      # Meilisearch refuse de démarrer sur une base écrite par une autre
+      # version, patch compris (1.54.3 -> 1.54.4) : sans migration au
+      # démarrage, chaque montée Renovate laissait la recherche en panne.
+      # Les majeures restent soumises à approbation (renovate.json).
+      MEILI_UPGRADE_DB: "true"
     volumes:
       - ./meilisearch:/meili_data
     networks:
