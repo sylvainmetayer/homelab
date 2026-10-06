@@ -78,42 +78,30 @@ locals {
     for country, status in local.travel_country_status : "${country} (${status})" if status != "active"
   ])
 
-  # Apps managed by this configuration. The key is the resource's Pangolin
-  # `name` and MUST be a literal: `for_each` keys have to be known at plan
-  # time, while the id on the right may still be unknown for a resource that
-  # does not exist yet. That asymmetry is what buys single-apply convergence.
+  # Apps managed by this configuration: every entry of local.websites
+  # (websites.tf), keyed by the resource's Pangolin `name`. That name is a
+  # literal of the entry, so the keys are known at plan time - `for_each` keys
+  # have to be - while the id on the right may still be unknown for a resource
+  # that does not exist yet. That asymmetry is what buys single-apply
+  # convergence.
   #
-  # Every one of them gets the country rules. Adding an app here is not
-  # optional - the coverage precondition below fails the plan if a live,
-  # enabled resource has no entry. There used to be a second map,
-  # `unmanaged_resources`, pinning by id the resources made by hand in the
-  # Pangolin UI; its last entry, `SSH PI`, duplicated the private
-  # `pi.internal` site resource and was deleted, so the map and its audit went
-  # with it.
+  # Derived rather than listed, so a new app cannot be left out of it; the
+  # coverage precondition below still fails the plan on a live resource that
+  # no entry declares.
   managed_resources = {
-    "Betisier"         = pangolin_resource.betisier.id
-    "Dawarich"         = pangolin_resource.dawarich.id
-    "Demo Planning"    = pangolin_resource.demo_planning.id
-    "Demo Planning KC" = pangolin_resource.demo_planning_kc.id
-    "Echo"             = pangolin_resource.echo.id
-    "Flip Planning"    = pangolin_resource.flip_planning.id
-    "Gramps"           = pangolin_resource.gramps.id
-    "Immich"           = pangolin_resource.immich.id
-    "Immich Swipe"     = pangolin_resource.immich_swipe.id
-    "Karakeep"         = pangolin_resource.karakeep.id
-    "Meerkat CRM"      = pangolin_resource.meerkat_crm.id
-    "Monica CRM"       = pangolin_resource.monica.id
-    "NAS"              = pangolin_resource.nas.id
-    "nextcloud"        = pangolin_resource.nextcloud.id
-    "Paperless-ngx"    = pangolin_resource.paperless.id
-    "Proxmox"          = pangolin_resource.proxmox.id
-    "RSS"              = pangolin_resource.rss.id
-    "Scanopy"          = pangolin_resource.scanopy.id
-    "SearXNG"          = pangolin_resource.searxng.id
-    "TREK"             = pangolin_resource.trek.id
-    "Wiki (Bookstack)" = pangolin_resource.wiki.id
+    for key, website in local.websites : website.name => pangolin_resource.website[key].id
   }
 
+  # Every resource that gets country rules. There used to be a second map,
+  # `unmanaged_resources`, pinning by id the resources made by hand in the
+  # Pangolin UI, with a precondition failing the plan when a pin dangled. Its
+  # last entry, `SSH PI`, duplicated the private `pi.internal` site resource
+  # and was deleted, so the map and its audit went with it: an empty map only
+  # kept untestable code alive. A public resource now has to be declared in
+  # local.websites, and the coverage precondition below fails the plan on any enabled one that
+  # is not. The separate name is kept because every rule loop and audit keys on
+  # it.
+  rule_targets = local.managed_resources
 
   # Trip countries share the resource and the key format of the permanent ones
   # ("<resource>-<country>"): opening and closing GB only ever adds or
@@ -194,7 +182,7 @@ resource "terraform_data" "geo_rule_coverage" {
 
     precondition {
       condition     = length(local.uncovered_resources) == 0
-      error_message = "Enabled Pangolin resources with no country rules: ${join(", ", local.uncovered_resources)}. Declare them in a website_*.tf and add them to local.managed_resources, or delete (or disable) them in Pangolin."
+      error_message = "Enabled Pangolin resources with no country rules: ${join(", ", local.uncovered_resources)}. Declare them in a website_*.tf, as an entry of local.websites (websites.tf), or delete (or disable) them in Pangolin."
     }
   }
 }

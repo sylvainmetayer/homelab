@@ -62,19 +62,30 @@ For any backup wiring (`borgmatic_app_*` vars of the `include_role`):
 
 For any `tofu/pangolin_config/website_<service>.tf` (new or modified):
 
-- [ ] Every `pangolin_target` sets `hc_hostname` explicitly (it is **not**
+- [ ] The app is a `local.<service>_website` entry listed in `local.websites`
+      (`websites.tf`), not hand-written `pangolin_resource` / `pangolin_target`
+      / token / monitor blocks: those are generated there, with the pins, the
+      maintenance page and `hc_hostname = ip`. A target written by hand (only
+      NAS and Proxmox today) sets `hc_hostname` explicitly (it is **not**
       inferred from `ip` — a missing value silently breaks the healthcheck;
       this exact bug shipped once for `sparky_fitness`).
-- [ ] If there are multiple `pangolin_target` blocks on one resource
-      (path-based sub-routing), the catch-all `"/"` target has the **lowest**
-      `priority` number and more specific paths have **higher** numbers —
-      the opposite ordering shipped once for `flip_planning` and had to be
-      fixed. Don't assume "higher priority number = matched first."
+- [ ] A renamed or removed generic resource address (a changed key of
+      `local.websites`, a `sub_targets` suffix, a resource leaving the
+      `for_each`) comes with a `moved` block in `moved.tf`: otherwise its
+      access token or push monitor is recreated and every consumer of the old
+      value breaks.
+- [ ] With path-based sub-routing (`sub_targets`), the catch-all `"/"` target
+      has the **lowest** `priority` number and more specific paths have
+      **higher** numbers — the opposite ordering shipped once for
+      `flip_planning` and had to be fixed. Don't assume "higher priority
+      number = matched first."
 - [ ] The service's kebab-case slug was added to the `apps` list in
-      `tofu/pangolin_config/roles.tf` if this is its first exposed resource.
-- [ ] `uptimekuma_monitor_push` output name follows `uptime_backup_<service>_url`
-      exactly — that's the name `ansible/docker.yml` etc. look up in
-      Terraform state outputs.
+      `tofu/pangolin_config/roles.tf` if this is its first exposed resource,
+      and named by the entry's `role` field.
+- [ ] The backup push output (entry with `backup = true`) is named
+      `uptime_backup_<service>_url` exactly and reads
+      `local.backup_push_urls["<service>"]` — that's the name
+      `ansible/docker.yml` etc. look up in Terraform state outputs.
 
 Mechanical checks worth running yourself rather than asking about:
 
