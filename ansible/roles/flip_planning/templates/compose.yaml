@@ -4,10 +4,10 @@ services:
     mem_limit: {{ flip_planning_mem_limit }}
     container_name: {{ flip_planning_container_prefix }}
     # Quoted, as is the Keycloak image: Renovate strips the Jinja before
-    # parsing this file, and a bare `image: {{ ... }}` becomes `image: null`,
-    # which its docker-compose schema rejects for the WHOLE file, so none of
-    # the images below were tracked. The application image itself is tracked
-    # in defaults/main.yml (custom manager in renovate.json).
+    # parsing this file, and an unquoted expression after `image:` becomes
+    # `image: null`, which its docker-compose schema rejects for the WHOLE
+    # file, so none of the images below were tracked. The application image
+    # itself is tracked in defaults/main.yml (custom manager in renovate.json).
     image: "{{ flip_planning_image }}"
     restart: unless-stopped
     pull_policy: {{ flip_planning_image_pull_policy }}
