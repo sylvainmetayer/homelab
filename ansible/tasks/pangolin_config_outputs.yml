@@ -1,6 +1,6 @@
 ---
-# Pré-tâches communes à docker.yml, flip.yml, pangolin.yaml et pi.yml
-# (import_tasks) :
+# Pré-tâches communes (import_tasks) à docker.yml, flip.yml, pangolin.yaml,
+# pi.yml et au playbook d'essai test.yaml :
 #   - charge secrets.sops.yaml dans l'espace global ;
 #   - lit le state OpenTofu de tofu/pangolin_config dans le bucket S3 et en
 #     pose les sorties dans le fact `terraform_outputs`.
@@ -30,8 +30,12 @@
         file: "{{ playbook_dir }}/secrets.sops.yaml"
         expressions: evaluate-on-load
 
+    # no_log ici comme sur le set_fact qui suit : `contents` est le state
+    # entier, sorties sensibles comprises (identifiants Newt, jetons d'accès
+    # Pangolin), qu'un -v écrirait dans run.log.
     - name: Read Terraform state from S3 bucket
       delegate_to: localhost
+      no_log: true
       amazon.aws.s3_object:
         mode: getstr
         bucket: "{{ tfstate_bucket }}"
@@ -42,7 +46,9 @@
       register: terraform_state_raw
 
     # no_log : les sorties comprennent des secrets (identifiants Newt, jetons
-    # d'accès Pangolin), qu'un -v afficherait dans run.log.
+    # d'accès Pangolin), qu'un -v afficherait dans run.log. Un set_fact d'un
+    # playbook qui en recopie une sensible (newt_client_secret de flip.yml)
+    # porte aussi no_log.
     - name: Expose the pangolin_config state outputs
       no_log: true
       ansible.builtin.set_fact:

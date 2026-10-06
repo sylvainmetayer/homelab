@@ -36,8 +36,10 @@
     # production URL used to be set_fact'd as flip_planning_backup_healthcheck_url
     # itself, and the demo's override lost to it: the demo's backups pushed to
     # the production monitor. Each URL is now handed to its instance below.
+    # no_log: newt_client_secret, which -v would write to run.log.
     - name: Load healthcheck URLs and newt credentials from Terraform state outputs
       tags: always
+      no_log: true
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"

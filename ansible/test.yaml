@@ -1,33 +1,15 @@
+---
 - name: Test
   hosts: localhost
   pre_tasks:
-    - name: Load secrets from SOPS
-      community.sops.load_vars:
-        file: "{{ playbook_dir }}/secrets.sops.yaml"
-        expressions: evaluate-on-load
-
-  vars:
-    tfstate_bucket: homelab-tf-state-sylvain
-    tfstate_object_key: homelab/pangolin_config.tfstate
-    tfstate_s3_endpoint: https://s3.eu-west-par.io.cloud.ovh.net
+    # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
   tasks:
-    - name: Read Terraform state from S3 bucket
-      amazon.aws.s3_object:
-        mode: getstr
-        bucket: "{{ tfstate_bucket }}"
-        object: "{{ tfstate_object_key }}"
-        endpoint_url: "{{ tfstate_s3_endpoint }}"
-        aws_access_key: "{{ state_s3_access_key }}"
-        aws_secret_key: "{{ state_s3_secret_key }}"
-      register: terraform_state_raw
-      # changed_when: false
-
     - name: Extract uptime_backup_nextcloud_url from Terraform state outputs
       ansible.builtin.set_fact:
-        uptime_backup_nextcloud_url: >-
-          {{ (terraform_state_raw.contents | from_json).outputs.uptime_backup_nextcloud_url.value }}
-      # changed_when: false
+        uptime_backup_nextcloud_url: "{{ terraform_outputs.uptime_backup_nextcloud_url.value }}"
 
     - name: Display uptime_backup_nextcloud_url
       ansible.builtin.debug:
