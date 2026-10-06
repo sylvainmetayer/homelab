@@ -144,6 +144,11 @@ override_resource {
   values = { id = 2007 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.karakeep_backslash
+  values = { id = 2008 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
@@ -213,7 +218,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2007) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2008) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -228,9 +233,10 @@ override_data {
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
-        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/*", "priority": 1, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
+        {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 10, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -258,8 +264,8 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == 24 * 9
-    error_message = "rule_inventory doit lire les règles des 24 ressources couvertes (9 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == 24 * 10
+    error_message = "rule_inventory doit lire les règles des 24 ressources couvertes (10 règles chacune dans la réponse simulée)."
   }
 }
 

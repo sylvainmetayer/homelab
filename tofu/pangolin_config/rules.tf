@@ -32,29 +32,44 @@ locals {
   # needs a slot in front of them, and the provider rejects a priority below 1,
   # so the country band starts at 10 and leaves that room:
   #
-  #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
+  #    1 -  9  app-specific rules evaluated before the geo-filter
   #            (pangolin_resource_rule.flip_planning_mcp,
   #             pangolin_resource_rule.demo_planning_mcp,
   #             pangolin_resource_rule.demo_planning_kc_keycloak,
+  #             pangolin_resource_rule.karakeep_backslash (DROP),
   #             pangolin_resource_rule.karakeep_public)
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
-  #   20 - 29  PASS COUNTRY <trip>, while var.travel_countries keeps it open
+  #   20       PASS COUNTRY <trip>, while var.travel_countries keeps it open
   #   99       DROP COUNTRY ALL
   country_rule_priority_base = 10
 
-  # Trip countries get their own band rather than following FR and DE: the
-  # next slot after DE is 12, already taken by the home-IP ACCEPTs, and the
-  # permanent rules keep their priority whatever comes and goes here. The
-  # order between a trip PASS and a home-IP ACCEPT does not matter, the home IP
-  # being French.
-  travel_country_priority_base = 20
+  # Trip countries get their own slot rather than following FR and DE: the
+  # next one after DE is 12, already taken by the home-IP ACCEPTs. One fixed
+  # priority for all of them: PASS rules on disjoint countries can be
+  # evaluated in any order, so numbering them would only renumber every other
+  # trip country - an in-place update of all its rules - each time one comes
+  # or goes. Pangolin does not require distinct priorities. The order against
+  # the home-IP ACCEPTs does not matter either, the home IP being French.
+  travel_country_priority = 20
 
-  # Sorted so that a country's priority does not depend on map ordering, and
-  # filtered on the plan's clock: an expired entry simply drops out.
+  # Each entry of var.travel_countries gets exactly one status, on the plan's
+  # clock: `permanent` (already in allowed_countries, opens nothing more),
+  # `active`, or `expired`.
+  travel_country_status = {
+    for country, until in var.travel_countries : country => (
+      contains(local.allowed_countries, country) ? "permanent" :
+      timecmp(plantimestamp(), until) < 0 ? "active" : "expired"
+    )
+  }
+
   active_travel_countries = sort([
-    for country, until in var.travel_countries : country
-    if timecmp(plantimestamp(), until) < 0 && !contains(local.allowed_countries, country)
+    for country, status in local.travel_country_status : country if status == "active"
+  ])
+
+  # Entries that open nothing: dead weight in variables.tf.
+  stale_travel_countries = sort([
+    for country, status in local.travel_country_status : "${country} (${status})" if status != "active"
   ])
 
   # Apps managed by this configuration. The key is the resource's Pangolin
@@ -117,23 +132,18 @@ locals {
       "${pair[0]}-${pair[1]}" => {
         resource_id = local.rule_targets[pair[0]]
         country     = pair[1]
-        priority    = index(local.active_travel_countries, pair[1]) + local.travel_country_priority_base
+        priority    = local.travel_country_priority
       }
     },
   )
-
-  expired_travel_countries = sort([
-    for country, until in var.travel_countries : country
-    if timecmp(plantimestamp(), until) >= 0
-  ])
 }
 
-# Only a reminder: the expired entry already opens nothing (see
-# local.active_travel_countries), it is just dead weight in variables.tf.
-check "travel_countries_expired" {
+# Only a reminder: a stale entry already opens nothing (see
+# local.travel_country_status), it is just dead weight in variables.tf.
+check "travel_countries_stale" {
   assert {
-    condition     = length(local.expired_travel_countries) == 0
-    error_message = "Voyage terminé pour ${join(", ", local.expired_travel_countries)} : ce plan referme le pays, retirez l'entrée de var.travel_countries (variables.tf)."
+    condition     = length(local.stale_travel_countries) == 0
+    error_message = "Entrées de var.travel_countries (variables.tf) qui n'ouvrent rien, à retirer : ${join(", ", local.stale_travel_countries)}. Un pays expiré est refermé par ce plan ; un pays permanent est déjà ouvert par local.allowed_countries."
   }
 }
 
@@ -369,6 +379,7 @@ locals {
       pangolin_resource_rule.demo_planning_mcp,
       pangolin_resource_rule.flip_planning_mcp,
       pangolin_resource_rule.immich_home_ip,
+      pangolin_resource_rule.karakeep_backslash,
       pangolin_resource_rule.trek_home_ip,
     ],
     values(pangolin_resource_rule.karakeep_public),

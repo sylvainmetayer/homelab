@@ -147,6 +147,11 @@ override_resource {
   values = { id = 2007 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.karakeep_backslash
+  values = { id = 2008 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
@@ -216,7 +221,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2007) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2008) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -231,9 +236,10 @@ override_data {
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
-        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/*", "priority": 1, "enabled": true},
+        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
+        {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 10, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -749,8 +755,8 @@ run "country_rules_cover_every_resource" {
   }
 }
 
-# Un pays de voyage ouvre une règle PASS par ressource couverte, dans sa propre
-# bande (20-29), sans toucher aux règles FR/DE ni à leurs priorités. Dates hors
+# Un pays de voyage ouvre une règle PASS par ressource couverte, à sa propre
+# priorité (20), sans toucher aux règles FR/DE ni à leurs priorités. Dates hors
 # d'atteinte pour que le run ne dépende pas du jour où il tourne.
 run "travel_countries_open_a_temporary_band" {
   command = plan
@@ -772,9 +778,9 @@ run "travel_countries_open_a_temporary_band" {
       for key, rule in pangolin_resource_rule.allow_countries :
       rule.action == "PASS" && rule.match == "COUNTRY" && rule.enabled == true
       && endswith(key, "-${rule.value}")
-      && rule.priority == lookup({ FR = 10, DE = 11, GB = 20, IT = 21 }, rule.value, 0)
+      && rule.priority == lookup({ FR = 10, DE = 11, GB = 20, IT = 20 }, rule.value, 0)
     ])
-    error_message = "FR et DE gardent 10 et 11 ; les pays de voyage prennent 20, 21... dans l'ordre alphabétique."
+    error_message = "FR et DE gardent 10 et 11 ; tous les pays de voyage partagent la priorité 20."
   }
 
   assert {
@@ -785,6 +791,35 @@ run "travel_countries_open_a_temporary_band" {
   assert {
     condition     = contains(keys(pangolin_resource_rule.allow_countries), "SSH PI-GB")
     error_message = "Les ressources épinglées (SSH PI) s'ouvrent aussi au pays de voyage."
+  }
+}
+
+# La priorité d'un pays de voyage ne dépend pas des autres : en ajouter ou en
+# voir expirer un ne met pas à jour les règles de ceux qui restent ouverts.
+run "travel_country_priority_ignores_the_other_trips" {
+  command = plan
+
+  variables {
+    travel_countries = {
+      ES = "2999-01-01T00:00:00Z"
+      GB = "2999-01-01T00:00:00Z"
+      IT = "2000-01-01T00:00:00Z"
+    }
+  }
+
+  expect_failures = [check.travel_countries_stale]
+
+  assert {
+    condition = alltrue([
+      for key, rule in pangolin_resource_rule.allow_countries :
+      rule.priority == 20 if contains(["ES", "GB"], rule.value)
+    ])
+    error_message = "GB doit rester à 20 quand ES s'ouvre avant lui dans l'ordre alphabétique et qu'IT expire."
+  }
+
+  assert {
+    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 4
+    error_message = "ES et GB actifs, IT expiré : deux pays de voyage en plus de FR et DE."
   }
 }
 
@@ -800,7 +835,7 @@ run "expired_travel_country_opens_nothing" {
     }
   }
 
-  expect_failures = [check.travel_countries_expired]
+  expect_failures = [check.travel_countries_stale]
 
   assert {
     condition     = length(pangolin_resource_rule.allow_countries) == 24 * 2
@@ -856,15 +891,54 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Les chemins publics de Karakeep doivent être des ACCEPT PATH évalués avant les règles pays (priorités 1 à 9)."
   }
 
+  # La procédure tRPC est écrite en entier : un joker dans ce segment laisserait
+  # passer un lot `publicBookmarks.x,apiKeys.exchange`, échange mot de passe
+  # contre clé d'API ouvert au monde entier.
   assert {
     condition = toset([for rule in pangolin_resource_rule.karakeep_public : rule.value]) == toset([
-      "/public/*",
+      "/public/lists/*",
       "/_next/static/*",
       "/api/public/*",
-      "/api/trpc/publicBookmarks.*",
+      "/api/trpc/publicBookmarks.getPublicBookmarksInList",
       "/api/v1/rss/lists/*",
     ])
-    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC publicBookmarks, RSS des listes)."
+    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes)."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.karakeep_public :
+      !strcontains(rule.value, "/api/trpc/") || !strcontains(rule.value, "*")
+    ])
+    error_message = "Aucun joker sous /api/trpc/ : tRPC regroupe plusieurs procédures dans un seul segment."
+  }
+
+  # Pangolin résout `..` mais pas `\`, que le parseur d'URL de Node prend pour
+  # un `/` : sans ce DROP devant les ACCEPT, /public/lists/..\..\api/... mène
+  # à l'API privée.
+  assert {
+    condition = (
+      pangolin_resource_rule.karakeep_backslash.action == "DROP"
+      && pangolin_resource_rule.karakeep_backslash.match == "PATH"
+      && pangolin_resource_rule.karakeep_backslash.value == "/*/*%5C*/*"
+      && pangolin_resource_rule.karakeep_backslash.enabled == true
+      && alltrue([
+        for rule in pangolin_resource_rule.karakeep_public :
+        pangolin_resource_rule.karakeep_backslash.priority < rule.priority
+      ])
+    )
+    error_message = "Le DROP des chemins contenant un antislash doit précéder tous les ACCEPT publics de Karakeep."
+  }
+
+  # L'override donne le même identifiant aux cinq instances : l'audit
+  # d'inventaire ne verrait pas qu'une d'elles manque à declared_extra_rules.
+  # D'où une comparaison sur les chemins, connus au plan.
+  assert {
+    condition = alltrue([
+      for rule in concat(values(pangolin_resource_rule.karakeep_public), [pangolin_resource_rule.karakeep_backslash]) :
+      contains([for declared in local.declared_extra_rules : declared.value], rule.value)
+    ])
+    error_message = "Chaque règle de Karakeep doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
   }
 
   # Pangolin trie par priorité ; deux règles d'une même ressource à égalité
@@ -917,6 +991,20 @@ run "karakeep_clients_use_access_tokens_not_a_bypass" {
   assert {
     condition     = length(distinct([for token in pangolin_resource_access_token.karakeep_clients : token.title])) == 3
     error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
+  }
+}
+
+# Les chemins publics de Karakeep (website_karakeep.tf) ont été relevés dans
+# les sources de la v0.33.2. Une montée de version (Renovate) fait échouer ce
+# run : relire apps/web/app/public, apps/web/components/public/lists et
+# packages/api de la nouvelle version, ajuster karakeep_public_paths, puis la
+# version ci-dessous.
+run "karakeep_public_paths_follow_the_image" {
+  command = plan
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"), "image: ghcr.io/karakeep-app/karakeep:0.33.2\n")
+    error_message = "Karakeep n'est plus en 0.33.2 : relire dans les sources de la nouvelle version les chemins que charge /public/lists/<id> et mettre à jour karakeep_public_paths (website_karakeep.tf) avant cette version."
   }
 }
 
@@ -1078,6 +1166,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
+      && pangolin_resource_rule.karakeep_backslash.resource_id == pangolin_resource.karakeep.id
       && alltrue([
         for rule in pangolin_resource_rule.karakeep_public :
         rule.resource_id == pangolin_resource.karakeep.id
