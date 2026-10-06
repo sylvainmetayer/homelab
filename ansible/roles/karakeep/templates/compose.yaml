@@ -4,7 +4,7 @@ services:
     # Pas encore mesuré : Next.js + workers (crawler, recherche, assets) dans
     # le même conteneur. À recaler sur memory.peak après quelques jours.
     mem_limit: 1g
-    image: ghcr.io/karakeep-app/karakeep:0.33.2
+    image: ghcr.io/karakeep-app/karakeep:0.33.2@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
     container_name: karakeep
     restart: unless-stopped
     env_file:

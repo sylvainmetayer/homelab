@@ -29,7 +29,7 @@ services:
     mem_reservation: 384m
     container_name: nextcloud_db
     restart: unless-stopped
-    image: mariadb:lts@sha256:805c8e104bd563d5bfa24fadd3f31cd419ea859cb5277f32b5dbf2db714f9ed1
+    image: mariadb:12.3.3@sha256:805c8e104bd563d5bfa24fadd3f31cd419ea859cb5277f32b5dbf2db714f9ed1
     environment:
       MYSQL_ROOT_PASSWORD: {{ nextcloud_db_password }}
       MYSQL_DATABASE: nextcloud
@@ -43,7 +43,7 @@ services:
   cache:
     mem_limit: 256m
     restart: unless-stopped
-    image: redis:bookworm@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c
+    image: redis:8.2.10-bookworm@sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c
     container_name: nextcloud_redis
     command: redis-server --requirepass {{ nextcloud_redis_password }}
     environment:
