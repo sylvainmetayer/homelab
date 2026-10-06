@@ -23,10 +23,17 @@ services:
     networks:
       - newt
       - nextcloud
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
 
   db:
     mem_limit: 1g
     mem_reservation: 384m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     container_name: nextcloud_db
     restart: unless-stopped
     image: mariadb:12.3.3@sha256:805c8e104bd563d5bfa24fadd3f31cd419ea859cb5277f32b5dbf2db714f9ed1
@@ -39,6 +46,17 @@ services:
       - ./db_data:/var/lib/mysql
     networks:
       - nextcloud
+    # healthcheck.sh de l'image officielle. --connect seulement :
+    # --innodb_initialized exige l'utilisateur `healthcheck` que l'entrypoint
+    # ne crée qu'à l'initialisation d'un datadir (ou avec
+    # MARIADB_AUTO_UPGRADE) : sur une base initialisée avant lui, le test
+    # resterait rouge et nextcloud ne démarrerait plus.
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   cache:
     mem_limit: 256m
@@ -52,6 +70,14 @@ services:
       - ./redis:/data
     networks:
       - nextcloud
+    # `$$` : le mot de passe est lu dans l'environnement du conteneur, il
+    # n'apparaît pas dans la commande (docker inspect).
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   nextcloud: {}

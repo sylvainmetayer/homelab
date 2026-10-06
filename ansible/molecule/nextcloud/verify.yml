@@ -11,6 +11,18 @@
         verify_app_service: nextcloud
         verify_app_borgmatic_config: /etc/borgmatic.d/nextcloud.yaml
 
+    - name: Verify the supporting services of nextcloud
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: nextcloud
+        verify_compose_databases:
+          - db
+        verify_compose_healthchecks:
+          - cache
+        verify_compose_healthy_dependencies:
+          - { service: nextcloud, dependency: db }
+          - { service: nextcloud, dependency: cache }
+
     # Il contiendra les fichiers des utilisateurs : fermé aux autres comptes.
     - name: Stat the nextcloud app folder
       ansible.builtin.stat:

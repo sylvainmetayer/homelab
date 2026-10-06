@@ -14,8 +14,10 @@ services:
       BROWSER_WEB_URL: http://karakeep-chrome:9222
       DATA_DIR: /data
     depends_on:
-      - chrome
-      - meilisearch
+      chrome:
+        condition: service_started
+      meilisearch:
+        condition: service_healthy
     volumes:
       - ./data:/data
     networks:
@@ -59,6 +61,13 @@ services:
       - ./meilisearch:/meili_data
     networks:
       - karakeep
+    # L'image installe curl ; /health répond sans la clé maître.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 # Pas `internal: true` : le crawler (chrome) et le web vont chercher les pages
 # sur Internet.

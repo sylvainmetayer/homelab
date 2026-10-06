@@ -22,9 +22,14 @@ services:
       - .env
     ports:
       - '2283:2283'
+    # database : le HEALTHCHECK vient de l'image (pg_isready + sommes de
+    # contrôle), à 5 min d'intervalle hors start_interval : attendre
+    # service_healthy pourrait retarder immich d'autant, on ne l'attend pas.
     depends_on:
-      - redis
-      - database
+      redis:
+        condition: service_healthy
+      database:
+        condition: service_started
     networks:
       - newt
       - immich
@@ -75,6 +80,8 @@ services:
       # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
     shm_size: 128mb
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     ports:
       - 5432:5432
     restart: always

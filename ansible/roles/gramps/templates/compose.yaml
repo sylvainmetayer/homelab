@@ -15,7 +15,8 @@ services:
       GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
       GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
     depends_on:
-      - grampsweb_redis
+      grampsweb_redis:
+        condition: service_healthy
     volumes:
       - ./users:/app/users
       - ./indexdir:/app/indexdir
@@ -43,8 +44,10 @@ services:
       GRAMPSWEB_CELERY_CONFIG__result_backend: redis://grampsweb_redis:6379/0
       GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://grampsweb_redis:6379/1
     depends_on:
-      - grampsweb
-      - grampsweb_redis
+      grampsweb:
+        condition: service_started
+      grampsweb_redis:
+        condition: service_healthy
     volumes:
       - ./users:/app/users
       - ./indexdir:/app/indexdir
@@ -66,6 +69,12 @@ services:
       - ./redis:/data
     networks:
       - gramps
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   gramps: {}

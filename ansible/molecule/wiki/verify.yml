@@ -10,6 +10,15 @@
         verify_app_service: wiki
         verify_app_borgmatic_config: /etc/borgmatic.d/wiki.yaml
 
+    - name: Verify the supporting services of wiki
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: wiki
+        verify_compose_databases:
+          - bookstack_db
+        verify_compose_healthy_dependencies:
+          - { service: bookstack, dependency: bookstack_db }
+
     - name: Read the wiki compose file
       ansible.builtin.slurp:
         src: /opt/apps/wiki/compose.yaml

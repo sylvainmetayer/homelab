@@ -13,6 +13,18 @@
         verify_app_service: dawarich
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/dawarich.yaml"
 
+    - name: Verify the supporting services of dawarich
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: dawarich
+        verify_compose_databases:
+          - dawarich-db
+        verify_compose_healthchecks:
+          - dawarich-redis
+        verify_compose_healthy_dependencies:
+          - { service: dawarich-app, dependency: dawarich-db }
+          - { service: dawarich-app, dependency: dawarich-redis }
+
     - name: Stat the dawarich environment file
       ansible.builtin.stat:
         path: "{{ dawarich_path }}/.env"

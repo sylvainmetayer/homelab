@@ -13,6 +13,17 @@
         verify_app_service: immich
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/immich.yaml"
 
+    - name: Verify the supporting services of immich
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: immich
+        verify_compose_databases:
+          - database
+        verify_compose_healthchecks:
+          - redis
+        verify_compose_healthy_dependencies:
+          - { service: immich-server, dependency: redis }
+
     - name: Stat the immich files
       ansible.builtin.stat:
         path: "{{ immich_path }}/{{ item }}"

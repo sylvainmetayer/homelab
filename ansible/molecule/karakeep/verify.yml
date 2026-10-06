@@ -11,6 +11,15 @@
         verify_app_service: karakeep
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/karakeep.yaml"
 
+    - name: Verify the supporting services of karakeep
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: karakeep
+        verify_compose_healthchecks:
+          - meilisearch
+        verify_compose_healthy_dependencies:
+          - { service: web, dependency: meilisearch }
+
     - name: Read the karakeep files
       become: true
       ansible.builtin.slurp:

@@ -11,10 +11,15 @@ services:
       - newt
       - monica
     restart: unless-stopped
+    depends_on:
+      monica_v4_db:
+        condition: service_healthy
 
   monica_v4_db:
     mem_limit: 768m
     mem_reservation: 192m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     image: lscr.io/linuxserver/mariadb:11.8.8@sha256:fb38247d1a4440239b2c62f0084c5285302715777268a92f61f77406dbc3552e
     container_name: monica_v4_db
     networks:
@@ -30,6 +35,14 @@ services:
     volumes:
       - ./db_data:/config
     restart: unless-stopped
+    # Pas de healthcheck.sh dans l'image linuxserver (cf. rôle wiki) :
+    # `mariadb-admin ping` sort en 0 dès que le serveur répond.
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "--host=127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 networks:
   monica:

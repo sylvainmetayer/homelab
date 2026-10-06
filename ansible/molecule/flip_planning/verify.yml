@@ -88,6 +88,17 @@
       vars:
         verify_app_service: demo_planning_kc
 
+    - name: Verify the supporting services of demo_planning_kc
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: demo_planning_kc
+        verify_compose_databases:
+          - postgres
+          - keycloak-db
+        verify_compose_healthy_dependencies:
+          - { service: app, dependency: postgres }
+          - { service: keycloak, dependency: keycloak-db }
+
     - name: Read the effective compose model of demo_planning_kc
       ansible.builtin.command: docker compose config --format json
       args:
