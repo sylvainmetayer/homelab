@@ -2,3 +2,9 @@
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
 scenario:
   name: nextcloud
+
+# Prepare propre : un config.php tient lieu d'instance installée, sans quoi le
+# rôle ne pose pas homelab.config.php (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

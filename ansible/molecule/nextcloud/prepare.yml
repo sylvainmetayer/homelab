@@ -1,0 +1,41 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Le rôle ne pose homelab.config.php qu'une fois le dossier config initialisé
+# par le conteneur, repéré à son config.php (cf. tasks/main.yml). Sans
+# conteneur, rien ne l'écrit : un config.php minimal tient lieu de l'instance
+# installée de l'hôte.
+- name: Prepare nextcloud
+  hosts: all
+  gather_facts: false
+  tasks:
+    # /opt/apps est laissé à ce que le module crée en passant (root, 0755).
+    - name: Create the Nextcloud config directories
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: sylvain
+        group: sylvain
+        mode: "0700"
+      loop:
+        - /opt/apps/nextcloud
+        - /opt/apps/nextcloud/config
+        - /opt/apps/nextcloud/config/www
+        - /opt/apps/nextcloud/config/www/nextcloud
+        - /opt/apps/nextcloud/config/www/nextcloud/config
+
+    - name: Stand in for the config.php of an installed Nextcloud
+      become: true
+      ansible.builtin.copy:
+        dest: /opt/apps/nextcloud/config/www/nextcloud/config/config.php
+        owner: sylvain
+        group: sylvain
+        mode: "0600"
+        force: false
+        content: |
+          <?php
+          $CONFIG = array (
+            'installed' => true,
+          );
