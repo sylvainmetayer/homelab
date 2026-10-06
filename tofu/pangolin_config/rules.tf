@@ -256,7 +256,6 @@ resource "pangolin_resource_rule" "block_country" {
 locals {
   path_bypasses = {
     "Dawarich"      = local.dawarich_share_paths
-    "Gramps"        = local.gramps_public_paths
     "Meerkat CRM"   = local.meerkat_crm_dav_paths
     "Monica CRM"    = local.monica_dav_paths
     "Paperless-ngx" = local.paperless_share_paths
