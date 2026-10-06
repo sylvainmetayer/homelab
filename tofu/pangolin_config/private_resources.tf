@@ -127,9 +127,11 @@ locals {
 
   live_site_resources = try(jsondecode(data.http.pangolin_site_resources.response_body).data.siteResources, [])
 
+  # A missing or reshaped `pagination.total` counts as truncated: falling back
+  # to "complete" would quietly run the audit on a partial page.
   site_resources_truncated = try(
     length(local.live_site_resources) != jsondecode(data.http.pangolin_site_resources.response_body).data.pagination.total,
-    false
+    true
   )
 
   vpn_gateway_matches = {
@@ -150,6 +152,12 @@ locals {
     ]),
     flatten([
       for name, found in local.vpn_gateway_matches : [
+        for resource in found : "${name} (disabled)"
+        if try(tobool(resource.enabled), true) == false
+      ]
+    ]),
+    flatten([
+      for name, found in local.vpn_gateway_matches : [
         for resource in found : "${name} (on site ${try(join("+", resource.siteNames), "?")}, expected ${local.vpn_gateways[name]})"
         if local.vpn_gateways[name] != "" && !contains(try(resource.siteNames, []), local.vpn_gateways[name])
       ]
@@ -158,7 +166,9 @@ locals {
 }
 
 resource "terraform_data" "vpn_gateways" {
-  input = length(local.live_site_resources)
+  # Derived from the configuration, not from the live list: a site resource
+  # added elsewhere must not show up as a replacement of this audit.
+  input = sort(keys(local.vpn_gateways))
 
   lifecycle {
     precondition {

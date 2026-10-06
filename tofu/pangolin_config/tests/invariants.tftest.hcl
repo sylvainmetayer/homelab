@@ -789,23 +789,23 @@ run "catch_all_target_has_lowest_priority" {
 }
 
 # Les règles pays sont dérivées de la configuration : chaque ressource de
-# local.rule_targets (les ressources gérées) a PASS FR, PASS DE et DROP ALL.
+# local.managed_resources (les ressources gérées) a PASS FR, PASS DE et DROP ALL.
 run "country_rules_cover_every_resource" {
   command = plan
 
   assert {
-    condition     = length(pangolin_resource_rule.block_country) == length(local.rule_targets)
+    condition     = length(pangolin_resource_rule.block_country) == length(local.managed_resources)
     error_message = "Il faut une règle DROP COUNTRY ALL par ressource couverte."
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 2
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.managed_resources) * 2
     error_message = "Il faut une règle PASS par ressource couverte et par pays autorisé (FR, DE)."
   }
 
   assert {
     condition = alltrue([
-      for name in keys(local.rule_targets) :
+      for name in keys(local.managed_resources) :
       contains(keys(pangolin_resource_rule.block_country), name)
       && contains(keys(pangolin_resource_rule.allow_countries), "${name}-FR")
       && contains(keys(pangolin_resource_rule.allow_countries), "${name}-DE")
@@ -846,7 +846,7 @@ run "travel_countries_open_a_temporary_band" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 4
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.managed_resources) * 4
     error_message = "Chaque pays de voyage actif ajoute une règle PASS par ressource couverte."
   }
 
@@ -861,13 +861,13 @@ run "travel_countries_open_a_temporary_band" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.block_country) == length(local.rule_targets)
+    condition     = length(pangolin_resource_rule.block_country) == length(local.managed_resources)
     error_message = "Un voyage n'ajoute aucune règle DROP : le catch-all reste unique par ressource."
   }
 
   assert {
     condition = alltrue([
-      for name in keys(local.rule_targets) :
+      for name in keys(local.managed_resources) :
       contains(keys(pangolin_resource_rule.allow_countries), "${name}-GB")
       && contains(keys(pangolin_resource_rule.allow_countries), "${name}-IT")
     ])
@@ -899,7 +899,7 @@ run "travel_country_priority_ignores_the_other_trips" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 4
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.managed_resources) * 4
     error_message = "ES et GB actifs, IT expiré : deux pays de voyage en plus de FR et DE."
   }
 }
@@ -919,7 +919,7 @@ run "expired_travel_country_opens_nothing" {
   expect_failures = [check.travel_countries_stale]
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 2
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.managed_resources) * 2
     error_message = "Un pays de voyage échu ou déjà autorisé ne doit ajouter aucune règle."
   }
 
@@ -1417,7 +1417,9 @@ run "every_resource_declares_the_pinned_attributes" {
   assert {
     condition = (
       local.resource_pins.enabled == true
-      && pangolin_resource.gramps.enabled == !strcontains(
+      && pangolin_resource.gramps.enabled == local.gramps_enabled
+      && uptimekuma_monitor_http_keyword.gramps.active == local.gramps_enabled
+      && local.gramps_enabled == !strcontains(
         file("${path.module}/../../ansible/host_vars/docker/variables.yaml"),
         "\ngramps_enabled: false\n"
       )
@@ -1664,7 +1666,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # Garde-fou du test lui-même : sans identifiants distincts, l'égalité
   # ci-dessus serait vraie par construction.
   assert {
-    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == length(local.rule_targets)
+    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == length(local.managed_resources)
     error_message = "Les identifiants simulés des ressources doivent être distincts pour que ce run prouve quelque chose."
   }
 
@@ -2040,13 +2042,13 @@ run "monitors_are_filed_and_notify_by_email" {
       ] :
       m.name if m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
-      && m.active == (m.name != "Backup Gramps")
+      && m.active == true
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
       ]) == length(flatten([
         for f in fileset(path.module, "*.tf") :
         regexall("resource\\s+\"uptimekuma_monitor_push\"\\s+\"backup_", file("${path.module}/${f}"))
     ]))
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (Gramps compris : sa sauvegarde tourne toujours) et notifié par e-mail."
   }
 
   assert {

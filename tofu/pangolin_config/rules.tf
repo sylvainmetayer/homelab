@@ -85,8 +85,13 @@ locals {
   # time, while the id on the right may still be unknown for a resource that
   # does not exist yet. That asymmetry is what buys single-apply convergence.
   #
-  # Adding an app here is not optional - the coverage precondition below fails
-  # the plan if a live resource has no entry.
+  # Every one of them gets the country rules. Adding an app here is not
+  # optional - the coverage precondition below fails the plan if a live,
+  # enabled resource has no entry. There used to be a second map,
+  # `unmanaged_resources`, pinning by id the resources made by hand in the
+  # Pangolin UI; its last entry, `SSH PI`, duplicated the private
+  # `pi.internal` site resource and was deleted, so the map and its audit went
+  # with it.
   managed_resources = {
     "Betisier"         = pangolin_resource.betisier.id
     "Dawarich"         = pangolin_resource.dawarich.id
@@ -111,33 +116,23 @@ locals {
     "Wiki (Bookstack)" = pangolin_resource.wiki.id
   }
 
-  # Every resource that gets country rules. There used to be a second map,
-  # `unmanaged_resources`, pinning by id the resources made by hand in the
-  # Pangolin UI, with a precondition failing the plan when a pin dangled. Its
-  # last entry, `SSH PI`, duplicated the private `pi.internal` site resource
-  # and was deleted, so the map and its audit went with it: an empty map only
-  # kept untestable code alive. A public resource now has to be declared here,
-  # and the coverage precondition below fails the plan on any enabled one that
-  # is not. The separate name is kept because every rule loop and audit keys on
-  # it.
-  rule_targets = local.managed_resources
 
   # Trip countries share the resource and the key format of the permanent ones
   # ("<resource>-<country>"): opening and closing GB only ever adds or
   # destroys the "-GB" instances, never touches FR or DE.
   resource_country_pairs = merge(
     {
-      for pair in setproduct(keys(local.rule_targets), local.allowed_countries) :
+      for pair in setproduct(keys(local.managed_resources), local.allowed_countries) :
       "${pair[0]}-${pair[1]}" => {
-        resource_id = local.rule_targets[pair[0]]
+        resource_id = local.managed_resources[pair[0]]
         country     = pair[1]
         priority    = index(local.allowed_countries, pair[1]) + local.country_rule_priority_base
       }
     },
     {
-      for pair in setproduct(keys(local.rule_targets), local.active_travel_countries) :
+      for pair in setproduct(keys(local.managed_resources), local.active_travel_countries) :
       "${pair[0]}-${pair[1]}" => {
-        resource_id = local.rule_targets[pair[0]]
+        resource_id = local.managed_resources[pair[0]]
         country     = pair[1]
         priority    = local.travel_country_priority
       }
@@ -178,15 +173,20 @@ locals {
     resource.name if try(resource.enabled, false)
   ]
 
+  pangolin_live_disabled = [
+    for resource in local.pangolin_live_raw.resources :
+    resource.name if !try(resource.enabled, false)
+  ]
+
   # Enabled in Pangolin but with no entry above: publicly reachable with no
   # geo-filtering at all. This is the failure that went unnoticed for months.
-  uncovered_resources = setsubtract(local.pangolin_live_enabled, keys(local.rule_targets))
+  uncovered_resources = setsubtract(local.pangolin_live_enabled, keys(local.managed_resources))
 }
 
 # A `check` block would only emit a warning and let the apply proceed, which is
 # exactly the silence we are trying to remove. Preconditions hard-fail.
 resource "terraform_data" "geo_rule_coverage" {
-  input = length(local.rule_targets)
+  input = length(local.managed_resources)
 
   lifecycle {
     precondition {
@@ -218,7 +218,7 @@ resource "pangolin_resource_rule" "allow_countries" {
 
 # Block all other countries (catch-all rule with low priority)
 resource "pangolin_resource_rule" "block_country" {
-  for_each = local.rule_targets
+  for_each = local.managed_resources
 
   resource_id = each.value
   action      = "DROP"
@@ -238,7 +238,7 @@ resource "pangolin_resource_rule" "block_country" {
 # signed URL, API password...) is what protects the content behind it, and the
 # app-side check is named next to each path.
 #
-# The key is the resource's Pangolin name, as in local.rule_targets.
+# The key is the resource's Pangolin name, as in local.managed_resources.
 # ---------------------------------------------------------------------------
 locals {
   path_bypasses = {
@@ -253,7 +253,7 @@ locals {
   path_bypass_rules = merge([
     for name, paths in local.path_bypasses : {
       for path, priority in paths : "${name} ${path}" => {
-        resource_id = local.rule_targets[name]
+        resource_id = local.managed_resources[name]
         path        = path
         priority    = priority
       }
@@ -300,7 +300,7 @@ resource "pangolin_resource_rule" "path_bypass" {
 resource "pangolin_resource_rule" "backslash_guard" {
   for_each = local.backslash_guarded_resources
 
-  resource_id = local.rule_targets[each.key]
+  resource_id = local.managed_resources[each.key]
   action      = "DROP"
   match       = "PATH"
   value       = "/*/*%5C*/*"
@@ -352,6 +352,7 @@ locals {
   live_targets = flatten([
     for name, response in data.http.pangolin_targets : [
       for target in try(jsondecode(response.response_body).data.targets, []) : {
+        resource   = name
         label      = "${name}#${target.targetId}${try(target.path, null) == null ? "" : " ${target.path}"}"
         hc_enabled = try(target.hcEnabled, false)
         hc_scheme  = try(target.hcScheme, null)
@@ -368,9 +369,13 @@ locals {
     if target.hc_enabled && (target.hc_scheme == null || target.hc_port == null)
   ]
 
+  # A disabled resource (Gramps, stopped on purpose) keeps its target and its
+  # probe for the day it comes back; its probe failing meanwhile is expected,
+  # and a permanent warning would only teach to skim past real ones.
   unhealthy_targets = [
     for target in local.live_targets : target.label
     if target.hc_enabled && target.hc_health != "healthy"
+    && !contains(local.pangolin_live_disabled, target.resource)
   ]
 }
 
@@ -431,7 +436,7 @@ check "target_health" {
 # One request per resource; there is no org-wide rules endpoint.
 # ---------------------------------------------------------------------------
 data "http" "pangolin_rules" {
-  for_each = local.rule_targets
+  for_each = local.managed_resources
 
   # This endpoint already defaults to a limit of 1000, and the truncation
   # precondition below refuses to trust a response that says otherwise.

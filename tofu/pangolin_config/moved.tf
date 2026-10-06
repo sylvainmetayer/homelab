@@ -14,16 +14,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_rule.block_country["15-00NTF - BBOX"]
-  to   = pangolin_resource_rule.block_country["00NTF - BBOX"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["2-00NTF - Dashboard Traefik"]
-  to   = pangolin_resource_rule.block_country["00NTF - Dashboard Traefik"]
-}
-
-moved {
   from = pangolin_resource_rule.block_country["21-Betisier"]
   to   = pangolin_resource_rule.block_country["Betisier"]
 }
@@ -56,11 +46,6 @@ moved {
 moved {
   from = pangolin_resource_rule.block_country["37-Monica CRM"]
   to   = pangolin_resource_rule.block_country["Monica CRM"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["38-SSH PI"]
-  to   = pangolin_resource_rule.block_country["SSH PI"]
 }
 
 moved {
@@ -98,7 +83,6 @@ moved {
   to   = pangolin_resource_rule.block_country["Gramps"]
 }
 
-
 # ---------------------------------------------------------------------------
 # The "00NTF" ("00 - non terraform") prefix was dropped once these four
 # resources were declared in this configuration. The rule keys are the Pangolin
@@ -134,36 +118,6 @@ moved {
 moved {
   from = pangolin_resource_rule.block_country["00NTF - NAS"]
   to   = pangolin_resource_rule.block_country["NAS"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - BBOX-FR"]
-  to   = pangolin_resource_rule.allow_countries["BBOX-FR"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - BBOX-DE"]
-  to   = pangolin_resource_rule.allow_countries["BBOX-DE"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["00NTF - BBOX"]
-  to   = pangolin_resource_rule.block_country["BBOX"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - Dashboard Traefik-FR"]
-  to   = pangolin_resource_rule.allow_countries["Dashboard Traefik-FR"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - Dashboard Traefik-DE"]
-  to   = pangolin_resource_rule.allow_countries["Dashboard Traefik-DE"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["00NTF - Dashboard Traefik"]
-  to   = pangolin_resource_rule.block_country["Dashboard Traefik"]
 }
 
 # The Karakeep-only backslash DROP became the generic guard of rules.tf, which
