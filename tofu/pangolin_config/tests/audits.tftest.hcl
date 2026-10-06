@@ -168,19 +168,16 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
-# ressource faite à la main "SSH PI" (épinglée dans local.unmanaged_resources)
-# et un reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il
-# n'est pas servi.
+# GET /v1/org/{org}/resources?pageSize=1000 : les 21 ressources gérées et un
+# reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
+# servi.
 override_data {
   target = data.http.pangolin_resources
   values = {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"resources": [
-        {"resourceId": 15, "niceId": "bbox", "name": "BBOX", "fullDomain": "bbox.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
-        {"resourceId": 2, "niceId": "dashboard", "name": "Dashboard Traefik", "fullDomain": "dashboard.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
@@ -199,11 +196,10 @@ override_data {
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 56, "niceId": "scanopy", "name": "Scanopy", "fullDomain": "scan.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 38, "niceId": "ssh-pi", "name": "SSH PI", "fullDomain": "remote.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 25, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 22, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -211,8 +207,8 @@ override_data {
 
 # GET /v1/resource/{id}/targets, même réponse pour chaque ressource gérée (une
 # surcharge vise toutes les instances du for_each). Une cible sondée et saine,
-# et une cible sans sonde dont scheme et port sont NULL, comme NAS ou le
-# dashboard Traefik en vrai : l'audit ne doit rien reprocher à cette dernière.
+# et une cible sans sonde dont scheme et port sont NULL, comme NAS en vrai :
+# l'audit ne doit rien reprocher à cette dernière.
 override_data {
   target = data.http.pangolin_targets
   values = {
@@ -274,18 +270,18 @@ run "audits_pass_on_realistic_api_responses" {
   command = apply
 
   assert {
-    condition     = terraform_data.geo_rule_coverage.output == 24
-    error_message = "geo_rule_coverage doit porter sur les 23 ressources gérées plus SSH PI."
+    condition     = terraform_data.geo_rule_coverage.output == length(local.rule_targets)
+    error_message = "geo_rule_coverage doit porter sur toutes les ressources gérées."
   }
 
   assert {
-    condition     = terraform_data.target_probe_config.output == 23 * 2
-    error_message = "target_probe_config doit lire les cibles des 23 ressources gérées (2 cibles chacune dans la réponse simulée)."
+    condition     = terraform_data.target_probe_config.output == length(local.managed_resources) * 2
+    error_message = "target_probe_config doit lire les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == 24 * 13
-    error_message = "rule_inventory doit lire les règles des 24 ressources couvertes (13 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == length(local.rule_targets) * 13
+    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (13 règles chacune dans la réponse simulée)."
   }
 }
 
@@ -294,7 +290,7 @@ run "audits_pass_on_realistic_api_responses" {
 # ---------------------------------------------------------------------------
 
 # Le cas qui a duré des mois : une application activée dans Pangolin sans
-# entrée dans local.managed_resources (ni unmanaged_resources) est publique
+# entrée dans local.managed_resources est publique
 # sans aucun filtrage pays. Le plan doit s'arrêter.
 run "enabled_resource_missing_from_managed_resources_fails_plan" {
   command = plan
@@ -306,7 +302,7 @@ run "enabled_resource_missing_from_managed_resources_fails_plan" {
       response_body = <<-EOT
         {"data": {"resources": [
           {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
-          {"resourceId": 38, "niceId": "ssh-pi", "name": "SSH PI", "fullDomain": "remote.sylvain.cloud", "sso": true, "enabled": true},
+          {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
           {"resourceId": 95, "niceId": "nouvelle-app", "name": "Nouvelle App", "fullDomain": "nouvelle.sylvain.cloud", "sso": true, "enabled": true}
         ], "pagination": {"total": 3, "pageSize": 1000, "page": 1}},
         "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
@@ -320,7 +316,7 @@ run "enabled_resource_missing_from_managed_resources_fails_plan" {
 }
 
 # Une page tronquée rendrait le contrôle de couverture aveugle : la réponse dit
-# 24 ressources mais n'en liste que 2 (toutes deux connues).
+# 22 ressources mais n'en liste que 2 (toutes deux connues).
 run "truncated_resource_list_fails_plan" {
   command = plan
 
@@ -331,32 +327,8 @@ run "truncated_resource_list_fails_plan" {
       response_body = <<-EOT
         {"data": {"resources": [
           {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
-          {"resourceId": 38, "niceId": "ssh-pi", "name": "SSH PI", "fullDomain": "remote.sylvain.cloud", "sso": true, "enabled": true}
-        ], "pagination": {"total": 24, "pageSize": 20, "page": 1}},
-        "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
-      EOT
-    }
-  }
-
-  expect_failures = [
-    terraform_data.geo_rule_coverage,
-  ]
-}
-
-# "SSH PI" est épinglée par identifiant dans local.unmanaged_resources : si elle
-# a été supprimée (ou renommée) dans l'UI, l'épingle pend et le plan s'arrête.
-run "dangling_unmanaged_pin_fails_plan" {
-  command = plan
-
-  override_data {
-    target = data.http.pangolin_resources
-    values = {
-      status_code   = 200
-      response_body = <<-EOT
-        {"data": {"resources": [
-          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
           {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true}
-        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        ], "pagination": {"total": 22, "pageSize": 20, "page": 1}},
         "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
       EOT
     }

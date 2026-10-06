@@ -88,40 +88,39 @@ locals {
   # Adding an app here is not optional - the coverage precondition below fails
   # the plan if a live resource has no entry.
   managed_resources = {
-    "BBOX"              = pangolin_resource.bbox.id
-    "Betisier"          = pangolin_resource.betisier.id
-    "Dashboard Traefik" = pangolin_resource.traefik_dashboard.id
-    "Dawarich"          = pangolin_resource.dawarich.id
-    "Demo Planning"     = pangolin_resource.demo_planning.id
-    "Demo Planning KC"  = pangolin_resource.demo_planning_kc.id
-    "Echo"              = pangolin_resource.echo.id
-    "Flip Planning"     = pangolin_resource.flip_planning.id
-    "Gramps"            = pangolin_resource.gramps.id
-    "Immich"            = pangolin_resource.immich.id
-    "Immich Swipe"      = pangolin_resource.immich_swipe.id
-    "Karakeep"          = pangolin_resource.karakeep.id
-    "Meerkat CRM"       = pangolin_resource.meerkat_crm.id
-    "Monica CRM"        = pangolin_resource.monica.id
-    "NAS"               = pangolin_resource.nas.id
-    "nextcloud"         = pangolin_resource.nextcloud.id
-    "Paperless-ngx"     = pangolin_resource.paperless.id
-    "Proxmox"           = pangolin_resource.proxmox.id
-    "RSS"               = pangolin_resource.rss.id
-    "Scanopy"           = pangolin_resource.scanopy.id
-    "SearXNG"           = pangolin_resource.searxng.id
-    "TREK"              = pangolin_resource.trek.id
-    "Wiki (Bookstack)"  = pangolin_resource.wiki.id
+    "Betisier"         = pangolin_resource.betisier.id
+    "Dawarich"         = pangolin_resource.dawarich.id
+    "Demo Planning"    = pangolin_resource.demo_planning.id
+    "Demo Planning KC" = pangolin_resource.demo_planning_kc.id
+    "Echo"             = pangolin_resource.echo.id
+    "Flip Planning"    = pangolin_resource.flip_planning.id
+    "Gramps"           = pangolin_resource.gramps.id
+    "Immich"           = pangolin_resource.immich.id
+    "Immich Swipe"     = pangolin_resource.immich_swipe.id
+    "Karakeep"         = pangolin_resource.karakeep.id
+    "Meerkat CRM"      = pangolin_resource.meerkat_crm.id
+    "Monica CRM"       = pangolin_resource.monica.id
+    "NAS"              = pangolin_resource.nas.id
+    "nextcloud"        = pangolin_resource.nextcloud.id
+    "Paperless-ngx"    = pangolin_resource.paperless.id
+    "Proxmox"          = pangolin_resource.proxmox.id
+    "RSS"              = pangolin_resource.rss.id
+    "Scanopy"          = pangolin_resource.scanopy.id
+    "SearXNG"          = pangolin_resource.searxng.id
+    "TREK"             = pangolin_resource.trek.id
+    "Wiki (Bookstack)" = pangolin_resource.wiki.id
   }
 
-  # Resources created by hand in the Pangolin UI, outside this configuration.
-  # Short, static list; the ids are pinned deliberately so the rules no longer
-  # depend on a live lookup. The `enabled = false` ones are kept so this change
-  # destroys no existing rule - prune them once they are confirmed dead.
-  unmanaged_resources = {
-    "SSH PI" = 38 # enabled
-  }
-
-  rule_targets = merge(local.managed_resources, local.unmanaged_resources)
+  # Every resource that gets country rules. There used to be a second map,
+  # `unmanaged_resources`, pinning by id the resources made by hand in the
+  # Pangolin UI, with a precondition failing the plan when a pin dangled. Its
+  # last entry, `SSH PI`, duplicated the private `pi.internal` site resource
+  # and was deleted, so the map and its audit went with it: an empty map only
+  # kept untestable code alive. A public resource now has to be declared here,
+  # and the coverage precondition below fails the plan on any enabled one that
+  # is not. The separate name is kept because every rule loop and audit keys on
+  # it.
+  rule_targets = local.managed_resources
 
   # Trip countries share the resource and the key format of the permanent ones
   # ("<resource>-<country>"): opening and closing GB only ever adds or
@@ -182,13 +181,6 @@ locals {
   # Enabled in Pangolin but with no entry above: publicly reachable with no
   # geo-filtering at all. This is the failure that went unnoticed for months.
   uncovered_resources = setsubtract(local.pangolin_live_enabled, keys(local.rule_targets))
-
-  # Pinned ids that no longer exist: an unmanaged resource was deleted or
-  # renamed in the UI and the pin is now dangling.
-  dangling_pins = setsubtract(
-    keys(local.unmanaged_resources),
-    [for resource in local.pangolin_live_raw.resources : resource.name]
-  )
 }
 
 # A `check` block would only emit a warning and let the apply proceed, which is
@@ -204,12 +196,7 @@ resource "terraform_data" "geo_rule_coverage" {
 
     precondition {
       condition     = length(local.uncovered_resources) == 0
-      error_message = "Enabled Pangolin resources with no country rules: ${join(", ", local.uncovered_resources)}. Add them to local.managed_resources (if this config creates them) or local.unmanaged_resources (if they were made by hand)."
-    }
-
-    precondition {
-      condition     = length(local.dangling_pins) == 0
-      error_message = "local.unmanaged_resources pins resources that no longer exist in Pangolin: ${join(", ", local.dangling_pins)}. Remove them."
+      error_message = "Enabled Pangolin resources with no country rules: ${join(", ", local.uncovered_resources)}. Declare them in a website_*.tf and add them to local.managed_resources, or delete (or disable) them in Pangolin."
     }
   }
 }

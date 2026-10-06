@@ -1,10 +1,11 @@
 # ---------------------------------------------------------------------------
 # NAS admin UI.
 #
-# Was `00NTF - NAS`, pinned by id in local.unmanaged_resources. Declared here so
-# the "00NTF" ("00 - non terraform") prefix could be dropped: see the runbook in
-# the commit message - the live rename has to happen before this applies, or the
-# coverage precondition in rules.tf fails on a name it no longer knows.
+# Was `00NTF - NAS`, pinned by id in the since-removed local.unmanaged_resources.
+# Declared here so the "00NTF" ("00 - non terraform") prefix could be dropped:
+# see the runbook in the commit message - the live rename has to happen before
+# this applies, or the coverage precondition in rules.tf fails on a name it no
+# longer knows.
 #
 # Values mirror GET /v1/resource/75 and /v1/resource/75/targets.
 # ---------------------------------------------------------------------------
