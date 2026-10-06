@@ -18,7 +18,7 @@
     dest: "{{ karakeep_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: Template environment configuration
   notify: Restart karakeep

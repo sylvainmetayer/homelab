@@ -141,7 +141,7 @@
     dest: "{{ flip_planning_base_path }}/{{ item.dest }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0640"
+    mode: "0600"
 
 - name: Make sure the systemd unit is started for {{ flip_planning_service }}
   ansible.builtin.systemd:

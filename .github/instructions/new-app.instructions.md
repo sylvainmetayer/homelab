@@ -36,7 +36,7 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   `borgmatic` role (`tasks_from: app.yml`), the role only declares its
   sources and databases (see `.github/instructions/borgmatic-backup.instructions.md`).
 - `tasks/main.yml`, in order: ensure app folders exist → template
-  `compose.yaml` (notify `Restart <service>`) → template env file → borgmatic
+  `compose.yaml` (mode `0600`: it often carries secrets; notify `Restart <service>`) → template env file → borgmatic
   `include_role` (`when: <service>_backup_enabled`, tags: `backup`) → `systemd: name=dc@<service> scope=user state=started enabled=true`.
 - `handlers/main.yml`: a `Restart <service>` handler that
   `systemd: state=restarted name=dc@<service> scope=user daemon_reload=true`.

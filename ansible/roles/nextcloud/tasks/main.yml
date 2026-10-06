@@ -14,7 +14,7 @@
     dest: "{{ nextcloud_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
   notify: Restart nextcloud service
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)

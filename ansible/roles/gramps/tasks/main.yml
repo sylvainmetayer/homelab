@@ -37,7 +37,7 @@
     dest: "{{ gramps_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Gramps
