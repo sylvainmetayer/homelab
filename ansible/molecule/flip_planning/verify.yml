@@ -107,3 +107,25 @@
           - flip_planning_kc_containers | select('match', '^demo-planning-kc') | list | length == flip_planning_kc_containers | length
           - flip_planning_kc_compose.networks['demo-planning-kc'].name not in (flip_planning_private_networks.values() | list)
         fail_msg: "Conteneurs ou réseau partagés par demo_planning_kc : {{ flip_planning_kc_containers }}"
+
+    # Seule instance sur un tag mobile (pr-72) : dc@ ne tire que les images
+    # absentes, c'est `pull_policy: always` qui lui fait reprendre le dernier
+    # push à chaque démarrage. flip.yml lu tel quel : converge.yml n'en est
+    # qu'une copie, qui ne verrait pas l'override disparaître du playbook.
+    - name: Assert the Keycloak test bench follows its moving tag
+      vars:
+        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
+        flip_planning_kc_playbook_vars: >-
+          {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)
+             | map(attribute='roles', default=[]) | flatten | selectattr('vars', 'defined') | map(attribute='vars')
+             | selectattr('flip_planning_service', 'defined')
+             | selectattr('flip_planning_service', 'equalto', 'demo_planning_kc') | list }}
+      ansible.builtin.assert:
+        that:
+          - flip_planning_kc_compose.services.app.pull_policy == 'always'
+          - flip_planning_kc_compose.services.keycloak.pull_policy == 'always'
+          - flip_planning_kc_playbook_vars | length == 1
+          - flip_planning_kc_playbook_vars[0].flip_planning_image_pull_policy | default('') == 'always'
+        fail_msg: >-
+          pull_policy du banc Keycloak :
+          {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.pull_policy', default='-') | list }}
