@@ -10,6 +10,27 @@
         verify_app_service: trek
         verify_app_borgmatic_config: /etc/borgmatic.d/trek.yaml
 
+    - name: Read the trek borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/trek.yaml
+      register: trek_borgmatic_raw
+
+    # prepare.yml a posé travel.db (vraie base) et notes.db (leurre) : seule
+    # la base est dumpée, et sa copie vivante n'entre pas dans l'archive.
+    - name: Assert the trek SQLite database is dumped, not copied live
+      vars:
+        trek_borgmatic: "{{ trek_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - trek_borgmatic.sqlite_databases | map(attribute='path') | list == ['/opt/apps/trek/data/travel.db']
+          - "'/opt/apps/trek/data/travel.db' in trek_borgmatic.exclude_patterns"
+          - "'/opt/apps/trek/data/travel.db-wal' in trek_borgmatic.exclude_patterns"
+          - "'/opt/apps/trek/data' in trek_borgmatic.source_directories"
+          - trek_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/trek'
+          - trek_borgmatic.archive_name_format is match('trek-')
+        fail_msg: "Configuration borgmatic de trek inattendue : {{ trek_borgmatic }}"
+
     - name: Stat the trek environment file
       ansible.builtin.stat:
         path: /opt/apps/trek/.env

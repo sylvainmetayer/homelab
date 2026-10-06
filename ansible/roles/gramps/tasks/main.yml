@@ -54,15 +54,20 @@
     borgmatic_app_target: "{{ gramps_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ gramps_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ gramps_backup_healthcheck_url }}"
+    # indexdir (index de recherche), thumbnail_cache et cache se reconstruisent
+    # (réindexation depuis l'admin, vignettes et cache à la demande) : pas
+    # sauvegardés.
     borgmatic_app_source_directories:
       - "{{ gramps_base_path }}/users"
-      - "{{ gramps_base_path }}/indexdir"
-      - "{{ gramps_base_path }}/thumbnail_cache"
-      - "{{ gramps_base_path }}/cache"
       - "{{ gramps_base_path }}/secret"
       - "{{ gramps_base_path }}/grampsdb"
       - "{{ gramps_base_path }}/media"
       - "{{ gramps_base_path }}/compose.yaml"
+    # Un arbre par dossier de grampsdb (nom aléatoire, d'où le glob), plus la
+    # base des comptes.
+    borgmatic_app_sqlite_databases:
+      - "{{ gramps_base_path }}/grampsdb/*/sqlite.db"
+      - "{{ gramps_base_path }}/users/*.sqlite"
 
 - name: Make sure gramps service is {{ 'running' if gramps_enabled else 'stopped' }}
   ansible.builtin.systemd:

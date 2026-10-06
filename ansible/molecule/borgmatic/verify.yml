@@ -55,6 +55,7 @@
       loop:
         - /usr/bin/pg_dump
         - /usr/bin/mariadb-dump
+        - /usr/bin/sqlite3
 
     # --- unités systemd ---
 

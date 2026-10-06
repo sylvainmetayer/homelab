@@ -46,11 +46,18 @@
     borgmatic_app_target: "{{ scanopy_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ scanopy_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ scanopy_backup_healthcheck_url }}"
+    # Pas postgresql : copié à chaud, le dossier de données n'est pas
+    # cohérent. Le dump de la base scanopy (seule base de l'application) le
+    # remplace.
     borgmatic_app_source_directories:
       - "{{ scanopy_base_path }}/daemon-config"
-      - "{{ scanopy_base_path }}/postgresql"
       - "{{ scanopy_base_path }}/data"
       - "{{ scanopy_base_path }}/compose.yaml"
+    borgmatic_app_postgresql_databases:
+      - container: scanopy-postgres
+        name: scanopy
+        username: postgres
+        password: "{{ scanopy_postgres_password }}"
 
 - name: Make sure scanopy service is running
   ansible.builtin.systemd:

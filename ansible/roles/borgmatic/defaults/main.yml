@@ -30,11 +30,14 @@ borgmatic_rclone_s3_region: "EU-WEST-PAR"
 # posent un bouchon (molecule/_shared/prepare.yml).
 borgmatic_bin: /root/.local/bin/borgmatic
 
-# Exclusions communes à toutes les applications.
+# Exclusions communes à toutes les applications. borgmatic les passe à borg
+# en style « fm: », ancrées au début du chemin archivé (sans le / initial) :
+# « * » y traverse les /, donc '*.log' vise tout fichier .log, mais un motif
+# relatif comme 'cache/*' ne correspond à rien. Une exclusion propre à une
+# application s'écrit en chemin absolu (borgmatic_app_exclude_patterns).
 borgmatic_exclude_patterns:
   - "*.log"
   - "*.tmp"
-  - "cache/*"
 
 # --- Sauvegarde d'une application (tasks/app.yml) ---------------------------
 # Chaque rôle d'application appelle :

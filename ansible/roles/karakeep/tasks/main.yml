@@ -50,6 +50,9 @@
       - "{{ karakeep_base_path }}/data"
       - "{{ karakeep_base_path }}/compose.yaml"
       - "{{ karakeep_base_path }}/.env"
+    # db.db (signets, comptes) et queue.db (file de jobs) dans DATA_DIR.
+    borgmatic_app_sqlite_databases:
+      - "{{ karakeep_base_path }}/data/*.db"
 
 - name: Make sure karakeep service is running
   ansible.builtin.systemd:

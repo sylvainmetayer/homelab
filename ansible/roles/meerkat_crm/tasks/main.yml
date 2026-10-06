@@ -49,6 +49,9 @@
       - "{{ meerkat_crm_base_path }}/photos"
       - "{{ meerkat_crm_base_path }}/compose.yaml"
       - "{{ meerkat_crm_base_path }}/.env.docker"
+    # SQLITE_DB_PATH de l'image : /app/data/meerkat.db.
+    borgmatic_app_sqlite_databases:
+      - "{{ meerkat_crm_base_path }}/data/*.db"
 
 - name: Make sure meerkat_crm service is running
   ansible.builtin.systemd:

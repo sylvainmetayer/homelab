@@ -49,6 +49,8 @@
       - "{{ trek_base_path }}/uploads"
       - "{{ trek_base_path }}/compose.yaml"
       - "{{ trek_base_path }}/.env"
+    borgmatic_app_sqlite_databases:
+      - "{{ trek_base_path }}/data/*.db"
 
 - name: Make sure trek service is running
   ansible.builtin.systemd:

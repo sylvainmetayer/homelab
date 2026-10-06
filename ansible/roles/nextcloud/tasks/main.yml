@@ -32,11 +32,12 @@
     borgmatic_app_target: "{{ nextcloud_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ nextcloud_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ nextcloud_backup_healthcheck_url }}"
+    # Pas db_data : la base MariaDB n'héberge que la base nextcloud, que le
+    # dump couvre ; sa copie à chaud n'était pas restaurable de façon sûre.
     borgmatic_app_source_directories:
       - "{{ nextcloud_base_path }}/compose.yaml"
       - "{{ nextcloud_base_path }}/config"
       - "{{ nextcloud_base_path }}/data"
-      - "{{ nextcloud_base_path }}/db_data"
       - "{{ nextcloud_base_path }}/redis"
     borgmatic_app_mysql_databases:
       - container: nextcloud_db

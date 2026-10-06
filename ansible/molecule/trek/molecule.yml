@@ -2,3 +2,9 @@
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
 scenario:
   name: trek
+
+# Prepare propre : une base SQLite existante, que le backup doit dumper
+# (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml
