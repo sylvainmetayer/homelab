@@ -23,8 +23,8 @@
 #
 # Entry fields - only name, subdomain, domain_id and homepage are required:
 #
-#   sso          default true. false only for Betisier, nextcloud and
-#                Promptoramix, pinned by the
+#   sso          default true. false only for Betisier and Promptoramix,
+#                pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false pauses the app
@@ -33,7 +33,7 @@
 #                the app and removes its borgmatic configuration. Nothing is
 #                destroyed: tokens, push URL and monitor history stay.
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
-#                Absent: no binding (Betisier and nextcloud have no SSO).
+#                Absent: no binding (Betisier and Promptoramix have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
 #                resource URL. Only for an app whose root answers no GET
