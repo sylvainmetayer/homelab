@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
-# Audits de rules.tf : les trois terraform_data à preconditions et le check
-# target_health, nourris par les data "http" qui lisent l'API Pangolin.
+# Audits de rules.tf (les trois terraform_data à preconditions et le check
+# target_health) et de private_resources.tf (passerelles VPN), nourris par les
+# data "http" qui lisent l'API Pangolin.
 #
 # Chaque run négatif fait échouer UNE precondition à la fois, sur une réponse
 # d'API minimale construite pour ne déclencher qu'elle : c'est ce qui prouve
@@ -258,6 +259,41 @@ override_data {
   }
 }
 
+# GET /v1/org/{org}/site-resources?pageSize=1000 : les quatre ressources
+# privées déclarées dans private_resources.tf et les deux passerelles VPN
+# faites dans l'UI (mode gateway), que lit l'audit vpn_gateways. vpn-flip sort
+# par le site flip ; le site de vpn n'est pas vérifié par l'audit, celui-ci
+# n'est qu'un exemple.
+override_data {
+  target = data.http.pangolin_site_resources
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"siteResources": [
+        {"siteResourceId": 1, "niceId": "bbox", "name": "BBOX", "mode": "http", "destination": "192.168.1.254", "enabled": true,
+         "alias": null, "tcpPortRangeString": "443,80", "udpPortRangeString": "", "disableIcmp": true,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 2, "niceId": "docker-apps", "name": "Docker Apps", "mode": "host", "destination": "192.168.1.216", "enabled": true,
+         "alias": "docker-apps.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": true,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 3, "niceId": "raspberry-pi", "name": "Raspberry PI", "mode": "host", "destination": "192.168.1.96", "enabled": true,
+         "alias": "pi.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 4, "niceId": "flip", "name": "Flip", "mode": "host", "destination": "10.0.1.10", "enabled": true,
+         "alias": "flip.internal", "tcpPortRangeString": "22", "udpPortRangeString": "", "disableIcmp": true,
+         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+        {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
+         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+      ], "pagination": {"total": 6, "pageSize": 1000, "page": 1}},
+      "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Cas nominal
 # ---------------------------------------------------------------------------
@@ -282,6 +318,11 @@ run "audits_pass_on_realistic_api_responses" {
   assert {
     condition     = terraform_data.rule_inventory.output == length(local.rule_targets) * 13
     error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (13 règles chacune dans la réponse simulée)."
+  }
+
+  assert {
+    condition     = terraform_data.vpn_gateways.output == 6
+    error_message = "vpn_gateways doit lire les six ressources privées de la réponse simulée."
   }
 }
 
@@ -487,5 +528,60 @@ run "unreadable_rules_response_fails_plan" {
 
   expect_failures = [
     terraform_data.rule_inventory,
+  ]
+}
+
+# ---------------------------------------------------------------------------
+# vpn_gateways (private_resources.tf)
+# ---------------------------------------------------------------------------
+
+# Les passerelles VPN n'existent que dans l'UI : le provider ne connaît pas le
+# mode gateway. Supprimée là-bas, "vpn" doit arrêter le plan au lieu de
+# disparaître sans bruit.
+run "missing_vpn_gateway_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 1, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# vpn-flip sortie par un autre site que flip : le nom ne tient plus sa promesse
+# et le trafic des clients sort d'ailleurs.
+run "vpn_gateway_on_the_wrong_site_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
   ]
 }
