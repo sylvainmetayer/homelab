@@ -1,14 +1,45 @@
 [Unit]
 Description=Pangolin Zero Trust Stack
-Requires=docker.service
+# Wants, pas Requires : avec Requires, un `systemctl stop docker` (ou une mise à
+# jour du paquet qui arrête puis redémarre le démon) arrêtait aussi cette unité,
+# donc `down`, et rien ne la relançait au retour de Docker. Sans propagation,
+# Docker arrête les conteneurs lui-même puis les relance à son retour
+# (restart: unless-stopped). After= garde l'ordre : démarrée après Docker,
+# arrêtée avant lui.
+Wants=docker.service
 After=docker.service
+# La porte d'entrée de tout le homelab : jamais d'abandon définitif.
+StartLimitIntervalSec=0
+# Restart=on-failure garde le job de démarrage ouvert d'un essai à l'autre :
+# sans borne, un `systemctl start/restart` (handler Ansible compris) attendrait
+# indéfiniment une pile qui ne démarre pas. Passé ce délai le job échoue, et
+# l'unité continue de réessayer en arrière-plan.
+JobRunningTimeoutSec=15min
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory={{ pangolin_dir }}
-ExecStartPre=/usr/bin/docker compose pull
-ExecStart=/usr/bin/docker compose up -d
+# --pull missing : ne télécharge que les images absentes. Au boot, toutes sont
+# déjà là : un registre injoignable n'empêche plus la pile de démarrer, là où
+# l'ancien `ExecStartPre=docker compose pull` était fatal. Les images sont
+# épinglées par digest : une montée de version (Renovate) est une image
+# absente, téléchargée au redémarrage que déclenche le handler.
+ExecStart=/usr/bin/docker compose up -d --pull missing --remove-orphans
+# Une défaillance passagère (pangolin pas encore sain pour gerbil et traefik,
+# téléchargement interrompu) est retentée. Une fois `up -d` réussi, c'est
+# Docker qui relance les conteneurs (restart: unless-stopped).
+Restart=on-failure
+RestartSec=30s
+# Le défaut d'une unité oneshot est l'infini : un téléchargement bloqué
+# bloquerait aussi les nouvelles tentatives.
+TimeoutStartSec=10min
+# `down`, pas `stop`, délibérément (les unités dc@ font l'inverse) : tout
+# l'état de la pile est en montages bind sous {{ pangolin_dir }}/config, le
+# compose ne déclare aucun volume, recréer les conteneurs ne perd rien. Et un
+# `up -d` qui suit un `down` recrée gerbil et traefik ensemble : traefik
+# (network_mode: service:gerbil) ne peut pas rester accroché à l'espace réseau
+# d'un ancien conteneur gerbil.
 ExecStop=/usr/bin/docker compose down
 ExecReload=/usr/bin/docker compose restart
 

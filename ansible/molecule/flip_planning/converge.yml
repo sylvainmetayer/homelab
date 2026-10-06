@@ -89,6 +89,7 @@
         flip_planning_horloge_simulee_autorisee: true
         flip_planning_keycloak_enabled: true
         flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
+        flip_planning_image_pull_policy: always
         flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
         flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
         flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"

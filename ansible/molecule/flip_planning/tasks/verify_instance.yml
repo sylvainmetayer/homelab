@@ -28,6 +28,9 @@
       - flip_planning_compose.services.postgres.container_name == flip_instance.prefix ~ '-db'
       - flip_planning_compose.services.assets.container_name == flip_instance.prefix ~ '-assets'
       - flip_planning_compose.services.app.image == flip_instance.image
+      # Références immuables (release X.Y.Z, digest) : pas de pull à chaque
+      # démarrage, un registre en panne ne doit pas empêcher l'appli de repartir.
+      - flip_planning_compose.services.app.pull_policy | default('missing') == 'missing'
       - flip_instance.prefix in flip_planning_compose.networks
       - flip_planning_compose.networks.newt.external | default(false) | bool
       # La base ne rejoint jamais newt.

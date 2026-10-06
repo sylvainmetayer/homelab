@@ -1,27 +1,58 @@
 # Thanks https://github.com/MiGoller/dc-systemd-template#creating-docker-compose-powered-services-using-systemd-templates
 [Unit]
 Description=%i service powered by docker compose
-# Une appli qui crashe en boucle refaisait `docker compose pull` toutes les
-# 15 s indéfiniment. Au-delà de 5 démarrages en 10 min, l'unité passe en
-# failed : `systemctl --user reset-failed dc@<svc>` pour la relancer.
-StartLimitIntervalSec=600
-StartLimitBurst=5
+# Jamais d'abandon définitif. Avec StartLimitBurst=5 sur 10 min, deux minutes
+# de panne (registre injoignable au boot, Docker lent à démarrer) laissaient
+# l'appli en failed jusqu'à un `systemctl --user reset-failed` manuel. Ce qui
+# justifiait cette limite (un `docker compose pull` à chaque redémarrage d'une
+# appli qui crashe en boucle) a disparu : plus de pull au démarrage, cf. ExecStart.
+StartLimitIntervalSec=0
+# Un échec de l'ExecStartPre (Docker absent) suivi d'un redémarrage
+# automatique garde le job de démarrage ouvert : sans borne, un `systemctl
+# --user start` (tâche Ansible comprise) attendrait indéfiniment. Passé ce
+# délai le job échoue, et l'unité continue de réessayer en arrière-plan.
+JobRunningTimeoutSec=10min
 
 [Service]
 Restart=always
 RestartSec=15s
+{% if ((ansible_facts['systemd'] | default({}))['version'] | default(0) | int) >= 254 %}
+# Backoff exponentiel (systemd ≥ 254) : 15 s, 28 s, 51 s… jusqu'à 10 min entre
+# deux essais d'une appli qui crashe en boucle. En deçà de 254 (Debian 12
+# bookworm, base possible du Raspberry Pi : 252), ces clés seraient ignorées
+# avec un avertissement : on y reste à 15 s fixes.
+RestartSteps=6
+RestartMaxDelaySec=10min
+{% endif %}
+# Ne borne que les ExecStartPre : `up` (Type=simple) est considéré démarré
+# dès son lancement, téléchargement d'images compris.
 TimeoutStartSec=300
 # Le défaut (90 s) a été dépassé lors d'un arrêt de gramps sous charge.
 TimeoutStopSec=120
-WorkingDirectory=/opt/apps/%i
+WorkingDirectory={{ docker_base_path }}/%i
 
-#   Remove old containers, images and volumes and update it
-#ExecStartPre=/usr/bin/docker compose down
-#ExecStartPre=/usr/bin/docker compose rm -f
-#   Comment the following to not automatically update your images!
-ExecStartPre=/usr/bin/docker compose pull
+# Unité *user* : elle ne peut pas se ranger After=docker.service (unité du
+# manager système). Au boot, attendre que le démon réponde, deux minutes au
+# plus ; au-delà l'unité échoue et Restart= la relance.
+ExecStartPre=/usr/bin/timeout 120 /bin/sh -c 'until /usr/bin/docker info >/dev/null 2>&1; do sleep 2; done'
 
-ExecStart=/usr/bin/docker compose up
+# Pas d'option --pull : chaque service suit son `pull_policy`, « missing »
+# par défaut, qui ne télécharge que les images absentes sans interroger le
+# registre pour celles déjà là. Un registre en panne n'empêche donc plus de
+# (re)démarrer une appli déjà déployée, là où l'ancien
+# `ExecStartPre=docker compose pull` était fatal. Les mises à jour passent
+# toujours : les images sont épinglées par digest (Renovate, pinDigests), un
+# nouveau digest est une image absente. Une image sur un tag mobile ne serait
+# en revanche plus rafraîchie : l'épingler, ou lui donner `pull_policy:
+# always` dans son compose (banc KC de flip_planning). `--pull missing` ici
+# écraserait ce réglage pour tous les services.
+# --remove-orphans : supprime les conteneurs d'un service retiré du compose.
+ExecStart=/usr/bin/docker compose up --remove-orphans
+# `stop`, pas `down`, délibérément : `down` supprimerait les conteneurs, et
+# avec eux le contenu des volumes anonymes (VOLUME d'une image que le compose
+# ne monte pas) au prochain `up`. Les conteneurs arrêtés sont marqués « stoppés
+# par l'utilisateur » : Docker ne les relance pas de lui-même au boot, c'est
+# cette unité qui le fait (et elle n'abandonne plus, cf. StartLimitIntervalSec).
 ExecStop=/usr/bin/docker compose stop
 
 [Install]
