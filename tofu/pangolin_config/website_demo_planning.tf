@@ -7,12 +7,12 @@ resource "pangolin_resource" "demo_planning" {
   subdomain   = "demo-planning"
   domain_id   = local.domain_ids["sylvain.dev"]
   protocol    = "tcp"
-  mode        = "http"
   sso         = true
   apply_rules = true
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.
+  mode                    = local.resource_pins.mode
   ssl                     = local.resource_pins.ssl
   enabled                 = local.resource_pins.enabled
   block_access            = local.resource_pins.block_access
