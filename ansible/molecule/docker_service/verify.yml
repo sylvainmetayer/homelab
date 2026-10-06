@@ -52,9 +52,11 @@
       ansible.builtin.assert:
         that:
           - ('WorkingDirectory=' ~ docker_base_path ~ '/%i') in docker_service_unit_lines
-          # Pas de pull fatal au démarrage : un registre en panne n'empêche
-          # pas de relancer une appli dont les images sont déjà là.
-          - docker_service_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list | length == 0
+          # Pas de pull complet au démarrage : un registre en panne n'empêche
+          # pas de relancer une appli dont les images sont déjà là. Les images
+          # absentes, elles, sont tirées avant `up`, pour qu'un échec fasse
+          # échouer le job de démarrage (handler Ansible compris).
+          - docker_service_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list == ['ExecStartPre=/usr/bin/docker compose pull --policy missing']
           - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in docker_service_unit_lines"
           - docker_service_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
           - "'ExecStop=/usr/bin/docker compose stop' in docker_service_unit_lines"
@@ -62,9 +64,10 @@
           # Jamais d'abandon définitif (plus de StartLimitBurst).
           - "'StartLimitIntervalSec=0' in docker_service_unit_lines"
           - docker_service_unit_lines | select('match', '^StartLimitBurst=') | list | length == 0
-          # Debian 13 (systemd 257) : backoff exponentiel.
-          - "'RestartSteps=6' in docker_service_unit_lines"
-          - "'RestartMaxDelaySec=10min' in docker_service_unit_lines"
+          # Pas de backoff : son compteur ne retombe jamais à zéro de lui-même,
+          # il finissait par retarder de 10 min un simple redémarrage de Docker.
+          - "'RestartSec=15s' in docker_service_unit_lines"
+          - docker_service_unit_lines | select('match', '^Restart(Steps|MaxDelaySec)=') | list | length == 0
           # Unité user : default.target, pas multi-user.target (absente du
           # manager user), sinon rien ne démarre au boot.
           - "'WantedBy=default.target' in docker_service_unit_lines"
@@ -88,7 +91,7 @@
           - docker_service_instance.status.NeedDaemonReload == 'no'
           - docker_service_instance.status.WorkingDirectory == docker_base_path ~ '/molecule'
           - docker_service_instance.status.StartLimitIntervalUSec == '0'
-          - docker_service_instance.status.RestartMaxDelayUSec == '10min'
+          - docker_service_instance.status.RestartUSec == '15s'
           - docker_service_instance.status.JobRunningTimeoutUSec == '10min'
           - docker_service_instance.status.TimeoutStopUSec == '2min'
         fail_msg: >-
