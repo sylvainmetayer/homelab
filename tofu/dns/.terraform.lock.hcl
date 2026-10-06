@@ -25,7 +25,15 @@ provider "registry.opentofu.org/carlpett/sops" {
 provider "registry.opentofu.org/hashicorp/aws" {
   version = "6.28.0"
   hashes = [
+    "h1:HRIef5R96dZbCL7AtPbGsdJnr6bGjB0P3TnI+N/lEuU=",
+    "h1:JW/6X82H742ltNqdi1Z+o3Y+diA6fluOH805IOI7kqg=",
+    "h1:a04viexyZH7XCg13UIibwzkFMfQvMWA//8f9okDFKIs=",
+    "h1:gls3u4DZH97fapaPejImJ0ITIZo9epFFVhhJZUSuDbs=",
+    "h1:i0G7vt2sNy0oz84IiuG4gplonNVyOLRdprKLurU8pe4=",
+    "h1:k967tIoJHNgEt72UJDzlE6ngWN91Ke96zrpgnn2PvUA=",
+    "h1:kjmhRbLdowE0T9x6hGzO5fCM01Qz+8GntpsaXqe9HiE=",
     "h1:tcau98fkhZ2RhbPHo8LdiiUk2RGpZUgT/t06sdMLids=",
+    "h1:wek8vEEZpTPulbLi9xCf2wnxvc97JXAN4qcOhduSg7k=",
     "zh:38d58305206953783c150fb96d5c4f3ea5fe0b9e0987d927c884a6b0f2adf7a9",
     "zh:43fd483251165f98b7a44360b41b437d309b007ef2bfff818eedcf3730e3f5cb",
     "zh:4753decc5a718cb74b08244a02d00c150f0ddd6ebf2e1227f6a985c647c03ce9",
@@ -41,7 +49,19 @@ provider "registry.opentofu.org/hashicorp/aws" {
 provider "registry.opentofu.org/hashicorp/hcloud" {
   version = "1.59.0"
   hashes = [
+    "h1:/77v+IqeeLB66qfMYBcWkhpwOqGgj7oXmSwc9bB+LDA=",
+    "h1:A1Un3DbXNP2MwlirZIH46Wux9woD4VYmXK+Gq8eBW0s=",
+    "h1:HA5vtav8B2JkYbT8UhEnyGcqhFK34X/C8VfXSel5Hqk=",
+    "h1:UlmsfMnSaqouWvtt/y+qD7nwm5kVMRLjBI6xH3Xrlqg=",
     "h1:a9yIAeNK7X7DxuYiU1Yz5ChdIfvQKgx1TREN2+W+77Q=",
+    "h1:aynCclZ9MPKVSczyT1vXXbsCIm3BFKL4ddnHLbL73To=",
+    "h1:k+U2LWEvS10irpTFzCtl1YFPursTt9xq2PAaNrMHbf4=",
+    "h1:khwU+IiCvRpu6CxDfvA2HjtR+cvsXPoH6I4QyYXThMo=",
+    "h1:mTug4HjR/YWyYYBe4cXRrgrtSHDujwuozkix7vc+cLk=",
+    "h1:t/Y+pX567+ZAkMYaJYhAcl+QQm9qtzsnXry8526Jv/8=",
+    "h1:tzhXMuXrr5ocqnRsVt4/6ksaYBNo0uNM23wovM2I4Q8=",
+    "h1:wPqX7Y6tHpn9w+eh7uod0w19TeLqO4cXExU72P15WEE=",
+    "h1:wX0CmMl9Bg+gcLe7MKPWIF5Jbh5/nDCjj2P9jDaQtbY=",
     "zh:0a9f6d9ba5e2ab9cbc236276587a75963e33bc5e39e61db0fe7ca0efb3636811",
     "zh:0fb5ad553cdcbb6cbed60430497d4df39b390205ddfacd2ac4af1abfd34bcf91",
     "zh:2722ff59ff57f36fcfc5bfd0a1f902e02ca54a43772ca7ac6c86e7ca44fa39e9",
