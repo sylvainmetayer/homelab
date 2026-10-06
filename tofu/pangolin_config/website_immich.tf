@@ -54,18 +54,18 @@ resource "pangolin_resource_pincode" "immich" {
   pincode     = tostring(local.immich_pin)
 }
 
-# Priority 12 sits just below the `PASS COUNTRY` rules generated in rules.tf
-# (FR at 10, DE at 11) and well above the catch-all `DROP COUNTRY ALL` at 99.
-# This was at 1, tied with the FR rule; with two rules at the same priority the
-# evaluation order is Pangolin's to decide, so the allowlist would stop being
-# predictable the day FR leaves `local.allowed_countries`. Moved to its own
-# slot.
+# Priority 9: the last slot before the `PASS COUNTRY` rules generated in
+# rules.tf (FR at 10, DE at 11). It used to sit at 12, just behind them, where
+# it was never reached: the home connection is French, so the FR PASS matched
+# first and sent it to the SSO wall like anybody else. Ahead of the country
+# rules it does what it says - the home connection gets in by IP, without
+# SSO. Only the backslash DROP of rules.tf (priority 1) comes before it.
 resource "pangolin_resource_rule" "immich_home_ip" {
   resource_id = pangolin_resource.immich.id
   action      = "ACCEPT"
   match       = "IP"
   value       = local.home_ip
-  priority    = 12
+  priority    = 9
   enabled     = true
 }
 

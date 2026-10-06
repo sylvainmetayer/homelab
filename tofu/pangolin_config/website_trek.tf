@@ -31,18 +31,18 @@ resource "pangolin_resource_role" "trek" {
 # Same pattern as `pangolin_resource_rule.immich_home_ip`: the home connection
 # is allowed in by IP regardless of the geo rules.
 #
-# Priority 12 sits just below the `PASS COUNTRY` rules generated in rules.tf
-# (FR at 10, DE at 11) and well above the catch-all `DROP COUNTRY ALL` at 99.
-# Live had it at 1, tied with the FR rule; with two rules at the same priority
-# the evaluation order is Pangolin's to decide, so the allowlist would stop
-# being predictable the day FR leaves `local.allowed_countries`. Moved to its
-# own slot.
+# Priority 9: the last slot before the `PASS COUNTRY` rules generated in
+# rules.tf (FR at 10, DE at 11). It used to sit at 12, just behind them, where
+# it was never reached: the home connection is French, so the FR PASS matched
+# first and sent it to the SSO wall like anybody else. Ahead of the country
+# rules it does what it says - the home connection gets in by IP, without
+# SSO. Only the backslash DROP of rules.tf (priority 1) comes before it.
 resource "pangolin_resource_rule" "trek_home_ip" {
   resource_id = pangolin_resource.trek.id
   action      = "ACCEPT"
   match       = "IP"
   value       = local.home_ip
-  priority    = 12
+  priority    = 9
   enabled     = true
 }
 
@@ -53,7 +53,7 @@ resource "pangolin_resource_rule" "trek_home_ip" {
 # first (server/routers/badger/verifySession.ts). Read off the TREK v4.3.3
 # sources (server/src/nest/{mcp-transport,oauth,platform}).
 #
-# Two kinds of paths, two treatments, all in the 1 - 9 band of rules.tf and all
+# Two kinds of paths, two treatments, all in the 2 - 9 band of rules.tf and all
 # exact - no wildcard, so neither `..` (resolved by Pangolin) nor `\` (left
 # as is) can turn one of them into a prefix of something else.
 #
@@ -104,7 +104,7 @@ resource "pangolin_resource_rule" "trek_mcp_oauth" {
   action      = "ACCEPT"
   match       = "PATH"
   value       = each.key
-  priority    = 1
+  priority    = 2
   enabled     = true
 }
 
@@ -116,8 +116,65 @@ resource "pangolin_resource_rule" "trek_mcp" {
   action      = "PASS"
   match       = "PATH"
   value       = "/mcp"
-  priority    = 2
+  priority    = 3
   enabled     = true
+}
+
+# Public share links, opened worldwide without SSO through
+# local.path_bypasses (rules.tf). Read off the TREK v4.3.3 sources and the
+# client the pinned image ships (/app/server/public); re-read them when the
+# image moves.
+#
+# - Trip share, `/shared/<token>`: 24 random bytes, 90-day expiry, checked by
+#   every handler (share.service.ts, share.controller.ts).
+# - Journey share, `/public/journey/<token>` - the post-trip album: 24 random
+#   bytes, no expiry (revoked by deleting it), gallery flag and photo ownership
+#   checked per request (journey-share.service.ts). Immich and Synology photos
+#   are fetched by TREK server-side with the owner's credentials, so Immich
+#   itself stays closed.
+#
+# Both pages are the SPA: Express answers index.html for any unmatched GET, so
+# the page routes need no shell path of their own beyond the build files.
+#
+# Deliberately not opened:
+# - /uploads/journey/*: the public JSON carries each photo's file path, so
+#   direct file URLs would keep answering after the share is revoked. Costs an
+#   uploaded journey cover, drawn at 15% opacity.
+# - /uploads/avatars/*: only for a shared trip chat.
+# - The PWA (registerSW.js, sw.js, workbox-*.js and its ~500 precached files):
+#   the page works without the service worker, whose install fails as a whole
+#   if any precached file is refused.
+# - /api/auth/app-config and /api/health: called by every page, they fail
+#   silently on share pages (isAuthPublicPath).
+# - Trip and collection invitations, Vacay: they need a TREK account, which no
+#   path rule can give.
+locals {
+  trek_share_paths = {
+    # Build files shared by every page, the logged-in app included: entry,
+    # chunks, CSS, i18n, fonts, the maplibre RTL plugin, the Plyr sprite.
+    "/assets/*"                           = 4
+    "/theme-boot.js"                      = 4
+    "/shell-guard.js"                     = 4
+    "/icons/icon.svg"                     = 4
+    "/icons/icon-white.svg"               = 4
+    "/icons/apple-touch-icon-180x180.png" = 4
+
+    # Trip share: page, data, place thumbnails (placeId may hold `%2F`, hence
+    # the trailing `*`).
+    "/shared/*"     = 4
+    "/api/shared/*" = 4
+
+    # Journey share: page, data, every photo and video
+    # (/api/public/journey/<token>/photos/<id>/thumbnail|original).
+    "/public/journey/*"     = 4
+    "/api/public/journey/*" = 4
+
+    # Trip covers (also the journey hero when it comes from the trip) and
+    # uploaded place images. No token: Express serves them to anyone holding
+    # the UUID file name (platform.routes.ts), here worldwide.
+    "/uploads/covers/*" = 4
+    "/uploads/places/*" = 4
+  }
 }
 
 # One token per client, so one is revoked without touching the others.

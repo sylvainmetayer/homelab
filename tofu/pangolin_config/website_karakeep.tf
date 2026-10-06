@@ -57,7 +57,7 @@ output "karakeep_client_access_tokens" {
 }
 
 # Public lists (list > Share > "Public list") are read by people with no
-# account, wherever they are: these ACCEPTs sit in the 1 - 9 band of rules.tf,
+# account, wherever they are: these ACCEPTs sit in the 2 - 9 band of rules.tf,
 # in front of the country rules, and skip the SSO wall. Each path is one the
 # page /public/lists/<listId> actually requests, read off the Karakeep v0.33.2
 # sources (apps/web/app/public, components/public/lists, packages/api); the
@@ -107,24 +107,9 @@ resource "pangolin_resource_rule" "karakeep_public" {
   enabled     = true
 }
 
-# Evaluated before the ACCEPTs above: any path with a backslash in it is
-# refused. Pangolin resolves `..`, `%2e%2e` and `%2F` before matching
-# (server/lib/pathMatch.ts), but a backslash is just a character to it, so
-# `/public/lists/..\..\api/v1/bookmarks` matches `/public/lists/*`, while
-# the WHATWG URL parser on the Node side turns `\` into `/` and resolves the
-# same path to `/api/v1/bookmarks`. No legitimate Karakeep URL carries one.
-# `%5C` is the backslash: the pattern is decoded before matching, and an
-# encoded `\` in a request is decoded the same way. The leading and trailing
-# `*` take zero or more segments, the middle one is a single segment holding a
-# backslash anywhere.
-resource "pangolin_resource_rule" "karakeep_backslash" {
-  resource_id = pangolin_resource.karakeep.id
-  action      = "DROP"
-  match       = "PATH"
-  value       = "/*/*%5C*/*"
-  priority    = 1
-  enabled     = true
-}
+# Any path holding a backslash is dropped before the ACCEPTs above: see
+# pangolin_resource_rule.backslash_guard in rules.tf, which covers every
+# resource with a path rule.
 
 resource "pangolin_target" "karakeep" {
   resource_id = pangolin_resource.karakeep.id

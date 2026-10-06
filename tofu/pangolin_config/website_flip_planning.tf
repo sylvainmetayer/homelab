@@ -47,12 +47,13 @@ resource "pangolin_resource_role" "flip_planning" {
 # session to show it.
 #
 # Matching on the path instead of on the caller takes geography out of the
-# question. Priority 1 puts this ahead of the country rules so it decides first
+# question. Priority 2 puts this ahead of the country rules so it decides first
 # whatever the origin - they only PASS, so a request from FR or DE would
 # otherwise never reach it - and ACCEPT short-circuits authentication outright:
 # Pangolin evaluates rules before SSO, and an ACCEPT returns "allowed" without
-# running any auth method. It heads the bypass band described in rules.tf; the
-# provider rejects priority 0, which is why the country rules start at 10.
+# running any auth method. It sits in the bypass band described in rules.tf,
+# right behind the backslash DROP that holds priority 1 on every resource with
+# a path rule.
 #
 # This opens /mcp to the internet as far as Pangolin is concerned; it does not
 # open the MCP server. The application still demands its own shared key
@@ -71,7 +72,7 @@ resource "pangolin_resource_rule" "flip_planning_mcp" {
   action      = "ACCEPT"
   match       = "PATH"
   value       = "/mcp/*"
-  priority    = 1
+  priority    = 2
   enabled     = true
 }
 

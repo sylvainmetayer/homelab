@@ -32,28 +32,33 @@ locals {
   # needs a slot in front of them, and the provider rejects a priority below 1,
   # so the country band starts at 10 and leaves that room:
   #
-  #    1 -  9  app-specific rules evaluated before the geo-filter
-  #            (pangolin_resource_rule.flip_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_kc_keycloak,
-  #             pangolin_resource_rule.karakeep_backslash (DROP),
-  #             pangolin_resource_rule.karakeep_public,
-  #             pangolin_resource_rule.trek_mcp_oauth,
-  #             pangolin_resource_rule.trek_mcp (PASS: skips the country rules
-  #             but keeps the authentication))
+  #    1       DROP of any path holding a backslash, on every resource that has
+  #            a path rule below (pangolin_resource_rule.backslash_guard). Alone
+  #            in its slot, so it is always evaluated before them.
+  #    2 -  9  app-specific rules evaluated before the geo-filter:
+  #            - path ACCEPTs, the generic ones of local.path_bypasses
+  #              (pangolin_resource_rule.path_bypass) and the standalone ones
+  #              (flip_planning_mcp, demo_planning_mcp,
+  #              demo_planning_kc_keycloak, karakeep_public, trek_mcp_oauth);
+  #            - trek_mcp, a PASS: skips the country rules but keeps the
+  #              authentication;
+  #            - the home-IP ACCEPTs at 9 (immich_home_ip, dawarich_home_ip,
+  #              trek_home_ip). Behind the country PASS they were never reached
+  #              from the home connection, which is French.
+  #            Rules sharing a priority on one resource all carry the same
+  #            action, so the order Pangolin picks between them cannot matter
+  #            (pinned by the `tied_rules_share_their_action` test).
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
-  #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
   #   20       PASS COUNTRY <trip>, while var.travel_countries keeps it open
   #   99       DROP COUNTRY ALL
   country_rule_priority_base = 10
 
-  # Trip countries get their own slot rather than following FR and DE: the
-  # next one after DE is 12, already taken by the home-IP ACCEPTs. One fixed
-  # priority for all of them: PASS rules on disjoint countries can be
-  # evaluated in any order, so numbering them would only renumber every other
-  # trip country - an in-place update of all its rules - each time one comes
-  # or goes. Pangolin does not require distinct priorities. The order against
-  # the home-IP ACCEPTs does not matter either, the home IP being French.
+  # Trip countries get their own slot rather than following FR and DE, so that
+  # FR and DE keep theirs whatever comes and goes here. One fixed priority for
+  # all of them: PASS rules on disjoint countries can be evaluated in any
+  # order, so numbering them would only renumber every other trip country - an
+  # in-place update of all its rules - each time one comes or goes. Pangolin
+  # does not require distinct priorities.
   travel_country_priority = 20
 
   # Each entry of var.travel_countries gets exactly one status, on the plan's
@@ -236,6 +241,88 @@ resource "pangolin_resource_rule" "block_country" {
 }
 
 # ---------------------------------------------------------------------------
+# Path bypasses.
+#
+# What a public link of an app needs to reach without the SSO wall and from
+# any country: its page, its API calls, its static files. Each app documents
+# its own list next to its resource (website_<app>.tf, `local.<app>_*_paths`,
+# a map path => priority in the 2 - 9 band); this block only turns them into
+# rules. Every one of them is an ACCEPT: the app's own secret (share token,
+# signed URL, API password...) is what protects the content behind it, and the
+# app-side check is named next to each path.
+#
+# The key is the resource's Pangolin name, as in local.rule_targets.
+# ---------------------------------------------------------------------------
+locals {
+  path_bypasses = {
+    "Dawarich"      = local.dawarich_share_paths
+    "Gramps"        = local.gramps_public_paths
+    "Meerkat CRM"   = local.meerkat_crm_dav_paths
+    "Monica CRM"    = local.monica_dav_paths
+    "Paperless-ngx" = local.paperless_share_paths
+    "RSS"           = local.rss_api_paths
+    "TREK"          = local.trek_share_paths
+  }
+
+  path_bypass_rules = merge([
+    for name, paths in local.path_bypasses : {
+      for path, priority in paths : "${name} ${path}" => {
+        resource_id = local.rule_targets[name]
+        path        = path
+        priority    = priority
+      }
+    }
+  ]...)
+
+  # Resources whose path rules live in standalone resources rather than in
+  # local.path_bypasses. Listed by hand for the same reason as
+  # local.declared_extra_rules below.
+  standalone_path_rule_resources = [
+    "Demo Planning",
+    "Demo Planning KC",
+    "Flip Planning",
+    "Karakeep",
+    "TREK",
+  ]
+
+  # Pangolin resolves `..`, `%2e%2e` and `%2F` before matching a path
+  # (server/lib/pathMatch.ts) but leaves a backslash alone, while the WHATWG URL
+  # parser on a Node backend turns it into `/`: `/shared/..\..\api/trips`
+  # matches an ACCEPT on `/shared/*` and is then served as `/api/trips`. Some
+  # backends here are not Node, but none has a legitimate URL holding a
+  # backslash, so every resource with a path rule gets the DROP rather than
+  # an audit per backend.
+  backslash_guarded_resources = toset(concat(keys(local.path_bypasses), local.standalone_path_rule_resources))
+}
+
+resource "pangolin_resource_rule" "path_bypass" {
+  for_each = local.path_bypass_rules
+
+  resource_id = each.value.resource_id
+  action      = "ACCEPT"
+  match       = "PATH"
+  value       = each.value.path
+  priority    = each.value.priority
+  enabled     = true
+}
+
+# `%5C` is the backslash: the pattern is percent-decoded before matching, and
+# an encoded backslash in a request is decoded the same way. The leading and
+# trailing `*` take zero or more segments, the middle one is a single segment
+# holding a backslash anywhere; Pangolin escapes regex metacharacters before
+# turning `*` into `.*`, so the `\` stays a literal backslash.
+resource "pangolin_resource_rule" "backslash_guard" {
+  for_each = local.backslash_guarded_resources
+
+  resource_id = local.rule_targets[each.key]
+  action      = "DROP"
+  match       = "PATH"
+  value       = "/*/*%5C*/*"
+  priority    = 1
+  enabled     = true
+}
+
+# ---------------------------------------------------------------------------
 # Probe configuration audit.
 #
 # `hc_scheme` / `hc_mode` / `hc_port` are optional+computed on pangolin_target.
@@ -382,9 +469,10 @@ locals {
       pangolin_resource_rule.demo_planning_mcp,
       pangolin_resource_rule.flip_planning_mcp,
       pangolin_resource_rule.immich_home_ip,
-      pangolin_resource_rule.karakeep_backslash,
       pangolin_resource_rule.trek_home_ip,
     ],
+    values(pangolin_resource_rule.backslash_guard),
+    values(pangolin_resource_rule.path_bypass),
     values(pangolin_resource_rule.karakeep_public),
     [pangolin_resource_rule.trek_mcp],
     values(pangolin_resource_rule.trek_mcp_oauth),
