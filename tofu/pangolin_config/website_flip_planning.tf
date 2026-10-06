@@ -65,15 +65,11 @@ resource "pangolin_resource_role" "flip_planning" {
 # matcher lets a trailing `*` segment match zero segments (server/lib/
 # pathMatch.ts).
 #
-# Unlike the country rules this one is app-specific, hence a standalone resource
-# here rather than an entry in the generic loops of rules.tf.
-resource "pangolin_resource_rule" "flip_planning_mcp" {
-  resource_id = pangolin_resource.flip_planning.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = "/mcp/*"
-  priority    = 2
-  enabled     = true
+# Turned into a rule by local.path_bypasses (rules.tf), like every path ACCEPT.
+locals {
+  flip_planning_mcp_paths = {
+    "/mcp/*" = 2
+  }
 }
 
 resource "pangolin_target" "flip_planning" {

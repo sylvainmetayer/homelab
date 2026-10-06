@@ -65,14 +65,12 @@ resource "pangolin_resource_role" "demo_planning_kc" {
 # /auth/resources before copying it.
 #
 # `/auth/*` covers `/auth` itself as well as everything under it (a trailing
-# `*` segment matches zero segments, see website_flip_planning.tf).
-resource "pangolin_resource_rule" "demo_planning_kc_keycloak" {
-  resource_id = pangolin_resource.demo_planning_kc.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = "/auth/*"
-  priority    = 2
-  enabled     = true
+# `*` segment matches zero segments, see website_flip_planning.tf). Turned into
+# a rule by local.path_bypasses (rules.tf).
+locals {
+  demo_planning_kc_keycloak_paths = {
+    "/auth/*" = 2
+  }
 }
 
 resource "pangolin_target" "demo_planning_kc" {
