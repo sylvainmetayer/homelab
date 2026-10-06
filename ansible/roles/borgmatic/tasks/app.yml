@@ -9,15 +9,22 @@
 # Résolu à chaque déploiement : une base créée après coup (premier démarrage
 # d'une application) est prise au déploiement suivant ; d'ici là, sa copie
 # vivante reste dans l'archive, faute d'être exclue. Le test d'en-tête écarte
-# tout fichier du glob qui ne serait pas une base SQLite.
+# tout fichier du glob qui ne serait pas une base SQLite. Les bases trouvées
+# sortent sur stdout, les globs qui n'en trouvent aucune sur stderr.
 - name: Find the SQLite databases of {{ borgmatic_app_title }}
   become: true
   ansible.builtin.shell:
     cmd: |
-      for db in {{ borgmatic_app_sqlite_databases | join(' ') }}; do
+      {% for glob in borgmatic_app_sqlite_databases %}
+      found=
+      for db in {{ glob }}; do
         [ -f "$db" ] || continue
-        [ "$(head -c 15 "$db")" = "SQLite format 3" ] && printf '%s\n' "$db"
+        [ "$(head -c 15 "$db")" = "SQLite format 3" ] || continue
+        printf '%s\n' "$db"
+        found=1
       done
+      [ -n "$found" ] || printf '%s\n' {{ glob | quote }} >&2
+      {% endfor %}
       exit 0
   register: borgmatic_app_sqlite_found
   changed_when: false
@@ -27,11 +34,9 @@
 - name: Report the missing SQLite databases of {{ borgmatic_app_title }}
   ansible.builtin.debug:
     msg: >-
-      Aucune base SQLite trouvée pour {{ borgmatic_app_sqlite_databases | join(', ') }} :
+      Aucune base SQLite trouvée pour {{ borgmatic_app_sqlite_found.stderr_lines | join(', ') }} :
       normal avant le premier démarrage de l'application, sinon le glob est à revoir.
-  when:
-    - borgmatic_app_sqlite_databases | length > 0
-    - borgmatic_app_sqlite_found.stdout_lines | default([]) | length == 0
+  when: borgmatic_app_sqlite_found.stderr_lines | default([]) | length > 0
 
 - name: Create borgmatic configuration for {{ borgmatic_app_title }}
   become: true
