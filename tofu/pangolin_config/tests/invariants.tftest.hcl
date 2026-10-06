@@ -152,6 +152,17 @@ override_resource {
   values = { id = 2008 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.trek_mcp
+  values = { id = 2009 }
+}
+
+# Même contrainte que karakeep_public : un identifiant commun aux instances.
+override_resource {
+  target = pangolin_resource_rule.trek_mcp_oauth
+  values = { id = 2010 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
@@ -221,7 +232,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2008) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2010) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -238,8 +249,10 @@ override_data {
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
+        {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 2, "enabled": true},
+        {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 1, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 10, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 12, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -382,7 +395,7 @@ override_resource {
 
 override_resource {
   target = pangolin_resource.trek
-  values = { id = 61 }
+  values = { id = 61, full_domain = "travels.sylvain.cloud" }
 }
 
 override_resource {
@@ -391,6 +404,11 @@ override_resource {
 }
 
 # Jetons d'accès des healthchecks de Flip Planning : un par environnement.
+override_resource {
+  target = pangolin_resource_access_token.trek_mcp_clients
+  values = { id = "tok-trek-mcp", token = "jeton-trek-mcp" }
+}
+
 override_resource {
   target = pangolin_resource_access_token.flip_planning
   values = { id = "tok-flip-planning", token = "jeton-flip-planning" }
@@ -941,6 +959,54 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Chaque règle de Karakeep doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
   }
 
+  # MCP de TREK : `/mcp` en PASS (saute les règles pays, garde l'authentification
+  # Pangolin : SSO ou jeton d'accès), la surface publique d'OAuth en ACCEPT.
+  # Tout en chemins exacts, avant les règles pays.
+  assert {
+    condition = (
+      pangolin_resource_rule.trek_mcp.action == "PASS"
+      && pangolin_resource_rule.trek_mcp.match == "PATH"
+      && pangolin_resource_rule.trek_mcp.value == "/mcp"
+      && pangolin_resource_rule.trek_mcp.enabled == true
+      && pangolin_resource_rule.trek_mcp.priority >= 1 && pangolin_resource_rule.trek_mcp.priority < 10
+    )
+    error_message = "/mcp de TREK doit être un PASS (pas un ACCEPT) sur le chemin exact, avant les règles pays : le jeton d'accès Pangolin reste exigé."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.trek_mcp_oauth :
+      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
+      && rule.priority >= 1 && rule.priority < 10 && !strcontains(rule.value, "*")
+    ])
+    error_message = "La surface OAuth de TREK : des ACCEPT sur chemins exacts (sans joker), avant les règles pays."
+  }
+
+  # Ni l'enregistrement dynamique, ni l'autorisation (navigateur de
+  # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface.
+  assert {
+    condition = toset([for rule in pangolin_resource_rule.trek_mcp_oauth : rule.value]) == toset([
+      "/.well-known/oauth-protected-resource/mcp",
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-authorization-server",
+      "/.well-known/oauth-authorization-server/mcp",
+      "/.well-known/openid-configuration",
+      "/mcp/.well-known/oauth-protected-resource",
+      "/mcp/.well-known/oauth-authorization-server",
+      "/mcp/.well-known/openid-configuration",
+      "/oauth/token",
+    ])
+    error_message = "L'ouverture OAuth de TREK doit se limiter aux documents de découverte et à /oauth/token."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in concat(values(pangolin_resource_rule.trek_mcp_oauth), [pangolin_resource_rule.trek_mcp]) :
+      contains([for declared in local.declared_extra_rules : declared.value], rule.value)
+    ])
+    error_message = "Chaque règle MCP de TREK doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
+  }
+
   # Pangolin trie par priorité ; deux règles d'une même ressource à égalité
   # laisseraient l'ordre au hasard de la base.
   assert {
@@ -991,6 +1057,52 @@ run "karakeep_clients_use_access_tokens_not_a_bypass" {
   assert {
     condition     = length(distinct([for token in pangolin_resource_access_token.karakeep_clients : token.title])) == 3
     error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
+  }
+}
+
+# Le MCP de TREK passe par un jeton d'accès Pangolin par client, pas par un
+# ACCEPT : en-têtes pour les clients qui en envoient, `?p_token=` dans l'URL du
+# connecteur pour Claude.ai.
+run "trek_mcp_clients_use_access_tokens" {
+  command = plan
+
+  assert {
+    condition     = pangolin_resource.trek.sso == true
+    error_message = "TREK doit rester derrière le mur SSO de Pangolin."
+  }
+
+  assert {
+    condition     = toset(keys(pangolin_resource_access_token.trek_mcp_clients)) == toset(["claude-ai", "claude-code"])
+    error_message = "Un jeton d'accès Pangolin par client MCP de TREK : claude-ai, claude-code."
+  }
+
+  assert {
+    condition = alltrue([
+      for token in pangolin_resource_access_token.trek_mcp_clients :
+      token.resource_id == pangolin_resource.trek.id
+    ])
+    error_message = "Les jetons des clients MCP doivent viser la ressource TREK."
+  }
+
+  assert {
+    condition     = length(distinct([for token in pangolin_resource_access_token.trek_mcp_clients : token.title])) == 2
+    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
+  }
+}
+
+# Le format `?p_token=<id>.<jeton>` est celui que Pangolin découpe sur le point
+# (verifySession.ts) ; un autre séparateur et le jeton ne serait jamais lu.
+run "trek_mcp_connector_url_carries_the_token" {
+  command = apply
+
+  assert {
+    condition = alltrue([
+      for client in ["claude-ai", "claude-code"] :
+      output.trek_mcp_client_access_tokens[client].connector_url == "https://travels.sylvain.cloud/mcp?p_token=tok-trek-mcp.jeton-trek-mcp"
+      && output.trek_mcp_client_access_tokens[client].headers["P-Access-Token-Id"] == "tok-trek-mcp"
+      && output.trek_mcp_client_access_tokens[client].headers["P-Access-Token"] == "jeton-trek-mcp"
+    ])
+    error_message = "L'URL de connecteur doit être https://<domaine>/mcp?p_token=<id>.<jeton>."
   }
 }
 
@@ -1167,6 +1279,11 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
       && pangolin_resource_rule.karakeep_backslash.resource_id == pangolin_resource.karakeep.id
+      && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.trek.id
+      && alltrue([
+        for rule in pangolin_resource_rule.trek_mcp_oauth :
+        rule.resource_id == pangolin_resource.trek.id
+      ])
       && alltrue([
         for rule in pangolin_resource_rule.karakeep_public :
         rule.resource_id == pangolin_resource.karakeep.id

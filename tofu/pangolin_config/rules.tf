@@ -37,7 +37,10 @@ locals {
   #             pangolin_resource_rule.demo_planning_mcp,
   #             pangolin_resource_rule.demo_planning_kc_keycloak,
   #             pangolin_resource_rule.karakeep_backslash (DROP),
-  #             pangolin_resource_rule.karakeep_public)
+  #             pangolin_resource_rule.karakeep_public,
+  #             pangolin_resource_rule.trek_mcp_oauth,
+  #             pangolin_resource_rule.trek_mcp (PASS: skips the country rules
+  #             but keeps the authentication))
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
   #   20       PASS COUNTRY <trip>, while var.travel_countries keeps it open
@@ -383,6 +386,8 @@ locals {
       pangolin_resource_rule.trek_home_ip,
     ],
     values(pangolin_resource_rule.karakeep_public),
+    [pangolin_resource_rule.trek_mcp],
+    values(pangolin_resource_rule.trek_mcp_oauth),
   )
 
   # Stringified so the ids compare cleanly against the JSON numbers below.

@@ -46,6 +46,109 @@ resource "pangolin_resource_rule" "trek_home_ip" {
   enabled     = true
 }
 
+# MCP server (Settings > Integrations > MCP), driven by hosted assistants
+# (Claude.ai and its mobile app, ChatGPT...) from their own servers, in the US
+# for Claude: the catch-all `DROP COUNTRY ALL` (rules.tf) drops them before any
+# authentication runs, access token included - Pangolin evaluates the rules
+# first (server/routers/badger/verifySession.ts). Read off the TREK v4.3.3
+# sources (server/src/nest/{mcp-transport,oauth,platform}).
+#
+# Two kinds of paths, two treatments, all in the 1 - 9 band of rules.tf and all
+# exact - no wildcard, so neither `..` (resolved by Pangolin) nor `\` (left
+# as is) can turn one of them into a prefix of something else.
+#
+# 1. `/mcp` itself: PASS, not ACCEPT. PASS ends the rule walk - the country
+#    rules are never reached - but still sends the request through Pangolin's
+#    authentication: an SSO session, or one of the access tokens below, as
+#    headers (P-Access-Token-Id / P-Access-Token) or in the URL
+#    (`?p_token=<id>.<token>`, for Claude.ai, which takes no custom header).
+#    TREK then demands its own OAuth bearer on top. Without a token the
+#    request never reaches TREK.
+#
+# 2. OAuth's public surface, ACCEPT: what an assistant's server calls without
+#    any session and without the token, since it builds those URLs from the
+#    discovery documents, not from the connector URL. The discovery documents
+#    (static JSON: issuer, endpoints, scopes) and the token endpoint (PKCE code
+#    or refresh token, plus client secret, rate-limited by TREK).
+#
+# Deliberately not opened: /oauth/authorize and /oauth/consent (the user's own
+# browser, which has the SSO session), /oauth/register (dynamic client
+# registration: create the client beforehand in TREK, Claude.ai preset, and
+# give its id and secret to the connector), /oauth/revoke and /oauth/userinfo.
+locals {
+  trek_mcp_public_paths = [
+    # Discovery. The first is the one TREK's 401 points to
+    # (WWW-Authenticate resource_metadata); the others are where other clients
+    # look first - flat RFC 9728, RFC 8414 with and without the resource path,
+    # OIDC, and the same three under the server address.
+    "/.well-known/oauth-protected-resource/mcp",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-authorization-server/mcp",
+    "/.well-known/openid-configuration",
+    "/mcp/.well-known/oauth-protected-resource",
+    "/mcp/.well-known/oauth-authorization-server",
+    "/mcp/.well-known/openid-configuration",
+
+    # Code exchange and refresh, server to server.
+    "/oauth/token",
+  ]
+}
+
+# Exact paths, pairwise disjoint and disjoint from `/mcp`: their order does not
+# matter, hence one shared priority.
+resource "pangolin_resource_rule" "trek_mcp_oauth" {
+  for_each = toset(local.trek_mcp_public_paths)
+
+  resource_id = pangolin_resource.trek.id
+  action      = "ACCEPT"
+  match       = "PATH"
+  value       = each.key
+  priority    = 1
+  enabled     = true
+}
+
+# Matches `/mcp` and `/mcp/` (Pangolin drops empty segments), nothing under it.
+# Also overrides trek_home_ip for this path: from home, an MCP client needs the
+# token too.
+resource "pangolin_resource_rule" "trek_mcp" {
+  resource_id = pangolin_resource.trek.id
+  action      = "PASS"
+  match       = "PATH"
+  value       = "/mcp"
+  priority    = 2
+  enabled     = true
+}
+
+# One token per client, so one is revoked without touching the others.
+# `persist_session` is left to Pangolin's default (false), and that matters for
+# the `?p_token=` form: with a persisted session, Badger answers a GET carrying
+# the token with a cookie and a redirect to the same URL without it, which a
+# server-side MCP client (no cookie jar) follows straight into the SSO wall -
+# the GET /mcp stream would never open.
+#
+# Read them with `tofu output -json trek_mcp_client_access_tokens`.
+resource "pangolin_resource_access_token" "trek_mcp_clients" {
+  for_each = toset(["claude-ai", "claude-code"])
+
+  resource_id = pangolin_resource.trek.id
+  title       = "${pangolin_resource.trek.name} MCP ${each.key}"
+}
+
+output "trek_mcp_client_access_tokens" {
+  description = "TREK - Accès Pangolin au MCP : en-têtes, ou URL de connecteur (Claude.ai)"
+  value = {
+    for client, token in pangolin_resource_access_token.trek_mcp_clients : client => {
+      headers = {
+        "P-Access-Token-Id" = tostring(token.id)
+        "P-Access-Token"    = token.token
+      }
+      connector_url = "https://${pangolin_resource.trek.full_domain}/mcp?p_token=${token.id}.${token.token}"
+    }
+  }
+  sensitive = true
+}
+
 resource "pangolin_target" "trek" {
   resource_id = pangolin_resource.trek.id
   site_id     = pangolin_site.proxmox_docker.id
