@@ -66,30 +66,45 @@ resource "pangolin_resource_role" "nextcloud" {
 #      Pangolin's login like any visit.
 #    - /index.php/core/wipe/*: remote wipe check and acknowledgement, POSTed
 #      with the app password and rate-limited (WipeController).
-#    - File-list thumbnails: /index.php/core/preview and
-#      /index.php/apps/files/api/v1/thumbnail/*, same credentials.
+#    - Thumbnails: /index.php/core/preview (and its .png form, some
+#      NextcloudKit calls), /index.php/apps/files/api/v1/thumbnail/*, and the
+#      trashbin and versions previews, same credentials.
 #    - /.well-known/caldav, /.well-known/carddav: DAVx5 and Thunderbird
 #      discovery, a 301 to /remote.php/dav/ answered by nginx.
 #    Deliberately not opened: avatars (cosmetic in the apps), the Notes and
 #    Deck APIs (/index.php/apps/notes/api/*, /index.php/apps/deck/api/*) and
 #    notify_push (not installed).
+#    What OCS carries, though, is all of OCS: with an ADMIN app password, the
+#    provisioning API (/ocs/v2.php/cloud/users, groups, apps) answers from
+#    anywhere without SSO too. The clients need /ocs/v2.php/cloud/user and
+#    neighbours, and Pangolin cannot tell them apart safely; keep admin
+#    accounts' app passwords to the devices that need them.
 #
 # 2. Public share links, local.nextcloud_share_paths: the page `/s/<token>`
 #    (random token, optional password and expiry, checked by files_sharing),
 #    its downloads and public WebDAV (/public.php/*), its API and previews
 #    (files_sharing), the theming CSS and logo, the build (/dist/*), the core
-#    and per-app static files, /csrftoken, the files preview service worker and
-#    the Text editor's public endpoints for a shared Markdown file. The
+#    static directories, the per-app static files (shipped apps under /apps,
+#    store apps under /custom_apps), /csrftoken, the files preview service
+#    worker, the PDF viewer page a shared PDF opens in an iframe, and the Text
+#    editor's public endpoints for a shared Markdown file. The
 #    `/index.php/...` forms sit next to the pretty ones because older links and
 #    some calls carry them.
 #
-#    Two entries are broader than they read:
-#    - `/core/*` also reaches core's pretty routes (preview, mimeicon, wipe,
-#      reference previews, recommended apps), each behind its controller's own
-#      authentication.
-#    - `/apps/*/js/*` and its css/img/l10n siblings: Pangolin's `*` spans
-#      several segments, so they match any /apps/... path holding a `js`
-#      (`css`, `img`, `l10n`) segment anywhere, an app route included.
+#    /core is opened directory by directory, never as `/core/*`: that would
+#    also reach /core/ajax/update.php, the web upgrader, which runs without a
+#    login while an upgrade is pending (and /csrftoken, open, hands out the
+#    token it checks). A test forbids it.
+#
+#    Public links of other apps (Calendar /apps/calendar/p/*, appointments,
+#    Forms, Talk, Deck, Polls) are not opened: they land on the Pangolin login.
+#    Open the app's public prefix here the day such a link is handed out.
+#
+#    One family of entries is broader than it reads:
+#    - `/apps/*/js/*` and its css/img/l10n siblings, and the same under
+#      /custom_apps: Pangolin's `*` spans several segments, so they match any
+#      /apps/... path holding a `js` (`css`, `img`, `l10n`) segment anywhere,
+#      an app route included.
 #    Such a route skips the SSO wall and the country filter, not Nextcloud's
 #    authentication. Accepted rather than listing every app's assets by name.
 locals {
@@ -104,6 +119,9 @@ locals {
     "/index.php/login/v2/poll"                 = 4
     "/index.php/core/wipe/*"                   = 4
     "/index.php/core/preview"                  = 4
+    "/index.php/core/preview.png"              = 4
+    "/index.php/apps/files_trashbin/preview"   = 4
+    "/index.php/apps/files_versions/preview"   = 4
     "/index.php/apps/files/api/v1/thumbnail/*" = 4
     "/.well-known/caldav"                      = 4
     "/.well-known/carddav"                     = 4
@@ -118,11 +136,22 @@ locals {
     "/apps/theming/*"                                 = 4
     "/index.php/apps/theming/*"                       = 4
     "/dist/*"                                         = 4
-    "/core/*"                                         = 4
+    "/core/css/*"                                     = 4
+    "/core/fonts/*"                                   = 4
+    "/core/img/*"                                     = 4
+    "/core/js/*"                                      = 4
+    "/core/l10n/*"                                    = 4
+    "/core/vendor/*"                                  = 4
     "/apps/*/js/*"                                    = 4
     "/apps/*/css/*"                                   = 4
     "/apps/*/img/*"                                   = 4
     "/apps/*/l10n/*"                                  = 4
+    "/custom_apps/*/js/*"                             = 4
+    "/custom_apps/*/css/*"                            = 4
+    "/custom_apps/*/img/*"                            = 4
+    "/custom_apps/*/l10n/*"                           = 4
+    "/apps/files_pdfviewer/*"                         = 4
+    "/index.php/apps/files_pdfviewer/*"               = 4
     "/csrftoken"                                      = 4
     "/index.php/csrftoken"                            = 4
     "/index.php/apps/files/preview-service-worker.js" = 4

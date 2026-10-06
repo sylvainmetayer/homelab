@@ -1111,6 +1111,9 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "nextcloud /index.php/login/v2/poll",
       "nextcloud /index.php/core/wipe/*",
       "nextcloud /index.php/core/preview",
+      "nextcloud /index.php/core/preview.png",
+      "nextcloud /index.php/apps/files_trashbin/preview",
+      "nextcloud /index.php/apps/files_versions/preview",
       "nextcloud /index.php/apps/files/api/v1/thumbnail/*",
       "nextcloud /.well-known/caldav",
       "nextcloud /.well-known/carddav",
@@ -1122,11 +1125,22 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "nextcloud /apps/theming/*",
       "nextcloud /index.php/apps/theming/*",
       "nextcloud /dist/*",
-      "nextcloud /core/*",
+      "nextcloud /core/css/*",
+      "nextcloud /core/fonts/*",
+      "nextcloud /core/img/*",
+      "nextcloud /core/js/*",
+      "nextcloud /core/l10n/*",
+      "nextcloud /core/vendor/*",
       "nextcloud /apps/*/js/*",
       "nextcloud /apps/*/css/*",
       "nextcloud /apps/*/img/*",
       "nextcloud /apps/*/l10n/*",
+      "nextcloud /custom_apps/*/js/*",
+      "nextcloud /custom_apps/*/css/*",
+      "nextcloud /custom_apps/*/img/*",
+      "nextcloud /custom_apps/*/l10n/*",
+      "nextcloud /apps/files_pdfviewer/*",
+      "nextcloud /index.php/apps/files_pdfviewer/*",
       "nextcloud /csrftoken",
       "nextcloud /index.php/csrftoken",
       "nextcloud /index.php/apps/files/preview-service-worker.js",
@@ -1171,13 +1185,17 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
 
   # Nextcloud : les clients n'ont que la moitié « client » du login flow v2
   # (démarrage et poll) ; la moitié navigateur (flow, grant, apptoken), le
-  # formulaire de connexion et les réglages restent derrière le SSO, comme le
-  # front controller et l'ensemble de /apps.
+  # formulaire de connexion et les pages de réglages restent derrière le SSO,
+  # comme le front controller, l'ensemble de /apps et /core/ajax (l'updater
+  # web, sans login pendant une mise à jour en attente). Ce run ne dit rien de
+  # ce que porte OCS, ouvert en entier pour les clients : avec un mot de passe
+  # d'application administrateur, l'API de provisioning y répond aussi.
   assert {
     condition = alltrue([
       for key, rule in pangolin_resource_rule.path_bypass :
       !startswith(key, "nextcloud ") || (
-        !contains(["/index.php/*", "/apps/*", "/index.php/apps/*", "/login", "/index.php/login", "/login/*", "/index.php/login/*", "/login/v2/*", "/index.php/login/v2/*"], rule.value)
+        !contains(["/index.php/*", "/apps/*", "/index.php/apps/*", "/core/*", "/index.php/core/*", "/custom_apps/*", "/login", "/index.php/login", "/login/*", "/index.php/login/*", "/login/v2/*", "/index.php/login/v2/*"], rule.value)
+        && length(regexall("/ajax(/|$)", rule.value)) == 0
         && length(regexall("/(flow|grant|apptoken|settings)(/|$)", rule.value)) == 0
       )
     ])
