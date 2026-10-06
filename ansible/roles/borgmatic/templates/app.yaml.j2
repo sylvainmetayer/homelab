@@ -27,9 +27,9 @@ postgresql_databases:
 {% endif %}
 {% if borgmatic_app_mysql_databases | length > 0 %}
 
-# mysqldump tourne dans le conteneur de la base, pour la même raison. Le mot
-# de passe passe donc par l'environnement (password_transport) et non par le
-# tube par défaut, et « --env MYSQL_PWD » le transmet au conteneur.
+# Le client de dump tourne dans le conteneur de la base, pour la même raison.
+# Le mot de passe passe donc par l'environnement (password_transport) et non
+# par le tube par défaut, et « --env MYSQL_PWD » le transmet au conteneur.
 mysql_databases:
 {% for database in borgmatic_app_mysql_databases %}
     - container: {{ database.container | to_json }}
@@ -38,7 +38,7 @@ mysql_databases:
       username: {{ database.username | to_json }}
       password: {{ database.password | to_json }}
       password_transport: environment
-      mysql_dump_command: {{ ('docker exec --env MYSQL_PWD ' ~ database.container ~ ' mysqldump') | to_json }}
+      mysql_dump_command: {{ ('docker exec --env MYSQL_PWD ' ~ database.container ~ ' ' ~ (database.dump_command | default('mysqldump'))) | to_json }}
 {% endfor %}
 {% endif %}
 {% if borgmatic_app_sqlite_paths | length > 0 %}
@@ -46,8 +46,10 @@ mysql_databases:
 # Bases SQLite trouvées au déploiement, dumpées par le sqlite3 de l'hôte :
 # « .dump » lit dans une transaction, l'instantané est cohérent même
 # application démarrée. « .timeout » attend un verrou d'écriture en cours au
-# lieu d'échouer sur « database is locked ». Restauration :
-# borgmatic restore --archive <archive> --data-source <name>.
+# lieu d'échouer sur « database is locked ». Restauration, application
+# arrêtée : borgmatic restore --archive <archive> --data-source <name>. Le
+# sqlite3 de l'hôte (root) supprime la base et la recrée, root:root : noter
+# son propriétaire avant (stat -c %u:%g) et le lui rendre après (chown).
 sqlite_databases:
 {% for path in borgmatic_app_sqlite_paths %}
     - name: {{ (path | regex_replace('^/', '') | replace('/', '_')) | to_json }}
