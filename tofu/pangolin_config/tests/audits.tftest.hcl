@@ -306,7 +306,7 @@ run "audits_pass_on_realistic_api_responses" {
   command = apply
 
   assert {
-    condition     = terraform_data.geo_rule_coverage.output == length(local.rule_targets)
+    condition     = terraform_data.geo_rule_coverage.output == length(local.managed_resources)
     error_message = "geo_rule_coverage doit porter sur toutes les ressources gérées."
   }
 
@@ -316,13 +316,17 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == length(local.rule_targets) * 13
+    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 13
     error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (13 règles chacune dans la réponse simulée)."
   }
 
   assert {
-    condition     = terraform_data.vpn_gateways.output == 6
-    error_message = "vpn_gateways doit lire les six ressources privées de la réponse simulée."
+    condition = (
+      terraform_data.vpn_gateways.output == tolist(["vpn", "vpn-flip"])
+      && length(local.live_site_resources) == 6
+      && length(local.vpn_gateway_problems) == 0
+    )
+    error_message = "vpn_gateways doit lire les six ressources privées de la réponse simulée, sans y trouver de problème."
   }
 }
 
@@ -457,6 +461,16 @@ run "unhealthy_target_only_warns" {
   expect_failures = [
     check.target_health,
   ]
+
+  # Gramps est désactivée dans la réponse /resources simulée : sa sonde en
+  # échec est attendue et ne doit pas s'ajouter à l'avertissement.
+  assert {
+    condition = (
+      length(local.unhealthy_targets) > 0
+      && !anytrue([for label in local.unhealthy_targets : startswith(label, "Gramps#")])
+    )
+    error_message = "Une ressource désactivée (Gramps) ne doit pas figurer parmi les cibles en échec."
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -575,6 +589,156 @@ run "vpn_gateway_on_the_wrong_site_fails_plan" {
            "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
           {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
            "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Une réponse qui ne se décode pas (clé API sans listSiteResources, panne)
+# arrête le plan au lieu de passer pour « aucune ressource ».
+run "unreadable_site_resources_fail_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 403
+      response_body = <<-EOT
+        {"data": null, "success": false, "error": true, "message": "Key does not have access to this action", "status": 403}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Moins d'entrées que pagination.total : la passerelle manquante pourrait être
+# sur une autre page.
+run "truncated_site_resources_fail_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 3, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Sans pagination.total, rien ne dit que la liste est complète : comptée
+# comme tronquée, pas comme complète.
+run "site_resources_without_pagination_fail_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+        ]},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Repassée en mode host ou cidr dans l'UI, vpn-flip n'est plus une passerelle.
+run "vpn_gateway_in_another_mode_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "cidr", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Deux ressources du même nom : laquelle est la bonne n'est plus vérifiable.
+run "duplicate_vpn_gateway_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 7, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
+        ], "pagination": {"total": 3, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.vpn_gateways,
+  ]
+}
+
+# Désactivée dans l'UI, vpn-flip existe toujours au bon endroit mais ne sert
+# plus personne.
+run "disabled_vpn_gateway_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
+           "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
+          {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": false,
+           "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
         ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
         "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
       EOT
