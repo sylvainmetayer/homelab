@@ -35,11 +35,27 @@ locals {
   #    1 -  9  app-specific ACCEPTs evaluated before the geo-filter
   #            (pangolin_resource_rule.flip_planning_mcp,
   #             pangolin_resource_rule.demo_planning_mcp,
-  #             pangolin_resource_rule.demo_planning_kc_keycloak)
+  #             pangolin_resource_rule.demo_planning_kc_keycloak,
+  #             pangolin_resource_rule.karakeep_public)
   #   10 - 11  PASS COUNTRY FR, PASS COUNTRY DE
   #   12       app-specific ACCEPTs evaluated after it (the home-IP rules)
+  #   20 - 29  PASS COUNTRY <trip>, while var.travel_countries keeps it open
   #   99       DROP COUNTRY ALL
   country_rule_priority_base = 10
+
+  # Trip countries get their own band rather than following FR and DE: the
+  # next slot after DE is 12, already taken by the home-IP ACCEPTs, and the
+  # permanent rules keep their priority whatever comes and goes here. The
+  # order between a trip PASS and a home-IP ACCEPT does not matter, the home IP
+  # being French.
+  travel_country_priority_base = 20
+
+  # Sorted so that a country's priority does not depend on map ordering, and
+  # filtered on the plan's clock: an expired entry simply drops out.
+  active_travel_countries = sort([
+    for country, until in var.travel_countries : country
+    if timecmp(plantimestamp(), until) < 0 && !contains(local.allowed_countries, country)
+  ])
 
   # Apps managed by this configuration. The key is the resource's Pangolin
   # `name` and MUST be a literal: `for_each` keys have to be known at plan
@@ -84,13 +100,40 @@ locals {
 
   rule_targets = merge(local.managed_resources, local.unmanaged_resources)
 
-  resource_country_pairs = {
-    for pair in setproduct(keys(local.rule_targets), local.allowed_countries) :
-    "${pair[0]}-${pair[1]}" => {
-      resource_id = local.rule_targets[pair[0]]
-      country     = pair[1]
-      priority    = index(local.allowed_countries, pair[1]) + local.country_rule_priority_base
-    }
+  # Trip countries share the resource and the key format of the permanent ones
+  # ("<resource>-<country>"): opening and closing GB only ever adds or
+  # destroys the "-GB" instances, never touches FR or DE.
+  resource_country_pairs = merge(
+    {
+      for pair in setproduct(keys(local.rule_targets), local.allowed_countries) :
+      "${pair[0]}-${pair[1]}" => {
+        resource_id = local.rule_targets[pair[0]]
+        country     = pair[1]
+        priority    = index(local.allowed_countries, pair[1]) + local.country_rule_priority_base
+      }
+    },
+    {
+      for pair in setproduct(keys(local.rule_targets), local.active_travel_countries) :
+      "${pair[0]}-${pair[1]}" => {
+        resource_id = local.rule_targets[pair[0]]
+        country     = pair[1]
+        priority    = index(local.active_travel_countries, pair[1]) + local.travel_country_priority_base
+      }
+    },
+  )
+
+  expired_travel_countries = sort([
+    for country, until in var.travel_countries : country
+    if timecmp(plantimestamp(), until) >= 0
+  ])
+}
+
+# Only a reminder: the expired entry already opens nothing (see
+# local.active_travel_countries), it is just dead weight in variables.tf.
+check "travel_countries_expired" {
+  assert {
+    condition     = length(local.expired_travel_countries) == 0
+    error_message = "Voyage terminé pour ${join(", ", local.expired_travel_countries)} : ce plan referme le pays, retirez l'entrée de var.travel_countries (variables.tf)."
   }
 }
 
@@ -319,14 +362,17 @@ locals {
   # a resource that has no `for_each`, so a new standalone pangolin_resource_rule
   # has to be added here by hand or the audit reports it as undeclared. That the
   # omission fails loudly is the point: the alternative is the silence above.
-  declared_extra_rules = [
-    pangolin_resource_rule.dawarich_home_ip,
-    pangolin_resource_rule.demo_planning_kc_keycloak,
-    pangolin_resource_rule.demo_planning_mcp,
-    pangolin_resource_rule.flip_planning_mcp,
-    pangolin_resource_rule.immich_home_ip,
-    pangolin_resource_rule.trek_home_ip,
-  ]
+  declared_extra_rules = concat(
+    [
+      pangolin_resource_rule.dawarich_home_ip,
+      pangolin_resource_rule.demo_planning_kc_keycloak,
+      pangolin_resource_rule.demo_planning_mcp,
+      pangolin_resource_rule.flip_planning_mcp,
+      pangolin_resource_rule.immich_home_ip,
+      pangolin_resource_rule.trek_home_ip,
+    ],
+    values(pangolin_resource_rule.karakeep_public),
+  )
 
   # Stringified so the ids compare cleanly against the JSON numbers below.
   declared_rule_ids = toset(concat(

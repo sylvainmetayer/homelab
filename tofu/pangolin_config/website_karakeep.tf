@@ -30,10 +30,11 @@ resource "pangolin_resource_role" "karakeep" {
 # The mobile app, the browser extension and the MCP server cannot go through the
 # Pangolin SSO wall. Rather than letting `/api/*` bypass it, each one sends a
 # Pangolin access token in its custom headers (P-Access-Token-Id /
-# P-Access-Token) on top of its Karakeep API key: the whole resource stays
-# behind both the SSO wall and the geo-filter, and the mobile app's tRPC calls
+# P-Access-Token) on top of its Karakeep API key: the API stays behind both
+# the SSO wall and the geo-filter, and the mobile app's tRPC calls
 # (/api/trpc), which the former `/api/v1/*` bypass never covered, get through
-# too.
+# too. The only paths left open are the public lists' below, none of which
+# serves a private bookmark.
 #
 # One token per client, so a lost phone is revoked without touching the others.
 # Read them with `tofu output -json karakeep_client_access_tokens`.
@@ -53,6 +54,53 @@ output "karakeep_client_access_tokens" {
     }
   }
   sensitive = true
+}
+
+# Public lists (list > Share > "Public list") are read by people with no
+# account, wherever they are: these ACCEPTs sit in the 1 - 9 band of rules.tf,
+# in front of the country rules, and skip the SSO wall. Each path is one the
+# page /public/lists/<listId> actually requests, read off the Karakeep v0.33.2
+# sources (apps/web/app/public, components/public/lists, packages/api) - check
+# them again when bumping the image. Karakeep's own authorisation still applies
+# behind every one of them, so a list that is not public answers 404.
+#
+# Deliberately not opened: /api/auth/session (next-auth refetches it when the
+# tab regains focus; failing just logs a console error), /icons/* and
+# /apple-icon.png (the tab's favicon only), and anything broader under /api.
+locals {
+  karakeep_public_paths = {
+    # The server-rendered page itself (first 20 bookmarks included).
+    "/public/*" = 1
+
+    # Next.js build output: JS chunks, CSS, the self-hosted Inter font and the
+    # logo. Same bytes for every Karakeep install.
+    "/_next/static/*" = 2
+
+    # Banner images, screenshots and attached files. Served only with a token
+    # the server signs per asset when it renders the list, with an expiry.
+    "/api/public/*" = 3
+
+    # Infinite scroll past the first page: client-side tRPC queries of the
+    # publicBookmarks router (getPublicBookmarksInList), public procedures.
+    # A batch that mixed in another procedure would still meet Karakeep's
+    # session check on that one.
+    "/api/trpc/publicBookmarks.*" = 4
+
+    # The page's RSS button. Answers for a public list, or for a private one
+    # only with its rssToken in the query string.
+    "/api/v1/rss/lists/*" = 5
+  }
+}
+
+resource "pangolin_resource_rule" "karakeep_public" {
+  for_each = local.karakeep_public_paths
+
+  resource_id = pangolin_resource.karakeep.id
+  action      = "ACCEPT"
+  match       = "PATH"
+  value       = each.key
+  priority    = each.value
+  enabled     = true
 }
 
 resource "pangolin_target" "karakeep" {
