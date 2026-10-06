@@ -33,8 +33,14 @@
         converge_flip_instances: >-
           {{ converge_flip_play.roles | selectattr('role', 'equalto', 'flip_planning')
              | map('ansible.utils.remove_keys', target=['tags']) | list }}
+        # Les pre_tasks de flip.yml et le fichier commun qu'elles importent
+        # (secrets et state de tofu/pangolin_config), bloc déplié.
+        playbook_shared_tasks: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../tasks/pangolin_config_outputs.yml') | from_yaml }}"
+        playbook_flip_pre_tasks: >-
+          {{ playbook_flip_play.pre_tasks + playbook_shared_tasks
+             + (playbook_shared_tasks | map(attribute='block', default=[]) | flatten(levels=1)) }}
         playbook_flip_facts: >-
-          {{ playbook_flip_play.pre_tasks | map('dict2items') | flatten(levels=1)
+          {{ playbook_flip_pre_tasks | map('dict2items') | flatten(levels=1)
              | selectattr('key', 'equalto', 'ansible.builtin.set_fact')
              | map(attribute='value') | map('list') | flatten }}
 

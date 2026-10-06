@@ -1,0 +1,49 @@
+---
+# Pré-tâches communes à docker.yml, flip.yml, pangolin.yaml et pi.yml
+# (import_tasks) :
+#   - charge secrets.sops.yaml dans l'espace global ;
+#   - lit le state OpenTofu de tofu/pangolin_config dans le bucket S3 et en
+#     pose les sorties dans le fact `terraform_outputs`.
+#
+# Chaque playbook fait ensuite son propre set_fact
+# `<variable>: "{{ terraform_outputs.<sortie>.value | default('') }}"` : la
+# liste des sorties lues est propre à chaque hôte, et
+# tofu/pangolin_config/tests/invariants.tftest.hcl cherche ces chaînes
+# `terraform_outputs.<sortie>.value` dans les playbooks eux-mêmes.
+#
+# Ne jamais set_fact ici un nom que lit un rôle instancié plusieurs fois
+# (flip_planning) : un fact l'emporte sur les `vars:` d'une entrée `roles:`
+# (cf. flip.yml, AGENTS.md). Le converge Molecule de flip_planning le vérifie
+# sur ce fichier comme sur les pre_tasks de flip.yml.
+- name: Load secrets and the pangolin_config state outputs
+  tags: always
+  vars:
+    tfstate_bucket: homelab-tf-state-sylvain
+    tfstate_object_key: homelab/pangolin_config.tfstate
+    tfstate_s3_endpoint: https://s3.eu-west-par.io.cloud.ovh.net
+  block:
+    # WARNING : You cannot override variables with this, make sure variable is not defined before.
+    # Export your age key in environment
+    # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
+    - name: Load secrets variable into global namespace
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+
+    - name: Read Terraform state from S3 bucket
+      delegate_to: localhost
+      amazon.aws.s3_object:
+        mode: getstr
+        bucket: "{{ tfstate_bucket }}"
+        object: "{{ tfstate_object_key }}"
+        endpoint_url: "{{ tfstate_s3_endpoint }}"
+        aws_access_key: "{{ state_s3_access_key }}"
+        aws_secret_key: "{{ state_s3_secret_key }}"
+      register: terraform_state_raw
+
+    # no_log : les sorties comprennent des secrets (identifiants Newt, jetons
+    # d'accès Pangolin), qu'un -v afficherait dans run.log.
+    - name: Expose the pangolin_config state outputs
+      no_log: true
+      ansible.builtin.set_fact:
+        terraform_outputs: "{{ (terraform_state_raw.contents | from_json).outputs | default({}) }}"
