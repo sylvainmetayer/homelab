@@ -171,19 +171,16 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, la
-# ressource faite à la main "SSH PI" (épinglée dans local.unmanaged_resources)
-# et un reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il
-# n'est pas servi.
+# GET /v1/org/{org}/resources?pageSize=1000 : les 21 ressources gérées et un
+# reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
+# servi.
 override_data {
   target = data.http.pangolin_resources
   values = {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"resources": [
-        {"resourceId": 15, "niceId": "bbox", "name": "BBOX", "fullDomain": "bbox.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
-        {"resourceId": 2, "niceId": "dashboard", "name": "Dashboard Traefik", "fullDomain": "dashboard.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
@@ -202,11 +199,10 @@ override_data {
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 56, "niceId": "scanopy", "name": "Scanopy", "fullDomain": "scan.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 38, "niceId": "ssh-pi", "name": "SSH PI", "fullDomain": "remote.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 25, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 22, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -214,8 +210,8 @@ override_data {
 
 # GET /v1/resource/{id}/targets, même réponse pour chaque ressource gérée (une
 # surcharge vise toutes les instances du for_each). Une cible sondée et saine,
-# et une cible sans sonde dont scheme et port sont NULL, comme NAS ou le
-# dashboard Traefik en vrai : l'audit ne doit rien reprocher à cette dernière.
+# et une cible sans sonde dont scheme et port sont NULL, comme NAS en vrai :
+# l'audit ne doit rien reprocher à cette dernière.
 override_data {
   target = data.http.pangolin_targets
   values = {
@@ -294,20 +290,10 @@ override_resource {
 }
 
 # Ressources publiques : un identifiant par ressource, ceux de l'API quand un
-# commentaire du code les cite (Traefik 2, Proxmox 4, BBOX 15, NAS 75).
-override_resource {
-  target = pangolin_resource.bbox
-  values = { id = 15 }
-}
-
+# commentaire du code les cite (Proxmox 4, NAS 75).
 override_resource {
   target = pangolin_resource.betisier
   values = { id = 21 }
-}
-
-override_resource {
-  target = pangolin_resource.traefik_dashboard
-  values = { id = 2 }
 }
 
 override_resource {
@@ -604,7 +590,6 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
   assert {
     condition = alltrue([
       for t in [
-        pangolin_target.bbox,
         pangolin_target.betisier,
         pangolin_target.dawarich,
         pangolin_target.demo_planning,
@@ -634,7 +619,7 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
 
   # La liste ci-dessus ne voit pas une cible ajoutée plus tard : on vérifie
   # aussi, fichier par fichier, au moins autant de hc_hostname que de sondes
-  # actives (bbox en garde un sur sa sonde désactivée).
+  # actives.
   assert {
     condition = alltrue([
       for f in fileset(path.module, "website_*.tf") :
@@ -725,40 +710,29 @@ run "catch_all_target_has_lowest_priority" {
   }
 }
 
-# Les règles pays sont dérivées de la configuration : 23 ressources gérées plus
-# SSH PI (épinglée), chacune avec PASS FR, PASS DE et DROP ALL.
+# Les règles pays sont dérivées de la configuration : chaque ressource de
+# local.rule_targets (les ressources gérées) a PASS FR, PASS DE et DROP ALL.
 run "country_rules_cover_every_resource" {
   command = plan
 
   assert {
-    condition     = length(pangolin_resource_rule.block_country) == 24
-    error_message = "Il faut une règle DROP COUNTRY ALL par ressource couverte (23 gérées + SSH PI)."
+    condition     = length(pangolin_resource_rule.block_country) == length(local.rule_targets)
+    error_message = "Il faut une règle DROP COUNTRY ALL par ressource couverte."
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 2
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 2
     error_message = "Il faut une règle PASS par ressource couverte et par pays autorisé (FR, DE)."
   }
 
   assert {
     condition = alltrue([
-      for name in [
-        "BBOX", "Betisier", "Dashboard Traefik", "Dawarich", "Demo Planning",
-        "Demo Planning KC", "Echo", "Flip Planning", "Gramps", "Immich",
-        "Immich Swipe", "Meerkat CRM", "Monica CRM", "NAS", "nextcloud",
-        "Paperless-ngx", "Proxmox", "RSS", "Scanopy", "SearXNG", "TREK",
-        "Wiki (Bookstack)", "SSH PI",
-      ] :
+      for name in keys(local.rule_targets) :
       contains(keys(pangolin_resource_rule.block_country), name)
       && contains(keys(pangolin_resource_rule.allow_countries), "${name}-FR")
       && contains(keys(pangolin_resource_rule.allow_countries), "${name}-DE")
     ])
     error_message = "Une ressource publique n'a pas ses trois règles pays (PASS FR, PASS DE, DROP ALL)."
-  }
-
-  assert {
-    condition     = pangolin_resource_rule.block_country["SSH PI"].resource_id == 38
-    error_message = "SSH PI est épinglée par identifiant (38) dans local.unmanaged_resources."
   }
 
   assert {
@@ -794,7 +768,7 @@ run "travel_countries_open_a_temporary_band" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 4
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 4
     error_message = "Chaque pays de voyage actif ajoute une règle PASS par ressource couverte."
   }
 
@@ -809,13 +783,17 @@ run "travel_countries_open_a_temporary_band" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.block_country) == 24
+    condition     = length(pangolin_resource_rule.block_country) == length(local.rule_targets)
     error_message = "Un voyage n'ajoute aucune règle DROP : le catch-all reste unique par ressource."
   }
 
   assert {
-    condition     = contains(keys(pangolin_resource_rule.allow_countries), "SSH PI-GB")
-    error_message = "Les ressources épinglées (SSH PI) s'ouvrent aussi au pays de voyage."
+    condition = alltrue([
+      for name in keys(local.rule_targets) :
+      contains(keys(pangolin_resource_rule.allow_countries), "${name}-GB")
+      && contains(keys(pangolin_resource_rule.allow_countries), "${name}-IT")
+    ])
+    error_message = "Chaque ressource couverte s'ouvre aux pays de voyage actifs."
   }
 }
 
@@ -843,7 +821,7 @@ run "travel_country_priority_ignores_the_other_trips" {
   }
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 4
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 4
     error_message = "ES et GB actifs, IT expiré : deux pays de voyage en plus de FR et DE."
   }
 }
@@ -863,7 +841,7 @@ run "expired_travel_country_opens_nothing" {
   expect_failures = [check.travel_countries_stale]
 
   assert {
-    condition     = length(pangolin_resource_rule.allow_countries) == 24 * 2
+    condition     = length(pangolin_resource_rule.allow_countries) == length(local.rule_targets) * 2
     error_message = "Un pays de voyage échu ou déjà autorisé ne doit ajouter aucune règle."
   }
 
@@ -1279,8 +1257,7 @@ run "resources_have_unique_fqdns_on_the_right_domains" {
   assert {
     condition = length(distinct([
       for r in [
-        pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
-        pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
         pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
@@ -1288,7 +1265,7 @@ run "resources_have_unique_fqdns_on_the_right_domains" {
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
         pangolin_resource.wiki,
       ] : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
-    ])) == 23
+    ])) == length(local.managed_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
   }
 
@@ -1315,8 +1292,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   assert {
     condition = alltrue([
       for r in [
-        pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
-        pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
         pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
@@ -1395,8 +1371,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   assert {
     condition = alltrue([
       for r in [
-        pangolin_resource.bbox, pangolin_resource.betisier, pangolin_resource.traefik_dashboard,
-        pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
+        pangolin_resource.betisier, pangolin_resource.dawarich, pangolin_resource.demo_planning, pangolin_resource.demo_planning_kc,
         pangolin_resource.echo, pangolin_resource.flip_planning, pangolin_resource.gramps,
         pangolin_resource.immich, pangolin_resource.immich_swipe, pangolin_resource.karakeep, pangolin_resource.meerkat_crm,
         pangolin_resource.monica, pangolin_resource.nas, pangolin_resource.nextcloud,
@@ -1417,7 +1392,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # Garde-fou du test lui-même : sans identifiants distincts, l'égalité
   # ci-dessus serait vraie par construction.
   assert {
-    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == 24
+    condition     = length(distinct([for rule in pangolin_resource_rule.block_country : rule.resource_id])) == length(local.rule_targets)
     error_message = "Les identifiants simulés des ressources doivent être distincts pour que ce run prouve quelque chose."
   }
 

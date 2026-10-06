@@ -2,10 +2,10 @@
 # Proxmox web UI.
 #
 # Created by hand in the Pangolin UI long before this configuration existed and
-# left out of it: it was pinned by id in `local.unmanaged_resources` so the geo
-# rules would still cover it, while the resource itself, its target and its
-# Uptime Kuma monitor stayed outside the code. Declared here so all three are
-# managed like every other public resource.
+# left out of it: it was pinned by id in the since-removed
+# `local.unmanaged_resources` so the geo rules would still cover it, while the
+# resource itself, its target and its Uptime Kuma monitor stayed outside the
+# code. Declared here so all three are managed like every other public resource.
 #
 # Renamed from `00NTF - Proxmox`: the prefix stood for "00 - non terraform" and
 # stopped being true once this block existed.
