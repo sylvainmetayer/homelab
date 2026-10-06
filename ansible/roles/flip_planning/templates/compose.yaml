@@ -216,7 +216,10 @@ services:
 {% endif %}
 
 networks:
+  # No route to the Internet through it: every other member (app, mailpit,
+  # keycloak, pgadmin) keeps its own through newt, postgres needs none.
   {{ flip_planning_container_prefix }}:
+    internal: true
 {% if flip_planning_keycloak_enabled %}
   # No route to the Internet through it: the application and Keycloak keep
   # theirs through newt, keycloak-db (its only other member) needs none.
