@@ -1115,7 +1115,9 @@ run "karakeep_public_paths_follow_the_image" {
   command = plan
 
   assert {
-    condition     = strcontains(file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"), "image: ghcr.io/karakeep-app/karakeep:0.33.2\n")
+    # Le tag seul : un épinglage du digest par Renovate (`:0.33.2@sha256:...`)
+    # ne change pas la version et ne doit pas faire échouer ce run.
+    condition     = length(regexall("image: ghcr\\.io/karakeep-app/karakeep:0\\.33\\.2(@|\\s)", file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"))) == 1
     error_message = "Karakeep n'est plus en 0.33.2 : relire dans les sources de la nouvelle version les chemins que charge /public/lists/<id> et mettre à jour karakeep_public_paths (website_karakeep.tf) avant cette version."
   }
 }
