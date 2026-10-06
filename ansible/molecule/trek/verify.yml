@@ -10,6 +10,23 @@
         verify_app_service: trek
         verify_app_borgmatic_config: /etc/borgmatic.d/trek.yaml
 
+    - name: Render the trek compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/trek
+      register: trek_compose_raw
+      changed_when: false
+
+    # Un seul conteneur : rien à isoler sur un réseau privé, newt suffit.
+    - name: Assert trek only joins the newt network
+      vars:
+        trek_compose: "{{ trek_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - trek_compose.services.app.networks.keys() | list == ['newt']
+          - trek_compose.networks.keys() | list == ['newt']
+        fail_msg: "Réseaux de trek : {{ trek_compose.networks }}"
+
     - name: Read the trek borgmatic configuration
       become: true
       ansible.builtin.slurp:

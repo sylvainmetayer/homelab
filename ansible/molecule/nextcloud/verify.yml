@@ -22,6 +22,8 @@
         verify_compose_healthy_dependencies:
           - { service: nextcloud, dependency: db }
           - { service: nextcloud, dependency: cache }
+        verify_compose_internal_networks:
+          - nextcloud
 
     # Il contiendra les fichiers des utilisateurs : fermé aux autres comptes.
     - name: Stat the nextcloud app folder

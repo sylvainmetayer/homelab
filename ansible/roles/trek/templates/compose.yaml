@@ -28,11 +28,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
     networks:
-      - trek
       - newt
 
 networks:
-  trek:
   newt:
     external: true

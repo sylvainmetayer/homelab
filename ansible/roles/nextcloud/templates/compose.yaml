@@ -79,7 +79,11 @@ services:
       retries: 5
       start_period: 10s
 
+# `internal: true` : pas de sortie vers Internet par ce réseau. nextcloud, qui
+# en a besoin (magasin d'applis, fédération, agendas webcal), la garde par
+# newt ; la base et redis n'en ont pas besoin.
 networks:
-  nextcloud: {}
+  nextcloud:
+    internal: true
   newt:
     external: true

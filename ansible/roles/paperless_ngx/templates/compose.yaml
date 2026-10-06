@@ -111,7 +111,11 @@ services:
     networks:
       - paperless
 
+# `internal: true` : pas de sortie vers Internet par ce réseau. Le webserver
+# la garde par newt ; la base et redis n'en ont pas besoin, et tika /
+# gotenberg, qui ouvrent des documents reçus, n'ont pas à en avoir.
 networks:
-  paperless: {}
+  paperless:
+    internal: true
   newt:
     external: true

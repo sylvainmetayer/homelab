@@ -18,6 +18,8 @@
           - bookstack_db
         verify_compose_healthy_dependencies:
           - { service: bookstack, dependency: bookstack_db }
+        verify_compose_internal_networks:
+          - wiki
 
     - name: Read the wiki compose file
       ansible.builtin.slurp:

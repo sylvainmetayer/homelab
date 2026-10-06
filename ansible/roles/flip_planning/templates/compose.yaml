@@ -218,7 +218,10 @@ services:
 networks:
   {{ flip_planning_container_prefix }}:
 {% if flip_planning_keycloak_enabled %}
+  # No route to the Internet through it: the application and Keycloak keep
+  # theirs through newt, keycloak-db (its only other member) needs none.
   {{ flip_planning_container_prefix }}-keycloak:
+    internal: true
 {% endif %}
   newt:
     external: true
