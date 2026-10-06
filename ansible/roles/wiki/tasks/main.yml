@@ -35,9 +35,10 @@
     borgmatic_app_target: "{{ wiki_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ wiki_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ wiki_backup_healthcheck_url }}"
+    # Pas db_data : la base MariaDB n'héberge que la base bookstack, que le
+    # dump couvre ; copié à chaud, son dossier n'est pas cohérent.
     borgmatic_app_source_directories:
       - "{{ wiki_base_path }}/config"
-      - "{{ wiki_base_path }}/db_data"
       - "{{ wiki_base_path }}/compose.yaml"
     borgmatic_app_mysql_databases:
       - container: bookstack_db

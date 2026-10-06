@@ -100,3 +100,7 @@
     borgmatic_app_source_directories:
       - "{{ pangolin_dir }}/compose.yaml"
       - "{{ pangolin_dir }}/config"
+    # Base SQLite de Pangolin (ressources, utilisateurs, SSO) :
+    # /app/config/db/db.sqlite dans le conteneur.
+    borgmatic_app_sqlite_databases:
+      - "{{ pangolin_dir }}/config/db/db.sqlite"
