@@ -20,6 +20,6 @@ paperless_ocr_language: "fra+eng"
 
 # Borgmatic backup configuration
 paperless_backup_enabled: true
-paperless_backup_borgmatic_target: ""
-paperless_backup_encryption_passphrase: ""
+paperless_backup_borgmatic_target: "{{ backup_storage_box_url }}/paperless"
+paperless_backup_encryption_passphrase: "{{ backup_passphrase }}"
 paperless_backup_healthcheck_url: ""

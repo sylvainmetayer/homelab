@@ -27,31 +27,32 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
-- name: Configure borgmatic backup for monica_v4
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for Monica v4
   when: monica_v4_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for monica_v4
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-monica_v4.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/monica_v4.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for monica_v4
-      become: true
-      ansible.builtin.command:
-        cmd: "/root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir }}/monica_v4.yaml repo-create --encryption repokey-blake2"
-      register: monica_v4_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((monica_v4_borg_repo_create.stdout ~ monica_v4_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        monica_v4_borg_repo_create.rc != 0 and
-        'already exists' not in (monica_v4_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: monica_v4
+    borgmatic_app_title: Monica v4
+    borgmatic_app_label: monica-backup
+    borgmatic_app_target: "{{ monica_v4_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ monica_v4_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ monica_v4_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ monica_v4_base_path }}/data"
+      - "{{ monica_v4_base_path }}/db_data"
+      - "{{ monica_v4_base_path }}/compose.yaml"
+      - "{{ monica_v4_base_path }}/.env"
+    borgmatic_app_mysql_databases:
+      - container: monica_v4_db
+        name: monica
+        username: monica
+        password: "{{ monica_v4_db_password }}"
 
 - name: Make sure monica_v4 service is running
   ansible.builtin.systemd:

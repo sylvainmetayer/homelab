@@ -6,6 +6,6 @@ searxng_secret_key: ""
 
 # Borgmatic backup configuration
 searxng_backup_enabled: true
-searxng_backup_borgmatic_target: ""
-searxng_backup_encryption_passphrase: ""
+searxng_backup_borgmatic_target: "{{ backup_storage_box_url }}/searxng"
+searxng_backup_encryption_passphrase: "{{ backup_passphrase }}"
 searxng_backup_healthcheck_url: ""

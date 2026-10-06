@@ -6,6 +6,6 @@ betisier_reset_healthcheck_url: ""
 
 # Borgmatic backup configuration
 betisier_backup_enabled: true
-betisier_backup_borgmatic_target: ""
-betisier_backup_encryption_passphrase: ""
+betisier_backup_borgmatic_target: "{{ backup_storage_box_url }}/betisier"
+betisier_backup_encryption_passphrase: "{{ backup_passphrase }}"
 betisier_backup_healthcheck_url: ""

@@ -39,5 +39,5 @@ pangolin_backup_healthcheck_url: ""
 
 # Backup (borgmatic)
 pangolin_backup_enabled: true
-pangolin_backup_borgmatic_target: ""
-pangolin_backup_encryption_passphrase: ""
+pangolin_backup_borgmatic_target: "{{ backup_storage_box_url }}/pangolin"
+pangolin_backup_encryption_passphrase: "{{ backup_passphrase }}"

@@ -6,6 +6,6 @@ scanopy_postgres_password: "{{ (backup_passphrase ~ '-scanopy-postgres') | hash(
 
 # Borgmatic backup configuration
 scanopy_backup_enabled: true
-scanopy_backup_borgmatic_target: ""
-scanopy_backup_encryption_passphrase: ""
+scanopy_backup_borgmatic_target: "{{ backup_storage_box_url }}/scanopy"
+scanopy_backup_encryption_passphrase: "{{ backup_passphrase }}"
 scanopy_backup_healthcheck_url: ""

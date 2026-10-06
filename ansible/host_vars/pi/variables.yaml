@@ -4,8 +4,6 @@ newt_client_secret: "{{ newt_pi_client_secret }}"
 
 immich_backup_enabled: true
 immich_domain: "photos.sylvain.cloud"
-immich_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/immich"
-immich_backup_borgmatic_password: "{{ backup_passphrase }}"
 immich_backup_healthcheck_url: ""
 
 starship_os_map:

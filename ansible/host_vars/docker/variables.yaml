@@ -3,57 +3,31 @@ newt_client_id: "{{ newt_docker_client_id }}"
 newt_client_secret: "{{ newt_docker_client_secret }}"
 
 rss_backup_enabled: true
-rss_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/rss"
-rss_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 searxng_backup_enabled: true
-searxng_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/searxng"
-searxng_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 betisier_backup_enabled: true
-betisier_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/betisier"
-betisier_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 monica_v4_backup_enabled: true
-monica_v4_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/monica_v4"
-monica_v4_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 wiki_domain: "wiki.sylvain.cloud"
 wiki_backup_enabled: true
-wiki_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/wiki"
-wiki_backup_borgmatic_password: "{{ backup_passphrase }}"
 
 nextcloud_backup_enabled: true
-nextcloud_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/nextcloud"
-nextcloud_backup_borgmatic_password: "{{ backup_passphrase }}"
 
 meerkat_crm_backup_enabled: true
-meerkat_crm_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/meerkat_crm"
-meerkat_crm_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 paperless_backup_enabled: true
-paperless_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/paperless"
-paperless_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 # Inutilisé pour le moment : arrêté pour libérer les ressources, données et
 # backup conservés. Le moniteur Uptime Kuma est désactivé en face
 # (tofu/pangolin_config/website_gramps.tf).
 gramps_enabled: false
 gramps_backup_enabled: true
-gramps_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/gramps"
-gramps_backup_encryption_passphrase: "{{ backup_passphrase }}"
 dawarich_backup_enabled: true
-dawarich_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/dawarich"
-dawarich_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 scanopy_backup_enabled: true
-scanopy_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/scanopy"
-scanopy_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 trek_backup_enabled: true
-trek_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/trek"
-trek_backup_encryption_passphrase: "{{ backup_passphrase }}"
 
 karakeep_backup_enabled: true
-karakeep_backup_borgmatic_target: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/karakeep"
-karakeep_backup_encryption_passphrase: "{{ backup_passphrase }}"

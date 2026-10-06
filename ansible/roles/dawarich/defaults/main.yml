@@ -14,6 +14,6 @@ dawarich_timezone: Europe/Paris
 
 # Borgmatic backup configuration
 dawarich_backup_enabled: true
-dawarich_backup_borgmatic_target: ""
-dawarich_backup_encryption_passphrase: ""
+dawarich_backup_borgmatic_target: "{{ backup_storage_box_url }}/dawarich"
+dawarich_backup_encryption_passphrase: "{{ backup_passphrase }}"
 dawarich_backup_healthcheck_url: ""

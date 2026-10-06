@@ -12,6 +12,6 @@ gramps_redis_uid: 999
 
 # Borgmatic backup configuration
 gramps_backup_enabled: true
-gramps_backup_borgmatic_target: ""
-gramps_backup_encryption_passphrase: ""
+gramps_backup_borgmatic_target: "{{ backup_storage_box_url }}/gramps"
+gramps_backup_encryption_passphrase: "{{ backup_passphrase }}"
 gramps_backup_healthcheck_url: ""

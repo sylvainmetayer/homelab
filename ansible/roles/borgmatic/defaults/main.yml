@@ -25,3 +25,68 @@ borgmatic_rclone_s3_access_key_id: "{{ rclone_access_key_id | default('') }}"
 borgmatic_rclone_s3_secret_access_key: "{{ rclone_secret_access_key | default('') }}"
 borgmatic_rclone_s3_endpoint: "s3.eu-west-par.io.cloud.ovh.net"
 borgmatic_rclone_s3_region: "EU-WEST-PAR"
+
+# borgmatic lui-même (installé par pipx pour root). Les scénarios Molecule y
+# posent un bouchon (molecule/_shared/prepare.yml).
+borgmatic_bin: /root/.local/bin/borgmatic
+
+# Exclusions communes à toutes les applications.
+borgmatic_exclude_patterns:
+  - "*.log"
+  - "*.tmp"
+  - "cache/*"
+
+# --- Sauvegarde d'une application (tasks/app.yml) ---------------------------
+# Chaque rôle d'application appelle :
+#   - name: Configure borgmatic backup for <App>
+#     when: <service>_backup_enabled
+#     tags: backup
+#     ansible.builtin.include_role:
+#       name: borgmatic
+#       tasks_from: app.yml
+#       apply:
+#         tags: backup
+#     vars:
+#       borgmatic_app_name: <service>
+#       borgmatic_app_source_directories: [...]
+#       ...
+# borgmatic_app_name et borgmatic_app_source_directories sont obligatoires ;
+# le reste a les valeurs ci-dessous.
+#
+# borgmatic_app_name : fichier {{ borgmatic_config_dir }}/<name>.yaml (celui
+# que lisent decommission_app et les scénarios Molecule) et, par défaut,
+# dossier du dépôt sur la Storage Box (backup_folders de host_vars/backups).
+
+# Nom affiché dans les messages des hooks et les noms de tâches.
+borgmatic_app_title: "{{ borgmatic_app_name }}"
+# Préfixe des archives : '<prefix>-{now:%Y-%m-%dT%H:%M:%S}'. Le changer sort
+# les archives existantes de la rétention (prune ne voit que ce préfixe).
+borgmatic_app_archive_prefix: "{{ borgmatic_app_name | replace('_', '-') }}"
+# Label du dépôt (logs, --repository).
+borgmatic_app_label: "{{ borgmatic_app_archive_prefix }}-backup"
+borgmatic_app_target: "{{ backup_storage_box_url }}/{{ borgmatic_app_name }}"
+borgmatic_app_passphrase: "{{ backup_passphrase }}"
+borgmatic_app_encryption_mode: "{{ borgmatic_encryption_mode }}"
+# URL push Uptime Kuma ; vide : pas de bloc uptime_kuma.
+borgmatic_app_healthcheck_url: ""
+# Exclusions en plus de borgmatic_exclude_patterns, en chemins absolus.
+borgmatic_app_exclude_patterns: []
+# Bases dumpées par le client du conteneur de la base (docker exec) : client
+# et serveur toujours de même version. Chaque entrée : container, name,
+# username, password et port (5432 / 3306 par défaut). Le dossier de données
+# de la base n'a alors rien à faire dans les sources : copié à chaud, il
+# n'est pas cohérent.
+borgmatic_app_postgresql_databases: []
+borgmatic_app_mysql_databases: []
+# Globs (chemins absolus sur l'hôte) des bases SQLite de l'application,
+# résolus au déploiement. Chaque fichier trouvé qui est bien une base SQLite
+# est dumpé par le sqlite3 de l'hôte (« .dump » lit dans une seule
+# transaction : un instantané cohérent, même application démarrée), et sa
+# copie vivante (base, -wal, -shm, -journal) est exclue de l'archive.
+borgmatic_app_sqlite_databases: []
+# Commandes en plus des messages de début et de fin (hooks before/after
+# action, create seulement).
+borgmatic_app_before_commands: []
+borgmatic_app_after_commands: []
+# Options borgmatic de premier niveau en plus (ex. match_archives).
+borgmatic_app_extra_options: {}

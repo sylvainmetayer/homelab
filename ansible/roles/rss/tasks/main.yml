@@ -27,31 +27,22 @@
     scope: user
     enabled: true
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for RSS
   when: rss_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for RSS
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-rss.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/rss.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for RSS
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir }}/rss.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: rss_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((rss_borg_repo_create.stdout ~ rss_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        rss_borg_repo_create.rc != 0 and
-        'already exists' not in (rss_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: rss
+    borgmatic_app_title: RSS
+    borgmatic_app_target: "{{ rss_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ rss_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ rss_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ rss_base_path }}/freshrss_data"
+      - "{{ rss_base_path }}/freshrss_extensions"
+      - "{{ rss_base_path }}/compose.yaml"

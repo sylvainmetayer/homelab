@@ -29,31 +29,26 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Meerkat CRM
   when: meerkat_crm_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for Meerkat CRM
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-meerkat_crm.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/meerkat_crm.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for Meerkat CRM
-      become: true
-      ansible.builtin.command:
-        cmd: "/root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir }}/meerkat_crm.yaml repo-create --encryption repokey-blake2"
-      register: meerkat_crm_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((meerkat_crm_borg_repo_create.stdout ~ meerkat_crm_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        meerkat_crm_borg_repo_create.rc != 0 and
-        'already exists' not in (meerkat_crm_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: meerkat_crm
+    borgmatic_app_title: Meerkat CRM
+    borgmatic_app_target: "{{ meerkat_crm_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ meerkat_crm_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ meerkat_crm_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ meerkat_crm_base_path }}/data"
+      - "{{ meerkat_crm_base_path }}/photos"
+      - "{{ meerkat_crm_base_path }}/compose.yaml"
+      - "{{ meerkat_crm_base_path }}/.env.docker"
 
 - name: Make sure meerkat_crm service is running
   ansible.builtin.systemd:

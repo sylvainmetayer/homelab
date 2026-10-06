@@ -20,33 +20,30 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"
 
-- name: Configure borgmatic backup for wiki
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for Wiki
   when: wiki_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for wiki
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-wiki.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/wiki.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for wiki
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1 --config {{ borgmatic_config_dir }}/wiki.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: wiki_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((wiki_borg_repo_create.stdout ~ wiki_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        wiki_borg_repo_create.rc != 0 and
-        'already exists' not in (wiki_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: wiki
+    borgmatic_app_title: Wiki
+    borgmatic_app_target: "{{ wiki_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ wiki_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ wiki_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ wiki_base_path }}/config"
+      - "{{ wiki_base_path }}/db_data"
+      - "{{ wiki_base_path }}/compose.yaml"
+    borgmatic_app_mysql_databases:
+      - container: bookstack_db
+        name: bookstack
+        username: bookstack
+        password: "{{ wiki_db_password }}"
 
 - name: Make sure wiki service is running
   ansible.builtin.systemd:
