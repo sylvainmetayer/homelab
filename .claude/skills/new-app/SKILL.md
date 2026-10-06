@@ -31,6 +31,10 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   For image references, use a **concrete version tag** corresponding to the
   latest available release (for example `:3.4.1`), not the floating `:latest`
   tag and not a digest pin like `@sha256:...` unless the user explicitly asks.
+  Renovate adds the digest afterwards (`pinDigests`) and bumps it: `dc@` only
+  pulls the images that are missing, never refreshes a tag that is already
+  there. An image that must follow a moving tag needs `pull_policy: always`
+  on its service.
 - `templates/env.j2` (or `env.docker.j2`): templated `.env`, mode `0600`.
 - No borgmatic template in the role: every config is rendered by the
   `borgmatic` role (`tasks_from: app.yml`), the role only declares its
