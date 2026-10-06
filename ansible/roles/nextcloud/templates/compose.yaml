@@ -70,8 +70,9 @@ services:
       - ./redis:/data
     networks:
       - nextcloud
-    # `$$` : le mot de passe est lu dans l'environnement du conteneur, il
-    # n'apparaît pas dans la commande (docker inspect).
+    # `$$` : le mot de passe est lu dans l'environnement du conteneur plutôt
+    # que recopié dans le test. Il reste visible dans `docker inspect`
+    # (command et environment ci-dessus) : ce n'est pas un secret caché.
     healthcheck:
       test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
