@@ -115,7 +115,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 | `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×2 (prod + demo). Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
 | `backup.yaml` | `backups` | Storage Box only: `mkdir -p` remote backup folders (see below) |
 
-`docker.yml`, `flip.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles.
+`docker.yml`, `flip.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles. The SOPS load and the state read are shared: each playbook's first `pre_tasks` entry imports `ansible/tasks/pangolin_config_outputs.yml`, which sets the `terraform_outputs` fact (`no_log`); the playbook then `set_fact`s its own `<var>: "{{ terraform_outputs.<output>.value | default('') }}"` — keep that literal form in the playbook, `tofu/pangolin_config/tests/invariants.tftest.hcl` greps the playbooks for it.
 
 ### The `docker_service` role (systemd pattern)
 
