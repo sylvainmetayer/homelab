@@ -28,6 +28,9 @@ terraform.rc
 # If debugging state
 state.json
 
+# Scratch notes and debug logs (TF_LOG output was once committed as wip.txt)
+wip.txt
+
 # Secret variable files for Proxmox
 *.tfvars.secret
 
