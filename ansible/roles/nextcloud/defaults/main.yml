@@ -4,6 +4,33 @@ nextcloud_domain: sylvain.cloud
 nextcloud_db_password: "nextcloud"
 nextcloud_redis_password: "redis"
 
+# Configuration Nextcloud posée par ce rôle, à côté du config.php que gère
+# Nextcloud lui-même. L'image linuxserver monte ./config sur /config et lie
+# /app/www/public/config à /config/www/nextcloud/config ; Nextcloud fusionne
+# tout fichier `*.config.php` de ce dossier par-dessus config.php, à chaque
+# requête (lib/private/Config.php). Voir templates/homelab.config.php.j2.
+nextcloud_config_dir: "{{ nextcloud_base_path }}/config/www/nextcloud/config"
+
+# token_auth_enforced : WebDAV, CalDAV/CardDAV et OCS n'acceptent plus que des
+# mots de passe d'application (ou une session), jamais le mot de passe du
+# compte. Depuis que Nextcloud est derrière le SSO de Pangolin, ces chemins
+# sont justement ceux qui restent ouverts sans SSO (website_nextcloud.tf) :
+# seul un mot de passe d'application, aléatoire et révocable, doit y passer.
+#
+# RISQUE DE BLOCAGE : tout client configuré avec le mot de passe du compte
+# (DAVx5, Thunderbird, rclone, un montage davfs, un script curl) est refusé
+# dès que ce fichier est posé, sans redémarrage. Les migrer vers un mot de
+# passe d'application (Paramètres personnels > Sécurité > Appareils et
+# sessions) AVANT de lancer le rôle. Les clients officiels (bureau, Android,
+# iOS) passent déjà par le login flow et un mot de passe d'application.
+nextcloud_token_auth_enforced: true
+
+# Proxies dont Nextcloud lit X-Forwarded-For pour connaître l'IP du client
+# (protection contre la force brute, journaux, sessions). Vide : le rôle lit
+# le sous-réseau du réseau docker newt (voir tasks/main.yml).
+nextcloud_trusted_proxies: []
+nextcloud_newt_network: "newt"
+
 # Backup (borgmatic)
 nextcloud_backup_enabled: true
 nextcloud_backup_borgmatic_target: "{{ backup_storage_box_url }}/nextcloud"

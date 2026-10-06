@@ -17,8 +17,95 @@
     mode: "0644"
   notify: Restart nextcloud service
 
-# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
-- name: Configure borgmatic backup for Nextcloud
+# IP réelle des clients, d'où trusted_proxies = sous-réseau de newt.
+#
+# Chaîne : Traefik, sur Pangolin, remplace tout X-Forwarded-For reçu par l'IP
+# du client (pas de forwardedHeaders.trustedIPs dans traefik_config.yml.j2) ;
+# Newt relaie en TCP (L4) et ouvre la connexion vers nextcloud:80 depuis son
+# conteneur. nginx voit donc l'IP de newt, avec X-Forwarded-For: <client>.
+#
+# - Si le default.conf de nginx (/config/nginx/site-confs, copié une fois
+#   depuis l'échantillon de l'image) porte `set_real_ip_from 172.16.0.0/12;
+#   real_ip_header X-Forwarded-For;` et que newt est dans 172.16.0.0/12,
+#   nginx remplace déjà $remote_addr par le client : PHP reçoit
+#   REMOTE_ADDR = client, hors trusted_proxies, que Nextcloud garde tel quel.
+# - Sinon (default.conf plus ancien, ou newt hors de 172.16.0.0/12 quand
+#   docker a épuisé ce bloc), REMOTE_ADDR = newt : il faut newt dans
+#   trusted_proxies pour que Nextcloud lise X-Forwarded-For.
+# Le sous-réseau de newt suffit dans les deux cas. L'adresse de nginx
+# lui-même (127.0.0.1, côté FastCGI) n'apparaît jamais : REMOTE_ADDR est le
+# $remote_addr de nginx, pas l'origine de la connexion FastCGI.
+#
+# Vérifier après un échec de connexion volontaire depuis une IP connue :
+#   docker exec nextcloud occ security:bruteforce:attempts <ip publique>
+# doit compter la tentative, et la même commande sur l'IP de newt
+# (docker inspect newt) doit rester à 0.
+#
+# Lu dans docker plutôt qu'épinglé, comme flip_planning : docker choisit le
+# sous-réseau à la création du réseau, et une entrée qui ne correspond à rien
+# ne fait confiance à aucun en-tête, sans rien dire.
+- name: Read the newt network definition for Nextcloud
+  when: not nextcloud_trusted_proxies
+  changed_when: false
+  # Lecture seule : aussi en --check, sinon le set_fact suivant n'a rien.
+  check_mode: false
+  ansible.builtin.command:
+    cmd: "docker network inspect {{ nextcloud_newt_network }}"
+  register: nextcloud_newt_network_info
+
+- name: Use the newt subnets as Nextcloud's trusted proxies
+  when: not nextcloud_trusted_proxies
+  ansible.builtin.set_fact:
+    nextcloud_trusted_proxies: >-
+      {{ (nextcloud_newt_network_info.stdout | from_json)[0].IPAM.Config | default([])
+         | map(attribute='Subnet', default='') | select | list }}
+
+# Les valeurs sont écrites telles quelles entre apostrophes dans un fichier
+# PHP : n'y laisser passer que des adresses ou des CIDR.
+- name: Check Nextcloud's trusted proxies
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - nextcloud_trusted_proxies | length > 0
+      - nextcloud_trusted_proxies | reject('match', '^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$') | list | length == 0
+    fail_msg: >-
+      nextcloud_trusted_proxies vide ou invalide ({{ nextcloud_trusted_proxies }}) :
+      le réseau {{ nextcloud_newt_network }} ne déclare aucun sous-réseau IPAM.
+      Le renseigner à la main (liste d'adresses ou de CIDR).
+
+# Seulement une fois que le conteneur a démarré : son init écrit config.php
+# après avoir garni le dossier config (config.sample.php, CAN_INSTALL), ce
+# qu'il ne fait que si le dossier est vide. Posé avant le tout premier
+# démarrage, ce fichier priverait l'installateur web de CAN_INSTALL et il
+# refuserait de démarrer. Sur un hôte neuf, relancer le rôle une fois le
+# conteneur démarré.
+- name: Check that the Nextcloud container has initialised its config
+  ansible.builtin.stat:
+    path: "{{ nextcloud_config_dir }}/config.php"
+  register: nextcloud_main_config
+
+- name: Report a Nextcloud config directory not initialised yet
+  when: not nextcloud_main_config.stat.exists
+  ansible.builtin.debug:
+    msg: >-
+      {{ nextcloud_config_dir }}/config.php absent : le conteneur n'a jamais
+      démarré, homelab.config.php n'est pas posé. Relancer le rôle une fois
+      dc@nextcloud démarré.
+
+# Pas de redémarrage : Nextcloud relit config.php et chaque *.config.php à
+# chaque requête PHP (et à chaque occ, chaque cron), après un
+# opcache_invalidate sur la date du fichier. Le propriétaire est l'utilisateur
+# de PUID/PGID, c'est-à-dire `abc` dans le conteneur, qui doit pouvoir le lire.
+- name: Template the homelab Nextcloud configuration
+  when: nextcloud_main_config.stat.exists
+  ansible.builtin.template:
+    src: "templates/homelab.config.php.j2"
+    dest: "{{ nextcloud_config_dir }}/homelab.config.php"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0640"
+
+- name: Configure borgmatic backup for nextcloud
   when: nextcloud_backup_enabled
   tags: backup
   ansible.builtin.include_role:
