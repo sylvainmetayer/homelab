@@ -93,6 +93,11 @@
           - gramps_borgmatic.repositories[0].path is search('/gramps$')
           - gramps_borgmatic.encryption_passphrase == backup_passphrase
           - gramps_borgmatic.archive_name_format is match('gramps-')
+          # Index de recherche, vignettes et cache se reconstruisent.
+          - (gramps_path ~ '/indexdir') not in gramps_borgmatic.source_directories
+          - (gramps_path ~ '/thumbnail_cache') not in gramps_borgmatic.source_directories
+          - (gramps_path ~ '/cache') not in gramps_borgmatic.source_directories
+          - (gramps_path ~ '/grampsdb') in gramps_borgmatic.source_directories
 
     - name: Stat the gramps backup sources
       ansible.builtin.stat:

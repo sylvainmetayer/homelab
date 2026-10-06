@@ -46,3 +46,9 @@
       - "{{ rss_base_path }}/freshrss_data"
       - "{{ rss_base_path }}/freshrss_extensions"
       - "{{ rss_base_path }}/compose.yaml"
+    # Cache des flux de FreshRSS, reconstruit à la prochaine actualisation.
+    borgmatic_app_exclude_patterns:
+      - "{{ rss_base_path }}/freshrss_data/cache"
+    # FreshRSS en SQLite : une base par utilisateur.
+    borgmatic_app_sqlite_databases:
+      - "{{ rss_base_path }}/freshrss_data/users/*/db.sqlite"

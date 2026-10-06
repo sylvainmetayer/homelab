@@ -1,0 +1,39 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Une base SQLite déjà là, comme sur l'hôte après le premier démarrage de
+# TREK : le rôle borgmatic (tasks/app.yml) doit la trouver, la dumper et
+# exclure sa copie vivante. Le leurre .db qui n'est pas une base SQLite, lui,
+# doit être ignoré.
+- name: Prepare trek
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure the trek data folder exists
+      become: true
+      loop:
+        - /opt/apps
+        - /opt/apps/trek
+        - /opt/apps/trek/data
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: sylvain
+        group: sylvain
+        # Le rôle (et docker_service pour /opt/apps) remet son propre mode
+        # au premier converge ; l'idempotence porte sur le second.
+        mode: "0700"
+
+    - name: Create a trek SQLite database
+      ansible.builtin.command:
+        cmd: >-
+          python3 -c "import os, sqlite3; os.umask(0o077);
+          sqlite3.connect('/opt/apps/trek/data/travel.db').execute('CREATE TABLE trips (id INTEGER PRIMARY KEY)')"
+        creates: /opt/apps/trek/data/travel.db
+
+    - name: Create a .db file that is not a SQLite database
+      ansible.builtin.copy:
+        dest: /opt/apps/trek/data/notes.db
+        content: "pas une base SQLite\n"
+        mode: "0600"

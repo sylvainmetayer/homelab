@@ -39,6 +39,8 @@
           - rss_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - rss_borgmatic.archive_name_format is match('rss-')
           - "'/opt/apps/rss/freshrss_data' in rss_borgmatic.source_directories"
+          # Exclusion absolue : un motif relatif ('cache/*') ne correspond à rien.
+          - "'/opt/apps/rss/freshrss_data/cache' in rss_borgmatic.exclude_patterns"
           - rss_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-rss-backup'
         fail_msg: "Configuration borgmatic de rss inattendue : {{ rss_borgmatic }}"
 

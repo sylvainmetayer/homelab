@@ -87,6 +87,20 @@
           - scanopy_borgmatic.encryption_passphrase == backup_passphrase
           - scanopy_borgmatic.archive_name_format is match('scanopy-')
 
+    # La base est dumpée par le pg_dump de son conteneur, avec le mot de passe
+    # du .env ; son dossier de données, copié à chaud, n'est plus sauvegardé.
+    - name: Assert borgmatic dumps the scanopy database instead of copying it live
+      ansible.builtin.assert:
+        that:
+          - scanopy_borgmatic.postgresql_databases | length == 1
+          - scanopy_borgmatic.postgresql_databases[0].container == 'scanopy-postgres'
+          - scanopy_borgmatic.postgresql_databases[0].name == scanopy_compose.services['scanopy-postgres'].environment.POSTGRES_DB
+          - scanopy_borgmatic.postgresql_databases[0].username == scanopy_compose.services['scanopy-postgres'].environment.POSTGRES_USER
+          - scanopy_borgmatic.postgresql_databases[0].password == scanopy_env.POSTGRES_PASSWORD
+          - scanopy_borgmatic.postgresql_databases[0].pg_dump_command == 'docker exec --env PGPASSWORD scanopy-postgres pg_dump'
+          - (scanopy_path ~ '/postgresql') not in scanopy_borgmatic.source_directories
+        fail_msg: "Dump scanopy inattendu : {{ scanopy_borgmatic.postgresql_databases | default('aucun') }}"
+
     - name: Stat the scanopy backup sources
       ansible.builtin.stat:
         path: "{{ item }}"

@@ -63,7 +63,7 @@
       register: nextcloud_borgmatic_raw
 
     # Archives nommées d'après le service ; match_archives couvre aussi les
-    # anciennes 'betisier-…' de ce dépôt (cf. le template).
+    # anciennes 'betisier-…' de ce dépôt (cf. roles/nextcloud/tasks/main.yml).
     - name: Assert the nextcloud backup covers data and database and pushes to Uptime Kuma
       vars:
         nextcloud_borgmatic: "{{ nextcloud_borgmatic_raw.content | b64decode | from_yaml }}"
@@ -72,6 +72,8 @@
           - nextcloud_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/nextcloud'
           - nextcloud_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - "'/opt/apps/nextcloud/data' in nextcloud_borgmatic.source_directories"
+          # Le dump couvre la base : pas de copie à chaud de son dossier.
+          - "'/opt/apps/nextcloud/db_data' not in nextcloud_borgmatic.source_directories"
           - nextcloud_borgmatic.archive_name_format is match('nextcloud-')
           - nextcloud_borgmatic.match_archives == '*'
           - nextcloud_borgmatic.mysql_databases[0].container == 'nextcloud_db'
