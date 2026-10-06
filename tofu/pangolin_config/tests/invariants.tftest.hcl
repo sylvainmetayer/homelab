@@ -1039,7 +1039,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Dawarich /maps_maplibre/*",
       "Dawarich /site.webmanifest",
       "Dawarich /favicon.ico",
-      "Gramps /api/anniversaries.ics",
       "Meerkat CRM /carddav/*",
       "Meerkat CRM /.well-known/carddav",
       "Monica CRM /dav/*",
@@ -1092,7 +1091,7 @@ run "backslash_guard_covers_every_path_rule" {
 
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
-      "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning", "Gramps",
+      "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
       "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "RSS", "TREK",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
@@ -1396,7 +1395,6 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.trek.id
       && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.paperless.id
       && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.dawarich.id
-      && pangolin_resource_rule.path_bypass["Gramps /api/anniversaries.ics"].resource_id == pangolin_resource.gramps.id
       && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.rss.id
       && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.monica.id
       && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.meerkat_crm.id
