@@ -1313,6 +1313,26 @@ run "every_public_resource_applies_its_rules" {
   }
 }
 
+# Les attributs optionnels+calculés de pangolin_resource sont épinglés sur
+# chaque ressource (resource_defaults.tf). Non déclaré, un attribut accepte ce
+# que l'API renvoie et le plan ne voit plus rien ; `mode`, lui, force un
+# remplacement : un changement de son défaut côté provider recréerait toutes
+# les ressources qui s'y fient.
+run "every_resource_declares_the_pinned_attributes" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for key in keys(local.resource_pins) :
+      length(flatten([
+        for f in fileset(path.module, "website_*.tf") :
+        regexall("(?m)^  ${key}\\s*=\\s*local\\.resource_pins\\.${key}$", file("${path.module}/${f}"))
+      ])) == length(local.managed_resources)
+    ])
+    error_message = "Une ressource Pangolin ne déclare pas un attribut de local.resource_pins (mode, ssl, enabled...)."
+  }
+}
+
 # Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les
 # environnements de Flip Planning sont chacun sur leur domaine.
 run "resources_have_unique_fqdns_on_the_right_domains" {

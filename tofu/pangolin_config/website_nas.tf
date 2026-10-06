@@ -15,7 +15,6 @@ resource "pangolin_resource" "nas" {
   subdomain = "nas"
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
-  mode      = "http"
   sso       = true
 
   # Was false in Pangolin, mirrored at first: the country rules existed but were
@@ -24,6 +23,7 @@ resource "pangolin_resource" "nas" {
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.
+  mode                    = local.resource_pins.mode
   ssl                     = local.resource_pins.ssl
   enabled                 = local.resource_pins.enabled
   block_access            = local.resource_pins.block_access

@@ -19,7 +19,6 @@ resource "pangolin_resource" "proxmox" {
   subdomain = "proxmox"
   domain_id = local.domain_ids["sylvain.cloud"]
   protocol  = "tcp"
-  mode      = "http"
   sso       = true
 
   # Was false in Pangolin and first mirrored as such, which left the country
@@ -31,6 +30,7 @@ resource "pangolin_resource" "proxmox" {
 
   # Optional+computed: pinned so a plan can disagree with the API. See
   # resource_defaults.tf.
+  mode                    = local.resource_pins.mode
   ssl                     = local.resource_pins.ssl
   enabled                 = local.resource_pins.enabled
   block_access            = local.resource_pins.block_access

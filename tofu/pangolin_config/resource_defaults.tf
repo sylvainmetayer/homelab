@@ -20,10 +20,19 @@
 # is what leaves it computed in the first place. It stays "(known after apply)"
 # on updates. It only names the SNI to present upstream, so it cannot silently
 # take a site down the way `enabled` can.
+#
+# `mode` is optional+computed as well, but with a provider-side default of
+# "http", so leaving it out never plans as unknown: five resources declared it
+# and sixteen did not, with the same result. It is pinned for a different
+# reason - it is RequiresReplace, so a change of that default in a provider
+# upgrade would plan a destroy and recreate of every resource that relied on
+# it, new id, new rules and new access tokens included. Declared everywhere, it
+# can only change here.
 # ---------------------------------------------------------------------------
 
 locals {
   resource_pins = {
+    mode                    = "http"
     ssl                     = true
     enabled                 = true
     block_access            = false
