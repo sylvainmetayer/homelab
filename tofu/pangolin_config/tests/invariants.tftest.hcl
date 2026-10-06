@@ -1437,6 +1437,36 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   }
 }
 
+# Le dashboard Pangolin et ref.sylvain.dev ont leur moniteur. L'URL du
+# dashboard est celle que publie le rôle pangolin (host_vars/pangolin) : un
+# renommage d'un seul côté laisserait le moniteur sonder un nom mort. Pas de
+# mot-clé inversé ici : ni l'un ni l'autre n'est une ressource Pangolin, donc
+# pas de page de maintenance à reconnaître.
+run "pangolin_dashboard_and_ref_are_monitored" {
+  command = plan
+
+  assert {
+    condition = (
+      uptimekuma_monitor_http.pangolin_dashboard.url == "https://pangolin.sylvain.cloud"
+      && uptimekuma_monitor_http.pangolin_dashboard.active == true
+      && strcontains(
+        file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
+        "\npangolin_base_domain: \"sylvain.cloud\"\n"
+      )
+      && strcontains(
+        file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
+        "\npangolin_dashboard_url: \"pangolin.{{ pangolin_base_domain }}\"\n"
+      )
+    )
+    error_message = "Le moniteur du dashboard doit sonder pangolin_dashboard_url (ansible/host_vars/pangolin/variables.yaml), soit https://pangolin.sylvain.cloud."
+  }
+
+  assert {
+    condition     = uptimekuma_monitor_http.ref.url == "https://ref.sylvain.dev" && uptimekuma_monitor_http.ref.active == true
+    error_message = "ref.sylvain.dev (tofu/ref) doit avoir son moniteur actif."
+  }
+}
+
 # Un rôle Pangolin par slug de roles.tf, nommé comme lui, et un par
 # environnement de Flip Planning.
 run "one_role_per_app_slug" {
@@ -1911,6 +1941,7 @@ run "monitors_are_filed_and_notify_by_email" {
         uptimekuma_monitor_http_keyword.searxng,
         uptimekuma_monitor_http_keyword.trek,
         uptimekuma_monitor_http_keyword.wiki,
+        uptimekuma_monitor_http.pangolin_dashboard,
       ] :
       m.parent == uptimekuma_monitor_group.self_hosted.id
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)

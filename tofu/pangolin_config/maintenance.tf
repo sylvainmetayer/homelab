@@ -41,9 +41,9 @@
 # the monitors matching a stale string. It must stay a string that appears
 # nowhere in a healthy app's landing page.
 #
-# A monitor on something that serves no maintenance page (an external site,
-# for instance) stays a plain uptimekuma_monitor_http: there is no title to
-# match, and a down service does fail there.
+# A monitor on something that serves no maintenance page (the Pangolin
+# dashboard, an external site) stays a plain uptimekuma_monitor_http: there is
+# no title to match, and a down service does fail there.
 # ---------------------------------------------------------------------------
 
 locals {
