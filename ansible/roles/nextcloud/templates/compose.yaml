@@ -14,6 +14,12 @@ services:
     volumes:
       - ./config:/config
       - ./data:/data
+    # `newt` sert aussi aux abonnements de l'agenda : le calendrier de TREK est
+    # lu en direct par http://trek:3000/api/feed/user/<jeton>.ics, sans passer
+    # par Pangolin (SSO, filtre pays). Nextcloud refuse par défaut un webcal
+    # vers une adresse privée ; le réglage, en base et donc fait une fois à la
+    # main, ne lève ce verrou que pour les abonnements webcal :
+    #   docker exec nextcloud occ config:app:set dav webcalAllowLocalAccess --value=yes
     networks:
       - newt
       - nextcloud
