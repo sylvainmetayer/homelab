@@ -234,6 +234,7 @@ locals {
     "KitchenOwl"       = local.kitchenowl_mobile_paths
     "Meerkat CRM"      = local.meerkat_crm_dav_paths
     "Monica CRM"       = local.monica_dav_paths
+    "nextcloud"        = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
     "Paperless-ngx"    = local.paperless_share_paths
     "Promptoramix"     = local.promptoramix_public_paths
     "TREK"             = merge(local.trek_mcp_public_paths, local.trek_share_paths)

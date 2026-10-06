@@ -241,7 +241,7 @@ override_data {
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 64, "niceId": "nginx-demo", "name": "Nginx Demo", "fullDomain": "demo-nginx.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
+        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
@@ -1191,6 +1191,36 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Monica CRM /dav/*",
       "Monica CRM /.well-known/carddav",
       "Monica CRM /.well-known/caldav",
+      "nextcloud /status.php",
+      "nextcloud /index.php/204",
+      "nextcloud /remote.php/*",
+      "nextcloud /ocs/v1.php/*",
+      "nextcloud /ocs/v2.php/*",
+      "nextcloud /index.php/login/v2",
+      "nextcloud /login/v2/poll",
+      "nextcloud /index.php/login/v2/poll",
+      "nextcloud /index.php/core/wipe/*",
+      "nextcloud /index.php/core/preview",
+      "nextcloud /index.php/apps/files/api/v1/thumbnail/*",
+      "nextcloud /.well-known/caldav",
+      "nextcloud /.well-known/carddav",
+      "nextcloud /s/*",
+      "nextcloud /index.php/s/*",
+      "nextcloud /public.php/*",
+      "nextcloud /apps/files_sharing/*",
+      "nextcloud /index.php/apps/files_sharing/*",
+      "nextcloud /apps/theming/*",
+      "nextcloud /index.php/apps/theming/*",
+      "nextcloud /dist/*",
+      "nextcloud /core/*",
+      "nextcloud /apps/*/js/*",
+      "nextcloud /apps/*/css/*",
+      "nextcloud /apps/*/img/*",
+      "nextcloud /apps/*/l10n/*",
+      "nextcloud /csrftoken",
+      "nextcloud /index.php/csrftoken",
+      "nextcloud /index.php/apps/files/preview-service-worker.js",
+      "nextcloud /apps/text/public/*",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
       "TREK /.well-known/oauth-protected-resource/mcp",
@@ -1271,6 +1301,21 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
     )
     error_message = "Promptoramix doit être ouverte par la seule règle /*, en priorité 2."
   }
+
+  # Nextcloud : les clients n'ont que la moitié « client » du login flow v2
+  # (démarrage et poll) ; la moitié navigateur (flow, grant, apptoken), le
+  # formulaire de connexion et les réglages restent derrière le SSO, comme le
+  # front controller et l'ensemble de /apps.
+  assert {
+    condition = alltrue([
+      for key, rule in pangolin_resource_rule.path_bypass :
+      !startswith(key, "nextcloud ") || (
+        !contains(["/index.php/*", "/apps/*", "/index.php/apps/*", "/login", "/index.php/login", "/login/*", "/index.php/login/*", "/login/v2/*", "/index.php/login/v2/*"], rule.value)
+        && length(regexall("/(flow|grant|apptoken|settings)(/|$)", rule.value)) == 0
+      )
+    ])
+    error_message = "Nextcloud : le login web, la moitié navigateur du login flow v2 et les réglages doivent rester derrière le SSO."
+  }
 }
 
 # Pangolin ne normalise pas l'antislash, que Node transforme en `/` : chaque
@@ -1282,7 +1327,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
+      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1574,8 +1619,10 @@ run "php_lockdown_closes_every_public_php_path" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier, nextcloud et Promptoramix se
-# passent du SSO.
+# applique donc les siennes, et seules Betisier et Promptoramix se passent du
+# SSO. Nextcloud l'a rejoint : ses clients et ses liens de partage passent par
+# des chemins ouverts (website_nextcloud.tf), plus par une ressource entière
+# sans SSO.
 run "every_public_resource_applies_its_rules" {
   command = plan
 
@@ -1592,10 +1639,10 @@ run "every_public_resource_applies_its_rules" {
   # chaque requête (website_promptoramix.tf).
   assert {
     condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
-      toset(["Betisier", "nextcloud", "Promptoramix"]),
+      toset(["Betisier", "Promptoramix"]),
       [for key in local.php_lockdown_sso : local.websites[key].name],
     )
-    error_message = "Les ressources sans SSO doivent être exactement Betisier, nextcloud et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
+    error_message = "Les ressources sans SSO doivent être exactement Betisier et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -1848,27 +1895,26 @@ run "one_role_per_app_slug" {
   }
 
   # Un rôle qu'aucun pangolin_resource_role ne lie n'ouvre rien et encombre la
-  # liste des rôles (betisier et meerkat l'ont fait). Seul nextcloud attend
-  # encore sa liaison, pour son passage derrière le SSO. Dans l'autre sens, une
+  # liste des rôles (betisier et meerkat l'ont fait). Dans l'autre sens, une
   # entrée de local.websites qui nomme un rôle absent de roles.tf ferait
   # échouer le plan sur pangolin_role.apps[...].
   assert {
     condition = (
-      setsubtract(toset(keys(pangolin_role.apps)), ["nextcloud"])
+      toset(keys(pangolin_role.apps))
       == toset([for website in values(local.websites) : lookup(website, "role", null) if lookup(website, "role", null) != null])
     )
     error_message = "Un slug de roles.tf n'est lié à aucune ressource par une entrée de local.websites (champ role), ou l'inverse : le retirer, ou le lier."
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier, nextcloud et Promptoramix (sans SSO). Immich Swipe prend celui
-  # d'Immich.
+  # Betisier et Promptoramix (sans SSO). Immich Swipe prend celui d'Immich.
   assert {
     condition = (
-      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nextcloud", "promptoramix"])
+      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
       && local.websites["immich_swipe"].role == "immich"
+      && local.websites["nextcloud"].role == "nextcloud"
     )
-    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich) ; Betisier, nextcloud et Promptoramix, sans SSO, à aucun."
+    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich, nextcloud au sien) ; Betisier et Promptoramix, sans SSO, à aucun."
   }
 }
 
@@ -1921,6 +1967,8 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.website["monica"].id
       && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.website["meerkat_crm"].id
       && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id
+      && pangolin_resource_rule.path_bypass["nextcloud /remote.php/*"].resource_id == pangolin_resource.website["nextcloud"].id
+      && pangolin_resource_rule.backslash_guard["nextcloud"].resource_id == pangolin_resource.website["nextcloud"].id
       && alltrue([
         for key, rule in pangolin_resource_rule.path_bypass :
         rule.resource_id == pangolin_resource.website["trek"].id if startswith(key, "TREK ")
