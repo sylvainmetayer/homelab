@@ -164,6 +164,7 @@ override_data {
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
+        {"resourceId": 64, "niceId": "nginx-demo", "name": "Nginx Demo", "fullDomain": "nginx.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
@@ -172,7 +173,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 18, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 19, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -343,6 +344,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["nginx_demo"]
+  values = { id = 64 }
+}
+
+override_resource {
   target = pangolin_resource.website["nextcloud"]
   values = { id = 11 }
 }
@@ -490,6 +496,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["nginx_demo"]
+  values = { push_token = "push-nginx-demo" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["wiki"]
   values = { push_token = "push-wiki" }
 }
@@ -553,7 +564,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
       "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
+      "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1397,6 +1408,7 @@ run "every_public_resource_applies_its_rules" {
       meerkat_crm      = "Meerkat CRM"
       monica           = "Monica CRM"
       nextcloud        = "nextcloud"
+      nginx_demo       = "Nginx Demo"
       paperless        = "Paperless-ngx"
       promptoramix     = "Promptoramix"
       rss              = "RSS"
@@ -1527,6 +1539,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       meerkat_crm   = "Healthcheck Meerkat CRM"
       monica        = "Healthcheck Monica CRM"
       nextcloud     = "Healthcheck nextcloud"
+      nginx_demo    = "Healthcheck Nginx Demo"
       paperless     = "Healthcheck Paperless-ngx"
       promptoramix  = "Healthcheck Promptoramix"
       rss           = "Healthcheck RSS"
@@ -1743,6 +1756,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
+    condition     = output.uptime_backup_nginx_demo_url == "https://uptime.example.test/api/push/push-nginx-demo"
+    error_message = "uptime_backup_nginx_demo_url (docker.yml) ne pointe pas sur le moniteur Backup Nginx Demo."
+  }
+
+  assert {
     condition     = output.uptime_backup_paperless_url == "https://uptime.example.test/api/push/push-paperless"
     error_message = "uptime_backup_paperless_url (docker.yml) ne pointe pas sur le moniteur Backup Paperless."
   }
@@ -1791,6 +1809,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
       output.uptime_backup_wishlist_url,
+      output.uptime_backup_nginx_demo_url,
       output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
       output.uptime_backup_demo_planning_url,
@@ -2010,6 +2029,7 @@ run "monitors_are_filed_and_notify_by_email" {
       meerkat_crm   = "Backup Meerkat CRM"
       monica        = "Backup Monica CRM"
       nextcloud     = "Backup nextcloud"
+      nginx_demo    = "Backup Nginx Demo"
       paperless     = "Backup Paperless-ngx"
       rss           = "Backup RSS"
       trek          = "Backup TREK"
