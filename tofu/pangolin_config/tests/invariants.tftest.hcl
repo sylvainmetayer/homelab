@@ -111,21 +111,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource_rule.flip_planning_mcp
-  values = { id = 2001 }
-}
-
-override_resource {
-  target = pangolin_resource_rule.demo_planning_mcp
-  values = { id = 2002 }
-}
-
-override_resource {
-  target = pangolin_resource_rule.demo_planning_kc_keycloak
-  values = { id = 2003 }
-}
-
-override_resource {
   target = pangolin_resource_rule.immich_home_ip
   values = { id = 2004 }
 }
@@ -138,13 +123,6 @@ override_resource {
 override_resource {
   target = pangolin_resource_rule.trek_home_ip
   values = { id = 2006 }
-}
-
-# Une instance for_each ne peut pas être surchargée seule : identifiant commun
-# aux cinq chemins publics de Karakeep.
-override_resource {
-  target = pangolin_resource_rule.karakeep_public
-  values = { id = 2007 }
 }
 
 # Un identifiant commun à toutes les instances, comme pour les autres for_each.
@@ -161,12 +139,6 @@ override_resource {
 override_resource {
   target = pangolin_resource_rule.trek_mcp
   values = { id = 2009 }
-}
-
-# Même contrainte que karakeep_public : un identifiant commun aux instances.
-override_resource {
-  target = pangolin_resource_rule.trek_mcp_oauth
-  values = { id = 2010 }
 }
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
@@ -234,7 +206,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2011) : si l'une d'elles disparaît de
+# règles spécifiques (2004 à 2011) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -242,20 +214,15 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"rules": [
-        {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
-        {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 1, "enabled": true},
-        {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
-        {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
         {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
-        {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 13, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -932,89 +899,56 @@ run "expired_travel_country_opens_nothing" {
   }
 }
 
-# La bande de priorités de rules.tf : la priorité 1 est au DROP antislash, les
-# règles qui doivent passer quelle que soit l'origine (ACCEPT par chemin, PASS
-# /mcp de TREK) sont entre 2 et 8, les ACCEPT d'IP maison à 9, tous AVANT les
-# PASS pays (10-11, voyages à 20), et le DROP ALL en dernier (99).
+# La bande de priorités de rules.tf : les règles qui doivent décider quelle que
+# soit l'origine sont AVANT les PASS pays (1-9), les ACCEPT d'IP maison en
+# dernier de cette bande (9), et le DROP ALL en dernier (99).
 run "bypass_rules_sit_in_their_priority_band" {
   command = plan
 
-  assert {
-    condition = alltrue([
-      for rule in [
-        pangolin_resource_rule.flip_planning_mcp,
-        pangolin_resource_rule.demo_planning_mcp,
-        pangolin_resource_rule.demo_planning_kc_keycloak,
-      ] :
-      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 2 && rule.priority < 10
-    ])
-    error_message = "Les ACCEPT par chemin doivent être évalués avant les règles pays (priorités 1 à 9) : un PASS pays ne les laisserait jamais atteindre."
-  }
-
+  # Les ACCEPT par chemin des trois instances de Flip Planning, passés de
+  # ressources autonomes à local.path_bypasses : rien de plus large que /mcp/*
+  # (planning) et /auth/* (Keycloak du banc KC). Le reste de leurs règles est
+  # vérifié par path_bypasses_open_exactly_the_reviewed_paths.
   assert {
     condition = (
-      pangolin_resource_rule.flip_planning_mcp.value == "/mcp/*"
-      && pangolin_resource_rule.demo_planning_mcp.value == "/mcp/*"
-      && pangolin_resource_rule.demo_planning_kc_keycloak.value == "/auth/*"
+      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].priority == 2
+      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].priority == 2
+      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].priority == 2
+      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Flip Planning ")]) == 1
+      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Demo Planning /")]) == 1
+      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Demo Planning KC ")]) == 1
     )
-    error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC)."
+    error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC), en priorité 2."
   }
 
   # Les listes publiques de Karakeep se lisent sans compte et de partout :
   # devant les règles pays, et rien de plus large que ce que la page charge.
-  # Un `/api/*` ouvrirait toute l'API sans le mur SSO ni le filtre pays.
+  # Un `/api/*` ouvrirait toute l'API sans le mur SSO ni le filtre pays. Les
+  # priorités 2 à 6 sont celles des anciennes règles autonomes : le passage à
+  # local.path_bypasses ne les a pas renumérotées.
   assert {
-    condition = alltrue([
-      for rule in pangolin_resource_rule.karakeep_public :
-      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 2 && rule.priority < 10
-    ])
-    error_message = "Les chemins publics de Karakeep doivent être des ACCEPT PATH évalués avant les règles pays (priorités 1 à 9)."
+    condition = {
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.value => rule.priority if startswith(key, "Karakeep ")
+      } == {
+      "/public/lists/*"                                    = 2
+      "/_next/static/*"                                    = 3
+      "/api/public/*"                                      = 4
+      "/api/trpc/publicBookmarks.getPublicBookmarksInList" = 5
+      "/api/v1/rss/lists/*"                                = 6
+    }
+    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes), aux priorités 2 à 6."
   }
 
   # La procédure tRPC est écrite en entier : un joker dans ce segment laisserait
   # passer un lot `publicBookmarks.x,apiKeys.exchange`, échange mot de passe
   # contre clé d'API ouvert au monde entier.
   assert {
-    condition = toset([for rule in pangolin_resource_rule.karakeep_public : rule.value]) == toset([
-      "/public/lists/*",
-      "/_next/static/*",
-      "/api/public/*",
-      "/api/trpc/publicBookmarks.getPublicBookmarksInList",
-      "/api/v1/rss/lists/*",
-    ])
-    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes)."
-  }
-
-  assert {
     condition = alltrue([
-      for rule in pangolin_resource_rule.karakeep_public :
+      for rule in pangolin_resource_rule.path_bypass :
       !strcontains(rule.value, "/api/trpc/") || !strcontains(rule.value, "*")
     ])
     error_message = "Aucun joker sous /api/trpc/ : tRPC regroupe plusieurs procédures dans un seul segment."
-  }
-
-  # Pangolin résout `..` mais pas `\`, que le parseur d'URL de Node prend pour
-  # un `/` : sans ce DROP devant les ACCEPT, /public/lists/..\..\api/... mène
-  # à l'API privée.
-  assert {
-    condition = alltrue([
-      for rule in pangolin_resource_rule.karakeep_public :
-      pangolin_resource_rule.backslash_guard["Karakeep"].priority < rule.priority
-    ])
-    error_message = "Le DROP des chemins contenant un antislash doit précéder tous les ACCEPT publics de Karakeep."
-  }
-
-  # L'override donne le même identifiant aux cinq instances : l'audit
-  # d'inventaire ne verrait pas qu'une d'elles manque à declared_extra_rules.
-  # D'où une comparaison sur les chemins, connus au plan.
-  assert {
-    condition = alltrue([
-      for rule in concat(values(pangolin_resource_rule.karakeep_public), [pangolin_resource_rule.backslash_guard["Karakeep"]]) :
-      contains([for declared in local.declared_extra_rules : declared.value], rule.value)
-    ])
-    error_message = "Chaque règle de Karakeep doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
   }
 
   # MCP de TREK : `/mcp` en PASS (saute les règles pays, garde l'authentification
@@ -1031,19 +965,15 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "/mcp de TREK doit être un PASS (pas un ACCEPT) sur le chemin exact, avant les règles pays : le jeton d'accès Pangolin reste exigé."
   }
 
-  assert {
-    condition = alltrue([
-      for rule in pangolin_resource_rule.trek_mcp_oauth :
-      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority >= 2 && rule.priority < 10 && !strcontains(rule.value, "*")
-    ])
-    error_message = "La surface OAuth de TREK : des ACCEPT sur chemins exacts (sans joker), avant les règles pays."
-  }
-
   # Ni l'enregistrement dynamique, ni l'autorisation (navigateur de
-  # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface.
+  # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface : la
+  # surface OAuth est la seule ouverture de TREK en priorité 2, sur des
+  # chemins exacts.
   assert {
-    condition = toset([for rule in pangolin_resource_rule.trek_mcp_oauth : rule.value]) == toset([
+    condition = toset([
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.value if startswith(key, "TREK ") && rule.priority == 2
+      ]) == toset([
       "/.well-known/oauth-protected-resource/mcp",
       "/.well-known/oauth-protected-resource",
       "/.well-known/oauth-authorization-server",
@@ -1054,15 +984,30 @@ run "bypass_rules_sit_in_their_priority_band" {
       "/mcp/.well-known/openid-configuration",
       "/oauth/token",
     ])
-    error_message = "L'ouverture OAuth de TREK doit se limiter aux documents de découverte et à /oauth/token."
+    error_message = "L'ouverture OAuth de TREK doit se limiter aux documents de découverte et à /oauth/token, en priorité 2."
   }
 
   assert {
     condition = alltrue([
-      for rule in concat(values(pangolin_resource_rule.trek_mcp_oauth), [pangolin_resource_rule.trek_mcp]) :
+      for key, rule in pangolin_resource_rule.path_bypass :
+      !strcontains(rule.value, "*") if startswith(key, "TREK ") && rule.priority == 2
+    ])
+    error_message = "La surface OAuth de TREK : des chemins exacts, sans joker."
+  }
+
+  # L'override donne le même identifiant à toutes les instances d'une règle
+  # for_each : l'audit d'inventaire ne verrait pas qu'une d'elles manque à
+  # declared_extra_rules. D'où une comparaison sur les chemins, connus au plan.
+  assert {
+    condition = alltrue([
+      for rule in concat(
+        values(pangolin_resource_rule.path_bypass),
+        values(pangolin_resource_rule.backslash_guard),
+        [pangolin_resource_rule.trek_mcp],
+      ) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
-    error_message = "Chaque règle MCP de TREK doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
+    error_message = "Chaque règle par chemin doit figurer dans local.declared_extra_rules, sinon l'audit d'inventaire fait échouer le plan en production."
   }
 
   assert {
@@ -1096,6 +1041,14 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Dawarich /maps_maplibre/*",
       "Dawarich /site.webmanifest",
       "Dawarich /favicon.ico",
+      "Demo Planning /mcp/*",
+      "Demo Planning KC /auth/*",
+      "Flip Planning /mcp/*",
+      "Karakeep /public/lists/*",
+      "Karakeep /_next/static/*",
+      "Karakeep /api/public/*",
+      "Karakeep /api/trpc/publicBookmarks.getPublicBookmarksInList",
+      "Karakeep /api/v1/rss/lists/*",
       "Meerkat CRM /carddav/*",
       "Meerkat CRM /.well-known/carddav",
       "Monica CRM /dav/*",
@@ -1104,6 +1057,15 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Paperless-ngx /share/*",
       "RSS /api/greader.php/*",
       "RSS /api/fever.php",
+      "TREK /.well-known/oauth-protected-resource/mcp",
+      "TREK /.well-known/oauth-protected-resource",
+      "TREK /.well-known/oauth-authorization-server",
+      "TREK /.well-known/oauth-authorization-server/mcp",
+      "TREK /.well-known/openid-configuration",
+      "TREK /mcp/.well-known/oauth-protected-resource",
+      "TREK /mcp/.well-known/oauth-authorization-server",
+      "TREK /mcp/.well-known/openid-configuration",
+      "TREK /oauth/token",
       "TREK /assets/*",
       "TREK /theme-boot.js",
       "TREK /shell-guard.js",
@@ -1166,10 +1128,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = alltrue([
       for rule in concat(
-        [pangolin_resource_rule.flip_planning_mcp, pangolin_resource_rule.demo_planning_mcp,
-        pangolin_resource_rule.demo_planning_kc_keycloak, pangolin_resource_rule.trek_mcp],
-        values(pangolin_resource_rule.trek_mcp_oauth),
-        values(pangolin_resource_rule.karakeep_public),
+        [pangolin_resource_rule.trek_mcp],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
@@ -1672,9 +1631,9 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
 
   assert {
     condition = (
-      pangolin_resource_rule.flip_planning_mcp.resource_id == pangolin_resource.flip_planning.id
-      && pangolin_resource_rule.demo_planning_mcp.resource_id == pangolin_resource.demo_planning.id
-      && pangolin_resource_rule.demo_planning_kc_keycloak.resource_id == pangolin_resource.demo_planning_kc.id
+      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].resource_id == pangolin_resource.flip_planning.id
+      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].resource_id == pangolin_resource.demo_planning.id
+      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].resource_id == pangolin_resource.demo_planning_kc.id
       && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.immich.id
       && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.dawarich.id
       && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.trek.id
@@ -1688,12 +1647,12 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.meerkat_crm.id
       && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.trek.id
       && alltrue([
-        for rule in pangolin_resource_rule.trek_mcp_oauth :
-        rule.resource_id == pangolin_resource.trek.id
+        for key, rule in pangolin_resource_rule.path_bypass :
+        rule.resource_id == pangolin_resource.trek.id if startswith(key, "TREK ")
       ])
       && alltrue([
-        for rule in pangolin_resource_rule.karakeep_public :
-        rule.resource_id == pangolin_resource.karakeep.id
+        for key, rule in pangolin_resource_rule.path_bypass :
+        rule.resource_id == pangolin_resource.karakeep.id if startswith(key, "Karakeep ")
       ])
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."

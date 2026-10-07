@@ -44,14 +44,12 @@ resource "pangolin_resource_role" "demo_planning" {
 # catch-all `DROP COUNTRY ALL`. See the long comment in website_flip_planning.tf.
 #
 # The demo instance has its own PLANNING_MCP_API_KEY, so opening the prefix here
-# does not open the production MCP server, and vice versa.
-resource "pangolin_resource_rule" "demo_planning_mcp" {
-  resource_id = pangolin_resource.demo_planning.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = "/mcp/*"
-  priority    = 2
-  enabled     = true
+# does not open the production MCP server, and vice versa. Turned into a rule by
+# local.path_bypasses (rules.tf).
+locals {
+  demo_planning_mcp_paths = {
+    "/mcp/*" = 2
+  }
 }
 
 resource "pangolin_target" "demo_planning" {

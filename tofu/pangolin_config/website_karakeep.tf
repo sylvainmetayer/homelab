@@ -58,8 +58,9 @@ output "karakeep_client_access_tokens" {
 }
 
 # Public lists (list > Share > "Public list") are read by people with no
-# account, wherever they are: these ACCEPTs sit in the 2 - 9 band of rules.tf,
-# in front of the country rules, and skip the SSO wall. Each path is one the
+# account, wherever they are: these ACCEPTs, made by local.path_bypasses
+# (rules.tf), sit in the 2 - 9 band in front of the country rules, and skip the
+# SSO wall. Each path is one the
 # page /public/lists/<listId> actually requests, read off the Karakeep v0.33.2
 # sources (apps/web/app/public, components/public/lists, packages/api); the
 # `karakeep_public_paths_follow_the_image` test fails when the image moves, so
@@ -95,17 +96,6 @@ locals {
     # only with its rssToken in the query string.
     "/api/v1/rss/lists/*" = 6
   }
-}
-
-resource "pangolin_resource_rule" "karakeep_public" {
-  for_each = local.karakeep_public_paths
-
-  resource_id = pangolin_resource.karakeep.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = each.key
-  priority    = each.value
-  enabled     = true
 }
 
 # Any path holding a backslash is dropped before the ACCEPTs above: see
