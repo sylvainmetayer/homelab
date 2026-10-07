@@ -4,11 +4,16 @@
 #
 # Dépôt : Storage Box Hetzner en SSH (clé /root/.ssh/backup_storage_box_key).
 
+{% set sqlite_staging = borgmatic_sqlite_staging_dir ~ '/' ~ borgmatic_app_name %}
 # Fichiers et dossiers sauvegardés tels quels.
 source_directories:
 {% for source in borgmatic_app_source_directories %}
     - {{ source | to_json }}
 {% endfor %}
+{% if borgmatic_app_sqlite_paths | length > 0 %}
+    # Copies cohérentes des bases SQLite, faites par le hook before plus bas.
+    - {{ sqlite_staging | to_json }}
+{% endif %}
 {% if borgmatic_app_postgresql_databases | length > 0 %}
 
 # pg_dump tourne dans le conteneur de la base : client et serveur toujours de
@@ -27,9 +32,12 @@ postgresql_databases:
 {% endif %}
 {% if borgmatic_app_mysql_databases | length > 0 %}
 
-# Le client de dump tourne dans le conteneur de la base, pour la même raison.
-# Le mot de passe passe donc par l'environnement (password_transport) et non
-# par le tube par défaut, et « --env MYSQL_PWD » le transmet au conteneur.
+# Le client de dump tourne dans le conteneur de la base, pour la même raison,
+# à travers {{ borgmatic_docker_dump_bin }} : borgmatic 2.1 lui passe un
+# --result-file de l'hôte, introuvable dans le conteneur ; le script le
+# retire et écrit lui-même la sortie du client dans ce fichier. Le mot de
+# passe passe par l'environnement (password_transport), que le script
+# transmet au conteneur (« --env MYSQL_PWD »).
 mysql_databases:
 {% for database in borgmatic_app_mysql_databases %}
     - container: {{ database.container | to_json }}
@@ -38,28 +46,13 @@ mysql_databases:
       username: {{ database.username | to_json }}
       password: {{ database.password | to_json }}
       password_transport: environment
-      mysql_dump_command: {{ ('docker exec --env MYSQL_PWD ' ~ database.container ~ ' ' ~ (database.dump_command | default('mysqldump'))) | to_json }}
-{% endfor %}
-{% endif %}
-{% if borgmatic_app_sqlite_paths | length > 0 %}
-
-# Bases SQLite trouvées au déploiement, dumpées par le sqlite3 de l'hôte :
-# « .dump » lit dans une transaction, l'instantané est cohérent même
-# application démarrée. « .timeout » attend un verrou d'écriture en cours au
-# lieu d'échouer sur « database is locked ». Restauration, application
-# arrêtée : borgmatic restore --archive <archive> --data-source <name>. Le
-# sqlite3 de l'hôte (root) supprime la base et la recrée, root:root : noter
-# son propriétaire avant (stat -c %u:%g) et le lui rendre après (chown).
-sqlite_databases:
-{% for path in borgmatic_app_sqlite_paths %}
-    - name: {{ (path | regex_replace('^/', '') | replace('/', '_')) | to_json }}
-      path: {{ path | to_json }}
-      sqlite_command: 'sqlite3 -cmd ".timeout 60000"'
+      mysql_dump_command: {{ (borgmatic_docker_dump_bin ~ ' ' ~ database.container ~ ' ' ~ (database.dump_command | default('mysqldump'))) | to_json }}
 {% endfor %}
 {% endif %}
 
 # Motifs exclus (style fm: de borg, cf. borgmatic_exclude_patterns). La copie
-# vivante des bases SQLite dumpées ci-dessus en fait partie.
+# vivante des bases SQLite en fait partie : seule leur copie cohérente du
+# dossier de staging est archivée.
 exclude_patterns:
 {% for pattern in borgmatic_exclude_patterns + borgmatic_app_exclude_patterns %}
     - {{ pattern | to_json }}
@@ -107,6 +100,18 @@ commands:
           - create
       run:
           - echo "Starting {{ borgmatic_app_title }} backup at $(date)"
+{% if borgmatic_app_sqlite_paths | length > 0 %}
+          # Bases SQLite trouvées au déploiement : copie par l'API de
+          # sauvegarde en ligne (« .backup »), cohérente même application
+          # démarrée. Le verrou ne dure que la copie locale, pas l'envoi vers
+          # la Storage Box (cf. borgmatic_app_sqlite_databases). « .timeout »
+          # attend une écriture en cours au lieu d'échouer sur « database is
+          # locked » ; -bail fait échouer la sauvegarde si la copie échoue.
+          - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
+{% for path in borgmatic_app_sqlite_paths %}
+          - {{ ('sqlite3 -bail -cmd ' ~ ('.timeout 60000' | quote) ~ ' ' ~ (path | quote) ~ ' ' ~ ('.backup ' ~ ((sqlite_staging ~ '/' ~ (path | regex_replace('^/', '') | replace('/', '_'))) | quote)) | quote) | to_json }}
+{% endfor %}
+{% endif %}
 {% for command in borgmatic_app_before_commands %}
           - {{ command | to_json }}
 {% endfor %}
@@ -115,6 +120,9 @@ commands:
           - create
       run:
           - echo "{{ borgmatic_app_title }} backup completed at $(date)"
+{% if borgmatic_app_sqlite_paths | length > 0 %}
+          - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
+{% endif %}
 {% for command in borgmatic_app_after_commands %}
           - {{ command | to_json }}
 {% endfor %}

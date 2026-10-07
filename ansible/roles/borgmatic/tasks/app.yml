@@ -38,6 +38,16 @@
       normal avant le premier démarrage de l'application, sinon le glob est à revoir.
   when: borgmatic_app_sqlite_found.stderr_lines | default([]) | length > 0
 
+- name: Ensure the SQLite staging directory exists for {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_sqlite_staging_dir }}/{{ borgmatic_app_name }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: borgmatic_app_sqlite_found.stdout_lines | default([]) | length > 0
+
 - name: Create borgmatic configuration for {{ borgmatic_app_title }}
   become: true
   ansible.builtin.template:

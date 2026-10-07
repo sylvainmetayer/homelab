@@ -132,8 +132,8 @@
 
 # Les clients MariaDB et PostgreSQL de l'hôte servent à restaurer (mysql,
 # psql, pg_restore, vers l'IP du conteneur : les dumps, eux, tournent dans le
-# conteneur de chaque base) ; sqlite3 dumpe directement les bases SQLite des
-# applications (borgmatic_app_sqlite_databases, tasks/app.yml).
+# conteneur de chaque base) ; sqlite3 copie les bases SQLite des applications
+# avant chaque sauvegarde (borgmatic_app_sqlite_databases, tasks/app.yml).
 - name: Ensure mysqldump, pg_dump and sqlite3 are installed
   become: true
   ansible.builtin.apt:
@@ -143,6 +143,26 @@
       - sqlite3
     state: present
     update_cache: true
+
+# Client de dump MySQL/MariaDB lancé dans le conteneur de la base, sa sortie
+# écrite dans le --result-file que borgmatic 2.1 impose côté hôte.
+- name: Install the docker exec wrapper for MySQL/MariaDB dumps
+  become: true
+  ansible.builtin.copy:
+    src: borgmatic-docker-dump
+    dest: "{{ borgmatic_docker_dump_bin }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the SQLite staging directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_sqlite_staging_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
 - name: Create SSH key from secrets to access backup storage box
   become: true

@@ -83,15 +83,21 @@ borgmatic_app_postgresql_databases: []
 # Entrées MySQL/MariaDB : dump_command en plus (mysqldump par défaut). L'image
 # officielle mariadb n'a plus que mariadb-dump depuis la 11.0 (les liens
 # mysql* sont dans mariadb-client-compat, qu'elle n'installe pas) ; celle de
-# linuxserver a les deux.
+# linuxserver a les deux. Le client passe par borgmatic_docker_dump_bin (voir
+# plus bas) : borgmatic 2.1 lui impose un --result-file de l'hôte.
 borgmatic_app_mysql_databases: []
 # Globs (chemins absolus sur l'hôte) des bases SQLite de l'application,
 # résolus au déploiement. Chaque fichier trouvé qui est bien une base SQLite
-# est dumpé par le sqlite3 de l'hôte (« .dump » lit dans une seule
-# transaction : un instantané cohérent, même application démarrée), et sa
-# copie vivante (base, -wal, -shm, -journal) est exclue de l'archive. Une
-# base supprimée après coup (son dossier avec elle) fait échouer le backup
-# jusqu'au déploiement suivant, qui la retire de la configuration.
+# est copié, avant borg, par l'API de sauvegarde en ligne de SQLite
+# (sqlite3 « .backup ») dans borgmatic_sqlite_staging_dir/<application>/,
+# que borg archive ; la copie vivante (base, -wal, -shm, -journal) est
+# exclue. Pas le hook sqlite_databases de borgmatic : son « .dump » en flux
+# garde un verrou de lecture tant que borg n'a pas fini de lire le tube,
+# soit tout l'envoi vers la Storage Box, et une base en mode journal (pas
+# WAL) ne peut plus écrire pendant ce temps (Pangolin entier figé le
+# 07/10/2026). « .backup » ne tient le verrou que le temps de la copie
+# locale. Une base supprimée après coup (son dossier avec elle) fait
+# échouer le backup jusqu'au déploiement suivant, qui la retire.
 borgmatic_app_sqlite_databases: []
 # Commandes en plus des messages de début et de fin (hooks before/after
 # action, create seulement).
@@ -99,3 +105,14 @@ borgmatic_app_before_commands: []
 borgmatic_app_after_commands: []
 # Options borgmatic de premier niveau en plus (ex. match_archives).
 borgmatic_app_extra_options: {}
+
+# Copies cohérentes des bases SQLite, une sous-arborescence par application
+# (root, 0700), archivées puis vidées après chaque sauvegarde réussie.
+# Restauration, application arrêtée : extraire la copie de l'archive
+# (borgmatic extract --archive <archive> --path <dossier>/<application>),
+# la remettre à la place de la base, puis lui rendre son propriétaire
+# (stat -c %u:%g sur l'ancienne avant, chown après).
+borgmatic_sqlite_staging_dir: /var/lib/borgmatic-sqlite
+
+# Enrobage du client de dump MySQL/MariaDB (files/borgmatic-docker-dump).
+borgmatic_docker_dump_bin: /usr/local/bin/borgmatic-docker-dump
