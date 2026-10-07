@@ -1,0 +1,51 @@
+#!/bin/bash
+# Lance le client de dump MySQL/MariaDB dans le conteneur de la base, pour le
+# compte de borgmatic (mysql_dump_command, cf. templates/app.yaml.j2).
+#
+#   borgmatic-docker-dump <conteneur> <client> [arguments de borgmatic...]
+#
+# Depuis la 2.1, borgmatic ne lit plus la sortie standard du client : il lui
+# passe « --result-file <tube nommé de l'hôte> ». Or le client tourne dans le
+# conteneur (docker exec), où ce chemin n'existe pas : le dump échouait sur
+# « Can't create/write to file ». Ce script retire --result-file des
+# arguments, lance le client dans le conteneur et écrit sa sortie dans ce
+# tube, côté hôte.
+#
+# Le mot de passe arrive dans l'environnement (password_transport:
+# environment) : « --env MYSQL_PWD » sans valeur le transmet au conteneur,
+# docker exec n'héritant pas de l'environnement de l'hôte.
+set -euo pipefail
+
+if (($# < 2)); then
+    echo "usage: $0 <conteneur> <client> [arguments...]" >&2
+    exit 2
+fi
+
+container=$1
+client=$2
+shift 2
+
+args=()
+result_file=
+while (($#)); do
+    case $1 in
+        --result-file)
+            result_file=$2
+            shift 2
+            ;;
+        --result-file=*)
+            result_file=${1#--result-file=}
+            shift
+            ;;
+        *)
+            args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ -n $result_file ]]; then
+    docker exec --env MYSQL_PWD "$container" "$client" "${args[@]}" > "$result_file"
+else
+    exec docker exec --env MYSQL_PWD "$container" "$client" "${args[@]}"
+fi

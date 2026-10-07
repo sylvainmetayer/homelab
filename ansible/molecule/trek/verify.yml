@@ -34,13 +34,24 @@
       register: trek_borgmatic_raw
 
     # prepare.yml a posé travel.db (vraie base) et notes.db (leurre) : seule
-    # la base est dumpée, et sa copie vivante n'entre pas dans l'archive.
-    - name: Assert the trek SQLite database is dumped, not copied live
+    # la base est copiée par « .backup » dans le dossier de staging archivé,
+    # et sa copie vivante n'entre pas dans l'archive. Pas de sqlite_databases :
+    # son « .dump » en flux bloquait les écritures de l'application tout le
+    # temps de l'envoi.
+    - name: Assert the trek SQLite database is copied by .backup, not dumped or copied live
       vars:
         trek_borgmatic: "{{ trek_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - trek_borgmatic.sqlite_databases | map(attribute='path') | list == ['/opt/apps/trek/data/travel.db']
+          - trek_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/trek' in trek_borgmatic.source_directories"
+          - >-
+            trek_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/trek/data/travel\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/trek/opt_apps_trek_data_travel\\.db')
+            | list | length == 1
+          - trek_borgmatic.commands[0].run | select('search', 'notes\\.db') | list | length == 0
+          - trek_borgmatic.commands[1].run | select('search', '^find /var/lib/borgmatic-sqlite/trek -mindepth 1 -delete$') | list | length == 1
           - "'/opt/apps/trek/data/travel.db' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data/travel.db-wal' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data' in trek_borgmatic.source_directories"

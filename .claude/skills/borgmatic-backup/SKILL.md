@@ -72,13 +72,20 @@ In the app role's `tasks/main.yml`, after the compose/env templating:
 
 - **Databases:** PostgreSQL/MySQL are dumped by the client *inside* the DB
   container (`docker exec`), so client and server versions always match.
+  MySQL/MariaDB go through `/usr/local/bin/borgmatic-docker-dump`: borgmatic
+  2.1 passes the client a `--result-file` on the host, which does not exist
+  in the container; the wrapper strips it and writes the client's output there.
   SQLite files matched by the globs (and checked to really be SQLite) are
-  dumped by the host's `sqlite3` (`.dump` reads in one transaction:
-  consistent while the app runs), and their live copy (`-wal`, `-shm`,
-  `-journal` too) is excluded. A database created after the deploy is picked
-  up on the next run of the role, a deleted one fails the backup until then.
-  `borgmatic restore` recreates a SQLite file as root: stop the app first and
-  `chown` the file back to its previous owner afterwards.
+  copied by a `before` hook with the host's `sqlite3 ".backup"` (online backup
+  API: consistent while the app runs, lock held only for the local copy) into
+  `/var/lib/borgmatic-sqlite/<app>/`, which borg archives; their live copy
+  (`-wal`, `-shm`, `-journal` too) is excluded. Never borgmatic's
+  `sqlite_databases`: its streamed `.dump` keeps a read lock until borg has
+  sent the whole archive, and an app in rollback-journal mode cannot write
+  meanwhile (Pangolin froze entirely on 2026-10-07). A database created after
+  the deploy is picked up on the next run of the role, a deleted one fails the
+  backup until then. To restore, stop the app, `borgmatic extract` the copy,
+  put it back in place and `chown` it to the previous owner.
 - Other knobs (`borgmatic_app_archive_prefix`, `borgmatic_app_label`,
   `borgmatic_app_before_commands` / `_after_commands`,
   `borgmatic_app_extra_options`): see the borgmatic role defaults.
@@ -126,7 +133,7 @@ pattern).
 The scenario's `verify.yml` reads `/etc/borgmatic.d/<service>.yaml`; the
 shared `verify_app.yml` validates it with the real borgmatic pinned in
 `ansible/molecule/_shared/Dockerfile`. `ansible/molecule/trek/` shows how to
-seed a SQLite database in `prepare.yml` and assert it is dumped.
+seed a SQLite database in `prepare.yml` and assert it is copied by `.backup`.
 
 ## Verify
 

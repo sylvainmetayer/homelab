@@ -57,6 +57,49 @@
         - /usr/bin/mariadb-dump
         - /usr/bin/sqlite3
 
+    # borgmatic 2.1 passe --result-file au client MySQL/MariaDB ; l'enrobage
+    # le retire et écrit la sortie du client du conteneur dans ce fichier.
+    - name: Stat the MySQL/MariaDB dump wrapper and the SQLite staging directory
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: borgmatic_dump_helpers
+      loop:
+        - /usr/local/bin/borgmatic-docker-dump
+        - /var/lib/borgmatic-sqlite
+
+    - name: Assert the wrapper is executable and the staging directory private to root
+      ansible.builtin.assert:
+        that:
+          - borgmatic_dump_helpers.results[0].stat.exists
+          - borgmatic_dump_helpers.results[0].stat.executable
+          - borgmatic_dump_helpers.results[0].stat.mode == '0755'
+          - borgmatic_dump_helpers.results[1].stat.isdir
+          - borgmatic_dump_helpers.results[1].stat.mode == '0700'
+          - borgmatic_dump_helpers.results[1].stat.pw_name == 'root'
+
+    # Le --result-file est retiré des arguments transmis au conteneur, et la
+    # sortie du client arrive dans ce fichier, côté hôte.
+    - name: Run the dump wrapper against a stand-in docker
+      become: true
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          d=$(mktemp -d)
+          printf '#!/bin/sh\necho "$@"\n' > "$d/docker"
+          chmod 0700 "$d/docker"
+          PATH="$d:$PATH" /usr/local/bin/borgmatic-docker-dump db_container mariadb-dump --databases app --result-file "$d/out"
+          cat "$d/out"
+          rm -rf "$d"
+      register: borgmatic_wrapper_run
+      changed_when: false
+
+    - name: Assert the wrapper runs the client in the container and writes its output on the host
+      ansible.builtin.assert:
+        that:
+          - borgmatic_wrapper_run.stdout == 'exec --env MYSQL_PWD db_container mariadb-dump --databases app'
+        fail_msg: "Sortie de l'enrobage : {{ borgmatic_wrapper_run.stdout }}"
+
     # --- unités systemd ---
 
     - name: Read the state of the borgmatic timer
