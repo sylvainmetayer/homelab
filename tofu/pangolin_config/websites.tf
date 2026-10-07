@@ -25,8 +25,10 @@
 #
 #   sso          default true. false only for Betisier, pinned by the
 #                `every_public_resource_applies_its_rules` test.
-#   enabled      default local.resource_pins.enabled. false also deactivates
-#                the two monitors: a disabled resource has nothing to watch.
+#   enabled      default local.resource_pins.enabled. false also pauses the
+#                healthcheck monitor: a disabled resource has nothing to
+#                watch. The backup monitor stays active - the backup job does
+#                not stop with the resource (Gramps).
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and nextcloud have no SSO, NAS
 #                and Proxmox are reached by the admin only).
@@ -233,7 +235,7 @@ resource "uptimekuma_monitor_push" "backup" {
   interval = 60 * 60 * 24
 
   retry_interval = 20
-  active         = pangolin_resource.website[each.key].enabled
+  active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
