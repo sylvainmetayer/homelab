@@ -70,26 +70,6 @@ resource "uptimekuma_monitor_http" "alias_gandi" {
   tags                       = [local.tofu_tag]
 }
 
-# Same name as the Cloudflare one below - they are two deployments of the same
-# site, told apart by their folder.
-resource "uptimekuma_monitor_http" "agent_ready_netlify" {
-  name   = "Agent Ready"
-  parent = uptimekuma_monitor_group.netlify.id
-  url    = "https://agent-ready.netlify.app/"
-
-  interval        = 60
-  timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
-  active          = true
-  method          = "GET"
-
-  domain_expiry_notification = true
-  expiry_notification        = true
-  tags                       = [local.tofu_tag]
-}
-
 # r.sylvain.dev, the 1y short-URL site: moved from Netlify to Cloudflare Pages
 # (tofu/1y), so filed under the Cloudflare folder.
 resource "uptimekuma_monitor_http" "redirect" {
