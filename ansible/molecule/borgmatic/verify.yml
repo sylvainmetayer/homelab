@@ -68,12 +68,12 @@
         - /usr/local/bin/borgmatic-docker-dump
         - /var/lib/borgmatic-sqlite
 
-    - name: Assert the wrapper is executable and the staging directory private to root
+    - name: Assert the wrapper and the staging directory are private to root
       ansible.builtin.assert:
         that:
           - borgmatic_dump_helpers.results[0].stat.exists
           - borgmatic_dump_helpers.results[0].stat.executable
-          - borgmatic_dump_helpers.results[0].stat.mode == '0755'
+          - borgmatic_dump_helpers.results[0].stat.mode == '0700'
           - borgmatic_dump_helpers.results[1].stat.isdir
           - borgmatic_dump_helpers.results[1].stat.mode == '0700'
           - borgmatic_dump_helpers.results[1].stat.pw_name == 'root'
@@ -85,7 +85,9 @@
       ansible.builtin.shell:
         cmd: |
           set -eu
-          d=$(mktemp -d)
+          # Pas sous /tmp, monté noexec dans le conteneur de test : le shell
+          # y ignorerait le faux docker et lancerait le vrai.
+          d=$(mktemp -d -p /root)
           printf '#!/bin/sh\necho "$@"\n' > "$d/docker"
           chmod 0700 "$d/docker"
           PATH="$d:$PATH" /usr/local/bin/borgmatic-docker-dump db_container mariadb-dump --databases app --result-file "$d/out"
