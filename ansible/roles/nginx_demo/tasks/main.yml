@@ -73,7 +73,7 @@
     dest: "{{ nginx_demo_base_path }}/compose.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0640"
+    mode: "0600"
 
 - name: Template environment configuration
   notify: Restart nginx_demo
@@ -101,35 +101,45 @@
       [Service]
       ExecStartPre={{ nas_storage_wait_command }} {{ nginx_demo_nas_wait_timeout }}
 
-# Borgmatic backup configuration
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Nginx Demo
   when: nginx_demo_backup_enabled
   tags: backup
-  block:
-    - name: Create borgmatic configuration for Nginx Demo
-      become: true
-      ansible.builtin.template:
-        src: "templates/borgmatic-nginx_demo.yaml.j2"
-        dest: "{{ borgmatic_config_dir }}/nginx_demo.yaml"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-
-    - name: Initialize borg repository for Nginx Demo
-      become: true
-      ansible.builtin.command:
-        cmd: >-
-          /root/.local/bin/borgmatic --verbosity 1
-          --config {{ borgmatic_config_dir }}/nginx_demo.yaml
-          repo-create --encryption {{ borgmatic_encryption_mode | default('repokey-blake2') }}
-      register: nginx_demo_borg_repo_create
-      # borgmatic 2.x ne recrée pas un dépôt existant : il annonce « Repository
-      # already exists. Skipping creation. » au niveau INFO (d'où --verbosity 1)
-      # et sort en 0 ; borg 1.x, lui, échoue sur « A repository already exists ».
-      changed_when: "'already exists' not in ((nginx_demo_borg_repo_create.stdout ~ nginx_demo_borg_repo_create.stderr) | lower)"
-      failed_when: >
-        nginx_demo_borg_repo_create.rc != 0 and
-        'already exists' not in (nginx_demo_borg_repo_create.stderr | lower)
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: nginx_demo
+    borgmatic_app_title: Nginx Demo
+    borgmatic_app_target: "{{ nginx_demo_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ nginx_demo_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ nginx_demo_backup_healthcheck_url }}"
+    # Sur le NAS (root non squashé pour l'IP de la VM : borg lit tout). Le
+    # data directory Postgres n'y est volontairement pas : copié à chaud, il
+    # n'est pas cohérent, le dump ci-dessous l'est.
+    borgmatic_app_source_directories:
+      - "{{ nginx_demo_data_path }}/html"
+      - "{{ nginx_demo_base_path }}/compose.yaml"
+      - "{{ nginx_demo_base_path }}/.env"
+    borgmatic_app_postgresql_databases:
+      - container: nginx-demo-db
+        name: "{{ nginx_demo_db_name }}"
+        username: "{{ nginx_demo_db_user }}"
+        password: "{{ nginx_demo_db_password }}"
+    # Sur un NAS tombé, le montage `hard` bloquerait ce backup indéfiniment,
+    # et avec lui ceux des applis suivantes (un seul borgmatic.service pour
+    # toutes les configs). L'attente bornée, avant que borg ne lise le NAS,
+    # fait échouer cette config seule (fail poussé vers Uptime Kuma) et
+    # borgmatic passe à la suivante. Reste non couvert : un NAS qui tombe en
+    # plein backup.
+    borgmatic_app_before_commands:
+      - "{{ nas_storage_wait_command }} 30"
+    # Un export non monté fait échouer le backup au lieu de produire une
+    # archive vide qui aurait l'air saine.
+    borgmatic_app_extra_options:
+      source_directories_must_exist: true
 
 - name: Make sure nginx_demo service is running
   ansible.builtin.systemd:

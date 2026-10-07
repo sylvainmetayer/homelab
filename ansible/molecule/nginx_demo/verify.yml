@@ -14,6 +14,15 @@
         verify_app_service: nginx_demo
         verify_app_borgmatic_config: /etc/borgmatic.d/nginx_demo.yaml
 
+    - name: Verify the supporting services of nginx_demo
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: nginx_demo
+        verify_compose_databases:
+          - nginx-demo-db
+        verify_compose_internal_networks:
+          - nginx-demo
+
     - name: Stat the nginx_demo data on the NAS
       become: true
       ansible.builtin.stat:
@@ -73,16 +82,16 @@
           # Le mot de passe vient du fichier tiré sur le NAS, pas d'un secret partagé.
           - nginx_demo_password | length == 48
           - "('NGINX_DEMO_DB_PASSWORD=' ~ nginx_demo_password) in nginx_demo_env"
-          - "('password: ' ~ nginx_demo_password) in nginx_demo_borgmatic"
+          - "('password: ' ~ (nginx_demo_password | to_json)) in nginx_demo_borgmatic"
           # Les deux conteneurs dans la slice ordonnée après le montage du NAS.
           - "nginx_demo_compose.count('cgroup_parent: nas-storage.slice') == 2"
           - "'/mnt/nas/apps/nginx_demo/postgresql:/var/lib/postgresql' in nginx_demo_compose"
           # Un NAS absent fait échouer ce backup au lieu de bloquer les autres.
           - "'/usr/local/bin/nas-storage-wait 30' in nginx_demo_borgmatic"
           - "'source_directories_must_exist: true' in nginx_demo_borgmatic"
-          - "'- /mnt/nas/apps/nginx_demo/html' in nginx_demo_borgmatic"
+          - "'- \"/mnt/nas/apps/nginx_demo/html\"' in nginx_demo_borgmatic"
           # Le data directory passe par pg_dump, jamais par copie de fichiers.
-          - "'- /mnt/nas/apps/nginx_demo/postgresql' not in nginx_demo_borgmatic"
+          - "'/mnt/nas/apps/nginx_demo/postgresql' not in nginx_demo_borgmatic"
 
     - name: Read the dc@nginx_demo drop-in
       ansible.builtin.slurp:

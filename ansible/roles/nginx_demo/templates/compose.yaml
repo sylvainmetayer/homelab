@@ -9,6 +9,9 @@ services:
     restart: always
     # Arrêté avant le démontage du NAS : voir rôle nas_storage.
     cgroup_parent: {{ nas_storage_slice }}
+    # dc@ s'arrête par `docker compose stop`, dont les 10 s par défaut
+    # finissent en SIGKILL : le checkpoint final, sur NFS, a besoin de plus.
+    stop_grace_period: 60s
     # Pas encore mesurée : shared_buffers vaut 128 Mio par défaut, le reste
     # sert au cache de pages. À recaler sur memory.peak (≈ 2×).
     mem_limit: 512m
@@ -46,6 +49,8 @@ services:
       - newt
 
 networks:
+  # Base seule dessus : pas de route vers Internet.
   nginx-demo:
+    internal: true
   newt:
     external: true # Réseau créé par le rôle newt

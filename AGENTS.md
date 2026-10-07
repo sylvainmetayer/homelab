@@ -185,11 +185,13 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
   up before the NAS, and without the wait `dc@<service>` hits
   `StartLimitBurst` and stays failed. Keep the timeout under dc@'s
   `TimeoutStartSec` (300 s), pull included.
-- Borgmatic: NAS file dirs in `source_directories`, the DB data dir **not**
-  (dump via `postgresql_databases` + `pg_dump_command: docker exec …`),
-  `source_directories_must_exist: true`, and a `before: configuration` hook
-  running `{{ nas_storage_wait_command }} 30`: without it a dead NAS blocks
-  the single `borgmatic.service`, hence every app's backup.
+- Borgmatic (`borgmatic` role, `tasks_from: app.yml`): NAS file dirs in
+  `borgmatic_app_source_directories`, the DB data dir **not** (dumped through
+  `borgmatic_app_postgresql_databases`),
+  `borgmatic_app_extra_options: {source_directories_must_exist: true}`, and
+  `borgmatic_app_before_commands: ["{{ nas_storage_wait_command }} 30"]`
+  (runs before borg reads the NAS): without it a dead NAS blocks the single
+  `borgmatic.service`, hence every app's backup.
 - DB passwords that Postgres only reads at initdb are drawn once and stored
   next to the cluster on the NAS (`nginx_demo_db_password_path`), not derived
   from `backup_passphrase`.
