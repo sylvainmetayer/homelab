@@ -43,6 +43,58 @@
           - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
         fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
 
+    # Configuration posée à côté de config.php : mots de passe d'application
+    # seulement, IP réelle des clients derrière newt, liens en https.
+    - name: Stat the homelab Nextcloud configuration
+      ansible.builtin.stat:
+        path: /opt/apps/nextcloud/config/www/nextcloud/config/homelab.config.php
+      register: nextcloud_homelab_config_stat
+
+    - name: Assert the homelab Nextcloud configuration is readable by the container only
+      ansible.builtin.assert:
+        that:
+          - nextcloud_homelab_config_stat.stat.exists
+          - nextcloud_homelab_config_stat.stat.mode == '0640'
+          - nextcloud_homelab_config_stat.stat.pw_name == ansible_facts['user_id']
+        fail_msg: "homelab.config.php absent, ou pas 0640 à {{ ansible_facts['user_id'] }}"
+
+    - name: Read the homelab Nextcloud configuration
+      ansible.builtin.slurp:
+        src: /opt/apps/nextcloud/config/www/nextcloud/config/homelab.config.php
+      register: nextcloud_homelab_config_raw
+
+    - name: Read the newt network definition
+      ansible.builtin.command: docker network inspect newt
+      register: nextcloud_newt_network
+      changed_when: false
+
+    # Nextcloud refuse un fichier dont quelque chose précède `<?php`
+    # (« Config file has leading content »).
+    - name: Assert the homelab Nextcloud configuration sets the hardening keys
+      vars:
+        nextcloud_homelab_config: "{{ nextcloud_homelab_config_raw.content | b64decode }}"
+        nextcloud_newt_subnet: "{{ (nextcloud_newt_network.stdout | from_json)[0].IPAM.Config[0].Subnet }}"
+      ansible.builtin.assert:
+        that:
+          - nextcloud_homelab_config is match('<\?php\n')
+          - "\"'token_auth_enforced' => true,\" in nextcloud_homelab_config"
+          - "\"0 => '\" ~ nextcloud_newt_subnet ~ \"',\" in nextcloud_homelab_config"
+          - "\"0 => 'HTTP_X_FORWARDED_FOR',\" in nextcloud_homelab_config"
+          - "\"'overwriteprotocol' => 'https',\" in nextcloud_homelab_config"
+        fail_msg: "homelab.config.php inattendu (sous-réseau newt : {{ nextcloud_newt_subnet }}) : {{ nextcloud_homelab_config }}"
+
+    # Le stand-in de config.php du prepare n'est pas réécrit par le rôle.
+    - name: Read the stand-in config.php
+      ansible.builtin.slurp:
+        src: /opt/apps/nextcloud/config/www/nextcloud/config/config.php
+      register: nextcloud_main_config_raw
+
+    - name: Assert the role leaves config.php to Nextcloud
+      ansible.builtin.assert:
+        that:
+          - "'token_auth_enforced' not in (nextcloud_main_config_raw.content | b64decode)"
+        fail_msg: "Le rôle ne doit pas écrire dans config.php, que Nextcloud réécrit."
+
     - name: Stat the nextcloud borgmatic configuration
       become: true
       ansible.builtin.stat:

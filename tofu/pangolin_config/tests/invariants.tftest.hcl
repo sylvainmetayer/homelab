@@ -193,7 +193,7 @@ override_data {
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 75, "niceId": "nas", "name": "NAS", "fullDomain": "nas.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
+        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 4, "niceId": "proxmox", "name": "Proxmox", "fullDomain": "proxmox.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
@@ -1101,6 +1101,50 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Monica CRM /dav/*",
       "Monica CRM /.well-known/carddav",
       "Monica CRM /.well-known/caldav",
+      "nextcloud /status.php",
+      "nextcloud /index.php/204",
+      "nextcloud /remote.php/*",
+      "nextcloud /ocs/v1.php/*",
+      "nextcloud /ocs/v2.php/*",
+      "nextcloud /index.php/login/v2",
+      "nextcloud /login/v2/poll",
+      "nextcloud /index.php/login/v2/poll",
+      "nextcloud /index.php/core/wipe/*",
+      "nextcloud /index.php/core/preview",
+      "nextcloud /index.php/core/preview.png",
+      "nextcloud /index.php/apps/files_trashbin/preview",
+      "nextcloud /index.php/apps/files_versions/preview",
+      "nextcloud /index.php/apps/files/api/v1/thumbnail/*",
+      "nextcloud /.well-known/caldav",
+      "nextcloud /.well-known/carddav",
+      "nextcloud /s/*",
+      "nextcloud /index.php/s/*",
+      "nextcloud /public.php/*",
+      "nextcloud /apps/files_sharing/*",
+      "nextcloud /index.php/apps/files_sharing/*",
+      "nextcloud /apps/theming/*",
+      "nextcloud /index.php/apps/theming/*",
+      "nextcloud /dist/*",
+      "nextcloud /core/css/*",
+      "nextcloud /core/fonts/*",
+      "nextcloud /core/img/*",
+      "nextcloud /core/js/*",
+      "nextcloud /core/l10n/*",
+      "nextcloud /core/vendor/*",
+      "nextcloud /apps/*/js/*",
+      "nextcloud /apps/*/css/*",
+      "nextcloud /apps/*/img/*",
+      "nextcloud /apps/*/l10n/*",
+      "nextcloud /custom_apps/*/js/*",
+      "nextcloud /custom_apps/*/css/*",
+      "nextcloud /custom_apps/*/img/*",
+      "nextcloud /custom_apps/*/l10n/*",
+      "nextcloud /apps/files_pdfviewer/*",
+      "nextcloud /index.php/apps/files_pdfviewer/*",
+      "nextcloud /csrftoken",
+      "nextcloud /index.php/csrftoken",
+      "nextcloud /index.php/apps/files/preview-service-worker.js",
+      "nextcloud /apps/text/public/*",
       "Paperless-ngx /share/*",
       "RSS /api/greader.php/*",
       "RSS /api/fever.php",
@@ -1138,6 +1182,25 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
     ])
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
   }
+
+  # Nextcloud : les clients n'ont que la moitié « client » du login flow v2
+  # (démarrage et poll) ; la moitié navigateur (flow, grant, apptoken), le
+  # formulaire de connexion et les pages de réglages restent derrière le SSO,
+  # comme le front controller, l'ensemble de /apps et /core/ajax (l'updater
+  # web, sans login pendant une mise à jour en attente). Ce run ne dit rien de
+  # ce que porte OCS, ouvert en entier pour les clients : avec un mot de passe
+  # d'application administrateur, l'API de provisioning y répond aussi.
+  assert {
+    condition = alltrue([
+      for key, rule in pangolin_resource_rule.path_bypass :
+      !startswith(key, "nextcloud ") || (
+        !contains(["/index.php/*", "/apps/*", "/index.php/apps/*", "/core/*", "/index.php/core/*", "/custom_apps/*", "/login", "/index.php/login", "/login/*", "/index.php/login/*", "/login/v2/*", "/index.php/login/v2/*"], rule.value)
+        && length(regexall("/ajax(/|$)", rule.value)) == 0
+        && length(regexall("/(flow|grant|apptoken|settings)(/|$)", rule.value)) == 0
+      )
+    ])
+    error_message = "Nextcloud : le login web, la moitié navigateur du login flow v2 et les réglages doivent rester derrière le SSO."
+  }
 }
 
 # Pangolin ne normalise pas l'antislash, que Node transforme en `/` : chaque
@@ -1149,7 +1212,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "RSS", "TREK",
+      "Karakeep", "Meerkat CRM", "Monica CRM", "nextcloud", "Paperless-ngx", "RSS", "TREK",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1330,7 +1393,9 @@ run "path_bypasses_follow_their_image" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier et nextcloud se passent du SSO.
+# applique donc les siennes, et seule Betisier se passe du SSO. Nextcloud l'a
+# rejoint : ses clients et ses liens de partage passent par des chemins ouverts
+# (website_nextcloud.tf), plus par une ressource entière sans SSO.
 run "every_public_resource_applies_its_rules" {
   command = plan
 
@@ -1362,8 +1427,8 @@ run "every_public_resource_applies_its_rules" {
         pangolin_resource.scanopy, pangolin_resource.searxng, pangolin_resource.trek,
         pangolin_resource.wiki,
       ] : r.name if r.sso == false
-    ]) == toset(["Betisier", "nextcloud"])
-    error_message = "Les ressources sans SSO doivent être exactement Betisier et nextcloud."
+    ]) == toset(["Betisier"])
+    error_message = "La seule ressource sans SSO doit être Betisier."
   }
 
   # Les deux listes ci-dessus ne voient pas une ressource ajoutée plus tard :
@@ -1615,12 +1680,11 @@ run "one_role_per_app_slug" {
   }
 
   # Un rôle qu'aucun pangolin_resource_role ne lie n'ouvre rien et encombre la
-  # liste des rôles (betisier et meerkat l'ont fait). Seul nextcloud attend
-  # encore sa liaison, pour son passage derrière le SSO.
+  # liste des rôles (betisier et meerkat l'ont fait).
   assert {
     condition = alltrue([
       for slug in keys(pangolin_role.apps) :
-      slug == "nextcloud" || anytrue([
+      anytrue([
         for f in fileset(path.module, "website_*.tf") :
         length(regexall("role_id\\s*=\\s*pangolin_role\\.apps\\[\"${slug}\"\\]", file("${path.module}/${f}"))) > 0
       ])
@@ -1686,6 +1750,8 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.rss.id
       && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.monica.id
       && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.meerkat_crm.id
+      && pangolin_resource_rule.path_bypass["nextcloud /remote.php/*"].resource_id == pangolin_resource.nextcloud.id
+      && pangolin_resource_rule.backslash_guard["nextcloud"].resource_id == pangolin_resource.nextcloud.id
       && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.trek.id
       && alltrue([
         for rule in pangolin_resource_rule.trek_mcp_oauth :

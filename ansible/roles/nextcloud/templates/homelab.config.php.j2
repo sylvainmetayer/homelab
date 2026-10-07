@@ -1,0 +1,27 @@
+<?php
+// {{ ansible_managed }}
+//
+// Fusionné par Nextcloud par-dessus config.php, à chaque requête
+// (lib/private/Config.php : glob de *.config.php). Ces valeurs l'emportent sur
+// config.php. Nextcloud recopie la configuration fusionnée dans config.php
+// quand il le réécrit (occ config:system:set, mise à jour) : retirer une clé
+// d'ici ne la retire donc pas de config.php, il faut aussi
+// `occ config:system:delete <clé>`.
+$CONFIG = array (
+  // WebDAV, CalDAV/CardDAV et OCS : mots de passe d'application seulement.
+  // Voir nextcloud_token_auth_enforced (defaults/main.yml).
+  'token_auth_enforced' => {{ nextcloud_token_auth_enforced | bool | ternary('true', 'false') }},
+
+  // IP réelle des clients derrière Traefik puis Newt. Voir tasks/main.yml.
+  'trusted_proxies' => array (
+{% for proxy in nextcloud_trusted_proxies %}
+    {{ loop.index0 }} => '{{ proxy }}',
+{% endfor %}
+  ),
+  'forwarded_for_headers' => array (
+    0 => 'HTTP_X_FORWARDED_FOR',
+  ),
+
+  // Traefik termine le TLS ; nginx ne voit que du HTTP sur le port 80.
+  'overwriteprotocol' => 'https',
+);
