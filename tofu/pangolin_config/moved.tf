@@ -126,3 +126,96 @@ moved {
   from = pangolin_resource_rule.karakeep_backslash
   to   = pangolin_resource_rule.backslash_guard["Karakeep"]
 }
+
+# ---------------------------------------------------------------------------
+# The standalone path ACCEPTs joined local.path_bypasses (rules.tf): the
+# planning `/mcp/*` and KC `/auth/*` rules, Karakeep's public lists and TREK's
+# OAuth surface. Same resource, same path, same priority, so each rule is only
+# re-addressed; without these blocks all seventeen would be destroyed and
+# recreated, leaving each path closed between the two.
+# ---------------------------------------------------------------------------
+
+moved {
+  from = pangolin_resource_rule.flip_planning_mcp
+  to   = pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.demo_planning_mcp
+  to   = pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.demo_planning_kc_keycloak
+  to   = pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.karakeep_public["/public/lists/*"]
+  to   = pangolin_resource_rule.path_bypass["Karakeep /public/lists/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.karakeep_public["/_next/static/*"]
+  to   = pangolin_resource_rule.path_bypass["Karakeep /_next/static/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.karakeep_public["/api/public/*"]
+  to   = pangolin_resource_rule.path_bypass["Karakeep /api/public/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.karakeep_public["/api/trpc/publicBookmarks.getPublicBookmarksInList"]
+  to   = pangolin_resource_rule.path_bypass["Karakeep /api/trpc/publicBookmarks.getPublicBookmarksInList"]
+}
+
+moved {
+  from = pangolin_resource_rule.karakeep_public["/api/v1/rss/lists/*"]
+  to   = pangolin_resource_rule.path_bypass["Karakeep /api/v1/rss/lists/*"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/.well-known/oauth-protected-resource/mcp"]
+  to   = pangolin_resource_rule.path_bypass["TREK /.well-known/oauth-protected-resource/mcp"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/.well-known/oauth-protected-resource"]
+  to   = pangolin_resource_rule.path_bypass["TREK /.well-known/oauth-protected-resource"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/.well-known/oauth-authorization-server"]
+  to   = pangolin_resource_rule.path_bypass["TREK /.well-known/oauth-authorization-server"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/.well-known/oauth-authorization-server/mcp"]
+  to   = pangolin_resource_rule.path_bypass["TREK /.well-known/oauth-authorization-server/mcp"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/.well-known/openid-configuration"]
+  to   = pangolin_resource_rule.path_bypass["TREK /.well-known/openid-configuration"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/mcp/.well-known/oauth-protected-resource"]
+  to   = pangolin_resource_rule.path_bypass["TREK /mcp/.well-known/oauth-protected-resource"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/mcp/.well-known/oauth-authorization-server"]
+  to   = pangolin_resource_rule.path_bypass["TREK /mcp/.well-known/oauth-authorization-server"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/mcp/.well-known/openid-configuration"]
+  to   = pangolin_resource_rule.path_bypass["TREK /mcp/.well-known/openid-configuration"]
+}
+
+moved {
+  from = pangolin_resource_rule.trek_mcp_oauth["/oauth/token"]
+  to   = pangolin_resource_rule.path_bypass["TREK /oauth/token"]
+}

@@ -66,47 +66,38 @@ resource "pangolin_resource_rule" "trek_home_ip" {
 #    TREK then demands its own OAuth bearer on top. Without a token the
 #    request never reaches TREK.
 #
-# 2. OAuth's public surface, ACCEPT: what an assistant's server calls without
-#    any session and without the token, since it builds those URLs from the
-#    discovery documents, not from the connector URL. The discovery documents
-#    (static JSON: issuer, endpoints, scopes) and the token endpoint (PKCE code
-#    or refresh token, plus client secret, rate-limited by TREK).
+# 2. OAuth's public surface, ACCEPT, through local.path_bypasses (rules.tf):
+#    what an assistant's server calls without any session and without the
+#    token, since it builds those URLs from the discovery documents, not from
+#    the connector URL. The discovery documents (static JSON: issuer,
+#    endpoints, scopes) and the token endpoint (PKCE code or refresh token,
+#    plus client secret, rate-limited by TREK).
 #
 # Deliberately not opened: /oauth/authorize and /oauth/consent (the user's own
 # browser, which has the SSO session), /oauth/register (dynamic client
 # registration: create the client beforehand in TREK, Claude.ai preset, and
 # give its id and secret to the connector), /oauth/revoke and /oauth/userinfo.
+#
+# Exact paths, pairwise disjoint and disjoint from `/mcp`: their order does not
+# matter, hence one shared priority.
 locals {
-  trek_mcp_public_paths = [
+  trek_mcp_public_paths = {
     # Discovery. The first is the one TREK's 401 points to
     # (WWW-Authenticate resource_metadata); the others are where other clients
     # look first - flat RFC 9728, RFC 8414 with and without the resource path,
     # OIDC, and the same three under the server address.
-    "/.well-known/oauth-protected-resource/mcp",
-    "/.well-known/oauth-protected-resource",
-    "/.well-known/oauth-authorization-server",
-    "/.well-known/oauth-authorization-server/mcp",
-    "/.well-known/openid-configuration",
-    "/mcp/.well-known/oauth-protected-resource",
-    "/mcp/.well-known/oauth-authorization-server",
-    "/mcp/.well-known/openid-configuration",
+    "/.well-known/oauth-protected-resource/mcp"   = 2
+    "/.well-known/oauth-protected-resource"       = 2
+    "/.well-known/oauth-authorization-server"     = 2
+    "/.well-known/oauth-authorization-server/mcp" = 2
+    "/.well-known/openid-configuration"           = 2
+    "/mcp/.well-known/oauth-protected-resource"   = 2
+    "/mcp/.well-known/oauth-authorization-server" = 2
+    "/mcp/.well-known/openid-configuration"       = 2
 
     # Code exchange and refresh, server to server.
-    "/oauth/token",
-  ]
-}
-
-# Exact paths, pairwise disjoint and disjoint from `/mcp`: their order does not
-# matter, hence one shared priority.
-resource "pangolin_resource_rule" "trek_mcp_oauth" {
-  for_each = toset(local.trek_mcp_public_paths)
-
-  resource_id = pangolin_resource.trek.id
-  action      = "ACCEPT"
-  match       = "PATH"
-  value       = each.key
-  priority    = 2
-  enabled     = true
+    "/oauth/token" = 2
+  }
 }
 
 # Matches `/mcp` and `/mcp/` (Pangolin drops empty segments), nothing under it.

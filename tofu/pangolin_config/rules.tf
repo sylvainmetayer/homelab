@@ -36,12 +36,10 @@ locals {
   #            a path rule below (pangolin_resource_rule.backslash_guard). Alone
   #            in its slot, so it is always evaluated before them.
   #    2 -  9  app-specific rules evaluated before the geo-filter:
-  #            - path ACCEPTs, the generic ones of local.path_bypasses
-  #              (pangolin_resource_rule.path_bypass) and the standalone ones
-  #              (flip_planning_mcp, demo_planning_mcp,
-  #              demo_planning_kc_keycloak, karakeep_public, trek_mcp_oauth);
-  #            - trek_mcp, a PASS: skips the country rules but keeps the
-  #              authentication;
+  #            - path ACCEPTs, every one of them from local.path_bypasses
+  #              (pangolin_resource_rule.path_bypass);
+  #            - trek_mcp, a PASS, the only standalone path rule: skips the
+  #              country rules but keeps the authentication;
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, dawarich_home_ip,
   #              trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
@@ -230,24 +228,31 @@ resource "pangolin_resource_rule" "block_country" {
 # ---------------------------------------------------------------------------
 # Path bypasses.
 #
-# What a public link of an app needs to reach without the SSO wall and from
-# any country: its page, its API calls, its static files. Each app documents
-# its own list next to its resource (website_<app>.tf, `local.<app>_*_paths`,
-# a map path => priority in the 2 - 9 band); this block only turns them into
-# rules. Every one of them is an ACCEPT: the app's own secret (share token,
-# signed URL, API password...) is what protects the content behind it, and the
-# app-side check is named next to each path.
+# What a public link, a client app or a hosted assistant needs to reach without
+# the SSO wall and from any country: its page, its API calls, its static files,
+# an MCP server, an OAuth or OIDC surface. Each app documents its own list next
+# to its resource (website_<app>.tf, `local.<app>_*_paths`, a map path =>
+# priority in the 2 - 9 band); this block only turns them into rules. Every one
+# of them is an ACCEPT: the app's own secret (share token, signed URL, API
+# password, MCP key, Keycloak login...) is what protects the content behind it,
+# and the app-side check is named next to each path. The only path rule that is
+# not an ACCEPT, TREK's `/mcp` PASS, stays a standalone resource
+# (website_trek.tf).
 #
 # The key is the resource's Pangolin name, as in local.managed_resources.
 # ---------------------------------------------------------------------------
 locals {
   path_bypasses = {
-    "Dawarich"      = local.dawarich_share_paths
-    "Meerkat CRM"   = local.meerkat_crm_dav_paths
-    "Monica CRM"    = local.monica_dav_paths
-    "Paperless-ngx" = local.paperless_share_paths
-    "RSS"           = local.rss_api_paths
-    "TREK"          = local.trek_share_paths
+    "Dawarich"         = local.dawarich_share_paths
+    "Demo Planning"    = local.demo_planning_mcp_paths
+    "Demo Planning KC" = local.demo_planning_kc_keycloak_paths
+    "Flip Planning"    = local.flip_planning_mcp_paths
+    "Karakeep"         = local.karakeep_public_paths
+    "Meerkat CRM"      = local.meerkat_crm_dav_paths
+    "Monica CRM"       = local.monica_dav_paths
+    "Paperless-ngx"    = local.paperless_share_paths
+    "RSS"              = local.rss_api_paths
+    "TREK"             = merge(local.trek_mcp_public_paths, local.trek_share_paths)
   }
 
   path_bypass_rules = merge([
@@ -260,14 +265,12 @@ locals {
     }
   ]...)
 
-  # Resources whose path rules live in standalone resources rather than in
-  # local.path_bypasses. Listed by hand for the same reason as
-  # local.declared_extra_rules below.
+  # Resources with a path rule that lives in a standalone resource rather than
+  # in local.path_bypasses: only TREK's `/mcp` PASS (pangolin_resource_rule.
+  # trek_mcp, website_trek.tf), the one path rule that is not an ACCEPT. Listed
+  # by hand for the same reason as local.declared_extra_rules below, so that
+  # the guard stays even if TREK's ACCEPTs go away.
   standalone_path_rule_resources = [
-    "Demo Planning",
-    "Demo Planning KC",
-    "Flip Planning",
-    "Karakeep",
     "TREK",
   ]
 
@@ -456,17 +459,12 @@ locals {
   declared_extra_rules = concat(
     [
       pangolin_resource_rule.dawarich_home_ip,
-      pangolin_resource_rule.demo_planning_kc_keycloak,
-      pangolin_resource_rule.demo_planning_mcp,
-      pangolin_resource_rule.flip_planning_mcp,
       pangolin_resource_rule.immich_home_ip,
       pangolin_resource_rule.trek_home_ip,
+      pangolin_resource_rule.trek_mcp,
     ],
     values(pangolin_resource_rule.backslash_guard),
     values(pangolin_resource_rule.path_bypass),
-    values(pangolin_resource_rule.karakeep_public),
-    [pangolin_resource_rule.trek_mcp],
-    values(pangolin_resource_rule.trek_mcp_oauth),
   )
 
   # Stringified so the ids compare cleanly against the JSON numbers below.
