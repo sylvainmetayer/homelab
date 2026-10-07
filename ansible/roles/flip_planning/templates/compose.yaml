@@ -196,7 +196,7 @@ services:
   pgadmin:
     mem_limit: 512m
     container_name: {{ flip_planning_container_prefix }}-pgadmin
-    image: dpage/pgadmin4:9@sha256:40fa840c5bb7c8463957f1255b01283732c2d8c9396a956d180f8e6c296753b3
+    image: dpage/pgadmin4:9@sha256:c332c5f6dfba995d9ebc4af261d93506d6876085d712eaaa3defc8dd1a3f26de
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: {{ flip_planning_pgadmin_email }}
