@@ -1,3 +1,15 @@
+# Gramps is stopped on purpose (gramps_enabled: false in
+# ansible/host_vars/docker/variables.yaml, data and role kept). This one local
+# says so for the whole file: Pangolin stops serving the resource rather than
+# showing the maintenance page to whoever still has the link, and the
+# healthcheck monitor, which could only be DOWN, is paused. The resource stays
+# in local.managed_resources: its country rules stay in place for the day it
+# comes back, and the coverage audit only looks at enabled resources anyway.
+# A test pins it to gramps_enabled; flip both together.
+locals {
+  gramps_enabled = false
+}
+
 # Resource, target and monitors: local.websites (websites.tf).
 locals {
   gramps_website = {
@@ -7,22 +19,10 @@ locals {
     role      = "gramps"
     backup    = true
 
-    # Overrides the pin: Gramps is stopped on purpose (gramps_enabled: false in
-    # ansible/host_vars/docker/variables.yaml, data and role kept), so Pangolin
-    # stops serving it rather than showing the maintenance page to whoever
-    # still has the link. Still in local.managed_resources: its country rules
-    # stay in place for the day it comes back, and the coverage audit only
-    # looks at enabled resources anyway. Flip back to true together with
-    # gramps_enabled.
-    #
-    # It also deactivates both monitors (websites.tf). The healthcheck could
-    # only be DOWN and mailing. The backup monitor is the only exception to
-    # "every backup monitor is active" in tests/invariants.tftest.hcl. Note
-    # that gramps_backup_enabled stays true in host_vars: borgmatic still
-    # archives the (frozen) data every night and its push to this inactive
-    # monitor is refused, which borgmatic only logs as a warning - a failing
-    # Gramps backup pages nobody until this is flipped back.
-    enabled = false
+    # Overrides the pin: see local.gramps_enabled above. Also pauses the
+    # healthcheck monitor (websites.tf), which could only be DOWN; the backup
+    # monitor stays active, the backup still running every night.
+    enabled = local.gramps_enabled
 
     target = {
       site_id = pangolin_site.proxmox_docker.id
