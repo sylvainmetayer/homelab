@@ -16,7 +16,7 @@
 | Donnée | Où | Comment | Sauvegarde borg |
 |---|---|---|---|
 | Fichiers (uploads, médias, données de l'appli) | NAS | NFSv4.1, export monté sur la VM (`/mnt/nas/apps`), bind mount dans le conteneur | copie des fichiers |
-| BDD serveur (Postgres, MariaDB) | NAS | même export, sous-dossier de l'appli | **dump logique** (`postgresql_databases` / `mysql_databases`), jamais la copie du data directory |
+| BDD serveur (Postgres, MariaDB) | NAS | même export, sous-dossier de l'appli | **dump logique** (`borgmatic_app_postgresql_databases` / `_mysql_databases`), jamais la copie du data directory |
 | BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `sqlite_databases` ou fichiers |
 | Caches (redis/valkey, vignettes régénérables) | disque local de la VM | | aucune |
 | `compose.yaml`, `.env` | disque local de la VM | régénérés par Ansible à chaque run | copie, comme aujourd'hui |
@@ -141,12 +141,15 @@ Référence : `ansible/roles/nginx_demo`.
    en 30 s, l'unité atteint `StartLimitBurst` et reste en échec jusqu'à un
    `reset-failed` manuel. Avec ~200 s par essai, elle réessaie jusqu'au
    retour du NAS (rester sous le `TimeoutStartSec` de 300 s de `dc@`).
-5. Borgmatic :
-   - les dossiers de fichiers du NAS dans `source_directories`, **sans** le
-     data directory de la base, qui passe par `postgresql_databases` /
-     `mysql_databases` avec `pg_dump_command: docker exec …` ;
-   - `source_directories_must_exist: true` ;
-   - un hook `before: configuration` qui lance `nas-storage-wait 30`. Il n'y a
+5. Borgmatic (rôle `borgmatic`, `tasks_from: app.yml`, comme toutes les
+   applis) :
+   - les dossiers de fichiers du NAS dans `borgmatic_app_source_directories`,
+     **sans** le data directory de la base, qui passe par
+     `borgmatic_app_postgresql_databases` / `borgmatic_app_mysql_databases`
+     (dump par le client du conteneur de la base) ;
+   - `source_directories_must_exist: true`, via `borgmatic_app_extra_options` ;
+   - `nas-storage-wait 30` dans `borgmatic_app_before_commands`, lancé avant
+     que borg ne lise le NAS. Il n'y a
      qu'un `borgmatic.service` pour toutes les applis : sur un NAS tombé, un
      montage `hard` bloquerait le backup indéfiniment, et ceux des applis
      suivantes avec lui. L'attente bornée fait échouer cette config seule

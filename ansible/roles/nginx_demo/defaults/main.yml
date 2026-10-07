@@ -27,6 +27,6 @@ nginx_demo_nas_wait_timeout: 200
 
 # Borgmatic backup configuration
 nginx_demo_backup_enabled: true
-nginx_demo_backup_borgmatic_target: ""
-nginx_demo_backup_encryption_passphrase: ""
+nginx_demo_backup_borgmatic_target: "{{ backup_storage_box_url }}/nginx_demo"
+nginx_demo_backup_encryption_passphrase: "{{ backup_passphrase }}"
 nginx_demo_backup_healthcheck_url: ""
