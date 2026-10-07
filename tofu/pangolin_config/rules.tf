@@ -85,23 +85,17 @@ locals {
   # that does not exist yet. That asymmetry is what buys single-apply
   # convergence.
   #
-  # Derived rather than listed, so a new app cannot be left out of it; the
-  # coverage precondition below still fails the plan on a live resource that
-  # no entry declares.
+  # Derived rather than listed, so a new app cannot be left out of it; every
+  # one of them gets the country rules, and the coverage precondition below
+  # still fails the plan on a live, enabled resource that no entry declares.
+  # There used to be a second map, `unmanaged_resources`, pinning by id the
+  # resources made by hand in the Pangolin UI; its last entry, `SSH PI`,
+  # duplicated the private `pi.internal` site resource and was deleted, so the
+  # map and its audit went with it.
   managed_resources = {
     for key, website in local.websites : website.name => pangolin_resource.website[key].id
   }
 
-  # Every resource that gets country rules. There used to be a second map,
-  # `unmanaged_resources`, pinning by id the resources made by hand in the
-  # Pangolin UI, with a precondition failing the plan when a pin dangled. Its
-  # last entry, `SSH PI`, duplicated the private `pi.internal` site resource
-  # and was deleted, so the map and its audit went with it: an empty map only
-  # kept untestable code alive. A public resource now has to be declared in
-  # local.websites, and the coverage precondition below fails the plan on any enabled one that
-  # is not. The separate name is kept because every rule loop and audit keys on
-  # it.
-  rule_targets = local.managed_resources
 
   # Trip countries share the resource and the key format of the permanent ones
   # ("<resource>-<country>"): opening and closing GB only ever adds or

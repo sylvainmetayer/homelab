@@ -843,9 +843,10 @@ run "expired_travel_country_opens_nothing" {
   }
 }
 
-# La bande de priorités de rules.tf : les règles qui doivent décider quelle que
-# soit l'origine sont AVANT les PASS pays (1-9), les ACCEPT d'IP maison en
-# dernier de cette bande (9), et le DROP ALL en dernier (99).
+# La bande de priorités de rules.tf : la priorité 1 est au DROP antislash, les
+# règles qui doivent décider quelle que soit l'origine (ACCEPT par chemin, PASS
+# /mcp de TREK) sont entre 2 et 8, les ACCEPT d'IP maison à 9, tous AVANT les
+# PASS pays (10-11, voyages à 20), et le DROP ALL en dernier (99).
 run "bypass_rules_sit_in_their_priority_band" {
   command = plan
 
@@ -1346,7 +1347,9 @@ run "every_resource_declares_the_pinned_attributes" {
   assert {
     condition = (
       local.resource_pins.enabled == true
-      && pangolin_resource.website["gramps"].enabled == !strcontains(
+      && pangolin_resource.website["gramps"].enabled == local.gramps_enabled
+      && uptimekuma_monitor_http_keyword.healthcheck["gramps"].active == local.gramps_enabled
+      && local.gramps_enabled == !strcontains(
         file("${path.module}/../../ansible/host_vars/docker/variables.yaml"),
         "\ngramps_enabled: false\n"
       )
@@ -1944,7 +1947,7 @@ run "monitors_are_filed_and_notify_by_email" {
       && m.active == true
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (sauf Gramps, arrêté) et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (Gramps compris : sa sauvegarde tourne toujours) et notifié par e-mail."
   }
 
 
