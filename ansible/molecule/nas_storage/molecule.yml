@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: nas_storage
+
+# Prepare propre : un tmpfs tient lieu de l'export NFS du NAS (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

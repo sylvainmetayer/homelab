@@ -1,0 +1,10 @@
+---
+# Monte l'export NFS du NAS avant de créer quoi que ce soit dessous. Une
+# dépendance plutôt qu'une entrée de docker.yml : `--tags nginx_demo` la
+# déclenche aussi (une dépendance hérite des tags du rôle qui la tire), et
+# Ansible ne l'exécute qu'une fois par play, quel que soit le nombre d'applis
+# qui la déclarent.
+#
+# No galaxy_info block: same reasoning as roles/flip_planning/meta/main.yml.
+dependencies:
+  - role: nas_storage

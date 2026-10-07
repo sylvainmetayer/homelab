@@ -1,0 +1,27 @@
+#!/bin/sh
+# Géré par Ansible (rôle nas_storage).
+#
+# Attend que l'export NFS du NAS réponde, au plus TIMEOUT secondes (défaut
+# 30), puis sort 0 ; sinon sort 1. Sert de garde avant tout accès au NAS :
+# - dc@<service> (ExecStartPre) : au boot, la VM est souvent prête avant le
+#   NAS. Sans attente, chaque essai échoue en 30 s et l'unité atteint sa
+#   limite de redémarrages (StartLimitBurst) puis reste en échec.
+# - borgmatic (hook before: configuration) : sur un NAS tombé, un montage
+#   `hard` bloquerait le backup indéfiniment, et avec lui la sauvegarde de
+#   toutes les applis qui passent après.
+#
+# statfs() sur le point de montage déclenche l'automount sans droit sur la
+# racine du partage : utilisable par l'utilisateur des unités dc@.
+# Chaque sonde tourne sous `timeout -s KILL` : un processus bloqué sur un
+# montage NFS `hard` ignore SIGTERM, pas SIGKILL.
+deadline=$(( $(date +%s) + ${1:-30} ))
+while :; do
+  if [ "$(timeout -s KILL 15 stat --file-system --format=%T '{{ nas_storage_mount_path }}' 2>/dev/null)" = '{{ nas_storage_fstype }}' ]; then
+    exit 0
+  fi
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "NAS export {{ nas_storage_mount_path }} unreachable" >&2
+    exit 1
+  fi
+  sleep 5
+done

@@ -1,0 +1,32 @@
+---
+# Appli pilote du stockage sur le NAS (nas-storage-docker/) : fichiers ET
+# base Postgres sur l'export NFS, sauvegardés par borg depuis la VM.
+nginx_demo_base_path: "{{ docker_base_path }}/nginx_demo"
+
+# Ce qui n'existe qu'une fois est sur le NAS. Le compose.yaml et le .env
+# restent dans nginx_demo_base_path : Ansible les régénère à chaque run.
+nginx_demo_data_path: "{{ nas_storage_mount_path }}/nginx_demo"
+
+# BDD sans consommateur : elle ne sert qu'à valider qu'un Postgres tourne
+# et se sauvegarde correctement sur NFS.
+nginx_demo_db_name: nginx_demo_db
+nginx_demo_db_user: nginx_demo
+# Aléatoire, tiré une fois et rangé sur le NAS à côté du cluster qu'il
+# initialise (tasks/main.yml) : Postgres ne lit POSTGRES_PASSWORD qu'à
+# l'initdb, un mot de passe dérivé d'un secret partagé (backup_passphrase)
+# divergerait de la base au premier changement de ce secret.
+nginx_demo_db_password_path: "{{ nginx_demo_data_path }}/db_password"
+nginx_demo_db_password: "{{ (nginx_demo_db_password_file.content | default('')) | b64decode | trim }}"
+
+# Attente du NAS avant chaque démarrage de dc@nginx_demo. Reste sous le
+# TimeoutStartSec (300 s) de dc@.service, `docker compose pull` compris. Un
+# essai raté dure donc ~200 s : moins de 5 essais par fenêtre de 600 s,
+# l'unité ne bute jamais sur StartLimitBurst et réessaie jusqu'au retour du
+# NAS.
+nginx_demo_nas_wait_timeout: 200
+
+# Borgmatic backup configuration
+nginx_demo_backup_enabled: true
+nginx_demo_backup_borgmatic_target: "{{ backup_storage_box_url }}/nginx_demo"
+nginx_demo_backup_encryption_passphrase: "{{ backup_passphrase }}"
+nginx_demo_backup_healthcheck_url: ""

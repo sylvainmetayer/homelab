@@ -58,6 +58,7 @@ locals {
     monica           = local.monica_website
     nas              = local.nas_website
     nextcloud        = local.nextcloud_website
+    nginx_demo       = local.nginx_demo_website
     paperless        = local.paperless_website
     proxmox          = local.proxmox_website
     rss              = local.rss_website

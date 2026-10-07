@@ -20,3 +20,4 @@ backup_folders:
   - "scanopy"
   - "trek"
   - "karakeep"
+  - "nginx_demo"

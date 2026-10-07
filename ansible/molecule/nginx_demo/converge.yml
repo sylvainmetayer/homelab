@@ -1,0 +1,21 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  vars:
+    # Cf. ../nas_storage/prepare.yml : pas de montage NFS possible dans un
+    # conteneur, un tmpfs en tient lieu.
+    nas_storage_manage_mount: false
+    nas_storage_fstype: tmpfs
+  pre_tasks:
+    # docker.yml lit cette URL dans les outputs du state pangolin_config :
+    # un set_fact, qui l'emporte sur la valeur de fake_secrets.yml.
+    - name: Load healthcheck URLs as docker.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        nginx_demo_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-nginx-demo-backup
+  roles:
+    - role: docker_service
+    - role: nginx_demo

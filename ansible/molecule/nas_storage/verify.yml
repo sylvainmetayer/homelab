@@ -1,0 +1,54 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Run the NAS wait script as the dc@ user
+      ansible.builtin.command: /usr/local/bin/nas-storage-wait 5
+      changed_when: false
+
+    - name: Stat the files installed by nas_storage
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /usr/local/bin/nas-storage-wait
+        - /etc/systemd/system/nas-storage.slice
+        - /etc/systemd/system/docker.service.d/nas-storage.conf
+      register: nas_storage_files
+
+    # Rien de lisible par "others" (SonarCloud) ; le script reste exécutable
+    # par l'utilisateur des unités dc@ via son groupe.
+    - name: Assert the files exist with their modes
+      ansible.builtin.assert:
+        that:
+          - nas_storage_files.results[0].stat.exists
+          - nas_storage_files.results[0].stat.mode == '0750'
+          - nas_storage_files.results[0].stat.gid == ansible_facts['user_gid']
+          - nas_storage_files.results[1].stat.exists
+          - nas_storage_files.results[1].stat.mode == '0640'
+          - nas_storage_files.results[2].stat.exists
+          - nas_storage_files.results[2].stat.mode == '0640'
+
+    - name: Read the slice and the docker.service drop-in
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /etc/systemd/system/nas-storage.slice
+        - /etc/systemd/system/docker.service.d/nas-storage.conf
+      register: nas_storage_units
+
+    # L'ordre d'arrêt (conteneurs, puis démontage du NAS) tient à ces After=.
+    - name: Assert both are ordered after the NAS mount units
+      ansible.builtin.assert:
+        that:
+          - "'After=mnt-nas-apps.mount mnt-nas-apps.automount' in (item.content | b64decode)"
+      loop: "{{ nas_storage_units.results }}"
+      loop_control:
+        label: "{{ item.source }}"
+
+    - name: Look for the NAS export in fstab
+      ansible.builtin.command: grep -F /mnt/nas/apps /etc/fstab
+      register: nas_storage_fstab_grep
+      changed_when: false
+      failed_when: nas_storage_fstab_grep.rc not in [1, 2]
