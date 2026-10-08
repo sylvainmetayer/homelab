@@ -22,7 +22,7 @@ services:
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
     container_name: paperless_db
-    image: docker.io/library/postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+    image: docker.io/library/postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     restart: unless-stopped
     volumes:
       - ./pgdata:/var/lib/postgresql
