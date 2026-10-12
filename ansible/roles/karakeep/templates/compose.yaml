@@ -30,7 +30,7 @@ services:
     cpu_shares: 512
     mem_limit: 1g
     # Upstream ne publie que release/latest pour cette image, pas de tag versionné.
-    image: ghcr.io/karakeep-app/karakeep-chrome:release@sha256:5b19bbb160e9ff60681a3abd97e1c4ec9f64212301410de658c3900ab7ef31e7
+    image: ghcr.io/karakeep-app/karakeep-chrome:release@sha256:c51a8c8e6c3c1040a50fa0ecfd0b2fc298401b4229262636552458151f6f18fa
     container_name: karakeep-chrome
     restart: unless-stopped
     init: true
