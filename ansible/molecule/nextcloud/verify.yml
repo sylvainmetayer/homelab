@@ -55,6 +55,10 @@
           - "'newt' not in nextcloud_compose.services.cache.networks"
           - nextcloud_compose.services.db.environment.MYSQL_PASSWORD == nextcloud_db_password
           - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
+          # Réglages MariaDB demandés par les vérifications de Nextcloud.
+          - "'--innodb-buffer-pool-size=256M' in nextcloud_compose.services.db.command"
+          - "'--innodb-log-file-size=256M' in nextcloud_compose.services.db.command"
+          - "'--log-slow-query=ON' in nextcloud_compose.services.db.command"
         fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
 
     - name: Stat the nextcloud borgmatic configuration
