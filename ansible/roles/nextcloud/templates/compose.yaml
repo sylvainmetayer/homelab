@@ -31,12 +31,37 @@ services:
 
   db:
     mem_limit: 1g
-    mem_reservation: 384m
+    # ≈ le pic mesuré avec le buffer pool de 128 Mo par défaut (384m), plus
+    # les 128 Mo ajoutés ci-dessous.
+    mem_reservation: 512m
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
     container_name: nextcloud_db
     restart: unless-stopped
     image: mariadb:12.3.3@sha256:2bdff1534a7e569fecaf4b10b66ad0d410806e382d9db29ba305448addda97c4
+    # Réglages remontés par les vérifications de base de données de Nextcloud
+    # (Administration > Vue d'ensemble). Options passées à mariadbd par
+    # l'entrypoint de l'image.
+    # - buffer pool 256 Mo (128 par défaut) : taux de succès sous 99 %, et
+    #   chaque défaut de cache est une lecture sur le disque rotatif de la VM.
+    # - redo log 256 Mo (96 par défaut) : moins de checkpoints. MariaDB
+    #   redimensionne le fichier ib_logfile0 seul au démarrage.
+    # - tables temporaires en mémoire jusqu'à 64 Mo (16 par défaut) : la moitié
+    #   finissait sur disque. Celles qui ont une colonne TEXT/BLOB y vont quoi
+    #   qu'il arrive (moteur MEMORY), le taux ne tombera pas à zéro.
+    # - journal des requêtes lentes (> 2 s), dans le datadir sous un nom fixe :
+    #   le nom par défaut dérive du hostname, donc de l'ID du conteneur, et
+    #   changerait à chaque recréation. db_data n'est pas sauvegardé (dump).
+    #   Noms canoniques depuis MariaDB 10.11 ; slow_query_log et
+    #   long_query_time, que lit Nextcloud, en sont des alias.
+    command:
+      - --innodb-buffer-pool-size=256M
+      - --innodb-log-file-size=256M
+      - --tmp-table-size=64M
+      - --max-heap-table-size=64M
+      - --log-slow-query=ON
+      - --log-slow-query-time=2
+      - --log-slow-query-file=/var/lib/mysql/slow.log
     environment:
       MYSQL_ROOT_PASSWORD: {{ nextcloud_db_password }}
       MYSQL_DATABASE: nextcloud
