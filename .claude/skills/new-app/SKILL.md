@@ -55,6 +55,10 @@ Don't template a bespoke `.service` file — `docker_service` already provides
 the generic `dc@.service` unit; your role only needs to start/enable
 `dc@<service>`.
 
+If the app's data should live on the NAS rather than the VM's disk, follow
+"App data on the NAS" in `AGENTS.md` (`nas_storage` meta dependency, absolute
+bind mounts, DB dump only, never SQLite on NFS).
+
 ## 2. Register the role in `ansible/docker.yml`
 
 Two edits:

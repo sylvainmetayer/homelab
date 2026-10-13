@@ -23,6 +23,7 @@
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         searxng_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_searxng_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
+        nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -66,3 +67,5 @@
       tags: trek,app
     - role: karakeep
       tags: karakeep,app
+    - role: nginx_demo
+      tags: nginx_demo,app

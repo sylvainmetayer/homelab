@@ -41,7 +41,16 @@ alongside this skill, registered in both `docker.yml` and `pi.yml` tagged
 4. Optionally (`decommission_app_destroy_remote_backup: true`) runs
    `borgmatic repo-delete --force` against the Storage Box repo — irreversible.
 5. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
-6. Removes the app's data directory (`<service>_base_path`).
+6. Removes the app's data directory (`<service>_base_path`), plus every path
+   in `decommission_app_extra_paths`, and its `dc@<service>.service.d`
+   drop-ins.
+
+**App with its data on the NAS** (role depends on `nas_storage`): its data
+lives in `<service>_data_path` (`/mnt/nas/apps/<service>`), outside
+`base_path`. Pass it in `decommission_app_extra_paths`, or the files and the
+database cluster stay orphaned on the NAS — and a later re-add of the app
+would silently reuse that old cluster:
+`-e '{"decommission_app_extra_paths": ["/mnt/nas/apps/<service>"]}'`.
 
 Run it, targeting whichever host the app actually lives on (`docker` or `pi`):
 

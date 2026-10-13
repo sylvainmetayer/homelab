@@ -32,3 +32,5 @@ scanopy_backup_enabled: true
 trek_backup_enabled: true
 
 karakeep_backup_enabled: true
+
+nginx_demo_backup_enabled: true

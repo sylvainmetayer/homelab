@@ -8,6 +8,12 @@ decommission_app_confirm: false
 decommission_app_service: ""
 decommission_app_base_path: ""
 
+# Data kept outside base_path, deleted along with it (decommission_app_remove_data).
+# An app with its data on the NAS must pass its <service>_data_path here,
+# otherwise its files and its database cluster stay orphaned on the NAS:
+#   -e '{"decommission_app_extra_paths": ["/mnt/nas/apps/<service>"]}'
+decommission_app_extra_paths: []
+
 # Toggle individual destructive steps off if you only want part of the teardown.
 decommission_app_remove_borgmatic_config: true
 decommission_app_remove_data: true

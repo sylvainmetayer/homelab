@@ -1,0 +1,13 @@
+# Géré par Ansible (rôle nas_storage).
+#
+# Les conteneurs dont les données sont sur le NAS tournent dans cette slice
+# (`cgroup_parent: {{ nas_storage_slice }}` dans leur compose). Avec le
+# driver cgroup systemd, chaque conteneur est une unité docker-<id>.scope
+# sans aucun ordre vis-à-vis du montage : à l'arrêt de la VM, systemd
+# pourrait démonter le NAS et couper le réseau pendant que Postgres écrit
+# son checkpoint. Une scope est ordonnée après sa slice, la slice après le
+# montage : à l'arrêt, l'ordre s'inverse (conteneurs, slice, démontage,
+# réseau).
+[Unit]
+Description=Containers with their data on the NAS
+After={{ nas_storage_unit_prefix }}.mount {{ nas_storage_unit_prefix }}.automount
