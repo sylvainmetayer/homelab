@@ -59,6 +59,8 @@
           - "'--innodb-buffer-pool-size=256M' in nextcloud_compose.services.db.command"
           - "'--innodb-log-file-size=256M' in nextcloud_compose.services.db.command"
           - "'--log-slow-query=ON' in nextcloud_compose.services.db.command"
+          # Nom fixe : le défaut dérive du hostname, donc de l'ID du conteneur.
+          - "'--log-slow-query-file=/var/lib/mysql/slow.log' in nextcloud_compose.services.db.command"
         fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
 
     - name: Stat the nextcloud borgmatic configuration
