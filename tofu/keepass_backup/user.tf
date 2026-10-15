@@ -1,13 +1,21 @@
 # Deux utilisateurs S3 sur le même bucket :
 # - writer : sur le poste (unités systemd du rôle keepass_backup). Il écrit et
-#   lit, et ne peut supprimer que les verrous restic (locks/). Un poste
-#   compromis ne peut donc pas effacer les sauvegardes.
-# - admin : jamais sur disque, gardé dans KeePassXC. Sert une fois par an au
-#   `restic forget --prune` et aux restaurations manuelles.
+#   lit, et ne peut supprimer que les verrous restic (locks/). Il ne lance ni
+#   forget ni prune : la rétention se fait une fois par an avec la clé admin.
+# - admin : jamais sur disque, gardé dans KeePassXC. Sert au
+#   `restic forget --prune` annuel et aux restaurations depuis les versions.
 locals {
   bucket_arn  = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}"
   objects_arn = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/*"
   locks_arn   = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/locks/*"
+  # Tout ce qui n'est pas un verrou dans un dépôt restic.
+  repository_data_arns = [
+    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/config",
+    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/keys/*",
+    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/data/*",
+    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/index/*",
+    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/snapshots/*",
+  ]
   read_write_actions = [
     "s3:GetObject",
     "s3:PutObject",
@@ -49,6 +57,14 @@ resource "ovh_cloud_project_user_s3_policy" "writer" {
         "Action" : ["s3:DeleteObject"],
         "Resource" : [local.locks_arn],
       },
+      {
+        # Refus explicite : chez OVH, le refus implicite ne s'applique pas au
+        # propriétaire du bucket. Celui-ci prime même si le writer l'était.
+        "Sid" : "KeepassBackupNeverDeleteData",
+        "Effect" : "Deny",
+        "Action" : ["s3:DeleteObject"],
+        "Resource" : local.repository_data_arns,
+      },
     ]
   })
 }
@@ -71,7 +87,8 @@ resource "ovh_cloud_project_user_s3_policy" "admin" {
     "Statement" : [{
       "Sid" : "KeepassBackupAdmin",
       "Effect" : "Allow",
-      "Action" : concat(local.read_write_actions, ["s3:DeleteObject"]),
+      # Les droits de versions permettent de restaurer un objet écrasé.
+      "Action" : concat(local.read_write_actions, ["s3:DeleteObject", "s3:ListBucketVersions", "s3:GetObjectVersion"]),
       "Resource" : [local.bucket_arn, local.objects_arn],
     }]
   })
