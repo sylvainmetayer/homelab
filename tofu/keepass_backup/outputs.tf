@@ -5,7 +5,12 @@ output "bucket_name" {
 
 output "restic_repository" {
   description = "Valeur de RESTIC_REPOSITORY pour le rôle keepass_backup (host_vars sops: keepass_backup_restic.repository)"
-  value       = "s3:https://s3.eu-west-par.io.cloud.ovh.net/${ovh_cloud_project_storage.keepass_backup.name}"
+  value       = "s3:https://s3.${lower(var.region_name)}.io.cloud.ovh.net/${ovh_cloud_project_storage.keepass_backup.name}"
+}
+
+output "bucket_owner_id" {
+  description = "Propriétaire du bucket : doit n'être ni le writer ni l'admin (vérifié par le check owner_is_not_a_backup_user)"
+  value       = ovh_cloud_project_storage.keepass_backup.owner_id
 }
 
 output "writer_access_key" {
@@ -28,4 +33,16 @@ output "admin_secret_key" {
   description = "Secret key S3 de l'utilisateur admin (KeePassXC uniquement)"
   value       = ovh_cloud_project_user_s3_credential.admin.secret_access_key
   sensitive   = true
+}
+
+# Le refus implicite OVH ne s'applique pas au propriétaire du bucket : si l'un
+# des deux utilisateurs l'était, ses restrictions ne vaudraient plus rien.
+check "owner_is_not_a_backup_user" {
+  assert {
+    condition = !contains(
+      [ovh_cloud_project_user.writer.id, ovh_cloud_project_user.admin.id],
+      ovh_cloud_project_storage.keepass_backup.owner_id
+    )
+    error_message = "Le propriétaire du bucket est le writer ou l'admin : le Deny explicite reste en place, mais vérifie la console OVH."
+  }
 }

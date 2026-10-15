@@ -9,3 +9,15 @@ variable "region_name" {
   type        = string
   default     = "EU-WEST-PAR"
 }
+
+variable "object_lock_period" {
+  description = "Rétention Object Lock par défaut (durée ISO 8601). Au-delà de la période de détection d'un incident (test de restauration mensuel)."
+  type        = string
+  default     = "P30D"
+}
+
+variable "noncurrent_days" {
+  description = "Jours avant l'expiration d'une version non courante (hors locks/). Plus long que object_lock_period et que l'intervalle du test de restauration."
+  type        = number
+  default     = 120
+}
