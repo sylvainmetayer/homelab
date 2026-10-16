@@ -143,6 +143,34 @@
       ],
       "commitMessageTopic": "planning-equipes main (demo_planning)",
       "automerge": true
+    },
+    {
+      "description": "promptoramix is our own image (the Linkx tournament AI, deployed on flip by ansible/roles/promptoramix), published by its CI on every push to main and followed through the main tag: no 1 day cooldown, take updates as soon as they are published",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/promptoramix"
+      ],
+      "minimumReleaseAge": null,
+      "schedule": [
+        "at any time"
+      ],
+      "commitMessageTopic": "promptoramix main (flip)"
+    },
+    {
+      "description": "The first digest pin and every new main digest automerge once the lint workflow passes; merging on main triggers the deploy workflow (dc@ only pulls a missing image, so the digest is what rolls out a new build)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/promptoramix"
+      ],
+      "matchUpdateTypes": [
+        "pinDigest",
+        "digest"
+      ],
+      "automerge": true
     }
   ],
   "customManagers": [
