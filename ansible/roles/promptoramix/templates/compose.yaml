@@ -1,0 +1,38 @@
+---
+services:
+  app:
+    # Environ 64 Mio par requête en cours, deux au plus en parallèle : 128 Mio
+    # de pic attendu, soit 2× pour le plafond. Pas de `cpus:` (doctrine
+    # d'AGENTS.md) : un quota throttlerait la recherche, bornée dans le temps.
+    mem_limit: 256m
+    # Image de notre propre dépôt (sylvainmetayer/promptoramix), publiée par sa
+    # CI à chaque push sur main. Renovate épingle et met à jour le digest
+    # (renovate.json) : dc@ ne retélécharge jamais un tag déjà présent.
+    image: ghcr.io/sylvainmetayer/promptoramix:main
+    container_name: promptoramix
+    # L'image tourne déjà en `nobody`, n'écrit rien et écoute sur 8080 :
+    # aucune capacité ni écriture n'est nécessaire.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - .env
+    restart: unless-stopped
+    # debian:bookworm-slim, sans curl ni wget : la sonde passe par le
+    # /dev/tcp de bash, présent dans l'image. Elle vérifie que /health répond
+    # bien « ok », pas seulement que le port est ouvert.
+    healthcheck:
+      test: ["CMD", "bash", "-c", 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /health HTTP/1.0\r\n\r\n" >&3 && grep -qx ok <&3']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

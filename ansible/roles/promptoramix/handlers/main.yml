@@ -1,0 +1,7 @@
+---
+- name: Restart promptoramix
+  ansible.builtin.systemd:
+    name: dc@promptoramix
+    scope: user
+    state: restarted
+    daemon_reload: true

@@ -1,0 +1,71 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Rôle sans état : pas de configuration borgmatic.
+    - name: Verify the promptoramix deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: promptoramix
+
+    - name: Render the promptoramix compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/promptoramix
+      register: promptoramix_compose_raw
+      changed_when: false
+
+    # Pangolin résout la cible par nom de conteneur sur le réseau newt
+    # (tofu/pangolin_config/website_promptoramix.tf, ip = "promptoramix").
+    # Un seul conteneur : pas de réseau privé.
+    - name: Assert promptoramix is reachable by Pangolin on the newt network only
+      vars:
+        promptoramix_compose: "{{ promptoramix_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - promptoramix_compose.services.app.container_name == 'promptoramix'
+          - promptoramix_compose.services.app.networks.keys() | list == ['newt']
+          - promptoramix_compose.networks.newt.external
+        fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt : {{ promptoramix_compose.services.app }}"
+
+    # 64 Mio par requête, deux en parallèle : 256 Mio de plafond, et aucun
+    # quota CPU (doctrine d'AGENTS.md). Durcissement : racine en lecture seule,
+    # aucune capacité.
+    - name: Assert promptoramix is capped in memory, not in CPU, and hardened
+      vars:
+        promptoramix_app: "{{ (promptoramix_compose_raw.stdout | from_json).services.app }}"
+      ansible.builtin.assert:
+        that:
+          - promptoramix_app.mem_limit | int == 268435456
+          - promptoramix_app.cpus is not defined
+          - promptoramix_app.read_only
+          - promptoramix_app.cap_drop == ['ALL']
+          - "'no-new-privileges:true' in promptoramix_app.security_opt"
+          - promptoramix_app.healthcheck.test[1] == 'bash'
+          - promptoramix_app.image is match('ghcr\\.io/sylvainmetayer/promptoramix:main(@sha256:[0-9a-f]{64})?$')
+        fail_msg: "Service promptoramix inattendu : {{ promptoramix_app }}"
+
+    - name: Stat the promptoramix environment file
+      ansible.builtin.stat:
+        path: /opt/apps/promptoramix/.env
+      register: promptoramix_env
+
+    # Il porte le secret HMAC : jamais lisible par d'autres.
+    - name: Assert the promptoramix environment file is private
+      ansible.builtin.assert:
+        that:
+          - promptoramix_env.stat.exists
+          - promptoramix_env.stat.mode == '0600'
+
+    # Le modèle rendu par compose : ce que verra le conteneur, .env compris.
+    - name: Assert the promptoramix environment carries the Linkx settings
+      vars:
+        promptoramix_environment: "{{ (promptoramix_compose_raw.stdout | from_json).services.app.environment }}"
+      ansible.builtin.assert:
+        that:
+          - promptoramix_environment.LINKX_SECRET == promptoramix_linkx_secret
+          - promptoramix_environment.LINKX_THREADS == '1'
+          - promptoramix_environment.PORT == '8080'
