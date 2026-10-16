@@ -17,7 +17,7 @@ locals {
 
 # Google Reader and Fever APIs for the mobile RSS readers, which cannot go
 # through the SSO wall. Opened worldwide through local.path_bypasses
-# (rules.tf). Read off FreshRSS 1.30.0 (p/api/greader.php, p/api/fever.php):
+# (rules.tf). Read off FreshRSS 1.30.0, re-read for 1.30.1 (p/api/greader.php, p/api/fever.php):
 # both answer 503 unless the API is enabled, and authenticate with the user's
 # API password (bcrypt for the Google Reader login, md5(user:password) as the
 # Fever api_key). Neither rate-limits nor locks out, so that password has to
