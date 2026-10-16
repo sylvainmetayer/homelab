@@ -114,6 +114,9 @@
           - "'/opt/apps/monica_v4/.env' in monica_v4_borgmatic.source_directories"
           - monica_v4_borgmatic.mysql_databases[0].container == 'monica_v4_db'
           - monica_v4_borgmatic.mysql_databases[0].password == 'molecule-monica-v4-db-password'
+          # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
+          # avertit « Deprecated program name » et disparaîtra.
+          - monica_v4_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump monica_v4_db mariadb-dump'
           - monica_v4_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-monica-backup'
         fail_msg: "Configuration borgmatic de monica_v4 inattendue : {{ monica_v4_borgmatic }}"
 
