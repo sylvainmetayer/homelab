@@ -44,7 +44,7 @@ RUN apt-get update \
 # ne change pas de validateur du jour au lendemain ; les hôtes, eux, gardent la
 # version que pipx a installée au premier déploiement.
 # renovate: datasource=pypi depName=borgmatic
-ARG BORGMATIC_VERSION=2.1.9
+ARG BORGMATIC_VERSION=2.1.10
 RUN python3 -m venv /opt/molecule-borgmatic \
     && /opt/molecule-borgmatic/bin/pip install --no-cache-dir --only-binary :all: "borgmatic==${BORGMATIC_VERSION}" \
     && /opt/molecule-borgmatic/bin/borgmatic --version
