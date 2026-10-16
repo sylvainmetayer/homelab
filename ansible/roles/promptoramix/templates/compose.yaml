@@ -1,15 +1,17 @@
 ---
 services:
   app:
-    # Environ 20 Mio par recherche (table de transposition de 16 Mio), deux au
-    # plus en parallèle, l'application refusant d'en lancer davantage : ~50 Mio
-    # de pic, soit un peu plus de 2× pour le plafond. Pas de `cpus:` (doctrine
-    # d'AGENTS.md) : un quota throttlerait la recherche, bornée dans le temps.
-    mem_limit: 128m
+    # Environ 20 Mio par chercheur (table de transposition de 16 Mio, cache
+    # d'évaluation de 4 Mio). L'application en garde un par partie, trois au
+    # plus (LINKX_GAMES), plus ceux que tiennent encore deux recherches après
+    # éviction : ~100 Mio de pic, soit un peu plus de 2× pour le plafond. Pas
+    # de `cpus:` (doctrine d'AGENTS.md) : un quota throttlerait la recherche,
+    # bornée dans le temps.
+    mem_limit: 256m
     # Image de notre propre dépôt (sylvainmetayer/promptoramix), publiée par sa
     # CI à chaque push sur main. Renovate épingle et met à jour le digest
     # (renovate.json) : dc@ ne retélécharge jamais un tag déjà présent.
-    image: ghcr.io/sylvainmetayer/promptoramix:main@sha256:3d4495e7563234d36224b0d3bb3c5683610a7ea8f8254006822f3754e91182cd
+    image: ghcr.io/sylvainmetayer/promptoramix:main@sha256:18b256b85e6e32e41e3f338af57a5ba9046a7e66790bcd88ef04b22735783f7d
     container_name: promptoramix
     # L'image tourne déjà en `nobody`, n'écrit rien et écoute sur 8080 :
     # aucune capacité ni écriture n'est nécessaire.
