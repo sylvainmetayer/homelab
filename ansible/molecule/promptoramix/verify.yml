@@ -34,7 +34,7 @@
           - promptoramix_compose.networks.newt.external
         fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt : {{ promptoramix_compose.services.app }}"
 
-    # Environ 20 Mio par recherche, deux en parallèle : 128 Mio de plafond, et aucun
+    # Environ 20 Mio par chercheur, jusqu'à cinq en mémoire : 256 Mio de plafond, et aucun
     # quota CPU (doctrine d'AGENTS.md). Durcissement : racine en lecture seule,
     # aucune capacité.
     - name: Assert promptoramix is capped in memory, not in CPU, and hardened
@@ -43,7 +43,7 @@
       no_log: true
       ansible.builtin.assert:
         that:
-          - promptoramix_app.mem_limit | int == 134217728
+          - promptoramix_app.mem_limit | int == 268435456
           - promptoramix_app.cpus is not defined
           - promptoramix_app.read_only
           - promptoramix_app.cap_drop == ['ALL']
