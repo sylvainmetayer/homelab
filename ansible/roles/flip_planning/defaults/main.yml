@@ -228,14 +228,16 @@ flip_planning_keycloak_image: ""
 
 flip_planning_keycloak_db_name: "keycloak"
 flip_planning_keycloak_db_user: "keycloak"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_db_password);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_keycloak_db_password: ""
 
 # Bootstrap administrator of the MASTER realm — the one terraform/keycloak
 # signs in with to create the planning realm, not an account of it. Keycloak
 # asks for it to be replaced by a permanent account from the console.
 flip_planning_keycloak_admin_user: "admin"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_admin_password);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_keycloak_admin_password: ""
 
 # Accent colour of the Keycloak login page and e-mails (the account console
@@ -272,7 +274,8 @@ flip_planning_oidc_auth_server_url: >-
 # PKCE verifier in the state cookie, and below that Quarkus draws a random key
 # at every start. terraform/keycloak prints it (`terraform output`).
 flip_planning_oidc_client_id: "planning-app"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_client_secret);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_oidc_client_secret: ""
 
 # Provisioning: creating an animateur's fiche creates the Keycloak account that
@@ -286,7 +289,8 @@ flip_planning_oidc_provisioning_server_url: >-
      if flip_planning_keycloak_enabled else '' }}
 flip_planning_oidc_provisioning_realm: "planning"
 flip_planning_oidc_provisioning_client_id: "planning-provisioning"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_provisioning_client_secret);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_oidc_provisioning_client_secret: ""
 
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
