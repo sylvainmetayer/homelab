@@ -1,0 +1,52 @@
+---
+# Alerte Uptime Kuma (Telegram) à chaque connexion SSH, avec la clé utilisée
+# (issue #451). Le moniteur push est déclaré dans
+# tofu/pangolin_config/ssh_login_monitors.tf.
+#
+# Le hook est `session optional` : s'il échoue, la connexion passe quand même.
+# Le scénario Molecule ssh_login_notify vérifie qu'une URL injoignable ne
+# bloque ni ne retarde un login.
+
+- name: Warn when this host has no SSH login push URL
+  when: ssh_login_notify_push_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      Pas d'URL push pour {{ inventory_hostname }} (sortie uptime_ssh_login_urls
+      de tofu/pangolin_config) : ajouter l'hôte à local.ssh_login_hosts puis
+      appliquer pangolin_config. Rien n'est posé.
+
+- name: Install the SSH login notification hook
+  when: ssh_login_notify_push_url | length > 0
+  block:
+    - name: Install the hook dependencies
+      ansible.builtin.apt:
+        name:
+          - curl
+          - openssh-client
+        state: present
+
+    - name: Write the hook configuration
+      ansible.builtin.template:
+        src: ssh-login-notify.conf.j2
+        dest: "{{ ssh_login_notify_config }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Install the hook script
+      ansible.builtin.template:
+        src: ssh-login-notify.sh.j2
+        dest: "{{ ssh_login_notify_script }}"
+        owner: root
+        group: root
+        mode: "0700"
+
+    # Pris en compte à la session suivante, sans recharger sshd. En fin de
+    # pile session : après pam_systemd et consorts.
+    - name: Call the hook on every SSH session opening
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/sshd
+        regexp: "^session\\s+\\S+\\s+pam_exec\\.so\\s.*{{ ssh_login_notify_script | regex_escape }}$"
+        line: "session optional pam_exec.so quiet {{ ssh_login_notify_script }}"
+        insertafter: EOF
+        state: present

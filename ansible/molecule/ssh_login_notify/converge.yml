@@ -1,0 +1,15 @@
+---
+# Comme 00-setup.yaml : rôle appliqué avec become, l'URL push venant du state
+# de pangolin_config (ici le faux Uptime Kuma local de prepare.yml).
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  roles:
+    - role: ssh_login_notify
+      become: true
+      vars:
+        ssh_login_notify_push_url: http://127.0.0.1:18080/api/push/molecule-ssh-login
+        ssh_login_notify_ignored_keys:
+          - molecule-ignored

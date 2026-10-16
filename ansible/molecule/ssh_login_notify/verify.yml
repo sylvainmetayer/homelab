@@ -1,0 +1,197 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars:
+    ssh_login_notify_test_log: /var/lib/molecule-push/requests.jsonl
+    ssh_login_notify_test_ssh: >-
+      ssh -o BatchMode=yes -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
+  tasks:
+    # --- ce qui est posé ---
+
+    - name: Read the sshd PAM stack
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/pam.d/sshd
+      register: ssh_login_notify_pam
+
+    # `optional` : un hook en échec ne refuse jamais la session. Un
+    # `required` ici fermerait la porte au premier curl manquant.
+    - name: Assert the hook is an optional session module, once
+      vars:
+        pam_hook_lines: >-
+          {{ (ssh_login_notify_pam.content | b64decode).splitlines()
+             | select('search', 'ssh-login-notify') | list }}
+      ansible.builtin.assert:
+        that:
+          - pam_hook_lines == ['session optional pam_exec.so quiet /usr/local/sbin/ssh-login-notify']
+        fail_msg: "{{ pam_hook_lines }}"
+
+    - name: Read the hook files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: ssh_login_notify_files
+      loop:
+        - /etc/ssh-login-notify.conf
+        - /usr/local/sbin/ssh-login-notify
+
+    # La configuration porte le jeton du moniteur push.
+    - name: Assert the hook files belong to root, private
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0600' if item.item.endswith('.conf') else '0700')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+      loop: "{{ ssh_login_notify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # --- une connexion par clé notifie, avec le nom et l'empreinte de la clé ---
+
+    - name: Compute the fingerprint of the test key
+      ansible.builtin.command: ssh-keygen -l -f /home/sylvain/.ssh/molecule-login.pub
+      register: ssh_login_notify_test_fp
+      changed_when: false
+
+    - name: Reset the push log
+      become: true
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ ssh_login_notify_test_log }}"
+        mode: "0600"
+
+    - name: Log in over SSH with the notifying key
+      ansible.builtin.command: >-
+        {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+      changed_when: false
+
+    - name: Wait for the push
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes
+      changed_when: false
+      until: ssh_login_notify_pushes.stdout_lines | length >= 1
+      retries: 15
+      delay: 1
+
+    # SSH_AUTH_INFO_0 atteint bien pam_exec : sans lui, ni nom ni empreinte.
+    - name: Assert the push names the user, the source and the key
+      vars:
+        push: "{{ ssh_login_notify_pushes.stdout_lines[0] | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_pushes.stdout_lines | length == 1
+          - push.path == '/api/push/molecule-ssh-login'
+          - push.status == 'up'
+          - push.msg is search('^sylvain@\\S+ depuis 127\\.0\\.0\\.1, clé molecule-login \\(ssh-ed25519 ')
+          - (ssh_login_notify_test_fp.stdout.split()[1]) in push.msg
+        fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }}"
+
+    # Une connexion sans session interactive (ssh -N, comme un ProxyJump par
+    # le bastion) ouvre aussi une session PAM, donc notifie.
+    - name: Open a connection without a shell
+      ansible.builtin.shell: >-
+        timeout 3 {{ ssh_login_notify_test_ssh }} -N
+        -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 || test $? -eq 124
+      changed_when: false
+
+    - name: Wait for the second push
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes
+      changed_when: false
+      until: ssh_login_notify_pushes.stdout_lines | length >= 2
+      retries: 15
+      delay: 1
+
+    # --- une clé de ssh_login_notify_ignored_keys ne notifie pas ---
+
+    - name: Log in over SSH with the ignored key
+      ansible.builtin.command: >-
+        {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-ignored sylvain@127.0.0.1 true
+      changed_when: false
+
+    - name: Leave time for a push that must not come
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Read the push log
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes
+      changed_when: false
+
+    - name: Assert the ignored key did not notify
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_pushes.stdout_lines | length == 2
+          - ssh_login_notify_pushes.stdout is not search('molecule-ignored')
+        fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }}"
+
+    # --- anti-lockout : rien côté notification ne bloque ni ne retarde ---
+
+    - name: Run the anti-lockout cases
+      become: true
+      block:
+        # Uptime Kuma qui accepte la connexion et ne répond jamais : curl
+        # attend son --max-time (10 s), le login non.
+        - name: Point the hook at a server that never answers
+          ansible.builtin.replace:
+            path: /etc/ssh-login-notify.conf
+            regexp: "127\\.0\\.0\\.1:18080"
+            replace: "127.0.0.1:18081"
+
+        - name: Log in while Uptime Kuma hangs
+          become: false
+          ansible.builtin.shell: |
+            set -e
+            start=$(date +%s%N)
+            {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+            echo $(( ($(date +%s%N) - start) / 1000000 ))
+          register: ssh_login_notify_hang_ms
+          changed_when: false
+
+        # Uptime Kuma injoignable (connexion refusée).
+        - name: Point the hook at a closed port
+          ansible.builtin.replace:
+            path: /etc/ssh-login-notify.conf
+            regexp: "127\\.0\\.0\\.1:18081"
+            replace: "127.0.0.1:9"
+
+        - name: Log in while Uptime Kuma is down
+          become: false
+          ansible.builtin.command: >-
+            {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+          changed_when: false
+
+        # Script disparu : pam_exec échoue, `optional` laisse passer.
+        - name: Remove the hook script
+          ansible.builtin.command: mv /usr/local/sbin/ssh-login-notify /usr/local/sbin/ssh-login-notify.away
+          changed_when: true
+
+        - name: Log in while the hook script is missing
+          become: false
+          ansible.builtin.command: >-
+            {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+          changed_when: false
+
+      always:
+        - name: Restore the hook script
+          ansible.builtin.command: mv /usr/local/sbin/ssh-login-notify.away /usr/local/sbin/ssh-login-notify
+          args:
+            removes: /usr/local/sbin/ssh-login-notify.away
+
+        - name: Restore the push URL
+          ansible.builtin.replace:
+            path: /etc/ssh-login-notify.conf
+            regexp: "127\\.0\\.0\\.1:(18081|9)/"
+            replace: "127.0.0.1:18080/"
+
+    - name: Assert a hanging Uptime Kuma does not delay the login
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_hang_ms.stdout | int < 5000
+        fail_msg: "Login en {{ ssh_login_notify_hang_ms.stdout }} ms avec un Uptime Kuma muet."

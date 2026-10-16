@@ -1,0 +1,61 @@
+#!/bin/sh
+# {{ ansible_managed }}
+#
+# Alerte Uptime Kuma à chaque ouverture de session SSH (issue #451).
+# Appelé par pam_exec depuis /etc/pam.d/sshd (`session optional`), en root.
+#
+# Règle d'or : ce script ne doit JAMAIS empêcher une connexion. Il sort
+# toujours en 0, et l'appel réseau part en arrière-plan, détaché.
+
+[ "${PAM_TYPE:-}" = "open_session" ] || exit 0
+
+CONFIG={{ ssh_login_notify_config | quote }}
+[ -r "$CONFIG" ] || exit 0
+# shellcheck source=/dev/null
+. "$CONFIG"
+[ -n "${PUSH_URL:-}" ] || exit 0
+
+# sshd expose dans l'environnement PAM la méthode et la clé qui ont réussi
+# (OpenSSH >= 7.6) : "publickey ssh-ed25519 AAAA...".
+key_line=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | sed -n 's/^publickey //p' | head -n 1)
+key_type=""
+key_fp=""
+key_name=""
+if [ -n "$key_line" ]; then
+    key_type=${key_line%% *}
+    key_rest=${key_line#* }
+    key_blob=${key_rest%% *}
+    key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')
+    # Nom de la clé : le commentaire de sa ligne dans authorized_keys (tout ce
+    # qui suit le blob, options éventuelles en tête de ligne ignorées).
+    user_home=$(getent passwd "${PAM_USER:-}" | cut -d: -f6)
+    if [ -n "$user_home" ] && [ -r "$user_home/.ssh/authorized_keys" ]; then
+        key_name=$(awk -v blob="$key_blob" '{
+            for (i = 1; i < NF; i++) if ($i == blob) {
+                c = ""; for (j = i + 1; j <= NF; j++) c = c (c == "" ? "" : " ") $j
+                print c; exit
+            }
+        }' "$user_home/.ssh/authorized_keys")
+    fi
+    if [ -n "$key_name" ] && [ -n "${IGNORED_KEYS:-}" ] \
+        && printf '%s\n' "$IGNORED_KEYS" | grep -qxF -- "$key_name"; then
+        exit 0
+    fi
+    msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, clé ${key_name:-inconnue} (${key_type} ${key_fp:-?})"
+else
+    method=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | awk 'NR == 1 {print $1}')
+    msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, sans clé publique (méthode : ${method:-inconnue})"
+fi
+
+(
+    if curl -fsS -G --max-time "${PUSH_TIMEOUT:-10}" \
+        --data-urlencode "status=up" \
+        --data-urlencode "msg=$msg" \
+        "$PUSH_URL" >/dev/null 2>&1; then
+        logger -t ssh-login-notify "notifié : $msg"
+    else
+        logger -t ssh-login-notify -p auth.warning "échec de la notification : $msg"
+    fi
+) </dev/null >/dev/null 2>&1 &
+
+exit 0
