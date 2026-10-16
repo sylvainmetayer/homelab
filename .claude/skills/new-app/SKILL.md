@@ -93,11 +93,14 @@ override them):
 If the service needs its own secret (DB password, admin password, API key),
 add it to `secrets.sops.yaml` via `sops secrets.sops.yaml` (never hand-edit
 the encrypted blob, never commit plaintext). Remember: a variable loaded via
-`community.sops.load_vars` cannot override one already defined elsewhere —
-make sure no default under the same name exists in `group_vars`/`host_vars`.
+`community.sops.load_vars` (`return_method: vars-only`) lands in the
+`include_vars` layer — it beats role defaults, `group_vars`/`host_vars`, play
+`vars:` and role-entry `vars:`, and loses only to a `set_fact`. Never name a
+SOPS key after a variable a playbook overrides (see AGENTS.md).
 
 Add every new secret key to `ansible/molecule/_shared/vars/fake_secrets.yml`
-too, with a dummy value: the Molecule scenarios load it instead of SOPS.
+too, with a dummy value: the Molecule scenarios load it instead of SOPS, through
+`_shared/tasks/load_fake_secrets.yml` (`include_vars`, same layer).
 
 ## 5b. Molecule scenario
 

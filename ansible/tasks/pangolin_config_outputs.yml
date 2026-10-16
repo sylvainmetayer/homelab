@@ -12,7 +12,7 @@
 # `terraform_outputs.<sortie>.value` dans les playbooks eux-mêmes.
 #
 # Ne jamais set_fact ici un nom que lit un rôle instancié plusieurs fois
-# (flip_planning) : un fact l'emporte sur les `vars:` d'une entrée `roles:`
+# (flip_planning) : un set_fact l'emporte sur les `vars:` d'une entrée `roles:`
 # (cf. flip.yml, AGENTS.md). Le converge Molecule de flip_planning le vérifie
 # sur ce fichier comme sur les pre_tasks de flip.yml.
 - name: Load secrets and the pangolin_config state outputs
@@ -22,13 +22,19 @@
     tfstate_object_key: homelab/pangolin_config.tfstate
     tfstate_s3_endpoint: https://s3.eu-west-par.io.cloud.ovh.net
   block:
-    # WARNING : You cannot override variables with this, make sure variable is not defined before.
+    # community.sops.load_vars range les secrets dans la couche include_vars
+    # (return_method: vars-only, ansible-core 2.21+, qui échoue franchement en
+    # dessous au lieu de les renvoyer comme faits) : ils l'emportent sur les
+    # vars: du play et des entrées roles:, perdent face à un set_fact. Une clé
+    # de secrets.sops.yaml ne doit donc jamais porter le nom d'une variable
+    # qu'un playbook surcharge (cf. flip.yml, AGENTS.md).
     # Export your age key in environment
     # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
     - name: Load secrets variable into global namespace
       community.sops.load_vars:
         file: "{{ playbook_dir }}/secrets.sops.yaml"
         expressions: evaluate-on-load
+        return_method: vars-only
 
     # no_log ici comme sur le set_fact qui suit : `contents` est le state
     # entier, sorties sensibles comprises (identifiants Newt, jetons d'accès
