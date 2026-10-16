@@ -80,12 +80,12 @@ jobs:
       - name: Install borg, sops and sqlite3
         run: |
           borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' ansible/roles/borgmatic/defaults/main.yml)
-          sudo curl -fsSLo /usr/local/bin/borg \
+          sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/borg \
             "https://github.com/borgbackup/borg/releases/download/${borg_version}/borg-linux-glibc235-x86_64-gh"
           sudo chmod +x /usr/local/bin/borg
           borg --version
-          version="$(curl -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
-          sudo curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
+          version="$(curl --proto =https --tlsv1.2 -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+          sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
           sudo chmod +x /usr/local/bin/sops
           sudo apt-get install -y --no-install-recommends sqlite3
 
