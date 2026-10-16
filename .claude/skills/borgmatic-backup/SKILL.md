@@ -62,8 +62,8 @@ In the app role's `tasks/main.yml`, after the compose/env templating:
         name: <db>
         username: <user>
         password: "{{ <service>_db_password }}"
-    borgmatic_app_mysql_databases: []        # same keys (+ dump_command: mariadb-dump
-                                             # for the official mariadb image)
+    borgmatic_app_mysql_databases: []        # same keys (+ dump_command, mariadb-dump
+                                             # by default; mysqldump for real MySQL)
     borgmatic_app_sqlite_databases:          # globs, resolved at deploy time
       - "{{ <service>_base_path }}/data/*.db"
     borgmatic_app_exclude_patterns:          # absolute paths only

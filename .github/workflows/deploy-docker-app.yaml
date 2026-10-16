@@ -150,9 +150,9 @@ jobs:
         # ansible-core is pinned: unpinned installs have hit a Python 3.12.13
         # argparse regression that crashes the ssh connection plugin's TTY
         # detection during "Gathering Facts" (argparse.ArgumentError: argument
-        # -o: expected one argument). 2.20.1 matches the version already
-        # verified to work in this repo's local .venv.
-        run: pip install --quiet ansible-core==2.20.1 boto3 botocore passlib
+        # -o: expected one argument). Same version as uv.lock; 2.21+ is required
+        # by community.sops.load_vars `return_method: vars-only`.
+        run: pip install --quiet ansible-core==2.21.5 boto3 botocore passlib
 
       - name: Install sops
         if: steps.resolve-tags.outputs.any_tags == 'true'

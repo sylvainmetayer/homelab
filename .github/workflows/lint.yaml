@@ -31,7 +31,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install ansible + deps
-        run: pip install --quiet ansible-core==2.20.1 ansible-lint boto3 botocore passlib
+        run: pip install --quiet ansible-core==2.21.5 ansible-lint boto3 botocore passlib
 
       - name: Install ansible roles and collections
         working-directory: ansible
