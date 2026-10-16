@@ -33,6 +33,10 @@
 #                Absent: no binding (Betisier and nextcloud have no SSO, NAS
 #                and Proxmox are reached by the admin only).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
+#   monitor_path default "": path the inverted-keyword monitor appends to the
+#                resource URL. Only for an app whose root answers no GET
+#                (Promptoramix only takes POSTs there, and a 405 is DOWN for
+#                Uptime Kuma): its own health endpoint instead.
 #   backup       default false: a push monitor "Backup <name>".
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
@@ -59,6 +63,7 @@ locals {
     nas              = local.nas_website
     nextcloud        = local.nextcloud_website
     paperless        = local.paperless_website
+    promptoramix     = local.promptoramix_website
     proxmox          = local.proxmox_website
     rss              = local.rss_website
     scanopy          = local.scanopy_website
@@ -200,7 +205,7 @@ resource "uptimekuma_monitor_http_keyword" "healthcheck" {
 
   # Grouped under the Self-hosted folder. See uptime_globals.tf.
   parent          = uptimekuma_monitor_group.self_hosted.id
-  url             = "https://${pangolin_resource.website[each.key].full_domain}"
+  url             = "https://${pangolin_resource.website[each.key].full_domain}${lookup(each.value, "monitor_path", "")}"
   interval        = 60
   timeout         = 30
   max_retries     = 2

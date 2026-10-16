@@ -144,7 +144,7 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 21 ressources gérées, dont
+# GET /v1/org/{org}/resources?pageSize=1000 : les 22 ressources gérées, dont
 # Gramps désactivée, et un reste désactivé créé dans l'UI, que l'audit doit
 # ignorer puisqu'il n'est pas servi.
 override_data {
@@ -168,6 +168,7 @@ override_data {
         {"resourceId": 75, "niceId": "nas", "name": "NAS", "fullDomain": "nas.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
+        {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 4, "niceId": "proxmox", "name": "Proxmox", "fullDomain": "proxmox.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 56, "niceId": "scanopy", "name": "Scanopy", "fullDomain": "scan.sylvain.cloud", "sso": true, "enabled": true},
@@ -175,7 +176,7 @@ override_data {
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 22, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 23, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -372,6 +373,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["promptoramix"]
+  values = { id = 83, full_domain = "promptoramix.sylvain.cloud" }
+}
+
+override_resource {
   target = pangolin_resource.website["proxmox"]
   values = { id = 4 }
 }
@@ -558,7 +564,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
       "betisier", "dawarich", "echo", "gramps", "immich", "immich_swipe", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "rss", "scanopy", "searxng", "trek", "wiki",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "scanopy", "searxng", "trek", "wiki",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1000,6 +1006,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Monica CRM /.well-known/carddav",
       "Monica CRM /.well-known/caldav",
       "Paperless-ngx /share/*",
+      "Promptoramix /*",
       "RSS /api/greader.php/*",
       "RSS /api/fever.php",
       "TREK /.well-known/oauth-protected-resource/mcp",
@@ -1048,13 +1055,26 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
   }
 
   # Aucune ouverture ne doit rendre une interface d'administration ou d'API
-  # entière : ni racine, ni `/api/*`, ni `/i/*` de FreshRSS.
+  # entière : ni racine, ni `/api/*`, ni `/i/*` de FreshRSS. Seule exception,
+  # décidée et validée par l'utilisateur : Promptoramix, ouverte en entier
+  # (`/*`) aux fonctions Supabase du tournoi Linkx, de n'importe quel pays,
+  # sans interface ni compte, et dont chaque requête est signée en HMAC
+  # (website_promptoramix.tf).
   assert {
     condition = alltrue([
-      for rule in pangolin_resource_rule.path_bypass :
-      !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
+      for key, rule in pangolin_resource_rule.path_bypass :
+      key == "Promptoramix /*" || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
     ])
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
+  }
+
+  # Promptoramix : `/*` et rien d'autre, devant les règles pays.
+  assert {
+    condition = (
+      pangolin_resource_rule.path_bypass["Promptoramix /*"].priority == 2
+      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Promptoramix ")]) == 1
+    )
+    error_message = "Promptoramix doit être ouverte par la seule règle /*, en priorité 2."
   }
 }
 
@@ -1067,7 +1087,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "RSS", "TREK",
+      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "RSS", "TREK",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1245,7 +1265,8 @@ run "path_bypasses_follow_their_image" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier et nextcloud se passent du SSO.
+# applique donc les siennes, et seules Betisier, nextcloud et Promptoramix se
+# passent du SSO.
 run "every_public_resource_applies_its_rules" {
   command = plan
 
@@ -1255,10 +1276,14 @@ run "every_public_resource_applies_its_rules" {
   }
 
   # Une ressource sans SSO n'a que son application pour la protéger. La liste
-  # est fermée : en ajouter une est une décision, pas un oubli.
+  # est fermée : en ajouter une est une décision, pas un oubli. Promptoramix y
+  # est entrée par une décision explicite, validée par l'utilisateur : appelée
+  # par les serveurs du tournoi Linkx (fonctions Supabase), pas par un
+  # navigateur, elle ne peut pas passer de SSO et vérifie la signature HMAC de
+  # chaque requête (website_promptoramix.tf).
   assert {
-    condition     = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == toset(["Betisier", "nextcloud"])
-    error_message = "Les ressources sans SSO doivent être exactement Betisier et nextcloud."
+    condition     = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == toset(["Betisier", "nextcloud", "Promptoramix"])
+    error_message = "Les ressources sans SSO doivent être exactement Betisier, nextcloud et Promptoramix."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -1298,6 +1323,7 @@ run "every_public_resource_applies_its_rules" {
       nas              = "NAS"
       nextcloud        = "nextcloud"
       paperless        = "Paperless-ngx"
+      promptoramix     = "Promptoramix"
       proxmox          = "Proxmox"
       rss              = "RSS"
       scanopy          = "Scanopy"
@@ -1448,6 +1474,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       nas           = "Healthcheck NAS"
       nextcloud     = "Healthcheck nextcloud"
       paperless     = "Healthcheck Paperless-ngx"
+      promptoramix  = "Healthcheck Promptoramix"
       proxmox       = "Healthcheck Proxmox"
       rss           = "Healthcheck RSS"
       scanopy       = "Healthcheck Scanopy"
@@ -1521,14 +1548,14 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier et nextcloud (sans SSO), NAS et Proxmox (l'administrateur seul).
-  # Immich Swipe prend celui d'Immich.
+  # Betisier, nextcloud et Promptoramix (sans SSO), NAS et Proxmox
+  # (l'administrateur seul). Immich Swipe prend celui d'Immich.
   assert {
     condition = (
-      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nas", "nextcloud", "proxmox"])
+      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nas", "nextcloud", "promptoramix", "proxmox"])
       && local.websites["immich_swipe"].role == "immich"
     )
-    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich), sauf NAS et Proxmox ; Betisier et nextcloud, sans SSO, à aucun."
+    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich), sauf NAS et Proxmox ; Betisier, nextcloud et Promptoramix, sans SSO, à aucun."
   }
 }
 
@@ -1966,6 +1993,18 @@ run "monitors_are_filed_and_notify_by_email" {
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])
     error_message = "Chaque healthcheck doit être dans le dossier Self-hosted et notifié par e-mail."
+  }
+
+  # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
+  # DOWN pour Uptime Kuma. Son moniteur lit /health (monitor_path) ; les
+  # autres gardent la racine de leur ressource.
+  assert {
+    condition = (
+      uptimekuma_monitor_http_keyword.healthcheck["promptoramix"].url == "https://promptoramix.sylvain.cloud/health"
+      && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
+      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["promptoramix"]
+    )
+    error_message = "Le healthcheck de Promptoramix doit lire https://promptoramix.sylvain.cloud/health, et seul lui a un monitor_path."
   }
 
   assert {
