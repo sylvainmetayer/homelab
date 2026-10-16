@@ -72,4 +72,5 @@
         that:
           - promptoramix_environment.LINKX_SECRET == promptoramix_linkx_secret
           - promptoramix_environment.LINKX_THREADS == '1'
+          - promptoramix_environment.LINKX_MARGIN_MS == '1000'
           - promptoramix_environment.PORT == '8080'
