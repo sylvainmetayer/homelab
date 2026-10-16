@@ -27,15 +27,20 @@ if [ -n "$key_line" ]; then
     key_blob=${key_rest%% *}
     key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')
     # Nom de la clé : le commentaire de sa ligne dans authorized_keys (tout ce
-    # qui suit le blob, options éventuelles en tête de ligne ignorées).
+    # qui suit le blob, options éventuelles en tête de ligne ignorées). Les
+    # deux fichiers de l'AuthorizedKeysFile par défaut de Debian.
     user_home=$(getent passwd "${PAM_USER:-}" | cut -d: -f6)
-    if [ -n "$user_home" ] && [ -r "$user_home/.ssh/authorized_keys" ]; then
-        key_name=$(awk -v blob="$key_blob" '{
-            for (i = 1; i < NF; i++) if ($i == blob) {
-                c = ""; for (j = i + 1; j <= NF; j++) c = c (c == "" ? "" : " ") $j
-                print c; exit
-            }
-        }' "$user_home/.ssh/authorized_keys")
+    if [ -n "$user_home" ]; then
+        for keys_file in "$user_home/.ssh/authorized_keys" "$user_home/.ssh/authorized_keys2"; do
+            [ -r "$keys_file" ] || continue
+            key_name=$(awk -v blob="$key_blob" '{
+                for (i = 1; i < NF; i++) if ($i == blob) {
+                    c = ""; for (j = i + 1; j <= NF; j++) c = c (c == "" ? "" : " ") $j
+                    print c; exit
+                }
+            }' "$keys_file")
+            [ -z "$key_name" ] || break
+        done
     fi
     if [ -n "$key_name" ] && [ -n "${IGNORED_KEYS:-}" ] \
         && printf '%s\n' "$IGNORED_KEYS" | grep -qxF -- "$key_name"; then

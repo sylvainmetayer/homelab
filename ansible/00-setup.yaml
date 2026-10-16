@@ -21,9 +21,12 @@
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
     # Un moniteur par hôte (tofu/pangolin_config/ssh_login_monitors.tf) ;
-    # tests/invariants.tftest.hcl cherche cette chaîne ici.
+    # tests/invariants.tftest.hcl cherche cette chaîne ici. no_log : l'URL
+    # porte le jeton du moniteur push (sortie sensible), qu'un -v écrirait
+    # dans run.log.
     - name: Set the SSH login push URL of this host
       tags: always
+      no_log: true
       ansible.builtin.set_fact:
         ssh_login_notify_push_url: "{{ terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] | default('') }}"
 
