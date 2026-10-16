@@ -1,6 +1,6 @@
 ---
-# Pré-tâches communes (import_tasks) à docker.yml, flip.yml, pangolin.yaml,
-# pi.yml et au playbook d'essai test.yaml :
+# Pré-tâches communes (import_tasks) à 00-setup.yaml, docker.yml, flip.yml,
+# pangolin.yaml, pi.yml et au playbook d'essai test.yaml :
 #   - charge secrets.sops.yaml dans l'espace global ;
 #   - lit le state OpenTofu de tofu/pangolin_config dans le bucket S3 et en
 #     pose les sorties dans le fact `terraform_outputs`.
