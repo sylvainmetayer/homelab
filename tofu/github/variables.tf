@@ -44,3 +44,9 @@ variable "planning_equipes_required_checks" {
   type        = list(string)
   default     = []
 }
+
+variable "promptoramix_repository" {
+  description = "Name of the repository of Promptoramix, the Linkx tournament AI"
+  type        = string
+  default     = "promptoramix"
+}
