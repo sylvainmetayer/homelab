@@ -1,0 +1,119 @@
+name: Restore test
+
+# Restaure la dernière archive de chaque dépôt borg sur un runner, loin des
+# hôtes qui la produisent (issue #444) : voir .github/restore-test/README.md.
+# Le 1er et le 15 : les moniteurs « Restore test » attendent un push tous les
+# 20 jours au plus (le provider Uptime Kuma plafonne à 24).
+on:
+  schedule:
+    - cron: "0 10 1,15 * *"
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "Dépôts à tester, séparés par des virgules (vide : tous)"
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - .github/workflows/restore-test.yaml
+      - .github/scripts/restore_test.py
+      - .github/restore-test/**
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: List repositories
+    runs-on: ubuntu-26.04
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select repositories
+        id: apps
+        env:
+          SELECTED: ${{ inputs.apps }}
+        run: |
+          all=$(jq -c 'keys' .github/restore-test/apps.json)
+          if [ -n "$SELECTED" ]; then
+            apps=$(jq -nc --argjson all "$all" --arg sel "$SELECTED" \
+              '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. as $a | $all | index($a)))')
+          else
+            apps=$all
+          fi
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Repositories: $apps"
+
+      # Sur une PR, rien n'est restauré (pas de secrets) : on vérifie
+      # seulement que le script se charge et que le manifeste est cohérent.
+      - name: Check the script and the manifest
+        run: |
+          python3 -I -m py_compile .github/scripts/restore_test.py
+          jq -e 'to_entries | all(.value.repo and .value.role)' .github/restore-test/apps.json
+          for role in $(jq -r '.[].role' .github/restore-test/apps.json); do
+            test -d "ansible/roles/$role" || { echo "::error::rôle $role absent"; exit 1; }
+          done
+
+  restore:
+    name: Restore (${{ matrix.app }})
+    needs: discover
+    if: github.event_name != 'pull_request' && needs.discover.outputs.apps != '[]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      # Ménage la Storage Box (et la bande passante d'immich/nextcloud).
+      max-parallel: 4
+      matrix:
+        app: ${{ fromJSON(needs.discover.outputs.apps) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Même version que sur les hôtes (rôle borgmatic) : un dépôt écrit par
+      # borg 1.x se lit avec borg 1.x.
+      - name: Install borg, sops and sqlite3
+        run: |
+          borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' ansible/roles/borgmatic/defaults/main.yml)
+          sudo curl -fsSLo /usr/local/bin/borg \
+            "https://github.com/borgbackup/borg/releases/download/${borg_version}/borg-linux-glibc235-x86_64-gh"
+          sudo chmod +x /usr/local/bin/borg
+          borg --version
+          version="$(curl -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+          sudo curl -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
+          sudo chmod +x /usr/local/bin/sops
+          sudo apt-get install -y --no-install-recommends sqlite3
+
+      # Sous-compte en lecture seule (tofu/pangolin/storage_box.tf) : jamais
+      # la clé du compte principal.
+      - name: Configure the Storage Box access
+        env:
+          RESTORE_TEST_SSH_KEY: ${{ secrets.RESTORE_TEST_SSH_KEY }}
+          RESTORE_TEST_STORAGE_BOX: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$RESTORE_TEST_SSH_KEY" > ~/.ssh/restore_test
+          chmod 600 ~/.ssh/restore_test
+          ssh-keyscan -p 23 "${RESTORE_TEST_STORAGE_BOX#*@}" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "BORG_RSH=ssh -i $HOME/.ssh/restore_test -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+          echo "BORG_REPO_BASE=ssh://${RESTORE_TEST_STORAGE_BOX}:23/." >> "$GITHUB_ENV"
+
+      - name: Restore and check
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+          PUSH_URLS: ${{ secrets.RESTORE_TEST_PUSH_URLS }}
+          APP: ${{ matrix.app }}
+          BORG_RELOCATED_REPO_ACCESS_IS_OK: "yes"
+        run: |
+          key=$(jq -r --arg app "$APP" '.[$app].passphrase_key // "backup_passphrase"' .github/restore-test/apps.json)
+          if ! BORG_PASSPHRASE=$(sops -d --extract "[\"$key\"]" ansible/secrets.sops.yaml 2>/dev/null); then
+            BORG_PASSPHRASE=$(sops -d --extract '["backup_passphrase"]' ansible/secrets.sops.yaml)
+          fi
+          echo "::add-mask::$BORG_PASSPHRASE"
+          export BORG_PASSPHRASE
+          python3 -I .github/scripts/restore_test.py "$APP"

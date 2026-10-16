@@ -1,0 +1,19 @@
+{
+  "betisier": { "repo": "betisier", "role": "betisier" },
+  "dawarich": { "repo": "dawarich", "role": "dawarich" },
+  "demo_planning": { "repo": "demo_planning", "role": "flip_planning" },
+  "flip_planning": { "repo": "flip_planning", "role": "flip_planning" },
+  "gramps": { "repo": "gramps", "role": "gramps" },
+  "immich": { "repo": "immich", "role": "immich", "passphrase_key": "immich_backup_borgmatic_password" },
+  "karakeep": { "repo": "karakeep", "role": "karakeep" },
+  "meerkat_crm": { "repo": "meerkat_crm", "role": "meerkat_crm" },
+  "monica": { "repo": "monica_v4", "role": "monica_v4" },
+  "nextcloud": { "repo": "nextcloud", "role": "nextcloud", "passphrase_key": "nextcloud_backup_borgmatic_password" },
+  "pangolin": { "repo": "pangolin", "role": "pangolin" },
+  "paperless": { "repo": "paperless", "role": "paperless_ngx" },
+  "rss": { "repo": "rss", "role": "rss" },
+  "scanopy": { "repo": "scanopy", "role": "scanopy" },
+  "searxng": { "repo": "searxng", "role": "searxng" },
+  "trek": { "repo": "trek", "role": "trek" },
+  "wiki": { "repo": "wiki", "role": "wiki", "passphrase_key": "wiki_backup_borgmatic_password" }
+}
