@@ -37,7 +37,8 @@
 #                resource URL. Only for an app whose root answers no GET
 #                (Promptoramix only takes POSTs there, and a 405 is DOWN for
 #                Uptime Kuma): its own health endpoint instead.
-#   backup       default false: a push monitor "Backup <name>".
+#   backup       default false: a push monitor "Backup <name>", and a
+#                "Restore test <name>" one for the twice-monthly restore test.
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
 #                (default "/") and hc_port (default port). Absent on NAS and
@@ -97,6 +98,16 @@ locals {
     for key, monitor in uptimekuma_monitor_push.backup :
     key => "${local.uptimekuma_endpoint}/api/push/${monitor.push_token}"
   }
+
+  # Pangolin's own monitor (website_pangolin.tf) included: the workflow
+  # tests every borg repository.
+  restore_test_push_urls = merge(
+    {
+      for key, monitor in uptimekuma_monitor_push.restore_test :
+      key => "${local.uptimekuma_endpoint}/api/push/${monitor.push_token}"
+    },
+    { pangolin = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.restore_test_pangolin.push_token}" },
+  )
 }
 
 resource "pangolin_resource" "website" {
@@ -238,6 +249,29 @@ resource "uptimekuma_monitor_push" "backup" {
   parent = uptimekuma_monitor_group.backups.id
 
   interval = 60 * 60 * 24
+
+  retry_interval = 20
+  active         = true
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
+}
+
+# The restore test, on the 1st and the 15th (.github/workflows/restore-test.yaml) pushes here
+# once per backed-up app: dumps replayed in a throwaway database, SQLite
+# integrity check, or a sample extracted for an app without a database. The
+# workflow reads every URL at once from the `uptime_restore_test_urls` output,
+# through the RESTORE_TEST_PUSH_URLS Actions secret (tofu/github).
+resource "uptimekuma_monitor_push" "restore_test" {
+  for_each = uptimekuma_monitor_push.backup
+
+  name = "Restore test ${pangolin_resource.website[each.key].name}"
+
+  parent = uptimekuma_monitor_group.backups.id
+
+  # Runs 14 to 17 days apart, plus slack for a late or re-run workflow. Not
+  # monthly: the provider caps a push interval at 24 days.
+  interval = 60 * 60 * 24 * 20
 
   retry_interval = 20
   active         = true
