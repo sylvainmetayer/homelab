@@ -1222,43 +1222,54 @@ run "trek_mcp_connector_url_carries_the_token" {
   }
 }
 
-# Les chemins publics de Karakeep (website_karakeep.tf) ont été relevés dans
-# les sources de la v0.33.2. Une montée de version (Renovate) fait échouer ce
-# run : relire apps/web/app/public, apps/web/components/public/lists et
-# packages/api de la nouvelle version, ajuster karakeep_public_paths, puis la
-# version ci-dessous.
-run "karakeep_public_paths_follow_the_image" {
-  command = plan
-
-  assert {
-    # Le tag seul : un épinglage du digest par Renovate (`:0.33.2@sha256:...`)
-    # ne change pas la version et ne doit pas faire échouer ce run.
-    condition     = length(regexall("image: ghcr\\.io/karakeep-app/karakeep:0\\.33\\.2(@|\\s)", file("${path.module}/../../ansible/roles/karakeep/templates/compose.yaml"))) == 1
-    error_message = "Karakeep n'est plus en 0.33.2 : relire dans les sources de la nouvelle version les chemins que charge /public/lists/<id> et mettre à jour karakeep_public_paths (website_karakeep.tf) avant cette version."
-  }
-}
-
-# Même garde-fou que pour Karakeep, pour chaque liste de local.path_bypasses :
-# ces chemins ont été relus dans les sources d'UNE version de l'image. Quand
-# Renovate la monte, une nouvelle route non authentifiée sous un préfixe ouvert
-# (ou un partage déplacé) changerait en silence ce qui répond au monde entier
-# sans SSO. Le tag seul est comparé : l'épinglage du digest ne compte pas.
+# Chaque liste de local.path_bypasses a été relue dans les sources d'UNE
+# version de l'image : quand elle monte, une nouvelle route non authentifiée
+# sous un préfixe ouvert (ou un partage déplacé) changerait en silence ce qui
+# répond au monde entier sans SSO. path_bypass_images.json note cette version.
+# Renovate l'y monte en même temps que le compose (customManagers de
+# renovate.json), et .github/workflows/path-bypass-review.yaml retient alors
+# la PR jusqu'à l'approbation de l'environnement relecture-chemins-publics :
+# la relecture se valide d'un clic, sans commit.
+#
+# Ce run garantit que le fichier dit vrai. Le tag seul est comparé :
+# l'épinglage du digest ne compte pas.
 run "path_bypasses_follow_their_image" {
   command = plan
 
+  # Une montée faite à la main, dans le compose sans le fichier (ou
+  # l'inverse), contournerait la relecture : la version notée doit être celle
+  # que le compose déploie.
   assert {
     condition = alltrue([
-      for app, pin in {
-        "TREK (website_trek.tf)"               = { file = "trek", image = "docker\\.io/mauriceboe/trek:4\\.3\\.3" }
-        "Dawarich (website_dawarich.tf)"       = { file = "dawarich", image = "freikin/dawarich:1\\.15\\.3" }
-        "Paperless-ngx (website_paperless.tf)" = { file = "paperless_ngx", image = "ghcr\\.io/paperless-ngx/paperless-ngx:3\\.3" }
-        "FreshRSS (website_rss.tf)"            = { file = "rss", image = "freshrss/freshrss:1\\.30\\.1" }
-        "Monica (website_monica.tf)"           = { file = "monica_v4", image = "monica:3\\.7\\.0-apache" }
-        "Meerkat CRM (website_meerkat_crm.tf)" = { file = "meerkat_crm", image = "ghcr\\.io/fbuchner/meerkat-crm-backend:1\\.7\\.0" }
-      } :
-      length(regexall("image: ${pin.image}(@|\\s)", file("${path.module}/../../ansible/roles/${pin.file}/templates/compose.yaml"))) >= 1
+      for app, pin in jsondecode(file("${path.module}/path_bypass_images.json")) :
+      length(regexall(
+        "image: ${replace(pin.image, ".", "\\.")}:${replace(pin.version, ".", "\\.")}(@|\\s)",
+        file("${path.module}/../../${pin.compose}")
+      )) >= 1
     ])
-    error_message = "Une image dont les chemins sont ouverts par local.path_bypasses a changé de version : relire dans les sources de la nouvelle version les routes sous les préfixes ouverts, mettre à jour la liste de chemins de l'app, puis la version attendue ici."
+    error_message = "Une image de path_bypass_images.json n'est pas à la version notée dans son compose : monter les deux ensemble (Renovate le fait), la relecture passe par l'environnement relecture-chemins-publics."
+  }
+
+  # Toute ressource ouverte par chemin est gardée, ou écartée ici avec sa
+  # raison : nos propres images (planning-equipes, promptoramix), dont les
+  # chemins suivent le code que nous écrivons, et le banc Keycloak, qui ouvre
+  # tout /auth/* (website_demo_planning_kc.tf) et n'a donc aucune route à
+  # relire.
+  assert {
+    condition = setunion(
+      keys(jsondecode(file("${path.module}/path_bypass_images.json"))),
+      ["Demo Planning", "Demo Planning KC", "Flip Planning", "Promptoramix"],
+    ) == toset(keys(local.path_bypasses))
+    error_message = "Une ressource de local.path_bypasses n'a pas d'entrée dans path_bypass_images.json (ou une entrée n'y correspond à aucune) : sa version relue ne serait pas gardée."
+  }
+
+  # Le workflow lit ces champs pour le résumé affiché avant l'approbation.
+  assert {
+    condition = alltrue([
+      for app, pin in jsondecode(file("${path.module}/path_bypass_images.json")) :
+      alltrue([for k in ["image", "version", "compose", "paths", "reread", "releases"] : try(length(pin[k]) > 0, false)])
+    ])
+    error_message = "Chaque entrée de path_bypass_images.json porte image, version, compose, paths, reread et releases."
   }
 }
 

@@ -1,0 +1,58 @@
+{
+  "Dawarich": {
+    "image": "freikin/dawarich",
+    "version": "1.15.3",
+    "compose": "ansible/roles/dawarich/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_dawarich.tf (dawarich_share_paths)",
+    "reread": "config/routes.rb, app/controllers/shared/*, app/controllers/api/v1/shared/*",
+    "releases": "https://github.com/Freika/dawarich/releases"
+  },
+  "Karakeep": {
+    "image": "ghcr.io/karakeep-app/karakeep",
+    "version": "0.33.2",
+    "compose": "ansible/roles/karakeep/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_karakeep.tf (karakeep_public_paths)",
+    "reread": "apps/web/app/public, apps/web/components/public/lists, packages/api",
+    "releases": "https://github.com/karakeep-app/karakeep/releases"
+  },
+  "Meerkat CRM": {
+    "image": "ghcr.io/fbuchner/meerkat-crm-backend",
+    "version": "1.7.0",
+    "compose": "ansible/roles/meerkat_crm/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_meerkat_crm.tf (meerkat_crm_dav_paths)",
+    "reread": "backend/routes/routes.go, backend/carddav/auth.go",
+    "releases": "https://github.com/fbuchner/meerkat-crm/releases"
+  },
+  "Monica CRM": {
+    "image": "monica",
+    "version": "3.7.0-apache",
+    "compose": "ansible/roles/monica_v4/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_monica.tf (monica_dav_paths)",
+    "reread": "config/laravelsabre.php, AuthenticateWithTokenOnBasicAuth, routes/web.php (.well-known)",
+    "releases": "https://github.com/monicahq/monica/releases"
+  },
+  "Paperless-ngx": {
+    "image": "ghcr.io/paperless-ngx/paperless-ngx",
+    "version": "3.3",
+    "compose": "ansible/roles/paperless_ngx/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_paperless.tf (paperless_share_paths)",
+    "reread": "src/paperless/urls.py, src/documents/views.py (SharedLinkView)",
+    "releases": "https://github.com/paperless-ngx/paperless-ngx/releases"
+  },
+  "RSS": {
+    "image": "freshrss/freshrss",
+    "version": "1.30.1",
+    "compose": "ansible/roles/rss/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_rss.tf (rss_api_paths)",
+    "reread": "p/api/greader.php, p/api/fever.php",
+    "releases": "https://github.com/FreshRSS/FreshRSS/releases"
+  },
+  "TREK": {
+    "image": "docker.io/mauriceboe/trek",
+    "version": "4.3.3",
+    "compose": "ansible/roles/trek/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_trek.tf (trek_mcp_public_paths, trek_share_paths)",
+    "reread": "server/src/nest/{mcp-transport,oauth,platform}, share.service.ts, journey-share.service.ts, client /app/server/public",
+    "releases": "https://github.com/mauriceboe/TREK/releases"
+  }
+}

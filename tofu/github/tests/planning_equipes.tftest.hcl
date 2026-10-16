@@ -5,7 +5,15 @@
 # à l'apply, et github_repository.planning_equipes a prevent_destroy, que le
 # destroy de fin de fichier de `tofu test` heurterait.
 
-mock_provider "github" {}
+# data.github_user.owner (environments.tf) : un id numérique, comme celui que
+# reviewers.users attend.
+mock_provider "github" {
+  mock_data "github_user" {
+    defaults = {
+      id = "8873695"
+    }
+  }
+}
 mock_provider "tls" {}
 mock_provider "local" {}
 mock_provider "external" {}

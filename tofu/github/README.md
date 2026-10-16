@@ -1,6 +1,6 @@
 # tofu/github
 
-Ce module porte trois choses sans rapport entre elles :
+Ce module porte quatre choses sans rapport entre elles :
 
 - les **secrets Actions du dépôt `homelab`** (clé Age SOPS, clé SSH de
   déploiement, identifiants OLM lus dans l'état de `pangolin_config`) ;
@@ -9,7 +9,12 @@ Ce module porte trois choses sans rapport entre elles :
   [sylvainmetayer/flip-planning#286](https://github.com/sylvainmetayer/flip-planning/issues/286) ;
 - le **dépôt `promptoramix`**, l'IA (Rust) du tournoi Linkx de Marmelab, dont
   l'image `ghcr.io/sylvainmetayer/promptoramix:main` est déployée sur flip par
-  `ansible/roles/promptoramix` — voir [plus bas](#dépôt-promptoramix).
+  `ansible/roles/promptoramix` — voir [plus bas](#dépôt-promptoramix) ;
+- l'**environnement `relecture-chemins-publics`** du dépôt `homelab`
+  (`environments.tf`), relecteur obligatoire : le propriétaire. Le workflow
+  `path-bypass-review.yaml` y retient chaque PR Renovate qui monte une image
+  dont des chemins sont ouverts sans SSO, jusqu'à l'approbation dans
+  l'interface (« Review deployments »).
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt

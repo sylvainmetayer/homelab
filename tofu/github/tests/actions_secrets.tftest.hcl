@@ -8,7 +8,15 @@
 # à l'apply, et github_repository.planning_equipes a prevent_destroy, que le
 # destroy de fin de fichier de `tofu test` heurterait.
 
-mock_provider "github" {}
+# data.github_user.owner (environments.tf) : un id numérique, comme celui que
+# reviewers.users attend.
+mock_provider "github" {
+  mock_data "github_user" {
+    defaults = {
+      id = "8873695"
+    }
+  }
+}
 mock_provider "tls" {}
 mock_provider "local" {}
 mock_provider "external" {}
@@ -140,5 +148,27 @@ run "cle_de_deploiement_ci" {
   assert {
     condition     = output.ci_deploy_public_key == tls_private_key.ci_deploy.public_key_openssh
     error_message = "La sortie ci_deploy_public_key doit être la clé publique OpenSSH de la clé de déploiement."
+  }
+}
+
+# path-bypass-review.yaml attend l'approbation de cet environnement : un nom
+# différent créerait à la volée un environnement sans relecteur, et le job
+# passerait sans attendre.
+run "environnement_de_relecture_des_chemins_publics" {
+  command = plan
+
+  assert {
+    condition     = length(regexall("environment: ${github_repository_environment.relecture_chemins_publics.environment}\\n", file("${path.module}/../../.github/workflows/path-bypass-review.yaml"))) == 1
+    error_message = "path-bypass-review.yaml doit attendre l'environnement que pose environments.tf."
+  }
+
+  assert {
+    condition     = github_repository_environment.relecture_chemins_publics.repository == "homelab"
+    error_message = "L'environnement de relecture doit être posé sur le dépôt homelab."
+  }
+
+  assert {
+    condition     = contains(github_repository_environment.relecture_chemins_publics.reviewers[0].users, 8873695)
+    error_message = "Le propriétaire du dépôt doit être relecteur obligatoire de l'environnement."
   }
 }

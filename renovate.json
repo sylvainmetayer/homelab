@@ -177,6 +177,13 @@
         "digest"
       ],
       "automerge": true
+    },
+    {
+      "description": "path_bypass_images.json notes the version each app's public paths were read off (tofu/pangolin_config/tests/invariants.tftest.hcl). Its custom manager has no digest to pin: the compose file pins it",
+      "matchFileNames": [
+        "tofu/pangolin_config/path_bypass_images.json"
+      ],
+      "pinDigests": false
     }
   ],
   "customManagers": [
@@ -200,6 +207,17 @@
         "moduleName:\\s*\"github\\.com/(?<depName>[^\"]+)\"\\s*\\n\\s*version:\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "The version each image's public paths were read off (tofu/pangolin_config/path_bypass_images.json). Same depName as in the compose file, so both land in the same PR: the tofu test stays green and .github/workflows/path-bypass-review.yaml holds the PR until the relecture-chemins-publics environment is approved, once the release notes and the listed sources have been read. No commit by hand",
+      "managerFilePatterns": [
+        "/^tofu/pangolin_config/path_bypass_images\\.json$/"
+      ],
+      "matchStrings": [
+        "\"image\":\\s*\"(?<depName>[^\"]+)\",\\s*\"version\":\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }
