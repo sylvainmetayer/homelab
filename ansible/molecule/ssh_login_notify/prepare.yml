@@ -76,7 +76,7 @@
     - name: Install their systemd units
       ansible.builtin.copy:
         dest: /etc/systemd/system/molecule-{{ item }}.service
-        mode: "0644"
+        mode: "0600"
         content: |
           [Unit]
           Description=Molecule {{ item }}
