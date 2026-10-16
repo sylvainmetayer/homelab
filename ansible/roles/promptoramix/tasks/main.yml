@@ -1,0 +1,45 @@
+---
+# Un secret vide ferait démarrer l'application avec une clé HMAC vide, que
+# n'importe qui saurait reproduire.
+- name: Fail clearly when the Linkx secret is missing
+  ansible.builtin.assert:
+    that:
+      - promptoramix_linkx_secret | length > 0
+    fail_msg: "promptoramix_linkx_secret est vide : l'ajouter à ansible/secrets.sops.yaml."
+    quiet: true
+
+- name: Ensure promptoramix app folder exists
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ promptoramix_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart promptoramix
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ promptoramix_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  notify: Restart promptoramix
+  no_log: true
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ promptoramix_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Rôle sans état (aucun volume, aucune base) : pas de sauvegarde borgmatic.
+- name: Make sure promptoramix service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@promptoramix
+    scope: user
+    enabled: true
