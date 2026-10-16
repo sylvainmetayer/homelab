@@ -1,12 +1,15 @@
 # tofu/github
 
-Ce module porte deux choses sans rapport entre elles :
+Ce module porte trois choses sans rapport entre elles :
 
 - les **secrets Actions du dépôt `homelab`** (clé Age SOPS, clé SSH de
   déploiement, identifiants OLM lus dans l'état de `pangolin_config`) ;
 - le **dépôt `planning-equipes`**, successeur public de `flip-planning`, et
   les réglages de son `main` — voir
-  [sylvainmetayer/flip-planning#286](https://github.com/sylvainmetayer/flip-planning/issues/286).
+  [sylvainmetayer/flip-planning#286](https://github.com/sylvainmetayer/flip-planning/issues/286) ;
+- le **dépôt `promptoramix`**, l'IA (Rust) du tournoi Linkx de Marmelab, dont
+  l'image `ghcr.io/sylvainmetayer/promptoramix:main` est déployée sur flip par
+  `ansible/roles/promptoramix` — voir [plus bas](#dépôt-promptoramix).
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
@@ -106,3 +109,31 @@ reste ouverte - mais elle est tenue par `gh` depuis le terraform, pas à la main
   `flip_planning_ghcr_token` de `ansible/secrets.sops.yaml`, qui demande `sops`.
 - [ ] **Transférer les issues** de `planning-equipes-private`, puis supprimer
   ce dépôt de dépannage.
+
+## Dépôt `promptoramix`
+
+`repository_promptoramix.tf` pose les mêmes réglages que pour
+`planning-equipes` (public d'emblée, scan de secrets et protection à la
+poussée, alertes Dependabot sans PR automatiques, `GITHUB_TOKEN` en lecture
+seule, `main` protégée : PR sans approbation requise, ni suppression ni
+force-push, `enforce_admins = false`), sans immutabilité des releases (le
+dépôt n'en publie pas) ni check requis.
+
+### Ordre des opérations
+
+1. `tofu apply` — le dépôt est créé **vide** (`auto_init = false`).
+2. Pousser l'historique local existant sur `main` : la CI publie alors
+   `ghcr.io/sylvainmetayer/promptoramix:main` (et `sha-<commit>`).
+3. Faire les réglages manuels ci-dessous.
+
+### Ce qui reste à la main
+
+- [ ] **Visibilité du paquet GHCR** —
+  `https://github.com/users/sylvainmetayer/packages/container/promptoramix/settings`
+  → visibilité publique. Un paquet poussé par Actions naît **privé** : sans
+  ce réglage, flip ne peut pas tirer l'image (le rôle ne fait aucun
+  `docker login`) et Renovate ne voit aucun digest à épingler.
+- [ ] **Installer Renovate** sur le dépôt (<https://github.com/apps/renovate>),
+  qui porte son `renovate.json`.
+- [ ] **Installer GitGuardian** sur le dépôt, comme sur les autres.
+
