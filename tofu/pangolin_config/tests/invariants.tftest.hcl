@@ -1251,7 +1251,7 @@ run "path_bypasses_follow_their_image" {
       for app, pin in {
         "TREK (website_trek.tf)"               = { file = "trek", image = "docker\\.io/mauriceboe/trek:4\\.3\\.3" }
         "Dawarich (website_dawarich.tf)"       = { file = "dawarich", image = "freikin/dawarich:1\\.15\\.3" }
-        "Paperless-ngx (website_paperless.tf)" = { file = "paperless_ngx", image = "ghcr\\.io/paperless-ngx/paperless-ngx:3\\.2" }
+        "Paperless-ngx (website_paperless.tf)" = { file = "paperless_ngx", image = "ghcr\\.io/paperless-ngx/paperless-ngx:3\\.3" }
         "FreshRSS (website_rss.tf)"            = { file = "rss", image = "freshrss/freshrss:1\\.30\\.1" }
         "Monica (website_monica.tf)"           = { file = "monica_v4", image = "monica:3\\.7\\.0-apache" }
         "Meerkat CRM (website_meerkat_crm.tf)" = { file = "meerkat_crm", image = "ghcr\\.io/fbuchner/meerkat-crm-backend:1\\.7\\.0" }

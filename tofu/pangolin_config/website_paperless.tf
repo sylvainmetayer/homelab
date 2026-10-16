@@ -16,7 +16,7 @@ locals {
 }
 
 # Share links (document > Share > link), opened worldwide without SSO through
-# local.path_bypasses (rules.tf). Read off Paperless-ngx v3.2.1
+# local.path_bypasses (rules.tf). Read off Paperless-ngx v3.2.1, re-read on v3.3.2
 # (src/paperless/urls.py, src/documents/views.py SharedLinkView):
 # `/share/<slug>` answers the file itself (inline PDF/original, or a ZIP for a
 # share-link bundle), no HTML page and no static file. The slug is 50 random
