@@ -1238,14 +1238,18 @@ run "path_bypasses_follow_their_image" {
 
   # Une montée faite à la main, dans le compose sans le fichier (ou
   # l'inverse), contournerait la relecture : la version notée doit être celle
-  # que le compose déploie.
+  # que le compose déploie, sur chaque service qui tourne cette image (Dawarich
+  # en a deux : un seul monté à la main passerait sinon).
   assert {
     condition = alltrue([
       for app, pin in jsondecode(file("${path.module}/path_bypass_images.json")) :
-      length(regexall(
-        "image: ${replace(pin.image, ".", "\\.")}:${replace(pin.version, ".", "\\.")}(@|\\s)",
-        file("${path.module}/../../${pin.compose}")
-      )) >= 1
+      (
+        length(regexall("image: ${replace(pin.image, ".", "\\.")}:", file("${path.module}/../../${pin.compose}"))) >= 1 &&
+        length(regexall("image: ${replace(pin.image, ".", "\\.")}:", file("${path.module}/../../${pin.compose}"))) == length(regexall(
+          "image: ${replace(pin.image, ".", "\\.")}:${replace(pin.version, ".", "\\.")}(@|\\s)",
+          file("${path.module}/../../${pin.compose}")
+        ))
+      )
     ])
     error_message = "Une image de path_bypass_images.json n'est pas à la version notée dans son compose : monter les deux ensemble (Renovate le fait), la relecture passe par l'environnement relecture-chemins-publics."
   }

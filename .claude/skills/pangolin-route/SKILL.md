@@ -93,6 +93,9 @@ the new app to:
 - an `override_resource` giving `pangolin_resource.website["<service>"]` its
   own `id` (the country-rule run needs distinct ids);
 - with path rules, the key list of `path_bypasses_open_exactly_the_reviewed_paths`.
+- with path rules on an image we build ourselves (no third-party route to
+  re-read), the exempt list of `path_bypasses_follow_their_image`; a
+  third-party image gets its `path_bypass_images.json` entry instead.
 
 The other fields of an entry, all optional, are documented at the top of
 `websites.tf`: `sso` (default true), `enabled` (default true; false also

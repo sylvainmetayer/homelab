@@ -50,10 +50,10 @@ jobs:
           base="$RUNNER_TEMP/base.json"
           git show "$BASE_SHA:$FILE" > "$base" 2>/dev/null || echo '{}' > "$base"
 
-          # Seule une version qui MONTE est à relire. Une entrée absente de la
-          # base est une app qu'on ajoute à la main : son auteur vient de
-          # relever ses chemins dans cette version (voir le skill
-          # pangolin-route), Renovate n'en crée jamais.
+          # Toute version qui CHANGE (montée ou retour arrière) est à relire.
+          # Une entrée absente de la base est une app qu'on ajoute à la main :
+          # son auteur vient de relever ses chemins dans cette version (voir
+          # le skill pangolin-route), Renovate n'en crée jamais.
           changes=$(jq -c --slurpfile base "$base" '
             [to_entries[]
               | select($base[0][.key] != null and .value.version != $base[0][.key].version)
