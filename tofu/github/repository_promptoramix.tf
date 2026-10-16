@@ -93,6 +93,13 @@ resource "github_branch_protection" "promptoramix_main" {
     require_last_push_approval      = false
   }
 
+  # Renovate fusionne seul ses PR et le homelab déploie le digest de :main :
+  # sans check requis, un commit rouge partirait en production.
+  required_status_checks {
+    strict   = false
+    contexts = ["test", "image"]
+  }
+
   require_conversation_resolution = true
   allows_deletions                = false
   allows_force_pushes             = false

@@ -17,6 +17,8 @@
         chdir: /opt/apps/promptoramix
       register: promptoramix_compose_raw
       changed_when: false
+      # Le modèle rendu inclut le .env, donc le secret.
+      no_log: true
 
     # Pangolin résout la cible par nom de conteneur sur le réseau newt
     # (tofu/pangolin_config/website_promptoramix.tf, ip = "promptoramix").
@@ -24,6 +26,7 @@
     - name: Assert promptoramix is reachable by Pangolin on the newt network only
       vars:
         promptoramix_compose: "{{ promptoramix_compose_raw.stdout | from_json }}"
+      no_log: true
       ansible.builtin.assert:
         that:
           - promptoramix_compose.services.app.container_name == 'promptoramix'
@@ -31,15 +34,16 @@
           - promptoramix_compose.networks.newt.external
         fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt : {{ promptoramix_compose.services.app }}"
 
-    # 64 Mio par requête, deux en parallèle : 256 Mio de plafond, et aucun
+    # Environ 20 Mio par recherche, deux en parallèle : 128 Mio de plafond, et aucun
     # quota CPU (doctrine d'AGENTS.md). Durcissement : racine en lecture seule,
     # aucune capacité.
     - name: Assert promptoramix is capped in memory, not in CPU, and hardened
       vars:
         promptoramix_app: "{{ (promptoramix_compose_raw.stdout | from_json).services.app }}"
+      no_log: true
       ansible.builtin.assert:
         that:
-          - promptoramix_app.mem_limit | int == 268435456
+          - promptoramix_app.mem_limit | int == 134217728
           - promptoramix_app.cpus is not defined
           - promptoramix_app.read_only
           - promptoramix_app.cap_drop == ['ALL']
