@@ -15,20 +15,17 @@
 
 
   pre_tasks:
-    # community.sops.load_vars range les secrets dans la couche include_vars
-    # (return_method: vars-only, ansible-core 2.21+, qui échoue franchement en
-    # dessous au lieu de les renvoyer comme faits) : ils l'emportent sur les
-    # vars: du play et des entrées roles:, perdent face à un set_fact. Une clé
-    # de secrets.sops.yaml ne doit donc jamais porter le nom d'une variable
-    # qu'un playbook surcharge (cf. flip.yml, AGENTS.md).
-    # Export your age key in environment
-    # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
-    - name: Load secrets variable into global namespace
+    # Charge secrets.sops.yaml et pose `terraform_outputs` (state de
+    # tofu/pangolin_config), pour l'URL push de ssh_login_notify.
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # Un moniteur par hôte (tofu/pangolin_config/ssh_login_monitors.tf) ;
+    # tests/invariants.tftest.hcl cherche cette chaîne ici.
+    - name: Set the SSH login push URL of this host
       tags: always
-      community.sops.load_vars:
-        file: "{{ playbook_dir }}/secrets.sops.yaml"
-        expressions: evaluate-on-load
-        return_method: vars-only
+      ansible.builtin.set_fact:
+        ssh_login_notify_push_url: "{{ terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] | default('') }}"
 
     - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
       become: true
@@ -67,7 +64,7 @@
         shell: /bin/bash
         groups: sudo
         append: true
-        password: "{{ host_user_password | password_hash('sha512', host_user_password) }}"
+        password: "{{ password | password_hash('sha512', password) }}"
 
     - name: Set public keys
       loop: "{{ lookup('fileglob', playbook_dir + '/../keys/*.pub', wantlist=True) }}"
@@ -79,3 +76,7 @@
   roles:
     - role: andrewrothstein.starship
       tags: setup,starship
+    # Alerte Telegram (Uptime Kuma) à chaque connexion SSH, clé comprise.
+    - role: ssh_login_notify
+      become: true
+      tags: ssh_login_notify,security
