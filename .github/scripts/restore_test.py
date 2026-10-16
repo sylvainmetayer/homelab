@@ -92,9 +92,12 @@ def restore_postgresql(image, name, dump):
     container = f"restore-pg-{secrets.token_hex(4)}"
     run("docker", "run", "-d", "--name", container, "-e", "POSTGRES_PASSWORD=restore-test", image)
     try:
-        wait_until(container, "pg_isready", "-U", "postgres")
-        # The entrypoint restarts the server once initialised: wait for a query.
-        wait_until(container, "psql", "-U", "postgres", "-c", "select 1")
+        # The entrypoint first runs a temporary server (initdb, init scripts:
+        # postgis takes seconds) listening on the Unix socket only, then stops
+        # it and starts the real one. A socket probe answers during that first
+        # phase and createdb/pg_restore die with the restart: probe over TCP,
+        # which only the real server listens on.
+        wait_until(container, "pg_isready", "-h", "127.0.0.1", "-U", "postgres")
         run("docker", "cp", str(dump), f"{container}:/tmp/dump")
         run("docker", "exec", container, "createdb", "-U", "postgres", name)
         # borgmatic dumps in pg_dump's custom format by default.
@@ -152,9 +155,11 @@ def restore(app, entry, workdir):
 
     dumps = [(m.group(1), m.group(2), path) for _, path in files if (m := DUMP_RE.search(path))]
     sqlite = [path for _, path in files if path.startswith(SQLITE_STAGING + entry["repo"] + "/")]
-    sample = [path for size, path in files
-              if 0 < size <= SAMPLE_MAX_BYTES and not DUMP_RE.search(path)
-              and not path.startswith(SQLITE_STAGING)][:SAMPLE_FILES]
+    candidates = [path for size, path in files
+                  if 0 < size <= SAMPLE_MAX_BYTES and not DUMP_RE.search(path)
+                  and not path.startswith(SQLITE_STAGING)]
+    # Random, not the head of the listing: every run reads other chunks.
+    sample = secrets.SystemRandom().sample(candidates, min(SAMPLE_FILES, len(candidates)))
     if not sample and not dumps and not sqlite:
         raise RestoreError(f"{archive} ne contient aucun fichier")
 

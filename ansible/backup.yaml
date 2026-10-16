@@ -45,6 +45,12 @@
       ansible.builtin.command:
         argv:
           - ssh
+          # La clé de la connexion Ansible (group_vars/all), pas toutes celles
+          # de l'agent ; jamais d'invite de mot de passe.
+          - -i
+          - "{{ ansible_ssh_private_key_file }}"
+          - -o
+          - BatchMode=yes
           - -p
           - "{{ ansible_port }}"
           - "{{ ansible_user }}@{{ ansible_host }}"

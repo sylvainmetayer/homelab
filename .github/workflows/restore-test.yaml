@@ -39,8 +39,14 @@ jobs:
         run: |
           all=$(jq -c 'keys' .github/restore-test/apps.json)
           if [ -n "$SELECTED" ]; then
-            apps=$(jq -nc --argjson all "$all" --arg sel "$SELECTED" \
-              '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. as $a | $all | index($a)))')
+            apps=$(jq -nc --arg sel "$SELECTED" \
+              '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))')
+            # Une faute de frappe ne doit pas donner un run vert qui n'a rien testé.
+            unknown=$(jq -nr --argjson all "$all" --argjson apps "$apps" '$apps - $all | join(",")')
+            if [ -n "$unknown" ]; then
+              echo "::error::dépôts inconnus de apps.json : $unknown"
+              exit 1
+            fi
           else
             apps=$all
           fi

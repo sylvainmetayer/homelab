@@ -87,9 +87,10 @@ checks:
       frequency: 2 weeks
     - name: archives
       frequency: 1 month
-    # Compare un échantillon des fichiers source à la dernière archive, sans
-    # rien télécharger : empreintes xxh64 de la source (lues sur l'hôte) face
-    # à celles que borg garde dans l'archive. Pas de check « extract » : il
+    # Compare un échantillon des fichiers source à la dernière archive :
+    # empreintes xxh64 de la source (lues sur l'hôte) face à celles que borg
+    # calcule en relisant ces seuls fichiers depuis le dépôt (l'échantillon
+    # est donc téléchargé, pas le reste). Pas de check « extract » : il
     # relit l'archive entière (immich, nextcloud). L'extraction réelle est
     # celle du test de restauration (.github/workflows/restore-test.yaml).
     - name: spot
