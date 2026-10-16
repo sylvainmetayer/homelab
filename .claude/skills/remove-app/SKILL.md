@@ -113,7 +113,8 @@ lives in one file and one line, so removal is a few edits + an apply:
 - Delete `tofu/pangolin_config/website_<service>.tf` in full.
 - Remove its `<service> = local.<service>_website` line from `local.websites`
   in `tofu/pangolin_config/websites.tf`, and its entry from
-  `local.path_bypasses` in `rules.tf` if it had path rules.
+  `local.path_bypasses` in `rules.tf` if it had path rules, and its entry from
+  `tofu/pangolin_config/path_bypass_images.json`.
 - Remove it from the inventories `tests/invariants.tftest.hcl` pins on
   purpose (the list is in the `pangolin-route` skill): resource name map,
   target keys, healthcheck and backup name maps, its `override_resource`

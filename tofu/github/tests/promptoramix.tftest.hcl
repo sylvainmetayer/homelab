@@ -5,7 +5,15 @@
 # `tofu test` heurterait, et terraform_data.planning_equipes_immutable_releases
 # porte un provisioner local-exec.
 
-mock_provider "github" {}
+# data.github_user.owner (environments.tf) : un id numérique, comme celui que
+# reviewers.users attend.
+mock_provider "github" {
+  mock_data "github_user" {
+    defaults = {
+      id = "8873695"
+    }
+  }
+}
 mock_provider "tls" {}
 mock_provider "local" {}
 mock_provider "external" {}

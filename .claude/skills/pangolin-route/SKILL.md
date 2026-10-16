@@ -101,7 +101,12 @@ the backup job keeps running), `healthcheck` (default true), `backup` (default
 false), and on a target `hc_port` (default `port`), `path` and `priority`.
 What is specific to one app stays in its file: path rules
 (`local.<service>_*_paths`, turned into rules by `local.path_bypasses` in
-`rules.tf`), home-IP rules, extra access tokens, a pincode.
+`rules.tf`), home-IP rules, extra access tokens, a pincode. A resource with
+path rules on a third-party image also gets an entry (keyed by its Pangolin
+name) in `tofu/pangolin_config/path_bypass_images.json`: image and version as
+written in the compose, the sources the paths were read off and the releases
+URL. Renovate keeps that version in step with the compose, and
+`path-bypass-review.yaml` holds each bump for an approval in the GitHub UI.
 
 The `uptime_backup_<service>_url` output is what `ansible/docker.yml` (or
 `pangolin.yaml`/`pi.yml`) reads back to populate
