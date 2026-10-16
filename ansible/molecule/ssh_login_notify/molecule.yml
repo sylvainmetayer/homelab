@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: ssh_login_notify
+
+# Prepare propre : sshd en marche, deux paires de clés pour sylvain et un faux
+# Uptime Kuma local qui enregistre les push (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

@@ -1,0 +1,20 @@
+---
+# Alerte à chaque connexion SSH (issue #451).
+#
+# URL push Uptime Kuma de l'hôte : sortie `uptime_ssh_login_urls` de
+# tofu/pangolin_config (ssh_login_monitors.tf), indexée par inventory_hostname,
+# posée par 00-setup.yaml. Vide (hôte absent de local.ssh_login_hosts, ou
+# pangolin_config pas encore appliqué) : le rôle avertit et ne pose rien.
+ssh_login_notify_push_url: ""
+
+# Commentaires de clés (dernier champ de la ligne de authorized_keys, ex.
+# "github-actions") dont les connexions ne notifient pas. Vide : tout notifie,
+# CI comprise — une clé de CI compromise est justement ce qu'on veut voir.
+ssh_login_notify_ignored_keys: []
+
+# Délai maximal de l'appel à Uptime Kuma. L'appel part en arrière-plan : il ne
+# retarde jamais l'ouverture de la session.
+ssh_login_notify_timeout: 10
+
+ssh_login_notify_script: /usr/local/sbin/ssh-login-notify
+ssh_login_notify_config: /etc/ssh-login-notify.conf
