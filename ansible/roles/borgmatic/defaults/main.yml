@@ -30,6 +30,16 @@ borgmatic_rclone_s3_region: "EU-WEST-PAR"
 # posent un bouchon (molecule/_shared/prepare.yml).
 borgmatic_bin: /root/.local/bin/borgmatic
 
+# Check « spot » de chaque application (templates/app.yaml.j2) : juste après
+# la sauvegarde du jour où il est dû, donc la source a peu bougé. Tolérances :
+# écart du nombre de fichiers entre la source et l'archive (les copies SQLite
+# du staging n'existent que dans l'archive), et part de l'échantillon dont
+# l'empreinte diffère (fichiers modifiés depuis la sauvegarde).
+borgmatic_spot_check_frequency: 1 month
+borgmatic_spot_count_tolerance_percentage: 10
+borgmatic_spot_data_sample_percentage: 1
+borgmatic_spot_data_tolerance_percentage: 5
+
 # Exclusions communes à toutes les applications. borgmatic les passe à borg
 # en style « fm: », ancrées au début du chemin archivé (sans le / initial) :
 # « * » y traverse les /, donc '*.log' vise tout fichier .log, mais un motif

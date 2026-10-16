@@ -87,6 +87,16 @@ checks:
       frequency: 2 weeks
     - name: archives
       frequency: 1 month
+    # Compare un échantillon des fichiers source à la dernière archive, sans
+    # rien télécharger : empreintes xxh64 de la source (lues sur l'hôte) face
+    # à celles que borg garde dans l'archive. Pas de check « extract » : il
+    # relit l'archive entière (immich, nextcloud). L'extraction réelle est
+    # celle du test de restauration (.github/workflows/restore-test.yaml).
+    - name: spot
+      frequency: {{ borgmatic_spot_check_frequency | to_json }}
+      count_tolerance_percentage: {{ borgmatic_spot_count_tolerance_percentage }}
+      data_sample_percentage: {{ borgmatic_spot_data_sample_percentage }}
+      data_tolerance_percentage: {{ borgmatic_spot_data_tolerance_percentage }}
 
 archive_name_format: '{{ borgmatic_app_archive_prefix }}-{now:%Y-%m-%dT%H:%M:%S}'
 {% if borgmatic_app_extra_options | length > 0 %}
