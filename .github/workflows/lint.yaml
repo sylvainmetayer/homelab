@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Install ansible + deps
         run: pip install --quiet ansible-core==2.20.1 ansible-lint boto3 botocore passlib
