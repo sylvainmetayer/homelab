@@ -80,11 +80,14 @@ borgmatic_app_exclude_patterns: []
 # de la base n'a alors rien à faire dans les sources : copié à chaud, il
 # n'est pas cohérent.
 borgmatic_app_postgresql_databases: []
-# Entrées MySQL/MariaDB : dump_command en plus (mysqldump par défaut). L'image
+# Entrées MySQL/MariaDB : dump_command en plus (mariadb-dump par défaut). L'image
 # officielle mariadb n'a plus que mariadb-dump depuis la 11.0 (les liens
 # mysql* sont dans mariadb-client-compat, qu'elle n'installe pas) ; celle de
-# linuxserver a les deux. Le client passe par borgmatic_docker_dump_bin (voir
-# plus bas) : borgmatic 2.1 lui impose un --result-file de l'hôte.
+# linuxserver a les deux, mais son mysqldump avertit « Deprecated program
+# name » à chaque dump. Toutes les bases du dépôt sont en MariaDB : une vraie
+# base MySQL passerait dump_command: mysqldump. Le client passe par
+# borgmatic_docker_dump_bin (voir plus bas) : borgmatic 2.1 lui impose un
+# --result-file de l'hôte.
 borgmatic_app_mysql_databases: []
 # Globs (chemins absolus sur l'hôte) des bases SQLite de l'application,
 # résolus au déploiement. Chaque fichier trouvé qui est bien une base SQLite
