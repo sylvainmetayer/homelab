@@ -35,3 +35,12 @@ resource "uptimekuma_notification_smtp" "email" {
   # Monitors are wired explicitly below, so this must not also bulk-attach.
   apply_existing = false
 }
+
+# Notification 1 is "Supervision Telegram", created by hand in Uptime Kuma: its
+# bot token is not in sops, so the notification itself cannot be declared and
+# its id is referenced raw. Used by FolderSync (external_monitors.tf) and the
+# SSH login monitors (ssh_login_monitors.tf). Changing it would silently drop
+# their only alert.
+locals {
+  telegram_notification_id = 1
+}
