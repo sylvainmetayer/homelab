@@ -30,7 +30,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, *args):
+        # Silencieux : le journal du test, ce sont les push enregistrés, pas
+        # les lignes d'accès de http.server.
         pass
 
 
-HTTPServer(("127.0.0.1", 18080), Handler).serve_forever()
+# Faux Uptime Kuma du scénario, sur la boucle locale du conteneur : le script
+# testé pousse vers cette URL, aucun secret ne transite.
+HTTPServer(("127.0.0.1", 18080), Handler).serve_forever()  # NOSONAR
