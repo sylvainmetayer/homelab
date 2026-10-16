@@ -74,15 +74,23 @@ flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_db_password /
+# demo_planning_db_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_db_password: ""
 
 # App secrets
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_api_key /
+# demo_planning_mcp_api_key); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_api_key: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token_id /
+# demo_planning_mcp_pangolin_access_token_id); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_pangolin_access_token_id: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token /
+# demo_planning_mcp_pangolin_access_token); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_pangolin_access_token: ""
 
 # Rate ceiling on /mcp, per source address and per window. Every request is
@@ -109,9 +117,13 @@ flip_planning_mcp_rate_window: PT1M
 # nothing, and one that authenticates clears the run. 0 or less switches it off.
 flip_planning_mcp_max_failures: 5
 flip_planning_mcp_lockout_duration: PT10M
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_admin_password /
+# demo_planning_admin_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_admin_password: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_session_encryption_key /
+# demo_planning_session_encryption_key); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_session_encryption_key: ""
 
 # Mentions légales, served publicly on /mentions-legales. Those of the
@@ -326,7 +338,9 @@ flip_planning_newt_network: "newt"
 flip_planning_pgadmin_enabled: true
 flip_planning_pgadmin_path: "/db"
 flip_planning_pgadmin_email: "admin@sylvain.cloud"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_pgadmin_password /
+# demo_planning_pgadmin_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_pgadmin_password: ""
 
 # Borgmatic backup configuration
