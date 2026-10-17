@@ -21,7 +21,7 @@ import sys
 
 import yaml
 
-SECRET_FILES = [
+SOPS_FILES = [
     "ansible/secrets.sops.yaml",
     "ansible/molecule/_shared/vars/fake_secrets.yml",
 ]
@@ -52,13 +52,13 @@ def load(path):
         return yaml.load(f, Loader=Loader)  # noqa: S506 - SafeLoader subclass
 
 
-def secret_keys():
-    keys = {}
-    for path in SECRET_FILES:
+def sops_key_names():
+    names = {}
+    for path in SOPS_FILES:
         for key in load(path) or {}:
             if key != "sops":
-                keys.setdefault(key, path)
-    return keys
+                names.setdefault(key, path)
+    return names
 
 
 def walk(node, where, found):
@@ -82,7 +82,7 @@ def walk(node, where, found):
 
 
 def main():
-    keys = secret_keys()
+    sops_names = sops_key_names()
     found = []
     for pattern in VARS_KEYWORD_FILES:
         for path in sorted(glob.glob(pattern, recursive=True)):
@@ -94,13 +94,13 @@ def main():
             for var in load(path) or {}:
                 found.append((var, path))
 
-    collisions = sorted({(var, where) for var, where in found if var in keys})
+    collisions = sorted({(var, where) for var, where in found if var in sops_names})
     if not collisions:
-        print(f"OK: none of the {len(keys)} SOPS keys is set by a vars: it would shadow.")
+        print(f"OK: none of the {len(sops_names)} SOPS keys is set by a vars: it would shadow.")
         return 0
     for var, where in collisions:
         print(
-            f"::error::SOPS key '{var}' ({keys[var]}) shadows the variable set in {where}: "
+            f"::error::SOPS key '{var}' ({sops_names[var]}) shadows the variable set in {where}: "
             "the secret wins over it (include_vars layer). Rename the key in sops "
             "(per instance: prod_planning_*, demo_planning_*) and hand it over through vars:."
         )
