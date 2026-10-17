@@ -3,8 +3,10 @@
 # prepare.yml ajoute ce que le rôle trouve sur un vrai hôte (sshd en marche),
 # un récepteur SMTP, une clé pour tester le ProxyJump, une image de conteneur
 # locale, et protège les sysctls globaux du noyau de l'hôte.
-# Variables de Pangolin ; le scénario security_flip rejoue le rôle avec celles
-# de flip (devsec.hardening).
+# Variables de Pangolin (devsec.hardening, bastion en AllowTcpForwarding
+# local) ; le scénario security_flip rejoue le rôle avec celles de flip
+# (devsec, forward refusé). Le chemin sans devsec (drop-in maison) ne sert plus
+# qu'à l'image Packer, qui n'a pas de scénario.
 scenario:
   name: security
 ansible:
