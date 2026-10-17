@@ -1,0 +1,39 @@
+---
+# Relais d'envoi seul : root (unattended-upgrades, logwatch, apt-listchanges,
+# cron) écrit à /usr/sbin/sendmail, msmtp relaie vers Infomaniak. Pas de file
+# d'attente : un mail émis pendant une panne du relais est perdu.
+
+# msmtp-mta remplace exim4, que logwatch avait tiré comme MTA par défaut.
+- name: Install msmtp as the system sendmail
+  ansible.builtin.apt:
+    name:
+      - msmtp
+      - msmtp-mta
+    state: present
+
+- name: Purge exim4
+  ansible.builtin.apt:
+    name:
+      - exim4-base
+      - exim4-config
+      - exim4-daemon-light
+    state: absent
+    purge: true
+
+# 0600 root : le mot de passe de la boîte y est. Seul root envoie (msmtp n'est
+# pas setgid) ; un cron d'utilisateur ne pourrait pas, ce qui est voulu.
+- name: Configure msmtp
+  ansible.builtin.template:
+    src: msmtprc.j2
+    dest: /etc/msmtprc
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Route local mail to the admin mailbox
+  ansible.builtin.template:
+    src: aliases.j2
+    dest: /etc/aliases
+    owner: root
+    group: root
+    mode: "0644"

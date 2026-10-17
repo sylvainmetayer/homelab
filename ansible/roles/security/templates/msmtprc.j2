@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+# Relais d'envoi seul (rôle security, tasks/mta.yml).
+defaults
+syslog LOG_MAIL
+aliases /etc/aliases
+
+account relay
+host {{ security_mta_host }}
+port {{ security_mta_port }}
+{% if security_mta_tls | bool %}
+tls on
+tls_starttls {{ 'on' if security_mta_port | int != 465 else 'off' }}
+tls_trust_file system
+{% else %}
+tls off
+{% endif %}
+{% if security_mta_auth | bool %}
+auth on
+user {{ security_mta_user }}
+password {{ security_mta_password }}
+{% else %}
+auth off
+{% endif %}
+# Infomaniak refuse un expéditeur autre que le compte authentifié : enveloppe
+# et en-tête From sont réécrits, quoi que demande l'appelant (cron, logwatch…).
+from {{ security_mta_from }}
+allow_from_override off
+set_from_header on
+
+account default : relay
