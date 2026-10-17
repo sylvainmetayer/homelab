@@ -1,0 +1,9 @@
+---
+# Le relais msmtp des hôtes vise Infomaniak (587, STARTTLS, authentifié) ; en
+# test, le récepteur aiosmtpd du prepare (en clair, sans authentification).
+# L'expéditeur (pangolin_smtp_user) et le destinataire (pangolin_le_email)
+# restent les faux secrets : c'est leur câblage que le verify contrôle.
+security_mta_host: 127.0.0.1
+security_mta_port: 2525
+security_mta_tls: false
+security_mta_auth: false

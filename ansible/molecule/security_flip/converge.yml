@@ -1,0 +1,21 @@
+---
+# Comme dans flip.yml : rôle appliqué avec become au niveau du playbook.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+    # En dernier : le relais msmtp vise le récepteur du prepare.
+    - ../security/vars/smtp_sink.yml
+  pre_tasks:
+    - name: Assert flip runs devsec.hardening
+      ansible.builtin.assert:
+        that:
+          - security_devsec_enabled | bool
+        fail_msg: >-
+          host_vars/flip n'active plus devsec : ce scénario ne teste plus rien
+          de plus que security.
+  roles:
+    - role: security
+      become: true

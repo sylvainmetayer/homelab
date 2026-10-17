@@ -1,7 +1,13 @@
 ---
 collections:
-  # - name: devsec.hardening
-  #   version: 10.1.0
+  # Durcissement os + ssh de pangolin et flip (rôle security, issue #108).
+  # Version figée, suivie par Renovate : relire les défauts à chaque majeure.
+  - name: devsec.hardening
+    version: "11.0.0"
+  # Dépendance de devsec.hardening (>=1.0.0 dans son MANIFEST), figée ici
+  # plutôt que laissée à la version embarquée par le paquet ansible.
+  - name: community.crypto
+    version: "3.5.0"
   - name: ansible.posix
     version: 2.2.2
   - name: community.sops

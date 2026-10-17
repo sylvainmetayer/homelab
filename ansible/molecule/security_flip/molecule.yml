@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle security avec les variables de flip, donc avec devsec.hardening
+# (os_hardening + ssh_hardening) ; le scénario security le rejoue avec celles de
+# Pangolin. Prepare et verify sont ceux de security.
+scenario:
+  name: security_flip
+ansible:
+  playbooks:
+    prepare: ../security/prepare.yml

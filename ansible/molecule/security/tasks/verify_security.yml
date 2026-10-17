@@ -1,0 +1,421 @@
+---
+# Vérifications du rôle security, communes aux scénarios security (Pangolin,
+# drop-in sshd maison) et security_flip (devsec.hardening). Les variables
+# viennent des defaults du rôle et des host_vars de l'hôte rejoué.
+
+# --- sshd : la configuration effective, pas seulement le fichier ---
+
+- name: Dump the effective sshd configuration
+  become: true
+  ansible.builtin.command: sshd -T
+  register: security_sshd_effective
+  changed_when: false
+
+- name: Assert sshd runs with the hardened settings
+  vars:
+    agent_forwarding: "{{ 'yes' if security_ssh_allow_agent_forwarding | bool else 'no' }}"
+  ansible.builtin.assert:
+    that:
+      - security_sshd_effective.stdout_lines is contains('passwordauthentication no')
+      - security_sshd_effective.stdout_lines is contains('kbdinteractiveauthentication no')
+      - security_sshd_effective.stdout_lines is contains('permitrootlogin no')
+      - security_sshd_effective.stdout_lines is contains('permitemptypasswords no')
+      - security_sshd_effective.stdout_lines is contains('x11forwarding no')
+      - security_sshd_effective.stdout_lines is contains('maxauthtries ' ~ security_ssh_max_auth_tries)
+      - security_sshd_effective.stdout_lines is contains('allowusers ' ~ security_ssh_allow_users)
+      - security_sshd_effective.stdout_lines is contains('allowagentforwarding ' ~ agent_forwarding)
+      # Pangolin sert de bastion (ProxyJump) vers flip : forward local seulement.
+      - security_sshd_effective.stdout_lines is contains('allowtcpforwarding ' ~ security_ssh_allow_tcp_forwarding)
+    fail_msg: >-
+      sshd -T : {{ security_sshd_effective.stdout_lines
+                   | select('match', '^(password|kbdinteractive|permitroot|allow|maxauthtries)')
+                   | list }}
+
+- name: Read the state of sshd
+  ansible.builtin.systemd:
+    name: ssh
+  register: security_sshd_unit
+
+- name: Assert sshd survived the reload
+  ansible.builtin.assert:
+    that:
+      - security_sshd_unit.status.ActiveState == 'active'
+
+# Un vrai ProxyJump (`ssh -J` = `-W`, un forward local direct-tcpip) de
+# sylvain vers lui-même : ce que font Ansible et la CI vers flip à travers
+# Pangolin. Doit passer si et seulement si sshd autorise le forward local.
+- name: Jump through sshd to sshd
+  become: true
+  become_user: sylvain
+  vars:
+    ssh_opts: >-
+      -F /dev/null -i /home/sylvain/.ssh/molecule_proxyjump -o BatchMode=yes
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -F
+      - /dev/null
+      - -i
+      - /home/sylvain/.ssh/molecule_proxyjump
+      - -o
+      - BatchMode=yes
+      - -o
+      - StrictHostKeyChecking=no
+      - -o
+      - UserKnownHostsFile=/dev/null
+      - -o
+      - ProxyCommand=ssh {{ ssh_opts }} -W %h:%p sylvain@127.0.0.1
+      - sylvain@127.0.0.1
+      - echo jumped
+  register: security_proxyjump
+  changed_when: false
+  failed_when: false
+
+- name: Assert ProxyJump works exactly when TCP forwarding is allowed
+  vars:
+    forwarding_allowed: "{{ security_ssh_allow_tcp_forwarding | string | lower in ['local', 'yes', 'all', 'true'] }}"
+  ansible.builtin.assert:
+    that:
+      - (security_proxyjump.rc == 0 and security_proxyjump.stdout == 'jumped') == (forwarding_allowed | bool)
+    fail_msg: >-
+      AllowTcpForwarding {{ security_ssh_allow_tcp_forwarding }} mais ProxyJump
+      rc={{ security_proxyjump.rc }} : {{ security_proxyjump.stderr }}
+
+# borgmatic joint la Storage Box avec le client SSH de l'hôte : ni le rôle ni
+# devsec (ssh_client_hardening: false) ne doivent toucher ssh_config.
+- name: Verify the files of the SSH client package
+  ansible.builtin.command: dpkg --verify openssh-client
+  register: security_ssh_client_files
+  changed_when: false
+  failed_when: false
+
+- name: Assert /etc/ssh/ssh_config is the packaged one
+  ansible.builtin.assert:
+    that:
+      - security_ssh_client_files.stdout is not search('/etc/ssh/ssh_config$', multiline=True)
+    fail_msg: "{{ security_ssh_client_files.stdout }}"
+
+# --- ufw ---
+
+- name: Read the ufw status
+  become: true
+  ansible.builtin.command: ufw status verbose
+  register: security_ufw_status
+  changed_when: false
+
+- name: Assert ufw is active and denies incoming traffic by default
+  ansible.builtin.assert:
+    that:
+      - >-
+        security_ufw_status.stdout is search('^Status: active$', multiline=True)
+      - >-
+        security_ufw_status.stdout is search('^Default: deny \(incoming\), allow \(outgoing\)', multiline=True)
+    fail_msg: "{{ security_ufw_status.stdout }}"
+
+- name: Assert every allowed port is open in ufw
+  ansible.builtin.assert:
+    that:
+      - security_ufw_status.stdout is search('^' ~ item.port ~ '/' ~ item.proto ~ '\s+ALLOW IN\s+Anywhere\s*$', multiline=True)
+    fail_msg: "{{ item.port }}/{{ item.proto }} absent de : {{ security_ufw_status.stdout }}"
+  loop: "{{ security_ufw_allowed_ports }}"
+  loop_control:
+    label: "{{ item.port }}/{{ item.proto }}"
+
+# --- services de sécurité (activés, démarrés au prochain boot) ---
+
+- name: Read the state of the security services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  register: security_services
+  loop:
+    - fail2ban
+    - auditd
+    - ufw
+
+- name: Assert the security services are enabled
+  ansible.builtin.assert:
+    that:
+      - item.status.UnitFileState == 'enabled'
+    fail_msg: "{{ item.item }} : {{ item.status.UnitFileState }}"
+  loop: "{{ security_services.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# --- fail2ban : le jail sshd tourne, et lit le journal ---
+
+- name: Read the sshd jail status
+  become: true
+  ansible.builtin.command: fail2ban-client status sshd
+  register: security_fail2ban_sshd
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: security_fail2ban_sshd.rc == 0
+
+- name: Dump the fail2ban configuration
+  become: true
+  ansible.builtin.command: fail2ban-client --dump
+  register: security_fail2ban_dump
+  changed_when: false
+
+- name: Assert the sshd jail reads the systemd journal
+  ansible.builtin.assert:
+    that:
+      - security_fail2ban_dump.stdout is search("\['add', 'sshd', 'systemd'\]")
+      - security_fail2ban_dump.stdout is search("\['set', 'sshd', 'maxretry', 3\]")
+    fail_msg: "{{ security_fail2ban_dump.stdout_lines | select('search', \"'sshd', '(systemd|maxretry)\") | list }}"
+
+# --- fichiers de configuration ---
+
+- name: Read the security configuration files
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  register: security_files
+  loop:
+    - /etc/fail2ban/jail.local
+    - /etc/apt/apt.conf.d/50unattended-upgrades
+
+- name: Assert the configuration files carry the hardening
+  vars:
+    jail_local: "{{ security_files.results[0].content | b64decode }}"
+    unattended_upgrades: "{{ security_files.results[1].content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - jail_local is search('^\[sshd\]\nenabled = true\nbackend = systemd$', multiline=True)
+      - jail_local is not search('logpath')
+      - jail_local is search('^ignoreip = ' ~ (security_fail2ban_ignoreip | join(' ') | regex_escape) ~ '$', multiline=True)
+      # Seulement les mises à jour de sécurité, sans redémarrage automatique.
+      - unattended_upgrades is search('"\$\{distro_id\}:\$\{distro_codename\}-security";')
+      - unattended_upgrades is search('Automatic-Reboot "false"')
+      - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::Mail "root";')
+      - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::MailReport "only-on-error";')
+
+# --- paquets : rkhunter et exim4 retirés, aucun SMTP en écoute ---
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+
+- name: Assert rkhunter is gone and logwatch is installed
+  ansible.builtin.assert:
+    that:
+      - "'rkhunter' not in ansible_facts.packages"
+      - "'logwatch' in ansible_facts.packages"
+
+# Sans relais (security_mta_enabled: false, image Packer), logwatch tire exim4 :
+# ce qui suit ne vaut que pour les hôtes qui l'activent.
+- name: Check the mail relay
+  when: security_mta_enabled | bool
+  block:
+    - name: Assert exim4 is gone and msmtp-mta is the MTA
+      ansible.builtin.assert:
+        that:
+          - "'exim4-daemon-light' not in ansible_facts.packages"
+          - "'exim4-base' not in ansible_facts.packages"
+          - "'msmtp-mta' in ansible_facts.packages"
+
+    - name: List the TCP sockets listening on port 25
+      ansible.builtin.command: ss -Hltn sport = :25
+      register: security_smtp_listeners
+      changed_when: false
+
+    - name: Assert nothing listens on port 25
+      ansible.builtin.assert:
+        that:
+          - security_smtp_listeners.stdout | trim == ''
+        fail_msg: "{{ security_smtp_listeners.stdout }}"
+
+    # --- relais mail : root → récepteur, expéditeur réécrit ---
+
+    - name: Read the msmtp configuration permissions
+      ansible.builtin.stat:
+        path: /etc/msmtprc
+      register: security_msmtprc
+
+    - name: Assert the msmtp configuration is readable by root only
+      ansible.builtin.assert:
+        that:
+          - security_msmtprc.stat.exists
+          - security_msmtprc.stat.mode == '0600'
+          - security_msmtprc.stat.pw_name == 'root'
+
+    # Comme un cron ou logwatch : `From: root`, destinataire local `root`.
+    - name: Send a mail to root through sendmail
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+        printf 'From: root\nTo: root\nSubject: molecule-relay\n\nmolecule\n' | /usr/sbin/sendmail -t
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    # Le handler Mailbox d'aiosmtpd écrit un Maildir : un fichier par message.
+    - name: Wait for the mail in the SMTP sink
+      become: true
+      ansible.builtin.shell: cat /var/lib/molecule-smtp-sink/maildir/new/*
+      register: security_mbox
+      changed_when: false
+      failed_when: false
+      retries: 10
+      delay: 2
+      until: >-
+        security_mbox.rc == 0 and 'Subject: molecule-relay' in security_mbox.stdout
+
+    - name: Assert the mail went to the admin mailbox from the relay account
+      ansible.builtin.assert:
+        that:
+          - >-
+            security_mbox.stdout is search('^X-RcptTo: ' ~ (security_mta_recipient | regex_escape) ~ '$', multiline=True)
+          - >-
+            security_mbox.stdout is search('^X-MailFrom: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
+          - >-
+            security_mbox.stdout is search('^From: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
+        fail_msg: >-
+          {{ security_mbox.stdout_lines | select('match', '^(X-RcptTo|X-MailFrom|From):') | list }}
+
+# --- Docker fonctionne encore après le durcissement ---
+
+- name: Read whether containers ran before hardening
+  become: true
+  ansible.builtin.slurp:
+    src: /var/lib/molecule-docker-run-baseline
+  register: security_docker_baseline
+
+- name: Run a container on the newt network
+  become: true
+  ansible.builtin.command: docker run --rm --network newt molecule-true:local /usr/bin/true
+  register: security_docker_run
+  changed_when: false
+  failed_when: false
+
+- name: Assert containers still run after hardening
+  vars:
+    baseline: "{{ security_docker_baseline.content | b64decode | trim }}"
+  ansible.builtin.assert:
+    that:
+      - security_docker_run.rc == 0 or baseline != 'ok'
+    fail_msg: "docker run marchait avant le durcissement, plus après : {{ security_docker_run.stderr }}"
+    success_msg: >-
+      {{ 'docker run OK' if security_docker_run.rc == 0
+         else 'docker run impossible dans cet environnement, déjà avant durcissement : ' ~ baseline }}
+
+# --- sans devsec : drop-in sshd et sysctl maison ---
+
+- name: Check the in-house hardening files
+  when: not (security_devsec_enabled | bool)
+  block:
+    - name: Read the in-house sysctl file
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/sysctl.d/99-hardening.conf
+      register: security_sysctl_file
+
+    - name: Read the in-house sshd drop-in
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config.d/99-custom.conf
+      register: security_sshd_dropin
+
+    - name: Assert the in-house sysctl and sshd files are in place
+      vars:
+        sysctl_hardening: "{{ security_sysctl_file.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - security_sshd_dropin.stat.exists
+          - sysctl_hardening is search('^fs\.suid_dumpable = 0$', multiline=True)
+          - sysctl_hardening is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+
+# --- avec devsec : ce qui a été durci, et ce qui a été épargné ---
+
+- name: Check devsec.hardening
+  when: security_devsec_enabled | bool
+  block:
+    # devsec saute son sysctl dans un conteneur : on contrôle la valeur qu'il
+    # écrirait et rechargerait sur l'hôte (le rôle l'assert aussi avant devsec).
+    - name: Assert the devsec sysctl overwrite keeps Docker and the NAT working
+      ansible.builtin.assert:
+        that:
+          - security_devsec_sysctl_overwrite['net.ipv4.ip_forward'] | int == 1
+          - security_devsec_sysctl_overwrite['net.ipv4.conf.all.rp_filter'] | int == 2
+          - security_devsec_sysctl_overwrite['net.ipv4.conf.default.rp_filter'] | int == 2
+          # Ce que Docker remet de lui-même : sinon jamais idempotent.
+          - security_devsec_sysctl_overwrite['net.ipv6.conf.all.forwarding'] | int == 1
+          - security_devsec_sysctl_overwrite['net.ipv6.conf.default.forwarding'] | int == 1
+          # Pas à chaud : disable_ipv6 (bridge IPv6 de Pangolin), fs.file-max.
+          - "'net.ipv6.conf.all.disable_ipv6' not in security_devsec_sysctl_overwrite"
+          - "'fs.file-max' not in security_devsec_sysctl_overwrite"
+
+    - name: Read the files devsec writes
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: security_devsec_files
+      loop:
+        - /etc/ssh/sshd_config
+        - /etc/default/ufw
+        - /etc/audit/auditd.conf
+        - /etc/login.defs
+        - /etc/sysctl.d/99-hardening.conf
+
+    - name: Read the files devsec replaces
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: security_devsec_replaced
+      loop:
+        - /etc/ssh/sshd_config.d/99-custom.conf
+
+    - name: Read the RSA host key fingerprints, before and after hardening
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cat /var/lib/molecule-ssh-rsa-fingerprint
+        ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
+      args:
+        executable: /bin/bash
+      register: security_rsa_fingerprints
+      changed_when: false
+
+    - name: Assert devsec kept the RSA host key
+      ansible.builtin.assert:
+        that:
+          - security_rsa_fingerprints.stdout_lines | length == 2
+          - security_rsa_fingerprints.stdout_lines[0] == security_rsa_fingerprints.stdout_lines[1]
+        fail_msg: "Clé d'hôte RSA régénérée : {{ security_rsa_fingerprints.stdout_lines }}"
+
+    - name: Read the password ageing of sylvain
+      become: true
+      ansible.builtin.command: chage -l sylvain
+      register: security_chage
+      changed_when: false
+      environment:
+        LC_ALL: C
+
+    - name: Read the mount options of /proc
+      ansible.builtin.command: findmnt -n -o OPTIONS --mountpoint /proc
+      register: security_proc_options
+      changed_when: false
+
+    - name: Assert devsec hardened what it should and spared the rest
+      vars:
+        sshd_config: "{{ security_devsec_files.results[0].content | b64decode }}"
+        ufw_defaults: "{{ security_devsec_files.results[1].content | b64decode }}"
+        auditd_conf: "{{ security_devsec_files.results[2].content | b64decode }}"
+        login_defs: "{{ security_devsec_files.results[3].content | b64decode }}"
+        boot_sysctl: "{{ security_devsec_files.results[4].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          # sshd_config entier écrit par devsec, drop-in et sysctl maison retirés.
+          - sshd_config is search('^AllowUsers ' ~ security_ssh_allow_users ~ '$', multiline=True)
+          - security_devsec_replaced.results | selectattr('stat.exists') | list | length == 0
+          # IPv6 coupé au boot seulement, sans fs.file-max.
+          - boot_sysctl is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+          - boot_sysctl is not search('file-max')
+          - ufw_defaults is search('^IPV6=no$', multiline=True)
+          - ufw_defaults is search('^DEFAULT_FORWARD_POLICY="DROP"$', multiline=True)
+          - auditd_conf is search('^max_log_file_action = ROTATE$', multiline=True)
+          - login_defs is search('^UMASK\s+022$', multiline=True)
+          - security_chage.stdout is search('^Maximum number of days between password change\s*:\s*(-1|99999)$', multiline=True)
+          - security_proc_options.stdout is not search('hidepid=(2|invisible)')
+        fail_msg: >-
+          chage : {{ security_chage.stdout_lines }} ; /proc : {{ security_proc_options.stdout }} ;
+          restants : {{ security_devsec_replaced.results | selectattr('stat.exists') | map(attribute='item') | list }}

@@ -2,6 +2,7 @@
 - name: Shared prepare
   ansible.builtin.import_playbook: ../_shared/prepare.yml
 
+# Partagé avec le scénario security_flip (même rôle, variables de flip).
 - name: Prepare what the security role expects
   hosts: all
   gather_facts: false
@@ -9,9 +10,13 @@
   tasks:
     # Présent sur tous les vrais hôtes (on y entre en SSH) ; le handler du rôle
     # fait `sshd -t && systemctl reload ssh`.
-    - name: Install the SSH server
+    - name: Install the SSH server and the SMTP sink
       ansible.builtin.apt:
-        name: openssh-server
+        name:
+          - openssh-server
+          # Récepteur SMTP du relais msmtp, à la place d'Infomaniak : paquet
+          # Debian, aucune image tirée.
+          - python3-aiosmtpd
         state: present
 
     - name: Start the SSH server
@@ -22,8 +27,9 @@
 
     # Conteneur privilégié : /proc/sys y est inscriptible, et fs.*, kernel.*
     # et vm.* sont ceux du noyau de l'hôte (seul net.* est propre au conteneur).
-    # Le rôle ne fait qu'écrire /etc/sysctl.d/99-hardening.conf (fs.file-max,
-    # fs.suid_dumpable…) sans le charger ; s'il se mettait à le charger, ce
+    # Le rôle maison ne fait qu'écrire /etc/sysctl.d/99-hardening.conf
+    # (fs.file-max, fs.suid_dumpable…) sans le charger, et devsec saute son
+    # sysctl dans un conteneur ; si l'un d'eux se mettait à charger, ce
     # scénario échouerait ici au lieu de baisser fs.file-max du runner CI.
     - name: Make the host-global sysctls read-only in the container
       ansible.builtin.shell: |
@@ -41,3 +47,104 @@
         echo "$changed"
       register: security_sysctl_guard
       changed_when: security_sysctl_guard.stdout == '1'
+
+    - name: Create the SMTP sink directory
+      ansible.builtin.file:
+        path: /var/lib/molecule-smtp-sink
+        state: directory
+        mode: "0700"
+
+    - name: Install the SMTP sink unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/molecule-smtp-sink.service
+        mode: "0600"
+        content: |
+          [Unit]
+          Description=SMTP sink of the security scenarios (msmtp relay)
+          [Service]
+          ExecStart=/usr/bin/python3 -m aiosmtpd --nosetuid --listen 127.0.0.1:2525 --class aiosmtpd.handlers.Mailbox /var/lib/molecule-smtp-sink/maildir
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start the SMTP sink
+      ansible.builtin.systemd:
+        name: molecule-smtp-sink
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Wait for the SMTP sink
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 2525
+        timeout: 30
+
+    # Clé d'un vrai ProxyJump de sylvain vers lui-même, à travers sshd (verify).
+    - name: Create the ProxyJump test key directory
+      ansible.builtin.file:
+        path: /home/sylvain/.ssh
+        state: directory
+        owner: sylvain
+        group: sylvain
+        mode: "0700"
+
+    - name: Create the ProxyJump test key
+      become: true
+      become_user: sylvain
+      ansible.builtin.command:
+        cmd: ssh-keygen -q -t ed25519 -N "" -C molecule-proxyjump -f /home/sylvain/.ssh/molecule_proxyjump
+        creates: /home/sylvain/.ssh/molecule_proxyjump
+
+    - name: Read the ProxyJump test public key
+      ansible.builtin.slurp:
+        src: /home/sylvain/.ssh/molecule_proxyjump.pub
+      register: security_proxyjump_pub
+
+    - name: Authorize the ProxyJump test key
+      ansible.posix.authorized_key:
+        user: sylvain
+        key: "{{ security_proxyjump_pub.content | b64decode }}"
+
+    # Image faite de /usr/bin/true et de ses bibliothèques : lancer un vrai
+    # conteneur après le durcissement, sans rien tirer.
+    - name: Import a minimal container image
+      ansible.builtin.shell: |
+        set -euo pipefail
+        if docker image inspect molecule-true:local >/dev/null 2>&1; then
+          echo unchanged
+          exit 0
+        fi
+        files=$(ldd /usr/bin/true | grep -o '/[^ ]*' | sed 's|^/||')
+        tar -C / -chf - usr/bin/true $files | docker import - molecule-true:local
+      args:
+        executable: /bin/bash
+      register: security_true_image
+      changed_when: "'unchanged' not in security_true_image.stdout"
+
+    # Témoin avant durcissement : sous podman rootless, le Docker imbriqué ne
+    # peut pas créer de cgroup et aucun conteneur ne démarre, durci ou non.
+    # Le verify n'exige `docker run` après durcissement que s'il marchait ici.
+    - name: Run a container before hardening
+      ansible.builtin.command: docker run --rm --network newt molecule-true:local /usr/bin/true
+      register: security_docker_baseline
+      changed_when: false
+      failed_when: false
+
+    - name: Record whether containers run before hardening
+      ansible.builtin.copy:
+        dest: /var/lib/molecule-docker-run-baseline
+        content: "{{ 'ok' if security_docker_baseline.rc == 0 else security_docker_baseline.stderr }}\n"
+        mode: "0600"
+
+    # Empreinte de la clé d'hôte RSA d'avant durcissement : devsec ne doit pas
+    # la régénérer (ssh_host_rsa_key_size aligné sur les 3072 bits de Debian).
+    - name: Fingerprint the RSA host key before hardening
+      ansible.builtin.command: ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
+      register: security_rsa_fingerprint
+      changed_when: false
+
+    - name: Record the RSA host key fingerprint
+      ansible.builtin.copy:
+        dest: /var/lib/molecule-ssh-rsa-fingerprint
+        content: "{{ security_rsa_fingerprint.stdout }}\n"
+        mode: "0600"
