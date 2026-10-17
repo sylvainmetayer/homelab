@@ -185,84 +185,94 @@
     that:
       - jail_local is search('^\[sshd\]\nenabled = true\nbackend = systemd$', multiline=True)
       - jail_local is not search('logpath')
+      - jail_local is search('^ignoreip = ' ~ (security_fail2ban_ignoreip | join(' ') | regex_escape) ~ '$', multiline=True)
       # Seulement les mises à jour de sécurité, sans redémarrage automatique.
       - unattended_upgrades is search('"\$\{distro_id\}:\$\{distro_codename\}-security";')
       - unattended_upgrades is search('Automatic-Reboot "false"')
-      - unattended_upgrades is search('Unattended-Upgrade::Mail "root";')
-      - unattended_upgrades is search('Unattended-Upgrade::MailReport "only-on-error";')
+      - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::Mail "root";')
+      - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::MailReport "only-on-error";')
 
 # --- paquets : rkhunter et exim4 retirés, aucun SMTP en écoute ---
 
 - name: Gather the package facts
   ansible.builtin.package_facts:
 
-- name: Assert rkhunter and exim4 are gone and msmtp-mta is the MTA
+- name: Assert rkhunter is gone and logwatch is installed
   ansible.builtin.assert:
     that:
       - "'rkhunter' not in ansible_facts.packages"
-      - "'exim4-daemon-light' not in ansible_facts.packages"
-      - "'exim4-base' not in ansible_facts.packages"
-      - "'msmtp-mta' in ansible_facts.packages"
       - "'logwatch' in ansible_facts.packages"
 
-- name: List the TCP sockets listening on port 25
-  ansible.builtin.command: ss -Hltn sport = :25
-  register: security_smtp_listeners
-  changed_when: false
+# Sans relais (security_mta_enabled: false, image Packer), logwatch tire exim4 :
+# ce qui suit ne vaut que pour les hôtes qui l'activent.
+- name: Check the mail relay
+  when: security_mta_enabled | bool
+  block:
+    - name: Assert exim4 is gone and msmtp-mta is the MTA
+      ansible.builtin.assert:
+        that:
+          - "'exim4-daemon-light' not in ansible_facts.packages"
+          - "'exim4-base' not in ansible_facts.packages"
+          - "'msmtp-mta' in ansible_facts.packages"
 
-- name: Assert nothing listens on port 25
-  ansible.builtin.assert:
-    that:
-      - security_smtp_listeners.stdout | trim == ''
-    fail_msg: "{{ security_smtp_listeners.stdout }}"
+    - name: List the TCP sockets listening on port 25
+      ansible.builtin.command: ss -Hltn sport = :25
+      register: security_smtp_listeners
+      changed_when: false
 
-# --- relais mail : root → récepteur, expéditeur réécrit ---
+    - name: Assert nothing listens on port 25
+      ansible.builtin.assert:
+        that:
+          - security_smtp_listeners.stdout | trim == ''
+        fail_msg: "{{ security_smtp_listeners.stdout }}"
 
-- name: Read the msmtp configuration permissions
-  ansible.builtin.stat:
-    path: /etc/msmtprc
-  register: security_msmtprc
+    # --- relais mail : root → récepteur, expéditeur réécrit ---
 
-- name: Assert the msmtp configuration is readable by root only
-  ansible.builtin.assert:
-    that:
-      - security_msmtprc.stat.exists
-      - security_msmtprc.stat.mode == '0600'
-      - security_msmtprc.stat.pw_name == 'root'
+    - name: Read the msmtp configuration permissions
+      ansible.builtin.stat:
+        path: /etc/msmtprc
+      register: security_msmtprc
 
-# Comme un cron ou logwatch : `From: root`, destinataire local `root`.
-- name: Send a mail to root through sendmail
-  become: true
-  ansible.builtin.shell: |
-    set -euo pipefail
-    printf 'From: root\nTo: root\nSubject: molecule-relay\n\nmolecule\n' | /usr/sbin/sendmail -t
-  args:
-    executable: /bin/bash
-  changed_when: true
+    - name: Assert the msmtp configuration is readable by root only
+      ansible.builtin.assert:
+        that:
+          - security_msmtprc.stat.exists
+          - security_msmtprc.stat.mode == '0600'
+          - security_msmtprc.stat.pw_name == 'root'
 
-# Le handler Mailbox d'aiosmtpd écrit un Maildir : un fichier par message.
-- name: Wait for the mail in the SMTP sink
-  become: true
-  ansible.builtin.shell: cat /var/lib/molecule-smtp-sink/maildir/new/*
-  register: security_mbox
-  changed_when: false
-  failed_when: false
-  retries: 10
-  delay: 2
-  until: >-
-    security_mbox.rc == 0 and 'Subject: molecule-relay' in security_mbox.stdout
+    # Comme un cron ou logwatch : `From: root`, destinataire local `root`.
+    - name: Send a mail to root through sendmail
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+        printf 'From: root\nTo: root\nSubject: molecule-relay\n\nmolecule\n' | /usr/sbin/sendmail -t
+      args:
+        executable: /bin/bash
+      changed_when: true
 
-- name: Assert the mail went to the admin mailbox from the relay account
-  ansible.builtin.assert:
-    that:
-      - >-
-        security_mbox.stdout is search('^X-RcptTo: ' ~ (security_mta_recipient | regex_escape) ~ '$', multiline=True)
-      - >-
-        security_mbox.stdout is search('^X-MailFrom: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
-      - >-
-        security_mbox.stdout is search('^From: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
-    fail_msg: >-
-      {{ security_mbox.stdout_lines | select('match', '^(X-RcptTo|X-MailFrom|From):') | list }}
+    # Le handler Mailbox d'aiosmtpd écrit un Maildir : un fichier par message.
+    - name: Wait for the mail in the SMTP sink
+      become: true
+      ansible.builtin.shell: cat /var/lib/molecule-smtp-sink/maildir/new/*
+      register: security_mbox
+      changed_when: false
+      failed_when: false
+      retries: 10
+      delay: 2
+      until: >-
+        security_mbox.rc == 0 and 'Subject: molecule-relay' in security_mbox.stdout
+
+    - name: Assert the mail went to the admin mailbox from the relay account
+      ansible.builtin.assert:
+        that:
+          - >-
+            security_mbox.stdout is search('^X-RcptTo: ' ~ (security_mta_recipient | regex_escape) ~ '$', multiline=True)
+          - >-
+            security_mbox.stdout is search('^X-MailFrom: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
+          - >-
+            security_mbox.stdout is search('^From: ' ~ (security_mta_from | regex_escape) ~ '$', multiline=True)
+        fail_msg: >-
+          {{ security_mbox.stdout_lines | select('match', '^(X-RcptTo|X-MailFrom|From):') | list }}
 
 # --- Docker fonctionne encore après le durcissement ---
 
@@ -348,6 +358,24 @@
       loop:
         - /etc/ssh/sshd_config.d/99-custom.conf
         - /etc/sysctl.d/99-hardening.conf
+
+    - name: Read the RSA host key fingerprints, before and after hardening
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cat /var/lib/molecule-ssh-rsa-fingerprint
+        ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
+      args:
+        executable: /bin/bash
+      register: security_rsa_fingerprints
+      changed_when: false
+
+    - name: Assert devsec kept the RSA host key
+      ansible.builtin.assert:
+        that:
+          - security_rsa_fingerprints.stdout_lines | length == 2
+          - security_rsa_fingerprints.stdout_lines[0] == security_rsa_fingerprints.stdout_lines[1]
+        fail_msg: "Clé d'hôte RSA régénérée : {{ security_rsa_fingerprints.stdout_lines }}"
 
     - name: Read the password ageing of sylvain
       become: true

@@ -2,6 +2,17 @@
 # devsec.hardening, partiel : chaque écart à ses défauts est un réglage qui
 # casserait Docker, le NAT de Pangolin, le bastion ProxyJump, gerbil ou les
 # sauvegardes. Le détail est dans l'issue #108.
+#
+# Gardé tel quel, et à savoir : os_hardening ajoute sur Debian
+# kernel.unprivileged_userns_clone=0 et kernel.unprivileged_bpf_disabled=1
+# (vars/Debian.yml de devsec). Docker (root) n'en a pas besoin ; un conteneur
+# qui créerait ses propres user namespaces sans privilège (Chromium
+# sandboxé, outillage rootless) ne le pourrait plus.
+#
+# Pas de retour arrière automatique : repasser security_devsec_enabled à false
+# réécrit le drop-in maison, mais le sshd_config de devsec (sans Include de
+# sshd_config.d) et /etc/sysctl.d/90-dev-sec.conf restent. Les remettre à la
+# main (sshd_config du paquet : /usr/share/openssh/sshd_config).
 
 # os_hardening recharge son sysctl dès qu'il l'écrit : une valeur fausse ici
 # coupe le réseau des conteneurs (et, sur Pangolin, la sortie de flip) avant
@@ -47,10 +58,7 @@
 - name: Apply devsec ssh_hardening
   ansible.builtin.include_role:
     name: devsec.hardening.ssh_hardening
-    # Un include ne transmet pas les tags du rôle à ses tâches : sans `always`,
-    # `--tags security` sauterait tout devsec. L'include lui-même porte les
-    # tags de l'entrée `security` du playbook, il n'est donc pas lancé par
-    # `--tags <autre rôle>`.
+    # `always` : cf. os_hardening ci-dessus.
     apply:
       tags: [always]
   vars:
@@ -62,6 +70,10 @@
     ssh_max_auth_retries: "{{ security_ssh_max_auth_tries }}"
     ssh_allow_tcp_forwarding: "{{ security_ssh_allow_tcp_forwarding }}"
     ssh_allow_agent_forwarding: "{{ security_ssh_allow_agent_forwarding }}"
+    # Défaut devsec 4096 : sa tâche de clés d'hôte régénère la clé RSA de 3072
+    # bits (défaut Debian/cloud-init), d'où un « REMOTE HOST IDENTIFICATION
+    # HAS CHANGED » pour tout client qui l'a enregistrée.
+    ssh_host_rsa_key_size: 3072
 
 # devsec réécrit tout sshd_config, sans Include de sshd_config.d : le drop-in
 # maison serait ignoré, autant qu'il ne laisse pas croire le contraire.

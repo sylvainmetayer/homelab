@@ -8,6 +8,15 @@
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
 
+# Tout SSH vers flip vient de Pangolin (ProxyJump) : quelques échecs
+# d'authentification (agent qui présente trop de clés, CI mal configurée)
+# feraient bannir l'IP privée du bastion, donc couper tout accès à flip pendant
+# 2 h. Le réseau privé ne contient que Pangolin et flip.
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 10.0.0.0/16
+
 # Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security), comme
 # Pangolin (issue #108).
 security_devsec_enabled: true
