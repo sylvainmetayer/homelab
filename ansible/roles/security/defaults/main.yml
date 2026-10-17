@@ -54,12 +54,18 @@ security_devsec_sysctl_overwrite:
   # produisent du trafic asymétrique que le mode strict jette.
   net.ipv4.conf.all.rp_filter: 2
   net.ipv4.conf.default.rp_filter: 2
-  # Repris de templates/sysctl_hardening.conf.j2, supprimé quand devsec tourne.
-  # Pas fs.file-max: 65535 : chargé tout de suite, il ferait tomber la limite
-  # système (défaut noyau ~9.2e18) sous ce que consomment Postgres, Keycloak
-  # et Docker sur flip.
-  net.ipv6.conf.all.disable_ipv6: 1
-  net.ipv6.conf.default.disable_ipv6: 1
+  # Défaut devsec 0, mais Docker le remet à 1 dès qu'il démarre un réseau
+  # IPv6 (celui de Pangolin, compose `pangolin`) : devsec le rebasculerait à
+  # chaque run (jamais idempotent) et couperait l'IPv6 de ce bridge à chaud.
+  # Sans effet réel : l'IPv6 de l'hôte est désactivé au boot (ci-dessous).
+  net.ipv6.conf.all.forwarding: 1
+  net.ipv6.conf.default.forwarding: 1
+  # Pas ici, chargés tout de suite, mais au boot dans 99-hardening.conf
+  # (tasks/devsec.yml) :
+  # - disable_ipv6 : à chaud, `all` retirerait l'IPv6 du bridge Docker de
+  #   Pangolin déjà monté ; au boot, Docker le rétablit sur son bridge ensuite ;
+  # - pas de fs.file-max: 65535, qui ferait tomber la limite système (défaut
+  #   noyau ~9.2e18) sous ce que consomment Postgres, Keycloak et Docker.
 
 # --- relais mail (msmtp-mta) ---
 

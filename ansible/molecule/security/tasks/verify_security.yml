@@ -338,7 +338,12 @@
           - security_devsec_sysctl_overwrite['net.ipv4.ip_forward'] | int == 1
           - security_devsec_sysctl_overwrite['net.ipv4.conf.all.rp_filter'] | int == 2
           - security_devsec_sysctl_overwrite['net.ipv4.conf.default.rp_filter'] | int == 2
-          - security_devsec_sysctl_overwrite['net.ipv6.conf.all.disable_ipv6'] | int == 1
+          # Ce que Docker remet de lui-même : sinon jamais idempotent.
+          - security_devsec_sysctl_overwrite['net.ipv6.conf.all.forwarding'] | int == 1
+          - security_devsec_sysctl_overwrite['net.ipv6.conf.default.forwarding'] | int == 1
+          # Pas à chaud : disable_ipv6 (bridge IPv6 de Pangolin), fs.file-max.
+          - "'net.ipv6.conf.all.disable_ipv6' not in security_devsec_sysctl_overwrite"
+          - "'fs.file-max' not in security_devsec_sysctl_overwrite"
 
     - name: Read the files devsec writes
       become: true
@@ -350,6 +355,7 @@
         - /etc/default/ufw
         - /etc/audit/auditd.conf
         - /etc/login.defs
+        - /etc/sysctl.d/99-hardening.conf
 
     - name: Read the files devsec replaces
       ansible.builtin.stat:
@@ -357,7 +363,6 @@
       register: security_devsec_replaced
       loop:
         - /etc/ssh/sshd_config.d/99-custom.conf
-        - /etc/sysctl.d/99-hardening.conf
 
     - name: Read the RSA host key fingerprints, before and after hardening
       become: true
@@ -396,11 +401,15 @@
         ufw_defaults: "{{ security_devsec_files.results[1].content | b64decode }}"
         auditd_conf: "{{ security_devsec_files.results[2].content | b64decode }}"
         login_defs: "{{ security_devsec_files.results[3].content | b64decode }}"
+        boot_sysctl: "{{ security_devsec_files.results[4].content | b64decode }}"
       ansible.builtin.assert:
         that:
           # sshd_config entier écrit par devsec, drop-in et sysctl maison retirés.
           - sshd_config is search('^AllowUsers ' ~ security_ssh_allow_users ~ '$', multiline=True)
           - security_devsec_replaced.results | selectattr('stat.exists') | list | length == 0
+          # IPv6 coupé au boot seulement, sans fs.file-max.
+          - boot_sysctl is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+          - boot_sysctl is not search('file-max')
           - ufw_defaults is search('^IPV6=no$', multiline=True)
           - ufw_defaults is search('^DEFAULT_FORWARD_POLICY="DROP"$', multiline=True)
           - auditd_conf is search('^max_log_file_action = ROTATE$', multiline=True)
