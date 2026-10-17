@@ -31,6 +31,13 @@ security_ssh_allow_agent_forwarding: true
 # 2 (défaut devsec) coupe un agent qui présente plusieurs clés.
 security_ssh_max_auth_tries: 3
 
+# Sources que fail2ban ne bannit jamais. Sur un hôte joint seulement par
+# ProxyJump (flip), tout SSH arrive de l'IP privée du bastion : la bannir
+# couperait Ansible, la CI et l'accès manuel pendant le bantime.
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+
 # --- devsec.hardening (os_hardening + ssh_hardening), hôte par hôte ---
 
 security_devsec_enabled: false
@@ -48,9 +55,11 @@ security_devsec_sysctl_overwrite:
   net.ipv4.conf.all.rp_filter: 2
   net.ipv4.conf.default.rp_filter: 2
   # Repris de templates/sysctl_hardening.conf.j2, supprimé quand devsec tourne.
+  # Pas fs.file-max: 65535 : chargé tout de suite, il ferait tomber la limite
+  # système (défaut noyau ~9.2e18) sous ce que consomment Postgres, Keycloak
+  # et Docker sur flip.
   net.ipv6.conf.all.disable_ipv6: 1
   net.ipv6.conf.default.disable_ipv6: 1
-  fs.file-max: 65535
 
 # --- relais mail (msmtp-mta) ---
 

@@ -6,7 +6,8 @@
   ansible.builtin.template:
     src: sshd_hardening.conf.j2
     dest: /etc/ssh/sshd_config.d/99-custom.conf
-    mode: "0644"
+    # Lu par sshd (root) seulement.
+    mode: "0600"
 
 # Écrit sans être chargé : systemd-sysctl l'applique au prochain boot. Voulu :
 # les valeurs ne pressent pas, et le scénario Molecule protège ainsi les
@@ -16,4 +17,5 @@
   ansible.builtin.template:
     src: sysctl_hardening.conf.j2
     dest: /etc/sysctl.d/99-hardening.conf
-    mode: "0644"
+    # Lu par systemd-sysctl (root) seulement.
+    mode: "0600"
