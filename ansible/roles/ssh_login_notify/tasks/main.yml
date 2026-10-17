@@ -25,7 +25,10 @@
           - openssh-client
         state: present
 
+    # diff: false : le fichier porte le jeton du moniteur push, qu'un --diff
+    # écrirait en clair dans run.log (cf. no_log du set_fact de 00-setup.yaml).
     - name: Write the hook configuration
+      diff: false
       ansible.builtin.template:
         src: ssh-login-notify.conf.j2
         dest: "{{ ssh_login_notify_config }}"

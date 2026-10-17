@@ -136,6 +136,30 @@
     - name: Run the anti-lockout cases
       become: true
       block:
+        # Clé sans commentaire dans authorized_keys : le hook cherche aussi
+        # dans authorized_keys2, ici un tube nommé que personne n'écrit. Lu
+        # pendant que pam_exec attend, il bloquerait le login indéfiniment.
+        - name: Strip the comment of the notifying key
+          ansible.builtin.replace:
+            path: /home/sylvain/.ssh/authorized_keys
+            regexp: " molecule-login$"
+            replace: ""
+
+        - name: Put a named pipe at authorized_keys2
+          ansible.builtin.command: mkfifo -m 0600 /home/sylvain/.ssh/authorized_keys2
+          args:
+            creates: /home/sylvain/.ssh/authorized_keys2
+
+        - name: Log in with a commentless key and a named pipe at authorized_keys2
+          become: false
+          ansible.builtin.shell: |
+            set -e
+            start=$(date +%s%N)
+            timeout 20 {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+            echo $(( ($(date +%s%N) - start) / 1000000 ))
+          register: ssh_login_notify_fifo_ms
+          changed_when: false
+
         # Uptime Kuma qui accepte la connexion et ne répond jamais : curl
         # attend son --max-time (10 s), le login non.
         - name: Point the hook at a server that never answers
@@ -179,6 +203,17 @@
           changed_when: false
 
       always:
+        - name: Remove the named pipe
+          ansible.builtin.file:
+            path: /home/sylvain/.ssh/authorized_keys2
+            state: absent
+
+        - name: Restore the comment of the notifying key
+          ansible.builtin.replace:
+            path: /home/sylvain/.ssh/authorized_keys
+            regexp: "^(ssh-ed25519 \\S+)$"
+            replace: "\\1 molecule-login"
+
         - name: Restore the hook script
           ansible.builtin.command: mv /usr/local/sbin/ssh-login-notify.away /usr/local/sbin/ssh-login-notify
           args:
@@ -189,6 +224,12 @@
             path: /etc/ssh-login-notify.conf
             regexp: "127\\.0\\.0\\.1:(18081|9)/"
             replace: "127.0.0.1:18080/"
+
+    - name: Assert an unreadable authorized_keys2 does not delay the login
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_fifo_ms.stdout | int < 5000
+        fail_msg: "Login en {{ ssh_login_notify_fifo_ms.stdout }} ms avec un tube nommé en authorized_keys2."
 
     - name: Assert a hanging Uptime Kuma does not delay the login
       ansible.builtin.assert:
