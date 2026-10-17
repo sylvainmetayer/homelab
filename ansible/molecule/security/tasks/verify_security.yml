@@ -326,6 +326,8 @@
           - security_sshd_dropin.stat.exists
           - sysctl_hardening is search('^fs\.suid_dumpable = 0$', multiline=True)
           - sysctl_hardening is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+          # Jamais fixé, sur aucun chemin : défaut noyau.
+          - sysctl_hardening is not search('file-max')
 
 # --- avec devsec : ce qui a été durci, et ce qui a été épargné ---
 

@@ -38,8 +38,8 @@
 # Docker de Pangolin déjà monté, et le scénario Molecule protège ainsi les
 # sysctls globaux du noyau du runner CI (molecule/security/prepare.yml). Sous
 # devsec, réduit à disable_ipv6 : aucune clé commune avec 90-dev-sec.conf, qu'il
-# ne peut donc pas masquer (fs.suid_dumpable vient de devsec, fs.file-max n'est
-# plus fixé). Pour l'appliquer tout de suite : `sudo sysctl --system`.
+# ne peut donc pas masquer (fs.suid_dumpable vient de devsec). fs.file-max n'est
+# fixé sur aucun chemin. Pour l'appliquer tout de suite : `sudo sysctl --system`.
 - name: Configure the boot-time sysctl file
   ansible.builtin.template:
     src: sysctl_hardening.conf.j2
