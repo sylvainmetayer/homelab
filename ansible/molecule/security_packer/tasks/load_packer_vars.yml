@@ -1,0 +1,20 @@
+---
+# Les variables security_* du play Packer, lues dans le fichier lui-même : une
+# variable ajoutée ou changée là-bas est testée ici sans recopie.
+- name: Load the security variables of the Packer playbook
+  ansible.builtin.set_fact:
+    "{{ item.key }}": "{{ item.value }}"
+  loop: "{{ packer_play.vars | dict2items | selectattr('key', 'match', '^security_') | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+  vars:
+    packer_play: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../../packer/pangolin/ansible/site.yml') | from_yaml)[0] }}"
+
+- name: Assert the Packer image runs the in-house path
+  ansible.builtin.assert:
+    that:
+      - not (security_devsec_enabled | bool)
+      - not (security_mta_enabled | bool)
+    fail_msg: >-
+      L'image Packer active devsec ou le relais mail : ce scénario ne teste
+      plus le drop-in maison, à revoir.

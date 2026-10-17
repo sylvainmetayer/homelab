@@ -21,8 +21,8 @@ security_fail2ban_ignoreip:
   - 10.0.0.0/16
   - 172.16.0.0/12
 
-# Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security) : flip
-# d'abord, Pangolin ensuite (issue #108).
+# Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security), comme
+# Pangolin (issue #108).
 security_devsec_enabled: true
 # Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp.
 security_mta_enabled: true

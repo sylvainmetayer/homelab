@@ -1,7 +1,8 @@
 ---
-# Vérifications du rôle security, communes aux scénarios security (Pangolin,
-# drop-in sshd maison) et security_flip (devsec.hardening). Les variables
-# viennent des defaults du rôle et des host_vars de l'hôte rejoué.
+# Vérifications du rôle security, communes aux scénarios security (Pangolin)
+# et security_flip (flip), tous deux avec devsec.hardening, et security_packer
+# (variables de l'image Packer : drop-in maison, pas de relais mail). Les
+# variables viennent des defaults du rôle et de l'hôte rejoué.
 
 # --- sshd : la configuration effective, pas seulement le fichier ---
 
@@ -301,6 +302,7 @@
          else 'docker run impossible dans cet environnement, déjà avant durcissement : ' ~ baseline }}
 
 # --- sans devsec : drop-in sshd et sysctl maison ---
+# Chemin de l'image Packer seulement, rejoué par le scénario security_packer.
 
 - name: Check the in-house hardening files
   when: not (security_devsec_enabled | bool)
@@ -324,6 +326,8 @@
           - security_sshd_dropin.stat.exists
           - sysctl_hardening is search('^fs\.suid_dumpable = 0$', multiline=True)
           - sysctl_hardening is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
+          # Jamais fixé, sur aucun chemin : défaut noyau.
+          - sysctl_hardening is not search('file-max')
 
 # --- avec devsec : ce qui a été durci, et ce qui a été épargné ---
 

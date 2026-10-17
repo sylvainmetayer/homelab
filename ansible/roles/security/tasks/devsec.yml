@@ -23,9 +23,12 @@
       - security_devsec_sysctl_overwrite['net.ipv4.ip_forward'] | int == 1
       - security_devsec_sysctl_overwrite['net.ipv4.conf.all.rp_filter'] | int != 1
       - security_devsec_sysctl_overwrite['net.ipv4.conf.default.rp_filter'] | int != 1
+      # Réseau compose `pangolin` en enable_ipv6 : 0 couperait son forward IPv6.
+      - security_devsec_sysctl_overwrite['net.ipv6.conf.all.forwarding'] | int == 1
+      - security_devsec_sysctl_overwrite['net.ipv6.conf.default.forwarding'] | int == 1
     fail_msg: >-
-      security_devsec_sysctl_overwrite doit garder net.ipv4.ip_forward à 1
-      (Docker, NAT) et rp_filter lâche (2) ou désactivé (0) :
+      security_devsec_sysctl_overwrite doit garder net.ipv4.ip_forward et le
+      forwarding IPv6 à 1 (Docker, NAT) et rp_filter lâche (2) ou désactivé (0) :
       {{ security_devsec_sysctl_overwrite }}
     quiet: true
 
