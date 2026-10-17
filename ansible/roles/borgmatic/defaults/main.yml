@@ -32,8 +32,8 @@ borgmatic_bin: /root/.local/bin/borgmatic
 
 # Check « spot » de chaque application (templates/app.yaml.j2) : juste après
 # la sauvegarde du jour où il est dû, donc la source a peu bougé. Tolérances :
-# écart du nombre de fichiers entre la source et l'archive (les copies SQLite
-# du staging n'existent que dans l'archive), et fichiers dont l'empreinte
+# écart du nombre de fichiers entre la source et l'archive, et fichiers dont
+# l'empreinte
 # diffère (modifiés depuis la sauvegarde). Ces deux derniers pourcentages
 # portent sur TOUS les fichiers source, pas sur l'échantillon : borgmatic
 # refuse à l'exécution (ValueError, le check échoue, pas la validation du
@@ -121,7 +121,9 @@ borgmatic_app_after_commands: []
 borgmatic_app_extra_options: {}
 
 # Copies cohérentes des bases SQLite, une sous-arborescence par application
-# (root, 0700), archivées puis vidées après chaque sauvegarde réussie.
+# (root, 0700), archivées puis gardées jusqu'à la sauvegarde suivante, dont
+# le hook before les remplace : le check spot les trouve ainsi dans la source
+# comme dans l'archive. Coût : la taille des bases, une fois de plus.
 # Restauration, application arrêtée : extraire la copie de l'archive
 # (borgmatic extract --archive <archive> --path <dossier>/<application>),
 # la remettre à la place de la base, puis lui rendre son propriétaire

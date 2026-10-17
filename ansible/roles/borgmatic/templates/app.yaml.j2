@@ -131,9 +131,9 @@ commands:
           - create
       run:
           - echo "{{ borgmatic_app_title }} backup completed at $(date)"
-{% if borgmatic_app_sqlite_paths | length > 0 %}
-          - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
-{% endif %}
+{# Les copies SQLite restent jusqu'à la sauvegarde suivante, dont le hook
+   before vide le staging : le check spot, qui tourne après ce hook, compare
+   la source à l'archive, et ces copies doivent être dans les deux. #}
 {% for command in borgmatic_app_after_commands %}
           - {{ command | to_json }}
 {% endfor %}
