@@ -82,13 +82,19 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Cache pip packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/deploy-docker-app.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      # ansible-core, boto3, passlib et pyyaml (lu par resolve_docker_tags.py)
+      # aux versions d'uv.lock, comme test.yaml et lint.yaml : Renovate ne
+      # bumpe que le lock. 2.21+ est requis par community.sops.load_vars
+      # `return_method: vars-only`. Le vieux crash "argument -o: expected one
+      # argument" ne tenait pas à la version : arguments ssh tronqués par le
+      # parseur -e key=value, corrigé par les extra vars JSON des Deploy (787fb18).
+      # Avant la résolution des tags, qui a besoin de pyyaml : quelques
+      # secondes même quand rien n'est à déployer.
+      - name: Install ansible + deps
+        run: |
+          pip install --quiet --only-binary :all: uv==0.12.23
+          uv sync --locked --no-build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Resolve ansible tags
         id: resolve-tags
@@ -97,8 +103,6 @@ jobs:
           INPUT_TAGS: ${{ inputs.tags }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
         run: |
-          pip install --quiet pyyaml
-
           if [ -n "$INPUT_TAGS" ]; then
             # A manually forced tag list defaults to all playbooks; pick
             # "docker", "pi", "pangolin" or "flip" in the dispatch form to
@@ -144,15 +148,6 @@ jobs:
           if [ -n "$docker_tags$pi_tags$pangolin_tags$flip_tags" ]; then any_tags=true; else any_tags=false; fi
           echo "any_tags=$any_tags" >> "$GITHUB_OUTPUT"
         shell: bash
-
-      - name: Install ansible + deps
-        if: steps.resolve-tags.outputs.any_tags == 'true'
-        # ansible-core pinned to uv.lock's version (bump with lint.yaml): 2.21+
-        # is required by community.sops.load_vars `return_method: vars-only`.
-        # The old "argument -o: expected one argument" crash was not a version
-        # issue: ssh args truncated to a bare "-o" by the key=value -e parser,
-        # fixed by the JSON extra vars of the Deploy steps (787fb18).
-        run: pip install --quiet ansible-core==2.21.5 boto3 botocore passlib
 
       - name: Install sops
         if: steps.resolve-tags.outputs.any_tags == 'true'

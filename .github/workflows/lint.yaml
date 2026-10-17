@@ -30,8 +30,13 @@ jobs:
         with:
           python-version: "3.14"
 
+      # Versions d'uv.lock (ansible-core, ansible-lint), comme test.yaml :
+      # Renovate ne bumpe que le lock, un pin écrit ici dériverait.
       - name: Install ansible + deps
-        run: pip install --quiet ansible-core==2.21.5 ansible-lint boto3 botocore passlib
+        run: |
+          pip install --quiet --only-binary :all: uv==0.12.23
+          uv sync --locked --no-build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install ansible roles and collections
         working-directory: ansible
@@ -42,6 +47,12 @@ jobs:
       - name: Run ansible-lint
         working-directory: ansible
         run: ansible-lint
+
+      # Une clé de secrets.sops.yaml (couche include_vars) l'emporte sur les
+      # vars: de play, d'entrée roles:, de bloc, de tâche et sur vars/ d'un
+      # rôle : une surcharge du même nom perdrait sans un mot (AGENTS.md).
+      - name: Check that no SOPS key shadows a vars entry
+        run: python -I .github/scripts/check_sops_shadowing.py
 
   tofu:
     name: OpenTofu lint
