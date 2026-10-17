@@ -1,14 +1,17 @@
+# {{ ansible_managed }}
+# Hôtes sans devsec.hardening seulement (security_devsec_enabled: false).
 PasswordAuthentication no
 PubkeyAuthentication yes
-ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 PermitRootLogin no
-MaxAuthTries 3
+AllowUsers {{ security_ssh_allow_users }}
+MaxAuthTries {{ security_ssh_max_auth_tries }}
 MaxSessions 2
 ClientAliveInterval 600
 ClientAliveCountMax 2
 X11Forwarding no
 AllowTcpForwarding {{ security_ssh_allow_tcp_forwarding }}
+AllowAgentForwarding {{ 'yes' if security_ssh_allow_agent_forwarding | bool else 'no' }}
 PermitEmptyPasswords no
-Protocol 2
 UsePAM yes
 LogLevel VERBOSE

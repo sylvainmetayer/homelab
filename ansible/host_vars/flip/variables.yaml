@@ -8,6 +8,12 @@
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
 
+# Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security) : flip
+# d'abord, Pangolin ensuite (issue #108).
+security_devsec_enabled: true
+# Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp.
+security_mta_enabled: true
+
 flip_planning_backup_enabled: true
 flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 

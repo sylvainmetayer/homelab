@@ -4,9 +4,12 @@ findtime = 600
 maxretry = 3
 destemail = root@localhost
 
+# Debian 13 n'a pas de rsyslog, donc pas de /var/log/auth.log : sshd se lit
+# dans le journal. jail.d/defaults-debian.conf le fait déjà, on ne compte pas
+# dessus.
 [sshd]
 enabled = true
+backend = systemd
 port = 22
-logpath = /var/log/auth.log
 maxretry = 3
 bantime = 7200

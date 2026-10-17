@@ -1,10 +1,71 @@
 ---
+# Rôle de durcissement des serveurs exposés (pangolin, flip, image Packer de
+# Pangolin). Il garde ce que devsec.hardening ne fait pas : règles ufw,
+# fail2ban, unattended-upgrades, relais mail. Le durcissement de sshd et du
+# système (sysctl, PAM, login.defs, SUID, modules…) vient de devsec.hardening
+# quand `security_devsec_enabled` est vrai, sinon du drop-in sshd et du fichier
+# sysctl maison (tasks/legacy.yml). Cf. issue #108.
+#
+# Docker contourne ufw pour les ports qu'il publie (ses règles passent avant
+# celles d'ufw) : un port publié par un compose est ouvert même s'il n'est pas
+# dans security_ufw_allowed_ports. Pangolin ne publie que des ports autorisés.
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
   - { port: "80", proto: tcp }
   - { port: "443", proto: tcp }
 
+# --- sshd : mêmes valeurs pour le drop-in maison et pour devsec ---
+
 # AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion
 # (ProxyJump) vers les serveurs sans IP publique : un ProxyJump n'est qu'un
 # forward local (direct-tcpip), "local" n'ouvre pas le forward distant (-R).
 security_ssh_allow_tcp_forwarding: "no"
+
+# Seul compte qui entre en SSH : inventaires (hetzner.py), ProxyJump, CI.
+security_ssh_allow_users: sylvain
+
+# Comportement d'avant : le drop-in ne le fixait pas (sshd l'autorise par
+# défaut), et group_vars/all/devsec.ssh_hardening.yml le voulait à true.
+security_ssh_allow_agent_forwarding: true
+
+# 2 (défaut devsec) coupe un agent qui présente plusieurs clés.
+security_ssh_max_auth_tries: 3
+
+# --- devsec.hardening (os_hardening + ssh_hardening), hôte par hôte ---
+
+security_devsec_enabled: false
+
+# Fusionné par os_hardening par-dessus son sysctl_config, puis écrit dans
+# /etc/sysctl.d/90-dev-sec.conf et rechargé AUSSITÔT (pas au boot). Le rôle
+# refuse de lancer devsec si ip_forward n'y vaut pas 1 ou si rp_filter y est
+# strict (tasks/devsec.yml).
+security_devsec_sysctl_overwrite:
+  # Docker (réseaux bridge) et la passerelle NAT de Pangolin vers flip : le
+  # défaut devsec (0) les couperait au rechargement.
+  net.ipv4.ip_forward: 1
+  # Lâche plutôt que strict (1, défaut devsec) : gerbil/WireGuard et le NAT
+  # produisent du trafic asymétrique que le mode strict jette.
+  net.ipv4.conf.all.rp_filter: 2
+  net.ipv4.conf.default.rp_filter: 2
+  # Repris de templates/sysctl_hardening.conf.j2, supprimé quand devsec tourne.
+  net.ipv6.conf.all.disable_ipv6: 1
+  net.ipv6.conf.default.disable_ipv6: 1
+  fs.file-max: 65535
+
+# --- relais mail (msmtp-mta) ---
+
+# Envoi seul, sans démon ni port en écoute : /usr/sbin/sendmail relaie vers la
+# boîte Infomaniak déjà utilisée par Pangolin, Uptime Kuma, karakeep…
+# Désactivé par défaut : l'image Packer n'a pas les secrets.
+security_mta_enabled: false
+security_mta_host: mail.infomaniak.com
+security_mta_port: 587
+security_mta_tls: true
+security_mta_auth: true
+security_mta_user: "{{ pangolin_smtp_user }}"
+security_mta_password: "{{ pangolin_smtp_pass }}"
+# Infomaniak refuse un expéditeur différent du compte authentifié : msmtp
+# réécrit l'enveloppe et l'en-tête From.
+security_mta_from: "{{ security_mta_user }}"
+# Destinataire de root et de tout autre compte local (alias "default").
+security_mta_recipient: "{{ pangolin_le_email }}"
