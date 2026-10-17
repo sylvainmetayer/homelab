@@ -36,4 +36,5 @@
     dest: /etc/aliases
     owner: root
     group: root
-    mode: "0644"
+    # Lu par msmtp, que seul root peut lancer avec succès (msmtprc en 0600).
+    mode: "0600"
