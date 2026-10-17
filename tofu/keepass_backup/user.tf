@@ -6,15 +6,11 @@
 #   `restic forget --prune` annuel et aux restaurations depuis les versions.
 locals {
   bucket_arn  = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}"
-  objects_arn = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/*"
-  locks_arn   = "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/locks/*"
+  objects_arn = "${local.bucket_arn}/*"
+  locks_arn   = "${local.bucket_arn}/locks/*"
   # Tout ce qui n'est pas un verrou dans un dépôt restic.
   repository_data_arns = [
-    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/config",
-    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/keys/*",
-    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/data/*",
-    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/index/*",
-    "arn:aws:s3:::${ovh_cloud_project_storage.keepass_backup.name}/snapshots/*",
+    for p in ["config", "keys/*", "data/*", "index/*", "snapshots/*"] : "${local.bucket_arn}/${p}"
   ]
   read_write_actions = [
     "s3:GetObject",
@@ -64,6 +60,30 @@ resource "ovh_cloud_project_user_s3_policy" "writer" {
         "Effect" : "Deny",
         "Action" : ["s3:DeleteObject"],
         "Resource" : local.repository_data_arns,
+      },
+      {
+        # Même raison : un propriétaire pourrait sinon détruire des versions
+        # (le mode GOVERNANCE cède à BypassGovernanceRetention), raccourcir
+        # leur rétention, ou défaire le versioning et le cycle de vie.
+        "Sid" : "KeepassBackupNeverDestroyVersions",
+        "Effect" : "Deny",
+        "Action" : [
+          "s3:DeleteObjectVersion",
+          "s3:BypassGovernanceRetention",
+          "s3:PutObjectRetention",
+        ],
+        "Resource" : [local.objects_arn],
+      },
+      {
+        "Sid" : "KeepassBackupNeverReconfigureBucket",
+        "Effect" : "Deny",
+        "Action" : [
+          "s3:DeleteBucket",
+          "s3:PutBucketVersioning",
+          "s3:PutBucketObjectLockConfiguration",
+          "s3:PutLifecycleConfiguration",
+        ],
+        "Resource" : [local.bucket_arn],
       },
     ]
   })
