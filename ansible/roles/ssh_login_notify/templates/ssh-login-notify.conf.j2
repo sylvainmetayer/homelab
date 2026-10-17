@@ -3,5 +3,5 @@
 # jeton du moniteur push.
 PUSH_URL={{ ssh_login_notify_push_url | quote }}
 PUSH_TIMEOUT={{ ssh_login_notify_timeout | int }}
-# Un commentaire de clé par ligne.
-IGNORED_KEYS={{ ssh_login_notify_ignored_keys | join('\n') | quote }}
+# Une empreinte SHA256 par ligne.
+IGNORED_FINGERPRINTS={{ ssh_login_notify_ignored_fingerprints | join('\n') | quote }}

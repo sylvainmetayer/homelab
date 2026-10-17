@@ -2,6 +2,10 @@
 - name: Base host setup
   hosts: all,!backups
   tags: setup
+  # Setup de base : un state de pangolin_config illisible (bootstrap, S3 en
+  # panne) ne l'arrête pas, ssh_login_notify avertit et ne touche à rien.
+  vars:
+    pangolin_config_outputs_optional: true
   post_tasks:
     - name: Ensure starship is initialized in .bashrc
       ansible.builtin.lineinfile:
@@ -16,7 +20,8 @@
 
   pre_tasks:
     # Charge secrets.sops.yaml et pose `terraform_outputs` (state de
-    # tofu/pangolin_config), pour l'URL push de ssh_login_notify.
+    # tofu/pangolin_config, {} s'il est illisible), pour l'URL push de
+    # ssh_login_notify.
     - name: Load secrets and the pangolin_config state outputs
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
