@@ -1,11 +1,14 @@
 ---
-# Comme dans pangolin.yaml (le plus complet : ports UDP, bastion SSH) et
-# flip.yml : rôle appliqué avec become au niveau du playbook.
+# Comme dans pangolin.yaml (le plus complet : ports UDP, bastion SSH) : rôle
+# appliqué avec become au niveau du playbook. Le scénario security_flip fait de
+# même avec les variables de flip (devsec.hardening).
 - name: Converge
   hosts: all
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/pangolin/variables.yaml
+    # En dernier : le relais msmtp vise le récepteur du prepare.
+    - vars/smtp_sink.yml
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
