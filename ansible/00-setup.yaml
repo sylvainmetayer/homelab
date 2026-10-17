@@ -7,14 +7,29 @@
   vars:
     pangolin_config_outputs_optional: true
   post_tasks:
-    - name: Ensure starship is initialized in .bashrc
+    # Un lineinfile à `line` sur deux lignes ne retrouvait jamais sa ligne et
+    # ajoutait les deux à chaque passage : bloc balisé, et nettoyage unique des
+    # copies laissées hors bloc tant que le bloc n'existe pas encore.
+    - name: Read .bashrc
+      ansible.builtin.slurp:
+        path: /home/sylvain/.bashrc
+      register: setup_bashrc
+
+    - name: Remove the fzf and starship lines left by the old lineinfile
+      when: "'# BEGIN ANSIBLE MANAGED BLOCK starship' not in (setup_bashrc.content | b64decode)"
       ansible.builtin.lineinfile:
         path: /home/sylvain/.bashrc
-        line: |-
+        regexp: '^(source /usr/share/doc/fzf/examples/key-bindings\.bash|eval "\$\(starship init bash\)")$'
+        state: absent
+
+    - name: Ensure starship and fzf are initialized in .bashrc
+      ansible.builtin.blockinfile:
+        path: /home/sylvain/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED BLOCK starship"
+        block: |-
           source /usr/share/doc/fzf/examples/key-bindings.bash
           eval "$(starship init bash)"
         insertafter: EOF
-        state: present
         create: false
 
 
