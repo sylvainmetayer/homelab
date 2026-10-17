@@ -258,6 +258,23 @@ run "pangolin_is_the_public_bastion" {
   }
 }
 
+# Le serveur en place vient d'un ancien snapshot Packer : sans `image` dans
+# ignore_changes, l'image debian-13 forcerait son remplacement (prevent_destroy
+# ferait alors échouer le plan).
+run "pangolin_rebuilds_from_plain_debian" {
+  command = plan
+
+  assert {
+    condition     = hcloud_server.pangolin.image == "debian-13"
+    error_message = "Pangolin doit se reconstruire depuis debian-13 nu, plus depuis un snapshot."
+  }
+
+  assert {
+    condition     = can(regex("ignore_changes\\s*=\\s*\\[[^]]*\\bimage\\b", file("${path.module}/pangolin.tf")))
+    error_message = "hcloud_server.pangolin doit garder `image` dans ignore_changes : le serveur en place vient d'un snapshot Packer."
+  }
+}
+
 run "firewall_exposes_only_pangolin_ports" {
   command = plan
 

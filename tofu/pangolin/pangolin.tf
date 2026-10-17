@@ -13,7 +13,12 @@ resource "hcloud_ssh_key" "keepassxc" {
 
 resource "hcloud_server" "pangolin" {
   lifecycle {
-    ignore_changes  = [user_data, network]
+    # image : le serveur en place a été créé depuis un ancien snapshot Packer
+    # (348416839), Packer a depuis été retiré du dépôt. Sans cet ignore, passer
+    # à debian-13 forcerait son remplacement. Une reconstruction repart de
+    # debian-13 nu + user_data.yaml, puis 00-setup.yaml et pangolin.yaml, puis
+    # la restauration de /opt/pangolin depuis son dépôt Borg.
+    ignore_changes  = [image, user_data, network]
     prevent_destroy = true
   }
 

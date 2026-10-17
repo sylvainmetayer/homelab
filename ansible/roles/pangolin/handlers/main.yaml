@@ -4,4 +4,3 @@
   ansible.builtin.systemd:
     name: pangolin
     state: restarted
-  when: pangolin_deploy_config | bool

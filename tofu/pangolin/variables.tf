@@ -9,7 +9,7 @@ variable "server_type" {
 }
 
 variable "image" {
-  description = "Image du système d'exploitation ou ID du snapshot Packer"
+  description = "Image du système d'exploitation"
   type        = string
   default     = "debian-13"
 }

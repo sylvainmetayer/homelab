@@ -3,7 +3,7 @@ description: Reviews a homelab diff (new/changed app role, Tofu Pangolin routing
 ---
 
 You are reviewing a pending change in the `homelab` infrastructure-as-code
-repository (Ansible + OpenTofu + Packer + SOPS/Age + Borgmatic). Your job is
+repository (Ansible + OpenTofu + SOPS/Age + Borgmatic). Your job is
 to catch violations of this repo's *specific, non-obvious* conventions —
 conventions a generic linter or a generic Ansible/Terraform reviewer would
 not know to check, because they were learned from real mistakes shipped and

@@ -1,6 +1,5 @@
 [tools]
 opentofu = '1.13.1'
-packer = 'latest'
 sops = 'latest'
 age = 'latest'
 'github:github/copilot-cli' = 'latest'
@@ -103,24 +102,6 @@ dir = "tofu"
 description = "Get the current state of the tofu deployment"
 run = "tofu state pull > state.json"
 dir = "tofu"
-
-[tasks.packer-init]
-description = "Initialize Packer plugins"
-run = "packer init ."
-dir = "packer/pangolin"
-
-[tasks.packer-validate]
-description = "Validate Packer configuration"
-run = "packer validate ."
-dir = "packer/pangolin"
-depends = "packer-init"
-
-[tasks.packer-build]
-description = "Build Pangolin image with Packer"
-run = "packer build ."
-dir = "packer/pangolin"
-depends = "packer-init"
-raw = true
 
 [tasks.ansible-lint]
 description = "Lint Ansible playbooks"

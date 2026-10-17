@@ -1,8 +1,7 @@
 ---
 # Vérifications du rôle security, communes aux scénarios security (Pangolin)
-# et security_flip (flip), tous deux avec devsec.hardening, et security_packer
-# (variables de l'image Packer : drop-in maison, pas de relais mail). Les
-# variables viennent des defaults du rôle et de l'hôte rejoué.
+# et security_flip (flip). Les variables viennent des defaults du rôle et de
+# l'hôte rejoué.
 
 # --- sshd : la configuration effective, pas seulement le fichier ---
 
@@ -204,7 +203,7 @@
       - "'rkhunter' not in ansible_facts.packages"
       - "'logwatch' in ansible_facts.packages"
 
-# Sans relais (security_mta_enabled: false, image Packer), logwatch tire exim4 :
+# Sans relais (security_mta_enabled: false), logwatch tire exim4 :
 # ce qui suit ne vaut que pour les hôtes qui l'activent.
 - name: Check the mail relay
   when: security_mta_enabled | bool
@@ -301,38 +300,9 @@
       {{ 'docker run OK' if security_docker_run.rc == 0
          else 'docker run impossible dans cet environnement, déjà avant durcissement : ' ~ baseline }}
 
-# --- sans devsec : drop-in sshd et sysctl maison ---
-# Chemin de l'image Packer seulement, rejoué par le scénario security_packer.
-
-- name: Check the in-house hardening files
-  when: not (security_devsec_enabled | bool)
-  block:
-    - name: Read the in-house sysctl file
-      become: true
-      ansible.builtin.slurp:
-        src: /etc/sysctl.d/99-hardening.conf
-      register: security_sysctl_file
-
-    - name: Read the in-house sshd drop-in
-      ansible.builtin.stat:
-        path: /etc/ssh/sshd_config.d/99-custom.conf
-      register: security_sshd_dropin
-
-    - name: Assert the in-house sysctl and sshd files are in place
-      vars:
-        sysctl_hardening: "{{ security_sysctl_file.content | b64decode }}"
-      ansible.builtin.assert:
-        that:
-          - security_sshd_dropin.stat.exists
-          - sysctl_hardening is search('^fs\.suid_dumpable = 0$', multiline=True)
-          - sysctl_hardening is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
-          # Jamais fixé, sur aucun chemin : défaut noyau.
-          - sysctl_hardening is not search('file-max')
-
-# --- avec devsec : ce qui a été durci, et ce qui a été épargné ---
+# --- devsec : ce qui a été durci, et ce qui a été épargné ---
 
 - name: Check devsec.hardening
-  when: security_devsec_enabled | bool
   block:
     # devsec saute son sysctl dans un conteneur : on contrôle la valeur qu'il
     # écrirait et rechargerait sur l'hôte (le rôle l'assert aussi avant devsec).

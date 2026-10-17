@@ -11,13 +11,16 @@
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
-    - name: Assert flip runs devsec.hardening
+    # Ce qui distingue flip de Pangolin (scénario security) : pas de bastion,
+    # et le bastion lui-même jamais banni par fail2ban.
+    - name: Assert flip differs from the bastion
       ansible.builtin.assert:
         that:
-          - security_devsec_enabled | bool
+          - security_ssh_allow_tcp_forwarding == 'no'
+          - "'10.0.0.0/16' in security_fail2ban_ignoreip"
         fail_msg: >-
-          host_vars/flip n'active plus devsec : ce scénario ne teste plus rien
-          de plus que security_packer (drop-in maison).
+          host_vars/flip ne diffère plus de Pangolin sur ces points : ce
+          scénario ne teste plus rien de plus que security.
   roles:
     - role: security
       become: true

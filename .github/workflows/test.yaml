@@ -9,8 +9,6 @@ on:
       - .github/workflows/test.yaml
       - .config/molecule/**
       - ansible/**
-      # Lu par le scénario Molecule security_packer.
-      - packer/pangolin/ansible/site.yml
       - tofu/**
       - pyproject.toml
       - uv.lock

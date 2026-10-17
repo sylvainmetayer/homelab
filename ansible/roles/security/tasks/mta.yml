@@ -10,8 +10,8 @@
       - msmtp
       - msmtp-mta
     state: present
-    # Paquets nouveaux sur l'hôte : listes apt vidées par l'image Packer, et
-    # `--tags security` saute le rafraîchissement du rôle borgmatic.
+    # Paquets nouveaux sur l'hôte : listes apt peut-être absentes ou périmées,
+    # et `--tags security` saute le rafraîchissement du rôle borgmatic.
     update_cache: true
     cache_valid_time: 3600
 
