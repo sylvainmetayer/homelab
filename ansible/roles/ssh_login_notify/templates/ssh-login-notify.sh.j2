@@ -28,9 +28,16 @@ notify() {
         key_type=${key_line%% *}
         key_rest=${key_line#* }
         key_blob=${key_rest%% *}
-        key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')
-        # Nom de la clé : le commentaire de sa ligne dans authorized_keys (tout
-        # ce qui suit le blob, options éventuelles en tête de ligne ignorées).
+        key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -E sha256 -f - 2>/dev/null | awk '{print $2}')
+        # Clés ignorées : par empreinte, que l'utilisateur ne peut pas changer
+        # (le commentaire de sa ligne dans authorized_keys, si).
+        if [ -n "$key_fp" ] && [ -n "${IGNORED_FINGERPRINTS:-}" ] \
+            && printf '%s\n' "$IGNORED_FINGERPRINTS" | grep -qxF -- "$key_fp"; then
+            return 0
+        fi
+        # Nom de la clé, pour le message seulement : le commentaire de sa ligne
+        # dans authorized_keys (tout ce qui suit le blob, options éventuelles
+        # en tête de ligne ignorées).
         # Les deux fichiers de l'AuthorizedKeysFile par défaut de Debian ;
         # fichiers ordinaires seulement, comme sshd : un tube nommé ou un lien
         # vers /dev/zero bloquerait awk indéfiniment.
@@ -46,10 +53,6 @@ notify() {
                 }' "$keys_file")
                 [ -z "$key_name" ] || break
             done
-        fi
-        if [ -n "$key_name" ] && [ -n "${IGNORED_KEYS:-}" ] \
-            && printf '%s\n' "$IGNORED_KEYS" | grep -qxF -- "$key_name"; then
-            return 0
         fi
         msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, clé ${key_name:-inconnue} (${key_type} ${key_fp:-?})"
     else
