@@ -147,11 +147,13 @@ jobs:
 
       - name: Install ansible + deps
         if: steps.resolve-tags.outputs.any_tags == 'true'
-        # ansible-core is pinned: unpinned installs have hit a Python 3.12.13
-        # argparse regression that crashes the ssh connection plugin's TTY
-        # detection during "Gathering Facts" (argparse.ArgumentError: argument
-        # -o: expected one argument). Same version as uv.lock; 2.21+ is required
-        # by community.sops.load_vars `return_method: vars-only`.
+        # ansible-core is pinned to the version of uv.lock (bump both, and
+        # lint.yaml, together): 2.21+ is required by community.sops.load_vars
+        # `return_method: vars-only`. The "argparse.ArgumentError: argument -o:
+        # expected one argument" crash once blamed on an unpinned ansible-core
+        # came from the ssh args being truncated to a bare "-o" by the
+        # key=value -e parser (fixed by the JSON extra vars of the Deploy
+        # steps): the ssh plugin's TTY parser is the same in 2.20.1 and 2.21.5.
         run: pip install --quiet ansible-core==2.21.5 boto3 botocore passlib
 
       - name: Install sops

@@ -23,7 +23,10 @@
     cmd: docker compose down --volumes --remove-orphans
     chdir: "{{ decommission_app_base_path }}"
   register: decommission_app_compose_down
-  changed_when: decommission_app_compose_down.rc == 0
+  # Sans `rc` quand le dossier n'existe plus (« Unable to change directory »,
+  # 2e passage) : depuis ansible-core 2.21 un changed_when en erreur fait
+  # échouer la tâche malgré failed_when: false.
+  changed_when: decommission_app_compose_down.rc | default(1) == 0
   failed_when: false
 
 - name: Destroy the remote Borg repository (irreversible, no more restore points)
@@ -35,7 +38,7 @@
       --config {{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml
       repo-delete --force
   register: decommission_app_repo_delete
-  changed_when: decommission_app_repo_delete.rc == 0
+  changed_when: decommission_app_repo_delete.rc | default(1) == 0
   failed_when: false
 
 - name: Remove borgmatic configuration

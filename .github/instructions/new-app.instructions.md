@@ -91,8 +91,10 @@ add it to `secrets.sops.yaml` via `sops secrets.sops.yaml` (never hand-edit
 the encrypted blob, never commit plaintext). Remember: a variable loaded via
 `community.sops.load_vars` (`return_method: vars-only`) lands in the
 `include_vars` layer — it beats role defaults, `group_vars`/`host_vars`, play
-`vars:` and role-entry `vars:`, and loses only to a `set_fact`. Never name a
-SOPS key after a variable a playbook overrides (see AGENTS.md). Add every new
+`vars:`, role-entry `vars:`, a role's `vars/main.yml` and block/task `vars:`,
+and loses only to `set_fact`/registered vars, role and include params
+(`include_role` `vars:`) and extra vars. Never name a SOPS key after a
+variable a playbook or role sets (see AGENTS.md). Add every new
 key to `ansible/molecule/_shared/vars/fake_secrets.yml` too.
 
 ## 6. Pangolin routing

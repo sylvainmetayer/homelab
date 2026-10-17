@@ -115,6 +115,16 @@
       - prod_planning_mcp_pangolin_access_token not in env_content
     fail_msg: "Un secret de la production a fuité dans le .env de {{ flip_instance.service }}"
 
+# Le mot de passe pgAdmin est écrit dans compose.yaml, pas dans le .env : on
+# le cherche dans le modèle rendu par `docker compose config`.
+- name: Assert the demo compose model carries no production pgAdmin password
+  when: flip_instance.service != 'flip_planning'
+  ansible.builtin.assert:
+    that:
+      - "'pgadmin' in flip_planning_compose.services"
+      - prod_planning_pgadmin_password not in flip_planning_compose_raw.stdout
+    fail_msg: "Le mot de passe pgAdmin de la production a fuité dans le compose de {{ flip_instance.service }}"
+
 # --- assets de marque : exactement ceux que l'instance déclare ---
 
 - name: List the branding assets of {{ flip_instance.service }}
