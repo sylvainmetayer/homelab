@@ -107,7 +107,16 @@
       retries: 15
       delay: 1
 
-    # --- une clé de ssh_login_notify_ignored_keys ne notifie pas ---
+    # --- une empreinte de ssh_login_notify_ignored_fingerprints ne notifie
+    # pas ; une autre clé au même commentaire, si ---
+
+    - name: Compute the fingerprints of the ignored and impostor keys
+      ansible.builtin.command: ssh-keygen -l -E sha256 -f /home/sylvain/.ssh/{{ item }}.pub
+      register: ssh_login_notify_test_fps
+      changed_when: false
+      loop:
+        - molecule-ignored
+        - molecule-impostor
 
     - name: Log in over SSH with the ignored key
       ansible.builtin.command: >-
@@ -118,17 +127,33 @@
       ansible.builtin.pause:
         seconds: 3
 
-    - name: Read the push log
+    # Même commentaire « molecule-ignored » dans authorized_keys, autre clé :
+    # renommer sa clé ne fait pas taire l'alerte.
+    - name: Log in over SSH with the key that borrows the ignored comment
+      ansible.builtin.command: >-
+        {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-impostor sylvain@127.0.0.1 true
+      changed_when: false
+
+    - name: Wait for the push of the impostor key
       become: true
       ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
       register: ssh_login_notify_pushes
       changed_when: false
+      until: ssh_login_notify_pushes.stdout_lines | length >= 3
+      retries: 15
+      delay: 1
 
-    - name: Assert the ignored key did not notify
+    - name: Assert only the ignored fingerprint stayed silent
+      vars:
+        ignored_fp: "{{ ssh_login_notify_test_fps.results[0].stdout.split()[1] }}"
+        impostor_fp: "{{ ssh_login_notify_test_fps.results[1].stdout.split()[1] }}"
+        push: "{{ ssh_login_notify_pushes.stdout_lines[2] | from_json }}"
       ansible.builtin.assert:
         that:
-          - ssh_login_notify_pushes.stdout_lines | length == 2
-          - ssh_login_notify_pushes.stdout is not search('molecule-ignored')
+          - ssh_login_notify_pushes.stdout_lines | length == 3
+          - ignored_fp not in ssh_login_notify_pushes.stdout
+          - push.msg is search('clé molecule-ignored \\(ssh-ed25519 ')
+          - impostor_fp in push.msg
         fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }}"
 
     # --- anti-lockout : rien côté notification ne bloque ni ne retarde ---
@@ -236,3 +261,90 @@
         that:
           - ssh_login_notify_hang_ms.stdout | int < 5000
         fail_msg: "Login en {{ ssh_login_notify_hang_ms.stdout }} ms avec un Uptime Kuma muet."
+
+    # --- ssh_login_notify_enabled: false retire tout, idempotent ---
+
+    - name: Disable the hook
+      ansible.builtin.include_role:
+        name: ssh_login_notify
+        apply:
+          become: true
+      vars:
+        ssh_login_notify_enabled: false
+
+    - name: Read the sshd PAM stack after the uninstall
+      become: true
+      ansible.builtin.stat:
+        path: /etc/pam.d/sshd
+        get_checksum: true
+      register: ssh_login_notify_pam_after
+
+    - name: Read the hook files after the uninstall
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: ssh_login_notify_files_after
+      loop:
+        - /etc/ssh-login-notify.conf
+        - /usr/local/sbin/ssh-login-notify
+
+    - name: Read the sshd PAM stack content after the uninstall
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/pam.d/sshd
+      register: ssh_login_notify_pam_content
+
+    - name: Assert the hook is gone
+      ansible.builtin.assert:
+        that:
+          - (ssh_login_notify_pam_content.content | b64decode) is not search('ssh-login-notify')
+          - ssh_login_notify_files_after.results | selectattr('stat.exists') | list | length == 0
+        fail_msg: "{{ ssh_login_notify_pam_content.content | b64decode }}"
+
+    # Seconde désinstallation : rien à retirer, /etc/pam.d/sshd intouché.
+    - name: Disable the hook again
+      ansible.builtin.include_role:
+        name: ssh_login_notify
+        apply:
+          become: true
+      vars:
+        ssh_login_notify_enabled: false
+
+    - name: Read the sshd PAM stack after the second uninstall
+      become: true
+      ansible.builtin.stat:
+        path: /etc/pam.d/sshd
+        get_checksum: true
+      register: ssh_login_notify_pam_again
+
+    - name: Assert the second uninstall changed nothing
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_pam_again.stat.checksum == ssh_login_notify_pam_after.stat.checksum
+          - ssh_login_notify_pam_again.stat.mtime == ssh_login_notify_pam_after.stat.mtime
+
+    - name: Count the pushes before a login without the hook
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes_before
+      changed_when: false
+
+    - name: Log in over SSH without the hook
+      ansible.builtin.command: >-
+        {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+      changed_when: false
+
+    - name: Leave time for a push that must not come
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Count the pushes after a login without the hook
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes_after
+      changed_when: false
+
+    - name: Assert a login without the hook does not notify
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_pushes_after.stdout_lines | length == ssh_login_notify_pushes_before.stdout_lines | length

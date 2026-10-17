@@ -28,17 +28,21 @@
         group: sylvain
         mode: "0700"
 
-    # Deux clés : une qui notifie, une listée dans
-    # ssh_login_notify_ignored_keys (converge.yml).
+    # Trois clés : une qui notifie, une dont l'empreinte est dans
+    # ssh_login_notify_ignored_fingerprints (converge.yml), et une autre qui
+    # porte le même commentaire que celle-ci, sans être ignorée pour autant.
     - name: Generate the test key pairs of sylvain
       become: true
       become_user: sylvain
       ansible.builtin.command:
-        cmd: ssh-keygen -q -t ed25519 -N "" -C {{ item }} -f /home/sylvain/.ssh/{{ item }}
-        creates: /home/sylvain/.ssh/{{ item }}
+        cmd: ssh-keygen -q -t ed25519 -N "" -C {{ item.comment }} -f /home/sylvain/.ssh/{{ item.file }}
+        creates: /home/sylvain/.ssh/{{ item.file }}
       loop:
-        - molecule-login
-        - molecule-ignored
+        - {file: molecule-login, comment: molecule-login}
+        - {file: molecule-ignored, comment: molecule-ignored}
+        - {file: molecule-impostor, comment: molecule-ignored}
+      loop_control:
+        label: "{{ item.file }}"
 
     - name: Read the test public keys
       ansible.builtin.slurp:
@@ -47,6 +51,7 @@
       loop:
         - molecule-login
         - molecule-ignored
+        - molecule-impostor
 
     # Comme 00-setup.yaml : une ligne par clé, son commentaire en fin de ligne.
     - name: Authorize the test keys

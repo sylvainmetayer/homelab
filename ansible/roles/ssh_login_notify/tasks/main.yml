@@ -8,15 +8,38 @@
 # bloque ni ne retarde un login.
 
 - name: Warn when this host has no SSH login push URL
-  when: ssh_login_notify_push_url | length == 0
+  when:
+    - ssh_login_notify_enabled | bool
+    - ssh_login_notify_push_url | length == 0
   ansible.builtin.debug:
     msg: >-
       Pas d'URL push pour {{ inventory_hostname }} (sortie uptime_ssh_login_urls
       de tofu/pangolin_config) : ajouter l'hôte à local.ssh_login_hosts puis
-      appliquer pangolin_config. Rien n'est posé.
+      appliquer pangolin_config. Rien n'est posé ni retiré.
+
+# ssh_login_notify_enabled: false. La ligne PAM part en premier : jamais de
+# pile qui appelle un script absent, même si la suite échoue.
+- name: Remove the SSH login notification hook
+  when: not (ssh_login_notify_enabled | bool)
+  block:
+    - name: Stop calling the hook on SSH session opening
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/sshd
+        regexp: "^session\\s+\\S+\\s+pam_exec\\.so\\s.*{{ ssh_login_notify_script | regex_escape }}$"
+        state: absent
+
+    - name: Remove the hook script and configuration
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ ssh_login_notify_script }}"
+        - "{{ ssh_login_notify_config }}"
 
 - name: Install the SSH login notification hook
-  when: ssh_login_notify_push_url | length > 0
+  when:
+    - ssh_login_notify_enabled | bool
+    - ssh_login_notify_push_url | length > 0
   block:
     - name: Install the hook dependencies
       ansible.builtin.apt:

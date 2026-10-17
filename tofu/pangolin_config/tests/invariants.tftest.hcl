@@ -2117,6 +2117,20 @@ run "ssh_login_monitors_alert_on_every_login" {
     error_message = "00-setup.yaml doit lire terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] et appliquer le rôle ssh_login_notify."
   }
 
+  # Seul le setup de base tolère un state illisible (terraform_outputs = {}) :
+  # ailleurs une URL vide passerait en silence (sauvegardes sans moniteur,
+  # Newt sans identifiants).
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "pangolin_config_outputs_optional: true")
+      && alltrue([
+        for playbook in ["docker.yml", "flip.yml", "pangolin.yaml", "pi.yml"] :
+        !strcontains(file("${path.module}/../../ansible/${playbook}"), "pangolin_config_outputs_optional")
+      ])
+    )
+    error_message = "pangolin_config_outputs_optional: true dans 00-setup.yaml, et dans aucun autre playbook."
+  }
+
   # Les clés sont des inventory_hostname : chacune a son dossier host_vars.
   assert {
     condition = alltrue([

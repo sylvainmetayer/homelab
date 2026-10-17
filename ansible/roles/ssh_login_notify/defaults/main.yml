@@ -1,16 +1,24 @@
 ---
 # Alerte à chaque connexion SSH (issue #451).
 #
+# false : retire le hook (ligne PAM, script, configuration). C'est la seule
+# façon de le désinstaller : une URL vide n'y touche pas.
+ssh_login_notify_enabled: true
+
 # URL push Uptime Kuma de l'hôte : sortie `uptime_ssh_login_urls` de
 # tofu/pangolin_config (ssh_login_monitors.tf), indexée par inventory_hostname,
-# posée par 00-setup.yaml. Vide (hôte absent de local.ssh_login_hosts, ou
-# pangolin_config pas encore appliqué) : le rôle avertit et ne pose rien.
+# posée par 00-setup.yaml. Vide (hôte absent de local.ssh_login_hosts,
+# moniteurs pas encore appliqués, ou state de pangolin_config illisible, que
+# 00-setup.yaml tolère) : le rôle avertit et ne touche à rien, un hook déjà
+# posé reste en place.
 ssh_login_notify_push_url: ""
 
-# Commentaires de clés (dernier champ de la ligne de authorized_keys, ex.
-# "github-actions") dont les connexions ne notifient pas. Vide : tout notifie,
-# CI comprise — une clé de CI compromise est justement ce qu'on veut voir.
-ssh_login_notify_ignored_keys: []
+# Empreintes SHA256 (format de `ssh-keygen -l` : "SHA256:...") des clés dont
+# les connexions ne notifient pas. Par empreinte, pas par commentaire : le
+# commentaire d'une ligne de authorized_keys se change par qui est connecté.
+# Vide : tout notifie, CI comprise — une clé de CI compromise est justement ce
+# qu'on veut voir.
+ssh_login_notify_ignored_fingerprints: []
 
 # Délai maximal de l'appel à Uptime Kuma. L'appel part en arrière-plan : il ne
 # retarde jamais l'ouverture de la session.
