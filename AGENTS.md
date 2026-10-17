@@ -64,7 +64,7 @@ mise run get_state                     # dumps `tofu state pull` for the current
 **Molecule** — one scenario per role, `ansible/molecule/<role>/` (scenario name = role name), run from `ansible/` (`molecule test -s <role>`).
 - Shared base config: `.config/molecule/config.yml` at the repo root (auto-loaded): docker driver, image `homelab-molecule:debian13` built from `ansible/molecule/_shared/Dockerfile` (Debian 13, systemd PID 1, Docker daemon, user `sylvain` with sudo — the playbooks' connection model), connection as `sylvain` with `XDG_RUNTIME_DIR` so `scope: user` tasks work.
 - Shared prepare `ansible/molecule/_shared/prepare.yml`: linger, Docker + `newt` network, a `dc@.service` drop-in that runs `docker compose config --quiet` then sleeps (no image is ever pulled), a `/root/.local/bin/borgmatic` stub that validates each config with the real borgmatic baked into the image (version pinned in the Dockerfile, Renovate-tracked) and fakes `repo-create` exactly like borgmatic 2.x (exit 0, "Repository already exists. Skipping creation." on stdout at `--verbosity 1`). A scenario needing more imports it from its own `prepare.yml`.
-- `converge.yml` loads `_shared/vars/fake_secrets.yml` (a dummy for every key of `secrets.sops.yaml` that a role reads — add new keys there; `password`, read only by `00-setup.yaml`, is deliberately absent), `group_vars/all` and the **real** `host_vars/<host>` of the host running the role, then reproduces the playbook (roles before it, role-entry `vars:`, healthcheck `set_fact`s).
+- `converge.yml` loads `_shared/vars/fake_secrets.yml` through `_shared/tasks/load_fake_secrets.yml`, its first pre_task (`include_vars`: the same precedence layer as `community.sops.load_vars`, which a `vars_files` entry would not reproduce) (a dummy for every key of `secrets.sops.yaml` that a role reads — add new keys there; `host_user_password`, read only by `00-setup.yaml`, is deliberately absent), `group_vars/all` and the **real** `host_vars/<host>` of the host running the role, then reproduces the playbook (roles before it, role-entry `vars:`, healthcheck `set_fact`s).
 - `verify.yml` uses `_shared/tasks/verify_app.yml` for `dc@` apps plus role-specific assertions. Idempotence must hold.
 - Never hardcode secret-looking literals in scenarios (GitGuardian fails the PR): compare against the fake-secret variables. Prefer 0700/0600 for files a prepare creates (SonarCloud).
 - A new role gets a scenario: copy `ansible/molecule/trek/`. CI discovers it automatically.
@@ -91,7 +91,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 
 ### Secrets (SOPS + Age)
 
-- `secrets.sops.yaml` (repo root, and a copy loaded from `ansible/secrets.sops.yaml`) holds all secrets, encrypted with Age (`.sops.yaml` lists the recipient age public keys — perso/pro/semaphore).
+- Two SOPS files hold the secrets: `secrets.sops.yaml` at the repo root (OpenTofu/mise environment) and `ansible/secrets.sops.yaml` (what the playbooks load), both encrypted with Age (`.sops.yaml` lists the recipient age public keys — perso/pro/semaphore).
 - Age private key path is configured in `.sopsrc` (`ageKeyFile: /home/sylvain/.age.key`) — needed to decrypt.
 - `mise.toml` auto-loads (and redacts) `secrets.sops.yaml` into task environments via `_.file`.
 - In Ansible playbooks, secrets are loaded with:
@@ -99,8 +99,9 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
   community.sops.load_vars:
     file: "{{ playbook_dir }}/secrets.sops.yaml"
     expressions: evaluate-on-load
+    return_method: vars-only
   ```
-  **Warning carried over from the codebase itself**: variables loaded this way cannot override a variable that's already defined elsewhere — make sure the variable isn't already set before relying on the loaded value.
+  `return_method: vars-only` needs ansible-core ≥ 2.21 (pinned in `uv.lock`, which the lint, test and deploy workflows install with `uv sync --locked`) and fails outright below it, instead of handing the secrets back as facts: those only reached the play through the deprecated fact injection, now off (`inject_facts_as_vars = False` in `ansible/ansible.cfg`, `ANSIBLE_INJECT_FACTS_AS_VARS=False` for Molecule; read facts as `ansible_facts[...]`). **Precedence**: the secrets land in the `include_vars` layer, so they **beat** role defaults, `group_vars`/`host_vars`, play `vars:`, the `vars:` of a `roles:` entry, a role's `vars/main.yml` and block/task `vars:`, and lose only to `set_fact`/registered vars, role and include params (the `vars:` of an `include_role`) and extra vars (the play and role-entry `vars:` cases checked on 2.21.5). A key of `ansible/secrets.sops.yaml` must therefore never bear the name of a variable that a playbook or a role sets (hence `host_user_password`, not a generic `password`): prefix it per instance (`prod_planning_*`, `demo_planning_*`) and hand it over in the role entry's `vars:`. `.github/scripts/check_sops_shadowing.py` (Lint workflow; `python -I .github/scripts/check_sops_shadowing.py` from the repo root) fails on any such name.
 
 ## Ansible architecture
 
@@ -152,7 +153,7 @@ current checklist — it also delegates to **`pangolin-route`** and
   - `archive_name_format` is `'<service>-{now:%Y-%m-%dT%H:%M:%S}'` — no `{hostname}` prefix.
   - `compression: zstd,10`, not `auto,zstd`.
   - Target: `<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"` in the role defaults (`backup_storage_box_url` is a group var: `ssh://<user>@<host>/<path>`), passphrase `<service>_backup_encryption_passphrase: "{{ backup_passphrase }}"` there too — not in `host_vars`.
-  - Never back up a live database directory: PostgreSQL/MySQL are dumped by the client inside the DB container (`borgmatic_app_postgresql_databases` / `_mysql_databases`), SQLite files copied by the host's `sqlite3 ".backup"` in a `before` hook into `/var/lib/borgmatic-sqlite/<app>/` (`borgmatic_app_sqlite_databases`, globs resolved at deploy time; their live copy is excluded). Never borgmatic's own `sqlite_databases`: its streamed `.dump` holds a read lock for the whole upload and froze Pangolin. MySQL/MariaDB dumps go through `/usr/local/bin/borgmatic-docker-dump`, since borgmatic 2.1 hands the client a host-side `--result-file`.
+  - Never back up a live database directory: PostgreSQL/MySQL are dumped by the client inside the DB container (`borgmatic_app_postgresql_databases` / `_mysql_databases`), SQLite files copied by the host's `sqlite3 ".backup"` in a `before` hook into `/var/lib/borgmatic-sqlite/<app>/` (`borgmatic_app_sqlite_databases`, globs resolved at deploy time; their live copy is excluded). Never borgmatic's own `sqlite_databases`: its streamed `.dump` holds a read lock for the whole upload and froze Pangolin. MySQL/MariaDB dumps go through `/usr/local/bin/borgmatic-docker-dump`, since borgmatic 2.1 hands the client a host-side `--result-file`; the client is `mariadb-dump` unless an entry sets `dump_command` (every database here is MariaDB, and linuxserver's `mysqldump` warns it is deprecated).
   - `exclude_patterns` are borg `fm:` patterns matched from the start of the archived path: `'*.log'` works anywhere, a relative `'cache/*'` matches nothing — app-specific excludes are absolute paths.
 - New remote backup folders must be added to `backup_folders` in `ansible/host_vars/backups/variables.yaml` (created by `ansible/backup.yaml`, which must stay `gather_facts: false` + use `ansible.builtin.raw` because the Storage Box has a restricted shell — normal file modules don't work there).
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
@@ -181,9 +182,14 @@ Four non-obvious rules, each of which silently crosses the two environments if
 broken:
 
 - **`vars:` on the `roles:` entry, not `host_vars` — and never a `set_fact`
-  of the same name.** `vars:` on a `roles:` entry wins over the role defaults,
-  `host_vars` and the keys loaded from `secrets.sops.yaml`, but it **loses to
-  a `set_fact`** (and to `include_vars`): checked, not assumed. An override
+  of the same name, nor a SOPS key of the same name.** `vars:` on a `roles:`
+  entry wins over the role defaults and `host_vars`, but it **loses to a
+  `set_fact`, to `include_vars` and to the keys loaded from
+  `ansible/secrets.sops.yaml`** (`load_vars` registers them in the
+  `include_vars` layer since ansible-core 2.21): checked, not assumed. Hence
+  `prod_planning_*` / `demo_planning_*` in SOPS, each handed to its instance,
+  and never a `flip_planning_*` key for a variable an instance overrides — the
+  flip_planning Molecule converge fails on one. An override
   placed in `host_vars` would apply to *both* instances; a play-level
   `set_fact` of a name the role reads silently beats every instance's
   override. That is how the demo's backups pushed to the production Uptime
@@ -250,7 +256,7 @@ orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
 
 ## CI (GitHub Actions)
 
-- `.github/workflows/lint.yaml` — `ansible-lint`, `tofu fmt -check` and `tofu validate` (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, site, 1y) on every PR.
+- `.github/workflows/lint.yaml` — `ansible-lint`, `.github/scripts/check_sops_shadowing.py` (no key of `ansible/secrets.sops.yaml` or `fake_secrets.yml` may bear the name of a play, `roles:` entry, block, task or `import_role` `vars:`, nor of a role's `vars/`), `tofu fmt -check` and `tofu validate` (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, site, 1y) on every PR.
 - `.github/workflows/test.yaml` — discovers `ansible/molecule/*/molecule.yml` and `tofu/*/tests/` and runs one matrix job per Molecule scenario and per tested Tofu module (see "Tests" above).
 
 - `.github/workflows/path-bypass-review.yaml` — on a PR that bumps a version in `tofu/pangolin_config/path_bypass_images.json`, writes the release notes/sources to re-read in the run summary and waits for an approval of the `relecture-chemins-publics` environment (see the path ACCEPTs note below).

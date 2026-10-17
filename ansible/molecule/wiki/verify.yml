@@ -74,6 +74,9 @@
           - wiki_borgmatic.archive_name_format is match('wiki-')
           - wiki_borgmatic.mysql_databases[0].container == 'bookstack_db'
           - wiki_borgmatic.mysql_databases[0].password == 'molecule-wiki-db-password'
+          # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
+          # avertit « Deprecated program name » et disparaîtra.
+          - wiki_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump bookstack_db mariadb-dump'
           - wiki_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-wiki-backup'
         fail_msg: "Configuration borgmatic du wiki inattendue : {{ wiki_borgmatic }}"
 

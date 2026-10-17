@@ -2,10 +2,12 @@
 - name: Converge
   hosts: all
   vars_files:
-    - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
   pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
     # docker.yml lit cette URL dans les outputs du state pangolin_config :
     # un set_fact (absente de secrets.sops.yaml, donc de fake_secrets.yml).
     - name: Load healthcheck URLs as docker.yml does from the Terraform state

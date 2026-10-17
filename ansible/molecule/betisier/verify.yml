@@ -125,6 +125,9 @@
           - betisier_borgmatic.archive_name_format is match('betisier-')
           - betisier_borgmatic.mysql_databases[0].container == 'betisier_db'
           - betisier_borgmatic.mysql_databases[0].password == 'molecule-betisier-db-password'
+          # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
+          # avertit « Deprecated program name » et disparaîtra.
+          - betisier_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump betisier_db mariadb-dump'
           - betisier_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-betisier-backup'
         fail_msg: "Configuration borgmatic de betisier inattendue : {{ betisier_borgmatic }}"
 

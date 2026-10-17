@@ -48,6 +48,12 @@ ansible:
       callbacks_enabled: profile_tasks
       stdout_callback: ansible.builtin.default
       result_format: yaml
+  # Environnement du provisioner (Molecule y range aussi l'ancien
+  # provisioner.env). Comme ansible/ansible.cfg, que Molecule ne lit pas : pas
+  # d'injection des faits en variables ansible_*, dépréciée (retirée en
+  # ansible-core 2.24) ; un fait lu sans ansible_facts[...] échoue ici.
+  env:
+    ANSIBLE_INJECT_FACTS_AS_VARS: "False"
   playbooks:
     prepare: ../_shared/prepare.yml
 

@@ -74,15 +74,23 @@ flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 # PostgreSQL database configuration
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_db_password /
+# demo_planning_db_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_db_password: ""
 
 # App secrets
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_api_key /
+# demo_planning_mcp_api_key); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_api_key: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token_id /
+# demo_planning_mcp_pangolin_access_token_id); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_pangolin_access_token_id: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token /
+# demo_planning_mcp_pangolin_access_token); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_mcp_pangolin_access_token: ""
 
 # Rate ceiling on /mcp, per source address and per window. Every request is
@@ -109,9 +117,13 @@ flip_planning_mcp_rate_window: PT1M
 # nothing, and one that authenticates clears the run. 0 or less switches it off.
 flip_planning_mcp_max_failures: 5
 flip_planning_mcp_lockout_duration: PT10M
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_admin_password /
+# demo_planning_admin_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_admin_password: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_session_encryption_key /
+# demo_planning_session_encryption_key); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_session_encryption_key: ""
 
 # Mentions légales, served publicly on /mentions-legales. Those of the
@@ -216,14 +228,16 @@ flip_planning_keycloak_image: ""
 
 flip_planning_keycloak_db_name: "keycloak"
 flip_planning_keycloak_db_user: "keycloak"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_db_password);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_keycloak_db_password: ""
 
 # Bootstrap administrator of the MASTER realm — the one terraform/keycloak
 # signs in with to create the planning realm, not an account of it. Keycloak
 # asks for it to be replaced by a permanent account from the console.
 flip_planning_keycloak_admin_user: "admin"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_admin_password);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_keycloak_admin_password: ""
 
 # Accent colour of the Keycloak login page and e-mails (the account console
@@ -260,7 +274,8 @@ flip_planning_oidc_auth_server_url: >-
 # PKCE verifier in the state cookie, and below that Quarkus draws a random key
 # at every start. terraform/keycloak prints it (`terraform output`).
 flip_planning_oidc_client_id: "planning-app"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_client_secret);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_oidc_client_secret: ""
 
 # Provisioning: creating an animateur's fiche creates the Keycloak account that
@@ -274,7 +289,8 @@ flip_planning_oidc_provisioning_server_url: >-
      if flip_planning_keycloak_enabled else '' }}
 flip_planning_oidc_provisioning_realm: "planning"
 flip_planning_oidc_provisioning_client_id: "planning-provisioning"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_provisioning_client_secret);
+# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
 flip_planning_oidc_provisioning_client_secret: ""
 
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
@@ -326,7 +342,9 @@ flip_planning_newt_network: "newt"
 flip_planning_pgadmin_enabled: true
 flip_planning_pgadmin_path: "/db"
 flip_planning_pgadmin_email: "admin@sylvain.cloud"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: passed per instance by flip.yml (prod_planning_pgadmin_password /
+# demo_planning_pgadmin_password); never a flip_planning_* key in secrets.sops.yaml,
+# which would beat that override.
 flip_planning_pgadmin_password: ""
 
 # Borgmatic backup configuration

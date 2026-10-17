@@ -7,10 +7,12 @@
 - name: Converge
   hosts: all
   vars_files:
-    - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
     - ../../host_vars/flip/variables.yaml
   pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
     - name: Assert this converge applies flip_planning exactly as flip.yml does
       ansible.builtin.assert:
         that:
@@ -44,6 +46,36 @@
              | selectattr('key', 'equalto', 'ansible.builtin.set_fact')
              | map(attribute='value') | map('list') | flatten }}
 
+    # community.sops.load_vars (ansible-core 2.21+) range les secrets dans la
+    # couche include_vars, au-dessus des `vars:` du play et des entrées roles: :
+    # une clé de secrets.sops.yaml nommée comme une variable qu'une instance
+    # surcharge l'emporterait sur la surcharge, et la démo recevrait le secret
+    # de la production. Les noms des clés SOPS sont en clair : on lit les deux
+    # fichiers, le vrai et celui des faux secrets. Le workflow Lint
+    # (.github/scripts/check_sops_shadowing.py) fait la même vérification sur
+    # tous les playbooks, tasks/ et rôles ; celle-ci garde flip.yml couvert
+    # quand on ne lance que ce scénario.
+    - name: Assert no secrets.sops.yaml key is overridden by flip.yml
+      ansible.builtin.assert:
+        that:
+          - flip_overridden_secrets | length == 0
+        fail_msg: >-
+          Ces clés de secrets.sops.yaml sont aussi posées par les `vars:` de
+          flip.yml, qui perdraient face à elles : {{ flip_overridden_secrets }}.
+          Les renommer dans sops (prod_planning_*, demo_planning_*) et les passer
+          à l'instance par ses `vars:`.
+      vars:
+        flip_sops_keys: >-
+          {{ ((lookup('ansible.builtin.file', playbook_dir ~ '/../../secrets.sops.yaml') | from_yaml).keys()
+              | list | difference(['sops']))
+             + (lookup('ansible.builtin.file', playbook_dir ~ '/../_shared/vars/fake_secrets.yml') | from_yaml).keys() | list }}
+        flip_play: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0] }}"
+        flip_overridden_vars: >-
+          {{ ((flip_play.vars | default({})).keys() | list)
+             + (flip_play.roles | selectattr('vars', 'defined') | map(attribute='vars')
+                | map('list') | flatten) }}
+        flip_overridden_secrets: "{{ flip_sops_keys | intersect(flip_overridden_vars) | unique | sort }}"
+
     # flip.yml les lit dans le state de tofu/pangolin_config et les pose par
     # set_fact : même précédence ici, sous les mêmes noms. Jamais
     # flip_planning_backup_healthcheck_url lui-même (cf. flip.yml).
@@ -60,6 +92,13 @@
         flip_planning_branding_pdf_strip: flip/flip-strip.png
         flip_planning_branding_mascot: flip/flip-woopy.png
         flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
+        flip_planning_db_password: "{{ prod_planning_db_password }}"
+        flip_planning_pgadmin_password: "{{ prod_planning_pgadmin_password }}"
+        flip_planning_admin_password: "{{ prod_planning_admin_password }}"
+        flip_planning_session_encryption_key: "{{ prod_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
+        flip_planning_mcp_pangolin_access_token_id: "{{ prod_planning_mcp_pangolin_access_token_id }}"
+        flip_planning_mcp_pangolin_access_token: "{{ prod_planning_mcp_pangolin_access_token }}"
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
     - role: flip_planning
       vars:
