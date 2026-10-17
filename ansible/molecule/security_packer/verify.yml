@@ -1,0 +1,11 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/security/defaults/main.yml
+  pre_tasks:
+    - name: Load the Packer variables
+      ansible.builtin.import_tasks: tasks/load_packer_vars.yml
+  tasks:
+    - name: Verify the security role
+      ansible.builtin.import_tasks: ../security/tasks/verify_security.yml

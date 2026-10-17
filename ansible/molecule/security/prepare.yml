@@ -28,9 +28,9 @@
     # Conteneur privilégié : /proc/sys y est inscriptible, et fs.*, kernel.*
     # et vm.* sont ceux du noyau de l'hôte (seul net.* est propre au conteneur).
     # Le rôle maison ne fait qu'écrire /etc/sysctl.d/99-hardening.conf
-    # (fs.file-max, fs.suid_dumpable…) sans le charger, et devsec saute son
+    # (fs.suid_dumpable, disable_ipv6) sans le charger, et devsec saute son
     # sysctl dans un conteneur ; si l'un d'eux se mettait à charger, ce
-    # scénario échouerait ici au lieu de baisser fs.file-max du runner CI.
+    # scénario échouerait ici au lieu de modifier les sysctls du runner CI.
     - name: Make the host-global sysctls read-only in the container
       ansible.builtin.shell: |
         set -eu

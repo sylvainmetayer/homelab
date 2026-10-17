@@ -17,7 +17,7 @@
           - security_devsec_enabled | bool
         fail_msg: >-
           host_vars/flip n'active plus devsec : ce scénario ne teste plus rien
-          de plus que security.
+          de plus que security_packer (drop-in maison).
   roles:
     - role: security
       become: true

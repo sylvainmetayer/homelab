@@ -46,5 +46,10 @@ security_ufw_allowed_ports:
 # réseau privé : voir inventory/hetzner.py et le rôle security.
 security_ssh_allow_tcp_forwarding: local
 
+# Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security), comme
+# flip. AllowTcpForwarding reste "local" (ci-dessus) : devsec le reçoit de
+# security_ssh_allow_tcp_forwarding, le bastion garde son ProxyJump.
+security_devsec_enabled: true
+
 # Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp.
 security_mta_enabled: true

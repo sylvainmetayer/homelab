@@ -1,0 +1,11 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle security avec les variables de l'image Packer de Pangolin
+# (packer/pangolin/ansible/site.yml) : sans devsec ni relais mail, seul chemin
+# qui garde le drop-in sshd et le sysctl maison. Prepare et verify sont ceux
+# de security.
+scenario:
+  name: security_packer
+ansible:
+  playbooks:
+    prepare: ../security/prepare.yml

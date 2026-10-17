@@ -64,8 +64,9 @@ security_devsec_sysctl_overwrite:
   # (tasks/main.yml) :
   # - disable_ipv6 : à chaud, `all` retirerait l'IPv6 du bridge Docker de
   #   Pangolin déjà monté ; au boot, Docker le rétablit sur son bridge ensuite ;
-  # - pas de fs.file-max: 65535, qui ferait tomber la limite système (défaut
-  #   noyau ~9.2e18) sous ce que consomment Postgres, Keycloak et Docker.
+  # - fs.file-max n'est fixé nulle part (ni ici ni dans 99-hardening.conf) :
+  #   65535 ferait tomber la limite système (défaut noyau ~9.2e18) sous ce que
+  #   consomment Postgres, Keycloak et Docker.
 
 # --- relais mail (msmtp-mta) ---
 
