@@ -16,6 +16,16 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
+# Le conteneur tourne en `nobody` (65534) : seul écrivain du journal des coups.
+- name: Ensure the promptoramix journal folder belongs to the container user
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ promptoramix_base_path }}/journal"
+    state: directory
+    owner: "65534"
+    group: "65534"
+
 - name: Template compose configuration
   notify: Restart promptoramix
   ansible.builtin.template:
@@ -35,7 +45,8 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Rôle sans état (aucun volume, aucune base) : pas de sauvegarde borgmatic.
+# Pas de sauvegarde borgmatic : le seul volume est le journal des coups, un
+# fichier texte d'appoint (relu à la main entre deux rondes, jamais requis).
 - name: Make sure promptoramix service is running
   ansible.builtin.systemd:
     state: started
