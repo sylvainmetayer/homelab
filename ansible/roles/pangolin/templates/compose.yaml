@@ -53,4 +53,7 @@ networks:
   default:
     driver: bridge
     name: pangolin
-    enable_ipv6: true
+    # Hôte sans IPv6 (ipv6_enabled = false dans tofu/pangolin) : avec ufw en
+    # IPV6=no, un `ufw reload` vide la table filter d'ip6tables et efface les
+    # chaînes IPv6 de Docker. Le changer exige un `docker compose down`.
+    enable_ipv6: false
