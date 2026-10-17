@@ -72,7 +72,7 @@
         shell: /bin/bash
         groups: sudo
         append: true
-        password: "{{ password | password_hash('sha512', password) }}"
+        password: "{{ host_user_password | password_hash('sha512', host_user_password) }}"
 
     - name: Set public keys
       loop: "{{ lookup('fileglob', playbook_dir + '/../keys/*.pub', wantlist=True) }}"
