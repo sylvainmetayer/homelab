@@ -78,10 +78,11 @@ def role_image(role, engine):
     return images.pop()
 
 
-def wait_until(container, *probe):
+def wait_until(container, *probe, ready=lambda stdout: True):
     deadline = time.monotonic() + DB_READY_TIMEOUT
     while time.monotonic() < deadline:
-        if run("docker", "exec", container, *probe, check=False).returncode == 0:
+        result = run("docker", "exec", container, *probe, check=False)
+        if result.returncode == 0 and ready(result.stdout):
             return
         time.sleep(3)
     logs = run("docker", "logs", "--tail", "30", container, check=False)
@@ -118,7 +119,14 @@ def restore_mysql(image, name, dump):
         "-e", "MYSQL_ROOT_PASSWORD=restore-test", image)
     try:
         client = ("env", "MYSQL_PWD=restore-test", "mariadb", "-uroot", "--protocol=tcp", "-h127.0.0.1")
-        wait_until(container, *client, "-e", "select 1")
+        # linuxserver's init runs a temporary server WITH networking (its
+        # --init-file sets the root password, so this probe answers), then
+        # shuts it down as soon as it answers and s6 starts the real one: wait
+        # for an uptime that temporary server never reaches.
+        wait_until(container, *client, "-N", "-e",
+                   "select variable_value from information_schema.global_status "
+                   "where variable_name = 'UPTIME'",
+                   ready=lambda stdout: stdout.strip().isdigit() and int(stdout.strip()) >= 10)
         # borgmatic dumps with --databases: the dump creates its database.
         with open(dump) as sql:
             run("docker", "exec", "-i", container, *client, stdin=sql)

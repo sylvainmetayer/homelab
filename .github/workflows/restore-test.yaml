@@ -47,6 +47,11 @@ jobs:
               echo "::error::dépôts inconnus de apps.json : $unknown"
               exit 1
             fi
+            # Que des virgules ou des espaces : même run vert à vide.
+            if [ "$apps" = "[]" ]; then
+              echo "::error::aucun dépôt dans « $SELECTED »"
+              exit 1
+            fi
           else
             apps=$all
           fi
@@ -84,13 +89,17 @@ jobs:
       # Même version que sur les hôtes (rôle borgmatic) : un dépôt écrit par
       # borg 1.x se lit avec borg 1.x.
       - name: Install borg, sops and sqlite3
+        env:
+          # L'API sans jeton plafonne à 60 requêtes/h par IP, partagées entre
+          # les runners : authentifiée, chaque job de la matrice passe.
+          GH_TOKEN: ${{ github.token }}
         run: |
           borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' ansible/roles/borgmatic/defaults/main.yml)
           sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/borg \
             "https://github.com/borgbackup/borg/releases/download/${borg_version}/borg-linux-glibc235-x86_64-gh"
           sudo chmod +x /usr/local/bin/borg
           borg --version
-          version="$(curl --proto =https --tlsv1.2 -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+          version="$(curl --proto =https --tlsv1.2 -fsSL -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
           sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
           sudo chmod +x /usr/local/bin/sops
           sudo apt-get install -y --no-install-recommends sqlite3
