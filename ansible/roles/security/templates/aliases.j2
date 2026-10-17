@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Lu par msmtp (aliases dans /etc/msmtprc) : tout mail local part vers la boîte
+# d'administration.
+root: {{ security_mta_recipient }}
+default: {{ security_mta_recipient }}

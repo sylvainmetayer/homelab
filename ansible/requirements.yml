@@ -2,8 +2,10 @@
 collections:
   # - name: sylvainmetayer.workstation
   #   version: 1.2.67
-  # - name: devsec.hardening
-  #   version: 10.1.0
+  # Durcissement os + ssh de pangolin et flip (rôle security, issue #108).
+  # Version figée, suivie par Renovate : relire les défauts à chaque majeure.
+  - name: devsec.hardening
+    version: "11.0.0"
   - name: ansible.posix
     version: 2.2.2
   - name: community.sops

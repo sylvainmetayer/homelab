@@ -6,3 +6,10 @@
   become: true
   ansible.builtin.shell: sshd -t && systemctl reload ssh
   changed_when: true
+
+# Sans lui, jail.local n'était relu qu'au prochain démarrage de fail2ban.
+- name: Restart fail2ban
+  become: true
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted

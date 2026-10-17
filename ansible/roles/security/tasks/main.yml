@@ -1,4 +1,10 @@
 ---
+# Avant les paquets : logwatch dépend d'un MTA, et sans msmtp-mta déjà en place
+# apt lui donne exim4 (un démon SMTP local).
+- name: Configure the mail relay
+  ansible.builtin.import_tasks: mta.yml
+  when: security_mta_enabled | bool
+
 - name: Install security packages
   ansible.builtin.apt:
     name:
@@ -8,24 +14,27 @@
       - apt-listchanges
       - auditd
       - logwatch
-      - rkhunter
+      # Image Packer de Pangolin (cloud-init rejoué au déploiement).
       - cloud-init
     state: present
 
-- name: Configure SSH hardening
-  notify: Reload sshd
-  ansible.builtin.template:
-    src: sshd_hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/99-custom.conf
-    mode: "0644"
+# Rapports quotidiens pleins de faux positifs sur un hôte Docker.
+- name: Remove rkhunter
+  ansible.builtin.apt:
+    name: rkhunter
+    state: absent
+    purge: true
 
-- name: Configure sysctl hardening
-  ansible.builtin.template:
-    src: sysctl_hardening.conf.j2
-    dest: /etc/sysctl.d/99-hardening.conf
-    mode: "0644"
+- name: Harden the system and sshd with devsec.hardening
+  ansible.builtin.import_tasks: devsec.yml
+  when: security_devsec_enabled | bool
+
+- name: Harden sshd and sysctl without devsec.hardening
+  ansible.builtin.import_tasks: legacy.yml
+  when: not (security_devsec_enabled | bool)
 
 - name: Configure fail2ban
+  notify: Restart fail2ban
   ansible.builtin.template:
     src: jail.local.j2
     dest: /etc/fail2ban/jail.local
