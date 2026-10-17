@@ -17,7 +17,9 @@ tls off
 {% if security_mta_auth | bool %}
 auth on
 user {{ security_mta_user }}
-password {{ security_mta_password }}
+{# Entre guillemets : sans eux, msmtp retire les blancs et les guillemets aux
+   extrémités de l'argument. #}
+password "{{ security_mta_password }}"
 {% else %}
 auth off
 {% endif %}

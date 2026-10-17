@@ -29,9 +29,23 @@
   ansible.builtin.import_tasks: devsec.yml
   when: security_devsec_enabled | bool
 
-- name: Harden sshd and sysctl without devsec.hardening
+- name: Harden sshd without devsec.hardening
   ansible.builtin.import_tasks: legacy.yml
   when: not (security_devsec_enabled | bool)
+
+# Avec ou sans devsec. Écrit sans être chargé : systemd-sysctl l'applique au
+# prochain boot. Voulu : disable_ipv6 à chaud retirerait l'IPv6 du bridge
+# Docker de Pangolin déjà monté, et le scénario Molecule protège ainsi les
+# sysctls globaux du noyau du runner CI (molecule/security/prepare.yml). Sous
+# devsec, réduit à disable_ipv6 : aucune clé commune avec 90-dev-sec.conf, qu'il
+# ne peut donc pas masquer (fs.suid_dumpable vient de devsec, fs.file-max n'est
+# plus fixé). Pour l'appliquer tout de suite : `sudo sysctl --system`.
+- name: Configure the boot-time sysctl file
+  ansible.builtin.template:
+    src: sysctl_hardening.conf.j2
+    dest: /etc/sysctl.d/99-hardening.conf
+    # Lu par systemd-sysctl (root) seulement.
+    mode: "0600"
 
 - name: Configure fail2ban
   notify: Restart fail2ban

@@ -4,7 +4,7 @@
 # fail2ban, unattended-upgrades, relais mail. Le durcissement de sshd et du
 # système (sysctl, PAM, login.defs, SUID, modules…) vient de devsec.hardening
 # quand `security_devsec_enabled` est vrai, sinon du drop-in sshd et du fichier
-# sysctl maison (tasks/legacy.yml). Cf. issue #108.
+# sysctl maison (tasks/legacy.yml, tasks/main.yml). Cf. issue #108.
 #
 # Docker contourne ufw pour les ports qu'il publie (ses règles passent avant
 # celles d'ufw) : un port publié par un compose est ouvert même s'il n'est pas
@@ -61,7 +61,7 @@ security_devsec_sysctl_overwrite:
   net.ipv6.conf.all.forwarding: 1
   net.ipv6.conf.default.forwarding: 1
   # Pas ici, chargés tout de suite, mais au boot dans 99-hardening.conf
-  # (tasks/devsec.yml) :
+  # (tasks/main.yml) :
   # - disable_ipv6 : à chaud, `all` retirerait l'IPv6 du bridge Docker de
   #   Pangolin déjà monté ; au boot, Docker le rétablit sur son bridge ensuite ;
   # - pas de fs.file-max: 65535, qui ferait tomber la limite système (défaut
