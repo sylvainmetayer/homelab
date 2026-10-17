@@ -1,0 +1,13 @@
+---
+# Comme packer/pangolin/ansible/site.yml : rôle appliqué avec become, sans
+# secrets (l'image n'en a pas), avec les variables security_* du play.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  pre_tasks:
+    - name: Load the Packer variables
+      ansible.builtin.import_tasks: tasks/load_packer_vars.yml
+  roles:
+    - role: security
+      become: true
