@@ -41,7 +41,9 @@ check "owner_is_not_a_backup_user" {
   assert {
     condition = !contains(
       [ovh_cloud_project_user.writer.id, ovh_cloud_project_user.admin.id],
-      ovh_cloud_project_storage.keepass_backup.owner_id
+      # owner_id est un nombre, les id d'utilisateur des chaînes : sans
+      # tostring, contains() ne trouverait jamais rien.
+      tostring(ovh_cloud_project_storage.keepass_backup.owner_id)
     )
     error_message = "Le propriétaire du bucket est le writer ou l'admin : le Deny explicite reste en place, mais vérifie la console OVH."
   }

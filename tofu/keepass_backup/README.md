@@ -7,8 +7,8 @@ Borgmatic, not Restic » vise les apps du homelab, pas ce poste.
 | Ressource | Rôle |
 |---|---|
 | `ovh_cloud_project_storage.keepass_backup` | Bucket `keepass-backup-sylvain`, EU-WEST-PAR (3 AZ), versionné, SSE-OMK, **Object Lock GOVERNANCE 30 jours** |
-| `ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup` | Versions des verrous expirées après 1 jour, autres versions non courantes après 120 jours, multipart abandonnés après 7 jours |
-| `ovh_cloud_project_user.writer` + credential + policy | Clé du poste : lecture, écriture, suppression des seuls `locks/*`, refus explicite sur le reste |
+| `ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup` | Versions non courantes des verrous expirées après 1 jour, autres après 120 jours, toutes au plus tôt à la fin de leur rétention Object Lock (30 jours), multipart abandonnés après 7 jours |
+| `ovh_cloud_project_user.writer` + credential + policy | Clé du poste : lecture, écriture, suppression des seuls `locks/*`, refus explicite des suppressions de données et de versions, du contournement de la rétention et de la reconfiguration du bucket |
 | `ovh_cloud_project_user.admin` + credential + policy | Clé d'administration, jamais sur disque : prune annuel, lecture des versions |
 
 Object Lock ne s'active qu'à la création : le désactiver ou changer le nom du bucket recrée le bucket.
