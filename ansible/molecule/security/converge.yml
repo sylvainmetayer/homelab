@@ -1,7 +1,7 @@
 ---
-# Comme dans pangolin.yaml (le plus complet : ports UDP, bastion SSH) : rôle
-# appliqué avec become au niveau du playbook. Le scénario security_flip fait de
-# même avec les variables de flip (devsec.hardening).
+# Comme dans pangolin.yaml (le plus complet : ports UDP, bastion SSH, devsec) :
+# rôle appliqué avec become au niveau du playbook. Le scénario security_flip
+# fait de même avec les variables de flip.
 - name: Converge
   hosts: all
   vars_files:
@@ -10,6 +10,13 @@
     - ../../host_vars/pangolin/variables.yaml
     # En dernier : le relais msmtp vise le récepteur du prepare.
     - vars/smtp_sink.yml
+  pre_tasks:
+    # Le ProxyJump vers flip doit survivre au sshd_config de devsec.
+    - name: Assert Pangolin runs devsec.hardening as a bastion
+      ansible.builtin.assert:
+        that:
+          - security_devsec_enabled | bool
+          - security_ssh_allow_tcp_forwarding == 'local'
   roles:
     - role: security
       become: true
