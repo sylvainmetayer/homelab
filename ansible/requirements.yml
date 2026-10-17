@@ -1,7 +1,5 @@
 ---
 collections:
-  # - name: sylvainmetayer.workstation
-  #   version: 1.2.67
   # Durcissement os + ssh de pangolin et flip (rôle security, issue #108).
   # Version figée, suivie par Renovate : relire les défauts à chaque majeure.
   - name: devsec.hardening

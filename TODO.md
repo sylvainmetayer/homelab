@@ -6,7 +6,6 @@
 - healthchecks
 - docker logs to journalctl
 - andrewrothstein.starship
-- sylvainmetayer.workstation.commons
 - Post-first install, reboot VM
 - Migrate to OVH S3 (hetzner S3 is expensive)
 - https://docs.searxng.org/user/configured_engines.html
