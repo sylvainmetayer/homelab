@@ -1,10 +1,9 @@
 ---
-# Rôle de durcissement des serveurs exposés (pangolin, flip, image Packer de
-# Pangolin). Il garde ce que devsec.hardening ne fait pas : règles ufw,
-# fail2ban, unattended-upgrades, relais mail. Le durcissement de sshd et du
-# système (sysctl, PAM, login.defs, SUID, modules…) vient de devsec.hardening
-# quand `security_devsec_enabled` est vrai, sinon du drop-in sshd et du fichier
-# sysctl maison (tasks/legacy.yml, tasks/main.yml). Cf. issue #108.
+# Rôle de durcissement des serveurs exposés (pangolin, flip). Il garde ce que
+# devsec.hardening ne fait pas : règles ufw, fail2ban, unattended-upgrades,
+# relais mail, IPv6 coupé au boot. Le durcissement de sshd et du système
+# (sysctl, PAM, login.defs, SUID, modules…) vient toujours de devsec.hardening
+# (tasks/devsec.yml). Cf. issue #108.
 #
 # Docker contourne ufw pour les ports qu'il publie (ses règles passent avant
 # celles d'ufw) : un port publié par un compose est ouvert même s'il n'est pas
@@ -14,7 +13,7 @@ security_ufw_allowed_ports:
   - { port: "80", proto: tcp }
   - { port: "443", proto: tcp }
 
-# --- sshd : mêmes valeurs pour le drop-in maison et pour devsec ---
+# --- sshd, transmis à devsec ssh_hardening ---
 
 # AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion
 # (ProxyJump) vers les serveurs sans IP publique : un ProxyJump n'est qu'un
@@ -24,8 +23,9 @@ security_ssh_allow_tcp_forwarding: "no"
 # Seul compte qui entre en SSH : inventaires (hetzner.py), ProxyJump, CI.
 security_ssh_allow_users: sylvain
 
-# Comportement d'avant : le drop-in ne le fixait pas (sshd l'autorise par
-# défaut), et group_vars/all/devsec.ssh_hardening.yml le voulait à true.
+# Comportement d'avant devsec : l'ancien drop-in ne le fixait pas (sshd
+# l'autorise par défaut), et group_vars/all/devsec.ssh_hardening.yml le voulait
+# à true.
 security_ssh_allow_agent_forwarding: true
 
 # 2 (défaut devsec) coupe un agent qui présente plusieurs clés.
@@ -38,9 +38,7 @@ security_fail2ban_ignoreip:
   - 127.0.0.1/8
   - ::1
 
-# --- devsec.hardening (os_hardening + ssh_hardening), hôte par hôte ---
-
-security_devsec_enabled: false
+# --- devsec.hardening (os_hardening + ssh_hardening) ---
 
 # Fusionné par os_hardening par-dessus son sysctl_config, puis écrit dans
 # /etc/sysctl.d/90-dev-sec.conf et rechargé AUSSITÔT (pas au boot). Le rôle
@@ -72,7 +70,8 @@ security_devsec_sysctl_overwrite:
 
 # Envoi seul, sans démon ni port en écoute : /usr/sbin/sendmail relaie vers la
 # boîte Infomaniak déjà utilisée par Pangolin, Uptime Kuma, karakeep…
-# Désactivé par défaut : l'image Packer n'a pas les secrets.
+# Désactivé par défaut : il demande les secrets pangolin_smtp_*, à activer
+# hôte par hôte (pangolin et flip le font).
 security_mta_enabled: false
 security_mta_host: mail.infomaniak.com
 security_mta_port: 587

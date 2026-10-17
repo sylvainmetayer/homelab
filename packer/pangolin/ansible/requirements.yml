@@ -1,7 +1,0 @@
----
-collections:
-  - name: community.general
-    version: ">=8.0.0"
-roles:
-  - src: geerlingguy.docker
-    version: 8.0.0

@@ -14,8 +14,6 @@
       - apt-listchanges
       - auditd
       - logwatch
-      # Image Packer de Pangolin (cloud-init rejoué au déploiement).
-      - cloud-init
     state: present
 
 # Rapports quotidiens pleins de faux positifs sur un hôte Docker.
@@ -27,21 +25,16 @@
 
 - name: Harden the system and sshd with devsec.hardening
   ansible.builtin.import_tasks: devsec.yml
-  when: security_devsec_enabled | bool
 
-- name: Harden sshd without devsec.hardening
-  ansible.builtin.import_tasks: legacy.yml
-  when: not (security_devsec_enabled | bool)
-
-# Avec ou sans devsec. Écrit sans être chargé : systemd-sysctl l'applique au
-# prochain boot. Voulu : disable_ipv6 à chaud retirerait l'IPv6 du bridge
-# Docker de Pangolin déjà monté, et le scénario Molecule protège ainsi les
-# sysctls globaux du noyau du runner CI (molecule/security/prepare.yml). Sous
-# devsec, réduit à disable_ipv6 : aucune clé commune avec 90-dev-sec.conf, qu'il
-# ne peut donc pas masquer (fs.suid_dumpable vient de devsec). fs.file-max n'est
-# fixé sur aucun chemin. Pour l'appliquer tout de suite : `sudo sysctl --system`,
-# qui ne remet pas une clé retirée : un hôte qui a démarré avec l'ancien
-# fs.file-max = 65535 (Pangolin, image Packer) le garde jusqu'au reboot.
+# Écrit sans être chargé : systemd-sysctl l'applique au prochain boot. Voulu :
+# disable_ipv6 à chaud retirerait l'IPv6 du bridge Docker de Pangolin déjà
+# monté, et le scénario Molecule protège ainsi les sysctls globaux du noyau du
+# runner CI (molecule/security/prepare.yml). Réduit à disable_ipv6 : aucune clé
+# commune avec 90-dev-sec.conf, qu'il ne peut donc pas masquer (fs.suid_dumpable
+# vient de devsec). fs.file-max n'est fixé nulle part. Pour l'appliquer tout de
+# suite : `sudo sysctl --system`, qui ne remet pas une clé retirée : un hôte qui
+# a démarré avec l'ancien fs.file-max = 65535 (Pangolin) le garde jusqu'au
+# reboot.
 - name: Configure the boot-time sysctl file
   ansible.builtin.template:
     src: sysctl_hardening.conf.j2

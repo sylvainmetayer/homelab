@@ -22,7 +22,6 @@
     mode: "0644"
     owner: root
     group: root
-  when: pangolin_deploy_config | bool
 
 - name: Create Traefik dynamic configuration
   become: true
@@ -32,7 +31,6 @@
     mode: "0644"
     owner: root
     group: root
-  when: pangolin_deploy_config | bool
 
 - name: Create Traefik configuration
   become: true
@@ -43,7 +41,6 @@
     mode: "0644"
     owner: root
     group: root
-  when: pangolin_deploy_config | bool
 
 - name: Create Pangolin configuration
   become: true
@@ -54,7 +51,6 @@
     mode: "0600"
     owner: root
     group: root
-  when: pangolin_deploy_config | bool
 
 - name: Create compose.yml
   notify: Restart Pangolin service
@@ -80,7 +76,6 @@
     enabled: true
     state: started
     daemon_reload: true
-  when: pangolin_deploy_config | bool
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Pangolin

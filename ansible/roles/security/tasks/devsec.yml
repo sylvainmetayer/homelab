@@ -8,11 +8,6 @@
 # (vars/Debian.yml de devsec). Docker (root) n'en a pas besoin ; un conteneur
 # qui créerait ses propres user namespaces sans privilège (Chromium
 # sandboxé, outillage rootless) ne le pourrait plus.
-#
-# Pas de retour arrière automatique : repasser security_devsec_enabled à false
-# réécrit le drop-in maison, mais le sshd_config de devsec (sans Include de
-# sshd_config.d) et /etc/sysctl.d/90-dev-sec.conf restent. Les remettre à la
-# main (sshd_config du paquet : /usr/share/openssh/sshd_config).
 
 # os_hardening recharge son sysctl dès qu'il l'écrit : une valeur fausse ici
 # coupe le réseau des conteneurs (et, sur Pangolin, la sortie de flip) avant
@@ -78,8 +73,9 @@
     # HAS CHANGED » pour tout client qui l'a enregistrée.
     ssh_host_rsa_key_size: 3072
 
-# devsec réécrit tout sshd_config, sans Include de sshd_config.d : le drop-in
-# maison serait ignoré, autant qu'il ne laisse pas croire le contraire.
+# devsec réécrit tout sshd_config, sans Include de sshd_config.d : l'ancien
+# drop-in maison (d'avant devsec) serait ignoré, autant qu'il ne laisse pas
+# croire le contraire.
 - name: Remove the in-house sshd drop-in
   notify: Reload sshd
   ansible.builtin.file:
