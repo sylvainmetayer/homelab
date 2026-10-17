@@ -5,7 +5,9 @@
 # Appelé par pam_exec depuis /etc/pam.d/sshd (`session optional`), en root.
 #
 # Règle d'or : ce script ne doit JAMAIS empêcher une connexion. Il sort
-# toujours en 0, et l'appel réseau part en arrière-plan, détaché.
+# toujours en 0, et tout ce qui suit la lecture de la configuration (lecture
+# des authorized_keys de l'utilisateur, ssh-keygen, appel réseau) part en
+# arrière-plan, détaché : pam_exec n'attend que les quelques tests ci-dessous.
 
 [ "${PAM_TYPE:-}" = "open_session" ] || exit 0
 
@@ -15,44 +17,46 @@ CONFIG={{ ssh_login_notify_config | quote }}
 . "$CONFIG"
 [ -n "${PUSH_URL:-}" ] || exit 0
 
-# sshd expose dans l'environnement PAM la méthode et la clé qui ont réussi
-# (OpenSSH >= 7.6) : "publickey ssh-ed25519 AAAA...".
-key_line=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | sed -n 's/^publickey //p' | head -n 1)
-key_type=""
-key_fp=""
-key_name=""
-if [ -n "$key_line" ]; then
-    key_type=${key_line%% *}
-    key_rest=${key_line#* }
-    key_blob=${key_rest%% *}
-    key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')
-    # Nom de la clé : le commentaire de sa ligne dans authorized_keys (tout ce
-    # qui suit le blob, options éventuelles en tête de ligne ignorées). Les
-    # deux fichiers de l'AuthorizedKeysFile par défaut de Debian.
-    user_home=$(getent passwd "${PAM_USER:-}" | cut -d: -f6)
-    if [ -n "$user_home" ]; then
-        for keys_file in "$user_home/.ssh/authorized_keys" "$user_home/.ssh/authorized_keys2"; do
-            [ -r "$keys_file" ] || continue
-            key_name=$(awk -v blob="$key_blob" '{
-                for (i = 1; i < NF; i++) if ($i == blob) {
-                    c = ""; for (j = i + 1; j <= NF; j++) c = c (c == "" ? "" : " ") $j
-                    print c; exit
-                }
-            }' "$keys_file")
-            [ -z "$key_name" ] || break
-        done
+notify() {
+    # sshd expose dans l'environnement PAM la méthode et la clé qui ont réussi
+    # (OpenSSH >= 7.6) : "publickey ssh-ed25519 AAAA...".
+    key_line=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | sed -n 's/^publickey //p' | head -n 1)
+    key_type=""
+    key_fp=""
+    key_name=""
+    if [ -n "$key_line" ]; then
+        key_type=${key_line%% *}
+        key_rest=${key_line#* }
+        key_blob=${key_rest%% *}
+        key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -f - 2>/dev/null | awk '{print $2}')
+        # Nom de la clé : le commentaire de sa ligne dans authorized_keys (tout
+        # ce qui suit le blob, options éventuelles en tête de ligne ignorées).
+        # Les deux fichiers de l'AuthorizedKeysFile par défaut de Debian ;
+        # fichiers ordinaires seulement, comme sshd : un tube nommé ou un lien
+        # vers /dev/zero bloquerait awk indéfiniment.
+        user_home=$(getent passwd "${PAM_USER:-}" | cut -d: -f6)
+        if [ -n "$user_home" ]; then
+            for keys_file in "$user_home/.ssh/authorized_keys" "$user_home/.ssh/authorized_keys2"; do
+                [ -f "$keys_file" ] && [ -r "$keys_file" ] || continue
+                key_name=$(awk -v blob="$key_blob" '{
+                    for (i = 1; i < NF; i++) if ($i == blob) {
+                        c = ""; for (j = i + 1; j <= NF; j++) c = c (c == "" ? "" : " ") $j
+                        print c; exit
+                    }
+                }' "$keys_file")
+                [ -z "$key_name" ] || break
+            done
+        fi
+        if [ -n "$key_name" ] && [ -n "${IGNORED_KEYS:-}" ] \
+            && printf '%s\n' "$IGNORED_KEYS" | grep -qxF -- "$key_name"; then
+            return 0
+        fi
+        msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, clé ${key_name:-inconnue} (${key_type} ${key_fp:-?})"
+    else
+        method=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | awk 'NR == 1 {print $1}')
+        msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, sans clé publique (méthode : ${method:-inconnue})"
     fi
-    if [ -n "$key_name" ] && [ -n "${IGNORED_KEYS:-}" ] \
-        && printf '%s\n' "$IGNORED_KEYS" | grep -qxF -- "$key_name"; then
-        exit 0
-    fi
-    msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, clé ${key_name:-inconnue} (${key_type} ${key_fp:-?})"
-else
-    method=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | awk 'NR == 1 {print $1}')
-    msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, sans clé publique (méthode : ${method:-inconnue})"
-fi
 
-(
     if curl -fsS -G --max-time "${PUSH_TIMEOUT:-10}" \
         --data-urlencode "status=up" \
         --data-urlencode "msg=$msg" \
@@ -61,6 +65,8 @@ fi
     else
         logger -t ssh-login-notify -p auth.warning "échec de la notification : $msg"
     fi
-) </dev/null >/dev/null 2>&1 &
+}
+
+notify </dev/null >/dev/null 2>&1 &
 
 exit 0
