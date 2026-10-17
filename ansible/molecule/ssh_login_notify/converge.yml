@@ -1,0 +1,22 @@
+---
+# Comme 00-setup.yaml : rôle appliqué avec become, l'URL push venant du state
+# de pangolin_config (ici le faux Uptime Kuma local de prepare.yml).
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  pre_tasks:
+    # La clé ignorée l'est par son empreinte, calculée sur l'instance (les
+    # paires de clés sont générées par prepare.yml).
+    - name: Compute the fingerprint of the ignored test key
+      ansible.builtin.command: ssh-keygen -l -E sha256 -f /home/sylvain/.ssh/molecule-ignored.pub
+      register: ssh_login_notify_test_ignored_fp
+      changed_when: false
+  roles:
+    - role: ssh_login_notify
+      become: true
+      vars:
+        ssh_login_notify_push_url: http://127.0.0.1:18080/api/push/molecule-ssh-login
+        ssh_login_notify_ignored_fingerprints:
+          - "{{ ssh_login_notify_test_ignored_fp.stdout.split()[1] }}"

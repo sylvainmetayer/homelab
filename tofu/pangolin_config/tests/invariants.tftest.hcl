@@ -534,6 +534,26 @@ override_resource {
   values = { push_token = "push-wiki" }
 }
 
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["docker"]
+  values = { push_token = "push-ssh-docker" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["flip"]
+  values = { push_token = "push-ssh-flip" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["pangolin"]
+  values = { push_token = "push-ssh-pangolin" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["pi"]
+  values = { push_token = "push-ssh-pi" }
+}
+
 # ===========================================================================
 # Runs `plan` : valeurs issues de la configuration
 # ===========================================================================
@@ -2029,5 +2049,94 @@ run "monitors_are_filed_and_notify_by_email" {
       && uptimekuma_notification_smtp.email.to == "admin@example.test"
     )
     error_message = "Le canal e-mail est le canal par défaut, n'est pas rattaché en masse, et écrit à l'adresse Let's Encrypt (le_email)."
+  }
+}
+
+# Alerte de connexion SSH (issue #451, ssh_login_monitors.tf) : un moniteur
+# push inversé par hôte, notifié sur Telegram, et une URL par hôte lue par
+# 00-setup.yaml sous la clé inventory_hostname. Un hôte renommé d'un côté et
+# pas de l'autre donnerait une URL vide : le rôle ne poserait rien, en silence
+# hormis un avertissement.
+run "ssh_login_monitors_alert_on_every_login" {
+  command = apply
+
+  assert {
+    condition = { for host, m in uptimekuma_monitor_push.ssh_login : host => m.name } == {
+      docker   = "SSH docker"
+      flip     = "SSH flip"
+      pangolin = "SSH pangolin"
+      pi       = "SSH pi"
+    }
+    error_message = "Un moniteur SSH par hôte de l'inventaire (docker, flip, pangolin, pi), nommé « SSH <hôte> »."
+  }
+
+  # Inversé : un push le fait passer DOWN (la notification), 60 s sans push le
+  # ramènent UP. Non inversé, chaque hôte serait DOWN en permanence faute de
+  # battement. max_retries = 0 : pas de PENDING, la première connexion alerte.
+  assert {
+    condition = alltrue([
+      for m in values(uptimekuma_monitor_push.ssh_login) :
+      m.upside_down == true
+      && m.interval == 60
+      && m.retry_interval == 60
+      && m.max_retries == 0
+      && m.resend_interval == 0
+      && m.active == true
+      && m.parent == uptimekuma_monitor_group.ssh_logins.id
+    ])
+    error_message = "Chaque moniteur SSH doit être inversé, sur 60 s, sans retry ni renvoi, actif, dans le dossier Connexions SSH."
+  }
+
+  # Telegram (notification faite à la main, id 1), comme FolderSync ; pas le
+  # mail : une alerte de connexion doit arriver tout de suite.
+  assert {
+    condition = alltrue([
+      for m in values(uptimekuma_monitor_push.ssh_login) :
+      toset(m.notification_ids) == toset([1])
+    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([1])
+    error_message = "Les moniteurs SSH (et FolderSync) notifient la notification Telegram (id 1), et elle seule."
+  }
+
+  assert {
+    condition = output.uptime_ssh_login_urls == {
+      docker   = "https://uptime.example.test/api/push/push-ssh-docker"
+      flip     = "https://uptime.example.test/api/push/push-ssh-flip"
+      pangolin = "https://uptime.example.test/api/push/push-ssh-pangolin"
+      pi       = "https://uptime.example.test/api/push/push-ssh-pi"
+    }
+    error_message = "uptime_ssh_login_urls doit donner à chaque hôte l'URL de SON moniteur push."
+  }
+
+  # Contrat Tofu <-> Ansible : 00-setup.yaml lit la sortie sous la clé
+  # inventory_hostname et applique le rôle ssh_login_notify.
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname]")
+      && strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "role: ssh_login_notify")
+    )
+    error_message = "00-setup.yaml doit lire terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] et appliquer le rôle ssh_login_notify."
+  }
+
+  # Seul le setup de base tolère un state illisible (terraform_outputs = {}) :
+  # ailleurs une URL vide passerait en silence (sauvegardes sans moniteur,
+  # Newt sans identifiants).
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "pangolin_config_outputs_optional: true")
+      && alltrue([
+        for playbook in ["docker.yml", "flip.yml", "pangolin.yaml", "pi.yml"] :
+        !strcontains(file("${path.module}/../../ansible/${playbook}"), "pangolin_config_outputs_optional")
+      ])
+    )
+    error_message = "pangolin_config_outputs_optional: true dans 00-setup.yaml, et dans aucun autre playbook."
+  }
+
+  # Les clés sont des inventory_hostname : chacune a son dossier host_vars.
+  assert {
+    condition = alltrue([
+      for host in local.ssh_login_hosts :
+      length(fileset("${path.module}/../../ansible/host_vars/${host}", "*")) > 0
+    ])
+    error_message = "Chaque hôte de local.ssh_login_hosts doit être un hôte de l'inventaire (ansible/host_vars/<hôte>)."
   }
 }

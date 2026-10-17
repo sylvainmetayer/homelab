@@ -1,0 +1,102 @@
+---
+# Pas d'import de _shared/prepare.yml : le rôle ne touche ni Docker ni
+# borgmatic. L'image fournit déjà systemd et l'utilisateur sylvain.
+- name: Prepare what the ssh_login_notify role expects
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    # Présent sur tous les vrais hôtes (on y entre en SSH), avec sa pile PAM
+    # Debian (/etc/pam.d/sshd) et UsePAM yes par défaut.
+    - name: Install the SSH server
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+        update_cache: true
+
+    - name: Start the SSH server
+      ansible.builtin.systemd:
+        name: ssh
+        state: started
+        enabled: true
+
+    - name: Create the .ssh directory of sylvain
+      ansible.builtin.file:
+        path: /home/sylvain/.ssh
+        state: directory
+        owner: sylvain
+        group: sylvain
+        mode: "0700"
+
+    # Trois clés : une qui notifie, une dont l'empreinte est dans
+    # ssh_login_notify_ignored_fingerprints (converge.yml), et une autre qui
+    # porte le même commentaire que celle-ci, sans être ignorée pour autant.
+    - name: Generate the test key pairs of sylvain
+      become: true
+      become_user: sylvain
+      ansible.builtin.command:
+        cmd: ssh-keygen -q -t ed25519 -N "" -C {{ item.comment }} -f /home/sylvain/.ssh/{{ item.file }}
+        creates: /home/sylvain/.ssh/{{ item.file }}
+      loop:
+        - {file: molecule-login, comment: molecule-login}
+        - {file: molecule-ignored, comment: molecule-ignored}
+        - {file: molecule-impostor, comment: molecule-ignored}
+      loop_control:
+        label: "{{ item.file }}"
+
+    - name: Read the test public keys
+      ansible.builtin.slurp:
+        src: /home/sylvain/.ssh/{{ item }}.pub
+      register: ssh_login_notify_test_pubkeys
+      loop:
+        - molecule-login
+        - molecule-ignored
+        - molecule-impostor
+
+    # Comme 00-setup.yaml : une ligne par clé, son commentaire en fin de ligne.
+    - name: Authorize the test keys
+      ansible.posix.authorized_key:
+        user: sylvain
+        key: "{{ item.content | b64decode }}"
+        state: present
+      loop: "{{ ssh_login_notify_test_pubkeys.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Create the push log directory
+      ansible.builtin.file:
+        path: /var/lib/molecule-push
+        state: directory
+        mode: "0700"
+
+    - name: Install the fake Uptime Kuma servers
+      ansible.builtin.copy:
+        src: "{{ item }}.py"
+        dest: /usr/local/bin/molecule-{{ item }}
+        mode: "0700"
+      loop:
+        - push-catcher
+        - push-blackhole
+
+    - name: Install their systemd units
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/molecule-{{ item }}.service
+        mode: "0600"
+        content: |
+          [Unit]
+          Description=Molecule {{ item }}
+
+          [Service]
+          ExecStart=/usr/local/bin/molecule-{{ item }}
+      loop:
+        - push-catcher
+        - push-blackhole
+
+    - name: Start the fake Uptime Kuma servers
+      ansible.builtin.systemd:
+        name: molecule-{{ item }}
+        state: started
+        daemon_reload: true
+      loop:
+        - push-catcher
+        - push-blackhole
