@@ -12,5 +12,6 @@ promptoramix_linkx_secret: ""
 # 2 vCPU de flip (cx23) : un fil chacune.
 promptoramix_linkx_threads: 1
 # Marge retirée du délai de 6 s de la plateforme avant de répondre : la sonde
-# mesure environ 100 ms de surcoût réseau, une seconde laisse de la réserve.
-promptoramix_linkx_margin_ms: 1000
+# mesure 100 à 200 ms d'aller-retour, et le serveur garde un filet à la moitié
+# de la marge. 800 ms laissent 5,2 s de réflexion (réponse vue à ~5,4 s).
+promptoramix_linkx_margin_ms: 800
