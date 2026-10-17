@@ -51,7 +51,10 @@
     # une clé de secrets.sops.yaml nommée comme une variable qu'une instance
     # surcharge l'emporterait sur la surcharge, et la démo recevrait le secret
     # de la production. Les noms des clés SOPS sont en clair : on lit les deux
-    # fichiers, le vrai et celui des faux secrets.
+    # fichiers, le vrai et celui des faux secrets. Le workflow Lint
+    # (.github/scripts/check_sops_shadowing.py) fait la même vérification sur
+    # tous les playbooks, tasks/ et rôles ; celle-ci garde flip.yml couvert
+    # quand on ne lance que ce scénario.
     - name: Assert no secrets.sops.yaml key is overridden by flip.yml
       ansible.builtin.assert:
         that:
