@@ -70,6 +70,7 @@ jobs:
             tofu/github
             tofu/ref
             tofu/s3_state
+            tofu/keepass_backup
             tofu/site
             tofu/1y
           )
