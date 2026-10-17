@@ -87,6 +87,17 @@ checks:
       frequency: 2 weeks
     - name: archives
       frequency: 1 month
+    # Compare un échantillon des fichiers source à la dernière archive :
+    # empreintes xxh64 de la source (lues sur l'hôte) face à celles que borg
+    # calcule en relisant ces seuls fichiers depuis le dépôt (l'échantillon
+    # est donc téléchargé, pas le reste). Pas de check « extract » : il
+    # relit l'archive entière (immich, nextcloud). L'extraction réelle est
+    # celle du test de restauration (.github/workflows/restore-test.yaml).
+    - name: spot
+      frequency: {{ borgmatic_spot_check_frequency | to_json }}
+      count_tolerance_percentage: {{ borgmatic_spot_count_tolerance_percentage }}
+      data_sample_percentage: {{ borgmatic_spot_data_sample_percentage }}
+      data_tolerance_percentage: {{ borgmatic_spot_data_tolerance_percentage }}
 
 archive_name_format: '{{ borgmatic_app_archive_prefix }}-{now:%Y-%m-%dT%H:%M:%S}'
 {% if borgmatic_app_extra_options | length > 0 %}
@@ -120,9 +131,9 @@ commands:
           - create
       run:
           - echo "{{ borgmatic_app_title }} backup completed at $(date)"
-{% if borgmatic_app_sqlite_paths | length > 0 %}
-          - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
-{% endif %}
+{# Les copies SQLite restent jusqu'à la sauvegarde suivante, dont le hook
+   before vide le staging : le check spot, qui tourne après ce hook, compare
+   la source à l'archive, et ces copies doivent être dans les deux. #}
 {% for command in borgmatic_app_after_commands %}
           - {{ command | to_json }}
 {% endfor %}

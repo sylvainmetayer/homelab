@@ -386,3 +386,52 @@ run "storage_box_backups" {
     error_message = "L'output storage_box_ssh_public_key doit exposer la clé publique générée."
   }
 }
+
+# Sous-compte de la CI de test de restauration : une fuite de sa clé ne doit
+# donner que la lecture des dépôts borg, jamais leur suppression.
+run "storage_box_restore_test_subaccount" {
+  command = plan
+
+  # Mockés, les deux random_password rendraient la même valeur.
+  override_resource {
+    target = random_password.storage_box_password
+    values = {
+      result = "fake-storage-box-password"
+    }
+  }
+
+  override_resource {
+    target = random_password.storage_box_restore_test_password
+    values = {
+      result = "fake-restore-test-password"
+    }
+  }
+
+  assert {
+    condition     = hcloud_storage_box_subaccount.restore_test.access_settings.readonly == true
+    error_message = "Le sous-compte du test de restauration doit rester en lecture seule : sa clé part dans les secrets GitHub Actions."
+  }
+
+  assert {
+    condition     = hcloud_storage_box_subaccount.restore_test.access_settings.ssh_enabled == true && hcloud_storage_box_subaccount.restore_test.access_settings.reachable_externally == true
+    error_message = "Les runners GitHub lisent les dépôts borg en SSH depuis l'extérieur du réseau Hetzner."
+  }
+
+  assert {
+    condition     = hcloud_storage_box_subaccount.restore_test.access_settings.samba_enabled == false && hcloud_storage_box_subaccount.restore_test.access_settings.webdav_enabled == false
+    error_message = "Le sous-compte du test de restauration n'a besoin que de SSH."
+  }
+
+  # Les dépôts sont sous backup_storage_box_path (group_vars/all) : le
+  # sous-compte doit y être enfermé, ni au-dessus (le reste de la Storage
+  # Box), ni ailleurs (il ne verrait aucun dépôt).
+  assert {
+    condition     = hcloud_storage_box_subaccount.restore_test.home_directory == trimprefix(one(regex("(?m)^backup_storage_box_path: \"([^\"]+)\"", file("${path.module}/../../ansible/group_vars/all/variables.yml"))), "./")
+    error_message = "home_directory du sous-compte doit être le dossier backup_storage_box_path d'ansible/group_vars/all/variables.yml."
+  }
+
+  assert {
+    condition     = hcloud_storage_box_subaccount.restore_test.password != hcloud_storage_box.backups.password
+    error_message = "Le sous-compte doit avoir son propre mot de passe, pas celui du compte principal."
+  }
+}

@@ -126,6 +126,16 @@
           - betisier_borgmatic.mysql_databases[0].container == 'betisier_db'
           - betisier_borgmatic.mysql_databases[0].password == 'molecule-betisier-db-password'
           - betisier_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-betisier-backup'
+          # Check spot du template commun (issue #444), validé par le vrai
+          # borgmatic du bouchon ; pas de check extract (il relirait tout).
+          - betisier_borgmatic.checks | selectattr('name', 'eq', 'spot') | list | length == 1
+          - (betisier_borgmatic.checks | selectattr('name', 'eq', 'spot') | first).data_sample_percentage > 0
+          # borgmatic lève une ValueError à l'exécution du check (pas à la
+          # validation du schéma) si la tolérance dépasse l'échantillon.
+          - >-
+            (betisier_borgmatic.checks | selectattr('name', 'eq', 'spot') | first).data_tolerance_percentage
+            <= (betisier_borgmatic.checks | selectattr('name', 'eq', 'spot') | first).data_sample_percentage
+          - betisier_borgmatic.checks | selectattr('name', 'eq', 'extract') | list | length == 0
         fail_msg: "Configuration borgmatic de betisier inattendue : {{ betisier_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for betisier

@@ -41,6 +41,23 @@ override_data {
     outputs = {
       ci_olm_id     = "fake-olm-id"
       ci_olm_secret = "fake-olm-secret"
+      uptime_restore_test_urls = {
+        betisier = "https://uptime.example.test/api/push/restore-betisier"
+        searxng  = "https://uptime.example.test/api/push/restore-searxng"
+      }
+    }
+  }
+}
+
+# Sorties de tofu/pangolin (storage_box.tf, sous-compte en lecture seule du
+# test de restauration), lues dans l'état S3.
+override_data {
+  target = data.terraform_remote_state.pangolin
+  values = {
+    outputs = {
+      storage_box_restore_test_username        = "u000000-sub1"
+      storage_box_restore_test_server          = "u000000-sub1.your-storagebox.de"
+      storage_box_restore_test_ssh_private_key = "fake-restore-test-key"
     }
   }
 }
@@ -170,5 +187,40 @@ run "environnement_de_relecture_des_chemins_publics" {
   assert {
     condition     = contains(github_repository_environment.relecture_chemins_publics.reviewers[0].users, 8873695)
     error_message = "Le propriétaire du dépôt doit être relecteur obligatoire de l'environnement."
+  }
+}
+
+# .github/workflows/restore-test.yaml : la CI ne lit la Storage Box qu'avec la
+# clé du sous-compte en lecture seule, jamais avec celle du compte principal.
+run "restore_test_secrets" {
+  command = plan
+
+  assert {
+    condition     = github_actions_secret.restore_test_ssh_key.secret_name == "RESTORE_TEST_SSH_KEY" && github_actions_secret.restore_test_storage_box.secret_name == "RESTORE_TEST_STORAGE_BOX" && github_actions_secret.restore_test_push_urls.secret_name == "RESTORE_TEST_PUSH_URLS"
+    error_message = "restore-test.yaml lit RESTORE_TEST_SSH_KEY, RESTORE_TEST_STORAGE_BOX et RESTORE_TEST_PUSH_URLS : un nom de secret a changé."
+  }
+
+  assert {
+    condition     = github_actions_secret.restore_test_ssh_key.value == "fake-restore-test-key"
+    error_message = "La clé de la CI doit être celle du sous-compte restore_test de tofu/pangolin."
+  }
+
+  assert {
+    condition     = github_actions_secret.restore_test_storage_box.value == "u000000-sub1@u000000-sub1.your-storagebox.de"
+    error_message = "RESTORE_TEST_STORAGE_BOX doit valoir <utilisateur>@<serveur> du sous-compte."
+  }
+
+  assert {
+    condition     = jsondecode(github_actions_secret.restore_test_push_urls.value).searxng == "https://uptime.example.test/api/push/restore-searxng"
+    error_message = "RESTORE_TEST_PUSH_URLS doit être la map JSON app => URL de uptime_restore_test_urls."
+  }
+
+  # Les secrets utilisés par le workflow doivent être ceux déclarés ici.
+  assert {
+    condition = alltrue([
+      for name in ["RESTORE_TEST_SSH_KEY", "RESTORE_TEST_STORAGE_BOX", "RESTORE_TEST_PUSH_URLS", "SOPS_AGE_KEY"] :
+      strcontains(file("${path.module}/../../.github/workflows/restore-test.yaml"), "secrets.${name}")
+    ])
+    error_message = "restore-test.yaml doit lire ses secrets sous les noms déclarés par tofu/github."
   }
 }
