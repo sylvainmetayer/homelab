@@ -82,14 +82,3 @@
   ansible.builtin.file:
     path: /etc/ssh/sshd_config.d/99-custom.conf
     state: absent
-
-# Réduit à disable_ipv6, appliqué au boot seulement (comme avant devsec, cf.
-# defaults) : aucune clé commune avec 90-dev-sec.conf, qu'il ne peut donc pas
-# masquer. fs.file-max et fs.suid_dumpable n'y sont plus (devsec fixe le
-# second).
-- name: Configure the boot-time sysctl file
-  ansible.builtin.template:
-    src: sysctl_hardening.conf.j2
-    dest: /etc/sysctl.d/99-hardening.conf
-    # Lu par systemd-sysctl (root) seulement.
-    mode: "0600"

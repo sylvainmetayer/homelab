@@ -8,14 +8,18 @@
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
 
-# Tout SSH vers flip vient de Pangolin (ProxyJump) : quelques échecs
+# SSH arrive sur flip par deux chemins seulement, chacun d'une seule IP source
+# partagée : le bastion (ProxyJump via Pangolin, IP privée) et le conteneur newt
+# local (flip.internal, IP sur le bridge Docker `newt`). Quelques échecs
 # d'authentification (agent qui présente trop de clés, CI mal configurée)
-# feraient bannir l'IP privée du bastion, donc couper tout accès à flip pendant
-# 2 h. Le réseau privé ne contient que Pangolin et flip.
+# banniraient cette IP, donc tous les accès par ce chemin, pendant 2 h. Le
+# réseau privé ne contient que Pangolin et flip ; 172.16.0.0/12 est le pool
+# d'adresses par défaut de Docker (bridge `newt`, sans sous-réseau fixe).
 security_fail2ban_ignoreip:
   - 127.0.0.1/8
   - ::1
   - 10.0.0.0/16
+  - 172.16.0.0/12
 
 # Durcissement devsec.hardening (os + ssh, partiel, cf. rôle security), comme
 # Pangolin (issue #108).
