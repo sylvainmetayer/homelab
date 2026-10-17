@@ -31,9 +31,12 @@ def load_role_tags(playbook_path):
         if isinstance(entry, str):
             continue
         role_name = entry.get("role", entry.get("name"))
-        tags = str(entry.get("tags", ""))
+        # `tags` is either "a,b" or a YAML list ([decommission, never]).
+        tags = entry.get("tags", "")
+        if isinstance(tags, str):
+            tags = tags.split(",")
         known = role_tags.setdefault(role_name, [])
-        known.extend(t.strip() for t in tags.split(",") if t.strip() and t.strip() not in known)
+        known.extend(t for t in (str(t).strip() for t in tags) if t and t not in known)
     return role_tags
 
 
@@ -49,7 +52,9 @@ def changed_roles(changed_files):
 def resolve_tags(role_tags, roles):
     matched = {role: role_tags[role] for role in roles if role in role_tags}
 
-    all_tags = {tag for tags in matched.values() for tag in tags}
+    # A role tagged `never` (decommission_app) only runs when asked for by
+    # name: a change to it must not deploy anything.
+    all_tags = {tag for tags in matched.values() if "never" not in tags for tag in tags}
     specific = all_tags - GENERIC_TAGS
 
     resolved = specific if specific else all_tags
@@ -69,6 +74,9 @@ def main():
         all_matched_roles |= matched.keys()
 
         for role, tags in matched.items():
+            if "never" in tags:
+                print(f"::notice::role '{role}' changed but is tagged never in {playbook_path}, not deployed", file=sys.stderr)
+                continue
             print(f"::notice::role '{role}' changed -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
 
         result[playbook_path] = ",".join(sorted(resolved))
