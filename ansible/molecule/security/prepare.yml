@@ -135,3 +135,16 @@
         dest: /var/lib/molecule-docker-run-baseline
         content: "{{ 'ok' if security_docker_baseline.rc == 0 else security_docker_baseline.stderr }}\n"
         mode: "0600"
+
+    # Empreinte de la clé d'hôte RSA d'avant durcissement : devsec ne doit pas
+    # la régénérer (ssh_host_rsa_key_size aligné sur les 3072 bits de Debian).
+    - name: Fingerprint the RSA host key before hardening
+      ansible.builtin.command: ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
+      register: security_rsa_fingerprint
+      changed_when: false
+
+    - name: Record the RSA host key fingerprint
+      ansible.builtin.copy:
+        dest: /var/lib/molecule-ssh-rsa-fingerprint
+        content: "{{ security_rsa_fingerprint.stdout }}\n"
+        mode: "0600"
