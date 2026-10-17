@@ -13,9 +13,14 @@ services:
     # (renovate.json) : dc@ ne retélécharge jamais un tag déjà présent.
     image: ghcr.io/sylvainmetayer/promptoramix:main@sha256:3c4d1e50ec59b1dd0e423cf4d3c428801e44329ef02d1aada4d38c1fd917de11
     container_name: promptoramix
-    # L'image tourne déjà en `nobody`, n'écrit rien et écoute sur 8080 :
-    # aucune capacité ni écriture n'est nécessaire.
+    # L'image tourne déjà en `nobody`, écoute sur 8080 et n'écrit que son
+    # journal des coups : aucune capacité, racine en lecture seule.
     read_only: true
+    # Journal des coups (LINKX_JOURNAL) : une ligne par appel, qui survit aux
+    # redéploiements et nourrit le livre d'ouverture entre deux rondes
+    # (README de promptoramix, « Journal et livre d'ouverture »).
+    volumes:
+      - ./journal:/journal
     security_opt:
       - no-new-privileges:true
     cap_drop:

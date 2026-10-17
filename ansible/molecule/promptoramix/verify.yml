@@ -5,7 +5,7 @@
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
   tasks:
-    # Rôle sans état : pas de configuration borgmatic.
+    # Pas de configuration borgmatic : le journal des coups est le seul volume, non sauvegardé.
     - name: Verify the promptoramix deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
@@ -50,7 +50,23 @@
           - "'no-new-privileges:true' in promptoramix_app.security_opt"
           - promptoramix_app.healthcheck.test[1] == 'bash'
           - promptoramix_app.image is match('ghcr\\.io/sylvainmetayer/promptoramix:main(@sha256:[0-9a-f]{64})?$')
+          # Seul volume : le journal des coups.
+          - promptoramix_app.volumes | map(attribute='target') | list == ['/journal']
+          - promptoramix_app.volumes[0].source == '/opt/apps/promptoramix/journal'
         fail_msg: "Service promptoramix inattendu : {{ promptoramix_app }}"
+
+    - name: Stat the promptoramix journal folder
+      ansible.builtin.stat:
+        path: /opt/apps/promptoramix/journal
+      register: promptoramix_journal
+
+    # Écrit par le conteneur (`nobody`), lisible par lui seul.
+    - name: Assert the promptoramix journal folder belongs to the container user
+      ansible.builtin.assert:
+        that:
+          - promptoramix_journal.stat.isdir
+          - promptoramix_journal.stat.uid == 65534
+          - promptoramix_journal.stat.mode == '0700'
 
     - name: Stat the promptoramix environment file
       ansible.builtin.stat:
@@ -73,4 +89,5 @@
           - promptoramix_environment.LINKX_SECRET == promptoramix_linkx_secret
           - promptoramix_environment.LINKX_THREADS == '1'
           - promptoramix_environment.LINKX_MARGIN_MS == '800'
+          - promptoramix_environment.LINKX_JOURNAL == '/journal/coups.log'
           - promptoramix_environment.PORT == '8080'
