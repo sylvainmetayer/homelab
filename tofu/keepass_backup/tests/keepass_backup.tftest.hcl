@@ -110,6 +110,25 @@ run "writer_cannot_delete_data" {
     ])
     error_message = "La policy writer doit refuser explicitement la suppression des données du dépôt."
   }
+
+  # Sans ces refus, un writer propriétaire du bucket contournerait Object Lock.
+  assert {
+    condition = alltrue([
+      for a in [
+        "s3:DeleteObjectVersion",
+        "s3:BypassGovernanceRetention",
+        "s3:PutObjectRetention",
+        "s3:DeleteBucket",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketObjectLockConfiguration",
+        "s3:PutLifecycleConfiguration",
+        ] : anytrue([
+          for st in jsondecode(ovh_cloud_project_user_s3_policy.writer.policy).Statement :
+          st.Effect == "Deny" && contains(st.Action, a)
+      ])
+    ])
+    error_message = "La policy writer doit refuser explicitement la destruction de versions et la reconfiguration du bucket."
+  }
 }
 
 run "admin_can_prune_and_restore_versions" {
