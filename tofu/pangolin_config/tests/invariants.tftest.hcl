@@ -1831,9 +1831,9 @@ run "flip_newt_credentials_come_from_the_flip_site" {
       && pangolin_site_resource.flip.alias == "flip.internal"
       && pangolin_site_resource.flip.mode == "host"
       && pangolin_site_resource.flip.tcp_port_range == "22"
-      && pangolin_site_resource.flip.udp_port_range == ""
+      && pangolin_site_resource.flip.udp_port_range == "*"
     )
-    error_message = "flip.internal doit viser l'IP privée de flip (remote state), sur le site flip, en TCP 22 uniquement."
+    error_message = "flip.internal doit viser l'IP privée de flip (remote state), sur le site flip, en TCP 22 (UDP à \"*\" : le provider ne sait pas envoyer une plage vide, ufw sur flip ne laisse entrer que 22/tcp)."
   }
 }
 

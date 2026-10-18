@@ -49,7 +49,10 @@ resource "pangolin_site_resource" "flip" {
   destination    = data.terraform_remote_state.pangolin.outputs.flip_private_ip
   disable_icmp   = true
   tcp_port_range = "22"
-  udp_port_range = ""
+  # "*" et non "" : le provider omet une chaîne vide, Pangolin garde alors sa
+  # valeur et l'apply échoue (inconsistent result). ufw sur flip ne laisse de
+  # toute façon entrer que 22/tcp.
+  udp_port_range = "*"
 }
 
 resource "pangolin_client" "ci_runner" {
