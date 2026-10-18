@@ -38,7 +38,7 @@ services:
     stop_grace_period: 60s
     container_name: nextcloud_db
     restart: unless-stopped
-    image: mariadb:12.3.3@sha256:2bdff1534a7e569fecaf4b10b66ad0d410806e382d9db29ba305448addda97c4
+    image: mariadb:12.3.3@sha256:99c125f103f5d081ebbc9ffe064e63daf7f688ac33a5f7f29af2d7260a96debf
     # Réglages remontés par les vérifications de base de données de Nextcloud
     # (Administration > Vue d'ensemble). Options passées à mariadbd par
     # l'entrypoint de l'image.
