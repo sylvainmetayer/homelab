@@ -7,7 +7,7 @@ collections:
   # Dépendance de devsec.hardening (>=1.0.0 dans son MANIFEST), figée ici
   # plutôt que laissée à la version embarquée par le paquet ansible.
   - name: community.crypto
-    version: "3.5.0"
+    version: "3.5.1"
   - name: ansible.posix
     version: 2.2.2
   - name: community.sops
