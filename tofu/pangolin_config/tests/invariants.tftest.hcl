@@ -1067,8 +1067,9 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
 
   assert {
     condition = alltrue([
-      for rule in pangolin_resource_rule.path_bypass :
-      rule.action == "ACCEPT" && rule.match == "PATH" && rule.enabled == true
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.action == "ACCEPT" && rule.match == "PATH"
+      && rule.enabled == !anytrue([for name in local.php_lockdown_path_bypasses : startswith(key, "${name} ")])
       && rule.priority >= 2 && rule.priority < 10
     ])
     error_message = "Les ouvertures par chemin sont des ACCEPT PATH dans la bande 2 à 9 : derrière le DROP antislash (1), devant les règles pays (10)."
@@ -1297,6 +1298,44 @@ run "path_bypasses_follow_their_image" {
   }
 }
 
+# Verrouillage temporaire des applications PHP (php_lockdown.tf), le temps
+# qu'une faille critique de PHP soit corrigée dans leurs images : aucune ne
+# doit répondre sans le SSO, ni par sa ressource, ni par une ouverture par
+# chemin active. À supprimer avec php_lockdown.tf quand le verrouillage est
+# levé.
+run "php_lockdown_closes_every_public_php_path" {
+  command = plan
+
+  # Une faute de frappe dans les ensembles ne verrouillerait rien, sans un mot.
+  assert {
+    condition = (
+      length(setsubtract(local.php_lockdown_sso, keys(local.websites))) == 0
+      && length(setsubtract(local.php_lockdown_path_bypasses, keys(local.path_bypasses))) == 0
+    )
+    error_message = "php_lockdown.tf nomme une entrée absente de local.websites ou de local.path_bypasses."
+  }
+
+  # Betisier, Monica, nextcloud, FreshRSS (rss) et BookStack (wiki).
+  assert {
+    condition = alltrue([
+      for key in ["betisier", "monica", "nextcloud", "rss", "wiki"] :
+      pangolin_resource.website[key].sso == true
+    ])
+    error_message = "Une application PHP répond sans le SSO."
+  }
+
+  assert {
+    condition = length([
+      for key, rule in pangolin_resource_rule.path_bypass : key
+      if rule.enabled && anytrue([
+        for name in ["Betisier", "Monica CRM", "nextcloud", "RSS", "Wiki (Bookstack)"] :
+        startswith(key, "${name} ")
+      ])
+    ]) == 0
+    error_message = "Une ouverture par chemin active mène encore à une application PHP."
+  }
+}
+
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
@@ -1317,8 +1356,11 @@ run "every_public_resource_applies_its_rules" {
   # navigateur, elle ne peut pas passer de SSO et vérifie la signature HMAC de
   # chaque requête (website_promptoramix.tf).
   assert {
-    condition     = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == toset(["Betisier", "nextcloud", "Promptoramix"])
-    error_message = "Les ressources sans SSO doivent être exactement Betisier, nextcloud et Promptoramix."
+    condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
+      toset(["Betisier", "nextcloud", "Promptoramix"]),
+      [for key in local.php_lockdown_sso : local.websites[key].name],
+    )
+    error_message = "Les ressources sans SSO doivent être exactement Betisier, nextcloud et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de

@@ -24,7 +24,8 @@
 # Entry fields - only name, subdomain and domain_id are required:
 #
 #   sso          default true. false only for Betisier, pinned by the
-#                `every_public_resource_applies_its_rules` test.
+#                `every_public_resource_applies_its_rules` test. Overridden to
+#                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false also pauses the
 #                healthcheck monitor: a disabled resource has nothing to
 #                watch. The backup monitor stays active - the backup job does
@@ -106,7 +107,7 @@ resource "pangolin_resource" "website" {
   subdomain   = each.value.subdomain
   domain_id   = each.value.domain_id
   protocol    = "tcp"
-  sso         = lookup(each.value, "sso", true)
+  sso         = contains(local.php_lockdown_sso, each.key) || lookup(each.value, "sso", true)
   apply_rules = true
 
   # Optional+computed: pinned so a plan can disagree with the API. See
