@@ -244,6 +244,7 @@ locals {
         resource_id = local.managed_resources[name]
         path        = path
         priority    = priority
+        enabled     = !contains(local.php_lockdown_path_bypasses, name)
       }
     }
   ]...)
@@ -275,7 +276,7 @@ resource "pangolin_resource_rule" "path_bypass" {
   match       = "PATH"
   value       = each.value.path
   priority    = each.value.priority
-  enabled     = true
+  enabled     = each.value.enabled
 }
 
 # `%5C` is the backslash: the pattern is percent-decoded before matching, and
