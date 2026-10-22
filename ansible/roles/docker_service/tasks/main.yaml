@@ -6,7 +6,7 @@
     - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
   ansible.builtin.file:
     path: "{{ item }}"
-    mode: "0755"
+    mode: "0700"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
@@ -18,7 +18,7 @@
     dest: ~/.config/systemd/user/dc@.service
     group: "{{ ansible_facts['user_gid'] }}"
     owner: "{{ ansible_facts['user_uid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 # Les unités user (dc@<service>, monica_v4_cron.timer) visaient
 # multi-user.target, qui n'existe que pour le manager système : leurs liens
@@ -37,7 +37,7 @@
   ansible.builtin.file:
     path: "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
     state: touch
-    mode: "0644"
+    mode: "0600"
     modification_time: preserve
     access_time: preserve
 

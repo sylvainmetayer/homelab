@@ -13,7 +13,7 @@
     dest: /etc/default/zramswap
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
 
 # Le postinst du paquet démarre le service avec sa config par défaut (50 % de
 # la RAM) avant que notre template soit en place, et un simple restart ne
@@ -52,7 +52,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0750"
 
 - name: Cap journald disk usage
   become: true
@@ -62,4 +62,4 @@
     dest: /etc/systemd/journald.conf.d/50-size.conf
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"

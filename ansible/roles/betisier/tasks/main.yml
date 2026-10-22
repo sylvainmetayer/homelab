@@ -4,7 +4,7 @@
     - "{{ betisier_base_path }}"
     - "{{ betisier_base_path }}/config"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
@@ -14,7 +14,7 @@
   ansible.builtin.get_url:
     url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/refs/heads/master/betisier-mysql/betisier.sql"
     dest: "{{ betisier_base_path }}/dump.sql"
-    mode: "0644"
+    mode: "0600"
 
 - name: Template compose configuration
   notify: Restart betisier
@@ -39,7 +39,7 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/betisier-reset.service"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
   notify:
     - Reload systemd user
     - Restart betisier
@@ -50,7 +50,7 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/betisier-reset.timer"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
   notify: Reload systemd user
 
 - name: Enable and start betisier-reset timer

@@ -34,7 +34,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TOFU_DIR = Path(os.environ.get("PROXMOX_TOFU_DIR", REPO_ROOT / "tofu" / "proxmox"))
-LAN_CIDR = ipaddress.ip_network(os.environ.get("PROXMOX_LAN_CIDR", "192.168.0.0/16"))
+LAN_CIDR = ipaddress.ip_network(os.environ.get("PROXMOX_LAN_CIDR", "192.168.0.0/16"))  # NOSONAR
 
 VM_TYPES = (
     "proxmox_virtual_environment_vm",

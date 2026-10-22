@@ -5,7 +5,7 @@
     - "{{ trek_base_path }}/data"
     - "{{ trek_base_path }}/uploads"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"

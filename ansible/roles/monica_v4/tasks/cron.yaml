@@ -6,7 +6,7 @@
     dest: ~/.config/systemd/user/monica_v4_cron.service
     group: "{{ ansible_facts['user_gid'] }}"
     owner: "{{ ansible_facts['user_uid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: Copy monica_v4 cron timer
   notify: Restart monica_v4 cron
@@ -15,7 +15,7 @@
     dest: ~/.config/systemd/user/monica_v4_cron.timer
     group: "{{ ansible_facts['user_gid'] }}"
     owner: "{{ ansible_facts['user_uid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: Make sure monica_v4 cron timer is running
   ansible.builtin.systemd:

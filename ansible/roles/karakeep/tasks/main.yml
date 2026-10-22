@@ -5,7 +5,7 @@
     - "{{ karakeep_base_path }}/data"
     - "{{ karakeep_base_path }}/meilisearch"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"

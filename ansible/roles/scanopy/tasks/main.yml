@@ -4,14 +4,23 @@
   loop:
     - "{{ scanopy_base_path }}"
     - "{{ scanopy_base_path }}/daemon-config"
-    - "{{ scanopy_base_path }}/postgresql"
     - "{{ scanopy_base_path }}/data"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
+
+# Données PostgreSQL : l'entrypoint de l'image (root) les donne à postgres
+# (uid 70) en 0700 à chaque démarrage. Sans owner ici, Ansible ne les rend plus
+# à l'utilisateur hôte, qui les rendrait illisibles au postgres en marche.
+- name: Ensure Scanopy PostgreSQL folder exists
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ scanopy_base_path }}/postgresql"
+    state: directory
 
 - name: Template compose configuration
   notify: Restart scanopy
