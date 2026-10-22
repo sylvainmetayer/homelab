@@ -27,6 +27,8 @@ PROJECT_NAME = "{{ config_root | basename }}"
 
 [tasks.generate_password]
 description = "Hash a host password (prompted, kept out of the shell history) for host_user_password_hash"
+# raw : stdin relié au terminal, sinon mkpasswd attend une invite jamais affichée.
+raw = true
 run = 'mkpasswd --method=SHA-512 --rounds=4096'
 
 [tasks.init]
