@@ -50,3 +50,27 @@ output "uptime_backup_pangolin_url" {
   value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_pangolin.push_token}"
   sensitive   = true
 }
+
+# Mise à jour hebdomadaire de GeoLite2 sur Pangolin (geoipupdate.timer, rôle
+# pangolin) : tout le géofiltre en dépend. Le timer passe le mercredi ; un
+# jour de marge avant l'alerte.
+resource "uptimekuma_monitor_push" "cron_geoip" {
+  name = "GeoIP Pangolin"
+
+  # Not a backup: grouped with the healthchecks. See uptime_globals.tf.
+  parent = uptimekuma_monitor_group.self_hosted.id
+
+  interval = 60 * 60 * 24 * 8
+
+  retry_interval = 20
+  active         = true
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
+}
+
+output "uptime_cron_geoip_url" {
+  description = "PANGOLIN - URL push de la mise à jour GeoLite2 (geoipupdate)"
+  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.cron_geoip.push_token}"
+  sensitive   = true
+}

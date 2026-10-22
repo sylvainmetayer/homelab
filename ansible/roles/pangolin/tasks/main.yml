@@ -33,14 +33,65 @@
     state: present
   when: ansible_facts['virtualization_type'] not in ['docker', 'podman', 'container']
 
-- name: Download GeoLite2-Country database
+- name: Create the geoipupdate configuration directory
   become: true
-  ansible.builtin.get_url:
-    url: https://git.io/GeoLite2-Country.mmdb
-    dest: "{{ pangolin_dir }}/config/GeoLite2-Country.mmdb"
+  ansible.builtin.file:
+    path: "{{ pangolin_geoipupdate_config_dir }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Write the MaxMind account and license key
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ pangolin_geoipupdate_config_dir }}/{{ item.name }}"
     mode: "0600"
     owner: root
     group: root
+  loop:
+    - { name: env, content: "{{ lookup('ansible.builtin.template', 'geoipupdate.env.j2') }}" }
+    - { name: license_key, content: "{{ pangolin_maxmind_license_key }}\n" }
+  loop_control:
+    label: "{{ item.name }}"
+
+# L'URL push porte le jeton du moniteur : 0600 et diff: false.
+- name: Install the geoipupdate service and timer
+  become: true
+  diff: false
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop:
+    - geoipupdate.service
+    - geoipupdate.timer
+
+- name: Enable the weekly GeoLite2 update
+  become: true
+  ansible.builtin.systemd:
+    name: geoipupdate.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# Premier déploiement : la base doit exister avant que Pangolin démarre.
+- name: Check whether the GeoLite2 database exists
+  become: true
+  ansible.builtin.stat:
+    path: "{{ pangolin_dir }}/config/GeoLite2-Country.mmdb"
+  register: pangolin_geoip_database
+
+- name: Download GeoLite2-Country once if it is missing
+  become: true
+  when: not pangolin_geoip_database.stat.exists
+  ansible.builtin.systemd:
+    name: geoipupdate.service
+    state: started
 
 - name: Create Traefik dynamic configuration
   become: true

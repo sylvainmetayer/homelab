@@ -250,6 +250,17 @@
         "(?<depName>docker\\.io/fosrl/olm):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "geoipupdate image of the pangolin role (weekly GeoLite2 update), pinned by tag and digest in a plain var of its defaults",
+      "managerFilePatterns": [
+        "/^ansible/roles/pangolin/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "pangolin_geoipupdate_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

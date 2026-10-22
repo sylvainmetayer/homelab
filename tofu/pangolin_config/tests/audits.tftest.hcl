@@ -22,7 +22,7 @@ mock_provider "aws" {}
 # Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
 variables {
   state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
-  travel_countries = {}
+  travel_countries            = {}
 }
 
 # Toutes les clés lues dans secrets.tf (data.sops_file.secrets.data[...]).
