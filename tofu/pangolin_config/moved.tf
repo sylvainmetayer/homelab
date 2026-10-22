@@ -49,11 +49,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_rule.block_country["4-00NTF - Proxmox"]
-  to   = pangolin_resource_rule.block_country["00NTF - Proxmox"]
-}
-
-moved {
   from = pangolin_resource_rule.block_country["73-SearXNG"]
   to   = pangolin_resource_rule.block_country["SearXNG"]
 }
@@ -61,11 +56,6 @@ moved {
 moved {
   from = pangolin_resource_rule.block_country["74-Paperless-ngx"]
   to   = pangolin_resource_rule.block_country["Paperless-ngx"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["75-00NTF - NAS"]
-  to   = pangolin_resource_rule.block_country["00NTF - NAS"]
 }
 
 moved {
@@ -89,36 +79,6 @@ moved {
 # names, so every one of them is re-keyed; without these blocks the twelve rules
 # below would be destroyed and recreated instead of moved.
 # ---------------------------------------------------------------------------
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - Proxmox-FR"]
-  to   = pangolin_resource_rule.allow_countries["Proxmox-FR"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - Proxmox-DE"]
-  to   = pangolin_resource_rule.allow_countries["Proxmox-DE"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["00NTF - Proxmox"]
-  to   = pangolin_resource_rule.block_country["Proxmox"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - NAS-FR"]
-  to   = pangolin_resource_rule.allow_countries["NAS-FR"]
-}
-
-moved {
-  from = pangolin_resource_rule.allow_countries["00NTF - NAS-DE"]
-  to   = pangolin_resource_rule.allow_countries["NAS-DE"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["00NTF - NAS"]
-  to   = pangolin_resource_rule.block_country["NAS"]
-}
 
 # The Karakeep-only backslash DROP became the generic guard of rules.tf, which
 # covers every resource with a path rule. Same rule, new address: no recreate.
@@ -229,8 +189,8 @@ moved {
 # every rule and token attached to it.
 #
 # Not moved, because their address did not change: the extra tokens
-# (karakeep_clients, trek_mcp_clients), the rules, the Immich pincode, the
-# NAS and Proxmox targets, cron_monica and backup_pangolin.
+# (karakeep_clients, trek_mcp_clients), the rules, the Immich pincode,
+# cron_monica and backup_pangolin.
 # ---------------------------------------------------------------------------
 
 # pangolin_resource (21)
@@ -296,11 +256,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource.nas
-  to   = pangolin_resource.website["nas"]
-}
-
-moved {
   from = pangolin_resource.nextcloud
   to   = pangolin_resource.website["nextcloud"]
 }
@@ -308,11 +263,6 @@ moved {
 moved {
   from = pangolin_resource.paperless
   to   = pangolin_resource.website["paperless"]
-}
-
-moved {
-  from = pangolin_resource.proxmox
-  to   = pangolin_resource.website["proxmox"]
 }
 
 moved {
@@ -617,11 +567,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_access_token.nas
-  to   = pangolin_resource_access_token.healthcheck["nas"]
-}
-
-moved {
   from = pangolin_resource_access_token.nextcloud
   to   = pangolin_resource_access_token.healthcheck["nextcloud"]
 }
@@ -629,11 +574,6 @@ moved {
 moved {
   from = pangolin_resource_access_token.paperless
   to   = pangolin_resource_access_token.healthcheck["paperless"]
-}
-
-moved {
-  from = pangolin_resource_access_token.proxmox
-  to   = pangolin_resource_access_token.healthcheck["proxmox"]
 }
 
 moved {
@@ -714,11 +654,6 @@ moved {
 }
 
 moved {
-  from = uptimekuma_monitor_http_keyword.nas
-  to   = uptimekuma_monitor_http_keyword.healthcheck["nas"]
-}
-
-moved {
   from = uptimekuma_monitor_http_keyword.nextcloud
   to   = uptimekuma_monitor_http_keyword.healthcheck["nextcloud"]
 }
@@ -726,11 +661,6 @@ moved {
 moved {
   from = uptimekuma_monitor_http_keyword.paperless
   to   = uptimekuma_monitor_http_keyword.healthcheck["paperless"]
-}
-
-moved {
-  from = uptimekuma_monitor_http_keyword.proxmox
-  to   = uptimekuma_monitor_http_keyword.healthcheck["proxmox"]
 }
 
 moved {

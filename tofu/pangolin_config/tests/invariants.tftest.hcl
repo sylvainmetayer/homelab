@@ -166,18 +166,16 @@ override_data {
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 75, "niceId": "nas", "name": "NAS", "fullDomain": "nas.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
-        {"resourceId": 4, "niceId": "proxmox", "name": "Proxmox", "fullDomain": "proxmox.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 23, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 21, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -296,8 +294,7 @@ override_resource {
 
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
 # (une surcharge peut viser une seule instance d'un for_each, vérifié sur
-# OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite
-# (Proxmox 4, NAS 75).
+# OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite.
 override_resource {
   target = pangolin_resource.website["betisier"]
   values = { id = 21 }
@@ -359,11 +356,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["nas"]
-  values = { id = 75 }
-}
-
-override_resource {
   target = pangolin_resource.website["nextcloud"]
   values = { id = 11 }
 }
@@ -376,11 +368,6 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["promptoramix"]
   values = { id = 83, full_domain = "promptoramix.sylvain.cloud" }
-}
-
-override_resource {
-  target = pangolin_resource.website["proxmox"]
-  values = { id = 4 }
 }
 
 override_resource {
@@ -565,15 +552,14 @@ override_resource {
 # "no available server" pendant que `tofu plan` ne voyait rien.
 #
 # Les cibles des applications sont les instances de pangolin_target.website
-# (websites.tf), plus celle de Proxmox, recopiée de l'API ; seule celle du NAS
-# n'a pas de sonde. Les clés sont les anciens noms des ressources, ceux que
+# (websites.tf), toutes sondées. Les clés sont les anciens noms des ressources, ceux que
 # moved.tf vise : une clé qui change recréerait la cible.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
   assert {
     condition = alltrue([
-      for t in concat(values(pangolin_target.website), [pangolin_target.proxmox]) :
+      for t in values(pangolin_target.website) :
       t.hc_enabled == true
       && contains(["http", "https"], t.hc_scheme)
       && t.hc_mode == "http"
@@ -594,11 +580,6 @@ run "every_probed_target_declares_scheme_mode_and_port" {
     error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (moved.tf), et une nouvelle cible être listée ici."
   }
 
-  assert {
-    condition     = pangolin_target.nas.hc_enabled == false
-    error_message = "La cible du NAS est la seule sans sonde, recopiée de l'API (website_nas.tf)."
-  }
-
   # local.website_targets fusionne par merge() les clés des applications et les
   # "<app>_<suffixe>" de leurs sub_targets : une collision (un sub_target `kc`
   # de demo_planning contre l'application demo_planning_kc) écraserait une
@@ -612,8 +593,8 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   }
 
   # Filet par fichier, indépendant des listes ci-dessus : tout bloc
-  # `pangolin_target` du module, généré (websites.tf) ou écrit à la main (NAS,
-  # Proxmox, et celui qui viendra), qui active sa sonde déclare aussi
+  # `pangolin_target` du module, généré (websites.tf) ou écrit à la main
+  # (celui qui viendra), qui active sa sonde déclare aussi
   # hc_scheme, hc_mode, hc_port et hc_hostname.
   assert {
     condition = alltrue(flatten([
@@ -627,7 +608,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       ])) && length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("resource\\s+\"pangolin_target\"\\s+\"", file("${path.module}/${f}"))
-    ])) >= 3
+    ])) >= 1
     error_message = "Un bloc pangolin_target active sa sonde sans déclarer hc_scheme, hc_mode, hc_port et hc_hostname : Pangolin stockerait NULL et la sonde échouerait toujours."
   }
 }
@@ -639,7 +620,7 @@ run "probed_targets_set_hc_hostname_to_their_ip" {
 
   assert {
     condition = alltrue([
-      for t in concat(values(pangolin_target.website), [pangolin_target.proxmox]) :
+      for t in values(pangolin_target.website) :
       t.hc_hostname == t.ip
     ])
     error_message = "Une cible a un hc_hostname absent ou différent de son ip."
@@ -1435,11 +1416,9 @@ run "every_public_resource_applies_its_rules" {
       karakeep         = "Karakeep"
       meerkat_crm      = "Meerkat CRM"
       monica           = "Monica CRM"
-      nas              = "NAS"
       nextcloud        = "nextcloud"
       paperless        = "Paperless-ngx"
       promptoramix     = "Promptoramix"
-      proxmox          = "Proxmox"
       rss              = "RSS"
       searxng          = "SearXNG"
       trek             = "TREK"
@@ -1586,11 +1565,9 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       karakeep      = "Healthcheck Karakeep"
       meerkat_crm   = "Healthcheck Meerkat CRM"
       monica        = "Healthcheck Monica CRM"
-      nas           = "Healthcheck NAS"
       nextcloud     = "Healthcheck nextcloud"
       paperless     = "Healthcheck Paperless-ngx"
       promptoramix  = "Healthcheck Promptoramix"
-      proxmox       = "Healthcheck Proxmox"
       rss           = "Healthcheck RSS"
       searxng       = "Healthcheck SearXNG"
       trek          = "Healthcheck TREK"
@@ -1663,14 +1640,14 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier, nextcloud et Promptoramix (sans SSO), NAS et Proxmox
-  # (l'administrateur seul). Immich Swipe prend celui d'Immich.
+  # Betisier, nextcloud et Promptoramix (sans SSO). Immich Swipe prend celui
+  # d'Immich.
   assert {
     condition = (
-      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nas", "nextcloud", "promptoramix", "proxmox"])
+      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nextcloud", "promptoramix"])
       && local.websites["immich_swipe"].role == "immich"
     )
-    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich), sauf NAS et Proxmox ; Betisier, nextcloud et Promptoramix, sans SSO, à aucun."
+    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich) ; Betisier, nextcloud et Promptoramix, sans SSO, à aucun."
   }
 }
 

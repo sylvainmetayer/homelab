@@ -32,8 +32,7 @@
 #                watch. The backup monitor stays active - the backup job does
 #                not stop with the resource (Gramps).
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
-#                Absent: no binding (Betisier and nextcloud have no SSO, NAS
-#                and Proxmox are reached by the admin only).
+#                Absent: no binding (Betisier and nextcloud have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
 #                resource URL. Only for an app whose root answers no GET
@@ -42,8 +41,7 @@
 #   backup       default false: a push monitor "Backup <name>".
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
-#                (default "/") and hc_port (default port). Absent on NAS and
-#                Proxmox, whose mirrored targets stay in their own file.
+#                (default "/") and hc_port (default port).
 #   sub_targets  more targets on the same resource, keyed by a suffix: the
 #                address is pangolin_target.website["<app>_<suffix>"].
 # ---------------------------------------------------------------------------
@@ -62,11 +60,9 @@ locals {
     karakeep         = local.karakeep_website
     meerkat_crm      = local.meerkat_crm_website
     monica           = local.monica_website
-    nas              = local.nas_website
     nextcloud        = local.nextcloud_website
     paperless        = local.paperless_website
     promptoramix     = local.promptoramix_website
-    proxmox          = local.proxmox_website
     rss              = local.rss_website
     searxng          = local.searxng_website
     trek             = local.trek_website
