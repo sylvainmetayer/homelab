@@ -30,6 +30,11 @@ borgmatic_timer_schedule: "*-*-* 01:00:00"
 # User for systemd service (root for Docker volumes access)
 borgmatic_user: "root"
 
+# À true pour un seul passage, après le déplacement des dépôts sur la Storage
+# Box (sous-compte par hôte) : borg accepte alors leur nouvelle adresse et la
+# mémorise. Jamais à true en temps normal.
+borgmatic_relocated_repo_access_is_ok: false
+
 # borgmatic lui-même (installé par pipx pour root). Les scénarios Molecule y
 # posent un bouchon (molecule/_shared/prepare.yml).
 borgmatic_bin: /root/.local/bin/borgmatic

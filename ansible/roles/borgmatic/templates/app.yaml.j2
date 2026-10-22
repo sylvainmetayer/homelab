@@ -70,6 +70,12 @@ repositories:
       label: {{ borgmatic_app_label | to_json }}
 
 ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23
+{% if borgmatic_relocated_repo_access_is_ok | bool %}
+
+# Migration seulement (-e borgmatic_relocated_repo_access_is_ok=true) : borg a
+# mémorisé l'ancienne adresse du dépôt et refuserait sans terminal.
+relocated_repo_access_is_ok: true
+{% endif %}
 
 encryption_passphrase: {{ borgmatic_app_passphrase | to_json }}
 
