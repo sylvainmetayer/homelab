@@ -151,10 +151,17 @@ jobs:
 
       - name: Install sops
         if: steps.resolve-tags.outputs.any_tags == 'true'
+        # Épinglé et vérifié : ce binaire déchiffre avec la clé Age de prod.
+        # Version et sha256 se changent ensemble, à la main (Renovate ne sait
+        # pas recalculer le sha256, et ce workflow ne tourne qu'après le merge) :
+        # sha256 de sops-<version>.linux.amd64 dans sops-<version>.checksums.txt.
+        env:
+          SOPS_VERSION: v3.13.3
+          SOPS_SHA256: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
         run: |
-          version="$(curl --proto '=https' --tlsv1.2 -fsSL https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
-          curl --proto '=https' --tlsv1.2 -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
-          chmod +x /usr/local/bin/sops
+          curl --proto '=https' --tlsv1.2 -fsSLo /tmp/sops "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
+          echo "${SOPS_SHA256}  /tmp/sops" | sha256sum -c -
+          install -m 0755 /tmp/sops /usr/local/bin/sops
 
       - name: Cache ansible-galaxy roles and collections
         if: steps.resolve-tags.outputs.any_tags == 'true'
