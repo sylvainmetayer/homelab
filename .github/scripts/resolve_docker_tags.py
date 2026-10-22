@@ -8,7 +8,6 @@ Prints a JSON object {playbook_path: "tag1,tag2"} to stdout, one entry per
 playbook argument (value is "" when nothing changed for that playbook).
 """
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -17,15 +16,18 @@ import yaml
 
 GENERIC_TAGS = {"app", "setup"}
 ROLE_PATH_RE = re.compile(r"^ansible/roles/([^/]+)/")
-# Seuls les playbooks du dépôt peuvent être lus (pas de traversée de chemin).
-ANSIBLE_DIR = os.path.realpath(Path(__file__).resolve().parents[2] / "ansible")
+# Seuls les playbooks à la racine de ansible/ peuvent être lus : le fichier
+# ouvert vient de cette liste, jamais de l'argument (pas de traversée de chemin).
+ANSIBLE_DIR = Path(__file__).resolve().parents[2] / "ansible"
+PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
 
 
 def safe_playbook_path(playbook_path):
-    path = os.path.realpath(playbook_path)
-    if os.path.commonpath([ANSIBLE_DIR, path]) != ANSIBLE_DIR:
-        sys.exit(f"::error::{playbook_path} is outside {ANSIBLE_DIR}, refusing to read it")
-    return path
+    path = Path(playbook_path).resolve()
+    known = PLAYBOOKS.get(path.name)
+    if known is None or known.resolve() != path:
+        sys.exit(f"::error::{playbook_path} is not a playbook of {ANSIBLE_DIR}, refusing to read it")
+    return known
 
 
 def load_role_tags(playbook_path):
