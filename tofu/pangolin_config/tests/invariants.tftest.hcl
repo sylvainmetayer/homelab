@@ -1865,6 +1865,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_scanopy_url,
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
+      output.uptime_backup_wishlist_url,
       output.uptime_backup_searxng_url,
       output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
