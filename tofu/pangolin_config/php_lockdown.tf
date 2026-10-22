@@ -4,10 +4,9 @@
 #
 # Every public path that reached PHP code without the SSO wall is closed:
 #
-#   - nextcloud, the last PHP resource without SSO, gets it. No role is
-#     bound: only the Pangolin admins get through, and the app's monitor keeps
-#     working on its access token. Betisier left the set once its image moved
-#     to PHP 8.5.12 (sylvainmetayer/Betisier-TP#1).
+#   - every PHP resource without SSO gets it. The set is empty again: Betisier
+#     left it once its image moved to PHP 8.5.12 (sylvainmetayer/Betisier-TP#1),
+#     nextcloud once its image was patched.
 #   - the path ACCEPTs of Monica (`/dav`, `.well-known`) and FreshRSS (Google
 #     Reader and Fever APIs), open worldwide, are disabled rather than deleted:
 #     a deleted rule would still be live in Pangolin at plan time and fail the
@@ -18,13 +17,11 @@
 #
 # Lifting it: empty both sets (or revert the commit that added this file) once
 # the patched images are deployed, then apply. Phone sync (CardDAV/CalDAV on
-# Monica, RSS readers on FreshRSS), the Nextcloud desktop and mobile sync
-# clients (they cannot pass the SSO, admins included) and non-admin access to
-# nextcloud are down until then.
+# Monica, RSS readers on FreshRSS) is down until then.
 # ---------------------------------------------------------------------------
 locals {
   # Keys of local.websites forced behind the SSO, whatever their entry says.
-  php_lockdown_sso = toset(["nextcloud"])
+  php_lockdown_sso = toset([])
 
   # Keys of local.path_bypasses whose ACCEPTs are disabled.
   php_lockdown_path_bypasses = toset(["Monica CRM", "RSS"])

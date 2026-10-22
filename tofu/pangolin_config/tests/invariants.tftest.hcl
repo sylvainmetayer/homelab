@@ -1338,7 +1338,7 @@ run "path_bypasses_follow_their_image" {
 # qu'une faille critique de PHP soit corrigée dans leurs images : aucune ne
 # doit répondre sans le SSO, ni par sa ressource, ni par une ouverture par
 # chemin active. À supprimer avec php_lockdown.tf quand le verrouillage est
-# levé. Betisier n'y est plus : son image est passée à PHP 8.5.12, corrigé.
+# levé. Betisier et nextcloud n'y sont plus : leurs images sont corrigées.
 run "php_lockdown_closes_every_public_php_path" {
   command = plan
 
@@ -1363,10 +1363,10 @@ run "php_lockdown_closes_every_public_php_path" {
     error_message = "php_lockdown.tf nomme une application qui n'est pas en PHP."
   }
 
-  # Monica, nextcloud, FreshRSS (rss) et BookStack (wiki).
+  # Monica, FreshRSS (rss) et BookStack (wiki).
   assert {
     condition = alltrue([
-      for key in ["monica", "nextcloud", "rss", "wiki"] :
+      for key in ["monica", "rss", "wiki"] :
       pangolin_resource.website[key].sso == true
     ])
     error_message = "Une application PHP répond sans le SSO."
@@ -1376,7 +1376,7 @@ run "php_lockdown_closes_every_public_php_path" {
     condition = length([
       for key, rule in pangolin_resource_rule.path_bypass : key
       if rule.enabled && anytrue([
-        for name in ["Monica CRM", "nextcloud", "RSS", "Wiki (Bookstack)"] :
+        for name in ["Monica CRM", "RSS", "Wiki (Bookstack)"] :
         startswith(key, "${name} ")
       ])
     ]) == 0
