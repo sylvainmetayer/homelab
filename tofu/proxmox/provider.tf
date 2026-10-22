@@ -20,5 +20,8 @@ provider "proxmox" {
     agent    = true
     username = "root"
   }
-  insecure = true
+  # Certificat vérifié : Proxmox a un certificat Let's Encrypt pour
+  # pve.sylvain.cloud (ACME DNS-01 OVH, configuré sur le nœud), résolu sur le
+  # LAN ou par pve.internal (client Pangolin, tofu/pangolin_config).
+  insecure = false
 }

@@ -33,6 +33,34 @@ resource "pangolin_site_resource" "pi" {
   udp_port_range = "*"
 }
 
+# Proxmox web UI (8006) and its SSH (22, used by tofu/proxmox's provider),
+# private since they stopped being public resources (plan sécurité, 4.3):
+# reached from outside only through a Pangolin client; from home, directly.
+# The hypervisor carries every VM, so its UI is not worth a public URL even
+# behind the SSO and the country rules.
+resource "pangolin_site_resource" "proxmox" {
+  site_id        = pangolin_site.proxmox_lxc.id
+  name           = "Proxmox"
+  mode           = "host"
+  alias          = "pve.internal"
+  destination    = "192.168.1.26"
+  disable_icmp   = true
+  tcp_port_range = "22,8006"
+  udp_port_range = "*"
+}
+
+# NAS web UI (HTTP, 9999), private for the same reason: it never had TLS.
+resource "pangolin_site_resource" "nas" {
+  site_id        = pangolin_site.proxmox_lxc.id
+  name           = "NAS"
+  mode           = "host"
+  alias          = "nas.internal"
+  destination    = "192.168.1.137"
+  disable_icmp   = true
+  tcp_port_range = "9999"
+  udp_port_range = "*"
+}
+
 # SSH to the flip server, which has no public IP, for manual access through a
 # Pangolin client. Not for Ansible, local or CI: this resource is served by the
 # newt running on flip itself, so a play that restarts newt or docker there
