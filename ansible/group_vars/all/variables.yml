@@ -6,12 +6,19 @@ ansible_user: sylvain
 borgmatic_config_dir: "/etc/borgmatic.d"
 borgmatic_encryption_mode: repokey-blake2
 
-# Storage Box Hetzner pour les backups (remplace S3)
+# Storage Box Hetzner pour les backups (remplace S3). Dossier du compte
+# principal (ansible/backup.yaml) : un sous-dossier <hôte> par hôte sauvegardé.
 backup_storage_box_path: "./backup"
-# Racine des dépôts Borg : chaque application a le sien dans
-# <url>/<dossier> (rôle borgmatic, tasks/app.yml), dossier créé par
-# backup.yaml depuis backup_folders (host_vars/backups).
-backup_storage_box_url: "ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}"
+# Racine des dépôts Borg de l'hôte : son sous-compte (tofu/pangolin,
+# storage_box_subaccounts.tf), qui ne voit que backup/<hôte> et y a ses
+# dépôts à la racine. backup_storage_box_subaccount vient de host_vars/<hôte>.
+backup_storage_box_url: "ssh://{{ backup_storage_box_subaccount.username }}@{{ backup_storage_box_subaccount.server }}/."
+# Clé SSH de root pour son sous-compte, générée sur l'hôte (rôle borgmatic) ;
+# backup.yaml en dépose la partie publique chez le sous-compte.
+backup_storage_box_ssh_key_path: /root/.ssh/borgmatic_storage_box_ed25519
+# Clé d'hôte ed25519 de la Storage Box, la même sous chaque nom de sous-compte.
+# Empreinte publiée par Hetzner : SHA256:XqONwb1S0zuj5A1CDxpOSuD2hnAArV1A3wKY7Z3sdgM.
+backup_storage_box_host_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIICf9svRenC/PLKIL9nk6K/pxQgoiFC41wTNvoIncOxs"
 
 docker_base_path: /opt/apps
 

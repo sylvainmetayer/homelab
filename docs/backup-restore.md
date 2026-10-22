@@ -2,7 +2,7 @@
 
 ## How backups run
 
-The `borgmatic` role installs Borg and Borgmatic for root, and a `borgmatic.timer` that runs every night at 01:00. Each app role adds its own config, `/etc/borgmatic.d/<app>.yaml`, rendered from the shared template `ansible/roles/borgmatic/templates/app.yaml.j2`. Each app gets its own Borg repository on the Hetzner Storage Box, under `ssh://…/<app>` (port 23, key `/root/.ssh/backup_storage_box_key`).
+The `borgmatic` role installs Borg and Borgmatic for root, and a `borgmatic.timer` that runs every night at 01:00. Each app role adds its own config, `/etc/borgmatic.d/<app>.yaml`, rendered from the shared template `ansible/roles/borgmatic/templates/app.yaml.j2`. Each app gets its own Borg repository on the Hetzner Storage Box, through the Storage Box subaccount of its host: `ssh://<subaccount>@<server>/./<app>` (port 23, key `/root/.ssh/borgmatic_storage_box_ed25519`, generated on the host), i.e. `backup/<host>/<app>` seen from the main account. A subaccount only sees its own host's folder, and the Storage Box keeps 14 daily snapshots that no subaccount can delete.
 
 An archive holds:
 

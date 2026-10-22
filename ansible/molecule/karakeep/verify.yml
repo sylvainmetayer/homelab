@@ -123,7 +123,7 @@
         fail_msg: "Configuration borgmatic de karakeep inattendue : {{ karakeep_borgmatic.repositories }}"
       vars:
         karakeep_expected_repository: >-
-          ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/karakeep
+          ssh://{{ backup_storage_box_subaccounts.docker.username }}@{{ backup_storage_box_subaccounts.docker.server }}/./karakeep
 
     - name: Stat the repo-create marker of the borgmatic stub for karakeep
       become: true

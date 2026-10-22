@@ -24,17 +24,6 @@ output "storage_box_password" {
   sensitive   = true
 }
 
-output "storage_box_ssh_private_key" {
-  description = "Clé privée SSH pour accéder à la Storage Box Hetzner"
-  value       = tls_private_key.storage_box.private_key_pem
-  sensitive   = true
-}
-
-output "storage_box_ssh_public_key" {
-  description = "Clé publique SSH pour accéder à la Storage Box Hetzner"
-  value       = tls_private_key.storage_box.public_key_openssh
-}
-
 output "flip_private_ip" {
   description = "IP privée du serveur Flip Planning (lue par tofu/pangolin_config pour flip.internal)"
   value       = one(hcloud_server.flip.network).ip

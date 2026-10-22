@@ -12,3 +12,8 @@ starship_os_map:
 starship_checksums:
   v1.24.2:
     aarch64-unknown-linux-musl: sha256:56b9ff412bbf374d29b99e5ac09a849124cb37a0a13121e8470df32de53c1ea6
+
+# Sous-compte Storage Box de pi (sauvegardes borgmatic) : clé SOPS
+# backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
+# de tofu/pangolin.
+backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pi }}"

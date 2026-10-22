@@ -147,10 +147,10 @@ current checklist — it also delegates to **`pangolin-route`** and
   - Use `commands:` with `before/after: action` + `when: [create]` hooks, not `before_backup`/`after_backup`/`on_error`.
   - `archive_name_format` is `'<service>-{now:%Y-%m-%dT%H:%M:%S}'` — no `{hostname}` prefix.
   - `compression: zstd,10`, not `auto,zstd`.
-  - Target: `<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"` in the role defaults (`backup_storage_box_url` is a group var: `ssh://<user>@<host>/<path>`), passphrase `<service>_backup_encryption_passphrase: "{{ backup_passphrase }}"` there too — not in `host_vars`.
+  - Target: `<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"` in the role defaults (`backup_storage_box_url` is a group var: `ssh://<subaccount>@<server>/.`, the host's subaccount), passphrase `<service>_backup_encryption_passphrase: "{{ backup_passphrase }}"` there too — not in `host_vars`.
   - Never back up a live database directory: PostgreSQL/MySQL are dumped by the client inside the DB container (`borgmatic_app_postgresql_databases` / `_mysql_databases`), SQLite files copied by the host's `sqlite3 ".backup"` in a `before` hook into `/var/lib/borgmatic-sqlite/<app>/` (`borgmatic_app_sqlite_databases`, globs resolved at deploy time; their live copy is excluded). Never borgmatic's own `sqlite_databases`: its streamed `.dump` holds a read lock for the whole upload and froze Pangolin. MySQL/MariaDB dumps go through `/usr/local/bin/borgmatic-docker-dump`, since borgmatic 2.1 hands the client a host-side `--result-file`; the client is `mariadb-dump` unless an entry sets `dump_command` (every database here is MariaDB, and linuxserver's `mysqldump` warns it is deprecated).
   - `exclude_patterns` are borg `fm:` patterns matched from the start of the archived path: `'*.log'` works anywhere, a relative `'cache/*'` matches nothing — app-specific excludes are absolute paths.
-- New remote backup folders must be added to `backup_folders` in `ansible/host_vars/backups/variables.yaml` (created by `ansible/backup.yaml`, which must stay `gather_facts: false` + use `ansible.builtin.raw` because the Storage Box has a restricted shell — normal file modules don't work there).
+- Each backed-up host (docker, pi, pangolin, flip) has its own Storage Box subaccount (`tofu/pangolin/storage_box_subaccounts.tf`), whose home is `backup/<host>`: root on one host can neither read nor delete another host's repositories, and none can delete the 14 daily snapshots (`snapshot_plan`). `backup_storage_box_url` points at the host's subaccount (`backup_storage_box_subaccount` in its `host_vars`, from the SOPS key `backup_storage_box_subaccounts`, copied from the `storage_box_subaccounts` output), and Borg creates each app's repository there itself — no folder to register per app. The borgmatic role generates root's key on the host (`backup_storage_box_ssh_key_path`); `ansible/backup.yaml` (Storage Box restricted shell: `gather_facts: false`, `raw`, `scp` from the controller) creates `backup/<host>/.ssh` and uploads that key as the subaccount's `authorized_keys`, for every host of `backup_storage_box_hosts` (`ansible/host_vars/backups`, pinned against the subaccounts by `tofu/pangolin`'s tests).
 - Register the new role's systemd unit as `dc@<service>` — don't template a bespoke `.service` file, `docker_service` already provides the generic template.
 - Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
 
@@ -223,7 +223,7 @@ in `docker.yml`/`pi.yml`/`flip.yml` under `tags: [decommission, never]`, so it o
 runs when invoked explicitly via `--tags decommission`) to stop/disable the
 `dc@<service>` unit and delete containers/volumes/data/borgmatic config, then
 delete the role directory, deregister it from the playbook (role entry +
-healthcheck `set_fact` line), remove its `host_vars`/`backup_folders`/secrets
+healthcheck `set_fact` line), remove its `host_vars`/secrets
 entries, delete its `tofu/pangolin_config/website_<service>.tf`, its line in
 `websites.tf`'s `local.websites` and its slug from `roles.tf`'s `apps` list
 (then `tofu apply`), and finally grep the whole

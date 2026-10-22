@@ -51,7 +51,8 @@ borgmatic_exclude_patterns:
 #
 # borgmatic_app_name : fichier {{ borgmatic_config_dir }}/<name>.yaml (celui
 # que lisent decommission_app et les scénarios Molecule) et, par défaut,
-# dossier du dépôt sur la Storage Box (backup_folders de host_vars/backups).
+# dossier du dépôt dans celui de l'hôte sur la Storage Box (backup/<hôte>/<name>,
+# créé par borg lui-même au repo-create).
 
 # Nom affiché dans les messages des hooks et les noms de tâches.
 borgmatic_app_title: "{{ borgmatic_app_name }}"

@@ -1,22 +1,9 @@
 ---
-# Un dossier par dépôt Borg : le dernier segment de chaque
-# <service>_backup_borgmatic_target ("{{ backup_storage_box_url }}/<dossier>",
-# defaults des rôles ; flip_planning en a un par instance).
-backup_folders:
-  - "immich"
-  - "wiki"
-  - "nextcloud"
-  - "monica_v4"
-  - "rss"
-  - "searxng"
-  - "betisier"
-  - "meerkat_crm"
-  - "pangolin"
-  - "paperless"
-  - "flip_planning"
-  - "demo_planning"
-  - "gramps"
-  - "dawarich"
-  - "trek"
-  - "karakeep"
-  - "wishlist"
+# Hôtes sauvegardés : chacun a son sous-compte Storage Box (tofu/pangolin,
+# storage_box_subaccounts.tf, même liste, vérifiée par ses tests), limité à
+# backup/<hôte>. Borg y crée lui-même chaque dépôt (<service>_backup_borgmatic_target).
+backup_storage_box_hosts:
+  - docker
+  - pi
+  - pangolin
+  - flip

@@ -96,10 +96,12 @@
         fail_msg: "{{ gramps_path }}/redis appartient à l'uid {{ gramps_redis_dir.stat.uid | default('?') }}"
 
     - name: Assert the gramps backup still reports to Uptime Kuma
+      vars:
+        gramps_subaccount: "{{ backup_storage_box_subaccounts.docker }}"
       ansible.builtin.assert:
         that:
           - gramps_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/molecule-gramps'
-          - gramps_borgmatic.repositories[0].path is match('ssh://' ~ backup_storage_box_username ~ '@')
+          - gramps_borgmatic.repositories[0].path == 'ssh://' ~ gramps_subaccount.username ~ '@' ~ gramps_subaccount.server ~ '/./gramps'
           - gramps_borgmatic.repositories[0].path is search('/gramps$')
           - gramps_borgmatic.encryption_passphrase == backup_passphrase
           - gramps_borgmatic.archive_name_format is match('gramps-')
