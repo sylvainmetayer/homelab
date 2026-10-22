@@ -4,6 +4,9 @@
   vars_files:
     - ../../group_vars/all/variables.yml
   tasks:
+    - name: Load the fake secrets the converge used
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
     - name: Verify the wishlist deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
@@ -92,3 +95,33 @@
           - "'DEFAULT_CURRENCY=EUR' in wishlist_env_text"
           - wishlist_env_text is not search('(?m)^HEADER_AUTH_ENABLED=')
           - wishlist_env_text is not search('(?m)^ALLOWED_IPS=')
+
+    - name: Read the wishlist SMTP configuration
+      become: true
+      ansible.builtin.command:
+        argv:
+          - sqlite3
+          - -readonly
+          - -json
+          - /opt/apps/wishlist/data/prod.db
+          - "SELECT key, value FROM system_config WHERE groupId = 'global' AND key LIKE 'smtp.%'"
+      register: wishlist_smtp_raw
+      changed_when: false
+
+    # Wishlist lit son SMTP dans cette table, pas dans l'environnement : le
+    # compte Infomaniak vient des secrets, en STARTTLS sur 587.
+    - name: Assert the wishlist SMTP configuration comes from the secrets
+      vars:
+        wishlist_smtp: "{{ wishlist_smtp_raw.stdout | from_json | items2dict(key_name='key', value_name='value') }}"
+      ansible.builtin.assert:
+        that:
+          - wishlist_smtp['smtp.enable'] == 'true'
+          - wishlist_smtp['smtp.host'] == 'mail.infomaniak.com'
+          - wishlist_smtp['smtp.port'] == '587'
+          - wishlist_smtp['smtp.useTls'] == 'false'
+          - wishlist_smtp['smtp.ignoreCertCheck'] == 'false'
+          - wishlist_smtp['smtp.user'] == pangolin_smtp_user
+          - wishlist_smtp['smtp.pass'] == pangolin_smtp_pass
+          - wishlist_smtp['smtp.from'] == pangolin_smtp_user
+          - wishlist_smtp['smtp.fromName'] | length > 0
+        quiet: true

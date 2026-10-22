@@ -5,6 +5,33 @@ wishlist_default_currency: EUR
 # Durée de validité (heures) des liens d'invitation et de réinitialisation.
 wishlist_token_time: 72
 
+# Base SQLite créée par l'entrypoint de l'image (DATABASE_URL).
+wishlist_database: "{{ wishlist_base_path }}/data/prod.db"
+
+# SMTP (invitations, mot de passe oublié) : même compte Infomaniak que
+# karakeep / dawarich / meerkat_crm. Écrit dans la base par tasks/smtp.yml.
+wishlist_smtp_enabled: true
+wishlist_smtp_host: mail.infomaniak.com
+# 587 en STARTTLS : useTls (TLS implicite, 465) reste à false, nodemailer
+# passe en TLS sur l'annonce du serveur.
+wishlist_smtp_port: 587
+wishlist_smtp_user: "{{ pangolin_smtp_user }}"
+wishlist_smtp_pass: "{{ pangolin_smtp_pass }}"
+# Infomaniak refuse un expéditeur différent du compte authentifié.
+wishlist_smtp_from: "{{ wishlist_smtp_user }}"
+wishlist_smtp_from_name: Cadeaux
+# Les clés de system_config, valeurs en texte comme l'application les écrit.
+wishlist_smtp_config:
+  smtp.enable: "{{ wishlist_smtp_enabled | string | lower }}"
+  smtp.host: "{{ wishlist_smtp_host }}"
+  smtp.port: "{{ wishlist_smtp_port | string }}"
+  smtp.user: "{{ wishlist_smtp_user }}"
+  smtp.pass: "{{ wishlist_smtp_pass }}"
+  smtp.from: "{{ wishlist_smtp_from }}"
+  smtp.fromName: "{{ wishlist_smtp_from_name }}"
+  smtp.useTls: "false"
+  smtp.ignoreCertCheck: "false"
+
 # Borgmatic backup configuration
 wishlist_backup_enabled: true
 wishlist_backup_borgmatic_target: "{{ backup_storage_box_url }}/wishlist"

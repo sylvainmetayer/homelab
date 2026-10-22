@@ -1,0 +1,67 @@
+---
+# Wishlist ne lit pas son SMTP dans l'environnement : la configuration vit
+# dans sa base (table system_config, groupe "global"), écrite d'habitude par
+# Admin > Paramètres. Elle est écrite ici, en SQL, pour que le mot de passe
+# vienne de SOPS et que l'hôte reconstruit retrouve ses mails. Une valeur
+# changée dans l'interface est remise au prochain passage d'Ansible.
+# L'application relit cette table à chaque envoi : pas de redémarrage.
+- name: Ensure sqlite3 is installed for the Wishlist configuration
+  become: true
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+
+- name: Stat the Wishlist database
+  become: true
+  ansible.builtin.stat:
+    path: "{{ wishlist_database }}"
+  register: wishlist_database_stat
+
+# Au premier démarrage, l'entrypoint de l'image crée la base et sa table
+# (prisma migrate deploy) : on attend qu'elle réponde. En --check sur un hôte
+# neuf, le conteneur n'a jamais tourné, il n'y a rien à lire.
+- name: Read the Wishlist SMTP configuration
+  when: not (ansible_check_mode and not wishlist_database_stat.stat.exists)
+  become: true
+  no_log: true
+  check_mode: false
+  ansible.builtin.command:
+    argv:
+      - sqlite3
+      - -readonly
+      - -json
+      - -cmd
+      - .timeout 5000
+      - "{{ wishlist_database }}"
+      - "SELECT key, value FROM system_config WHERE groupId = 'global' AND key LIKE 'smtp.%'"
+  register: wishlist_smtp_current
+  until: wishlist_smtp_current.rc == 0
+  retries: 24
+  delay: 5
+  changed_when: false
+
+# sqlite3 -json n'écrit rien quand aucune ligne ne répond (base neuve).
+- name: Write the Wishlist SMTP configuration
+  when:
+    - wishlist_smtp_current is not skipped
+    - wishlist_smtp_stored | dict2items | selectattr('key', 'in', wishlist_smtp_config) | items2dict != wishlist_smtp_config
+  vars:
+    wishlist_smtp_stored: >-
+      {{ (wishlist_smtp_current.stdout | default('') | trim | default('[]', true) | from_json)
+      | items2dict(key_name='key', value_name='value') }}
+  become: true
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - sqlite3
+      - -bail
+      - "{{ wishlist_database }}"
+    stdin: |
+      .timeout 5000
+      BEGIN;
+      {% for key, value in wishlist_smtp_config.items() %}
+      INSERT INTO system_config (key, value, groupId) VALUES ('{{ key }}', '{{ value | replace("'", "''") }}', 'global')
+        ON CONFLICT (key, groupId) DO UPDATE SET value = excluded.value;
+      {% endfor %}
+      COMMIT;
+  changed_when: true
