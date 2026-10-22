@@ -3,7 +3,7 @@ services:
   nextcloud:
     mem_limit: 1536m
     restart: unless-stopped
-    image: ghcr.io/linuxserver/nextcloud:35.0.1@sha256:1810a0c142be52be5129573d7a44beed90696d740bc8b91fdef738dc3fc50b82
+    image: ghcr.io/linuxserver/nextcloud:35.0.2@sha256:e7f790011bf023d33517b4be70231d7aa2e19d54c619664a8533e8bedd4716ac
     container_name: nextcloud
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
