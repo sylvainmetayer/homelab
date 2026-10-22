@@ -89,7 +89,7 @@
         searxng_borgmatic: "{{ searxng_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - searxng_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/searxng'
+          - searxng_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./searxng'
           - searxng_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - searxng_borgmatic.archive_name_format is match('searxng-')
           - "'/opt/apps/searxng/config' in searxng_borgmatic.source_directories"

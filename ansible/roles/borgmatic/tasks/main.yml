@@ -6,6 +6,9 @@
       - python3-pip
       - python3-venv
       - pipx
+      # Client SSH : borg joint la Storage Box par ssh, ssh-keygen crée la clé
+      # de root (openssh_keypair).
+      - openssh-client
     state: present
     update_cache: true
 
