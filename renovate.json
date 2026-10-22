@@ -50,6 +50,16 @@
       "versioning": "regex:^ee-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
     },
     {
+      "description": "Badger v1.8.0 fails Traefik's plugin integrity check (traefik/traefik#14115): Traefik disables the plugin, the badger@file middleware vanishes and every Pangolin router returns 404. Upstream says to stay on v1.7.0; drop this rule once Traefik fixes it",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "fosrl/badger"
+      ],
+      "allowedVersions": "!/^v1\\.8\\.0$/"
+    },
+    {
       "description": "SearXNG only publishes rolling builds tagged <date>-<commit> (e.g. 2026.9.16-461f174b0). Docker versioning reads the commit as a suffix that must stay identical, so no newer tag would ever match: compare the date only",
       "matchDatasources": [
         "docker"
