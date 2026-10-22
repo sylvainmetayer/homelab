@@ -152,3 +152,23 @@ jobs:
 
       - name: Run tofu test
         run: tofu -chdir="${{ matrix.module }}" test -no-color
+
+  # Seul check requis par le ruleset de main (tofu/github/ruleset_homelab.tf) :
+  # les jobs de la matrice changent de nom à chaque scénario ajouté ou retiré.
+  # Vert si chaque suite a réussi, ou n'avait rien à tester.
+  tests:
+    name: Tests
+    needs: [discover, molecule, tofu]
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+
+    permissions: {}
+
+    steps:
+      - name: Check that every test suite passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e 'to_entries | all(.value.result == "success" or .value.result == "skipped")' > /dev/null
