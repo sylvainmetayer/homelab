@@ -48,6 +48,15 @@
     path: "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml"
     state: absent
 
+# Copies SQLite du rôle borgmatic, gardées entre deux sauvegardes (check
+# spot) : sans la configuration borgmatic, plus rien ne les viderait.
+- name: Remove the app's SQLite backup copies
+  become: true
+  when: decommission_app_remove_data
+  ansible.builtin.file:
+    path: "{{ borgmatic_sqlite_staging_dir | default('/var/lib/borgmatic-sqlite') }}/{{ decommission_app_service }}"
+    state: absent
+
 - name: Remove app data directory
   become: true
   when: decommission_app_remove_data

@@ -45,6 +45,22 @@ resource "uptimekuma_monitor_push" "backup_pangolin" {
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }
 
+# Restore test of Pangolin's repository, beside the websites' ones
+# (websites.tf, uptimekuma_monitor_push.restore_test): same settings.
+resource "uptimekuma_monitor_push" "restore_test_pangolin" {
+  name = "Restore test Pangolin"
+
+  parent = uptimekuma_monitor_group.backups.id
+
+  interval = 60 * 60 * 24 * 20
+
+  retry_interval = 20
+  active         = true
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = [uptimekuma_notification_smtp.email.id]
+}
+
 output "uptime_backup_pangolin_url" {
   description = "PANGOLIN - URL pour envoyer les heartbeats push"
   value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_pangolin.push_token}"

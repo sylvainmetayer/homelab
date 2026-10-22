@@ -51,7 +51,10 @@
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/trek/opt_apps_trek_data_travel\\.db')
             | list | length == 1
           - trek_borgmatic.commands[0].run | select('search', 'notes\\.db') | list | length == 0
-          - trek_borgmatic.commands[1].run | select('search', '^find /var/lib/borgmatic-sqlite/trek -mindepth 1 -delete$') | list | length == 1
+          # Staging vidé avant chaque sauvegarde, gardé après : le check spot
+          # doit trouver les copies dans la source comme dans l'archive.
+          - trek_borgmatic.commands[0].run | select('search', '^find /var/lib/borgmatic-sqlite/trek -mindepth 1 -delete$') | list | length == 1
+          - trek_borgmatic.commands[1].run | select('search', 'borgmatic-sqlite') | list | length == 0
           - "'/opt/apps/trek/data/travel.db' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data/travel.db-wal' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data' in trek_borgmatic.source_directories"

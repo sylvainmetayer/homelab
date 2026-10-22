@@ -30,6 +30,20 @@ borgmatic_rclone_s3_region: "EU-WEST-PAR"
 # posent un bouchon (molecule/_shared/prepare.yml).
 borgmatic_bin: /root/.local/bin/borgmatic
 
+# Check « spot » de chaque application (templates/app.yaml.j2) : juste après
+# la sauvegarde du jour où il est dû, donc la source a peu bougé. Tolérances :
+# écart du nombre de fichiers entre la source et l'archive, et fichiers dont
+# l'empreinte diffère (modifiés depuis la sauvegarde). Ces deux pourcentages
+# portent sur TOUS les fichiers source, pas sur l'échantillon : borgmatic
+# refuse à l'exécution (ValueError, le check échoue, pas la validation du
+# schéma) une tolérance supérieure à l'échantillon. 0.05 % de la source,
+# c'est 5 % d'un échantillon de 1 % ; sous 2000 fichiers source, un seul
+# fichier modifié dans l'échantillon fait donc échouer le check.
+borgmatic_spot_check_frequency: 1 month
+borgmatic_spot_count_tolerance_percentage: 10
+borgmatic_spot_data_sample_percentage: 1
+borgmatic_spot_data_tolerance_percentage: 0.05
+
 # Exclusions communes à toutes les applications. borgmatic les passe à borg
 # en style « fm: », ancrées au début du chemin archivé (sans le / initial) :
 # « * » y traverse les /, donc '*.log' vise tout fichier .log, mais un motif
@@ -110,7 +124,9 @@ borgmatic_app_after_commands: []
 borgmatic_app_extra_options: {}
 
 # Copies cohérentes des bases SQLite, une sous-arborescence par application
-# (root, 0700), archivées puis vidées après chaque sauvegarde réussie.
+# (root, 0700), archivées puis gardées jusqu'à la sauvegarde suivante, dont
+# le hook before les remplace : le check spot les trouve ainsi dans la source
+# comme dans l'archive. Coût : la taille des bases, une fois de plus.
 # Restauration, application arrêtée : extraire la copie de l'archive
 # (borgmatic extract --archive <archive> --path <dossier>/<application>),
 # la remettre à la place de la base, puis lui rendre son propriétaire

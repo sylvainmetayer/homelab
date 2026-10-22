@@ -1,5 +1,5 @@
 ---
-- name: Create backup folder on backup storage box
+- name: Prepare the backup storage box
   hosts: backups
   gather_facts: false
   tasks:
@@ -9,3 +9,54 @@
         mkdir -p /home/{{ backup_storage_box_path }}/{{ item }}
       changed_when: false
       loop: "{{ backup_folders }}"
+
+    # Clé du sous-compte en lecture seule du test de restauration
+    # (tofu/pangolin/storage_box.tf, .github/restore-test/README.md). Un
+    # sous-compte n'a pas de clés côté API : il lit
+    # <home_directory>/.ssh/authorized_keys, ici le dossier des dépôts, que
+    # seul le compte principal peut écrire.
+    - name: Read the restore-test sub-account public key
+      delegate_to: localhost
+      ansible.builtin.command:
+        argv: [tofu, output, -raw, storage_box_restore_test_ssh_public_key]
+        chdir: "{{ playbook_dir }}/../tofu/pangolin"
+      register: backup_restore_test_public_key
+      changed_when: false
+
+    - name: Create the restore-test sub-account .ssh folder
+      ansible.builtin.raw: >-
+        mkdir -p /home/{{ backup_storage_box_path }}/.ssh
+      changed_when: false
+
+    # Pas de redirection dans le shell restreint : md5sum pour comparer, dd
+    # (sur l'entrée standard d'un ssh lancé depuis le contrôleur) pour écrire.
+    - name: Read the restore-test sub-account authorized_keys checksum
+      ansible.builtin.raw: >-
+        md5sum /home/{{ backup_storage_box_path }}/.ssh/authorized_keys
+      register: backup_restore_test_authorized_keys
+      changed_when: false
+      failed_when: false
+
+    - name: Write the restore-test sub-account authorized_keys
+      when: >-
+        (backup_restore_test_public_key.stdout | trim ~ '\n') | hash('md5')
+        not in backup_restore_test_authorized_keys.stdout | default('')
+      delegate_to: localhost
+      ansible.builtin.command:
+        argv:
+          - ssh
+          # La clé de la connexion Ansible (group_vars/all), pas toutes celles
+          # de l'agent ; jamais d'invite de mot de passe.
+          - -i
+          - "{{ ansible_ssh_private_key_file }}"
+          - -o
+          - IdentitiesOnly=yes
+          - -o
+          - BatchMode=yes
+          - -p
+          - "{{ ansible_port }}"
+          - "{{ ansible_user }}@{{ ansible_host }}"
+          - dd of=/home/{{ backup_storage_box_path }}/.ssh/authorized_keys
+        stdin: "{{ backup_restore_test_public_key.stdout | trim }}"
+        stdin_add_newline: true
+      changed_when: true

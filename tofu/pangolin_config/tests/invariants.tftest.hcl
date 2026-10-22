@@ -2054,6 +2054,40 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (Gramps compris : sa sauvegarde tourne toujours) et notifié par e-mail."
   }
 
+  # Test de restauration du 1er et du 15 (.github/workflows/restore-test.yaml) :
+  # un moniteur par moniteur de sauvegarde, mêmes clés, rangé avec eux, à
+  # 20 jours (17 au plus entre deux runs ; le provider plafonne à 24).
+  assert {
+    condition = { for key, m in uptimekuma_monitor_push.restore_test : key => m.name } == {
+      for key, m in uptimekuma_monitor_push.backup : key => replace(m.name, "/^Backup /", "Restore test ")
+    }
+    error_message = "Chaque moniteur Backup <app> doit avoir son moniteur Restore test <app>, sous la même clé."
+  }
+
+  assert {
+    condition = alltrue([
+      for m in concat(values(uptimekuma_monitor_push.restore_test), [uptimekuma_monitor_push.restore_test_pangolin]) :
+      m.parent == uptimekuma_monitor_group.backups.id
+      && m.interval == 20 * 86400
+      && m.active == true
+      && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
+    ])
+    error_message = "Chaque moniteur Restore test doit être dans le dossier Backup, à 20 jours, actif et notifié par e-mail."
+  }
+
+  # Le workflow lit toutes les URL d'un coup (secret RESTORE_TEST_PUSH_URLS)
+  # et teste les dépôts de .github/restore-test/apps.json : une URL par dépôt
+  # sauvegardé, Pangolin compris, et pas une de plus.
+  assert {
+    condition     = sort(keys(nonsensitive(output.uptime_restore_test_urls))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin"]))
+    error_message = "uptime_restore_test_urls doit avoir une URL par app sauvegardée, Pangolin compris."
+  }
+
+  assert {
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(keys(nonsensitive(output.uptime_restore_test_urls)))
+    error_message = ".github/restore-test/apps.json doit lister exactement les dépôts qui ont un moniteur Restore test."
+  }
+
 
   assert {
     condition = (
