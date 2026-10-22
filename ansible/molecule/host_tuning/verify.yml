@@ -5,6 +5,7 @@
     - ../../roles/host_tuning/defaults/main.yml
   tasks:
     - name: Read the zramswap configuration
+      become: true
       ansible.builtin.slurp:
         src: /etc/default/zramswap
       register: host_tuning_zramswap_conf
@@ -43,6 +44,7 @@
         fail_msg: "disksize = {{ host_tuning_zram_disksize.content | b64decode | trim }}, attendu {{ (host_tuning_zram_size_mb | int) * 1048576 }}"
 
     - name: Read the journald size drop-in
+      become: true
       ansible.builtin.slurp:
         src: /etc/systemd/journald.conf.d/50-size.conf
       register: host_tuning_journald_conf

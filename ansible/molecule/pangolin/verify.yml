@@ -58,6 +58,7 @@
     # Contenu du fichier lui-même : le drop-in de prepare.yml remplace
     # ExecStart*, ExecStop, ExecReload et Restart à l'exécution.
     - name: Read the pangolin.service unit file
+      become: true
       ansible.builtin.slurp:
         src: /etc/systemd/system/pangolin.service
       register: pangolin_unit_raw
@@ -114,6 +115,7 @@
     # --- Traefik ---
 
     - name: Read the Traefik configurations
+      become: true
       ansible.builtin.slurp:
         src: "{{ pangolin_dir }}/config/traefik/{{ item }}"
       register: pangolin_traefik
