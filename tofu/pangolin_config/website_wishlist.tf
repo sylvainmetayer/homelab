@@ -27,9 +27,11 @@ locals {
 # in front of the country rules and skip the SSO wall. Each path is one the
 # page /lists/<listId> actually requests, read off the Wishlist v0.68.0
 # sources (src/routes/lists/[id], src/routes/api, src/lib/api, Caddyfile).
-# The list id is a cuid: it is the link's only secret, and Wishlist checks
-# `list.public` behind every path below, so a list that is not public
-# redirects to /login (behind the SSO) or answers 404.
+# The list id is a cuid: it is the link's only secret. Wishlist checks
+# `list.public` behind the page and the claim, so a list that is not public
+# redirects to /login (behind the SSO) or answers 404; the build files, the
+# font, the images and /api/users/public are not tied to any list (see each
+# path below).
 #
 # Deliberately not opened:
 # - /login, /signup, /setup-wizard and the rest of the app: the couple goes
@@ -63,7 +65,12 @@ locals {
     # A public claim, in two calls: the guest's identifier (POST, creates a
     # name/e-mail SystemUser row that opens no session and no access), then
     # the claim itself (PUT, refused with 404 unless the list is public). The
-    # other routes under /api/lists/* (list and item edits) stay closed.
+    # POST checks no list: anyone can add such rows, or get back the id of a
+    # known name/e-mail pair - an id that only lets one claim on a public
+    # list. The other routes under /api/lists/* (list and item edits) stay
+    # closed. The middle `*` are this repo's first: whatever Pangolin lets a
+    # bare `*` segment span, the only route ending in /items/<id>/claims is
+    # the claim PUT.
     "/api/users/public"           = 5
     "/api/lists/*/items/*/claims" = 5
   }
