@@ -61,6 +61,16 @@
       "allowedVersions": "!/^v1\\.8\\.0$/"
     },
     {
+      "description": "The Hetzner Storage Box only runs a borg 1.x server (ansible/roles/borgmatic/tasks/main.yml): a borg 2 client cannot talk to it",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "borgbackup/borg"
+      ],
+      "allowedVersions": "<2.0.0"
+    },
+    {
       "description": "SearXNG only publishes rolling builds tagged <date>-<commit> (e.g. 2026.9.16-461f174b0). Docker versioning reads the commit as a suffix that must stay identical, so no newer tag would ever match: compare the date only",
       "matchDatasources": [
         "docker"

@@ -15,7 +15,7 @@ http:
     int-api-allowlist:
       ipAllowList:
         sourceRange:
-{% for range in pangolin_api_allowed_ips.split(',') %}
+{% for range in pangolin_api_allowed_ips.split(',') | map('trim') | select %}
           - "{{ range }}"
 {% endfor %}
 {% for redirect in pangolin_domain_redirects %}
