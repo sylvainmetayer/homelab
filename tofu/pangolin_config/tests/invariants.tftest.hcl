@@ -23,6 +23,7 @@ mock_provider "aws" {}
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
 # Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
 variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
   travel_countries = {}
 }
 

@@ -10,6 +10,11 @@
 # assertions portent sur des valeurs issues de la configuration, ou sur des
 # ressources surchargées (override_resource) dont les valeurs sont connues.
 
+# Passphrase factice du chiffrement du state (encryption.tf).
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "hcloud" {}
 mock_provider "sops" {}
 mock_provider "ovh" {}

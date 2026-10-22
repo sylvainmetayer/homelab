@@ -9,3 +9,12 @@ variable "region_name" {
   type        = string
   default     = "EU-WEST-PAR"
 }
+
+# Passphrase du chiffrement du state (encryption.tf), fournie par
+# TF_VAR_state_encryption_passphrase : clé du secrets.sops.yaml racine, que
+# mise charge dans l'environnement. Les tests en donnent une factice.
+variable "state_encryption_passphrase" {
+  description = "Passphrase PBKDF2 du chiffrement des states tofu/pangolin, tofu/github et tofu/s3_state"
+  type        = string
+  sensitive   = true
+}

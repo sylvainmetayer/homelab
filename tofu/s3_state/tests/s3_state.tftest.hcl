@@ -5,6 +5,11 @@
 # mockés et la data source SOPS est surchargée. Les variables viennent de
 # terraform.tfvars, chargé automatiquement par `tofu test`.
 
+# Passphrase factice du chiffrement du state (encryption.tf).
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "ovh" {}
 mock_provider "sops" {}
 
