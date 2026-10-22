@@ -62,22 +62,22 @@ run "noms_des_secrets_lus_par_les_workflows" {
   command = plan
 
   assert {
-    condition     = github_actions_secret.sops_age_key.secret_name == "SOPS_AGE_KEY"
+    condition     = github_actions_environment_secret.sops_age_key.secret_name == "SOPS_AGE_KEY"
     error_message = "deploy-docker-app.yaml lit secrets.SOPS_AGE_KEY : le nom du secret de la clé Age a changé."
   }
 
   assert {
-    condition     = github_actions_secret.ssh_private_key.secret_name == "SSH_PRIVATE_KEY"
+    condition     = github_actions_environment_secret.ssh_private_key.secret_name == "SSH_PRIVATE_KEY"
     error_message = "deploy-docker-app.yaml lit secrets.SSH_PRIVATE_KEY : le nom du secret de la clé de déploiement a changé."
   }
 
   assert {
-    condition     = github_actions_secret.olm_id.secret_name == "OLM_ID"
+    condition     = github_actions_environment_secret.olm_id.secret_name == "OLM_ID"
     error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_ID : le nom du secret a changé."
   }
 
   assert {
-    condition     = github_actions_secret.olm_secret.secret_name == "OLM_SECRET"
+    condition     = github_actions_environment_secret.olm_secret.secret_name == "OLM_SECRET"
     error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_SECRET : le nom du secret a changé."
   }
 }
@@ -87,12 +87,60 @@ run "secrets_poses_sur_le_depot_homelab" {
 
   assert {
     condition = alltrue([
-      github_actions_secret.sops_age_key.repository == "homelab",
-      github_actions_secret.ssh_private_key.repository == "homelab",
-      github_actions_secret.olm_id.repository == "homelab",
-      github_actions_secret.olm_secret.repository == "homelab",
+      github_actions_environment_secret.sops_age_key.repository == "homelab",
+      github_actions_environment_secret.ssh_private_key.repository == "homelab",
+      github_actions_environment_secret.olm_id.repository == "homelab",
+      github_actions_environment_secret.olm_secret.repository == "homelab",
     ])
     error_message = "Les quatre secrets Actions doivent être posés sur le dépôt homelab (var.github_repository), celui dont les workflows les lisent."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in [github_actions_environment_secret.sops_age_key, github_actions_environment_secret.ssh_private_key, github_actions_environment_secret.olm_id, github_actions_environment_secret.olm_secret] :
+      s.environment == "production"
+    ])
+    error_message = "Les secrets de déploiement vivent dans l'environnement production, lisible depuis main seulement."
+  }
+
+  assert {
+    condition     = github_repository_environment.production.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.production_main.branch_pattern == "main"
+    error_message = "L'environnement production n'accepte que la branche main."
+  }
+
+  # Un job qui lit ces secrets sans `environment: production` reçoit des
+  # valeurs vides : chaque workflow qui les cite doit le déclarer.
+  assert {
+    condition = alltrue([
+      for f in ["deploy-docker-app.yaml", "ping.yaml"] :
+      strcontains(file("${path.module}/../../.github/workflows/${f}"), "environment: production")
+    ])
+    error_message = "deploy-docker-app.yaml et ping.yaml doivent déclarer environment: production."
+  }
+}
+
+run "ruleset_de_main" {
+  command = plan
+
+  assert {
+    condition     = toset([for c in github_repository_ruleset.homelab_main.rules[0].required_status_checks[0].required_check : c.context]) == toset(["Ansible lint", "OpenTofu lint", "Tests"])
+    error_message = "main exige Ansible lint, OpenTofu lint et Tests."
+  }
+
+  # Un check requis dont le job a changé de nom n'arrive jamais : toutes les
+  # PR resteraient bloquées.
+  assert {
+    condition = alltrue([
+      strcontains(file("${path.module}/../../.github/workflows/lint.yaml"), "name: Ansible lint"),
+      strcontains(file("${path.module}/../../.github/workflows/lint.yaml"), "name: OpenTofu lint"),
+      strcontains(file("${path.module}/../../.github/workflows/test.yaml"), "name: Tests\n"),
+    ])
+    error_message = "Les checks requis par le ruleset doivent rester les noms des jobs de lint.yaml et test.yaml."
+  }
+
+  assert {
+    condition     = github_repository_ruleset.homelab_main.rules[0].non_fast_forward && github_repository_ruleset.homelab_main.rules[0].deletion
+    error_message = "main refuse le force-push et la suppression."
   }
 }
 
@@ -100,22 +148,22 @@ run "valeurs_tirees_de_la_bonne_source" {
   command = plan
 
   assert {
-    condition     = github_actions_secret.sops_age_key.value == "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
+    condition     = github_actions_environment_secret.sops_age_key.value == "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
     error_message = "SOPS_AGE_KEY doit être github_actions_sops_age_key d'ansible/secrets.sops.yaml."
   }
 
   assert {
-    condition     = github_actions_secret.olm_id.value == "fake-olm-id"
+    condition     = github_actions_environment_secret.olm_id.value == "fake-olm-id"
     error_message = "OLM_ID doit être la sortie ci_olm_id de l'état pangolin_config."
   }
 
   assert {
-    condition     = github_actions_secret.olm_secret.value == "fake-olm-secret"
+    condition     = github_actions_environment_secret.olm_secret.value == "fake-olm-secret"
     error_message = "OLM_SECRET doit être la sortie ci_olm_secret de l'état pangolin_config (pas ci_olm_id : identifiant et secret inversés)."
   }
 
   assert {
-    condition     = github_actions_secret.ssh_private_key.value == tls_private_key.ci_deploy.private_key_openssh
+    condition     = github_actions_environment_secret.ssh_private_key.value == tls_private_key.ci_deploy.private_key_openssh
     error_message = "SSH_PRIVATE_KEY doit être la clé privée OpenSSH de tls_private_key.ci_deploy, celle dont la publique est dans keys/github-actions.pub."
   }
 }

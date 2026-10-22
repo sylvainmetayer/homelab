@@ -40,6 +40,9 @@ jobs:
   deploy:
     name: deploy-docker-app
     runs-on: ubuntu-26.04
+    # Secrets de déploiement (clé age, clé SSH, OLM) : environnement lisible
+    # depuis main seulement (tofu/github/environments.tf).
+    environment: production
 
     permissions:
       contents: read

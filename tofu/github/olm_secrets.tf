@@ -17,14 +17,16 @@ data "terraform_remote_state" "pangolin_config" {
   }
 }
 
-resource "github_actions_secret" "olm_id" {
+resource "github_actions_environment_secret" "olm_id" {
   repository  = var.github_repository
+  environment = github_repository_environment.production.environment
   secret_name = "OLM_ID"
   value       = data.terraform_remote_state.pangolin_config.outputs.ci_olm_id
 }
 
-resource "github_actions_secret" "olm_secret" {
+resource "github_actions_environment_secret" "olm_secret" {
   repository  = var.github_repository
+  environment = github_repository_environment.production.environment
   secret_name = "OLM_SECRET"
   value       = data.terraform_remote_state.pangolin_config.outputs.ci_olm_secret
 }

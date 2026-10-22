@@ -28,3 +28,24 @@ resource "github_repository_environment" "relecture_chemins_publics" {
   # Pas de deployment_branch_policy : le job tourne sur les branches de PR
   # (renovate/*), qu'une politique limitée aux branches protégées refuserait.
 }
+
+# Environnement du job de déploiement (deploy-docker-app.yaml) et du test de
+# connexion OLM (ping.yaml) : la clé age de la CI, la clé SSH de déploiement
+# et les identifiants OLM n'y sont lisibles que depuis main. Une branche de
+# PR, même poussée par un collaborateur ou une action compromise, ne les voit
+# pas. Sans relecteur : le déploiement au merge reste automatique.
+resource "github_repository_environment" "production" {
+  repository  = var.github_repository
+  environment = "production"
+
+  deployment_branch_policy {
+    protected_branches     = false
+    custom_branch_policies = true
+  }
+}
+
+resource "github_repository_environment_deployment_policy" "production_main" {
+  repository     = var.github_repository
+  environment    = github_repository_environment.production.environment
+  branch_pattern = "main"
+}
