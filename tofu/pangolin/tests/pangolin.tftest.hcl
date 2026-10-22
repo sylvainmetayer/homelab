@@ -20,7 +20,6 @@ mock_provider "sops" {}
 mock_provider "ovh" {}
 mock_provider "aws" {}
 mock_provider "random" {}
-mock_provider "tls" {}
 
 # Toutes les clés lues par secrets.tf.
 override_data {

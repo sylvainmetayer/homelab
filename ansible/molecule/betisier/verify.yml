@@ -120,7 +120,7 @@
         betisier_borgmatic: "{{ betisier_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - betisier_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/betisier'
+          - betisier_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./betisier'
           - betisier_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - betisier_borgmatic.archive_name_format is match('betisier-')
           - betisier_borgmatic.mysql_databases[0].container == 'betisier_db'

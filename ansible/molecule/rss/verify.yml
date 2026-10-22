@@ -35,7 +35,7 @@
         rss_borgmatic: "{{ rss_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - rss_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/rss'
+          - rss_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./rss'
           - rss_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - rss_borgmatic.archive_name_format is match('rss-')
           - "'/opt/apps/rss/freshrss_data' in rss_borgmatic.source_directories"

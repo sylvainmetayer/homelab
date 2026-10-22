@@ -81,7 +81,7 @@
         meerkat_crm_borgmatic: "{{ meerkat_crm_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - meerkat_crm_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/meerkat_crm'
+          - meerkat_crm_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./meerkat_crm'
           - meerkat_crm_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - meerkat_crm_borgmatic.archive_name_format is match('meerkat-crm-')
           - "'/opt/apps/meerkat_crm/data' in meerkat_crm_borgmatic.source_directories"

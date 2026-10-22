@@ -55,7 +55,7 @@
           - "'/opt/apps/trek/data/travel.db' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data/travel.db-wal' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data' in trek_borgmatic.source_directories"
-          - trek_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/trek'
+          - trek_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./trek'
           - trek_borgmatic.archive_name_format is match('trek-')
         fail_msg: "Configuration borgmatic de trek inattendue : {{ trek_borgmatic }}"
 

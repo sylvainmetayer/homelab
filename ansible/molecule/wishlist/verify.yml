@@ -63,7 +63,7 @@
           - "'/opt/apps/wishlist/data/prod.db' in wishlist_borgmatic.exclude_patterns"
           - "'/opt/apps/wishlist/data' in wishlist_borgmatic.source_directories"
           - "'/opt/apps/wishlist/uploads' in wishlist_borgmatic.source_directories"
-          - wishlist_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/wishlist'
+          - wishlist_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./wishlist'
           - wishlist_borgmatic.archive_name_format is match('wishlist-')
         fail_msg: "Configuration borgmatic de wishlist inattendue : {{ wishlist_borgmatic }}"
 

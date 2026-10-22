@@ -69,7 +69,7 @@
         wiki_borgmatic: "{{ wiki_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - wiki_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/wiki'
+          - wiki_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./wiki'
           - wiki_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - wiki_borgmatic.archive_name_format is match('wiki-')
           - wiki_borgmatic.mysql_databases[0].container == 'bookstack_db'
