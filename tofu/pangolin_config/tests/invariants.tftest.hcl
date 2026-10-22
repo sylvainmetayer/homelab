@@ -144,7 +144,7 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 22 ressources gérées, dont
+# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, dont
 # Gramps désactivée, et un reste désactivé créé dans l'UI, que l'audit doit
 # ignorer puisqu'il n'est pas servi.
 override_data {
@@ -175,8 +175,9 @@ override_data {
         {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
+        {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 23, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 24, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -407,6 +408,11 @@ override_resource {
   values = { id = 33 }
 }
 
+override_resource {
+  target = pangolin_resource.website["wishlist"]
+  values = { id = 63 }
+}
+
 # Jetons d'accès : ceux des clients MCP de TREK, et ceux des healthchecks de
 # Flip Planning, un par environnement.
 override_resource {
@@ -535,6 +541,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["wishlist"]
+  values = { push_token = "push-wishlist" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.ssh_login["docker"]
   values = { push_token = "push-ssh-docker" }
 }
@@ -584,7 +595,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
       "betisier", "dawarich", "echo", "gramps", "immich", "immich_swipe", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "scanopy", "searxng", "trek", "wiki",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "scanopy", "searxng", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -911,6 +922,25 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes), aux priorités 2 à 6."
   }
 
+  # Les listes publiques de Wishlist s'ouvrent sans compte et de partout, par
+  # le lien envoyé à la famille : la page, le build SvelteKit, la police, les
+  # images des articles et la réservation publique, rien de l'API d'édition
+  # (listes, articles, réservations d'un compte), qui reste derrière le SSO.
+  assert {
+    condition = {
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.value => rule.priority if startswith(key, "Wishlist ")
+      } == {
+      "/lists/*"                    = 2
+      "/_app/*"                     = 3
+      "/fonts/*"                    = 3
+      "/api/assets/*"               = 4
+      "/api/users/public"           = 5
+      "/api/lists/*/items/*/claims" = 5
+    }
+    error_message = "Le contournement de Wishlist doit se limiter à ce que charge une liste publique (page, build SvelteKit, police, images, réservation publique), aux priorités 2 à 5."
+  }
+
   # La procédure tRPC est écrite en entier : un joker dans ce segment laisserait
   # passer un lot `publicBookmarks.x,apiKeys.exchange`, échange mot de passe
   # contre clé d'API ouvert au monde entier.
@@ -1050,6 +1080,12 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "TREK /api/public/journey/*",
       "TREK /uploads/covers/*",
       "TREK /uploads/places/*",
+      "Wishlist /lists/*",
+      "Wishlist /_app/*",
+      "Wishlist /fonts/*",
+      "Wishlist /api/assets/*",
+      "Wishlist /api/users/public",
+      "Wishlist /api/lists/*/items/*/claims",
     ])
     error_message = "Les chemins ouverts sans SSO ont changé : relire la liste dans website_<app>.tf et la mettre à jour ici."
   }
@@ -1108,7 +1144,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "RSS", "TREK",
+      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "RSS", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1407,6 +1443,7 @@ run "every_public_resource_applies_its_rules" {
       searxng          = "SearXNG"
       trek             = "TREK"
       wiki             = "Wiki (Bookstack)"
+      wishlist         = "Wishlist"
     }
     error_message = "Les ressources publiques ont changé (clé ou nom) : un nom renommé recrée ses règles pays ; une application ajoutée se liste ici."
   }
@@ -1558,6 +1595,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       searxng       = "Healthcheck SearXNG"
       trek          = "Healthcheck TREK"
       wiki          = "Healthcheck Wiki (Bookstack)"
+      wishlist      = "Healthcheck Wishlist"
     }
     error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
   }
@@ -1694,6 +1732,11 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         for key, rule in pangolin_resource_rule.path_bypass :
         rule.resource_id == pangolin_resource.website["karakeep"].id if startswith(key, "Karakeep ")
       ])
+      && pangolin_resource_rule.backslash_guard["Wishlist"].resource_id == pangolin_resource.website["wishlist"].id
+      && alltrue([
+        for key, rule in pangolin_resource_rule.path_bypass :
+        rule.resource_id == pangolin_resource.website["wishlist"].id if startswith(key, "Wishlist ")
+      ])
     )
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
   }
@@ -1765,6 +1808,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   assert {
     condition     = output.uptime_backup_karakeep_url == "https://uptime.example.test/api/push/push-karakeep"
     error_message = "uptime_backup_karakeep_url (docker.yml) ne pointe pas sur le moniteur Backup Karakeep."
+  }
+
+  assert {
+    condition     = output.uptime_backup_wishlist_url == "https://uptime.example.test/api/push/push-wishlist"
+    error_message = "uptime_backup_wishlist_url (docker.yml) ne pointe pas sur le moniteur Backup Wishlist."
   }
 
   assert {
@@ -2039,6 +2087,7 @@ run "monitors_are_filed_and_notify_by_email" {
       searxng       = "Backup SearXNG"
       trek          = "Backup TREK"
       wiki          = "Backup Wiki (Bookstack)"
+      wishlist      = "Backup Wishlist"
     }
     error_message = "Les moniteurs de sauvegarde ont changé (clé ou nom) : relire les champs backup de local.websites, puis cette liste."
   }

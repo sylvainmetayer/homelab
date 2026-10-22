@@ -1,0 +1,62 @@
+---
+- name: Ensure Wishlist app folders exist
+  loop:
+    - "{{ wishlist_base_path }}"
+    - "{{ wishlist_base_path }}/data"
+    - "{{ wishlist_base_path }}/uploads"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  notify: Restart wishlist
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ wishlist_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  notify: Restart wishlist
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ wishlist_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for Wishlist
+  when: wishlist_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: wishlist
+    borgmatic_app_title: Wishlist
+    borgmatic_app_target: "{{ wishlist_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ wishlist_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ wishlist_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ wishlist_base_path }}/data"
+      - "{{ wishlist_base_path }}/uploads"
+      - "{{ wishlist_base_path }}/compose.yaml"
+      - "{{ wishlist_base_path }}/.env"
+    # prod.db (entrypoint.sh de l'image : DATABASE_URL=file:/usr/src/app/data/prod.db).
+    borgmatic_app_sqlite_databases:
+      - "{{ wishlist_base_path }}/data/*.db"
+
+- name: Make sure wishlist service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@wishlist
+    scope: user
+    enabled: true

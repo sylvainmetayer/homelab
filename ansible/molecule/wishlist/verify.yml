@@ -1,0 +1,88 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the wishlist deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: wishlist
+        verify_app_borgmatic_config: /etc/borgmatic.d/wishlist.yaml
+
+    - name: Render the wishlist compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/wishlist
+      register: wishlist_compose_raw
+      changed_when: false
+
+    # Un seul conteneur : rien à isoler sur un réseau privé, newt suffit. Son
+    # nom est la cible de Pangolin (website_wishlist.tf).
+    - name: Assert wishlist only joins the newt network under its target name
+      vars:
+        wishlist_compose: "{{ wishlist_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - wishlist_compose.services.app.container_name == 'wishlist'
+          - wishlist_compose.services.app.networks.keys() | list == ['newt']
+          - wishlist_compose.networks.keys() | list == ['newt']
+          - wishlist_compose.services.app.healthcheck is defined
+        fail_msg: "Service wishlist inattendu : {{ wishlist_compose.services.app }}"
+
+    - name: Read the wishlist borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/wishlist.yaml
+      register: wishlist_borgmatic_raw
+
+    # prepare.yml a posé prod.db : elle est copiée par « .backup » dans le
+    # dossier de staging archivé, et sa copie vivante n'entre pas dans
+    # l'archive.
+    - name: Assert the wishlist SQLite database is copied by .backup, not dumped or copied live
+      vars:
+        wishlist_borgmatic: "{{ wishlist_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - wishlist_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/wishlist' in wishlist_borgmatic.source_directories"
+          - >-
+            wishlist_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/wishlist/data/prod\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/wishlist/opt_apps_wishlist_data_prod\\.db')
+            | list | length == 1
+          - "'/opt/apps/wishlist/data/prod.db' in wishlist_borgmatic.exclude_patterns"
+          - "'/opt/apps/wishlist/data' in wishlist_borgmatic.source_directories"
+          - "'/opt/apps/wishlist/uploads' in wishlist_borgmatic.source_directories"
+          - wishlist_borgmatic.repositories[0].path == 'ssh://u000000@u000000.your-storagebox.example.invalid/./backup/wishlist'
+          - wishlist_borgmatic.archive_name_format is match('wishlist-')
+        fail_msg: "Configuration borgmatic de wishlist inattendue : {{ wishlist_borgmatic }}"
+
+    - name: Stat the wishlist environment file
+      ansible.builtin.stat:
+        path: /opt/apps/wishlist/.env
+      register: wishlist_env
+
+    - name: Assert the wishlist environment file is private
+      ansible.builtin.assert:
+        that:
+          - wishlist_env.stat.exists
+          - wishlist_env.stat.mode == '0600'
+
+    - name: Read the wishlist environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/wishlist/.env
+      register: wishlist_env_content
+
+    # ORIGIN est la protection CSRF de SvelteKit et la base des liens de
+    # partage. L'authentification par en-têtes croirait n'importe quel
+    # en-tête, or le lien public passe sans le SSO de Pangolin.
+    - name: Assert the wishlist origin comes from the role domain and header auth stays off
+      vars:
+        wishlist_env_text: "{{ wishlist_env_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'ORIGIN=https://cadeaux.sylvain.cloud' in wishlist_env_text"
+          - "'DEFAULT_CURRENCY=EUR' in wishlist_env_text"
+          - wishlist_env_text is not search('(?m)^HEADER_AUTH_ENABLED=')
+          - wishlist_env_text is not search('(?m)^ALLOWED_IPS=')
