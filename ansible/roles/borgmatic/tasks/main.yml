@@ -190,16 +190,6 @@
     group: root
     mode: "0600"
 
-# L'ancienne clé, commune à tous les hôtes et valable sur le compte principal.
-- name: Remove the former shared Storage Box key
-  become: true
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - /root/.ssh/backup_storage_box_key
-    - /root/.ssh/backup_storage_box_key.pub
-
 - name: Trust the Storage Box host key under the subaccount name
   become: true
   ansible.builtin.known_hosts:
@@ -220,3 +210,16 @@
     mode: "0600"
     owner: "root"
     group: "root"
+
+# L'ancienne clé, commune à tous les hôtes et valable sur le compte principal.
+# En dernier : si une tâche précédente échoue (backup_storage_box_subaccount
+# absent de SOPS…), les configurations borgmatic encore en place, qui la
+# citent, continuent de sauvegarder.
+- name: Remove the former shared Storage Box key
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /root/.ssh/backup_storage_box_key
+    - /root/.ssh/backup_storage_box_key.pub

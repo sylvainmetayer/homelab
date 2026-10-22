@@ -35,7 +35,14 @@ def get_tofu_state():
             check=True
         )
         return json.loads(result.stdout)
-    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+    except subprocess.CalledProcessError as e:
+        # Sans ce message, pangolin, flip et la Storage Box disparaîtraient de
+        # l'inventaire sans un mot (ex. TF_VAR_state_encryption_passphrase
+        # absent : le state chiffré ne se lit pas).
+        print(f"hetzner.py: tofu show a échoué : {e.stderr.strip()}", file=sys.stderr)
+        return None
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"hetzner.py: state de tofu/pangolin illisible : {e}", file=sys.stderr)
         return None
 
 
