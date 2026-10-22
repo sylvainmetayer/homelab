@@ -23,10 +23,6 @@ override_data {
   values = {
     data = {
       pangolin_password     = "fake-pangolin-password-hash"
-      pangolin_secret       = "fake-pangolin-secret"
-      smtp_user             = "fake-smtp-user"
-      smtp_pass             = "fake-smtp-pass"
-      le_email              = "fake@example.invalid"
       AWS_ACCESS_KEY_ID     = "fake-access-key"
       AWS_SECRET_ACCESS_KEY = "fake-secret-key"
     }

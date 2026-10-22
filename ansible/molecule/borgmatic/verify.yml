@@ -186,15 +186,18 @@
           - borgmatic_config_dir_stat.stat.isdir | default(false)
           - borgmatic_config_dir_stat.stat.pw_name == 'root'
 
-    # Les identifiants S3 ne doivent plus traîner chez root (rclone n'est plus
-    # configuré par ce rôle, seulement installé).
-    - name: Stat the rclone configuration file
+    # rclone ne sert plus : ni le paquet ni ses identifiants S3 chez root.
+    - name: Stat the rclone configuration directory
       become: true
       ansible.builtin.stat:
-        path: "{{ borgmatic_rclone_config_dir }}/rclone.conf"
+        path: /root/.config/rclone
       register: borgmatic_rclone_conf
 
-    - name: Assert no rclone configuration is left behind
+    - name: Gather the package facts
+      ansible.builtin.package_facts:
+
+    - name: Assert rclone is gone
       ansible.builtin.assert:
         that:
           - not borgmatic_rclone_conf.stat.exists
+          - "'rclone' not in ansible_facts.packages"

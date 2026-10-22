@@ -48,10 +48,6 @@ resource "hcloud_server" "pangolin" {
     pangolin_dashboard_url = var.pangolin_config.dashboard_url
     pangolin_base_domain   = var.pangolin_config.base_domain
     pangolin_log_level     = var.pangolin_config.log_level
-    pangolin_secret        = local.pangolin_secret
-    smtp_user              = local.smtp_user
-    smtp_pass              = local.smtp_pass
-    le_email               = local.le_email
   })
 }
 
