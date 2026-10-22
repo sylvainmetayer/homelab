@@ -32,10 +32,10 @@
         that:
           - docker_service_stats.results[0].stat.exists
           - docker_service_stats.results[0].stat.pw_name == ansible_facts['user_id']
-          - docker_service_stats.results[0].stat.mode == '0644'
+          - docker_service_stats.results[0].stat.mode == '0600'
           - docker_service_stats.results[1].stat.isdir
           - docker_service_stats.results[1].stat.pw_name == ansible_facts['user_id']
-          - docker_service_stats.results[1].stat.mode == '0755'
+          - docker_service_stats.results[1].stat.mode == '0700'
           - docker_service_stats.results[2].stat.exists
         fail_msg: "{{ docker_service_stats.results | map(attribute='item') | list }} : propriétaire, mode ou existence inattendus"
 

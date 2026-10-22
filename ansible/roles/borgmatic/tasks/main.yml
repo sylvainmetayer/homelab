@@ -40,7 +40,7 @@
   ansible.builtin.file:
     path: "/root/.local/bin"
     state: directory
-    mode: "0755"
+    mode: "0700"
     owner: "root"
     group: "root"
 
@@ -64,7 +64,7 @@
       https://github.com/borgbackup/borg/releases/download/{{ borgmatic_borg_version }}/borg-linux-glibc235-{{
       borgmatic_borg_architecture | trim | replace('\n', '') }}-gh
     dest: "/root/.local/bin/borg"
-    mode: "0755"
+    mode: "0700"
     owner: "root"
     group: "root"
 
@@ -73,7 +73,7 @@
   ansible.builtin.file:
     path: "{{ borgmatic_config_dir }}"
     state: directory
-    mode: "0755"
+    mode: "0700"
     owner: "root"
     group: "root"
 
@@ -83,7 +83,7 @@
   ansible.builtin.template:
     src: borgmatic.service.j2
     dest: /etc/systemd/system/borgmatic.service
-    mode: "0644"
+    mode: "0640"
     owner: root
     group: root
   notify: Reload systemd daemon
@@ -94,7 +94,7 @@
   ansible.builtin.template:
     src: borgmatic.timer.j2
     dest: /etc/systemd/system/borgmatic.timer
-    mode: "0644"
+    mode: "0640"
     owner: root
     group: root
   notify: Reload systemd daemon

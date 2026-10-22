@@ -1,8 +1,10 @@
 ---
 nextcloud_base_path: "{{ docker_base_path }}/nextcloud"
 nextcloud_domain: sylvain.cloud
-nextcloud_db_password: "nextcloud"
-nextcloud_redis_password: "redis"
+# Sensitive: must be set in secrets.sops.yaml
+nextcloud_db_password: ""
+# Sensitive: must be set in secrets.sops.yaml
+nextcloud_redis_password: ""
 
 # Backup (borgmatic)
 nextcloud_backup_enabled: true

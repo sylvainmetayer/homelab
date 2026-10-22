@@ -24,7 +24,7 @@
       ansible.builtin.assert:
         that:
           - borgmatic_borg.stat.exists
-          - borgmatic_borg.stat.mode == '0755'
+          - borgmatic_borg.stat.mode == '0700'
           - borgmatic_borg.stat.pw_name == 'root'
 
     # Binaire PyInstaller « onefile » : il s'extrait dans TMPDIR avant de

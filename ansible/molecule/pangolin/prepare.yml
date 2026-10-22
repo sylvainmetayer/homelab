@@ -44,8 +44,8 @@
       ansible.builtin.systemd:
         daemon_reload: true
 
-    # Modes restreints : le rôle pose les siens (0755 / 0644) au premier
-    # converge, l'idempotence porte sur le second.
+    # Le rôle repose ses modes (0700 / 0600) au premier converge,
+    # l'idempotence porte sur le second.
     - name: Create the Pangolin configuration directory
       ansible.builtin.file:
         path: "{{ pangolin_molecule_dir }}/config"

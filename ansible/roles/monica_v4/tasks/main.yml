@@ -12,7 +12,7 @@
       group: "{{ ansible_facts['user_gid'] }}"
   become: true
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item.path }}"
     state: directory
     owner: "{{ item.user }}"

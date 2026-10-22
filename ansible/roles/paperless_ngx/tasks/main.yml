@@ -7,7 +7,7 @@
     - "{{ paperless_base_path }}/export"
     - "{{ paperless_base_path }}/consume"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"

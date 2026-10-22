@@ -1,7 +1,7 @@
 ---
 - name: Ensure Newt app folder exists
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ newt_base_path }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"

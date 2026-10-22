@@ -4,7 +4,7 @@
     - "{{ rss_base_path }}"
     - "{{ rss_base_path }}/config"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"

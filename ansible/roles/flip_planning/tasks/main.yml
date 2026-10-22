@@ -3,10 +3,19 @@
   loop:
     - "{{ flip_planning_base_path }}"
     - "{{ flip_planning_base_path }}/pgadmin"
-    - "{{ flip_planning_base_path }}/assets"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Monté en lecture seule dans le nginx des assets, dont les workers tournent en
+# nginx (uid 101) : dossier et fichiers doivent rester lisibles par tous.
+- name: Ensure the assets folder exists for {{ flip_planning_service }}
+  ansible.builtin.file:
+    mode: "0755" # NOSONAR
+    path: "{{ flip_planning_base_path }}/assets"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
@@ -33,7 +42,7 @@
     dest: "{{ flip_planning_base_path }}/assets/{{ item | basename }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 # The directory is served as-is by the assets nginx: a file left behind by an
 # earlier set (or by an instance that has since dropped its branding) would
@@ -63,7 +72,8 @@
     dest: "{{ flip_planning_base_path }}/pgadmin/servers.json"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    # Monté seul dans pgAdmin, qui tourne en uid 5050.
+    mode: "0644" # NOSONAR
 
 # The value the application compares its peer against. Read from docker rather
 # than pinned: the subnet is stable for the life of the network, but docker

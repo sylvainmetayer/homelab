@@ -5,7 +5,7 @@
     - "{{ searxng_base_path }}"
     - "{{ searxng_base_path }}/config"
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
@@ -24,7 +24,7 @@
     dest: "{{ searxng_base_path }}/config/settings.yml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: Template SearXNG environment
   notify: Restart searxng service
