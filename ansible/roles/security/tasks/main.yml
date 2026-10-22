@@ -56,6 +56,16 @@
     # apt lit apt.conf.d entier, y compris sans root (apt list, apt-config).
     mode: "0644" # NOSONAR
 
+# Sans lui, apt-daily ne lance rien : posé par debconf à l'installation du
+# paquet, pas garanti sur un hôte reconstruit.
+- name: Enable the daily unattended-upgrades run
+  ansible.builtin.copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+
 - name: Set UFW default incoming policy to deny
   community.general.ufw:
     default: deny

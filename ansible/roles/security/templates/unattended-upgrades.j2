@@ -1,12 +1,14 @@
-Unattended-Upgrade::Allowed-Origins {
-  "${distro_id}:${distro_codename}-security";
+// Par codename : l'ancien "Debian:trixie-security" comparait l'archive, qui
+// s'appelle stable-security, et ne laissait passer aucune mise à jour.
+Unattended-Upgrade::Origins-Pattern {
+  "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
 Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot "false";
-Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ security_unattended_reboot_time }}";
 {% if security_mta_enabled | bool %}
 // Par le relais msmtp (alias root), seulement quand une mise à jour échoue.
 Unattended-Upgrade::Mail "root";

@@ -176,19 +176,25 @@
   loop:
     - /etc/fail2ban/jail.local
     - /etc/apt/apt.conf.d/50unattended-upgrades
+    - /etc/apt/apt.conf.d/20auto-upgrades
 
 - name: Assert the configuration files carry the hardening
   vars:
     jail_local: "{{ security_files.results[0].content | b64decode }}"
     unattended_upgrades: "{{ security_files.results[1].content | b64decode }}"
+    auto_upgrades: "{{ security_files.results[2].content | b64decode }}"
   ansible.builtin.assert:
     that:
       - jail_local is search('^\[sshd\]\nenabled = true\nbackend = systemd$', multiline=True)
       - jail_local is not search('logpath')
       - jail_local is search('^ignoreip = ' ~ (security_fail2ban_ignoreip | join(' ') | regex_escape) ~ '$', multiline=True)
-      # Seulement les mises à jour de sécurité, sans redémarrage automatique.
-      - unattended_upgrades is search('"\$\{distro_id\}:\$\{distro_codename\}-security";')
-      - unattended_upgrades is search('Automatic-Reboot "false"')
+      # Seulement les mises à jour de sécurité, redémarrage à l'heure de l'hôte.
+      - unattended_upgrades is search('"origin=Debian,codename=\$\{distro_codename\}-security,label=Debian-Security";')
+      - unattended_upgrades is not search('Allowed-Origins')
+      - unattended_upgrades is search('Automatic-Reboot "true"')
+      - unattended_upgrades is search('Automatic-Reboot-Time "' ~ security_unattended_reboot_time ~ '"')
+      - auto_upgrades is search('APT::Periodic::Update-Package-Lists "1";')
+      - auto_upgrades is search('APT::Periodic::Unattended-Upgrade "1";')
       - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::Mail "root";')
       - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::MailReport "only-on-error";')
 
