@@ -64,7 +64,8 @@
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
     dest: /etc/apt/apt.conf.d/20auto-upgrades
-    mode: "0644"
+    # Comme 50unattended-upgrades : apt le lit aussi sans root.
+    mode: "0644" # NOSONAR
 
 - name: Set UFW default incoming policy to deny
   community.general.ufw:

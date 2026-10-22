@@ -22,7 +22,7 @@
   ansible.builtin.copy:
     content: "wireguard\n"
     dest: /etc/modules-load.d/wireguard.conf
-    mode: "0644"
+    mode: "0600"
     owner: root
     group: root
 
