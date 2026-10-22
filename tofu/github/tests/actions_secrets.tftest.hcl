@@ -10,6 +10,11 @@
 
 # data.github_user.owner (environments.tf) : un id numérique, comme celui que
 # reviewers.users attend.
+# Passphrase factice du chiffrement du state (encryption.tf).
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "github" {
   mock_data "github_user" {
     defaults = {

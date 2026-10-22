@@ -5,6 +5,11 @@
 # mockés (y compris hcloud et aws, déclarés par provider.tf sans ressource), et
 # les data sources SOPS et remote state sont surchargées.
 
+# Passphrase factice du chiffrement du state (encryption.tf).
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "ovh" {}
 mock_provider "sops" {}
 mock_provider "hcloud" {}

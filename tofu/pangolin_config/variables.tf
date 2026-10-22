@@ -25,3 +25,12 @@ variable "travel_countries" {
     error_message = "Les dates de fin de travel_countries sont au format RFC 3339, par exemple 2026-10-16T00:00:00Z."
   }
 }
+
+# Passphrase du chiffrement du state (encryption.tf), fournie par
+# TF_VAR_state_encryption_passphrase : clé du secrets.sops.yaml racine, que
+# mise charge dans l'environnement. Les tests en donnent une factice.
+variable "state_encryption_passphrase" {
+  description = "Passphrase PBKDF2 du chiffrement des states tofu/pangolin (lu par terraform_remote_state)"
+  type        = string
+  sensitive   = true
+}
