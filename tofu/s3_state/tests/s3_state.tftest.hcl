@@ -110,3 +110,28 @@ run "s3_user_policy" {
     error_message = "La policy S3 ne doit pas accorder s3:* : l'utilisateur de state n'a besoin que des objets."
   }
 }
+
+run "ansible_reads_only_the_pangolin_config_state" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for st in jsondecode(ovh_cloud_project_user_s3_policy.ansible_state_reader.policy).Statement :
+      length(setsubtract(toset(st.Action), toset(["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"]))) == 0
+    ])
+    error_message = "L'utilisateur S3 d'Ansible ne doit que lire : ni PutObject ni DeleteObject."
+  }
+
+  assert {
+    condition = flatten([
+      for st in jsondecode(ovh_cloud_project_user_s3_policy.ansible_state_reader.policy).Statement :
+      st.Resource if contains(st.Action, "s3:GetObject")
+    ]) == ["arn:aws:s3:::homelab-tf-state-sylvain/homelab/pangolin_config.tfstate"]
+    error_message = "L'utilisateur S3 d'Ansible ne doit lire que le state de pangolin_config."
+  }
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/tasks/pangolin_config_outputs.yml"), "tfstate_object_key: homelab/pangolin_config.tfstate") && strcontains(file("${path.module}/../pangolin_config/backend.tf"), "\"homelab/pangolin_config.tfstate\"")
+    error_message = "La clé lue par Ansible doit rester celle du backend de pangolin_config, la seule que sa policy autorise."
+  }
+}
