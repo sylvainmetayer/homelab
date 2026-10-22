@@ -117,6 +117,7 @@
         fail_msg: "borgmatic.timer : {{ borgmatic_timer.status.UnitFileState }} / {{ borgmatic_timer.status.ActiveState }}"
 
     - name: Read the borgmatic units
+      become: true
       ansible.builtin.slurp:
         src: "/etc/systemd/system/{{ item }}"
       register: borgmatic_units
