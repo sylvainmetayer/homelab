@@ -112,6 +112,25 @@
           - pangolin_config.server.maxmind_db_path == './config/GeoLite2-Country.mmdb'
           - pangolin_config.flags.disable_signup_without_invite
 
+    # --- WireGuard : chargé par l'hôte, plus par gerbil ---
+
+    - name: Read the wireguard boot configuration and the compose file
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: pangolin_wireguard
+      loop:
+        - /etc/modules-load.d/wireguard.conf
+        - "{{ pangolin_dir }}/compose.yaml"
+
+    - name: Assert the host loads wireguard and gerbil cannot load modules
+      vars:
+        gerbil: "{{ (pangolin_wireguard.results[1].content | b64decode | from_yaml).services.gerbil }}"
+      ansible.builtin.assert:
+        that:
+          - (pangolin_wireguard.results[0].content | b64decode) == 'wireguard\n'
+          - gerbil.cap_add == ['NET_ADMIN']
+
     # --- Traefik ---
 
     - name: Read the Traefik configurations
@@ -131,6 +150,8 @@
       ansible.builtin.assert:
         that:
           - traefik_config.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
+          # Ni API ni dashboard Traefik (api.insecure les servait sur :8080).
+          - "'api' not in traefik_config"
           - dynamic_config.http.routers['next-router'].rule is search('Host\(`' ~ (pangolin_dashboard_url | regex_escape) ~ '`\)')
           - dynamic_config.http.routers['int-api-router'].rule == 'Host(`' ~ pangolin_api_url ~ '`)'
           # Redirection vers un fichier : chemin ignoré, 302 (host_vars, keep_path / permanent)

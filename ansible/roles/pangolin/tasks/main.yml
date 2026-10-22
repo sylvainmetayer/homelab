@@ -14,6 +14,25 @@
     - "{{ pangolin_dir }}/config/traefik/logs"
     - "{{ pangolin_dir }}/config/letsencrypt"
 
+# Gerbil chargeait wireguard lui-même, avec SYS_MODULE (charger n'importe quel
+# module du noyau) : l'hôte le charge à sa place, au démarrage et tout de suite.
+# Pas de modprobe dans un conteneur (Molecule) : il n'a pas les modules du noyau.
+- name: Load the wireguard module at boot
+  become: true
+  ansible.builtin.copy:
+    content: "wireguard\n"
+    dest: /etc/modules-load.d/wireguard.conf
+    mode: "0644"
+    owner: root
+    group: root
+
+- name: Load the wireguard module now
+  become: true
+  community.general.modprobe:
+    name: wireguard
+    state: present
+  when: ansible_facts['virtualization_type'] not in ['docker', 'podman', 'container']
+
 - name: Download GeoLite2-Country database
   become: true
   ansible.builtin.get_url:
