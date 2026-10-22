@@ -41,7 +41,7 @@
   },
   "RSS": {
     "image": "freshrss/freshrss",
-    "version": "1.30.2",
+    "version": "1.30.4",
     "compose": "ansible/roles/rss/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_rss.tf (rss_api_paths)",
     "reread": "p/api/greader.php, p/api/fever.php",
