@@ -23,7 +23,8 @@
 #
 # Entry fields - only name, subdomain and domain_id are required:
 #
-#   sso          default true. false only for Betisier, pinned by the
+#   sso          default true. false only for Betisier, nextcloud and
+#                Promptoramix, pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false also pauses the
