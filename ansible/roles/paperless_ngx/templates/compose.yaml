@@ -46,7 +46,7 @@ services:
     cpu_shares: 512
     mem_limit: 2g
     container_name: paperless
-    image: ghcr.io/paperless-ngx/paperless-ngx:3.3@sha256:d232cba37cc0bab0d6c6581ecd320383b7a6f49f33e0fd16adda4d009eb600dd
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.3@sha256:dba0242c1df1843643df4eb50ce5639f3a7900f414879088fd5bed8eaf2d456d
     restart: unless-stopped
     depends_on:
       db:
