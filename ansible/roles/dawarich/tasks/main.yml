@@ -13,15 +13,18 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
-# Données PostgreSQL : l'entrypoint de l'image (root) les donne à postgres
-# (uid 70) en 0700 à chaque démarrage. Sans owner ici, Ansible ne les rend plus
-# à l'utilisateur hôte, qui les rendrait illisibles au postgres en marche.
-- name: Ensure Dawarich PostgreSQL folder exists
+# Données PostgreSQL : à postgres (uid/gid 70 de l'image alpine) en 0700, ce
+# que l'entrypoint repose de toute façon à chaque démarrage. Sans owner, un
+# dossier encore à l'utilisateur hôte (ancien chown d'Ansible) passerait en 0700
+# sous le postgres en marche, qui ne pourrait plus le traverser.
+- name: Ensure Dawarich PostgreSQL folder is owned by the postgres uid
   become: true
   ansible.builtin.file:
     mode: "0700"
     path: "{{ dawarich_base_path }}/postgresql"
     state: directory
+    owner: "70"
+    group: "70"
 
 - name: Ensure Dawarich redis folder exists with redis image uid/gid
   become: true

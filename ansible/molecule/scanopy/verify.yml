@@ -35,6 +35,22 @@
           - scanopy_env_stat.stat.mode == '0600'
           - scanopy_env_stat.stat.pw_name == ansible_facts['user_id']
 
+    - name: Stat the scanopy PostgreSQL folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ scanopy_path }}/postgresql"
+      register: scanopy_pgdata_stat
+
+    # À postgres (uid 70), comme le repose l'entrypoint : un autre propriétaire
+    # en 0700 couperait le postgres en marche.
+    - name: Assert the scanopy PostgreSQL folder belongs to postgres
+      ansible.builtin.assert:
+        that:
+          - scanopy_pgdata_stat.stat.isdir
+          - scanopy_pgdata_stat.stat.uid == 70
+          - scanopy_pgdata_stat.stat.gid == 70
+          - scanopy_pgdata_stat.stat.mode == '0700'
+
     - name: Read the scanopy files
       become: true
       ansible.builtin.slurp:

@@ -38,6 +38,22 @@
           - dawarich_env_stat.stat.mode == '0600'
           - dawarich_env_stat.stat.pw_name == ansible_facts['user_id']
 
+    - name: Stat the dawarich PostgreSQL folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ dawarich_path }}/postgresql"
+      register: dawarich_pgdata_stat
+
+    # À postgres (uid 70), comme le repose l'entrypoint : un autre propriétaire
+    # en 0700 couperait le postgres en marche.
+    - name: Assert the dawarich PostgreSQL folder belongs to postgres
+      ansible.builtin.assert:
+        that:
+          - dawarich_pgdata_stat.stat.isdir
+          - dawarich_pgdata_stat.stat.uid == 70
+          - dawarich_pgdata_stat.stat.gid == 70
+          - dawarich_pgdata_stat.stat.mode == '0700'
+
     - name: Read the dawarich files
       become: true
       ansible.builtin.slurp:

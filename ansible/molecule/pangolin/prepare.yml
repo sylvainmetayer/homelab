@@ -44,8 +44,8 @@
       ansible.builtin.systemd:
         daemon_reload: true
 
-    # Le rôle repose ses modes (0700 / 0600) au premier converge,
-    # l'idempotence porte sur le second.
+    # Mêmes modes que le rôle : seule la base factice compte ici
+    # (get_url ne retélécharge pas un fichier présent).
     - name: Create the Pangolin configuration directory
       ansible.builtin.file:
         path: "{{ pangolin_molecule_dir }}/config"
