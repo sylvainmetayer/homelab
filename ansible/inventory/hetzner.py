@@ -20,6 +20,8 @@ import subprocess
 import sys
 
 BASTION = os.environ.get("HETZNER_BASTION", "pangolin")
+# Clés d'hôte versionnées (ansible/known_hosts), aussi pour le saut par le bastion.
+KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts")
 
 
 def get_tofu_state():
@@ -112,7 +114,13 @@ def get_inventory():
         inventory["_meta"]["hostvars"][name] = {
             "ansible_host": private_ip,
             "ansible_user": "sylvain",
-            "ansible_ssh_common_args": f"-o ProxyJump=sylvain@{bastion}",
+            # ProxyCommand plutôt que ProxyJump : le ssh du saut ne reçoit
+            # pas les -o d'Ansible, il vérifierait le bastion contre
+            # ~/.ssh/known_hosts au lieu de ansible/known_hosts.
+            "ansible_ssh_common_args": (
+                f'-o ProxyCommand="ssh -o UserKnownHostsFile={KNOWN_HOSTS} '
+                f'-o StrictHostKeyChecking=yes -W %h:%p sylvain@{bastion}"'
+            ),
             "server_type": values.get("server_type"),
             "location": values.get("location"),
             "datacenter": values.get("datacenter")

@@ -47,6 +47,10 @@
       ansible.builtin.command:
         argv:
           - scp
+          - -o
+          - StrictHostKeyChecking=yes
+          - -o
+          - "UserKnownHostsFile={{ playbook_dir }}/known_hosts"
           - -P
           - "{{ ansible_port }}"
           - "{{ backup_keys_dir.path }}/{{ item }}.pub"
