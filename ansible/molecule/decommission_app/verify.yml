@@ -4,19 +4,19 @@
   vars_files:
     - ../../group_vars/all/variables.yml
   tasks:
-    - name: Read the state of dc@scanopy
+    - name: Read the state of dc@rss
       ansible.builtin.systemd:
-        name: dc@scanopy
+        name: dc@rss
         scope: user
       register: decommission_unit
 
-    - name: Assert dc@scanopy is stopped and disabled
+    - name: Assert dc@rss is stopped and disabled
       ansible.builtin.assert:
         that:
           - decommission_unit.status.ActiveState == 'inactive'
           - decommission_unit.status.UnitFileState != 'enabled'
         fail_msg: >-
-          dc@scanopy : {{ decommission_unit.status.UnitFileState }} /
+          dc@rss : {{ decommission_unit.status.UnitFileState }} /
           {{ decommission_unit.status.ActiveState }}
 
     - name: Stat what the decommissioning removes or keeps
@@ -24,16 +24,16 @@
       ansible.builtin.stat:
         path: "{{ item }}"
       loop:
-        - "{{ docker_base_path }}/scanopy"
-        - "{{ borgmatic_config_dir }}/scanopy.yaml"
+        - "{{ docker_base_path }}/rss"
+        - "{{ borgmatic_config_dir }}/rss.yaml"
         - "{{ docker_base_path }}"
         - "{{ borgmatic_config_dir }}"
         - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
       register: decommission_paths
 
-    # Données et configuration borgmatic de scanopy supprimées ; le dossier
+    # Données et configuration borgmatic de rss supprimées ; le dossier
     # des applications, celui de borgmatic et le modèle dc@ restent.
-    - name: Assert only the scanopy data and borgmatic configuration are gone
+    - name: Assert only the rss data and borgmatic configuration are gone
       ansible.builtin.assert:
         that:
           - not decommission_paths.results[0].stat.exists

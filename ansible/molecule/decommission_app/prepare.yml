@@ -2,7 +2,7 @@
 - name: Shared prepare
   ansible.builtin.import_playbook: ../_shared/prepare.yml
 
-# État d'un hôte docker avant `--tags decommission` : scanopy (compose,
+# État d'un hôte docker avant `--tags decommission` : rss (compose,
 # .env, données, configuration borgmatic et dépôt) est l'application à
 # retirer, echo une voisine qui ne doit pas être touchée.
 - name: Deploy the apps
@@ -14,4 +14,4 @@
   roles:
     - role: docker_service
     - role: echo
-    - role: scanopy
+    - role: rss

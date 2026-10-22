@@ -171,13 +171,12 @@ override_data {
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 4, "niceId": "proxmox", "name": "Proxmox", "fullDomain": "proxmox.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 56, "niceId": "scanopy", "name": "Scanopy", "fullDomain": "scan.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 24, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 23, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -389,11 +388,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["scanopy"]
-  values = { id = 56 }
-}
-
-override_resource {
   target = pangolin_resource.website["searxng"]
   values = { id = 41 }
 }
@@ -516,11 +510,6 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup["scanopy"]
-  values = { push_token = "push-scanopy" }
-}
-
-override_resource {
   target = uptimekuma_monitor_push.backup["searxng"]
   values = { push_token = "push-searxng" }
 }
@@ -595,7 +584,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
       "betisier", "dawarich", "echo", "gramps", "immich", "immich_swipe", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "scanopy", "searxng", "trek", "wiki", "wishlist",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "searxng", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1451,7 +1440,6 @@ run "every_public_resource_applies_its_rules" {
       promptoramix     = "Promptoramix"
       proxmox          = "Proxmox"
       rss              = "RSS"
-      scanopy          = "Scanopy"
       searxng          = "SearXNG"
       trek             = "TREK"
       wiki             = "Wiki (Bookstack)"
@@ -1603,7 +1591,6 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       promptoramix  = "Healthcheck Promptoramix"
       proxmox       = "Healthcheck Proxmox"
       rss           = "Healthcheck RSS"
-      scanopy       = "Healthcheck Scanopy"
       searxng       = "Healthcheck SearXNG"
       trek          = "Healthcheck TREK"
       wiki          = "Healthcheck Wiki (Bookstack)"
@@ -1808,11 +1795,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
-    condition     = output.uptime_backup_scanopy_url == "https://uptime.example.test/api/push/push-scanopy"
-    error_message = "uptime_backup_scanopy_url (docker.yml) ne pointe pas sur le moniteur Backup Scanopy."
-  }
-
-  assert {
     condition     = output.uptime_backup_trek_url == "https://uptime.example.test/api/push/push-trek"
     error_message = "uptime_backup_trek_url (docker.yml) ne pointe pas sur le moniteur Backup TREK."
   }
@@ -1874,7 +1856,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_meerkat_crm_url,
       output.uptime_backup_gramps_url,
       output.uptime_backup_dawarich_url,
-      output.uptime_backup_scanopy_url,
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
       output.uptime_backup_wishlist_url,
@@ -2096,7 +2077,6 @@ run "monitors_are_filed_and_notify_by_email" {
       nextcloud     = "Backup nextcloud"
       paperless     = "Backup Paperless-ngx"
       rss           = "Backup RSS"
-      scanopy       = "Backup Scanopy"
       searxng       = "Backup SearXNG"
       trek          = "Backup TREK"
       wiki          = "Backup Wiki (Bookstack)"
