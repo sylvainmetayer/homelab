@@ -7,6 +7,8 @@ jobs:
   test-olm-connection:
     name: test-olm-connection
     runs-on: ubuntu-26.04
+    # OLM_ID / OLM_SECRET : environnement production (tofu/github/environments.tf).
+    environment: production
 
     permissions:
       contents: read
