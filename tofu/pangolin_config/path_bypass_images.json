@@ -60,7 +60,7 @@
     "version": "v0.68.0",
     "compose": "ansible/roles/wishlist/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_wishlist.tf (wishlist_public_paths)",
-    "reread": "src/routes/lists/[id], src/routes/api/{lists,users/public,assets}, src/lib/api, src/hooks.server.ts, Caddyfile",
+    "reread": "src/routes/lists (all of it: /lists/* also matches /lists, /lists/create), src/routes/api/{lists,users/public,assets}, src/lib/api, src/hooks.server.ts, svelte.config.js and any *.remote.ts (served under /_app/remote), Caddyfile",
     "releases": "https://github.com/cmintey/wishlist/releases"
   }
 }

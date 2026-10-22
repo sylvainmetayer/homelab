@@ -18,8 +18,9 @@
 #
 # Lifting it: empty both sets (or revert the commit that added this file) once
 # the patched images are deployed, then apply. Phone sync (CardDAV/CalDAV on
-# Monica, RSS readers on FreshRSS) and non-admin access to nextcloud are down
-# until then.
+# Monica, RSS readers on FreshRSS), the Nextcloud desktop and mobile sync
+# clients (they cannot pass the SSO, admins included) and non-admin access to
+# nextcloud are down until then.
 # ---------------------------------------------------------------------------
 locals {
   # Keys of local.websites forced behind the SSO, whatever their entry says.

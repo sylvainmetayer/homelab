@@ -26,7 +26,7 @@ locals {
 # these ACCEPTs, made by local.path_bypasses (rules.tf), sit in the 2 - 9 band
 # in front of the country rules and skip the SSO wall. Each path is one the
 # page /lists/<listId> actually requests, read off the Wishlist v0.68.0
-# sources (src/routes/lists/[id], src/routes/api, src/lib/api, Caddyfile).
+# sources (src/routes/lists, src/routes/api, src/lib/api, Caddyfile).
 # The list id is a cuid: it is the link's only secret. Wishlist checks
 # `list.public` behind the page and the claim, so a list that is not public
 # redirects to /login (behind the SSO) or answers 404; the build files, the
@@ -50,7 +50,8 @@ locals {
     "/lists/*" = 2
 
     # SvelteKit build output (immutable JS/CSS chunks, env.js, version.json):
-    # the same bytes for every Wishlist install.
+    # the same bytes for every Wishlist install. SvelteKit would also serve
+    # remote functions (*.remote.ts) under /_app/remote/: v0.68.0 has none.
     "/_app/*" = 3
 
     # The font the page preloads.

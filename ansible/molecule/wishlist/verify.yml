@@ -10,6 +10,13 @@
         verify_app_service: wishlist
         verify_app_borgmatic_config: /etc/borgmatic.d/wishlist.yaml
 
+    - name: Verify the wishlist healthcheck
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: wishlist
+        verify_compose_healthchecks:
+          - app
+
     - name: Render the wishlist compose model
       ansible.builtin.command: docker compose config --format json
       args:
@@ -27,7 +34,6 @@
           - wishlist_compose.services.app.container_name == 'wishlist'
           - wishlist_compose.services.app.networks.keys() | list == ['newt']
           - wishlist_compose.networks.keys() | list == ['newt']
-          - wishlist_compose.services.app.healthcheck is defined
         fail_msg: "Service wishlist inattendu : {{ wishlist_compose.services.app }}"
 
     - name: Read the wishlist borgmatic configuration

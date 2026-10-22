@@ -1351,6 +1351,18 @@ run "php_lockdown_closes_every_public_php_path" {
     error_message = "php_lockdown.tf nomme une entrée absente de local.websites ou de local.path_bypasses."
   }
 
+  # Ni l'inverse : les autres tests lisent l'état attendu dans ces mêmes
+  # ensembles, une application qui n'est pas en PHP ajoutée par erreur y
+  # perdrait son SSO-libre ou ses ouvertures par chemin sans qu'aucun ne
+  # bronche. Tient aussi une fois les ensembles vidés.
+  assert {
+    condition = (
+      length(setsubtract(local.php_lockdown_sso, ["betisier", "monica", "nextcloud", "rss", "wiki"])) == 0
+      && length(setsubtract(local.php_lockdown_path_bypasses, ["Betisier", "Monica CRM", "nextcloud", "RSS", "Wiki (Bookstack)"])) == 0
+    )
+    error_message = "php_lockdown.tf nomme une application qui n'est pas en PHP."
+  }
+
   # Monica, nextcloud, FreshRSS (rss) et BookStack (wiki).
   assert {
     condition = alltrue([
