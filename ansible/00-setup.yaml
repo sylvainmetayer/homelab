@@ -89,12 +89,14 @@
         append: true
         password: "{{ host_user_password_hash }}"
 
+    # Exclusive : une clé absente de keys/ est retirée de l'hôte. Une seule
+    # tâche qui reçoit toutes les clés : en boucle, chaque passage effacerait
+    # les précédentes.
     - name: Set public keys
-      loop: "{{ lookup('fileglob', playbook_dir + '/../keys/*.pub', wantlist=True) }}"
       ansible.posix.authorized_key:
         user: sylvain
-        state: present
-        key: "{{ lookup('file', item) }}"
+        exclusive: true
+        key: "{{ query('file', *query('fileglob', playbook_dir + '/../keys/*.pub')) | join('\n') }}"
 
   roles:
     - role: andrewrothstein.starship
