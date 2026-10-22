@@ -22,6 +22,8 @@ provider "proxmox" {
   }
   # Certificat vérifié : Proxmox a un certificat Let's Encrypt pour
   # pve.sylvain.cloud (ACME DNS-01 OVH, configuré sur le nœud), résolu sur le
-  # LAN ou par pve.internal (client Pangolin, tofu/pangolin_config).
+  # LAN seulement : ailleurs, le joker *.sylvain.cloud mène à Pangolin, et
+  # pve.internal (client Pangolin) ne correspond ni à l'endpoint ni au
+  # certificat.
   insecure = false
 }
