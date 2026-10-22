@@ -111,6 +111,8 @@
           - pangolin_config.email.smtp_pass == pangolin_smtp_pass
           - pangolin_config.server.maxmind_db_path == './config/GeoLite2-Country.mmdb'
           - pangolin_config.flags.disable_signup_without_invite
+          - pangolin_config.server.dashboard_session_length_hours == 336
+          - pangolin_config.server.resource_session_length_hours == 336
 
     # --- WireGuard : chargé par l'hôte, plus par gerbil ---
 
@@ -154,6 +156,9 @@
           - "'api' not in traefik_config"
           - dynamic_config.http.routers['next-router'].rule is search('Host\(`' ~ (pangolin_dashboard_url | regex_escape) ~ '`\)')
           - dynamic_config.http.routers['int-api-router'].rule == 'Host(`' ~ pangolin_api_url ~ '`)'
+          # API d'intégration réservée aux IP autorisées.
+          - dynamic_config.http.routers['int-api-router'].middlewares == ['int-api-allowlist']
+          - dynamic_config.http.middlewares['int-api-allowlist'].ipAllowList.sourceRange == pangolin_api_allowed_ips.split(',')
           # Redirection vers un fichier : chemin ignoré, 302 (host_vars, keep_path / permanent)
           - dynamic_config.http.middlewares['redirect-memoire-epsi'].redirectRegex.replacement == memoire_epsi_pdf
           - not dynamic_config.http.middlewares['redirect-memoire-epsi'].redirectRegex.permanent
