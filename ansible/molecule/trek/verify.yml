@@ -59,6 +59,28 @@
           - trek_borgmatic.archive_name_format is match('trek-')
         fail_msg: "Configuration borgmatic de trek inattendue : {{ trek_borgmatic }}"
 
+    - name: Stat the trek data folders
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ docker_base_path }}/trek/data"
+        - "{{ docker_base_path }}/trek/uploads"
+      register: trek_data_dirs
+
+    # node (uid 1000) sans CAP_DAC_OVERRIDE : propriétaire exact exigé.
+    - name: Assert the trek data folders belong to the node uid
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+          - item.stat.uid == 1000
+          - item.stat.gid == 1000
+          - item.stat.mode == '0700'
+        fail_msg: "{{ item.item }} : propriétaire ou mode inattendu"
+      loop: "{{ trek_data_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
     - name: Stat the trek environment file
       ansible.builtin.stat:
         path: /opt/apps/trek/.env
