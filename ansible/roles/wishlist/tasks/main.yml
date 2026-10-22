@@ -62,3 +62,7 @@
     name: dc@wishlist
     scope: user
     enabled: true
+
+# Après le démarrage : la table n'existe qu'une fois les migrations passées.
+- name: Configure Wishlist SMTP
+  ansible.builtin.import_tasks: smtp.yml
