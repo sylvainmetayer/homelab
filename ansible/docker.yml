@@ -8,6 +8,7 @@
 
     - name: Load healthcheck URLs from Terraform state outputs
       tags: always
+      no_log: true
       ansible.builtin.set_fact:
         nextcloud_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nextcloud_url.value | default('') }}"
         wiki_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wiki_url.value | default('') }}"

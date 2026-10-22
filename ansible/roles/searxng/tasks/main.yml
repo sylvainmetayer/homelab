@@ -27,6 +27,7 @@
     mode: "0600"
 
 - name: Template SearXNG environment
+  diff: false
   notify: Restart searxng service
   ansible.builtin.template:
     src: "templates/env.j2"
@@ -36,6 +37,7 @@
     mode: "0600"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart searxng service
   ansible.builtin.template:
     src: "templates/compose.yaml"

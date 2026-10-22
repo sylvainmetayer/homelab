@@ -49,6 +49,7 @@
   when: borgmatic_app_sqlite_found.stdout_lines | default([]) | length > 0
 
 - name: Create borgmatic configuration for {{ borgmatic_app_title }}
+  diff: false
   become: true
   ansible.builtin.template:
     src: app.yaml.j2

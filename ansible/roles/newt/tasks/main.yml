@@ -8,6 +8,7 @@
     group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart newt service
   ansible.builtin.template:
     src: "templates/compose.yaml"

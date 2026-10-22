@@ -12,6 +12,7 @@
     group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart wiki
   ansible.builtin.template:
     src: "templates/compose.yaml"

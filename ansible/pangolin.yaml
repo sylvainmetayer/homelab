@@ -9,6 +9,7 @@
 
     - name: Load Pangolin backup healthcheck URL from Terraform state outputs
       tags: always
+      no_log: true
       ansible.builtin.set_fact:
         pangolin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pangolin_url.value | default('') }}"
 
