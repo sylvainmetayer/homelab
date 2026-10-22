@@ -16,6 +16,3 @@ backup_storage_box_url: "ssh://{{ backup_storage_box_username }}@{{ backup_stora
 docker_base_path: /opt/apps
 
 newt_endpoint: https://pangolin.sylvain.cloud
-
-rclone_access_key_id: "{{ state_s3_access_key }}"
-rclone_secret_access_key: "{{ state_s3_secret_key }}"

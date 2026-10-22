@@ -108,27 +108,19 @@
     state: started
     daemon_reload: true
 
-- name: Install rclone
+# rclone ne sert plus (les sauvegardes passent par borg) : retiré des hôtes
+# où ce rôle l'installait, avec le dossier de configuration de root.
+- name: Remove rclone
   become: true
   ansible.builtin.apt:
     name: rclone
-    state: present
-    update_cache: true
-
-- name: Ensure rclone config directory exists for root
-  become: true
-  ansible.builtin.file:
-    path: "{{ borgmatic_rclone_config_dir }}"
-    state: directory
-    mode: "0700"
-    owner: "root"
-    group: "root"
-
-- name: Ensure rclone configuration file for root is absent
-  become: true
-  ansible.builtin.file:
     state: absent
-    path: "{{ borgmatic_rclone_config_dir }}/rclone.conf"
+
+- name: Remove the rclone configuration directory of root
+  become: true
+  ansible.builtin.file:
+    path: /root/.config/rclone
+    state: absent
 
 # Les clients MariaDB et PostgreSQL de l'hôte servent à restaurer (mysql,
 # psql, pg_restore, vers l'IP du conteneur : les dumps, eux, tournent dans le
