@@ -86,7 +86,7 @@ services:
   cache:
     mem_limit: 256m
     restart: unless-stopped
-    image: redis:8.2.10-bookworm@sha256:47670742d7924adbcdb404d1288b6327815b23141969c0939b8e5d61f78c2634
+    image: redis:8.2.10-bookworm@sha256:e5f23377739f95a2f530b9c99f93accb4f634577f09d00a7d8e0638f2fdf69e0
     container_name: nextcloud_redis
     command: redis-server --requirepass {{ nextcloud_redis_password }}
     environment:
