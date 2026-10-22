@@ -13,10 +13,7 @@ variable "s3_endpoint" {
 variable "travel_countries" {
   description = "Pays ouverts temporairement (voyage) : code ISO 3166-1 alpha-2 => fin d'ouverture (RFC 3339, UTC)."
   type        = map(string)
-  default = {
-    # Édimbourg, du 7 au 14 octobre 2026, un jour de marge pour le retour.
-    GB = "2026-10-16T00:00:00Z"
-  }
+  default     = {}
 
   validation {
     condition     = alltrue([for country in keys(var.travel_countries) : can(regex("^[A-Z]{2}$", country))])
