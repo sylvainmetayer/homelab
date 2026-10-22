@@ -5,6 +5,15 @@
 # vienne de SOPS et que l'hôte reconstruit retrouve ses mails. Une valeur
 # changée dans l'interface est remise au prochain passage d'Ansible.
 # L'application relit cette table à chaque envoi : pas de redémarrage.
+#
+# Installation neuve : l'étape 2 de l'assistant de premier démarrage
+# (/setup-wizard, réglages globaux) lit la configuration sans les secrets
+# (getConfig() masque smtp.pass en « ***** ») et la renvoie telle quelle à
+# /admin/settings : elle enregistre « ***** » comme mot de passe SMTP. Les
+# invitations de l'étape 3 échouent donc, jusqu'au passage suivant de
+# `ansible-playbook docker.yml --tags wishlist`, qui remet le mot de passe :
+# le relancer juste après l'assistant, avant d'inviter qui que ce soit.
+# Admin > Paramètres, lui, lit le vrai mot de passe et ne l'écrase pas.
 - name: Ensure sqlite3 is installed for the Wishlist configuration
   become: true
   ansible.builtin.apt:
