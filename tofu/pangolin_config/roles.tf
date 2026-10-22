@@ -20,7 +20,6 @@ locals {
     "demo-planning-kc",
     "gramps",
     "dawarich",
-    "scanopy",
     "trek",
     "karakeep",
     "wishlist"

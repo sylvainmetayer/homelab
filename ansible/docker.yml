@@ -18,7 +18,6 @@
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
-        scanopy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_scanopy_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         searxng_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_searxng_url.value | default('') }}"
@@ -61,8 +60,6 @@
       tags: gramps,app
     - role: dawarich
       tags: dawarich,app
-    - role: scanopy
-      tags: scanopy,app
     - role: trek
       tags: trek,app
     - role: karakeep

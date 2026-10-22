@@ -321,11 +321,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource.scanopy
-  to   = pangolin_resource.website["scanopy"]
-}
-
-moved {
   from = pangolin_resource.searxng
   to   = pangolin_resource.website["searxng"]
 }
@@ -405,11 +400,6 @@ moved {
 moved {
   from = pangolin_resource_role.rss
   to   = pangolin_resource_role.website["rss"]
-}
-
-moved {
-  from = pangolin_resource_role.scanopy
-  to   = pangolin_resource_role.website["scanopy"]
 }
 
 moved {
@@ -555,11 +545,6 @@ moved {
 }
 
 moved {
-  from = pangolin_target.scanopy
-  to   = pangolin_target.website["scanopy"]
-}
-
-moved {
   from = pangolin_target.searxng
   to   = pangolin_target.website["searxng"]
 }
@@ -654,11 +639,6 @@ moved {
 moved {
   from = pangolin_resource_access_token.rss
   to   = pangolin_resource_access_token.healthcheck["rss"]
-}
-
-moved {
-  from = pangolin_resource_access_token.scanopy
-  to   = pangolin_resource_access_token.healthcheck["scanopy"]
 }
 
 moved {
@@ -759,11 +739,6 @@ moved {
 }
 
 moved {
-  from = uptimekuma_monitor_http_keyword.scanopy
-  to   = uptimekuma_monitor_http_keyword.healthcheck["scanopy"]
-}
-
-moved {
   from = uptimekuma_monitor_http_keyword.searxng
   to   = uptimekuma_monitor_http_keyword.healthcheck["searxng"]
 }
@@ -838,11 +813,6 @@ moved {
 moved {
   from = uptimekuma_monitor_push.backup_rss
   to   = uptimekuma_monitor_push.backup["rss"]
-}
-
-moved {
-  from = uptimekuma_monitor_push.backup_scanopy
-  to   = uptimekuma_monitor_push.backup["scanopy"]
 }
 
 moved {

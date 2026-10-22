@@ -68,7 +68,6 @@ locals {
     promptoramix     = local.promptoramix_website
     proxmox          = local.proxmox_website
     rss              = local.rss_website
-    scanopy          = local.scanopy_website
     searxng          = local.searxng_website
     trek             = local.trek_website
     wiki             = local.wiki_website

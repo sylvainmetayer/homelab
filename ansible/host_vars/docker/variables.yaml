@@ -27,8 +27,6 @@ gramps_enabled: false
 gramps_backup_enabled: true
 dawarich_backup_enabled: true
 
-scanopy_backup_enabled: true
-
 trek_backup_enabled: true
 
 karakeep_backup_enabled: true

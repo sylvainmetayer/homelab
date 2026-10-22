@@ -14,7 +14,6 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR |
 | [Gramps Web](https://www.grampsweb.org/) | `gramps` | Docker VM | Family tree. Stopped for now (`gramps_enabled: false`), data and backups kept |
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
-| [Scanopy](https://github.com/scanopy/scanopy) | `scanopy` | Docker VM | Network discovery and map |
 | [TREK](https://github.com/mauriceboe/trek) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
