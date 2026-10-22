@@ -1,0 +1,6 @@
+---
+- name: Restart wishlist
+  ansible.builtin.systemd:
+    name: dc@wishlist
+    scope: user
+    state: restarted

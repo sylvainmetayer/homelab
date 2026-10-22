@@ -17,6 +17,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Scanopy](https://github.com/scanopy/scanopy) | `scanopy` | Docker VM | Network discovery and map |
 | [TREK](https://github.com/mauriceboe/trek) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
+| [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
 | Echo | `echo` | Docker VM | HTTP server that answers with the request it received |
 | [Immich](https://immich.app/) | `immich` | Raspberry Pi | Photo library |
 | Immich Swipe | `immich` | Raspberry Pi | Swipe interface to sort Immich photos |

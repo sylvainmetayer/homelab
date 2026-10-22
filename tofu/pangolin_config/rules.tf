@@ -236,6 +236,7 @@ locals {
     "Promptoramix"     = local.promptoramix_public_paths
     "RSS"              = local.rss_api_paths
     "TREK"             = merge(local.trek_mcp_public_paths, local.trek_share_paths)
+    "Wishlist"         = local.wishlist_public_paths
   }
 
   path_bypass_rules = merge([

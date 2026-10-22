@@ -1,0 +1,12 @@
+---
+wishlist_base_path: "{{ docker_base_path }}/wishlist"
+wishlist_domain: cadeaux.sylvain.cloud
+wishlist_default_currency: EUR
+# Durée de validité (heures) des liens d'invitation et de réinitialisation.
+wishlist_token_time: 72
+
+# Borgmatic backup configuration
+wishlist_backup_enabled: true
+wishlist_backup_borgmatic_target: "{{ backup_storage_box_url }}/wishlist"
+wishlist_backup_encryption_passphrase: "{{ backup_passphrase }}"
+wishlist_backup_healthcheck_url: ""

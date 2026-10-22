@@ -22,7 +22,8 @@ locals {
     "dawarich",
     "scanopy",
     "trek",
-    "karakeep"
+    "karakeep",
+    "wishlist"
   ]
 }
 

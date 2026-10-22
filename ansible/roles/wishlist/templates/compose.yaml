@@ -1,0 +1,38 @@
+---
+services:
+  app:
+    # Pas encore mesuré : Node (SvelteKit + sharp) et le Caddy interne de
+    # l'image. À recaler sur memory.peak après quelques jours.
+    mem_limit: 512m
+    image: ghcr.io/cmintey/wishlist:v0.68.0
+    container_name: wishlist
+    # Ni read_only ni cap_drop : l'entrypoint lance Caddy, applique les
+    # migrations Prisma et écrit en root dans data/ et uploads/, montés depuis
+    # des dossiers de l'utilisateur (sans CAP_DAC_OVERRIDE, plus d'écriture).
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./uploads:/usr/src/app/uploads
+    restart: unless-stopped
+    # Pas de route de santé : un fichier statique servi par Node prouve que
+    # l'application répond (l'image, node:24-slim, n'a ni curl ni wget).
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3280/favicon.ico').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

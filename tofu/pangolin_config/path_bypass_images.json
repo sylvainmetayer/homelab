@@ -54,5 +54,13 @@
     "paths": "tofu/pangolin_config/website_trek.tf (trek_mcp_public_paths, trek_share_paths)",
     "reread": "server/src/nest/{mcp-transport,oauth,platform}, share.service.ts, journey-share.service.ts, client /app/server/public",
     "releases": "https://github.com/mauriceboe/TREK/releases"
+  },
+  "Wishlist": {
+    "image": "ghcr.io/cmintey/wishlist",
+    "version": "v0.68.0",
+    "compose": "ansible/roles/wishlist/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_wishlist.tf (wishlist_public_paths)",
+    "reread": "src/routes/lists/[id], src/routes/api/{lists,users/public,assets}, src/lib/api, src/hooks.server.ts, Caddyfile",
+    "releases": "https://github.com/cmintey/wishlist/releases"
   }
 }

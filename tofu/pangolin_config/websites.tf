@@ -71,6 +71,7 @@ locals {
     searxng          = local.searxng_website
     trek             = local.trek_website
     wiki             = local.wiki_website
+    wishlist         = local.wishlist_website
   }
 
   # `target` under the app's own key, each sub_target under "<app>_<suffix>":
