@@ -1,0 +1,23 @@
+# Clés d'hôte SSH (ed25519) de chaque cible d'Ansible, sous tous les noms
+# utilisés : inventaires locaux (proxmox.py, hetzner.py, hosts), inventaire de
+# la CI (deploy-docker-app.yaml) et bastion. ansible.cfg (UserKnownHostsFile,
+# StrictHostKeyChecking=yes) et le ProxyCommand de hetzner.py le lisent ; une
+# clé qui change fait échouer la connexion au lieu d'être acceptée.
+#
+# Relevées sur l'hôte (ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub), par
+# une connexion déjà vérifiée ou la console Hetzner, jamais par un
+# ssh-keyscan à travers le réseau. Un hôte reconstruit change de clé : la
+# relever de la même façon et remplacer sa ligne.
+#
+# docker  SHA256:x6MfFf1pV8QACu9gqjRxXfouVlcRjRPh9vsAaBvgBNY
+# pi      SHA256:SZ1Bpiu4ENOLNRuN3rKCa6n8hdRNcyeKFpPo57fSwKQ
+# pangolin SHA256:A6fa2EOvTMR8oaUp5JrGzh9j7isffJHagLbA9VVxKfc
+# flip    SHA256:zslHOFiasxchUDfc40cFn8ETHuW7cx9V7JGcrvcfT5M
+docker,docker-apps.internal,192.168.1.216 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDuh285OFRPIa3sV4juKNU/i0e+uI3P0SPGk7jEPCkGv
+pi,pi.internal,192.168.1.96 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHwlPJxotOWGx3675IQAkEAfF5OgaRgoj+ZnVufJ3SS1
+pangolin,pangolin.sylvain.cloud,88.99.188.146 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMInRjkr52mDy1CEXb3nJa1DLwSKQnEmvOXjCSO4pGve
+flip,10.0.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJUQyj0R7UhkshBZEHsM3kApLDTH6o2HQpiyjd4cCTP+
+# Storage Box (backup.yaml, port 23) : même clé pour le compte principal et
+# chaque sous-compte. Empreinte publiée par Hetzner :
+# SHA256:XqONwb1S0zuj5A1CDxpOSuD2hnAArV1A3wKY7Z3sdgM
+[*.your-storagebox.de]:23 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIICf9svRenC/PLKIL9nk6K/pxQgoiFC41wTNvoIncOxs

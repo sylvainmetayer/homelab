@@ -251,13 +251,15 @@ jobs:
           # flip"). The jump runs its own ssh, which sees neither
           # ansible_ssh_private_key_file nor the -o options Ansible passes:
           # the bastion's key and host-key policy have to be in ssh_config.
+          # Host keys come from ansible/known_hosts (versioned), for the
+          # bastion as for the targets (ansible.cfg ssh_args).
           cat > "$HOME/.ssh/config" << EOF
           Host pangolin.sylvain.cloud
             User sylvain
             IdentityFile $HOME/.ssh/ci_deploy_key
             IdentitiesOnly yes
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
+            StrictHostKeyChecking yes
+            UserKnownHostsFile $GITHUB_WORKSPACE/ansible/known_hosts
           EOF
           chmod 600 "$HOME/.ssh/config"
 
@@ -304,7 +306,7 @@ jobs:
           ansible-playbook docker.yml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy pi
         if: steps.resolve-tags.outputs.pi_tags != ''
@@ -316,7 +318,7 @@ jobs:
           ansible-playbook pi.yml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy pangolin
         if: steps.resolve-tags.outputs.pangolin_tags != ''
@@ -328,7 +330,7 @@ jobs:
           ansible-playbook pangolin.yaml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null\"}"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy flip
         if: steps.resolve-tags.outputs.flip_tags != ''
@@ -340,7 +342,7 @@ jobs:
           ansible-playbook flip.yml \
             -i ci-inventory.ini \
             --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyJump=pangolin.sylvain.cloud\"}"
+            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"-o ProxyJump=pangolin.sylvain.cloud\"}"
 
       - name: No matching role changed
         if: steps.resolve-tags.outputs.any_tags != 'true'
