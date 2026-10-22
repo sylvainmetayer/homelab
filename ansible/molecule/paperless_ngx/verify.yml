@@ -104,7 +104,7 @@
         fail_msg: "Configuration borgmatic de paperless incohérente : {{ paperless_borgmatic.repositories }}"
       vars:
         paperless_expected_repository: >-
-          ssh://{{ backup_storage_box_username }}@{{ backup_storage_box_hostname }}/{{ backup_storage_box_path }}/paperless
+          ssh://{{ backup_storage_box_subaccounts.docker.username }}@{{ backup_storage_box_subaccounts.docker.server }}/./paperless
 
     - name: Stat the paperless backup sources
       ansible.builtin.stat:

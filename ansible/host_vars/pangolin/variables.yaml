@@ -48,3 +48,8 @@ security_ssh_allow_tcp_forwarding: local
 
 # Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp.
 security_mta_enabled: true
+
+# Sous-compte Storage Box de pangolin (sauvegardes borgmatic) : clé SOPS
+# backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
+# de tofu/pangolin.
+backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pangolin }}"

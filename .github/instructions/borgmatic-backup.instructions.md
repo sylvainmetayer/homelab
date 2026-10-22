@@ -25,7 +25,7 @@ examples in several places) lives in that one template. The interface — the
   `{hostname}` prefix. The prefix defaults to the app name with `_` → `-`;
   changing it takes the existing archives out of `prune`'s reach.
 - `compression: zstd,10` — not `auto,zstd`.
-- `ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23` and
+- `ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23` (a key per host, generated on it) and
   `local_path: /root/.local/bin/borg` (installed by the `borgmatic` role).
 - `uptime_kuma:` push block with `states: [start, finish, fail]` when a
   healthcheck URL is given.
@@ -107,18 +107,15 @@ passphrase.
 
 ## 2. Register the remote folder
 
-Append `"<service>"` to `backup_folders` in
-`ansible/host_vars/backups/variables.yaml` (it must match the last path
-segment of the target), then run once (creates the directory on the Storage
-Box — a normal Ansible run against the app host won't do this for you):
-
-```bash
-cd ansible && ansible-playbook -i inventory/hosts backup.yaml
-```
-
-`backup.yaml` deliberately uses `gather_facts: false` + `ansible.builtin.raw`
-instead of `ansible.builtin.file` — the Storage Box exposes a restricted
-shell that breaks normal file modules.
+Nothing to register for a new app: Borg creates its repository on the first
+`repo-create`, inside the subaccount folder of the host that runs it
+(`backup/<host>/<service>` on the Storage Box; each host's subaccount only
+sees its own folder). Only a new *host* needs registering: add it to
+`backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`), to
+`local.backup_hosts` (`tofu/pangolin/storage_box_subaccounts.tf`) and to the
+SOPS key `backup_storage_box_subaccounts`, set `backup_storage_box_subaccount`
+in its `host_vars`, then run `ansible-playbook -i inventory/hosts backup.yaml`
+once its borgmatic role has generated its key.
 
 ## 3. Optional: healthcheck push URL
 

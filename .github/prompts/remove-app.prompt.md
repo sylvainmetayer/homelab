@@ -17,7 +17,7 @@ already given, then:
 3. Delete `ansible/roles/<service>/` and deregister it from
    `ansible/docker.yml`/`ansible/pi.yml` (role entry + healthcheck `set_fact`
    line) — delete, don't comment out.
-4. Remove its `host_vars` backup vars and its entry in `backup_folders`.
+4. Remove its `host_vars` backup vars.
 5. Remove any secrets for it from `secrets.sops.yaml` via `sops`.
 6. Delete `tofu/pangolin_config/website_<service>.tf`, remove its slug from
    `roles.tf`'s `apps` list, then `tofu plan`/`tofu apply` and confirm

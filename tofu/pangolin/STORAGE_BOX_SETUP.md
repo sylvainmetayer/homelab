@@ -61,23 +61,16 @@ storage_box_hostname = "u123456.your-storagebox.de"  # Replace with actual ID
 storage_box_username = "u123456"                     # Replace with actual ID
 ```
 
-### 7. Update Ansible Variables
+### 7. Per-host subaccounts and keys
 
-Edit `ansible/group_vars/all/variables.yml`:
-```yaml
-backup_storage_box_hostname: "u123456.your-storagebox.de"  # Replace with actual ID
-backup_storage_box_username: "u123456"                     # Replace with actual ID
-backup_storage_box_path: "backup"
-```
-
-### 8. SSH Key Distribution
-
-Place the private SSH key on backup hosts:
-- **Docker host**: `/root/.ssh/storagebox`
-- **Raspberry Pi**: `/root/.ssh/storagebox`
-- **Pangolin**: `/root/.ssh/storagebox` (optional, for testing)
-
-**Important**: Keep this key secure and do not commit to version control.
+Hosts never use the main account. `storage_box_subaccounts.tf` creates one
+subaccount per backed-up host, whose home is `backup/<host>`; copy the
+`storage_box_subaccounts` output into the SOPS key
+`backup_storage_box_subaccounts` (`ansible/secrets.sops.yaml`). The borgmatic
+role generates root's key on each host (`/root/.ssh/borgmatic_storage_box_ed25519`),
+then `ansible/backup.yaml` creates `backup/<host>/.ssh` and uploads that key as
+the subaccount's `authorized_keys`. The main account keeps the personal keys
+only (perso, pro, android), in its own `.ssh/authorized_keys`.
 
 ## Borg Repository Initialization
 
@@ -104,16 +97,13 @@ ssh -i ~/.ssh/storagebox u<ID>@u<ID>.your-storagebox.de quota
 
 ## Backup Paths
 
-After setup, backups will be stored at:
+Seen from the main account (each subaccount sees its own folder as `/`):
 ```
-ssh://u<ID>@u<ID>.your-storagebox.de:22/backup/
-├── betisier/
-├── monica_v4/
-├── wiki/
-├── nextcloud/
-├── rss/
-├── immich/
-└── pangolin/
+backup/
+├── docker/      wiki/, nextcloud/, rss/, paperless/, trek/, karakeep/, …
+├── pi/          immich/
+├── pangolin/    pangolin/
+└── flip/        flip_planning/, demo_planning/
 ```
 
 ## Verification

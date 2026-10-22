@@ -12,7 +12,7 @@ write a borgmatic config template for the service: every config is rendered
 by `ansible/roles/borgmatic/templates/app.yaml.j2`, whose structure deviates
 from upstream docs in several specific ways (see the instructions file).
 Declare the role's `<service>_backup_*` defaults (target derived from
-`backup_storage_box_url`) and the `backup_folders` registration.
+`backup_storage_box_url`, the host's Storage Box subaccount).
 
 Before finishing, confirm that no live database directory is in
 `borgmatic_app_source_directories` (dump it through

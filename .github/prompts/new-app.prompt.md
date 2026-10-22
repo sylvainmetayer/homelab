@@ -9,7 +9,7 @@ image(s), the port to expose, and the subdomain if not already given, then:
 
 1. Scaffold the Ansible role (`ansible/roles/<service>/`).
 2. Register it in `ansible/docker.yml` (role entry + healthcheck URL fact).
-3. Wire the Borgmatic backup (host_vars, `backup_folders`, borgmatic
+3. Wire the Borgmatic backup (host_vars, borgmatic
    template) — see `.github/instructions/borgmatic-backup.instructions.md`.
 4. Wire Pangolin routing/healthcheck/SSO in `tofu/pangolin_config/` — see
    `.github/instructions/pangolin-route.instructions.md`.

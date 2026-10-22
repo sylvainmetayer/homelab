@@ -60,17 +60,15 @@ Two edits:
 
 ## 3. Backup folder registration
 
-Append `"<service>"` to `backup_folders` in
-`ansible/host_vars/backups/variables.yaml`, then run once (before the first
-borgmatic run for this service):
-
-```bash
-cd ansible && ansible-playbook -i inventory/hosts backup.yaml
-```
-
-(`backup.yaml` targets the `backups` group with `gather_facts: false` +
-`ansible.builtin.raw` because the Hetzner Storage Box has a restricted shell —
-normal file modules don't work there.)
+Nothing to register for a new app: Borg creates its repository on the first
+`repo-create`, inside the subaccount folder of the host that runs it
+(`backup/<host>/<service>` on the Storage Box; each host's subaccount only
+sees its own folder). Only a new *host* needs registering: add it to
+`backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`), to
+`local.backup_hosts` (`tofu/pangolin/storage_box_subaccounts.tf`) and to the
+SOPS key `backup_storage_box_subaccounts`, set `backup_storage_box_subaccount`
+in its `host_vars`, then run `ansible-playbook -i inventory/hosts backup.yaml`
+once its borgmatic role has generated its key.
 
 ## 4. Backup vars
 

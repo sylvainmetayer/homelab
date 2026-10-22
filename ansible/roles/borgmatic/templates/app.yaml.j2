@@ -2,7 +2,7 @@
 # borgmatic (tasks/app.yml) : toute modification ici est écrasée au prochain
 # déploiement. Référence : https://torsion.org/borgmatic/reference/configuration/
 #
-# Dépôt : Storage Box Hetzner en SSH (clé /root/.ssh/backup_storage_box_key).
+# Dépôt : sous-compte Storage Box de l'hôte, en SSH (clé {{ backup_storage_box_ssh_key_path }}).
 
 {% set sqlite_staging = borgmatic_sqlite_staging_dir ~ '/' ~ borgmatic_app_name %}
 # Fichiers et dossiers sauvegardés tels quels.
@@ -69,7 +69,7 @@ repositories:
     - path: {{ borgmatic_app_target | to_json }}
       label: {{ borgmatic_app_label | to_json }}
 
-ssh_command: ssh -i /root/.ssh/backup_storage_box_key -p 23
+ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23
 
 encryption_passphrase: {{ borgmatic_app_passphrase | to_json }}
 

@@ -348,15 +348,7 @@ run "user_data_templating" {
 run "storage_box_backups" {
   command = plan
 
-  # Clé et mot de passe générés surchargés : sinon inconnus au plan.
-  override_resource {
-    target = tls_private_key.storage_box
-    values = {
-      public_key_openssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeStorageBoxKey\n"
-      private_key_pem    = "fake-private-key"
-    }
-  }
-
+  # Mot de passe généré surchargé : sinon inconnu au plan.
   override_resource {
     target = random_password.storage_box_password
     values = {
@@ -375,18 +367,13 @@ run "storage_box_backups" {
   }
 
   assert {
-    condition     = contains(hcloud_storage_box.backups.ssh_keys, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeStorageBoxKey")
-    error_message = "La Storage Box doit autoriser la clé générée tls_private_key.storage_box (sans saut de ligne final)."
-  }
-
-  assert {
     condition     = contains(hcloud_storage_box.backups.ssh_keys, trimspace(file("${path.module}/../../keys/perso.pub")))
     error_message = "La Storage Box doit autoriser keys/perso.pub."
   }
 
   assert {
-    condition     = length(hcloud_storage_box.backups.ssh_keys) == 4
-    error_message = "La Storage Box doit autoriser exactement 4 clés : générée, perso, pro et android."
+    condition     = length(hcloud_storage_box.backups.ssh_keys) == 3
+    error_message = "Le compte principal de la Storage Box n'autorise que perso, pro et android : les hôtes passent par leur sous-compte."
   }
 
   assert {
@@ -395,7 +382,30 @@ run "storage_box_backups" {
   }
 
   assert {
-    condition     = output.storage_box_ssh_public_key == tls_private_key.storage_box.public_key_openssh
-    error_message = "L'output storage_box_ssh_public_key doit exposer la clé publique générée."
+    condition     = hcloud_storage_box.backups.snapshot_plan.max_snapshots == 14 && hcloud_storage_box.backups.snapshot_plan.day_of_week == null && hcloud_storage_box.backups.snapshot_plan.day_of_month == null
+    error_message = "La Storage Box doit garder un snapshot par jour sur 14 jours : un sous-compte ne peut pas les supprimer."
+  }
+
+  assert {
+    condition     = toset(keys(hcloud_storage_box_subaccount.backup)) == toset(["docker", "pi", "pangolin", "flip"])
+    error_message = "Chaque hôte sauvegardé (docker, pi, pangolin, flip) doit avoir son sous-compte."
+  }
+
+  assert {
+    condition = alltrue([
+      for host, sub in hcloud_storage_box_subaccount.backup :
+      sub.home_directory == "backup/${host}" && sub.access_settings.ssh_enabled && !sub.access_settings.readonly && !sub.access_settings.samba_enabled && !sub.access_settings.webdav_enabled
+    ])
+    error_message = "Un sous-compte est limité à backup/<hôte>, en SSH seulement (ni Samba ni WebDAV)."
+  }
+
+  assert {
+    condition     = alltrue([for host in ["docker", "pi", "pangolin", "flip"] : fileexists("${path.module}/../../ansible/host_vars/${host}/variables.yaml")])
+    error_message = "Les clés des sous-comptes doivent être des noms d'hôte de l'inventaire Ansible (host_vars/<hôte>), que borgmatic et backup.yaml utilisent."
+  }
+
+  assert {
+    condition     = toset(yamldecode(file("${path.module}/../../ansible/host_vars/backups/variables.yaml")).backup_storage_box_hosts) == toset(keys(hcloud_storage_box_subaccount.backup))
+    error_message = "backup_storage_box_hosts (ansible/host_vars/backups) doit lister exactement les hôtes qui ont un sous-compte : backup.yaml y dépose leurs clés."
   }
 }

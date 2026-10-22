@@ -80,11 +80,9 @@ touched the `set_fact`. Delete, don't comment out.)
   `ansible/host_vars/<host>/variables.yaml` (`<service>_backup_enabled`,
   domain, overrides; the backup target and passphrase normally live in
   the role defaults and go away with the role).
-- Remove `"<service>"` from `backup_folders` in
-  `ansible/host_vars/backups/variables.yaml`. This only stops the folder from
-  being (re)created — it does **not** delete anything already on the Storage
-  Box (that's `decommission_app_destroy_remote_backup` in step 1, or manual
-  cleanup on the box if skipped).
+- Nothing to remove from `ansible/host_vars/backups/variables.yaml`: it
+  lists hosts, not apps. The repository itself stays on the Storage Box
+  unless step 1 ran with `decommission_app_destroy_remote_backup: true`.
 
 ## 5. Remove secrets
 
@@ -139,7 +137,7 @@ grep -rln "<service>" --include="*.yml" --include="*.yaml" --include="*.tf" . \
 ```
 
 Anything left should only be incidental (e.g. a changelog, an unrelated
-comment). If `host_vars`, `secrets.sops.yaml`, `backup_folders`, or a
+comment). If `host_vars`, `secrets.sops.yaml`, or a
 commented-out (not deleted) playbook role entry show up, go back and finish
 steps 3–5.
 

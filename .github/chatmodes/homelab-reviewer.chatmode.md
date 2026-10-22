@@ -53,8 +53,9 @@ For any backup wiring (`borgmatic_app_*` vars of the `include_role`):
       changed: retention keys and `checks:` top-level, `commands:` with
       `before`/`after: action` + `when: [create]`, `archive_name_format`
       without `{hostname}`, `compression: zstd,10`.
-- [ ] If this is a new service, confirm `ansible/host_vars/backups/variables.yaml`
-      gained the matching `backup_folders` entry, and that the role defaults
+- [ ] If this is a new service, confirm the role defaults (no per-app
+      Storage Box folder to register: Borg creates the repository in the host\'s
+      subaccount folder)
       declare `<service>_backup_enabled` / `_borgmatic_target` (from
       `backup_storage_box_url`) / `_encryption_passphrase` /
       `_healthcheck_url`.

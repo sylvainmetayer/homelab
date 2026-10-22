@@ -157,26 +157,53 @@
     group: root
     mode: "0700"
 
-- name: Create SSH key from secrets to access backup storage box
-  diff: false
+- name: Ensure the SSH directory of root exists
   become: true
-  ansible.builtin.copy:
-    dest: "/root/.ssh/backup_storage_box_key"
-    content: "{{ backup_storage_box_ssh_key }}"
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Une clé par hôte, qui ne quitte pas l'hôte : ansible/backup.yaml dépose sa
+# partie publique chez le sous-compte de l'hôte, qui ne voit que ses dépôts.
+- name: Generate the SSH key of root for its Storage Box subaccount
+  become: true
+  community.crypto.openssh_keypair:
+    path: "{{ backup_storage_box_ssh_key_path }}"
+    type: ed25519
+    comment: "borgmatic@{{ inventory_hostname }}"
+    owner: root
+    group: root
     mode: "0600"
-    owner: "root"
-    group: "root"
+
+# L'ancienne clé, commune à tous les hôtes et valable sur le compte principal.
+- name: Remove the former shared Storage Box key
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /root/.ssh/backup_storage_box_key
+    - /root/.ssh/backup_storage_box_key.pub
+
+- name: Trust the Storage Box host key under the subaccount name
+  become: true
+  ansible.builtin.known_hosts:
+    path: /root/.ssh/known_hosts
+    name: "[{{ backup_storage_box_subaccount.server }}]:23"
+    key: "[{{ backup_storage_box_subaccount.server }}]:23 {{ backup_storage_box_host_key }}"
 
 - name: Create SSH config to access backup storage box
-  diff: false
   become: true
   ansible.builtin.copy:
     dest: "/root/.ssh/config"
     content: |
       Host backup_storage_box
-        HostName {{ backup_storage_box_hostname }}
-        User {{ backup_storage_box_username }}
-        IdentityFile /root/.ssh/backup_storage_box_key
+        HostName {{ backup_storage_box_subaccount.server }}
+        User {{ backup_storage_box_subaccount.username }}
+        IdentityFile {{ backup_storage_box_ssh_key_path }}
         Port 23
     mode: "0600"
     owner: "root"

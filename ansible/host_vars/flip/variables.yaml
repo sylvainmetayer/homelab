@@ -45,3 +45,8 @@ demo_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
 # la veille partent sur ce jour-là. Libérer l'horloge AVANT de repasser cette
 # variable à false (voir le commentaire du rôle).
 flip_planning_horloge_simulee_autorisee: true
+
+# Sous-compte Storage Box de flip (sauvegardes borgmatic) : clé SOPS
+# backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
+# de tofu/pangolin.
+backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.flip }}"
