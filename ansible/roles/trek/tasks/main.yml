@@ -1,4 +1,16 @@
 ---
+# Le conteneur tourne sans CAP_DAC_OVERRIDE (cap_drop: ALL) puis passe en node
+# (uid 1000) : il ne peut lire et écrire data/ et uploads/ (0700) que si
+# l'utilisateur hôte qui les possède a ce même uid.
+- name: Assert the host user has the uid of the trek node user
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['user_uid'] | int == 1000
+    fail_msg: >-
+      trek s'exécute en node (uid 1000) sans CAP_DAC_OVERRIDE : ses dossiers
+      0700 doivent appartenir à l'uid 1000, pas à {{ ansible_facts['user_uid'] }}.
+    quiet: true
+
 - name: Ensure Trek app folders exist
   loop:
     - "{{ trek_base_path }}"
