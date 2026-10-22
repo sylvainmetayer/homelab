@@ -4,8 +4,10 @@
     - "{{ wishlist_base_path }}"
     - "{{ wishlist_base_path }}/data"
     - "{{ wishlist_base_path }}/uploads"
+  # Privés : data/ porte la base SQLite (empreintes des mots de passe). Le
+  # conteneur y écrit en root, qui garde CAP_DAC_OVERRIDE (pas de cap_drop).
   ansible.builtin.file:
-    mode: "0755"
+    mode: "0700"
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
