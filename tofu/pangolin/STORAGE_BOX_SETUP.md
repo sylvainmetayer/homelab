@@ -72,6 +72,14 @@ then `ansible/backup.yaml` creates `backup/<host>/.ssh` and uploads that key as
 the subaccount's `authorized_keys`. The main account keeps the personal keys
 only (perso, pro, android), in its own `.ssh/authorized_keys`.
 
+Migration from the former shared key: removing it from `ssh_keys` in
+`storage_box.tf` revokes nothing (`ignore_changes`, the API does not edit the
+list). Remove its line by hand from the main account's `.ssh/authorized_keys`
+(download it with `scp -P 23`, delete the `tls_private_key.storage_box` key,
+upload it back), otherwise the old private key, still in the SOPS history and
+the former clear-text `tofu/pangolin` state, keeps full access to every
+repository.
+
 ## Borg Repository Initialization
 
 Borgmatic will automatically initialize repositories on first run. However, you can pre-initialize manually:

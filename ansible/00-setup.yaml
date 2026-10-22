@@ -91,7 +91,14 @@
 
     # Exclusive : une clé absente de keys/ est retirée de l'hôte. Une seule
     # tâche qui reçoit toutes les clés : en boucle, chaque passage effacerait
-    # les précédentes.
+    # les précédentes. Un keys/ vide (glob sans résultat) donnerait une clé
+    # vide et, en exclusive, retirerait toutes les clés : verrouillage.
+    - name: Check that keys/ holds at least one public key
+      ansible.builtin.assert:
+        that: query('fileglob', playbook_dir + '/../keys/*.pub') | length > 0
+        fail_msg: "Aucune clé dans keys/*.pub : authorized_keys exclusif viderait l'accès SSH."
+        quiet: true
+
     - name: Set public keys
       ansible.posix.authorized_key:
         user: sylvain

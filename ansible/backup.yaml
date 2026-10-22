@@ -11,7 +11,13 @@
 #      échouerait ici : le repo-create de chaque application parle déjà au
 #      sous-compte, qui ne connaît pas encore la clé.
 #   2. ce playbook ;
-#   3. le playbook complet de l'hôte (repo-create, configurations borgmatic).
+#   2 bis. migration seulement : depuis le compte principal, déplacer chaque
+#      dépôt existant de backup/<service> vers backup/<hôte>/<service>
+#      (`mv`, shell restreint). Sans ce déplacement, l'étape 3 crée des dépôts
+#      neufs et vides chez le sous-compte, l'historique reste dans backup/ ;
+#   3. le playbook complet de l'hôte (repo-create, configurations borgmatic),
+#      avec -e borgmatic_relocated_repo_access_is_ok=true après une migration,
+#      puis une fois sans.
 - name: Read the Storage Box key of each backed-up host
   hosts: docker,pi,pangolin,flip
   gather_facts: false
@@ -26,6 +32,16 @@
   hosts: backups
   gather_facts: false
   tasks:
+    # Un hôte injoignable à la première play n'a pas de clé lue : le dire
+    # plutôt qu'une variable indéfinie au milieu des boucles.
+    - name: Check that the key of every backed-up host was read
+      delegate_to: localhost
+      ansible.builtin.assert:
+        that: hostvars[item].backup_host_public_key.content is defined
+        fail_msg: "Clé de {{ item }} non lue (hôte injoignable ou rôle borgmatic pas encore joué) : rien n'est envoyé."
+        quiet: true
+      loop: "{{ backup_storage_box_hosts }}"
+
     # Shell restreint de la Storage Box : raw et ses commandes seulement.
     - name: Create the folder of each host
       ansible.builtin.raw: >-
