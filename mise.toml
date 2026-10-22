@@ -26,11 +26,8 @@ _.file = { path = "secrets.sops.yaml", redact = true}
 PROJECT_NAME = "{{ config_root | basename }}"
 
 [tasks.generate_password]
-description = "Generate a password, to store it in the secrets file"
-usage = '''
-arg "<password>" help="plain password to hash"
-'''
-run = 'mkpasswd --method=SHA-512 --rounds=4096 ${usage_password}'
+description = "Hash a host password (prompted, kept out of the shell history) for host_user_password_hash"
+run = 'mkpasswd --method=SHA-512 --rounds=4096'
 
 [tasks.init]
 description = "Tofu Init (Pangolin)"
