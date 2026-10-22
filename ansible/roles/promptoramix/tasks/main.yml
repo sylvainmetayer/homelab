@@ -27,6 +27,7 @@
     group: "65534"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart promptoramix
   ansible.builtin.template:
     src: "templates/compose.yaml"
@@ -36,6 +37,7 @@
     mode: "0600"
 
 - name: Template environment configuration
+  diff: false
   notify: Restart promptoramix
   no_log: true
   ansible.builtin.template:

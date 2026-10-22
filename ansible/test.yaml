@@ -1,16 +1,22 @@
 ---
 - name: Test
   hosts: localhost
+  # Les facts de localhost, mis en cache dans facts/, contiendraient
+  # l'environnement de mise : jetons du secrets.sops.yaml racine compris.
+  gather_facts: false
   pre_tasks:
     # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).
     - name: Load secrets and the pangolin_config state outputs
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
   tasks:
+    # no_log, et l'URL n'est pas affichée : son jeton de push suffit à
+    # envoyer de faux battements au moniteur.
     - name: Extract uptime_backup_nextcloud_url from Terraform state outputs
+      no_log: true
       ansible.builtin.set_fact:
         uptime_backup_nextcloud_url: "{{ terraform_outputs.uptime_backup_nextcloud_url.value }}"
 
-    - name: Display uptime_backup_nextcloud_url
+    - name: Check that uptime_backup_nextcloud_url was read
       ansible.builtin.debug:
-        msg: "{{ uptime_backup_nextcloud_url }}"
+        msg: "uptime_backup_nextcloud_url lue : {{ uptime_backup_nextcloud_url | length > 0 }}"

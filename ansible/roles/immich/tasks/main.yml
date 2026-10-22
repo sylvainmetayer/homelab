@@ -21,6 +21,7 @@
     mode: "0700"
 
 - name: Template compose configuration
+  diff: false
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ immich_base_path }}/{{ item.dest }}"

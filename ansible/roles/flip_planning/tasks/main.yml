@@ -140,6 +140,7 @@
       the application repo prints the two client secrets.
 
 - name: Template compose configuration for {{ flip_planning_service }}
+  diff: false
   notify: "Restart {{ flip_planning_service }}"
   loop:
     - src: "templates/compose.yaml"

@@ -62,6 +62,7 @@
     group: root
 
 - name: Create Pangolin configuration
+  diff: false
   become: true
   notify: Restart Pangolin service
   ansible.builtin.template:
@@ -72,6 +73,7 @@
     group: root
 
 - name: Create compose.yml
+  diff: false
   notify: Restart Pangolin service
   become: true
   ansible.builtin.template:

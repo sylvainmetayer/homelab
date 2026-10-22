@@ -27,6 +27,7 @@
 # 0600 root : le mot de passe de la boîte y est. Seul root envoie (msmtp n'est
 # pas setgid) ; un cron d'utilisateur ne pourrait pas, ce qui est voulu.
 - name: Configure msmtp
+  diff: false
   ansible.builtin.template:
     src: msmtprc.j2
     dest: /etc/msmtprc
@@ -35,6 +36,7 @@
     mode: "0600"
 
 - name: Route local mail to the admin mailbox
+  diff: false
   ansible.builtin.template:
     src: aliases.j2
     dest: /etc/aliases

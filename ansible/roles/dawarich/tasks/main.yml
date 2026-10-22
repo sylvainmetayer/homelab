@@ -36,6 +36,7 @@
     group: "999"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart dawarich
   ansible.builtin.template:
     src: "templates/compose.yaml"
@@ -45,6 +46,7 @@
     mode: "0600"
 
 - name: Template environment configuration
+  diff: false
   notify: Restart dawarich
   ansible.builtin.template:
     src: "templates/env.j2"
