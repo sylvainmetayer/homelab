@@ -3,7 +3,8 @@
   "timezone": "Europe/Paris",
   "extends": [
     "config:recommended",
-    "customManagers:dockerfileVersions"
+    "customManagers:dockerfileVersions",
+    "helpers:pinGitHubActionDigests"
   ],
   "minimumReleaseAge": "1 day",
   "packageRules": [
@@ -226,6 +227,27 @@
       ],
       "matchStrings": [
         "\"image\":\\s*\"(?<depName>[^\"]+)\",\\s*\"version\":\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic): no built-in manager reads plain vars. A borg bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
+      "managerFilePatterns": [
+        "/^ansible/roles/borgmatic/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[a-z_]+:\\s*\"(?<currentValue>[^\"]+)\""
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "OLM image started by `docker run` in the workflows (deploy-docker-app, ping), pinned by tag and digest; the github-actions manager only reads `uses:`",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "(?<depName>docker\\.io/fosrl/olm):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"
       ],
       "datasourceTemplate": "docker"
     }

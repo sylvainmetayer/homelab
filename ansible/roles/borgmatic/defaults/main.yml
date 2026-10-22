@@ -2,8 +2,19 @@
 # Borgmatic configuration directory
 borgmatic_config_dir: "/etc/borgmatic.d"
 
-# Borg version to download from GitHub releases
+# Borg version to download from GitHub releases, and the sha256 of each
+# binary (listed on the release page): get_url refuses any other file. A
+# version bump (Renovate) must update both checksums.
+# renovate: datasource=github-releases depName=borgbackup/borg
 borgmatic_borg_version: "1.4.4"
+borgmatic_borg_sha256:
+  x86_64: d48d3a31cf1f6fb781fe240945e0b1c246093d3b94b56ce8f501d46a8615f4de
+  arm64: 7bfe55dfd4088f5c570a9e0d5513b5e01a20c3555eedc95c2d7de952c260eb0f
+
+# borgmatic version installed by pipx : la même que celle du scénario Molecule
+# (molecule/_shared/Dockerfile), Renovate fait monter les deux ensemble.
+# renovate: datasource=pypi depName=borgmatic
+borgmatic_version: "2.1.10"
 
 # Borg repository encryption mode (for repo-create)
 # Common values: repokey-blake2, repokey-chacha20-poly1305, none

@@ -29,11 +29,22 @@
     create: true
     mode: "0644"
 
-- name: Install borgmatic via pipx for root
+- name: Read the borgmatic version installed for root
   become: true
+  community.general.pipx_info:
+    name: borgmatic
+  register: borgmatic_pipx_info
+
+# pipx n'est pas idempotent avec une source versionnée : on ne réinstalle que
+# si la version diffère.
+- name: Install the pinned borgmatic via pipx for root
+  become: true
+  when: (borgmatic_pipx_info.application | map(attribute='version') | first | default('')) != borgmatic_version
   community.general.pipx:
-    name: "borgmatic"
-    state: present
+    name: borgmatic
+    source: "borgmatic=={{ borgmatic_version }}"
+    state: install
+    force: true
 
 - name: Ensure /root/.local/bin directory exists
   become: true
@@ -64,6 +75,7 @@
       https://github.com/borgbackup/borg/releases/download/{{ borgmatic_borg_version }}/borg-linux-glibc235-{{
       borgmatic_borg_architecture | trim | replace('\n', '') }}-gh
     dest: "/root/.local/bin/borg"
+    checksum: "sha256:{{ borgmatic_borg_sha256[borgmatic_borg_architecture | trim] }}"
     mode: "0700"
     owner: "root"
     group: "root"

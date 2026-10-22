@@ -206,7 +206,7 @@ jobs:
             -e OLM_ID="$OLM_ID" \
             -e OLM_SECRET="$OLM_SECRET" \
             -e OVERRIDE_DNS=true \
-            fosrl/olm
+            docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
 
       - name: Wait OLM startup
         if: steps.resolve-tags.outputs.any_tags == 'true'
