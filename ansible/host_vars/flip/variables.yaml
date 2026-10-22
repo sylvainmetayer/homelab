@@ -24,6 +24,9 @@ security_fail2ban_ignoreip:
 # Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp.
 security_mta_enabled: true
 
+# Après celui de Pangolin (04:00), par qui flip sort sur Internet.
+security_unattended_reboot_time: "04:30"
+
 flip_planning_backup_enabled: true
 flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 

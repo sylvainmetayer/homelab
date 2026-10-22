@@ -38,6 +38,11 @@ security_fail2ban_ignoreip:
   - 127.0.0.1/8
   - ::1
 
+# Heure du redémarrage qu'unattended-upgrades fait quand une mise à jour le
+# demande (noyau, libc). Après les sauvegardes (borgmatic à 01:00). flip la
+# décale : il sort sur Internet par Pangolin, qui doit être revenu avant.
+security_unattended_reboot_time: "04:00"
+
 # --- devsec.hardening (os_hardening + ssh_hardening) ---
 
 # Fusionné par os_hardening par-dessus son sysctl_config, puis écrit dans
