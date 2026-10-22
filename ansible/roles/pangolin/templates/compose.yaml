@@ -27,7 +27,6 @@ services:
       - ./config/:/var/config
     cap_add:
       - NET_ADMIN
-      - SYS_MODULE
     ports:
       - 51820:51820/udp
       - 21820:21820/udp
