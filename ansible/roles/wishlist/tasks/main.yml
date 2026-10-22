@@ -14,6 +14,7 @@
     group: "{{ ansible_facts['user_gid'] }}"
 
 - name: Template compose configuration
+  diff: false
   notify: Restart wishlist
   ansible.builtin.template:
     src: "templates/compose.yaml"
@@ -23,6 +24,7 @@
     mode: "0600"
 
 - name: Template environment configuration
+  diff: false
   notify: Restart wishlist
   ansible.builtin.template:
     src: "templates/env.j2"
