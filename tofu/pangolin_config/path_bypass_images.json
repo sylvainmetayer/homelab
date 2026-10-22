@@ -9,7 +9,7 @@
   },
   "Karakeep": {
     "image": "ghcr.io/karakeep-app/karakeep",
-    "version": "0.33.2",
+    "version": "0.34.1",
     "compose": "ansible/roles/karakeep/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_karakeep.tf (karakeep_public_paths)",
     "reread": "apps/web/app/public, apps/web/components/public/lists, packages/api",
