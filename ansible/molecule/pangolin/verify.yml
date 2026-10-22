@@ -133,6 +133,46 @@
           - (pangolin_wireguard.results[0].content | b64decode) == 'wireguard\n'
           - gerbil.cap_add == ['NET_ADMIN']
 
+    # --- GeoLite2 : mise à jour hebdomadaire par geoipupdate ---
+
+    - name: Read the state of geoipupdate.timer
+      become: true
+      ansible.builtin.systemd:
+        name: geoipupdate.timer
+      register: pangolin_geoip_timer
+
+    - name: Read the geoipupdate unit and its credentials
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: pangolin_geoip_files
+      loop:
+        - /etc/systemd/system/geoipupdate.service
+        - /etc/geoipupdate/env
+        - /etc/geoipupdate/license_key
+
+    - name: Stat the MaxMind license key
+      become: true
+      ansible.builtin.stat:
+        path: /etc/geoipupdate/license_key
+      register: pangolin_geoip_license
+
+    - name: Assert GeoLite2 is kept up to date by the pinned geoipupdate
+      vars:
+        geoip_unit: "{{ pangolin_geoip_files.results[0].content | b64decode }}"
+        geoip_env: "{{ pangolin_geoip_files.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_geoip_timer.status.ActiveState == 'active'
+          - pangolin_geoip_timer.status.UnitFileState == 'enabled'
+          - geoip_unit is search('ghcr\\.io/maxmind/geoipupdate:v[0-9.]+@sha256:[a-f0-9]{64}')
+          - "'https://uptime.example.invalid/api/push/pangolin_geoip' in geoip_unit"
+          - "'docker restart pangolin' in geoip_unit"
+          - ('GEOIPUPDATE_ACCOUNT_ID=' ~ pangolin_maxmind_account_id) in geoip_env
+          - "'GEOIPUPDATE_EDITION_IDS=GeoLite2-Country' in geoip_env"
+          - (pangolin_geoip_files.results[2].content | b64decode | trim) == pangolin_maxmind_license_key
+          - pangolin_geoip_license.stat.mode == '0600'
+
     # --- Traefik ---
 
     - name: Read the Traefik configurations

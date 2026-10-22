@@ -1,0 +1,12 @@
+# MaxMind publie GeoLite2 deux fois par semaine : une mise à jour hebdomadaire,
+# de nuit, loin des sauvegardes (01:00) et du redémarrage automatique (04:00).
+[Unit]
+Description=Weekly GeoLite2 update for Pangolin
+
+[Timer]
+OnCalendar=Wed *-*-* 02:30:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

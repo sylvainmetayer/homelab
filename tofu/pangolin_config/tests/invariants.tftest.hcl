@@ -24,7 +24,7 @@ mock_provider "aws" {}
 # Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
 variables {
   state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
-  travel_countries = {}
+  travel_countries            = {}
 }
 
 # Toutes les clés lues dans secrets.tf (data.sops_file.secrets.data[...]).
@@ -485,6 +485,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup_pangolin
   values = { push_token = "push-pangolin" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_geoip
+  values = { push_token = "push-cron-geoip" }
 }
 
 override_resource {
@@ -1820,6 +1825,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_backup_pangolin_url (pangolin.yaml) ne pointe pas sur le moniteur Backup Pangolin."
   }
 
+  assert {
+    condition     = output.uptime_cron_geoip_url == "https://uptime.example.test/api/push/push-cron-geoip"
+    error_message = "uptime_cron_geoip_url (pangolin.yaml) ne pointe pas sur le moniteur GeoIP Pangolin."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -1843,6 +1853,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_demo_planning_url,
       output.uptime_backup_immich_url,
       output.uptime_backup_pangolin_url,
+      output.uptime_cron_geoip_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2077,7 +2088,11 @@ run "monitors_are_filed_and_notify_by_email" {
 
   assert {
     condition = (
-      uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
+      uptimekuma_monitor_push.cron_geoip.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(uptimekuma_monitor_push.cron_geoip.notification_ids, uptimekuma_notification_smtp.email.id)
+      && uptimekuma_monitor_push.cron_geoip.interval < 60 * 60 * 24 * 24
+      && uptimekuma_monitor_push.cron_geoip.interval > 60 * 60 * 24 * 7
+      && uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
       && contains(uptimekuma_monitor_push.cron_monica.notification_ids, uptimekuma_notification_smtp.email.id)
     )
     error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié par e-mail."

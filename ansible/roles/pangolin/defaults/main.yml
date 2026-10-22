@@ -32,6 +32,14 @@ pangolin_smtp_pass: ""
 # Backup healthcheck URL loaded from Terraform state outputs.
 pangolin_backup_healthcheck_url: ""
 
+# Mise à jour hebdomadaire de GeoLite2 (géofiltre) : image officielle de
+# MaxMind, compte gratuit (pangolin_maxmind_account_id et
+# pangolin_maxmind_license_key dans secrets.sops.yaml). L'URL push vient de
+# l'output uptime_cron_geoip_url de tofu/pangolin_config (pangolin.yaml).
+pangolin_geoipupdate_image: "ghcr.io/maxmind/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d"
+pangolin_geoipupdate_config_dir: /etc/geoipupdate
+pangolin_geoip_healthcheck_url: ""
+
 # Backup (borgmatic)
 pangolin_backup_enabled: true
 pangolin_backup_borgmatic_target: "{{ backup_storage_box_url }}/pangolin"
