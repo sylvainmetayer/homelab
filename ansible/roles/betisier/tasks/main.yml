@@ -10,10 +10,16 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
+# Sans checksum, get_url ne retélécharge jamais un dump.sql présent. Celui-ci
+# est la version dont les comptes portent le hachage du mot de passe IUT avec
+# le GRAIN_SEL du serveur. La base n'ayant pas de volume, le nouveau dump ne
+# sert qu'au prochain chargement : le reset recrée les conteneurs.
 - name: Get SQL dump
+  notify: Reset betisier
   ansible.builtin.get_url:
     url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/refs/heads/master/betisier-mysql/betisier.sql"
     dest: "{{ betisier_base_path }}/dump.sql"
+    checksum: "sha256:aefcb819566cff2926cada7a80aeb625ea2718c1cd8760def36e97dad504d089"
     mode: "0644"
 
 - name: Template compose configuration

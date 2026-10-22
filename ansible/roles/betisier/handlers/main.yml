@@ -9,3 +9,11 @@
     name: dc@betisier
     scope: user
     state: restarted
+
+# `compose down` puis relance (betisier-reset.service) : la base, sans volume,
+# recharge le dump. Un simple restart de dc@ (compose stop) la garderait.
+- name: Reset betisier
+  ansible.builtin.systemd:
+    name: betisier-reset.service
+    scope: user
+    state: started
