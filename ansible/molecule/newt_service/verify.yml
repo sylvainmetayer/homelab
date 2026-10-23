@@ -1,0 +1,47 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/newt_service/defaults/main.yml
+  tasks:
+    - name: Stat the newt binary, its credentials and its unit
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      register: newt_files
+      loop:
+        - /usr/local/bin/newt
+        - /etc/newt/env
+        - /etc/systemd/system/newt.service
+
+    - name: Read the credentials file and the unit
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: newt_contents
+      loop:
+        - /etc/newt/env
+        - /etc/systemd/system/newt.service
+
+    - name: Read the state of newt.service
+      ansible.builtin.systemd:
+        name: newt
+      register: newt_unit
+
+    - name: Assert newt is installed from the pinned binary, without secrets on its command line
+      vars:
+        newt_env: "{{ newt_contents.results[0].content | b64decode }}"
+        newt_unit_file: "{{ newt_contents.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - newt_files.results[0].stat.checksum == newt_service_sha256['amd64']
+          - newt_files.results[0].stat.mode == '0755'
+          - newt_files.results[1].stat.mode == '0600'
+          - newt_files.results[1].stat.pw_name == 'root'
+          - "'NEWT_ID=molecule-newt-id' in newt_env"
+          - "'NEWT_SECRET=molecule-newt-secret' in newt_env"
+          - "'EnvironmentFile=/etc/newt/env' in newt_unit_file"
+          - "'DynamicUser=yes' in newt_unit_file"
+          - "'molecule-newt-secret' not in newt_unit_file"
+          - newt_unit.status.UnitFileState == 'enabled'

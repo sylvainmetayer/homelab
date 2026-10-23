@@ -30,6 +30,7 @@
     quiet: true
 
 - name: Apply devsec os_hardening
+  when: security_os_hardening_enabled | bool
   ansible.builtin.include_role:
     name: devsec.hardening.os_hardening
     # Un include ne transmet pas les tags du rôle à ses tâches : sans `always`,

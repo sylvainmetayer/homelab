@@ -7,9 +7,26 @@ locals {
   }
 }
 
+# Le Newt du LXC de Proxmox (ansible/lxc.yml, rôle newt_service) : par lui
+# passent la CI (docker-apps.internal, pi.internal) et les ressources privées
+# du LAN. Ses identifiants sont lus dans ce state par lxc.yml (outputs
+# ci-dessous). Site recréé le 23/10/2026 : l'ancien, importé, n'avait pas ses
+# identifiants dans le state.
 resource "pangolin_site" "proxmox_lxc" {
   name                  = "proxmox-lxc"
   docker_socket_enabled = false
+}
+
+output "proxmox_lxc_newt_id" {
+  description = "PROXMOX LXC - Newt ID of the proxmox-lxc site, read by ansible/lxc.yml"
+  value       = pangolin_site.proxmox_lxc.newt_id
+  sensitive   = true
+}
+
+output "proxmox_lxc_newt_secret" {
+  description = "PROXMOX LXC - Newt secret of the proxmox-lxc site, read by ansible/lxc.yml"
+  value       = pangolin_site.proxmox_lxc.newt_secret
+  sensitive   = true
 }
 
 resource "pangolin_site" "proxmox_docker" {

@@ -21,6 +21,14 @@ security_ufw_allowed_ports:
 # au démarrage suivant.
 security_filesystem_whitelist: []
 
+# Interrupteurs pour un conteneur (LXC non privilégié) : ni ufw (pas
+# d'iptables utilisable), ni auditd (pas d'audit noyau), ni os_hardening de
+# devsec (montages, modules et sysctl de l'hôte). sshd, fail2ban et les mises à
+# jour automatiques restent.
+security_ufw_enabled: true
+security_auditd_enabled: true
+security_os_hardening_enabled: true
+
 # --- sshd, transmis à devsec ssh_hardening ---
 
 # AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion

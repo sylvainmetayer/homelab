@@ -73,6 +73,7 @@
           - gnupg2
           - fzf
           - apt-transport-https
+          - sudo
         state: present
 
     - name: Set timezone to Europe/Paris
@@ -88,6 +89,18 @@
         groups: sudo
         append: true
         password: "{{ host_user_password_hash }}"
+
+    # Sans mot de passe : Ansible et la CI l'utilisent (become). Posé jusqu'ici
+    # par cloud-init, absent d'un hôte qui n'en a pas eu (le LXC newt).
+    - name: Let sylvain use sudo without a password
+      become: true
+      ansible.builtin.copy:
+        content: "sylvain ALL=(ALL) NOPASSWD:ALL\n"
+        dest: /etc/sudoers.d/90-sylvain
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s
 
     # Exclusive : une clé absente de keys/ est retirée de l'hôte. Une seule
     # tâche qui reçoit toutes les clés : en boucle, chaque passage effacerait

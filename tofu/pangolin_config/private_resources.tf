@@ -11,6 +11,24 @@ resource "pangolin_site_resource" "app_proxy" {
   destination_port = 80
 }
 
+# L'imprimante (interface web), par un client Pangolin. Faite à la main dans
+# l'UI jusqu'au 23/10/2026, déclarée ici à la recréation du site du LXC.
+# `ssl` n'est que calculé par le provider : HTTPS se règle dans l'UI.
+resource "pangolin_site_resource" "printer" {
+  site_id          = pangolin_site.proxmox_lxc.id
+  name             = "Imprimante"
+  mode             = "http"
+  domain_id        = local.domain_ids["sylvain.cloud"]
+  subdomain        = "print"
+  destination      = "192.168.1.158"
+  scheme           = "http"
+  destination_port = 80
+  disable_icmp     = false
+  tcp_port_range   = "443,80"
+  auth_daemon_mode = "site"
+  pam_mode         = "passthrough"
+}
+
 resource "pangolin_site_resource" "docker_apps" {
   site_id        = pangolin_site.proxmox_lxc.id
   name           = "Docker Apps"

@@ -13,3 +13,9 @@
 
 [raspberrypi]
 pi ansible_host=192.168.1.96 ansible_user=sylvain
+
+# LXC de Proxmox qui fait tourner le Newt du site proxmox-lxc (lxc.yml) : la CI
+# et les ressources privées du LAN passent par lui. Absent de proxmox.py, qui
+# ne lit que les VM.
+[newt_lxc]
+newt-lxc ansible_host=192.168.1.200 ansible_user=sylvain

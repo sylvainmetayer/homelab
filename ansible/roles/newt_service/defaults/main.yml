@@ -1,0 +1,20 @@
+---
+# Newt en service systemd, sans Docker : le LXC de Proxmox (lxc.yml), par où
+# passent la CI et les ressources privées du LAN. Les hôtes Docker ont le rôle
+# newt (conteneur). Même version des deux côtés, suivie par Renovate.
+# renovate: datasource=github-releases depName=fosrl/newt
+newt_service_version: "1.19.0"
+# Sommes des binaires de la release GitHub : get_url refuse tout autre fichier.
+# Une montée de version (Renovate) doit aussi changer ces sommes.
+newt_service_sha256:
+  amd64: 6d40e223fa49d8bcfa9b7094208c58ff616997979bff7c884d0af61fcc1c5376
+  arm64: 2a282e3edda7be17f092ac58aff0ec6dac9ddd152a642e8e61e6d625f2abe696
+
+newt_service_endpoint: "{{ newt_endpoint }}"
+# Identifiants du site Pangolin : lxc.yml les lit dans le state de
+# tofu/pangolin_config (outputs proxmox_lxc_newt_*).
+newt_service_id: ""
+newt_service_secret: ""
+
+newt_service_binary: /usr/local/bin/newt
+newt_service_config_dir: /etc/newt

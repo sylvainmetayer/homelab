@@ -1,0 +1,30 @@
+---
+# LXC newt de Proxmox : sshd durci, mises à jour automatiques, et Newt en
+# service systemd avec les identifiants du site proxmox-lxc, lus dans le state
+# de tofu/pangolin_config (comme flip.yml pour le site flip).
+#
+# Premier passage sur un LXC neuf (seul root existe) :
+#   ansible-playbook -i inventory 00-setup.yaml --limit newt-lxc -e ansible_user=root
+# puis ce playbook, en sylvain.
+- name: Configure the Newt LXC of Proxmox
+  hosts: newt_lxc
+
+  pre_tasks:
+    # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # no_log : le secret Newt, qu'un -v écrirait dans run.log.
+    - name: Load the Newt credentials of the proxmox-lxc site from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        newt_service_id: "{{ terraform_outputs.proxmox_lxc_newt_id.value | default('') }}"
+        newt_service_secret: "{{ terraform_outputs.proxmox_lxc_newt_secret.value | default('') }}"
+
+  roles:
+    - role: security
+      become: true
+      tags: security,setup
+    - role: newt_service
+      tags: newt,setup

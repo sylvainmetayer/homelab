@@ -1,0 +1,28 @@
+# Newt, client du tunnel Pangolin (rôle newt_service). Identifiants dans
+# {{ newt_service_config_dir }}/env (0600), pas sur la ligne de commande : ps
+# les montrerait à tout le conteneur.
+[Unit]
+Description=Newt, Pangolin tunnel client
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ newt_service_config_dir }}/env
+ExecStart={{ newt_service_binary }}
+Restart=always
+RestartSec=10
+# Compte éphémère sans privilège : newt n'a besoin que du réseau (pile
+# WireGuard en espace utilisateur) ; CAP_NET_RAW pour ses tests ICMP.
+DynamicUser=yes
+StateDirectory=newt
+Environment=HOME=/var/lib/newt
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

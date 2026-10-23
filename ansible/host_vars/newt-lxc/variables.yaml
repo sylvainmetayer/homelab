@@ -1,0 +1,17 @@
+---
+# LXC non privilégié de Proxmox (Debian 13), Newt du site proxmox-lxc (lxc.yml).
+# Rôle security allégé : pas d'ufw (pas d'iptables utilisable dans le
+# conteneur, pare-feu côté Proxmox), pas d'auditd (pas d'audit noyau), pas
+# d'os_hardening de devsec (montages, modules et sysctl appartiennent à
+# l'hôte Proxmox). Restent sshd durci (root coupé), fail2ban et les mises à
+# jour automatiques.
+security_ufw_enabled: false
+security_auditd_enabled: false
+security_os_hardening_enabled: false
+# Tout le LAN ne doit jamais être banni (ton poste).
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 192.168.1.0/24
+# Juste avant la VM docker (05:00) : la CI passe par lui.
+security_unattended_reboot_time: "04:45"
