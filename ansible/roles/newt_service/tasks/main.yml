@@ -20,7 +20,9 @@
     checksum: "sha256:{{ newt_service_sha256[newt_service_arch] }}"
     owner: root
     group: root
-    mode: "0755"
+    # Lisible et exécutable par tous : le service tourne sous un utilisateur
+    # dynamique (DynamicUser), qui n'est ni root ni membre de son groupe.
+    mode: "0755" # NOSONAR
 
 - name: Create the newt configuration directory
   become: true
