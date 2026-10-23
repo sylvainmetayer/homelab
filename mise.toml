@@ -15,13 +15,6 @@ python = "3.14.8"
 [settings]
 #python.uv_venv_auto = true
 
-[tasks.info]
-description = "Print project information"
-run = '''
-echo "Project: $PROJECT_NAME"
-echo "Virtual Environment: $VIRTUAL_ENV"
-'''
-
 [env]
 _.path = [".venv/bin"]
 
@@ -91,38 +84,29 @@ raw = true
 dir = "tofu/ref"
 depends = ["init-ref"]
 
+# Mêmes modules que le job « OpenTofu lint » (lint.yaml). -backend=false :
+# aucun accès au state, et un module déjà initialisé garde son backend.
 [tasks.lint]
-description = "Tofu linting (all)"
-run = "tofu fmt -check -recursive && cd pangolin && tofu validate && cd ../proxmox && tofu validate"
+description = "Tofu linting: fmt and validate of every module the Lint workflow checks"
+run = '''
+tofu fmt -check -recursive
+for module in pangolin proxmox pangolin_config dns github ref s3_state site 1y; do
+  echo "== $module"
+  tofu -chdir="$module" init -backend=false -input=false > /dev/null
+  tofu -chdir="$module" validate
+done
+'''
 dir = "tofu"
-depends = ["init", "init-proxmox"]
 
 [tasks.fix-lint]
 description = "Tofu linting fix (all)"
 run = "tofu fmt -recursive"
 dir = "tofu"
 
-[tasks.get_state]
-description = "Get the current state of the tofu deployment"
-run = "tofu state pull > state.json"
-dir = "tofu"
-
 [tasks.ansible-lint]
 description = "Lint Ansible playbooks"
 run = "ansible-lint"
 dir = "ansible"
-
-[tasks.ansible-run]
-description = "Run Ansible playbook"
-run = "ansible-playbook -i inventory/hosts site.yml"
-dir = "ansible"
-raw = true
-
-[tasks.ansible-check]
-description = "Run Ansible playbook in check mode"
-run = "ansible-playbook -i inventory/hosts site.yml --check"
-dir = "ansible"
-raw = true
 
 [tasks.molecule-image]
 description = "Build the Molecule test image (Debian 13 + systemd)"

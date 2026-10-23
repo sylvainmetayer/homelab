@@ -15,7 +15,7 @@ description = "Run ansible-lint with auto-fix"
 run = "ansible-lint --fix"
 
 [tasks.ssh]
-description = "SSH into the managed host"
+description = "SSH into the docker VM (Proxmox)"
 run = '''
 ip=$(ansible-inventory --host docker | jq -r '.ansible_host')
 ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
@@ -23,7 +23,7 @@ ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
 raw = true
 
 [tasks.ssh_pi]
-description = "SSH into the managed host"
+description = "SSH into the Raspberry Pi (local network only)"
 run = '''
 ip=$(ansible-inventory --host pi | jq -r '.ansible_host')
 ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
