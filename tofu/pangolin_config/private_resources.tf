@@ -23,7 +23,7 @@ resource "pangolin_site_resource" "printer" {
   destination      = "192.168.1.158"
   scheme           = "http"
   destination_port = 80
-  disable_icmp     = false
+  disable_icmp     = true
   tcp_port_range   = "443,80"
   auth_daemon_mode = "site"
   pam_mode         = "passthrough"
