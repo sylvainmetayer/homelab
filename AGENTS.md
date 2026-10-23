@@ -14,6 +14,8 @@ There's also a Raspberry Pi (`ansible/pi.yml`, Immich) and a Hetzner Storage Box
 
 Stack: **OpenTofu** (infra) → **Ansible** (host config + app deploy via Docker Compose) → **SOPS/Age** (secrets) → **Borgmatic** (backups to Hetzner Storage Box).
 
+Pour les humains : la carte du homelab est dans `docs/architecture.md`, les procédures d'incident dans `docs/runbooks/`, une banque de questions d'entraînement dans `docs/quiz.md`.
+
 ## Commands
 
 All commands run through **mise** (not make). Tool versions are pinned in `mise.toml`; run `mise install` once, then `uv sync` for the Python venv.
