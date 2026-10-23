@@ -145,9 +145,9 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 23 ressources gérées, dont
-# Gramps désactivée, et un reste désactivé créé dans l'UI, que l'audit doit
-# ignorer puisqu'il n'est pas servi.
+# GET /v1/org/{org}/resources?pageSize=1000 : les 17 ressources gérées, et un
+# reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
+# servi.
 override_data {
   target = data.http.pangolin_resources
   values = {
@@ -517,6 +517,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.ssh_login["pi"]
   values = { push_token = "push-ssh-pi" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["newt-lxc"]
+  values = { push_token = "push-ssh-newt-lxc" }
 }
 
 # ===========================================================================
@@ -1985,9 +1990,7 @@ run "demo_and_production_planning_share_nothing" {
 # Backup avec un battement quotidien, chaque healthcheck dans Self-hosted, et
 # tous reliés au canal e-mail (un moniteur sans notification ne prévient
 # personne, comme gramps et scanopy en 503 pendant des heures). Tout moniteur
-# de sauvegarde est actif, sauf celui de Gramps, arrêté (website_gramps.tf) :
-# l'exception est nommée, et le test échoue aussi s'il redevient actif sans
-# qu'on la retire.
+# de sauvegarde est actif.
 run "monitors_are_filed_and_notify_by_email" {
   command = apply
 
@@ -2081,12 +2084,13 @@ run "ssh_login_monitors_alert_on_every_login" {
 
   assert {
     condition = { for host, m in uptimekuma_monitor_push.ssh_login : host => m.name } == {
-      docker   = "SSH docker"
-      flip     = "SSH flip"
-      pangolin = "SSH pangolin"
-      pi       = "SSH pi"
+      docker     = "SSH docker"
+      flip       = "SSH flip"
+      "newt-lxc" = "SSH newt-lxc"
+      pangolin   = "SSH pangolin"
+      pi         = "SSH pi"
     }
-    error_message = "Un moniteur SSH par hôte de l'inventaire (docker, flip, pangolin, pi), nommé « SSH <hôte> »."
+    error_message = "Un moniteur SSH par hôte de l'inventaire (docker, flip, newt-lxc, pangolin, pi), nommé « SSH <hôte> »."
   }
 
   # Inversé : un push le fait passer DOWN (la notification), 60 s sans push le
@@ -2118,10 +2122,11 @@ run "ssh_login_monitors_alert_on_every_login" {
 
   assert {
     condition = output.uptime_ssh_login_urls == {
-      docker   = "https://uptime.example.test/api/push/push-ssh-docker"
-      flip     = "https://uptime.example.test/api/push/push-ssh-flip"
-      pangolin = "https://uptime.example.test/api/push/push-ssh-pangolin"
-      pi       = "https://uptime.example.test/api/push/push-ssh-pi"
+      docker     = "https://uptime.example.test/api/push/push-ssh-docker"
+      flip       = "https://uptime.example.test/api/push/push-ssh-flip"
+      "newt-lxc" = "https://uptime.example.test/api/push/push-ssh-newt-lxc"
+      pangolin   = "https://uptime.example.test/api/push/push-ssh-pangolin"
+      pi         = "https://uptime.example.test/api/push/push-ssh-pi"
     }
     error_message = "uptime_ssh_login_urls doit donner à chaque hôte l'URL de SON moniteur push."
   }
@@ -2143,7 +2148,7 @@ run "ssh_login_monitors_alert_on_every_login" {
     condition = (
       strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "pangolin_config_outputs_optional: true")
       && alltrue([
-        for playbook in ["docker.yml", "flip.yml", "pangolin.yaml", "pi.yml"] :
+        for playbook in ["docker.yml", "flip.yml", "lxc.yml", "pangolin.yaml", "pi.yml"] :
         !strcontains(file("${path.module}/../../ansible/${playbook}"), "pangolin_config_outputs_optional")
       ])
     )

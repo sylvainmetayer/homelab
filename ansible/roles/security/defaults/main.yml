@@ -59,6 +59,10 @@ security_fail2ban_ignoreip:
 # décale : il sort sur Internet par Pangolin, qui doit être revenu avant.
 security_unattended_reboot_time: "04:00"
 
+# Origines installées en plus de Debian-Security, au format Origins-Pattern.
+# Le Pi : son noyau et son firmware viennent d'archive.raspberrypi.com.
+security_unattended_extra_origins: []
+
 # --- devsec.hardening (os_hardening + ssh_hardening) ---
 
 # Fusionné par os_hardening par-dessus son sysctl_config, puis écrit dans

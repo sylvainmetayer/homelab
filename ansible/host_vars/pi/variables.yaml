@@ -40,3 +40,14 @@ security_unattended_reboot_time: "05:30"
 # noyau refuse). Le maximum accepté, au lieu des 18 d'origine.
 security_devsec_sysctl_host:
   vm.mmap_rnd_bits: 24
+
+# Noyau rpt et firmware : paquets d'archive.raspberrypi.com, que la seule
+# origine Debian-Security laisserait de côté (le reboot de 05:30 ne servirait
+# alors à rien pour le noyau).
+security_unattended_extra_origins:
+  - "origin=Raspberry Pi Foundation,codename=${distro_codename}"
+
+# Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp, comme
+# Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
+# reste non lu dans /var/mail/root.
+security_mta_enabled: true

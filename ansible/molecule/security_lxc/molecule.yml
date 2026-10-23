@@ -2,7 +2,7 @@
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
 # Le rôle security avec les variables du LXC newt : ni ufw, ni auditd, ni
 # os_hardening ; sshd durci, fail2ban et mises à jour automatiques. Prepare de
-# security (récepteur SMTP inutile ici, sans effet).
+# security (récepteur SMTP du relais msmtp).
 scenario:
   name: security_lxc
 ansible:

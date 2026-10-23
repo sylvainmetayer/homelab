@@ -193,6 +193,7 @@
       # Seulement les mises à jour de sécurité, redémarrage à l'heure de l'hôte.
       - unattended_upgrades is search('"origin=Debian,codename=\$\{distro_codename\}-security,label=Debian-Security";')
       - unattended_upgrades is not search('Allowed-Origins')
+      - security_unattended_extra_origins | default([]) | map('regex_replace', '^(.*)$', '"\\1";') | reject('in', unattended_upgrades) | list | length == 0
       - unattended_upgrades is search('Automatic-Reboot "true"')
       - unattended_upgrades is search('Automatic-Reboot-Time "' ~ security_unattended_reboot_time ~ '"')
       - auto_upgrades is search('APT::Periodic::Update-Package-Lists "1";')

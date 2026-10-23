@@ -30,6 +30,8 @@
           - "'ufw' not in ansible_facts.packages"
           - "'auditd' not in ansible_facts.packages"
           - "'fail2ban' in ansible_facts.packages"
+          - "'msmtp-mta' in ansible_facts.packages"
+          - "'exim4-daemon-light' not in ansible_facts.packages"
           - lxc_fail2ban.status.ActiveState == 'active'
           - lxc_sshd.stdout is search('^permitrootlogin no$', multiline=True)
           - lxc_sshd.stdout is search('^allowusers sylvain$', multiline=True)

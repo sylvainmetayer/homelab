@@ -2,6 +2,9 @@
 // s'appelle stable-security, et ne laissait passer aucune mise à jour.
 Unattended-Upgrade::Origins-Pattern {
   "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+{% for origin in security_unattended_extra_origins %}
+  "{{ origin }}";
+{% endfor %}
 };
 Unattended-Upgrade::AutoFixInterruptedDpkg "true";
 Unattended-Upgrade::MinimalSteps "true";
