@@ -10,8 +10,10 @@ creation_rules:
           - age1pvr43f8dnpsq7swgc0r3cy799yvyk2y4wj8z3n57sckq3z6dx5yq4rntuu # perso
           - age16rspnzt6j2qxa2587t6umh9qykrqu2amrr0hx9xt2z7elyky3a3q4p5s7l # pro
           - age140shtqa48n26q833upzj0yuentupxy8wcz0w0l3w3jhc7975t5as4umhx9 # github-actions
+          - age1uskgue38aysxxcp6p6l47xxxsjfnpm93wsgt3m7wj6qrr73zh3esy8d2qa # secours
   - path_regex: (^|/)secrets\.sops\.yaml$
     key_groups:
       - age:
           - age1pvr43f8dnpsq7swgc0r3cy799yvyk2y4wj8z3n57sckq3z6dx5yq4rntuu # perso
           - age16rspnzt6j2qxa2587t6umh9qykrqu2amrr0hx9xt2z7elyky3a3q4p5s7l # pro
+          - age1uskgue38aysxxcp6p6l47xxxsjfnpm93wsgt3m7wj6qrr73zh3esy8d2qa # secours
