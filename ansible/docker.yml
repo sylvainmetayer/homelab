@@ -31,6 +31,9 @@
       tags: setup
     - role: host_tuning
       tags: tuning,setup
+    - role: security
+      become: true
+      tags: security,setup
     - role: borgmatic
       tags: backup,setup
     - role: decommission_app

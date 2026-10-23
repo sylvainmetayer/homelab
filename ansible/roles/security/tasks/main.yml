@@ -82,6 +82,7 @@
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
+    from_ip: "{{ item.from | default('any') }}"
   loop: "{{ security_ufw_allowed_ports }}"
 
 - name: Enable UFW

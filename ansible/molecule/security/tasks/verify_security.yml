@@ -114,9 +114,11 @@
     fail_msg: "{{ security_ufw_status.stdout }}"
 
 - name: Assert every allowed port is open in ufw
+  vars:
+    security_ufw_source: "{{ item.from | default('Anywhere') | regex_escape }}"
   ansible.builtin.assert:
     that:
-      - security_ufw_status.stdout is search('^' ~ item.port ~ '/' ~ item.proto ~ '\s+ALLOW IN\s+Anywhere\s*$', multiline=True)
+      - security_ufw_status.stdout is search('^' ~ item.port ~ '/' ~ item.proto ~ '\s+ALLOW IN\s+' ~ security_ufw_source ~ '\s*$', multiline=True)
     fail_msg: "{{ item.port }}/{{ item.proto }} absent de : {{ security_ufw_status.stdout }}"
   loop: "{{ security_ufw_allowed_ports }}"
   loop_control:
@@ -399,3 +401,20 @@
         fail_msg: >-
           chage : {{ security_chage.stdout_lines }} ; /proc : {{ security_proc_options.stdout }} ;
           restants : {{ security_devsec_replaced.results | selectattr('stat.exists') | map(attribute='item') | list }}
+
+# --- systèmes de fichiers que devsec ne doit pas bloquer ---
+
+- name: Read the modprobe file written by devsec
+  become: true
+  ansible.builtin.slurp:
+    src: /etc/modprobe.d/dev-sec.conf
+  register: security_modprobe
+
+- name: Assert the whitelisted filesystems are not disabled
+  vars:
+    security_modprobe_conf: "{{ security_modprobe.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - security_modprobe_conf is not search('^install ' ~ item ~ ' ', multiline=True)
+    fail_msg: "devsec bloque {{ item }}, en liste blanche : {{ security_modprobe_conf }}"
+  loop: "{{ security_filesystem_whitelist }}"

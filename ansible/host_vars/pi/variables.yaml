@@ -17,3 +17,26 @@ starship_checksums:
 # backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
 # de tofu/pangolin.
 backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pi }}"
+
+# --- Durcissement (rôle security, lot 5 du plan) ---
+# Hôte du LAN, derrière la box : SSH n'est ouvert qu'au réseau local (ton
+# poste, le LXC newt par où passe la CI). Les ports publiés par Docker
+# contournent ufw (leurs règles passent avant) : Immich (2283), Postgres
+# (5432), Valkey (6379) et le timelapse (5000) restent joignables depuis le
+# LAN, pour le worker distant.
+security_ufw_allowed_ports:
+  - { port: "22", proto: tcp, from: 192.168.1.0/24 }
+# Tout le LAN ne doit jamais être banni : la CI arrive par le LXC newt, et un
+# agent qui présente trop de clés bannirait ton poste.
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 192.168.1.0/24
+security_filesystem_whitelist:
+  - vfat
+# Après Pangolin (04:00) et flip (04:30), loin des sauvegardes (01:00).
+security_unattended_reboot_time: "05:30"
+# Noyau arm64 du Pi : vm.mmap_rnd_bits entre 18 et 24 (devsec veut 32, que le
+# noyau refuse). Le maximum accepté, au lieu des 18 d'origine.
+security_devsec_sysctl_host:
+  vm.mmap_rnd_bits: 24

@@ -18,7 +18,9 @@ Adapt path to your setup.
 
 ```shell
 mkdir -p ~/Documents/homelab/compose/immich/library
-sshfs root@192.168.1.96:/opt/apps/immich/library ~/Documents/homelab/compose/immich/library -o allow_other,default_permissions,uid=$(id -u),gid=$(id -g) -o IdentityFile=/home/sylvain/.ssh/keepassxc.pub
+# Root ne se connecte plus au Pi (durcissement, lot 5) : sylvain, et le serveur
+# SFTP lancé par sudo pour lire la bibliothèque de root.
+sshfs sylvain@192.168.1.96:/opt/apps/immich/library ~/Documents/homelab/compose/immich/library -o allow_other,default_permissions,uid=$(id -u),gid=$(id -g) -o IdentityFile=/home/sylvain/.ssh/keepassxc.pub -o sftp_server="/usr/bin/sudo /usr/lib/openssh/sftp-server"
 ls ~/Documents/homelab/compose/immich/library
 # check files are there
 cat ~/Documents/homelab/compose/immich/.env
