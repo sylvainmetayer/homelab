@@ -101,7 +101,7 @@ services:
   assets:
     mem_limit: 128m
     container_name: {{ flip_planning_container_prefix }}-assets
-    image: nginx:1.31.8-alpine@sha256:e2d97c2b8c016f12c2f1a27d095685063b2f281c4edf2babfde6001cf4fb77a8
+    image: nginx:1.31.8-alpine@sha256:1ef7ca94d7879df82421428ce13bd1eaa412404953859cf7a5b6512c25e67a60
     restart: unless-stopped
     volumes:
       - ./assets:/usr/share/nginx/html/assets:ro
