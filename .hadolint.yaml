@@ -1,0 +1,8 @@
+# DL3008 (épingler les versions apt) : l'image de test Molecule suit Debian 13
+# à jour, comme les hôtes ; des versions figées casseraient à chaque point
+# release sans rien protéger.
+# DL3009 (vider /var/lib/apt/lists) : gardées exprès, les rôles installent
+# leurs paquets sans toujours rafraîchir le cache (voir le Dockerfile).
+ignored:
+  - DL3008
+  - DL3009

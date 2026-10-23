@@ -1,0 +1,27 @@
+# gitleaks (mise run secrets-scan, hook pre-commit) : règles par défaut, plus
+# les faux positifs connus de ce dépôt, chacun avec sa raison.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fichiers chiffrés par SOPS et valeurs factices des tests"
+paths = [
+  '''(^|/)[^/]*\.sops\.yaml$''',
+  '''^ansible/molecule/_shared/vars/fake_secrets\.yml$''',
+  '''^tofu/[^/]+/tests/[^/]+\.tftest\.hcl$''',
+]
+
+[[allowlists]]
+description = "Code tiers installé localement (collections Ansible, providers Tofu)"
+paths = [
+  '''^ansible/(\.ansible/)?collections/''',
+  '''(^|/)\.terraform/''',
+]
+
+[[allowlists]]
+description = "Clé publique PostHog de Flip Planning (phc_…), publique par conception (navigateur)"
+regexes = ['''phc_[A-Za-z0-9]+''']
+
+[[allowlists]]
+description = "Ancienne clé de la Storage Box (SHA256:EBo5Vy…), commitée puis retirée en avril 2026 ; autorisée nulle part (vérifié le 23/10/2026)"
+commits = ["1f3c0a15879d979a10133ea10bce97f7eafa61a2"]

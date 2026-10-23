@@ -1,0 +1,4 @@
+# Libellé de runner GitHub plus récent que la liste intégrée à actionlint.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

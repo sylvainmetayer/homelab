@@ -28,8 +28,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Un scénario par dossier ansible/molecule/<rôle>/ (sauf _shared), un
       # module Tofu par dossier tofu/<module>/ qui a des tests : un nouveau
       # scénario ou module testé entre dans la matrice sans toucher ce fichier.
@@ -69,10 +70,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
 
@@ -104,7 +106,8 @@ jobs:
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
-        run: molecule test --scenario-name "${{ matrix.scenario }}"
+          SCENARIO: ${{ matrix.scenario }}
+        run: molecule test --scenario-name "$SCENARIO"
 
   tofu:
     name: OpenTofu test (${{ matrix.module }})
@@ -123,8 +126,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Même version qu'en local (mise.toml) : la sémantique des mocks et des
       # overrides de `tofu test` évolue d'une version à l'autre.
       - name: Read the OpenTofu version pinned in mise.toml
@@ -142,16 +146,20 @@ jobs:
       # Même remède que Galaxy : la matrice interroge le registre OpenTofu en
       # même temps et une connexion coupée ne doit pas faire échouer le job.
       - name: Init without backend
+        env:
+          MODULE: ${{ matrix.module }}
         run: |
           for attempt in 1 2 3; do
-            tofu -chdir="${{ matrix.module }}" init -backend=false -input=false && exit 0
+            tofu -chdir="$MODULE" init -backend=false -input=false && exit 0
             echo "tofu init failed (attempt $attempt), retrying in $((attempt * 10))s"
             sleep $((attempt * 10))
           done
           exit 1
 
       - name: Run tofu test
-        run: tofu -chdir="${{ matrix.module }}" test -no-color
+        env:
+          MODULE: ${{ matrix.module }}
+        run: tofu -chdir="$MODULE" test -no-color
 
   # Seul check requis par le ruleset de main (tofu/github/ruleset_homelab.tf) :
   # les jobs de la matrice changent de nom à chaque scénario ajouté ou retiré.

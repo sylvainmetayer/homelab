@@ -36,7 +36,7 @@ resource "github_repository_ruleset" "homelab_main" {
       required_review_thread_resolution = false
     }
 
-    # Noms des jobs : lint.yaml (ansible, tofu) et le récapitulatif de
+    # Noms des jobs : lint.yaml (ansible, tofu, ci) et le récapitulatif de
     # test.yaml. Pas de « branche à jour » obligatoire, pour ne pas bloquer
     # les PR Renovate.
     required_status_checks {
@@ -50,6 +50,9 @@ resource "github_repository_ruleset" "homelab_main" {
       }
       required_check {
         context = "Tests"
+      }
+      required_check {
+        context = "CI lint"
       }
     }
   }

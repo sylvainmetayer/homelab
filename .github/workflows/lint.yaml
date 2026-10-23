@@ -6,7 +6,9 @@ on:
     branches:
       - main
     paths:
-      - .github/workflows/lint.yaml
+      - .github/**
+      - .hadolint.yaml
+      - ansible/molecule/_shared/Dockerfile
       - ansible/**
       - tofu/**
       - pyproject.toml
@@ -23,10 +25,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
 
@@ -63,8 +66,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
 
@@ -90,3 +94,55 @@ jobs:
             tofu -chdir="$module" init -backend=false -input=false
             tofu -chdir="$module" validate -no-color
           done
+
+  # Les workflows déploient avec des secrets : zizmor (actions épinglées par
+  # SHA, injections de gabarit, identifiants persistés), actionlint (syntaxe,
+  # expressions), et hadolint pour le Dockerfile de Molecule. Binaires
+  # épinglés et vérifiés, pas d'action tierce référencée par tag.
+  ci:
+    name: CI lint
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      HADOLINT_VERSION: 2.15.1
+      HADOLINT_SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+      ZIZMOR_VERSION: 1.30.1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install the linters
+        run: |
+          pip install --quiet --only-binary :all: uv==0.12.23
+          curl --proto '=https' --tlsv1.2 -fsSLo /tmp/actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tgz" | sha256sum -c -
+          tar -xzf /tmp/actionlint.tgz -C /tmp actionlint
+          curl --proto '=https' --tlsv1.2 -fsSLo /tmp/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
+          echo "${HADOLINT_SHA256}  /tmp/hadolint" | sha256sum -c -
+          chmod +x /tmp/hadolint
+
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uvx "zizmor==${ZIZMOR_VERSION}" --format github .github/workflows
+
+      - name: Run actionlint
+        run: /tmp/actionlint -color
+
+      - name: Run hadolint
+        run: /tmp/hadolint ansible/molecule/_shared/Dockerfile
+
