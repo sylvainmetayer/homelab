@@ -6,7 +6,7 @@ borgmatic_config_dir: "/etc/borgmatic.d"
 # binary (listed on the release page): get_url refuses any other file. A
 # version bump (Renovate) must update both checksums.
 # renovate: datasource=github-releases depName=borgbackup/borg
-borgmatic_borg_version: "1.4.4"
+borgmatic_borg_version: "1.4.5"
 borgmatic_borg_sha256:
   x86_64: d48d3a31cf1f6fb781fe240945e0b1c246093d3b94b56ce8f501d46a8615f4de
   arm64: 7bfe55dfd4088f5c570a9e0d5513b5e01a20c3555eedc95c2d7de952c260eb0f
