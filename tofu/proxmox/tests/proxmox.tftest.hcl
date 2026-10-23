@@ -30,9 +30,7 @@ override_data {
   target = data.sops_file.secrets
   values = {
     data = {
-      PROXMOX_TOKEN            = "fake@pve!tofu=00000000-0000-0000-0000-000000000000"
-      newt_lxc_pangolin_id     = "fake-newt-id"
-      newt_lxc_pangolin_secret = "fake-newt-secret"
+      PROXMOX_TOKEN = "fake@pve!tofu=00000000-0000-0000-0000-000000000000"
     }
   }
 }
