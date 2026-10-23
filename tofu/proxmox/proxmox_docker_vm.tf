@@ -114,6 +114,12 @@ resource "proxmox_virtual_environment_vm" "docker" {
       }
     }
 
+    # Les DNS que donnait le DHCP de la box : sans eux, une IP fixe ne reçoit
+    # que ceux de l'hôte Proxmox.
+    dns {
+      servers = ["192.168.1.254", "9.9.9.9", "1.1.1.1"]
+    }
+
     # Liaison des fichiers Cloud-Init
     user_data_file_id   = proxmox_virtual_environment_file.docker_user_config.id
     vendor_data_file_id = proxmox_virtual_environment_file.docker_vendor_config.id
