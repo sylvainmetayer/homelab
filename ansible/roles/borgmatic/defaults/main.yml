@@ -8,8 +8,8 @@ borgmatic_config_dir: "/etc/borgmatic.d"
 # renovate: datasource=github-releases depName=borgbackup/borg
 borgmatic_borg_version: "1.4.5"
 borgmatic_borg_sha256:
-  x86_64: d48d3a31cf1f6fb781fe240945e0b1c246093d3b94b56ce8f501d46a8615f4de
-  arm64: 7bfe55dfd4088f5c570a9e0d5513b5e01a20c3555eedc95c2d7de952c260eb0f
+  x86_64: 1410e28609be3080d0e3ab27a78f5c586a29fd0c75c2aa6415fcde1293bcd923
+  arm64: aae37546320810969d2f3cb41a23ec6b86f7fa1c5f868e18f10285978bc977e7
 
 # borgmatic version installed by pipx : la même que celle du scénario Molecule
 # (molecule/_shared/Dockerfile), Renovate fait monter les deux ensemble.
