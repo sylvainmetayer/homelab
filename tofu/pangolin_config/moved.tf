@@ -19,11 +19,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_rule.block_country["22-Echo"]
-  to   = pangolin_resource_rule.block_country["Echo"]
-}
-
-moved {
   from = pangolin_resource_rule.block_country["23-Immich Swipe"]
   to   = pangolin_resource_rule.block_country["Immich Swipe"]
 }
@@ -49,11 +44,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_rule.block_country["73-SearXNG"]
-  to   = pangolin_resource_rule.block_country["SearXNG"]
-}
-
-moved {
   from = pangolin_resource_rule.block_country["74-Paperless-ngx"]
   to   = pangolin_resource_rule.block_country["Paperless-ngx"]
 }
@@ -66,11 +56,6 @@ moved {
 moved {
   from = pangolin_resource_rule.block_country["79-Dawarich"]
   to   = pangolin_resource_rule.block_country["Dawarich"]
-}
-
-moved {
-  from = pangolin_resource_rule.block_country["80-Gramps"]
-  to   = pangolin_resource_rule.block_country["Gramps"]
 }
 
 # ---------------------------------------------------------------------------
@@ -216,18 +201,8 @@ moved {
 }
 
 moved {
-  from = pangolin_resource.echo
-  to   = pangolin_resource.website["echo"]
-}
-
-moved {
   from = pangolin_resource.flip_planning
   to   = pangolin_resource.website["flip_planning"]
-}
-
-moved {
-  from = pangolin_resource.gramps
-  to   = pangolin_resource.website["gramps"]
 }
 
 moved {
@@ -271,11 +246,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource.searxng
-  to   = pangolin_resource.website["searxng"]
-}
-
-moved {
   from = pangolin_resource.trek
   to   = pangolin_resource.website["trek"]
 }
@@ -303,18 +273,8 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_role.echo
-  to   = pangolin_resource_role.website["echo"]
-}
-
-moved {
   from = pangolin_resource_role.flip_planning
   to   = pangolin_resource_role.website["flip_planning"]
-}
-
-moved {
-  from = pangolin_resource_role.gramps
-  to   = pangolin_resource_role.website["gramps"]
 }
 
 moved {
@@ -350,11 +310,6 @@ moved {
 moved {
   from = pangolin_resource_role.rss
   to   = pangolin_resource_role.website["rss"]
-}
-
-moved {
-  from = pangolin_resource_role.searxng
-  to   = pangolin_resource_role.website["searxng"]
 }
 
 moved {
@@ -425,11 +380,6 @@ moved {
 }
 
 moved {
-  from = pangolin_target.echo
-  to   = pangolin_target.website["echo"]
-}
-
-moved {
   from = pangolin_target.flip_planning
   to   = pangolin_target.website["flip_planning"]
 }
@@ -447,11 +397,6 @@ moved {
 moved {
   from = pangolin_target.flip_planning_assets
   to   = pangolin_target.website["flip_planning_assets"]
-}
-
-moved {
-  from = pangolin_target.gramps
-  to   = pangolin_target.website["gramps"]
 }
 
 moved {
@@ -495,11 +440,6 @@ moved {
 }
 
 moved {
-  from = pangolin_target.searxng
-  to   = pangolin_target.website["searxng"]
-}
-
-moved {
   from = pangolin_target.trek
   to   = pangolin_target.website["trek"]
 }
@@ -527,18 +467,8 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_access_token.echo
-  to   = pangolin_resource_access_token.healthcheck["echo"]
-}
-
-moved {
   from = pangolin_resource_access_token.flip_planning
   to   = pangolin_resource_access_token.healthcheck["flip_planning"]
-}
-
-moved {
-  from = pangolin_resource_access_token.gramps
-  to   = pangolin_resource_access_token.healthcheck["gramps"]
 }
 
 moved {
@@ -582,11 +512,6 @@ moved {
 }
 
 moved {
-  from = pangolin_resource_access_token.searxng
-  to   = pangolin_resource_access_token.healthcheck["searxng"]
-}
-
-moved {
   from = pangolin_resource_access_token.trek
   to   = pangolin_resource_access_token.healthcheck["trek"]
 }
@@ -614,18 +539,8 @@ moved {
 }
 
 moved {
-  from = uptimekuma_monitor_http_keyword.echo
-  to   = uptimekuma_monitor_http_keyword.healthcheck["echo"]
-}
-
-moved {
   from = uptimekuma_monitor_http_keyword.flip_planning
   to   = uptimekuma_monitor_http_keyword.healthcheck["flip_planning"]
-}
-
-moved {
-  from = uptimekuma_monitor_http_keyword.gramps
-  to   = uptimekuma_monitor_http_keyword.healthcheck["gramps"]
 }
 
 moved {
@@ -669,11 +584,6 @@ moved {
 }
 
 moved {
-  from = uptimekuma_monitor_http_keyword.searxng
-  to   = uptimekuma_monitor_http_keyword.healthcheck["searxng"]
-}
-
-moved {
   from = uptimekuma_monitor_http_keyword.trek
   to   = uptimekuma_monitor_http_keyword.healthcheck["trek"]
 }
@@ -703,11 +613,6 @@ moved {
 moved {
   from = uptimekuma_monitor_push.backup_flip_planning
   to   = uptimekuma_monitor_push.backup["flip_planning"]
-}
-
-moved {
-  from = uptimekuma_monitor_push.backup_gramps
-  to   = uptimekuma_monitor_push.backup["gramps"]
 }
 
 moved {
@@ -743,11 +648,6 @@ moved {
 moved {
   from = uptimekuma_monitor_push.backup_rss
   to   = uptimekuma_monitor_push.backup["rss"]
-}
-
-moved {
-  from = uptimekuma_monitor_push.backup_searxng
-  to   = uptimekuma_monitor_push.backup["searxng"]
 }
 
 moved {

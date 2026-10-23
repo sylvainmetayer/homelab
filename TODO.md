@@ -8,7 +8,6 @@
 - andrewrothstein.starship
 - Post-first install, reboot VM
 - Migrate to OVH S3 (hetzner S3 is expensive)
-- https://docs.searxng.org/user/configured_engines.html
 - https://openwebui.com
 - https://grafana.com/grafana/dashboards/20736-borgmatic-logs/
 - https://dominikbritz.com/posts/victoria-metrics-grafana/#victorialogs

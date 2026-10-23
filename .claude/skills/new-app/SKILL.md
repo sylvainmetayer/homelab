@@ -8,8 +8,8 @@ description: Scaffold and wire up a new self-hosted application on the Proxmox d
 Every app added to this repo touches the same ~7 files (verified against the
 `gramps`, `homelable` and `flip_planning` additions). Skipping one is
 the most common source of a "works but isn't backed up" or "deployed but
-unreachable" app. Use `ansible/roles/gramps` and
-`ansible/roles/homelable` as your primary reference implementations — they're
+unreachable" app. Use `ansible/roles/trek` and
+`ansible/roles/wishlist` as your primary reference implementations — they're
 the freshest and match current conventions exactly (unlike some older roles).
 
 Pick a service slug once and use it consistently: `snake_case` for Ansible
@@ -19,7 +19,7 @@ role/variable names, `kebab-case` for the Pangolin role slug in
 ## 1. Ansible role skeleton
 
 Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
-`templates/` (mirror `ansible/roles/gramps/`):
+`templates/` (mirror `ansible/roles/trek/`):
 
 - `defaults/main.yml`: `<service>_base_path: "{{ docker_base_path }}/<service>"`
   plus the backup vars (see step 4).

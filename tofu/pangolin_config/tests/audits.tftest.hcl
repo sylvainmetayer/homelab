@@ -185,9 +185,7 @@ override_data {
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 22, "niceId": "echo", "name": "Echo", "fullDomain": "echo.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
@@ -196,12 +194,11 @@ override_data {
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 20, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 17, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -463,14 +460,9 @@ run "unhealthy_target_only_warns" {
     check.target_health,
   ]
 
-  # Gramps est désactivée dans la réponse /resources simulée : sa sonde en
-  # échec est attendue et ne doit pas s'ajouter à l'avertissement.
   assert {
-    condition = (
-      length(local.unhealthy_targets) > 0
-      && !anytrue([for label in local.unhealthy_targets : startswith(label, "Gramps#")])
-    )
-    error_message = "Une ressource désactivée (Gramps) ne doit pas figurer parmi les cibles en échec."
+    condition     = length(local.unhealthy_targets) > 0
+    error_message = "Une cible en échec doit lever l'avertissement target_health."
   }
 }
 

@@ -17,11 +17,9 @@
         monica_v4_cron_healthcheck_url: "{{ terraform_outputs.uptime_cron_monica_url.value | default('') }}"
         betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
-        gramps_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_gramps_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
-        searxng_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_searxng_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
 
@@ -39,12 +37,8 @@
       tags: [decommission, never]
     - role: newt
       tags: newt,setup
-    - role: echo
-      tags: echo,app
     - role: rss
       tags: rss,app
-    - role: searxng
-      tags: searxng,app,search
     - role: betisier
       tags: betisier,app
     - role: monica_v4
@@ -57,8 +51,6 @@
       tags: meerkat_crm,app
     - role: paperless_ngx
       tags: paperless,app
-    - role: gramps
-      tags: gramps,app
     - role: dawarich
       tags: dawarich,app
     - role: trek
