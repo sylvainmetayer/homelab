@@ -9,11 +9,11 @@
 # ssh-keyscan à travers le réseau. Un hôte reconstruit change de clé : la
 # relever de la même façon et remplacer sa ligne.
 #
-# docker  SHA256:x6MfFf1pV8QACu9gqjRxXfouVlcRjRPh9vsAaBvgBNY
+# docker  SHA256:eRpK0YeoZIqCEiEP/VQlMMTD5O8M+VTXBClHIFtsqNQ (régénérée par cloud-init le 23/10, lue par l'agent invité via l'API Proxmox)
 # pi      SHA256:SZ1Bpiu4ENOLNRuN3rKCa6n8hdRNcyeKFpPo57fSwKQ
 # pangolin SHA256:A6fa2EOvTMR8oaUp5JrGzh9j7isffJHagLbA9VVxKfc
 # flip    SHA256:zslHOFiasxchUDfc40cFn8ETHuW7cx9V7JGcrvcfT5M
-docker,docker-apps.internal,192.168.1.216 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDuh285OFRPIa3sV4juKNU/i0e+uI3P0SPGk7jEPCkGv
+docker,docker-apps.internal,192.168.1.216 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKmHH2VrzXVn+6hDylnvT22/jXQoP+UD66o6eZvv4N3T
 pi,pi.internal,192.168.1.96 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHwlPJxotOWGx3675IQAkEAfF5OgaRgoj+ZnVufJ3SS1
 pangolin,pangolin.sylvain.cloud,88.99.188.146 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMInRjkr52mDy1CEXb3nJa1DLwSKQnEmvOXjCSO4pGve
 flip,10.0.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJUQyj0R7UhkshBZEHsM3kApLDTH6o2HQpiyjd4cCTP+
