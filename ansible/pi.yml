@@ -18,6 +18,9 @@
       tags: setup
     - role: docker_service
       tags: setup
+    - role: security
+      become: true
+      tags: security,setup
     - role: borgmatic
       tags: backup,setup
     - role: decommission_app

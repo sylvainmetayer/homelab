@@ -13,18 +13,20 @@
 # coupe le réseau des conteneurs (et, sur Pangolin, la sortie de flip) avant
 # même la fin du play.
 - name: Refuse a sysctl overwrite that would cut Docker or the NAT
+  vars:
+    security_devsec_sysctl: "{{ security_devsec_sysctl_overwrite | combine(security_devsec_sysctl_host) }}"
   ansible.builtin.assert:
     that:
-      - security_devsec_sysctl_overwrite['net.ipv4.ip_forward'] | int == 1
-      - security_devsec_sysctl_overwrite['net.ipv4.conf.all.rp_filter'] | int != 1
-      - security_devsec_sysctl_overwrite['net.ipv4.conf.default.rp_filter'] | int != 1
+      - security_devsec_sysctl['net.ipv4.ip_forward'] | int == 1
+      - security_devsec_sysctl['net.ipv4.conf.all.rp_filter'] | int != 1
+      - security_devsec_sysctl['net.ipv4.conf.default.rp_filter'] | int != 1
       # Réseau compose `pangolin` en enable_ipv6 : 0 couperait son forward IPv6.
-      - security_devsec_sysctl_overwrite['net.ipv6.conf.all.forwarding'] | int == 1
-      - security_devsec_sysctl_overwrite['net.ipv6.conf.default.forwarding'] | int == 1
+      - security_devsec_sysctl['net.ipv6.conf.all.forwarding'] | int == 1
+      - security_devsec_sysctl['net.ipv6.conf.default.forwarding'] | int == 1
     fail_msg: >-
       security_devsec_sysctl_overwrite doit garder net.ipv4.ip_forward et le
       forwarding IPv6 à 1 (Docker, NAT) et rp_filter lâche (2) ou désactivé (0) :
-      {{ security_devsec_sysctl_overwrite }}
+      {{ security_devsec_sysctl }}
     quiet: true
 
 - name: Apply devsec os_hardening
@@ -37,7 +39,9 @@
     apply:
       tags: [always]
   vars:
-    sysctl_overwrite: "{{ security_devsec_sysctl_overwrite }}"
+    security_devsec_sysctl: "{{ security_devsec_sysctl_overwrite | combine(security_devsec_sysctl_host) }}"
+    sysctl_overwrite: "{{ security_devsec_sysctl }}"
+    os_filesystem_whitelist: "{{ security_filesystem_whitelist }}"
     # keep_logs ne supprime jamais rien : les journaux d'audit rempliraient le
     # disque de Docker, puis auditd suspendrait le système (disk_full_action).
     os_auditd_max_log_file_action: ROTATE

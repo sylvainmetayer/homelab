@@ -12,6 +12,14 @@ security_ufw_allowed_ports:
   - { port: "22", proto: tcp }
   - { port: "80", proto: tcp }
   - { port: "443", proto: tcp }
+# Chaque entrée accepte aussi `from` (CIDR source, « any » par défaut) : les
+# hôtes du LAN n'ouvrent SSH qu'au réseau local.
+
+# Systèmes de fichiers que devsec os_hardening ne doit pas bloquer (il interdit
+# par défaut vfat, squashfs, udf…). La VM docker (/boot/efi) et le Pi
+# (/boot/firmware) montent une partition vfat : la bloquer la ferait échouer
+# au démarrage suivant.
+security_filesystem_whitelist: []
 
 # --- sshd, transmis à devsec ssh_hardening ---
 
@@ -70,6 +78,11 @@ security_devsec_sysctl_overwrite:
   # - fs.file-max n'est fixé nulle part (ni ici ni dans 99-hardening.conf) :
   #   65535 ferait tomber la limite système (défaut noyau ~9.2e18) sous ce que
   #   consomment Postgres, Keycloak et Docker.
+
+# Complément propre à un hôte, fusionné par-dessus (le garde-fou de
+# tasks/devsec.yml vérifie le résultat). Le Pi s'en sert pour vm.mmap_rnd_bits,
+# que son noyau arm64 borne à 24 (devsec en veut 32, refusé).
+security_devsec_sysctl_host: {}
 
 # --- relais mail (msmtp-mta) ---
 

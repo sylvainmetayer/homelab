@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle security avec les variables de le Pi (hôte du LAN : SSH ouvert au
+# seul réseau local, LAN jamais banni, vfat en liste blanche). Prepare et
+# verify sont ceux de security.
+scenario:
+  name: security_pi
+ansible:
+  playbooks:
+    prepare: ../security/prepare.yml
