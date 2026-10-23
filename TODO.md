@@ -1,17 +1,11 @@
-# TODO
+# Idées
 
-- apt unattended upgrade
-- https://testinfra.readthedocs.io/en/latest/modules.html#service
-- https://github.com/MeilleursAgents/terraform-provider-ansiblevault
-- healthchecks
-- docker logs to journalctl
-- andrewrothstein.starship
-- Post-first install, reboot VM
-- Migrate to OVH S3 (hetzner S3 is expensive)
-- https://openwebui.com
-- https://grafana.com/grafana/dashboards/20736-borgmatic-logs/
-- https://dominikbritz.com/posts/victoria-metrics-grafana/#victorialogs
-- https://github.com/geerlingguy/ansible-role-security
-- https://github.com/geerlingguy/ansible-role-node_exporter
-- https://github.com/BigBoot/AutoKuma
-- https://github.com/Peppershade/uptimekuma-migrator
+Pistes non engagées. Déjà fait, donc retiré : mises à jour automatiques
+(rôle `security`), healthchecks (Uptime Kuma, `tofu/pangolin_config`),
+starship (`andrewrothstein.starship`), state sur S3 OVH (`tofu/s3_state`),
+durcissement (`devsec.hardening` plutôt que geerlingguy.security).
+
+- Observabilité : Grafana + VictoriaLogs ([article](https://dominikbritz.com/posts/victoria-metrics-grafana/#victorialogs)), [tableau de bord borgmatic](https://grafana.com/grafana/dashboards/20736-borgmatic-logs/), [node_exporter](https://github.com/geerlingguy/ansible-role-node_exporter).
+- Uptime Kuma : [AutoKuma](https://github.com/BigBoot/AutoKuma), [uptimekuma-migrator](https://github.com/Peppershade/uptimekuma-migrator).
+- Tests d'hôte réels : [testinfra](https://testinfra.readthedocs.io/en/latest/modules.html#service).
+- [Open WebUI](https://openwebui.com).

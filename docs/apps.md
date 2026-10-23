@@ -23,6 +23,6 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | Promptoramix | `promptoramix` | flip | AI bot for the Marmelab Linkx tournament, public without SSO, requests checked by HMAC signature |
 | [Pangolin](https://pangolin.net/) | `pangolin` | Pangolin VM | The reverse proxy itself and its dashboard |
 
-Pangolin also publishes two pieces of home hardware that Ansible does not manage: the NAS admin page and Proxmox.
+The NAS admin page and Proxmox are not public: they are Pangolin private resources (`nas.internal`, `pve.internal`, `tofu/pangolin_config/private_resources.tf`), served by the Newt LXC.
 
-The playbooks are `ansible/docker.yml` (Docker VM), `ansible/pi.yml` (Raspberry Pi), `ansible/flip.yml` (flip) and `ansible/pangolin.yaml` (Pangolin VM). To add or remove an app, see the `new-app` and `remove-app` skills under `.claude/skills/` and the matching sections of [AGENTS.md](../AGENTS.md).
+This table is the reference list of the apps; AGENTS.md points here instead of repeating it. The playbooks are `ansible/docker.yml` (Docker VM), `ansible/pi.yml` (Raspberry Pi), `ansible/flip.yml` (flip), `ansible/pangolin.yaml` (Pangolin VM) and `ansible/lxc.yml` (the Newt LXC, no app). To add or remove an app, see the `new-app` and `remove-app` skills under `.claude/skills/` and the matching sections of [AGENTS.md](../AGENTS.md).
