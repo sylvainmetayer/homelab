@@ -37,10 +37,12 @@ resource "hcloud_storage_box" "backups" {
 
   # Les sous-comptes (un par hôte, storage_box_subaccounts.tf) ne peuvent pas
   # supprimer un snapshot : root sur un hôte peut effacer ses dépôts Borg,
-  # pas les 14 derniers jours. Après les sauvegardes de la nuit (borgmatic à
+  # pas les 9 derniers jours. Après les sauvegardes de la nuit (borgmatic à
   # 01:00, heure de Paris) ; l'heure est en UTC.
   snapshot_plan = {
-    max_snapshots = 14
+    # Une BX11 garde 10 snapshots au plus (l'API refuse au-delà) : 9
+    # automatiques laissent une place à un snapshot manuel.
+    max_snapshots = 9
     hour          = 3
     minute        = 0
   }
