@@ -47,7 +47,7 @@ mise install
 uv sync
 mise run init && mise run plan    # tofu/pangolin
 cd ansible
-ansible-playbook -i inventory/hosts pangolin.yaml --check --diff    # dry run
+ansible-playbook pangolin.yaml --check --diff    # dry run (inventory from ansible.cfg)
 ```
 
 Apply `tofu/pangolin` first, because `tofu/pangolin_config` and `tofu/dns` read its state. Then apply `tofu/pangolin_config` before running the Ansible playbooks: they read its outputs (healthcheck URLs, Newt credentials). The Ansible inventory is built from the OpenTofu state, so a new host only shows up after its `tofu apply`.
