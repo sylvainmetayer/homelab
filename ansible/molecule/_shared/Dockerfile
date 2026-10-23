@@ -41,8 +41,8 @@ RUN apt-get update \
 
 # Vrai borgmatic, utilisé par le bouchon de /root/.local/bin/borgmatic et par
 # les verify pour valider les configurations templatées. Épinglé pour que la CI
-# ne change pas de validateur du jour au lendemain ; les hôtes, eux, gardent la
-# version que pipx a installée au premier déploiement.
+# ne change pas de validateur du jour au lendemain ; les hôtes installent la
+# même version (borgmatic_version, rôle borgmatic), Renovate fait monter les deux.
 # renovate: datasource=pypi depName=borgmatic
 ARG BORGMATIC_VERSION=2.1.10
 RUN python3 -m venv /opt/molecule-borgmatic \

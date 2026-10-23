@@ -128,8 +128,8 @@ run "ruleset_de_main" {
   command = plan
 
   assert {
-    condition     = toset([for c in github_repository_ruleset.homelab_main.rules[0].required_status_checks[0].required_check : c.context]) == toset(["Ansible lint", "OpenTofu lint", "Tests"])
-    error_message = "main exige Ansible lint, OpenTofu lint et Tests."
+    condition     = toset([for c in github_repository_ruleset.homelab_main.rules[0].required_status_checks[0].required_check : c.context]) == toset(["Ansible lint", "OpenTofu lint", "CI lint", "Tests"])
+    error_message = "main exige Ansible lint, OpenTofu lint, CI lint et Tests."
   }
 
   # Un check requis dont le job a changé de nom n'arrive jamais : toutes les
@@ -138,6 +138,7 @@ run "ruleset_de_main" {
     condition = alltrue([
       strcontains(file("${path.module}/../../.github/workflows/lint.yaml"), "name: Ansible lint"),
       strcontains(file("${path.module}/../../.github/workflows/lint.yaml"), "name: OpenTofu lint"),
+      strcontains(file("${path.module}/../../.github/workflows/lint.yaml"), "name: CI lint"),
       strcontains(file("${path.module}/../../.github/workflows/test.yaml"), "name: Tests\n"),
     ])
     error_message = "Les checks requis par le ruleset doivent rester les noms des jobs de lint.yaml et test.yaml."
