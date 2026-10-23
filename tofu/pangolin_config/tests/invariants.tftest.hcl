@@ -158,9 +158,7 @@ override_data {
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 22, "niceId": "echo", "name": "Echo", "fullDomain": "echo.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 55, "niceId": "gramps", "name": "Gramps", "fullDomain": "trees.sylvain.cloud", "sso": true, "enabled": false},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
@@ -170,12 +168,11 @@ override_data {
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 41, "niceId": "searxng", "name": "SearXNG", "fullDomain": "search.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 21, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 18, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -316,18 +313,8 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["echo"]
-  values = { id = 22 }
-}
-
-override_resource {
   target = pangolin_resource.website["flip_planning"]
   values = { id = 80, full_domain = "flip-planning.sylvain.cloud" }
-}
-
-override_resource {
-  target = pangolin_resource.website["gramps"]
-  values = { id = 55 }
 }
 
 override_resource {
@@ -373,11 +360,6 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["rss"]
   values = { id = 32 }
-}
-
-override_resource {
-  target = pangolin_resource.website["searxng"]
-  values = { id = 41 }
 }
 
 override_resource {
@@ -453,11 +435,6 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.backup["gramps"]
-  values = { push_token = "push-gramps" }
-}
-
-override_resource {
   target = uptimekuma_monitor_push.backup["immich"]
   values = { push_token = "push-immich" }
 }
@@ -500,11 +477,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["rss"]
   values = { push_token = "push-rss" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["searxng"]
-  values = { push_token = "push-searxng" }
 }
 
 override_resource {
@@ -575,8 +547,8 @@ run "every_probed_target_declares_scheme_mode_and_port" {
 
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
-      "betisier", "dawarich", "echo", "gramps", "immich", "immich_swipe", "karakeep",
-      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "searxng", "trek", "wiki", "wishlist",
+      "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
+      "meerkat_crm", "monica", "nextcloud", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1413,9 +1385,7 @@ run "every_public_resource_applies_its_rules" {
       dawarich         = "Dawarich"
       demo_planning    = "Demo Planning"
       demo_planning_kc = "Demo Planning KC"
-      echo             = "Echo"
       flip_planning    = "Flip Planning"
-      gramps           = "Gramps"
       immich           = "Immich"
       immich_swipe     = "Immich Swipe"
       karakeep         = "Karakeep"
@@ -1425,7 +1395,6 @@ run "every_public_resource_applies_its_rules" {
       paperless        = "Paperless-ngx"
       promptoramix     = "Promptoramix"
       rss              = "RSS"
-      searxng          = "SearXNG"
       trek             = "TREK"
       wiki             = "Wiki (Bookstack)"
       wishlist         = "Wishlist"
@@ -1452,35 +1421,21 @@ run "every_public_resource_applies_its_rules" {
 run "every_resource_declares_the_pinned_attributes" {
   command = plan
 
-  # Une seule dérogation, écrite en clair dans website_gramps.tf : Gramps est
-  # arrêté, sa ressource désactivée.
+  # Aucune dérogation : une entrée de local.websites peut surcharger `enabled`
+  # (websites.tf), aucune ne le fait aujourd'hui.
   assert {
     condition = alltrue([
       for key, r in pangolin_resource.website :
       r.mode == local.resource_pins.mode
       && r.ssl == local.resource_pins.ssl
-      && r.enabled == (key == "gramps" ? r.enabled : local.resource_pins.enabled)
+      && r.enabled == local.resource_pins.enabled
       && r.block_access == local.resource_pins.block_access
       && r.email_whitelist_enabled == local.resource_pins.email_whitelist_enabled
       && r.sticky_session == local.resource_pins.sticky_session
     ])
-    error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...), ou y déroge sans être Gramps."
+    error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...)."
   }
 
-  # La ressource suit l'état du service côté Ansible : désactivée tant que
-  # gramps_enabled est false, à réactiver avec lui.
-  assert {
-    condition = (
-      local.resource_pins.enabled == true
-      && pangolin_resource.website["gramps"].enabled == local.gramps_enabled
-      && uptimekuma_monitor_http_keyword.healthcheck["gramps"].active == local.gramps_enabled
-      && local.gramps_enabled == !strcontains(
-        file("${path.module}/../../ansible/host_vars/docker/variables.yaml"),
-        "\ngramps_enabled: false\n"
-      )
-    )
-    error_message = "L'entrée gramps de local.websites doit suivre gramps_enabled (ansible/host_vars/docker/variables.yaml), et toutes les autres ressources rester actives."
-  }
 }
 
 # Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les
@@ -1543,15 +1498,13 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   }
 
   # Un healthcheck actif sur une ressource désactivée ne pourrait qu'être DOWN
-  # et écrire : celui de Gramps suit local.gramps_enabled (website_gramps.tf),
-  # tous les autres sont actifs. Son moniteur de sauvegarde, lui, reste actif
-  # (monitors_are_filed_and_notify_by_email) : la sauvegarde tourne toujours.
+  # et écrire : chaque healthcheck suit l'état de sa ressource.
   assert {
     condition = alltrue([
       for key, m in uptimekuma_monitor_http_keyword.healthcheck :
-      m.active == (key == "gramps" ? local.gramps_enabled : true)
+      m.active == pangolin_resource.website[key].enabled
     ])
-    error_message = "Le healthcheck de Gramps doit suivre local.gramps_enabled, et tous les autres être actifs."
+    error_message = "Un healthcheck doit suivre l'état (enabled) de sa ressource."
   }
 
   # Les noms des moniteurs, écrits en toutes lettres : Uptime Kuma les
@@ -1562,9 +1515,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       betisier      = "Healthcheck Betisier"
       dawarich      = "Healthcheck Dawarich"
       demo_planning = "Healthcheck Demo Planning"
-      echo          = "Healthcheck Echo"
       flip_planning = "Healthcheck Flip Planning"
-      gramps        = "Healthcheck Gramps"
       immich        = "Healthcheck Immich"
       immich_swipe  = "Healthcheck Immich Swipe"
       karakeep      = "Healthcheck Karakeep"
@@ -1574,7 +1525,6 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       paperless     = "Healthcheck Paperless-ngx"
       promptoramix  = "Healthcheck Promptoramix"
       rss           = "Healthcheck RSS"
-      searxng       = "Healthcheck SearXNG"
       trek          = "Healthcheck TREK"
       wiki          = "Healthcheck Wiki (Bookstack)"
       wishlist      = "Healthcheck Wishlist"
@@ -1768,11 +1718,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
-    condition     = output.uptime_backup_gramps_url == "https://uptime.example.test/api/push/push-gramps"
-    error_message = "uptime_backup_gramps_url (docker.yml) ne pointe pas sur le moniteur Backup Gramps."
-  }
-
-  assert {
     condition     = output.uptime_backup_dawarich_url == "https://uptime.example.test/api/push/push-dawarich"
     error_message = "uptime_backup_dawarich_url (docker.yml) ne pointe pas sur le moniteur Backup Dawarich."
   }
@@ -1790,11 +1735,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   assert {
     condition     = output.uptime_backup_wishlist_url == "https://uptime.example.test/api/push/push-wishlist"
     error_message = "uptime_backup_wishlist_url (docker.yml) ne pointe pas sur le moniteur Backup Wishlist."
-  }
-
-  assert {
-    condition     = output.uptime_backup_searxng_url == "https://uptime.example.test/api/push/push-searxng"
-    error_message = "uptime_backup_searxng_url (docker.yml) ne pointe pas sur le moniteur Backup SearXNG."
   }
 
   assert {
@@ -1842,12 +1782,10 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_monica_url,
       output.uptime_backup_betisier_url,
       output.uptime_backup_meerkat_crm_url,
-      output.uptime_backup_gramps_url,
       output.uptime_backup_dawarich_url,
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
       output.uptime_backup_wishlist_url,
-      output.uptime_backup_searxng_url,
       output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
       output.uptime_backup_demo_planning_url,
@@ -2058,7 +1996,6 @@ run "monitors_are_filed_and_notify_by_email" {
       dawarich      = "Backup Dawarich"
       demo_planning = "Backup Demo Planning"
       flip_planning = "Backup Flip Planning"
-      gramps        = "Backup Gramps"
       immich        = "Backup Immich"
       karakeep      = "Backup Karakeep"
       meerkat_crm   = "Backup Meerkat CRM"
@@ -2066,7 +2003,6 @@ run "monitors_are_filed_and_notify_by_email" {
       nextcloud     = "Backup nextcloud"
       paperless     = "Backup Paperless-ngx"
       rss           = "Backup RSS"
-      searxng       = "Backup SearXNG"
       trek          = "Backup TREK"
       wiki          = "Backup Wiki (Bookstack)"
       wishlist      = "Backup Wishlist"
@@ -2082,7 +2018,7 @@ run "monitors_are_filed_and_notify_by_email" {
       && m.active == true
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif (Gramps compris : sa sauvegarde tourne toujours) et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif et notifié par e-mail."
   }
 
 

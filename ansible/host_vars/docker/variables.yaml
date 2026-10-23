@@ -4,8 +4,6 @@ newt_client_secret: "{{ newt_docker_client_secret }}"
 
 rss_backup_enabled: true
 
-searxng_backup_enabled: true
-
 betisier_backup_enabled: true
 
 monica_v4_backup_enabled: true
@@ -19,12 +17,6 @@ meerkat_crm_backup_enabled: true
 
 paperless_backup_enabled: true
 
-# Inutilisé pour le moment : arrêté pour libérer les ressources, données et
-# backup conservés. La ressource Pangolin et ses deux moniteurs Uptime Kuma sont
-# désactivés en face (tofu/pangolin_config/website_gramps.tf), et un test de
-# tofu/pangolin_config/tests vérifie que la ressource suit cette variable.
-gramps_enabled: false
-gramps_backup_enabled: true
 dawarich_backup_enabled: true
 
 trek_backup_enabled: true

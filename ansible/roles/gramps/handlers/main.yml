@@ -1,7 +1,0 @@
----
-- name: Restart gramps
-  when: gramps_enabled
-  ansible.builtin.systemd:
-    name: dc@gramps
-    scope: user
-    state: restarted

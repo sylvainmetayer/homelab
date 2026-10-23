@@ -46,7 +46,7 @@
              | map(attribute='stat.exists')) | list | string }}
 
     # La voisine n'est pas touchée.
-    - name: Verify that echo is still deployed
+    - name: Verify that wiki is still deployed
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
-        verify_app_service: echo
+        verify_app_service: wiki

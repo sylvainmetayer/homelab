@@ -5,19 +5,16 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | App | Role | Host | What it is |
 |---|---|---|---|
 | [FreshRSS](https://freshrss.org/) | `rss` | Docker VM | RSS reader |
-| [SearXNG](https://docs.searxng.org/) | `searxng` | Docker VM | Metasearch engine |
 | Betisier | `betisier` | Docker VM | Small web app with a MariaDB database ([docker-betisier-tp](https://github.com/sylvainmetayer/docker-betisier-tp)), public without SSO |
 | [Monica](https://www.monicahq.com/) | `monica_v4` | Docker VM | Personal CRM |
 | [Meerkat CRM](https://github.com/fbuchner/meerkat-crm) | `meerkat_crm` | Docker VM | Personal CRM |
 | [BookStack](https://www.bookstackapp.com/) | `wiki` | Docker VM | Wiki |
 | [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, public without SSO (clients log in to Nextcloud itself) |
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR |
-| [Gramps Web](https://www.grampsweb.org/) | `gramps` | Docker VM | Family tree. Stopped for now (`gramps_enabled: false`), data and backups kept |
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
 | [TREK](https://github.com/mauriceboe/trek) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
-| Echo | `echo` | Docker VM | HTTP server that answers with the request it received |
 | [Immich](https://immich.app/) | `immich` | Raspberry Pi | Photo library |
 | Immich Swipe | `immich` | Raspberry Pi | Swipe interface to sort Immich photos |
 | Flip Planning | `flip_planning` | flip | Team scheduling app ([planning-equipes](https://github.com/sylvainmetayer/planning-equipes)), production |

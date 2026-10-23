@@ -4,7 +4,7 @@
 
 # État d'un hôte docker avant `--tags decommission` : rss (compose,
 # .env, données, configuration borgmatic et dépôt) est l'application à
-# retirer, echo une voisine qui ne doit pas être touchée.
+# retirer, wiki une voisine qui ne doit pas être touchée.
 - name: Deploy the apps
   hosts: all
   vars_files:
@@ -13,5 +13,5 @@
     - ../../host_vars/docker/variables.yaml
   roles:
     - role: docker_service
-    - role: echo
+    - role: wiki
     - role: rss

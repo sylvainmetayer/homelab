@@ -52,9 +52,7 @@ locals {
     dawarich         = local.dawarich_website
     demo_planning    = local.demo_planning_website
     demo_planning_kc = local.demo_planning_kc_website
-    echo             = local.echo_website
     flip_planning    = local.flip_planning_website
-    gramps           = local.gramps_website
     immich           = local.immich_website
     immich_swipe     = local.immich_swipe_website
     karakeep         = local.karakeep_website
@@ -64,7 +62,6 @@ locals {
     paperless        = local.paperless_website
     promptoramix     = local.promptoramix_website
     rss              = local.rss_website
-    searxng          = local.searxng_website
     trek             = local.trek_website
     wiki             = local.wiki_website
     wishlist         = local.wishlist_website

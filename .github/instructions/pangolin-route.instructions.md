@@ -32,7 +32,7 @@ are **not** written per app: `tofu/pangolin_config/websites.tf` creates them
 all with `for_each` over `local.websites`, with the pinned attributes
 (`local.resource_pins`), the maintenance page (`local.maintenance`) and the
 probe settings already set. An app only declares its entry and its outputs.
-Model it on `website_searxng.tf` (simple, single-target) or
+Model it on `website_wiki.tf` (simple, single-target) or
 `website_flip_planning.tf` (multi-target, path-based sub-routing):
 
 ```hcl

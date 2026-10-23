@@ -1,3 +1,0 @@
----
-echo_base_path: "{{ docker_base_path }}/echo"
-echo_domain: echo.sylvain.cloud
