@@ -14,17 +14,15 @@ knowledge, it will be wrong in specific ways for this repo.
 
 | Task | Read first | Or run |
 |---|---|---|
-| Add/deploy a new self-hosted app | `.github/instructions/new-app.instructions.md` | `/new-app` |
-| Remove/decommission a self-hosted app | `.github/instructions/remove-app.instructions.md` | `/remove-app` |
-| Add/fix Pangolin routing, healthchecks, or SSO (`tofu/pangolin_config/**`) | `.github/instructions/pangolin-route.instructions.md` | `/pangolin-route` |
-| Add/fix a Borgmatic backup for a service | `.github/instructions/borgmatic-backup.instructions.md` | `/borgmatic-backup` |
+| Add/deploy a new self-hosted app | `.claude/skills/new-app/SKILL.md` | `/new-app` |
+| Remove/decommission a self-hosted app | `.claude/skills/remove-app/SKILL.md` | `/remove-app` |
+| Add/fix Pangolin routing, healthchecks, or SSO (`tofu/pangolin_config/**`) | `.claude/skills/pangolin-route/SKILL.md` | `/pangolin-route` |
+| Add/fix a Borgmatic backup for a service | `.claude/skills/borgmatic-backup/SKILL.md` | `/borgmatic-backup` |
 | Review a homelab diff before `tofu apply` / `ansible-playbook` | switch to the **homelab-reviewer** chat mode | — |
 
-The `.github/instructions/*.instructions.md` files are path-scoped and get
-attached automatically when you touch matching files; the `.github/prompts/*.prompt.md`
-files are the same content runnable on demand via the slash commands above.
-Equivalent guidance also exists for Claude Code under `.claude/skills/` and
-`.claude/agents/` — keep both in sync if you update one.
+The procedures live once, in `.claude/skills/*/SKILL.md`. The path-scoped
+`.github/instructions/*.instructions.md` files and the `.github/prompts/*.prompt.md`
+slash commands only point there: update the skill, never a copy.
 
 ## Two mistakes already shipped once in this repo — don't repeat them
 
