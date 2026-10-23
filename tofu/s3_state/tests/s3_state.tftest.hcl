@@ -74,7 +74,7 @@ run "bucket_is_durable" {
   }
 
   assert {
-    condition     = ovh_cloud_project_storage.tf_state.service_name == "fake-ovh-project-id" && ovh_cloud_project_user.tf_state.service_name == "fake-ovh-project-id" && ovh_cloud_project_user_s3_credential.tf_state.service_name == "fake-ovh-project-id" && ovh_cloud_project_user_s3_policy.tf_state.service_name == "fake-ovh-project-id"
+    condition     = ovh_cloud_project_storage.tf_state.service_name == "fake-ovh-project-id" && ovh_cloud_project_user.tf_state.service_name == "fake-ovh-project-id" && ovh_cloud_project_user_s3_credential.tf_state_2026.service_name == "fake-ovh-project-id" && ovh_cloud_project_user_s3_policy.tf_state.service_name == "fake-ovh-project-id"
     error_message = "Toutes les ressources doivent être dans le projet Public Cloud OVH_CLOUD_PROJECT_ID lu dans SOPS."
   }
 }

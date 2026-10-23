@@ -7,7 +7,12 @@ resource "ovh_cloud_project_user" "tf_state" {
   role_name    = "objectstore_operator"
 }
 
-resource "ovh_cloud_project_user_s3_credential" "tf_state" {
+# Clés AWS_* du SOPS racine. Renouvelées le 23/10/2026 (les précédentes,
+# ressource « tf_state », avaient été lisibles par la clé age de la CI) :
+# une nouvelle ressource, la bascule de SOPS, puis la suppression de
+# l'ancienne dans un second apply, le backend de ce module écrivant son
+# state avec ces clés-là.
+resource "ovh_cloud_project_user_s3_credential" "tf_state_2026" {
   service_name = local.ovh_service_name
   user_id      = ovh_cloud_project_user.tf_state.id
 }
