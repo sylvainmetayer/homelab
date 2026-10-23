@@ -172,9 +172,9 @@ override_resource {
 
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
-# GET /v1/org/{org}/resources?pageSize=1000 : les 22 ressources gérées, dont
-# Gramps désactivée, et un reste désactivé créé dans l'UI, que l'audit doit
-# ignorer puisqu'il n'est pas servi.
+# GET /v1/org/{org}/resources?pageSize=1000 : les ressources gérées, et un
+# reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
+# servi.
 override_data {
   target = data.http.pangolin_resources
   values = {
@@ -456,13 +456,32 @@ run "unhealthy_target_only_warns" {
     }
   }
 
+  # Wishlist désactivée dans Pangolin (comme Gramps l'était, arrêtée exprès) :
+  # sa sonde en échec est attendue et ne doit pas s'ajouter à l'avertissement.
+  override_data {
+    target = data.http.pangolin_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"resources": [
+          {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
+          {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": false}
+        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
   expect_failures = [
     check.target_health,
   ]
 
   assert {
-    condition     = length(local.unhealthy_targets) > 0
-    error_message = "Une cible en échec doit lever l'avertissement target_health."
+    condition = (
+      length(local.unhealthy_targets) > 0
+      && !anytrue([for label in local.unhealthy_targets : startswith(label, "Wishlist#")])
+    )
+    error_message = "Une cible en échec doit lever l'avertissement target_health, sauf celle d'une ressource désactivée (Wishlist ici)."
   }
 }
 

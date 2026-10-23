@@ -30,7 +30,7 @@
 #   enabled      default local.resource_pins.enabled. false also pauses the
 #                healthcheck monitor: a disabled resource has nothing to
 #                watch. The backup monitor stays active - the backup job does
-#                not stop with the resource (Gramps).
+#                not stop with the resource.
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and nextcloud have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.

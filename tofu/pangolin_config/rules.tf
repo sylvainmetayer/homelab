@@ -357,7 +357,7 @@ locals {
     if target.hc_enabled && (target.hc_scheme == null || target.hc_port == null)
   ]
 
-  # A disabled resource (Gramps, stopped on purpose) keeps its target and its
+  # A disabled resource (an app stopped on purpose) keeps its target and its
   # probe for the day it comes back; its probe failing meanwhile is expected,
   # and a permanent warning would only teach to skim past real ones.
   unhealthy_targets = [
