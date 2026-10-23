@@ -1,7 +1,6 @@
 # Configuration Proxmox
 proxmox_url  = "https://pve.sylvain.cloud:8006/"
 proxmox_node = "proxmox"
-pangolin_url = "https://pangolin.sylvain.cloud"
 
 newt_lxc = {
   vm_id       = 200

@@ -25,10 +25,6 @@ variable "newt_lxc" {
   default = {}
 }
 
-variable "pangolin_url" {
-  type = string
-}
-
 variable "debian13_image_url" {
   description = "URL de l'image Debian 13 Trixie"
   type        = string
