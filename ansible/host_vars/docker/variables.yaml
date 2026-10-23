@@ -46,3 +46,8 @@ security_filesystem_whitelist:
   - vfat
 # Après Pangolin (04:00) et flip (04:30), loin des sauvegardes (01:00).
 security_unattended_reboot_time: "05:00"
+
+# Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp, comme
+# Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
+# reste non lu dans /var/mail/root.
+security_mta_enabled: true
