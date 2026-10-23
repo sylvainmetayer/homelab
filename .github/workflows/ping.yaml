@@ -141,7 +141,7 @@ jobs:
           cat /etc/resolv.conf || true
 
           echo "===== PROCESSES ====="
-          ps aux | grep olm || true
+          pgrep -a olm || true
 
 
       - name: Cleanup

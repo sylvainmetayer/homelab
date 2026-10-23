@@ -124,10 +124,12 @@ jobs:
               flip) flip_tags="$INPUT_TAGS" ;;
               *) docker_tags="$INPUT_TAGS"; pi_tags="$INPUT_TAGS"; pangolin_tags="$INPUT_TAGS"; flip_tags="$INPUT_TAGS" ;;
             esac
-            echo "docker_tags=$docker_tags" >> "$GITHUB_OUTPUT"
-            echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
-            echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
-            echo "flip_tags=$flip_tags" >> "$GITHUB_OUTPUT"
+            {
+              echo "docker_tags=$docker_tags"
+              echo "pi_tags=$pi_tags"
+              echo "pangolin_tags=$pangolin_tags"
+              echo "flip_tags=$flip_tags"
+            } >> "$GITHUB_OUTPUT"
             # One flag for the setup steps (OLM, SSH key, inventory...), so that
             # adding a playbook does not mean editing each of their `if:`.
             if [ -n "$docker_tags$pi_tags$pangolin_tags$flip_tags" ]; then any_tags=true; else any_tags=false; fi
@@ -143,10 +145,12 @@ jobs:
           pangolin_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/pangolin.yaml"])' "$result")"
           flip_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/flip.yml"])' "$result")"
 
-          echo "docker_tags=$docker_tags" >> "$GITHUB_OUTPUT"
-          echo "pi_tags=$pi_tags" >> "$GITHUB_OUTPUT"
-          echo "pangolin_tags=$pangolin_tags" >> "$GITHUB_OUTPUT"
-          echo "flip_tags=$flip_tags" >> "$GITHUB_OUTPUT"
+          {
+            echo "docker_tags=$docker_tags"
+            echo "pi_tags=$pi_tags"
+            echo "pangolin_tags=$pangolin_tags"
+            echo "flip_tags=$flip_tags"
+          } >> "$GITHUB_OUTPUT"
           # One flag for the setup steps (OLM, SSH key, inventory...), so that
           # adding a playbook does not mean editing each of their `if:`.
           if [ -n "$docker_tags$pi_tags$pangolin_tags$flip_tags" ]; then any_tags=true; else any_tags=false; fi
