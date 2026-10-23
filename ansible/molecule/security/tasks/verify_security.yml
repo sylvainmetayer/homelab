@@ -200,15 +200,14 @@
       - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::Mail "root";')
       - not (security_mta_enabled | bool) or unattended_upgrades is search('Unattended-Upgrade::MailReport "only-on-error";')
 
-# --- paquets : rkhunter et exim4 retirés, aucun SMTP en écoute ---
+# --- paquets : exim4 retiré, aucun SMTP en écoute ---
 
 - name: Gather the package facts
   ansible.builtin.package_facts:
 
-- name: Assert rkhunter is gone and logwatch is installed
+- name: Assert logwatch is installed
   ansible.builtin.assert:
     that:
-      - "'rkhunter' not in ansible_facts.packages"
       - "'logwatch' in ansible_facts.packages"
 
 # Sans relais (security_mta_enabled: false), logwatch tire exim4 :
@@ -339,13 +338,6 @@
         - /etc/login.defs
         - /etc/sysctl.d/99-hardening.conf
 
-    - name: Read the files devsec replaces
-      ansible.builtin.stat:
-        path: "{{ item }}"
-      register: security_devsec_replaced
-      loop:
-        - /etc/ssh/sshd_config.d/99-custom.conf
-
     - name: Read the RSA host key fingerprints, before and after hardening
       become: true
       ansible.builtin.shell: |
@@ -386,9 +378,8 @@
         boot_sysctl: "{{ security_devsec_files.results[4].content | b64decode }}"
       ansible.builtin.assert:
         that:
-          # sshd_config entier écrit par devsec, drop-in et sysctl maison retirés.
+          # sshd_config entier écrit par devsec.
           - sshd_config is search('^AllowUsers ' ~ security_ssh_allow_users ~ '$', multiline=True)
-          - security_devsec_replaced.results | selectattr('stat.exists') | list | length == 0
           # IPv6 coupé au boot seulement, sans fs.file-max.
           - boot_sysctl is search('^net\.ipv6\.conf\.all\.disable_ipv6 = 1$', multiline=True)
           - boot_sysctl is not search('file-max')
@@ -399,8 +390,7 @@
           - security_chage.stdout is search('^Maximum number of days between password change\s*:\s*(-1|99999)$', multiline=True)
           - security_proc_options.stdout is not search('hidepid=(2|invisible)')
         fail_msg: >-
-          chage : {{ security_chage.stdout_lines }} ; /proc : {{ security_proc_options.stdout }} ;
-          restants : {{ security_devsec_replaced.results | selectattr('stat.exists') | map(attribute='item') | list }}
+          chage : {{ security_chage.stdout_lines }} ; /proc : {{ security_proc_options.stdout }}
 
 # --- systèmes de fichiers que devsec ne doit pas bloquer ---
 

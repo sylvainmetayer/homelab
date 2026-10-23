@@ -2,7 +2,6 @@
 newt_client_id: "{{ newt_pi_client_id }}"
 newt_client_secret: "{{ newt_pi_client_secret }}"
 
-immich_backup_enabled: true
 immich_domain: "photos.sylvain.cloud"
 immich_backup_healthcheck_url: ""
 

@@ -5,19 +5,13 @@
 # .ssh/authorized_keys. À lancer après le rôle borgmatic des hôtes (clés
 # créées) et avant leur première sauvegarde.
 #
-# Ordre, pour un hôte neuf comme pour la migration vers les sous-comptes :
+# Ordre, pour un hôte neuf :
 #   1. <playbook de l'hôte> --tags setup : le rôle borgmatic génère la clé,
 #      sans les rôles d'application. Un passage complet (ou --tags backup)
 #      échouerait ici : le repo-create de chaque application parle déjà au
 #      sous-compte, qui ne connaît pas encore la clé.
 #   2. ce playbook ;
-#   2 bis. migration seulement : depuis le compte principal, déplacer chaque
-#      dépôt existant de backup/<service> vers backup/<hôte>/<service>
-#      (`mv`, shell restreint). Sans ce déplacement, l'étape 3 crée des dépôts
-#      neufs et vides chez le sous-compte, l'historique reste dans backup/ ;
-#   3. le playbook complet de l'hôte (repo-create, configurations borgmatic),
-#      avec -e borgmatic_relocated_repo_access_is_ok=true après une migration,
-#      puis une fois sans.
+#   3. le playbook complet de l'hôte (repo-create, configurations borgmatic).
 - name: Read the Storage Box key of each backed-up host
   hosts: docker,pi,pangolin,flip
   gather_facts: false

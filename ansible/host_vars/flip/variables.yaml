@@ -27,7 +27,6 @@ security_mta_enabled: true
 # Après celui de Pangolin (04:00), par qui flip sort sur Internet.
 security_unattended_reboot_time: "04:30"
 
-flip_planning_backup_enabled: true
 flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 
 # Demo environment of Flip Planning (demo-planning.sylvain.dev). The role is

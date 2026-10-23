@@ -77,12 +77,3 @@
     # bits (défaut Debian/cloud-init), d'où un « REMOTE HOST IDENTIFICATION
     # HAS CHANGED » pour tout client qui l'a enregistrée.
     ssh_host_rsa_key_size: 3072
-
-# devsec réécrit tout sshd_config, sans Include de sshd_config.d : l'ancien
-# drop-in maison (d'avant devsec) serait ignoré, autant qu'il ne laisse pas
-# croire le contraire.
-- name: Remove the in-house sshd drop-in
-  notify: Reload sshd
-  ansible.builtin.file:
-    path: /etc/ssh/sshd_config.d/99-custom.conf
-    state: absent
