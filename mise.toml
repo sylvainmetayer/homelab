@@ -84,16 +84,22 @@ raw = true
 dir = "tofu/ref"
 depends = ["init-ref"]
 
-# Mêmes modules que le job « OpenTofu lint » (lint.yaml). -backend=false :
-# aucun accès au state, et un module déjà initialisé garde son backend.
+# Mêmes modules que le job « OpenTofu lint » (lint.yaml), sans accès au
+# state (-backend=false). TF_DATA_DIR jetable : un init -backend=false dans le
+# .terraform du module le désinitialiserait, et tofu show (inventaire
+# hetzner.py) échouerait ensuite sur « Backend configuration changed ».
 [tasks.lint]
 description = "Tofu linting: fmt and validate of every module the Lint workflow checks"
 run = '''
+set -e
 tofu fmt -check -recursive
+data_dir=$(mktemp -d)
+trap 'rm -rf "$data_dir"' EXIT
 for module in pangolin proxmox pangolin_config dns github ref s3_state site 1y; do
   echo "== $module"
-  tofu -chdir="$module" init -backend=false -input=false > /dev/null
-  tofu -chdir="$module" validate
+  TF_DATA_DIR="$data_dir/$module" tofu -chdir="$module" init -backend=false -input=false > /dev/null
+  TF_DATA_DIR="$data_dir/$module" tofu -chdir="$module" validate
+  rm -rf "${data_dir:?}/$module"
 done
 '''
 dir = "tofu"
