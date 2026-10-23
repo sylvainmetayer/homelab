@@ -2,9 +2,8 @@
 # PBKDF2 de var.state_encryption_passphrase) : il contient des secrets
 # (clé privée SSH de déploiement de la CI, clé age de la CI, identifiants OLM). Le state de tofu/pangolin_config reste en clair, Ansible le lit sur S3.
 #
-# Migration : le fallback lit l'ancien state en clair ; le premier apply le
-# réécrit chiffré. Une fois chaque module migré, retirer les blocs fallback
-# et method "unencrypted" pour refuser tout state en clair.
+# Sans fallback : un state en clair (ou chiffré avec une autre clé) est
+# refusé. Migré le 23/10/2026.
 terraform {
   encryption {
     key_provider "pbkdf2" "state" {
@@ -15,20 +14,12 @@ terraform {
       keys = key_provider.pbkdf2.state
     }
 
-    method "unencrypted" "migrate" {}
-
     state {
       method = method.aes_gcm.state
-      fallback {
-        method = method.unencrypted.migrate
-      }
     }
 
     plan {
       method = method.aes_gcm.state
-      fallback {
-        method = method.unencrypted.migrate
-      }
     }
   }
 }
