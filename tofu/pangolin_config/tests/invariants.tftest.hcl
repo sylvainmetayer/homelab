@@ -1828,6 +1828,12 @@ run "flip_newt_credentials_come_from_the_flip_site" {
     error_message = "flip_newt_id / flip_newt_secret doivent être ceux de pangolin_site.flip."
   }
 
+  # lxc.yml lit ceux du LXC de la même façon.
+  assert {
+    condition     = output.proxmox_lxc_newt_id == "newt-proxmox-lxc" && output.proxmox_lxc_newt_secret == "secret-proxmox-lxc"
+    error_message = "proxmox_lxc_newt_id / proxmox_lxc_newt_secret doivent être ceux de pangolin_site.proxmox_lxc."
+  }
+
   assert {
     condition     = pangolin_site.flip.docker_socket_enabled == true
     error_message = "Le Newt de flip lit le socket Docker pour joindre les conteneurs de Flip Planning."

@@ -7,13 +7,9 @@
 
 - name: Install security packages
   ansible.builtin.apt:
-    name:
-      - fail2ban
-      - ufw
-      - unattended-upgrades
-      - apt-listchanges
-      - auditd
-      - logwatch
+    name: "{{ ['fail2ban', 'unattended-upgrades', 'apt-listchanges', 'logwatch']
+              + (['ufw'] if security_ufw_enabled | bool else [])
+              + (['auditd'] if security_auditd_enabled | bool else []) }}"
     state: present
 
 # Rapports quotidiens pleins de faux positifs sur un hôte Docker.
@@ -67,33 +63,35 @@
     # Comme 50unattended-upgrades : apt le lit aussi sans root.
     mode: "0644" # NOSONAR
 
-- name: Set UFW default incoming policy to deny
-  community.general.ufw:
-    default: deny
-    direction: incoming
+# Pas d'ufw dans un LXC non privilégié (security_ufw_enabled : false) : son
+# pare-feu se règle côté Proxmox.
+- name: Configure UFW
+  when: security_ufw_enabled | bool
+  block:
+    - name: Set UFW default incoming policy to deny
+      community.general.ufw:
+        default: deny
+        direction: incoming
 
-- name: Set UFW default outgoing policy to allow
-  community.general.ufw:
-    default: allow
-    direction: outgoing
+    - name: Set UFW default outgoing policy to allow
+      community.general.ufw:
+        default: allow
+        direction: outgoing
 
-- name: Allow required ports in UFW
-  community.general.ufw:
-    rule: allow
-    port: "{{ item.port }}"
-    proto: "{{ item.proto }}"
-    from_ip: "{{ item.from | default('any') }}"
-  loop: "{{ security_ufw_allowed_ports }}"
+    - name: Allow required ports in UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        from_ip: "{{ item.from | default('any') }}"
+      loop: "{{ security_ufw_allowed_ports }}"
 
-- name: Enable UFW
-  community.general.ufw:
-    state: enabled
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
 
 - name: Enable security services
   ansible.builtin.systemd:
     name: "{{ item }}"
     enabled: true
-  loop:
-    - fail2ban
-    - auditd
-    - ufw
+  loop: "{{ ['fail2ban'] + (['auditd'] if security_auditd_enabled | bool else []) + (['ufw'] if security_ufw_enabled | bool else []) }}"

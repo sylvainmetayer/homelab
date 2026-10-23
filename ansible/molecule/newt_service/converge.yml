@@ -1,0 +1,14 @@
+---
+# Comme lxc.yml : identifiants posés par set_fact depuis le state Tofu.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/newt-lxc/variables.yaml
+  pre_tasks:
+    - name: Load fake Newt credentials in place of the Terraform state outputs
+      ansible.builtin.set_fact:
+        newt_service_id: "molecule-newt-id"
+        newt_service_secret: "molecule-newt-secret"
+  roles:
+    - role: newt_service

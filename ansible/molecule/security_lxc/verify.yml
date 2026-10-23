@@ -1,0 +1,37 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Gather the package facts
+      ansible.builtin.package_facts:
+
+    - name: Read the effective sshd configuration
+      become: true
+      ansible.builtin.command: sshd -T
+      register: lxc_sshd
+      changed_when: false
+
+    - name: Read the state of fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+      register: lxc_fail2ban
+
+    - name: Stat the unattended-upgrades configuration
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: lxc_uu
+      loop:
+        - /etc/apt/apt.conf.d/50unattended-upgrades
+        - /etc/apt/apt.conf.d/20auto-upgrades
+
+    - name: Assert the container profile of the security role
+      ansible.builtin.assert:
+        that:
+          - "'ufw' not in ansible_facts.packages"
+          - "'auditd' not in ansible_facts.packages"
+          - "'fail2ban' in ansible_facts.packages"
+          - lxc_fail2ban.status.ActiveState == 'active'
+          - lxc_sshd.stdout is search('^permitrootlogin no$', multiline=True)
+          - lxc_sshd.stdout is search('^allowusers sylvain$', multiline=True)
+          - lxc_sshd.stdout is search('^passwordauthentication no$', multiline=True)
+          - lxc_uu.results | map(attribute='stat.exists') | list == [true, true]
