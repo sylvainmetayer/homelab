@@ -386,8 +386,8 @@ run "storage_box_backups" {
   }
 
   assert {
-    condition     = hcloud_storage_box.backups.snapshot_plan.max_snapshots == 14 && hcloud_storage_box.backups.snapshot_plan.day_of_week == null && hcloud_storage_box.backups.snapshot_plan.day_of_month == null
-    error_message = "La Storage Box doit garder un snapshot par jour sur 14 jours : un sous-compte ne peut pas les supprimer."
+    condition     = hcloud_storage_box.backups.snapshot_plan.max_snapshots == 9 && hcloud_storage_box.backups.snapshot_plan.day_of_week == null && hcloud_storage_box.backups.snapshot_plan.day_of_month == null
+    error_message = "La Storage Box doit garder un snapshot par jour sur 9 jours (BX11 : 10 au plus, une place pour un manuel) : un sous-compte ne peut pas les supprimer."
   }
 
   assert {
