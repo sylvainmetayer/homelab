@@ -34,14 +34,12 @@ mise run init-ref
 mise run plan-ref
 mise run apply-ref
 
-# OpenTofu linting (both targets)
-mise run lint             # tofu fmt -check -recursive && tofu validate (both dirs)
+# OpenTofu linting (every module the Lint workflow checks)
+mise run lint             # tofu fmt -check -recursive + init -backend=false && validate of every module
 mise run fix-lint          # tofu fmt -recursive
 
 # Ansible (run from ansible/, or via mise which cd's there)
 mise run ansible-lint
-mise run ansible-run       # ansible-playbook -i inventory/hosts site.yml  (NOTE: no site.yml exists — target a real playbook explicitly instead, see below)
-mise run ansible-check     # same, with --check
 
 # Tests (see "Tests" below)
 mise run molecule [role]   # Molecule scenario of one role (all when omitted); builds the test image first
@@ -49,10 +47,9 @@ mise run tofu-test         # tofu test of every tofu/<module> that has a tests/ 
 
 # Misc
 mise run generate_password            # prompts, prints the sha512 hash to store as host_user_password_hash
-mise run get_state                     # dumps `tofu state pull` for the current dir to state.json
 ```
 
-`mise run lint` only covers `tofu/pangolin` and `tofu/proxmox`; `tofu/pangolin_config` is covered by `mise run tofu-test` and by the `Lint`/`Tests` workflows.
+`mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, site, 1y), without touching any state. There is no mise task running a playbook: see below.
 
 ### Tests
 
@@ -68,7 +65,7 @@ mise run get_state                     # dumps `tofu state pull` for the current
 
 ### Running a specific Ansible playbook
 
-`mise run ansible-run` / `ansible-check` invoke a `site.yml` that does not exist in this repo — don't rely on them as-is. Instead, from `ansible/`, target the playbook for the host group you're changing:
+There is no `site.yml`: from `ansible/`, target the playbook for the host group you're changing:
 
 ```bash
 ansible-playbook 00-setup.yaml   # base host setup (user, packages, starship)
