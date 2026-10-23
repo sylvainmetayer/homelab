@@ -4,7 +4,6 @@ ansible_user: sylvain
 
 # Backup configuration (used by all hosts)
 borgmatic_config_dir: "/etc/borgmatic.d"
-borgmatic_encryption_mode: repokey-blake2
 
 # Storage Box Hetzner pour les backups (remplace S3). Dossier du compte
 # principal (ansible/backup.yaml) : un sous-dossier <hôte> par hôte sauvegardé.

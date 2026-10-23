@@ -164,12 +164,6 @@
         - /root/.ssh/config
         - /root/.ssh/known_hosts
 
-    - name: Stat the former shared Storage Box key
-      become: true
-      ansible.builtin.stat:
-        path: /root/.ssh/backup_storage_box_key
-      register: borgmatic_former_key
-
     # Clé propre à l'hôte, générée sur place ; config et known_hosts visent le
     # sous-compte de l'hôte (host_vars/flip), plus le compte principal.
     - name: Assert the SSH key, config and known host target the subaccount
@@ -179,7 +173,6 @@
       ansible.builtin.assert:
         that:
           - (borgmatic_ssh_content.results[0].content | b64decode) is match('ssh-ed25519 \\S+ borgmatic@')
-          - not borgmatic_former_key.stat.exists
           - ('HostName ' ~ backup_storage_box_subaccounts.flip.server) in borgmatic_ssh_config
           - ('User ' ~ backup_storage_box_subaccounts.flip.username) in borgmatic_ssh_config
           - "'Port 23' in borgmatic_ssh_config"
@@ -199,19 +192,3 @@
         that:
           - borgmatic_config_dir_stat.stat.isdir | default(false)
           - borgmatic_config_dir_stat.stat.pw_name == 'root'
-
-    # rclone ne sert plus : ni le paquet ni ses identifiants S3 chez root.
-    - name: Stat the rclone configuration directory
-      become: true
-      ansible.builtin.stat:
-        path: /root/.config/rclone
-      register: borgmatic_rclone_conf
-
-    - name: Gather the package facts
-      ansible.builtin.package_facts:
-
-    - name: Assert rclone is gone
-      ansible.builtin.assert:
-        that:
-          - not borgmatic_rclone_conf.stat.exists
-          - "'rclone' not in ansible_facts.packages"

@@ -27,13 +27,8 @@ pangolin_domain_redirects:
     keep_path: false
     permanent: false
 
-# Log level (debug, info, warning, error)
-pangolin_log_level: "info"
-
 # Pangolin secret (should be in secrets.sops.yaml)
 pangolin_secret: "{{ pangolin_server_secret }}"
-
-pangolin_backup_enabled: true
 
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp }

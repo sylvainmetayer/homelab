@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-User={{ borgmatic_user }}
-Group={{ borgmatic_user }}
+User=root
+Group=root
 ExecStart=/root/.local/bin/borgmatic --verbosity -1 --syslog-verbosity 1
 
 [Install]

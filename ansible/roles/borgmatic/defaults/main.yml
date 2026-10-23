@@ -20,20 +20,9 @@ borgmatic_version: "2.1.10"
 # Common values: repokey-blake2, repokey-chacha20-poly1305, none
 borgmatic_encryption_mode: repokey-blake2
 
-# Whether to enable systemd timer for automatic backups
-borgmatic_enable_timer: true
-
 # Timer schedule (systemd OnCalendar format)
 # Default: daily at 3 AM
 borgmatic_timer_schedule: "*-*-* 01:00:00"
-
-# User for systemd service (root for Docker volumes access)
-borgmatic_user: "root"
-
-# À true pour un seul passage, après le déplacement des dépôts sur la Storage
-# Box (sous-compte par hôte) : borg accepte alors leur nouvelle adresse et la
-# mémorise. Jamais à true en temps normal.
-borgmatic_relocated_repo_access_is_ok: false
 
 # borgmatic lui-même (installé par pipx pour root). Les scénarios Molecule y
 # posent un bouchon (molecule/_shared/prepare.yml).

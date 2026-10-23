@@ -12,13 +12,6 @@
               + (['auditd'] if security_auditd_enabled | bool else []) }}"
     state: present
 
-# Rapports quotidiens pleins de faux positifs sur un hôte Docker.
-- name: Remove rkhunter
-  ansible.builtin.apt:
-    name: rkhunter
-    state: absent
-    purge: true
-
 - name: Harden the system and sshd with devsec.hardening
   ansible.builtin.import_tasks: devsec.yml
 

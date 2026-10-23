@@ -1,11 +1,4 @@
 ---
-# Notifié par le retrait de l'ancien drop-in sshd (tasks/devsec.yml). `sshd -t`
-# d'abord : une configuration invalide ne doit pas couper l'accès SSH.
-- name: Reload sshd
-  become: true
-  ansible.builtin.shell: sshd -t && systemctl reload ssh
-  changed_when: true
-
 # Sans lui, jail.local n'était relu qu'au prochain démarrage de fail2ban.
 - name: Restart fail2ban
   become: true

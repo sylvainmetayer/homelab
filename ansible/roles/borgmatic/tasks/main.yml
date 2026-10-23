@@ -93,7 +93,6 @@
     group: "root"
 
 - name: Create borgmatic systemd service
-  when: borgmatic_enable_timer
   become: true
   ansible.builtin.template:
     src: borgmatic.service.j2
@@ -104,7 +103,6 @@
   notify: Reload systemd daemon
 
 - name: Create borgmatic systemd timer
-  when: borgmatic_enable_timer
   become: true
   ansible.builtin.template:
     src: borgmatic.timer.j2
@@ -115,27 +113,12 @@
   notify: Reload systemd daemon
 
 - name: Enable and start borgmatic timer
-  when: borgmatic_enable_timer
   become: true
   ansible.builtin.systemd:
     name: borgmatic.timer
     enabled: true
     state: started
     daemon_reload: true
-
-# rclone ne sert plus (les sauvegardes passent par borg) : retiré des hôtes
-# où ce rôle l'installait, avec le dossier de configuration de root.
-- name: Remove rclone
-  become: true
-  ansible.builtin.apt:
-    name: rclone
-    state: absent
-
-- name: Remove the rclone configuration directory of root
-  become: true
-  ansible.builtin.file:
-    path: /root/.config/rclone
-    state: absent
 
 # Les clients MariaDB et PostgreSQL de l'hôte servent à restaurer (mysql,
 # psql, pg_restore, vers l'IP du conteneur : les dumps, eux, tournent dans le
@@ -213,16 +196,3 @@
     mode: "0600"
     owner: "root"
     group: "root"
-
-# L'ancienne clé, commune à tous les hôtes et valable sur le compte principal.
-# En dernier : si une tâche précédente échoue (backup_storage_box_subaccount
-# absent de SOPS…), les configurations borgmatic encore en place, qui la
-# citent, continuent de sauvegarder.
-- name: Remove the former shared Storage Box key
-  become: true
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - /root/.ssh/backup_storage_box_key
-    - /root/.ssh/backup_storage_box_key.pub

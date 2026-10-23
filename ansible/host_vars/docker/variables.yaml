@@ -2,29 +2,7 @@
 newt_client_id: "{{ newt_docker_client_id }}"
 newt_client_secret: "{{ newt_docker_client_secret }}"
 
-rss_backup_enabled: true
-
-betisier_backup_enabled: true
-
-monica_v4_backup_enabled: true
-
 wiki_domain: "wiki.sylvain.cloud"
-wiki_backup_enabled: true
-
-nextcloud_backup_enabled: true
-
-meerkat_crm_backup_enabled: true
-
-paperless_backup_enabled: true
-
-dawarich_backup_enabled: true
-
-trek_backup_enabled: true
-
-karakeep_backup_enabled: true
-
-wishlist_backup_enabled: true
-
 # Sous-compte Storage Box de docker (sauvegardes borgmatic) : clé SOPS
 # backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
 # de tofu/pangolin.
