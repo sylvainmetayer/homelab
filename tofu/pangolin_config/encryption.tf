@@ -11,14 +11,9 @@ terraform {
       keys = key_provider.pbkdf2.state
     }
 
-    method "unencrypted" "migrate" {}
-
     remote_state_data_sources {
       remote_state_data_source "pangolin" {
         method = method.aes_gcm.state
-        fallback {
-          method = method.unencrypted.migrate
-        }
       }
     }
   }
