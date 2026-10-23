@@ -44,10 +44,14 @@
     # pangolin_config_outputs_optional (00-setup.yaml seulement) : un state
     # illisible n'arrête pas la play, terraform_outputs vaut alors {} et chaque
     # sortie lue retombe sur son default('').
+    # check_mode: false : une lecture, sans effet ; en --check, s3_object ne
+    # télécharge rien et toute la suite tournerait sans terraform_outputs
+    # (URL push vides, assert des identifiants Newt de flip.yml en échec).
     - name: Read Terraform state from S3 bucket
       delegate_to: localhost
       run_once: true
       no_log: true
+      check_mode: false
       failed_when:
         - terraform_state_raw is failed
         - not (pangolin_config_outputs_optional | default(false) | bool)
