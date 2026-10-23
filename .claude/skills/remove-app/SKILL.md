@@ -123,6 +123,11 @@ lives in one file and one line, so removal is a few edits + an apply:
   `tofu/pangolin_config/roles.tf`'s `locals` block (this destroys its
   `pangolin_role`, which also revokes any SSO/user access to it — nothing
   else to clean up there, Pangolin doesn't track per-user role grants in Tofu).
+- Disable the resource in the Pangolin dashboard first (Resources → the
+  app → toggle it off). `rules.tf`'s `geo_rule_coverage` precondition fails
+  the plan on any *enabled* live resource that `local.websites` no longer
+  declares — which is exactly the state of a resource being removed — and
+  it accepts a disabled one. The apply below then deletes it.
 - Apply so Tofu actually destroys what's provisioned (deleting the `.tf` file
   alone only drops it from the *next* plan, it doesn't tear down existing
   resources):
