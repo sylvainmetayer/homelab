@@ -15,6 +15,9 @@ newt_lxc = {
 }
 
 # Configuration Debian 13 (vérifier la somme SHA512 sur https://cloud.debian.org/images/cloud/trixie/latest/)
+# Image datée (pas « latest », dont le contenu change à chaque publication et
+# ne correspond plus à la somme) : celle dont la VM docker a été construite.
+debian13_image_url      = "https://cloud.debian.org/images/cloud/trixie/20260826-2582/debian-13-generic-amd64-20260826-2582.qcow2"
 debian13_image_checksum = "720d9a2d21167e8aa1bb86a8a816658c7beaeec6975c376e15a0761383a869a466cbf7fe11c287c989020070309889dd81c37cd412290531245e3562334e05f3"
 
 docker_vm = {
