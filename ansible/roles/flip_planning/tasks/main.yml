@@ -85,9 +85,12 @@
 # the same play finds the variable already set and skips the inspect. That is
 # the right answer rather than a leak: every instance on this host sits behind
 # the same newt container on the same bridge, hence the same subnet.
+# check_mode: false : une lecture ; sautée en --check, elle ferait échouer
+# l'assert qui suit et arrêterait le dry-run de flip.yml.
 - name: Read the newt network definition
   when: not flip_planning_trusted_proxies
   changed_when: false
+  check_mode: false
   ansible.builtin.command:
     cmd: "docker network inspect {{ flip_planning_newt_network }}"
   register: flip_planning_newt_network_info
