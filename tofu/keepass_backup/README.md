@@ -13,12 +13,15 @@ Borgmatic, not Restic » vise les apps du homelab, pas ce poste.
 
 Object Lock ne s'active qu'à la création : le désactiver ou changer le nom du bucket recrée le bucket.
 
-## Avant le premier apply : test sur un bucket jetable
+## Vérifié le 24/10/2026, avec restic 0.19.1
 
-La compatibilité de restic avec Object Lock chez OVH n'est pas encore vérifiée (les uploads vers un bucket verrouillé
-exigent un en-tête de contrôle d'intégrité). Avant d'en dépendre : créer à la main un bucket jetable avec Object Lock
-GOVERNANCE 1 jour, y faire `restic init`, deux `backup`, un `check`, un `restore`, puis avec une clé admin un
-`forget --prune`. Vérifier aussi qu'un `DeleteObject` sur `data/*` avec la clé writer est bien refusé.
+restic fonctionne avec l'Object Lock d'OVH : `init`, `backup`, `check`, `restore` (9 bases identiques). Avec la clé
+writer, un `DeleteObject` sur `data/*` est refusé (403), avec ou sans `versionId`, comme le contournement de la
+rétention ; même la clé admin ne peut pas détruire une version encore verrouillée ; les verrous `locks/*` se suppriment.
+
+Deux limites de l'API OVH, reprises dans le code : elle refuse `s3:DeleteObjectVersion` et `s3:GetObjectVersion` dans
+une policy (`DeleteObject` et `GetObject` couvrent les versions), et `expired_object_delete_marker` dans une règle de
+cycle de vie filtrée. Une policy toute neuve peut mettre quelques minutes à s'appliquer.
 
 ## Apply
 
