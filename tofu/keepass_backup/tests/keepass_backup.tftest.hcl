@@ -15,6 +15,10 @@ override_data {
   }
 }
 
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 run "bucket_is_locked_versioned_and_encrypted" {
   command = plan
 
