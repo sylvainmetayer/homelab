@@ -64,11 +64,13 @@ resource "ovh_cloud_project_user_s3_policy" "writer" {
       {
         # Même raison : un propriétaire pourrait sinon détruire des versions
         # (le mode GOVERNANCE cède à BypassGovernanceRetention), raccourcir
-        # leur rétention, ou défaire le versioning et le cycle de vie.
+        # leur rétention, ou défaire le versioning et le cycle de vie. OVH ne
+        # connaît pas s3:DeleteObjectVersion (refusé par son API) : détruire
+        # une version passe par DeleteObject, déjà refusé sur les données, et
+        # une version verrouillée exige en plus BypassGovernanceRetention.
         "Sid" : "KeepassBackupNeverDestroyVersions",
         "Effect" : "Deny",
         "Action" : [
-          "s3:DeleteObjectVersion",
           "s3:BypassGovernanceRetention",
           "s3:PutObjectRetention",
         ],
@@ -107,8 +109,10 @@ resource "ovh_cloud_project_user_s3_policy" "admin" {
     "Statement" : [{
       "Sid" : "KeepassBackupAdmin",
       "Effect" : "Allow",
-      # Les droits de versions permettent de restaurer un objet écrasé.
-      "Action" : concat(local.read_write_actions, ["s3:DeleteObject", "s3:ListBucketVersions", "s3:GetObjectVersion"]),
+      # ListBucketVersions permet de retrouver un objet écrasé ; OVH n'a pas
+      # de s3:GetObjectVersion (refusé par son API) : GetObject lit aussi une
+      # version donnée.
+      "Action" : concat(local.read_write_actions, ["s3:DeleteObject", "s3:ListBucketVersions"]),
       "Resource" : [local.bucket_arn, local.objects_arn],
     }]
   })

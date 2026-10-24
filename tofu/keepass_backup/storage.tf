@@ -48,9 +48,6 @@ resource "ovh_cloud_project_storage_object_bucket_lifecycle_configuration" "keep
       noncurrent_version_expiration = {
         noncurrent_days = 1
       }
-      expiration = {
-        expired_object_delete_marker = true
-      }
     },
     {
       # Bien plus long que le test de restauration mensuel : un écrasement
@@ -65,6 +62,16 @@ resource "ovh_cloud_project_storage_object_bucket_lifecycle_configuration" "keep
       }
       abort_incomplete_multipart_upload = {
         days_after_initiation = 7
+      }
+    },
+    {
+      # Retire les delete markers restés seuls une fois leurs versions
+      # expirées (verrous restic, objets du prune). OVH refuse cette action
+      # dans une règle qui a un filtre : règle à part, sur tout le bucket.
+      id     = "delete-markers"
+      status = "enabled"
+      expiration = {
+        expired_object_delete_marker = true
       }
     },
   ]
