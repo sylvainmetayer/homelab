@@ -69,7 +69,7 @@ run "lifecycle_expires_locks_and_old_versions" {
   assert {
     condition = anytrue([
       for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
-      r.filter.prefix == "locks/" && r.noncurrent_version_expiration.noncurrent_days == 1 && r.status == "enabled"
+      try(r.filter.prefix, null) == "locks/" && try(r.noncurrent_version_expiration.noncurrent_days, 0) == 1 && r.status == "enabled"
     ])
     error_message = "Une règle doit faire expirer les versions des verrous restic (locks/) après 1 jour."
   }
@@ -77,9 +77,21 @@ run "lifecycle_expires_locks_and_old_versions" {
   assert {
     condition = anytrue([
       for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
-      r.filter.prefix == "" && r.noncurrent_version_expiration.noncurrent_days > 31 && r.status == "enabled"
+      try(r.filter.prefix, null) == "" && try(r.noncurrent_version_expiration.noncurrent_days, 0) > 31 && r.status == "enabled"
     ])
     error_message = "Une règle globale doit faire expirer les versions non courantes, au-delà du test mensuel."
+  }
+
+  # OVH refuse expired_object_delete_marker dans une règle filtrée.
+  assert {
+    condition = alltrue([
+      for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
+      r.filter == null if try(r.expiration.expired_object_delete_marker, false)
+    ]) && anytrue([
+      for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
+      try(r.expiration.expired_object_delete_marker, false) && r.status == "enabled"
+    ])
+    error_message = "Une règle sans filtre doit retirer les delete markers orphelins."
   }
 }
 
@@ -119,7 +131,6 @@ run "writer_cannot_delete_data" {
   assert {
     condition = alltrue([
       for a in [
-        "s3:DeleteObjectVersion",
         "s3:BypassGovernanceRetention",
         "s3:PutObjectRetention",
         "s3:DeleteBucket",
@@ -135,12 +146,28 @@ run "writer_cannot_delete_data" {
   }
 }
 
+run "policies_only_use_actions_ovh_accepts" {
+  command = plan
+
+  # L'API OVH refuse toute la policy si une action lui est inconnue.
+  assert {
+    condition = alltrue([
+      for p in [ovh_cloud_project_user_s3_policy.writer.policy, ovh_cloud_project_user_s3_policy.admin.policy] : alltrue([
+        for st in jsondecode(p).Statement : alltrue([
+          for a in st.Action : !contains(["s3:DeleteObjectVersion", "s3:GetObjectVersion"], a)
+        ])
+      ])
+    ])
+    error_message = "OVH ne connaît ni s3:DeleteObjectVersion ni s3:GetObjectVersion : l'apply de la policy échouerait."
+  }
+}
+
 run "admin_can_prune_and_restore_versions" {
   command = plan
 
   assert {
     condition = alltrue([
-      for a in ["s3:DeleteObject", "s3:ListBucketVersions", "s3:GetObjectVersion"] :
+      for a in ["s3:DeleteObject", "s3:ListBucketVersions", "s3:GetObject"] :
       contains(jsondecode(ovh_cloud_project_user_s3_policy.admin.policy).Statement[0].Action, a)
     ])
     error_message = "L'admin doit pouvoir supprimer (prune) et lire les versions (restauration)."
