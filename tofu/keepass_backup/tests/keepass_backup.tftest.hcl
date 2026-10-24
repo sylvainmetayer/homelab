@@ -87,7 +87,7 @@ run "lifecycle_expires_locks_and_old_versions" {
     condition = alltrue([
       for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
       r.filter == null if try(r.expiration.expired_object_delete_marker, false)
-    ]) && anytrue([
+      ]) && anytrue([
       for r in ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup.rules :
       try(r.expiration.expired_object_delete_marker, false) && r.status == "enabled"
     ])
