@@ -14,7 +14,7 @@ There's also a Raspberry Pi (`ansible/pi.yml`, Immich) and a Hetzner Storage Box
 
 Stack: **OpenTofu** (infra) → **Ansible** (host config + app deploy via Docker Compose) → **SOPS/Age** (secrets) → **Borgmatic** (backups to Hetzner Storage Box).
 
-Pour les humains : la carte du homelab est dans `docs/architecture.md`, les procédures d'incident dans `docs/runbooks/`, une banque de questions d'entraînement dans `docs/quiz.md`.
+Pour les humains : la carte du homelab est dans `docs/architecture.md`, les procédures d'incident dans `docs/runbooks/`.
 
 ## Commands
 
