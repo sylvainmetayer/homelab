@@ -9,7 +9,7 @@ Borgmatic, not Restic » vise les apps du homelab, pas ce poste.
 | `ovh_cloud_project_storage.keepass_backup` | Bucket `keepass-backup-sylvain`, EU-WEST-PAR (3 AZ), versionné, SSE-OMK, **Object Lock GOVERNANCE 30 jours** |
 | `ovh_cloud_project_storage_object_bucket_lifecycle_configuration.keepass_backup` | Versions non courantes des verrous expirées après 1 jour, autres après 120 jours, toutes au plus tôt à la fin de leur rétention Object Lock (30 jours), multipart abandonnés après 7 jours |
 | `ovh_cloud_project_user.writer` + credential + policy | Clé du poste : lecture, écriture, suppression des seuls `locks/*`, refus explicite des suppressions de données et de versions, du contournement de la rétention et de la reconfiguration du bucket |
-| `ovh_cloud_project_user.admin` + credential + policy | Clé d'administration, jamais sur disque : prune annuel, lecture des versions |
+| `ovh_cloud_project_user.admin` + credential + policy | Clé d'administration, jamais sur le poste (KeePassXC, et le state chiffré) : prune annuel, lecture des versions |
 
 Object Lock ne s'active qu'à la création : le désactiver ou changer le nom du bucket recrée le bucket.
 
@@ -22,12 +22,14 @@ GOVERNANCE 1 jour, y faire `restic init`, deux `backup`, un `check`, un `restore
 
 ## Apply
 
+Le state est chiffré (`encryption.tf`) : lancer tofu par mise, qui charge `TF_VAR_state_encryption_passphrase`.
+
 ```bash
 cd tofu/keepass_backup
-tofu init
-tofu plan
-tofu apply
-tofu output bucket_owner_id   # ne doit être ni le writer ni l'admin (check owner_is_not_a_backup_user)
+mise exec -- tofu init
+mise exec -- tofu plan
+mise exec -- tofu apply
+mise exec -- tofu output bucket_owner_id   # ne doit être ni le writer ni l'admin (check owner_is_not_a_backup_user)
 ```
 
 ## Brancher le poste
@@ -35,16 +37,16 @@ tofu output bucket_owner_id   # ne doit être ni le writer ni l'admin (check own
 Copier les valeurs dans le sops des dotfiles (`host_vars/home.sops.yaml`, clé `keepass_backup_restic`) :
 
 ```bash
-tofu output -raw restic_repository      # repository
-tofu output -raw writer_access_key      # access_key_id
-tofu output -raw writer_secret_key      # secret_access_key
+mise exec -- tofu output -raw restic_repository      # repository
+mise exec -- tofu output -raw writer_access_key      # access_key_id
+mise exec -- tofu output -raw writer_secret_key      # secret_access_key
 ```
 
 Le mot de passe du dépôt (`password`) est généré par KeePassXC. Il vit dans le sops des dotfiles **et sur papier** :
 pas seulement dans KeePassXC, qui est justement ce que ce bucket sauvegarde. Puis, sur le poste : `ansible-playbook
 playbook/setup-home.yaml --tags keepass_backup`, `keepass-backup init`, `keepass-backup run`, `keepass-backup check`.
 
-Ranger `tofu output -raw admin_access_key` et `admin_secret_key` dans KeePassXC (entrée « Sauvegarde KeePass / restic
+Ranger `mise exec -- tofu output -raw admin_access_key` et `admin_secret_key` dans KeePassXC (entrée « Sauvegarde KeePass / restic
 OVH admin »). Si la base est perdue, la restauration reste possible avec la clé writer (lecture), qui est dans le sops.
 
 ## Rétention, une fois par an, avec la clé admin
