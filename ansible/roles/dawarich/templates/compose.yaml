@@ -47,7 +47,12 @@ services:
       - dawarich
 
   dawarich-app:
+    # Depuis 1.17.0, les jobs Sidekiq tournent dans ce conteneur
+    # (SIDEKIQ_EMBEDDED, .env) : plus de conteneur dawarich-sidekiq. Pas de
+    # quota CPU (service interactif), 60 s pour rendre les jobs en cours à
+    # Redis au `compose stop` de dc@.
     mem_limit: 2g
+    stop_grace_period: 60s
     image: freikin/dawarich:1.17.0@sha256:207dc86f8baa8fcf5b585f31186bf81b55added9c102a96f308d640e964ea60f
     container_name: dawarich-app
     restart: unless-stopped
@@ -79,43 +84,10 @@ services:
       - dawarich
       - newt
 
-  dawarich-sidekiq:
-    cpus: 2.00
-    cpu_shares: 512
-    mem_limit: 1g
-    image: freikin/dawarich:1.17.0@sha256:207dc86f8baa8fcf5b585f31186bf81b55added9c102a96f308d640e964ea60f
-    container_name: dawarich-sidekiq
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    entrypoint: sidekiq-entrypoint.sh
-    command: ["sidekiq"]
-    env_file:
-      - .env
-    environment:
-      PUID: "{{ ansible_facts['user_uid'] }}"
-      PGID: "{{ ansible_facts['user_gid'] }}"
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f sidekiq"]
-      interval: 10s
-      retries: 30
-      start_period: 30s
-      timeout: 10s
-    depends_on:
-      dawarich-db:
-        condition: service_healthy
-      dawarich-redis:
-        condition: service_healthy
-      dawarich-app:
-        condition: service_healthy
-    volumes:
-      - ./public:/var/app/public
-      - ./watched:/var/app/tmp/imports/watched
-      - ./storage:/var/app/storage
-    networks:
-      - dawarich
-
 networks:
+  # Interne : la base et redis n'ont pas besoin d'Internet, l'appli garde le
+  # sien par newt (géocodage, SMTP).
   dawarich:
+    internal: true
   newt:
     external: true
