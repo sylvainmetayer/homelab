@@ -1,0 +1,30 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# La vitrine (exemple_planning) restaure sa base de référence par
+# exemple_planning-reset.service, lancé par le handler « Reset
+# exemple_planning » dès que le dump ou le script change : `docker compose up
+# --wait`, `psql` et `pg_restore` dans un conteneur postgres que les unités dc@
+# neutralisées ne démarrent jamais. Le drop-in garde l'unité et le timer du
+# rôle tels quels (vérifiés par verify.yml) mais remplace le reset par
+# /bin/true, comme pour betisier.
+- name: Prepare flip_planning
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure the exemple_planning-reset drop-in directory exists
+      ansible.builtin.file:
+        path: /home/sylvain/.config/systemd/user/exemple_planning-reset.service.d
+        state: directory
+        mode: "0700"
+
+    - name: Neutralise the exemple_planning reset
+      ansible.builtin.copy:
+        dest: /home/sylvain/.config/systemd/user/exemple_planning-reset.service.d/molecule.conf
+        mode: "0600"
+        content: |
+          # Molecule : pas de conteneur postgres à restaurer.
+          [Service]
+          ExecStart=
+          ExecStart=/bin/true

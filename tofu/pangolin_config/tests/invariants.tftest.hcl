@@ -708,6 +708,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
       "demo_planning_kc_keycloak",
+      "exemple_planning", "exemple_planning_mailpit", "exemple_planning_assets",
       "stirling_pdf",
     ])
     error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (moved.tf), et une nouvelle cible être listée ici."
@@ -1280,7 +1281,7 @@ run "backslash_guard_covers_every_path_rule" {
 
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
-      "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
+      "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Exemple Planning", "Flip Planning",
       "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
@@ -1299,10 +1300,50 @@ run "backslash_guard_covers_every_path_rule" {
     condition = alltrue([
       for rule in concat(
         [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect],
+        values(pangolin_resource_rule.exemple_planning_drop),
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
     error_message = "La priorité 1 est réservée au DROP antislash : une règle par chemin à égalité avec lui serait évaluée dans un ordre arbitraire."
+  }
+}
+
+# La vitrine publique (website_exemple_planning.tf) n'a ni SSO ni mot de passe
+# admin secret : ses DROP sont tout ce qui sépare un visiteur du MCP, de
+# l'import SQL (utilisateur Postgres superutilisateur), du calcul synchrone et
+# de l'envoi de Mailpit. Liste fermée, toutes devant les règles pays (une DROP
+# derrière un PASS ne serait jamais lue) et derrière le garde antislash, et
+# aucun ACCEPT de chemin sur la ressource qui passerait avant elles.
+run "public_showcase_drops_what_its_shared_admin_must_not_reach" {
+  command = plan
+
+  assert {
+    condition     = pangolin_resource.website["exemple_planning"].sso == false
+    error_message = "La vitrine est sans SSO par conception : c'est ce qui rend ses DROP nécessaires."
+  }
+
+  assert {
+    condition = { for key, rule in pangolin_resource_rule.exemple_planning_drop : key => rule.value } == {
+      mcp          = "/mcp/*"
+      database     = "/api/database/*"
+      solve_sync   = "/api/solve"
+      mailpit_send = "/mail/api/v1/send"
+    }
+    error_message = "Les DROP de la vitrine ont changé : /mcp/*, /api/database/*, /api/solve et /mail/api/v1/send, ni plus ni moins (les webhooks sont coupés dans l'application)."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.exemple_planning_drop :
+      rule.action == "DROP" && rule.match == "PATH" && rule.enabled == true
+      && rule.priority > 1 && rule.priority < 10
+    ])
+    error_message = "Les règles de la vitrine sont des DROP PATH actives, entre le garde antislash (1) et les règles pays (10)."
+  }
+
+  assert {
+    condition     = !contains(keys(local.path_bypasses), "Exemple Planning")
+    error_message = "La vitrine ne doit avoir aucun ACCEPT de chemin : il passerait avant ses DROP ou à côté d'eux."
   }
 }
 
@@ -1573,8 +1614,8 @@ run "php_lockdown_closes_every_public_php_path" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier, nextcloud et Promptoramix se
-# passent du SSO.
+# applique donc les siennes, et seules Betisier, nextcloud, Promptoramix et la
+# vitrine Exemple Planning se passent du SSO.
 run "every_public_resource_applies_its_rules" {
   command = plan
 
@@ -1588,13 +1629,16 @@ run "every_public_resource_applies_its_rules" {
   # est entrée par une décision explicite, validée par l'utilisateur : appelée
   # par les serveurs du tournoi Linkx (fonctions Supabase), pas par un
   # navigateur, elle ne peut pas passer de SSO et vérifie la signature HMAC de
-  # chaque requête (website_promptoramix.tf).
+  # chaque requête (website_promptoramix.tf). Exemple Planning aussi : la
+  # vitrine publique de Planning Équipes, dont la page produit affiche le mot
+  # de passe ; ce que cet admin partagé ne doit pas atteindre est coupé par ses
+  # DROP (website_exemple_planning.tf, pinned plus bas).
   assert {
     condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
-      toset(["Betisier", "nextcloud", "Promptoramix"]),
+      toset(["Betisier", "Exemple Planning", "nextcloud", "Promptoramix"]),
       [for key in local.php_lockdown_sso : local.websites[key].name],
     )
-    error_message = "Les ressources sans SSO doivent être exactement Betisier, nextcloud et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
+    error_message = "Les ressources sans SSO doivent être exactement Betisier, Exemple Planning, nextcloud et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -1624,6 +1668,7 @@ run "every_public_resource_applies_its_rules" {
       dawarich         = "Dawarich"
       demo_planning    = "Demo Planning"
       demo_planning_kc = "Demo Planning KC"
+      exemple_planning = "Exemple Planning"
       flip_planning    = "Flip Planning"
       homepage         = "Homepage"
       immich           = "Immich"
@@ -1772,27 +1817,28 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   # s'ajoute ici (voir le skill pangolin-route).
   assert {
     condition = { for key, m in uptimekuma_monitor_http_keyword.healthcheck : key => m.name } == {
-      beszel        = "Healthcheck Beszel"
-      betisier      = "Healthcheck Betisier"
-      dawarich      = "Healthcheck Dawarich"
-      demo_planning = "Healthcheck Demo Planning"
-      flip_planning = "Healthcheck Flip Planning"
-      homepage      = "Healthcheck Homepage"
-      immich        = "Healthcheck Immich"
-      immich_swipe  = "Healthcheck Immich Swipe"
-      karakeep      = "Healthcheck Karakeep"
-      kitchenowl    = "Healthcheck KitchenOwl"
-      meerkat_crm   = "Healthcheck Meerkat CRM"
-      monica        = "Healthcheck Monica CRM"
-      nextcloud     = "Healthcheck nextcloud"
-      nginx_demo    = "Healthcheck Nginx Demo"
-      paperless     = "Healthcheck Paperless-ngx"
-      promptoramix  = "Healthcheck Promptoramix"
-      rss           = "Healthcheck RSS"
-      stirling_pdf  = "Healthcheck Stirling-PDF"
-      trek          = "Healthcheck TREK"
-      wiki          = "Healthcheck Wiki (Bookstack)"
-      wishlist      = "Healthcheck Wishlist"
+      beszel           = "Healthcheck Beszel"
+      betisier         = "Healthcheck Betisier"
+      dawarich         = "Healthcheck Dawarich"
+      demo_planning    = "Healthcheck Demo Planning"
+      exemple_planning = "Healthcheck Exemple Planning"
+      flip_planning    = "Healthcheck Flip Planning"
+      homepage         = "Healthcheck Homepage"
+      immich           = "Healthcheck Immich"
+      immich_swipe     = "Healthcheck Immich Swipe"
+      karakeep         = "Healthcheck Karakeep"
+      kitchenowl       = "Healthcheck KitchenOwl"
+      meerkat_crm      = "Healthcheck Meerkat CRM"
+      monica           = "Healthcheck Monica CRM"
+      nextcloud        = "Healthcheck nextcloud"
+      nginx_demo       = "Healthcheck Nginx Demo"
+      paperless        = "Healthcheck Paperless-ngx"
+      promptoramix     = "Healthcheck Promptoramix"
+      rss              = "Healthcheck RSS"
+      stirling_pdf     = "Healthcheck Stirling-PDF"
+      trek             = "Healthcheck TREK"
+      wiki             = "Healthcheck Wiki (Bookstack)"
+      wishlist         = "Healthcheck Wishlist"
     }
     error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
   }
@@ -1860,14 +1906,14 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier, nextcloud et Promptoramix (sans SSO). Immich Swipe prend celui
+  # Betisier, Exemple Planning, nextcloud et Promptoramix (sans SSO). Immich Swipe prend celui
   # d'Immich.
   assert {
     condition = (
-      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "nextcloud", "promptoramix"])
+      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "exemple_planning", "nextcloud", "promptoramix"])
       && local.websites["immich_swipe"].role == "immich"
     )
-    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich) ; Betisier, nextcloud et Promptoramix, sans SSO, à aucun."
+    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich) ; Betisier, Exemple Planning, nextcloud et Promptoramix, sans SSO, à aucun."
   }
 }
 

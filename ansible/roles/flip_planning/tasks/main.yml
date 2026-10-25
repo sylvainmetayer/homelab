@@ -187,7 +187,7 @@
       ansible.builtin.file:
         path: "{{ flip_planning_base_path }}/seed"
         state: directory
-        mode: "0750"
+        mode: "0700"
         owner: "{{ ansible_facts['user_id'] }}"
         group: "{{ ansible_facts['user_gid'] }}"
 
@@ -198,7 +198,7 @@
         dest: "{{ flip_planning_base_path }}/seed/{{ flip_planning_reset_dump | basename }}"
         owner: "{{ ansible_facts['user_id'] }}"
         group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0640"
+        mode: "0600"
 
     - name: Template the reset script of {{ flip_planning_service }}
       notify: "Reset {{ flip_planning_service }}"
@@ -207,7 +207,7 @@
         dest: "{{ flip_planning_base_path }}/reset.sh"
         owner: "{{ ansible_facts['user_id'] }}"
         group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0750"
+        mode: "0700"
 
     - name: Template the reset units of {{ flip_planning_service }}
       loop: [service, timer]

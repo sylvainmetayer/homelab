@@ -72,17 +72,16 @@ locals {
     # function, and the compose stack's database user is a PostgreSQL
     # superuser: server-side file reads and writes are one statement away.
     database = { priority = 3, value = "/api/database/*" }
-    # Outgoing webhooks: a public form that makes the host send signed HTTPS
-    # requests to any address a visitor types in.
-    webhooks = { priority = 4, value = "/api/webhooks/*" }
+    # Outgoing webhooks are not dropped here but off in the application
+    # (WEBHOOKS_ENABLED=false, ansible/flip.yml): nothing can be registered.
     # The synchronous solve takes a whole problem in its body and is not what
     # the UI calls (it uses /api/solve/async*, under the 60 s ceiling and the
     # one-job queue). No wildcard: only that exact path.
-    solve_sync = { priority = 5, value = "/api/solve" }
+    solve_sync = { priority = 4, value = "/api/solve" }
     # Mailpit's send API: /mail is public so that visitors can READ what the
     # showcase sent; the send endpoint would let anyone post arbitrary HTML
     # into that inbox, served under this domain.
-    mailpit_send = { priority = 6, value = "/mail/api/v1/send" }
+    mailpit_send = { priority = 5, value = "/mail/api/v1/send" }
   }
 }
 

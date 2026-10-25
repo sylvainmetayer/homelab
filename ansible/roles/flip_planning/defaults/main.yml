@@ -361,9 +361,15 @@ flip_planning_solver_seconds_limit_max: ""
 # the application at submission — screen, API, MCP and the staffing check —
 # and refused with a sentence the UI shows, naming when the next run is
 # possible. Empty: not written, the application's default (off). Images up to
-# 1.4.0 ignore both: the quota ships with the next release.
+# 1.4.0 ignore both: the quota ships with 1.5.0.
 flip_planning_solver_max_solves_per_hour: ""
 flip_planning_solver_max_queued_jobs: ""
+
+# Outgoing webhooks (WEBHOOKS_ENABLED, from 1.5.0). false cuts every outgoing
+# call: nothing can be registered, nothing is sent. For an instance whose admin
+# password is public, where a webhook form would make the host send requests
+# to any address a visitor types in.
+flip_planning_webhooks_enabled: true
 
 # ---------------------------------------------------------------------------
 # Nightly reset to a reference database.
@@ -384,7 +390,11 @@ flip_planning_solver_max_queued_jobs: ""
 # data matters, and leave its Borg backup off — there is nothing to keep.
 flip_planning_reset_dump: ""
 # systemd OnCalendar expression, timezone included.
-flip_planning_reset_on_calendar: "*-*-* 04:30:00 Europe/Paris"
+# 03:30, not 04:30: unattended-upgrades reboots flip at 04:30 when a kernel
+# update needs it (security_unattended_reboot_time, host_vars/flip), and a
+# reboot in the middle of pg_restore would leave a half-restored database that
+# the timer, having fired, would not retry before the next night.
+flip_planning_reset_on_calendar: "*-*-* 03:30:00 Europe/Paris"
 
 # Reverse proxies the two address-counting guards may believe when they read
 # X-Forwarded-For: the login lockout, and the /mcp rate ceiling above.

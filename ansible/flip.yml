@@ -208,16 +208,21 @@
     # for how that dump is made). The solver stays usable, but under a 60 s
     # operator ceiling (one job at a time through the application's queue,
     # never more than a minute of CPU each) and the application's hourly quota
-    # (below; enforced from the first release after 1.4.0).
+    # (below; from 1.5.0 — images up to 1.4.0 ignore it).
     #
     # Being public, it is the instance that must not look like the festival's:
     # no branding image, no client palette, a fictional organisation. What the
-    # visitors must not reach — /mcp, the SQL dump routes, the outgoing
-    # webhooks, the synchronous solve — is dropped by Pangolin
-    # (tofu/pangolin_config/website_exemple_planning.tf), and pgAdmin is off.
+    # visitors must not reach — /mcp, the SQL dump routes, the synchronous
+    # solve, Mailpit's send API — is dropped by Pangolin
+    # (tofu/pangolin_config/website_exemple_planning.tf); outgoing webhooks are
+    # off in the application, and pgAdmin is off. What stays open to anyone is
+    # what an administrator edits (editions, mentions légales…): defaced until
+    # the next nightly reset at worst.
     #
-    # Skipped until its secrets exist in secrets.sops.yaml (the `when`), like
-    # the Keycloak bench above.
+    # Skipped until its secrets exist in secrets.sops.yaml (the `when`). Not to
+    # be enabled before the Keycloak bench above is removed — flip has no
+    # memory left for a fourth stack while it runs — nor before the release
+    # channel reaches 1.5.0, the first image enforcing the quota.
     - role: flip_planning
       tags: exemple_planning,app
       when: exemple_planning_db_password is defined
@@ -244,6 +249,7 @@
         flip_planning_mcp_api_key: ""
         flip_planning_mcp_pangolin_access_token_id: ""
         flip_planning_mcp_pangolin_access_token: ""
+        flip_planning_webhooks_enabled: false
         # Ceiling = default: the application refuses a ceiling below the
         # default, and the plateau limit has to come down with them.
         flip_planning_solver_seconds_limit: 60

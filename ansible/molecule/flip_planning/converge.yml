@@ -1,8 +1,8 @@
 ---
-# Reproduit flip.yml pour Flip Planning : le rôle appliqué trois fois sur le
-# même hôte (production, démo, banc Keycloak), avec les paramètres de rôle du
-# playbook. Les entrées sont recopiées, mais la première tâche compare la copie
-# à flip.yml : une instance ajoutée, retirée ou modifiée là-bas fait échouer le
+# Reproduit flip.yml pour Flip Planning : le rôle appliqué quatre fois sur le
+# même hôte (production, démo, banc Keycloak, vitrine publique), avec les
+# paramètres de rôle du playbook. Les entrées sont recopiées, mais la première
+# tâche compare la copie à flip.yml : une instance ajoutée, retirée ou modifiée là-bas fait échouer le
 # scénario au lieu de laisser tester un instantané périmé.
 - name: Converge
   hosts: all
@@ -100,6 +100,7 @@
         flip_planning_mcp_pangolin_access_token_id: "{{ prod_planning_mcp_pangolin_access_token_id }}"
         flip_planning_mcp_pangolin_access_token: "{{ prod_planning_mcp_pangolin_access_token }}"
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
+        flip_planning_mem_reservation: 1g
     - role: flip_planning
       vars:
         flip_planning_service: demo_planning
@@ -145,3 +146,34 @@
         flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
         flip_planning_backup_enabled: false
+    - role: flip_planning
+      when: exemple_planning_db_password is defined
+      vars:
+        flip_planning_service: exemple_planning
+        flip_planning_container_prefix: exemple-planning
+        flip_planning_domain: exemple-planning.sylvain.dev
+        flip_planning_image: "{{ flip_planning_image_release }}"
+        flip_planning_sentry_environment: exemple
+        flip_planning_branding_product_name: "Planning Équipes — Exemple"
+        flip_planning_branding_organisation: "Association fictive"
+        flip_planning_branding_client_palette: false
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_legal_demo_instance: true
+        flip_planning_pgadmin_enabled: false
+        flip_planning_admin_password: "demo"
+        flip_planning_db_password: "{{ exemple_planning_db_password }}"
+        flip_planning_session_encryption_key: "{{ exemple_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: ""
+        flip_planning_mcp_pangolin_access_token_id: ""
+        flip_planning_mcp_pangolin_access_token: ""
+        flip_planning_webhooks_enabled: false
+        flip_planning_solver_seconds_limit: 60
+        flip_planning_solver_unimproved_seconds_limit: 20
+        flip_planning_solver_seconds_limit_max: 60
+        flip_planning_reset_dump: exemple/exemple-planning.dump
+        flip_planning_backup_enabled: false
+        flip_planning_cpu_shares: 256
+        flip_planning_mem_limit: 1536m
+        flip_planning_solver_max_solves_per_hour: 12
+        flip_planning_solver_max_queued_jobs: 2

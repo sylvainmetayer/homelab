@@ -1,6 +1,11 @@
 ---
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
-# Le prepare commun suffit : réseau newt (dont le rôle lit le sous-réseau),
-# unités dc@ neutralisées et bouchon borgmatic.
+# Prepare propre : le commun (réseau newt, dont le rôle lit le sous-réseau,
+# unités dc@ neutralisées, bouchon borgmatic) plus la neutralisation du reset
+# de la vitrine (cf. prepare.yml).
 scenario:
   name: flip_planning
+
+ansible:
+  playbooks:
+    prepare: prepare.yml
