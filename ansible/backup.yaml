@@ -5,6 +5,12 @@
 # .ssh/authorized_keys. À lancer après le rôle borgmatic des hôtes (clés
 # créées) et avant leur première sauvegarde.
 #
+# Il dépose aussi dans backup/.ssh/authorized_keys la clé du sous-compte en
+# lecture seule du test de restauration (tofu/pangolin/storage_box.tf,
+# .github/restore-test/README.md), dont backup/ est le dossier racine : sa
+# clé publique est lue avec `tofu output` dans tofu/pangolin (même
+# environnement mise que l'inventaire hetzner.py).
+#
 # Ordre, pour un hôte neuf :
 #   1. <playbook de l'hôte> --tags setup : le rôle borgmatic génère la clé,
 #      sans les rôles d'application. Un passage complet (ou --tags backup)
@@ -75,6 +81,41 @@
           - "{{ ansible_user }}@{{ ansible_host }}:{{ backup_storage_box_path }}/{{ item }}/.ssh/authorized_keys"
       changed_when: true
       loop: "{{ backup_storage_box_hosts }}"
+
+    - name: Read the public key of the restore-test subaccount
+      delegate_to: localhost
+      ansible.builtin.command:
+        argv: [tofu, output, -raw, storage_box_restore_test_ssh_public_key]
+        chdir: "{{ playbook_dir }}/../tofu/pangolin"
+      register: backup_restore_test_public_key
+      changed_when: false
+
+    - name: Write the public key of the restore-test subaccount to the staging directory
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: "{{ backup_restore_test_public_key.stdout | trim }}\n"
+        dest: "{{ backup_keys_dir.path }}/restore-test.pub"
+        mode: "0600"
+
+    - name: Create the folder of the restore-test subaccount keys
+      ansible.builtin.raw: >-
+        mkdir -p /home/{{ backup_storage_box_path }}/.ssh
+      changed_when: false
+
+    - name: Upload the authorized_keys of the restore-test subaccount
+      delegate_to: localhost
+      ansible.builtin.command:
+        argv:
+          - scp
+          - -o
+          - StrictHostKeyChecking=yes
+          - -o
+          - "UserKnownHostsFile={{ playbook_dir }}/known_hosts"
+          - -P
+          - "{{ ansible_port }}"
+          - "{{ backup_keys_dir.path }}/restore-test.pub"
+          - "{{ ansible_user }}@{{ ansible_host }}:{{ backup_storage_box_path }}/.ssh/authorized_keys"
+      changed_when: true
 
     - name: Remove the local staging directory
       delegate_to: localhost
