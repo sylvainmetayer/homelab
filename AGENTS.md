@@ -172,7 +172,11 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
 - Data under `<service>_data_path: "{{ nas_storage_mount_path }}/<service>"`,
   created with `become: true` (the NFS rule is "No mapping" for the VM's IP),
   bind-mounted by absolute path. Never a Docker `driver_opts: nfs` volume:
-  borg can't read it.
+  borg can't read it. UGOS creates every file and directory `0777` whatever
+  the umask, but honours an explicit chmod: give each NAS path an explicit
+  `mode:`.
+- UGOS Pro 1.20 serves NFSv3 only (`nas_storage_nfs_version: "3"`). In the
+  shared folder's NFS rule, untick "Async" (ticked by default).
 - Postgres/MariaDB data dirs may live there; **SQLite (and any mmap/lock-based
   embedded DB) never does** — it stays on the local disk.
 - Every NAS-backed container gets `cgroup_parent: {{ nas_storage_slice }}`:

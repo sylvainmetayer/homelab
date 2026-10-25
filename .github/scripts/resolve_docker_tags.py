@@ -8,7 +8,6 @@ Prints a JSON object {playbook_path: "tag1,tag2"} to stdout, one entry per
 playbook argument (value is "" when nothing changed for that playbook).
 """
 import json
-import pathlib
 import re
 import sys
 from pathlib import Path
@@ -63,7 +62,7 @@ def changed_roles(changed_files):
     return roles
 
 
-def add_dependents(roles, roles_dir=pathlib.Path("ansible/roles")):
+def add_dependents(roles, roles_dir=Path("ansible/roles")):
     """A role pulled in only through meta/main.yml `dependencies` (nas_storage)
     has no entry, hence no tag, in any playbook: redeploy the roles that
     depend on it instead, since they run it under their own tags.

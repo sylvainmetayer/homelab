@@ -17,7 +17,7 @@
 |---|---|---|---|
 | Fichiers (uploads, médias, données de l'appli) | NAS | NFSv3, export monté sur la VM (`/mnt/nas/apps`), bind mount dans le conteneur | copie des fichiers |
 | BDD serveur (Postgres, MariaDB) | NAS | même export, sous-dossier de l'appli | **dump logique** (`borgmatic_app_postgresql_databases` / `_mysql_databases`), jamais la copie du data directory |
-| BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `sqlite_databases` ou fichiers |
+| BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `borgmatic_app_sqlite_databases` (copie `sqlite3 .backup`, jamais le `sqlite_databases` de borgmatic) ou fichiers |
 | Caches (redis/valkey, vignettes régénérables) | disque local de la VM | | aucune |
 | `compose.yaml`, `.env` | disque local de la VM | régénérés par Ansible à chaque run | copie, comme aujourd'hui |
 
@@ -49,6 +49,14 @@ bien en v4 au niveau RPC (`rpcinfo -t 192.168.1.137 nfs 4`), mais aucun
 pseudo-système de fichiers v4 n'est exporté : un montage `vers=4`, `4.1` ou
 `4.2` échoue avec « reason given by server: No such file or directory », y compris sur `/`
 (testé depuis le Pi le 2026-10-25). Le rôle monte donc en `vers=3`.
+
+Une seule source, non officielle (un blog, sur un DH2300), dit qu'on peut
+activer la v4 en SSH en éditant `/etc/nfs.conf` et `/etc/nfs.json` du NAS. Elle
+prévient qu'un « Enregistrer » dans l'interface remet la v3. Ugreen considère
+toute modification du système comme non supportée. Rien ne garantit que ces
+réglages survivent à une mise à jour d'UGOS : la v4.1 reste donc hors du
+chemin par défaut. Si on la met en place, passer `nas_storage_nfs_version:
+"4.1"` et revérifier le mapping d'identités (`ls -ln` : pas de `4294967294`).
 
 Conséquences de la v3 :
 
