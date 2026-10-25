@@ -3,19 +3,23 @@
 Usage: restore_test.py <app>, from the repository root, with in the
 environment:
 
-  BORG_REPO_BASE   ssh://<user>@<host>:23/.  (the read-only sub-account)
+  BORG_REPO_BASE   ssh://<user>@<host>:23/.  (the read-only sub-account,
+                   whose home is backup/: repositories are <host>/<repo>)
   BORG_PASSPHRASE  the repository passphrase
   BORG_RSH         ssh command with the sub-account key
-  PUSH_URLS        JSON map app => Uptime Kuma push URL
 
 Steps, on the latest archive:
+  0. fail if it is older than MAX_ARCHIVE_AGE: a backup that stopped (a dump
+     failing every night) leaves an old archive that restores fine;
   1. extract a sample of regular files (borg checks every chunk it decrypts);
   2. replay every PostgreSQL / MySQL dump in a throwaway container of the
      role's database image, and check that a table came back;
   3. run PRAGMA integrity_check on every SQLite copy.
-The result is pushed to the app's "Restore test" monitor, success or failure.
+Exits non-zero on any failure; the workflow's last job pushes the overall
+result to the "Restore test" monitor.
 """
 
+import datetime
 import json
 import os
 import pathlib
@@ -25,13 +29,14 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.parse
-import urllib.request
 
 MANIFEST = pathlib.Path(".github/restore-test/apps.json")
 SAMPLE_FILES = 20
 SAMPLE_MAX_BYTES = 5 * 1024 * 1024
 DB_READY_TIMEOUT = 180
+# Backups run every night at 01:00 (borgmatic_timer_schedule), the test at
+# 10:00 UTC: one missed night is enough to fail.
+MAX_ARCHIVE_AGE = datetime.timedelta(hours=36)
 
 # Dumps written by borgmatic: <...>/postgresql_databases/<host>/<name>.
 DUMP_RE = re.compile(r"(?:^|/)(postgresql|mysql)_databases/[^/]+/([^/]+)$")
@@ -146,11 +151,24 @@ def check_sqlite(path):
                    "select count(*) from sqlite_master where type = 'table';").stdout.strip())
 
 
-def restore(app, entry, workdir):
-    repo = f"{os.environ['BORG_REPO_BASE']}/{entry['repo']}"
-    archive = borg("list", "--last", "1", "--short", repo).stdout.strip()
-    if not archive:
+def archive_age(timestamp):
+    started = datetime.datetime.fromisoformat(timestamp)
+    if started.tzinfo is None:
+        # borg writes the host's local time (Europe/Paris): read as UTC, the
+        # error is two hours at most, well inside MAX_ARCHIVE_AGE.
+        started = started.replace(tzinfo=datetime.timezone.utc)
+    return datetime.datetime.now(datetime.timezone.utc) - started
+
+
+def restore(entry, workdir):
+    repo = f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
+    archives = json.loads(borg("list", "--last", "1", "--json", repo).stdout)["archives"]
+    if not archives:
         raise RestoreError("aucune archive")
+    archive = archives[0]["name"]
+    age = archive_age(archives[0]["time"])
+    if age > MAX_ARCHIVE_AGE:
+        raise RestoreError(f"dernière archive {archive} vieille de {age} : la sauvegarde ne tourne plus")
     location = f"{repo}::{archive}"
     report = [archive]
 
@@ -198,30 +216,16 @@ def restore(app, entry, workdir):
     return ", ".join(report)
 
 
-def push(app, status, message):
-    url = json.loads(os.environ["PUSH_URLS"]).get(app)
-    if not url:
-        print(f"::warning::pas d'URL push pour {app}", flush=True)
-        return
-    query = urllib.parse.urlencode({"status": status, "msg": message[:250], "ping": ""})
-    with urllib.request.urlopen(f"{url}?{query}", timeout=30) as response:
-        response.read()
-
-
-
 def main():
     app = sys.argv[1]
     entry = json.loads(MANIFEST.read_text())[app]
     with tempfile.TemporaryDirectory(prefix=f"restore-{app}-") as tmp:
         try:
-            message = restore(app, entry, pathlib.Path(tmp))
-        except Exception as error:  # every failure must reach the monitor
-            message = f"{type(error).__name__}: {error}"
-            print(f"::error::{app}: {message}", flush=True)
-            push(app, "down", message)
+            message = restore(entry, pathlib.Path(tmp))
+        except RestoreError as error:
+            print(f"::error::{app}: {error}", flush=True)
             return 1
     print(f"{app}: {message}", flush=True)
-    push(app, "up", message)
     return 0
 
 

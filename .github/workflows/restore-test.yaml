@@ -2,7 +2,7 @@ name: Restore test
 
 # Restaure la dernière archive de chaque dépôt borg sur un runner, loin des
 # hôtes qui la produisent (issue #444) : voir .github/restore-test/README.md.
-# Le 1er et le 15 : les moniteurs « Restore test » attendent un push tous les
+# Le 1er et le 15 : le moniteur « Restore test » attend un push tous les
 # 20 jours au plus (le provider Uptime Kuma plafonne à 24).
 on:
   schedule:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       apps:
-        description: "Dépôts à tester, séparés par des virgules (vide : tous)"
+        description: "Apps à tester, séparées par des virgules (vide : toutes, et le moniteur reçoit le résultat)"
         required: false
         default: ""
   pull_request:
@@ -30,7 +30,9 @@ jobs:
       apps: ${{ steps.apps.outputs.apps }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Select repositories
         id: apps
@@ -44,12 +46,11 @@ jobs:
             # Une faute de frappe ne doit pas donner un run vert qui n'a rien testé.
             unknown=$(jq -nr --argjson all "$all" --argjson apps "$apps" '$apps - $all | join(",")')
             if [ -n "$unknown" ]; then
-              echo "::error::dépôts inconnus de apps.json : $unknown"
+              echo "::error::apps inconnues de apps.json : $unknown"
               exit 1
             fi
-            # Que des virgules ou des espaces : même run vert à vide.
             if [ "$apps" = "[]" ]; then
-              echo "::error::aucun dépôt dans « $SELECTED »"
+              echo "::error::aucune app dans « $SELECTED »"
               exit 1
             fi
           else
@@ -59,11 +60,13 @@ jobs:
           echo "Repositories: $apps"
 
       # Sur une PR, rien n'est restauré (pas de secrets) : on vérifie
-      # seulement que le script se charge et que le manifeste est cohérent.
+      # seulement que le script se charge et que le manifeste est cohérent
+      # (l'accord avec les moniteurs de sauvegarde est un tofu test de
+      # pangolin_config).
       - name: Check the script and the manifest
         run: |
-          python3 -I -m py_compile .github/scripts/restore_test.py
-          jq -e 'to_entries | all(.value.repo and .value.role)' .github/restore-test/apps.json
+          python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' .github/scripts/restore_test.py
+          jq -e 'to_entries | all(.value.host and .value.repo and .value.role)' .github/restore-test/apps.json
           for role in $(jq -r '.[].role' .github/restore-test/apps.json); do
             test -d "ansible/roles/$role" || { echo "::error::rôle $role absent"; exit 1; }
           done
@@ -71,8 +74,10 @@ jobs:
   restore:
     name: Restore (${{ matrix.app }})
     needs: discover
-    if: github.event_name != 'pull_request' && needs.discover.outputs.apps != '[]'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
+    # Secrets lisibles depuis main seulement (tofu/github/restore_test_secrets.tf).
+    environment: restore-test
     timeout-minutes: 60
 
     strategy:
@@ -84,51 +89,68 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      # Même version que sur les hôtes (rôle borgmatic) : un dépôt écrit par
-      # borg 1.x se lit avec borg 1.x.
-      - name: Install borg, sops and sqlite3
-        env:
-          # L'API sans jeton plafonne à 60 requêtes/h par IP, partagées entre
-          # les runners : authentifiée, chaque job de la matrice passe.
-          GH_TOKEN: ${{ github.token }}
+      # La version et le sha256 des hôtes (rôle borgmatic, Renovate les fait
+      # monter ensemble) : un dépôt écrit par borg 1.x se lit avec borg 1.x.
+      - name: Install borg and sqlite3
         run: |
-          borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' ansible/roles/borgmatic/defaults/main.yml)
-          sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/borg \
+          defaults=ansible/roles/borgmatic/defaults/main.yml
+          borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' "$defaults")
+          borg_sha256=$(sed -n 's/^  x86_64: \([0-9a-f]\{64\}\)$/\1/p' "$defaults")
+          curl --proto '=https' --tlsv1.2 -fsSLo /tmp/borg \
             "https://github.com/borgbackup/borg/releases/download/${borg_version}/borg-linux-glibc235-x86_64-gh"
-          sudo chmod +x /usr/local/bin/borg
+          echo "${borg_sha256}  /tmp/borg" | sha256sum -c -
+          sudo install -m 0755 /tmp/borg /usr/local/bin/borg
           borg --version
-          version="$(curl --proto =https --tlsv1.2 -fsSL -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/repos/getsops/sops/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
-          sudo curl --proto =https --tlsv1.2 -fsSLo /usr/local/bin/sops "https://github.com/getsops/sops/releases/download/${version}/sops-${version}.linux.amd64"
-          sudo chmod +x /usr/local/bin/sops
           sudo apt-get install -y --no-install-recommends sqlite3
 
-      # Sous-compte en lecture seule (tofu/pangolin/storage_box.tf) : jamais
-      # la clé du compte principal.
+      # Sous-compte en lecture seule (tofu/pangolin/storage_box.tf), jamais
+      # la clé du compte principal ni celle d'un hôte. Clé d'hôte épinglée,
+      # la même que celle des hôtes (group_vars/all, backup_storage_box_host_key).
       - name: Configure the Storage Box access
         env:
           RESTORE_TEST_SSH_KEY: ${{ secrets.RESTORE_TEST_SSH_KEY }}
           RESTORE_TEST_STORAGE_BOX: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
         run: |
+          host_key=$(sed -n 's/^backup_storage_box_host_key: "\(.*\)"$/\1/p' ansible/group_vars/all/variables.yml)
+          test -n "$host_key"
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$RESTORE_TEST_SSH_KEY" > ~/.ssh/restore_test
-          chmod 600 ~/.ssh/restore_test
-          ssh-keyscan -p 23 "${RESTORE_TEST_STORAGE_BOX#*@}" >> ~/.ssh/known_hosts 2>/dev/null
-          echo "BORG_RSH=ssh -i $HOME/.ssh/restore_test -o IdentitiesOnly=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+          (umask 077 && printf '%s\n' "$RESTORE_TEST_SSH_KEY" > ~/.ssh/restore_test)
+          printf '[%s]:23 %s\n' "${RESTORE_TEST_STORAGE_BOX#*@}" "$host_key" > ~/.ssh/restore_test_known_hosts
+          echo "BORG_RSH=ssh -i $HOME/.ssh/restore_test -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/restore_test_known_hosts" >> "$GITHUB_ENV"
           echo "BORG_REPO_BASE=ssh://${RESTORE_TEST_STORAGE_BOX}:23/." >> "$GITHUB_ENV"
 
       - name: Restore and check
         env:
-          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-          PUSH_URLS: ${{ secrets.RESTORE_TEST_PUSH_URLS }}
+          BORG_PASSPHRASE: ${{ secrets.RESTORE_TEST_BORG_PASSPHRASE }}
           APP: ${{ matrix.app }}
           BORG_RELOCATED_REPO_ACCESS_IS_OK: "yes"
+        run: python3 -I .github/scripts/restore_test.py "$APP"
+
+  # Un seul moniteur pour tous les dépôts, et seulement sur un run complet :
+  # un run manuel sur quelques apps ne dit rien des autres.
+  report:
+    name: Report to Uptime Kuma
+    needs: [discover, restore]
+    if: always() && github.event_name != 'pull_request' && !inputs.apps
+    runs-on: ubuntu-26.04
+    environment: restore-test
+    steps:
+      - name: Push the result
+        env:
+          PUSH_URL: ${{ secrets.RESTORE_TEST_PUSH_URL }}
+          DISCOVER: ${{ needs.discover.result }}
+          RESTORE: ${{ needs.restore.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          key=$(jq -r --arg app "$APP" '.[$app].passphrase_key // "backup_passphrase"' .github/restore-test/apps.json)
-          if ! BORG_PASSPHRASE=$(sops -d --extract "[\"$key\"]" ansible/secrets.sops.yaml 2>/dev/null); then
-            BORG_PASSPHRASE=$(sops -d --extract '["backup_passphrase"]' ansible/secrets.sops.yaml)
+          if [ "$DISCOVER" = success ] && [ "$RESTORE" = success ]; then
+            status=up msg="tous les dépôts restaurés"
+          else
+            status=down msg="échec ($RESTORE) : $RUN_URL"
           fi
-          echo "::add-mask::$BORG_PASSPHRASE"
-          export BORG_PASSPHRASE
-          python3 -I .github/scripts/restore_test.py "$APP"
+          curl --proto '=https' --tlsv1.2 -fsS -o /dev/null -G "$PUSH_URL" \
+            --data-urlencode "status=$status" --data-urlencode "msg=$msg" --data-urlencode "ping="
+          echo "Restore test: $status"
