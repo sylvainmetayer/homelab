@@ -54,6 +54,8 @@
           - "'newt' not in nextcloud_compose.services.db.networks"
           - "'newt' not in nextcloud_compose.services.cache.networks"
           - nextcloud_compose.services.db.environment.MYSQL_PASSWORD == nextcloud_db_password
+          # Tables système à jour après une montée de version (dump des routines).
+          - nextcloud_compose.services.db.environment.MARIADB_AUTO_UPGRADE == '1'
           - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
           # Réglages MariaDB demandés par les vérifications de Nextcloud.
           - "'--innodb-buffer-pool-size=256M' in nextcloud_compose.services.db.command"
