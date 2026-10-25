@@ -62,7 +62,7 @@ def changed_roles(changed_files):
     return roles
 
 
-def add_dependents(roles, roles_dir=Path("ansible/roles")):
+def add_dependents(roles, roles_dir=ANSIBLE_DIR / "roles"):
     """A role pulled in only through meta/main.yml `dependencies` (nas_storage)
     has no entry, hence no tag, in any playbook: redeploy the roles that
     depend on it instead, since they run it under their own tags.
