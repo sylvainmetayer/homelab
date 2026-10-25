@@ -21,5 +21,13 @@ terraform {
     plan {
       method = method.aes_gcm.state
     }
+
+    # State de tofu/pangolin (restore_test_secrets.tf), chiffré avec la même
+    # passphrase.
+    remote_state_data_sources {
+      remote_state_data_source "pangolin" {
+        method = method.aes_gcm.state
+      }
+    }
   }
 }

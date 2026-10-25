@@ -34,6 +34,7 @@ override_data {
   values = {
     data = {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
+      backup_passphrase           = "fake-backup-passphrase"
     }
   }
 }
@@ -46,6 +47,21 @@ override_data {
     outputs = {
       ci_olm_id     = "fake-olm-id"
       ci_olm_secret = "fake-olm-secret"
+      # restore_test_monitor.tf
+      uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
+    }
+  }
+}
+
+# Sorties de tofu/pangolin (storage_box.tf, sous-compte en lecture seule du
+# test de restauration), lues dans l'état S3.
+override_data {
+  target = data.terraform_remote_state.pangolin
+  values = {
+    outputs = {
+      storage_box_restore_test_username        = "u000000-sub1"
+      storage_box_restore_test_server          = "u000000-sub1.your-storagebox.de"
+      storage_box_restore_test_ssh_private_key = "fake-restore-test-key"
     }
   }
 }
@@ -224,5 +240,68 @@ run "environnement_de_relecture_des_chemins_publics" {
   assert {
     condition     = contains(github_repository_environment.relecture_chemins_publics.reviewers[0].users, 8873695)
     error_message = "Le propriétaire du dépôt doit être relecteur obligatoire de l'environnement."
+  }
+}
+
+# .github/workflows/restore-test.yaml : la CI ne lit la Storage Box qu'avec la
+# clé du sous-compte en lecture seule, et son environnement ne porte que ses
+# propres secrets (ni la clé age, ni la clé de déploiement).
+run "restore_test_secrets" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for s in [
+        github_actions_environment_secret.restore_test_ssh_key,
+        github_actions_environment_secret.restore_test_storage_box,
+        github_actions_environment_secret.restore_test_borg_passphrase,
+        github_actions_environment_secret.restore_test_push_url,
+      ] : s.environment == "restore-test" && s.repository == "homelab"
+    ])
+    error_message = "Les secrets du test de restauration doivent être dans l'environnement restore-test du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.restore_test.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.restore_test_main.branch_pattern == "main"
+    error_message = "L'environnement restore-test ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.restore_test_ssh_key.value == "fake-restore-test-key"
+    error_message = "La clé de la CI doit être celle du sous-compte restore_test de tofu/pangolin."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.restore_test_storage_box.value == "u000000-sub1@u000000-sub1.your-storagebox.de"
+    error_message = "RESTORE_TEST_STORAGE_BOX doit valoir <utilisateur>@<serveur> du sous-compte."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.restore_test_borg_passphrase.value == "fake-backup-passphrase"
+    error_message = "RESTORE_TEST_BORG_PASSPHRASE doit être backup_passphrase d'ansible/secrets.sops.yaml."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.restore_test_push_url.value == "https://uptime.example.test/api/push/restore-test"
+    error_message = "RESTORE_TEST_PUSH_URL doit être l'output uptime_restore_test_url de tofu/pangolin_config."
+  }
+
+  # Le workflow lit ces secrets sous ces noms, dans cet environnement.
+  assert {
+    condition = alltrue([
+      for name in ["RESTORE_TEST_SSH_KEY", "RESTORE_TEST_STORAGE_BOX", "RESTORE_TEST_BORG_PASSPHRASE", "RESTORE_TEST_PUSH_URL"] :
+      strcontains(file("${path.module}/../../.github/workflows/restore-test.yaml"), "secrets.${name}")
+    ])
+    error_message = "restore-test.yaml doit lire ses secrets sous les noms déclarés par tofu/github."
+  }
+
+  assert {
+    condition     = length(regexall("environment: restore-test\\n", file("${path.module}/../../.github/workflows/restore-test.yaml"))) == 2
+    error_message = "Les jobs restore et report de restore-test.yaml doivent déclarer environment: restore-test."
+  }
+
+  assert {
+    condition     = !strcontains(file("${path.module}/../../.github/workflows/restore-test.yaml"), "SOPS_AGE_KEY")
+    error_message = "restore-test.yaml ne doit pas lire la clé age : la passphrase borg lui suffit."
   }
 }

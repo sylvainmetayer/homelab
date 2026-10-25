@@ -29,6 +29,7 @@ override_data {
   values = {
     data = {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKE"
+      backup_passphrase           = "fake-backup-passphrase"
     }
   }
 }
@@ -39,6 +40,21 @@ override_data {
     outputs = {
       ci_olm_id     = "fake-olm-id"
       ci_olm_secret = "fake-olm-secret"
+      # restore_test_monitor.tf
+      uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
+    }
+  }
+}
+
+# Sorties de tofu/pangolin (storage_box.tf, sous-compte en lecture seule du
+# test de restauration), lues dans l'état S3.
+override_data {
+  target = data.terraform_remote_state.pangolin
+  values = {
+    outputs = {
+      storage_box_restore_test_username        = "u000000-sub1"
+      storage_box_restore_test_server          = "u000000-sub1.your-storagebox.de"
+      storage_box_restore_test_ssh_private_key = "fake-restore-test-key"
     }
   }
 }
