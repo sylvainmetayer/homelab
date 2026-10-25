@@ -92,6 +92,27 @@
           ExecReload=
           ExecReload=/usr/local/sbin/molecule-zramswap start
 
+    # Même logique pour dphys-swapfile : son swapon, depuis ce conteneur
+    # privilégié, activerait un swap sur le runner. Posé avant l'installation
+    # du paquet, dont le postinst démarre le service.
+    - name: Ensure the dphys-swapfile drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/dphys-swapfile.service.d
+        state: directory
+        mode: "0700"
+
+    - name: Neutralise dphys-swapfile.service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dphys-swapfile.service.d/molecule.conf
+        mode: "0600"
+        content: |
+          # Molecule : aucun fichier swap créé ni activé (cf. prepare.yml).
+          [Service]
+          ExecStart=
+          ExecStart=/bin/true
+          ExecStop=
+          ExecStop=/bin/true
+
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true

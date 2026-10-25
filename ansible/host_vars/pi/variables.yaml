@@ -5,6 +5,12 @@ newt_client_secret: "{{ newt_pi_client_secret }}"
 immich_domain: "photos.sylvain.cloud"
 immich_backup_healthcheck_url: ""
 
+# --- host_tuning (zram + journald) ---
+# zram : défauts du rôle, 2048 Mo zstd en priorité 100 (~la moitié des 3,8 Go
+# du Pi 4). Le /var/swap de 4 Go (dphys-swapfile, sur le SSD USB : pas de carte
+# SD) reste derrière, en débordement.
+host_tuning_disk_swap_size_mb: 4096
+
 starship_os_map:
   Linux: unknown-linux-musl
 

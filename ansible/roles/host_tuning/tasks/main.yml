@@ -45,6 +45,35 @@
     enabled: true
     state: started
 
+- name: Configure the disk overflow swap
+  when: host_tuning_disk_swap_size_mb | int > 0
+  become: true
+  block:
+    - name: Install dphys-swapfile
+      ansible.builtin.apt:
+        name: dphys-swapfile
+        state: present
+
+    # CONF_MAXSWAP plafonne CONF_SWAPSIZE : les deux suivent la variable.
+    - name: Set the disk swap size
+      notify: Restart dphys-swapfile
+      ansible.builtin.lineinfile:
+        path: /etc/dphys-swapfile
+        regexp: "^#?\\s*{{ item }}="
+        line: "{{ item }}={{ host_tuning_disk_swap_size_mb | int }}"
+      loop:
+        - CONF_SWAPSIZE
+        - CONF_MAXSWAP
+
+    # started, jamais restarted : un restart ferait un swapoff du fichier. Une
+    # taille changée passe par le handler, en fin de play (le postinst a déjà
+    # démarré le service à sa taille par défaut sur une installation neuve).
+    - name: Enable the disk swap service
+      ansible.builtin.systemd:
+        name: dphys-swapfile
+        enabled: true
+        state: started
+
 - name: Ensure journald drop-in directory exists
   become: true
   ansible.builtin.file:

@@ -19,6 +19,14 @@
     systemctl start zramswap
   changed_when: true
 
+# Restart = swapoff, puis setup (recrée /var/swap à la nouvelle taille) et
+# swapon. Seulement quand la taille configurée change.
+- name: Restart dphys-swapfile
+  become: true
+  ansible.builtin.systemd:
+    name: dphys-swapfile
+    state: restarted
+
 - name: Restart journald
   become: true
   ansible.builtin.systemd:
