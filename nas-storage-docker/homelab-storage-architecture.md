@@ -15,7 +15,7 @@
 
 | Donnée | Où | Comment | Sauvegarde borg |
 |---|---|---|---|
-| Fichiers (uploads, médias, données de l'appli) | NAS | NFSv4.1, export monté sur la VM (`/mnt/nas/apps`), bind mount dans le conteneur | copie des fichiers |
+| Fichiers (uploads, médias, données de l'appli) | NAS | NFSv3, export monté sur la VM (`/mnt/nas/apps`), bind mount dans le conteneur | copie des fichiers |
 | BDD serveur (Postgres, MariaDB) | NAS | même export, sous-dossier de l'appli | **dump logique** (`borgmatic_app_postgresql_databases` / `_mysql_databases`), jamais la copie du data directory |
 | BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `sqlite_databases` ou fichiers |
 | Caches (redis/valkey, vignettes régénérables) | disque local de la VM | | aucune |
@@ -39,9 +39,30 @@ deux conditions sont donc :
   Le serveur n'acquitte un `COMMIT` NFS qu'une fois la donnée sur disque, donc
   un `fsync()` de Postgres sur la VM l'est vraiment.
 
-NFSv4.1 plutôt que v3 : le verrouillage fait partie du protocole (pas de
-`lockd`/`statd` à côté, pas de ports dynamiques) et tout passe par le seul port
-2049/tcp.
+### NFSv3, faute de mieux
+
+NFSv4.1 aurait été préférable (verrous dans le protocole, un seul port
+2049/tcp), mais **UGOS Pro 1.20 ne sert que NFSv3** : « Max protocole NFS »
+(Panneau de configuration → Service de fichiers → NFS → Paramètres avancés)
+ne propose que NFSv3, avec la mention « Gamme NFS : NFSv3, NFSv2 ». knfsd répond
+bien en v4 au niveau RPC (`rpcinfo -t 192.168.1.137 nfs 4`), mais aucun
+pseudo-système de fichiers v4 n'est exporté : un montage `vers=4`, `4.1` ou
+`4.2` échoue avec « reason given by server: No such file or directory », y compris sur `/`
+(testé depuis le Pi le 2026-10-25). Le rôle monte donc en `vers=3`.
+
+Conséquences de la v3 :
+
+- les verrous passent par NLM (`lockd` côté noyau, `rpc-statd`, démarré
+  automatiquement par `mount.nfs`) ; `local_lock=none`, ils sont donc vus par
+  le NAS ;
+- `mountd`, `statd` et `nlockmgr` utilisent des ports dynamiques côté NAS
+  (ports fixables dans les Paramètres avancés NFS d'UGOS) ;
+- **non testé** : le NAS rappelle le client (callback `GRANTED` d'un verrou
+  bloquant, `SM_NOTIFY` après un redémarrage du NAS pour reprendre les
+  verrous). La VM refuse tout entrant hors 22/80/443 (rôle `security`), donc
+  ces rappels sont perdus. Postgres ne s'appuie pas sur les verrous fcntl pour
+  ses fichiers de données. À vérifier avant d'y mettre une appli qui verrouille
+  ses fichiers.
 
 ### SQLite sur NFS : non
 
@@ -96,7 +117,7 @@ disque local : ses fichiers restent sur le NAS et le dump borg ne change pas.
 ### Rôle `nas_storage` (`ansible/roles/nas_storage`)
 
 - Installe `nfs-common`.
-- Déclare l'export dans `/etc/fstab` : `vers=4.1,hard,proto=tcp,noatime,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30`,
+- Déclare l'export dans `/etc/fstab` : `vers=3,hard,proto=tcp,noatime,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30`,
   puis démarre l'unité `.automount`.
 - Installe `/usr/local/bin/nas-storage-wait [timeout]` : attend que l'export
   réponde (sondes `stat -f` tuées par `SIGKILL`, la seule chose qu'un
@@ -118,7 +139,7 @@ premier accès monte l'export ou échoue.
 
 Variables (`roles/nas_storage/defaults/main.yml`) : `nas_storage_server`,
 `nas_storage_export`, `nas_storage_mount_path`, `nas_storage_nfs_version`
-(repli `"3"` possible sans autre changement).
+(`"3"` : passer à `"4.1"` le jour où UGOS exporte en v4, voir plus haut).
 
 ### Une appli avec ses données sur le NAS
 
@@ -169,30 +190,72 @@ Référence : `ansible/roles/nginx_demo`.
 
 UGOS Pro n'a pas d'API publique : rien de ceci n'est automatisable.
 
-1. **Dossier partagé** `apps` sur le volume 1.
-2. **Service NFS** : l'activer et cocher NFSv4.1 (Panneau de configuration →
-   Services de fichiers → NFS).
-3. **Règle NFS** sur le dossier `apps` :
-   - client : `192.168.1.216` uniquement (jamais un sous-réseau) ;
-   - lecture/écriture ;
-   - squash : **No mapping** (équivalent `no_root_squash`). Il le faut pour
-     que borg (root sur la VM) lise tout et que l'entrypoint Postgres puisse
-     faire `chown` de son data directory. Le risque est contenu parce que la
-     règle ne vise que l'IP de la VM ;
-   - écriture asynchrone : **désactivée** si l'option existe (export `sync`).
-4. Noter le **chemin d'export** affiché par UGOS. S'il diffère de
-   `/volume1/apps`, surcharger `nas_storage_export`.
+Libellés d'UGOS Pro 1.20.0.0142, relevés le 2026-10-25 (test du dossier
+`nas-test` depuis le Pi).
+
+1. **Service NFS** : Panneau de configuration → Service de fichiers → onglet
+   NFS → « Activer le service NFS ». Dans « Paramètres avancés », « Max
+   protocole NFS » ne propose que **NFSv3** : rien d'autre à régler.
+2. **Dossier partagé** : Fichiers → Dossier partagé → « Créer un dossier
+   partagé », nom `apps`, emplacement Volume 1. Décocher « Activer la
+   corbeille » : sinon UGOS crée `#recycle` (0777) à la racine du partage
+   (la corbeille ne sert qu'à SMB : une suppression par NFS est définitive).
+   La fenêtre « Autorisations des dossiers partagés » qui suit ne concerne
+   que les comptes UGOS (SMB, interface) : la laisser par défaut
+   (Administrateur en lecture/écriture).
+3. **Règle NFS** : clic droit sur `apps` → Propriétés → onglet « Permissions
+   NFS » → « Ajouter » :
+   - « Adresse du serveur » (c'est en fait le **client**) : `192.168.1.216`
+     uniquement, jamais un sous-réseau ;
+   - Permissions : « Lecture/écriture » (le défaut est « Accès interdit ») ;
+   - Squash : **« Aucun mappage »** (le défaut, équivalent `no_root_squash`).
+     Il le faut pour que borg (root sur la VM) lise tout et que l'entrypoint
+     Postgres puisse faire `chown` de son data directory. Le risque est
+     contenu parce que la règle ne vise que l'IP de la VM ;
+   - Sécurité : `AUTH_SYS` (défaut) ;
+   - **« Async » : décocher**. Elle est **cochée par défaut** : laissée ainsi,
+     l'export est `async` et un `fsync()` de Postgres n'est plus garanti ;
+   - « Autoriser les connexions depuis des ports non privilégiés » : laisser
+     décoché ;
+   - Confirmer, puis **Confirmer** aussi dans Propriétés (sinon la règle
+     n'est pas enregistrée).
+4. Le **chemin de montage** est affiché en bas de l'onglet : `/volume1/apps`
+   (défaut de `nas_storage_export`). Depuis la VM,
+   `showmount -e 192.168.1.137` doit lister `/volume1/apps 192.168.1.216`.
 5. Premier test depuis la VM :
    ```bash
-   sudo mount -t nfs -o vers=4.1 192.168.1.137:/volume1/apps /mnt && ls -ln /mnt && sudo umount /mnt
+   sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/apps /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
    ```
-   Si les fichiers apparaissent en `nobody:nogroup` (4294967294), le NAS
-   fait du mapping d'identités par nom en v4. Soit on l'aligne, soit on
-   repasse `nas_storage_nfs_version: "3"`.
+   En v3 (`sec=sys`), les UID/GID passent tels quels : pas de mapping par nom.
 6. (Recommandé) Snapshots Btrfs planifiés sur `apps`, en complément de borg.
 
-Pare-feu entre la VM et le NAS : 2049/tcp suffit en v4.1 (v3 : plus 111 et
-les ports dynamiques de `mountd`/`statd`).
+Pare-feu entre la VM et le NAS : 111/tcp et 2049/tcp, plus les ports
+dynamiques de `mountd` (et de `statd`/`nlockmgr` pour les verrous). Rien ne
+filtre aujourd'hui entre les deux (même LAN, sortant autorisé sur la VM).
+
+### Comportements observés (test depuis le Pi, 2026-10-25)
+
+- **Les droits demandés à la création sont ignorés** : tout fichier ou dossier
+  créé par NFS sort en `0777`, même sous `umask 077` (ACL d'UGOS). Un
+  `chmod`/`chown` explicite, lui, est respecté et persiste (`0750 101:101`,
+  `0640` vérifiés). Les modes du rôle `nginx_demo` (module `file`/`copy` avec
+  `mode:`) tiennent donc, mais **tout ce qu'une appli crée elle-même** sur le
+  NAS est lisible et modifiable par tous les clients NFS autorisés et par les
+  comptes UGOS qui ont accès au dossier. L'entrypoint Postgres fait un
+  `chmod 0700` de `PGDATA` ; les fichiers créés dedans sont en `0777` sur le
+  NAS, mais ils sont inaccessibles par traversée du dossier.
+- **Automount** (`systemd-mount --automount=yes`, l'équivalent transitoire de
+  `x-systemd.automount`) : un `docker compose start` alors que le `.mount` est
+  arrêté déclenche le montage, et le bind mount pointe bien sur le NFS.
+- **Coupure du NAS de 60 s** (`iptables -I OUTPUT -d 192.168.1.137 -j DROP`) :
+  les workers nginx passent en état `D`, `curl` expire, `stat -f` et `ls`
+  bloquent mais meurent par `SIGKILL` (la sonde de `nas-storage-wait` est
+  valide). `docker ps` et `docker inspect` répondent, les autres conteneurs
+  (Immich) ne sont pas touchés. Au retour, reprise en moins de 2 s, sans
+  redémarrage du conteneur. Le healthcheck revient à `healthy`. Rien dans
+  `dmesg` : avec `timeo=600`, le noyau ne signale « server not responding »
+  qu'après plusieurs minutes.
+
 
 ## Déployer l'appli pilote
 
@@ -207,7 +270,7 @@ ansible-playbook -i inventory/hosts docker.yml --tags nginx_demo
 Vérifier :
 
 ```bash
-findmnt /mnt/nas/apps                                  # nfs4, options hard
+findmnt /mnt/nas/apps                                  # nfs, vers=3, hard
 docker exec nginx-demo-db psql -U nginx_demo -d nginx_demo_db -c 'select 1'
 sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/nginx_demo.yaml create --stats
 sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/nginx_demo.yaml list --archive latest | grep -E 'html|postgresql'

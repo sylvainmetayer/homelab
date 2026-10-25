@@ -159,7 +159,7 @@ current checklist — it also delegates to **`pangolin-route`** and
 
 ### App data on the NAS
 
-Apps can keep their data on the Ugreen NAS (NFSv4.1 export mounted on the
+Apps can keep their data on the Ugreen NAS (NFSv3 export mounted on the
 docker VM) while running on the VM; borg still backs everything up. Full
 rationale and NAS-side setup: `nas-storage-docker/homelab-storage-architecture.md`.
 Reference role: `ansible/roles/nginx_demo`. The rules:

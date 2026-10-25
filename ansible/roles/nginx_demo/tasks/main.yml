@@ -10,6 +10,8 @@
 # Sur le NAS. become : la règle NFS est en "No mapping" (no_root_squash) pour
 # l'IP de la VM, root y crée et chown comme sur un disque local.
 # Rien n'est lisible par "others" : chaque conteneur a son propre accès.
+# Le NAS crée tout en 0777 (ACL UGOS, umask ignoré) mais respecte un chmod
+# explicite : le `mode:` de chaque tâche ci-dessous est donc indispensable.
 # - postgresql : à l'uid/gid postgres de l'image alpine (70), qui doit
 #   traverser ce dossier pour atteindre PGDATA (18/docker, créé par
 #   l'entrypoint).

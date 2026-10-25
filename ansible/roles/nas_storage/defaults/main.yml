@@ -14,10 +14,11 @@ nas_storage_fstype: nfs
 # (et nas_storage_fstype: tmpfs) ; tout le reste du rôle tourne normalement.
 nas_storage_manage_mount: true
 
-# 4.1 : verrous intégrés au protocole (pas de lockd/statd), un seul port (2049).
-# Repli possible sur "3" sans autre changement : nfs-common fournit aussi
-# rpcbind/statd.
-nas_storage_nfs_version: "4.1"
+# 3 : UGOS Pro 1.20 ne sert que NFSv3 (« Max protocole NFS ») ; un montage
+# vers=4.x y échoue en « No such file or directory » (aucun pseudo-fs v4
+# exporté). Verrous par NLM : nfs-common fournit rpcbind et rpc-statd, que
+# mount.nfs démarre seul. "4.1" le jour où UGOS exporte en v4.
+nas_storage_nfs_version: "3"
 
 # - hard : sur une coupure du NAS, les écritures bloquent puis reprennent au
 #   lieu d'échouer. C'est la condition que pose PostgreSQL pour un data
