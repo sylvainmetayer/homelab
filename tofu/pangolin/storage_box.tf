@@ -47,3 +47,54 @@ resource "hcloud_storage_box" "backups" {
     minute        = 0
   }
 }
+
+# ---------------------------------------------------------------------------
+# Sous-compte en lecture seule du test de restauration (1er et 15 du mois)
+# (.github/workflows/restore-test.yaml, issue #444).
+#
+# Les dépôts borg sont sous backup/<hôte>/<app>, chacun écrit par le
+# sous-compte de son hôte (storage_box_subaccounts.tf). Celui-ci voit tout
+# backup/ (home_directory = le dossier de backup_storage_box_path,
+# group_vars/all), donc les dépôts de tous les hôtes, mais le système de
+# fichiers lui refuse toute écriture, quel que soit le client : sa clé, dans
+# un environnement GitHub Actions, ne peut rien supprimer. borg 1.x pose un
+# verrou même pour lire : la CI appelle donc borg avec --bypass-lock.
+#
+# Pas d'attribut ssh_keys sur un sous-compte : il lit ses clés dans
+# <home_directory>/.ssh/authorized_keys, que le compte principal dépose
+# (ansible/backup.yaml, depuis l'output storage_box_restore_test_ssh_public_key).
+# ---------------------------------------------------------------------------
+
+resource "random_password" "storage_box_restore_test_password" {
+  length           = 50
+  special          = true
+  override_special = "!$/"
+  min_upper        = 1
+  min_lower        = 1
+  min_numeric      = 1
+  min_special      = 1
+}
+
+resource "tls_private_key" "storage_box_restore_test" {
+  algorithm = "ED25519"
+}
+
+resource "hcloud_storage_box_subaccount" "restore_test" {
+  storage_box_id = hcloud_storage_box.backups.id
+  home_directory = "backup"
+  password       = random_password.storage_box_restore_test_password.result
+
+  # Optional+computed : épinglés, sinon un plan ne verrait pas une dérive
+  # faite dans la console.
+  name        = "restore-test"
+  description = "Test de restauration mensuel (GitHub Actions), lecture seule"
+  labels      = var.labels
+
+  access_settings = {
+    readonly             = true
+    ssh_enabled          = true
+    reachable_externally = true
+    samba_enabled        = false
+    webdav_enabled       = false
+  }
+}

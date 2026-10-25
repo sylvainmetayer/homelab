@@ -2146,6 +2146,37 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif et notifié par e-mail."
   }
 
+  # Test de restauration du 1er et du 15 (.github/workflows/restore-test.yaml,
+  # restore_test_monitor.tf) : un seul moniteur, rangé avec les sauvegardes,
+  # à 20 jours (17 au plus entre deux runs ; le provider plafonne à 24).
+  assert {
+    condition = (
+      uptimekuma_monitor_push.restore_test.parent == uptimekuma_monitor_group.backups.id
+      && uptimekuma_monitor_push.restore_test.interval == 20 * 86400
+      && uptimekuma_monitor_push.restore_test.active == true
+      && contains(uptimekuma_monitor_push.restore_test.notification_ids, uptimekuma_notification_smtp.email.id)
+    )
+    error_message = "Le moniteur Restore test doit être dans le dossier Backup, à 20 jours, actif et notifié par e-mail."
+  }
+
+  # Le workflow teste les dépôts de .github/restore-test/apps.json : un par
+  # moniteur de sauvegarde, Pangolin compris. Une app ajoutée avec
+  # `backup = true` doit y entrer, une app retirée en sortir.
+  assert {
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin"]))
+    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin compris."
+  }
+
+  # Chaque dépôt est sous backup/<hôte>/ : l'hôte doit avoir un sous-compte
+  # (backup_storage_box_hosts, ansible/host_vars/backups).
+  assert {
+    condition = alltrue([
+      for app in values(jsondecode(file("${path.module}/../../.github/restore-test/apps.json"))) :
+      contains(yamldecode(file("${path.module}/../../ansible/host_vars/backups/variables.yaml")).backup_storage_box_hosts, app.host)
+    ])
+    error_message = "Chaque entrée de .github/restore-test/apps.json doit nommer un hôte de backup_storage_box_hosts."
+  }
+
 
   assert {
     condition = (
