@@ -55,20 +55,22 @@ class RestoreError(Exception):
     pass
 
 
-def run(*args, stdin=None, check=True, cwd=None):
-    print("+", " ".join(args), flush=True)
+def run(*args, stdin=None, check=True, cwd=None, quiet=False):
+    # The logs of a public repository are public: a quiet command (archive
+    # paths in its arguments, rows of a dump in its errors) shows neither
+    # its arguments nor its stderr. Reproduce it from a workstation.
+    shown = args[:2] if quiet else args
+    print("+", " ".join(shown), "…" if quiet else "", flush=True)
     result = subprocess.run(args, stdin=stdin, capture_output=True, text=True, cwd=cwd)
     if check and result.returncode != 0:
-        raise RestoreError(
-            f"{args[0]} {args[1] if len(args) > 1 else ''} a échoué ({result.returncode}): "
-            f"{result.stderr.strip()[-500:]}"
-        )
+        detail = "(sortie masquée)" if quiet else result.stderr.strip()[-500:]
+        raise RestoreError(f"{' '.join(args[:2])} a échoué ({result.returncode}): {detail}")
     return result
 
 
-def borg(*args, cwd=None):
+def borg(*args, cwd=None, quiet=False):
     # Read-only sub-account: borg 1.x cannot write its lock there.
-    return run("borg", args[0], "--bypass-lock", *args[1:], cwd=cwd)
+    return run("borg", args[0], "--bypass-lock", *args[1:], cwd=cwd, quiet=quiet)
 
 
 def role_image(role, engine):
@@ -108,7 +110,7 @@ def restore_postgresql(image, name, dump):
         run("docker", "exec", container, "createdb", "-U", "postgres", name)
         # borgmatic dumps in pg_dump's custom format by default.
         run("docker", "exec", container, "pg_restore", "-U", "postgres", "--no-owner",
-            "--no-privileges", "--exit-on-error", "-d", name, "/tmp/dump")
+            "--no-privileges", "--exit-on-error", "-d", name, "/tmp/dump", quiet=True)
         tables = run("docker", "exec", container, "psql", "-U", "postgres", "-d", name, "-tAc",
                      "select count(*) from information_schema.tables "
                      "where table_schema not in ('pg_catalog', 'information_schema')").stdout.strip()
@@ -134,7 +136,7 @@ def restore_mysql(image, name, dump):
                    ready=lambda stdout: stdout.strip().isdigit() and int(stdout.strip()) >= 10)
         # borgmatic dumps with --databases: the dump creates its database.
         with open(dump) as sql:
-            run("docker", "exec", "-i", container, *client, stdin=sql)
+            run("docker", "exec", "-i", container, *client, stdin=sql, quiet=True)
         tables = run("docker", "exec", container, *client, "-N", "-e",
                      f"select count(*) from information_schema.tables where table_schema = '{name}'"
                      ).stdout.strip()
@@ -154,14 +156,16 @@ def check_sqlite(path):
 def archive_age(timestamp):
     started = datetime.datetime.fromisoformat(timestamp)
     if started.tzinfo is None:
-        # borg writes the host's local time (Europe/Paris): read as UTC, the
-        # error is two hours at most, well inside MAX_ARCHIVE_AGE.
+        # borg renders it in the local time of the machine running borg,
+        # the runner, whose time zone is UTC.
         started = started.replace(tzinfo=datetime.timezone.utc)
     return datetime.datetime.now(datetime.timezone.utc) - started
 
 
 def restore(entry, workdir):
     repo = f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
+    # borg >= 1.2 leaves *.checkpoint archives (interrupted runs) out of a
+    # listing unless --consider-checkpoints: this is the last complete one.
     archives = json.loads(borg("list", "--last", "1", "--json", repo).stdout)["archives"]
     if not archives:
         raise RestoreError("aucune archive")
@@ -172,7 +176,7 @@ def restore(entry, workdir):
     location = f"{repo}::{archive}"
     report = [archive]
 
-    listing = borg("list", "--format", "{type} {size} {path}{NL}", location).stdout.splitlines()
+    listing = borg("list", "--format", "{type} {size} {path}{NL}", location, quiet=True).stdout.splitlines()
     files = []
     for line in listing:
         kind, size, path = line.split(" ", 2)
@@ -191,11 +195,11 @@ def restore(entry, workdir):
 
     if sample:
         (workdir / "sample").mkdir()
-        borg("extract", location, *sample, cwd=workdir / "sample")
+        borg("extract", location, *sample, cwd=workdir / "sample", quiet=True)
         report.append(f"{len(sample)} fichiers extraits")
 
     if dumps or sqlite:
-        borg("extract", location, *[path for _, _, path in dumps], *sqlite, cwd=workdir)
+        borg("extract", location, *[path for _, _, path in dumps], *sqlite, cwd=workdir, quiet=True)
 
     for engine, name, path in dumps:
         if not SAFE_NAME.fullmatch(name):
