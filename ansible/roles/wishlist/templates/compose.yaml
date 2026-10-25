@@ -4,7 +4,7 @@ services:
     # Pas encore mesuré : Node (SvelteKit + sharp) et le Caddy interne de
     # l'image. À recaler sur memory.peak après quelques jours.
     mem_limit: 512m
-    image: ghcr.io/cmintey/wishlist:v0.68.0@sha256:f4e742e771b143aa40a399e0e64e05918dbc6c1078548becd51b7a186ac4e08b
+    image: ghcr.io/cmintey/wishlist:v0.69.0@sha256:a3c0482c5d55155a3aa96c4cbb63d2aa379f02ae3bbeb76909ffed2b15980f36
     container_name: wishlist
     # Ni read_only ni cap_drop : l'entrypoint lance Caddy, applique les
     # migrations Prisma et écrit en root dans data/ et uploads/, montés depuis
