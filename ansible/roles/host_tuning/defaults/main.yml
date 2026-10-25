@@ -7,6 +7,12 @@ host_tuning_zram_size_mb: 2048
 host_tuning_zram_algo: zstd
 host_tuning_zram_priority: 100
 
+# Swap disque de débordement (dphys-swapfile, /var/swap), derrière zram : sa
+# priorité par défaut (négative) le fait servir seulement une fois zram plein.
+# 0 = le rôle n'y touche pas. Changer la taille recrée le fichier (handler :
+# swapoff, setup, swapon) ; à taille inchangée, rien n'est redémarré.
+host_tuning_disk_swap_size_mb: 0
+
 # `docker compose up` attaché envoie tous les logs de conteneur dans journald,
 # qui grossit sans limite (3,6 Go constatés).
 host_tuning_journald_system_max_use: 500M

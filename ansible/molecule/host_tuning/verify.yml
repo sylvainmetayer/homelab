@@ -3,6 +3,7 @@
   hosts: all
   vars_files:
     - ../../roles/host_tuning/defaults/main.yml
+    - ../../host_vars/pi/variables.yaml
   tasks:
     - name: Read the zramswap configuration
       become: true
@@ -42,6 +43,31 @@
         that:
           - (host_tuning_zram_disksize.content | b64decode | trim | int) == (host_tuning_zram_size_mb | int) * 1048576
         fail_msg: "disksize = {{ host_tuning_zram_disksize.content | b64decode | trim }}, attendu {{ (host_tuning_zram_size_mb | int) * 1048576 }}"
+
+    - name: Read the dphys-swapfile configuration
+      ansible.builtin.slurp:
+        src: /etc/dphys-swapfile
+      register: host_tuning_dphys_conf
+
+    - name: Assert the disk swap size comes from the role
+      ansible.builtin.assert:
+        that:
+          - host_tuning_disk_swap_size_mb | int > 0
+          - ('\nCONF_SWAPSIZE=' ~ host_tuning_disk_swap_size_mb ~ '\n') in (host_tuning_dphys_conf.content | b64decode)
+          - ('\nCONF_MAXSWAP=' ~ host_tuning_disk_swap_size_mb ~ '\n') in (host_tuning_dphys_conf.content | b64decode)
+
+    # Service neutralisé (cf. prepare.yml) : seul son état systemd compte ici.
+    - name: Read the state of dphys-swapfile
+      ansible.builtin.systemd:
+        name: dphys-swapfile
+      register: host_tuning_dphys_unit
+
+    - name: Assert dphys-swapfile is enabled and started
+      ansible.builtin.assert:
+        that:
+          - host_tuning_dphys_unit.status.UnitFileState == 'enabled'
+          - host_tuning_dphys_unit.status.ActiveState == 'active'
+        fail_msg: "dphys-swapfile : {{ host_tuning_dphys_unit.status.UnitFileState }} / {{ host_tuning_dphys_unit.status.ActiveState }}"
 
     - name: Read the journald size drop-in
       become: true

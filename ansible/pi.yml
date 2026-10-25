@@ -18,6 +18,8 @@
       tags: setup
     - role: docker_service
       tags: setup
+    - role: host_tuning
+      tags: tuning,setup
     - role: security
       become: true
       tags: security,setup
