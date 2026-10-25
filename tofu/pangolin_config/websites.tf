@@ -57,6 +57,7 @@ locals {
     dawarich         = local.dawarich_website
     demo_planning    = local.demo_planning_website
     demo_planning_kc = local.demo_planning_kc_website
+    exemple_planning = local.exemple_planning_website
     flip_planning    = local.flip_planning_website
     homepage         = local.homepage_website
     immich           = local.immich_website

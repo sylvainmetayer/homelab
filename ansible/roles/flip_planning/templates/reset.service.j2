@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Reset {{ flip_planning_service }} to its reference database
+# The compose project must be up: the script talks to its postgres container.
+Requires=dc@{{ flip_planning_service }}.service
+After=dc@{{ flip_planning_service }}.service
+
+[Service]
+Type=oneshot
+ExecStart={{ flip_planning_base_path }}/reset.sh

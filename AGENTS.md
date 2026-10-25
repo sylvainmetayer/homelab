@@ -72,7 +72,7 @@ There is no `site.yml`: from `ansible/`, target the playbook for the host group 
 ```bash
 ansible-playbook 00-setup.yaml   # base host setup (user, packages, starship)
 ansible-playbook docker.yml      # Proxmox docker host: all the app roles
-ansible-playbook flip.yml        # Hetzner flip server: Flip Planning (prod, demo, Keycloak demo), Promptoramix
+ansible-playbook flip.yml        # Hetzner flip server: Flip Planning (prod, demo, public showcase, Keycloak demo), Promptoramix
 ansible-playbook pangolin.yaml   # Pangolin Hetzner VM
 ansible-playbook pi.yml          # Raspberry Pi (Immich)
 ansible-playbook lxc.yml         # Proxmox Newt LXC (site proxmox-lxc)
@@ -110,7 +110,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 | `docker.yml` | `docker` | Proxmox Docker VM — installs Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, then every app role |
 | `pangolin.yaml` | `pangolin` | Hetzner Pangolin VM — Docker, `borgmatic`, `security` hardening, `pangolin` role |
 | `pi.yml` | `pi` | Raspberry Pi (Debian 13) — Docker, `docker_service`, `host_tuning` (zram, plus the 4 GiB `dphys-swapfile` overflow behind it via `host_tuning_disk_swap_size_mb`), `security`, `borgmatic`, `newt`, `immich`, `beszel_agent`, then tasks tagged `legacy_cleanup` keeping the pre-Pangolin certbot/nginx leftovers absent (the hostname is still `reese`, as in its cron mails) |
-| `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×3 (prod, demo, Keycloak demo), `promptoramix`. Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
+| `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×4 (prod, demo, the public showcase `exemple_planning`, Keycloak demo), `promptoramix`. Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
 | `lxc.yml` | `newt_lxc` | Proxmox Newt LXC — `security` without ufw, auditd or devsec's os_hardening (`host_vars/newt-lxc`: an unprivileged container owns none of them), then `newt_service` (Newt as a plain systemd service, no Docker). Credentials of the `proxmox-lxc` site from the `pangolin_config` state (`proxmox_lxc_newt_id`/`proxmox_lxc_newt_secret` outputs), not from SOPS. A fresh LXC first gets `00-setup.yaml --limit newt-lxc -e ansible_user=root` |
 | `nas.yml` | `nas` | Ugreen NAS (UGOS Pro, static in `inventory/hosts`) — `docker_service` in system scope (tags `setup,always`: `/etc/systemd/system/dc@.service` run as root, apps under `/volume1/docker`, the UGOS Docker app's shared folder; see the `docker_service` section), then `borgmatic` in a container (tags `backup,setup`, see the Borgmatic bullets), then role `nas`: pins `maximumNFSProtocol` in `/etc/nfs.json` (UGOS regenerates `/etc/nfs.conf` from it), writes the homelab NFS exports to `/etc/exports.d/homelab.exports` (`host_vars/nas`, always `sync`, client IPs only) and asserts nfs-server is up with no `async` export, then `beszel_agent`, `newt` (site `nas`, credentials from the `pangolin_config` state: `nas_newt_id`/`nas_newt_secret` outputs, not SOPS) and `jellyfin` (`dc@jellyfin`, media from the UGOS shared folder `media` mounted `:ro`; the role asserts the share and its library folders before writing anything, under its own tag only). Then `nas_proxy` (`dc@nas_proxy`, container `nas-proxy`: Traefik, file provider only, no Docker socket, Let's Encrypt by DNS-01 with the OVH key `nas_ovh_application_key`/`_secret`/`nas_ovh_consumer_key`, `acme.json` `0600` root under `docker_base_path`) fronts two names. `https://media.sylvain.cloud` (Jellyfin): **`:8443` on the LAN** (UGOS's nginx owns the host's 80/443) and with or without it through the Pangolin client (private resource of that alias, TCP 443 and 8443 on the `newt` network, Traefik listening on both; the public A record `tofu/dns/media.tf` points at the NAS's LAN IP and beats the `*.sylvain.cloud` wildcard). `https://nas.sylvain.cloud:8443` (UGOS's UI, `http://<NAS LAN IP>:9999` behind it; A record `tofu/dns/nas.tf`), the same at home and through the Pangolin client (private resource `nas`, site `proxmox-lxc`, LAN IP, TCP 445, 8443, 9999). Jellyfin itself sits on its project's `media` network only (`jellyfin_media` for Docker, fixed subnet, created by `dc@jellyfin` and joined as external by `nas_proxy`, hence `nas_proxy` after `jellyfin`; Traefik at `172.30.96.10`, the IP set in Jellyfin's "Known proxies") and keeps `8096` published on the LAN as a fallback. Nothing else of UGOS is touched (no 00-setup, security or packages); shared folders are created in the UI. Run by hand only, never by CI (`resolve_docker_tags.py` prints a notice for a role only `nas.yml` uses) |
 | `pve.yml` | `pve` | Proxmox VE host (static in `inventory/hosts`, root without become through `host_vars/pve`: no sudo there; excluded from `00-setup.yaml`) — only `beszel_agent` in `binary` mode with S.M.A.R.T. of `/dev/sda` (the M.2 SATA SSD under every VM and the LXC), plus `tmpdir: /var/tmp` in `/etc/vzdump.conf` (tag `vzdump`: on the NAS's NFS, an unprivileged LXC's tar cannot open the temporary dir vzdump creates there as root, and the API refuses `tmpdir` to Tofu's token). The rest of the host belongs to Proxmox and `tofu/proxmox`. Run by hand only, never by CI |
@@ -217,9 +217,12 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
 
 ### Running a second environment of an app
 
-`flip_planning` is applied three times by `flip.yml`: production
-(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`) and
-the Keycloak demo (`demo-planning-kc.sylvain.dev`, `demo_planning_kc`). There is one role, not two — duplicating a role
+`flip_planning` is applied four times by `flip.yml`: production
+(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`, latest
+`main`, behind SSO), the public showcase (`exemple-planning.sylvain.dev`,
+no SSO, its database reset every night from a reference dump —
+`flip_planning_reset_dump`) and the Keycloak demo
+(`demo-planning-kc.sylvain.dev`, `demo_planning_kc`). There is one role, not two — duplicating a role
 per environment is what leaves the copy behind on the next change.
 
 What makes a role instantiable is that everything two instances cannot share on
