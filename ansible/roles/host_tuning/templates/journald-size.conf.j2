@@ -1,3 +1,8 @@
 # {{ ansible_managed }}
 [Journal]
+# Journal sur disque, gardé d'un démarrage à l'autre. Sur le Pi, il prend le
+# pas sur le Storage=volatile de raspberrypi-sys-mods
+# (/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf, prévu pour
+# les cartes SD ; le Pi démarre sur SSD), lu avant ce fichier.
+Storage=persistent
 SystemMaxUse={{ host_tuning_journald_system_max_use }}

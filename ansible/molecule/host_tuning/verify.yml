@@ -80,6 +80,7 @@
         that:
           - "'[Journal]' in (host_tuning_journald_conf.content | b64decode)"
           - ('\nSystemMaxUse=' ~ host_tuning_journald_system_max_use ~ '\n') in (host_tuning_journald_conf.content | b64decode)
+          - "'\nStorage=persistent\n' in (host_tuning_journald_conf.content | b64decode)"
 
     - name: Read the state of journald
       ansible.builtin.systemd:
