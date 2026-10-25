@@ -16,6 +16,11 @@ dépôt (`.github/scripts/restore_test.py`) :
 - les copies SQLite (`/var/lib/borgmatic-sqlite/<dépôt>/`) passent
   `PRAGMA integrity_check`.
 
+Les journaux d'un dépôt public sont publics : les commandes qui portent des
+chemins de l'archive (`borg list`, `borg extract`) ou des lignes d'un dump
+(`pg_restore`, `mariadb`) n'y montrent ni leurs arguments ni leurs erreurs.
+Pour le détail d'un échec, rejouer la commande depuis un poste.
+
 Rien d'autre n'est téléchargé : immich ne coûte que la liste de l'archive,
 le dump de sa base et l'échantillon.
 
