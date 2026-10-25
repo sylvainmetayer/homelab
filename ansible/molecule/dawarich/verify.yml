@@ -94,6 +94,12 @@
           - dawarich_env.PHOTON_API_KEY == dawarich_chibigeo_api_key
           - dawarich_env.SMTP_USERNAME == pangolin_smtp_user
           - dawarich_env.SMTP_PASSWORD == pangolin_smtp_pass
+          # Sidekiq intégré (1.17.0) : un seul processus web, sinon un jeu de
+          # threads de jobs par processus.
+          - dawarich_env.SIDEKIQ_EMBEDDED == 'true'
+          - dawarich_env.WEB_CONCURRENCY == '0'
+          - dawarich_compose.services['dawarich-app'].stop_grace_period == '60s'
+          - dawarich_compose.networks.dawarich.internal
 
     # Le dump borgmatic doit viser la base du compose avec les identifiants du .env.
     - name: Assert borgmatic dumps the dawarich database
@@ -124,7 +130,7 @@
              | map(attribute='key') | list }}
 
     # Doctrine (AGENTS.md) : mem_limit partout, mem_reservation sur la base,
-    # quota CPU sur sidekiq seulement.
+    # aucun quota CPU (les jobs tournent dans l'appli, interactive).
     - name: Assert the dawarich resource limits follow the doctrine
       ansible.builtin.assert:
         that:
@@ -133,7 +139,7 @@
           - dawarich_compose.services['dawarich-db'].cpus is not defined
           - dawarich_compose.services['dawarich-redis'].cpus is not defined
           - dawarich_compose.services['dawarich-app'].cpus is not defined
-          - dawarich_compose.services['dawarich-sidekiq'].cpus is defined
+          - dawarich_compose.services['dawarich-sidekiq'] is not defined
         fail_msg: Limites de ressources de dawarich hors doctrine (cf. AGENTS.md)
 
     - name: Stat the dawarich redis folder
