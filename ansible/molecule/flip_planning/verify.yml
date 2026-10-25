@@ -235,7 +235,8 @@
           - "'SOLVER_SECONDS_LIMIT_MAX=60' in showcase_env"
           - "'LEGAL_DEMO_INSTANCE=true' in showcase_env"
           - "'BRANDING_ORGANISATION=Association fictive' in showcase_env"
-          - showcase_env | select('match', '^BRANDING_(ACCENT_COLOR|PDF_)') | list | length == 0
+          - showcase_env | select('match', '^BRANDING_(ACCENT_COLOR|PDF_(HEADLINE|MUTED|ACCENT|HIGHLIGHT|PILL))=') | list | length == 0
+          - prod_env | select('match', '^BRANDING_PDF_ACCENT=') | list | length == 1
           - "'WEBHOOKS_ENABLED=true' in prod_env"
           - prod_env | select('match', '^SOLVER_MAX_') | list | length == 0
           - "'LEGAL_DEMO_INSTANCE=false' in prod_env"
