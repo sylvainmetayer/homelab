@@ -83,9 +83,11 @@
     group: root
     mode: "0750"
 
-- name: Cap journald disk usage
+- name: Keep journald on disk, capped
   become: true
-  notify: Restart journald
+  notify:
+    - Restart journald
+    - Flush journald to disk
   ansible.builtin.template:
     src: journald-size.conf.j2
     dest: /etc/systemd/journald.conf.d/50-size.conf

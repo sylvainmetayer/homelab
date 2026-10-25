@@ -32,3 +32,11 @@
   ansible.builtin.systemd:
     name: systemd-journald
     state: restarted
+
+# Après un passage de volatile à persistent, journald reste dans /run jusqu'au
+# prochain démarrage (systemd-journal-flush) : le flush l'envoie sur disque
+# tout de suite. Sans effet quand il y écrivait déjà.
+- name: Flush journald to disk
+  become: true
+  ansible.builtin.command: journalctl --flush
+  changed_when: true
