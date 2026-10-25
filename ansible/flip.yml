@@ -59,6 +59,33 @@
           flip_newt_id / flip_newt_secret are missing from the pangolin_config
           state: apply tofu/pangolin_config (pangolin_site.flip) first.
 
+    # The public showcase (exemple_planning, below) has two prerequisites that
+    # its `when:` on the SOPS keys cannot see: the Keycloak bench gone, since
+    # flip has no memory left for a fourth stack while it runs, and a release
+    # channel at 1.5.0 or later, the first image that enforces the hourly
+    # solver quota and knows WEBHOOKS_ENABLED (1.4.0 ignores both, and the
+    # showcase would then compute without any quota). The release image is a
+    # role default, read here from the file since role defaults are not in
+    # scope yet.
+    - name: Refuse the public showcase before its prerequisites are met
+      tags: exemple_planning,app
+      when: exemple_planning_db_password is defined
+      vars:
+        flip_release_image: >-
+          {{ (lookup('ansible.builtin.file', playbook_dir ~ '/roles/flip_planning/defaults/main.yml')
+              | from_yaml).flip_planning_image_release }}
+        flip_release_tag_raw: "{{ flip_release_image.split('@')[0].split(':')[-1] }}"
+        flip_release_tag: >-
+          {{ flip_release_tag_raw if flip_release_tag_raw is match('^[0-9]+[.][0-9]+[.][0-9]+$') else '0.0.0' }}
+      ansible.builtin.assert:
+        that:
+          - demo_planning_kc_db_password is not defined
+          - flip_release_tag is version('1.5.0', '>=')
+        fail_msg: >-
+          exemple_planning_* is in secrets.sops.yaml, but the showcase needs the
+          Keycloak bench removed (demo_planning_kc_* still there) and a release
+          image at 1.5.0 or later (flip_planning_image_release: {{ flip_release_tag }}).
+
   roles:
     # First: everything after it needs the Internet.
     - role: nat_client
@@ -213,16 +240,17 @@
     # Being public, it is the instance that must not look like the festival's:
     # no branding image, no client palette, a fictional organisation. What the
     # visitors must not reach — /mcp, the SQL dump routes, the synchronous
-    # solve, Mailpit's send API — is dropped by Pangolin
+    # solve, the Débogage endpoints, Mailpit's send API and link check — is
+    # dropped by Pangolin
     # (tofu/pangolin_config/website_exemple_planning.tf); outgoing webhooks are
     # off in the application, and pgAdmin is off. What stays open to anyone is
     # what an administrator edits (editions, mentions légales…): defaced until
     # the next nightly reset at worst.
     #
-    # Skipped until its secrets exist in secrets.sops.yaml (the `when`). Not to
-    # be enabled before the Keycloak bench above is removed — flip has no
-    # memory left for a fourth stack while it runs — nor before the release
-    # channel reaches 1.5.0, the first image enforcing the quota.
+    # Skipped until its secrets exist in secrets.sops.yaml (the `when`), and
+    # refused by a pre_task while the Keycloak bench above runs — flip has no
+    # memory left for a fourth stack — or while the release channel is below
+    # 1.5.0, the first image enforcing the quota.
     - role: flip_planning
       tags: exemple_planning,app
       when: exemple_planning_db_password is defined

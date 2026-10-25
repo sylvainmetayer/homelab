@@ -8,3 +8,11 @@ After=dc@{{ flip_planning_service }}.service
 [Service]
 Type=oneshot
 ExecStart={{ flip_planning_base_path }}/reset.sh
+# A oneshot has no start timeout by default: a hung `docker compose exec` would
+# block every later night. Two 300 s waits and a restore of a few hundred KiB
+# fit well within it.
+TimeoutStartSec=20min
+# A failed night (registry, daemon restart) is retried rather than left until
+# the next one; the script leaves the old database in place when it fails.
+Restart=on-failure
+RestartSec=10min

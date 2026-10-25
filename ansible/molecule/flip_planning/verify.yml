@@ -197,8 +197,16 @@
         - /opt/apps/exemple_planning/seed/exemple-planning.dump
         - /opt/apps/flip_planning/reset.sh
         - /etc/borgmatic.d/exemple_planning.yaml
+        - /home/sylvain/.config/systemd/user/flip_planning-reset.timer
+        - /home/sylvain/.config/systemd/user/demo_planning-reset.timer
+        - /home/sylvain/.config/systemd/user/demo_planning_kc-reset.timer
       register: flip_planning_reset_files
       become: true
+
+    - name: Read the reset unit of exemple_planning
+      ansible.builtin.slurp:
+        src: /home/sylvain/.config/systemd/user/exemple_planning-reset.service
+      register: flip_planning_reset_unit
 
     - name: Check the syntax of the showcase reset script
       ansible.builtin.command: bash -n /opt/apps/exemple_planning/reset.sh
@@ -215,6 +223,7 @@
         showcase_compose: "{{ flip_planning_showcase_compose_raw.stdout | from_json }}"
         showcase_env: "{{ (flip_planning_env_files.results[0].content | b64decode).splitlines() }}"
         prod_env: "{{ (flip_planning_env_files.results[1].content | b64decode).splitlines() }}"
+        reset_unit: "{{ (flip_planning_reset_unit.content | b64decode).splitlines() }}"
         showcase_containers: "{{ showcase_compose.services | dict2items | map(attribute='value.container_name') | list }}"
       ansible.builtin.assert:
         that:
@@ -235,7 +244,11 @@
           - flip_planning_reset_files.results[1].stat.exists
           - flip_planning_reset_files.results[1].stat.mode == '0600'
           - not flip_planning_reset_files.results[2].stat.exists
-          - not flip_planning_reset_files.results[3].stat.exists
+          - flip_planning_reset_files.results[3:] | selectattr('stat.exists') | list | length == 0
+          - "'Requires=dc@exemple_planning.service' in reset_unit"
+          - "'After=dc@exemple_planning.service' in reset_unit"
+          - "'Restart=on-failure' in reset_unit"
+          - reset_unit | select('match', '^TimeoutStartSec=') | list | length == 1
           - flip_planning_reset_timer.status.UnitFileState == 'enabled'
           - flip_planning_reset_timer.status.ActiveState == 'active'
           - "'03:30:00 Europe/Paris' in flip_planning_reset_timer.status.TimersCalendar"

@@ -1324,12 +1324,26 @@ run "public_showcase_drops_what_its_shared_admin_must_not_reach" {
 
   assert {
     condition = { for key, rule in pangolin_resource_rule.exemple_planning_drop : key => rule.value } == {
-      mcp          = "/mcp/*"
-      database     = "/api/database/*"
-      solve_sync   = "/api/solve"
+      mcp          = "/mcp*/*"
+      database     = "/api*/database*/*"
+      solve_sync   = "/api*/solve*"
       mailpit_send = "/mail/api/v1/send"
+      debug        = "/api*/debug*/*"
+      link_check   = "/mail/api/v1/message/*/link-check"
     }
-    error_message = "Les DROP de la vitrine ont changé : /mcp/*, /api/database/*, /api/solve et /mail/api/v1/send, ni plus ni moins (les webhooks sont coupés dans l'application)."
+    error_message = "Les DROP de la vitrine ont changé : MCP, import/export SQL, calcul synchrone, Débogage, envoi et vérification de liens de Mailpit, ni plus ni moins (les webhooks sont coupés dans l'application)."
+  }
+
+  # Les cibles visent les conteneurs par nom sur le réseau newt : le préfixe
+  # que flip.yml donne à la vitrine.
+  assert {
+    condition = (
+      length(regexall("flip_planning_container_prefix: exemple-planning\\n", file("${path.module}/../../ansible/flip.yml"))) == 1
+      && pangolin_target.website["exemple_planning"].ip == "exemple-planning"
+      && pangolin_target.website["exemple_planning_mailpit"].ip == "exemple-planning-mailpit"
+      && pangolin_target.website["exemple_planning_assets"].ip == "exemple-planning-assets"
+    )
+    error_message = "Les cibles de la vitrine doivent suivre flip_planning_container_prefix de son entrée dans ansible/flip.yml (exemple-planning)."
   }
 
   assert {

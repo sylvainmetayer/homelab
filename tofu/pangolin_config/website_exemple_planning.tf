@@ -63,25 +63,38 @@ locals {
 # administrator is anyone who read the web page, they stop at the proxy.
 # Priority 1 belongs to the backslash guard (rules.tf), alone in its slot.
 locals {
+  # Pangolin compares the path segment by segment, percent-decoded, `.` and
+  # `..` resolved (server/lib/pathMatch.ts); a `*` inside a segment is a glob
+  # on that segment. The application (Quarkus REST) also strips JAX-RS matrix
+  # parameters, so `/api;x=1/solve;y=2` is routed as `/api/solve` while its
+  # segments read `api;x=1` and `solve;y=2` to Pangolin: hence `api*`,
+  # `solve*`... on every segment the application routes on. Mailpit (Go) does
+  # not strip them, so its paths stay literal.
   exemple_planning_dropped_paths = {
     # The MCP server. The instance has no API key, so the application already
     # answers 401; dropping it here keeps the endpoint from being probed at all.
-    mcp = { priority = 2, value = "/mcp/*" }
+    mcp = { priority = 2, value = "/mcp*/*" }
     # The SQL dump routes. The import accepts INSERT/DELETE/TRUNCATE on the
     # application's tables only, but an INSERT ... SELECT can still call any
     # function, and the compose stack's database user is a PostgreSQL
     # superuser: server-side file reads and writes are one statement away.
-    database = { priority = 3, value = "/api/database/*" }
-    # Outgoing webhooks are not dropped here but off in the application
-    # (WEBHOOKS_ENABLED=false, ansible/flip.yml): nothing can be registered.
+    database = { priority = 3, value = "/api*/database*/*" }
     # The synchronous solve takes a whole problem in its body and is not what
     # the UI calls (it uses /api/solve/async*, under the 60 s ceiling and the
-    # one-job queue). No wildcard: only that exact path.
-    solve_sync = { priority = 4, value = "/api/solve" }
+    # one-job queue). One segment only: /api/solve/async and the rest pass.
+    solve_sync = { priority = 4, value = "/api*/solve*" }
     # Mailpit's send API: /mail is public so that visitors can READ what the
     # showcase sent; the send endpoint would let anyone post arbitrary HTML
     # into that inbox, served under this domain.
     mailpit_send = { priority = 5, value = "/mail/api/v1/send" }
+    # The Débogage endpoints: test-exception sends an error to the Bugsink
+    # project every instance shares (SENTRY_DSN), test-mail a mail, in a loop
+    # if a visitor wants to.
+    debug = { priority = 6, value = "/api*/debug*/*" }
+    # Mailpit's link check makes the container fetch every link of a message.
+    link_check = { priority = 7, value = "/mail/api/v1/message/*/link-check" }
+    # Outgoing webhooks are not dropped here but off in the application
+    # (WEBHOOKS_ENABLED=false, ansible/flip.yml): nothing can be registered.
   }
 }
 
