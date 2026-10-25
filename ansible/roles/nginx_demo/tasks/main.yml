@@ -51,6 +51,8 @@
 - name: Draw the database password once, next to its cluster
   become: true
   tags: backup
+  no_log: true
+  diff: false
   when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
   ansible.builtin.copy:
     dest: "{{ nginx_demo_db_password_path }}"
@@ -63,6 +65,7 @@
 - name: Read the database password
   become: true
   tags: backup
+  no_log: true
   when: not (ansible_check_mode and (nginx_demo_data_dirs | default({})) is changed)
   ansible.builtin.slurp:
     src: "{{ nginx_demo_db_password_path }}"
@@ -76,6 +79,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
+  diff: false
 
 - name: Template environment configuration
   notify: Restart nginx_demo
@@ -85,6 +89,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
+  diff: false
 
 # dc@.service est commun à toutes les applis : l'attente du NAS est un
 # drop-in de cette instance seulement. Voir nginx_demo_nas_wait_timeout.

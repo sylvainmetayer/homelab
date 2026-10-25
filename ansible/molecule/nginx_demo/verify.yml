@@ -72,6 +72,7 @@
       register: nginx_demo_files
 
     - name: Assert the password, the slice and the backup wiring
+      no_log: true
       vars:
         nginx_demo_password: "{{ nginx_demo_password_file.content | b64decode | trim }}"
         nginx_demo_env: "{{ nginx_demo_files.results[0].content | b64decode }}"

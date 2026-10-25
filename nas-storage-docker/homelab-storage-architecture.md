@@ -270,9 +270,8 @@ filtre aujourd'hui entre les deux (même LAN, sortant autorisé sur la VM).
 ```bash
 cd tofu/pangolin_config && tofu plan && tofu apply   # route + monitors nginx-demo
 cd ../../ansible
-ansible-playbook -i inventory/hosts backup.yaml      # dossier nginx_demo sur la Storage Box
-ansible-playbook -i inventory/hosts docker.yml --check --tags nginx_demo
-ansible-playbook -i inventory/hosts docker.yml --tags nginx_demo
+ansible-playbook docker.yml --check --tags nginx_demo   # borg crée seul le dépôt (sous-compte de docker)
+ansible-playbook docker.yml --tags nginx_demo
 ```
 
 Vérifier :
