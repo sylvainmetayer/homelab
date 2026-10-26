@@ -22,5 +22,5 @@ newt-lxc ansible_host=192.168.1.200 ansible_user=sylvain
 
 # NAS Ugreen DXP2800 (UGOS Pro) : nas.yml uniquement, lancé à la main. Exclu
 # de 00-setup.yaml : le système appartient à UGOS.
-[nas]
+[ugreen]
 nas ansible_host=192.168.1.137 ansible_user=sylvain
