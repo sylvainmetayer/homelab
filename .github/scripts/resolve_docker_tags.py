@@ -62,6 +62,17 @@ def changed_roles(changed_files):
     return roles
 
 
+def role_metas(roles_dir):
+    """Each role's meta file as Ansible picks it: the first of main.yml,
+    main.yaml, main.json that exists (it reads only one, never merges them)."""
+    for role_dir in sorted(roles_dir.iterdir()):
+        for ext in ("yml", "yaml", "json"):
+            meta = role_dir / "meta" / f"main.{ext}"
+            if meta.is_file():
+                yield meta
+                break
+
+
 def add_dependents(roles, roles_dir=ANSIBLE_DIR / "roles"):
     """A role pulled in only through meta/main.y(a)ml `dependencies` (nas_storage)
     has no entry, hence no tag, in any playbook: redeploy the roles that
@@ -70,8 +81,7 @@ def add_dependents(roles, roles_dir=ANSIBLE_DIR / "roles"):
     Returns the expanded role set and, for each changed role, the roles that
     depend on it (transitively)."""
     dependents = {}
-    # Ansible lit indifféremment meta/main.yml et meta/main.yaml.
-    for meta in [*roles_dir.glob("*/meta/main.yml"), *roles_dir.glob("*/meta/main.yaml")]:
+    for meta in role_metas(roles_dir):
         for dep in (yaml.safe_load(meta.read_text()) or {}).get("dependencies") or []:
             name = dep if isinstance(dep, str) else dep.get("role", dep.get("name"))
             dependents.setdefault(name, set()).add(meta.parent.parent.name)
@@ -127,13 +137,15 @@ def main():
         role_tags = load_role_tags(playbook_path)
         matched, resolved = resolve_tags(role_tags, roles)
         referenced |= matched.keys()
-        deployed |= {role for role, tags in matched.items() if "never" not in tags}
 
         for role, tags in matched.items():
+            # A dependent is matched because a role it depends on changed.
+            what = "changed" if role in pulled_by else "depends on a changed role"
             if "never" in tags:
-                print(f"::notice::role '{role}' changed but is tagged never in {playbook_path}, not deployed", file=sys.stderr)
+                print(f"::notice::role '{role}' {what} but is tagged never in {playbook_path}, not deployed", file=sys.stderr)
                 continue
-            print(f"::notice::role '{role}' changed -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
+            deployed.add(role)
+            print(f"::notice::role '{role}' {what} -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
 
         result[playbook_path] = ",".join(sorted(resolved))
 
