@@ -98,6 +98,9 @@ Delete, don't comment out.)
   `ansible/host_vars/<host>/variables.yaml` (`<service>_backup_enabled`,
   domain, overrides; the backup target and passphrase normally live in
   the role defaults and go away with the role).
+- Remove its entry from `.github/restore-test/apps.json` (the restore
+  test; `pangolin_config`'s `tofu test` fails while it outlives the app's
+  backup monitor).
 - Nothing to remove from `ansible/host_vars/backups/variables.yaml`: it
   lists hosts, not apps. The repository itself stays on the Storage Box
   unless step 1 ran with `decommission_app_destroy_remote_backup: true`.

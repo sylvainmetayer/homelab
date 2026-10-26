@@ -78,6 +78,12 @@ SOPS key `backup_storage_box_subaccounts`, set `backup_storage_box_subaccount`
 in its `host_vars`, then run `ansible-playbook -i inventory/hosts backup.yaml`
 once its borgmatic role has generated its key.
 
+Do register the app in the restore test: an entry
+`"<service>": {"host": "<host>", "repo": "<borgmatic_app_name>", "role": "<role>"}`
+in `.github/restore-test/apps.json` (`pangolin_config`'s `tofu test` fails
+on any `backup = true` website missing from it). Until its first nightly
+archive exists, the next restore-test run fails on it with « aucune archive ».
+
 ## 4. Backup vars
 
 In the role's `defaults/main.yml` (nothing in `host_vars` unless a host must
