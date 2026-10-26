@@ -82,6 +82,37 @@
           - ('\nSystemMaxUse=' ~ host_tuning_journald_system_max_use ~ '\n') in (host_tuning_journald_conf.content | b64decode)
           - "'\nStorage=persistent\n' in (host_tuning_journald_conf.content | b64decode)"
 
+    - name: Read the kernel command line
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ host_tuning_kernel_cmdline_path }}"
+      register: host_tuning_cmdline
+
+    # Paramètres du Pi ajoutés une seule fois, en fin de ligne, le reste intact
+    # (cf. prepare.yml), toujours sur une seule ligne.
+    - name: Assert the kernel parameters were appended to the single line
+      vars:
+        host_tuning_cmdline_text: "{{ host_tuning_cmdline.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - host_tuning_kernel_cmdline_params | length > 0
+          - "'\n' not in host_tuning_cmdline_text"
+          - host_tuning_cmdline_text.startswith('console=serial0,115200 console=tty1 root=PARTUUID=b1bd4792-02 ')
+          - host_tuning_cmdline_text.endswith(' ' ~ (host_tuning_kernel_cmdline_params | join(' ')))
+          - host_tuning_kernel_cmdline_params | select('in', host_tuning_cmdline_text.split(' ')) | list | length == host_tuning_kernel_cmdline_params | length
+          - (host_tuning_cmdline_text.split(' ') | length) == (host_tuning_cmdline_text.split(' ') | unique | length)
+        fail_msg: "cmdline.txt : {{ host_tuning_cmdline_text }}"
+
+    - name: Read the reboot flag
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: host_tuning_reboot_required
+
+    - name: Assert a reboot was flagged for unattended-upgrades
+      ansible.builtin.assert:
+        that:
+          - host_tuning_reboot_required.stat.exists
+
     - name: Read the state of journald
       ansible.builtin.systemd:
         name: systemd-journald

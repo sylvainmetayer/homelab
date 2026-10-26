@@ -1,7 +1,7 @@
 ---
 services:
   newt:
-    mem_limit: 256m
+    mem_limit: {{ newt_mem_limit }}
     image: fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319
     container_name: newt
     restart: unless-stopped

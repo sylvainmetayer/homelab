@@ -11,6 +11,18 @@ immich_backup_healthcheck_url: ""
 # SD) reste derrière, en débordement.
 host_tuning_disk_swap_size_mb: 4096
 
+# Le firmware du Pi 4 ajoute cgroup_disable=memory devant cmdline.txt : pas de
+# contrôleur mémoire, donc ni memory.peak ni mem_limit (Docker les ignore à la
+# création du conteneur, HostConfig.Memory = 0). cgroup_enable=memory, placé
+# après, le réactive ; le noyau rpt 6.18 ne connaît plus cgroup_memory=1
+# (absent de l'image, vérifié le 2026-10-26). Effet au reboot de 05:30 (#846).
+host_tuning_kernel_cmdline_params:
+  - cgroup_enable=memory
+
+# newt : VmHWM de 290 Mio relevé le 2026-10-26 (RSS courante 20 Mio), au-dessus
+# des 256m par défaut, qui s'appliqueront dès le contrôleur mémoire actif.
+newt_mem_limit: 640m
+
 starship_os_map:
   Linux: unknown-linux-musl
 

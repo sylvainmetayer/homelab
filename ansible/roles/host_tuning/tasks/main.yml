@@ -74,6 +74,37 @@
         enabled: true
         state: started
 
+# Pi : le firmware y ajoute cgroup_disable=memory devant cmdline.txt ;
+# cgroup_enable=memory, placé après, le réactive (#846).
+- name: Configure the kernel command line
+  when: host_tuning_kernel_cmdline_params | length > 0
+  become: true
+  block:
+    - name: Read the kernel command line file
+      ansible.builtin.slurp:
+        src: "{{ host_tuning_kernel_cmdline_path }}"
+      register: host_tuning_cmdline_file
+
+    # Le firmware ne lit que la première ligne : une seconde ligne (ou un
+    # fichier vide) veut dire qu'on ne sait pas ce qu'on édite.
+    - name: Assert the kernel command line is a single line
+      ansible.builtin.assert:
+        that:
+          - (host_tuning_cmdline_file.content | b64decode | trim) | length > 0
+          - "'\n' not in (host_tuning_cmdline_file.content | b64decode | trim)"
+        fail_msg: "{{ host_tuning_kernel_cmdline_path }} n'est pas une ligne unique : rien n'est modifié"
+
+    # Ajout en fin de ligne, seulement si le paramètre n'y est pas déjà (mot
+    # entier) ; le saut de ligne final éventuel disparaît, comme le laisse
+    # Raspberry Pi OS.
+    - name: Append the missing kernel parameters
+      notify: Flag a reboot for the kernel command line
+      ansible.builtin.replace:
+        path: "{{ host_tuning_kernel_cmdline_path }}"
+        regexp: '\A(?!.*(?<!\S){{ item | regex_escape }}(?!\S))(.*?)\s*\Z'
+        replace: '\1 {{ item }}'
+      loop: "{{ host_tuning_kernel_cmdline_params }}"
+
 - name: Ensure journald drop-in directory exists
   become: true
   ansible.builtin.file:
