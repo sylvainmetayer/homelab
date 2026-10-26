@@ -21,9 +21,8 @@ jellyfin_media_folders:
   - livres-audio
 
 # Quick Sync (iGPU du N100) : le conteneur rejoint le groupe propriétaire du
-# périphérique (render sur le NAS, gid lu au déploiement).
+# périphérique (render sur le NAS), gid lu sur le périphérique au déploiement.
 jellyfin_render_device: /dev/dri/renderD128
-jellyfin_render_group: render
 
 # Publié sur le LAN (TV, Chromecast, téléphones à la maison).
 jellyfin_port: 8096

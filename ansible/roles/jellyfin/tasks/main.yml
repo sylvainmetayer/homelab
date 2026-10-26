@@ -23,7 +23,9 @@
       relancer ensuite nas.yml --tags jellyfin.
     quiet: true
 
+# become : /dev/dri peut être fermé au compte de connexion (0750 root).
 - name: Check the Quick Sync render device
+  become: true
   ansible.builtin.stat:
     path: "{{ jellyfin_render_device }}"
   register: jellyfin_render_stat
@@ -35,23 +37,27 @@
     fail_msg: "{{ jellyfin_render_device }} absent : pas d'iGPU visible pour Quick Sync."
     quiet: true
 
-# nas.yml ne collecte pas de faits : uid, gid et groupe du périphérique sont
-# lus ici. getent échoue si le compte ou le groupe n'existe pas.
+# nas.yml ne collecte pas de faits : uid et gid sont lus ici (getent échoue
+# si le compte n'existe pas). Le groupe ajouté est celui qui possède le
+# périphérique (stat ci-dessus), quel que soit son nom sous UGOS.
 - name: Read the account Jellyfin runs as
   ansible.builtin.getent:
     database: passwd
     key: "{{ jellyfin_user }}"
 
-- name: Read the group of the render device
-  ansible.builtin.getent:
-    database: group
-    key: "{{ jellyfin_render_group }}"
-
 - name: Remember the ids Jellyfin runs with
   ansible.builtin.set_fact:
     jellyfin_uid: "{{ ansible_facts['getent_passwd'][jellyfin_user][1] }}"
     jellyfin_gid: "{{ ansible_facts['getent_passwd'][jellyfin_user][2] }}"
-    jellyfin_render_gid: "{{ ansible_facts['getent_group'][jellyfin_render_group][1] }}"
+    jellyfin_render_gid: "{{ jellyfin_render_stat.stat.gid }}"
+
+# Le compte propriétaire des médias, jamais root (un -e ansible_user=root).
+- name: Refuse to run Jellyfin as root
+  ansible.builtin.assert:
+    that:
+      - jellyfin_uid | int != 0
+    fail_msg: "jellyfin_user ({{ jellyfin_user }}) est root : Jellyfin tourne sous le compte propriétaire des médias."
+    quiet: true
 
 # dc@ user : dossier de l'utilisateur de déploiement. dc@ système (NAS) :
 # root (jellyfin_as_root, vars/).
