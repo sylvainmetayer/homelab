@@ -76,6 +76,26 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
+- name: Make sure beszel service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@beszel
+    scope: user
+    enabled: true
+
+# Avant la sauvegarde : app.yml cherche les bases au déploiement. Au premier
+# déploiement, data.db n'existe qu'une fois le hub démarré ; sans cette
+# attente, la configuration borgmatic n'aurait aucune copie de la base (et
+# l'exclusion des *.db la laisserait hors de l'archive) jusqu'au run suivant.
+- name: Wait for the PocketBase database
+  when: beszel_backup_enabled and not ansible_check_mode
+  tags: backup
+  become: true
+  ansible.builtin.wait_for:
+    path: "{{ beszel_base_path }}/beszel_data/data.db"
+    timeout: 120
+
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). data.db et
 # auxiliary.db (PocketBase) sont copiées par « .backup » ; le reste de
 # beszel_data (clé, config.yml) suit en fichiers.
@@ -106,10 +126,3 @@
       - "{{ beszel_base_path }}/beszel_data/*.db-wal"
       - "{{ beszel_base_path }}/beszel_data/*.db-shm"
 
-- name: Make sure beszel service is running
-  ansible.builtin.systemd:
-    state: started
-    daemon_reload: true
-    name: dc@beszel
-    scope: user
-    enabled: true
