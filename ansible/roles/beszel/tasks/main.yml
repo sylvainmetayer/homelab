@@ -125,4 +125,3 @@
       - "{{ beszel_base_path }}/beszel_data/*.db"
       - "{{ beszel_base_path }}/beszel_data/*.db-wal"
       - "{{ beszel_base_path }}/beszel_data/*.db-shm"
-
