@@ -65,7 +65,16 @@
       ]
     },
     {
-      "description": "Pangolin's Docker tags are prefixed with ee- (e.g. ee-1.21.0); teach Renovate to parse them as semver so EE updates are detected",
+      "description": "newt only reaches Docker through the allowlist of newt-socket-proxy (ansible/roles/newt/defaults/main.yml, #853), read off newt 1.19.0's docker/docker.go: a bump that calls another endpoint empties Pangolin's container list",
+      "matchPackageNames": [
+        "fosrl/newt"
+      ],
+      "prBodyNotes": [
+        "Avant de merger : relire `docker/docker.go` de cette version de newt contre `newt_socket_proxy_allow_get` / `_allow_head` (`ansible/roles/newt/defaults/main.yml`). Après déploiement, `docker logs newt-socket-proxy` ne doit refuser que des `containers/<id>/json`."
+      ]
+    },
+    {
+      "description": "Pangolin's Docker tags are prefixed with ee-(e.g. ee-1.21.0); teach Renovate to parse them as semver so EE updates are detected",
       "matchDatasources": [
         "docker"
       ],

@@ -4,6 +4,7 @@
   vars_files:
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
+    - ../../roles/newt/defaults/main.yml
   tasks:
     - name: Verify the newt deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
@@ -71,6 +72,24 @@
           - newt_proxy.command | select('match', '-allow(?!GET=|HEAD=)') | list == []
           - "'-allowGET=/(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)' in newt_proxy.command"
           - "'-allowHEAD=/(v[0-9.]+/)?_ping' in newt_proxy.command"
+
+    # Les regex, ancrées comme le proxy les ancre (^...$), contre les chemins
+    # que newt 1.19.0 envoie vraiment (client moby, version négociée).
+    - name: Assert the allowlist lets newt's calls through, and nothing else
+      vars:
+        newt_allow_get: "^{{ newt_socket_proxy_allow_get }}$"
+        newt_allow_head: "^{{ newt_socket_proxy_allow_head }}$"
+      ansible.builtin.assert:
+        that:
+          - "'/_ping' is match(newt_allow_head)"
+          - "'/_ping' is match(newt_allow_get)"
+          - "'/v1.53/containers/json' is match(newt_allow_get)"
+          - "'/v1.53/containers/newt/json' is match(newt_allow_get)"
+          - "'/v1.53/events' is match(newt_allow_get)"
+          - "'/v1.53/containers/0123456789ab/json' is not match(newt_allow_get)"
+          - "'/v1.53/containers/newt/logs' is not match(newt_allow_get)"
+          - "'/v1.53/info' is not match(newt_allow_get)"
+          - "'/v1.53/containers/json' is not match(newt_allow_head)"
 
     - name: Stat the socket proxy folder
       become: true

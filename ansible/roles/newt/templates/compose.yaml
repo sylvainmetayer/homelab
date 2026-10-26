@@ -16,7 +16,9 @@ services:
       # Le socket du proxy, jamais celui du démon (#853).
       - DOCKER_SOCKET=unix:///run/socket-proxy/docker.sock
       - DOCKER_ENFORCE_NETWORK_VALIDATION=true
-    # Le socket du proxy lui est ouvert par le groupe docker.
+    # Le socket du proxy est ouvert au groupe docker. L'image tourne en root
+    # avec les capacités par défaut, qui passe outre : le groupe ne sert que
+    # si newt perd un jour root ou CAP_DAC_OVERRIDE.
     group_add:
       - "{{ newt_docker_gid }}"
     volumes:

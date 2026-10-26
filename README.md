@@ -64,6 +64,6 @@ Each app has its own Borg repository on the Storage Box, filled by a nightly Bor
 
 ## Links
 
-- [Read-only access to the Docker socket](https://www.it-connect.fr/docker-comment-ameliorer-la-securite-avec-un-docker-socket-proxy/) (in French). Newt reads the socket, and it must share a Docker network with the containers it serves.
+- [Read-only access to the Docker socket](https://www.it-connect.fr/docker-comment-ameliorer-la-securite-avec-un-docker-socket-proxy/) (in French). Newt reads Docker only through its `wollomatic/socket-proxy` sidecar (container list, inspect of itself, events), and it must share a Docker network with the containers it serves.
 - [Pangolin discussion #402](https://github.com/orgs/fosrl/discussions/402#discussion-8123152)
 - [Pangolin blueprints](https://pangolin.net/blog/posts/blueprints)
