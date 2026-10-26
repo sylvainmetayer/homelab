@@ -18,7 +18,7 @@
   roles:
     - role: nas
       tags: nas
-    # Agent de supervision : conteneur lancé par `docker compose up -d` et sa
-    # restart policy (ni dc@ ni lingering sous UGOS), réglé dans host_vars/nas.
+    # Agent de supervision sous dc@beszel_agent en unité système (ni lingering
+    # ni groupe docker sous UGOS), réglé dans host_vars/nas.
     - role: beszel_agent
       tags: beszel_agent,monitoring

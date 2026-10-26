@@ -10,9 +10,9 @@ nas_nfs_exports:
       - 192.168.1.216
 
 # --- Agent Beszel (rôle beszel_agent, nas.yml) ---
-# Conteneur lancé par `docker compose up -d` (ni dc@ ni lingering sous UGOS),
-# dans le dossier partagé docker d'UGOS.
-beszel_agent_mode: compose
+# Sous dc@beszel_agent en unité système (root : ni lingering ni groupe docker
+# sous UGOS), dans le dossier partagé docker d'UGOS.
+beszel_agent_mode: dc_system
 beszel_agent_base_path: /volume1/docker/beszel_agent
 # Les trois disques : sda et sdb (WD40EFZZ, SATA), sdc (WD30EZRX en USB, que
 # `smartctl --scan` voit en -d sat : pas de type à forcer).
