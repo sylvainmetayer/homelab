@@ -270,6 +270,17 @@
         "pangolin_geoipupdate_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Beszel agent images of the beszel_agent role (plain and -alpine, the one with smartctl), pinned by tag and digest in plain vars of its defaults: the compose template keeps a single `image:` key, two of them in one service would leave one untracked once Renovate strips the Jinja",
+      "managerFilePatterns": [
+        "/^ansible/roles/beszel_agent/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "beszel_agent_image(?:_smart)?:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

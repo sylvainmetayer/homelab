@@ -87,7 +87,7 @@
 
 # Pangolin : pas de docker_service (ni dc@ ni lingering). `up -d` recrée ce dont la
 # configuration a changé (compose ou .env) et ne touche pas au reste ; la
-# restart policy fait le reste au démarrage du NAS.
+# restart policy fait le reste au démarrage de Pangolin.
 - name: Start the Beszel agent with docker compose
   when: beszel_agent_mode == 'compose'
   become: true
@@ -95,4 +95,4 @@
     cmd: docker compose up -d --remove-orphans
     chdir: "{{ beszel_agent_base_path }}"
   register: beszel_agent_compose_up
-  changed_when: beszel_agent_compose_up.stderr is search('(Creat|Recreat|Start)(ed|ing)')
+  changed_when: beszel_agent_compose_up.stderr is search('(Creat|Recreat|Start|Remov)(ed|ing)')
