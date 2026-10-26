@@ -23,7 +23,9 @@ beszel_agent_hub_key: "{{ beszel_hub_public_key | default('') }}"
 # Adresse du hub. Par défaut le port publié sur le LAN par la VM docker (rôle
 # beszel) ; 127.0.0.1 sur la VM docker elle-même ; l'URL publique pour
 # pangolin et flip, avec leur jeton d'accès Pangolin en en-têtes.
-beszel_agent_hub_url: "http://192.168.1.216:8090"
+# En clair sur le LAN : la WebSocket est authentifiée par le jeton de l'agent
+# et la signature du hub (clé ed25519), et n'en sort pas.
+beszel_agent_hub_url: "http://192.168.1.216:8090" # NOSONAR
 # HUB_HEADERS, « Nom: valeur » séparés par des virgules : pour pangolin et
 # flip, les en-têtes du jeton d'accès Pangolin (sortie beszel_agent_hub_headers
 # de tofu/pangolin_config, posée par le playbook). Vide ailleurs.

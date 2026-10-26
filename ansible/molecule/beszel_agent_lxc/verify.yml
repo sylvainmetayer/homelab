@@ -41,7 +41,7 @@
           - beszel_agent_files.results[1].stat.pw_name == 'root'
           - ('TOKEN=' ~ beszel_agent_tokens['newt-lxc']) in beszel_agent_env
           - ('KEY=' ~ beszel_hub_public_key) in beszel_agent_env
-          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env"
+          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env" # NOSONAR
           - "'DISABLE_SSH=true' in beszel_agent_env"
           - "'DOCKER_HOST=\n' in beszel_agent_env"
           - "'SERVICE_PATTERNS=newt*' in beszel_agent_env"
