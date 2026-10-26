@@ -297,6 +297,21 @@ override_resource {
   values = { id = 5, newt_id = "newt-flip", newt_secret = "secret-flip" }
 }
 
+override_resource {
+  target = pangolin_site.nas
+  values = { id = 6, newt_id = "newt-nas", newt_secret = "secret-nas" }
+}
+
+override_resource {
+  target = pangolin_role.jellyfin
+  values = { id = 40 }
+}
+
+override_resource {
+  target = pangolin_site_resource.jellyfin
+  values = { id = 41 }
+}
+
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
 # (une surcharge peut viser une seule instance d'un for_each, vérifié sur
 # OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite.
@@ -1973,6 +1988,49 @@ run "flip_newt_credentials_come_from_the_flip_site" {
   }
 }
 
+# nas.yml lit les identifiants Newt du site nas dans ce state (et échoue s'ils
+# sont vides), sous leur forme littérale : une sortie renommée donnerait un
+# Newt sans identifiants.
+run "nas_newt_credentials_and_jellyfin_internal" {
+  command = apply
+
+  assert {
+    condition = (
+      output.nas_newt_id == "newt-nas" && output.nas_newt_secret == "secret-nas"
+      && strcontains(file("${path.module}/../../ansible/nas.yml"), "terraform_outputs.nas_newt_id.value | default('')")
+      && strcontains(file("${path.module}/../../ansible/nas.yml"), "terraform_outputs.nas_newt_secret.value | default('')")
+    )
+    error_message = "nas_newt_id / nas_newt_secret doivent être ceux de pangolin_site.nas, lus tels quels par ansible/nas.yml."
+  }
+
+  # Le Newt du NAS joint Jellyfin par son nom de conteneur sur le réseau newt
+  # (container_name du compose du rôle jellyfin), en TCP 8096 seulement.
+  assert {
+    condition = (
+      pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
+      && pangolin_site_resource.jellyfin.mode == "host"
+      && pangolin_site_resource.jellyfin.alias == "jellyfin.internal"
+      && pangolin_site_resource.jellyfin.destination == "jellyfin"
+      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin\n")
+      && pangolin_site_resource.jellyfin.tcp_port_range == "8096"
+      && pangolin_site_resource.jellyfin.udp_port_range == "*"
+      && pangolin_site_resource.jellyfin.disable_icmp == true
+    )
+    error_message = "jellyfin.internal doit viser le conteneur jellyfin, sur le site nas, en TCP 8096 seul, ICMP coupé."
+  }
+
+  # Une ressource privée, jamais publique, ouverte au seul rôle jellyfin.
+  assert {
+    condition = (
+      pangolin_site_resource_role.jellyfin.site_resource_id == pangolin_site_resource.jellyfin.id
+      && pangolin_site_resource_role.jellyfin.role_id == pangolin_role.jellyfin.id
+      && pangolin_role.jellyfin.name == "jellyfin"
+      && !contains(keys(local.websites), "jellyfin")
+    )
+    error_message = "jellyfin.internal doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
+  }
+}
+
 # Production et démo partagent un rôle Ansible mais rien côté Pangolin /
 # Uptime Kuma : ressource, jeton d'accès, healthcheck, moniteur de sauvegarde,
 # règle MCP et cibles sont distincts, et chaque cible vise les conteneurs de
@@ -2295,7 +2353,7 @@ run "ssh_login_monitors_alert_on_every_login" {
     condition = (
       strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "pangolin_config_outputs_optional: true")
       && alltrue([
-        for playbook in ["docker.yml", "flip.yml", "lxc.yml", "pangolin.yaml", "pi.yml"] :
+        for playbook in ["docker.yml", "flip.yml", "lxc.yml", "nas.yml", "pangolin.yaml", "pi.yml"] :
         !strcontains(file("${path.module}/../../ansible/${playbook}"), "pangolin_config_outputs_optional")
       ])
     )

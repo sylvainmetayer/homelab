@@ -10,14 +10,33 @@
   hosts: nas
   gather_facts: false
   pre_tasks:
-    # Le jeton de l'agent Beszel et la clé du hub. Pas de state Tofu : l'agent
-    # du NAS parle au hub par le LAN, sans jeton Pangolin.
-    - name: Load secrets variable into global namespace
+    # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
+    # tofu/pangolin_config (terraform_outputs). L'agent Beszel du NAS parle au
+    # hub par le LAN, sans jeton Pangolin.
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # Identifiants Newt du site nas, lus dans le state plutôt que copiés dans
+    # secrets.sops.yaml : le site est créé par tofu/pangolin_config, qui les
+    # détient déjà. no_log : newt_client_secret, qu'un -v écrirait dans run.log.
+    - name: Load the newt credentials from Terraform state outputs
       tags: always
-      community.sops.load_vars:
-        file: "{{ playbook_dir }}/secrets.sops.yaml"
-        expressions: evaluate-on-load
-        return_method: vars-only
+      no_log: true
+      ansible.builtin.set_fact:
+        newt_client_id: "{{ terraform_outputs.nas_newt_id.value | default('') }}"
+        newt_client_secret: "{{ terraform_outputs.nas_newt_secret.value | default('') }}"
+
+    # Un NEWT_ID vide lance un newt qui réessaie sans fin sans dire pourquoi.
+    - name: Fail clearly when the nas site has no newt credentials
+      tags: newt
+      ansible.builtin.assert:
+        that:
+          - newt_client_id | length > 0
+          - newt_client_secret | length > 0
+        fail_msg: >-
+          nas_newt_id / nas_newt_secret absents du state de pangolin_config :
+          appliquer d'abord tofu/pangolin_config (pangolin_site.nas).
+        quiet: true
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
     # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
@@ -30,3 +49,15 @@
     # ni groupe docker sous UGOS), réglé dans host_vars/nas.
     - role: beszel_agent
       tags: beszel_agent,monitoring
+    - role: decommission_app
+      tags: [decommission, never]
+    # Connecteur du site Pangolin nas, sous dc@newt (unité système) : il sert
+    # jellyfin.internal aux clients Pangolin, par le réseau Docker newt qu'il
+    # crée et que rejoint Jellyfin.
+    - role: newt
+      tags: newt
+    # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
+    # media en lecture seule. Ses vérifications (dossier partagé, Quick Sync)
+    # ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
+    - role: jellyfin
+      tags: jellyfin,app

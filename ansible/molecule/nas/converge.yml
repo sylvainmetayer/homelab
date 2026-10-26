@@ -11,6 +11,14 @@
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # nas.yml les lit dans le state de pangolin_config (nas_newt_*) ; ici,
+    # des identifiants factices de fake_secrets.yml.
+    - name: Set the newt credentials as nas.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        newt_client_id: "{{ newt_docker_client_id }}"
+        newt_client_secret: "{{ newt_docker_client_secret }}"
   # Comme nas.yml.
   roles:
     # dc@ en unité système (host_vars/nas).
@@ -20,3 +28,5 @@
     - role: beszel_agent
       vars:
         beszel_agent_name: nas
+    - role: newt
+    - role: jellyfin

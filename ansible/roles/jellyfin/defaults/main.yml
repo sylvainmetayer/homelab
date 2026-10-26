@@ -1,0 +1,31 @@
+---
+# Jellyfin, sur le NAS (nas.yml) : un seul conteneur sous dc@jellyfin, en
+# unité système (docker_service_scope: system, host_vars/nas).
+jellyfin_service: jellyfin
+jellyfin_base_path: "{{ docker_base_path }}/{{ jellyfin_service }}"
+
+# Compte de l'hôte sous lequel tourne le conteneur (uid et gid primaire lus au
+# déploiement) : les fichiers copiés par SMB lui appartiennent, il les lit
+# quel que soit leur mode. Sur le NAS, sylvain (1000).
+jellyfin_user: "{{ ansible_user }}"
+
+# Dossier partagé UGOS des médias, créé dans l'interface (corbeille décochée),
+# monté en lecture seule. Le rôle refuse de démarrer s'il manque, lui ou un
+# des dossiers des bibliothèques.
+jellyfin_media_path: /volume1/media
+jellyfin_media_folders:
+  - films
+  - series
+  - musique
+  - livres
+  - livres-audio
+
+# Quick Sync (iGPU du N100) : le conteneur rejoint le groupe propriétaire du
+# périphérique (render sur le NAS, gid lu au déploiement).
+jellyfin_render_device: /dev/dri/renderD128
+jellyfin_render_group: render
+
+# Publié sur le LAN (TV, Chromecast, téléphones à la maison).
+jellyfin_port: 8096
+# Provisoire : à recaler à ~2x memory.peak après une semaine d'usage.
+jellyfin_mem_limit: 3g

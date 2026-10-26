@@ -20,6 +20,8 @@ ROLE_PATH_RE = re.compile(r"^ansible/roles/([^/]+)/")
 # ouvert vient de cette liste, jamais de l'argument (pas de traversée de chemin).
 ANSIBLE_DIR = Path(__file__).resolve().parents[2] / "ansible"
 PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
+# Playbooks never run by the deploy workflow.
+MANUAL_PLAYBOOKS = ["nas.yml"]
 
 
 def safe_playbook_path(playbook_path):
@@ -149,7 +151,15 @@ def main():
 
         result[playbook_path] = ",".join(sorted(resolved))
 
+    # Roles of a playbook run by hand only (nas.yml: no NAS key in the GitHub
+    # secrets) are expected here: a notice, not a warning.
+    manual_roles = {
+        role for playbook in MANUAL_PLAYBOOKS for role in load_role_tags(ANSIBLE_DIR / playbook)
+    }
     for role in sorted(unreferenced_roles(pulled_by, referenced, deployed)):
+        if role in manual_roles:
+            print(f"::notice::role '{role}' changed, deployed by hand only ({', '.join(MANUAL_PLAYBOOKS)}), not by CI", file=sys.stderr)
+            continue
         print(f"::warning::role '{role}' changed but is not deployed by any of {', '.join(playbook_paths)} (no entry, or only through roles tagged never), ignoring", file=sys.stderr)
 
     print(json.dumps(result))

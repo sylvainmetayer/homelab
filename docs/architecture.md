@@ -33,6 +33,9 @@ flowchart LR
       newt_pi[newt] --> immich[immich]
     end
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
+    subgraph nas["NAS Ugreen (192.168.1.137)"]
+      newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt" --> jellyfin["jellyfin<br/>(jellyfin.internal, privé)"]
+    end
   end
 
   subgraph hetzner_priv["Hetzner, réseau privé 10.0.0.0/16"]

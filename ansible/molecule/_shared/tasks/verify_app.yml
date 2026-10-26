@@ -2,32 +2,38 @@
 # Vérifications communes d'un rôle d'application déployé en dc@<service> :
 #   - le compose templaté appartient à l'utilisateur de déploiement, en 0600 :
 #     il porte souvent des mots de passe en clair, et dc@ est une unité *user*
-#     qui le lit sous ce même utilisateur ;
+#     qui le lit sous ce même utilisateur ; à root sous un dc@ système (NAS,
+#     docker_service_scope: system), qui l'exécute en root ;
 #   - le compose templaté est valide pour `docker compose` ;
-#   - l'unité user dc@<service> est activée et démarrée ;
+#   - l'unité dc@<service> (user, ou système) est activée et démarrée ;
 #   - la configuration borgmatic, si elle existe, passe `borgmatic config validate`.
 #
 # Variables :
 #   verify_app_service           nom du projet compose / suffixe de dc@ (obligatoire)
 #   verify_app_borgmatic_config  chemin de la config borgmatic ('' pour sauter)
 #   verify_app_unit_started      false pour un rôle qui laisse son unité arrêtée
+#   docker_service_scope         user (défaut) ou system, comme host_vars/<hôte>
 - name: Stat the compose file of {{ verify_app_service }}
+  become: "{{ docker_service_scope | default('user') == 'system' }}"
   ansible.builtin.stat:
     path: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_app_service }}/compose.yaml"
   register: verify_app_compose
 
 - name: Assert the compose file exists and is private for {{ verify_app_service }}
+  vars:
+    verify_app_owner: "{{ 'root' if docker_service_scope | default('user') == 'system' else ansible_facts['user_id'] }}"
   ansible.builtin.assert:
     that:
       - verify_app_compose.stat.exists
-      - verify_app_compose.stat.pw_name == ansible_facts['user_id']
+      - verify_app_compose.stat.pw_name == verify_app_owner
       - verify_app_compose.stat.mode == '0600'
     fail_msg: >-
       {{ verify_app_compose.stat.path | default('compose.yaml') }} absent, pas à
-      {{ ansible_facts['user_id'] }} ou pas en 0600
+      {{ verify_app_owner }} ou pas en 0600
       ({{ verify_app_compose.stat.mode | default('absent') }})
 
 - name: Validate the compose file of {{ verify_app_service }}
+  become: "{{ docker_service_scope | default('user') == 'system' }}"
   ansible.builtin.command: docker compose config --quiet
   args:
     chdir: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_app_service }}"
@@ -36,7 +42,7 @@
 - name: Read the state of dc@{{ verify_app_service }}
   ansible.builtin.systemd:
     name: "dc@{{ verify_app_service }}"
-    scope: user
+    scope: "{{ docker_service_scope | default('user') }}"
   register: verify_app_unit
 
 - name: Assert the unit is enabled and running for dc@{{ verify_app_service }}

@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: jellyfin
+
+# Prepare du scénario nas : dc@ système, dossiers partagés d'UGOS (dont
+# media et ses bibliothèques) et périphérique de rendu.
+ansible:
+  playbooks:
+    prepare: prepare.yml

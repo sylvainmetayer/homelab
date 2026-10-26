@@ -1,0 +1,6 @@
+---
+# Dérivé, pas un réglage : sous un dc@ système (NAS, docker_service_scope:
+# system), le dossier et le compose sont à root, qui lance l'unité ; sous un
+# dc@ user, à l'utilisateur de déploiement.
+newt_dc_scope: "{{ docker_service_scope | default('user') }}"
+newt_as_root: "{{ newt_dc_scope == 'system' }}"

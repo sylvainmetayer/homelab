@@ -1,6 +1,7 @@
 ---
 - name: Restart newt service
+  become: "{{ newt_as_root }}"
   ansible.builtin.systemd:
     name: dc@newt
-    scope: user
+    scope: "{{ newt_dc_scope }}"
     state: restarted

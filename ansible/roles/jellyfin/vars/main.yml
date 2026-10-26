@@ -1,0 +1,6 @@
+---
+# Dérivé, pas un réglage : sous un dc@ système (NAS, docker_service_scope:
+# system), le dossier du projet et le compose sont à root, qui lance l'unité ;
+# sous un dc@ user, à l'utilisateur de déploiement.
+jellyfin_dc_scope: "{{ docker_service_scope | default('user') }}"
+jellyfin_as_root: "{{ jellyfin_dc_scope == 'system' }}"
