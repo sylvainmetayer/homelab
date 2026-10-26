@@ -44,13 +44,19 @@
 
     # Le périphérique de rendu de l'iGPU (Quick Sync), absent d'un runner :
     # même numéro que sur le NAS (226:128), au groupe render.
+    # Absent de l'image (pas d'udev) ; groupe système comme sous UGOS.
+    - name: Create the render group
+      ansible.builtin.group:
+        name: render
+        system: true
+
     - name: Create the render device directory
       ansible.builtin.file:
         path: /dev/dri
         state: directory
         owner: root
         group: root
-        mode: "0755"
+        mode: "0750"
 
     - name: Create a render device node
       ansible.builtin.command: mknod -m 0660 /dev/dri/renderD128 c 226 128

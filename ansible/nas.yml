@@ -11,7 +11,9 @@
   gather_facts: false
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
-    # tofu/pangolin_config (terraform_outputs). L'agent Beszel du NAS parle au
+    # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas).
+    # Comme ailleurs, un state illisible (S3, clés) arrête la play quel que
+    # soit le tag, --tags beszel_agent compris : l'agent Beszel, lui, parle au
     # hub par le LAN, sans jeton Pangolin.
     - name: Load secrets and the pangolin_config state outputs
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
@@ -59,5 +61,7 @@
     # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
     # media en lecture seule. Ses vérifications (dossier partagé, Quick Sync)
     # ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
+    # Le réseau newt est créé par dc@newt : sur un NAS neuf, --tags newt avant
+    # un --tags jellyfin seul, sinon dc@jellyfin réessaie toutes les 15 s.
     - role: jellyfin
       tags: jellyfin,app
