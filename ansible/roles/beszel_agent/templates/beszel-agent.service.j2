@@ -1,0 +1,26 @@
+# Agent Beszel (rôle beszel_agent, mode binary). Jeton et clé dans
+# {{ beszel_agent_config_dir }}/env (0600), pas sur la ligne de commande : ps
+# les montrerait à tout le conteneur.
+[Unit]
+Description=Beszel agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ beszel_agent_config_dir }}/env
+ExecStart={{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}/beszel-agent
+Restart=always
+RestartSec=10
+# Compte éphémère sans privilège : l'agent lit /proc, /sys et le bus systemd,
+# n'écrit que son empreinte (StateDirectory). Pas de S.M.A.R.T. ici.
+DynamicUser=yes
+StateDirectory=beszel-agent
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

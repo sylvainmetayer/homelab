@@ -16,6 +16,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
 | [nginx](https://nginx.org/) | `nginx_demo` | Docker VM | Pilot of app data on the NAS (NFS): static page plus an unused Postgres, both on the NAS export |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
+| [Beszel](https://beszel.dev/) | `beszel` | Docker VM | Host monitoring hub (CPU, memory, disks, network, containers, S.M.A.R.T.) on `monitoring.sylvain.cloud`; one agent per host (`beszel_agent`: docker, pi, pangolin, flip, newt-lxc, NAS). Behind the SSO, plus its own Beszel account; the hub port is also published on the LAN (192.168.1.216:8090), where only the Beszel account protects it |
 | [Immich](https://immich.app/) | `immich` | Raspberry Pi | Photo library |
 | Immich Swipe | `immich` | Raspberry Pi | Swipe interface to sort Immich photos |
 | Flip Planning | `flip_planning` | flip | Team scheduling app ([planning-equipes](https://github.com/sylvainmetayer/planning-equipes)), production |
@@ -26,4 +27,4 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 
 The NAS admin page and Proxmox are not public: they are Pangolin private resources (`nas.internal`, `pve.internal`, `tofu/pangolin_config/private_resources.tf`), served by the Newt LXC.
 
-This table is the reference list of the apps; AGENTS.md points here instead of repeating it. The playbooks are `ansible/docker.yml` (Docker VM), `ansible/pi.yml` (Raspberry Pi), `ansible/flip.yml` (flip), `ansible/pangolin.yaml` (Pangolin VM) and `ansible/lxc.yml` (the Newt LXC, no app). To add or remove an app, see the `new-app` and `remove-app` skills under `.claude/skills/` and the matching sections of [AGENTS.md](../AGENTS.md).
+This table is the reference list of the apps; AGENTS.md points here instead of repeating it. The playbooks are `ansible/docker.yml` (Docker VM), `ansible/pi.yml` (Raspberry Pi), `ansible/flip.yml` (flip), `ansible/pangolin.yaml` (Pangolin VM), `ansible/lxc.yml` (the Newt LXC, no app) and `ansible/nas.yml` (the NAS, run by hand: NFS exports and the Beszel agent). To add or remove an app, see the `new-app` and `remove-app` skills under `.claude/skills/` and the matching sections of [AGENTS.md](../AGENTS.md).

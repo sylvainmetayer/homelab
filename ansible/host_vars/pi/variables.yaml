@@ -56,3 +56,12 @@ security_unattended_extra_origins:
 # Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
 # reste non lu dans /var/mail/root.
 security_mta_enabled: true
+
+# --- Agent Beszel (rôle beszel_agent) ---
+# Un seul disque, le SSD NVMe WD_BLACK SN770 derrière un pont USB Realtek
+# RTL9210 (0bda:9210) : smartctl ne le lit qu'en -d sntrealtek. Immich est sur
+# ce même disque (/), déjà suivi comme disque racine. Non vérifié avant le
+# déploiement (pas de smartctl sur le Pi) : si le pont ne remonte rien,
+# l'agent le journalise et la page S.M.A.R.T. du Pi reste vide.
+beszel_agent_smart_devices:
+  - { path: /dev/sda, type: sntrealtek }

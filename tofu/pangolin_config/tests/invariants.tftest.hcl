@@ -143,6 +143,11 @@ override_resource {
   values = { id = 2009 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.beszel_agent_connect
+  values = { id = 2012 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les 17 ressources gérées, et un
@@ -154,6 +159,7 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"resources": [
+        {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
@@ -173,7 +179,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 19, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 20, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -205,7 +211,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2004 à 2011) : si l'une d'elles disparaît de
+# règles spécifiques (2004 à 2012) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -219,9 +225,10 @@ override_data {
         {"ruleId": 2006, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 12, "enabled": true},
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
         {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
+        {"ruleId": 2012, "action": "PASS", "match": "PATH", "value": "/api/beszel/agent-connect", "priority": 3, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 8, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 9, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -344,6 +351,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["beszel"]
+  values = { id = 65 }
+}
+
+override_resource {
   target = pangolin_resource.website["nginx_demo"]
   values = { id = 64 }
 }
@@ -388,6 +400,12 @@ override_resource {
 override_resource {
   target = pangolin_resource_access_token.trek_mcp_clients
   values = { id = "tok-trek-mcp", token = "jeton-trek-mcp" }
+}
+
+# Un identifiant commun aux deux agents distants de Beszel.
+override_resource {
+  target = pangolin_resource_access_token.beszel_agents
+  values = { id = "tok-beszel-agent", token = "jeton-beszel-agent" }
 }
 
 override_resource {
@@ -501,6 +519,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["beszel"]
+  values = { push_token = "push-beszel" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["wiki"]
   values = { push_token = "push-wiki" }
 }
@@ -563,7 +586,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
 
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
-      "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
+      "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
@@ -930,6 +953,21 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "/mcp de TREK doit être un PASS (pas un ACCEPT) sur le chemin exact, avant les règles pays : le jeton d'accès Pangolin reste exigé."
   }
 
+  # Point d'entrée des agents Beszel : même traitement que /mcp de TREK, un
+  # PASS sur le chemin exact, jamais un ACCEPT ni un joker.
+  assert {
+    condition = (
+      pangolin_resource_rule.beszel_agent_connect.action == "PASS"
+      && pangolin_resource_rule.beszel_agent_connect.match == "PATH"
+      && pangolin_resource_rule.beszel_agent_connect.value == "/api/beszel/agent-connect"
+      && pangolin_resource_rule.beszel_agent_connect.enabled == true
+      && pangolin_resource_rule.beszel_agent_connect.priority >= 2 && pangolin_resource_rule.beszel_agent_connect.priority < 10
+      && pangolin_resource_rule.beszel_agent_connect.resource_id == pangolin_resource.website["beszel"].id
+      && !contains(keys(local.path_bypasses), "Beszel")
+    )
+    error_message = "Le point d'entrée des agents Beszel doit être un PASS sur /api/beszel/agent-connect exact, avant les règles pays, et rien de Beszel dans local.path_bypasses."
+  }
+
   # Ni l'enregistrement dynamique, ni l'autorisation (navigateur de
   # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface : la
   # surface OAuth est la seule ouverture de TREK en priorité 2, sur des
@@ -968,7 +1006,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       for rule in concat(
         values(pangolin_resource_rule.path_bypass),
         values(pangolin_resource_rule.backslash_guard),
-        [pangolin_resource_rule.trek_mcp],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect],
       ) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
@@ -1107,7 +1145,7 @@ run "backslash_guard_covers_every_path_rule" {
 
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
-      "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
+      "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
       "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "RSS", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
@@ -1125,7 +1163,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = alltrue([
       for rule in concat(
-        [pangolin_resource_rule.trek_mcp],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
@@ -1240,6 +1278,55 @@ run "trek_mcp_connector_url_carries_the_token" {
       && output.trek_mcp_client_access_tokens[client].headers["P-Access-Token"] == "jeton-trek-mcp"
     ])
     error_message = "L'URL de connecteur doit être https://<domaine>/mcp?p_token=<id>.<jeton>."
+  }
+}
+
+# Les agents Beszel des hôtes Hetzner passent le PASS de leur point d'entrée
+# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes (HUB_HEADERS, au
+# format « Nom: valeur » séparé par des virgules que lit l'agent). Ceux du LAN
+# n'en ont pas : ils parlent au hub sans Pangolin.
+run "beszel_remote_agents_use_their_own_access_token" {
+  command = apply
+
+  assert {
+    condition     = pangolin_resource.website["beszel"].sso == true
+    error_message = "Beszel doit rester derrière le mur SSO de Pangolin."
+  }
+
+  assert {
+    condition     = toset(keys(pangolin_resource_access_token.beszel_agents)) == toset(["flip", "pangolin"])
+    error_message = "Un jeton d'accès Pangolin par agent Beszel distant : flip et pangolin, rien d'autre."
+  }
+
+  assert {
+    condition = alltrue([
+      for token in pangolin_resource_access_token.beszel_agents :
+      token.resource_id == pangolin_resource.website["beszel"].id
+    ])
+    error_message = "Les jetons des agents doivent viser la ressource Beszel."
+  }
+
+  assert {
+    condition     = length(distinct([for token in pangolin_resource_access_token.beszel_agents : token.title])) == 2
+    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
+  }
+
+  assert {
+    condition = output.beszel_agent_hub_headers == {
+      flip     = "P-Access-Token-Id: tok-beszel-agent, P-Access-Token: jeton-beszel-agent"
+      pangolin = "P-Access-Token-Id: tok-beszel-agent, P-Access-Token: jeton-beszel-agent"
+    }
+    error_message = "beszel_agent_hub_headers doit donner à chaque agent distant ses en-têtes P-Access-Token-Id / P-Access-Token."
+  }
+
+  # Contrat Tofu <-> Ansible : chaque playbook d'hôte distant lit la sortie
+  # sous la clé inventory_hostname.
+  assert {
+    condition = alltrue([
+      for playbook in ["flip.yml", "pangolin.yaml"] :
+      strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]")
+    ])
+    error_message = "flip.yml et pangolin.yaml doivent lire terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]."
   }
 }
 
@@ -1397,6 +1484,7 @@ run "every_public_resource_applies_its_rules" {
   # pangolin-route).
   assert {
     condition = { for key, r in pangolin_resource.website : key => r.name } == {
+      beszel           = "Beszel"
       betisier         = "Betisier"
       dawarich         = "Dawarich"
       demo_planning    = "Demo Planning"
@@ -1529,6 +1617,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   # s'ajoute ici (voir le skill pangolin-route).
   assert {
     condition = { for key, m in uptimekuma_monitor_http_keyword.healthcheck : key => m.name } == {
+      beszel        = "Healthcheck Beszel"
       betisier      = "Healthcheck Betisier"
       dawarich      = "Healthcheck Dawarich"
       demo_planning = "Healthcheck Demo Planning"
@@ -1756,6 +1845,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
+    condition     = output.uptime_backup_beszel_url == "https://uptime.example.test/api/push/push-beszel"
+    error_message = "uptime_backup_beszel_url (docker.yml) ne pointe pas sur le moniteur Backup Beszel."
+  }
+
+  assert {
     condition     = output.uptime_backup_nginx_demo_url == "https://uptime.example.test/api/push/push-nginx-demo"
     error_message = "uptime_backup_nginx_demo_url (docker.yml) ne pointe pas sur le moniteur Backup Nginx Demo."
   }
@@ -1810,6 +1904,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_karakeep_url,
       output.uptime_backup_wishlist_url,
       output.uptime_backup_nginx_demo_url,
+      output.uptime_backup_beszel_url,
       output.uptime_backup_paperless_url,
       output.uptime_backup_flip_planning_url,
       output.uptime_backup_demo_planning_url,
@@ -2020,6 +2115,7 @@ run "monitors_are_filed_and_notify_by_email" {
   # moved.tf lui a donnée et le nom qu'Uptime Kuma affiche.
   assert {
     condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
+      beszel        = "Backup Beszel"
       betisier      = "Backup Betisier"
       dawarich      = "Backup Dawarich"
       demo_planning = "Backup Demo Planning"

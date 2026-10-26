@@ -29,3 +29,11 @@ security_unattended_reboot_time: "05:00"
 # Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
 # reste non lu dans /var/mail/root.
 security_mta_enabled: true
+
+# --- Hub Beszel (rôle beszel) ---
+# Port du hub publié aussi sur le LAN, pour les agents du Pi, du NAS et du
+# LXC newt. Publié par Docker, donc avant ufw : l'interface répond sans SSO à
+# tout le LAN, et le compte Beszel est alors la seule barrière.
+beszel_publish_addresses:
+  - 127.0.0.1
+  - 192.168.1.216

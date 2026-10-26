@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: beszel
+
+# Prepare propre : une base PocketBase existante, que le backup doit copier
+# par « .backup » (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

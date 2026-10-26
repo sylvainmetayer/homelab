@@ -1,0 +1,86 @@
+---
+# Le proxy tourne sous nobody avec le groupe docker (accès au socket), et
+# l'agent rejoint ce groupe pour son socket à lui : le gid de l'hôte.
+- name: Read the docker group of the host
+  ansible.builtin.getent:
+    database: group
+    key: docker
+
+- name: Remember the docker gid
+  ansible.builtin.set_fact:
+    beszel_agent_docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+
+# dc : dossier de l'utilisateur de déploiement, que lit dc@. compose (NAS) :
+# root, comme tout ce qui est lancé par sudo docker.
+- name: Ensure the Beszel agent folder exists
+  become: "{{ beszel_agent_mode == 'compose' }}"
+  ansible.builtin.file:
+    path: "{{ beszel_agent_base_path }}"
+    state: directory
+    owner: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_gid'] }}"
+    mode: "0700"
+
+# L'agent (root sans capacité) est propriétaire de ses données.
+- name: Ensure the Beszel agent data folder belongs to root
+  become: true
+  ansible.builtin.file:
+    path: "{{ beszel_agent_base_path }}/data"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Le proxy (nobody, groupe docker) y crée son socket ; l'agent le traverse par
+# le groupe.
+- name: Ensure the socket proxy folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ beszel_agent_base_path }}/socket"
+    state: directory
+    owner: "65534"
+    group: "{{ beszel_agent_docker_gid }}"
+    mode: "0750"
+
+- name: Template the Beszel agent compose configuration
+  become: "{{ beszel_agent_mode == 'compose' }}"
+  diff: false
+  notify: Restart beszel_agent
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ beszel_agent_base_path }}/compose.yaml"
+    owner: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template the Beszel agent environment
+  become: "{{ beszel_agent_mode == 'compose' }}"
+  diff: false
+  notify: Restart beszel_agent
+  ansible.builtin.template:
+    src: templates/env.j2
+    dest: "{{ beszel_agent_base_path }}/.env"
+    owner: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_mode == 'compose' else ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure the Beszel agent service is running
+  when: beszel_agent_mode == 'dc'
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: "dc@{{ beszel_agent_service }}"
+    scope: user
+    enabled: true
+
+# NAS : ni dc@ ni lingering sous UGOS. `up -d` recrée ce dont la
+# configuration a changé (compose ou .env) et ne touche pas au reste ; la
+# restart policy fait le reste au démarrage du NAS.
+- name: Start the Beszel agent with docker compose
+  when: beszel_agent_mode == 'compose'
+  become: true
+  ansible.builtin.command:
+    cmd: docker compose up -d --remove-orphans
+    chdir: "{{ beszel_agent_base_path }}"
+  register: beszel_agent_compose_up
+  changed_when: beszel_agent_compose_up.stderr is search('(Creat|Recreat|Start)(ed|ing)')

@@ -1,0 +1,124 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Verify the beszel deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: beszel
+        verify_app_borgmatic_config: /etc/borgmatic.d/beszel.yaml
+
+    - name: Verify the beszel hub is healthchecked
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: beszel
+        verify_compose_healthchecks:
+          - hub
+
+    - name: Render the beszel compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/beszel
+      register: beszel_compose_raw
+      changed_when: false
+
+    # Un seul conteneur, sur newt ; le port publié sur 127.0.0.1 (l'agent de
+    # l'hôte) et sur l'adresse LAN de la VM docker (Pi, NAS, LXC), jamais sur
+    # toutes les interfaces.
+    - name: Assert the hub joins newt and publishes its port on the listed addresses only
+      vars:
+        beszel_compose: "{{ beszel_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_compose.services.hub.networks.keys() | list == ['newt']
+          - beszel_compose.services.hub.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
+          - beszel_compose.services.hub.ports | map(attribute='target') | unique == [8090]
+          - beszel_compose.services.hub.cap_drop == ['ALL']
+          - beszel_compose.services.hub.cpus is not defined
+          - beszel_compose.services.hub.mem_limit is defined
+        fail_msg: "Hub beszel inattendu : {{ beszel_compose.services.hub }}"
+
+    - name: Stat the files the hub reads
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/beszel/beszel_data
+        - /opt/apps/beszel/beszel_data/id_ed25519
+        - /opt/apps/beszel/beszel_data/config.yml
+        - /opt/apps/beszel/.env
+      register: beszel_files
+
+    # Le hub tourne en root sans capacité : ses fichiers sont à root, privés.
+    - name: Assert the hub files are private and owned as expected
+      ansible.builtin.assert:
+        that:
+          - beszel_files.results[0].stat.pw_name == 'root'
+          - beszel_files.results[0].stat.mode == '0700'
+          - beszel_files.results[1].stat.pw_name == 'root'
+          - beszel_files.results[1].stat.mode == '0600'
+          - beszel_files.results[2].stat.pw_name == 'root'
+          - beszel_files.results[2].stat.mode == '0600'
+          - beszel_files.results[3].stat.mode == '0600'
+
+    - name: Read the hub systems and environment
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/beszel/beszel_data/config.yml
+        - /opt/apps/beszel/beszel_data/id_ed25519
+        - /opt/apps/beszel/.env
+      register: beszel_contents
+
+    # Un système par clé de beszel_agent_tokens, avec SON jeton, rattaché au
+    # compte administrateur.
+    - name: Assert config.yml declares every host with its own token
+      vars:
+        beszel_config: "{{ beszel_contents.results[0].content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_config.systems | map(attribute='name') | list == ['docker', 'flip', 'nas', 'newt-lxc', 'pangolin', 'pi']
+          - beszel_config.systems | map(attribute='token') | list == (beszel_agent_tokens | dict2items | sort(attribute='key') | map(attribute='value') | list)
+          - beszel_config.systems | map(attribute='users') | unique == [[pangolin_le_email]]
+        fail_msg: "config.yml inattendu : {{ beszel_config }}"
+
+    - name: Assert the hub key and environment come from the secrets
+      vars:
+        beszel_env: "{{ beszel_contents.results[2].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - (beszel_contents.results[1].content | b64decode | trim) == beszel_hub_private_key
+          - "'DISABLE_SSH=true' in beszel_env"
+          - "'CONTAINER_DETAILS=false' in beszel_env"
+          - "'APP_URL=https://monitoring.sylvain.cloud' in beszel_env"
+          - ('USER_PASSWORD=' ~ beszel_admin_password) in beszel_env
+
+    - name: Read the beszel borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/beszel.yaml
+      register: beszel_borgmatic_raw
+
+    # data.db (posée par prepare.yml) est copiée par « .backup », jamais
+    # archivée vivante ; le reste de beszel_data (clé, config.yml) suit.
+    - name: Assert the PocketBase database is copied by .backup, not archived live
+      vars:
+        beszel_borgmatic: "{{ beszel_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/beszel' in beszel_borgmatic.source_directories"
+          - "'/opt/apps/beszel/beszel_data' in beszel_borgmatic.source_directories"
+          - >-
+            beszel_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/beszel/beszel_data/data\\.db ')
+            | list | length == 1
+          - "'/opt/apps/beszel/beszel_data/*.db' in beszel_borgmatic.exclude_patterns"
+          - "'/opt/apps/beszel/beszel_data/*.db-wal' in beszel_borgmatic.exclude_patterns"
+          - beszel_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./beszel'
+          - beszel_borgmatic.archive_name_format is match('beszel-')
+        fail_msg: "Configuration borgmatic de beszel inattendue : {{ beszel_borgmatic }}"

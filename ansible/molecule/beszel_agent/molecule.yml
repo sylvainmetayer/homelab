@@ -1,0 +1,8 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# L'agent en conteneur (mode dc) avec les variables du Pi : S.M.A.R.T. sur un
+# pont USB-NVMe, donc l'image -alpine, CAP_SYS_RAWIO et le périphérique. Le
+# proxy du socket Docker en sidecar. Aucune image n'est tirée (bouchon dc@ du
+# prepare commun) : le verify regarde le modèle compose.
+scenario:
+  name: beszel_agent

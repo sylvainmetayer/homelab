@@ -170,6 +170,11 @@ override_resource {
   values = { id = 2009 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.beszel_agent_connect
+  values = { id = 2012 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les ressources gérées, et un
@@ -181,6 +186,7 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"resources": [
+        {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
@@ -199,7 +205,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 18, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 19, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -231,7 +237,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2011) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2012) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -249,10 +255,11 @@ override_data {
         {"ruleId": 2008, "action": "DROP", "match": "PATH", "value": "/*/*%5C*/*", "priority": 1, "enabled": true},
         {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
+        {"ruleId": 2012, "action": "PASS", "match": "PATH", "value": "/api/beszel/agent-connect", "priority": 3, "enabled": true},
         {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 13, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 14, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -315,8 +322,8 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 13
-    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (13 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 14
+    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (14 règles chacune dans la réponse simulée)."
   }
 
   assert {

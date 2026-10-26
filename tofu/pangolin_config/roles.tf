@@ -20,7 +20,8 @@ locals {
     "trek",
     "karakeep",
     "wishlist",
-    "nginx-demo"
+    "nginx-demo",
+    "beszel"
   ]
 }
 

@@ -1,0 +1,115 @@
+---
+- name: Refuse to deploy the Beszel hub without its secrets
+  ansible.builtin.assert:
+    that:
+      - beszel_admin_password | default('') | length > 0
+      - beszel_hub_private_key | default('') | length > 0
+      - beszel_agent_tokens | default({}) | length > 0
+    fail_msg: >-
+      Clés sops manquantes : beszel_admin_password, beszel_hub_private_key,
+      beszel_agent_tokens (ansible/secrets.sops.yaml).
+    quiet: true
+
+- name: Ensure Beszel app folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ beszel_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Le hub tourne en root sans aucune capacité (cap_drop: ALL) : ses données et
+# ce qu'Ansible y dépose doivent appartenir à root, sans quoi il ne peut ni
+# les lire ni y écrire.
+- name: Ensure Beszel data folder is owned by root
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ beszel_base_path }}/beszel_data"
+    state: directory
+    owner: root
+    group: root
+
+# Clé du hub : les agents ne parlent qu'au hub qui signe avec elle (KEY =
+# beszel_hub_public_key). Dans sops plutôt que générée par le hub : une
+# reconstruction garde la même, et les agents la connaissent avant le premier
+# démarrage du hub.
+- name: Install the Beszel hub key
+  become: true
+  diff: false
+  notify: Restart beszel
+  ansible.builtin.copy:
+    content: "{{ beszel_hub_private_key | trim }}\n"
+    dest: "{{ beszel_base_path }}/beszel_data/id_ed25519"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Template the Beszel systems
+  become: true
+  diff: false
+  notify: Restart beszel
+  ansible.builtin.template:
+    src: templates/config.yml.j2
+    dest: "{{ beszel_base_path }}/beszel_data/config.yml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart beszel
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ beszel_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart beszel
+  ansible.builtin.template:
+    src: templates/env.j2
+    dest: "{{ beszel_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). data.db et
+# auxiliary.db (PocketBase) sont copiées par « .backup » ; le reste de
+# beszel_data (clé, config.yml) suit en fichiers.
+- name: Configure borgmatic backup for Beszel
+  when: beszel_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: beszel
+    borgmatic_app_title: Beszel
+    borgmatic_app_target: "{{ beszel_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ beszel_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ beszel_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ beszel_base_path }}/beszel_data"
+      - "{{ beszel_base_path }}/compose.yaml"
+      - "{{ beszel_base_path }}/.env"
+    borgmatic_app_sqlite_databases:
+      - "{{ beszel_base_path }}/beszel_data/*.db"
+    # Les bases vivantes jamais en fichiers, même avant que le glob ci-dessus
+    # les trouve (premier déploiement, avant le premier démarrage du hub).
+    borgmatic_app_exclude_patterns:
+      - "{{ beszel_base_path }}/beszel_data/*.db"
+      - "{{ beszel_base_path }}/beszel_data/*.db-wal"
+      - "{{ beszel_base_path }}/beszel_data/*.db-shm"
+
+- name: Make sure beszel service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@beszel
+    scope: user
+    enabled: true

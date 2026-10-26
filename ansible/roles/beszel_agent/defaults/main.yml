@@ -1,0 +1,73 @@
+---
+# Agent Beszel (issue #79) : un par hôte, qui ouvre lui-même une WebSocket
+# vers le hub (rôle beszel, VM docker). Aucun port en écoute (DISABLE_SSH) :
+# rien à ouvrir dans ufw ni dans le pare-feu d'UGOS.
+#
+# Trois façons de le faire tourner (beszel_agent_mode) :
+#   - dc        conteneur, projet compose lancé par dc@beszel_agent (docker,
+#               pi, pangolin, flip) ;
+#   - compose   le même conteneur, lancé par `docker compose up -d` et la
+#               restart policy (NAS : ni dc@ ni lingering sous UGOS) ;
+#   - binary    binaire et service systemd, sans Docker (LXC newt, sur le
+#               modèle de newt_service).
+beszel_agent_mode: dc
+
+# Nom du système dans le hub : la clé de beszel_agent_tokens (sops) et du
+# config.yml du hub.
+beszel_agent_name: "{{ inventory_hostname }}"
+beszel_agent_token: "{{ beszel_agent_tokens[beszel_agent_name] | default('') }}"
+# Clé publique du hub (sops beszel_hub_public_key) : l'agent ne parle qu'au
+# hub qui signe avec la clé privée correspondante.
+beszel_agent_hub_key: "{{ beszel_hub_public_key | default('') }}"
+
+# Adresse du hub. Par défaut le port publié sur le LAN par la VM docker (rôle
+# beszel) ; 127.0.0.1 sur la VM docker elle-même ; l'URL publique pour
+# pangolin et flip, avec leur jeton d'accès Pangolin en en-têtes.
+beszel_agent_hub_url: "http://192.168.1.216:8090"
+# HUB_HEADERS, « Nom: valeur » séparés par des virgules : pour pangolin et
+# flip, les en-têtes du jeton d'accès Pangolin (sortie beszel_agent_hub_headers
+# de tofu/pangolin_config, posée par le playbook). Vide ailleurs.
+beszel_agent_hub_headers: ""
+
+# S.M.A.R.T. : périphériques passés au conteneur, et leur type smartctl s'il
+# faut le forcer (un pont USB-NVMe comme le RTL9210 du Pi : sntrealtek). Vide :
+# SMART coupé, et l'image sans smartctl. Non vide : l'image -alpine (avec
+# smartctl), CAP_SYS_RAWIO et les périphériques. Toujours le disque entier
+# (sda), jamais une partition.
+#   - { path: /dev/sda, type: sntrealtek }
+beszel_agent_smart_devices: []
+# Systèmes de fichiers en plus du disque racine, montés en lecture seule dans
+# /extra-filesystems/<name> (mode conteneur).
+#   - { path: /volume1, name: volume1 }
+beszel_agent_extra_filesystems: []
+
+# --- Modes dc et compose (conteneur) ----------------------------------------
+beszel_agent_service: beszel_agent
+beszel_agent_base_path: "{{ docker_base_path }}/{{ beszel_agent_service }}"
+# Proxy du socket Docker (wollomatic/socket-proxy), en sidecar : l'agent ne
+# voit pas le socket, seulement le socket unix du proxy, qui ne laisse passer
+# que les GET dont il a besoin (agent/docker.go de Beszel 0.21.1) : liste des
+# conteneurs, leurs statistiques, version et info du démon. Ni inspect (les
+# variables d'environnement, donc les secrets de chaque compose), ni logs, ni
+# aucune écriture. Une montée de Beszel qui appelle autre chose se voit dans
+# les logs du proxy (requête refusée, 403).
+beszel_agent_socket_proxy_allow_get: >-
+  /(v[0-9.]+/)?(_ping|version|info|containers/json|containers/[a-zA-Z0-9_.-]+/stats)
+beszel_agent_socket_proxy_allow_head: >-
+  /(v[0-9.]+/)?_ping
+
+# --- Mode binary --------------------------------------------------------------
+# Même version que les images du compose, suivie par Renovate.
+# renovate: datasource=github-releases depName=henrygd/beszel
+beszel_agent_binary_version: "0.21.1"
+# Sommes des archives de la release (beszel_<version>_checksums.txt) :
+# get_url refuse tout autre fichier. Une montée de version doit aussi les
+# changer.
+beszel_agent_binary_sha256:
+  amd64: 3b6ee592632ec03b9a43312e99a40203a7b3d83fe40dd0c25acda1eb915ea7c0
+  arm64: a6ea544976b9a74398ac88d5da5bb96813d9a2e353a37bbfdb6a903fa8ba1838
+beszel_agent_binary_dir: /usr/local/lib/beszel-agent
+beszel_agent_config_dir: /etc/beszel-agent
+# Services systemd suivis par l'agent (mode binary seulement : en conteneur,
+# pas d'accès au bus système).
+beszel_agent_service_patterns: ""

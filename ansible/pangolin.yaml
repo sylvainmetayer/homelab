@@ -13,6 +13,8 @@
       ansible.builtin.set_fact:
         pangolin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pangolin_url.value | default('') }}"
         pangolin_geoip_healthcheck_url: "{{ terraform_outputs.uptime_cron_geoip_url.value | default('') }}"
+        # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
+        beszel_agent_hub_headers: "{{ terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname] | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -29,3 +31,12 @@
       tags: nat
     - role: pangolin
       tags: pangolin
+    # Agent de supervision, vers le hub par sa ressource publique (PASS sur
+    # /api/beszel/agent-connect, jeton d'accès Pangolin en en-têtes). Mode
+    # compose : Pangolin n'a pas docker_service (ni dc@ ni lingering), la
+    # restart policy relance l'agent au démarrage, comme sur le NAS.
+    - role: beszel_agent
+      tags: beszel_agent,monitoring
+      vars:
+        beszel_agent_mode: compose
+        beszel_agent_hub_url: "https://monitoring.sylvain.cloud"

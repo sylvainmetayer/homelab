@@ -1,0 +1,76 @@
+---
+# Sur le modèle de newt_service : archive de la release vérifiée par sa somme,
+# service systemd sous un utilisateur dynamique, secrets dans un fichier 0600.
+- name: Pick the Beszel agent archive for this architecture
+  ansible.builtin.set_fact:
+    beszel_agent_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+
+- name: Create the Beszel agent install folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the Beszel agent archive
+  become: true
+  ansible.builtin.get_url:
+    url: "https://github.com/henrygd/beszel/releases/download/v{{ beszel_agent_binary_version }}/beszel-agent_linux_{{ beszel_agent_arch }}.tar.gz"
+    dest: "{{ beszel_agent_binary_dir }}/beszel-agent_{{ beszel_agent_binary_version }}_linux_{{ beszel_agent_arch }}.tar.gz"
+    checksum: "sha256:{{ beszel_agent_binary_sha256[beszel_agent_arch] }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Unpack the Beszel agent
+  become: true
+  notify: Restart beszel-agent
+  ansible.builtin.unarchive:
+    src: "{{ beszel_agent_binary_dir }}/beszel-agent_{{ beszel_agent_binary_version }}_linux_{{ beszel_agent_arch }}.tar.gz"
+    dest: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}"
+    remote_src: true
+    include:
+      - beszel-agent
+    owner: root
+    group: root
+    creates: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}/beszel-agent"
+
+- name: Create the Beszel agent configuration directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ beszel_agent_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write the Beszel agent credentials
+  become: true
+  diff: false
+  notify: Restart beszel-agent
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ beszel_agent_config_dir }}/env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the Beszel agent service
+  become: true
+  notify: Restart beszel-agent
+  ansible.builtin.template:
+    src: beszel-agent.service.j2
+    dest: /etc/systemd/system/beszel-agent.service
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Start and enable the Beszel agent
+  become: true
+  ansible.builtin.systemd:
+    name: beszel-agent
+    state: started
+    enabled: true
+    daemon_reload: true
