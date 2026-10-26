@@ -124,15 +124,17 @@ def restore_postgresql(image, name, dump):
 
 def restore_mysql(image, name, dump):
     container = f"restore-db-{secrets.token_hex(4)}"
-    # The official image reads MARIADB_*, linuxserver's MYSQL_*.
-    run("docker", "run", "-d", "--name", container, "-e", "MARIADB_ROOT_PASSWORD=restore-test",
-        "-e", "MYSQL_ROOT_PASSWORD=restore-test", image)
+    # No root password: linuxserver's image only sets it on root@'%' and
+    # leaves root@localhost without one, so a password is refused from inside
+    # the container. Without MYSQL_ROOT_PASSWORD it gives root@'%' none
+    # either, and the official image needs MARIADB_ALLOW_EMPTY_ROOT_PASSWORD.
+    # The container publishes no port and lives as long as the test.
+    run("docker", "run", "-d", "--name", container, "-e", "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1", image)
     try:
-        client = ("env", "MYSQL_PWD=restore-test", "mariadb", "-uroot", "--protocol=tcp", "-h127.0.0.1")
-        # linuxserver's init runs a temporary server WITH networking (its
-        # --init-file sets the root password, so this probe answers), then
-        # shuts it down as soon as it answers and s6 starts the real one: wait
-        # for an uptime that temporary server never reaches.
+        client = ("mariadb", "-uroot", "--protocol=tcp", "-h127.0.0.1")
+        # linuxserver's init runs a temporary server first, then shuts it
+        # down and s6 starts the real one: wait for an uptime that temporary
+        # server never reaches.
         wait_until(container, *client, "-N", "-e",
                    "select variable_value from information_schema.global_status "
                    "where variable_name = 'UPTIME'",
