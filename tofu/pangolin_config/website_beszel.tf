@@ -20,7 +20,7 @@ locals {
   }
 
   # Agents qui joignent le hub par cette ressource publique : les deux hôtes
-  # Hetzner. Ceux du LAN (docker, pi, newt-lxc, nas) parlent au hub par le
+  # Hetzner. Ceux du LAN (docker, pi, newt-lxc, nas, pve) parlent au hub par le
   # port publié sur la VM docker (rôle beszel), sans passer par Pangolin.
   beszel_remote_agents = toset(["flip", "pangolin"])
 }

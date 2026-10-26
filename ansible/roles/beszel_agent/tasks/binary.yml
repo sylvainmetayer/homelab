@@ -2,6 +2,14 @@
 # Sur le modèle de newt_service : archive de la release vérifiée par sa somme,
 # service systemd sous un utilisateur dynamique, secrets dans un fichier 0600.
 # beszel_agent_arch et beszel_agent_archive : vars/main.yml.
+# smartctl, que l'agent lance pour S.M.A.R.T. (déjà là sur Proxmox VE).
+- name: Install smartmontools for S.M.A.R.T.
+  when: beszel_agent_smart_devices | length > 0
+  become: true
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+
 # Le dossier parent aussi : un parent laissé en 0700 (mkdir -p d'un autre
 # outil) rendrait le binaire inaccessible à l'utilisateur dynamique.
 - name: Create the Beszel agent install folder

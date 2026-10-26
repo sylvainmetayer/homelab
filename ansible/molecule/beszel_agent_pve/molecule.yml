@@ -1,0 +1,7 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# L'agent en binaire avec S.M.A.R.T., comme pve.yml. Le conteneur n'a pas de
+# /dev/sda ni de hub : l'agent redémarre en boucle, le verify regarde
+# l'installation (smartctl, unité, environnement), pas la connexion.
+scenario:
+  name: beszel_agent_pve

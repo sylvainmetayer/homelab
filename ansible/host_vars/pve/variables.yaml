@@ -1,0 +1,8 @@
+---
+# Hôte Proxmox VE (pve.yml). En root, comme le provider de tofu/proxmox : ni
+# sudo ni compte sylvain sur l'hôte. Ici plutôt que sur la ligne de
+# inventory/hosts : le ansible_user de group_vars/all l'y emporterait.
+# ansible_become est une variable de connexion : elle l'emporte sur les
+# `become: true` des rôles.
+ansible_user: root
+ansible_become: false
