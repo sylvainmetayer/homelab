@@ -9,11 +9,26 @@ nas_nfs_exports:
     clients:
       - 192.168.1.216
 
+# Applis Docker du NAS : dc@ en unité *système*, exécutée en root (rôle
+# docker_service). sylvain n'est pas dans le groupe docker, /etc/group
+# appartient à UGOS, et le homelab ne gère pas ses utilisateurs. Les rôles
+# d'application lisent docker_service_scope pour le `scope:` de leurs tâches
+# systemd.
+docker_service_scope: system
+# Dossier partagé « docker » créé par l'appli Docker d'UGOS (btrfs) ; chaque
+# appli y a son dossier 0700 root. Partagé en SMB au groupe admin avec
+# `skip smb perm` : un compte admin pourrait y lire ou modifier les composes
+# (secrets, conteneurs lancés en root). Risque accepté (Sylvain, 26/10).
+docker_base_path: /volume1/docker
+# docker.service est désactivé sous UGOS : docker_serv (après le montage des
+# volumes) active docker.socket, et le démon démarre à la première requête.
+docker_service_system_after:
+  - docker_serv.service
+  - docker.service
+
 # --- Agent Beszel (rôle beszel_agent, nas.yml) ---
-# Sous dc@beszel_agent en unité système (root : ni lingering ni groupe docker
-# sous UGOS), dans le dossier partagé docker d'UGOS.
-beszel_agent_mode: dc_system
-beszel_agent_base_path: /volume1/docker/beszel_agent
+# Sous dc@beszel_agent, unité système comme toutes les applis du NAS
+# (docker_service_scope ci-dessus), dans docker_base_path.
 # Les trois disques : sda et sdb (WD40EFZZ, SATA), sdc (WD30EZRX en USB, que
 # `smartctl --scan` voit en -d sat : pas de type à forcer).
 beszel_agent_smart_devices:

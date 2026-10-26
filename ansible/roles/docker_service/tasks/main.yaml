@@ -1,60 +1,101 @@
 ---
-- name: Ensure docker service app folder exists
-  become: true
-  loop:
-    - "{{ docker_base_path }}"
-    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    mode: "0700"
-    state: directory
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_gid'] }}"
+- name: Check the dc@ unit scope
+  ansible.builtin.assert:
+    that:
+      - docker_service_scope in ['user', 'system']
+    fail_msg: "docker_service_scope vaut {{ docker_service_scope }} : user ou system"
+    quiet: true
 
-- name: Copy docker-compose systemd service
-  notify: Daemon reload
-  ansible.builtin.template:
-    src: ./templates/dc@.service.j2
-    dest: ~/.config/systemd/user/dc@.service
-    group: "{{ ansible_facts['user_gid'] }}"
-    owner: "{{ ansible_facts['user_uid'] }}"
-    mode: "0600"
+- name: Install dc@ as a user unit
+  when: docker_service_scope == 'user'
+  block:
+    - name: Ensure docker service app folder exists
+      become: true
+      loop:
+        - "{{ docker_base_path }}"
+        - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "0700"
+        state: directory
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
 
-- name: Enable lingering for user
-  become: true
-  ansible.builtin.file:
-    path: "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
-    state: touch
-    mode: "0600"
-    modification_time: preserve
-    access_time: preserve
+    - name: Copy docker-compose systemd service
+      notify: Daemon reload
+      ansible.builtin.template:
+        src: ./templates/dc@.service.j2
+        dest: ~/.config/systemd/user/dc@.service
+        group: "{{ ansible_facts['user_gid'] }}"
+        owner: "{{ ansible_facts['user_uid'] }}"
+        mode: "0600"
 
-# Le lingering garde le manager systemd de l'utilisateur en vie, avec les
-# groupes qu'il avait à son démarrage. Sur un hôte neuf il démarre avant que
-# geerlingguy.docker ajoute l'utilisateur au groupe docker : les unités dc@ se
-# voient refuser docker.sock alors qu'un shell SSH, lui, a le groupe.
-# reset_connection ci-dessous ne rafraîchit que la connexion d'Ansible.
-- name: Check that the user's systemd manager is in the docker group
-  ansible.builtin.shell: |
-    set -o pipefail
-    gid=$(getent group docker | cut -d: -f3)
-    pid=$(systemctl show -p MainPID --value user@{{ ansible_facts['user_uid'] }}.service)
-    if [ -n "$gid" ] && [ "${pid:-0}" -gt 0 ] && ! grep '^Groups:' "/proc/$pid/status" | grep -qw "$gid"; then
-      echo stale
-    fi
-  args:
-    executable: /bin/bash
-  register: docker_service_manager_groups
-  changed_when: false
-  check_mode: false
+    - name: Enable lingering for user
+      become: true
+      ansible.builtin.file:
+        path: "/var/lib/systemd/linger/{{ ansible_facts['user_id'] }}"
+        state: touch
+        mode: "0600"
+        modification_time: preserve
+        access_time: preserve
 
-# Redémarre aussi les unités dc@ déjà là : elles échouent toutes de toute façon.
-- name: Restart the user's systemd manager so that it joins the docker group
-  become: true
-  ansible.builtin.systemd:
-    name: "user@{{ ansible_facts['user_uid'] }}.service"
-    state: restarted
-  when: docker_service_manager_groups.stdout == 'stale'
+    # Le lingering garde le manager systemd de l'utilisateur en vie, avec les
+    # groupes qu'il avait à son démarrage. Sur un hôte neuf il démarre avant que
+    # geerlingguy.docker ajoute l'utilisateur au groupe docker : les unités dc@ se
+    # voient refuser docker.sock alors qu'un shell SSH, lui, a le groupe.
+    # reset_connection ci-dessous ne rafraîchit que la connexion d'Ansible.
+    - name: Check that the user's systemd manager is in the docker group
+      ansible.builtin.shell: |
+        set -o pipefail
+        gid=$(getent group docker | cut -d: -f3)
+        pid=$(systemctl show -p MainPID --value user@{{ ansible_facts['user_uid'] }}.service)
+        if [ -n "$gid" ] && [ "${pid:-0}" -gt 0 ] && ! grep '^Groups:' "/proc/$pid/status" | grep -qw "$gid"; then
+          echo stale
+        fi
+      args:
+        executable: /bin/bash
+      register: docker_service_manager_groups
+      changed_when: false
+      check_mode: false
 
-- name: Reset ssh connection to allow user changes to take effect
-  ansible.builtin.meta: reset_connection
+    # Redémarre aussi les unités dc@ déjà là : elles échouent toutes de toute façon.
+    - name: Restart the user's systemd manager so that it joins the docker group
+      become: true
+      ansible.builtin.systemd:
+        name: "user@{{ ansible_facts['user_uid'] }}.service"
+        state: restarted
+      when: docker_service_manager_groups.stdout == 'stale'
+
+    - name: Reset ssh connection to allow user changes to take effect
+      ansible.builtin.meta: reset_connection
+
+# Unité système, exécutée en root : ni lingering ni groupe docker. La base des
+# applis appartient à l'hôte, le rôle ne la crée ni ne la modifie (sur le NAS,
+# le dossier partagé « docker » qu'a créé l'appli Docker d'UGOS) ; chaque rôle
+# d'application y crée son propre dossier, 0700 root. Tout est reposé et
+# revérifié à chaque passage : une réinitialisation d'UGOS peut effacer /etc.
+- name: Install dc@ as a system unit
+  when: docker_service_scope == 'system'
+  block:
+    - name: Check the apps folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}"
+      register: docker_service_base_path
+
+    - name: Assert the apps folder exists
+      ansible.builtin.assert:
+        that:
+          - docker_service_base_path.stat.isdir | default(false)
+        fail_msg: "{{ docker_base_path }} n'existe pas : sur le NAS, installer l'appli Docker d'UGOS, qui crée le dossier partagé docker"
+        quiet: true
+
+    - name: Copy the docker-compose systemd system service
+      become: true
+      notify: Daemon reload
+      ansible.builtin.template:
+        src: ./templates/dc@.service.j2
+        dest: /etc/systemd/system/dc@.service
+        owner: root
+        group: root
+        mode: "0644"

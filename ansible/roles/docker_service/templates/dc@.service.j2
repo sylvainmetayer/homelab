@@ -14,6 +14,15 @@ StartLimitIntervalSec=0
 # Passé ce délai le job échoue, et l'unité continue de réessayer en
 # arrière-plan.
 JobRunningTimeoutSec=10min
+{% if docker_service_scope == 'system' %}
+# Unité système : rangée après le démon Docker et ce qui le lance sur l'hôte
+# (docker_service_system_after), sans le tirer par Wants=/Requires= : sur le
+# NAS, docker.service est désactivé, UGOS monte /volume1 (où vit data-root)
+# puis docker_serv active docker.socket ; démarrer Docker plus tôt écrirait
+# ses données sur la racine. Le vrai garde-fou reste l'attente bornée de
+# `docker info` ci-dessous.
+After={{ docker_service_system_after | join(' ') }}
+{% endif %}
 
 [Service]
 Restart=always
@@ -32,9 +41,14 @@ TimeoutStartSec=300
 TimeoutStopSec=120
 WorkingDirectory={{ docker_base_path }}/%i
 
+{% if docker_service_scope == 'system' %}
+# After= ne fait qu'ordonner : au boot, attendre que le démon réponde, deux
+# minutes au plus ; au-delà l'unité échoue et Restart= la relance.
+{% else %}
 # Unité *user* : elle ne peut pas se ranger After=docker.service (unité du
 # manager système). Au boot, attendre que le démon réponde, deux minutes au
 # plus ; au-delà l'unité échoue et Restart= la relance.
+{% endif %}
 ExecStartPre=/usr/bin/timeout 120 /bin/sh -c 'until /usr/bin/docker info >/dev/null 2>&1; do sleep 2; done'
 
 # Ne télécharge que les images absentes, sans interroger le registre pour
@@ -64,6 +78,10 @@ ExecStart=/usr/bin/docker compose up --remove-orphans
 ExecStop=/usr/bin/docker compose stop
 
 [Install]
+{% if docker_service_scope == 'system' %}
+WantedBy=multi-user.target
+{% else %}
 # Unité *user* : son manager n'a pas de multi-user.target, seulement
 # default.target, atteint au démarrage grâce au lingering.
 WantedBy=default.target
+{% endif %}

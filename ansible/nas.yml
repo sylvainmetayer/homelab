@@ -1,8 +1,11 @@
 ---
-# NAS Ugreen (UGOS Pro) : réglages NFS et exports du homelab, puis
-# vérifications. Ni 00-setup, ni security, ni paquets : le système appartient
-# à UGOS. Lancé à la main seulement (ansible-playbook nas.yml), jamais par la
-# CI : aucune clé du NAS dans les secrets GitHub.
+# NAS Ugreen (UGOS Pro) : unité dc@ des applis Docker du NAS, réglages NFS et
+# exports du homelab, puis vérifications. Ni 00-setup, ni security, ni
+# paquets : le système appartient à UGOS. Lancé à la main seulement
+# (ansible-playbook nas.yml), jamais par la CI : aucune clé du NAS dans les
+# secrets GitHub. La racine est un overlay sur l'eMMC : ce qui est posé dans
+# /etc survit aux redémarrages, peut-être pas à une réinitialisation d'UGOS,
+# d'où des rôles qui reposent et revérifient tout à chaque passage.
 - name: Configure the NAS
   hosts: nas
   gather_facts: false
@@ -16,6 +19,9 @@
         expressions: evaluate-on-load
         return_method: vars-only
   roles:
+    # dc@ en unité système, exécutée en root (host_vars/nas).
+    - role: docker_service
+      tags: setup
     - role: nas
       tags: nas
     # Agent de supervision sous dc@beszel_agent en unité système (ni lingering

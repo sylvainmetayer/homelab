@@ -9,4 +9,6 @@
     # Pas de nfsd dans un conteneur (cf. defaults du rôle).
     nas_manage_services: false
   roles:
+    # Comme nas.yml : dc@ en unité système (host_vars/nas).
+    - role: docker_service
     - role: nas
