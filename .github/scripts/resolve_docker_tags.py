@@ -63,14 +63,15 @@ def changed_roles(changed_files):
 
 
 def add_dependents(roles, roles_dir=ANSIBLE_DIR / "roles"):
-    """A role pulled in only through meta/main.yml `dependencies` (nas_storage)
+    """A role pulled in only through meta/main.y(a)ml `dependencies` (nas_storage)
     has no entry, hence no tag, in any playbook: redeploy the roles that
     depend on it instead, since they run it under their own tags.
 
     Returns the expanded role set and, for each changed role, the roles that
     depend on it (transitively)."""
     dependents = {}
-    for meta in roles_dir.glob("*/meta/main.yml"):
+    # Ansible lit indifféremment meta/main.yml et meta/main.yaml.
+    for meta in [*roles_dir.glob("*/meta/main.yml"), *roles_dir.glob("*/meta/main.yaml")]:
         for dep in (yaml.safe_load(meta.read_text()) or {}).get("dependencies") or []:
             name = dep if isinstance(dep, str) else dep.get("role", dep.get("name"))
             dependents.setdefault(name, set()).add(meta.parent.parent.name)
@@ -100,17 +101,33 @@ def resolve_tags(role_tags, roles):
     return matched, resolved
 
 
+def unreferenced_roles(pulled_by, referenced, deployed):
+    """Changed roles that no playbook runs, to warn about.
+
+    `referenced`: roles having an entry in a playbook, `never` included (a
+    change to decommission_app gets its own notice, not this warning).
+    `deployed`: roles having an entry NOT tagged `never`. A dependency counts
+    as deployed only through a deployed dependent: one whose sole dependent is
+    tagged `never` is never run by a merge, and must be reported."""
+    return {
+        role for role, dependents in pulled_by.items()
+        if role not in referenced and not dependents & deployed
+    }
+
+
 def main():
     playbook_paths = sys.argv[1:]
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
     roles, pulled_by = add_dependents(changed_roles(changed_files))
 
     result = {}
-    all_matched_roles = set()
+    referenced = set()
+    deployed = set()
     for playbook_path in playbook_paths:
         role_tags = load_role_tags(playbook_path)
         matched, resolved = resolve_tags(role_tags, roles)
-        all_matched_roles |= matched.keys()
+        referenced |= matched.keys()
+        deployed |= {role for role, tags in matched.items() if "never" not in tags}
 
         for role, tags in matched.items():
             if "never" in tags:
@@ -120,13 +137,8 @@ def main():
 
         result[playbook_path] = ",".join(sorted(resolved))
 
-    # A dependency counts as deployed only if one of its dependents is.
-    unmatched_roles = {
-        role for role in pulled_by
-        if role not in all_matched_roles and not pulled_by[role] & all_matched_roles
-    }
-    for role in unmatched_roles:
-        print(f"::warning::role '{role}' changed but is not referenced in any of {', '.join(playbook_paths)}, ignoring", file=sys.stderr)
+    for role in sorted(unreferenced_roles(pulled_by, referenced, deployed)):
+        print(f"::warning::role '{role}' changed but is not deployed by any of {', '.join(playbook_paths)} (no entry, or only through roles tagged never), ignoring", file=sys.stderr)
 
     print(json.dumps(result))
 

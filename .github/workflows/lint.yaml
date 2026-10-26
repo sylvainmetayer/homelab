@@ -57,6 +57,10 @@ jobs:
       - name: Check that no SOPS key shadows a vars entry
         run: python -I .github/scripts/check_sops_shadowing.py
 
+      # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
+      - name: Test the CI scripts
+        run: python -I -m unittest discover -s .github/scripts -p 'test_*.py'
+
   tofu:
     name: OpenTofu lint
     runs-on: ubuntu-26.04
