@@ -15,6 +15,13 @@
         - /etc/beszel-agent/env
         - /etc/systemd/system/beszel-agent.service
 
+    - name: List the installed Beszel agent versions and archives
+      become: true
+      ansible.builtin.find:
+        paths: "{{ beszel_agent_binary_dir }}"
+        file_type: any
+      register: beszel_agent_installed
+
     - name: Read the credentials file and the unit
       become: true
       ansible.builtin.slurp:
@@ -50,3 +57,8 @@
           - "'DynamicUser=yes' in beszel_agent_unit_file"
           - beszel_agent_tokens['newt-lxc'] not in beszel_agent_unit_file
           - beszel_agent_unit.status.UnitFileState == 'enabled'
+          # Seules la version courante et son archive restent (prepare.yml en
+          # avait posé une précédente).
+          - >-
+            beszel_agent_installed.files | map(attribute='path') | map('basename') | sort
+            == [beszel_agent_binary_version, 'beszel-agent_' ~ beszel_agent_binary_version ~ '_linux_amd64.tar.gz'] | sort

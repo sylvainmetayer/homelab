@@ -6,3 +6,9 @@
 # verify regarde l'installation, pas la connexion.
 scenario:
   name: beszel_agent_lxc
+
+# Prepare propre : une version précédente installée, que le rôle doit
+# supprimer (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml
