@@ -116,3 +116,24 @@
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
+
+    # cmdline.txt du Pi tel que relevé le 2026-10-26 : une ligne, sans saut de
+    # ligne final, sans cgroup_enable=memory.
+    - name: Ensure the fake firmware directory exists
+      ansible.builtin.file:
+        path: /boot/firmware
+        state: directory
+        mode: "0700"
+
+    - name: Install the Pi kernel command line
+      ansible.builtin.copy:
+        dest: /boot/firmware/cmdline.txt
+        mode: "0600"
+        content: >-
+          console=serial0,115200 console=tty1 root=PARTUUID=b1bd4792-02
+          rootfstype=ext4 fsck.repair=yes rootwait cfg80211.ieee80211_regdom=FR
+
+    - name: Start without a pending reboot
+      ansible.builtin.file:
+        path: /var/run/reboot-required
+        state: absent

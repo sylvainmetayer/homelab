@@ -16,3 +16,14 @@ host_tuning_disk_swap_size_mb: 0
 # `docker compose up` attaché envoie tous les logs de conteneur dans journald,
 # qui grossit sans limite (3,6 Go constatés).
 host_tuning_journald_system_max_use: 500M
+
+# Paramètres ajoutés à la ligne de commande du noyau d'un Raspberry Pi
+# (host_tuning_kernel_cmdline_path : une seule ligne, que le firmware ajoute
+# après ses propres paramètres). Vide = le rôle n'y touche pas (tous les hôtes
+# sauf le Pi). Un paramètre absent est ajouté en fin de ligne, le reste n'est
+# pas modifié. Effet au prochain démarrage seulement : le handler pose
+# /var/run/reboot-required, que unattended-upgrades honore (rôle security,
+# Automatic-Reboot à security_unattended_reboot_time). Le rôle ne redémarre
+# jamais l'hôte lui-même.
+host_tuning_kernel_cmdline_params: []
+host_tuning_kernel_cmdline_path: /boot/firmware/cmdline.txt
