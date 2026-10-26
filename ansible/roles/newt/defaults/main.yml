@@ -23,8 +23,9 @@ newt_mem_limit: 256m
 # une ligne « blocked request » dans les logs du proxy. Aucune écriture.
 # Ces appels ne servent qu'à la liste des conteneurs que Pangolin affiche (et
 # à ses blueprints par labels, inutilisés ici) : aucun ne conditionne le
-# routage des cibles. Un appel manquant se lit dans les logs du proxy (403) et
-# de newt (« Failed to list Docker containers »). Une montée de newt doit
+# routage des cibles. Un appel manquant se lit dans les logs du proxy (403 sur
+# autre chose que containers/<id>/json, refusé à chaque liste) et de newt
+# (« Failed to list Docker containers »). Une montée de newt doit
 # relire docker/docker.go.
 newt_socket_proxy_allow_get: >-
   /(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)
