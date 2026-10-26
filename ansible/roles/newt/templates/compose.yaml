@@ -4,17 +4,58 @@ services:
     mem_limit: {{ newt_mem_limit }}
     image: fosrl/newt:1.19.0@sha256:0189c8287058b800cca825590e4c39946b3815344ca48678dd0b96616d639319
     container_name: newt
+    # newt s'inspecte sous son hostname (os.Hostname) pour trouver ses
+    # réseaux : son nom de conteneur, que la liste blanche du proxy est seule
+    # à laisser inspecter.
+    hostname: newt
     restart: unless-stopped
     environment:
       - PANGOLIN_ENDPOINT={{ newt_endpoint }}
       - NEWT_ID={{ newt_client_id }}
       - NEWT_SECRET={{ newt_client_secret }}
-      - DOCKER_SOCKET=unix:///var/run/docker.sock
+      # Le socket du proxy, jamais celui du démon (#853).
+      - DOCKER_SOCKET=unix:///run/socket-proxy/docker.sock
       - DOCKER_ENFORCE_NETWORK_VALIDATION=true
+    # Le socket du proxy lui est ouvert par le groupe docker.
+    group_add:
+      - "{{ newt_docker_gid }}"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./socket:/run/socket-proxy:ro
+    depends_on:
+      - socket-proxy
     networks:
       - newt
+
+  # Seul à voir le socket Docker. Sortie en socket unix (./socket), aucun
+  # réseau : rien d'autre que newt ne peut l'atteindre. Liste blanche dans les
+  # defaults du rôle.
+  socket-proxy:
+    mem_limit: 32m
+    image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    container_name: newt-socket-proxy
+    user: "65534:{{ newt_docker_gid }}"
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command:
+      - "-loglevel={{ newt_socket_proxy_loglevel }}"
+      - "-proxysocketendpoint=/run/socket-proxy/docker.sock"
+      - "-proxysocketendpointfilemode=0660"
+      # Ancrées par le proxy (^...$), sur le chemin seul.
+      - "-allowGET={{ newt_socket_proxy_allow_get }}"
+      - "-allowHEAD={{ newt_socket_proxy_allow_head }}"
+      # Un redémarrage du démon Docker casse la connexion au socket : le
+      # proxy s'arrête et la restart policy le relance.
+      - "-watchdoginterval=600"
+      - "-stoponwatchdog"
+      - "-shutdowngracetime=5"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./socket:/run/socket-proxy
+    restart: unless-stopped
 
 networks:
   newt:

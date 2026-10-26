@@ -6,3 +6,30 @@ newt_endpoint: ""
 # Plafond mémoire du conteneur (doctrine d'AGENTS.md : ~2x le pic mesuré).
 # Surchargé dans host_vars/pi, où passe tout le trafic d'Immich.
 newt_mem_limit: 256m
+
+# Proxy du socket Docker (wollomatic/socket-proxy, #853) : newt ne voit que
+# son socket unix, qui ne laisse passer que les appels de newt 1.19.0
+# (docker/docker.go de fosrl/newt, client moby v0.6.2) :
+#   - HEAD /_ping, puis GET /_ping si le HEAD échoue : négociation de version ;
+#   - GET containers/json : liste, filtrée sur les réseaux de newt ;
+#   - GET containers/<hostname>/json : inspect de newt lui-même, pour trouver
+#     ses réseaux (DOCKER_ENFORCE_NETWORK_VALIDATION : sans lui, newt n'envoie
+#     aucune liste). hostname: newt dans le compose, pour que ce soit le seul
+#     inspect permis ;
+#   - GET events : flux des start/stop de conteneurs.
+# Refusés exprès : l'inspect des autres conteneurs. newt le demande pour leur
+# hostname, ignore l'échec (hostname vide dans la liste), et il donnerait à
+# newt l'environnement, donc les secrets, de chaque compose ; chacun laisse
+# une ligne « blocked request » dans les logs du proxy. Aucune écriture.
+# Ces appels ne servent qu'à la liste des conteneurs que Pangolin affiche (et
+# à ses blueprints par labels, inutilisés ici) : aucun ne conditionne le
+# routage des cibles. Un appel manquant se lit dans les logs du proxy (403) et
+# de newt (« Failed to list Docker containers »). Une montée de newt doit
+# relire docker/docker.go.
+newt_socket_proxy_allow_get: >-
+  /(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)
+newt_socket_proxy_allow_head: >-
+  /(v[0-9.]+/)?_ping
+# info par défaut ; debug journalise chaque requête autorisée (relevé des
+# appels réels, `docker logs newt-socket-proxy`).
+newt_socket_proxy_loglevel: info

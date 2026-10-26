@@ -43,16 +43,45 @@
         fail_msg: "Environnement de newt inattendu : {{ newt_env | map('regex_replace', '^(NEWT_SECRET)=.*', '\\1=***') | list }}"
 
     # Les applications rejoignent `newt` en réseau externe : c'est ce compose
-    # qui le déclare sous ce nom exact. Newt lit le socket Docker (lecture
-    # seule) pour vérifier que la cible est sur son réseau.
-    - name: Assert newt owns the shared newt network and reads the Docker socket
+    # qui le déclare sous ce nom exact. Newt ne voit le démon Docker qu'à
+    # travers le proxy du socket (#853).
+    - name: Assert newt owns the shared newt network and reads Docker through the proxy only
+      vars:
+        newt_proxy: "{{ newt_compose.services['socket-proxy'] }}"
       ansible.builtin.assert:
         that:
           - newt_compose.networks.newt.name == 'newt'
           - not (newt_compose.networks.newt.external | default(false))
           - "'newt' in newt_compose.services.newt.networks"
-          - "'/var/run/docker.sock:/var/run/docker.sock:ro' in newt_compose.services.newt.volumes"
-          - "'DOCKER_SOCKET=unix:///var/run/docker.sock' in newt_env"
+          - newt_compose.services.newt.volumes == ['./socket:/run/socket-proxy:ro']
+          - newt_compose.services.newt.hostname == 'newt'
+          - "'DOCKER_SOCKET=unix:///run/socket-proxy/docker.sock' in newt_env"
           - "'DOCKER_ENFORCE_NETWORK_VALIDATION=true' in newt_env"
           # Défaut du rôle (host_vars/docker ne le surcharge pas ; le Pi, si).
           - newt_compose.services.newt.mem_limit == '256m'
+          # Seul le proxy monte le socket du démon, sans réseau ni capacité.
+          - "'/var/run/docker.sock:/var/run/docker.sock:ro' in newt_proxy.volumes"
+          - newt_proxy.network_mode == 'none'
+          - newt_proxy.read_only
+          - newt_proxy.cap_drop == ['ALL']
+          - newt_proxy.user is match('^65534:[0-9]+$')
+          - (newt_proxy.user.split(':')[1] | int) in newt_compose.services.newt.group_add | map('int')
+          - newt_proxy.mem_limit is defined
+          # GET et HEAD seulement, et pas d'inspect des autres conteneurs.
+          - newt_proxy.command | select('match', '-allow(?!GET=|HEAD=)') | list == []
+          - "'-allowGET=/(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)' in newt_proxy.command"
+          - "'-allowHEAD=/(v[0-9.]+/)?_ping' in newt_proxy.command"
+
+    - name: Stat the socket proxy folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/newt/socket"
+      register: newt_socket_dir
+
+    - name: Assert the socket proxy folder is closed to others
+      ansible.builtin.assert:
+        that:
+          - newt_socket_dir.stat.isdir
+          - newt_socket_dir.stat.mode == '0750'
+          - newt_socket_dir.stat.uid == 65534
+          - newt_socket_dir.stat.gr_name == 'docker'
