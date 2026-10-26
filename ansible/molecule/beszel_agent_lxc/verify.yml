@@ -3,6 +3,7 @@
   hosts: all
   vars_files:
     - ../../roles/beszel_agent/defaults/main.yml
+    - ../../roles/beszel_agent/vars/main.yml
     - ../_shared/vars/fake_secrets.yml
   tasks:
     - name: Stat the agent binary, its credentials and its unit
@@ -61,4 +62,4 @@
           # avait posé une précédente).
           - >-
             beszel_agent_installed.files | map(attribute='path') | map('basename') | sort
-            == [beszel_agent_binary_version, 'beszel-agent_' ~ beszel_agent_binary_version ~ '_linux_' ~ ('arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64') ~ '.tar.gz'] | sort
+            == [beszel_agent_binary_version, beszel_agent_archive] | sort

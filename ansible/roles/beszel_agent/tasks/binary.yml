@@ -1,24 +1,22 @@
 ---
 # Sur le modèle de newt_service : archive de la release vérifiée par sa somme,
 # service systemd sous un utilisateur dynamique, secrets dans un fichier 0600.
-- name: Pick the Beszel agent archive for this architecture
-  ansible.builtin.set_fact:
-    beszel_agent_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
-
+# beszel_agent_arch et beszel_agent_archive : vars/main.yml.
+# Le dossier parent aussi : un parent laissé en 0700 (mkdir -p d'un autre
+# outil) rendrait le binaire inaccessible à l'utilisateur dynamique.
 - name: Create the Beszel agent install folder
   become: true
+  loop:
+    - "{{ beszel_agent_binary_dir }}"
+    - "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}"
   ansible.builtin.file:
-    path: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}"
+    path: "{{ item }}"
     state: directory
     owner: root
     group: root
     # Traversable par tous : le service tourne sous un utilisateur dynamique
     # (DynamicUser), qui doit atteindre le binaire.
     mode: "0755" # NOSONAR
-
-- name: Name the Beszel agent archive
-  ansible.builtin.set_fact:
-    beszel_agent_archive: "beszel-agent_{{ beszel_agent_binary_version }}_linux_{{ beszel_agent_arch }}.tar.gz"
 
 - name: Download the Beszel agent archive
   become: true
@@ -86,11 +84,16 @@
 # Après « Start and enable », dont le daemon-reload a déjà pointé l'unité vers
 # la nouvelle version : un redémarrage avant le handler ne relance jamais un
 # binaire supprimé. L'ancien processus, lui, garde son inode jusqu'au handler.
+# Seulement les noms que ce rôle pose (dossier de version, archive) : un
+# beszel_agent_binary_dir pointé sur un dossier partagé ne perd rien d'autre.
 - name: Find the previous Beszel agent versions
   become: true
   ansible.builtin.find:
     paths: "{{ beszel_agent_binary_dir }}"
     file_type: any
+    patterns:
+      - "[0-9]*"
+      - "beszel-agent_*_linux_*.tar.gz"
     excludes:
       - "{{ beszel_agent_binary_version }}"
       - "{{ beszel_agent_archive }}"
