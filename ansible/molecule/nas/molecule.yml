@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: nas
+
+# Prepare propre : pas d'UGOS dans un conteneur, prepare.yml pose son
+# nfs.json et le dossier partagé.
+ansible:
+  playbooks:
+    prepare: prepare.yml

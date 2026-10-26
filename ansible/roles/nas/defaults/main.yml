@@ -1,0 +1,26 @@
+---
+# NAS Ugreen DXP2800 (UGOS Pro 1.20, Debian 12). Le rôle ne touche que les
+# réglages NFS (fichiers que lit UGOS) et ses propres exports, puis vérifie que
+# le NAS est conforme. Les dossiers partagés se créent dans l'interface.
+
+# Lu par conf_tool (ExecStartPre de nfs-server), qui en régénère
+# /etc/nfs.conf à chaque démarrage : une modif de nfs.conf à la main serait
+# écrasée. "NFSv3" : passer à "NFSv4.1" active bien la v4 dans nfsd, mais
+# UGOS ne déclare aucune pseudo-racine v4 (mountd : « Cannot export / ») et
+# la seule racine possible, /volume1, exposerait @home et @appstore.
+nas_nfs_max_protocol: NFSv3
+nas_nfs_config_path: /etc/nfs.json
+
+# Exports gérés par le rôle, dans un fichier à lui : /etc/exports reste à
+# UGOS (règles NFS de l'interface), que nfs-server relit aussi.
+# Options par défaut : celles qu'UGOS écrit pour « Lecture/écriture, Aucun
+# mappage », avec `sync` imposé (l'interface coche « Async » par défaut).
+nas_nfs_exports_file: /etc/exports.d/homelab.exports
+nas_nfs_export_options: rw,sync,no_wdelay,no_subtree_check,insecure_locks,no_root_squash,sec=sys
+# - path : dossier partagé créé dans l'interface (vérifié par le rôle).
+# - clients : IP seules, jamais un sous-réseau.
+nas_nfs_exports: []
+
+# false pour Molecule : pas de nfsd dans un conteneur. Saute les redémarrages
+# et les vérifications qui interrogent le serveur NFS.
+nas_manage_services: true

@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    # Pas de nfsd dans un conteneur (cf. defaults du rôle).
+    nas_manage_services: false
+  roles:
+    - role: nas

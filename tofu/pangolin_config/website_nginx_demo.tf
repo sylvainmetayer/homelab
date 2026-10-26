@@ -5,7 +5,7 @@
 locals {
   nginx_demo_website = {
     name      = "Nginx Demo"
-    subdomain = "nginx"
+    subdomain = "demo-nginx"
     domain_id = local.domain_ids["sylvain.cloud"]
     role      = "nginx-demo"
     backup    = true

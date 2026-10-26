@@ -1,0 +1,94 @@
+---
+- name: Read the UGOS NFS settings
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ nas_nfs_config_path }}"
+  register: nas_nfs_config_raw
+
+- name: Parse the UGOS NFS settings
+  ansible.builtin.set_fact:
+    nas_nfs_config: "{{ nas_nfs_config_raw.content | b64decode | from_json }}"
+
+# Réécrit seulement si la valeur diffère : l'interface reformate le fichier à
+# chaque enregistrement, une comparaison du texte changerait à chaque run.
+- name: Set the maximum NFS protocol
+  become: true
+  when: nas_nfs_config.maximumNFSProtocol != nas_nfs_max_protocol
+  ansible.builtin.copy:
+    dest: "{{ nas_nfs_config_path }}"
+    content: "{{ nas_nfs_config | combine({'maximumNFSProtocol': nas_nfs_max_protocol}) | to_nice_json(indent=2) }}\n"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart nfs-server
+
+- name: Check the shared folders of the exports
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ nas_nfs_exports }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: nas_nfs_export_dirs
+
+- name: Assert every exported folder exists
+  ansible.builtin.assert:
+    that:
+      - item.stat.isdir | default(false)
+    fail_msg: "{{ item.item.path }} n'existe pas : créer le dossier partagé dans l'interface d'UGOS"
+    quiet: true
+  loop: "{{ nas_nfs_export_dirs.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Create the exports.d folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ nas_nfs_exports_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the homelab NFS exports
+  become: true
+  ansible.builtin.template:
+    src: homelab.exports.j2
+    dest: "{{ nas_nfs_exports_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload NFS exports
+
+- name: Apply pending NFS changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Check the NAS
+  when: nas_manage_services
+  block:
+    - name: Read the NFS server state
+      ansible.builtin.systemd_service:
+        name: nfs-server
+      register: nas_nfs_server
+
+    - name: Read the active NFS exports
+      become: true
+      ansible.builtin.command: exportfs -v
+      register: nas_exportfs
+      changed_when: false
+      check_mode: false
+
+    # exportfs -v replie une entrée sur deux lignes (chemin, puis clients).
+    # En --check, l'export n'a pas été écrit : rien à vérifier encore.
+    - name: Assert NFS is served, every export is active and none is async
+      when: not ansible_check_mode
+      vars:
+        nas_exportfs_flat: "{{ nas_exportfs.stdout | regex_replace('\\n\\s+', ' ') }}"
+      ansible.builtin.assert:
+        that:
+          - nas_nfs_server.status.ActiveState == 'active'
+          - "'async' not in nas_exportfs.stdout"
+          - nas_nfs_exports | map(attribute='path') | reject('in', nas_exportfs_flat) | list | length == 0
+        fail_msg: >-
+          NFS non conforme (service {{ nas_nfs_server.status.ActiveState }}) :
+          {{ nas_exportfs.stdout }}. Une règle de l'interface en « Async » se
+          décoche dans Propriétés du dossier → Permissions NFS.

@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the NFS settings
+      ansible.builtin.slurp:
+        src: /etc/nfs.json
+      register: nas_verify_config
+
+    - name: Read the homelab exports
+      ansible.builtin.slurp:
+        src: /etc/exports.d/homelab.exports
+      register: nas_verify_exports
+
+    # Les autres clés d'UGOS sont gardées telles quelles.
+    - name: Assert the protocol is NFSv3 and the export is sync, to the VM only
+      vars:
+        nas_verify_json: "{{ nas_verify_config.content | b64decode | from_json }}"
+        nas_verify_lines: "{{ nas_verify_exports.content | b64decode | split('\n') | reject('match', '^(#|$)') | list }}"
+      ansible.builtin.assert:
+        that:
+          - nas_verify_json.maximumNFSProtocol == 'NFSv3'
+          - nas_verify_json.enableNfsServer
+          - nas_verify_json.defaultReadPacketSize == 8
+          - nas_verify_lines == ['/volume1/nas-test 192.168.1.216(rw,sync,no_wdelay,no_subtree_check,insecure_locks,no_root_squash,sec=sys)']
+        fail_msg: "nas.json ou exports inattendus : {{ nas_verify_json }} / {{ nas_verify_lines }}"

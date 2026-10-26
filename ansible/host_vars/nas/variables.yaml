@@ -1,0 +1,10 @@
+---
+# UGOS : Python 3.11 de Debian 12, rien d'installé par Ansible.
+ansible_python_interpreter: /usr/bin/python3
+
+nas_nfs_exports:
+  # Pilote de nas_storage (VM docker) : dossier partagé créé dans l'interface
+  # lors de l'essai du 25/10 (corbeille désactivée).
+  - path: /volume1/nas-test
+    clients:
+      - 192.168.1.216

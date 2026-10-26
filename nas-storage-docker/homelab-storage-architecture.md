@@ -203,7 +203,10 @@ Libellés d'UGOS Pro 1.20.0.0142, relevés le 2026-10-25 (test du dossier
 
 1. **Service NFS** : Panneau de configuration → Service de fichiers → onglet
    NFS → « Activer le service NFS ». Dans « Paramètres avancés », « Max
-   protocole NFS » ne propose que **NFSv3** : rien d'autre à régler.
+   protocole NFS » ne propose que **NFSv3**. La valeur est dans
+   `/etc/nfs.json` (`maximumNFSProtocol`), dont `conf_tool` régénère
+   `/etc/nfs.conf` à chaque démarrage de nfs-server ; le rôle `nas` l'épingle.
+   NFSv4.1 y est accepté mais inutilisable : aucune pseudo-racine v4.
 2. **Dossier partagé** : Fichiers → Dossier partagé → « Créer un dossier
    partagé », nom `apps`, emplacement Volume 1. Décocher « Activer la
    corbeille » : sinon UGOS crée `#recycle` (0777) à la racine du partage
@@ -211,28 +214,23 @@ Libellés d'UGOS Pro 1.20.0.0142, relevés le 2026-10-25 (test du dossier
    La fenêtre « Autorisations des dossiers partagés » qui suit ne concerne
    que les comptes UGOS (SMB, interface) : la laisser par défaut
    (Administrateur en lecture/écriture).
-3. **Règle NFS** : clic droit sur `apps` → Propriétés → onglet « Permissions
-   NFS » → « Ajouter » :
-   - « Adresse du serveur » (c'est en fait le **client**) : `192.168.1.216`
-     uniquement, jamais un sous-réseau ;
-   - Permissions : « Lecture/écriture » (le défaut est « Accès interdit ») ;
-   - Squash : **« Aucun mappage »** (le défaut, équivalent `no_root_squash`).
-     Il le faut pour que borg (root sur la VM) lise tout et que l'entrypoint
-     Postgres puisse faire `chown` de son data directory. Le risque est
-     contenu parce que la règle ne vise que l'IP de la VM ;
-   - Sécurité : `AUTH_SYS` (défaut) ;
-   - **« Async » : décocher**. Elle est **cochée par défaut** : laissée ainsi,
-     l'export est `async` et un `fsync()` de Postgres n'est plus garanti ;
-   - « Autoriser les connexions depuis des ports non privilégiés » : laisser
-     décoché ;
-   - Confirmer, puis **Confirmer** aussi dans Propriétés (sinon la règle
-     n'est pas enregistrée).
-4. Le **chemin de montage** est affiché en bas de l'onglet : `/volume1/apps`
-   (défaut de `nas_storage_export`). Depuis la VM,
-   `showmount -e 192.168.1.137` doit lister `/volume1/apps 192.168.1.216`.
+3. **Export NFS** : publié par `ansible-playbook nas.yml` (rôle `nas`,
+   `host_vars/nas`), pas dans l'interface. Le rôle écrit
+   `/etc/exports.d/homelab.exports` (UGOS garde `/etc/exports` pour les règles
+   de l'interface et nfs-server relit les deux) avec les options qu'UGOS
+   donne à « Lecture/écriture, Aucun mappage », mais en `sync` : l'interface
+   coche « Async » par défaut. « Aucun mappage » (`no_root_squash`) est
+   nécessaire pour que borg (root sur la VM) lise tout et que l'entrypoint
+   Postgres fasse `chown` de son data directory ; le risque est contenu
+   parce que l'export ne vise que l'IP de la VM. Le rôle vérifie aussi que
+   le dossier existe, que nfs-server tourne et qu'aucun export n'est `async`.
+   Il est lancé à la main, jamais par la CI.
+4. Chemin exporté : `/volume1/nas-test` aujourd'hui (défaut de
+   `nas_storage_export`, dossier de l'essai du 25/10). Depuis la VM,
+   `showmount -e 192.168.1.137` doit lister `/volume1/nas-test 192.168.1.216`.
 5. Premier test depuis la VM :
    ```bash
-   sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/apps /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
+   sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/nas-test /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
    ```
    En v3 (`sec=sys`), les UID/GID passent tels quels : pas de mapping par nom.
 6. (Recommandé) Snapshots Btrfs planifiés sur `apps`, en complément de borg.

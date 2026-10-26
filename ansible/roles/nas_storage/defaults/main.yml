@@ -2,7 +2,9 @@
 # Export NFS du NAS Ugreen DXP2800 (UGOS Pro), un sous-dossier par appli.
 # Voir nas-storage-docker/homelab-storage-architecture.md.
 nas_storage_server: 192.168.1.137
-nas_storage_export: /volume1/apps
+# Dossier partagé de l'essai du 25/10, exporté vers la VM par nas.yml
+# (host_vars/nas). Un vrai partage `apps` le remplacera.
+nas_storage_export: /volume1/nas-test
 nas_storage_mount_path: /mnt/nas/apps
 
 # Type de système de fichiers attendu au point de montage (contrôle du rôle et
@@ -14,10 +16,12 @@ nas_storage_fstype: nfs
 # (et nas_storage_fstype: tmpfs) ; tout le reste du rôle tourne normalement.
 nas_storage_manage_mount: true
 
-# 3 : UGOS Pro 1.20 ne sert que NFSv3 (« Max protocole NFS ») ; un montage
-# vers=4.x y échoue en « No such file or directory » (aucun pseudo-fs v4
-# exporté). Verrous par NLM : nfs-common fournit rpcbind et rpc-statd, que
-# mount.nfs démarre seul. "4.1" le jour où UGOS exporte en v4.
+# 3 : UGOS Pro 1.20 ne déclare aucune pseudo-racine v4. Passer
+# maximumNFSProtocol à NFSv4.1 (rôle nas) active la v4 dans nfsd, mais un
+# montage vers=4.x échoue en « No such file or directory » (mountd : « Cannot
+# export / ») ; la seule racine fsid=0 possible, /volume1, exposerait @home.
+# Verrous par NLM : nfs-common fournit rpcbind et rpc-statd, que mount.nfs
+# démarre seul.
 nas_storage_nfs_version: "3"
 
 # - hard : sur une coupure du NAS, les écritures bloquent puis reprennent au
