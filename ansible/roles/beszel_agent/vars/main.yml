@@ -1,0 +1,7 @@
+---
+# Dérivé, pas un réglage : les fichiers du conteneur appartiennent à root en
+# mode compose (`sudo docker compose`, Pangolin) et sous un dc@ système (NAS,
+# docker_service_scope: system), à l'utilisateur de déploiement sous un dc@
+# user. Pangolin n'a pas docker_service, d'où le default.
+beszel_agent_dc_scope: "{{ docker_service_scope | default('user') }}"
+beszel_agent_as_root: "{{ beszel_agent_mode == 'compose' or beszel_agent_dc_scope == 'system' }}"

@@ -259,7 +259,9 @@ il n'y a pas de lingering à gérer.
 
 - Composes sous `/volume1/docker/<service>` (`docker_base_path`), dossier
   partagé `docker` créé par l'appli Docker d'UGOS ; il est partagé en SMB au
-  groupe `admin`, d'où un dossier 0700 root par appli. UGOS présente à root
+  groupe `admin`, d'où un dossier 0700 root par appli. Avec `skip smb perm`,
+  un compte admin en SMB pourrait quand même lire ou modifier ces composes
+  (secrets, conteneurs lancés en root) : risque accepté. UGOS présente à root
   des modes de dossiers partagés différents de ceux qu'il montre à sylvain
   (`d---------` pour `nas-test`, `drwx------` pour `docker`, `drwxrwxrwx`
   côté sylvain) : ne pas s'y fier pour diagnostiquer.

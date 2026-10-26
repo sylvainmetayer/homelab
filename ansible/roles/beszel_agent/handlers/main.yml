@@ -1,13 +1,13 @@
 ---
 # Modes conteneur : le compose ou le .env a changé. dc@ redémarre le projet
-# (unité user en mode dc, système en mode dc_system) ; en mode compose, la
+# (unité user, ou système si docker_service_scope vaut system) ; en mode compose, la
 # tâche `docker compose up -d` recrée déjà ce qui a changé, rien à faire ici.
 - name: Restart beszel_agent
-  when: beszel_agent_mode in ['dc', 'dc_system']
-  become: "{{ beszel_agent_mode == 'dc_system' }}"
+  when: beszel_agent_mode == 'dc'
+  become: "{{ beszel_agent_dc_scope == 'system' }}"
   ansible.builtin.systemd:
     name: "dc@{{ beszel_agent_service }}"
-    scope: "{{ 'system' if beszel_agent_mode == 'dc_system' else 'user' }}"
+    scope: "{{ beszel_agent_dc_scope }}"
     state: restarted
 
 - name: Restart beszel-agent

@@ -8,7 +8,15 @@
   vars:
     # Pas de nfsd dans un conteneur (cf. defaults du rôle).
     nas_manage_services: false
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  # Comme nas.yml.
   roles:
-    # Comme nas.yml : dc@ en unité système (host_vars/nas).
+    # dc@ en unité système (host_vars/nas).
     - role: docker_service
     - role: nas
+    # Sous le nom d'inventaire du NAS (sa clé dans beszel_agent_tokens).
+    - role: beszel_agent
+      vars:
+        beszel_agent_name: nas

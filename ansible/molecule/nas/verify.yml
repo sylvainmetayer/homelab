@@ -112,3 +112,56 @@
         fail_msg: >-
           dc@molecule : {{ nas_verify_instance.status.LoadState }}
           depuis {{ nas_verify_instance.status.FragmentPath | default('?') }}
+
+    # Agent Beszel : dc@beszel_agent en unité système, fichiers de root sous
+    # docker_base_path (beszel_agent dérive tout de docker_service_scope).
+    - name: Stat the Beszel agent files
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/beszel_agent/{{ item }}"
+      loop: ["", compose.yaml, .env]
+      register: nas_verify_beszel_files
+
+    - name: Assert the Beszel agent files belong to root, closed to others
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.stat.isdir else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ nas_verify_beszel_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the Beszel agent unit
+      ansible.builtin.systemd:
+        name: dc@beszel_agent
+      register: nas_verify_beszel_unit
+
+    - name: Assert the Beszel agent runs under the system dc@ unit
+      ansible.builtin.assert:
+        that:
+          - nas_verify_beszel_unit.status.ActiveState == 'active'
+          - nas_verify_beszel_unit.status.UnitFileState == 'enabled'
+          - nas_verify_beszel_unit.status.FragmentPath == nas_verify_unit_path
+          - nas_verify_beszel_unit.status.WorkingDirectory == docker_base_path ~ '/beszel_agent'
+        fail_msg: >-
+          dc@beszel_agent : {{ nas_verify_beszel_unit.status.ActiveState }},
+          {{ nas_verify_beszel_unit.status.UnitFileState }}
+
+    - name: Render the Beszel agent compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ docker_base_path }}/beszel_agent"
+      register: nas_verify_beszel_compose
+      changed_when: false
+
+    # Les trois disques du NAS et /volume1 (host_vars/nas).
+    - name: Assert the agent sees the NAS disks and volume
+      vars:
+        nas_verify_agent: "{{ (nas_verify_beszel_compose.stdout | from_json).services.agent }}"
+      ansible.builtin.assert:
+        that:
+          - nas_verify_agent.devices | map(attribute='source') | list == ['/dev/sda', '/dev/sdb', '/dev/sdc']
+          - nas_verify_agent.volumes | selectattr('source', 'equalto', '/volume1') | map(attribute='target') | list == ['/extra-filesystems/volume1']
+        fail_msg: "Agent du NAS inattendu : {{ nas_verify_agent }}"
