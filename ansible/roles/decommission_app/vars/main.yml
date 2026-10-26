@@ -1,0 +1,6 @@
+---
+# Dérivé, pas un réglage : le scope de l'unité dc@ de l'hôte (user partout,
+# system sur le NAS, host_vars/nas). En system, root pilote l'unité et lance
+# docker compose.
+decommission_app_dc_scope: "{{ docker_service_scope | default('user') }}"
+decommission_app_as_root: "{{ decommission_app_dc_scope == 'system' }}"

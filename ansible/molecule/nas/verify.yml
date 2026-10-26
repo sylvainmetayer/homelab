@@ -164,3 +164,11 @@
           - nas_verify_agent.devices | map(attribute='source') | list == ['/dev/sda', '/dev/sdb', '/dev/sdc']
           - nas_verify_agent.volumes | selectattr('source', 'equalto', '/volume1') | map(attribute='target') | list == ['/extra-filesystems/volume1']
         fail_msg: "Agent du NAS inattendu : {{ nas_verify_agent }}"
+
+    # Newt du site nas et Jellyfin (détaillé par le scénario jellyfin) : dc@
+    # système, composes à root en 0600.
+    - name: Verify the newt and Jellyfin deployments
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      loop: [newt, jellyfin]
+      loop_control:
+        loop_var: verify_app_service

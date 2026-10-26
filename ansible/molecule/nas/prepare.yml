@@ -32,6 +32,38 @@
         - /volume1/nas-test
         - /volume1/docker
 
+    # Le dossier partagé des médias de Jellyfin et ses bibliothèques
+    # (defaults du rôle jellyfin), créés dans l'interface sur le NAS.
+    - name: Create the media share and its library folders
+      ansible.builtin.file:
+        path: "/volume1/media{{ item }}"
+        state: directory
+        owner: sylvain
+        mode: "0700"
+      loop: ["", /films, /series, /musique, /livres, /livres-audio]
+
+    # Le périphérique de rendu de l'iGPU (Quick Sync), absent d'un runner :
+    # même numéro que sur le NAS (226:128), au groupe render.
+    - name: Create the render device directory
+      ansible.builtin.file:
+        path: /dev/dri
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create a render device node
+      ansible.builtin.command: mknod -m 0660 /dev/dri/renderD128 c 226 128
+      args:
+        creates: /dev/dri/renderD128
+
+    - name: Give the render device to the render group
+      ansible.builtin.file:
+        path: /dev/dri/renderD128
+        owner: root
+        group: render
+        mode: "0660"
+
     - name: Ensure the system dc@ drop-in directory exists
       ansible.builtin.file:
         path: /etc/systemd/system/dc@.service.d

@@ -1,0 +1,48 @@
+---
+services:
+  jellyfin:
+    # Provisoire (defaults) : à recaler à ~2x memory.peak après une semaine.
+    # Pas de cpus: : un transcodage logiciel de secours ou un scan doit
+    # pouvoir prendre les quatre cœurs du N100.
+    mem_limit: {{ jellyfin_mem_limit }}
+    image: docker.io/jellyfin/jellyfin:12.3@sha256:2038fe038ab3876a80f6e7b7e0aef6607b032c7dc0c9b3ad3296d0b2eba3bbb5
+    container_name: jellyfin
+    # Le compte de l'hôte propriétaire des médias copiés par SMB (defaults :
+    # jellyfin_user), et le groupe du périphérique de rendu pour Quick Sync.
+    user: "{{ jellyfin_uid }}:{{ jellyfin_gid }}"
+    group_add:
+      - "{{ jellyfin_render_gid }}"
+    devices:
+      - {{ jellyfin_render_device }}:{{ jellyfin_render_device }}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      # Jamais en écriture : Jellyfin ne range ni ne supprime rien, l'édition
+      # se fait par SMB.
+      - {{ jellyfin_media_path }}:/media:ro
+    # Sur le LAN : TV, Chromecast et téléphones à la maison. Dehors, le Newt du
+    # NAS sert jellyfin.internal par le réseau newt (tofu/pangolin_config).
+    ports:
+      - "{{ jellyfin_port }}:8096"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--noproxy", "*", "-fsS", "http://127.0.0.1:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Seul conteneur du projet : pas de réseau privé. newt (créé par le
+    # compose du rôle newt) le rend joignable par le Newt du NAS, et lui donne
+    # Internet pour les métadonnées.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

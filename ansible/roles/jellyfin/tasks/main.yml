@@ -1,0 +1,101 @@
+---
+# Avant toute écriture : le dossier partagé des médias et ses dossiers se
+# créent dans l'interface d'UGOS, jamais ici. Sans eux, rien n'est déployé.
+- name: Check the media folders
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ [jellyfin_media_path] + jellyfin_media_folders | map('regex_replace', '^', jellyfin_media_path ~ '/') | list }}"
+  register: jellyfin_media_stat
+
+- name: Assert the media share and its library folders exist
+  vars:
+    jellyfin_media_missing: "{{ jellyfin_media_stat.results | rejectattr('stat.isdir', 'defined') | map(attribute='item') | list
+      + jellyfin_media_stat.results | selectattr('stat.isdir', 'defined') | rejectattr('stat.isdir') | map(attribute='item') | list }}"
+  ansible.builtin.assert:
+    that:
+      - jellyfin_media_missing | length == 0
+    fail_msg: >-
+      Absents ou pas des dossiers : {{ jellyfin_media_missing | join(', ') }}.
+      Créer dans UGOS (Fichiers, Dossier partagé, Créer) le dossier partagé
+      « {{ jellyfin_media_path | basename }} » sur le volume 1, corbeille
+      décochée, puis ses dossiers {{ jellyfin_media_folders | join(', ') }} ;
+      relancer ensuite nas.yml --tags jellyfin.
+    quiet: true
+
+- name: Check the Quick Sync render device
+  ansible.builtin.stat:
+    path: "{{ jellyfin_render_device }}"
+  register: jellyfin_render_stat
+
+- name: Assert the render device exists
+  ansible.builtin.assert:
+    that:
+      - jellyfin_render_stat.stat.ischr | default(false)
+    fail_msg: "{{ jellyfin_render_device }} absent : pas d'iGPU visible pour Quick Sync."
+    quiet: true
+
+# nas.yml ne collecte pas de faits : uid, gid et groupe du périphérique sont
+# lus ici. getent échoue si le compte ou le groupe n'existe pas.
+- name: Read the account Jellyfin runs as
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ jellyfin_user }}"
+
+- name: Read the group of the render device
+  ansible.builtin.getent:
+    database: group
+    key: "{{ jellyfin_render_group }}"
+
+- name: Remember the ids Jellyfin runs with
+  ansible.builtin.set_fact:
+    jellyfin_uid: "{{ ansible_facts['getent_passwd'][jellyfin_user][1] }}"
+    jellyfin_gid: "{{ ansible_facts['getent_passwd'][jellyfin_user][2] }}"
+    jellyfin_render_gid: "{{ ansible_facts['getent_group'][jellyfin_render_group][1] }}"
+
+# dc@ user : dossier de l'utilisateur de déploiement. dc@ système (NAS) :
+# root (jellyfin_as_root, vars/).
+- name: Ensure the Jellyfin folder exists
+  become: "{{ jellyfin_as_root }}"
+  ansible.builtin.file:
+    path: "{{ jellyfin_base_path }}"
+    state: directory
+    owner: "{{ omit if jellyfin_as_root else jellyfin_uid }}"
+    group: "{{ omit if jellyfin_as_root else jellyfin_gid }}"
+    mode: "0700"
+
+# Configuration, base SQLite et cache : au compte du conteneur, sur le disque
+# du NAS (jamais sur NFS).
+- name: Ensure the Jellyfin config and cache folders belong to its account
+  become: true
+  loop:
+    - "{{ jellyfin_base_path }}/config"
+    - "{{ jellyfin_base_path }}/cache"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ jellyfin_uid }}"
+    group: "{{ jellyfin_gid }}"
+    mode: "0700"
+
+- name: Template the Jellyfin compose configuration
+  become: "{{ jellyfin_as_root }}"
+  diff: false
+  notify: Restart jellyfin
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ jellyfin_base_path }}/compose.yaml"
+    owner: "{{ omit if jellyfin_as_root else jellyfin_uid }}"
+    group: "{{ omit if jellyfin_as_root else jellyfin_gid }}"
+    mode: "0600"
+
+# Unité user, ou système sur le NAS (/etc/systemd/system/dc@.service posée par
+# docker_service dans nas.yml).
+- name: Make sure the Jellyfin service is running
+  become: "{{ jellyfin_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ jellyfin_service }}"
+    scope: "{{ jellyfin_dc_scope }}"
+    state: started
+    enabled: true
+    daemon_reload: true

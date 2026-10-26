@@ -1,0 +1,112 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    jellyfin_verify_path: "{{ docker_base_path }}/jellyfin"
+  tasks:
+    # Compose à root en 0600, valide, sous dc@jellyfin en unité système.
+    - name: Verify the Jellyfin deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: jellyfin
+
+    - name: Read the account and the render group of the host
+      ansible.builtin.getent:
+        database: "{{ item.database }}"
+        key: "{{ item.key }}"
+      loop:
+        - { database: passwd, key: sylvain }
+        - { database: group, key: render }
+
+    - name: Render the Jellyfin compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ jellyfin_verify_path }}"
+      register: jellyfin_verify_compose
+      changed_when: false
+
+    - name: Assert Jellyfin runs as sylvain with Quick Sync and read-only media
+      vars:
+        jellyfin_verify_model: "{{ jellyfin_verify_compose.stdout | from_json }}"
+        jellyfin_verify_service: "{{ jellyfin_verify_model.services.jellyfin }}"
+        jellyfin_verify_ids: "{{ ansible_facts['getent_passwd']['sylvain'][1] }}:{{ ansible_facts['getent_passwd']['sylvain'][2] }}"
+        jellyfin_verify_media: "{{ jellyfin_verify_service.volumes | selectattr('target', 'equalto', '/media') | list }}"
+      ansible.builtin.assert:
+        that:
+          - jellyfin_verify_service.image is match('docker.io/jellyfin/jellyfin:12\.[0-9]+@sha256:[0-9a-f]{64}$')
+          # Le compte propriétaire des médias, jamais root.
+          - jellyfin_verify_service.user == jellyfin_verify_ids
+          - ansible_facts['getent_passwd']['sylvain'][1] != '0'
+          - jellyfin_verify_service.group_add | map('string') | list == [ansible_facts['getent_group']['render'][1]]
+          - jellyfin_verify_service.devices | map(attribute='source') | list == ['/dev/dri/renderD128']
+          - jellyfin_verify_service.devices | map(attribute='target') | list == ['/dev/dri/renderD128']
+          - jellyfin_verify_media | length == 1
+          - jellyfin_verify_media[0].source == '/volume1/media'
+          - jellyfin_verify_media[0].read_only | default(false)
+          - jellyfin_verify_service.volumes | map(attribute='source') | list
+            == [jellyfin_verify_path ~ '/config', jellyfin_verify_path ~ '/cache', '/volume1/media']
+          - jellyfin_verify_service.ports | map(attribute='published') | map('string') | list == ['8096']
+          - jellyfin_verify_service.ports | map(attribute='target') | list == [8096]
+          - jellyfin_verify_service.networks.keys() | list == ['newt']
+          - jellyfin_verify_model.networks.newt.external
+          - jellyfin_verify_service.mem_limit is defined
+          - jellyfin_verify_service.cpus is not defined
+          - jellyfin_verify_service.healthcheck.test | select('search', '127\.0\.0\.1:8096/health') | list | length == 1
+        fail_msg: "Service jellyfin inattendu : {{ jellyfin_verify_service }}"
+
+    - name: Stat the Jellyfin folders
+      ansible.builtin.stat:
+        path: "{{ jellyfin_verify_path }}/{{ item }}"
+      loop: ["", config, cache]
+      register: jellyfin_verify_dirs
+
+    # Projet à root (dc@ système) ; config et cache au compte du conteneur.
+    - name: Assert the Jellyfin folders are closed and owned as expected
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+          - item.stat.mode == '0700'
+          - item.stat.pw_name == ('root' if item.item == '' else 'sylvain')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ jellyfin_verify_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Sans le dossier partagé, le rôle s'arrête avant d'écrire quoi que ce
+    # soit, avec un message qui dit quoi créer dans UGOS.
+    - name: Run the role without the media share
+      block:
+        - name: Apply jellyfin with a missing media share
+          ansible.builtin.include_role:
+            name: jellyfin
+          vars:
+            jellyfin_media_path: /volume1/absent
+            jellyfin_base_path: "{{ docker_base_path }}/jellyfin-absent"
+
+        - name: Fail when the missing share went unnoticed
+          ansible.builtin.fail:
+            msg: Le rôle jellyfin a tourné sans dossier partagé des médias.
+      rescue:
+        - name: Assert the failure names the missing share
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result.msg is search('/volume1/absent')
+              - ansible_failed_result.msg is search('Dossier partagé')
+              - ansible_failed_task.name == 'Assert the media share and its library folders exist'
+            fail_msg: "Échec inattendu : {{ ansible_failed_task.name }} / {{ ansible_failed_result.msg | default('') }}"
+
+    - name: Stat the folder of the failed run
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/jellyfin-absent"
+      register: jellyfin_verify_absent
+
+    - name: Assert the failed run wrote nothing
+      ansible.builtin.assert:
+        that:
+          - not jellyfin_verify_absent.stat.exists

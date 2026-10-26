@@ -101,6 +101,36 @@ resource "pangolin_site_resource" "flip" {
   udp_port_range = "*"
 }
 
+# Jellyfin (ansible/roles/jellyfin, sur le NAS), dehors par un client
+# Pangolin ; à la maison, directement sur http://192.168.1.137:8096. Servi par
+# le Newt du NAS, qui joint le conteneur par son nom sur le réseau Docker newt
+# qu'ils partagent : aucune ressource publique. TCP 8096 seul ; UDP à "*"
+# comme ailleurs (le provider ne sait pas envoyer une plage vide), le conteneur
+# n'écoute en UDP que la découverte des clients (7359).
+resource "pangolin_site_resource" "jellyfin" {
+  site_id        = pangolin_site.nas.id
+  name           = "Jellyfin"
+  mode           = "host"
+  alias          = "jellyfin.internal"
+  destination    = "jellyfin"
+  disable_icmp   = true
+  tcp_port_range = "8096"
+  udp_port_range = "*"
+}
+
+# Qui l'atteint : les membres de ce rôle (Sylvain et sa compagne, ajoutés dans
+# l'UI de Pangolin : les utilisateurs ne sont pas gérés ici). Hors de
+# local.apps (roles.tf), dont chaque rôle est lié à une ressource publique.
+resource "pangolin_role" "jellyfin" {
+  name        = "jellyfin"
+  description = "Role for jellyfin.internal"
+}
+
+resource "pangolin_site_resource_role" "jellyfin" {
+  role_id          = pangolin_role.jellyfin.id
+  site_resource_id = pangolin_site_resource.jellyfin.id
+}
+
 resource "pangolin_client" "ci_runner" {
   name = "ci-runner"
 }

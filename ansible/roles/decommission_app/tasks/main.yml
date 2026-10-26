@@ -24,15 +24,19 @@
     quiet: true
   loop: "{{ decommission_app_extra_paths }}"
 
+# Unité user, ou système sur le NAS (docker_service_scope: system) : root
+# la pilote et lance son compose (sylvain n'y est pas dans le groupe docker).
 - name: Stop and disable the app's systemd unit
+  become: "{{ decommission_app_as_root }}"
   ansible.builtin.systemd:
     name: "dc@{{ decommission_app_service }}"
-    scope: user
+    scope: "{{ decommission_app_dc_scope }}"
     state: stopped
     enabled: false
   failed_when: false
 
 - name: Tear down containers, networks and volumes
+  become: "{{ decommission_app_as_root }}"
   ansible.builtin.command:
     cmd: docker compose down --volumes --remove-orphans
     chdir: "{{ decommission_app_base_path }}"
@@ -79,12 +83,16 @@
 
 # Per-instance drop-ins of the shared dc@ template (e.g. the NAS wait).
 - name: Remove the app's dc@ drop-ins
+  become: "{{ decommission_app_as_root }}"
   ansible.builtin.file:
-    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@{{ decommission_app_service }}.service.d"
+    path: >-
+      {{ '/etc/systemd/system' if decommission_app_as_root
+         else ansible_facts['env']['HOME'] ~ '/.config/systemd/user' }}/dc@{{ decommission_app_service }}.service.d
     state: absent
 
-# Sans reload, le manager user garde le drop-in supprimé en mémoire.
-- name: Reload the user systemd manager after removing the drop-ins
+# Sans reload, le manager (user ou système) garde le drop-in supprimé en mémoire.
+- name: Reload the systemd manager after removing the drop-ins
+  become: "{{ decommission_app_as_root }}"
   ansible.builtin.systemd:
     daemon_reload: true
-    scope: user
+    scope: "{{ decommission_app_dc_scope }}"

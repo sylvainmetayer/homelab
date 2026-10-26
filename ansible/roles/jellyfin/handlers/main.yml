@@ -1,0 +1,7 @@
+---
+- name: Restart jellyfin
+  become: "{{ jellyfin_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ jellyfin_service }}"
+    scope: "{{ jellyfin_dc_scope }}"
+    state: restarted
