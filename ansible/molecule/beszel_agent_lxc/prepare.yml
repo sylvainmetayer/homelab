@@ -1,0 +1,30 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Une installation précédente, comme après une montée Renovate : le rôle doit
+# supprimer son dossier de version et son archive (cf. verify.yml).
+- name: Prepare beszel_agent_lxc
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Create a previous Beszel agent version
+      become: true
+      ansible.builtin.file:
+        path: /usr/local/lib/beszel-agent/0.0.1
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create its binary and its archive
+      become: true
+      loop:
+        - /usr/local/lib/beszel-agent/0.0.1/beszel-agent
+        - /usr/local/lib/beszel-agent/beszel-agent_0.0.1_linux_amd64.tar.gz
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ item }}"
+        owner: root
+        group: root
+        mode: "0600"
