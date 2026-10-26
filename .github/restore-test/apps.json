@@ -8,6 +8,7 @@
   "meerkat_crm": { "host": "docker", "repo": "meerkat_crm", "role": "meerkat_crm" },
   "monica": { "host": "docker", "repo": "monica_v4", "role": "monica_v4" },
   "nextcloud": { "host": "docker", "repo": "nextcloud", "role": "nextcloud" },
+  "nginx_demo": { "host": "docker", "repo": "nginx_demo", "role": "nginx_demo" },
   "pangolin": { "host": "pangolin", "repo": "pangolin", "role": "pangolin" },
   "paperless": { "host": "docker", "repo": "paperless", "role": "paperless_ngx" },
   "rss": { "host": "docker", "repo": "rss", "role": "rss" },
