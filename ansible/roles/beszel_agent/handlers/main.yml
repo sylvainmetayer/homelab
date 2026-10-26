@@ -1,0 +1,17 @@
+---
+# Modes dc et compose : le compose ou le .env a changé. dc@ redémarre le
+# projet ; en mode compose, la tâche `docker compose up -d` qui suit les
+# modifications recrée déjà ce qui a changé, rien à faire ici.
+- name: Restart beszel_agent
+  when: beszel_agent_mode == 'dc'
+  ansible.builtin.systemd:
+    name: "dc@{{ beszel_agent_service }}"
+    scope: user
+    state: restarted
+
+- name: Restart beszel-agent
+  become: true
+  ansible.builtin.systemd:
+    name: beszel-agent
+    state: restarted
+    daemon_reload: true

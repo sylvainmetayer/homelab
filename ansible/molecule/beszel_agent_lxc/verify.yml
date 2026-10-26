@@ -1,0 +1,52 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/beszel_agent/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Stat the agent binary, its credentials and its unit
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: beszel_agent_files
+      loop:
+        - "{{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}/beszel-agent"
+        - /etc/beszel-agent/env
+        - /etc/systemd/system/beszel-agent.service
+
+    - name: Read the credentials file and the unit
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: beszel_agent_contents
+      loop:
+        - /etc/beszel-agent/env
+        - /etc/systemd/system/beszel-agent.service
+
+    - name: Read the state of beszel-agent.service
+      ansible.builtin.systemd:
+        name: beszel-agent
+      register: beszel_agent_unit
+
+    - name: Assert the agent is installed from the pinned archive, without secrets on its command line
+      vars:
+        beszel_agent_env: "{{ beszel_agent_contents.results[0].content | b64decode }}"
+        beszel_agent_unit_file: "{{ beszel_agent_contents.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_agent_files.results[0].stat.executable
+          - beszel_agent_files.results[0].stat.pw_name == 'root'
+          - beszel_agent_files.results[1].stat.mode == '0600'
+          - beszel_agent_files.results[1].stat.pw_name == 'root'
+          - ('TOKEN=' ~ beszel_agent_tokens['newt-lxc']) in beszel_agent_env
+          - ('KEY=' ~ beszel_hub_public_key) in beszel_agent_env
+          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env"
+          - "'DISABLE_SSH=true' in beszel_agent_env"
+          - "'DOCKER_HOST=\n' in beszel_agent_env"
+          - "'SERVICE_PATTERNS=newt*' in beszel_agent_env"
+          - "'SMART_DEVICES=\n' in beszel_agent_env"
+          - "'EnvironmentFile=/etc/beszel-agent/env' in beszel_agent_unit_file"
+          - "'DynamicUser=yes' in beszel_agent_unit_file"
+          - beszel_agent_tokens['newt-lxc'] not in beszel_agent_unit_file
+          - beszel_agent_unit.status.UnitFileState == 'enabled'

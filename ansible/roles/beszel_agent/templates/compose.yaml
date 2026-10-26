@@ -1,0 +1,83 @@
+---
+services:
+  agent:
+    # Pas encore mesuré : à fixer à ~2x memory.peak après une semaine (#79).
+    mem_limit: 128m
+{% if beszel_agent_smart_devices | length > 0 %}
+    # -alpine : la seule image avec smartctl.
+    image: docker.io/henrygd/beszel-agent:0.21.1-alpine@sha256:4100e26f7b5e6ab89e73699b2366417795f5046ab36bc452daf1f105766b40a0
+{% else %}
+    image: docker.io/henrygd/beszel-agent:0.21.1@sha256:cb6868012964d7a68debaa2c84bb72285e5f08531e81f506bd4c493bf052e41c
+{% endif %}
+    container_name: beszel-agent
+    # Les statistiques des interfaces réseau de l'hôte.
+    network_mode: host
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    # root sans capacité : son dossier de données lui appartient, et le
+    # socket du proxy lui est ouvert par le groupe docker (group_add).
+    cap_drop:
+      - ALL
+{% if beszel_agent_smart_devices | length > 0 %}
+    cap_add:
+      # SG_IO de smartctl (SATA, ponts USB).
+      - SYS_RAWIO
+    devices:
+{% for device in beszel_agent_smart_devices %}
+      - "{{ device.path }}:{{ device.path }}"
+{% endfor %}
+{% endif %}
+    group_add:
+      - "{{ beszel_agent_docker_gid }}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    env_file:
+      - .env
+    volumes:
+      # L'empreinte de l'agent, que le hub fige à la première connexion : la
+      # perdre, c'est un agent refusé jusqu'à sa remise à zéro dans le hub.
+      - ./data:/var/lib/beszel-agent
+      - ./socket:/run/socket-proxy:ro
+{% for filesystem in beszel_agent_extra_filesystems %}
+      - "{{ filesystem.path }}:/extra-filesystems/{{ filesystem.name }}:ro"
+{% endfor %}
+    depends_on:
+      - socket-proxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/agent", "health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Seul à voir le socket Docker. Sortie en socket unix (./socket), aucun
+  # réseau : rien d'autre que l'agent ne peut l'atteindre.
+  socket-proxy:
+    mem_limit: 32m
+    image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    container_name: beszel-socket-proxy
+    user: "65534:{{ beszel_agent_docker_gid }}"
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command:
+      - "-loglevel=info"
+      - "-proxysocketendpoint=/run/socket-proxy/docker.sock"
+      - "-proxysocketendpointfilemode=0660"
+      # Ancrées par le proxy (^...$), sur le chemin seul.
+      - "-allowGET={{ beszel_agent_socket_proxy_allow_get }}"
+      - "-allowHEAD={{ beszel_agent_socket_proxy_allow_head }}"
+      # Un redémarrage du démon Docker casse la connexion au socket : le
+      # proxy s'arrête et la restart policy le relance.
+      - "-watchdoginterval=600"
+      - "-stoponwatchdog"
+      - "-shutdowngracetime=5"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./socket:/run/socket-proxy
+    restart: unless-stopped

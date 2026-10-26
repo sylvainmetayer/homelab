@@ -6,6 +6,19 @@
 - name: Configure the NAS
   hosts: nas
   gather_facts: false
+  pre_tasks:
+    # Le jeton de l'agent Beszel et la clé du hub. Pas de state Tofu : l'agent
+    # du NAS parle au hub par le LAN, sans jeton Pangolin.
+    - name: Load secrets variable into global namespace
+      tags: always
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+        return_method: vars-only
   roles:
     - role: nas
       tags: nas
+    # Agent de supervision : conteneur lancé par `docker compose up -d` et sa
+    # restart policy (ni dc@ ni lingering sous UGOS), réglé dans host_vars/nas.
+    - role: beszel_agent
+      tags: beszel_agent,monitoring

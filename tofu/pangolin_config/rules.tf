@@ -38,8 +38,9 @@ locals {
   #    2 -  9  app-specific rules evaluated before the geo-filter:
   #            - path ACCEPTs, every one of them from local.path_bypasses
   #              (pangolin_resource_rule.path_bypass);
-  #            - trek_mcp, a PASS, the only standalone path rule: skips the
-  #              country rules but keeps the authentication;
+  #            - trek_mcp and beszel_agent_connect, the two PASS, the only
+  #              standalone path rules: they skip the country rules but keep
+  #              the authentication;
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, dawarich_home_ip,
   #              trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
@@ -217,9 +218,9 @@ resource "pangolin_resource_rule" "block_country" {
 # priority in the 2 - 9 band); this block only turns them into rules. Every one
 # of them is an ACCEPT: the app's own secret (share token, signed URL, API
 # password, MCP key, Keycloak login...) is what protects the content behind it,
-# and the app-side check is named next to each path. The only path rule that is
-# not an ACCEPT, TREK's `/mcp` PASS, stays a standalone resource
-# (website_trek.tf).
+# and the app-side check is named next to each path. The only path rules that
+# are not ACCEPTs, TREK's `/mcp` PASS and Beszel's agent endpoint PASS, stay
+# standalone resources (website_trek.tf, website_beszel.tf).
 #
 # The key is the resource's Pangolin name, as in local.managed_resources.
 # ---------------------------------------------------------------------------
@@ -251,11 +252,14 @@ locals {
   ]...)
 
   # Resources with a path rule that lives in a standalone resource rather than
-  # in local.path_bypasses: only TREK's `/mcp` PASS (pangolin_resource_rule.
-  # trek_mcp, website_trek.tf), the one path rule that is not an ACCEPT. Listed
-  # by hand for the same reason as local.declared_extra_rules below, so that
-  # the guard stays even if TREK's ACCEPTs go away.
+  # in local.path_bypasses: the two PASS, TREK's `/mcp` (pangolin_resource_rule.
+  # trek_mcp, website_trek.tf) and Beszel's agent endpoint
+  # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf), the only
+  # path rules that are not ACCEPTs. Listed by hand for the same reason as
+  # local.declared_extra_rules below, so that the guard stays even if TREK's
+  # ACCEPTs go away.
   standalone_path_rule_resources = [
+    "Beszel",
     "TREK",
   ]
 
@@ -443,6 +447,7 @@ locals {
   # omission fails loudly is the point: the alternative is the silence above.
   declared_extra_rules = concat(
     [
+      pangolin_resource_rule.beszel_agent_connect,
       pangolin_resource_rule.dawarich_home_ip,
       pangolin_resource_rule.immich_home_ip,
       pangolin_resource_rule.trek_home_ip,

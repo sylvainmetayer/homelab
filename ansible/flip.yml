@@ -45,6 +45,8 @@
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
         newt_client_id: "{{ terraform_outputs.flip_newt_id.value | default('') }}"
         newt_client_secret: "{{ terraform_outputs.flip_newt_secret.value | default('') }}"
+        # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
+        beszel_agent_hub_headers: "{{ terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname] | default('') }}"
 
     # An empty NEWT_ID starts a newt that retries forever without saying why.
     - name: Fail clearly when the flip site has no newt credentials
@@ -201,3 +203,10 @@
     # checked with promptoramix_linkx_secret is its only guard.
     - role: promptoramix
       tags: promptoramix,app
+    # Agent de supervision, vers le hub par sa ressource publique (PASS sur
+    # /api/beszel/agent-connect, jeton d'accès Pangolin en en-têtes), à
+    # travers le NAT de Pangolin.
+    - role: beszel_agent
+      tags: beszel_agent,monitoring
+      vars:
+        beszel_agent_hub_url: "https://monitoring.sylvain.cloud"

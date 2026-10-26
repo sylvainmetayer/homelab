@@ -31,3 +31,6 @@
       tags: newt,setup
     - role: immich
       tags: app,immich
+    # Agent de supervision, vers le hub de la VM docker par le LAN.
+    - role: beszel_agent
+      tags: beszel_agent,monitoring

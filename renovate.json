@@ -33,6 +33,15 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "Beszel: the hub, the agent image (plain and -alpine) and the agent binary of the newt LXC (beszel_agent defaults) move together, an agent newer or older than its hub is not supported",
+      "groupName": "beszel",
+      "matchPackageNames": [
+        "docker.io/henrygd/beszel",
+        "docker.io/henrygd/beszel-agent",
+        "henrygd/beszel"
+      ]
+    },
+    {
       "description": "Group all Pangolin role dependencies together",
       "groupName": "pangolin-role-dependencies",
       "matchFileNames": [
@@ -232,9 +241,9 @@
     },
     {
       "customType": "regex",
-      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt): no built-in manager reads plain vars. A borg or newt bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
+      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary): no built-in manager reads plain vars. A borg, newt or Beszel agent bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
       "managerFilePatterns": [
-        "/^ansible/roles/(borgmatic|newt_service)/defaults/main\\.yml$/"
+        "/^ansible/roles/(borgmatic|newt_service|beszel_agent)/defaults/main\\.yml$/"
       ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[a-z_]+:\\s*\"(?<currentValue>[^\"]+)\""

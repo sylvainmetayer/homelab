@@ -1,0 +1,8 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# L'agent en binaire (mode binary) avec les variables du LXC newt, comme
+# lxc.yml. Le vrai binaire est téléchargé (somme vérifiée) ; avec un jeton
+# factice et sans hub, il ne se connecte à rien et redémarre en boucle : le
+# verify regarde l'installation, pas la connexion.
+scenario:
+  name: beszel_agent_lxc

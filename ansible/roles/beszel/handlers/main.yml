@@ -1,0 +1,6 @@
+---
+- name: Restart beszel
+  ansible.builtin.systemd:
+    name: dc@beszel
+    scope: user
+    state: restarted

@@ -1,0 +1,26 @@
+---
+- name: Refuse to start the Beszel agent without its credentials
+  ansible.builtin.assert:
+    that:
+      - beszel_agent_mode in ['dc', 'compose', 'binary']
+      - beszel_agent_token | length > 0
+      - beszel_agent_hub_key | length > 0
+      - beszel_agent_hub_url is match('https?://')
+      # Une URL publique passe par Pangolin : sans jeton d'accès, le mur SSO
+      # refuse l'agent.
+      - beszel_agent_hub_url is not match('https://') or beszel_agent_hub_headers | length > 0
+    fail_msg: >-
+      Agent Beszel de {{ beszel_agent_name }} : mode {{ beszel_agent_mode }},
+      jeton (beszel_agent_tokens.{{ beszel_agent_name }}, sops), clé du hub
+      (beszel_hub_public_key, sops) ou, pour une URL https, en-têtes du jeton
+      Pangolin (sortie beszel_agent_hub_headers de tofu/pangolin_config : tofu
+      apply fait ?) manquants.
+    quiet: true
+
+- name: Deploy the Beszel agent container
+  when: beszel_agent_mode in ['dc', 'compose']
+  ansible.builtin.include_tasks: container.yml
+
+- name: Deploy the Beszel agent binary
+  when: beszel_agent_mode == 'binary'
+  ansible.builtin.include_tasks: binary.yml

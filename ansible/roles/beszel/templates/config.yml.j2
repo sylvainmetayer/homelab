@@ -1,0 +1,13 @@
+# Géré par Ansible (rôle beszel) : systèmes synchronisés à chaque démarrage du
+# hub. Un système absent d'ici est supprimé, historique compris.
+# host/port ne servent qu'au mode SSH, coupé (DISABLE_SSH) : les agents se
+# connectent par WebSocket avec leur jeton, puis leur empreinte.
+systems:
+{% for system in beszel_systems %}
+  - name: {{ system.key | to_json }}
+    host: {{ system.key | to_json }}
+    port: 45876
+    token: {{ system.value | to_json }}
+    users:
+      - {{ beszel_admin_email | to_json }}
+{% endfor %}

@@ -23,6 +23,7 @@
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
         nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
+        beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -65,3 +66,12 @@
       tags: wishlist,app
     - role: nginx_demo
       tags: nginx_demo,app
+    # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
+    # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
+    # Pi, du NAS et du LXC newt).
+    - role: beszel
+      tags: beszel,app
+    - role: beszel_agent
+      tags: beszel_agent,monitoring
+      vars:
+        beszel_agent_hub_url: "http://127.0.0.1:8090"

@@ -1,0 +1,33 @@
+---
+# Hub Beszel (issue #79) : supervision des hôtes (CPU, RAM, disques, réseau,
+# conteneurs, SMART). Interface en https://monitoring.sylvain.cloud derrière
+# le SSO Pangolin (tofu/pangolin_config/website_beszel.tf), plus le compte
+# Beszel.
+beszel_base_path: "{{ docker_base_path }}/beszel"
+beszel_domain: monitoring.sylvain.cloud
+beszel_port: 8090
+
+# Adresses de l'hôte où le port du hub est publié, pour les agents qui ne
+# passent pas par Pangolin : 127.0.0.1 pour l'agent de l'hôte lui-même,
+# l'adresse LAN (host_vars/docker) pour ceux du Pi, du NAS et du LXC newt.
+# Docker publie ces ports avant ufw : sur le LAN, l'interface répond sans
+# SSO, et le compte Beszel est alors la seule barrière.
+beszel_publish_addresses:
+  - 127.0.0.1
+
+# Compte administrateur, créé au premier démarrage seulement (USER_EMAIL /
+# USER_PASSWORD) : changer le mot de passe ensuite se fait dans l'interface.
+# Mot de passe : clé sops beszel_admin_password.
+beszel_admin_email: "{{ pangolin_le_email }}"
+
+# Systèmes déclarés dans beszel_data/config.yml, qui fait autorité : un
+# système absent de cette liste est supprimé du hub, historique compris, au
+# démarrage suivant. Un par clé du dict sops beszel_agent_tokens (nom =
+# inventory_hostname, valeur = jeton de l'agent).
+beszel_systems: "{{ beszel_agent_tokens | dict2items | sort(attribute='key') }}"
+
+# Borgmatic backup configuration
+beszel_backup_enabled: true
+beszel_backup_borgmatic_target: "{{ backup_storage_box_url }}/beszel"
+beszel_backup_encryption_passphrase: "{{ backup_passphrase }}"
+beszel_backup_healthcheck_url: ""

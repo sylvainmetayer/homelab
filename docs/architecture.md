@@ -172,3 +172,69 @@ flowchart LR
   par chaque rôle via `include_role: borgmatic tasks_from=app.yml`.
 - Restauration : [runbooks/sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md)
   et [backup-restore.md](backup-restore.md).
+
+## La supervision (Beszel)
+
+Uptime Kuma dit si une appli répond et si ses sauvegardes passent ; Beszel
+dit comment vont les hôtes : CPU, mémoire, disques, réseau, conteneurs, et
+S.M.A.R.T. là où il y a des disques physiques. Un hub (rôle `beszel`, VM
+docker, `monitoring.sylvain.cloud` derrière le SSO puis le compte Beszel) et
+un agent par hôte (rôle `beszel_agent`). Les agents ouvrent eux-mêmes une
+WebSocket vers le hub : aucun n'écoute de port.
+
+```mermaid
+flowchart LR
+  subgraph lan["LAN"]
+    subgraph vm["VM docker"]
+      hub["hub Beszel<br/>publié sur 127.0.0.1 et 192.168.1.216:8090"]
+      ad["agent docker"] -- "127.0.0.1:8090" --> hub
+    end
+    api["agent pi"] -- "192.168.1.216:8090" --> hub
+    anas["agent NAS"] -- "192.168.1.216:8090" --> hub
+    alxc["agent newt-lxc (binaire)"] -- "192.168.1.216:8090" --> hub
+  end
+  subgraph hetzner["Hetzner"]
+    ap["agent pangolin"]
+    af["agent flip (via le NAT de Pangolin)"]
+  end
+  ap -- "https://monitoring.sylvain.cloud<br/>PASS /api/beszel/agent-connect<br/>+ jeton d'accès Pangolin" --> pg["Pangolin / newt"] --> hub
+  af -- "idem" --> pg
+```
+
+- **Hôtes Hetzner** : par la ressource publique, sur le seul chemin
+  `/api/beszel/agent-connect`, en PASS (les règles pays sautées : leur IP
+  source est privée), avec un jeton d'accès Pangolin par agent
+  (`website_beszel.tf`, sortie `beszel_agent_hub_headers`, envoyé en
+  `HUB_HEADERS`). Sans jeton, rien n'atteint le hub.
+- **Hôtes du LAN** : par le port publié sur la VM docker. Docker publie avant
+  ufw, donc **l'interface du hub répond sans SSO à tout le LAN** : le compte
+  Beszel (mot de passe `beszel_admin_password`) y est la seule barrière.
+- **Authentification d'un agent** : son jeton (`beszel_agent_tokens`, un par
+  hôte, déclaré dans le `config.yml` du hub), la clé du hub
+  (`beszel_hub_public_key`, le hub signe avec `beszel_hub_private_key`), puis
+  son empreinte, que le hub fige à la première connexion. Un hôte reconstruit
+  (dossier `data/` de l'agent perdu) est refusé : remettre son empreinte à
+  zéro dans le hub (menu du système, jeton et empreinte).
+- **`config.yml` fait autorité** : un hôte retiré de `beszel_agent_tokens`
+  disparaît du hub avec son historique au redémarrage suivant.
+- **Socket Docker** : jamais monté dans l'agent. Un proxy
+  (`wollomatic/socket-proxy`, sidecar du compose de l'agent, sans réseau) ne
+  laisse passer que les GET dont l'agent a besoin (liste des conteneurs,
+  statistiques, version, info) : ni inspect (les secrets des compose), ni
+  logs, ni écriture. Newt lit encore le socket directement (suite : #853).
+- **Lancement** : `dc@beszel_agent` sur docker, pi et flip ; `docker compose
+  up -d` et la restart policy sur Pangolin (pas de `docker_service`) et le NAS
+  (`nas.yml`, à la main) ; un service systemd sur le LXC newt (`lxc.yml`, à
+  la main).
+- **Alertes** (disque > 85 %, mémoire, swap, hôte muet) : réglées dans
+  l'interface, envoyées par e-mail (SMTP Infomaniak réglé dans l'interface
+  du hub). Elles vivent dans la base du hub, sauvegardée par borgmatic. Si la
+  VM docker tombe, Beszel se tait : Uptime Kuma (hors VM) le voit par le
+  moniteur `Healthcheck Beszel`.
+- **Limites connues** : sur le Pi, la mémoire par conteneur reste vide tant
+  que le contrôleur cgroup mémoire est coupé (issue #846) ; son S.M.A.R.T.
+  passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
+  déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
+  capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.
+- **Hors périmètre** : l'hôte Proxmox, seul à voir le disque rotatif de la VM
+  docker (#852).
