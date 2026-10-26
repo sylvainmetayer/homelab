@@ -23,6 +23,7 @@
   notify: Restart nfs-server
 
 - name: Check the shared folders of the exports
+  become: true
   ansible.builtin.stat:
     path: "{{ item.path }}"
   loop: "{{ nas_nfs_exports }}"
@@ -47,7 +48,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0750"
 
 - name: Write the homelab NFS exports
   become: true
@@ -56,7 +57,7 @@
     dest: "{{ nas_nfs_exports_file }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
   notify: Reload NFS exports
 
 - name: Apply pending NFS changes
