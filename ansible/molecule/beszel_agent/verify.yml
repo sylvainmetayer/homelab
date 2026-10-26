@@ -41,7 +41,7 @@
           - agent.cap_add == ['SYS_RAWIO']
           - agent.devices | map(attribute='source') | list == ['/dev/sda']
           - agent.group_add == [docker_gid]
-          - agent.image is search('beszel-agent:0\.21\.1-alpine@sha256:')
+          - agent.image is search('beszel-agent:[^@]+-alpine@sha256:')
           - agent.cpus is not defined
           - agent.mem_limit is defined
           - proxy.volumes | selectattr('source', 'equalto', '/var/run/docker.sock') | list | length == 1

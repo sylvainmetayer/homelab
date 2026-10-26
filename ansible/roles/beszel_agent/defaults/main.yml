@@ -47,6 +47,11 @@ beszel_agent_smart_devices: []
 beszel_agent_extra_filesystems: []
 
 # --- Modes dc, dc_system et compose (conteneur) ------------------------------
+# Image de l'agent, et sa variante -alpine, la seule avec smartctl (prise dès
+# que beszel_agent_smart_devices n'est pas vide). Suivies par un gestionnaire
+# regex de renovate.json, groupées avec le hub (groupe beszel).
+beszel_agent_image: "docker.io/henrygd/beszel-agent:0.21.1@sha256:cb6868012964d7a68debaa2c84bb72285e5f08531e81f506bd4c493bf052e41c"
+beszel_agent_image_smart: "docker.io/henrygd/beszel-agent:0.21.1-alpine@sha256:4100e26f7b5e6ab89e73699b2366417795f5046ab36bc452daf1f105766b40a0"
 beszel_agent_service: beszel_agent
 beszel_agent_base_path: "{{ docker_base_path }}/{{ beszel_agent_service }}"
 # Proxy du socket Docker (wollomatic/socket-proxy), en sidecar : l'agent ne

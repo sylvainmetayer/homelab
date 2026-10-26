@@ -3,12 +3,11 @@ services:
   agent:
     # Pas encore mesuré : à fixer à ~2x memory.peak après une semaine (#79).
     mem_limit: 128m
-{% if beszel_agent_smart_devices | length > 0 %}
-    # -alpine : la seule image avec smartctl.
-    image: docker.io/henrygd/beszel-agent:0.21.1-alpine@sha256:4100e26f7b5e6ab89e73699b2366417795f5046ab36bc452daf1f105766b40a0
-{% else %}
-    image: docker.io/henrygd/beszel-agent:0.21.1@sha256:cb6868012964d7a68debaa2c84bb72285e5f08531e81f506bd4c493bf052e41c
-{% endif %}
+    # Images dans les defaults du rôle (une seule clé image: ici : Renovate
+    # retire le Jinja avant de lire ce fichier, et deux clés image: dans le
+    # même service n'en laisseraient qu'une de suivie). Entre guillemets : une
+    # expression nue après `image:` devient `image: null` pour Renovate.
+    image: "{{ beszel_agent_image_smart if beszel_agent_smart_devices | length > 0 else beszel_agent_image }}"
     container_name: beszel-agent
     # Les statistiques des interfaces réseau de l'hôte.
     network_mode: host
