@@ -195,6 +195,7 @@ flowchart LR
     api["agent pi"] -- "192.168.1.216:8090" --> hub
     anas["agent NAS"] -- "192.168.1.216:8090" --> hub
     alxc["agent newt-lxc (binaire)"] -- "192.168.1.216:8090" --> hub
+    apve["agent pve (binaire, S.M.A.R.T.)"] -- "192.168.1.216:8090" --> hub
   end
   subgraph hetzner["Hetzner"]
     ap["agent pangolin"]
@@ -229,7 +230,11 @@ flowchart LR
   `dc@beszel_agent` en unité système sur le NAS (`nas.yml`, à la main) ;
   `docker compose up -d` et la restart policy sur Pangolin (pas de
   `docker_service`) ; un service systemd sur le LXC newt (`lxc.yml`, à la
-  main).
+  main) et sur l'hôte Proxmox (`pve.yml`, à la main, en root sans become :
+  pas de sudo sur l'hôte), qui lit aussi le S.M.A.R.T. de `sda`, le SSD M.2
+  SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO` et groupe `disk`
+  dans l'unité). L'hôte Proxmox n'a que cet agent : ni `00-setup`, ni
+  `security`.
 - **Alertes** (disque > 85 %, mémoire, swap, hôte muet) : réglées dans
   l'interface, envoyées par e-mail (SMTP Infomaniak réglé dans l'interface
   du hub). Elles vivent dans la base du hub, sauvegardée par borgmatic. Si la

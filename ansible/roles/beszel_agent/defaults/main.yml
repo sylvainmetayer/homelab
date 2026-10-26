@@ -35,8 +35,9 @@ beszel_agent_hub_headers: ""
 # S.M.A.R.T. : périphériques passés au conteneur, et leur type smartctl s'il
 # faut le forcer (un pont USB-NVMe comme le RTL9210 du Pi : sntrealtek). Vide :
 # SMART coupé, et l'image sans smartctl. Non vide : l'image -alpine (avec
-# smartctl), CAP_SYS_RAWIO et les périphériques. Toujours le disque entier
-# (sda), jamais une partition.
+# smartctl), CAP_SYS_RAWIO et les périphériques ; en mode binary, smartmontools
+# sur l'hôte, CAP_SYS_RAWIO et le groupe disk dans l'unité. Toujours le disque
+# entier (sda), jamais une partition.
 #   - { path: /dev/sda, type: sntrealtek }
 beszel_agent_smart_devices: []
 # Systèmes de fichiers en plus du disque racine, montés en lecture seule dans

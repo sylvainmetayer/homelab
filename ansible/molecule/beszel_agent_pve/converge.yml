@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+  roles:
+    # Comme pve.yml (sans son ansible_become=false d'inventaire : ici la
+    # connexion est sylvain, root par sudo).
+    - role: beszel_agent
+      vars:
+        beszel_agent_name: pve
+        beszel_agent_mode: binary
+        beszel_agent_service_patterns: "pve*"
+        beszel_agent_smart_devices:
+          - { path: /dev/sda }

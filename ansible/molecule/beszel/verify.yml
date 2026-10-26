@@ -81,7 +81,7 @@
         beszel_config: "{{ beszel_contents.results[0].content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - beszel_config.systems | map(attribute='name') | list == ['docker', 'flip', 'nas', 'newt-lxc', 'pangolin', 'pi']
+          - beszel_config.systems | map(attribute='name') | list == ['docker', 'flip', 'nas', 'newt-lxc', 'pangolin', 'pi', 'pve']
           - beszel_config.systems | map(attribute='token') | list == (beszel_agent_tokens | dict2items | sort(attribute='key') | map(attribute='value') | list)
           - beszel_config.systems | map(attribute='users') | unique == [[pangolin_le_email]]
         fail_msg: "config.yml inattendu : {{ beszel_config }}"

@@ -15,6 +15,7 @@
 # flip    SHA256:zslHOFiasxchUDfc40cFn8ETHuW7cx9V7JGcrvcfT5M
 # newt-lxc SHA256:197oiMoWRjuHntqZqa3lU6p7Hfa8Z5NL4ZJbdztwueg
 # nas     SHA256:hks8f7cdmPturvmFlo1IDuPaa7hAgTBo0PEAp5zINaQ
+# pve     SHA256:tZ8sywJnQT1wyT3Oe+bS2fddoF8FJa8j0mZduTLs8Mw (lue sur l'hôte le 26/10, connexion root vérifiée contre le known_hosts du poste)
 docker,docker-apps.internal,192.168.1.216 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKmHH2VrzXVn+6hDylnvT22/jXQoP+UD66o6eZvv4N3T
 pi,pi.internal,192.168.1.96 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHwlPJxotOWGx3675IQAkEAfF5OgaRgoj+ZnVufJ3SS1
 pangolin,pangolin.sylvain.cloud,88.99.188.146 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMInRjkr52mDy1CEXb3nJa1DLwSKQnEmvOXjCSO4pGve
@@ -25,3 +26,4 @@ flip,10.0.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJUQyj0R7UhkshBZEHsM3kApLDTH6
 [*.your-storagebox.de]:23 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIICf9svRenC/PLKIL9nk6K/pxQgoiFC41wTNvoIncOxs
 newt-lxc,192.168.1.200 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZLz8Gv6asyR/HNzVKAGUlQfT7UUm9CDSozq2LRcmat
 nas,192.168.1.137 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHkEDv4pSPvGgWeeHkCzj7NbjwdnGy2fI6D5qRitaVk+
+pve,pve.internal,pve.sylvain.cloud,192.168.1.26 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJMMjcxdVq8AnaIGu7VGS3vXoRy7hhprhxJO6Ka2frSJ

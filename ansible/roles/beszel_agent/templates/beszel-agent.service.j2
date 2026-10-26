@@ -13,14 +13,24 @@ ExecStart={{ beszel_agent_binary_dir }}/{{ beszel_agent_binary_version }}/beszel
 Restart=always
 RestartSec=10
 # Compte éphémère sans privilège : l'agent lit /proc, /sys et le bus systemd,
-# n'écrit que son empreinte (StateDirectory). Pas de S.M.A.R.T. ici.
+# n'écrit que son empreinte (StateDirectory).
 DynamicUser=yes
 StateDirectory=beszel-agent
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
+{% if beszel_agent_smart_devices | length > 0 %}
+# S.M.A.R.T. (beszel_agent_smart_devices) : l'agent lance smartctl, qui ouvre
+# le disque (groupe disk) et lui envoie ses commandes ATA par SG_IO, réservé à
+# CAP_SYS_RAWIO. Ambiante : elle survit à l'exec de smartctl, NoNewPrivileges
+# ne bloque que les gains par setuid ou capacités de fichier.
+SupplementaryGroups=disk
+AmbientCapabilities=CAP_SYS_RAWIO
+CapabilityBoundingSet=CAP_SYS_RAWIO
+{% else %}
 CapabilityBoundingSet=
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

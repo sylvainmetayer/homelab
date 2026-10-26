@@ -1,0 +1,47 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/beszel_agent/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Read the credentials file and the unit
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: beszel_agent_contents
+      loop:
+        - /etc/beszel-agent/env
+        - /etc/systemd/system/beszel-agent.service
+
+    - name: Find smartctl
+      ansible.builtin.stat:
+        path: /usr/sbin/smartctl
+      register: beszel_agent_smartctl
+
+    # Lit l'unité comme systemd la charge : une directive mal écrite y serait
+    # ignorée (avec un avertissement), pas refusée.
+    - name: Read the loaded unit properties
+      ansible.builtin.systemd:
+        name: beszel-agent
+      register: beszel_agent_unit
+
+    - name: Assert the agent reads S.M.A.R.T. of /dev/sda with CAP_SYS_RAWIO only
+      vars:
+        beszel_agent_env: "{{ beszel_agent_contents.results[0].content | b64decode }}"
+        beszel_agent_unit_file: "{{ beszel_agent_contents.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_agent_smartctl.stat.executable
+          - ('TOKEN=' ~ beszel_agent_tokens['pve']) in beszel_agent_env
+          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env" # NOSONAR
+          - "'SMART_DEVICES=/dev/sda\n' in beszel_agent_env"
+          - "'SERVICE_PATTERNS=pve*' in beszel_agent_env"
+          - "'DOCKER_HOST=\n' in beszel_agent_env"
+          - beszel_agent_unit.status.AmbientCapabilities == 'cap_sys_rawio'
+          - beszel_agent_unit.status.CapabilityBoundingSet == 'cap_sys_rawio'
+          - beszel_agent_unit.status.SupplementaryGroups == 'disk'
+          - beszel_agent_unit.status.DynamicUser == 'yes'
+          - beszel_agent_unit.status.NoNewPrivileges == 'yes'
+          - beszel_agent_unit.status.UnitFileState == 'enabled'
+          - beszel_agent_tokens['pve'] not in beszel_agent_unit_file
