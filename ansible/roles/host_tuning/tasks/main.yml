@@ -94,16 +94,52 @@
           - "'\n' not in (host_tuning_cmdline_file.content | b64decode | trim)"
         fail_msg: "{{ host_tuning_kernel_cmdline_path }} n'est pas une ligne unique : rien n'est modifié"
 
+    # Une ligne cassée empêche le Pi de démarrer : la version d'avant le
+    # premier passage reste à côté, à restaurer depuis le disque branché sur
+    # un autre poste. Pas de `backup: true` sur le replace : son nom
+    # (…@HH:MM:SS~) porte des « : », refusés par la partition FAT.
+    - name: Keep the original kernel command line
+      ansible.builtin.copy:
+        src: "{{ host_tuning_kernel_cmdline_path }}"
+        dest: "{{ host_tuning_kernel_cmdline_path }}.orig"
+        remote_src: true
+        force: false
+        # Droits de la FAT, fixés au montage (fmask) : un chmod vers autre
+        # chose y échoue.
+        mode: preserve
+
     # Ajout en fin de ligne, seulement si le paramètre n'y est pas déjà (mot
     # entier) ; le saut de ligne final éventuel disparaît, comme le laisse
     # Raspberry Pi OS.
     - name: Append the missing kernel parameters
-      notify: Flag a reboot for the kernel command line
       ansible.builtin.replace:
         path: "{{ host_tuning_kernel_cmdline_path }}"
         regexp: '\A(?!.*(?<!\S){{ item | regex_escape }}(?!\S))(.*?)\s*\Z'
         replace: '\1 {{ item }}'
       loop: "{{ host_tuning_kernel_cmdline_params }}"
+
+    # Le drapeau suit le noyau en cours, pas la modification du fichier : un
+    # play qui échoue avant ses handlers ne perd pas le reboot, et un paramètre
+    # déjà dans le fichier mais pas encore démarré le demande aussi. Le fichier
+    # que posent les paquets du noyau : unattended-upgrades le cherche à chaque
+    # passage, même sans paquet à installer, et lance alors `shutdown -r
+    # <Automatic-Reboot-Time>`. /run est un tmpfs : le redémarrage l'efface.
+    - name: Read the running kernel command line
+      ansible.builtin.slurp:
+        src: /proc/cmdline
+      register: host_tuning_running_cmdline
+
+    - name: Flag a reboot until the running kernel has the parameters
+      when: >-
+        host_tuning_kernel_cmdline_params
+        | difference((host_tuning_running_cmdline.content | b64decode).split())
+        | length > 0
+      ansible.builtin.copy:
+        dest: /var/run/reboot-required
+        content: "*** System restart required ***\n"
+        owner: root
+        group: root
+        mode: "0644"
 
 - name: Ensure journald drop-in directory exists
   become: true
