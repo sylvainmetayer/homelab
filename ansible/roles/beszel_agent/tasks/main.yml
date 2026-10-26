@@ -2,7 +2,7 @@
 - name: Refuse to start the Beszel agent without its credentials
   ansible.builtin.assert:
     that:
-      - beszel_agent_mode in ['dc', 'compose', 'binary']
+      - beszel_agent_mode in ['dc', 'dc_system', 'compose', 'binary']
       - beszel_agent_token | length > 0
       - beszel_agent_hub_key | length > 0
       - beszel_agent_hub_url is match('https?://')
@@ -18,7 +18,7 @@
     quiet: true
 
 - name: Deploy the Beszel agent container
-  when: beszel_agent_mode in ['dc', 'compose']
+  when: beszel_agent_mode in ['dc', 'dc_system', 'compose']
   ansible.builtin.include_tasks: container.yml
 
 - name: Deploy the Beszel agent binary

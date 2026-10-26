@@ -3,11 +3,14 @@
 # vers le hub (rôle beszel, VM docker). Aucun port en écoute (DISABLE_SSH) :
 # rien à ouvrir dans ufw ni dans le pare-feu d'UGOS.
 #
-# Trois façons de le faire tourner (beszel_agent_mode) :
-#   - dc        conteneur, projet compose lancé par dc@beszel_agent (docker,
-#               pi, pangolin, flip) ;
+# Quatre façons de le faire tourner (beszel_agent_mode) :
+#   - dc        conteneur, projet compose lancé par dc@beszel_agent, unité
+#               user (docker, pi, flip) ;
+#   - dc_system le même, sous dc@beszel_agent en unité SYSTÈME, en root (NAS :
+#               ni lingering ni groupe docker sous UGOS ; dc@.service système
+#               posé par nas.yml) ;
 #   - compose   le même conteneur, lancé par `docker compose up -d` et la
-#               restart policy (NAS : ni dc@ ni lingering sous UGOS) ;
+#               restart policy (Pangolin, qui n'a pas docker_service) ;
 #   - binary    binaire et service systemd, sans Docker (LXC newt, sur le
 #               modèle de newt_service).
 beszel_agent_mode: dc
@@ -43,7 +46,7 @@ beszel_agent_smart_devices: []
 #   - { path: /volume1, name: volume1 }
 beszel_agent_extra_filesystems: []
 
-# --- Modes dc et compose (conteneur) ----------------------------------------
+# --- Modes dc, dc_system et compose (conteneur) ------------------------------
 beszel_agent_service: beszel_agent
 beszel_agent_base_path: "{{ docker_base_path }}/{{ beszel_agent_service }}"
 # Proxy du socket Docker (wollomatic/socket-proxy), en sidecar : l'agent ne

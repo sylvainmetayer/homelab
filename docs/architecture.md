@@ -222,10 +222,11 @@ flowchart LR
   laisse passer que les GET dont l'agent a besoin (liste des conteneurs,
   statistiques, version, info) : ni inspect (les secrets des compose), ni
   logs, ni écriture. Newt lit encore le socket directement (suite : #853).
-- **Lancement** : `dc@beszel_agent` sur docker, pi et flip ; `docker compose
-  up -d` et la restart policy sur Pangolin (pas de `docker_service`) et le NAS
-  (`nas.yml`, à la main) ; un service systemd sur le LXC newt (`lxc.yml`, à
-  la main).
+- **Lancement** : `dc@beszel_agent` (unité user) sur docker, pi et flip ;
+  `dc@beszel_agent` en unité système sur le NAS (`nas.yml`, à la main) ;
+  `docker compose up -d` et la restart policy sur Pangolin (pas de
+  `docker_service`) ; un service systemd sur le LXC newt (`lxc.yml`, à la
+  main).
 - **Alertes** (disque > 85 %, mémoire, swap, hôte muet) : réglées dans
   l'interface, envoyées par e-mail (SMTP Infomaniak réglé dans l'interface
   du hub). Elles vivent dans la base du hub, sauvegardée par borgmatic. Si la
