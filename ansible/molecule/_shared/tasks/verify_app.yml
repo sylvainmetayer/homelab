@@ -13,8 +13,10 @@
 #   verify_app_borgmatic_config  chemin de la config borgmatic ('' pour sauter)
 #   verify_app_unit_started      false pour un rôle qui laisse son unité arrêtée
 #   docker_service_scope         user (défaut) ou system, comme host_vars/<hôte>
+# root sous un dc@ système (projet 0700 root) ; en scope user, omit laisse le
+# become du play de verify décider, comme avant.
 - name: Stat the compose file of {{ verify_app_service }}
-  become: "{{ docker_service_scope | default('user') == 'system' }}"
+  become: "{{ true if (docker_service_scope | default('user')) == 'system' else omit }}"
   ansible.builtin.stat:
     path: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_app_service }}/compose.yaml"
   register: verify_app_compose
@@ -33,7 +35,7 @@
       ({{ verify_app_compose.stat.mode | default('absent') }})
 
 - name: Validate the compose file of {{ verify_app_service }}
-  become: "{{ docker_service_scope | default('user') == 'system' }}"
+  become: "{{ true if (docker_service_scope | default('user')) == 'system' else omit }}"
   ansible.builtin.command: docker compose config --quiet
   args:
     chdir: "{{ docker_base_path | default('/opt/apps') }}/{{ verify_app_service }}"

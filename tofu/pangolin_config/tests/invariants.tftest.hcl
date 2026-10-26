@@ -304,12 +304,12 @@ override_resource {
 
 override_resource {
   target = pangolin_role.jellyfin
-  values = { id = 40 }
+  values = { id = 90 }
 }
 
 override_resource {
   target = pangolin_site_resource.jellyfin
-  values = { id = 41 }
+  values = { id = 91 }
 }
 
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
