@@ -267,7 +267,11 @@ il n'y a pas de lingering à gérer.
   des volumes) active `docker.socket`, et le démon démarre à la première
   requête. `dc@` est donc rangé `After=docker_serv.service docker.service`
   sans les tirer (un `Requires=` démarrerait Docker avant `/volume1`), et
-  attend `docker info` comme ailleurs.
+  attend `docker info` comme ailleurs. `docker_serv` étant `Before=`
+  `multi-user.target`, pas de cycle ; en revanche `multi-user.target` attend
+  les `ExecStartPre` de chaque `dc@` activé (attente de Docker, images
+  absentes), dans la limite de `TimeoutStartSec`. Pas encore vérifié par un
+  redémarrage du NAS.
 - La racine est un overlay sur l'eMMC (`/overlay/upper`) : l'unité survit aux
   redémarrages, peut-être pas à une réinitialisation d'UGOS. Relancer
   `nas.yml`, qui repose et revérifie tout.
