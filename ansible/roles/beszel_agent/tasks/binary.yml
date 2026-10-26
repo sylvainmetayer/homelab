@@ -12,7 +12,9 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    # Traversable par tous : le service tourne sous un utilisateur dynamique
+    # (DynamicUser), qui doit atteindre le binaire.
+    mode: "0755" # NOSONAR
 
 - name: Download the Beszel agent archive
   become: true
@@ -22,7 +24,7 @@
     checksum: "sha256:{{ beszel_agent_binary_sha256[beszel_agent_arch] }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"
 
 - name: Unpack the Beszel agent
   become: true

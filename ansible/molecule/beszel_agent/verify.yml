@@ -93,7 +93,7 @@
         that:
           - ('KEY=' ~ beszel_hub_public_key) in beszel_agent_env
           - ('TOKEN=' ~ beszel_agent_tokens.pi) in beszel_agent_env
-          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env"
+          - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env" # NOSONAR
           - "'HUB_HEADERS' not in beszel_agent_env"
           - "'DISABLE_SSH=true' in beszel_agent_env"
           - "'DOCKER_HOST=unix:///run/socket-proxy/docker.sock' in beszel_agent_env"
