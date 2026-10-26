@@ -10,16 +10,15 @@
   ansible.builtin.set_fact:
     beszel_agent_docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
 
-# dc : dossier de l'utilisateur de déploiement, que lit son dc@ (unité user).
-# dc_system (NAS) et compose (Pangolin) : root, comme l'unité système dc@ ou
-# le `sudo docker compose` qui les lancent.
+# dc@ user : dossier de l'utilisateur de déploiement, que lit son dc@. dc@
+# système (NAS) et compose (Pangolin) : root (beszel_agent_as_root, vars/).
 - name: Ensure the Beszel agent folder exists
-  become: "{{ beszel_agent_mode != 'dc' }}"
+  become: "{{ beszel_agent_as_root }}"
   ansible.builtin.file:
     path: "{{ beszel_agent_base_path }}"
     state: directory
-    owner: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_id'] }}"
-    group: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_gid'] }}"
+    owner: "{{ omit if beszel_agent_as_root else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_as_root else ansible_facts['user_gid'] }}"
     mode: "0700"
 
 # L'agent (root sans capacité) est propriétaire de ses données.
@@ -44,45 +43,37 @@
     mode: "0750"
 
 - name: Template the Beszel agent compose configuration
-  become: "{{ beszel_agent_mode != 'dc' }}"
+  become: "{{ beszel_agent_as_root }}"
   diff: false
   notify: Restart beszel_agent
   ansible.builtin.template:
     src: templates/compose.yaml
     dest: "{{ beszel_agent_base_path }}/compose.yaml"
-    owner: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_id'] }}"
-    group: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_gid'] }}"
+    owner: "{{ omit if beszel_agent_as_root else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_as_root else ansible_facts['user_gid'] }}"
     mode: "0600"
 
 - name: Template the Beszel agent environment
-  become: "{{ beszel_agent_mode != 'dc' }}"
+  become: "{{ beszel_agent_as_root }}"
   diff: false
   notify: Restart beszel_agent
   ansible.builtin.template:
     src: templates/env.j2
     dest: "{{ beszel_agent_base_path }}/.env"
-    owner: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_id'] }}"
-    group: "{{ omit if beszel_agent_mode != 'dc' else ansible_facts['user_gid'] }}"
+    owner: "{{ omit if beszel_agent_as_root else ansible_facts['user_id'] }}"
+    group: "{{ omit if beszel_agent_as_root else ansible_facts['user_gid'] }}"
     mode: "0600"
 
+# Unité user, ou système sur le NAS (docker_service_scope: system,
+# /etc/systemd/system/dc@.service posée par docker_service dans nas.yml).
 - name: Make sure the Beszel agent service is running
   when: beszel_agent_mode == 'dc'
+  become: "{{ beszel_agent_dc_scope == 'system' }}"
   ansible.builtin.systemd:
     state: started
     daemon_reload: true
     name: "dc@{{ beszel_agent_service }}"
-    scope: user
-    enabled: true
-
-# NAS : dc@ en unité système (root, /etc/systemd/system/dc@.service, posée
-# par nas.yml) : pas de lingering ni de groupe docker sous UGOS.
-- name: Make sure the Beszel agent system service is running
-  when: beszel_agent_mode == 'dc_system'
-  become: true
-  ansible.builtin.systemd:
-    state: started
-    daemon_reload: true
-    name: "dc@{{ beszel_agent_service }}"
+    scope: "{{ beszel_agent_dc_scope }}"
     enabled: true
 
 # Pangolin : pas de docker_service (ni dc@ ni lingering). `up -d` recrée ce dont la

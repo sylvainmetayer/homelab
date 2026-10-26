@@ -1,4 +1,9 @@
 ---
+# Docker, bouchon dc@ (unité user) : prepare commun. Le bouchon de l'unité
+# système et les fichiers d'UGOS : ci-dessous.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
 - name: Prepare
   hosts: all
   become: true
@@ -26,3 +31,28 @@
       loop:
         - /volume1/nas-test
         - /volume1/docker
+
+    - name: Ensure the system dc@ drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/dc@.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    # Même bouchon que celui de l'unité user (_shared/prepare.yml) : le compose
+    # est validé, aucune image tirée ni conteneur lancé.
+    - name: Neutralise docker compose pull/up in system dc@ units
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dc@.service.d/molecule.conf
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          [Service]
+          Restart=no
+          ExecStartPre=
+          ExecStartPre=/usr/bin/docker compose config --quiet
+          ExecStart=
+          ExecStart=/bin/sleep infinity
+          ExecStop=
