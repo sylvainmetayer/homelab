@@ -5,3 +5,6 @@
 # user. Pangolin n'a pas docker_service, d'où le default.
 beszel_agent_dc_scope: "{{ docker_service_scope | default('user') }}"
 beszel_agent_as_root: "{{ beszel_agent_mode == 'compose' or beszel_agent_dc_scope == 'system' }}"
+# Mode binary : archive de la release pour l'architecture de l'hôte.
+beszel_agent_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+beszel_agent_archive: "beszel-agent_{{ beszel_agent_binary_version }}_linux_{{ beszel_agent_arch }}.tar.gz"
