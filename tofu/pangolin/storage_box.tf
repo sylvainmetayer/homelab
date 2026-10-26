@@ -87,7 +87,7 @@ resource "hcloud_storage_box_subaccount" "restore_test" {
   # Optional+computed : épinglés, sinon un plan ne verrait pas une dérive
   # faite dans la console.
   name        = "restore-test"
-  description = "Test de restauration mensuel (GitHub Actions), lecture seule"
+  description = "Test de restauration des 1er et 15 (GitHub Actions), lecture seule"
   labels      = var.labels
 
   access_settings = {
