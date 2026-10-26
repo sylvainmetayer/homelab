@@ -1,4 +1,5 @@
 {
+  "beszel": { "host": "docker", "repo": "beszel", "role": "beszel" },
   "betisier": { "host": "docker", "repo": "betisier", "role": "betisier" },
   "dawarich": { "host": "docker", "repo": "dawarich", "role": "dawarich" },
   "demo_planning": { "host": "flip", "repo": "demo_planning", "role": "flip_planning" },
