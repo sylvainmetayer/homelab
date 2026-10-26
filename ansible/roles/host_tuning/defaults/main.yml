@@ -21,9 +21,10 @@ host_tuning_journald_system_max_use: 500M
 # (host_tuning_kernel_cmdline_path : une seule ligne, que le firmware ajoute
 # après ses propres paramètres). Vide = le rôle n'y touche pas (tous les hôtes
 # sauf le Pi). Un paramètre absent est ajouté en fin de ligne, le reste n'est
-# pas modifié. Effet au prochain démarrage seulement : le handler pose
-# /var/run/reboot-required, que unattended-upgrades honore (rôle security,
-# Automatic-Reboot à security_unattended_reboot_time). Le rôle ne redémarre
-# jamais l'hôte lui-même.
+# pas modifié. Effet au prochain démarrage seulement : tant que /proc/cmdline
+# ne les a pas tous, le rôle pose /var/run/reboot-required, que
+# unattended-upgrades honore (rôle security, Automatic-Reboot à
+# security_unattended_reboot_time). Le rôle ne redémarre jamais l'hôte
+# lui-même.
 host_tuning_kernel_cmdline_params: []
 host_tuning_kernel_cmdline_path: /boot/firmware/cmdline.txt

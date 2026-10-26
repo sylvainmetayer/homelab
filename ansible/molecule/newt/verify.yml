@@ -54,4 +54,5 @@
           - "'/var/run/docker.sock:/var/run/docker.sock:ro' in newt_compose.services.newt.volumes"
           - "'DOCKER_SOCKET=unix:///var/run/docker.sock' in newt_env"
           - "'DOCKER_ENFORCE_NETWORK_VALIDATION=true' in newt_env"
-          - newt_compose.services.newt.mem_limit is defined
+          # Défaut du rôle (host_vars/docker ne le surcharge pas ; le Pi, si).
+          - newt_compose.services.newt.mem_limit == '256m'

@@ -40,15 +40,3 @@
   become: true
   ansible.builtin.command: journalctl --flush
   changed_when: true
-
-# Le fichier que posent les paquets du noyau : unattended-upgrades le cherche à
-# chaque passage, même sans paquet à installer, et lance alors `shutdown -r
-# <Automatic-Reboot-Time>`. /run est un tmpfs : le redémarrage l'efface.
-- name: Flag a reboot for the kernel command line
-  become: true
-  ansible.builtin.copy:
-    dest: /var/run/reboot-required
-    content: "*** System restart required ***\n"
-    owner: root
-    group: root
-    mode: "0644"
