@@ -258,7 +258,10 @@ flowchart LR
   (`wollomatic/socket-proxy`, sidecar du compose de l'agent, sans réseau) ne
   laisse passer que les GET dont l'agent a besoin (liste des conteneurs,
   statistiques, version, info, logs d'un conteneur par son identifiant) : ni
-  inspect, ni écriture. Newt lit encore le socket directement (suite : #853).
+  inspect, ni écriture. Newt a le même proxy (rôle `newt`, #853) : liste des
+  conteneurs, inspect de lui-même et flux d'événements, rien d'autre. Ce
+  socket ne sert qu'à la liste des conteneurs affichée par Pangolin : aucun
+  routage n'en dépend.
 - **Logs des conteneurs** : la fiche d'un conteneur dans l'interface
   (`CONTAINER_DETAILS=true` côté hub) montre ses 200 dernières lignes,
   demandées à l'agent à chaque ouverture et jamais stockées dans le hub. Tout

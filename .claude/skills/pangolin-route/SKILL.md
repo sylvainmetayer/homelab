@@ -8,8 +8,10 @@ description: Add or fix Pangolin resource/target/healthcheck/SSO routing in tofu
 **Important**: routing in this repo is managed entirely through the Pangolin
 Terraform provider in `tofu/pangolin_config/`. There is no Docker-label-based
 routing (`pangolin.public-resources.*`) anywhere in the current roles — Newt
-only reads the Docker socket to validate the container is on the `newt`
-network; the actual resource/target/healthcheck/SSO config lives in Tofu.
+reads Docker (through a socket proxy) only for the container list Pangolin's
+UI shows, and validates no target against it: the container still has to be
+on the `newt` network for Newt to reach it. The actual
+resource/target/healthcheck/SSO config lives in Tofu.
 
 ## Prerequisite
 

@@ -10,6 +10,28 @@
     owner: "{{ omit if newt_as_root else ansible_facts['user_id'] }}"
     group: "{{ omit if newt_as_root else ansible_facts['user_gid'] }}"
 
+# Le proxy tourne sous nobody avec le groupe docker (accès au socket du
+# démon), et newt rejoint ce groupe pour le socket du proxy : le gid de l'hôte.
+- name: Read the docker group of the host
+  ansible.builtin.getent:
+    database: group
+    key: docker
+
+- name: Remember the docker gid
+  ansible.builtin.set_fact:
+    newt_docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+
+# Le proxy (nobody, groupe docker) y crée son socket ; newt le traverse par le
+# groupe.
+- name: Ensure the socket proxy folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ newt_base_path }}/socket"
+    state: directory
+    owner: "65534"
+    group: "{{ newt_docker_gid }}"
+    mode: "0750"
+
 - name: Template compose configuration
   become: "{{ newt_as_root }}"
   diff: false
