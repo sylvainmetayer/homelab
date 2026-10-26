@@ -100,6 +100,7 @@
     mode: "0700"
 
 - name: Wait for the NAS before starting dc@nginx_demo
+  diff: false
   ansible.builtin.copy:
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@nginx_demo.service.d/nas-storage.conf"
     mode: "0600"

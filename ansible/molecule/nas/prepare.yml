@@ -12,7 +12,7 @@
           {"enableNfsServer":true,"maximumNFSProtocol":"NFSv4","applyDefaultUNIXPerm":true,"customerPort":false,"statdPort":0,"nlockMgrPort":0,"nFSvDomain":"","defaultReadPacketSize":8,"defaultWritePacketSize":8,"logs":true}
         owner: root
         group: root
-        mode: "0640"
+        mode: "0600"
 
     - name: Create the shared folder of host_vars/nas
       ansible.builtin.file:

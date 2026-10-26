@@ -4,9 +4,11 @@
 # Attend que l'export NFS du NAS réponde, au plus TIMEOUT secondes (défaut
 # 30), puis sort 0 ; sinon sort 1. Sert de garde avant tout accès au NAS :
 # - dc@<service> (ExecStartPre) : au boot, la VM est souvent prête avant le
-#   NAS. Sans attente, chaque essai échoue en 30 s et l'unité atteint sa
-#   limite de redémarrages (StartLimitBurst) puis reste en échec.
-# - borgmatic (hook before: configuration) : sur un NAS tombé, un montage
+#   NAS. Sans attente, chaque `docker compose up` bute sur l'automount (30 s)
+#   et échoue sur une erreur de bind mount de Docker ; dc@ le relance sans
+#   fin (StartLimitIntervalSec=0), l'attente remplace ces échecs par un
+#   message clair.
+# - borgmatic (hook before: action, create) : sur un NAS tombé, un montage
 #   `hard` bloquerait le backup indéfiniment, et avec lui la sauvegarde de
 #   toutes les applis qui passent après.
 #
