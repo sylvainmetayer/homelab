@@ -242,7 +242,7 @@ redémarrage de nfs-server hors de l'interface (handler du rôle `nas`)
 déplace ces ports : `showmount` et le montage restent alors bloqués alors que
 111 et 2049 répondent (constaté le 26/10). D'où une règle « tout autoriser »
 pour chaque client NFS (VM `192.168.1.216`, Pi `192.168.1.96`) dans
-Sécurité → Pare-feu, que le rôle `nas` vérifie.
+Sécurité → Pare-feu.
 
 ### Comportements observés (test depuis le Pi, 2026-10-25)
 
