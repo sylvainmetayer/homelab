@@ -12,6 +12,7 @@ decommission_app_base_path: ""
 # An app with its data on the NAS must pass its <service>_data_path here,
 # otherwise its files and its database cluster stay orphaned on the NAS:
 #   -e '{"decommission_app_extra_paths": ["/mnt/nas/apps/<service>"]}'
+# Anything else is refused (tasks/main.yml): the paths are deleted as root.
 decommission_app_extra_paths: []
 
 # Toggle individual destructive steps off if you only want part of the teardown.
