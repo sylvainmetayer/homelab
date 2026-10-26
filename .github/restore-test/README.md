@@ -5,9 +5,10 @@ ou à la main) restaure la dernière archive de chaque dépôt de `apps.json` su
 un runner GitHub, loin des hôtes qui la produisent (issue #444). Pour chaque
 dépôt (`.github/scripts/restore_test.py`) :
 
-- la dernière archive doit dater de moins de 36 h : une sauvegarde qui ne
-  tourne plus (un dump qui échoue chaque nuit, comme celui de Nextcloud en
-  octobre 2026) laisse une vieille archive qui, elle, se restaure ;
+- la dernière archive doit dater de moins de 28 h (une nuit manquée
+  suffit) : une sauvegarde qui ne tourne plus (un dump qui échoue chaque
+  nuit, comme celui de Nextcloud en octobre 2026) laisse une vieille archive
+  qui, elle, se restaure ;
 - un échantillon de 20 fichiers (≤ 5 Mio) est extrait : borg vérifie chaque
   bloc qu'il déchiffre ;
 - les dumps PostgreSQL (`pg_restore`) et MariaDB (`mariadb`) sont rejoués

@@ -34,9 +34,11 @@ MANIFEST = pathlib.Path(".github/restore-test/apps.json")
 SAMPLE_FILES = 20
 SAMPLE_MAX_BYTES = 5 * 1024 * 1024
 DB_READY_TIMEOUT = 180
-# Backups run every night at 01:00 (borgmatic_timer_schedule), the test at
-# 10:00 UTC: one missed night is enough to fail.
-MAX_ARCHIVE_AGE = datetime.timedelta(hours=36)
+# Backups start every night at 01:00 Europe/Paris (borgmatic_timer_schedule,
+# 23:00 or 00:00 UTC), the test at 10:00 UTC: the last archive is ~10 h old,
+# the one before ~34 h. 28 h makes one missed night enough to fail, while
+# leaving a manual rerun the same day, or a backup started late, in time.
+MAX_ARCHIVE_AGE = datetime.timedelta(hours=28)
 
 # Dumps written by borgmatic: <...>/postgresql_databases/<host>/<name>.
 DUMP_RE = re.compile(r"(?:^|/)(postgresql|mysql)_databases/[^/]+/([^/]+)$")
@@ -63,7 +65,10 @@ def run(*args, stdin=None, check=True, cwd=None, quiet=False, show_error=False):
     # repository cannot be opened). Reproduce a failure from a workstation.
     shown = args[:2] if quiet else args
     print("+", " ".join(shown), "…" if quiet else "", flush=True)
-    result = subprocess.run(args, stdin=stdin, capture_output=True, text=True, cwd=cwd)
+    # surrogateescape: an archive path that is not UTF-8 round-trips to borg
+    # extract unchanged instead of raising UnicodeDecodeError.
+    result = subprocess.run(args, stdin=stdin, capture_output=True, text=True,
+                            errors="surrogateescape", cwd=cwd)
     if check and result.returncode != 0:
         lines = result.stderr.strip().splitlines()
         detail = lines[-1][:200] if show_error and lines else "(sortie masquée)"
@@ -109,14 +114,19 @@ def restore_postgresql(image, name, dump):
         # phase and createdb/pg_restore die with the restart: probe over TCP,
         # which only the real server listens on.
         wait_until(container, "pg_isready", "-h", "127.0.0.1", "-U", "postgres")
-        run("docker", "cp", str(dump), f"{container}:/tmp/dump")
+        run("docker", "cp", str(dump), f"{container}:/tmp/dump", quiet=True)
         run("docker", "exec", container, "createdb", "-U", "postgres", name)
         # borgmatic dumps in pg_dump's custom format by default.
         run("docker", "exec", container, "pg_restore", "-U", "postgres", "--no-owner",
             "--no-privileges", "--exit-on-error", "-d", name, "/tmp/dump", quiet=True)
+        # Tables of the dump only: those an extension creates (postgis's
+        # spatial_ref_sys, topology, tiger) would make an empty dump pass.
         tables = run("docker", "exec", container, "psql", "-U", "postgres", "-d", name, "-tAc",
-                     "select count(*) from information_schema.tables "
-                     "where table_schema not in ('pg_catalog', 'information_schema')").stdout.strip()
+                     "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace "
+                     "where c.relkind in ('r', 'p') "
+                     "and n.nspname not in ('pg_catalog', 'information_schema') "
+                     "and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass "
+                     "and d.objid = c.oid and d.deptype = 'e')").stdout.strip()
     finally:
         run("docker", "rm", "-f", container, check=False)
     return int(tables)
@@ -150,13 +160,15 @@ def restore_mysql(image, name, dump):
     return int(tables)
 
 
-def check_sqlite(path):
-    integrity = run("sqlite3", "-readonly", str(path), "PRAGMA integrity_check;").stdout.strip()
+def check_sqlite(path, label):
+    # Not the path: a staging file name carries its source path (FreshRSS's
+    # data/users/<user>/db.sqlite), hence quiet and a label.
+    integrity = run("sqlite3", "-readonly", str(path), "PRAGMA integrity_check;", quiet=True).stdout.strip()
     if integrity != "ok":
         # Its messages name tables, indexes and rows: only their count.
-        raise RestoreError(f"{path.name} : integrity_check en échec ({len(integrity.splitlines())} lignes)")
+        raise RestoreError(f"{label} : integrity_check en échec ({len(integrity.splitlines())} lignes)")
     return int(run("sqlite3", "-readonly", str(path),
-                   "select count(*) from sqlite_master where type = 'table';").stdout.strip())
+                   "select count(*) from sqlite_master where type = 'table';", quiet=True).stdout.strip())
 
 
 def archive_age(timestamp):
@@ -182,9 +194,10 @@ def restore(entry, workdir):
     location = f"{repo}::{archive}"
     report = [archive]
 
-    listing = borg("list", "--format", "{type} {size} {path}{NL}", location, quiet=True).stdout.splitlines()
+    # NUL-separated: a file name may hold a newline.
+    listing = borg("list", "--format", "{type} {size} {path}{NUL}", location, quiet=True).stdout.split("\0")
     files = []
-    for line in listing:
+    for line in filter(None, listing):
         kind, size, path = line.split(" ", 2)
         if kind == "-":
             files.append((int(size), path))
@@ -217,11 +230,12 @@ def restore(entry, workdir):
             raise RestoreError(f"{engine} {name} : aucune table après restauration")
         report.append(f"{engine} {name} : {tables} tables")
 
-    for path in sqlite:
-        tables = check_sqlite(workdir / path)
+    for index, path in enumerate(sqlite, 1):
+        label = f"sqlite n°{index}"
+        tables = check_sqlite(workdir / path, label)
         if tables == 0:
-            raise RestoreError(f"SQLite {path} : aucune table")
-        report.append(f"sqlite {pathlib.PurePath(path).name} : {tables} tables")
+            raise RestoreError(f"{label} : aucune table")
+        report.append(f"{label} : {tables} tables")
 
     return ", ".join(report)
 

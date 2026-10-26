@@ -23,9 +23,11 @@ permissions:
   contents: read
 
 # Un run manuel pendant celui du cron attend : la Storage Box n'est lue
-# qu'une fois à la fois.
+# qu'une fois à la fois. Les runs de PR (rien n'est restauré) ont leur propre
+# groupe : un run en attente y est remplacé par le suivant, et ce ne doit
+# jamais être celui du cron.
 concurrency:
-  group: restore-test
+  group: restore-test-${{ github.event_name == 'pull_request' && github.ref || 'storage-box' }}
   cancel-in-progress: false
 
 jobs:
@@ -112,8 +114,11 @@ jobs:
           echo "${borg_sha256}  /tmp/borg" | sha256sum -c -
           sudo install -m 0755 /tmp/borg /usr/local/bin/borg
           borg --version
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends sqlite3
+          # Déjà dans l'image du runner d'ordinaire : pas d'apt-get par job.
+          if ! command -v sqlite3 >/dev/null; then
+            sudo apt-get update -q
+            sudo apt-get install -y --no-install-recommends sqlite3
+          fi
 
       # Sous-compte en lecture seule (tofu/pangolin/storage_box.tf), jamais
       # la clé du compte principal ni celle d'un hôte. Clé d'hôte épinglée,
@@ -131,7 +136,11 @@ jobs:
           echo "BORG_RSH=ssh -i $HOME/.ssh/restore_test -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/restore_test_known_hosts" >> "$GITHUB_ENV"
           echo "BORG_REPO_BASE=ssh://${RESTORE_TEST_STORAGE_BOX}:23/." >> "$GITHUB_ENV"
 
+      # Sous le timeout du job : un dépassement d'étape est un échec (le job
+      # passe en failure, le moniteur reçoit « down »), un dépassement de job
+      # une annulation, que le job report prend pour un arrêt manuel.
       - name: Restore and check
+        timeout-minutes: 50
         env:
           BORG_PASSPHRASE: ${{ secrets.RESTORE_TEST_BORG_PASSPHRASE }}
           APP: ${{ matrix.app }}
