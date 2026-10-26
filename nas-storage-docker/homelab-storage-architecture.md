@@ -253,7 +253,7 @@ Quelques applis tournent sur le NAS plutôt que sur la VM (Beszel, Jellyfin
 `data-root` `/volume1/@docker`). Elles suivent le même modèle `dc@<service>`
 que les autres hôtes, mais en **unité système** exécutée en root
 (`docker_service_scope: system` dans `host_vars/nas`,
-`/etc/systemd/system/dc@.service`, posée par `nas.yml`, tag `setup`) :
+`/etc/systemd/system/dc@.service`, posée par `nas.yml`, tags `setup` et `always`) :
 sylvain n'est pas dans le groupe docker, `/etc/group` appartient à UGOS, et
 il n'y a pas de lingering à gérer.
 
@@ -272,7 +272,9 @@ il n'y a pas de lingering à gérer.
   attend `docker info` comme ailleurs. `docker_serv` étant `Before=`
   `multi-user.target`, pas de cycle ; en revanche `multi-user.target` attend
   les `ExecStartPre` de chaque `dc@` activé (attente de Docker, images
-  absentes), dans la limite de `TimeoutStartSec`. Pas encore vérifié par un
+  absentes) : 300 s par essai (`TimeoutStartSec`), mais jusqu'à
+  `JobRunningTimeoutSec` (10 min) si Docker ne vient pas, `Restart=always`
+  gardant le job de démarrage ouvert d'un essai à l'autre. Pas encore vérifié par un
   redémarrage du NAS.
 - La racine est un overlay sur l'eMMC (`/overlay/upper`) : l'unité survit aux
   redémarrages, peut-être pas à une réinitialisation d'UGOS. Relancer

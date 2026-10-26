@@ -20,8 +20,10 @@
         return_method: vars-only
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
+    # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
+    # (/etc effacé) doit reposer l'unité avant de démarrer dc@beszel_agent.
     - role: docker_service
-      tags: setup
+      tags: [setup, always]
     - role: nas
       tags: nas
     # Agent de supervision sous dc@beszel_agent en unité système (ni lingering
