@@ -55,22 +55,25 @@ class RestoreError(Exception):
     pass
 
 
-def run(*args, stdin=None, check=True, cwd=None, quiet=False):
+def run(*args, stdin=None, check=True, cwd=None, quiet=False, show_error=False):
     # The logs of a public repository are public: a quiet command (archive
-    # paths in its arguments, rows of a dump in its errors) shows neither
-    # its arguments nor its stderr. Reproduce it from a workstation.
+    # paths in its arguments) does not show its arguments, and no command
+    # shows its stderr (rows of a dump, names of files), except the last line
+    # of one that asks for it (show_error: borg's own message when the
+    # repository cannot be opened). Reproduce a failure from a workstation.
     shown = args[:2] if quiet else args
     print("+", " ".join(shown), "…" if quiet else "", flush=True)
     result = subprocess.run(args, stdin=stdin, capture_output=True, text=True, cwd=cwd)
     if check and result.returncode != 0:
-        detail = "(sortie masquée)" if quiet else result.stderr.strip()[-500:]
+        lines = result.stderr.strip().splitlines()
+        detail = lines[-1][:200] if show_error and lines else "(sortie masquée)"
         raise RestoreError(f"{' '.join(args[:2])} a échoué ({result.returncode}): {detail}")
     return result
 
 
-def borg(*args, cwd=None, quiet=False):
+def borg(*args, cwd=None, quiet=False, show_error=False):
     # Read-only sub-account: borg 1.x cannot write its lock there.
-    return run("borg", args[0], "--bypass-lock", *args[1:], cwd=cwd, quiet=quiet)
+    return run("borg", args[0], "--bypass-lock", *args[1:], cwd=cwd, quiet=quiet, show_error=show_error)
 
 
 def role_image(role, engine):
@@ -92,8 +95,8 @@ def wait_until(container, *probe, ready=lambda stdout: True):
         if result.returncode == 0 and ready(result.stdout):
             return
         time.sleep(3)
-    logs = run("docker", "logs", "--tail", "30", container, check=False)
-    raise RestoreError(f"{container} pas prêt en {DB_READY_TIMEOUT} s : {logs.stderr[-500:]}")
+    # Not its logs: they are not shown in a public log.
+    raise RestoreError(f"{container} pas prêt en {DB_READY_TIMEOUT} s")
 
 
 def restore_postgresql(image, name, dump):
@@ -148,7 +151,8 @@ def restore_mysql(image, name, dump):
 def check_sqlite(path):
     integrity = run("sqlite3", "-readonly", str(path), "PRAGMA integrity_check;").stdout.strip()
     if integrity != "ok":
-        raise RestoreError(f"{path.name} : integrity_check = {integrity[:300]}")
+        # Its messages name tables, indexes and rows: only their count.
+        raise RestoreError(f"{path.name} : integrity_check en échec ({len(integrity.splitlines())} lignes)")
     return int(run("sqlite3", "-readonly", str(path),
                    "select count(*) from sqlite_master where type = 'table';").stdout.strip())
 
@@ -166,7 +170,7 @@ def restore(entry, workdir):
     repo = f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
     # borg >= 1.2 leaves *.checkpoint archives (interrupted runs) out of a
     # listing unless --consider-checkpoints: this is the last complete one.
-    archives = json.loads(borg("list", "--last", "1", "--json", repo).stdout)["archives"]
+    archives = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)["archives"]
     if not archives:
         raise RestoreError("aucune archive")
     archive = archives[0]["name"]
@@ -228,6 +232,11 @@ def main():
             message = restore(entry, pathlib.Path(tmp))
         except RestoreError as error:
             print(f"::error::{app}: {error}", flush=True)
+            return 1
+        except Exception as error:  # noqa: BLE001
+            # No traceback nor message in a public log (a path, a line of
+            # output): the type is enough to reproduce it from a workstation.
+            print(f"::error::{app}: erreur inattendue ({type(error).__name__})", flush=True)
             return 1
     print(f"{app}: {message}", flush=True)
     return 0
