@@ -3,7 +3,8 @@
   ansible.builtin.import_playbook: ../_shared/prepare.yml
 
 # Une installation précédente, comme après une montée Renovate : le rôle doit
-# supprimer son dossier de version et son archive (cf. verify.yml).
+# supprimer son dossier de version et son archive (cf. verify.yml), quelle
+# que soit son architecture.
 - name: Prepare beszel_agent_lxc
   hosts: all
   gather_facts: false
