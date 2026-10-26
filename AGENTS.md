@@ -106,12 +106,13 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 
 | Playbook | Host group | Purpose |
 |---|---|---|
-| `00-setup.yaml` | `all,!backups` | base setup: apt packages, timezone, `sylvain` user + SSH keys from `keys/*.pub`, starship prompt, `ssh_login_notify` (Uptime Kuma/Telegram alert on every SSH login, push URL from the `uptime_ssh_login_urls` output of `pangolin_config`; keys silenced by SHA256 fingerprint in `ssh_login_notify_ignored_fingerprints`, never by comment; `ssh_login_notify_enabled: false` removes the hook, an empty URL only warns) |
+| `00-setup.yaml` | `all,!backups,!nas` | base setup: apt packages, timezone, `sylvain` user + SSH keys from `keys/*.pub`, starship prompt, `ssh_login_notify` (Uptime Kuma/Telegram alert on every SSH login, push URL from the `uptime_ssh_login_urls` output of `pangolin_config`; keys silenced by SHA256 fingerprint in `ssh_login_notify_ignored_fingerprints`, never by comment; `ssh_login_notify_enabled: false` removes the hook, an empty URL only warns) |
 | `docker.yml` | `docker` | Proxmox Docker VM — installs Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, then every app role |
 | `pangolin.yaml` | `pangolin` | Hetzner Pangolin VM — Docker, `borgmatic`, `security` hardening, `pangolin` role |
 | `pi.yml` | `pi` | Raspberry Pi (Debian 13) — Docker, `docker_service`, `host_tuning` (zram, plus the 4 GiB `dphys-swapfile` overflow behind it via `host_tuning_disk_swap_size_mb`), `security`, `borgmatic`, `newt`, `immich` |
 | `flip.yml` | `flip` | Hetzner flip server (no public IP) — `nat_client` first, then Docker, `docker_service`, `host_tuning`, `security`, `borgmatic`, `newt`, `flip_planning` ×3 (prod, demo, Keycloak demo), `promptoramix`. Newt credentials come from the `pangolin_config` state (`flip_newt_id`/`flip_newt_secret` outputs), not from SOPS |
 | `lxc.yml` | `newt_lxc` | Proxmox Newt LXC — `security` without ufw, auditd or devsec's os_hardening (`host_vars/newt-lxc`: an unprivileged container owns none of them), then `newt_service` (Newt as a plain systemd service, no Docker). Credentials of the `proxmox-lxc` site from the `pangolin_config` state (`proxmox_lxc_newt_id`/`proxmox_lxc_newt_secret` outputs), not from SOPS. A fresh LXC first gets `00-setup.yaml --limit newt-lxc -e ansible_user=root` |
+| `nas.yml` | `nas` | Ugreen NAS (UGOS Pro, static in `inventory/hosts`) — role `nas` only: pins `maximumNFSProtocol` in `/etc/nfs.json` (UGOS regenerates `/etc/nfs.conf` from it), writes the homelab NFS exports to `/etc/exports.d/homelab.exports` (`host_vars/nas`, always `sync`, client IPs only) and asserts nfs-server is up with no `async` export. Nothing else of UGOS is touched (no 00-setup, security or packages); shared folders are created in the UI. Run by hand only, never by CI |
 | `backup.yaml` | `docker,pi,pangolin,flip` then `backups` | reads each host's borgmatic public key, then creates `backup/<host>/.ssh` on the Storage Box and uploads it as that subaccount's `authorized_keys` (see below) |
 
 `00-setup.yaml`, `docker.yml`, `flip.yml`, `lxc.yml` and `pangolin.yaml`/`pi.yml` all read the OpenTofu state for `pangolin_config` from the S3-compatible backend (`homelab-tf-state-sylvain` bucket at `s3.eu-west-par.io.cloud.ovh.net`) to pull Uptime Kuma healthcheck-push URLs as Terraform outputs, then pass them into the relevant roles. The SOPS load and the state read are shared: each playbook's first `pre_tasks` entry imports `ansible/tasks/pangolin_config_outputs.yml`, which sets the `terraform_outputs` fact (`no_log`; the state is downloaded once per run, `run_once`, and the registered result reaches every host). A state that cannot be read fails the play, except in `00-setup.yaml`, the only playbook that sets `pangolin_config_outputs_optional: true`: there `terraform_outputs` falls back to `{}` with a warning, so base setup still runs and `ssh_login_notify` only warns. The playbook then `set_fact`s its own `<var>: "{{ terraform_outputs.<output>.value | default('') }}"` — keep that literal form in the playbook, `tofu/pangolin_config/tests/invariants.tftest.hcl` greps the playbooks for it.
@@ -175,8 +176,10 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
   borg can't read it. UGOS creates every file and directory `0777` whatever
   the umask, but honours an explicit chmod: give each NAS path an explicit
   `mode:`.
-- UGOS Pro 1.20 serves NFSv3 only (`nas_storage_nfs_version: "3"`). In the
-  shared folder's NFS rule, untick "Async" (ticked by default).
+- UGOS Pro 1.20 serves NFSv3 only (`nas_storage_nfs_version: "3"`): NFSv4.1
+  can be enabled but UGOS declares no v4 pseudo-root. The VM's export is
+  published by `nas.yml` (`host_vars/nas`), always `sync`; a rule added in the
+  UI instead has "Async" ticked by default.
 - Postgres/MariaDB data dirs may live there; **SQLite (and any mmap/lock-based
   embedded DB) never does** — it stays on the local disk.
 - Every NAS-backed container gets `cgroup_parent: {{ nas_storage_slice }}`:

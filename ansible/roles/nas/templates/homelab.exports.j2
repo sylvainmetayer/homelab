@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Exports du homelab (rôle nas). Les règles de l'interface d'UGOS sont dans
+# /etc/exports, que nfs-server lit aussi.
+{% for export in nas_nfs_exports %}
+{{ export.path }} {% for client in export.clients %}{{ client }}({{ export.options | default(nas_nfs_export_options) }}){{ ' ' if not loop.last }}{% endfor %}
+
+{% endfor %}

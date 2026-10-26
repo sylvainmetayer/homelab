@@ -1,0 +1,11 @@
+---
+# NAS Ugreen (UGOS Pro) : réglages NFS et exports du homelab, puis
+# vérifications. Ni 00-setup, ni security, ni paquets : le système appartient
+# à UGOS. Lancé à la main seulement (ansible-playbook nas.yml), jamais par la
+# CI : aucune clé du NAS dans les secrets GitHub.
+- name: Configure the NAS
+  hosts: nas
+  gather_facts: false
+  roles:
+    - role: nas
+      tags: nas

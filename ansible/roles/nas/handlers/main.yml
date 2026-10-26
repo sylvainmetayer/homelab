@@ -1,0 +1,14 @@
+---
+# conf_tool régénère /etc/nfs.conf depuis nfs.json au démarrage du service.
+- name: Restart nfs-server
+  become: true
+  when: nas_manage_services
+  ansible.builtin.systemd_service:
+    name: nfs-server
+    state: restarted
+
+- name: Reload NFS exports
+  become: true
+  when: nas_manage_services
+  ansible.builtin.command: exportfs -ra
+  changed_when: true

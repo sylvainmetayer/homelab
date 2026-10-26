@@ -1,6 +1,6 @@
 ---
 - name: Base host setup
-  hosts: all,!backups
+  hosts: all,!backups,!nas
   tags: setup
   # Setup de base : un state de pangolin_config illisible (bootstrap, S3 en
   # panne) ne l'arrête pas, ssh_login_notify avertit et ne touche à rien.
