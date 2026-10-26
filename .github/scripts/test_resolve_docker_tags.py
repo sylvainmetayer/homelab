@@ -13,7 +13,8 @@ from pathlib import Path
 import resolve_docker_tags as rdt
 
 SCRIPT = Path(rdt.__file__)
-PLAYBOOKS = ["ansible/docker.yml", "ansible/pi.yml", "ansible/pangolin.yaml", "ansible/flip.yml"]
+# Same list as the resolve_docker_tags.py call in .github/workflows/deploy-docker-app.yaml.
+DEPLOYED_PLAYBOOKS = ["ansible/docker.yml", "ansible/pi.yml", "ansible/pangolin.yaml", "ansible/flip.yml"]
 
 
 def write_meta(roles_dir, role, deps, ext="yml"):
@@ -31,6 +32,16 @@ class AddDependents(unittest.TestCase):
             roles, pulled_by = rdt.add_dependents({"shared"}, roles_dir)
         self.assertEqual(pulled_by["shared"], {"app_yml", "app_yaml"})
         self.assertEqual(roles, {"shared", "app_yml", "app_yaml"})
+
+    def test_main_yml_wins_over_main_yaml(self):
+        # Ansible reads only the first of main.yml, main.yaml: a stale
+        # main.yaml beside main.yml declares nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            roles_dir = Path(tmp)
+            write_meta(roles_dir, "app", ["shared"])
+            (roles_dir / "app" / "meta" / "main.yaml").write_text("dependencies:\n  - role: stale\n")
+            _, pulled_by = rdt.add_dependents({"shared", "stale"}, roles_dir)
+        self.assertEqual(pulled_by, {"shared": {"app"}, "stale": set()})
 
     def test_transitive(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -71,7 +82,7 @@ class RealPlaybooks(unittest.TestCase):
 
     def run_script(self, *changed):
         out = subprocess.run(
-            [sys.executable, "-I", str(SCRIPT), *PLAYBOOKS],
+            [sys.executable, "-I", str(SCRIPT), *DEPLOYED_PLAYBOOKS],
             input="\n".join(changed), capture_output=True, text=True, check=True,
             cwd=SCRIPT.parents[2],
         )
@@ -91,7 +102,7 @@ class RealPlaybooks(unittest.TestCase):
             real = rdt.add_dependents
             stdout, stderr = io.StringIO(), io.StringIO()
             with mock.patch.object(rdt, "add_dependents", lambda roles: real(roles, roles_dir)), \
-                    mock.patch.object(sys, "argv", ["resolve_docker_tags.py", *(str(SCRIPT.parents[2] / p) for p in PLAYBOOKS)]), \
+                    mock.patch.object(sys, "argv", ["resolve_docker_tags.py", *(str(SCRIPT.parents[2] / p) for p in DEPLOYED_PLAYBOOKS)]), \
                     mock.patch.object(sys, "stdin", io.StringIO("ansible/roles/dep/tasks/main.yml\n")), \
                     contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 rdt.main()

@@ -59,6 +59,8 @@ jobs:
 
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts
+        # Même si ansible-lint a échoué : deux régressions dans une seule passe.
+        if: ${{ !cancelled() }}
         run: python -I -m unittest discover -s .github/scripts -p 'test_*.py'
 
   tofu:
