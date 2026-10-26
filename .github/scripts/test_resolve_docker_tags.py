@@ -1,10 +1,13 @@
 """Tests of resolve_docker_tags.py (Lint workflow:
 python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
+import contextlib
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import resolve_docker_tags as rdt
@@ -78,6 +81,22 @@ class RealPlaybooks(unittest.TestCase):
         result, stderr = self.run_script("ansible/roles/decommission_app/tasks/main.yml")
         self.assertEqual(set(result.values()), {""})
         self.assertNotIn("::warning::", stderr)
+
+    def test_dependency_of_a_never_role_is_reported_by_main(self):
+        # main() itself on the real playbooks, with a meta tree where the only
+        # dependent of `dep` is decommission_app (tags [decommission, never]).
+        with tempfile.TemporaryDirectory() as tmp:
+            roles_dir = Path(tmp)
+            write_meta(roles_dir, "decommission_app", ["dep"])
+            real = rdt.add_dependents
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.object(rdt, "add_dependents", lambda roles: real(roles, roles_dir)), \
+                    mock.patch.object(sys, "argv", ["resolve_docker_tags.py", *(str(SCRIPT.parents[2] / p) for p in PLAYBOOKS)]), \
+                    mock.patch.object(sys, "stdin", io.StringIO("ansible/roles/dep/tasks/main.yml\n")), \
+                    contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                rdt.main()
+        self.assertEqual(set(json.loads(stdout.getvalue()).values()), {""})
+        self.assertIn("::warning::role 'dep' changed but is not deployed", stderr.getvalue())
 
     def test_nas_storage_deploys_its_dependents(self):
         result, _ = self.run_script("ansible/roles/nas_storage/tasks/main.yml")
