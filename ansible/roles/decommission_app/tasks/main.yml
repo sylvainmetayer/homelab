@@ -68,3 +68,9 @@
   ansible.builtin.file:
     path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@{{ decommission_app_service }}.service.d"
     state: absent
+
+# Sans reload, le manager user garde le drop-in supprimé en mémoire.
+- name: Reload the user systemd manager after removing the drop-ins
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user

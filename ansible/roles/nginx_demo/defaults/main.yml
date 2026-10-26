@@ -18,12 +18,13 @@ nginx_demo_db_user: nginx_demo
 nginx_demo_db_password_path: "{{ nginx_demo_data_path }}/db_password"
 nginx_demo_db_password: "{{ (nginx_demo_db_password_file.content | default('')) | b64decode | trim }}"
 
-# Attente du NAS avant chaque démarrage de dc@nginx_demo. Reste sous le
-# TimeoutStartSec (300 s) de dc@.service, `docker compose pull` compris. Un
-# essai raté dure donc ~200 s : moins de 5 essais par fenêtre de 600 s,
-# l'unité ne bute jamais sur StartLimitBurst et réessaie jusqu'au retour du
-# NAS.
-nginx_demo_nas_wait_timeout: 200
+# Attente du NAS avant chaque démarrage de dc@nginx_demo, après les
+# ExecStartPre de dc@.service : l'attente de Docker (120 s au plus) et
+# `docker compose pull`. Tous partagent son TimeoutStartSec (300 s) :
+# 120 + 150 laisse 30 s au pull. dc@ n'abandonne jamais
+# (StartLimitIntervalSec=0) : un essai raté est relancé 15 s plus tard,
+# jusqu'au retour du NAS.
+nginx_demo_nas_wait_timeout: 150
 
 # Borgmatic backup configuration
 nginx_demo_backup_enabled: true

@@ -9,19 +9,9 @@
   ansible.builtin.set_fact:
     nas_nfs_config: "{{ nas_nfs_config_raw.content | b64decode | from_json }}"
 
-# Réécrit seulement si la valeur diffère : l'interface reformate le fichier à
-# chaque enregistrement, une comparaison du texte changerait à chaque run.
-- name: Set the maximum NFS protocol
-  become: true
-  when: nas_nfs_config.maximumNFSProtocol != nas_nfs_max_protocol
-  ansible.builtin.copy:
-    dest: "{{ nas_nfs_config_path }}"
-    content: "{{ nas_nfs_config | combine({'maximumNFSProtocol': nas_nfs_max_protocol}) | to_nice_json(indent=2) }}\n"
-    owner: root
-    group: root
-    mode: "0640"
-  notify: Restart nfs-server
-
+# Avant toute modification : un échec ici, après la réécriture de nfs.json,
+# perdrait le handler Restart nfs-server, et le run suivant (valeur déjà
+# bonne) ne redémarrerait jamais le service.
 - name: Check the shared folders of the exports
   become: true
   ansible.builtin.stat:
@@ -40,6 +30,19 @@
   loop: "{{ nas_nfs_export_dirs.results }}"
   loop_control:
     label: "{{ item.item.path }}"
+
+# Réécrit seulement si la valeur diffère : l'interface reformate le fichier à
+# chaque enregistrement, une comparaison du texte changerait à chaque run.
+- name: Set the maximum NFS protocol
+  become: true
+  when: nas_nfs_config.maximumNFSProtocol != nas_nfs_max_protocol
+  ansible.builtin.copy:
+    dest: "{{ nas_nfs_config_path }}"
+    content: "{{ nas_nfs_config | combine({'maximumNFSProtocol': nas_nfs_max_protocol}) | to_nice_json(indent=2) }}\n"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart nfs-server
 
 - name: Create the exports.d folder
   become: true
@@ -84,11 +87,14 @@
       when: not ansible_check_mode
       vars:
         nas_exportfs_flat: "{{ nas_exportfs.stdout | regex_replace('\\n\\s+', ' ') }}"
+        # Chemin exact de chaque entrée : une sous-chaîne ferait passer
+        # /volume1/nas pour actif dès que /volume1/nas-test l'est.
+        nas_exportfs_paths: "{{ nas_exportfs_flat.splitlines() | select | map('split') | map('first') | list }}"
       ansible.builtin.assert:
         that:
           - nas_nfs_server.status.ActiveState == 'active'
           - "'async' not in nas_exportfs.stdout"
-          - nas_nfs_exports | map(attribute='path') | reject('in', nas_exportfs_flat) | list | length == 0
+          - nas_nfs_exports | map(attribute='path') | reject('in', nas_exportfs_paths) | list | length == 0
         fail_msg: >-
           NFS non conforme (service {{ nas_nfs_server.status.ActiveState }}) :
           {{ nas_exportfs.stdout }}. Une règle de l'interface en « Async » se

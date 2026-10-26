@@ -165,11 +165,13 @@ Référence : `ansible/roles/nginx_demo`.
    (pas de volume Docker `driver_opts: nfs`, que borg ne pourrait pas lire) et
    `cgroup_parent: {{ nas_storage_slice }}` sur chaque conteneur.
 4. Drop-in utilisateur `dc@<service>.service.d/nas-storage.conf` avec
-   `ExecStartPre=/usr/local/bin/nas-storage-wait 200`. Au boot, la VM est
-   prête avant le NAS ; sans attente, chaque essai de `dc@<service>` échoue
-   en 30 s, l'unité atteint `StartLimitBurst` et reste en échec jusqu'à un
-   `reset-failed` manuel. Avec ~200 s par essai, elle réessaie jusqu'au
-   retour du NAS (rester sous le `TimeoutStartSec` de 300 s de `dc@`).
+   `ExecStartPre=/usr/local/bin/nas-storage-wait 150`. Au boot, la VM est
+   prête avant le NAS ; sans attente, chaque `docker compose up` bute sur
+   l'automount (30 s) et échoue sur une erreur de bind mount de Docker. `dc@`
+   réessaie sans fin (`StartLimitIntervalSec=0`), l'attente remplace ces
+   échecs par un message clair. Les `ExecStartPre` partagent le
+   `TimeoutStartSec` de 300 s de `dc@` : attente de Docker (120 s au plus),
+   pull, puis celle du NAS.
 5. Borgmatic (rôle `borgmatic`, `tasks_from: app.yml`, comme toutes les
    applis) :
    - les dossiers de fichiers du NAS dans `borgmatic_app_source_directories`,

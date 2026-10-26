@@ -188,9 +188,11 @@ Reference role: `ansible/roles/nginx_demo`. The rules:
   otherwise hang Postgres' last checkpoint).
 - A `dc@<service>.service.d/nas-storage.conf` user drop-in with
   `ExecStartPre={{ nas_storage_wait_command }} <timeout>`: at boot the VM is
-  up before the NAS, and without the wait `dc@<service>` hits
-  `StartLimitBurst` and stays failed. Keep the timeout under dc@'s
-  `TimeoutStartSec` (300 s), pull included.
+  up before the NAS, and without the wait every `docker compose up` fails on
+  the automount (30 s) with a Docker bind-mount error, retried by dc@ forever.
+  dc@'s `TimeoutStartSec` (300 s) covers all its `ExecStartPre`: its Docker
+  wait (up to 120 s) and the pull come first, so keep the NAS wait at 150 s
+  or less.
 - Borgmatic (`borgmatic` role, `tasks_from: app.yml`): NAS file dirs in
   `borgmatic_app_source_directories`, the DB data dir **not** (dumped through
   `borgmatic_app_postgresql_databases`),

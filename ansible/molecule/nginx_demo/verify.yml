@@ -102,4 +102,4 @@
     - name: Assert dc@nginx_demo waits for the NAS before starting
       ansible.builtin.assert:
         that:
-          - "'ExecStartPre=/usr/local/bin/nas-storage-wait 200' in (nginx_demo_dropin.content | b64decode)"
+          - "'ExecStartPre=/usr/local/bin/nas-storage-wait 150' in (nginx_demo_dropin.content | b64decode)"
