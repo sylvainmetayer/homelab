@@ -66,8 +66,11 @@
         state: restarted
       when: docker_service_manager_groups.stdout == 'stale'
 
-    - name: Reset ssh connection to allow user changes to take effect
-      ansible.builtin.meta: reset_connection
+# Hors du bloc : meta reset_connection ignore `when` (y compris celui d'un
+# bloc), avec un avertissement à chaque passage. Inutile mais sans effet en
+# unité système.
+- name: Reset ssh connection to allow user changes to take effect
+  ansible.builtin.meta: reset_connection
 
 # Unité système, exécutée en root : ni lingering ni groupe docker. La base des
 # applis appartient à l'hôte, le rôle ne la crée ni ne la modifie (sur le NAS,

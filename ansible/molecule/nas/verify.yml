@@ -75,8 +75,7 @@
           - "'TimeoutStartSec=300' in nas_verify_unit_lines"
           # Ordre seul : tirer docker.service le démarrerait avant qu'UGOS ait
           # monté /volume1 (data-root).
-          - "'docker_serv.service' in docker_service_system_after"
-          - ('After=' ~ docker_service_system_after | join(' ')) in nas_verify_unit_lines
+          - "'After=docker_serv.service docker.service' in nas_verify_unit_lines"
           - nas_verify_unit_lines | select('match', '^(Wants|Requires|BindsTo|Requisite)=') | list | length == 0
           - nas_verify_unit_lines | select('match', '^User=') | list | length == 0
           - "'WantedBy=multi-user.target' in nas_verify_unit_lines"
