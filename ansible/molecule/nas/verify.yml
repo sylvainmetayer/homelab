@@ -3,6 +3,10 @@
   hosts: all
   become: true
   gather_facts: false
+  vars_files:
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    nas_verify_unit_path: /etc/systemd/system/dc@.service
   tasks:
     - name: Read the NFS settings
       ansible.builtin.slurp:
@@ -26,3 +30,82 @@
           - nas_verify_json.defaultReadPacketSize == 8
           - nas_verify_lines == ['/volume1/nas-test 192.168.1.216(rw,sync,no_wdelay,no_subtree_check,insecure_locks,no_root_squash,sec=sys)']
         fail_msg: "nas.json ou exports inattendus : {{ nas_verify_json }} / {{ nas_verify_lines }}"
+
+    # dc@ : unité système du NAS (docker_service_scope: system).
+    - name: Stat the system dc@ unit and the user one
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ nas_verify_unit_path }}"
+        - /home/sylvain/.config/systemd/user/dc@.service
+      register: nas_verify_units
+
+    - name: Assert dc@ is a root-owned system unit, and no user unit was written
+      ansible.builtin.assert:
+        that:
+          - nas_verify_units.results[0].stat.exists
+          - nas_verify_units.results[0].stat.pw_name == 'root'
+          - nas_verify_units.results[0].stat.gr_name == 'root'
+          - nas_verify_units.results[0].stat.mode == '0644'
+          - not nas_verify_units.results[1].stat.exists
+        fail_msg: "{{ nas_verify_units.results | map(attribute='item') | list }} : propriétaire, mode ou existence inattendus"
+
+    - name: Read the system dc@ unit
+      ansible.builtin.slurp:
+        src: "{{ nas_verify_unit_path }}"
+      register: nas_verify_unit_raw
+
+    # Même comportement que l'unité user (scénario docker_service), plus ce
+    # qui est propre à l'unité système.
+    - name: Assert the system dc@ unit behaves like the user one
+      vars:
+        nas_verify_unit_lines: "{{ (nas_verify_unit_raw.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - ('WorkingDirectory=' ~ docker_base_path ~ '/%i') in nas_verify_unit_lines
+          - nas_verify_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
+          - "'ExecStartPre=/usr/bin/docker compose pull --policy missing' in nas_verify_unit_lines"
+          - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in nas_verify_unit_lines"
+          - "'ExecStop=/usr/bin/docker compose stop' in nas_verify_unit_lines"
+          - "'Restart=always' in nas_verify_unit_lines"
+          - "'RestartSec=15s' in nas_verify_unit_lines"
+          - "'StartLimitIntervalSec=0' in nas_verify_unit_lines"
+          - "'TimeoutStartSec=300' in nas_verify_unit_lines"
+          # Ordre seul : tirer docker.service le démarrerait avant qu'UGOS ait
+          # monté /volume1 (data-root).
+          - "'After=docker_serv.service docker.service' in nas_verify_unit_lines"
+          - nas_verify_unit_lines | select('match', '^(Wants|Requires|BindsTo|Requisite)=') | list | length == 0
+          - nas_verify_unit_lines | select('match', '^User=') | list | length == 0
+          - "'WantedBy=multi-user.target' in nas_verify_unit_lines"
+        fail_msg: "{{ nas_verify_unit_path }} inattendu"
+
+    - name: Verify an instance of the dc@ unit
+      ansible.builtin.command: systemd-analyze verify dc@molecule.service
+      register: nas_verify_analyze
+      changed_when: false
+      failed_when: >-
+        nas_verify_analyze.rc != 0
+        or (nas_verify_analyze.stderr_lines | select('search', 'dc@') | list | length > 0)
+
+    # Le manager système a chargé ce fichier (le handler Daemon reload est
+    # passé), avec les mêmes délais que l'unité user.
+    - name: Read an instance of dc@
+      ansible.builtin.systemd:
+        name: dc@molecule
+      register: nas_verify_instance
+
+    - name: Assert the system manager loaded the dc@ unit template
+      ansible.builtin.assert:
+        that:
+          - nas_verify_instance.status.LoadState == 'loaded'
+          - nas_verify_instance.status.FragmentPath == nas_verify_unit_path
+          - nas_verify_instance.status.NeedDaemonReload == 'no'
+          - nas_verify_instance.status.WorkingDirectory == docker_base_path ~ '/molecule'
+          - nas_verify_instance.status.StartLimitIntervalUSec == '0'
+          - nas_verify_instance.status.RestartUSec == '15s'
+          - nas_verify_instance.status.TimeoutStartUSec == '5min'
+          - nas_verify_instance.status.JobRunningTimeoutUSec == '10min'
+          - nas_verify_instance.status.TimeoutStopUSec == '2min'
+        fail_msg: >-
+          dc@molecule : {{ nas_verify_instance.status.LoadState }}
+          depuis {{ nas_verify_instance.status.FragmentPath | default('?') }}

@@ -14,10 +14,15 @@
         group: root
         mode: "0600"
 
-    - name: Create the shared folder of host_vars/nas
+    # Le dossier exporté, et docker_base_path : le dossier partagé que crée
+    # l'appli Docker d'UGOS.
+    - name: Create the shared folders of host_vars/nas
       ansible.builtin.file:
-        path: /volume1/nas-test
+        path: "{{ item }}"
         state: directory
         owner: root
         group: root
         mode: "0700"
+      loop:
+        - /volume1/nas-test
+        - /volume1/docker

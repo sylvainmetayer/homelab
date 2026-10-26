@@ -246,6 +246,32 @@ déplace ces ports : `showmount` et le montage restent alors bloqués alors que
 pour chaque client NFS (VM `192.168.1.216`, Pi `192.168.1.96`) dans
 Sécurité → Pare-feu.
 
+### Applis lancées sur le NAS lui-même (`dc@` système)
+
+Quelques applis tournent sur le NAS plutôt que sur la VM (Beszel, Jellyfin
+à venir), avec le Docker qu'installe l'appli Docker d'UGOS (Docker 29,
+`data-root` `/volume1/@docker`). Elles suivent le même modèle `dc@<service>`
+que les autres hôtes, mais en **unité système** exécutée en root
+(`docker_service_scope: system` dans `host_vars/nas`,
+`/etc/systemd/system/dc@.service`, posée par `nas.yml`, tag `setup`) :
+sylvain n'est pas dans le groupe docker, `/etc/group` appartient à UGOS, et
+il n'y a pas de lingering à gérer.
+
+- Composes sous `/volume1/docker/<service>` (`docker_base_path`), dossier
+  partagé `docker` créé par l'appli Docker d'UGOS ; il est partagé en SMB au
+  groupe `admin`, d'où un dossier 0700 root par appli. UGOS présente à root
+  des modes de dossiers partagés différents de ceux qu'il montre à sylvain
+  (`d---------` pour `nas-test`, `drwx------` pour `docker`, `drwxrwxrwx`
+  côté sylvain) : ne pas s'y fier pour diagnostiquer.
+- `docker.service` y est désactivé : `docker_serv` (UGOS, après le montage
+  des volumes) active `docker.socket`, et le démon démarre à la première
+  requête. `dc@` est donc rangé `After=docker_serv.service docker.service`
+  sans les tirer (un `Requires=` démarrerait Docker avant `/volume1`), et
+  attend `docker info` comme ailleurs.
+- La racine est un overlay sur l'eMMC (`/overlay/upper`) : l'unité survit aux
+  redémarrages, peut-être pas à une réinitialisation d'UGOS. Relancer
+  `nas.yml`, qui repose et revérifie tout.
+
 ### Comportements observés (test depuis le Pi, 2026-10-25)
 
 - **Les droits demandés à la création sont ignorés** : tout fichier ou dossier

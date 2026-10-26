@@ -1,0 +1,16 @@
+---
+# user (défaut) : dc@.service est une unité *user* de l'utilisateur Ansible
+# (~/.config/systemd/user, lingering, groupe docker), sur tous les hôtes
+# dont le homelab gère les utilisateurs.
+# system : unité système /etc/systemd/system/dc@.service, exécutée en root,
+# pour un hôte dont il ne les gère pas : sur le NAS (UGOS), sylvain n'est pas
+# dans le groupe docker et /etc/group appartient à UGOS. Les rôles
+# d'application de cet hôte lisent la même variable pour le `scope:` de leurs
+# tâches systemd (host_vars/nas).
+docker_service_scope: user
+
+# system seulement : unités après lesquelles dc@ démarre (ordre seul, jamais
+# Wants=/Requires=). host_vars/nas ajoute docker_serv.service, qui lance
+# Docker sous UGOS.
+docker_service_system_after:
+  - docker.service
