@@ -25,9 +25,13 @@
     # Traversable par tous : le service tourne sous un utilisateur dynamique
     # (DynamicUser), qui doit atteindre le binaire.
     mode: "0755" # NOSONAR
+  register: beszel_agent_install_dirs
 
+# Sur un premier --check, ni le dossier ni l'archive n'existent : get_url
+# refuse un dossier absent, unarchive une archive absente.
 - name: Download the Beszel agent archive
   become: true
+  when: not (ansible_check_mode and beszel_agent_install_dirs is changed)
   ansible.builtin.get_url:
     url: "https://github.com/henrygd/beszel/releases/download/v{{ beszel_agent_binary_version }}/beszel-agent_linux_{{ beszel_agent_arch }}.tar.gz"
     dest: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_archive }}"
@@ -35,9 +39,11 @@
     owner: root
     group: root
     mode: "0600"
+  register: beszel_agent_download
 
 - name: Unpack the Beszel agent
   become: true
+  when: not (ansible_check_mode and (beszel_agent_install_dirs is changed or beszel_agent_download is changed))
   notify: Restart beszel-agent
   ansible.builtin.unarchive:
     src: "{{ beszel_agent_binary_dir }}/{{ beszel_agent_archive }}"
@@ -78,9 +84,12 @@
     owner: root
     group: root
     mode: "0640"
+  register: beszel_agent_unit_install
 
+# Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.
 - name: Start and enable the Beszel agent
   become: true
+  when: not (ansible_check_mode and beszel_agent_unit_install is changed)
   ansible.builtin.systemd:
     name: beszel-agent
     state: started

@@ -232,8 +232,8 @@ flowchart LR
   `docker_service`) ; un service systemd sur le LXC newt (`lxc.yml`, à la
   main) et sur l'hôte Proxmox (`pve.yml`, à la main, en root sans become :
   pas de sudo sur l'hôte), qui lit aussi le S.M.A.R.T. de `sda`, le SSD M.2
-  SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO` et groupe `disk`
-  dans l'unité). L'hôte Proxmox n'a que cet agent : ni `00-setup`, ni
+  SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
+  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent : ni `00-setup`, ni
   `security`.
 - **Alertes** (disque > 85 %, mémoire, swap, hôte muet) : réglées dans
   l'interface, envoyées par e-mail (SMTP Infomaniak réglé dans l'interface

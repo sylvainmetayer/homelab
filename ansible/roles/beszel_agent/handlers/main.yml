@@ -10,8 +10,10 @@
     scope: "{{ beszel_agent_dc_scope }}"
     state: restarted
 
+# Pas en --check si l'unité vient d'être posée : elle n'existe pas encore.
 - name: Restart beszel-agent
   become: true
+  when: not (ansible_check_mode and beszel_agent_unit_install is changed)
   ansible.builtin.systemd:
     name: beszel-agent
     state: restarted
