@@ -109,6 +109,13 @@ class RealPlaybooks(unittest.TestCase):
         self.assertEqual(set(json.loads(stdout.getvalue()).values()), {""})
         self.assertIn("::warning::role 'dep' changed but is not deployed", stderr.getvalue())
 
+    def test_role_of_a_manual_playbook_gets_a_notice(self):
+        # jellyfin has an entry in nas.yml only, which CI never runs.
+        result, stderr = self.run_script("ansible/roles/jellyfin/tasks/main.yml")
+        self.assertEqual(set(result.values()), {""})
+        self.assertIn("::notice::role 'jellyfin' changed, deployed by hand only (nas.yml)", stderr)
+        self.assertNotIn("::warning::", stderr)
+
     def test_nas_storage_deploys_its_dependents(self):
         result, _ = self.run_script("ansible/roles/nas_storage/tasks/main.yml")
         self.assertIn("nginx_demo", result["ansible/docker.yml"].split(","))

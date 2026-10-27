@@ -151,12 +151,14 @@ def main():
 
         result[playbook_path] = ",".join(sorted(resolved))
 
+    unreferenced = sorted(unreferenced_roles(pulled_by, referenced, deployed))
     # Roles of a playbook run by hand only (nas.yml: no NAS key in the GitHub
-    # secrets) are expected here: a notice, not a warning.
+    # secrets) are expected here: a notice, not a warning. Read only when
+    # needed: most merges leave no unreferenced role.
     manual_roles = {
         role for playbook in MANUAL_PLAYBOOKS for role in load_role_tags(ANSIBLE_DIR / playbook)
-    }
-    for role in sorted(unreferenced_roles(pulled_by, referenced, deployed)):
+    } if unreferenced else set()
+    for role in unreferenced:
         if role in manual_roles:
             print(f"::notice::role '{role}' changed, deployed by hand only ({', '.join(MANUAL_PLAYBOOKS)}), not by CI", file=sys.stderr)
             continue

@@ -51,12 +51,19 @@
     jellyfin_gid: "{{ ansible_facts['getent_passwd'][jellyfin_user][2] }}"
     jellyfin_render_gid: "{{ jellyfin_render_stat.stat.gid }}"
 
-# Le compte propriétaire des médias, jamais root (un -e ansible_user=root).
+# Le compte propriétaire des médias, jamais root (un -e ansible_user=root),
+# ni le groupe root : un périphérique de rendu resté root:root (pas de règle
+# udev) ferait ajouter le gid 0 par group_add.
 - name: Refuse to run Jellyfin as root
   ansible.builtin.assert:
     that:
       - jellyfin_uid | int != 0
-    fail_msg: "jellyfin_user ({{ jellyfin_user }}) est root : Jellyfin tourne sous le compte propriétaire des médias."
+      - jellyfin_gid | int != 0
+      - jellyfin_render_gid | int != 0
+    fail_msg: >-
+      Jellyfin tourne sous le compte propriétaire des médias, jamais root :
+      jellyfin_user {{ jellyfin_user }} ({{ jellyfin_uid }}:{{ jellyfin_gid }}),
+      groupe de {{ jellyfin_render_device }} {{ jellyfin_render_gid }}.
     quiet: true
 
 # dc@ user : dossier de l'utilisateur de déploiement. dc@ système (NAS) :
