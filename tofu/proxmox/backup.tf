@@ -54,7 +54,10 @@ resource "proxmox_backup_job" "nightly" {
   # Dossier temporaire du LXC newt (non privilégié) : vzdump le crée par
   # défaut à côté de l'archive, sur le NFS, en root, et le tar de pct, lancé
   # en uid 100000, ne peut pas l'ouvrir (« Permission denied », test du
-  # 27/10). Sur le disque local : quelques centaines de Mo au plus.
+  # 27/10). En mode snapshot il ne reçoit que la config du guest ; seul un
+  # repli en mode suspend y copierait tout le rootfs du LXC (8 Go au plus),
+  # sur la racine de l'hôte. Ne vaut que pour ce job : une sauvegarde lancée
+  # depuis l'onglet Sauvegarde du LXC demande « --tmpdir /var/tmp » à la main.
   tmpdir  = "/var/tmp"
   enabled = true
   prune_backups = {

@@ -152,7 +152,8 @@ Mise en place, dans l'ordre :
    puis
    `tofu import proxmox_backup_job.nightly backup-cbfcde61-8413` (le job créé
    dans l'interface), puis `tofu plan` : création du storage, `storage` du job
-   `local` → `nas-backup`, rien d'autre. `tofu apply`.
+   `local` → `nas-backup` et son `tmpdir` → `/var/tmp`, rien d'autre.
+   `tofu apply`.
 4. Lancer le job une fois (Datacenter → Sauvegarde → Exécuter maintenant), puis
    faire de la place sur `local` : les deux archives de la VM docker du 28 et
    29/09 (`/var/lib/vz/dump/vzdump-qemu-100-*`, ~51 Gio), l'archive partielle du
@@ -160,7 +161,11 @@ Mise en place, dans l'ordre :
    LXC 102.
 
 Diagnostic d'un échec : le journal de la tâche (interface, ou
-`/mnt/pve/nas-backup/dump/*.log`), `pvesm status` (`nas-backup` actif ?), et
+`/mnt/pve/nas-backup/dump/*.log`), `pvesm status` (`nas-backup` actif ?), un
+`tar: …/vzdump-lxc-200-….tmp: Cannot open: Permission denied` (dossier
+temporaire sur le NFS, que le tar du LXC non privilégié ne peut pas ouvrir : le
+job fixe `tmpdir = "/var/tmp"`, une sauvegarde lancée depuis le LXC lui-même
+demande `vzdump 200 --storage nas-backup --tmpdir /var/tmp`), et
 la taille de la VM : `df -h /` et `docker system df` dans la VM. Les images
 Docker remplacées par Renovate restent sur le disque tant qu'elles ne sont pas
 supprimées (`docker image prune -a`) et grossissent chaque archive.
