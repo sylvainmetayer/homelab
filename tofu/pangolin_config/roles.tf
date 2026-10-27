@@ -20,6 +20,7 @@ locals {
     "dawarich",
     "trek",
     "karakeep",
+    "kitchenowl",
     "wishlist",
     "nginx-demo",
     "beszel"
