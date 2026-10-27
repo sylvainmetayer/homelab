@@ -250,8 +250,11 @@ flowchart LR
   proxy le refuse (403 dans ses logs à chaque ouverture), parce que l'agent
   n'en retire que les variables d'environnement, pas les arguments de
   commande (le `--requirepass` du redis de nextcloud) ni les labels. Sur le
-  LXC newt et l'hôte Proxmox (agent binaire, sans Docker), seuls les logs des
-  services systemd suivis (`SERVICE_PATTERNS`).
+  LXC newt et l'hôte Proxmox (agent binaire, sans Docker), ni fiche de
+  conteneur ni logs des services systemd suivis (`SERVICE_PATTERNS`) :
+  l'utilisateur éphémère de l'unité (`DynamicUser`) n'est dans aucun groupe
+  du journal, l'agent le trouve illisible et coupe ces logs
+  (`SupplementaryGroups=systemd-journal` ouvrirait tout le journal).
 - **Lancement** : `dc@beszel_agent` (unité user) sur docker, pi et flip ;
   `dc@beszel_agent` en unité système sur le NAS (`nas.yml`, à la main) ;
   `docker compose up -d` et la restart policy sur Pangolin (pas de
