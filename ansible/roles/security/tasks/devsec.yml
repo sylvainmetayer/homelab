@@ -84,7 +84,7 @@
     ssh_max_auth_retries: "{{ security_ssh_max_auth_tries }}"
     ssh_allow_tcp_forwarding: "{{ security_ssh_allow_tcp_forwarding }}"
     ssh_allow_agent_forwarding: "{{ security_ssh_allow_agent_forwarding }}"
-    # Fournis, ces quatre-là remplacent les listes que devsec choisirait selon
+    # Fournis, ces cinq-là remplacent les listes que devsec choisirait selon
     # la version d'OpenSSH (vars/main.yml de devsec). ssh_host_key_files fourni
     # saute aussi sa tâche de clés d'hôte, qui aurait régénéré la clé RSA.
     ssh_kex: "{{ security_ssh_kex }}"
@@ -98,6 +98,16 @@
       - PubkeyAcceptedAlgorithms {{ security_ssh_key_algorithms | join(',') }}
       - CASignatureAlgorithms {{ security_ssh_ca_signature_algorithms | join(',') }}
       - RequiredRSASize {{ security_ssh_required_rsa_size }}
+
+# Ce que la tâche de clés d'hôte de devsec, sautée ci-dessus, faisait aussi :
+# root:root 0600 sur chaque clé privée offerte.
+- name: Restrict the SSH host private keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ security_ssh_host_keys }}"
 
 # Après le sshd_config de devsec, qui ne les cite plus : le sshd en cours les a
 # en mémoire jusqu'à son redémarrage (handler de devsec). Une clé supprimée
