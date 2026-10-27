@@ -2029,6 +2029,20 @@ run "nas_newt_credentials_and_media_internal" {
     )
     error_message = "media.internal doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
   }
+
+  # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de
+  # l'inventaire) : client Pangolin connecté, ce montage passe par nas.internal,
+  # qui doit viser la même IP et laisser passer TCP 445 en plus de l'UI (9999).
+  assert {
+    condition = (
+      pangolin_site_resource.nas.destination == "192.168.1.137"
+      && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "nas ansible_host=192.168.1.137 ")
+      && strcontains(file("${path.module}/../../ansible/pc-nas.yml"), "hostvars['nas'].ansible_host")
+      && pangolin_site_resource.nas.tcp_port_range == "445,9999"
+      && pangolin_site_resource.nas.alias == "nas.internal"
+    )
+    error_message = "nas.internal doit viser l'IP du NAS de ansible/inventory/hosts, lue par ansible/pc-nas.yml, en TCP 445 (SMB) et 9999 (UI)."
+  }
 }
 
 # Production et démo partagent un rôle Ansible mais rien côté Pangolin /
