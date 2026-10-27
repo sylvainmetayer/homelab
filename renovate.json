@@ -85,7 +85,7 @@
       "allowedVersions": "!/^v1\\.8\\.0$/"
     },
     {
-      "description": "The Hetzner Storage Box only runs a borg 1.x server (ansible/roles/borgmatic/tasks/main.yml): a borg 2 client cannot talk to it",
+      "description": "The Hetzner Storage Box only runs a borg 1.x server (ansible/roles/borgmatic/tasks/host.yml): a borg 2 client cannot talk to it",
       "matchDatasources": [
         "github-releases"
       ],

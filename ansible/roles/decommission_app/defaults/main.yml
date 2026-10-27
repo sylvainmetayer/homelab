@@ -23,3 +23,7 @@ decommission_app_remove_data: true
 # for this app) and off by default. Only set true once you're sure you won't
 # need the backup history.
 decommission_app_destroy_remote_backup: false
+
+# borgmatic du rôle borgmatic, joué plus tôt dans la même play : pipx, ou
+# l'enrobage de son conteneur sur le NAS (borgmatic_install: container).
+decommission_app_borgmatic_bin: "{{ borgmatic_bin | default('/root/.local/bin/borgmatic') }}"

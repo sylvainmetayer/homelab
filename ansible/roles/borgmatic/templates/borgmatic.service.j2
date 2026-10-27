@@ -7,6 +7,13 @@ After={{ (['network-online.target'] + borgmatic_service_after) | join(' ') }}
 Type=oneshot
 User=root
 Group=root
+{% if borgmatic_install == 'container' %}
+# After= ne fait qu'ordonner : sous UGOS, docker_serv active docker.socket
+# après le montage des volumes, et le rattrapage d'une nuit manquée
+# (Persistent=true) part dès le boot. Attendre que le démon réponde, comme
+# dc@ : sans quoi `docker compose run` échoue et la sauvegarde du jour saute.
+ExecStartPre=/usr/bin/timeout 300 /bin/sh -c 'until /usr/bin/docker info >/dev/null 2>&1; do sleep 2; done'
+{% endif %}
 ExecStart={{ borgmatic_container_wrapper if borgmatic_install == 'container' else borgmatic_bin }} {{ borgmatic_service_args }}
 
 [Install]

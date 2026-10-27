@@ -233,6 +233,8 @@
           - nas_verify_borgmatic.image is match('ghcr.io/borgmatic-collective/borgmatic:2\.[0-9.]+@sha256:[0-9a-f]{64}$')
           - nas_verify_borgmatic.entrypoint == ['borgmatic']
           - nas_verify_borgmatic.network_mode == 'bridge'
+          - nas_verify_borgmatic.pid == 'host'
+          - nas_verify_borgmatic.environment.BORG_HOST_ID == inventory_hostname ~ '@borgmatic-container'
           - nas_verify_borgmatic.ports is not defined
           - nas_verify_borgmatic.mem_limit is defined
           - nas_verify_borgmatic_mounts[docker_base_path] == docker_base_path
@@ -263,6 +265,7 @@
           - ('ExecStart=' ~ docker_base_path ~ '/borgmatic/borgmatic --verbosity 1') in nas_verify_borgmatic_service
           - "'After=network-online.target docker_serv.service docker.service' in nas_verify_borgmatic_service"
           - "'Wants=network-online.target' in nas_verify_borgmatic_service"
+          - nas_verify_borgmatic_service | select('match', 'ExecStartPre=/usr/bin/timeout 300 .*docker info') | list | length == 1
           - "'OnCalendar=*-*-* 02:30:00' in nas_verify_borgmatic_timer"
           - "'Persistent=true' in nas_verify_borgmatic_timer"
         fail_msg: "Unités borgmatic inattendues"
