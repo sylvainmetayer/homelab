@@ -176,6 +176,22 @@
       loop_control:
         loop_var: verify_app_service
 
+    # Le proxy du socket de newt (#853) sous le dc@ système : son dossier reste
+    # à nobody et au groupe docker de l'hôte, même quand root possède le reste.
+    - name: Stat the newt socket proxy folder
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/newt/socket"
+      register: nas_verify_newt_socket
+
+    - name: Assert the newt socket proxy folder is closed to others
+      ansible.builtin.assert:
+        that:
+          - nas_verify_newt_socket.stat.isdir
+          - nas_verify_newt_socket.stat.mode == '0750'
+          - nas_verify_newt_socket.stat.uid == 65534
+          - nas_verify_newt_socket.stat.gr_name == 'docker'
+        fail_msg: "{{ docker_base_path }}/newt/socket : {{ nas_verify_newt_socket.stat }}"
+
     # borgmatic en conteneur (rôle borgmatic, tasks/container.yml) : tout à
     # root et fermé (clé SSH du sous-compte nas, compose, enrobage ; le
     # known_hosts, public, est dans le dossier ssh fermé).
