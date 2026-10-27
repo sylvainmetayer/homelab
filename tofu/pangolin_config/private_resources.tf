@@ -73,7 +73,9 @@ resource "pangolin_site_resource" "proxmox" {
 # (tofu/dns/nas.tf) points at the NAS's LAN IP: one URL at home and through a
 # Pangolin client, and the Let's Encrypt certificate holds on both paths
 # (Traefik picks it by SNI, whatever IP it was reached on). Plain HTTP on 9999
-# stays open as the fallback (Traefik down). SMB (445) too, for the
+# stays open as the fallback (Traefik down), by IP only:
+# http://192.168.1.137:9999 (the name carries HSTS, so
+# http://nas.sylvain.cloud:9999 is upgraded). SMB (445) too, for the
 # workstation's ad hoc mounts (ansible/pc-nas.yml): with the Pangolin client
 # connected, 192.168.1.137 is routed here. No binding: Admin only.
 resource "pangolin_site_resource" "nas" {

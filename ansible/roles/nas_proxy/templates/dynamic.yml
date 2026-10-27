@@ -22,14 +22,18 @@ http:
     # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
     # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443
     # seul, le 443 du conteneur n'est joint que par le Newt du site nas
-    # (media.sylvain.cloud). L'interface suit l'origine de la page (redirections
-    # relatives, API sur location.origin) : ni réécriture ni Host forcé.
+    # (media.sylvain.cloud). Ce Newt joint pourtant aussi le 8443 (ressource
+    # media.sylvain.cloud, rôle jellyfin) : ugos-lan n'admet que le LAN
+    # (nas_proxy_ugos_source_ranges). L'interface suit l'origine de la page
+    # (redirections relatives, API sur location.origin) : ni réécriture ni
+    # Host forcé.
     ugos:
       rule: "Host(`{{ nas_proxy_ugos_domain }}`)"
       entryPoints:
         - websecure-lan
       service: ugos
       middlewares:
+        - ugos-lan
         - ugos-headers
       tls:
         certResolver: letsencrypt
@@ -48,6 +52,11 @@ http:
     ugos-headers:
       headers:
         stsSeconds: 31536000
+    # Adresse source de la connexion (pas de X-Forwarded-For : ipStrategy
+    # absente) : 403 pour tout ce qui ne vient pas du LAN.
+    ugos-lan:
+      ipAllowList:
+        sourceRange: {{ nas_proxy_ugos_source_ranges | to_json }}
 
   services:
     jellyfin:

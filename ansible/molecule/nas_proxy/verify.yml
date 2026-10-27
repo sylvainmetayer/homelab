@@ -148,6 +148,10 @@
           - nas_proxy_verify_services.jellyfin.loadBalancer.servers | map(attribute='url') | list == ['http://jellyfin:8096']
           - nas_proxy_verify_routers.ugos.rule == 'Host(`nas.sylvain.cloud`)'
           - nas_proxy_verify_routers.ugos.entryPoints == ['websecure-lan']
+          # Le Newt du site nas joint aussi le 8443 (ressource media, rôle
+          # jellyfin) : l'interface d'UGOS n'admet que le LAN.
+          - nas_proxy_verify_routers.ugos.middlewares[0] == 'ugos-lan'
+          - nas_proxy_verify_dynamic.http.middlewares['ugos-lan'].ipAllowList.sourceRange == ['192.168.1.0/24']
           - nas_proxy_verify_services.ugos.loadBalancer.servers | map(attribute='url') | list == ['http://' ~ ansible_host ~ ':9999']
           # Log d'accès des erreurs seules, sur stdout, sans en-têtes ni
           # paramètres de requête (api_key de Jellyfin, token d'UGOS).
