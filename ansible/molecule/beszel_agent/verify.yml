@@ -79,6 +79,12 @@
         - { path: "/v1.47/containers/{{ container_id[:12] }}/logs", allowed: true }
         - { path: "/containers/{{ container_id }}/logs", allowed: true }
         - { path: /containers/beszel-agent/logs, allowed: false }
+        # Bornes de l'identifiant (12 à 64) et du chemin (rien après logs).
+        - { path: "/containers/{{ container_id[:11] }}/logs", allowed: false }
+        - { path: "/containers/{{ container_id }}0/logs", allowed: false }
+        - { path: "/containers/{{ container_id[:12] }}/logs/", allowed: false }
+        # top : la ligne de commande des processus, donc les --requirepass.
+        - { path: "/containers/{{ container_id[:12] }}/top", allowed: false }
         - { path: "/containers/{{ container_id[:12] }}/json", allowed: false }
         - { path: "/v1.47/containers/{{ container_id[:12] }}/json", allowed: false }
         - { path: "/containers/{{ container_id[:12] }}/archive", allowed: false }
