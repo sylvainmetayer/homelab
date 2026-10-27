@@ -59,3 +59,14 @@ jellyfin_ovh_consumer_key: "{{ nas_ovh_consumer_key }}"
 jellyfin_proxy_subnet: 172.30.96.0/24
 jellyfin_traefik_ip: 172.30.96.10
 jellyfin_traefik_mem_limit: 256m
+
+# --- Sauvegarde (rôle borgmatic, tasks/app.yml ; borgmatic en conteneur sur
+# le NAS) : configuration, base SQLite copiée à froid par « .backup », Traefik
+# (certificat) et compose. Ni le cache ni les médias : ceux-ci n'ont que les
+# instantanés d'UGOS.
+jellyfin_backup_enabled: true
+jellyfin_backup_borgmatic_target: "{{ backup_storage_box_url }}/jellyfin"
+jellyfin_backup_encryption_passphrase: "{{ backup_passphrase }}"
+# URL push du moniteur « Backup Jellyfin » (nas.yml, sortie
+# uptime_backup_jellyfin_url de tofu/pangolin_config).
+jellyfin_backup_healthcheck_url: ""

@@ -8,6 +8,10 @@
   vars:
     # Pas de nfsd dans un conteneur (cf. defaults du rôle).
     nas_manage_services: false
+    # Le bouchon de _shared/prepare.yml au lieu de l'enrobage du conteneur
+    # borgmatic, qui tirerait l'image (repo-create de tasks/app.yml).
+    # borgmatic.service, lui, garde l'enrobage (vérifié par verify.yml).
+    borgmatic_bin: /root/.local/bin/borgmatic
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
@@ -23,6 +27,8 @@
   roles:
     # dc@ en unité système (host_vars/nas).
     - role: docker_service
+    # borgmatic en conteneur (host_vars/nas).
+    - role: borgmatic
     - role: nas
     # Sous le nom d'inventaire du NAS (sa clé dans beszel_agent_tokens).
     - role: beszel_agent

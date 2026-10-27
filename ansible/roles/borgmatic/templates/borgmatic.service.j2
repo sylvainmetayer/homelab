@@ -1,13 +1,13 @@
 [Unit]
 Description=borgmatic backup
 Wants=network-online.target
-After=network-online.target
+After={{ (['network-online.target'] + borgmatic_service_after) | join(' ') }}
 
 [Service]
 Type=oneshot
 User=root
 Group=root
-ExecStart=/root/.local/bin/borgmatic --verbosity -1 --syslog-verbosity 1
+ExecStart={{ borgmatic_container_wrapper if borgmatic_install == 'container' else borgmatic_bin }} {{ borgmatic_service_args }}
 
 [Install]
 WantedBy=multi-user.target

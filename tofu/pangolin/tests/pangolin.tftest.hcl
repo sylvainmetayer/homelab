@@ -391,8 +391,8 @@ run "storage_box_backups" {
   }
 
   assert {
-    condition     = toset(keys(hcloud_storage_box_subaccount.backup)) == toset(["docker", "pi", "pangolin", "flip"])
-    error_message = "Chaque hôte sauvegardé (docker, pi, pangolin, flip) doit avoir son sous-compte."
+    condition     = toset(keys(hcloud_storage_box_subaccount.backup)) == toset(["docker", "pi", "pangolin", "flip", "nas"])
+    error_message = "Chaque hôte sauvegardé (docker, pi, pangolin, flip, nas) doit avoir son sous-compte."
   }
 
   assert {
@@ -404,7 +404,7 @@ run "storage_box_backups" {
   }
 
   assert {
-    condition     = alltrue([for host in ["docker", "pi", "pangolin", "flip"] : fileexists("${path.module}/../../ansible/host_vars/${host}/variables.yaml")])
+    condition     = alltrue([for host in ["docker", "pi", "pangolin", "flip", "nas"] : fileexists("${path.module}/../../ansible/host_vars/${host}/variables.yaml")])
     error_message = "Les clés des sous-comptes doivent être des noms d'hôte de l'inventaire Ansible (host_vars/<hôte>), que borgmatic et backup.yaml utilisent."
   }
 

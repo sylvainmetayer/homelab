@@ -7,6 +7,21 @@ Storage Box (`backup-<hôte>`, port 23, clé
 `/root/.ssh/borgmatic_storage_box_ed25519`, alias SSH `backup_storage_box`
 dans `/root/.ssh/config`).
 
+Exception, le **NAS** (Jellyfin) : rien n'est installé sous UGOS, borgmatic
+tourne dans son image (`docker compose run --rm`), lancé par le même
+`borgmatic.timer`, à 02:30. Partout ci-dessous, y remplacer
+`/root/.local/bin/borgmatic` par l'enrobage
+`/volume1/docker/borgmatic/borgmatic` et `/etc/borgmatic.d` par
+`/volume1/docker/borgmatic/borgmatic.d` (monté aussi en `/etc/borgmatic.d`
+dans le conteneur) ; clé et `known_hosts` dans
+`/volume1/docker/borgmatic/ssh/`. Pas d'alias `backup_storage_box` :
+`sudo /volume1/docker/borgmatic/borgmatic --config
+/volume1/docker/borgmatic/borgmatic.d/jellyfin.yaml list` teste aussi
+l'accès au sous-compte. Le conteneur disparaît après chaque commande :
+extraire vers un dossier monté (`--destination
+/volume1/docker/borgmatic/restore`), jamais vers un chemin du seul conteneur.
+`sqlite3` est celui de l'image.
+
 ## Symptôme
 
 - Le moniteur push de sauvegarde de l'appli (groupe Backups d'Uptime Kuma)

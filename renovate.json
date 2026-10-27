@@ -80,6 +80,14 @@
       "allowedVersions": "<2.0.0"
     },
     {
+      "description": "borgmatic runs from pipx on the Debian hosts and from its official image on the NAS (ansible/roles/borgmatic/templates/compose.yaml), whose tag is the borgmatic version: both, and the Molecule image's borgmatic, move together",
+      "groupName": "borgmatic",
+      "matchPackageNames": [
+        "borgmatic",
+        "ghcr.io/borgmatic-collective/borgmatic"
+      ]
+    },
+    {
       "description": "Group all Immich role dependencies together",
       "groupName": "immich-role-dependencies",
       "matchFileNames": [

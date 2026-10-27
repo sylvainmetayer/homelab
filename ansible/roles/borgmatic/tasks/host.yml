@@ -1,0 +1,198 @@
+---
+- name: Install dependencies for pipx
+  become: true
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+      - python3-venv
+      - pipx
+      # Client SSH : borg joint la Storage Box par ssh, ssh-keygen crée la clé
+      # de root (openssh_keypair).
+      - openssh-client
+    state: present
+    update_cache: true
+
+- name: Ensure pipx path for root
+  become: true
+  ansible.builtin.command: pipx ensurepath
+  register: borgmatic_pipx_ensurepath
+  # Sous sudo, PATH vaut secure_path : pipx ne dit jamais "already in PATH",
+  # mais "has been been added to PATH, but you need to open a new terminal"
+  # une fois le PATH écrit dans les fichiers du shell. Seul "Success! Added"
+  # signale une écriture.
+  changed_when: "'Success! Added' in borgmatic_pipx_ensurepath.stdout"
+
+- name: Ensure /root/.local/bin is in PATH for root
+  become: true
+  ansible.builtin.lineinfile:
+    path: "/root/.bashrc"
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    regexp: '^export PATH="\$HOME/\.local/bin:\$PATH"'
+    state: present
+    create: true
+    mode: "0644"
+
+- name: Read the borgmatic version installed for root
+  become: true
+  community.general.pipx_info:
+    name: borgmatic
+  register: borgmatic_pipx_info
+
+# pipx n'est pas idempotent avec une source versionnée : on ne réinstalle que
+# si la version diffère.
+- name: Install the pinned borgmatic via pipx for root
+  become: true
+  when: (borgmatic_pipx_info.application | map(attribute='version') | first | default('')) != borgmatic_version
+  community.general.pipx:
+    name: borgmatic
+    source: "borgmatic=={{ borgmatic_version }}"
+    state: install
+    force: true
+
+- name: Ensure /root/.local/bin directory exists
+  become: true
+  ansible.builtin.file:
+    path: "/root/.local/bin"
+    state: directory
+    mode: "0700"
+    owner: "root"
+    group: "root"
+
+- name: Set download url for borg
+  ansible.builtin.set_fact:
+    borgmatic_borg_architecture: >
+      {% if ansible_facts['architecture'] == 'aarch64' %}
+      arm64
+      {% else %}
+      {{ ansible_facts['architecture'] }}
+      {% endif %}
+
+
+# With hetzner storage box, we need to use the 1.x version
+# ssh STORAGE_BOX borg --version
+# borg 1.2.9
+- name: Download borgbackup binary from GitHub releases for root
+  become: true
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/borgbackup/borg/releases/download/{{ borgmatic_borg_version }}/borg-linux-glibc235-{{
+      borgmatic_borg_architecture | trim | replace('\n', '') }}-gh
+    dest: "/root/.local/bin/borg"
+    checksum: "sha256:{{ borgmatic_borg_sha256[borgmatic_borg_architecture | trim] }}"
+    mode: "0700"
+    owner: "root"
+    group: "root"
+
+- name: Ensure borgmatic config directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_config_dir }}"
+    state: directory
+    mode: "0700"
+    owner: "root"
+    group: "root"
+
+- name: Create borgmatic systemd service
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.service.j2
+    dest: /etc/systemd/system/borgmatic.service
+    mode: "0640"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Create borgmatic systemd timer
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.timer.j2
+    dest: /etc/systemd/system/borgmatic.timer
+    mode: "0640"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Enable and start borgmatic timer
+  become: true
+  ansible.builtin.systemd:
+    name: borgmatic.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# Les clients MariaDB et PostgreSQL de l'hôte servent à restaurer (mysql,
+# psql, pg_restore, vers l'IP du conteneur : les dumps, eux, tournent dans le
+# conteneur de chaque base) ; sqlite3 copie les bases SQLite des applications
+# avant chaque sauvegarde (borgmatic_app_sqlite_databases, tasks/app.yml).
+- name: Ensure mysqldump, pg_dump and sqlite3 are installed
+  become: true
+  ansible.builtin.apt:
+    name:
+      - mariadb-client
+      - postgresql-client
+      - sqlite3
+    state: present
+    update_cache: true
+
+# Client de dump MySQL/MariaDB lancé dans le conteneur de la base, sa sortie
+# écrite dans le --result-file que borgmatic 2.1 impose côté hôte.
+- name: Install the docker exec wrapper for MySQL/MariaDB dumps
+  become: true
+  ansible.builtin.copy:
+    src: borgmatic-docker-dump
+    dest: "{{ borgmatic_docker_dump_bin }}"
+    owner: root
+    group: root
+    # borgmatic tourne en root : personne d'autre n'a à le lire ni le lancer.
+    mode: "0700"
+
+- name: Ensure the SQLite staging directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_sqlite_staging_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Ensure the SSH directory of root exists
+  become: true
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Une clé par hôte, qui ne quitte pas l'hôte : ansible/backup.yaml dépose sa
+# partie publique chez le sous-compte de l'hôte, qui ne voit que ses dépôts.
+- name: Generate the SSH key of root for its Storage Box subaccount
+  become: true
+  community.crypto.openssh_keypair:
+    path: "{{ backup_storage_box_ssh_key_path }}"
+    type: ed25519
+    comment: "borgmatic@{{ inventory_hostname }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Trust the Storage Box host key under the subaccount name
+  become: true
+  ansible.builtin.known_hosts:
+    path: /root/.ssh/known_hosts
+    name: "[{{ backup_storage_box_subaccount.server }}]:23"
+    key: "[{{ backup_storage_box_subaccount.server }}]:23 {{ backup_storage_box_host_key }}"
+
+- name: Create SSH config to access backup storage box
+  become: true
+  ansible.builtin.copy:
+    dest: "/root/.ssh/config"
+    content: |
+      Host backup_storage_box
+        HostName {{ backup_storage_box_subaccount.server }}
+        User {{ backup_storage_box_subaccount.username }}
+        IdentityFile {{ backup_storage_box_ssh_key_path }}
+        Port 23
+    mode: "0600"
+    owner: "root"
+    group: "root"

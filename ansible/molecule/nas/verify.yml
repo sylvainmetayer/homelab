@@ -172,3 +172,119 @@
       loop: [newt, jellyfin]
       loop_control:
         loop_var: verify_app_service
+
+    # borgmatic en conteneur (rôle borgmatic, tasks/container.yml) : tout à
+    # root et fermé (clé SSH du sous-compte nas, compose, enrobage ; le
+    # known_hosts, public, est dans le dossier ssh fermé).
+    - name: Stat the borgmatic container files
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/borgmatic/{{ item }}"
+      loop:
+        - ""
+        - borgmatic.d
+        - ssh
+        - borg-cache
+        - borg-config
+        - state
+        - compose.yaml
+        - borgmatic
+        - ssh/borgmatic_storage_box_ed25519
+      register: nas_verify_borgmatic_files
+
+    - name: Assert the borgmatic container files belong to root, closed to others
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.stat.isdir or item.item == 'borgmatic' else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ nas_verify_borgmatic_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the borgmatic container wrapper
+      ansible.builtin.slurp:
+        src: "{{ docker_base_path }}/borgmatic/borgmatic"
+      register: nas_verify_borgmatic_wrapper
+
+    - name: Assert the wrapper runs a throwaway container of the compose file
+      ansible.builtin.assert:
+        that:
+          - (nas_verify_borgmatic_wrapper.content | b64decode) is search('exec /usr/bin/docker compose --file ' ~ docker_base_path ~ '/borgmatic/compose.yaml')
+          - (nas_verify_borgmatic_wrapper.content | b64decode) is search('run --rm --no-TTY --quiet-pull borgmatic "\$@"')
+        fail_msg: "Enrobage borgmatic inattendu"
+
+    - name: Render the borgmatic compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ docker_base_path }}/borgmatic"
+      register: nas_verify_borgmatic_compose
+      changed_when: false
+
+    # Image épinglée, borgmatic sans l'init ni le cron de l'image, chemins de
+    # l'hôte montés à l'identique, volumes de l'image persistants.
+    - name: Assert the borgmatic container mounts what the configurations read
+      vars:
+        nas_verify_borgmatic: "{{ (nas_verify_borgmatic_compose.stdout | from_json).services.borgmatic }}"
+        nas_verify_borgmatic_mounts: "{{ nas_verify_borgmatic.volumes | items2dict(key_name='target', value_name='source') }}"
+      ansible.builtin.assert:
+        that:
+          - nas_verify_borgmatic.image is match('ghcr.io/borgmatic-collective/borgmatic:2\.[0-9.]+@sha256:[0-9a-f]{64}$')
+          - nas_verify_borgmatic.entrypoint == ['borgmatic']
+          - nas_verify_borgmatic.network_mode == 'bridge'
+          - nas_verify_borgmatic.ports is not defined
+          - nas_verify_borgmatic.mem_limit is defined
+          - nas_verify_borgmatic_mounts[docker_base_path] == docker_base_path
+          - nas_verify_borgmatic_mounts['/etc/borgmatic.d'] == docker_base_path ~ '/borgmatic/borgmatic.d'
+          - nas_verify_borgmatic_mounts['/var/lib/borgmatic-sqlite'] == '/var/lib/borgmatic-sqlite'
+          - nas_verify_borgmatic_mounts['/root/.ssh'] == docker_base_path ~ '/borgmatic/ssh'
+          - nas_verify_borgmatic_mounts['/root/.cache/borg'] == docker_base_path ~ '/borgmatic/borg-cache'
+          - nas_verify_borgmatic_mounts['/root/.config/borg'] == docker_base_path ~ '/borgmatic/borg-config'
+          - nas_verify_borgmatic_mounts['/root/.local/state/borgmatic'] == docker_base_path ~ '/borgmatic/state'
+          - nas_verify_borgmatic.volumes | selectattr('source', 'search', 'docker\.sock') | list | length == 0
+        fail_msg: "Service borgmatic inattendu : {{ nas_verify_borgmatic }}"
+
+    - name: Read the borgmatic units
+      ansible.builtin.slurp:
+        src: "/etc/systemd/system/{{ item }}"
+      register: nas_verify_borgmatic_units
+      loop:
+        - borgmatic.service
+        - borgmatic.timer
+
+    # L'enrobage, après le démon Docker d'UGOS sans le tirer, à 02:30.
+    - name: Assert the borgmatic units run the container on the NAS schedule
+      vars:
+        nas_verify_borgmatic_service: "{{ (nas_verify_borgmatic_units.results[0].content | b64decode).splitlines() }}"
+        nas_verify_borgmatic_timer: "{{ (nas_verify_borgmatic_units.results[1].content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - ('ExecStart=' ~ docker_base_path ~ '/borgmatic/borgmatic --verbosity 1') in nas_verify_borgmatic_service
+          - "'After=network-online.target docker_serv.service docker.service' in nas_verify_borgmatic_service"
+          - "'Wants=network-online.target' in nas_verify_borgmatic_service"
+          - "'OnCalendar=*-*-* 02:30:00' in nas_verify_borgmatic_timer"
+          - "'Persistent=true' in nas_verify_borgmatic_timer"
+        fail_msg: "Unités borgmatic inattendues"
+
+    - name: Verify the borgmatic service unit
+      ansible.builtin.command: systemd-analyze verify borgmatic.service
+      register: nas_verify_borgmatic_analyze
+      changed_when: false
+      failed_when: >-
+        nas_verify_borgmatic_analyze.rc != 0
+        or (nas_verify_borgmatic_analyze.stderr_lines | select('search', 'borgmatic') | list | length > 0)
+
+    - name: Read the borgmatic timer
+      ansible.builtin.systemd:
+        name: borgmatic.timer
+      register: nas_verify_borgmatic_timer_state
+
+    - name: Assert the borgmatic timer is enabled and running
+      ansible.builtin.assert:
+        that:
+          - nas_verify_borgmatic_timer_state.status.UnitFileState == 'enabled'
+          - nas_verify_borgmatic_timer_state.status.ActiveState == 'active'
+        fail_msg: >-
+          borgmatic.timer : {{ nas_verify_borgmatic_timer_state.status.UnitFileState }} /
+          {{ nas_verify_borgmatic_timer_state.status.ActiveState }}

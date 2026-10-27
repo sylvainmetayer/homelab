@@ -18,6 +18,47 @@
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
         verify_app_service: jellyfin
+        verify_app_borgmatic_config: "{{ docker_base_path }}/borgmatic/borgmatic.d/jellyfin.yaml"
+
+    - name: Stat the Jellyfin borgmatic configuration
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/borgmatic/borgmatic.d/jellyfin.yaml"
+      register: jellyfin_verify_borgmatic_stat
+
+    - name: Read the Jellyfin borgmatic configuration
+      ansible.builtin.slurp:
+        src: "{{ docker_base_path }}/borgmatic/borgmatic.d/jellyfin.yaml"
+      register: jellyfin_verify_borgmatic_raw
+
+    # Gabarit partagé, vu depuis le conteneur borgmatic (mêmes chemins) : base
+    # copiée par « .backup » dans le staging, copie vivante exclue, borg de
+    # l'image, clé SSH du NAS, dépôt chez le sous-compte nas.
+    - name: Assert the Jellyfin backup copies its SQLite database from the container
+      vars:
+        jellyfin_verify_borgmatic: "{{ jellyfin_verify_borgmatic_raw.content | b64decode | from_yaml }}"
+        jellyfin_verify_live_db: "{{ jellyfin_verify_path }}/config/data/jellyfin.db"
+      ansible.builtin.assert:
+        that:
+          - jellyfin_verify_borgmatic_stat.stat.pw_name == 'root'
+          - jellyfin_verify_borgmatic_stat.stat.mode == '0600'
+          - jellyfin_verify_borgmatic.sqlite_databases is not defined
+          - jellyfin_verify_borgmatic.source_directories == [
+              jellyfin_verify_path ~ '/config', jellyfin_verify_path ~ '/traefik',
+              jellyfin_verify_path ~ '/compose.yaml', '/var/lib/borgmatic-sqlite/jellyfin']
+          - jellyfin_verify_borgmatic.commands[0].run
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/jellyfin/volume1_docker_jellyfin_config_data_jellyfin\\.db')
+            | list | length == 1
+          - jellyfin_verify_borgmatic.commands[1].run
+            | select('search', '^find /var/lib/borgmatic-sqlite/jellyfin -mindepth 1 -delete$') | list | length == 1
+          - jellyfin_verify_live_db in jellyfin_verify_borgmatic.exclude_patterns
+          - (jellyfin_verify_live_db ~ '-wal') in jellyfin_verify_borgmatic.exclude_patterns
+          - jellyfin_verify_borgmatic.local_path == '/usr/local/bin/borg'
+          - jellyfin_verify_borgmatic.ssh_command == 'ssh -i ' ~ docker_base_path ~ '/borgmatic/ssh/borgmatic_storage_box_ed25519 -p 23'
+          - jellyfin_verify_borgmatic.repositories[0].path
+            == 'ssh://' ~ backup_storage_box_subaccounts.nas.username ~ '@' ~ backup_storage_box_subaccounts.nas.server ~ '/./jellyfin'
+          - jellyfin_verify_borgmatic.archive_name_format is match('jellyfin-')
+          - jellyfin_verify_borgmatic.compression == 'zstd,10'
+        fail_msg: "Configuration borgmatic de Jellyfin inattendue : {{ jellyfin_verify_borgmatic }}"
 
     - name: Read the account and the render group of the host
       ansible.builtin.getent:

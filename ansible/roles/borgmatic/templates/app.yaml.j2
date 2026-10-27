@@ -63,7 +63,7 @@ exclude_patterns:
 {% endfor %}
 {% endfor %}
 
-local_path: /root/.local/bin/borg
+local_path: {{ borgmatic_borg_bin }}
 
 repositories:
     - path: {{ borgmatic_app_target | to_json }}

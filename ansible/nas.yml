@@ -11,7 +11,8 @@
   gather_facts: false
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
-    # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas).
+    # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas,
+    # URL push de la sauvegarde de Jellyfin).
     # Comme ailleurs, un state illisible (S3, clés) arrête la play quel que
     # soit le tag, --tags beszel_agent compris : l'agent Beszel, lui, parle au
     # hub par le LAN, sans jeton Pangolin.
@@ -39,12 +40,22 @@
           nas_newt_id / nas_newt_secret absents du state de pangolin_config :
           appliquer d'abord tofu/pangolin_config (pangolin_site.nas).
         quiet: true
+
+    - name: Load healthcheck URLs from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        jellyfin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellyfin_url.value | default('') }}"
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
     # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
     # (/etc effacé) doit reposer l'unité avant de démarrer dc@beszel_agent.
     - role: docker_service
       tags: [setup, always]
+    # borgmatic dans son conteneur, lancé chaque nuit par borgmatic.timer
+    # (host_vars/nas) : clé SSH du sous-compte nas, que backup.yaml dépose.
+    - role: borgmatic
+      tags: backup,setup
     - role: nas
       tags: nas
     # Agent de supervision sous dc@beszel_agent en unité système (ni lingering

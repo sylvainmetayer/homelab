@@ -26,6 +26,22 @@ docker_service_system_after:
   - docker_serv.service
   - docker.service
 
+# --- Sauvegardes (rôle borgmatic, nas.yml) ---
+# Ni apt ni pipx sous UGOS : borgmatic tourne dans son image, lancée par
+# borgmatic.timer (`docker compose run --rm`, tasks/container.yml du rôle).
+borgmatic_install: container
+# Configurations et clé SSH sur le disque du NAS, sous le dossier du
+# conteneur (docker_base_path/borgmatic), pas dans /etc ni /root : la racine
+# d'UGOS est un overlay sur l'eMMC.
+borgmatic_config_dir: "{{ docker_base_path }}/borgmatic/borgmatic.d"
+backup_storage_box_ssh_key_path: "{{ docker_base_path }}/borgmatic/ssh/borgmatic_storage_box_ed25519"
+# Après celles des autres hôtes (01:00) et avant le test de restauration
+# (10:00 UTC, qui refuse une archive de plus de 28 h).
+borgmatic_timer_schedule: "*-*-* 02:30:00"
+# Sous-compte Storage Box du NAS : clé SOPS backup_storage_box_subaccounts,
+# recopiée de l'output storage_box_subaccounts de tofu/pangolin.
+backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.nas }}"
+
 # --- Agent Beszel (rôle beszel_agent, nas.yml) ---
 # Sous dc@beszel_agent, unité système comme toutes les applis du NAS
 # (docker_service_scope ci-dessus), dans docker_base_path.

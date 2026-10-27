@@ -504,6 +504,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup_jellyfin
+  values = { push_token = "push-jellyfin" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_geoip
   values = { push_token = "push-cron-geoip" }
 }
@@ -1897,6 +1902,12 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_backup_pangolin_url (pangolin.yaml) ne pointe pas sur le moniteur Backup Pangolin."
   }
 
+  # nas.yml
+  assert {
+    condition     = output.uptime_backup_jellyfin_url == "https://uptime.example.test/api/push/push-jellyfin"
+    error_message = "uptime_backup_jellyfin_url (nas.yml) ne pointe pas sur le moniteur Backup Jellyfin."
+  }
+
   assert {
     condition     = output.uptime_cron_geoip_url == "https://uptime.example.test/api/push/push-cron-geoip"
     error_message = "uptime_cron_geoip_url (pangolin.yaml) ne pointe pas sur le moniteur GeoIP Pangolin."
@@ -1925,6 +1936,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_demo_planning_url,
       output.uptime_backup_immich_url,
       output.uptime_backup_pangolin_url,
+      output.uptime_backup_jellyfin_url,
       output.uptime_cron_geoip_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
@@ -1943,7 +1955,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         regexall("output \"(uptime_(?:backup|cron)_\\w+_url)\"", file("${path.module}/${f}"))
       ]) :
       anytrue([
-        for playbook in ["docker.yml", "flip.yml", "pi.yml", "pangolin.yaml"] :
+        for playbook in ["docker.yml", "flip.yml", "nas.yml", "pi.yml", "pangolin.yaml"] :
         strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.${name}.value")
       ])
     ]) && output.uptime_backup_trek_url != ""
@@ -2188,8 +2200,9 @@ run "monitors_are_filed_and_notify_by_email" {
 
   # Les moniteurs de sauvegarde sont les instances de
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
-  # plus celui de Pangolin. Clés et noms sont écrits en toutes lettres : en
-  # ajouter ou en retirer un est une décision, chacun garde l'adresse que
+  # plus ceux de Pangolin et de Jellyfin (NAS). Clés et noms sont écrits en
+  # toutes lettres : en ajouter ou en retirer un est une décision, chacun garde
+  # l'adresse que
   # moved.tf lui a donnée et le nom qu'Uptime Kuma affiche.
   assert {
     condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
@@ -2215,7 +2228,7 @@ run "monitors_are_filed_and_notify_by_email" {
 
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin]) :
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
       && m.active == true
@@ -2238,11 +2251,11 @@ run "monitors_are_filed_and_notify_by_email" {
   }
 
   # Le workflow teste les dépôts de .github/restore-test/apps.json : un par
-  # moniteur de sauvegarde, Pangolin compris. Une app ajoutée avec
+  # moniteur de sauvegarde, Pangolin et Jellyfin compris. Une app ajoutée avec
   # `backup = true` doit y entrer, une app retirée en sortir.
   assert {
-    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin"]))
-    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin compris."
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "jellyfin"]))
+    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin et Jellyfin compris."
   }
 
   # Chaque dépôt est sous backup/<hôte>/ : l'hôte doit avoir un sous-compte

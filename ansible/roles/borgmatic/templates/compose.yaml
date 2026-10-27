@@ -1,0 +1,44 @@
+---
+# borgmatic en conteneur (tasks/container.yml) : jamais démarré par dc@, mais
+# par `docker compose run --rm` (borgmatic.service, et le repo-create de
+# tasks/app.yml), à travers {{ borgmatic_container_wrapper }}.
+services:
+  borgmatic:
+    # Même version de borgmatic que sur les autres hôtes (borgmatic_version),
+    # borg 1.4 dans l'image comme le borg des hôtes (la Storage Box n'a qu'un
+    # serveur borg 1.x). Renovate fait monter les deux ensemble (groupe
+    # borgmatic).
+    image: ghcr.io/borgmatic-collective/borgmatic:2.1.10@sha256:25a97d84a2371c385c0031a02b64f7167de85631a85b84ef46dc01a80010d19e
+    # borgmatic directement, sans l'init s6 ni le cron de l'image : le
+    # timer systemd de l'hôte décide de l'heure.
+    entrypoint: ["borgmatic"]
+    hostname: {{ inventory_hostname }}
+    # Pont Docker par défaut : ni réseau de projet à créer, ni port publié.
+    # Sortie vers la Storage Box et Uptime Kuma seulement.
+    network_mode: bridge
+    environment:
+      TZ: Europe/Paris
+    # Job par lots : un cœur reste toujours aux autres, et il perd face à eux
+    # sous contention (doctrine des limites, AGENTS.md).
+    mem_limit: {{ borgmatic_container_mem_limit }}
+    cpus: 2.00
+    cpu_shares: 512
+    volumes:
+      # Sources, configurations et clé SSH, aux chemins de l'hôte.
+{% for path in borgmatic_container_source_paths %}
+      - "{{ path }}:{{ path }}"
+{% endfor %}
+      # Configurations au chemin où borgmatic les cherche sans --config
+      # (borgmatic.service).
+      - "{{ borgmatic_config_dir }}:/etc/borgmatic.d:ro"
+      # Copies cohérentes des bases SQLite (hooks before/after) : même
+      # chemin que sur les autres hôtes, que lit le test de restauration.
+      - "{{ borgmatic_sqlite_staging_dir }}:{{ borgmatic_sqlite_staging_dir }}"
+      # known_hosts de la Storage Box, lu par le ssh de borg.
+      - "{{ borgmatic_container_path }}/ssh:/root/.ssh"
+      # Volumes que déclare l'image, persistants ici : cache des segments de
+      # borg (sinon reconstruit à chaque run), sa sécurité (nonces, dépôts
+      # connus) et l'état des vérifications de borgmatic (checks: frequency).
+      - "{{ borgmatic_container_path }}/borg-cache:/root/.cache/borg"
+      - "{{ borgmatic_container_path }}/borg-config:/root/.config/borg"
+      - "{{ borgmatic_container_path }}/state:/root/.local/state/borgmatic"
