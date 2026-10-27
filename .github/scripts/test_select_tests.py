@@ -143,7 +143,7 @@ class HostVarsAndPlaybooks(unittest.TestCase):
 
     def test_host_playbook_selects_its_host_scenarios(self):
         scenarios, _ = selected(["ansible/nas.yml"])
-        self.assertEqual(scenarios, ["jellyfin", "nas"])
+        self.assertEqual(scenarios, ["jellyfin", "nas", "nas_proxy"])
         self.assertIn("flip_planning", selected(["ansible/flip.yml"])[0])
 
     def test_hostless_playbook_selects_the_scenarios_of_its_roles(self):
@@ -243,12 +243,16 @@ class History(unittest.TestCase):
         self.assertEqual(selected(["tofu/keepass_backup/.terraform.lock.hcl"]), ([], ["tofu/keepass_backup"]))
 
     def test_role_with_docs(self):
-        # #876 Jellyfin: role, its scenario and docs.
+        # #876 Jellyfin: role, its scenario and docs. Since #893 its Traefik
+        # lives in the nas_proxy role, whose files the pangolin_config
+        # invariants read instead of jellyfin's.
         self.assertEqual(selected([
             "ansible/molecule/jellyfin/verify.yml", "ansible/roles/jellyfin/defaults/main.yml",
             "ansible/roles/jellyfin/templates/compose.yaml", "ansible/roles/jellyfin/templates/traefik.yml",
             "docs/apps.md", "docs/architecture.md", "docs/media.md",
-        ]), (["jellyfin", "nas"], ["tofu/pangolin_config"]))
+        ]), (["jellyfin", "nas", "nas_proxy"], []))
+        self.assertEqual(selected(["ansible/roles/nas_proxy/defaults/main.yml"]),
+                         (["jellyfin", "nas", "nas_proxy"], ["tofu/pangolin_config"]))
 
     def test_molecule_image(self):
         # #790 debian:trixie digest of the Molecule image.
