@@ -52,7 +52,7 @@
   when: decommission_app_destroy_remote_backup | bool
   ansible.builtin.command:
     cmd: >-
-      /root/.local/bin/borgmatic
+      {{ decommission_app_borgmatic_bin }}
       --config {{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml
       repo-delete --force
   register: decommission_app_repo_delete

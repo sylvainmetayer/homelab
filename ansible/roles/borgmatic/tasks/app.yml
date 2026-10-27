@@ -6,6 +6,17 @@
 # Le rôle borgmatic lui-même (borgmatic, borg, clients de dump, timer) doit
 # déjà être passé sur l'hôte.
 
+# Le conteneur borgmatic (NAS) n'a ni CLI ni socket Docker, ni
+# borgmatic-docker-dump : un dump par `docker exec` y échouerait chaque nuit.
+- name: Refuse database dumps from the borgmatic container for {{ borgmatic_app_title }}
+  ansible.builtin.assert:
+    that:
+      - borgmatic_install == 'host' or (borgmatic_app_postgresql_databases + borgmatic_app_mysql_databases) | length == 0
+    fail_msg: >-
+      {{ borgmatic_app_name }} : borgmatic_install: container ne sait pas dumper
+      PostgreSQL/MariaDB (pas de docker exec depuis son conteneur).
+    quiet: true
+
 # Résolu à chaque déploiement : une base créée après coup (premier démarrage
 # d'une application) est prise au déploiement suivant ; d'ici là, sa copie
 # vivante reste dans l'archive, faute d'être exclue. Le test d'en-tête écarte

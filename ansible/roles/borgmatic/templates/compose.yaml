@@ -16,8 +16,16 @@ services:
     # Pont Docker par défaut : ni réseau de projet à créer, ni port publié.
     # Sortie vers la Storage Box et Uptime Kuma seulement.
     network_mode: bridge
+    # Verrous de borg (dépôt et cache), identifiés par hôte et PID. Dans un
+    # conteneur jetable, l'id d'hôte suit l'adresse MAC du conteneur et le
+    # PID son espace de noms : un verrou laissé par un run tué (OOM, coupure)
+    # pourrait n'être jamais reconnu périmé, ou celui d'un run en cours être
+    # pris pour périmé. Id d'hôte fixe et PID de l'hôte : le même jugement
+    # que borg installé sur l'hôte.
+    pid: host
     environment:
       TZ: Europe/Paris
+      BORG_HOST_ID: "{{ inventory_hostname }}@borgmatic-container"
     # Job par lots : un cœur reste toujours aux autres, et il perd face à eux
     # sous contention (doctrine des limites, AGENTS.md).
     mem_limit: {{ borgmatic_container_mem_limit }}
