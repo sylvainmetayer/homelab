@@ -94,13 +94,16 @@
     path: "{{ rss_karakeep_button_path }}"
     state: absent
 
+# Groupe www-data : l'entrypoint de l'image refait `chown -R :www-data` (et
+# g+rX, jamais g+w) sur extensions/ à chaque démarrage du conteneur ; un
+# groupe root serait remis par chaque déploiement, puis repris au démarrage.
 - name: Ensure the Karakeep Button folder exists
   become: true
   ansible.builtin.file:
     path: "{{ rss_karakeep_button_path }}"
     state: directory
     owner: root
-    group: root
+    group: www-data
     mode: "0755"
 
 # Propriété de root, lisible par tous : www-data (FreshRSS) lit le code de
@@ -117,7 +120,7 @@
     extra_opts:
       - --strip-components=1
     owner: root
-    group: root
+    group: www-data
 
 - name: Mark the installed Karakeep Button commit
   when:
@@ -128,7 +131,7 @@
     dest: "{{ rss_karakeep_button_path }}/.commit-{{ rss_karakeep_button_commit }}"
     content: "{{ rss_karakeep_button_commit }}\n"
     owner: root
-    group: root
+    group: www-data
     mode: "0644"
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
