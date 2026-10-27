@@ -51,7 +51,12 @@ resource "proxmox_backup_job" "nightly" {
   notes_template    = "{{guestname}}"
   notification_mode = "notification-system"
   repeat_missed     = true
-  enabled           = true
+  # Dossier temporaire du LXC newt (non privilégié) : vzdump le crée par
+  # défaut à côté de l'archive, sur le NFS, en root, et le tar de pct, lancé
+  # en uid 100000, ne peut pas l'ouvrir (« Permission denied », test du
+  # 27/10). Sur le disque local : quelques centaines de Mo au plus.
+  tmpdir  = "/var/tmp"
+  enabled = true
   prune_backups = {
     keep-last = tostring(local.vzdump_keep_last)
   }
