@@ -242,6 +242,13 @@
       ],
       "minimumReleaseAge": null,
       "automerge": false
+    },
+    {
+      "description": "Python reste en 3.14 tant que PyYAML n'a pas de wheel cp315 (yaml/pyyaml#981, #994 ; la CI fait uv sync --no-build) et qu'ansible-core ne liste pas 3.15 comme Python de contrôleur (#722). Retirer la règle alors, et rafraîchir uv.lock (cffi >= 2.1.1, markupsafe >= 3.0.4, rpds-py >= 2026.9.1, pyyaml), que la PR Python de Renovate ne touche pas",
+      "matchPackageNames": [
+        "python"
+      ],
+      "allowedVersions": "<3.15"
     }
   ],
   "customManagers": [
