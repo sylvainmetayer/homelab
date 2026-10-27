@@ -135,7 +135,8 @@
         # instance are fictional.
         flip_planning_horloge_simulee_autorisee: true
         # Own credentials throughout: a leaked demo password must not open the
-        # real planning, and the MCP tokens are bound to the Pangolin resource.
+        # real planning. No Pangolin MCP access token (#763): /mcp/* is open
+        # through a path ACCEPT here, the role default leaves it empty.
         flip_planning_db_password: "{{ demo_planning_db_password }}"
         flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
         flip_planning_admin_password: "{{ demo_planning_admin_password }}"
@@ -191,8 +192,6 @@
         flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
         flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
-        flip_planning_mcp_pangolin_access_token_id: ""
-        flip_planning_mcp_pangolin_access_token: ""
         flip_planning_backup_enabled: false
     # Promptoramix, the AI bot of the Marmelab Linkx tournament: a single
     # stateless container (no volume, no database, hence no backup and no push

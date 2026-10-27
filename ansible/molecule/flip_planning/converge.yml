@@ -144,6 +144,4 @@
         flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
         flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
-        flip_planning_mcp_pangolin_access_token_id: ""
-        flip_planning_mcp_pangolin_access_token: ""
         flip_planning_backup_enabled: false
