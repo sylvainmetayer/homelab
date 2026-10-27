@@ -29,8 +29,9 @@ class CheckAge(unittest.TestCase):
 
 
 class Manifest(unittest.TestCase):
-    # The workflow runs jq on it; the format is checked here too, since a
-    # "paused": "false" string would pass for true in Tofu's lookup().
+    # The workflow runs jq on it; the format is checked here too, on every PR:
+    # a "paused": "false" string is truthy for restore_test.py (age check
+    # skipped) while jq (`!= true`) still schedules the app.
     def test_paused_is_a_boolean_where_set(self):
         manifest = json.loads((pathlib.Path(__file__).parents[1] / "restore-test" / "apps.json").read_text())
         for app, entry in manifest.items():

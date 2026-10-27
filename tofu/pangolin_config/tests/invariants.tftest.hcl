@@ -1611,6 +1611,17 @@ run "every_resource_declares_the_pinned_attributes" {
     condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["paperless"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
   }
+
+  # L'interrupteur Ansible bouge avec celui de Tofu : une ressource reprise
+  # sur une app encore arrêtée ferait sonner ses moniteurs, une app reprise
+  # derrière une ressource désactivée sauvegarderait sans moniteur actif.
+  assert {
+    condition = lookup(
+      yamldecode(file("${path.module}/../../ansible/host_vars/docker/variables.yaml")),
+      "paperless_enabled", true
+    ) == pangolin_resource.website["paperless"].enabled
+    error_message = "paperless_enabled (ansible/host_vars/docker/variables.yaml) et enabled de l'entrée paperless (website_paperless.tf) doivent être égaux."
+  }
 }
 
 # Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les

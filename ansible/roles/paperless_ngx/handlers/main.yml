@@ -1,7 +1,7 @@
 ---
 - name: Restart paperless
   # En pause, un compose changé ne redémarre rien.
-  when: paperless_enabled
+  when: paperless_enabled | bool
   ansible.builtin.systemd:
     state: restarted
     name: dc@paperless

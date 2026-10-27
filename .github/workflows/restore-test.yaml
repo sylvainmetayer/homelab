@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       apps:
-        description: "Apps à tester, séparées par des virgules (vide : toutes, et le moniteur reçoit le résultat)"
+        description: "Apps à tester, séparées par des virgules (vide : toutes sauf celles en pause, et le moniteur reçoit le résultat)"
         required: false
         default: ""
   pull_request:
