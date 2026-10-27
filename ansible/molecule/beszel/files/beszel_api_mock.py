@@ -208,7 +208,8 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     with open(CONFIG_JSON, encoding="utf-8") as f:
         Handler.state = State(json.load(f))
-    ThreadingHTTPServer(("127.0.0.1", 8090), Handler).serve_forever()
+    # Plain HTTP on loopback, like the real hub the role calls on 127.0.0.1:8090.
+    ThreadingHTTPServer(("127.0.0.1", 8090), Handler).serve_forever()  # NOSONAR
 
 
 if __name__ == "__main__":
