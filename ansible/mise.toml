@@ -30,6 +30,15 @@ ssh -i ~/.ssh/keepassxc.pub sylvain@$ip
 '''
 raw = true
 
+[tasks.ssh_newt]
+description = "SSH into the Newt LXC (site proxmox-lxc, local network only)"
+# Clé d'hôte vérifiée contre ansible/known_hosts, comme Ansible.
+run = '''
+ip=$(ansible-inventory --host newt-lxc | jq -r '.ansible_host')
+ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes sylvain@$ip
+'''
+raw = true
+
 [tasks.ssh_flip]
 description = "SSH into the flip server (no public IP: jump via Pangolin, see inventory/hetzner.py)"
 # eval : ansible_ssh_common_args porte un ProxyCommand entre guillemets, qu'un
