@@ -83,6 +83,16 @@ class Roles(unittest.TestCase):
         with tmp:
             self.assertEqual(selected(["ansible/roles/r/tasks/main.yml"], tree), (["a"], []))
 
+    def test_deleted_role_still_applied_selects_what_applies_it(self):
+        # The change deletes storage (gone from the tree) while app depends on it.
+        tmp, tree = fake_tree({
+            **scenario("app", "- hosts: all\n  roles:\n    - name: app\n"),
+            "ansible/roles/app/meta/main.yml": "dependencies:\n  - role: storage\n",
+        })
+        with tmp:
+            self.assertEqual(selected(["ansible/roles/storage/tasks/main.yml"], tree), (["app"], []))
+            self.assertEqual(selected(["ansible/roles/app/tasks/main.yml"], tree), (["app"], []))
+
     def test_role_without_scenario_selects_nothing(self):
         tmp, tree = fake_tree({"ansible/roles/lonely/tasks/main.yml": ""})
         with tmp:
@@ -105,6 +115,11 @@ class Scenarios(unittest.TestCase):
     def test_shared_prepare_named_in_molecule_yml(self):
         # nginx_demo's molecule.yml takes nas_storage's prepare.
         self.assertEqual(selected(["ansible/molecule/nas_storage/prepare.yml"])[0], ["nas_storage", "nginx_demo"])
+
+    def test_deleted_file_still_read_selects_its_reader(self):
+        tmp, tree = fake_tree(scenario("a", "- hosts: all\n  tasks:\n    - ansible.builtin.include_tasks: ../../tasks/gone.yml\n"))
+        with tmp:
+            self.assertEqual(selected(["ansible/tasks/gone.yml"], tree), (["a"], []))
 
     def test_own_scenario_only(self):
         self.assertEqual(selected(["ansible/molecule/wiki/verify.yml"]), (["wiki"], []))

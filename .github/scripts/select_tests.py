@@ -164,6 +164,11 @@ def role_names(node, found):
                 found.add(value)
             elif key in ("roles", "dependencies") and isinstance(value, list):
                 found.update(v for v in value if isinstance(v, str))
+                # `- name: x` is accepted as well as `- role: x`.
+                found.update(
+                    v["name"] for v in value
+                    if isinstance(v, dict) and "role" not in v and isinstance(v.get("name"), str)
+                )
             role_names(value, found)
     elif isinstance(node, list):
         for item in node:
@@ -192,29 +197,32 @@ class Tree:
         self.scenario_patterns = {s: self._close_scenario(s, direct) for s in self.scenarios}
         self.module_patterns = {m: self._module_patterns(m) for m in self.modules}
 
+    # Roles missing from the tree are kept, never filtered against
+    # self.roles: a change deleting a role that something still applies must
+    # select what applies it (its changed paths are ansible/roles/<role>/...).
     def _role_refs(self, directory):
         found = set()
         for path in yaml_files(directory):
             for doc in yaml_documents(path):
                 role_names(doc, found)
-        return found & self.roles
+        return found
 
     def role_closure(self, roles):
         seen = set()
         pending = list(roles)
         while pending:
             role = pending.pop()
-            if role in seen or role not in self.roles:
+            if role in seen:
                 continue
             seen.add(role)
-            pending.extend(self.role_uses[role])
+            pending.extend(self.role_uses.get(role, ()))
         return seen
 
     def _scenario_deps(self, scenario):
         """(patterns, roles, other scenarios) a scenario reaches directly."""
         directory = self.root / "ansible" / "molecule" / scenario
         patterns = {f"ansible/molecule/{scenario}/**"}
-        roles = {scenario} & self.roles
+        roles = {scenario}
         others = set()
         for path in sorted(p for p in directory.rglob("*") if p.is_file()):
             if path.suffix in (".yml", ".yaml"):
@@ -232,8 +240,8 @@ class Tree:
                     if rel.startswith("../"):
                         continue
                     parts = rel.split("/")
-                    if parts[:2] == ["ansible", "molecule"] and len(parts) > 2:
-                        if parts[2] != scenario and parts[2] in self.scenarios:
+                    if parts[:2] == ["ansible", "molecule"] and len(parts) > 2 and parts[2] in self.scenarios:
+                        if parts[2] != scenario:
                             others.add(parts[2])
                     elif parts[:2] == ["ansible", "host_vars"] and len(parts) > 2:
                         patterns.add(f"ansible/host_vars/{parts[2]}/**")
@@ -241,9 +249,11 @@ class Tree:
                         roles.add(parts[2])
                     elif (self.root / rel).is_dir():
                         patterns.add(f"{rel}/**")
-                    elif (self.root / rel).is_file():
-                        patterns.add(rel)
-        return patterns, roles & self.roles, others
+                    else:
+                        # A file, or a path this very change deletes: the
+                        # suite still reading it must run (and fail).
+                        patterns.update({rel, f"{rel}/**"})
+        return patterns, roles, others
 
     def _close_scenario(self, scenario, direct):
         patterns, roles, seen = set(), set(), set()
