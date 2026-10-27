@@ -11,7 +11,9 @@ repository root, with in the environment:
 
 Steps, on the latest archive:
   0. fail if it is older than MAX_ARCHIVE_AGE: a backup that stopped (a dump
-     failing every night) leaves an old archive that restores fine;
+     failing every night) leaves an old archive that restores fine. Not for
+     an entry marked "paused": its app is stopped on purpose and writes no
+     archive (the scheduled run skips it, a manual run still restores it);
   1. extract a sample of regular files (borg checks every chunk it decrypts);
   2. replay every PostgreSQL / MySQL dump in a throwaway container of the
      role's database image, and check that a table came back (unless the
@@ -254,13 +256,16 @@ def verify_data(entry):
     return f"{summary.group(1)} blocs vérifiés en {elapsed}, aucune erreur"
 
 
+def check_age(entry, archive, age):
+    if age > MAX_ARCHIVE_AGE and not entry.get("paused", False):
+        raise RestoreError(f"dernière archive {archive} vieille de {age} : la sauvegarde ne tourne plus")
+
+
 def restore(entry, workdir):
     repo = repository(entry)
     latest = latest_archive(repo)
     archive = latest["name"]
-    age = archive_age(latest["time"])
-    if age > MAX_ARCHIVE_AGE:
-        raise RestoreError(f"dernière archive {archive} vieille de {age} : la sauvegarde ne tourne plus")
+    check_age(entry, archive, archive_age(latest["time"]))
     location = f"{repo}::{archive}"
     report = [archive]
 

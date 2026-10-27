@@ -50,6 +50,9 @@ jobs:
           SELECTED: ${{ inputs.apps }}
         run: |
           all=$(jq -c 'keys' .github/restore-test/apps.json)
+          # Une app en pause (`"paused": true`) n'écrit plus d'archive : le
+          # run complet la saute, un run manuel qui la nomme la teste.
+          scheduled=$(jq -c 'to_entries | map(select(.value.paused != true) | .key)' .github/restore-test/apps.json)
           if [ -n "$SELECTED" ]; then
             apps=$(jq -nc --arg sel "$SELECTED" \
               '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))')
@@ -64,7 +67,8 @@ jobs:
               exit 1
             fi
           else
-            apps=$all
+            apps=$scheduled
+            echo "Paused: $(jq -nr --argjson all "$all" --argjson apps "$apps" '$all - $apps | join(",")')"
           fi
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
           echo "Repositories: $apps"
@@ -79,6 +83,8 @@ jobs:
           jq -e 'to_entries | all(.value.host and .value.repo and .value.role)' .github/restore-test/apps.json
           jq -e 'all(.[]; (.allow_empty_databases // []) | type == "array" and all(type == "string"))' .github/restore-test/apps.json \
             || { echo "::error::allow_empty_databases doit être une liste de noms de bases"; exit 1; }
+          jq -e 'all(.[]; (.paused // false) | type == "boolean")' .github/restore-test/apps.json \
+            || { echo "::error::paused doit être un booléen"; exit 1; }
           for role in $(jq -r '.[].role' .github/restore-test/apps.json); do
             test -d "ansible/roles/$role" || { echo "::error::rôle $role absent"; exit 1; }
           done

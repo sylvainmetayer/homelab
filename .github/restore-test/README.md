@@ -119,7 +119,12 @@ manque ou si une app retirée y reste.
   sans faire échouer l'app ; les autres bases de l'app restent tenues d'en
   avoir une. Réservé à une base vide par construction (`nginx_demo_db` : la
   démo `nginx_demo` ne crée aucun schéma), jamais pour faire taire une vraie
-  app.
+  app ;
+- `paused` (facultatif, booléen) : app en pause
+  (`docs/runbooks/app-en-pause.md`), arrêtée exprès et sans sauvegarde. Le run
+  complet la saute ; un run manuel qui la nomme restaure sa dernière archive
+  sans en exiger l'âge. Le `tofu test` de `pangolin_config` exige `paused`
+  exactement sur les apps dont le moniteur de sauvegarde est en pause.
 
 ## Lancer à la main
 

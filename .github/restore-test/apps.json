@@ -13,7 +13,7 @@
   "nextcloud": { "host": "docker", "repo": "nextcloud", "role": "nextcloud" },
   "nginx_demo": { "host": "docker", "repo": "nginx_demo", "role": "nginx_demo", "allow_empty_databases": ["nginx_demo_db"] },
   "pangolin": { "host": "pangolin", "repo": "pangolin", "role": "pangolin" },
-  "paperless": { "host": "docker", "repo": "paperless", "role": "paperless_ngx" },
+  "paperless": { "host": "docker", "repo": "paperless", "role": "paperless_ngx", "paused": true },
   "rss": { "host": "docker", "repo": "rss", "role": "rss" },
   "trek": { "host": "docker", "repo": "trek", "role": "trek" },
   "wiki": { "host": "docker", "repo": "wiki", "role": "wiki" },

@@ -27,10 +27,11 @@
 #                Promptoramix, pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
-#   enabled      default local.resource_pins.enabled. false also pauses the
-#                healthcheck monitor: a disabled resource has nothing to
-#                watch. The backup monitor stays active - the backup job does
-#                not stop with the resource.
+#   enabled      default local.resource_pins.enabled. false pauses the app
+#                (docs/runbooks/app-en-pause.md): it also pauses the
+#                healthcheck and backup monitors, since the role then stops
+#                the app and removes its borgmatic configuration. Nothing is
+#                destroyed: tokens, push URL and monitor history stay.
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and nextcloud have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
@@ -243,8 +244,9 @@ resource "uptimekuma_monitor_push" "backup" {
   interval = 60 * 60 * 24
 
   retry_interval = 20
-  active         = true
-  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
+  # A paused app (enabled = false) runs no backup: nothing to wait for.
+  active = pangolin_resource.website[each.key].enabled
+  tags   = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
   notification_ids = [uptimekuma_notification_smtp.email.id]
 }

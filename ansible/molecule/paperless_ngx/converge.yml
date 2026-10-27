@@ -1,4 +1,6 @@
 ---
+# Avec le vrai host_vars/docker : paperless en pause (paperless_enabled:
+# false). side_effect.yml vérifie la pause puis passe par la reprise.
 - name: Converge
   hosts: all
   vars_files:

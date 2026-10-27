@@ -15,6 +15,7 @@ d'ensemble est dans [../architecture.md](../architecture.md).
 | Perte de la clé age, d'une clé SSH ou d'un poste | [perte-cle-ou-poste.md](perte-cle-ou-poste.md) |
 | Reconstruction complète de Pangolin depuis Borg | [reconstruction-pangolin.md](reconstruction-pangolin.md) |
 | Un hôte a changé de clé d'hôte SSH | [cle-hote-ssh-changee.md](cle-hote-ssh-changee.md) |
+| Mettre une appli en pause durablement, la reprendre (procédure, pas un incident) | [app-en-pause.md](app-en-pause.md) |
 
 ## Avant de commencer
 

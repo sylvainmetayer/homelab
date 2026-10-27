@@ -13,6 +13,11 @@ locals {
       description = "Documents numérisés, avec OCR"
       icon        = "paperless-ngx"
     }
+    # Paused since October 2026 (paperless_enabled: false in
+    # ansible/host_vars/docker, "paused" in .github/restore-test/apps.json):
+    # resource disabled, healthcheck and backup monitors paused, nothing
+    # destroyed. See docs/runbooks/app-en-pause.md.
+    enabled = false
 
     target = {
       site_id = pangolin_site.proxmox_docker.id
