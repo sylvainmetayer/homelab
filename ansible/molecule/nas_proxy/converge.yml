@@ -1,23 +1,18 @@
 ---
-# Comme nas.yml : borgmatic (pour la sauvegarde de jellyfin), puis jellyfin
-# (qui crée le réseau media) avant nas_proxy.
+# Comme nas.yml : jellyfin (qui crée le réseau media) avant nas_proxy. La
+# converge du scénario jellyfin telle quelle (docker_service, borgmatic pour
+# sa sauvegarde, jellyfin) : ses prérequis ne sont écrits qu'une fois.
+- name: Converge jellyfin
+  ansible.builtin.import_playbook: ../jellyfin/converge.yml
+
 - name: Converge
   hosts: all
   gather_facts: false
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/nas/variables.yaml
-  vars:
-    # Le bouchon de _shared/prepare.yml au lieu de l'enrobage du conteneur
-    # borgmatic, qui tirerait l'image (repo-create de tasks/app.yml).
-    borgmatic_bin: /root/.local/bin/borgmatic
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   roles:
-    - role: docker_service
-    # borgmatic en conteneur (host_vars/nas) : la sauvegarde de jellyfin
-    # (tasks/app.yml) écrit dans son dossier des configurations.
-    - role: borgmatic
-    - role: jellyfin
     - role: nas_proxy
