@@ -27,7 +27,7 @@ services:
       # se fait par SMB.
       - {{ jellyfin_media_path }}:/media:ro
     # Sur le LAN : TV, Chromecast et téléphones à la maison. Dehors, le Newt du
-    # NAS sert jellyfin.internal par le réseau newt (tofu/pangolin_config).
+    # NAS sert media.internal par le réseau newt (tofu/pangolin_config).
     ports:
       - "{{ jellyfin_port }}:8096"
     restart: unless-stopped

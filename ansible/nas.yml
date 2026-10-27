@@ -54,7 +54,7 @@
     - role: decommission_app
       tags: [decommission, never]
     # Connecteur du site Pangolin nas, sous dc@newt (unité système) : il sert
-    # jellyfin.internal aux clients Pangolin, par le réseau Docker newt qu'il
+    # media.internal aux clients Pangolin, par le réseau Docker newt qu'il
     # crée et que rejoint Jellyfin.
     - role: newt
       tags: newt
