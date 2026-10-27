@@ -19,8 +19,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Ignore lock file (optional - décommentez si vous ne voulez pas versionner le lock)
-# .terraform.lock.hcl
+# Les .terraform.lock.hcl sont versionnés, dans chaque module : ne pas les
+# ignorer (un module sans lock a déjà rendu le state de tofu/pangolin illisible,
+# #896). Le Lint (init -lockfile=readonly) refuse un lock en retard.
 
 # Extension SOPS, just in case
 .decrypted*.yaml

@@ -60,7 +60,8 @@ provider "registry.opentofu.org/hashicorp/aws" {
 }
 
 provider "registry.opentofu.org/hashicorp/random" {
-  version = "3.9.1"
+  version     = "3.9.1"
+  constraints = "~> 3.7"
   hashes = [
     "h1:38E2VQmQDhws/3AL3D/EzBGuCseepyZRIswAOx8CqoQ=",
     "h1:7+qv9kpOpBC9EUPCubnPxh603tu3l9EIMMBkpbt1H1Y=",
@@ -96,7 +97,8 @@ provider "registry.opentofu.org/hashicorp/random" {
 }
 
 provider "registry.opentofu.org/hashicorp/tls" {
-  version = "4.4.2"
+  version     = "4.4.2"
+  constraints = "~> 4.0"
   hashes = [
     "h1:/0R7Uyu41ciLBEjQbur6JfcshYskonUbv1CKZil39zE=",
     "h1:58EKvuJXRumlEHY3XvlOe2CL+GArtDRwh8vC/fGhGzo=",
