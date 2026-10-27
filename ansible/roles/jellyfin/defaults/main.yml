@@ -33,13 +33,15 @@ jellyfin_mem_limit: 3g
 # --- Traefik devant Jellyfin : https://media.sylvain.cloud ---
 # Une seule adresse en LAN et par le client Pangolin. Le A public
 # media.sylvain.cloud vise l'IP LAN du NAS (tofu/dns/media.tf), et la ressource
-# privée Pangolin du même nom vise ce Traefik sur le réseau newt, en 443
+# privée Pangolin du même nom vise ce Traefik sur le réseau newt, en 443 et 8443
 # (tofu/pangolin_config/private_resources.tf). Certificat Let's Encrypt par
 # DNS-01 OVH : rien n'a besoin d'être joignable depuis Internet.
 jellyfin_domain: media.sylvain.cloud
 # Port de l'hôte NAS : 80 et 443 appartiennent au nginx d'UGOS (redirections
-# vers son interface, 9999 et 9443). En LAN, https://media.sylvain.cloud:8443 ;
-# par Pangolin, le 443 du conteneur, sans numéro de port.
+# vers son interface, 9999 et 9443). Traefik écoute sur ce port dans le
+# conteneur aussi : https://media.sylvain.cloud:8443 en LAN comme par Pangolin
+# (tcp_port_range "443,8443", que tofu/pangolin_config/tests vérifie contre
+# cette ligne), et sans numéro de port par Pangolin (443 du conteneur).
 jellyfin_https_port: 8443
 jellyfin_acme_email: "{{ pangolin_le_email }}"
 # Clé OVH dédiée au DNS-01, restreinte aux trois appels que fait lego (ajout du

@@ -111,9 +111,11 @@ resource "pangolin_site_resource" "flip" {
 # ressource, et le certificat Let's Encrypt du Traefik du NAS vaut pour les
 # deux chemins. Servi par le Newt du NAS, qui joint ce Traefik par son nom de
 # conteneur sur le réseau Docker newt qu'ils partagent : aucune ressource
-# publique. TCP 443 seul (Jellyfin n'est plus joignable en direct par
-# Pangolin) ; UDP à "*" comme ailleurs (le provider ne sait pas envoyer une
-# plage vide), rien n'écoute en UDP derrière Traefik.
+# publique. TCP 443 et 8443 seuls (Jellyfin n'est plus joignable en direct par
+# Pangolin) : 8443, l'entrée LAN de Traefik (jellyfin_https_port), y est
+# ouvert aussi, pour qu'une appli réglée sur https://media.sylvain.cloud:8443 à
+# la maison marche encore dehors. UDP à "*" comme ailleurs (le provider ne
+# sait pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "jellyfin" {
   site_id        = pangolin_site.nas.id
   name           = "Jellyfin"
@@ -121,7 +123,7 @@ resource "pangolin_site_resource" "jellyfin" {
   alias          = "media.sylvain.cloud"
   destination    = "jellyfin-traefik"
   disable_icmp   = true
-  tcp_port_range = "443"
+  tcp_port_range = "443,8443"
   udp_port_range = "*"
 }
 

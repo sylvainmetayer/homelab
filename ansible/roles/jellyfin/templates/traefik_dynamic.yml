@@ -6,10 +6,11 @@
 http:
   routers:
     jellyfin:
-      # Le port (8443 en LAN) ne compte pas dans Host().
+      # Le port ({{ jellyfin_https_port }}) ne compte pas dans Host().
       rule: "Host(`{{ jellyfin_domain }}`)"
       entryPoints:
         - websecure
+        - websecure-lan
       service: jellyfin
       middlewares:
         - jellyfin-headers

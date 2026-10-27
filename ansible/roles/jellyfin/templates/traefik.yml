@@ -9,19 +9,22 @@ log:
   level: INFO
 
 entryPoints:
-  # Le 443 du conteneur : celui que vise la ressource privée Pangolin, publié
-  # sur le port {{ jellyfin_https_port }} du NAS pour le LAN. Pas de port 80 :
-  # il est au nginx d'UGOS, et le DNS-01 n'en a pas besoin.
+  # Le 443 du conteneur : https://{{ jellyfin_domain }} sans port, par la
+  # ressource privée Pangolin. Pas de port 80 : il est au nginx d'UGOS, et le
+  # DNS-01 n'en a pas besoin. Le certificat suit le Host() du routeur.
   websecure:
     address: ":443"
     http:
       # Supprime les en-têtes qui en imitent un autre (X_Forwarded_For…) :
       # aucun client ne peut se faire passer pour ce que pose Traefik.
       aliasHeadersStrategy: delete
-      tls:
-        certResolver: letsencrypt
-        domains:
-          - main: "{{ jellyfin_domain }}"
+  # Même port dans le conteneur et sur le NAS (LAN), ouvert aussi dans la
+  # ressource Pangolin : une appli (téléphone, TV) réglée à la maison sur
+  # https://{{ jellyfin_domain }}:{{ jellyfin_https_port }} marche encore dehors.
+  websecure-lan:
+    address: ":{{ jellyfin_https_port }}"
+    http:
+      aliasHeadersStrategy: delete
   # Healthcheck du conteneur (traefik healthcheck --ping), jamais publié.
   ping:
     address: ":8082"

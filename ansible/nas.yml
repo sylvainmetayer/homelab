@@ -60,8 +60,8 @@
       tags: newt
     # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
     # media en lecture seule, derrière son Traefik : https://media.sylvain.cloud
-    # (:8443 en LAN, sans port par le client Pangolin). Ses vérifications (dossier partagé, Quick Sync)
-    # ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
+    # (:8443 en LAN, avec ou sans port par le client Pangolin). Ses
+    # vérifications (dossier partagé, Quick Sync) ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     # Le réseau newt est créé par dc@newt : sur un NAS neuf, --tags newt avant
     # un --tags jellyfin seul, sinon dc@jellyfin réessaie toutes les 15 s.
     - role: jellyfin

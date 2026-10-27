@@ -2004,10 +2004,11 @@ run "nas_newt_credentials_and_media" {
   }
 
   # Le Newt du NAS joint le Traefik de Jellyfin par son nom de conteneur sur le
-  # réseau newt (container_name du compose du rôle jellyfin), en TCP 443
-  # seulement : Jellyfin lui-même (8096) n'est plus joignable par Pangolin.
-  # L'alias est le nom public dont le A vise l'IP LAN du NAS (tofu/dns), pour
-  # une seule URL en LAN et dehors.
+  # réseau newt (container_name du compose du rôle jellyfin), en TCP 443 et
+  # 8443 (jellyfin_https_port, l'entrée LAN de Traefik) seulement : Jellyfin
+  # lui-même (8096) n'est plus joignable par Pangolin. L'alias est le nom
+  # public dont le A vise l'IP LAN du NAS (tofu/dns), pour une seule URL en
+  # LAN et dehors.
   assert {
     condition = (
       pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
@@ -2016,11 +2017,12 @@ run "nas_newt_credentials_and_media" {
       && strcontains(file("${path.module}/../dns/media.tf"), "subdomain = \"media\"")
       && pangolin_site_resource.jellyfin.destination == "jellyfin-traefik"
       && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin-traefik\n")
-      && pangolin_site_resource.jellyfin.tcp_port_range == "443"
+      && pangolin_site_resource.jellyfin.tcp_port_range == "443,8443"
+      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/defaults/main.yml"), "\njellyfin_https_port: 8443\n")
       && pangolin_site_resource.jellyfin.udp_port_range == "*"
       && pangolin_site_resource.jellyfin.disable_icmp == true
     )
-    error_message = "media.sylvain.cloud doit viser le conteneur jellyfin-traefik, sur le site nas, en TCP 443 seul, ICMP coupé."
+    error_message = "media.sylvain.cloud doit viser le conteneur jellyfin-traefik, sur le site nas, en TCP 443 et 8443 (jellyfin_https_port) seuls, ICMP coupé."
   }
 
   # Une ressource privée, jamais publique, ouverte au seul rôle jellyfin.

@@ -71,10 +71,10 @@ services:
       - ./traefik/config:/etc/traefik:ro
       - ./traefik/acme:/letsencrypt
     # LAN : https://{{ jellyfin_domain }}:{{ jellyfin_https_port }} (80 et 443
-    # de l'hôte sont au nginx d'UGOS). Pangolin, lui, vise le 443 du conteneur
-    # sur le réseau newt.
+    # de l'hôte sont au nginx d'UGOS), même port dans le conteneur. Pangolin,
+    # lui, vise ce port et le 443 du conteneur sur le réseau newt.
     ports:
-      - "{{ jellyfin_https_port }}:443"
+      - "{{ jellyfin_https_port }}:{{ jellyfin_https_port }}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--configFile=/etc/traefik/traefik.yml"]
