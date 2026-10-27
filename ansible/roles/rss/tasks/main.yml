@@ -62,7 +62,7 @@
     state: directory
     owner: root
     group: www-data
-    mode: "0755"
+    mode: "0750"
   register: rss_extensions_dir
 
 # Sur un premier --check, ni le dossier de l'appli ni l'archive n'existent :
@@ -104,7 +104,7 @@
     state: directory
     owner: root
     group: www-data
-    mode: "0755"
+    mode: "0750"
 
 # Propriété de root, lisible par tous : www-data (FreshRSS) lit le code de
 # l'extension mais ne peut pas le modifier.
@@ -132,7 +132,7 @@
     content: "{{ rss_karakeep_button_commit }}\n"
     owner: root
     group: www-data
-    mode: "0644"
+    mode: "0640"
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for RSS
