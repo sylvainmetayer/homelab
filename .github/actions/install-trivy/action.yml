@@ -1,0 +1,23 @@
+name: Install Trivy
+description: >-
+  Installe le binaire Trivy, version exacte et sha256 vérifié (comme
+  actionlint et hadolint dans lint.yaml), plutôt que l'action
+  aquasecurity/trivy-action. Partagé par les jobs de trivy.yaml.
+
+runs:
+  using: composite
+  steps:
+    # sha256 de trivy_<version>_Linux-64bit.tar.gz dans
+    # trivy_<version>_checksums.txt de la release.
+    - name: Install Trivy
+      shell: bash
+      env:
+        TRIVY_VERSION: 0.76.0
+        TRIVY_SHA256: e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7
+      run: |
+        curl --proto '=https' --tlsv1.2 -fsSLo /tmp/trivy.tgz \
+          "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+        echo "${TRIVY_SHA256}  /tmp/trivy.tgz" | sha256sum -c -
+        tar -xzf /tmp/trivy.tgz -C /tmp trivy
+        sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy
+        trivy --version

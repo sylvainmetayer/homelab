@@ -1,0 +1,166 @@
+name: Trivy
+
+# Analyse hebdomadaire Trivy, en rapport seulement : les vulnérabilités HIGH
+# et CRITICAL des images épinglées dans les rôles (et compose/), les
+# mauvaises configurations de tofu/, ansible/ et du Dockerfile Molecule. Les
+# résultats vont dans l'onglet Security (code scanning, SARIF), une
+# catégorie par image : une trouvaille ne fait jamais échouer le run, une
+# erreur de l'outil (image introuvable, base absente, SARIF refusé) si.
+# Le lundi à 05:00 UTC, après les tests de la nuit (03:30) et avant la PR
+# hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
+# ce que corrigent ses montées de version.
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+  # Sur une PR, l'analyse tourne (l'outil et la liste d'images sont
+  # vérifiés) sans rien envoyer : une analyse de PR n'est pas celle de main.
+  pull_request:
+    paths:
+      - .github/workflows/trivy.yaml
+      - .github/actions/install-trivy/**
+      - .github/scripts/trivy_images.py
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Chaque job déclare les siennes.
+permissions: {}
+
+jobs:
+  prepare:
+    name: List images and fetch the database
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    outputs:
+      images: ${{ steps.images.outputs.images }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: List the images
+        id: images
+        run: |
+          images=$(python3 -I .github/scripts/trivy_images.py)
+          echo "images=$images" >> "$GITHUB_OUTPUT"
+          echo "$images" | jq -r '.[] | "\(.name)  \(.ref)"'
+
+      - name: Install Trivy
+        # ./ et non $/ : actionlint ne connaît pas encore la syntaxe self-repository.
+        uses: ./.github/actions/install-trivy # zizmor: ignore[self-repository]
+
+      # Une fois par run, puis le cache GitHub Actions : chaque job d'image
+      # la relit au lieu de la retélécharger (la base Java sert aux images
+      # qui embarquent des jar).
+      - name: Download the vulnerability databases
+        run: |
+          trivy image --skip-version-check --no-progress --download-db-only
+          trivy image --skip-version-check --no-progress --download-java-db-only
+
+      - name: Save the databases
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/trivy/db
+            ~/.cache/trivy/java-db
+          key: trivy-db-${{ github.run_id }}-${{ github.run_attempt }}
+
+  config:
+    name: Scan the configuration
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        uses: ./.github/actions/install-trivy # zizmor: ignore[self-repository]
+
+      # Terraform (tofu/), Ansible, Dockerfile. Les modules distants que
+      # Trivy télécharge ne sont pas les nôtres : leurs trouvailles sont
+      # écartées. Un module introuvable n'est qu'un ERROR dans le log.
+      - name: Run trivy config
+        run: |
+          trivy config --skip-version-check --severity HIGH,CRITICAL \
+            --tf-exclude-downloaded-modules \
+            --format sarif --output trivy-config.sarif .
+          echo "Findings: $(jq '[.runs[].results[]] | length' trivy-config.sarif)"
+
+      - name: Upload to code scanning
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+  image:
+    name: Scan ${{ matrix.image.name }}
+    needs: prepare
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      # Ménage Docker Hub (pulls anonymes limités par IP de runner).
+      max-parallel: 8
+      matrix:
+        image: ${{ fromJSON(needs.prepare.outputs.images) }}
+
+    steps:
+      # Upload-sarif lit le dépôt (chemins, commit) : checkout requis.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        uses: ./.github/actions/install-trivy # zizmor: ignore[self-repository]
+
+      - name: Restore the databases
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/trivy/db
+            ~/.cache/trivy/java-db
+          key: trivy-db-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+
+      # Lue directement dans le registre (pas de docker pull) ; vulnérabilités
+      # seulement. Le timeout par défaut (5 min) ne suffit pas aux grosses
+      # images (immich-machine-learning).
+      - name: Run trivy image
+        env:
+          IMAGE: ${{ matrix.image.ref }}
+        run: |
+          trivy image --skip-version-check --no-progress \
+            --skip-db-update --skip-java-db-update \
+            --image-src remote --scanners vuln --severity HIGH,CRITICAL \
+            --timeout 20m \
+            --format sarif --output trivy-image.sarif "$IMAGE"
+          echo "Findings: $(jq '[.runs[].results[]] | length' trivy-image.sarif)"
+
+      - name: Upload to code scanning
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image-${{ matrix.image.name }}
