@@ -40,7 +40,10 @@ resource "pangolin_resource_rule" "trek_home_ip" {
 # for Claude: the catch-all `DROP COUNTRY ALL` (rules.tf) drops them before any
 # authentication runs, access token included - Pangolin evaluates the rules
 # first (server/routers/badger/verifySession.ts). Read off the TREK v4.3.3
-# sources (server/src/nest/{mcp-transport,oauth,platform}).
+# sources (server/src/nest/{mcp-transport,oauth,platform}), re-read for v5.0.0
+# (github.com/liketrek/TREK): same routes. Its new Client ID Metadata
+# Documents (an https client_id fetched by TREK) are only resolved on the
+# authorize and consent side, behind the SSO, never by /oauth/token.
 #
 # Two kinds of paths, two treatments, all in the 2 - 9 band of rules.tf and all
 # exact - no wildcard, so neither `..` (resolved by Pangolin) nor `\` (left
@@ -102,8 +105,9 @@ resource "pangolin_resource_rule" "trek_mcp" {
 
 # Public share links, opened worldwide without SSO through
 # local.path_bypasses (rules.tf). Read off the TREK v4.3.3 sources and the
-# client the pinned image ships (/app/server/public); re-read them when the
-# image moves.
+# client the pinned image ships (/app/server/public), re-read for v5.0.0: same
+# paths, its one new public route (/api/public/journey/<token>/map-layers) is
+# under /api/public/journey/*. Re-read them when the image moves.
 #
 # - Trip share, `/shared/<token>`: 24 random bytes, 90-day expiry, checked by
 #   every handler (share.service.ts, share.controller.ts).

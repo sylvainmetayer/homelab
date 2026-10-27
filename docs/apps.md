@@ -12,7 +12,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, public without SSO (clients log in to Nextcloud itself) |
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR |
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
-| [TREK](https://github.com/mauriceboe/trek) | `trek` | Docker VM | Trip planner |
+| [TREK](https://github.com/liketrek/TREK) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
 | [nginx](https://nginx.org/) | `nginx_demo` | Docker VM | Pilot of app data on the NAS (NFS): static page plus an unused Postgres, both on the NAS export |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
