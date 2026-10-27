@@ -51,6 +51,13 @@ run "depot_github" {
     error_message = "La page d'accueil du dépôt doit être https://sylvain.dev."
   }
 
+  # Comparés au dépôt réel : un topic retiré sur GitHub (hacktoberfest, après
+  # octobre 2026) se voyait seulement dans un plan.
+  assert {
+    condition     = toset(github_repository.site.topics) == toset(["blog", "eleventy-website", "personal-website", "static-site"])
+    error_message = "Les topics du dépôt site ont changé : aligner la config sur le dépôt GitHub."
+  }
+
   assert {
     condition     = github_repository.site.archive_on_destroy == true
     error_message = "archive_on_destroy doit rester à true."
