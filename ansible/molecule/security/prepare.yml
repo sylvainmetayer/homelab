@@ -136,15 +136,15 @@
         content: "{{ 'ok' if security_docker_baseline.rc == 0 else security_docker_baseline.stderr }}\n"
         mode: "0600"
 
-    # Empreinte de la clé d'hôte RSA d'avant durcissement : devsec ne doit pas
-    # la régénérer (ssh_host_rsa_key_size aligné sur les 3072 bits de Debian).
-    - name: Fingerprint the RSA host key before hardening
-      ansible.builtin.command: ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
-      register: security_rsa_fingerprint
+    # Empreinte de la clé d'hôte ed25519 d'avant durcissement, celle
+    # qu'épingle ansible/known_hosts : le rôle doit la garder telle quelle.
+    - name: Fingerprint the ed25519 host key before hardening
+      ansible.builtin.command: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+      register: security_ed25519_fingerprint
       changed_when: false
 
-    - name: Record the RSA host key fingerprint
+    - name: Record the ed25519 host key fingerprint
       ansible.builtin.copy:
-        dest: /var/lib/molecule-ssh-rsa-fingerprint
-        content: "{{ security_rsa_fingerprint.stdout }}\n"
+        dest: /var/lib/molecule-ssh-ed25519-fingerprint
+        content: "{{ security_ed25519_fingerprint.stdout }}\n"
         mode: "0600"
