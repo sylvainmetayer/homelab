@@ -39,6 +39,10 @@ jobs:
 
     outputs:
       images: ${{ steps.images.outputs.images }}
+      # Lue par les jobs d'image plutôt que recalculée : relancés seuls
+      # (« Re-run failed jobs »), ils ont un run_attempt de plus que prepare,
+      # qui ne tourne pas à nouveau, et ne trouveraient pas sa clé.
+      db-key: ${{ steps.db-key.outputs.key }}
 
     steps:
       - name: Checkout
@@ -65,13 +69,17 @@ jobs:
           trivy image --skip-version-check --no-progress --download-db-only
           trivy image --skip-version-check --no-progress --download-java-db-only
 
+      - name: Name the cache entry
+        id: db-key
+        run: echo "key=trivy-db-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
       - name: Save the databases
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/trivy/db
             ~/.cache/trivy/java-db
-          key: trivy-db-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ steps.db-key.outputs.key }}
 
   config:
     name: Scan the configuration
@@ -141,7 +149,7 @@ jobs:
           path: |
             ~/.cache/trivy/db
             ~/.cache/trivy/java-db
-          key: trivy-db-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ needs.prepare.outputs.db-key }}
           fail-on-cache-miss: true
 
       # Lue directement dans le registre (pas de docker pull) ; vulnérabilités
@@ -164,3 +172,24 @@ jobs:
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.image.name }}
+
+  # Les bases pèsent lourd dans le cache Actions (10 Go par dépôt, partagés
+  # avec l'image Molecule) : l'entrée du run est supprimée dès que toutes les
+  # images sont passées. Gardée sinon, pour un « Re-run failed jobs ».
+  cleanup:
+    name: Delete the database cache
+    needs: [prepare, image]
+    if: needs.image.result == 'success'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+
+    permissions:
+      actions: write
+
+    steps:
+      - name: Delete the cache entry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEY: ${{ needs.prepare.outputs.db-key }}
+        run: gh cache delete "$KEY"
