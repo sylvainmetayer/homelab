@@ -5,7 +5,7 @@ services:
     # Pas de cpus: : un transcodage logiciel de secours ou un scan doit
     # pouvoir prendre les quatre cœurs du N100.
     mem_limit: {{ jellyfin_mem_limit }}
-    image: docker.io/jellyfin/jellyfin:12.3@sha256:2038fe038ab3876a80f6e7b7e0aef6607b032c7dc0c9b3ad3296d0b2eba3bbb5
+    image: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
     container_name: jellyfin
     # Le compte de l'hôte propriétaire des médias copiés par SMB (defaults :
     # jellyfin_user), et le groupe du périphérique de rendu pour Quick Sync.
