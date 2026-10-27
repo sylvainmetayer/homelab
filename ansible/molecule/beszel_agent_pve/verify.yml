@@ -41,6 +41,10 @@
           - beszel_agent_unit.status.AmbientCapabilities == 'cap_sys_rawio'
           - beszel_agent_unit.status.CapabilityBoundingSet == 'cap_sys_rawio'
           - beszel_agent_unit.status.SupplementaryGroups == 'disk'
+          # Le groupe disk ouvrirait tous les disques en écriture : le cgroup
+          # n'ouvre que sda, en lecture.
+          - beszel_agent_unit.status.DevicePolicy == 'closed'
+          - "'\nDeviceAllow=/dev/sda r\n' in beszel_agent_unit_file"
           - beszel_agent_unit.status.DynamicUser == 'yes'
           - beszel_agent_unit.status.NoNewPrivileges == 'yes'
           - beszel_agent_unit.status.UnitFileState == 'enabled'

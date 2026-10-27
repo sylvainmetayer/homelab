@@ -25,7 +25,14 @@ PrivateTmp=yes
 # le disque (groupe disk) et lui envoie ses commandes ATA par SG_IO, réservé à
 # CAP_SYS_RAWIO. Ambiante : elle survit à l'exec de smartctl, NoNewPrivileges
 # ne bloque que les gains par setuid ou capacités de fichier.
+# Le groupe disk ouvre en écriture tous les disques de l'hôte (sur Proxmox,
+# les volumes lvm-thin de chaque VM) : le cgroup ne laisse ouvrir que les
+# disques suivis, en lecture (closed : plus /dev/null et les pseudo-devices).
 SupplementaryGroups=disk
+DevicePolicy=closed
+{% for device in beszel_agent_smart_devices %}
+DeviceAllow={{ device.path }} r
+{% endfor %}
 AmbientCapabilities=CAP_SYS_RAWIO
 CapabilityBoundingSet=CAP_SYS_RAWIO
 {% else %}

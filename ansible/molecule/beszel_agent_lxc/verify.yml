@@ -56,6 +56,11 @@
           - "'SMART_DEVICES=\n' in beszel_agent_env"
           - "'EnvironmentFile=/etc/beszel-agent/env' in beszel_agent_unit_file"
           - "'DynamicUser=yes' in beszel_agent_unit_file"
+          # Sans S.M.A.R.T. : ni capacité, ni groupe disk, ni accès aux disques.
+          - "'\nCapabilityBoundingSet=\n' in beszel_agent_unit_file"
+          - "'AmbientCapabilities' not in beszel_agent_unit_file"
+          - "'SupplementaryGroups' not in beszel_agent_unit_file"
+          - "'DeviceAllow' not in beszel_agent_unit_file"
           - beszel_agent_tokens['newt-lxc'] not in beszel_agent_unit_file
           - beszel_agent_unit.status.UnitFileState == 'enabled'
           # Seules la version courante et son archive restent (prepare.yml en
