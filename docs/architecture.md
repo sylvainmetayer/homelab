@@ -224,8 +224,19 @@ flowchart LR
 - **Socket Docker** : jamais monté dans l'agent. Un proxy
   (`wollomatic/socket-proxy`, sidecar du compose de l'agent, sans réseau) ne
   laisse passer que les GET dont l'agent a besoin (liste des conteneurs,
-  statistiques, version, info) : ni inspect (les secrets des compose), ni
-  logs, ni écriture. Newt lit encore le socket directement (suite : #853).
+  statistiques, version, info, logs d'un conteneur par son identifiant) : ni
+  inspect, ni écriture. Newt lit encore le socket directement (suite : #853).
+- **Logs des conteneurs** : la fiche d'un conteneur dans l'interface
+  (`CONTAINER_DETAILS=true` côté hub) montre ses 200 dernières lignes,
+  demandées à l'agent à chaque ouverture et jamais stockées dans le hub. Tout
+  compte Beszel qui voit le système les lit, et sur le LAN ce compte est la
+  seule barrière : un token ou un mot de passe qu'une appli écrit dans ses
+  logs y devient lisible. L'onglet inspect de la même fiche reste vide : le
+  proxy le refuse (403 dans ses logs à chaque ouverture), parce que l'agent
+  n'en retire que les variables d'environnement, pas les arguments de
+  commande (le `--requirepass` du redis de nextcloud) ni les labels. Sur le
+  LXC newt et l'hôte Proxmox (agent binaire, sans Docker), seuls les logs des
+  services systemd suivis (`SERVICE_PATTERNS`).
 - **Lancement** : `dc@beszel_agent` (unité user) sur docker, pi et flip ;
   `dc@beszel_agent` en unité système sur le NAS (`nas.yml`, à la main) ;
   `docker compose up -d` et la restart policy sur Pangolin (pas de
