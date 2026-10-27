@@ -12,6 +12,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [BookStack](https://www.bookstackapp.com/) | `wiki` | Docker VM | Wiki |
 | [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, public without SSO (clients log in to Nextcloud itself) |
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR |
+| [Stirling-PDF](https://www.stirlingpdf.com/) | `stirling_pdf` | Docker VM | PDF tools (merge, split, OCR in French and English, conversions) on `pdf.sylvain.cloud`, behind the SSO with no login of its own, telemetry off. Stateless: only `configs/` persists (its `settings.yml` and the JVM's AOT cache, not backed up) |
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
 | [TREK](https://github.com/liketrek/TREK) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |

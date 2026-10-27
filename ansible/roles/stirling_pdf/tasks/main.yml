@@ -1,0 +1,43 @@
+---
+# configs/ : settings.yml, réécrit par Stirling-PDF au démarrage, et cache/
+# (cache AOT de la JVM, régénéré s'il manque), sous PUID (l'init le chown).
+# Rien d'autre ne persiste : les fichiers traités ne quittent pas le
+# conteneur, d'où l'absence de sauvegarde.
+- name: Ensure Stirling-PDF app folders exist
+  loop:
+    - "{{ stirling_pdf_base_path }}"
+    - "{{ stirling_pdf_base_path }}/configs"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart stirling_pdf
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ stirling_pdf_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart stirling_pdf
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ stirling_pdf_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure stirling_pdf service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@stirling_pdf
+    scope: user
+    enabled: true

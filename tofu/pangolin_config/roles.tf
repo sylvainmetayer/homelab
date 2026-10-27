@@ -14,6 +14,7 @@ locals {
     "rss",
     "wiki",
     "paperless",
+    "stirling-pdf",
     "flip-planning",
     "demo-planning",
     "demo-planning-kc",

@@ -1,0 +1,46 @@
+---
+services:
+  app:
+    # Doctrine « batch » : OCR (ocrmypdf + tesseract) et conversions
+    # (LibreOffice) par à-coups. Le plafond laisse toujours un cœur au reste,
+    # le poids fait perdre Stirling-PDF quand la VM est chargée.
+    cpus: 2.00
+    cpu_shares: 512
+    # Pas encore mesuré. L'init de l'image taille le tas Java sur ce plafond
+    # (60 % jusqu'à 1 Gio, 65 % jusqu'à 2 Gio) et le reste doit tenir la
+    # métaspace (384 à 512 Mio), le cache de code (96 Mio), tesseract pendant
+    # un OCR et LibreOffice, démarré à la demande (200 à 350 Mio). À 1 Gio, tas
+    # et métaspace prennent tout et le premier OCR ferait tuer Java ; 2 Gio
+    # laissent ~700 Mio hors du tas. L'amont prévoit 4 Gio pour cette image.
+    # À recaler sur memory.peak après quelques OCR.
+    mem_limit: 2g
+    # Image standard, pas « fat » : tesseract et les langues eng et fra y sont
+    # déjà (paquets tesseract-ocr-eng et -fra de l'image de base), la fat
+    # n'ajoute que le moteur d'IA et des polices.
+    image: docker.io/stirlingtools/stirling-pdf:3.2.2@sha256:c6872dd056b0046a14c5de1e9970283e7f1e1ff685bb08090c6b37a231127d31
+    container_name: stirling-pdf
+    # Pas de cap_drop : l'init démarre en root, remappe l'utilisateur sur
+    # PUID/PGID (usermod), chown ses dossiers et lance Java et LibreOffice sous
+    # deux utilisateurs distincts (setpriv).
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    volumes:
+      # settings.yml (réécrit par l'application au démarrage, avec la clé et
+      # l'UUID qu'elle génère la première fois) : seul état, non sauvegardé.
+      - ./configs:/configs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "--max-time", "10", "http://localhost:8080/api/v1/info/status"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

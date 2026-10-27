@@ -391,6 +391,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["stirling_pdf"]
+  values = { id = 68 }
+}
+
+override_resource {
   target = pangolin_resource.website["paperless"]
   values = { id = 40 }
 }
@@ -629,6 +634,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
       "demo_planning_kc_keycloak",
+      "stirling_pdf",
     ])
     error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (moved.tf), et une nouvelle cible être listée ici."
   }
@@ -1557,6 +1563,7 @@ run "every_public_resource_applies_its_rules" {
       paperless        = "Paperless-ngx"
       promptoramix     = "Promptoramix"
       rss              = "RSS"
+      stirling_pdf     = "Stirling-PDF"
       trek             = "TREK"
       wiki             = "Wiki (Bookstack)"
       wishlist         = "Wishlist"
@@ -1691,6 +1698,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       paperless     = "Healthcheck Paperless-ngx"
       promptoramix  = "Healthcheck Promptoramix"
       rss           = "Healthcheck RSS"
+      stirling_pdf  = "Healthcheck Stirling-PDF"
       trek          = "Healthcheck TREK"
       wiki          = "Healthcheck Wiki (Bookstack)"
       wishlist      = "Healthcheck Wishlist"
