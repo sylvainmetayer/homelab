@@ -190,3 +190,38 @@ run "newt_lxc" {
     error_message = "Le LXC Newt et la VM Docker ne doivent pas avoir la même adresse IP."
   }
 }
+
+# Les sauvegardes vzdump vont sur le NAS, plus sur la racine de l'hôte
+# (backup.tf) : le storage doit viser un export que nas.yml publie pour l'IP de
+# l'hôte Proxmox (inventory/hosts), sinon le NAS refuse le montage.
+run "vzdump_on_nas" {
+  command = plan
+
+  assert {
+    condition     = proxmox_backup_job.nightly.storage == proxmox_storage_nfs.nas_backup.id
+    error_message = "Le job vzdump doit écrire sur le storage NFS du NAS, pas sur `local` (racine de l'hôte)."
+  }
+
+  assert {
+    condition     = proxmox_storage_nfs.nas_backup.server == regex("(?m)^nas ansible_host=([0-9.]+)", file("${path.module}/../../ansible/inventory/hosts"))[0]
+    error_message = "Le storage nas-backup doit viser l'IP du NAS de ansible/inventory/hosts."
+  }
+
+  assert {
+    condition = anytrue([
+      for e in yamldecode(file("${path.module}/../../ansible/host_vars/nas/variables.yaml")).nas_nfs_exports :
+      e.path == proxmox_storage_nfs.nas_backup.export && contains(e.clients, regex("(?m)^pve ansible_host=([0-9.]+)", file("${path.module}/../../ansible/inventory/hosts"))[0])
+    ])
+    error_message = "ansible/host_vars/nas doit exporter var.nas_backup.export pour l'IP de l'hôte Proxmox (ansible/inventory/hosts)."
+  }
+
+  assert {
+    condition     = proxmox_storage_nfs.nas_backup.options == "vers=3" && proxmox_storage_nfs.nas_backup.content == toset(["backup"])
+    error_message = "Le storage nas-backup ne porte que des sauvegardes, en NFSv3 (seule version servie par UGOS)."
+  }
+
+  assert {
+    condition     = lookup(proxmox_backup_job.nightly.prune_backups, "keep-last", "") == tostring(proxmox_storage_nfs.nas_backup.backups.keep_last)
+    error_message = "Le job et le storage doivent garder la même rétention."
+  }
+}

@@ -43,6 +43,15 @@ variable "debian13_image_checksum" {
   default     = ""
 }
 
+variable "nas_backup" {
+  description = "Export NFS du NAS qui reçoit les sauvegardes vzdump (ansible/host_vars/nas, nas_nfs_exports)"
+  type = object({
+    server = optional(string, "192.168.1.137")
+    export = optional(string, "/volume1/pve-backup")
+  })
+  default = {}
+}
+
 variable "docker_vm" {
   description = "Configuration de la VM Debian 13"
   type = object({

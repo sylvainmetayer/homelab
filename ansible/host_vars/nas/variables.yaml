@@ -8,6 +8,12 @@ nas_nfs_exports:
   - path: /volume1/nas-test
     clients:
       - 192.168.1.216
+  # Sauvegardes vzdump de l'hôte Proxmox (storage nas-backup, tofu/proxmox
+  # backup.tf) : no_root_squash des options par défaut, vzdump écrit en root.
+  # Dossier partagé créé dans l'interface, corbeille désactivée.
+  - path: /volume1/pve-backup
+    clients:
+      - 192.168.1.26
 
 # Applis Docker du NAS : dc@ en unité *système*, exécutée en root (rôle
 # docker_service). sylvain n'est pas dans le groupe docker, /etc/group
