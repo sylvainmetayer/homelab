@@ -15,6 +15,21 @@
       "pinDigests": true
     },
     {
+      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The rules below that set a groupName (beszel, pangolin-role-dependencies, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, and path-bypass-review.yaml holds it until the relecture-chemins-publics review is approved",
+      "matchUpdateTypes": [
+        "digest",
+        "patch"
+      ],
+      "matchPackageNames": [
+        "!ghcr.io/sylvainmetayer/planning-equipes",
+        "!ghcr.io/sylvainmetayer/promptoramix"
+      ],
+      "groupName": "weekly digest and patch updates",
+      "schedule": [
+        "before 9am on monday"
+      ]
+    },
+    {
       "description": "Stateful images: a MAJOR upgrade changes the on-disk format of the data they keep. PostgreSQL (and postgis, Immich's postgres) refuses to start on a data directory of the previous major (scanopy 17 -> 18 would have left it down: dump/restore or pg_upgrade first); MariaDB/MySQL need mariadb-upgrade and have no way back; Meilisearch refuses ANY other version's database, patch included, so Karakeep sets MEILI_UPGRADE_DB for minor and patch bumps, and a major may need a dump/import; Redis/Valkey change their RDB/AOF format. Renovate only lists these on the Dependency Dashboard and opens the PR once its box is ticked, so a migration is planned instead of merged as a routine bump. Minor, patch and digest updates are unaffected. Regexes because the same image is written docker.io/postgres, docker.io/library/postgres or postgres depending on the compose file",
       "matchDatasources": [
         "docker"

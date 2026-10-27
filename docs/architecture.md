@@ -148,7 +148,7 @@ flowchart LR
 | Workflow | Quand | Ce qu'il fait |
 |---|---|---|
 | `lint.yaml` | chaque PR | jobs `Ansible lint` (+ `check_sops_shadowing.py`), `OpenTofu lint`, `CI lint` (zizmor, actionlint, hadolint) |
-| `test.yaml` | chaque PR | un job par scénario Molecule et par module Tofu testé, récapitulés dans `Tests` |
+| `test.yaml` | chaque PR (sélection), chaque nuit et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
 | `path-bypass-review.yaml` | PR qui touche `path_bypass_images.json` | attend l'approbation de l'environnement `relecture-chemins-publics` |
 | `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
 | `ping.yaml` | à la main | teste le tunnel OLM de la CI |
@@ -163,7 +163,9 @@ flowchart LR
 - Renovate : épingle les images par digest ; seules les versions de
   `planning-equipes` et de `promptoramix` fusionnent seules
   (`renovate.json`) ; les montées majeures de bases attendent une case cochée
-  sur le Dependency Dashboard.
+  sur le Dependency Dashboard. Les digests et les correctifs (hors
+  `planning-equipes` et `promptoramix`) arrivent groupés en une PR par
+  semaine, le lundi avant 9 h ; mineures et majeures gardent chacune la leur.
 
 ## Les sauvegardes
 

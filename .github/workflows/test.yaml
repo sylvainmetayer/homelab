@@ -1,18 +1,26 @@
 name: Tests
 
+# Sur une PR, seuls les scénarios Molecule et les modules Tofu qu'atteignent
+# les fichiers modifiés tournent (.github/scripts/select_tests.py). La matrice
+# complète tourne chaque nuit sur main, à la main (workflow_dispatch), et sur
+# une PR qui porte le label full-tests. Plus de run sur push : la nuit
+# rattrape ce qu'une sélection aurait manqué.
 on:
   pull_request:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/test.yaml
-      - .config/molecule/**
-      - ansible/**
-      - tofu/**
-      - pyproject.toml
-      - uv.lock
+    # labeled : poser full-tests relance la PR en matrice complète.
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    - cron: "30 3 * * *"
   workflow_dispatch:
+
+# Un nouveau push sur une PR annule le run qu'il rend caduc ; la nuit et les
+# lancements à la main vont jusqu'au bout.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Chaque job déclare les siennes.
+permissions: {}
 
 jobs:
   discover:
@@ -27,34 +35,80 @@ jobs:
       modules: ${{ steps.discover.outputs.modules }}
 
     steps:
+      # Sur une PR, HEAD est le commit de fusion de test : son premier parent
+      # est la pointe de la branche de base, d'où la profondeur 2.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      # pyyaml (lu par select_tests.py) à la version d'uv.lock.
+      - name: Install the selection dependencies
+        run: |
+          pip install --quiet --only-binary :all: uv==0.12.23
+          uv sync --locked --no-build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
       # Un scénario par dossier ansible/molecule/<rôle>/ (sauf _shared), un
       # module Tofu par dossier tofu/<module>/ qui a des tests : un nouveau
       # scénario ou module testé entre dans la matrice sans toucher ce fichier.
-      - name: List Molecule scenarios and tested Tofu modules
+      # Sur une PR, select_tests.py n'en garde que ce que les fichiers modifiés
+      # atteignent ; un fichier qu'il ne sait pas classer relance tout.
+      - name: Select Molecule scenarios and tested Tofu modules
         id: discover
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FULL_TESTS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full-tests') }}
         run: |
-          to_json='split("\n") | map(select(length > 0))'
-          scenarios=$(find ansible/molecule -mindepth 2 -maxdepth 2 -name molecule.yml -printf '%h\n' \
-            | xargs -r -n1 basename | sort | jq -Rsc "$to_json")
           # tests/.disabled écarte un module qui ne peut pas tourner, avec sa
           # raison, affichée en avertissement sur chaque exécution.
           for disabled in tofu/*/tests/.disabled; do
             [ -e "$disabled" ] || continue
             echo "::warning file=$disabled::${disabled%/tests/.disabled} non testé : $(head -n1 "$disabled")"
           done
-          modules=$(find tofu -mindepth 2 -maxdepth 2 -type d -name tests ! -exec test -e '{}/.disabled' ';' -printf '%h\n' \
-            | sort | jq -Rsc "$to_json")
+
+          changed="$RUNNER_TEMP/changed-files.txt"
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "::notice::$EVENT_NAME : matrice complète"
+            selection="$(python3 .github/scripts/select_tests.py --all)"
+          elif [ "$FULL_TESTS_LABEL" = "true" ]; then
+            echo "::notice::label full-tests : matrice complète"
+            selection="$(python3 .github/scripts/select_tests.py --all)"
+          elif ! git diff --name-only HEAD^1 HEAD > "$changed"; then
+            echo "::warning::fichiers modifiés illisibles (git diff HEAD^1 HEAD) : matrice complète"
+            selection="$(python3 .github/scripts/select_tests.py --all)"
+          else
+            echo "Fichiers modifiés par la PR :"
+            cat "$changed"
+            selection="$(python3 .github/scripts/select_tests.py < "$changed")"
+          fi
+
+          scenarios="$(jq -c .scenarios <<< "$selection")"
+          modules="$(jq -c .modules <<< "$selection")"
           echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
           echo "modules=$modules" >> "$GITHUB_OUTPUT"
           echo "Molecule: $scenarios"
           echo "Tofu: $modules"
+          {
+            echo "### Suites sélectionnées"
+            echo
+            echo "- Molecule ($(jq length <<< "$scenarios")) : $(jq -r 'join(", ")' <<< "$scenarios")"
+            echo "- Tofu ($(jq length <<< "$modules")) : $(jq -r 'join(", ")' <<< "$modules")"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-  molecule:
-    name: Molecule (${{ matrix.scenario }})
+  # Construit l'image une fois par run et la range dans le cache GitHub
+  # Actions ; chaque job Molecule la recharge de ce cache au lieu de la
+  # reconstruire. La portée suit le Dockerfile (il ne copie rien du contexte) :
+  # une image changée repart d'un cache neuf. Les entrées écrites depuis main
+  # (la nuit) servent à toutes les PR, celles d'une PR à elle seule.
+  image:
+    name: Molecule image
     needs: discover
     if: needs.discover.outputs.scenarios != '[]'
     runs-on: ubuntu-26.04
@@ -62,6 +116,42 @@ jobs:
 
     permissions:
       contents: read
+
+    env:
+      DOCKER_BUILD_SUMMARY: "false"
+      DOCKER_BUILD_RECORD_UPLOAD: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the Molecule image into the cache
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ansible/molecule/_shared
+          tags: homelab-molecule:debian13
+          outputs: type=cacheonly
+          cache-from: type=gha,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
+          cache-to: type=gha,mode=max,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
+
+  molecule:
+    name: Molecule (${{ matrix.scenario }})
+    needs: [discover, image]
+    if: needs.discover.outputs.scenarios != '[]'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    env:
+      DOCKER_BUILD_SUMMARY: "false"
+      DOCKER_BUILD_RECORD_UPLOAD: "false"
 
     strategy:
       fail-fast: false
@@ -98,8 +188,18 @@ jobs:
           done
           exit 1
 
-      - name: Build the Molecule image
-        run: docker build --tag homelab-molecule:debian13 ansible/molecule/_shared
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Même tag que `mise run molecule-image` : .config/molecule/config.yml
+      # le cherche dans le démon local (pull: false).
+      - name: Load the Molecule image from the cache
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ansible/molecule/_shared
+          tags: homelab-molecule:debian13
+          load: true
+          cache-from: type=gha,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
 
       - name: Run molecule test
         working-directory: ansible
@@ -163,10 +263,11 @@ jobs:
 
   # Seul check requis par le ruleset de main (tofu/github/ruleset_homelab.tf) :
   # les jobs de la matrice changent de nom à chaque scénario ajouté ou retiré.
-  # Vert si chaque suite a réussi, ou n'avait rien à tester.
+  # Vert si chaque suite a réussi, ou n'avait rien à tester (une PR de
+  # documentation : matrices vides, jobs sautés).
   tests:
     name: Tests
-    needs: [discover, molecule, tofu]
+    needs: [discover, image, molecule, tofu]
     if: always()
     runs-on: ubuntu-26.04
     timeout-minutes: 5
