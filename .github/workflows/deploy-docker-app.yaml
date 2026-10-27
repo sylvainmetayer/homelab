@@ -60,12 +60,19 @@ jobs:
       # pour un dépôt public), ne bloque rien hors de la liste noire globale de
       # StepSecurity. Premier pas, il doit voir tout le job. Il fait passer le
       # DNS de l'hôte par son proxy (systemd-resolved sur 127.0.0.1, `dns`
-      # de /etc/docker/daemon.json, Docker redémarré) : avant OLM, donc sans
-      # effet sur lui ; « Point host DNS at OLM tunnel » contourne ensuite ce
-      # proxy (connexions vers 100.96.128.1 vues par IP), et « Cleanup » rend
-      # le stub de systemd-resolved avant que son post n'envoie le rapport.
+      # 172.17.0.1 dans /etc/docker/daemon.json, Docker redémarré) avant OLM :
+      # le conteneur OLM, même en --network host, reçoit ce `dns` dans son
+      # resolv.conf et résout PANGOLIN_ENDPOINT par ce proxy, qui doit donc
+      # tenir jusqu'à « Cleanup ». « Point host DNS at OLM tunnel » sort
+      # ensuite l'hôte de systemd-resolved (connexions vers 100.96.128.1 vues
+      # par IP), et « Cleanup » rend le stub de systemd-resolved avant que son
+      # post n'envoie le rapport.
+      # continue-on-error : un audit ne doit pas bloquer un déploiement. Sans
+      # lui, un échec de son pre (téléchargement de l'agent, API StepSecurity)
+      # fait échouer le job avant le moindre déploiement.
       - name: Harden runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        continue-on-error: true
         with:
           egress-policy: audit
 
@@ -263,15 +270,18 @@ jobs:
           PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
           OLM_ID: ${{ secrets.OLM_ID }}
           OLM_SECRET: ${{ secrets.OLM_SECRET }}
+        # `-e NAME` sans valeur : docker reprend la variable de son propre
+        # environnement, le secret n'apparaît pas dans la ligne de commande
+        # (/proc/<pid>/cmdline, que l'agent de harden-runner relève).
         run: |
           docker run -d --rm \
             --name olm \
             --network host \
             --cap-add=NET_ADMIN \
             --device /dev/net/tun:/dev/net/tun \
-            -e PANGOLIN_ENDPOINT="$PANGOLIN_ENDPOINT" \
-            -e OLM_ID="$OLM_ID" \
-            -e OLM_SECRET="$OLM_SECRET" \
+            -e PANGOLIN_ENDPOINT \
+            -e OLM_ID \
+            -e OLM_SECRET \
             -e OVERRIDE_DNS=true \
             docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
 
