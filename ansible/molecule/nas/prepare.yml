@@ -8,6 +8,15 @@
   hosts: all
   become: true
   tasks:
+    # UGOS fournit ssh-keygen (OpenSSH 9.2 de Debian 12) : le mode conteneur
+    # de borgmatic s'en sert pour la clé de root, sans rien installer.
+    - name: Provide ssh-keygen as UGOS does
+      ansible.builtin.apt:
+        name: openssh-client
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
     # Le nfs.json d'un UGOS 1.20 neuf, protocole volontairement différent
     # pour que le converge le corrige.
     - name: Write a UGOS-like NFS settings file
