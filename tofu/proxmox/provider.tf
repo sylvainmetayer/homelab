@@ -3,8 +3,9 @@ terraform {
 
   required_providers {
     proxmox = {
-      source  = "bpg/proxmox"
-      version = "<1.0.0"
+      source = "bpg/proxmox"
+      # >= 0.99 : proxmox_backup_job (backup.tf).
+      version = ">= 0.99.0, < 1.0.0"
     }
     sops = {
       source  = "carlpett/sops"

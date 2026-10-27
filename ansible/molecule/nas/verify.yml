@@ -19,16 +19,19 @@
       register: nas_verify_exports
 
     # Les autres clés d'UGOS sont gardées telles quelles.
-    - name: Assert the protocol is NFSv3 and the export is sync, to the VM only
+    - name: Assert the protocol is NFSv3 and the exports are sync, to their single client
       vars:
         nas_verify_json: "{{ nas_verify_config.content | b64decode | from_json }}"
         nas_verify_lines: "{{ nas_verify_exports.content | b64decode | split('\n') | reject('match', '^(#|$)') | list }}"
+        # En dur, pas nas_nfs_export_options : un sync perdu dans les défauts
+        # doit faire échouer le test.
+        nas_verify_options: rw,sync,no_wdelay,no_subtree_check,insecure_locks,no_root_squash,sec=sys
       ansible.builtin.assert:
         that:
           - nas_verify_json.maximumNFSProtocol == 'NFSv3'
           - nas_verify_json.enableNfsServer
           - nas_verify_json.defaultReadPacketSize == 8
-          - nas_verify_lines == ['/volume1/nas-test 192.168.1.216(rw,sync,no_wdelay,no_subtree_check,insecure_locks,no_root_squash,sec=sys)']
+          - nas_verify_lines == ['/volume1/nas-test 192.168.1.216(' ~ nas_verify_options ~ ')', '/volume1/pve-backup 192.168.1.26(' ~ nas_verify_options ~ ')']
         fail_msg: "nas.json ou exports inattendus : {{ nas_verify_json }} / {{ nas_verify_lines }}"
 
     # dc@ : unité système du NAS (docker_service_scope: system).

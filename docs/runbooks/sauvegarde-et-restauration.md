@@ -128,3 +128,36 @@ données sont celles attendues.
   passe) : sans elle, aucun dépôt ne s'ouvre.
 - borgmatic vérifie le dépôt toutes les 2 semaines et les archives tous les
   mois (`checks:` du modèle `app.yaml.j2`).
+
+## Sauvegarde vzdump de Proxmox (VM docker, LXC newt)
+
+Borg sauvegarde les applis ; le job vzdump de Proxmox (`tofu/proxmox/backup.tf`,
+21:00, `keep-last=2`) sauvegarde la VM docker (id 100) et le LXC newt (200)
+entiers, sur le storage `nas-backup` : l'export NFS `/volume1/pve-backup` du
+NAS (`host_vars/nas`, publié par `nas.yml` pour l'IP de l'hôte, 192.168.1.26).
+Plus sur `local` : la racine de l'hôte (94 Go) ne tient pas trois archives de la
+VM docker (vzdump écrit la nouvelle avant d'élaguer les anciennes), d'où les
+« No space left on device » chaque soir du 30/09 au 27/10/2026.
+
+Mise en place, dans l'ordre :
+
+1. UGOS : dossier partagé `pve-backup`, corbeille décochée, sans instantanés
+   (ou avec une rétention courte : une archive élaguée reste sinon dans les
+   instantanés).
+2. `ansible-playbook nas.yml` (depuis `ansible/`), puis depuis l'hôte :
+   `showmount -e 192.168.1.137` liste `/volume1/pve-backup 192.168.1.26`.
+3. `tofu/proxmox` : `tofu init -upgrade` (provider ≥ 0.99), puis
+   `tofu import proxmox_backup_job.nightly backup-cbfcde61-8413` (le job créé
+   dans l'interface), puis `tofu plan` : création du storage, `storage` du job
+   `local` → `nas-backup`, rien d'autre. `tofu apply`.
+4. Lancer le job une fois (Datacenter → Sauvegarde → Exécuter maintenant), puis
+   faire de la place sur `local` : les deux archives de la VM docker du 28 et
+   29/09 (`/var/lib/vz/dump/vzdump-qemu-100-*`, ~51 Gio), l'archive partielle du
+   29/08 (`.vma.dat` et son `.tmp`), les archives du LXC 200 et de l'ancien
+   LXC 102.
+
+Diagnostic d'un échec : le journal de la tâche (interface, ou
+`/mnt/pve/nas-backup/dump/*.log`), `pvesm status` (`nas-backup` actif ?), et
+la taille de la VM : `df -h /` et `docker system df` dans la VM. Les images
+Docker remplacées par Renovate restent sur le disque tant qu'elles ne sont pas
+supprimées (`docker image prune -a`) et grossissent chaque archive.

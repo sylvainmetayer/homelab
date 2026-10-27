@@ -39,6 +39,7 @@
         mode: "0700"
       loop:
         - /volume1/nas-test
+        - /volume1/pve-backup
         - /volume1/docker
 
     # Le dossier partagé des médias de Jellyfin et ses bibliothèques
