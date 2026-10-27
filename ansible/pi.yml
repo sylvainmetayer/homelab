@@ -40,8 +40,17 @@
     # avril 2026, le domaine pointe sur Pangolin) échouait chaque nuit à 04:30
     # et le cron l'envoyait par mail. Gardé pour qu'une restauration du Pi ne
     # les ramène pas.
+    # Un Pi reconstruit sans le paquet cron n'a pas de crontab : le module cron
+    # échouerait faute de binaire, alors qu'il n'y a rien à retirer.
+    - name: Look for the crontab binary
+      tags: [legacy_cleanup]
+      ansible.builtin.stat:
+        path: /usr/bin/crontab
+      register: legacy_cleanup_crontab
+
     - name: Remove the legacy certbot renewal cron
       tags: [legacy_cleanup]
+      when: legacy_cleanup_crontab.stat.exists
       become: true
       ansible.builtin.cron:
         name: Certbot automatic renewal.
@@ -55,6 +64,7 @@
         name:
           - certbot
           - python3-certbot
+          - nginx
           - nginx-common
           - libnginx-mod-*
         state: absent
@@ -65,6 +75,8 @@
       become: true
       loop:
         - /etc/letsencrypt
+        - /var/lib/letsencrypt
+        - /var/log/letsencrypt
         - /etc/nginx
       ansible.builtin.file:
         path: "{{ item }}"
