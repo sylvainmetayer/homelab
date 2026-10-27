@@ -1,7 +1,8 @@
 # Un hôte a changé de clé d'hôte SSH
 
-Ansible, la CI et `mise run ssh_flip` vérifient les clés d'hôte contre
-`ansible/known_hosts` (versionné), avec `StrictHostKeyChecking=yes`
+Ansible, la CI, `mise run ssh_flip` et `mise run ssh_newt` vérifient les
+clés d'hôte contre `ansible/known_hosts` (versionné), avec
+`StrictHostKeyChecking=yes`
 (`ansible.cfg`, ProxyCommand de `inventory/hetzner.py`, `~/.ssh/config` de la
 CI). Une clé qui change fait **échouer** la connexion, elle n'est jamais
 acceptée d'office.
