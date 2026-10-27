@@ -1,0 +1,93 @@
+---
+# Monte un dossier partagé du NAS en SMB sur ce poste, le temps d'un test :
+# rien dans /etc/fstab, rien ne survit à un reboot. Le mot de passe passe à
+# mount.cifs par son entrée standard (PASSWD_FILE=/dev/stdin), jamais par une
+# variable PASSWD : Ansible préfixe l'environnement à la ligne de commande,
+# lisible dans `ps` et journalisée dans run.log en -vvv.
+#
+#   ansible-playbook pc-nas.yml -K --tags mount [-e pc_nas_share=media]
+#   ansible-playbook pc-nas.yml -K --tags umount [-e pc_nas_share=media]
+#
+# Sans --tags, rien ne se passe (tags never). Client Pangolin connecté, l'IP
+# du NAS (inventory/hosts) passe par la ressource privée nas.internal
+# (route /32), qui laisse passer TCP 445 : même commande, à la maison comme
+# dehors. Prérequis : cifs-utils, et un compte UGOS ayant le
+# droit d'écriture sur le dossier partagé.
+- name: Mount or unmount a NAS SMB share on this workstation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    pc_nas_host: "{{ hostvars['nas'].ansible_host }}"
+    pc_nas_share: media
+    pc_nas_user: sylvain
+    pc_nas_mount_path: "/mnt/nas/{{ pc_nas_share }}"
+    pc_nas_mount_options:
+      - "username={{ pc_nas_user }}"
+      - "uid={{ lookup('ansible.builtin.pipe', 'id -u') }}"
+      - "gid={{ lookup('ansible.builtin.pipe', 'id -g') }}"
+      - file_mode=0644
+      - dir_mode=0755
+      - vers=3.1.1
+      - noperm
+  tasks:
+    - name: Check whether the share is mounted
+      tags: [mount, umount, never]
+      ansible.builtin.command: mountpoint -q {{ pc_nas_mount_path | quote }}
+      register: pc_nas_mounted
+      changed_when: false
+      failed_when: pc_nas_mounted.rc not in [0, 1, 32]
+
+    - name: Mount the share
+      tags: [mount, never]
+      when: pc_nas_mounted.rc != 0
+      block:
+        - name: Ask for the SMB password
+          ansible.builtin.pause:
+            prompt: "Mot de passe SMB de {{ pc_nas_user }} sur {{ pc_nas_host }}"
+            echo: false
+          register: pc_nas_password
+          no_log: true
+
+        - name: Create the mount point
+          become: true
+          ansible.builtin.file:
+            path: "{{ pc_nas_mount_path }}"
+            state: directory
+            mode: "0755"
+
+        # Fichiers au nom de l'utilisateur local ; sur le NAS, ils sont créés
+        # au nom du compte SMB (uid 1000), que Jellyfin lit.
+        - name: Mount the share without touching fstab
+          become: true
+          ansible.builtin.command:
+            argv:
+              - mount
+              - -t
+              - cifs
+              - "//{{ pc_nas_host }}/{{ pc_nas_share }}"
+              - "{{ pc_nas_mount_path }}"
+              - -o
+              - "{{ pc_nas_mount_options | join(',') }}"
+            stdin: "{{ pc_nas_password.user_input }}"
+          environment:
+            PASSWD_FILE: /dev/stdin
+          # no_log masque le mot de passe des arguments du module, et avec
+          # lui l'erreur de mount : elle est rendue par la tâche suivante.
+          no_log: true
+          register: pc_nas_mount
+          failed_when: false
+          changed_when: pc_nas_mount.rc == 0
+
+        - name: Report a failed mount
+          when: pc_nas_mount.rc != 0
+          ansible.builtin.fail:
+            msg: "mount a échoué ({{ pc_nas_mount.rc }}) : {{ pc_nas_mount.stderr }}"
+
+    - name: Unmount the share
+      tags: [umount, never]
+      when: pc_nas_mounted.rc == 0
+      become: true
+      ansible.builtin.command:
+        argv: [umount, "{{ pc_nas_mount_path }}"]
+      changed_when: true
