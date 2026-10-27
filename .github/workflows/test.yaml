@@ -80,12 +80,16 @@ jobs:
           elif [ "$FULL_TESTS_LABEL" = "true" ]; then
             echo "::notice::label full-tests : matrice complète"
             selection="$(python3 .github/scripts/select_tests.py --all)"
-          elif ! git diff --name-only HEAD^1 HEAD > "$changed"; then
+          # --no-renames : un renommage liste aussi l'ancien chemin, celui
+          # que lisent les suites restées sur lui.
+          elif ! git diff --no-renames --name-only HEAD^1 HEAD > "$changed"; then
             echo "::warning::fichiers modifiés illisibles (git diff HEAD^1 HEAD) : matrice complète"
             selection="$(python3 .github/scripts/select_tests.py --all)"
           else
             echo "Fichiers modifiés par la PR :"
-            cat "$changed"
+            # Indentés : un nom de fichier en début de ligne serait lu comme
+            # une commande de workflow (::error::, ::stop-commands::...).
+            sed 's/^/  /' "$changed"
             selection="$(python3 .github/scripts/select_tests.py < "$changed")"
           fi
 
@@ -136,6 +140,10 @@ jobs:
           context: ansible/molecule/_shared
           tags: homelab-molecule:debian13
           outputs: type=cacheonly
+          # La nuit repart de zéro (paquets apt non épinglés) et rafraîchit
+          # le cache : sinon la CI testerait pour toujours la première image
+          # construite pour ce Dockerfile.
+          no-cache: ${{ github.event_name == 'schedule' }}
           cache-from: type=gha,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
           cache-to: type=gha,mode=max,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
 
