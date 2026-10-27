@@ -13,7 +13,8 @@ dépôt (`.github/scripts/restore_test.py`) :
   bloc qu'il déchiffre ;
 - les dumps PostgreSQL (`pg_restore`) et MariaDB (`mariadb`) sont rejoués
   dans un conteneur jetable de l'image de la base du rôle (lue dans son
-  `compose.yaml`), puis il doit rester au moins une table ;
+  `compose.yaml`), puis il doit rester au moins une table (sauf
+  `allow_empty_databases`, voir plus bas) ;
 - les copies SQLite (`/var/lib/borgmatic-sqlite/<dépôt>/`) passent
   `PRAGMA integrity_check`.
 
@@ -61,7 +62,11 @@ manque ou si une app retirée y reste.
 - `host` : hôte de `backup_storage_box_hosts`, dossier `backup/<host>` ;
 - `repo` : dossier du dépôt sous celui de l'hôte, et `borgmatic_app_name`
   (dossier de staging SQLite) ;
-- `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base.
+- `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base ;
+- `allow_empty_databases` (facultatif, `true`) : un dump PostgreSQL ou
+  MariaDB rejoué sans aucune table ne fait pas échouer l'app. Réservé à une
+  base vide par construction (`nginx_demo` : sa démo ne crée aucun schéma),
+  jamais pour faire taire une vraie app.
 
 ## Lancer à la main
 

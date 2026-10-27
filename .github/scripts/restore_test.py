@@ -226,7 +226,7 @@ def restore(entry, workdir):
         image = role_image(entry["role"], engine)
         restorer = restore_postgresql if engine == "postgresql" else restore_mysql
         tables = restorer(image, name, workdir / path)
-        if tables == 0:
+        if tables == 0 and not entry.get("allow_empty_databases"):
             raise RestoreError(f"{engine} {name} : aucune table après restauration")
         report.append(f"{engine} {name} : {tables} tables")
 
