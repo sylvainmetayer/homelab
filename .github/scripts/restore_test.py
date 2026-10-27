@@ -199,32 +199,51 @@ def repository(entry):
     return f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
 
 
-def latest_archive(repo):
+def last_listing(repo):
     # borg >= 1.2 leaves *.checkpoint archives (interrupted runs) out of a
     # listing unless --consider-checkpoints: this is the last complete one.
-    archives = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)["archives"]
-    if not archives:
+    listing = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)
+    if not listing["archives"]:
         raise RestoreError("aucune archive")
-    return archives[0]
+    return listing
+
+
+def latest_archive(repo):
+    return last_listing(repo)["archives"][0]
+
+
+def last_modified(repo):
+    # The manifest's timestamp: create (checkpoints included) and prune
+    # rewrite it, the latest archive's name only changes with a new archive.
+    return last_listing(repo)["repository"]["last_modified"]
 
 
 def verify_data(entry):
     repo = repository(entry)
-    before = latest_archive(repo)["name"]
+    before = last_modified(repo)
     started = time.monotonic()
     # Neither its arguments (nothing secret, but kept uniform) nor its
     # stderr: only the summary line, parsed below.
     result = borg("check", "--info", "--archives-only", "--verify-data", repo, check=False, quiet=True)
     elapsed = datetime.timedelta(seconds=round(time.monotonic() - started))
-    # Lock-free: a backup (create, prune, compact) running meanwhile makes
-    # chunks vanish or appear unreferenced. Say so instead of crying wolf.
-    changed = latest_archive(repo)["name"] != before
     summary = VERIFY_SUMMARY_RE.search(result.stderr)
     if result.returncode != 0:
+        # Lock-free: a backup (create, prune) running meanwhile makes chunks
+        # vanish or appear unreferenced. Say so instead of crying wolf. A
+        # listing that fails now must not hide the failure of the check.
+        try:
+            changed = last_modified(repo) != before
+        except RestoreError:
+            changed = False
         if changed:
             raise RestoreError(f"une sauvegarde a écrit dans le dépôt pendant la vérification ({elapsed}) : "
                                "résultat non concluant, relancer hors de la fenêtre nocturne")
-        found = f"{summary.group(2)} blocs corrompus sur {summary.group(1)}" if summary else "sortie masquée"
+        if not summary:
+            found = "sortie masquée"
+        elif int(summary.group(2)):
+            found = f"{summary.group(2)} blocs corrompus sur {summary.group(1)}"
+        else:
+            found = f"aucun des {summary.group(1)} blocs corrompu, erreur dans les archives, sortie masquée"
         raise RestoreError(f"borg check a échoué ({result.returncode}, {found}) en {elapsed}")
     if not summary:
         raise RestoreError("borg check n'a pas donné le résumé de --verify-data")

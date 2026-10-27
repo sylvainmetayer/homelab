@@ -55,9 +55,11 @@ vérifié et il est déchiffré. Les hôtes font déjà le `repository` (toutes 
   refus d'écriture, « expected when working on read-only repositories »).
   `--repair` n'apparaît nulle part, et le sous-compte refuserait toute
   écriture de toute façon.
-- **Un dépôt à la fois** (`max-parallel: 1`, groupe de concurrence partagé
-  avec le restore test) : `--verify-data` lit tout le dépôt sur la Storage
-  Box.
+- **Un dépôt à la fois** (`max-parallel: 1`) : `--verify-data` lit tout le
+  dépôt sur la Storage Box. Groupe de concurrence à part (`borg-check`) : un
+  groupe ne garde qu'un run en attente, et un check lancé à la main y
+  remplacerait le restore test du cron. Les dates planifiées ne se croisent
+  pas.
 - **Durée.** `--verify-data` télécharge le dépôt entier (taille dédupliquée et
   compressée) : à 20 à 50 Mo/s entre la Storage Box et un runner, 70 à
   180 Go/h. Les petits dépôts prennent quelques minutes ; immich, nextcloud
@@ -69,9 +71,10 @@ vérifié et il est déchiffré. Les hôtes font déjà le `repository` (toutes 
   ne sait pas reprendre un `--verify-data` (`--max-duration` n'existe qu'avec
   `--repository-only` et écrit dans le dépôt).
 - **Sans verrou.** Une sauvegarde qui écrit pendant la vérification (create,
-  prune, compact) fait disparaître des blocs ou en laisse d'orphelins : si la
-  dernière archive a changé entre le début et la fin, l'échec est déclaré
-  « non concluant », à relancer hors de la nuit.
+  prune, compact) fait disparaître des blocs ou en laisse d'orphelins : si le
+  manifeste du dépôt (`last_modified`, réécrit par create, ses checkpoints et
+  prune) a changé entre le début et la fin, l'échec est déclaré « non
+  concluant », à relancer hors de la nuit.
 - **Journaux.** Mêmes règles que le restore test : ni les arguments de
   `borg check` ni sa sortie (elle nomme les fichiers touchés), seulement le
   nombre de blocs vérifiés et d'erreurs.

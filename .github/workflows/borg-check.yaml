@@ -24,10 +24,13 @@ on:
 permissions:
   contents: read
 
-# Le groupe de restore-test.yaml : la Storage Box n'est lue que par un run à
-# la fois, restore test ou check data.
+# Pas le groupe de restore-test.yaml : un groupe ne garde qu'un run en
+# attente, et un check lancé à la main y remplacerait le restore test du cron
+# (le moniteur passerait « down » faute de push). Les dates planifiées ne se
+# croisent pas ; un run manuel pendant l'autre ne lit la Storage Box qu'en
+# double.
 concurrency:
-  group: restore-test-storage-box
+  group: borg-check
   cancel-in-progress: false
 
 jobs:
@@ -54,8 +57,12 @@ jobs:
             apps=$(jq -nc --arg sel "$SELECTED" \
               '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))')
             unknown=$(jq -nr --argjson all "$all" --argjson apps "$apps" '$apps - $all | join(",")')
-            if [ -n "$unknown" ] || [ "$apps" = "[]" ]; then
-              echo "::error::apps inconnues de apps.json ou liste vide : « $SELECTED »"
+            if [ -n "$unknown" ]; then
+              echo "::error::apps inconnues de apps.json : $unknown"
+              exit 1
+            fi
+            if [ "$apps" = "[]" ]; then
+              echo "::error::aucune app dans « $SELECTED »"
               exit 1
             fi
           fi
