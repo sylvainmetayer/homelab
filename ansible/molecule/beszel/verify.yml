@@ -122,3 +122,70 @@
           - beszel_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./beszel'
           - beszel_borgmatic.archive_name_format is match('beszel-')
         fail_msg: "Configuration borgmatic de beszel inattendue : {{ beszel_borgmatic }}"
+
+    # Alertes et canaux posés par l'API (tasks/alerts.yml), contre le mock de
+    # prepare.yml. Ids des systèmes du mock : « sys » + nom, complété à 15.
+    - name: Read the alert state of the mocked hub
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8090/mock/state
+      register: beszel_mock_state
+
+    - name: Read the writes the role sent to the mocked hub
+      become: true
+      ansible.builtin.slurp:
+        src: /var/lib/beszel-api-mock/writes.jsonl
+      register: beszel_mock_writes_raw
+
+    - name: Assert the declared alerts and only them, with the Telegram channel
+      vars:
+        beszel_mock: "{{ beszel_mock_state.json }}"
+        beszel_mock_writes: "{{ beszel_mock_writes_raw.content | b64decode | trim | split('\n') | map('from_json') | list }}"
+        beszel_mock_cpu_docker: "{{ beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000') | selectattr('name', 'eq', 'CPU') | first }}"
+        beszel_mock_status_write: "{{ beszel_mock_writes | selectattr('body.name', 'defined') | selectattr('body.name', 'eq', 'Status') | first }}"
+        beszel_mock_settings: "{{ beszel_mock.user_settings[0].settings }}"
+        beszel_mock_telegram_url: "telegram://{{ beszel_telegram_bot_token }}@telegram?chats={{ beszel_telegram_chat_id }}"
+      ansible.builtin.assert:
+        that:
+          # Status, CPU, Memory et Disk sur les 7 systèmes, Temperature sur 3.
+          - beszel_mock.alerts | length == 31
+          - beszel_mock.alerts | map(attribute='name') | unique | sort == ['CPU', 'Disk', 'Memory', 'Status', 'Temperature']
+          - >-
+            beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
+            == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
+          - beszel_mock_cpu_docker.value == 90
+          - beszel_mock_cpu_docker.min == 10
+          - beszel_mock.alerts | selectattr('name', 'eq', 'Status') | map(attribute='min') | unique == [5]
+          # Cinq POST groupés, la LoadAvg5 de pi supprimée, un PATCH des
+          # réglages ; rien au second passage (idempotence), et la Status de
+          # flip, déjà juste, jamais réécrite.
+          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 5 + ['DELETE', 'PATCH']
+          - "'sysflip00000000' not in beszel_mock_status_write.body.systems"
+          - beszel_mock_status_write.body.systems | length == 6
+          - beszel_mock_writes[5].body.name == 'LoadAvg5'
+          - beszel_mock_writes[5].body.systems == ['syspi0000000000']
+          - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
+          - beszel_mock_settings.emails == [pangolin_le_email]
+          - beszel_mock_settings.chartTime == '1h'
+        fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"
+
+    # La commande de test documentée (--tags beszel_alerts_test).
+    - name: Send the Beszel test notification
+      ansible.builtin.include_role:
+        name: beszel
+        tasks_from: alerts_test.yml
+
+    - name: Read the writes after the test notification
+      become: true
+      ansible.builtin.slurp:
+        src: /var/lib/beszel-api-mock/writes.jsonl
+      register: beszel_mock_writes_after_test
+
+    - name: Assert the test notification went to the Telegram channel
+      vars:
+        beszel_mock_last_write: "{{ beszel_mock_writes_after_test.content | b64decode | trim | split('\n') | last | from_json }}"
+        beszel_mock_telegram_url: "telegram://{{ beszel_telegram_bot_token }}@telegram?chats={{ beszel_telegram_chat_id }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_mock_last_write.path == '/api/beszel/test-notification'
+          - beszel_mock_last_write.body.url == beszel_mock_telegram_url
+        fail_msg: "Notification de test inattendue : {{ beszel_mock_last_write }}"

@@ -1,0 +1,46 @@
+---
+# Notification de test, le bouton « Test » des réglages de Beszel :
+# POST /api/beszel/test-notification envoie « Test Alert » à une URL
+# shoutrrr. Seulement sur demande :
+#   ansible-playbook docker.yml --tags beszel_alerts_test
+- name: Log in to the Beszel hub
+  ansible.builtin.import_tasks: api_login.yml
+
+- name: Refuse to test without a notification channel
+  ansible.builtin.assert:
+    that:
+      - beszel_alerts_webhooks | length > 0
+    fail_msg: "Aucun canal à tester : clés sops beszel_telegram_bot_token / beszel_telegram_chat_id absentes."
+    quiet: true
+
+- name: Send a Beszel test notification to every channel
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/beszel/test-notification"
+    method: POST
+    headers:
+      Authorization: "{{ beszel_api_token }}"
+    body_format: json
+    body:
+      url: "{{ item }}"
+  loop: "{{ beszel_alerts_webhooks }}"
+  register: beszel_api_test_notification
+  when: not ansible_check_mode
+  changed_when: false
+
+# Le hub répond 200 avec {"err": false} ou {"err": "<message>"} ; le message
+# d'une erreur HTTP de shoutrrr cite l'URL de l'API Telegram, jeton compris :
+# il est masqué avant affichage.
+- name: Assert every test notification left the hub
+  when: not ansible_check_mode
+  loop: "{{ beszel_api_test_notification.results }}"
+  loop_control:
+    index_var: beszel_api_test_index
+    label: "canal {{ beszel_api_test_index }}"
+  ansible.builtin.assert:
+    that:
+      - item.json.err is sameas false
+    fail_msg: >-
+      Échec de l'envoi :
+      {{ item.json.err | string | regex_replace('[0-9]+:[A-Za-z0-9_-]{20,}', '***') }}
+    quiet: true

@@ -267,11 +267,22 @@ flowchart LR
   SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
   `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent : ni `00-setup`, ni
   `security`.
-- **Alertes** (disque > 85 %, mémoire, swap, hôte muet) : réglées dans
-  l'interface, envoyées par e-mail (SMTP Infomaniak réglé dans l'interface
-  du hub). Elles vivent dans la base du hub, sauvegardée par borgmatic. Si la
-  VM docker tombe, Beszel se tait : Uptime Kuma (hors VM) le voit par le
-  moniteur `Healthcheck Beszel`.
+- **Alertes** : déclarées par le rôle `beszel` (`beszel_alerts`, tag
+  `beszel_alerts`) sur tous les systèmes : hôte muet 5 min, CPU et mémoire à
+  plus de 90 % sur 10 min, disque à plus de 85 % ; température au-dessus de
+  80 °C sur le Pi, le NAS et pve. Le S.M.A.R.T. (WARNING/FAILED) prévient d'office, sans alerte à
+  déclarer. `config.yml` ne sait déclarer que les systèmes : alertes et
+  canaux vivent dans la base du hub, par utilisateur, et le rôle les pose par
+  l'API du hub (`127.0.0.1:8090`, connecté au compte administrateur avec
+  `beszel_admin_password`, qui doit donc rester son mot de passe). Elles font
+  autorité : une alerte ajoutée dans l'interface est supprimée au déploiement
+  suivant. Envoi par Telegram (URL shoutrrr bâtie des clés sops
+  `beszel_telegram_bot_token` et `beszel_telegram_chat_id`) et par e-mail
+  (SMTP Infomaniak réglé dans l'interface du hub). Test :
+  `ansible-playbook docker.yml --tags beszel_alerts_test` (le bouton « Test »
+  des réglages, `POST /api/beszel/test-notification`). Si la VM docker tombe,
+  Beszel se tait : Uptime Kuma (hors VM) le voit par le moniteur
+  `Healthcheck Beszel`.
 - **Limites connues** : sur le Pi, la mémoire par conteneur reste vide tant
   que le contrôleur cgroup mémoire est coupé (issue #846) ; son S.M.A.R.T.
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
