@@ -20,7 +20,9 @@ Rappels :
   intermédiaires (« cancelled »). Ce n'est pas une perte : chaque run déploie
   tout ce qui a changé depuis le dernier run de push **réussi**, donc le
   suivant rattrape un run annulé ou rouge (et rejoue ce qui était passé, sans
-  effet puisque les rôles sont idempotents).
+  effet puisque les rôles sont idempotents). Un hôte en échec n'empêche pas de
+  déployer les suivants : tant qu'il reste en panne, chaque run le retente et
+  reste rouge.
 
 ## Symptôme
 
@@ -46,6 +48,8 @@ Où ça casse :
 | `Read Terraform state from S3 bucket` | clés `state_s3_*` invalides, bucket OVH indisponible |
 | tâche d'un rôle, handler `Restart <service>` | l'appli elle-même ne démarre plus : [appli-en-panne.md](appli-en-panne.md) |
 | `No matching role changed` (vert) | seul un playbook a changé, pas un rôle : rien n'est déployé |
+| `Determine changed files` (vert) : « already deployed by a later successful run » | relance d'un vieux run : un run plus récent a déjà déployé ce commit, rien n'est rejoué (ce serait un retour en arrière) |
+| `Determine changed files` : avertissement « no usable last successful push run » | premier run, plus aucun run réussi dans l'API ou historique réécrit : seul ce push est déployé, les runs annulés ou rouges d'avant ne sont pas rattrapés (les relancer à la main, `workflow_dispatch` avec `tags`) |
 
 Reproduire en local, sans rien changer :
 

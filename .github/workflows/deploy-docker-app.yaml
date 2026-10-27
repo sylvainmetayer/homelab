@@ -39,6 +39,9 @@ concurrency:
   group: deploy-docker-app
   cancel-in-progress: false
 
+# Every permission is granted per job.
+permissions: {}
+
 jobs:
   deploy:
     name: deploy-docker-app
@@ -49,8 +52,7 @@ jobs:
 
     permissions:
       contents: read
-      # Reads the last successful run of this workflow (Determine changed files).
-      actions: read
+      actions: read # last successful run of this workflow (Determine changed files)
 
     steps:
       - name: Checkout
@@ -96,10 +98,20 @@ jobs:
             fi
           fi
 
+          if [ -z "$base" ] && [ "$last_ok" != "$AFTER_SHA" ]; then
+            # Not the re-run of the last successful run: first run, no
+            # successful run left in the API, or rewritten history.
+            echo "::warning::no usable last successful push run: deploying this push only, earlier cancelled or failed runs are not caught up"
+          fi
+
           if [ -n "$base" ]; then
             echo "Changes since the last successful deployment ($base):"
             git log --oneline "$base..$AFTER_SHA"
-            files="$(git diff --name-only "$base" "$AFTER_SHA")"
+            # The files of every commit of the range, not only the net diff: a
+            # revert of a commit whose run failed halfway nets to nothing, yet
+            # the host still holds what that run applied before failing. The
+            # net diff adds what merge commits changed themselves.
+            files="$({ git diff --name-only "$base" "$AFTER_SHA"; git log --name-only --pretty=format: "$base..$AFTER_SHA"; } | sed '/^$/d' | sort -u)"
           # No usable base (first run, re-run of the last successful run,
           # rewritten history): this push only, as before.
           elif [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
@@ -305,6 +317,7 @@ jobs:
           chmod 600 "$HOME/.ssh/config"
 
       - name: Write CI inventory
+        id: ci-inventory
         if: steps.resolve-tags.outputs.any_tags == 'true'
         working-directory: ansible
         run: |
@@ -332,8 +345,13 @@ jobs:
           flip ansible_host=10.0.1.10
           EOF
 
+      # Each host is deployed even when an earlier one failed (!cancelled()),
+      # once the setup steps all passed (the inventory is the last of them).
+      # A failed run never becomes the base of the next one, so the changes of
+      # a host that stays down come back in every run: stopping at the first
+      # failure would block the other hosts' deployments until it is back.
       - name: Deploy docker
-        if: steps.resolve-tags.outputs.docker_tags != ''
+        if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.docker_tags != '' }}
         working-directory: ansible
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
@@ -350,7 +368,7 @@ jobs:
             -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy pi
-        if: steps.resolve-tags.outputs.pi_tags != ''
+        if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.pi_tags != '' }}
         working-directory: ansible
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
@@ -362,7 +380,7 @@ jobs:
             -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy pangolin
-        if: steps.resolve-tags.outputs.pangolin_tags != ''
+        if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.pangolin_tags != '' }}
         working-directory: ansible
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
@@ -374,7 +392,7 @@ jobs:
             -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
 
       - name: Deploy flip
-        if: steps.resolve-tags.outputs.flip_tags != ''
+        if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.flip_tags != '' }}
         working-directory: ansible
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
