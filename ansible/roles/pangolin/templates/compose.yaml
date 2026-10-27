@@ -47,6 +47,49 @@ services:
       - ./config/traefik:/etc/traefik:ro
       - ./config/letsencrypt:/letsencrypt
       - ./config/traefik/logs:/var/log/traefik
+{% if pangolin_crowdsec_enabled %}
+
+  # Agent + LAPI + AppSec (docs/runbooks/crowdsec.md). Traefik n'en dépend
+  # pas (pas de depends_on) : le bouncer laisse passer tant que CrowdSec est
+  # injoignable, un CrowdSec en panne ne coupe pas Pangolin. Aucun port publié :
+  # LAPI (8080) et AppSec (7422) ne servent que Traefik, sur le réseau pangolin.
+  crowdsec:
+    image: {{ pangolin_crowdsec_image }}
+    container_name: crowdsec
+    restart: unless-stopped
+    # L'image n'enregistre BOUNCER_KEY_traefik que si aucun bouncer « traefik »
+    # n'existe : après un changement de la clé SOPS, la LAPI garderait
+    # l'ancienne, AppSec répondrait 401 et le plugin, qui bloque sur toute
+    # réponse inattendue, refuserait toutes les requêtes (403). Le bouncer est
+    # donc supprimé avant chaque démarrage, et l'image le recrée avec la clé
+    # courante. Premier démarrage : pas encore de configuration, cscli échoue
+    # sans conséquence.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - cscli bouncers delete traefik >/dev/null 2>&1; exec /bin/bash /docker_start.sh
+    environment:
+      COLLECTIONS: "{{ pangolin_crowdsec_collections | join(' ') }}"
+      PARSERS: "{{ pangolin_crowdsec_parsers | join(' ') }}"
+      BOUNCER_KEY_traefik: "{{ pangolin_crowdsec_bouncer_key }}"
+      # Ni ENROLL_KEY ni ENROLL_INSTANCE_NAME : pas d'inscription à la console.
+      # La liste de blocage communautaire (CAPI) reste active, par défaut.
+    healthcheck:
+      test: ["CMD", "cscli", "lapi", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    mem_limit: {{ pangolin_crowdsec_mem_limit }}
+    volumes:
+      - {{ pangolin_crowdsec_dir }}/config:/etc/crowdsec
+      - {{ pangolin_crowdsec_dir }}/data:/var/lib/crowdsec/data
+      # Fichiers du rôle, en lecture seule par-dessus /etc/crowdsec.
+{% for file in pangolin_crowdsec_local_files %}
+      - {{ pangolin_crowdsec_dir }}/local/{{ file.src }}:/etc/crowdsec/{{ file.dest }}:ro
+{% endfor %}
+      - ./config/traefik/logs:/var/log/traefik:ro
+{% endif %}
 
 networks:
   default:

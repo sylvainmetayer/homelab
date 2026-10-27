@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Journal d'accès de Traefik (JSON, traefik_config.yml), tourné chaque jour
+# par logrotate (/etc/logrotate.d/traefik-access) : CrowdSec suit le fichier
+# par son nom et reprend le nouveau.
+filenames:
+  - /var/log/traefik/access.log
+labels:
+  type: traefik
+{% if pangolin_crowdsec_appsec_enabled %}
+---
+# AppSec (WAF), interrogé par le bouncer de Traefik à chaque requête, sur le
+# réseau pangolin seulement (aucun port publié). En détection seule :
+# appsec-configs/homelab-alert-only.yaml.
+source: appsec
+name: appsec
+listen_addr: 0.0.0.0:7422
+appsec_config: homelab/appsec-alert-only
+labels:
+  type: appsec
+{% endif %}

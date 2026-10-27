@@ -1,0 +1,31 @@
+---
+# Fichiers CrowdSec du rôle (templates/crowdsec/), montés en lecture seule
+# dans /etc/crowdsec : src sous {{ pangolin_crowdsec_dir }}/local, dest sous
+# /etc/crowdsec. Un fichier local y est chargé comme un élément du hub.
+pangolin_crowdsec_local_files:
+  - { src: acquis.yaml, dest: acquis.yaml }
+  - { src: homelab-whitelist.yaml, dest: parsers/s02-enrich/homelab-whitelist.yaml }
+  - { src: appsec-config.yaml, dest: appsec-configs/homelab-alert-only.yaml }
+  - { src: appsec-alert-scenario.yaml, dest: scenarios/homelab-appsec-alert-only.yaml }
+
+# Plages privées : flip (10.0.0.0/16, par le NAT de Pangolin), les conteneurs
+# de l'hôte (réseaux Docker, l'agent Beszel), la boucle locale.
+pangolin_crowdsec_private_ranges:
+  - 127.0.0.0/8
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+
+# Jamais détectées (liste blanche s02) ni bloquées (clientTrustedIPs du
+# bouncer) : la maison (home_ip, la même clé que les règles de priorité 9 de
+# tofu/pangolin_config), l'IP publique de Pangolin (un appel de l'hôte à son
+# propre domaine), les plages privées et pangolin_crowdsec_whitelist_extra.
+# Une IP seule devient un /32 (ou /128) : la liste blanche ne lit que des CIDR.
+pangolin_crowdsec_trusted_cidrs: >-
+  {{ (pangolin_crowdsec_private_ranges
+      + [home_ip, ansible_facts['default_ipv4']['address']]
+      + pangolin_crowdsec_whitelist_extra)
+     | map('trim') | select
+     | map('regex_replace', '^([^/:]+)$', '\1/32')
+     | map('regex_replace', '^([^/]*:[^/]*)$', '\1/128')
+     | unique | list }}

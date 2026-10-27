@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Journal d'accès de Traefik (lu par CrowdSec). Traefik ne tourne pas ce
+# fichier lui-même (les maxSize/maxBackups de traefik_config.yml ne valent que
+# pour son journal applicatif) mais le rouvre sur SIGUSR1 : rotation par
+# renommage, sans copytruncate qui perdrait les lignes écrites pendant la
+# copie. Traefik arrêté : le signal échoue sans faire échouer la rotation.
+# Le journal porte les chemins demandés, jetons de partage compris : root
+# seul (répertoire 0700), quelques jours, jamais sauvegardé (borgmatic).
+{{ pangolin_dir }}/config/traefik/logs/access.log {
+    daily
+    rotate {{ pangolin_traefik_access_log_rotate_days }}
+    maxsize 200M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    postrotate
+        /usr/bin/docker kill --signal=USR1 traefik >/dev/null 2>&1 || true
+    endscript
+}

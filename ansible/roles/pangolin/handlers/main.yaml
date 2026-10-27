@@ -1,4 +1,17 @@
 ---
+# Avant le redémarrage de toute la pile : quand les deux sont notifiés, la
+# pile, recréée après, part de toute façon des nouveaux fichiers. Pas de
+# conteneur (premier déploiement, Molecule) : rien à redémarrer, la pile le
+# crée.
+- name: Restart CrowdSec
+  become: true
+  when: pangolin_crowdsec_enabled
+  ansible.builtin.shell: |
+    if /usr/bin/docker inspect crowdsec >/dev/null 2>&1; then
+      /usr/bin/docker restart crowdsec
+    fi
+  changed_when: true
+
 - name: Restart Pangolin service
   become: true
   ansible.builtin.systemd:

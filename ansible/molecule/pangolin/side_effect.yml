@@ -1,0 +1,70 @@
+---
+# Retour arrière de CrowdSec (pangolin_crowdsec_enabled: false), vérifié ici,
+# puis réactivation, dont verify.yml vérifie l'état. Le set_fact bat les
+# defaults du rôle ; les faux secrets chargés par le premier play restent
+# pour le suivant.
+- name: Switch CrowdSec off
+  hosts: all
+  vars_files: &pangolin_vars_files
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    - name: Load a fake healthcheck URL in place of the Terraform state output
+      ansible.builtin.set_fact:
+        pangolin_backup_healthcheck_url: "https://uptime.example.invalid/api/push/pangolin_backup"
+        pangolin_geoip_healthcheck_url: "https://uptime.example.invalid/api/push/pangolin_geoip"
+
+    - name: Disable CrowdSec
+      ansible.builtin.set_fact:
+        pangolin_crowdsec_enabled: false
+  roles:
+    - role: pangolin
+  # Les handlers des rôles passent avant post_tasks.
+  post_tasks:
+    - name: Read the compose file and the Traefik configurations
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: pangolin_disabled_files
+      loop:
+        - "{{ pangolin_dir }}/compose.yaml"
+        - "{{ pangolin_dir }}/config/traefik/traefik_config.yml"
+        - "{{ pangolin_dir }}/config/traefik/dynamic_config.yml"
+
+    - name: Stat the CrowdSec data directory
+      become: true
+      ansible.builtin.stat:
+        path: "{{ pangolin_crowdsec_dir }}/data"
+      register: pangolin_disabled_data
+
+    - name: Assert CrowdSec is out of the stack and of Traefik, its data kept
+      vars:
+        compose: "{{ pangolin_disabled_files.results[0].content | b64decode | from_yaml }}"
+        traefik_config: "{{ pangolin_disabled_files.results[1].content | b64decode | from_yaml }}"
+        dynamic_config: "{{ pangolin_disabled_files.results[2].content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - compose.services.keys() | sort == ['gerbil', 'pangolin', 'traefik']
+          - "'crowdsec' not in traefik_config.experimental.plugins"
+          - "'badger' in traefik_config.experimental.plugins"
+          - "'middlewares' not in traefik_config.entryPoints.websecure.http"
+          # Le même nom, sans plugin : l'entrypoint que Traefik garde jusqu'à
+          # son redémarrage désigne encore crowdsec@file.
+          - "'plugin' not in dynamic_config.http.middlewares.crowdsec"
+          - "pangolin_crowdsec_bouncer_key not in (pangolin_disabled_files.results[2].content | b64decode)"
+          - pangolin_disabled_data.stat.isdir
+          # Le journal d'accès reste : il ne dépend pas de CrowdSec.
+          - traefik_config.accessLog.filePath == '/var/log/traefik/access.log'
+
+- name: Switch CrowdSec back on for verify.yml
+  hosts: all
+  vars_files: *pangolin_vars_files
+  pre_tasks:
+    - name: Enable CrowdSec
+      ansible.builtin.set_fact:
+        pangolin_crowdsec_enabled: true
+  roles:
+    - role: pangolin

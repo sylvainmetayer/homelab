@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Une alerte par IP et par 10 minutes au plus pour toute correspondance
+# AppSec hors bande (appsec-configs/homelab-alert-only.yaml), sans
+# remédiation : `cscli alerts list -s homelab/appsec-alert-only`. La requête
+# de test de CrowdSec a déjà son scénario (crowdsecurity/appsec-generic-test).
+type: trigger
+format: 3.0
+name: homelab/appsec-alert-only
+description: "Out-of-band AppSec match, alert only (never a decision)"
+filter: "evt.Meta.log_type == 'appsec-info' && evt.Meta.rule_name != 'crowdsecurity/appsec-generic-test'"
+groupby: evt.Meta.source_ip
+blackhole: 10m
+labels:
+  service: http
+  confidence: 1
+  spoofable: 0
+  behavior: "http:exploit"
+  label: "AppSec match (alert only)"
+  remediation: false

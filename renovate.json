@@ -324,12 +324,12 @@
     },
     {
       "customType": "regex",
-      "description": "geoipupdate image of the pangolin role (weekly GeoLite2 update), pinned by tag and digest in a plain var of its defaults",
+      "description": "Images pinned by tag and digest in plain vars of the pangolin role defaults: geoipupdate (weekly GeoLite2 update) and crowdsec (agent + LAPI + AppSec of the pangolin stack)",
       "managerFilePatterns": [
         "/^ansible/roles/pangolin/defaults/main\\.yml$/"
       ],
       "matchStrings": [
-        "pangolin_geoipupdate_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+        "pangolin_(?:geoipupdate|crowdsec)_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
       "datasourceTemplate": "docker"
     },
