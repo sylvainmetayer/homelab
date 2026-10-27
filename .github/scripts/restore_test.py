@@ -1,7 +1,8 @@
 """Restore test of one borg repository (.github/workflows/restore-test.yaml).
 
-Usage: restore_test.py <app>, from the repository root, with in the
-environment:
+Usage: restore_test.py <app>, or restore_test.py --verify-data <app> for the
+quarterly full data check (.github/workflows/borg-check.yaml), from the
+repository root, with in the environment:
 
   BORG_REPO_BASE   ssh://<user>@<host>:23/.  (the read-only sub-account,
                    whose home is backup/: repositories are <host>/<repo>)
@@ -18,6 +19,13 @@ Steps, on the latest archive:
   3. run PRAGMA integrity_check on every SQLite copy.
 Exits non-zero on any failure; the workflow's last job pushes the overall
 result to the "Restore test" monitor.
+
+--verify-data runs `borg check --archives-only --verify-data` instead, what
+`borgmatic check --only data` runs: every object of the repository is
+downloaded, its MAC checked and decrypted. Without --repair, borg 1.4 writes
+nothing to the repository on that path (ArchiveChecker only puts, deletes
+and commits under `if self.repair`), and --archives-only skips
+Repository.check, the one part that rewrites the repository config.
 """
 
 import datetime
@@ -44,6 +52,11 @@ MAX_ARCHIVE_AGE = datetime.timedelta(hours=28)
 # Dumps written by borgmatic: <...>/postgresql_databases/<host>/<name>.
 DUMP_RE = re.compile(r"(?:^|/)(postgresql|mysql)_databases/[^/]+/([^/]+)$")
 SQLITE_STAGING = "var/lib/borgmatic-sqlite/"
+# The one line of `borg check --info` shown in the log: its other lines name
+# files of the archives (missing chunks are reported with the item path).
+VERIFY_SUMMARY_RE = re.compile(
+    r"Finished cryptographic data integrity verification, verified (\d+) chunks with (\d+) integrity errors")
+
 # Database names end up in SQL: nothing but identifiers.
 SAFE_NAME = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -77,9 +90,10 @@ def run(*args, stdin=None, check=True, cwd=None, quiet=False, show_error=False):
     return result
 
 
-def borg(*args, cwd=None, quiet=False, show_error=False):
+def borg(*args, check=True, cwd=None, quiet=False, show_error=False):
     # Read-only sub-account: borg 1.x cannot write its lock there.
-    return run("borg", args[0], "--bypass-lock", *args[1:], cwd=cwd, quiet=quiet, show_error=show_error)
+    return run("borg", args[0], "--bypass-lock", *args[1:], check=check, cwd=cwd, quiet=quiet,
+               show_error=show_error)
 
 
 def role_image(role, engine):
@@ -181,15 +195,50 @@ def archive_age(timestamp):
     return datetime.datetime.now(datetime.timezone.utc) - started
 
 
-def restore(entry, workdir):
-    repo = f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
+def repository(entry):
+    return f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
+
+
+def latest_archive(repo):
     # borg >= 1.2 leaves *.checkpoint archives (interrupted runs) out of a
     # listing unless --consider-checkpoints: this is the last complete one.
     archives = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)["archives"]
     if not archives:
         raise RestoreError("aucune archive")
-    archive = archives[0]["name"]
-    age = archive_age(archives[0]["time"])
+    return archives[0]
+
+
+def verify_data(entry):
+    repo = repository(entry)
+    before = latest_archive(repo)["name"]
+    started = time.monotonic()
+    # Neither its arguments (nothing secret, but kept uniform) nor its
+    # stderr: only the summary line, parsed below.
+    result = borg("check", "--info", "--archives-only", "--verify-data", repo, check=False, quiet=True)
+    elapsed = datetime.timedelta(seconds=round(time.monotonic() - started))
+    # Lock-free: a backup (create, prune, compact) running meanwhile makes
+    # chunks vanish or appear unreferenced. Say so instead of crying wolf.
+    changed = latest_archive(repo)["name"] != before
+    summary = VERIFY_SUMMARY_RE.search(result.stderr)
+    if result.returncode != 0:
+        if changed:
+            raise RestoreError(f"une sauvegarde a écrit dans le dépôt pendant la vérification ({elapsed}) : "
+                               "résultat non concluant, relancer hors de la fenêtre nocturne")
+        found = f"{summary.group(2)} blocs corrompus sur {summary.group(1)}" if summary else "sortie masquée"
+        raise RestoreError(f"borg check a échoué ({result.returncode}, {found}) en {elapsed}")
+    if not summary:
+        raise RestoreError("borg check n'a pas donné le résumé de --verify-data")
+    # Defensive: borg already exits 1 on an integrity error.
+    if int(summary.group(2)):
+        raise RestoreError(f"{summary.group(2)} blocs corrompus sur {summary.group(1)}")
+    return f"{summary.group(1)} blocs vérifiés en {elapsed}, aucune erreur"
+
+
+def restore(entry, workdir):
+    repo = repository(entry)
+    latest = latest_archive(repo)
+    archive = latest["name"]
+    age = archive_age(latest["time"])
     if age > MAX_ARCHIVE_AGE:
         raise RestoreError(f"dernière archive {archive} vieille de {age} : la sauvegarde ne tourne plus")
     location = f"{repo}::{archive}"
@@ -243,12 +292,16 @@ def restore(entry, workdir):
     return ", ".join(report)
 
 
-def main():
-    app = sys.argv[1]
+def main(argv):
+    verify = argv[:1] == ["--verify-data"]
+    if len(argv) != 1 + verify:
+        print("usage: restore_test.py [--verify-data] <app>", file=sys.stderr)
+        return 2
+    app = argv[-1]
     entry = json.loads(MANIFEST.read_text())[app]
     with tempfile.TemporaryDirectory(prefix=f"restore-{app}-") as tmp:
         try:
-            message = restore(entry, pathlib.Path(tmp))
+            message = verify_data(entry) if verify else restore(entry, pathlib.Path(tmp))
         except RestoreError as error:
             print(f"::error::{app}: {error}", flush=True)
             return 1
@@ -262,4 +315,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

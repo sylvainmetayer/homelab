@@ -17,6 +17,7 @@ on:
     paths:
       - .github/workflows/restore-test.yaml
       - .github/scripts/restore_test.py
+      - .github/actions/storage-box-readonly/**
       - .github/restore-test/**
 
 permissions:
@@ -104,39 +105,20 @@ jobs:
         with:
           persist-credentials: false
 
-      # La version et le sha256 des hôtes (rôle borgmatic, Renovate les fait
-      # monter ensemble) : un dépôt écrit par borg 1.x se lit avec borg 1.x.
-      - name: Install borg and sqlite3
+      - name: Install borg and configure the Storage Box access
+        # ./ et non $/ : actionlint ne connaît pas encore la syntaxe self-repository.
+        uses: ./.github/actions/storage-box-readonly # zizmor: ignore[self-repository]
+        with:
+          ssh-key: ${{ secrets.RESTORE_TEST_SSH_KEY }}
+          storage-box: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
+
+      # Déjà dans l'image du runner d'ordinaire : pas d'apt-get par job.
+      - name: Install sqlite3
         run: |
-          defaults=ansible/roles/borgmatic/defaults/main.yml
-          borg_version=$(sed -n 's/^borgmatic_borg_version: "\(.*\)"$/\1/p' "$defaults")
-          borg_sha256=$(sed -n 's/^  x86_64: \([0-9a-f]\{64\}\)$/\1/p' "$defaults")
-          curl --proto '=https' --tlsv1.2 -fsSLo /tmp/borg \
-            "https://github.com/borgbackup/borg/releases/download/${borg_version}/borg-linux-glibc235-x86_64-gh"
-          echo "${borg_sha256}  /tmp/borg" | sha256sum -c -
-          sudo install -m 0755 /tmp/borg /usr/local/bin/borg
-          borg --version
-          # Déjà dans l'image du runner d'ordinaire : pas d'apt-get par job.
           if ! command -v sqlite3 >/dev/null; then
             sudo apt-get update -q
             sudo apt-get install -y --no-install-recommends sqlite3
           fi
-
-      # Sous-compte en lecture seule (tofu/pangolin/storage_box.tf), jamais
-      # la clé du compte principal ni celle d'un hôte. Clé d'hôte épinglée,
-      # la même que celle des hôtes (group_vars/all, backup_storage_box_host_key).
-      - name: Configure the Storage Box access
-        env:
-          RESTORE_TEST_SSH_KEY: ${{ secrets.RESTORE_TEST_SSH_KEY }}
-          RESTORE_TEST_STORAGE_BOX: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
-        run: |
-          host_key=$(sed -n 's/^backup_storage_box_host_key: "\(.*\)"$/\1/p' ansible/group_vars/all/variables.yml)
-          test -n "$host_key"
-          install -m 700 -d ~/.ssh
-          (umask 077 && printf '%s\n' "$RESTORE_TEST_SSH_KEY" > ~/.ssh/restore_test)
-          printf '[%s]:23 %s\n' "${RESTORE_TEST_STORAGE_BOX#*@}" "$host_key" > ~/.ssh/restore_test_known_hosts
-          echo "BORG_RSH=ssh -i $HOME/.ssh/restore_test -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/restore_test_known_hosts" >> "$GITHUB_ENV"
-          echo "BORG_REPO_BASE=ssh://${RESTORE_TEST_STORAGE_BOX}:23/." >> "$GITHUB_ENV"
 
       # Sous le timeout du job : un dépassement d'étape est un échec (le job
       # passe en failure, le moniteur reçoit « down »), un dépassement de job
