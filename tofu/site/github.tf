@@ -2,11 +2,6 @@
 # reprennent l'existant tel quel (description, méthodes de fusion…) ; seuls
 # s'ajoutent le scan de secrets, les alertes Dependabot et le ruleset de main,
 # pour la note OpenSSF Scorecard du dépôt.
-import {
-  to = github_repository.site
-  id = var.repository
-}
-
 resource "github_repository" "site" {
   name         = var.repository
   description  = "🏠 Personal Website"
