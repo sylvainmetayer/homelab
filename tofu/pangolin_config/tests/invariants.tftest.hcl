@@ -1079,8 +1079,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Monica CRM /.well-known/caldav",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
-      "RSS /api/greader.php/*",
-      "RSS /api/fever.php",
       "TREK /.well-known/oauth-protected-resource/mcp",
       "TREK /.well-known/oauth-protected-resource",
       "TREK /.well-known/oauth-authorization-server",
@@ -1166,7 +1164,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "RSS", "TREK", "Wishlist",
+      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1429,7 +1427,7 @@ run "php_lockdown_closes_every_public_php_path" {
   assert {
     condition = (
       length(setsubtract(local.php_lockdown_sso, ["betisier", "monica", "nextcloud", "rss", "wiki"])) == 0
-      && length(setsubtract(local.php_lockdown_path_bypasses, ["Betisier", "Monica CRM", "nextcloud", "RSS", "Wiki (Bookstack)"])) == 0
+      && length(setsubtract(local.php_lockdown_path_bypasses, ["Betisier", "Monica CRM", "nextcloud", "Wiki (Bookstack)"])) == 0
     )
     error_message = "php_lockdown.tf nomme une application qui n'est pas en PHP."
   }
@@ -1779,7 +1777,6 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
       && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.website["trek"].id
       && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.website["paperless"].id
       && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.website["dawarich"].id
-      && pangolin_resource_rule.path_bypass["RSS /api/fever.php"].resource_id == pangolin_resource.website["rss"].id
       && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.website["monica"].id
       && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.website["meerkat_crm"].id
       && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id

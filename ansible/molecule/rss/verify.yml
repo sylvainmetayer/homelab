@@ -72,3 +72,45 @@
           - rss_compose.services.freshrss.mem_limit is defined
           - rss_compose.services.freshrss.mem_reservation is defined
         fail_msg: "Compose de rss inattendu : {{ rss_compose.services.freshrss }}"
+
+    - name: Read the FreshRSS system configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/apps/rss/freshrss_data/config.php
+      register: rss_system_config_raw
+
+    # Lu dans le navigateur seulement : l'API Google Reader / Fever est coupée.
+    - name: Assert the FreshRSS API is disabled
+      vars:
+        rss_system_config: "{{ rss_system_config_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "\"'api_enabled' => false,\" in rss_system_config"
+          - "\"'api_enabled' => true\" not in rss_system_config"
+        fail_msg: "api_enabled n'est pas à false dans data/config.php"
+
+    - name: Read the Karakeep Button metadata
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/apps/rss/freshrss_extensions/xExtension-KarakeepButton/metadata.json
+      register: rss_karakeep_button_metadata_raw
+
+    - name: Stat the Karakeep Button entry point
+      become: true
+      ansible.builtin.stat:
+        path: /opt/apps/rss/freshrss_extensions/xExtension-KarakeepButton/extension.php
+      register: rss_karakeep_button_entry
+
+    # FreshRSS (www-data) lit le code de l'extension sans pouvoir le modifier.
+    - name: Assert the Karakeep Button extension is installed, owned by root
+      vars:
+        rss_karakeep_button_metadata: "{{ rss_karakeep_button_metadata_raw.content | b64decode | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - rss_karakeep_button_metadata.name == 'Karakeep Button'
+          - rss_karakeep_button_metadata.entrypoint == 'KarakeepButton'
+          - rss_karakeep_button_entry.stat.exists
+          - rss_karakeep_button_entry.stat.pw_name == 'root'
+          - rss_karakeep_button_entry.stat.roth
+          - not rss_karakeep_button_entry.stat.woth
+        fail_msg: "Extension Karakeep Button absente ou mal installée : {{ rss_karakeep_button_metadata }}"

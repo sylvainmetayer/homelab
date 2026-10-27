@@ -28,6 +28,109 @@
     scope: user
     enabled: true
 
+# FreshRSS se lit dans le navigateur seulement, mobile compris : pas d'API
+# cliente (Google Reader, Fever), et aucun chemin ouvert autour du SSO
+# (tofu/pangolin_config/website_rss.tf). L'image n'a pas de variable
+# d'environnement pour api_enabled et config.custom.php ne sert qu'à
+# l'installation : la clé est tenue dans la configuration système, qu'un
+# réglage dans l'interface d'administration réécrit (var_export). Absente,
+# elle vaut false (config.default.php). FreshRSS relit ce fichier à chaque
+# requête : rien à redémarrer.
+- name: Stat the FreshRSS system configuration
+  become: true
+  ansible.builtin.stat:
+    path: "{{ rss_base_path }}/freshrss_data/config.php"
+  register: rss_system_config
+
+- name: Keep the FreshRSS API disabled
+  when: rss_system_config.stat.exists
+  become: true
+  # Le fichier porte le sel et le mot de passe SMTP.
+  diff: false
+  ansible.builtin.replace:
+    path: "{{ rss_base_path }}/freshrss_data/config.php"
+    regexp: "^(\\s*'api_enabled' => )true,$"
+    replace: "\\1false,"
+
+# Extension « Karakeep Button » (rss_karakeep_button_* dans les defaults).
+# FreshRSS lit le dossier extensions à chaque requête : rien à redémarrer.
+# Elle s'active par utilisateur, dans Configuration > Extensions.
+- name: Ensure the FreshRSS extensions folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ rss_base_path }}/freshrss_extensions"
+    state: directory
+    owner: root
+    group: www-data
+    mode: "0755"
+  register: rss_extensions_dir
+
+# Sur un premier --check, ni le dossier de l'appli ni l'archive n'existent :
+# get_url refuse un dossier absent, unarchive une archive absente.
+- name: Download the Karakeep Button extension
+  when: not (ansible_check_mode and rss_extensions_dir is changed)
+  ansible.builtin.get_url:
+    url: "https://github.com/veverkap/xExtension-karakeep-button/archive/{{ rss_karakeep_button_commit }}.tar.gz"
+    dest: "{{ rss_base_path }}/karakeep-button.tar.gz"
+    checksum: "sha256:{{ rss_karakeep_button_sha256 }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+  register: rss_karakeep_button_archive
+
+# Le marqueur nomme le commit installé : un autre commit (ou une extraction
+# interrompue) remplace le dossier en entier, pour qu'un fichier retiré en
+# amont ne reste pas chargé par FreshRSS.
+- name: Stat the installed Karakeep Button commit
+  become: true
+  ansible.builtin.stat:
+    path: "{{ rss_karakeep_button_path }}/.commit-{{ rss_karakeep_button_commit }}"
+  register: rss_karakeep_button_marker
+
+- name: Remove another Karakeep Button version
+  when: not rss_karakeep_button_marker.stat.exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ rss_karakeep_button_path }}"
+    state: absent
+
+- name: Ensure the Karakeep Button folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ rss_karakeep_button_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Propriété de root, lisible par tous : www-data (FreshRSS) lit le code de
+# l'extension mais ne peut pas le modifier.
+- name: Unpack the Karakeep Button extension
+  when:
+    - not rss_karakeep_button_marker.stat.exists
+    - not (ansible_check_mode and (rss_extensions_dir is changed or rss_karakeep_button_archive is changed))
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ rss_base_path }}/karakeep-button.tar.gz"
+    dest: "{{ rss_karakeep_button_path }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    owner: root
+    group: root
+
+- name: Mark the installed Karakeep Button commit
+  when:
+    - not rss_karakeep_button_marker.stat.exists
+    - not (ansible_check_mode and (rss_extensions_dir is changed or rss_karakeep_button_archive is changed))
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ rss_karakeep_button_path }}/.commit-{{ rss_karakeep_button_commit }}"
+    content: "{{ rss_karakeep_button_commit }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for RSS
   when: rss_backup_enabled

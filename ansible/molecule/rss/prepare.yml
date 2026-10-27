@@ -1,0 +1,51 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Sur l'hôte, data/config.php est écrit par FreshRSS à l'installation ; ici le
+# conteneur ne tourne pas (dc@ ne fait que valider le compose). On le pose
+# avec l'API active, pour que le converge ait quelque chose à couper.
+- name: Prepare rss
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure the RSS app folder exists
+      become: true
+      loop:
+        - /opt/apps
+        - /opt/apps/rss
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: sylvain
+        group: sylvain
+        # Le rôle (et docker_service pour /opt/apps) remet son propre mode
+        # au premier converge ; l'idempotence porte sur le second.
+        mode: "0700"
+
+    # Propriétaires de l'image (root:www-data, fichiers de www-data).
+    - name: Ensure the FreshRSS data folder exists
+      become: true
+      ansible.builtin.file:
+        path: /opt/apps/rss/freshrss_data
+        state: directory
+        owner: root
+        group: www-data
+        mode: "0770"
+
+    - name: Install a FreshRSS system configuration with the API enabled
+      become: true
+      ansible.builtin.copy:
+        dest: /opt/apps/rss/freshrss_data/config.php
+        owner: www-data
+        group: www-data
+        mode: "0660"
+        content: |
+          <?php
+          return array (
+            'environment' => 'production',
+            'api_enabled' => true,
+            'extensions_enabled' =>
+            array (
+            ),
+          );

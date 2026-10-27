@@ -15,24 +15,10 @@ locals {
   }
 }
 
-# Google Reader and Fever APIs for the mobile RSS readers, which cannot go
-# through the SSO wall. Opened worldwide through local.path_bypasses
-# (rules.tf). Read off FreshRSS 1.30.0, re-read for 1.30.1 (p/api/greader.php, p/api/fever.php):
-# both answer 503 unless the API is enabled, and authenticate with the user's
-# API password (bcrypt for the Google Reader login, md5(user:password) as the
-# Fever api_key). Neither rate-limits nor locks out, so that password has to
-# be long and random.
-#
-# `/api/greader.php/*` also matches `/api/greader.php` itself, and covers its
-# PATH_INFO routes (/accounts/ClientLogin, /reader/api/0/...). Not opened:
-# `/i/` (the web UI, whose only lock would be FreshRSS's form login) and
-# `/api/query.php` (shared user queries).
-locals {
-  rss_api_paths = {
-    "/api/greader.php/*" = 4
-    "/api/fever.php"     = 4
-  }
-}
+# Read in the browser only, mobile included: no client API, so no path is
+# opened around the SSO wall. The Google Reader and Fever APIs are also turned
+# off in FreshRSS itself (api_enabled, ansible/roles/rss): reached through the
+# SSO, they answer 503.
 
 output "rss_access_token" {
   description = "RSS - Token d'accès pour les healthchecks"
