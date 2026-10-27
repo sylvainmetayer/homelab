@@ -1991,7 +1991,7 @@ run "flip_newt_credentials_come_from_the_flip_site" {
 # nas.yml lit les identifiants Newt du site nas dans ce state (et échoue s'ils
 # sont vides), sous leur forme littérale : une sortie renommée donnerait un
 # Newt sans identifiants.
-run "nas_newt_credentials_and_jellyfin_internal" {
+run "nas_newt_credentials_and_media_internal" {
   command = apply
 
   assert {
@@ -2009,14 +2009,14 @@ run "nas_newt_credentials_and_jellyfin_internal" {
     condition = (
       pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
       && pangolin_site_resource.jellyfin.mode == "host"
-      && pangolin_site_resource.jellyfin.alias == "jellyfin.internal"
+      && pangolin_site_resource.jellyfin.alias == "media.internal"
       && pangolin_site_resource.jellyfin.destination == "jellyfin"
       && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin\n")
       && pangolin_site_resource.jellyfin.tcp_port_range == "8096"
       && pangolin_site_resource.jellyfin.udp_port_range == "*"
       && pangolin_site_resource.jellyfin.disable_icmp == true
     )
-    error_message = "jellyfin.internal doit viser le conteneur jellyfin, sur le site nas, en TCP 8096 seul, ICMP coupé."
+    error_message = "media.internal doit viser le conteneur jellyfin, sur le site nas, en TCP 8096 seul, ICMP coupé."
   }
 
   # Une ressource privée, jamais publique, ouverte au seul rôle jellyfin.
@@ -2027,7 +2027,7 @@ run "nas_newt_credentials_and_jellyfin_internal" {
       && pangolin_role.jellyfin.name == "jellyfin"
       && !contains(keys(local.websites), "jellyfin")
     )
-    error_message = "jellyfin.internal doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
+    error_message = "media.internal doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
   }
 }
 

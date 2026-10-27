@@ -111,7 +111,7 @@ resource "pangolin_site_resource" "jellyfin" {
   site_id        = pangolin_site.nas.id
   name           = "Jellyfin"
   mode           = "host"
-  alias          = "jellyfin.internal"
+  alias          = "media.internal"
   destination    = "jellyfin"
   disable_icmp   = true
   tcp_port_range = "8096"
@@ -123,7 +123,7 @@ resource "pangolin_site_resource" "jellyfin" {
 # local.apps (roles.tf), dont chaque rôle est lié à une ressource publique.
 resource "pangolin_role" "jellyfin" {
   name        = "jellyfin"
-  description = "Role for jellyfin.internal"
+  description = "Role for media.internal"
 }
 
 resource "pangolin_site_resource_role" "jellyfin" {

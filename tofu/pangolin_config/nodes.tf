@@ -59,7 +59,7 @@ output "flip_newt_secret" {
 }
 
 # Le NAS Ugreen (ansible/nas.yml) : son Newt, sous dc@newt, sert
-# jellyfin.internal (private_resources.tf). Ses identifiants sont lus dans ce
+# media.internal (private_resources.tf). Ses identifiants sont lus dans ce
 # state par nas.yml (outputs ci-dessous). docker_socket_enabled : le Newt lit
 # le socket Docker du NAS, comme celui de flip.
 resource "pangolin_site" "nas" {
