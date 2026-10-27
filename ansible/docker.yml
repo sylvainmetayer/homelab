@@ -62,6 +62,8 @@
       tags: trek,app
     - role: karakeep
       tags: karakeep,app
+    - role: stirling_pdf
+      tags: stirling_pdf,app
     - role: wishlist
       tags: wishlist,app
     - role: nginx_demo

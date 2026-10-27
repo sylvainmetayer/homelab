@@ -64,6 +64,7 @@ locals {
     paperless        = local.paperless_website
     promptoramix     = local.promptoramix_website
     rss              = local.rss_website
+    stirling_pdf     = local.stirling_pdf_website
     trek             = local.trek_website
     wiki             = local.wiki_website
     wishlist         = local.wishlist_website

@@ -1,0 +1,6 @@
+---
+- name: Restart stirling_pdf
+  ansible.builtin.systemd:
+    name: dc@stirling_pdf
+    scope: user
+    state: restarted

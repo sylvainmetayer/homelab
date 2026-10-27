@@ -1,0 +1,4 @@
+---
+stirling_pdf_base_path: "{{ docker_base_path }}/stirling_pdf"
+stirling_pdf_domain: pdf.sylvain.cloud
+stirling_pdf_timezone: Europe/Paris
