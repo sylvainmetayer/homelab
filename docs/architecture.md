@@ -110,8 +110,13 @@ garder l'IP du client). Si une mise à jour d'UGOS recoche la redirection,
 nginx prend le 443 au boot, le relais sort et Docker le relance chaque minute,
 mais `nas-proxy` et le 8443 tournent : un 443 publié par Docker sur
 `nas-proxy` aurait au contraire empêché tout le conteneur de démarrer. Le
-déploiement (`--tags nas_proxy`) échoue alors en le disant. Le port 80 reste
-au nginx d'UGOS (le DNS-01 n'en a pas besoin).
+déploiement (`--tags nas_proxy`) échoue alors en le disant. Rien ne garantit
+pourtant que nginx démarre avant Docker : si le relais tient déjà le 443
+quand nginx (re)démarre avec la case recochée, c'est nginx qui échoue, et
+toute l'interface d'UGOS avec lui ; secours en SSH : `docker stop
+nas-proxy-443`, redémarrer nginx, décocher la case, `docker start
+nas-proxy-443`. Le port 80 reste au nginx d'UGOS (le DNS-01 n'en a pas
+besoin).
 
 Le mode d'emploi (applis, cast, dépôt et nommage des fichiers, causes de
 transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).

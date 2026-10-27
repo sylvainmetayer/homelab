@@ -26,10 +26,17 @@ nas_proxy_https_port: 8443
 # nas_proxy_forward_target_port de nas-proxy, en PROXY protocol v2 pour que
 # nas-proxy voie l'IP du client (ugos-lan, X-Forwarded-For de Jellyfin). Pris,
 # ce Traefik sort et Docker le relance (au plus une fois par minute) : le
-# 8443 n'en sait rien. Le port 80 reste au nginx d'UGOS (site Debian par
-# défaut), le DNS-01 n'en a pas besoin.
+# 8443 n'en sait rien. À l'inverse, rien ne garantit que nginx démarre avant
+# Docker : si la case est recochée et que le relais tient déjà le 443 quand
+# nginx (re)démarre, nginx échoue au bind et l'interface d'UGOS tombe toute
+# (9999 compris, donc nas.sylvain.cloud aussi). Secours, en SSH :
+# `docker stop nas-proxy-443`, redémarrer nginx, décocher la case, puis
+# `docker start nas-proxy-443`. Le port 80 reste au nginx d'UGOS (site
+# Debian par défaut), le DNS-01 n'en a pas besoin.
 nas_proxy_host_https_port: 443
 nas_proxy_forward_container_name: nas-proxy-443
+# Provisoire : à recaler à ~2x memory.peak après une semaine d'usage. Un
+# OOM ici redémarre le relais en boucle, comme un 443 pris par nginx.
 nas_proxy_forward_mem_limit: 64m
 # Entrée de nas-proxy réservée au relais, jamais publiée : jointe par l'hôte
 # à l'IP fixe de nas-proxy sur le réseau media (nas_proxy_media_ip).
