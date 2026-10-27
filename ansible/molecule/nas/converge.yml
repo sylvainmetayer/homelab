@@ -36,3 +36,4 @@
         beszel_agent_name: nas
     - role: newt
     - role: jellyfin
+    - role: nas_proxy

@@ -1,0 +1,67 @@
+---
+services:
+  traefik:
+    image: docker.io/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+    container_name: {{ nas_proxy_container_name }}
+    mem_limit: {{ nas_proxy_mem_limit }}
+    # Root dans le conteneur (propriétaire d'acme.json), sans autre capacité que
+    # celle d'écouter sur 443.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    # Le log d'accès va sur stdout : rotation ici, le Docker d'UGOS n'a pas la
+    # rotation json-file posée ailleurs par geerlingguy.docker.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    environment:
+      - TZ=Europe/Paris
+      # DNS-01 par l'API OVH (lego) : clé restreinte à la zone sylvain.cloud.
+      - OVH_ENDPOINT={{ nas_proxy_ovh_endpoint }}
+      - OVH_APPLICATION_KEY={{ nas_proxy_ovh_application_key }}
+      - OVH_APPLICATION_SECRET={{ nas_proxy_ovh_application_secret }}
+      - OVH_CONSUMER_KEY={{ nas_proxy_ovh_consumer_key }}
+    volumes:
+      # Le dossier, pas les fichiers : Ansible remplace un fichier par un
+      # nouvel inode, qu'un montage de fichier ne verrait jamais.
+      - ./config:/etc/traefik:ro
+      - ./acme:/letsencrypt
+    # LAN : https://<nom>:{{ nas_proxy_https_port }} (80 et 443 de l'hôte sont
+    # au nginx d'UGOS), même port dans le conteneur. Pangolin vise ce port par
+    # l'IP LAN (nas.sylvain.cloud, site proxmox-lxc), ou ce port et le 443 du
+    # conteneur sur le réseau newt (media.sylvain.cloud, site nas).
+    ports:
+      - "{{ nas_proxy_https_port }}:{{ nas_proxy_https_port }}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--configFile=/etc/traefik/traefik.yml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # newt : joint par le Newt du NAS (ressource privée media.sylvain.cloud) et
+    # route vers Internet (Let's Encrypt, API OVH). media : vers Jellyfin, à IP
+    # fixe pour les « Proxys connus » de Jellyfin. L'interface d'UGOS est jointe
+    # par l'IP LAN de l'hôte, sans réseau dédié.
+    networks:
+      newt: {}
+      media:
+        ipv4_address: {{ nas_proxy_media_ip }}
+
+networks:
+  newt:
+    external: true
+  # Créé par dc@jellyfin (réseau media de son compose, sous-réseau fixe) :
+  # externe ici, d'où nas_proxy après jellyfin dans nas.yml. Docker le garde
+  # d'un redémarrage à l'autre : l'ordre ne compte qu'au premier déploiement.
+  media:
+    name: {{ nas_proxy_media_network }}
+    external: true

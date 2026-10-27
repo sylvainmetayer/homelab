@@ -1,0 +1,163 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    nas_proxy_verify_path: "{{ docker_base_path }}/nas_proxy"
+  pre_tasks:
+    # Identifiants OVH et e-mail ACME comparés aux fausses valeurs.
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    # Compose à root en 0600, valide, sous dc@nas_proxy en unité système.
+    - name: Verify the nas_proxy deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: nas_proxy
+
+    - name: Render the compose models of nas_proxy and jellyfin
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ docker_base_path }}/{{ item }}"
+      loop: [nas_proxy, jellyfin]
+      register: nas_proxy_verify_compose
+      changed_when: false
+
+    # 8443 du conteneur publié en 8443 (80/443 de l'hôte sont au nginx
+    # d'UGOS), configuration en fichiers, aucun socket Docker, identifiants
+    # OVH du DNS-01 tirés des clés SOPS nas_ovh_*. Le réseau media est celui
+    # de jellyfin (jellyfin_media pour Docker), où Traefik garde l'IP fixe des
+    # « Proxys connus » de Jellyfin.
+    - name: Assert Traefik runs hardened, without the Docker socket
+      vars:
+        nas_proxy_verify_model: "{{ nas_proxy_verify_compose.results[0].stdout | from_json }}"
+        nas_proxy_verify_jellyfin: "{{ nas_proxy_verify_compose.results[1].stdout | from_json }}"
+        nas_proxy_verify_traefik: "{{ nas_proxy_verify_model.services.traefik }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_model.services.keys() | list == ['traefik']
+          - nas_proxy_verify_traefik.image is match('docker.io/traefik:v3\.[0-9.]+@sha256:[0-9a-f]{64}$')
+          - nas_proxy_verify_traefik.container_name == 'nas-proxy'
+          - nas_proxy_verify_traefik.ports | map(attribute='published') | map('string') | list == ['8443']
+          - nas_proxy_verify_traefik.ports | map(attribute='target') | list == [8443]
+          - nas_proxy_verify_traefik.volumes | selectattr('source', 'search', 'docker\.sock') | list | length == 0
+          - nas_proxy_verify_traefik.volumes | map(attribute='source') | list
+            == [nas_proxy_verify_path ~ '/config', nas_proxy_verify_path ~ '/acme']
+          - nas_proxy_verify_traefik.labels is not defined
+          - nas_proxy_verify_traefik.cap_drop == ['ALL']
+          - nas_proxy_verify_traefik.cap_add == ['NET_BIND_SERVICE']
+          - nas_proxy_verify_traefik.read_only
+          - nas_proxy_verify_traefik.security_opt == ['no-new-privileges:true']
+          # Log d'accès sur stdout : rotation propre au service (UGOS).
+          - nas_proxy_verify_traefik.logging.driver == 'json-file'
+          - nas_proxy_verify_traefik.logging.options['max-size'] == '10m'
+          - nas_proxy_verify_traefik.mem_limit is defined
+          - nas_proxy_verify_traefik.healthcheck.test | select('search', 'healthcheck') | list | length == 1
+          - nas_proxy_verify_traefik.environment.OVH_ENDPOINT == 'ovh-eu'
+          - nas_proxy_verify_traefik.environment.OVH_APPLICATION_KEY == nas_ovh_application_key
+          - nas_proxy_verify_traefik.environment.OVH_APPLICATION_SECRET == nas_ovh_application_secret
+          - nas_proxy_verify_traefik.environment.OVH_CONSUMER_KEY == nas_ovh_consumer_key
+          - nas_proxy_verify_traefik.networks.keys() | sort == ['media', 'newt']
+          - nas_proxy_verify_traefik.networks.media.ipv4_address == '172.30.96.10'
+          - nas_proxy_verify_model.networks.newt.external
+          - nas_proxy_verify_model.networks.media.external
+          - nas_proxy_verify_model.networks.media.name == 'jellyfin_media'
+          # Créé par le projet jellyfin, dont Compose préfixe le nom.
+          - nas_proxy_verify_jellyfin.name ~ '_media' == nas_proxy_verify_model.networks.media.name
+          - not (nas_proxy_verify_jellyfin.networks.media.external | default(false))
+          - nas_proxy_verify_jellyfin.networks.media.ipam.config | map(attribute='subnet') | list == ['172.30.96.0/24']
+          - not (nas_proxy_verify_jellyfin.networks.media.internal | default(false))
+        fail_msg: "Service traefik inattendu : {{ nas_proxy_verify_traefik }}"
+
+    - name: Stat the nas_proxy files
+      ansible.builtin.stat:
+        path: "{{ nas_proxy_verify_path }}/{{ item }}"
+      loop:
+        - config
+        - acme
+        - config/traefik.yml
+        - config/dynamic.yml
+        - acme/acme.json
+      register: nas_proxy_verify_files
+
+    # Tout à root (root dans le conteneur) et fermé : acme.json porte les clés
+    # privées des certificats, et Traefik refuse un acme.json qui n'est pas 0600.
+    - name: Assert the Traefik files are root-owned and closed
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.stat.isdir else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ nas_proxy_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Migration : l'acme.json de l'ancien Traefik (prepare) repris tel quel,
+    # son dossier supprimé.
+    - name: Read the taken over ACME storage
+      ansible.builtin.slurp:
+        path: "{{ nas_proxy_verify_path }}/acme/acme.json"
+      register: nas_proxy_verify_acme
+
+    - name: Stat the folder of the old jellyfin Traefik
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/jellyfin/traefik"
+      register: nas_proxy_verify_legacy
+
+    - name: Assert the certificates of the old Traefik were taken over
+      ansible.builtin.assert:
+        that:
+          - (nas_proxy_verify_acme.content | b64decode | from_json).letsencrypt.Certificates[0].domain.main == 'media.sylvain.cloud'
+          - not nas_proxy_verify_legacy.stat.exists
+
+    - name: Read the Traefik configuration
+      ansible.builtin.slurp:
+        path: "{{ nas_proxy_verify_path }}/config/{{ item }}"
+      loop: [traefik.yml, dynamic.yml]
+      register: nas_proxy_verify_config
+
+    # Fournisseur fichier seul, DNS-01 OVH, un routeur media.sylvain.cloud vers
+    # Jellyfin par le réseau privé, un routeur nas.sylvain.cloud vers le nginx
+    # d'UGOS par l'IP LAN de l'hôte, en :8443 seulement.
+    - name: Assert Traefik uses files and the OVH DNS-01 challenge
+      vars:
+        nas_proxy_verify_static: "{{ nas_proxy_verify_config.results[0].content | b64decode | from_yaml }}"
+        nas_proxy_verify_dynamic: "{{ nas_proxy_verify_config.results[1].content | b64decode | from_yaml }}"
+        nas_proxy_verify_routers: "{{ nas_proxy_verify_dynamic.http.routers }}"
+        nas_proxy_verify_services: "{{ nas_proxy_verify_dynamic.http.services }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_static.providers.keys() | list == ['file']
+          - nas_proxy_verify_static.entryPoints.websecure.address == ':443'
+          - nas_proxy_verify_static.entryPoints['websecure-lan'].address == ':8443'
+          - nas_proxy_verify_static.entryPoints.keys() | sort == ['ping', 'websecure', 'websecure-lan']
+          - nas_proxy_verify_static.certificatesResolvers.keys() | list == ['letsencrypt']
+          - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.dnsChallenge.provider == 'ovh'
+          - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.storage == '/letsencrypt/acme.json'
+          - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
+          - nas_proxy_verify_routers.keys() | sort == ['jellyfin', 'ugos']
+          - nas_proxy_verify_routers.values() | map(attribute='tls.certResolver') | unique | list == ['letsencrypt']
+          - nas_proxy_verify_routers.jellyfin.rule == 'Host(`media.sylvain.cloud`)'
+          - nas_proxy_verify_routers.jellyfin.entryPoints | sort == ['websecure', 'websecure-lan']
+          - nas_proxy_verify_services.jellyfin.loadBalancer.servers | map(attribute='url') | list == ['http://jellyfin:8096']
+          - nas_proxy_verify_routers.ugos.rule == 'Host(`nas.sylvain.cloud`)'
+          - nas_proxy_verify_routers.ugos.entryPoints == ['websecure-lan']
+          - nas_proxy_verify_services.ugos.loadBalancer.servers | map(attribute='url') | list == ['http://' ~ ansible_host ~ ':9999']
+          # Log d'accès des erreurs seules, sur stdout, sans en-têtes ni
+          # paramètres de requête (api_key de Jellyfin, token d'UGOS).
+          - nas_proxy_verify_static.accessLog.filePath is not defined
+          - nas_proxy_verify_static.accessLog.format == 'common'
+          - nas_proxy_verify_static.accessLog.filters.statusCodes == ['400-599']
+          - nas_proxy_verify_static.accessLog.fields.headers.defaultMode == 'drop'
+          - nas_proxy_verify_static.accessLog.fields.headers.names is not defined
+          - nas_proxy_verify_static.accessLog.fields.queryParameters.defaultMode == 'drop'
+          - nas_proxy_verify_static.accessLog.fields.names.keys() | list == ['StartUTC']
+          - nas_proxy_verify_static.accessLog.fields.names.StartUTC == 'drop'
+          - not (nas_proxy_verify_static.accessLog.addInternals | default(false))
+        fail_msg: "Configuration Traefik inattendue"

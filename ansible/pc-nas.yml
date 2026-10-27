@@ -14,7 +14,7 @@
 #   ansible-playbook pc-nas.yml -K --tags umount [-e pc_nas_share=media]
 #
 # Sans --tags, rien ne se passe (tags never). Client Pangolin connecté, l'IP
-# du NAS (inventory/hosts) passe par la ressource privée nas.internal
+# du NAS (inventory/hosts) passe par la ressource privée nas.sylvain.cloud
 # (route /32), qui laisse passer TCP 445 : même commande, à la maison comme
 # dehors. Prérequis : cifs-utils, et un compte UGOS ayant le
 # droit d'écriture sur le dossier partagé.

@@ -1,6 +1,7 @@
 ---
-# Configuration statique du Traefik de Jellyfin (dc@jellyfin, sur le NAS).
-# Fournisseur fichier seul : ni labels, ni socket Docker monté.
+# Configuration statique du Traefik du NAS (dc@nas_proxy) : Jellyfin et
+# l'interface d'UGOS. Fournisseur fichier seul : ni labels, ni socket Docker
+# monté.
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -9,14 +10,15 @@ log:
   level: INFO
 
 # Requêtes en erreur seulement (4xx, 5xx), sur stdout : docker logs
-# jellyfin-traefik. Format common, une ligne par requête. Jellyfin passe le
+# {{ nas_proxy_container_name }}. Format common, une ligne par requête. Jellyfin passe le
 # jeton d'accès en paramètre (?api_key=…, flux vidéo, images) ou en en-tête
 # (Authorization, X-Emby-Token) : RequestPath porte la query string tant que
 # queryParameters la garde (Traefik 3.7, pkg/middlewares/accesslog/logger.go),
 # d'où les deux drop. Sans en-têtes, le Referer et le User-Agent de la ligne
 # common valent "-". Seul le chemin reste : un seul appel de Jellyfin y porte
 # un secret, DELETE /Auth/Keys/{clé} (révocation d'une clé d'API, par un
-# administrateur), journalisé s'il échoue. Le ping du healthcheck n'est pas
+# administrateur), journalisé s'il échoue. UGOS passe aussi son jeton
+# en paramètre (?token=…, miniatures, téléchargements) : même drop. Le ping du healthcheck n'est pas
 # journalisé (addInternals: false par défaut). StartUTC retiré : l'heure de la
 # ligne est alors l'heure locale (TZ du compose), comme celle des autres logs.
 accessLog:
@@ -33,8 +35,8 @@ accessLog:
       defaultMode: drop
 
 entryPoints:
-  # Le 443 du conteneur : https://{{ jellyfin_domain }} sans port, par la
-  # ressource privée Pangolin. Pas de port 80 : il est au nginx d'UGOS, et le
+  # Le 443 du conteneur : https://{{ nas_proxy_media_domain }} sans port, par
+  # la ressource privée Pangolin (réseau newt). Pas de port 80 : il est au nginx d'UGOS, et le
   # DNS-01 n'en a pas besoin. Le certificat suit le Host() du routeur.
   websecure:
     address: ":443"
@@ -43,10 +45,10 @@ entryPoints:
       # aucun client ne peut se faire passer pour ce que pose Traefik.
       aliasHeadersStrategy: delete
   # Même port dans le conteneur et sur le NAS (LAN), ouvert aussi dans la
-  # ressource Pangolin : une appli (téléphone, TV) réglée à la maison sur
-  # https://{{ jellyfin_domain }}:{{ jellyfin_https_port }} marche encore dehors.
+  # ressources Pangolin : une appli (téléphone, TV) réglée à la maison sur
+  # https://<nom>:{{ nas_proxy_https_port }} marche encore dehors.
   websecure-lan:
-    address: ":{{ jellyfin_https_port }}"
+    address: ":{{ nas_proxy_https_port }}"
     http:
       aliasHeadersStrategy: delete
   # Healthcheck du conteneur (traefik healthcheck --ping), jamais publié.
@@ -65,11 +67,13 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "{{ jellyfin_acme_email }}"
+      email: "{{ nas_proxy_acme_email }}"
       # Dans le dossier du projet, sur le disque du NAS (jamais sur NFS), 0600.
+      # Repris de l'ancien Traefik du compose de jellyfin (même résolveur).
       storage: /letsencrypt/acme.json
-      # DNS-01 par l'API OVH (identifiants OVH_* du compose) : le A de
-      # {{ jellyfin_domain }} vise une IP privée, aucun HTTP-01 possible.
+      # DNS-01 par l'API OVH (identifiants OVH_* du compose) : les A de
+      # {{ nas_proxy_media_domain }} et {{ nas_proxy_ugos_domain }} visent une
+      # IP privée, aucun HTTP-01 possible.
       # Résolveurs publics pour la vérification de propagation : pas de cache
       # de la Bbox entre l'ajout du TXT et la vérification.
       dnsChallenge:
