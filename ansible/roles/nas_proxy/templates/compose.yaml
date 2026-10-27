@@ -92,7 +92,7 @@ services:
       - ./config:/etc/traefik:ro
     # Pas de healthcheck : son entrée ping prendrait un port de l'hôte. Un 443
     # perdu se voit au redémarrage en boucle (docker ps, Beszel) et à la
-    # vérification du 443 de tasks/main.yml.
+    # vérification du 443 (tasks/host_https_port.yml).
     restart: unless-stopped
 
 networks:
