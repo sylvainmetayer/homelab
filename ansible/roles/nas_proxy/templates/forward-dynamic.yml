@@ -1,0 +1,26 @@
+---
+# Relais du 443 de l'hôte : toute connexion, sans lire le SNI (HostSNI(`*`)
+# n'attend pas le ClientHello), vers l'entrée websecure-forwarded de nas-proxy,
+# précédée d'un en-tête PROXY v2 portant l'IP et le port du client.
+tcp:
+  routers:
+    nas-proxy:
+      rule: "HostSNI(`*`)"
+      entryPoints:
+        - https
+      service: nas-proxy
+
+  services:
+    nas-proxy:
+      loadBalancer:
+        serversTransport: proxy-protocol
+        servers:
+          # IP fixe de nas-proxy sur le réseau media : depuis l'hôte, la
+          # connexion part de {{ nas_proxy_forward_trusted_ip }}, seule source
+          # crue par cette entrée (traefik.yml).
+          - address: "{{ nas_proxy_media_ip }}:{{ nas_proxy_forward_target_port }}"
+
+  serversTransports:
+    proxy-protocol:
+      proxyProtocol:
+        version: 2

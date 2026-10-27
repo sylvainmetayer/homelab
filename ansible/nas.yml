@@ -72,15 +72,16 @@
       tags: newt
     # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
     # media en lecture seule, derrière le Traefik du NAS (nas_proxy) :
-    # https://media.sylvain.cloud (:8443 en LAN, avec ou sans port par le
+    # https://media.sylvain.cloud (avec ou sans :8443, en LAN comme par le
     # client Pangolin). Ses vérifications (dossier partagé, Quick Sync) ne
     # tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     - role: jellyfin
       tags: jellyfin,app
     # Traefik du NAS sous dc@nas_proxy (unité système) : TLS (Let's Encrypt,
     # DNS-01 OVH) de media.sylvain.cloud et nas.sylvain.cloud (interface
-    # d'UGOS), en :8443 sur le LAN. Après jellyfin : il rejoint en externe le
-    # réseau media que crée dc@jellyfin, et newt, créé par dc@newt. Sur un NAS
+    # d'UGOS), sur le 443 de l'hôte (relais nas-proxy-443) et le 8443. Après
+    # jellyfin : il rejoint en externe le réseau media que crée dc@jellyfin,
+    # et newt, créé par dc@newt. Sur un NAS
     # neuf, --tags newt,jellyfin avant un --tags nas_proxy seul, sinon
     # dc@nas_proxy réessaie toutes les 15 s. Vérifie aussi chaque jour
     # l'échéance des certificats servis (moniteur « Certificats NAS »).

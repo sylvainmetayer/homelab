@@ -2207,7 +2207,8 @@ run "nas_newt_credentials_and_media" {
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de
   # l'inventaire) : client Pangolin connecté, ce montage passe par la ressource
   # nas, qui doit viser la même IP et laisser passer TCP 445 en plus de l'UI :
-  # 8443 (Traefik du NAS, nas_proxy_https_port) et 9999 (secours en HTTP).
+  # 443 (relais du Traefik du NAS, nas_proxy_host_https_port), 8443 (Traefik
+  # du NAS, nas_proxy_https_port) et 9999 (secours en HTTP).
   # L'alias est le nom public dont le A (tofu/dns/nas.tf) vise cette IP, et
   # que sert le routeur ugos de Traefik.
   assert {
@@ -2215,13 +2216,14 @@ run "nas_newt_credentials_and_media" {
       pangolin_site_resource.nas.destination == "192.168.1.137"
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "nas ansible_host=192.168.1.137 ")
       && strcontains(file("${path.module}/../../ansible/pc-nas.yml"), "hostvars['nas'].ansible_host")
-      && pangolin_site_resource.nas.tcp_port_range == "445,8443,9999"
+      && pangolin_site_resource.nas.tcp_port_range == "443,445,8443,9999"
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_host_https_port: 443\n")
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_https_port: 8443\n")
       && pangolin_site_resource.nas.alias == "nas.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/nas.tf"), "subdomain = \"nas\"")
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_ugos_domain: nas.sylvain.cloud\n")
     )
-    error_message = "La ressource nas doit viser l'IP du NAS de ansible/inventory/hosts, lue par ansible/pc-nas.yml, sous l'alias nas.sylvain.cloud (tofu/dns/nas.tf, nas_proxy_ugos_domain), en TCP 445 (SMB), 8443 (Traefik du NAS) et 9999 (UI en HTTP)."
+    error_message = "La ressource nas doit viser l'IP du NAS de ansible/inventory/hosts, lue par ansible/pc-nas.yml, sous l'alias nas.sylvain.cloud (tofu/dns/nas.tf, nas_proxy_ugos_domain), en TCP 443 et 8443 (Traefik du NAS), 445 (SMB) et 9999 (UI en HTTP)."
   }
 }
 

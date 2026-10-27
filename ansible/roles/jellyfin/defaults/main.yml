@@ -28,7 +28,7 @@ jellyfin_render_device: /dev/dri/renderD128
 # certificat expiré) : HTTP simple, sans cast. Le cast exige HTTPS de bout en bout (Chrome
 # n'offre Google Cast que sur une origine sécurisée, et le récepteur Chromecast
 # de Jellyfin, page HTTPS, ne lit pas un flux HTTP). Toutes les applis, TV
-# comprise, se règlent sur https://media.sylvain.cloud:8443, servi par le
+# comprise, se règlent sur https://media.sylvain.cloud (ou :8443), servi par le
 # Traefik du NAS (rôle nas_proxy, docs/media.md).
 jellyfin_port: 8096
 # Provisoire : à recaler à ~2x memory.peak après une semaine d'usage.

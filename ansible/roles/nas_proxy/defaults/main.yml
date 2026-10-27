@@ -10,12 +10,36 @@ nas_proxy_base_path: "{{ docker_base_path }}/{{ nas_proxy_service }}"
 # Ce que vise la ressource privée Pangolin media.sylvain.cloud sur le réseau
 # newt (tofu/pangolin_config/private_resources.tf, vérifié par ses tests).
 nas_proxy_container_name: nas-proxy
-# Port de l'hôte NAS : 80 et 443 appartiennent au nginx d'UGOS (redirections
-# vers son interface, 9999 et 9443). Traefik écoute sur ce port dans le
-# conteneur aussi : https://<nom>:8443 en LAN comme par Pangolin (ressources
-# media.sylvain.cloud et nas.sylvain.cloud, tcp_port_range, que
-# tofu/pangolin_config/tests vérifie contre cette ligne).
+# Port publié par Docker, le même dans le conteneur : https://<nom>:8443 en
+# LAN comme par Pangolin (ressources media.sylvain.cloud et nas.sylvain.cloud,
+# tcp_port_range, que tofu/pangolin_config/tests vérifie contre cette ligne).
+# Il ne dépend que de Docker : c'est le secours quand le 443 de l'hôte est
+# repris par le nginx d'UGOS.
 nas_proxy_https_port: 8443
+# Le 443 de l'hôte, sans port dans l'URL. Le nginx d'UGOS le tient tant que
+# la redirection HTTPS de son interface est cochée (« defaultHttpsRedirectEnable »
+# de /etc/nginx/config.json, simple 307 vers son 9443) : décochée, il est
+# libre. Pas publié par Docker sur nas-proxy : un port déjà pris fait échouer
+# la création du conteneur, et avec lui le 8443. Un second Traefik
+# (nas_proxy_forward_container_name), en réseau hôte, le prend quand il est
+# libre et passe chaque connexion TCP telle quelle (TLS compris) à
+# nas_proxy_forward_target_port de nas-proxy, en PROXY protocol v2 pour que
+# nas-proxy voie l'IP du client (ugos-lan, X-Forwarded-For de Jellyfin). Pris,
+# ce Traefik sort et Docker le relance (au plus une fois par minute) : le
+# 8443 n'en sait rien. Le port 80 reste au nginx d'UGOS (site Debian par
+# défaut), le DNS-01 n'en a pas besoin.
+nas_proxy_host_https_port: 443
+nas_proxy_forward_container_name: nas-proxy-443
+nas_proxy_forward_mem_limit: 64m
+# Entrée de nas-proxy réservée au relais, jamais publiée : jointe par l'hôte
+# à l'IP fixe de nas-proxy sur le réseau media (nas_proxy_media_ip).
+nas_proxy_forward_target_port: 8444
+# Seule source dont nas-proxy croit l'en-tête PROXY sur cette entrée : l'IP
+# de l'hôte sur le pont du réseau media (la passerelle Docker, première IP de
+# jellyfin_proxy_subnet), d'où part toute connexion de l'hôte vers
+# {{ nas_proxy_media_ip }}. Un conteneur (le Newt, Jellyfin) qui joindrait ce
+# port a une autre IP : son en-tête serait ignoré, sa propre IP gardée.
+nas_proxy_forward_trusted_ip: 172.30.96.1
 nas_proxy_acme_email: "{{ pangolin_le_email }}"
 # Clé OVH dédiée au DNS-01, restreinte aux trois appels que fait lego (ajout du
 # TXT, rafraîchissement de la zone, suppression du TXT), créée sur
@@ -47,7 +71,8 @@ nas_proxy_ugos_domain: nas.sylvain.cloud
 nas_proxy_ugos_url: "http://{{ ansible_host }}:9999" # NOSONAR
 # Sources admises sur le routeur ugos : le LAN seul, d'où arrivent les
 # navigateurs de la maison et le Newt LXC (ressource privée nas, Admin seul),
-# leur IP conservée par le DNAT de Docker sur le 8443 publié. Le Newt du site
+# leur IP conservée par le DNAT de Docker sur le 8443 publié, et par le PROXY
+# protocol du relais sur le 443 de l'hôte. Le Newt du site
 # nas, lui, joint le 8443 du conteneur par le réseau newt (172.x) pour la
 # ressource media.sylvain.cloud, ouverte au rôle jellyfin : sans ce filtre, un
 # membre de ce rôle atteindrait l'interface d'UGOS en y envoyant

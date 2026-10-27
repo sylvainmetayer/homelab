@@ -67,9 +67,11 @@ resource "pangolin_site_resource" "proxmox" {
   udp_port_range = "*"
 }
 
-# NAS web UI, private for the same reason: https://nas.sylvain.cloud:8443, the
-# NAS's Traefik (ansible/roles/nas_proxy, nas_proxy_https_port) in front of
-# UGOS's nginx on 9999. The alias is the public name whose A record
+# NAS web UI, private for the same reason: https://nas.sylvain.cloud, the
+# NAS's Traefik (ansible/roles/nas_proxy) in front of UGOS's nginx on 9999, on
+# the host's 443 (its relay, nas_proxy_host_https_port, once UGOS's HTTPS
+# redirect is unticked) and on 8443 (nas_proxy_https_port, published by
+# Docker, which keeps working if UGOS's nginx takes 443 back). The alias is the public name whose A record
 # (tofu/dns/nas.tf) points at the NAS's LAN IP: one URL at home and through a
 # Pangolin client, and the Let's Encrypt certificate holds on both paths
 # (Traefik picks it by SNI, whatever IP it was reached on). Plain HTTP on 9999
@@ -85,7 +87,7 @@ resource "pangolin_site_resource" "nas" {
   alias          = "nas.sylvain.cloud"
   destination    = "192.168.1.137"
   disable_icmp   = true
-  tcp_port_range = "445,8443,9999"
+  tcp_port_range = "443,445,8443,9999"
   udp_port_range = "*"
 }
 
@@ -113,8 +115,8 @@ resource "pangolin_site_resource" "flip" {
 
 # Jellyfin (ansible/roles/jellyfin, sur le NAS), dehors par un client
 # Pangolin, à la même adresse qu'en LAN : https://media.sylvain.cloud (en LAN
-# sur le port 8443, 443 étant pris par le nginx d'UGOS ; repli
-# http://192.168.1.137:8096). L'alias est le nom public dont le A (tofu/dns,
+# sur le 443 de l'hôte, tenu par le relais de nas_proxy, ou sur le 8443 ;
+# repli http://192.168.1.137:8096). L'alias est le nom public dont le A (tofu/dns,
 # media.tf) vise l'IP LAN du NAS : le client Pangolin le résout vers la
 # ressource, et le certificat Let's Encrypt du Traefik du NAS (rôle nas_proxy)
 # vaut pour les deux chemins. Servi par le Newt du NAS, qui joint ce Traefik

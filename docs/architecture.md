@@ -38,6 +38,7 @@ flowchart LR
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
     subgraph nas["NAS Ugreen (192.168.1.137)"]
       newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt, 443 et 8443" --> traefik_nas["nas-proxy (dc@nas_proxy)<br/>media. et nas.sylvain.cloud, privés"]
+      relay_nas["nas-proxy-443 (dc@nas_proxy)<br/>443 de l'hôte, réseau hôte"] -- "TCP + PROXY v2, 8444" --> traefik_nas
       traefik_nas -- "réseau privé media" --> jellyfin[jellyfin]
       traefik_nas -- "IP LAN, 9999" --> ugos[interface d'UGOS]
     end
@@ -82,22 +83,35 @@ Une exception, Jellyfin sur le NAS, qui n'est pas public : une seule adresse,
 sur le joker `*.sylvain.cloud`. Un Traefik propre au NAS (`nas-proxy`, rôle
 `nas_proxy`, unité `dc@nas_proxy`) termine le TLS avec un certificat Let's
 Encrypt obtenu par DNS-01 OVH, puis passe à Jellyfin. Il sert de même
-l'interface d'UGOS : `https://nas.sylvain.cloud:8443` (A public vers l'IP LAN
+l'interface d'UGOS : `https://nas.sylvain.cloud` (A public vers l'IP LAN
 du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 (ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
-du NAS en TCP 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
+du NAS en TCP 443, 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
 L'Uptime Kuma de PikaPods ne joint pas ces deux noms : le NAS vérifie
 lui-même chaque matin l'échéance de leurs certificats
 (`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur
 « Certificats NAS », rouge sous 14 jours restants ou sans nouvelles depuis
 deux jours.
 
-- En LAN : `https://media.sylvain.cloud:8443` (80 et 443 du NAS appartiennent
-  au nginx d'UGOS). Repli : `http://192.168.1.137:8096`.
-- Dehors, avec le client Pangolin (rôle `jellyfin`) : `https://media.sylvain.cloud`,
-  sans port. La ressource privée du même nom (alias) vise Traefik sur le
-  réseau `newt`, en TCP 443 et 8443 : l'adresse en `:8443` du LAN y marche
-  aussi, une appli réglée à la maison n'a pas à changer d'adresse dehors.
+- En LAN : `https://media.sylvain.cloud`, sans port, ou en `:8443`. Repli :
+  `http://192.168.1.137:8096`.
+- Dehors, avec le client Pangolin (rôle `jellyfin`) : les mêmes adresses. La
+  ressource privée du même nom (alias) vise Traefik sur le réseau `newt`, en
+  TCP 443 et 8443 : une appli réglée à la maison n'a pas à changer d'adresse.
+
+Deux ports, parce que le 443 du NAS n'est à nous que tant que l'interface
+d'UGOS ne le reprend pas. Le 8443 est publié par Docker sur `nas-proxy` et ne
+dépend de rien d'autre. Le 443 de l'hôte n'est libre que si la redirection
+HTTPS de l'interface d'UGOS est décochée (sinon son nginx y répond par un 307
+vers `:9443`) ; il est tenu par un relais, `nas-proxy-443`, second service du
+même compose : un Traefik en réseau hôte qui passe chaque connexion TCP telle
+quelle à `nas-proxy` (entrée non publiée `8444`, en PROXY protocol v2 pour
+garder l'IP du client). Si une mise à jour d'UGOS recoche la redirection,
+nginx prend le 443 au boot, le relais sort et Docker le relance chaque minute,
+mais `nas-proxy` et le 8443 tournent : un 443 publié par Docker sur
+`nas-proxy` aurait au contraire empêché tout le conteneur de démarrer. Le
+déploiement (`--tags nas_proxy`) échoue alors en le disant. Le port 80 reste
+au nginx d'UGOS (le DNS-01 n'en a pas besoin).
 
 Le mode d'emploi (applis, cast, dépôt et nommage des fichiers, causes de
 transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).

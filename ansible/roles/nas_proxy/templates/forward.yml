@@ -1,0 +1,21 @@
+---
+# Configuration statique du relais du 443 de l'hôte (service forward de
+# dc@nas_proxy, conteneur {{ nas_proxy_forward_container_name }}, réseau hôte).
+# TCP seul : ni TLS, ni HTTP, ni certificat ; nas-proxy fait tout le reste.
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+entryPoints:
+  # Le 443 de l'hôte, IPv4 et IPv6. Pris (nginx d'UGOS), Traefik sort
+  # aussitôt : « error opening listener: listen tcp :443: bind: address
+  # already in use » dans docker logs {{ nas_proxy_forward_container_name }}.
+  https:
+    address: ":{{ nas_proxy_host_https_port }}"
+
+providers:
+  file:
+    filename: /etc/traefik/forward-dynamic.yml

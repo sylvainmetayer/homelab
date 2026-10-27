@@ -36,8 +36,9 @@ accessLog:
 
 entryPoints:
   # Le 443 du conteneur : https://{{ nas_proxy_media_domain }} sans port, par
-  # la ressource privée Pangolin (réseau newt). Pas de port 80 : il est au nginx d'UGOS, et le
-  # DNS-01 n'en a pas besoin. Le certificat suit le Host() du routeur.
+  # la ressource privée Pangolin (réseau newt). Pas de port 80 : il est au
+  # nginx d'UGOS, et le DNS-01 n'en a pas besoin. Le certificat suit le Host()
+  # du routeur.
   websecure:
     address: ":443"
     http:
@@ -49,6 +50,17 @@ entryPoints:
   # https://<nom>:{{ nas_proxy_https_port }} marche encore dehors.
   websecure-lan:
     address: ":{{ nas_proxy_https_port }}"
+    http:
+      aliasHeadersStrategy: delete
+  # Le 443 de l'hôte, par le relais {{ nas_proxy_forward_container_name }}
+  # (forward.yml) : jamais publié, joint par l'hôte sur le réseau media.
+  # L'en-tête PROXY v2 du relais donne l'IP du client (ipAllowList d'ugos-lan,
+  # X-Forwarded-For vers Jellyfin) ; d'une autre source, il est ignoré.
+  websecure-forwarded:
+    address: ":{{ nas_proxy_forward_target_port }}"
+    proxyProtocol:
+      trustedIPs:
+        - "{{ nas_proxy_forward_trusted_ip }}/32"
     http:
       aliasHeadersStrategy: delete
   # Healthcheck du conteneur (traefik healthcheck --ping), jamais publié.
