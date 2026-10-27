@@ -34,3 +34,38 @@
     # Agent de supervision, vers le hub de la VM docker par le LAN.
     - role: beszel_agent
       tags: beszel_agent,monitoring
+  tasks:
+    # Restes d'avant Pangolin, quand nginx et Let's Encrypt servaient Immich
+    # depuis le Pi : le certificat de photos.sylvain.cloud (expiré depuis
+    # avril 2026, le domaine pointe sur Pangolin) échouait chaque nuit à 04:30
+    # et le cron l'envoyait par mail. Gardé pour qu'une restauration du Pi ne
+    # les ramène pas.
+    - name: Remove the legacy certbot renewal cron
+      tags: [legacy_cleanup]
+      become: true
+      ansible.builtin.cron:
+        name: Certbot automatic renewal.
+        user: root
+        state: absent
+
+    - name: Purge the legacy certbot and nginx packages
+      tags: [legacy_cleanup]
+      become: true
+      ansible.builtin.apt:
+        name:
+          - certbot
+          - python3-certbot
+          - nginx-common
+          - libnginx-mod-*
+        state: absent
+        purge: true
+
+    - name: Remove the legacy certbot and nginx configuration
+      tags: [legacy_cleanup]
+      become: true
+      loop:
+        - /etc/letsencrypt
+        - /etc/nginx
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
