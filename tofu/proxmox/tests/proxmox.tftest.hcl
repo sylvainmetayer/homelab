@@ -224,4 +224,9 @@ run "vzdump_on_nas" {
     condition     = lookup(proxmox_backup_job.nightly.prune_backups, "keep-last", "") == tostring(proxmox_storage_nfs.nas_backup.backups.keep_last)
     error_message = "Le job et le storage doivent garder la même rétention."
   }
+
+  assert {
+    condition     = proxmox_backup_job.nightly.tmpdir == "/var/tmp"
+    error_message = "Le dossier temporaire du job doit rester local : sur le NFS, le tar du LXC non privilégié ne peut pas l'ouvrir."
+  }
 }
