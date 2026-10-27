@@ -8,6 +8,25 @@ global:
 log:
   level: INFO
 
+# Requêtes en erreur seulement (4xx, 5xx), sur stdout : docker logs
+# jellyfin-traefik. Format common, une ligne par requête. Jellyfin passe le
+# jeton d'accès en paramètre (?api_key=…, flux vidéo, images) ou en en-tête
+# (Authorization, X-Emby-Token) : RequestPath porte la query string tant que
+# queryParameters la garde (Traefik 3.7, pkg/middlewares/accesslog/logger.go),
+# d'où les deux drop. Sans en-têtes, le Referer et le User-Agent de la ligne
+# common valent "-". Le ping du healthcheck n'est pas journalisé
+# (addInternals: false par défaut).
+accessLog:
+  format: common
+  filters:
+    statusCodes:
+      - "400-599"
+  fields:
+    headers:
+      defaultMode: drop
+    queryParameters:
+      defaultMode: drop
+
 entryPoints:
   # Le 443 du conteneur : https://{{ jellyfin_domain }} sans port, par la
   # ressource privée Pangolin. Pas de port 80 : il est au nginx d'UGOS, et le

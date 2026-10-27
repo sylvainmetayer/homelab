@@ -81,6 +81,9 @@ Encrypt obtenu par DNS-01 OVH, puis passe à Jellyfin.
   réseau `newt`, en TCP 443 et 8443 : l'adresse en `:8443` du LAN y marche
   aussi, une appli réglée à la maison n'a pas à changer d'adresse dehors.
 
+Le mode d'emploi (applis, cast, dépôt et nommage des fichiers, causes de
+transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
+
 ## Où tourne quoi
 
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
