@@ -141,8 +141,6 @@
         flip_planning_admin_password: "{{ demo_planning_admin_password }}"
         flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
-        flip_planning_mcp_pangolin_access_token_id: "{{ demo_planning_mcp_pangolin_access_token_id }}"
-        flip_planning_mcp_pangolin_access_token: "{{ demo_planning_mcp_pangolin_access_token }}"
         flip_planning_backup_enabled: "{{ demo_planning_backup_enabled }}"
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"

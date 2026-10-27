@@ -115,6 +115,16 @@
       - prod_planning_mcp_pangolin_access_token not in env_content
     fail_msg: "Un secret de la production a fuité dans le .env de {{ flip_instance.service }}"
 
+- name: Assert the demos carry no Pangolin MCP access token
+  when: flip_instance.service != 'flip_planning'
+  vars:
+    env_content: "{{ flip_planning_env_raw.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - env_content is search('(?m)^PLANNING_MCP_PANGOLIN_ACCESS_TOKEN_ID=$')
+      - env_content is search('(?m)^PLANNING_MCP_PANGOLIN_ACCESS_TOKEN=$')
+    fail_msg: "{{ flip_instance.service }} a un jeton MCP Pangolin : seule la production en a un (#763)"
+
 # Le mot de passe pgAdmin est écrit dans compose.yaml, pas dans le .env : on
 # le cherche dans le modèle rendu par `docker compose config`.
 - name: Assert the demo compose model carries no production pgAdmin password
