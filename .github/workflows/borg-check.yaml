@@ -1,0 +1,103 @@
+name: Borg data check
+
+# Vérification complète des données de chaque dépôt borg, une fois par
+# trimestre : `borg check --archives-only --verify-data` (ce que lance
+# `borgmatic check --only data`), en lecture seule depuis le sous-compte
+# `restore-test`. Voir .github/restore-test/README.md, « Check data
+# trimestriel ».
+#
+# Le 5 de janvier, avril, juillet et octobre à 02:00 UTC : loin des restore
+# tests (1er et 15, 10:00 UTC), après les sauvegardes de la nuit (01:00 Paris,
+# 23:00 ou 00:00 UTC), et la journée entière devant elle avant les suivantes.
+# Pas de moniteur Uptime Kuma (un push ne peut pas attendre un trimestre :
+# 24 jours au plus) : un run en échec, c'est la notification GitHub.
+on:
+  schedule:
+    - cron: "0 2 5 1,4,7,10 *"
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "Apps à vérifier, séparées par des virgules (vide : toutes)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Le groupe de restore-test.yaml : la Storage Box n'est lue que par un run à
+# la fois, restore test ou check data.
+concurrency:
+  group: restore-test-storage-box
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: List repositories
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select repositories
+        id: apps
+        env:
+          SELECTED: ${{ inputs.apps }}
+        run: |
+          all=$(jq -c 'keys' .github/restore-test/apps.json)
+          apps=$all
+          if [ -n "$SELECTED" ]; then
+            apps=$(jq -nc --arg sel "$SELECTED" \
+              '$sel | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))')
+            unknown=$(jq -nr --argjson all "$all" --argjson apps "$apps" '$apps - $all | join(",")')
+            if [ -n "$unknown" ] || [ "$apps" = "[]" ]; then
+              echo "::error::apps inconnues de apps.json ou liste vide : « $SELECTED »"
+              exit 1
+            fi
+          fi
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Repositories: $apps"
+
+  check:
+    name: Verify data (${{ matrix.app }})
+    needs: discover
+    runs-on: ubuntu-26.04
+    # Secrets lisibles depuis main seulement (tofu/github/restore_test_secrets.tf).
+    environment: restore-test
+    # Le plafond d'un job sur un runner hébergé (6 h) : immich télécharge
+    # tout son dépôt.
+    timeout-minutes: 355
+
+    strategy:
+      fail-fast: false
+      # Un dépôt à la fois : --verify-data lit tout le dépôt sur la Storage Box.
+      max-parallel: 1
+      matrix:
+        app: ${{ fromJSON(needs.discover.outputs.apps) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install borg and configure the Storage Box access
+        # ./ et non $/ : actionlint ne connaît pas encore la syntaxe self-repository.
+        uses: ./.github/actions/storage-box-readonly # zizmor: ignore[self-repository]
+        with:
+          ssh-key: ${{ secrets.RESTORE_TEST_SSH_KEY }}
+          storage-box: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
+
+      # Sous le timeout du job : un dépassement d'étape est un échec, pas une
+      # annulation.
+      - name: Verify data
+        timeout-minutes: 345
+        env:
+          BORG_PASSPHRASE: ${{ secrets.RESTORE_TEST_BORG_PASSPHRASE }}
+          APP: ${{ matrix.app }}
+          BORG_RELOCATED_REPO_ACCESS_IS_OK: "yes"
+        run: python3 -I .github/scripts/restore_test.py --verify-data "$APP"
