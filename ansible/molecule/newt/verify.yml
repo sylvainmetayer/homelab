@@ -4,7 +4,6 @@
   vars_files:
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
-    - ../../roles/newt/defaults/main.yml
   tasks:
     - name: Verify the newt deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
@@ -75,10 +74,17 @@
 
     # Les regex, ancrées comme le proxy les ancre (^...$), contre les chemins
     # que newt 1.19.0 envoie vraiment (client moby, version négociée).
+    # Sous un nom à part : en vars_files, les defaults du rôle écraseraient
+    # newt_endpoint de group_vars (vide par défaut).
+    - name: Read the newt role defaults
+      ansible.builtin.include_vars:
+        file: ../../roles/newt/defaults/main.yml
+        name: newt_role_defaults
+
     - name: Assert the allowlist lets newt's calls through, and nothing else
       vars:
-        newt_allow_get: "^{{ newt_socket_proxy_allow_get }}$"
-        newt_allow_head: "^{{ newt_socket_proxy_allow_head }}$"
+        newt_allow_get: "^{{ newt_role_defaults.newt_socket_proxy_allow_get }}$"
+        newt_allow_head: "^{{ newt_role_defaults.newt_socket_proxy_allow_head }}$"
       ansible.builtin.assert:
         that:
           - "'/_ping' is match(newt_allow_head)"
