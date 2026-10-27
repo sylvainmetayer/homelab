@@ -84,6 +84,23 @@
     scope: user
     enabled: true
 
+# Le hub ne crée un système déclaré dans config.yml qu'au démarrage : il
+# redémarre ici, pas en fin de play, pour que les alertes le trouvent.
+- name: Restart the hub now if its configuration changed
+  ansible.builtin.meta: flush_handlers
+
+- name: Declare the Beszel alerts and notification channels
+  when: beszel_alerts_enabled
+  tags: beszel_alerts
+  ansible.builtin.import_tasks: alerts.yml
+
+# Sur demande seulement. Pas de tag never : les tâches héritent des tags du
+# rôle (beszel), et --tags beszel les sélectionnerait alors.
+- name: Send a Beszel test notification
+  when: "'beszel_alerts_test' in ansible_run_tags"
+  tags: beszel_alerts_test
+  ansible.builtin.import_tasks: alerts_test.yml
+
 # Avant la sauvegarde : app.yml cherche les bases au déploiement. Au premier
 # déploiement, data.db n'existe qu'une fois le hub démarré ; sans cette
 # attente, la configuration borgmatic n'aurait aucune copie de la base (et

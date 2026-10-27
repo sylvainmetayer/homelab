@@ -26,6 +26,45 @@ beszel_admin_email: "{{ pangolin_le_email }}"
 # inventory_hostname, valeur = jeton de l'agent).
 beszel_systems: "{{ beszel_agent_tokens | dict2items | sort(attribute='key') }}"
 
+# Alertes (tasks/alerts.yml, tag beszel_alerts). config.yml ne déclare que les
+# systèmes : alertes et canaux de notification vivent dans PocketBase, par
+# utilisateur. Le rôle les pose par l'API du hub, connecté au compte
+# administrateur (beszel_admin_email / beszel_admin_password : ce mot de passe
+# doit rester celui du compte, sinon la tâche échoue). Elles font autorité,
+# comme config.yml : une alerte du compte absente d'ici est supprimée.
+beszel_alerts_enabled: true
+beszel_api_url: "http://127.0.0.1:{{ beszel_port }}"
+
+# Une entrée par type d'alerte (nom = valeur du champ « name » de la
+# collection alerts : Status, CPU, Memory, Disk, Temperature, Bandwidth,
+# LoadAvg5…), posée sur chaque système de « systems » (par défaut, tous ceux de
+# beszel_systems). value : le seuil (%, °C, MB/s) ; min : minutes (1 à 60) sur
+# lesquelles la moyenne doit le dépasser, ou, pour Status, durée de la panne
+# avant l'alerte (5 min : un redémarrage de mises à jour passe sans bruit).
+# Disk prend la partition la plus pleine (racine et EXTRA_FILESYSTEMS).
+# S.M.A.R.T. (WARNING/FAILED) n'en demande aucune : Beszel prévient d'office
+# chaque utilisateur du système.
+beszel_alerts_temperature_systems: [nas, pi, pve]
+beszel_alerts:
+  - { name: Status, value: 0, min: 5 }
+  - { name: CPU, value: 90, min: 10 }
+  - { name: Memory, value: 90, min: 10 }
+  - { name: Disk, value: 85, min: 10 }
+  - { name: Temperature, value: 80, min: 10, systems: "{{ beszel_alerts_temperature_systems }}" }
+
+# Canaux du compte (user_settings), en URLs shoutrrr. Telegram depuis les clés
+# sops beszel_telegram_bot_token et beszel_telegram_chat_id ; sans elles, les
+# canaux restent tels quels (avertissement) et seules les alertes sont posées.
+# L'e-mail du compte reste un canal (le SMTP Infomaniak est réglé dans
+# l'interface du hub) : [] pour Telegram seul.
+beszel_alerts_telegram_url: >-
+  {{ ('telegram://' ~ beszel_telegram_bot_token ~ '@telegram?chats=' ~ beszel_telegram_chat_id)
+  if (beszel_telegram_bot_token | default('') | length > 0
+      and beszel_telegram_chat_id | default('') | string | length > 0)
+  else '' }}
+beszel_alerts_webhooks: "{{ [beszel_alerts_telegram_url] if beszel_alerts_telegram_url | length > 0 else [] }}"
+beszel_alerts_emails: ["{{ beszel_admin_email }}"]
+
 # Borgmatic backup configuration
 beszel_backup_enabled: true
 beszel_backup_borgmatic_target: "{{ backup_storage_box_url }}/beszel"

@@ -28,3 +28,78 @@
           python3 -c "import os, sqlite3; os.umask(0o077);
           sqlite3.connect('/opt/apps/beszel/beszel_data/data.db').execute('CREATE TABLE systems (id TEXT PRIMARY KEY)')"
         creates: /opt/apps/beszel/beszel_data/data.db
+
+# L'image du hub n'est jamais tirée : files/beszel_api_mock.py répond à sa
+# place sur 127.0.0.1:8090 (connexion, systèmes de config.yml, alertes,
+# user_settings, notification de test). État de départ : une alerte CPU à
+# corriger sur docker, une Status déjà juste sur flip (jamais réécrite), une
+# LoadAvg5 non déclarée sur pi (supprimée), et les réglages tels que le hub
+# les crée (l'e-mail du compte, aucun webhook).
+- name: Prepare the Beszel API mock
+  hosts: all
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Create the mock directories
+      loop:
+        - /etc/beszel-api-mock
+        - /var/lib/beszel-api-mock
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Install the Beszel API mock
+      ansible.builtin.copy:
+        src: beszel_api_mock.py
+        dest: /usr/local/lib/beszel_api_mock.py
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Write the mock configuration
+      ansible.builtin.copy:
+        dest: /etc/beszel-api-mock/config.json
+        owner: root
+        group: root
+        mode: "0600"
+        content: "{{ beszel_api_mock_config | to_nice_json }}"
+      vars:
+        beszel_api_mock_config:
+          email: "{{ pangolin_le_email }}"
+          password: "{{ beszel_admin_password }}"
+          user_id: usr000000000001
+          alerts:
+            - { system: docker, name: CPU, value: 80, min: 5 }
+            - { system: flip, name: Status, value: 0, min: 5 }
+            - { system: pi, name: LoadAvg5, value: 4, min: 10 }
+          user_settings:
+            - id: set000000000001
+              settings: { chartTime: 1h, emails: ["{{ pangolin_le_email }}"], webhooks: [] }
+
+    - name: Install the mock unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/beszel-api-mock.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Beszel hub API mock (Molecule)
+
+          [Service]
+          ExecStart=/usr/bin/python3 -I /usr/local/lib/beszel_api_mock.py /etc/beszel-api-mock/config.json
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start the mock
+      ansible.builtin.systemd:
+        name: beszel-api-mock
+        state: started
+        enabled: true
+        daemon_reload: true

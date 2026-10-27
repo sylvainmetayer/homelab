@@ -1,0 +1,205 @@
+---
+# Alertes et canaux de notification du compte administrateur, par l'API du
+# hub : config.yml ne sait déclarer que les systèmes (internal/hub/config de
+# Beszel). Toutes les lectures se font, même en --check ; une écriture
+# seulement quand l'état diffère de beszel_alerts / beszel_alerts_webhooks.
+- name: Log in to the Beszel hub
+  ansible.builtin.import_tasks: api_login.yml
+
+- name: List the Beszel systems and the alerts of the account
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/collections/{{ item }}"
+    headers:
+      Authorization: "{{ beszel_api_token }}"
+  loop:
+    - systems/records?perPage=500&skipTotal=1&fields=id,name
+    - alerts/records?perPage=500&skipTotal=1&fields=id,system,name,value,min
+  register: beszel_api_lists
+  check_mode: false
+
+- name: Index the Beszel systems and alerts
+  ansible.builtin.set_fact:
+    beszel_api_system_ids: "{{ beszel_api_lists.results[0].json['items'] | items2dict(key_name='name', value_name='id') }}"
+    beszel_api_alerts: "{{ beszel_api_lists.results[1].json['items'] }}"
+
+# Un système de beszel_alerts doit exister dans le hub, donc dans config.yml
+# (le hub a redémarré sur la nouvelle version avant ces tâches : flush_handlers
+# de tasks/main.yml).
+- name: Refuse alerts on systems the hub does not know
+  vars:
+    beszel_alerts_names: >-
+      {{ beszel_alerts | map(attribute='systems', default=beszel_systems | map(attribute='key') | list)
+         | flatten | unique | list }}
+  ansible.builtin.assert:
+    that:
+      - beszel_alerts_names | difference(beszel_api_system_ids.keys() | list) | length == 0
+    fail_msg: >-
+      beszel_alerts : systèmes absents du hub
+      {{ beszel_alerts_names | difference(beszel_api_system_ids.keys() | list) }}.
+    quiet: true
+
+# État voulu, une entrée par (système, type), puis ce qui diffère : les
+# écritures sont groupées comme l'API les prend (un type, un seuil, une
+# durée, plusieurs systèmes).
+- name: Index the declared and current Beszel alerts
+  ansible.builtin.set_fact:
+    beszel_alerts_desired: >-
+      {%- set out = [] -%}
+      {%- for alert in beszel_alerts -%}
+      {%- for system in alert.systems | default(beszel_systems | map(attribute='key') | list) -%}
+      {%- set _ = out.append({'key': beszel_api_system_ids[system] ~ '/' ~ alert.name,
+                              'system': beszel_api_system_ids[system], 'host': system, 'name': alert.name,
+                              'value': alert.value | float, 'min': alert.min | int}) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ out }}
+    beszel_alerts_current: >-
+      {%- set out = {} -%}
+      {%- for alert in beszel_api_alerts -%}
+      {%- set _ = out.update({alert.system ~ '/' ~ alert.name: alert}) -%}
+      {%- endfor -%}
+      {{ out }}
+
+# Un même type peut revenir avec d'autres systèmes (seuils différents), mais
+# pas deux fois sur un système.
+- name: Refuse an alert declared twice on one system
+  ansible.builtin.assert:
+    that:
+      - beszel_alerts_desired | map(attribute='key') | unique | length == beszel_alerts_desired | length
+    fail_msg: "beszel_alerts : un type d'alerte déclaré deux fois sur un même système."
+    quiet: true
+
+- name: Compute the Beszel alert changes
+  ansible.builtin.set_fact:
+    beszel_alerts_upserts: >-
+      {%- set groups = {} -%}
+      {%- for alert in beszel_alerts_desired -%}
+      {%- set current = beszel_alerts_current[alert.key] | default({}) -%}
+      {%- if current.value | default(none) is none or current.value | float != alert.value
+            or current.min | int != alert.min -%}
+      {%- set group = alert.name ~ '|' ~ alert.value ~ '|' ~ alert.min -%}
+      {%- if group not in groups -%}
+      {%- set _ = groups.update({group: {'name': alert.name, 'value': alert.value, 'min': alert.min,
+                                         'systems': [], 'hosts': []}}) -%}
+      {%- endif -%}
+      {%- set _ = groups[group]['systems'].append(alert.system) -%}
+      {%- set _ = groups[group]['hosts'].append(alert.host) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ groups.values() | list }}
+    beszel_alerts_deletes: >-
+      {%- set wanted = beszel_alerts_desired | map(attribute='key') | list -%}
+      {%- set groups = {} -%}
+      {%- for key, alert in beszel_alerts_current.items() if key not in wanted -%}
+      {%- set _ = groups.setdefault(alert.name, {'name': alert.name, 'systems': []}) -%}
+      {%- set _ = groups[alert.name]['systems'].append(alert.system) -%}
+      {%- endfor -%}
+      {{ groups.values() | list }}
+
+# Lisible en --check, où les écritures sont sautées.
+- name: Show the Beszel alert changes
+  ansible.builtin.debug:
+    msg:
+      upserts: "{{ beszel_alerts_upserts | map(attribute='name') | zip(beszel_alerts_upserts | map(attribute='hosts')) | list }}"
+      deletes: "{{ beszel_alerts_deletes | map(attribute='name') | list }}"
+  when: beszel_alerts_upserts | length > 0 or beszel_alerts_deletes | length > 0
+
+# POST /api/beszel/user-alerts (internal/alerts/alerts_api.go) : crée ou,
+# avec overwrite, remet value et min sur chaque système de la liste.
+- name: Write the Beszel alerts
+  when: not ansible_check_mode
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/beszel/user-alerts"
+    method: POST
+    headers:
+      Authorization: "{{ beszel_api_token }}"
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      value: "{{ item.value }}"
+      min: "{{ item.min }}"
+      systems: "{{ item.systems }}"
+      overwrite: true
+  loop: "{{ beszel_alerts_upserts }}"
+  changed_when: true
+
+- name: Delete the Beszel alerts that are no longer declared
+  when: not ansible_check_mode
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/beszel/user-alerts"
+    method: DELETE
+    headers:
+      Authorization: "{{ beszel_api_token }}"
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      systems: "{{ item.systems }}"
+  loop: "{{ beszel_alerts_deletes }}"
+  changed_when: true
+
+- name: Warn that Beszel has no notification channel to declare
+  when: beszel_alerts_webhooks | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      Clés sops beszel_telegram_bot_token / beszel_telegram_chat_id absentes :
+      canaux de notification Beszel laissés tels quels, les alertes ne
+      partiront peut-être nulle part.
+
+# user_settings (un enregistrement par utilisateur) : settings.webhooks
+# (shoutrrr) et settings.emails. Le hub remplit emails avec l'adresse du
+# compte à la création : on corrige juste après.
+- name: Declare the Beszel notification channels
+  when: beszel_alerts_webhooks | length > 0
+  block:
+    - name: Read the account notification settings
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/user_settings/records?perPage=1&skipTotal=1"
+        headers:
+          Authorization: "{{ beszel_api_token }}"
+      register: beszel_api_user_settings
+      check_mode: false
+
+    - name: Create the account notification settings
+      when:
+        - beszel_api_user_settings.json['items'] | length == 0
+        - not ansible_check_mode
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/user_settings/records"
+        method: POST
+        headers:
+          Authorization: "{{ beszel_api_token }}"
+        body_format: json
+        body:
+          user: "{{ beszel_api_user_id }}"
+          settings: {}
+      register: beszel_api_user_settings_created
+      changed_when: true
+
+    - name: Update the account notification channels
+      when:
+        - not ansible_check_mode
+        - >-
+          beszel_api_user_settings_record.settings.webhooks | default([]) != beszel_alerts_webhooks
+          or beszel_api_user_settings_record.settings.emails | default([]) != beszel_alerts_emails
+      vars:
+        beszel_api_user_settings_record: >-
+          {{ beszel_api_user_settings_created.json
+             if beszel_api_user_settings_created is not skipped
+             else beszel_api_user_settings.json['items'][0] }}
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/user_settings/records/{{ beszel_api_user_settings_record.id }}"
+        method: PATCH
+        headers:
+          Authorization: "{{ beszel_api_token }}"
+        body_format: json
+        body:
+          settings: >-
+            {{ beszel_api_user_settings_record.settings | default({}, true)
+               | combine({'webhooks': beszel_alerts_webhooks, 'emails': beszel_alerts_emails}) }}
+      changed_when: true

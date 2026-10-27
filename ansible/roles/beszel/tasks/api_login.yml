@@ -1,0 +1,45 @@
+---
+# Connexion à l'API du hub (PocketBase) en tant que compte administrateur
+# Beszel (collection users, pas le superuser) : les alertes et les réglages de
+# notification appartiennent à un utilisateur, l'API les rattache au compte
+# connecté. Le jeton reste dans beszel_api_token (no_log) : chaque appel qui
+# le porte est no_log aussi, sinon -v l'écrit dans ansible/run.log.
+- name: Wait for the Beszel hub API
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/health"
+  register: beszel_api_health
+  until: beszel_api_health.status == 200
+  retries: 60
+  delay: 2
+  check_mode: false
+
+- name: Log in to the Beszel hub as the admin account
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/collections/users/auth-with-password"
+    method: POST
+    body_format: json
+    body:
+      identity: "{{ beszel_admin_email }}"
+      password: "{{ beszel_admin_password }}"
+    status_code: [200, 400]
+  register: beszel_api_login
+  check_mode: false
+
+# USER_PASSWORD ne sert qu'au premier démarrage : un mot de passe changé dans
+# l'interface ne correspond plus à la clé sops.
+- name: Refuse a beszel_admin_password that no longer opens the account
+  ansible.builtin.assert:
+    that:
+      - beszel_api_login.status == 200
+    fail_msg: >-
+      Connexion refusée par le hub pour {{ beszel_admin_email }} : le mot de
+      passe du compte Beszel n'est plus beszel_admin_password (sops).
+      Réaligner l'un sur l'autre.
+    quiet: true
+
+- name: Keep the Beszel API token
+  no_log: true
+  ansible.builtin.set_fact:
+    beszel_api_token: "{{ beszel_api_login.json.token }}"
+    beszel_api_user_id: "{{ beszel_api_login.json.record.id }}"
