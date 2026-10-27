@@ -85,6 +85,9 @@
           - jellyfin_verify_traefik.cap_drop == ['ALL']
           - jellyfin_verify_traefik.cap_add == ['NET_BIND_SERVICE']
           - jellyfin_verify_traefik.read_only
+          # Log d'accès sur stdout : rotation propre au service (UGOS).
+          - jellyfin_verify_traefik.logging.driver == 'json-file'
+          - jellyfin_verify_traefik.logging.options['max-size'] == '10m'
           - jellyfin_verify_traefik.mem_limit is defined
           - jellyfin_verify_traefik.healthcheck.test | select('search', 'healthcheck') | list | length == 1
           - jellyfin_verify_traefik.environment.OVH_ENDPOINT == 'ovh-eu'
@@ -174,6 +177,8 @@
           - jellyfin_verify_static.accessLog.fields.headers.defaultMode == 'drop'
           - jellyfin_verify_static.accessLog.fields.headers.names is not defined
           - jellyfin_verify_static.accessLog.fields.queryParameters.defaultMode == 'drop'
+          - jellyfin_verify_static.accessLog.fields.names.keys() | list == ['StartUTC']
+          - jellyfin_verify_static.accessLog.fields.names.StartUTC == 'drop'
           - not (jellyfin_verify_static.accessLog.addInternals | default(false))
         fail_msg: "Configuration Traefik inattendue"
 

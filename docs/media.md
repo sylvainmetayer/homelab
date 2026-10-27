@@ -162,11 +162,11 @@ Un conteneur exotique (AVI, TS) ne fait que remuxer : pas grave, mais le MKV
 et `zscale`), une fois par film. La version 2160p reste intacte pour la TV.
 Commande vérifiée avec ffmpeg 8.1.3 (RPM Fusion, Fedora 44) sur un extrait HDR10
 synthétique : sortie H.264 1080p BT.709, AAC stéréo, AC-3 5.1 copié,
-sous-titres SRT copiés.
+sous-titres SRT et ASS copiés avec leurs polices.
 
 ```bash
 ffmpeg -init_hw_device vulkan -i "Film (2020) - 2160p.mkv" \
-  -map 0:v:0 -map 0:a:0 -map 0:a:0 -map 0:s? \
+  -map 0:v:0 -map 0:a:0 -map 0:a:0 -map 0:s? -map 0:t? \
   -vf "libplacebo=w=1920:h=-2:downscaler=ewa_lanczos:tonemapping=bt.2390:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:format=yuv420p" \
   -c:v libx264 -preset slow -crf 20 -profile:v high -level:v 4.1 \
   -c:a:0 aac -ac:a:0 2 -b:a:0 192k \
@@ -185,13 +185,19 @@ Option par option :
 - `-map 0:v:0` : la première piste vidéo seule (pas les pochettes intégrées).
   `-map 0:a:0` **deux fois** : la piste audio principale, une fois pour la
   version stéréo, une fois pour la 5.1. `-map 0:s?` : tous les sous-titres,
-  le `?` évite une erreur s'il n'y en a aucun. Pour une autre piste audio
+  le `?` évite une erreur s'il n'y en a aucun. `-map 0:t?` : les pièces
+  jointes du MKV, c'est-à-dire les polices des sous-titres ASS ; sans elles,
+  des sous-titres stylés (animés, karaokés) s'affichent dans la police par
+  défaut du lecteur. Pour une autre piste audio
   (VF plutôt que VO), `0:a:1`, etc. : `ffprobe "Film (2020) - 2160p.mkv"`
   liste les pistes.
 - `libplacebo=` (le filtre vidéo, [doc
   ffmpeg](https://ffmpeg.org/ffmpeg-filters.html#libplacebo)) :
   - `w=1920:h=-2` : 1920 de large, hauteur calculée pour garder les
-    proportions, arrondie au pair (un film en 2,39:1 donne du 1920×804) ;
+    proportions, arrondie au pair (un fichier en 3840×1608, film en 2,39:1
+    sans bandes noires, donne du 1920×804 ; un 3840×2160 aux bandes noires
+    incrustées, cas de la plupart des remux UHD, reste en 1920×1080 avec ses
+    bandes) ;
   - `downscaler=ewa_lanczos` : réduction de bonne qualité (défaut `mitchell`,
     plus doux) ;
   - `tonemapping=bt.2390` : la conversion HDR → SDR (courbe BT.2390, la
@@ -222,8 +228,8 @@ Option par option :
     -c:a:1 eac3 -ac:a:1 6 -b:a:1 640k \
   ```
 
-- `-c:s copy` : sous-titres copiés. Les sous-titres texte (SRT, ASS) ne
-  posent aucun problème. Une piste PGS (image) est copiée aussi, mais elle
+- `-c:s copy` : sous-titres copiés. Les sous-titres texte (SRT, ASS avec ses
+  polices, voir `-map 0:t?`) ne posent aucun problème. Une piste PGS (image) est copiée aussi, mais elle
   forcera un transcodage si on la choisit : pour l'écarter, ajouter
   `-map -0:s:N` après `-map 0:s?` (N = son numéro parmi les sous-titres),
   et mettre plutôt un `.srt` à côté du fichier.
@@ -232,7 +238,9 @@ Option par option :
 - `-metadata:s:a:0 title="Stéréo"` : le nom affiché dans le menu des pistes.
 
 Sans GPU Vulkan, la même chose au processeur, plus lent, avec `zscale` et le
-filtre `tonemap` (courbe `hable`) :
+filtre `tonemap` (courbe `hable`) : retirer aussi `-init_hw_device vulkan`,
+sinon ffmpeg s'arrête avant de commencer (« Device creation failed »), et
+remplacer la ligne `-vf` par :
 
 ```bash
   -vf "zscale=w=1920:h=-2:filter=spline36,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p" \
@@ -314,7 +322,9 @@ matériel, et `top` sur le NAS ne doit pas montrer `ffmpeg` à 400 %.
 
 - L'adresse HTTPS ne répond plus à la maison : essayer
   `http://192.168.1.137:8096`. Si elle répond, c'est Traefik ; ses erreurs
-  (requêtes en 4xx/5xx, sans paramètres ni en-têtes, donc sans jeton) sont
-  dans `sudo docker logs jellyfin-traefik` sur le NAS.
+  (requêtes en 4xx/5xx, à l'heure locale, sans paramètres ni en-têtes, donc
+  sans jeton ; seule exception, une révocation de clé d'API qui échoue laisse
+  la clé dans le chemin) sont dans `sudo docker logs jellyfin-traefik` sur le
+  NAS.
 - Plus rien ne répond : `systemctl status dc@jellyfin` sur le NAS (unité
   système), et le runbook [appli en panne](runbooks/appli-en-panne.md).

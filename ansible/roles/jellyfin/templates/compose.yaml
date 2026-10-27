@@ -57,6 +57,13 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     read_only: true
+    # Le log d'accès va sur stdout : rotation ici, le Docker d'UGOS n'a pas la
+    # rotation json-file posée ailleurs par geerlingguy.docker.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     command:
       - --configFile=/etc/traefik/traefik.yml
     environment:
