@@ -26,8 +26,9 @@ services:
       # Jamais en écriture : Jellyfin ne range ni ne supprime rien, l'édition
       # se fait par SMB.
       - {{ jellyfin_media_path }}:/media:ro
-    # Repli en HTTP simple sur le LAN (TV, Chromecast, téléphones à la maison) ;
-    # l'adresse à utiliser est https://media.sylvain.cloud, par Traefik.
+    # Secours en HTTP simple sur le LAN, sans cast (il exige HTTPS) : l'adresse
+    # à utiliser partout, cast compris, est https://{{ jellyfin_domain }}:{{ jellyfin_https_port }},
+    # par Traefik (docs/media.md).
     ports:
       - "{{ jellyfin_port }}:8096"
     restart: unless-stopped

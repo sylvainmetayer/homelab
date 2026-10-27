@@ -166,6 +166,15 @@
           - jellyfin_verify_static.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
           - jellyfin_verify_dynamic.http.routers.jellyfin.rule == 'Host(`media.sylvain.cloud`)'
           - jellyfin_verify_dynamic.http.services.jellyfin.loadBalancer.servers | map(attribute='url') | list == ['http://jellyfin:8096']
+          # Log d'accès des erreurs seules, sur stdout, sans en-têtes ni
+          # paramètres de requête (api_key de Jellyfin).
+          - jellyfin_verify_static.accessLog.filePath is not defined
+          - jellyfin_verify_static.accessLog.format == 'common'
+          - jellyfin_verify_static.accessLog.filters.statusCodes == ['400-599']
+          - jellyfin_verify_static.accessLog.fields.headers.defaultMode == 'drop'
+          - jellyfin_verify_static.accessLog.fields.headers.names is not defined
+          - jellyfin_verify_static.accessLog.fields.queryParameters.defaultMode == 'drop'
+          - not (jellyfin_verify_static.accessLog.addInternals | default(false))
         fail_msg: "Configuration Traefik inattendue"
 
     # Sans le dossier partagé, le rôle s'arrête avant d'écrire quoi que ce
