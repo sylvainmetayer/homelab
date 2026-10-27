@@ -326,6 +326,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["homepage"]
+  values = { id = 66, full_domain = "home.sylvain.cloud" }
+}
+
+override_resource {
   target = pangolin_resource.website["demo_planning"]
   values = { id = 81, full_domain = "demo-planning.sylvain.dev" }
 }
@@ -602,6 +607,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   assert {
     condition = toset(keys(pangolin_target.website)) == toset([
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
+      "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
@@ -1505,6 +1511,7 @@ run "every_public_resource_applies_its_rules" {
       demo_planning    = "Demo Planning"
       demo_planning_kc = "Demo Planning KC"
       flip_planning    = "Flip Planning"
+      homepage         = "Homepage"
       immich           = "Immich"
       immich_swipe     = "Immich Swipe"
       karakeep         = "Karakeep"
@@ -1637,6 +1644,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       dawarich      = "Healthcheck Dawarich"
       demo_planning = "Healthcheck Demo Planning"
       flip_planning = "Healthcheck Flip Planning"
+      homepage      = "Healthcheck Homepage"
       immich        = "Healthcheck Immich"
       immich_swipe  = "Healthcheck Immich Swipe"
       karakeep      = "Healthcheck Karakeep"
@@ -2417,5 +2425,52 @@ run "ssh_login_monitors_alert_on_every_login" {
       length(fileset("${path.module}/../../ansible/host_vars/${host}", "*")) > 0
     ])
     error_message = "Chaque hôte de local.ssh_login_hosts doit être un hôte de l'inventaire (ansible/host_vars/<hôte>)."
+  }
+}
+
+# Homepage montre un lien par application publique : l'output homepage_links
+# est tiré de local.websites (website_homepage.tf), lu par docker.yml, et ses
+# groupes doivent être ceux que le rôle homepage sait ranger.
+run "homepage_links_cover_every_public_app" {
+  command = plan
+
+  # Toutes les entrées, sauf Homepage elle-même et Promptoramix (racine en
+  # POST seulement) : une application publiée sans lien fait échouer le plan
+  # (champ homepage lu sur chaque entrée), une entrée masquée l'est ici.
+  assert {
+    condition     = toset(keys(output.homepage_links)) == setsubtract(toset(keys(local.websites)), ["homepage", "promptoramix"])
+    error_message = "homepage_links doit couvrir chaque entrée de local.websites, sauf Homepage et Promptoramix (homepage = null)."
+  }
+
+  assert {
+    condition = alltrue([
+      for key, link in output.homepage_links :
+      startswith(link.href, "https://") && length(link.name) > 0 && length(link.group) > 0 && length(link.description) > 0
+    ])
+    error_message = "Chaque lien de Homepage porte un nom, un groupe, une description et une URL https."
+  }
+
+  assert {
+    condition = (
+      output.homepage_links["trek"].href == "https://travels.sylvain.cloud"
+      && output.homepage_links["trek"].name == "TREK"
+      && output.homepage_links["rss"].name == "FreshRSS"
+    )
+    error_message = "Le lien de Homepage vise le full_domain de la ressource, sous le nom de la ressource ou le titre de son champ homepage."
+  }
+
+  # Un groupe inconnu du rôle s'afficherait quand même, après les autres : la
+  # liste du rôle fixe l'ordre, une faute de frappe la contournerait.
+  assert {
+    condition = length(setsubtract(
+      toset([for link in values(output.homepage_links) : link.group]),
+      toset(yamldecode(file("${path.module}/../../ansible/roles/homepage/defaults/main.yml")).homepage_groups),
+    )) == 0
+    error_message = "Un groupe de homepage_links manque à homepage_groups (ansible/roles/homepage/defaults/main.yml)."
+  }
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.homepage_links.value | default({})")
+    error_message = "docker.yml doit passer l'output homepage_links au rôle homepage (homepage_websites)."
   }
 }

@@ -10,6 +10,7 @@ locals {
     "meerkat-crm",
     "nextcloud",
     "monica",
+    "homepage",
     "rss",
     "wiki",
     "paperless",

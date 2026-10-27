@@ -152,6 +152,10 @@ tofu apply
 tofu state list | grep <service>   # should print nothing once applied
 ```
 
+Then `cd ../../ansible && ansible-playbook docker.yml --tags homepage`: the
+Homepage role only reads the `homepage_links` output when it runs, so until
+then the page still links to the removed app.
+
 Two things you don't need to touch, for context: `rules.tf`'s country rules
 are generated with `for_each` over `local.managed_resources`, itself derived
 from `local.websites`, so they disappear automatically once the resource is

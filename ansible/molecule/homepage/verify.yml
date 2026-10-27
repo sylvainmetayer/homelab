@@ -1,0 +1,110 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Sans état : aucune configuration borgmatic.
+    - name: Verify the homepage deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: homepage
+        verify_app_borgmatic_config: ""
+
+    - name: Stat the homepage borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/homepage.yaml
+      register: homepage_borgmatic
+
+    - name: Assert homepage is not backed up
+      ansible.builtin.assert:
+        that:
+          - not homepage_borgmatic.stat.exists
+
+    - name: Render the homepage compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/homepage
+      register: homepage_compose_raw
+      changed_when: false
+
+    # Liens seulement : ni socket Docker ni autre montage que la configuration,
+    # en lecture seule, et seulement le réseau newt.
+    - name: Assert homepage only mounts its read-only configuration and joins newt
+      vars:
+        homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
+        homepage_service: "{{ homepage_compose.services.app }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_service.volumes | length == 1
+          - homepage_service.volumes[0].target == '/app/config'
+          - homepage_service.volumes[0].read_only | default(false)
+          - homepage_service.networks.keys() | list == ['newt']
+          - homepage_compose.networks.keys() | list == ['newt']
+          - homepage_service.environment.HOMEPAGE_ALLOWED_HOSTS.split(',') == ['home.sylvain.cloud', 'homepage:3000', 'homepage']
+          - homepage_service.environment.LOG_TARGETS == 'stdout'
+          - homepage_service.mem_limit is defined
+        fail_msg: "Service homepage inattendu : {{ homepage_service }}"
+
+    # Homepage recopie son squelette pour tout fichier absent et s'arrête
+    # s'il ne peut pas l'écrire (config/ en lecture seule).
+    - name: Stat the homepage configuration files
+      ansible.builtin.stat:
+        path: "/opt/apps/homepage/config/{{ item }}"
+      loop:
+        - settings.yaml
+        - services.yaml
+        - bookmarks.yaml
+        - widgets.yaml
+        - docker.yaml
+        - kubernetes.yaml
+        - proxmox.yaml
+        - custom.css
+        - custom.js
+      register: homepage_config_files
+
+    - name: Assert every homepage configuration file is present
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+        fail_msg: "{{ item.item }} absent : Homepage tenterait de l'écrire dans config/, monté en lecture seule"
+      loop: "{{ homepage_config_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the homepage services
+      ansible.builtin.slurp:
+        src: /opt/apps/homepage/config/services.yaml
+      register: homepage_services_raw
+
+    # Groupes dans l'ordre de homepage_groups, le groupe inconnu en dernier ;
+    # liens triés par nom dans un groupe ; Jellyfin (homepage_extra_links) en
+    # plus de l'output ; pas d'icône vide.
+    - name: Assert the homepage services list every link in its group
+      vars:
+        homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
+        homepage_groups_rendered: "{{ homepage_services | map('first') | list }}"
+        homepage_documents: "{{ homepage_services[0]['Documents'] }}"
+        homepage_media: "{{ (homepage_services | selectattr('Photos et médias', 'defined') | first)['Photos et médias'] }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_groups_rendered == ['Documents', 'Photos et médias', 'Administration', 'Groupe hors liste']
+          - homepage_documents | map('first') | list == ['BookStack', 'Paperless-ngx']
+          - homepage_documents[0]['BookStack'].href == 'https://wiki.sylvain.cloud'
+          - homepage_documents[0]['BookStack'].icon == 'bookstack'
+          - homepage_documents[1]['Paperless-ngx'].icon is not defined
+          - homepage_media[0]['Jellyfin'].href == 'https://media.sylvain.cloud:8443'
+          - homepage_services[3]['Groupe hors liste'][0]['Betisier'].description == 'Bêtisier, application de TP'
+          - "'widget:' not in (homepage_services_raw.content | b64decode)"
+        fail_msg: "services.yaml inattendu : {{ homepage_services }}"
+
+    - name: Read the homepage widgets
+      ansible.builtin.slurp:
+        src: /opt/apps/homepage/config/widgets.yaml
+      register: homepage_widgets_raw
+
+    - name: Assert homepage has no widget
+      ansible.builtin.assert:
+        that:
+          - homepage_widgets_raw.content | b64decode | from_yaml == []

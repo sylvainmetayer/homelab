@@ -45,6 +45,14 @@ locals {
     role      = "<service-kebab>" # the slug added to roles.tf in step 1
     backup    = true              # push monitor "Backup <Display Name>"
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf);
+    # required, `homepage = null` for no link.
+    homepage = {
+      group       = "<a group of homepage_groups, ansible/roles/homepage>"
+      description = "<one line>"
+      icon        = "<dashboard-icons name or mdi-...>" # optional
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "<container_name>" # also the probe's hc_hostname

@@ -1,0 +1,44 @@
+---
+services:
+  app:
+    # Pas encore mesuré : un serveur Next.js qui ne sert que des liens (aucun
+    # widget, aucun appel d'API). À recaler sur memory.peak après quelques jours.
+    mem_limit: 256m
+    image: ghcr.io/gethomepage/homepage:v2.7.0@sha256:19c5c09184458a41b7b5915e71463a39f36cd33540f41bdbed008791b8182d5f
+    container_name: homepage
+    # L'entrypoint démarre en root, vérifie les propriétaires puis passe à
+    # PUID:PGID (su-exec) : CHOWN, SETUID et SETGID suffisent.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    environment:
+      PUID: "{{ ansible_facts['user_uid'] }}"
+      PGID: "{{ ansible_facts['user_gid'] }}"
+      # Le Host de chaque requête doit y figurer, sinon 400 : le domaine public
+      # (Traefik garde le Host d'origine) et celui de la sonde de Pangolin, qui
+      # vise le conteneur par son nom sur newt (hc_hostname, website_homepage.tf).
+      # localhost:3000, celui du healthcheck ci-dessous, est toujours admis.
+      HOMEPAGE_ALLOWED_HOSTS: "{{ homepage_domain }},homepage:3000,homepage"
+      # Pas de journal dans config/, monté en lecture seule.
+      LOG_TARGETS: stdout
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "-Y", "off", "http://127.0.0.1:3000/api/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

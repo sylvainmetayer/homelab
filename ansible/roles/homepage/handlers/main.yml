@@ -1,0 +1,6 @@
+---
+- name: Restart homepage
+  ansible.builtin.systemd:
+    name: dc@homepage
+    scope: user
+    state: restarted

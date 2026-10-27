@@ -7,6 +7,13 @@ locals {
     role      = "immich"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Photos et médias"
+      description = "Photothèque"
+      icon        = "immich"
+    }
+
     target = {
       site_id = pangolin_site.pi.id
       ip      = "immich_server"

@@ -5,6 +5,13 @@ locals {
     subdomain = "betisier"
     domain_id = local.domain_ids["sylvain.dev"]
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Divers"
+      description = "Bêtisier, application de TP publique"
+      icon        = "mdi-emoticon-lol-outline"
+    }
+
     # The only public resource without the SSO wall, so no role either: the
     # application is its own and only guard.
     sso    = false

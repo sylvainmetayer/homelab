@@ -4,6 +4,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 
 | App | Role | Host | What it is |
 |---|---|---|---|
+| [Homepage](https://gethomepage.dev/) | `homepage` | Docker VM | Start page on `home.sylvain.cloud`: one link per public app, generated from `local.websites` (the `homepage` field of each entry, `homepage_links` output read by `docker.yml`), plus Jellyfin and the Pangolin dashboard. Links only (no widget, API key or Docker socket), so nothing to back up |
 | [FreshRSS](https://freshrss.org/) | `rss` | Docker VM | RSS reader |
 | Betisier | `betisier` | Docker VM | Small web app with a MariaDB database ([docker-betisier-tp](https://github.com/sylvainmetayer/docker-betisier-tp)), public without SSO |
 | [Monica](https://www.monicahq.com/) | `monica_v4` | Docker VM | Personal CRM |

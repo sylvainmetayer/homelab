@@ -9,6 +9,9 @@ locals {
     subdomain = "promptoramix"
     domain_id = local.domain_ids["sylvain.cloud"]
 
+    # No link on Homepage: the root only answers POSTs, a link would lead nowhere.
+    homepage = null
+
     # Called by the tournament's servers (Supabase edge functions), not by a
     # browser: no SSO wall they could pass, so no role either. Every request is
     # signed with a secret shared with the tournament (LINKX_SECRET, HMAC

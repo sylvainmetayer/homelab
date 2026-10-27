@@ -14,6 +14,14 @@ locals {
     role      = "demo-planning"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      title       = "Démo planning"
+      group       = "Flip Planning"
+      description = "Démo publique du planning"
+      icon        = "mdi-calendar-account"
+    }
+
     # Catch-all target, must have a lower priority than the pgAdmin one.
     target = {
       site_id  = pangolin_site.flip.id

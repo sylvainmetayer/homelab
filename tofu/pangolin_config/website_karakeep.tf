@@ -7,6 +7,13 @@ locals {
     role      = "karakeep"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Lecture"
+      description = "Favoris et lecture différée"
+      icon        = "karakeep"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "karakeep"

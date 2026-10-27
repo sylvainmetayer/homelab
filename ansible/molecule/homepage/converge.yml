@@ -1,0 +1,38 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # Ce que docker.yml lit dans l'output homepage_links de pangolin_config :
+    # deux liens d'un même groupe et un d'un groupe que homepage_groups ne
+    # connaît pas, qui doit venir après les autres.
+    - name: Set the Homepage links as docker.yml does
+      ansible.builtin.set_fact:
+        homepage_websites:
+          wiki:
+            name: BookStack
+            href: https://wiki.sylvain.cloud
+            group: Documents
+            description: Wiki
+            icon: bookstack
+          paperless:
+            name: Paperless-ngx
+            href: https://papiers.sylvain.cloud
+            group: Documents
+            description: Documents numérisés, avec OCR
+            icon: ""
+          betisier:
+            name: Betisier
+            href: https://betisier.sylvain.dev
+            group: Groupe hors liste
+            description: Bêtisier, application de TP
+            icon: mdi-emoticon-lol-outline
+
+  roles:
+    - role: docker_service
+    - role: homepage

@@ -12,6 +12,13 @@ locals {
     role      = "wishlist"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Vie perso"
+      description = "Listes de cadeaux"
+      icon        = "mdi-gift-outline"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "wishlist"

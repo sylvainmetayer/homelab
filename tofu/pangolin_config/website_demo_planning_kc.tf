@@ -17,6 +17,14 @@ locals {
     role        = "demo-planning-kc"
     healthcheck = false
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      title       = "Démo planning Keycloak"
+      group       = "Flip Planning"
+      description = "Démo du planning avec Keycloak"
+      icon        = "mdi-calendar-lock"
+    }
+
     # Catch-all target, must have a lower priority than the sub-path ones.
     target = {
       site_id  = pangolin_site.flip.id

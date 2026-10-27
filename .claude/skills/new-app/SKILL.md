@@ -142,6 +142,11 @@ ansible-playbook -i inventory/hosts docker.yml --check --tags <service>,app
 ansible-playbook -i inventory/hosts docker.yml --tags <service>,app
 ```
 
+Homepage only reads the `homepage_links` output when its role runs, and a
+merge redeploys the roles whose files changed, not `homepage`: once
+`pangolin_config` is applied, run `ansible-playbook docker.yml --tags homepage`
+so the new app's link shows up.
+
 ## 8. Verify
 
 ```bash

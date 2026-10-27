@@ -7,6 +7,14 @@ locals {
     role      = "rss"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      title       = "FreshRSS"
+      group       = "Lecture"
+      description = "Lecteur de flux RSS"
+      icon        = "freshrss"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "rss"

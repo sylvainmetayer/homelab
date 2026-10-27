@@ -25,6 +25,13 @@
         nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
 
+    # Les liens de Homepage : un par entrée de local.websites
+    # (tofu/pangolin_config, website_homepage.tf).
+    - name: Load the Homepage links from Terraform state outputs
+      tags: always
+      ansible.builtin.set_fact:
+        homepage_websites: "{{ terraform_outputs.homepage_links.value | default({}) }}"
+
   roles:
     - role: geerlingguy.docker
       become: true
@@ -75,3 +82,5 @@
       tags: beszel_agent,monitoring
       vars:
         beszel_agent_hub_url: "http://127.0.0.1:8090"
+    - role: homepage
+      tags: homepage,app
