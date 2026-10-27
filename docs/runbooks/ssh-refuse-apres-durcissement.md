@@ -110,9 +110,15 @@ pas mettre à jour se branche sur le poste, pas l'inverse.
 
 **Il faut un repli pour un client précis** : ajouter l'algorithme à la liste
 d'un hôte dans ses `host_vars` (par exemple `security_ssh_kex` avec
-`curve25519-sha256` en dernier), mettre à jour
-`ansible/molecule/security/files/ssh-audit-policy.txt` si l'hôte est rejoué
-par un scénario, puis relancer le playbook en `--tags security`.
+`curve25519-sha256` en dernier), puis relancer le playbook en
+`--tags security`. Chaque hôte est rejoué par un scénario `security*`, et
+tous partagent `ansible/molecule/security/files/ssh-audit-policy.txt`
+(correspondance exacte, aussi lue par `mise run ssh-audit` pour tous les
+hôtes) et la politique intégrée « Hardened Debian 13 », qui refuse tout
+échange non post-quantique : un repli fait échouer le scénario de cet hôte
+tant que `tasks/verify_ssh_audit.yml` ne lui donne pas sa propre politique
+(et ne lui retire pas l'intégrée). Modifier le fichier commun casserait les
+autres scénarios.
 
 **Plus aucun client n'entre** (blocage complet) : passer par la console, puis
 revenir en arrière.
@@ -129,12 +135,15 @@ revenir en arrière.
    `CASignatureAlgorithms` de `/etc/ssh/sshd_config` (les défauts d'OpenSSH
    reviennent), puis `sudo sshd -t && sudo systemctl restart ssh`. Les
    sessions ouvertes survivent au redémarrage de sshd.
-2. Retour en arrière durable : `git revert` du commit, puis depuis le poste
+2. Retour en arrière durable : **d'abord** `sudo ssh-keygen -A` sur l'hôte
+   (recrée les clés RSA et ECDSA supprimées, nouvelles empreintes), puis
+   `git revert` du commit et, depuis le poste,
    `ansible-playbook <playbook> --limit <hôte> --tags security` (PR, puis
-   merge : la CI redéploie). devsec remet ses listes par défaut ; sa tâche de
-   clés d'hôte recrée une clé RSA (nouvelle empreinte) et ECDSA reste absente
-   (`Unable to load host key`, sans effet) : `sudo ssh-keygen -A` la recrée.
-   Ni l'une ni l'autre n'est épinglée dans `ansible/known_hosts`.
+   merge : la CI redéploie). devsec remet ses listes par défaut ; sans
+   `ssh-keygen -A`, sa tâche de clés d'hôte échoue sur la clé ECDSA absente
+   (`file (/etc/ssh/ssh_host_ecdsa_key) is absent, cannot continue` : elle
+   règle droits et propriétaire de rsa, ecdsa et ed25519 sans les créer). Ni
+   RSA ni ECDSA n'est épinglée dans `ansible/known_hosts`.
 
 ## Vérification
 

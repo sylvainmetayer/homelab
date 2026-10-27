@@ -76,8 +76,8 @@ security_ssh_macs:
 # ansible/known_hosts (Ansible, CI, bastion). Tout client qui passe l'échange
 # de clés ci-dessus connaît ed25519 : RSA n'apporterait aucun client, et
 # resterait en 3072 bits (passer à 4096 changerait son empreinte). Jamais vide :
-# tasks/devsec.yml supprime toute clé d'hôte absente de cette liste.
-# Les autres clés de /etc/ssh (RSA, ECDSA) sont supprimées (tasks/devsec.yml).
+# tasks/devsec.yml supprime de /etc/ssh toute clé d'hôte absente de cette
+# liste (RSA, ECDSA).
 security_ssh_host_keys:
   - /etc/ssh/ssh_host_ed25519_key
 # Algorithmes de clé d'hôte, de clé utilisateur et de signature de CA acceptés,
