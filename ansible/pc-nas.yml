@@ -2,8 +2,10 @@
 # Monte un dossier partagé du NAS en SMB sur ce poste, le temps d'un test :
 # rien dans /etc/fstab, rien ne survit à un reboot. Le mot de passe passe à
 # mount.cifs par un fichier credentials= en 0600, propriété de root, sous /run
-# (tmpfs : jamais sur disque), supprimé juste après le montage, même en cas
-# d'échec. Ni variable PASSWD (Ansible préfixe l'environnement à la ligne de
+# (tmpfs), écrit par un module command en pipelining (le mot de passe ne
+# touche jamais le disque, pas même ~/.ansible/tmp), supprimé juste après le
+# montage, même en cas d'échec (pas sur un Ctrl-C : il reste alors dans /run,
+# root seul, jusqu'au reboot). Ni variable PASSWD (Ansible préfixe l'environnement à la ligne de
 # commande, lisible dans `ps` et journalisée dans run.log en -vvv), ni
 # PASSWD_FILE=/dev/stdin (le NAS refusait la session : STATUS_LOGON_FAILURE
 # avec un mot de passe que smbclient acceptait).
@@ -21,6 +23,9 @@
   connection: local
   gather_facts: false
   vars:
+    # Arguments des modules (le mot de passe compris) passés par un pipe à
+    # Python, jamais écrits dans un AnsiballZ_*.py de ~/.ansible/tmp.
+    ansible_pipelining: true
     pc_nas_host: "{{ hostvars['nas'].ansible_host }}"
     pc_nas_share: media
     pc_nas_user: sylvain
@@ -62,6 +67,8 @@
         # au nom du compte SMB (uid 1000), que Jellyfin lit.
         - name: Mount the share without touching fstab
           become: true
+          # tempfile ne tourne pas en --check : pas de chemin à écrire.
+          when: not ansible_check_mode
           block:
             - name: Create a private credentials file in /run
               ansible.builtin.tempfile:
@@ -70,16 +77,21 @@
                 suffix: .cred
               register: pc_nas_credentials
 
+            # Pas de copy content= : il dépose le contenu dans des fichiers
+            # de ~/.ansible/tmp (sur disque) avant de le déplacer. Le module
+            # command, en pipelining, reçoit le mot de passe par un pipe.
+            # tempfile a créé le fichier en 0600 ; cat le tronque sans
+            # changer son mode.
             - name: Write the SMB credentials
-              ansible.builtin.copy:
-                dest: "{{ pc_nas_credentials.path }}"
-                content: |
+              ansible.builtin.command:
+                argv: [sh, -c, 'cat > "$1"', sh, "{{ pc_nas_credentials.path }}"]
+                stdin: |-
                   username={{ pc_nas_user }}
                   password={{ pc_nas_password.user_input }}
-                mode: "0600"
               no_log: true
+              changed_when: true
 
-            - name: Mount the share
+            - name: Run mount.cifs with the credentials file
               ansible.builtin.command:
                 argv:
                   - mount
