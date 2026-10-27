@@ -1,9 +1,12 @@
 ---
 # Monte un dossier partagé du NAS en SMB sur ce poste, le temps d'un test :
 # rien dans /etc/fstab, rien ne survit à un reboot. Le mot de passe passe à
-# mount.cifs par son entrée standard (PASSWD_FILE=/dev/stdin), jamais par une
-# variable PASSWD : Ansible préfixe l'environnement à la ligne de commande,
-# lisible dans `ps` et journalisée dans run.log en -vvv.
+# mount.cifs par un fichier credentials= en 0600, propriété de root, sous /run
+# (tmpfs : jamais sur disque), supprimé juste après le montage, même en cas
+# d'échec. Ni variable PASSWD (Ansible préfixe l'environnement à la ligne de
+# commande, lisible dans `ps` et journalisée dans run.log en -vvv), ni
+# PASSWD_FILE=/dev/stdin (le NAS refusait la session : STATUS_LOGON_FAILURE
+# avec un mot de passe que smbclient acceptait).
 #
 #   ansible-playbook pc-nas.yml -K --tags mount [-e pc_nas_share=media]
 #   ansible-playbook pc-nas.yml -K --tags umount [-e pc_nas_share=media]
@@ -23,7 +26,6 @@
     pc_nas_user: sylvain
     pc_nas_mount_path: "/mnt/nas/{{ pc_nas_share }}"
     pc_nas_mount_options:
-      - "username={{ pc_nas_user }}"
       - "uid={{ lookup('ansible.builtin.pipe', 'id -u') }}"
       - "gid={{ lookup('ansible.builtin.pipe', 'id -g') }}"
       - file_mode=0644
@@ -60,29 +62,41 @@
         # au nom du compte SMB (uid 1000), que Jellyfin lit.
         - name: Mount the share without touching fstab
           become: true
-          ansible.builtin.command:
-            argv:
-              - mount
-              - -t
-              - cifs
-              - "//{{ pc_nas_host }}/{{ pc_nas_share }}"
-              - "{{ pc_nas_mount_path }}"
-              - -o
-              - "{{ pc_nas_mount_options | join(',') }}"
-            stdin: "{{ pc_nas_password.user_input }}"
-          environment:
-            PASSWD_FILE: /dev/stdin
-          # no_log masque le mot de passe des arguments du module, et avec
-          # lui l'erreur de mount : elle est rendue par la tâche suivante.
-          no_log: true
-          register: pc_nas_mount
-          failed_when: false
-          changed_when: pc_nas_mount.rc == 0
+          block:
+            - name: Create a private credentials file in /run
+              ansible.builtin.tempfile:
+                path: /run
+                prefix: pc-nas-
+                suffix: .cred
+              register: pc_nas_credentials
 
-        - name: Report a failed mount
-          when: pc_nas_mount.rc != 0
-          ansible.builtin.fail:
-            msg: "mount a échoué ({{ pc_nas_mount.rc }}) : {{ pc_nas_mount.stderr }}"
+            - name: Write the SMB credentials
+              ansible.builtin.copy:
+                dest: "{{ pc_nas_credentials.path }}"
+                content: |
+                  username={{ pc_nas_user }}
+                  password={{ pc_nas_password.user_input }}
+                mode: "0600"
+              no_log: true
+
+            - name: Mount the share
+              ansible.builtin.command:
+                argv:
+                  - mount
+                  - -t
+                  - cifs
+                  - "//{{ pc_nas_host }}/{{ pc_nas_share }}"
+                  - "{{ pc_nas_mount_path }}"
+                  - -o
+                  - "{{ (pc_nas_mount_options + ['credentials=' ~ pc_nas_credentials.path]) | join(',') }}"
+              register: pc_nas_mount
+              changed_when: true
+          always:
+            - name: Remove the credentials file
+              when: pc_nas_credentials.path is defined
+              ansible.builtin.file:
+                path: "{{ pc_nas_credentials.path }}"
+                state: absent
 
     - name: Unmount the share
       tags: [umount, never]
