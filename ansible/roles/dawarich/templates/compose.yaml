@@ -53,7 +53,7 @@ services:
     # Redis au `compose stop` de dc@.
     mem_limit: 2g
     stop_grace_period: 60s
-    image: freikin/dawarich:1.17.0@sha256:207dc86f8baa8fcf5b585f31186bf81b55added9c102a96f308d640e964ea60f
+    image: freikin/dawarich:1.18.1@sha256:a2b93286a973b2e4b55d6a1ebd8009a65b8624639687ca95e909d0aac27324f5
     container_name: dawarich-app
     restart: unless-stopped
     stdin_open: true
