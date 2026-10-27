@@ -15,7 +15,12 @@ Rappels :
   checks `Ansible lint`, `OpenTofu lint`, `Tests`, `CI lint`. Le rôle admin
   peut contourner.
 - Les runs sont sérialisés (`concurrency: deploy-docker-app`) : le VPN OLM
-  refuse deux connexions avec les mêmes identifiants.
+  refuse deux connexions avec les mêmes identifiants. GitHub ne garde qu'**un**
+  run en attente par groupe : plusieurs merges à la suite annulent les runs
+  intermédiaires (« cancelled »). Ce n'est pas une perte : chaque run déploie
+  tout ce qui a changé depuis le dernier run de push **réussi**, donc le
+  suivant rattrape un run annulé ou rouge (et rejoue ce qui était passé, sans
+  effet puisque les rôles sont idempotents).
 
 ## Symptôme
 
