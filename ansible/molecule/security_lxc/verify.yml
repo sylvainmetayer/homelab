@@ -37,3 +37,6 @@
           - lxc_sshd.stdout is search('^allowusers sylvain$', multiline=True)
           - lxc_sshd.stdout is search('^passwordauthentication no$', multiline=True)
           - lxc_uu.results | map(attribute='stat.exists') | list == [true, true]
+
+    - name: Audit sshd with ssh-audit
+      ansible.builtin.import_tasks: ../security/tasks/verify_ssh_audit.yml
