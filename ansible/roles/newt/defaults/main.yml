@@ -27,6 +27,10 @@ newt_mem_limit: 256m
 # autre chose que containers/<id>/json, refusé à chaque liste) et de newt
 # (« Failed to list Docker containers »). Une montée de newt doit
 # relire docker/docker.go.
+# Le flux d'événements de newt 1.19.0 ne se reconnecte qu'une fois, puis
+# s'arrête : si le proxy redémarre seul (OOM, docker restart
+# newt-socket-proxy), la liste de Pangolin ne suit plus les start/stop jusqu'au
+# redémarrage de dc@newt (la récupération à la demande, elle, marche encore).
 newt_socket_proxy_allow_get: >-
   /(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)
 newt_socket_proxy_allow_head: >-
