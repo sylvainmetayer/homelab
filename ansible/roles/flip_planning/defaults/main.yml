@@ -84,12 +84,14 @@ flip_planning_db_password: ""
 # demo_planning_mcp_api_key); never a flip_planning_* key in secrets.sops.yaml,
 # which would beat that override.
 flip_planning_mcp_api_key: ""
-# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token_id /
-# demo_planning_mcp_pangolin_access_token_id); never a flip_planning_* key in secrets.sops.yaml,
+# Sensitive: passed by flip.yml to the production instance only
+# (prod_planning_mcp_pangolin_access_token_id; the demos have no Pangolin MCP
+# token (#763), the role default leaves it empty); never a flip_planning_* key in secrets.sops.yaml,
 # which would beat that override.
 flip_planning_mcp_pangolin_access_token_id: ""
-# Sensitive: passed per instance by flip.yml (prod_planning_mcp_pangolin_access_token /
-# demo_planning_mcp_pangolin_access_token); never a flip_planning_* key in secrets.sops.yaml,
+# Sensitive: passed by flip.yml to the production instance only
+# (prod_planning_mcp_pangolin_access_token; the demos have no Pangolin MCP
+# token (#763), the role default leaves it empty); never a flip_planning_* key in secrets.sops.yaml,
 # which would beat that override.
 flip_planning_mcp_pangolin_access_token: ""
 
