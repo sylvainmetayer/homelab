@@ -27,8 +27,8 @@ services:
       # se fait par SMB.
       - {{ jellyfin_media_path }}:/media:ro
     # Secours en HTTP simple sur le LAN, sans cast (il exige HTTPS) : l'adresse
-    # à utiliser partout, cast compris, est https://{{ jellyfin_domain }}:{{ jellyfin_https_port }},
-    # par Traefik (docs/media.md).
+    # à utiliser partout, cast compris, est https://media.sylvain.cloud:8443,
+    # par le Traefik du NAS (rôle nas_proxy, docs/media.md).
     ports:
       - "{{ jellyfin_port }}:8096"
     restart: unless-stopped
@@ -38,69 +38,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Réseau privé du projet, partagé avec Traefik seul ; pas internal :
-    # Jellyfin y a Internet pour les métadonnées. Plus sur newt : le Newt du NAS
-    # ne joint que Traefik (443).
+    # Réseau privé du projet, partagé avec le Traefik du NAS seul ; pas
+    # internal : Jellyfin y a Internet pour les métadonnées. Pas sur newt : le
+    # Newt du NAS ne joint que Traefik.
     networks:
       - media
 
-  traefik:
-    image: docker.io/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
-    container_name: jellyfin-traefik
-    mem_limit: {{ jellyfin_traefik_mem_limit }}
-    # Root dans le conteneur (propriétaire d'acme.json), sans autre capacité que
-    # celle d'écouter sur 443.
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
-    # Le log d'accès va sur stdout : rotation ici, le Docker d'UGOS n'a pas la
-    # rotation json-file posée ailleurs par geerlingguy.docker.
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
-    command:
-      - --configFile=/etc/traefik/traefik.yml
-    environment:
-      - TZ=Europe/Paris
-      # DNS-01 par l'API OVH (lego) : clé restreinte à la zone sylvain.cloud.
-      - OVH_ENDPOINT={{ jellyfin_ovh_endpoint }}
-      - OVH_APPLICATION_KEY={{ jellyfin_ovh_application_key }}
-      - OVH_APPLICATION_SECRET={{ jellyfin_ovh_application_secret }}
-      - OVH_CONSUMER_KEY={{ jellyfin_ovh_consumer_key }}
-    volumes:
-      # Le dossier, pas les fichiers : Ansible remplace un fichier par un
-      # nouvel inode, qu'un montage de fichier ne verrait jamais.
-      - ./traefik/config:/etc/traefik:ro
-      - ./traefik/acme:/letsencrypt
-    # LAN : https://{{ jellyfin_domain }}:{{ jellyfin_https_port }} (80 et 443
-    # de l'hôte sont au nginx d'UGOS), même port dans le conteneur. Pangolin,
-    # lui, vise ce port et le 443 du conteneur sur le réseau newt.
-    ports:
-      - "{{ jellyfin_https_port }}:{{ jellyfin_https_port }}"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--configFile=/etc/traefik/traefik.yml"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    # newt : joint par le Newt du NAS (ressource privée media.sylvain.cloud) et
-    # route vers Internet (Let's Encrypt, API OVH). media : vers Jellyfin, à IP
-    # fixe pour les « Proxys connus » de Jellyfin.
-    networks:
-      newt: {}
-      media:
-        ipv4_address: {{ jellyfin_traefik_ip }}
-
+# Créé ici (jellyfin_media pour Docker), rejoint en externe par le Traefik du
+# NAS (rôle nas_proxy) à IP fixe : son nom et son sous-réseau ne changent pas.
 networks:
-  newt:
-    external: true
   media:
     ipam:
       config:

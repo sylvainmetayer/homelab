@@ -24,49 +24,26 @@ jellyfin_media_folders:
 # périphérique (render sur le NAS), gid lu sur le périphérique au déploiement.
 jellyfin_render_device: /dev/dri/renderD128
 
-# Publié sur le LAN, en secours seulement (Traefik en panne, certificat
-# expiré) : HTTP simple, sans cast. Le cast exige HTTPS de bout en bout (Chrome
+# Publié sur le LAN, en secours seulement (Traefik du NAS en panne,
+# certificat expiré) : HTTP simple, sans cast. Le cast exige HTTPS de bout en bout (Chrome
 # n'offre Google Cast que sur une origine sécurisée, et le récepteur Chromecast
 # de Jellyfin, page HTTPS, ne lit pas un flux HTTP). Toutes les applis, TV
-# comprise, se règlent sur https://media.sylvain.cloud:8443 (docs/media.md).
+# comprise, se règlent sur https://media.sylvain.cloud:8443, servi par le
+# Traefik du NAS (rôle nas_proxy, docs/media.md).
 jellyfin_port: 8096
 # Provisoire : à recaler à ~2x memory.peak après une semaine d'usage.
 jellyfin_mem_limit: 3g
 
-# --- Traefik devant Jellyfin : https://media.sylvain.cloud ---
-# Une seule adresse en LAN et par le client Pangolin. Le A public
-# media.sylvain.cloud vise l'IP LAN du NAS (tofu/dns/media.tf), et la ressource
-# privée Pangolin du même nom vise ce Traefik sur le réseau newt, en 443 et 8443
-# (tofu/pangolin_config/private_resources.tf). Certificat Let's Encrypt par
-# DNS-01 OVH : rien n'a besoin d'être joignable depuis Internet.
-jellyfin_domain: media.sylvain.cloud
-# Port de l'hôte NAS : 80 et 443 appartiennent au nginx d'UGOS (redirections
-# vers son interface, 9999 et 9443). Traefik écoute sur ce port dans le
-# conteneur aussi : https://media.sylvain.cloud:8443 en LAN comme par Pangolin
-# (tcp_port_range "443,8443", que tofu/pangolin_config/tests vérifie contre
-# cette ligne), et sans numéro de port par Pangolin (443 du conteneur).
-jellyfin_https_port: 8443
-jellyfin_acme_email: "{{ pangolin_le_email }}"
-# Clé OVH dédiée au DNS-01, restreinte aux trois appels que fait lego (ajout du
-# TXT, rafraîchissement de la zone, suppression du TXT), créée sur
-# https://eu.api.ovh.com/createToken/?POST=/domain/zone/sylvain.cloud/record&POST=/domain/zone/sylvain.cloud/refresh&DELETE=/domain/zone/sylvain.cloud/record/*
-# Clés SOPS préfixées nas_ovh_*, jamais le nom d'une variable du rôle.
-jellyfin_ovh_endpoint: ovh-eu
-jellyfin_ovh_application_key: "{{ nas_ovh_application_key }}"
-jellyfin_ovh_application_secret: "{{ nas_ovh_application_secret }}"
-jellyfin_ovh_consumer_key: "{{ nas_ovh_consumer_key }}"
-# Réseau privé entre Traefik et Jellyfin, à sous-réseau fixe : Traefik y a une
-# IP fixe, celle à saisir dans Jellyfin (Tableau de bord, Réseau, « Proxys
-# connus ») pour qu'il croie ses X-Forwarded-*. Hors des réseaux déjà pris sur
-# le NAS (bridge 172.17, newt 172.18, virbr 192.100).
+# Réseau privé du projet, à sous-réseau fixe (Compose le nomme jellyfin_media),
+# que rejoint le Traefik du NAS (rôle nas_proxy) à IP fixe dans ce sous-réseau
+# (nas_proxy_media_ip, 172.30.96.10, saisie dans les « Proxys connus » de
+# Jellyfin). Créé par ce projet, externe pour nas_proxy. Hors des réseaux déjà
+# pris sur le NAS (bridge 172.17, newt 172.18, virbr 192.100).
 jellyfin_proxy_subnet: 172.30.96.0/24
-jellyfin_traefik_ip: 172.30.96.10
-jellyfin_traefik_mem_limit: 256m
-
 # --- Sauvegarde (rôle borgmatic, tasks/app.yml ; borgmatic en conteneur sur
-# le NAS) : configuration, base SQLite copiée à froid par « .backup », Traefik
-# (certificat) et compose. Ni le cache ni les médias : ceux-ci n'ont que les
-# instantanés d'UGOS.
+# le NAS) : configuration, base SQLite copiée à froid par « .backup », compose.
+# Ni le certificat (nas_proxy, régénérable), ni le cache, ni les médias : ceux-ci
+# n'ont que les instantanés d'UGOS.
 jellyfin_backup_enabled: true
 jellyfin_backup_borgmatic_target: "{{ backup_storage_box_url }}/jellyfin"
 jellyfin_backup_encryption_passphrase: "{{ backup_passphrase }}"

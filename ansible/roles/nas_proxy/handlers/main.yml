@@ -1,0 +1,7 @@
+---
+- name: Restart nas_proxy
+  become: "{{ docker_service_scope == 'system' }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ nas_proxy_service }}"
+    scope: "{{ docker_service_scope }}"
+    state: restarted

@@ -66,14 +66,21 @@
       tags: [decommission, never]
     # Connecteur du site Pangolin nas, sous dc@newt (unité système) : il sert
     # media.sylvain.cloud aux clients Pangolin, par le réseau Docker newt qu'il
-    # crée et que rejoint le Traefik de Jellyfin.
+    # crée et que rejoint le Traefik du NAS (nas_proxy).
     - role: newt
       tags: newt
     # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
-    # media en lecture seule, derrière son Traefik : https://media.sylvain.cloud
-    # (:8443 en LAN, avec ou sans port par le client Pangolin). Ses
-    # vérifications (dossier partagé, Quick Sync) ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
-    # Le réseau newt est créé par dc@newt : sur un NAS neuf, --tags newt avant
-    # un --tags jellyfin seul, sinon dc@jellyfin réessaie toutes les 15 s.
+    # media en lecture seule, derrière le Traefik du NAS (nas_proxy) :
+    # https://media.sylvain.cloud (:8443 en LAN, avec ou sans port par le
+    # client Pangolin). Ses vérifications (dossier partagé, Quick Sync) ne
+    # tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     - role: jellyfin
       tags: jellyfin,app
+    # Traefik du NAS sous dc@nas_proxy (unité système) : TLS (Let's Encrypt,
+    # DNS-01 OVH) de media.sylvain.cloud et nas.sylvain.cloud (interface
+    # d'UGOS), en :8443 sur le LAN. Après jellyfin : il rejoint en externe le
+    # réseau media que crée dc@jellyfin, et newt, créé par dc@newt. Sur un NAS
+    # neuf, --tags newt,jellyfin avant un --tags nas_proxy seul, sinon
+    # dc@nas_proxy réessaie toutes les 15 s.
+    - role: nas_proxy
+      tags: nas_proxy,app

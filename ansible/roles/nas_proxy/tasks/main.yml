@@ -1,0 +1,118 @@
+---
+# Le NAS seul : dc@ système, exécuté en root (host_vars/nas), comme les
+# fichiers de Traefik (root dans le conteneur).
+- name: Refuse to run outside a system-scope dc@ host
+  ansible.builtin.assert:
+    that:
+      - docker_service_scope | default('user') == 'system'
+    fail_msg: "nas_proxy ne tourne que sur le NAS (docker_service_scope: system, host_vars/nas)."
+    quiet: true
+
+# Migration : le Traefik de l'ancien compose de jellyfin tient le 8443 et
+# l'IP {{ nas_proxy_media_ip }} tant qu'il existe. Le redémarrage de
+# dc@jellyfin (rôle jellyfin, avant celui-ci dans nas.yml, handlers vidés à
+# sa fin) le retire (up --remove-orphans), mais après que systemctl a rendu la
+# main (Type=simple) : attente bornée. Échoue si --tags jellyfin n'est pas
+# passé avant. Sautée en --check, où rien n'est redémarré.
+- name: Wait for the Traefik of the old jellyfin compose to be removed (run --tags jellyfin first)
+  when: not ansible_check_mode
+  become: true
+  ansible.builtin.command:
+    argv: [docker, ps, --all, --quiet, --filter, "name=^{{ nas_proxy_legacy_container }}$"]
+  register: nas_proxy_legacy_ids
+  changed_when: false
+  until: nas_proxy_legacy_ids.stdout | length == 0
+  retries: 12
+  delay: 5
+
+# Configuration et certificat à root (root dans le conteneur, sans
+# CAP_DAC_OVERRIDE), sur le disque du NAS, jamais sur NFS. Rien de secret dans
+# les deux fichiers de configuration (les identifiants OVH sont dans le
+# compose), mais acme.json porte les clés privées des certificats.
+- name: Ensure the nas_proxy folders exist
+  become: true
+  loop:
+    - "{{ nas_proxy_base_path }}"
+    - "{{ nas_proxy_base_path }}/config"
+    - "{{ nas_proxy_base_path }}/acme"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Migration : reprend les certificats de l'ancien Traefik (même résolveur),
+# jamais par-dessus un acme.json déjà là, puis supprime son dossier.
+- name: Stat the ACME storage of the old jellyfin Traefik
+  become: true
+  ansible.builtin.stat:
+    path: "{{ nas_proxy_legacy_path }}/acme/acme.json"
+  register: nas_proxy_legacy_acme
+
+- name: Take over the certificates of the old jellyfin Traefik
+  when: nas_proxy_legacy_acme.stat.exists
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    src: "{{ nas_proxy_legacy_path }}/acme/acme.json"
+    dest: "{{ nas_proxy_base_path }}/acme/acme.json"
+    remote_src: true
+    force: false
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Remove the folder of the old jellyfin Traefik
+  become: true
+  ansible.builtin.file:
+    path: "{{ nas_proxy_legacy_path }}"
+    state: absent
+
+# Traefik refuse un acme.json qui n'est pas en 0600. Créé vide une fois, puis
+# laissé à Traefik : touch ne change jamais le contenu (dates préservées,
+# idempotent), mais repose propriétaire et mode à chaque passage.
+- name: Ensure the ACME storage exists with mode 0600
+  become: true
+  ansible.builtin.file:
+    path: "{{ nas_proxy_base_path }}/acme/acme.json"
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Template the Traefik configuration
+  become: true
+  diff: false
+  notify: Restart nas_proxy
+  loop: [traefik.yml, dynamic.yml]
+  ansible.builtin.template:
+    src: "templates/{{ item }}"
+    dest: "{{ nas_proxy_base_path }}/config/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Template the nas_proxy compose configuration
+  become: true
+  diff: false
+  notify: Restart nas_proxy
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ nas_proxy_base_path }}/compose.yaml"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Unité système (/etc/systemd/system/dc@.service posée par docker_service
+# dans nas.yml).
+- name: Make sure the nas_proxy service is running
+  become: "{{ docker_service_scope == 'system' }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ nas_proxy_service }}"
+    scope: "{{ docker_service_scope }}"
+    state: started
+    enabled: true
+    daemon_reload: true

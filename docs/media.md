@@ -16,7 +16,8 @@ se lisent sans transcodage.
 
 Pourquoi deux ports : sur le NAS, les ports 80 et 443 appartiennent au nginx
 d'UGOS (il redirige vers son interface d'administration), et rien ne doit y
-toucher. Le Traefik qui sert Jellyfin en HTTPS écoute donc sur **8443** du NAS.
+toucher. Le Traefik du NAS (rôle `nas_proxy`), qui sert Jellyfin en HTTPS,
+écoute donc sur **8443** du NAS.
 Dehors, le client Pangolin passe par le Newt du NAS, qui joint ce Traefik
 directement dans Docker, sur son 443 comme sur son 8443 : sans port, l'adresse
 ne marche que par Pangolin, alors qu'avec `:8443` elle marche dans les deux cas.
@@ -58,7 +59,7 @@ ansible-playbook pc-nas.yml -K --tags umount   # démonte
 
 `-K` demande le mot de passe sudo du PC, puis le playbook demande le mot de
 passe SMB du compte UGOS. Ça marche aussi dehors, client Pangolin connecté
-(ressource `nas.internal`). Le montage ne survit pas à un redémarrage.
+(ressource `nas.sylvain.cloud`). Le montage ne survit pas à un redémarrage.
 
 **Jamais par le gestionnaire de fichiers web d'UGOS** : il réécrit les
 permissions des fichiers en `0600`, et Jellyfin peut ne plus les lire.
@@ -324,7 +325,7 @@ matériel, et `top` sur le NAS ne doit pas montrer `ffmpeg` à 400 %.
   `http://192.168.1.137:8096`. Si elle répond, c'est Traefik ; ses erreurs
   (requêtes en 4xx/5xx, à l'heure locale, sans paramètres ni en-têtes, donc
   sans jeton ; seule exception, une révocation de clé d'API qui échoue laisse
-  la clé dans le chemin) sont dans `sudo docker logs jellyfin-traefik` sur le
-  NAS.
+  la clé dans le chemin) sont dans `sudo docker logs nas-proxy` sur le NAS
+  (unité `dc@nas_proxy`).
 - Plus rien ne répond : `systemctl status dc@jellyfin` sur le NAS (unité
   système), et le runbook [appli en panne](runbooks/appli-en-panne.md).

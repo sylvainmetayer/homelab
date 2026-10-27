@@ -34,8 +34,9 @@ flowchart LR
     end
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
     subgraph nas["NAS Ugreen (192.168.1.137)"]
-      newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt, 443 et 8443" --> traefik_nas["jellyfin-traefik<br/>(media.sylvain.cloud, privé)"]
+      newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt, 443 et 8443" --> traefik_nas["nas-proxy (dc@nas_proxy)<br/>media. et nas.sylvain.cloud, privés"]
       traefik_nas -- "réseau privé media" --> jellyfin[jellyfin]
+      traefik_nas -- "IP LAN, 9999" --> ugos[interface d'UGOS]
     end
   end
 
@@ -70,9 +71,13 @@ Kuma) est déclaré dans `tofu/pangolin_config/`, une entrée de
 Une exception, Jellyfin sur le NAS, qui n'est pas public : une seule adresse,
 `https://media.sylvain.cloud`, sans rien exposer sur Internet. Le A public
 `media.sylvain.cloud` (`tofu/dns/media.tf`) vise l'IP **LAN** du NAS et prime
-sur le joker `*.sylvain.cloud`. Un Traefik propre au NAS (`jellyfin-traefik`,
-dans le compose du rôle `jellyfin`) termine le TLS avec un certificat Let's
-Encrypt obtenu par DNS-01 OVH, puis passe à Jellyfin.
+sur le joker `*.sylvain.cloud`. Un Traefik propre au NAS (`nas-proxy`, rôle
+`nas_proxy`, unité `dc@nas_proxy`) termine le TLS avec un certificat Let's
+Encrypt obtenu par DNS-01 OVH, puis passe à Jellyfin. Il sert de même
+l'interface d'UGOS : `https://nas.sylvain.cloud:8443` (A public vers l'IP LAN
+du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
+(ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
+du NAS en TCP 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
 
 - En LAN : `https://media.sylvain.cloud:8443` (80 et 443 du NAS appartiennent
   au nginx d'UGOS). Repli : `http://192.168.1.137:8096`.

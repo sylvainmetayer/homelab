@@ -1,0 +1,53 @@
+---
+# Traefik du NAS (nas.yml), sous dc@nas_proxy en unité système
+# (docker_service_scope: system, host_vars/nas) : le TLS des noms du NAS,
+# https://media.sylvain.cloud (Jellyfin) et https://nas.sylvain.cloud
+# (interface d'UGOS). Chaque nom a un A public vers l'IP LAN du NAS
+# (tofu/dns/media.tf, nas.tf) et un certificat Let's Encrypt par DNS-01 OVH :
+# rien n'a besoin d'être joignable depuis Internet.
+nas_proxy_service: nas_proxy
+nas_proxy_base_path: "{{ docker_base_path }}/{{ nas_proxy_service }}"
+# Ce que vise la ressource privée Pangolin media.sylvain.cloud sur le réseau
+# newt (tofu/pangolin_config/private_resources.tf, vérifié par ses tests).
+nas_proxy_container_name: nas-proxy
+# Port de l'hôte NAS : 80 et 443 appartiennent au nginx d'UGOS (redirections
+# vers son interface, 9999 et 9443). Traefik écoute sur ce port dans le
+# conteneur aussi : https://<nom>:8443 en LAN comme par Pangolin (ressources
+# media.sylvain.cloud et nas.sylvain.cloud, tcp_port_range, que
+# tofu/pangolin_config/tests vérifie contre cette ligne).
+nas_proxy_https_port: 8443
+nas_proxy_acme_email: "{{ pangolin_le_email }}"
+# Clé OVH dédiée au DNS-01, restreinte aux trois appels que fait lego (ajout du
+# TXT, rafraîchissement de la zone, suppression du TXT), créée sur
+# https://eu.api.ovh.com/createToken/?POST=/domain/zone/sylvain.cloud/record&POST=/domain/zone/sylvain.cloud/refresh&DELETE=/domain/zone/sylvain.cloud/record/*
+# Clés SOPS préfixées nas_ovh_*, jamais le nom d'une variable du rôle.
+nas_proxy_ovh_endpoint: ovh-eu
+nas_proxy_ovh_application_key: "{{ nas_ovh_application_key }}"
+nas_proxy_ovh_application_secret: "{{ nas_ovh_application_secret }}"
+nas_proxy_ovh_consumer_key: "{{ nas_ovh_consumer_key }}"
+nas_proxy_mem_limit: 256m
+
+# --- Jellyfin : https://media.sylvain.cloud ---
+nas_proxy_media_domain: media.sylvain.cloud
+nas_proxy_media_url: http://jellyfin:8096
+# Le réseau privé du projet jellyfin, qui le crée (réseau `media` de son
+# compose, nommé jellyfin_media par Compose) : Traefik le rejoint en externe,
+# à IP fixe dans son sous-réseau (jellyfin_proxy_subnet). Cette IP est celle
+# saisie dans Jellyfin (Tableau de bord, Réseau, « Proxys connus ») pour qu'il
+# croie ses X-Forwarded-* : ne pas la changer sans la changer là-bas.
+nas_proxy_media_network: jellyfin_media
+nas_proxy_media_ip: 172.30.96.10
+
+# --- Interface d'UGOS : https://nas.sylvain.cloud ---
+# Le nginx d'UGOS, joint depuis le conteneur par l'IP LAN de l'hôte (testé :
+# 307 vers /desktop/, chemins relatifs, Host d'origine accepté).
+nas_proxy_ugos_domain: nas.sylvain.cloud
+nas_proxy_ugos_url: "http://{{ ansible_host }}:9999"
+
+# --- Migration depuis le Traefik du compose de jellyfin (27/10/2026) ---
+# Son acme.json est repris tel quel (même résolveur, letsencrypt) : pas de
+# nouveau certificat pour media.sylvain.cloud, ni de minute en certificat
+# autosigné au basculement. Le dossier est supprimé une fois repris. À retirer
+# avec les tâches de migration une fois nas.yml passé sur le NAS.
+nas_proxy_legacy_path: "{{ docker_base_path }}/jellyfin/traefik"
+nas_proxy_legacy_container: jellyfin-traefik

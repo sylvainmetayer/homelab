@@ -67,17 +67,23 @@ resource "pangolin_site_resource" "proxmox" {
   udp_port_range = "*"
 }
 
-# NAS web UI (HTTP, 9999), private for the same reason: it never had TLS.
-# SMB (445) too, for the workstation's ad hoc mounts (ansible/pc-nas.yml):
-# with the Pangolin client connected, 192.168.1.137 is routed here.
+# NAS web UI, private for the same reason: https://nas.sylvain.cloud:8443, the
+# NAS's Traefik (ansible/roles/nas_proxy, nas_proxy_https_port) in front of
+# UGOS's nginx on 9999. The alias is the public name whose A record
+# (tofu/dns/nas.tf) points at the NAS's LAN IP: one URL at home and through a
+# Pangolin client, and the Let's Encrypt certificate holds on both paths
+# (Traefik picks it by SNI, whatever IP it was reached on). Plain HTTP on 9999
+# stays open as the fallback (Traefik down). SMB (445) too, for the
+# workstation's ad hoc mounts (ansible/pc-nas.yml): with the Pangolin client
+# connected, 192.168.1.137 is routed here. No binding: Admin only.
 resource "pangolin_site_resource" "nas" {
   site_id        = pangolin_site.proxmox_lxc.id
   name           = "NAS"
   mode           = "host"
-  alias          = "nas.internal"
+  alias          = "nas.sylvain.cloud"
   destination    = "192.168.1.137"
   disable_icmp   = true
-  tcp_port_range = "445,9999"
+  tcp_port_range = "445,8443,9999"
   udp_port_range = "*"
 }
 
@@ -108,12 +114,12 @@ resource "pangolin_site_resource" "flip" {
 # sur le port 8443, 443 étant pris par le nginx d'UGOS ; repli
 # http://192.168.1.137:8096). L'alias est le nom public dont le A (tofu/dns,
 # media.tf) vise l'IP LAN du NAS : le client Pangolin le résout vers la
-# ressource, et le certificat Let's Encrypt du Traefik du NAS vaut pour les
-# deux chemins. Servi par le Newt du NAS, qui joint ce Traefik par son nom de
-# conteneur sur le réseau Docker newt qu'ils partagent : aucune ressource
-# publique. TCP 443 et 8443 seuls (Jellyfin n'est plus joignable en direct par
-# Pangolin) : 8443, l'entrée LAN de Traefik (jellyfin_https_port), y est
-# ouvert aussi, pour qu'une appli réglée sur https://media.sylvain.cloud:8443 à
+# ressource, et le certificat Let's Encrypt du Traefik du NAS (rôle nas_proxy)
+# vaut pour les deux chemins. Servi par le Newt du NAS, qui joint ce Traefik
+# par son nom de conteneur sur le réseau Docker newt qu'ils partagent : aucune
+# ressource publique. TCP 443 et 8443 seuls (Jellyfin n'est plus joignable en
+# direct par Pangolin) : 8443, l'entrée LAN de Traefik (nas_proxy_https_port),
+# y est ouvert aussi, pour qu'une appli réglée sur https://media.sylvain.cloud:8443 à
 # la maison marche encore dehors. UDP à "*" comme ailleurs (le provider ne
 # sait pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "jellyfin" {
@@ -121,7 +127,7 @@ resource "pangolin_site_resource" "jellyfin" {
   name           = "Jellyfin"
   mode           = "host"
   alias          = "media.sylvain.cloud"
-  destination    = "jellyfin-traefik"
+  destination    = "nas-proxy"
   disable_icmp   = true
   tcp_port_range = "443,8443"
   udp_port_range = "*"

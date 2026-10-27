@@ -1,0 +1,60 @@
+---
+# Configuration dynamique du Traefik du NAS : un routeur et un service par nom.
+# Traefik ajoute lui-même X-Forwarded-For/-Proto/-Host, garde le Host
+# d'origine et laisse passer les websockets.
+http:
+  routers:
+    # Jellyfin ne croit les X-Forwarded-* que de ses « Proxys connus » (l'IP
+    # fixe de Traefik sur le réseau media, {{ nas_proxy_media_ip }}, saisie
+    # dans son tableau de bord).
+    jellyfin:
+      # Le port ({{ nas_proxy_https_port }}) ne compte pas dans Host().
+      rule: "Host(`{{ nas_proxy_media_domain }}`)"
+      entryPoints:
+        - websecure
+        - websecure-lan
+      service: jellyfin
+      middlewares:
+        - jellyfin-headers
+      tls:
+        certResolver: letsencrypt
+
+    # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
+    # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443
+    # seul, le 443 du conteneur n'est joint que par le Newt du site nas
+    # (media.sylvain.cloud). L'interface suit l'origine de la page (redirections
+    # relatives, API sur location.origin) : ni réécriture ni Host forcé.
+    ugos:
+      rule: "Host(`{{ nas_proxy_ugos_domain }}`)"
+      entryPoints:
+        - websecure-lan
+      service: ugos
+      middlewares:
+        - ugos-headers
+      tls:
+        certResolver: letsencrypt
+
+  middlewares:
+    jellyfin-headers:
+      headers:
+        # HTTPS seul sur ce nom, aux deux ports ; sans includeSubdomains : les
+        # autres *.sylvain.cloud sont servis par Pangolin.
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        customFrameOptionsValue: SAMEORIGIN
+        referrerPolicy: same-origin
+    # HSTS seul : UGOS pose sa propre CSP (frame-src calé sur le Host reçu),
+    # et ses fenêtres sont des iframes de même origine.
+    ugos-headers:
+      headers:
+        stsSeconds: 31536000
+
+  services:
+    jellyfin:
+      loadBalancer:
+        servers:
+          - url: "{{ nas_proxy_media_url }}"
+    ugos:
+      loadBalancer:
+        servers:
+          - url: "{{ nas_proxy_ugos_url }}"

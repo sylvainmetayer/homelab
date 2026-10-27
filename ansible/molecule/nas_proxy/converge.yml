@@ -1,0 +1,15 @@
+---
+# Comme nas.yml : jellyfin (qui crée le réseau media) avant nas_proxy.
+- name: Converge
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  roles:
+    - role: docker_service
+    - role: jellyfin
+    - role: nas_proxy

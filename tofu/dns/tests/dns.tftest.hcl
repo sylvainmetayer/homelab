@@ -256,3 +256,20 @@ run "media_vers_le_nas" {
     error_message = "media.sylvain.cloud doit être un A vers l'IP LAN du NAS (ansible/inventory/hosts), jamais vers Pangolin."
   }
 }
+
+# nas.sylvain.cloud (interface d'UGOS, Traefik du NAS) de même : l'IP LAN du
+# NAS de l'inventaire, jamais Pangolin.
+run "nas_vers_le_nas" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.nas.zone == "sylvain.cloud"
+      && ovh_domain_zone_record.nas.subdomain == "nas"
+      && ovh_domain_zone_record.nas.fieldtype == "A"
+      && ovh_domain_zone_record.nas.target == ovh_domain_zone_record.media.target
+      && can(regex("(?m)^\\s*nas\\s+ansible_host=${replace(ovh_domain_zone_record.nas.target, ".", "\\.")}(\\s|$)", file("${path.module}/../../ansible/inventory/hosts")))
+    )
+    error_message = "nas.sylvain.cloud doit être un A vers l'IP LAN du NAS (ansible/inventory/hosts), comme media.sylvain.cloud, jamais vers Pangolin."
+  }
+}

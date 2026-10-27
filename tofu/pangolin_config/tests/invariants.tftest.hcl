@@ -2089,26 +2089,27 @@ run "nas_newt_credentials_and_media" {
     error_message = "nas_newt_id / nas_newt_secret doivent être ceux de pangolin_site.nas, lus tels quels par ansible/nas.yml."
   }
 
-  # Le Newt du NAS joint le Traefik de Jellyfin par son nom de conteneur sur le
-  # réseau newt (container_name du compose du rôle jellyfin), en TCP 443 et
-  # 8443 (jellyfin_https_port, l'entrée LAN de Traefik) seulement : Jellyfin
-  # lui-même (8096) n'est plus joignable par Pangolin. L'alias est le nom
-  # public dont le A vise l'IP LAN du NAS (tofu/dns), pour une seule URL en
-  # LAN et dehors.
+  # Le Newt du NAS joint le Traefik du NAS (rôle nas_proxy) par son nom de
+  # conteneur sur le réseau newt (nas_proxy_container_name, container_name de
+  # son compose), en TCP 443 et 8443 (nas_proxy_https_port, l'entrée LAN de
+  # Traefik) seulement : Jellyfin lui-même (8096) n'est plus joignable par
+  # Pangolin. L'alias est le nom public dont le A vise l'IP LAN du NAS
+  # (tofu/dns), pour une seule URL en LAN et dehors.
   assert {
     condition = (
       pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
       && pangolin_site_resource.jellyfin.mode == "host"
       && pangolin_site_resource.jellyfin.alias == "media.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/media.tf"), "subdomain = \"media\"")
-      && pangolin_site_resource.jellyfin.destination == "jellyfin-traefik"
-      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin-traefik\n")
+      && pangolin_site_resource.jellyfin.destination == "nas-proxy"
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_container_name: nas-proxy\n")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/templates/compose.yaml"), "container_name: {{ nas_proxy_container_name }}\n")
       && pangolin_site_resource.jellyfin.tcp_port_range == "443,8443"
-      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/defaults/main.yml"), "\njellyfin_https_port: 8443\n")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_https_port: 8443\n")
       && pangolin_site_resource.jellyfin.udp_port_range == "*"
       && pangolin_site_resource.jellyfin.disable_icmp == true
     )
-    error_message = "media.sylvain.cloud doit viser le conteneur jellyfin-traefik, sur le site nas, en TCP 443 et 8443 (jellyfin_https_port) seuls, ICMP coupé."
+    error_message = "media.sylvain.cloud doit viser le conteneur nas-proxy (nas_proxy_container_name), sur le site nas, en TCP 443 et 8443 (nas_proxy_https_port) seuls, ICMP coupé."
   }
 
   # Une ressource privée, jamais publique, ouverte au seul rôle jellyfin.
@@ -2123,17 +2124,23 @@ run "nas_newt_credentials_and_media" {
   }
 
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de
-  # l'inventaire) : client Pangolin connecté, ce montage passe par nas.internal,
-  # qui doit viser la même IP et laisser passer TCP 445 en plus de l'UI (9999).
+  # l'inventaire) : client Pangolin connecté, ce montage passe par la ressource
+  # nas, qui doit viser la même IP et laisser passer TCP 445 en plus de l'UI :
+  # 8443 (Traefik du NAS, nas_proxy_https_port) et 9999 (secours en HTTP).
+  # L'alias est le nom public dont le A (tofu/dns/nas.tf) vise cette IP, et
+  # que sert le routeur ugos de Traefik.
   assert {
     condition = (
       pangolin_site_resource.nas.destination == "192.168.1.137"
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "nas ansible_host=192.168.1.137 ")
       && strcontains(file("${path.module}/../../ansible/pc-nas.yml"), "hostvars['nas'].ansible_host")
-      && pangolin_site_resource.nas.tcp_port_range == "445,9999"
-      && pangolin_site_resource.nas.alias == "nas.internal"
+      && pangolin_site_resource.nas.tcp_port_range == "445,8443,9999"
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_https_port: 8443\n")
+      && pangolin_site_resource.nas.alias == "nas.sylvain.cloud"
+      && strcontains(file("${path.module}/../dns/nas.tf"), "subdomain = \"nas\"")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_ugos_domain: nas.sylvain.cloud\n")
     )
-    error_message = "nas.internal doit viser l'IP du NAS de ansible/inventory/hosts, lue par ansible/pc-nas.yml, en TCP 445 (SMB) et 9999 (UI)."
+    error_message = "La ressource nas doit viser l'IP du NAS de ansible/inventory/hosts, lue par ansible/pc-nas.yml, sous l'alias nas.sylvain.cloud (tofu/dns/nas.tf, nas_proxy_ugos_domain), en TCP 445 (SMB), 8443 (Traefik du NAS) et 9999 (UI en HTTP)."
   }
 }
 
