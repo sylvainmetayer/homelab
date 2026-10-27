@@ -148,7 +148,8 @@ Mise en place, dans l'ordre :
    secrets de toutes les applis) et UGOS les crée en 0777.
 2. `ansible-playbook nas.yml` (depuis `ansible/`), puis depuis l'hôte :
    `showmount -e 192.168.1.137` liste `/volume1/pve-backup 192.168.1.26`.
-3. `tofu/proxmox` : `tofu init -upgrade` (provider ≥ 0.116), puis
+3. `tofu/proxmox` : `tofu init` (le lock versionné fixe le provider ≥ 0.116),
+   puis
    `tofu import proxmox_backup_job.nightly backup-cbfcde61-8413` (le job créé
    dans l'interface), puis `tofu plan` : création du storage, `storage` du job
    `local` → `nas-backup`, rien d'autre. `tofu apply`.

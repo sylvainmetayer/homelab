@@ -108,7 +108,7 @@ jobs:
 
           for module in "${modules[@]}"; do
             echo "Validating $module"
-            tofu -chdir="$module" init -backend=false -input=false
+            tofu -chdir="$module" init -backend=false -input=false -lockfile=readonly
             tofu -chdir="$module" validate -no-color
           done
 
