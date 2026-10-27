@@ -46,7 +46,7 @@ partage, mot de passe, clé d'API, signature), jamais Pangolin.
 | Demo Planning (`demo-planning.sylvain.dev`) | `/mcp/*` | idem | sa propre `PLANNING_MCP_API_KEY`, distincte de la production |
 | Demo Planning KC (`demo-planning-kc.sylvain.dev`) | `/auth/*` | l'appli elle-même au démarrage (découverte du realm, clés), navigateurs | la connexion de Keycloak. La console d'admin (`/auth/admin`) est joignable du monde entier, derrière ce seul login : accepté pour un banc temporaire |
 | Karakeep (`keep.sylvain.cloud`) | `/public/lists/*`, `/_next/static/*`, `/api/public/*`, `/api/trpc/publicBookmarks.getPublicBookmarksInList`, `/api/v1/rss/lists/*` | lien d'une liste publique, son flux RSS | liste marquée publique ; images et fichiers signés par le serveur, avec expiration ; RSS d'une liste privée seulement avec son `rssToken`. La procédure tRPC est écrite en entier : `publicBookmarks.*` laissait passer un lot tRPC avec `apiKeys.exchange` |
-| KitchenOwl (`frigo.sylvain.cloud`) | `/api/*`, `/socket.io/*` | appli mobile (Android, iOS) | JWT de KitchenOwl sur toutes les routes sauf la connexion, les infos serveur, l'OpenAPI, l'onboarding (toujours faux) et une recette publique ; inscription fermée (`OPEN_REGISTRATION` absent) ; pas de limite de débit sur la connexion : la force du mot de passe la remplace |
+| KitchenOwl (`frigo.sylvain.cloud`) | `/api/*`, `/socket.io/*` | appli mobile (Android, iOS) | JWT de KitchenOwl sur toutes les routes sauf la connexion, les infos serveur, l'OpenAPI, l'onboarding (toujours faux) et une recette publique ; inscription fermée (`OPEN_REGISTRATION=false`, `ansible/roles/kitchenowl/templates/env.j2`) ; pas de limite de débit sur la connexion : la force du mot de passe la remplace |
 | Meerkat CRM (`crm.sylvain.cloud`) | `/carddav/*`, `/.well-known/carddav` | contacts du téléphone (CardDAV) | HTTP Basic avec le **mot de passe du compte**, verrouillage par compte et limite de débit |
 | Monica (`crm.sylvain.dev`) | `/dav/*`, `/.well-known/carddav`, `/.well-known/caldav` | contacts et agenda du téléphone (CardDAV, CalDAV) | HTTP Basic avec un jeton d'accès personnel de Monica (pas le mot de passe du compte). **Désactivés** aujourd'hui, voir « Verrouillage PHP » |
 | Paperless-ngx (`papiers.sylvain.cloud`) | `/share/*` | lien de partage d'un document | slug de 50 caractères aléatoires, expiration vérifiée par la vue. **Appli en pause** : ressource désactivée, rien ne répond |
@@ -139,8 +139,10 @@ puis `tofu apply`.
 Hors de ces règles publiques, le client Pangolin (appli mobile ou de bureau)
 ouvre les ressources **privées** (`private_resources.tf`), à qui y a droit :
 Jellyfin (`https://media.sylvain.cloud`, rôle `jellyfin`), l'interface du NAS
-(`https://nas.sylvain.cloud:8443`) et les accès d'administration
-(`pi.internal`, `docker-apps.internal`, `pve.internal`, `flip.internal`).
+(`https://nas.sylvain.cloud:8443`), l'interface de la box
+(`bbox-internal.sylvain.cloud`), celle de l'imprimante (`print.sylvain.cloud`)
+et les accès d'administration (`pi.internal`, `docker-apps.internal`,
+`pve.internal`, `flip.internal`).
 Rien de tout ça n'est public. Voir [architecture.md](architecture.md).
 
 ## Ajouter une ouverture

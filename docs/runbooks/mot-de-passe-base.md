@@ -21,8 +21,9 @@ l'IP du conteneur (`docker container inspect`) et passe `--host <cette IP>`
 au client lancé par `docker exec` : la connexion se fait en TCP, mot de passe
 vérifié (`scram-sha-256` pour Postgres), et non par la socket locale, où
 l'image officielle de Postgres fait confiance à tout le monde (`trust`). Un
-dump en échec fait échouer borgmatic, qui ne pousse pas vers le moniteur
-`Backup <app>` : l'alerte arrive par e-mail le lendemain.
+dump en échec fait échouer la configuration de l'appli : borgmatic pousse
+`fail` vers le moniteur `Backup <app>` (états `start`, `finish`, `fail` de
+`app.yaml.j2`), qui passe rouge et alerte par e-mail aussitôt.
 
 D'où l'ordre : **d'abord la base (`ALTER`), ensuite SOPS et le
 redéploiement**, coup sur coup. Entre les deux, les connexions déjà ouvertes
@@ -65,8 +66,11 @@ l'image :
 
 ## Avant de commencer
 
-- Pas à 01:00, l'heure de `borgmatic.timer` : un dump lancé entre l'`ALTER`
-  et le redéploiement échouerait.
+- Pas pendant la sauvegarde de la nuit : `borgmatic.timer` part à 01:00 et
+  `borgmatic.service` enchaîne ensuite les configurations de l'hôte une à
+  une, parfois longtemps. Un dump lancé entre l'`ALTER` et le redéploiement
+  échouerait. Sur l'hôte, `systemctl is-active borgmatic.service` doit
+  répondre `inactive`.
 - Ne pas merger, pendant l'opération, de PR qui touche le rôle de l'appli :
   `deploy-docker-app` redéploierait depuis `main`, donc avec l'ancien
   mot de passe.
@@ -86,6 +90,10 @@ cle=monica_v4_db_password       # clé SOPS, cf. tableau
 umask 077
 r=/dev/shm/rotation-$appli; mkdir -p "$r"
 sops decrypt --extract "[\"$cle\"]" secrets.sops.yaml > "$r/ancien"   # pour le retour arrière
+# Dawarich n'a pas de clé SOPS (mot de passe dérivé, cf. tableau) : la ligne
+# ci-dessus échoue, l'ancien se recalcule comme le fait le rôle.
+# printf '%s-dawarich-db' "$(sops decrypt --extract '["backup_passphrase"]' secrets.sops.yaml)" | sha256sum | cut -d' ' -f1 > "$r/ancien"
+test -s "$r/ancien" || echo "ancien vide : pas de retour arrière possible, s'arrêter"
 openssl rand -hex 24 > "$r/nouveau"
 ```
 
@@ -96,8 +104,11 @@ rebond par Pangolin pour flip.
 
 ```bash
 ssh_hote() {  # ssh_hote <docker|pi|flip> '<commande distante>'
-  local h; h=$(ansible-inventory --host "$1") || return 1
-  eval "ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes $(jq -r '.ansible_ssh_common_args // ""' <<<"$h") sylvain@$(jq -er .ansible_host <<<"$h") \"\$2\""
+  # </dev/null : l'entrée standard (le SQL) est pour ssh, pas pour
+  # l'inventaire ni les `tofu show` qu'il lance.
+  local h ip; h=$(ansible-inventory --host "$1" </dev/null) || return 1
+  ip=$(jq -er .ansible_host <<<"$h") || return 1
+  eval "ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes $(jq -r '.ansible_ssh_common_args // ""' <<<"$h") sylvain@$ip \"\$2\""
 }
 ```
 
@@ -137,7 +148,7 @@ Monica, Nextcloud, BookStack. Exemple Monica :
 
 ```bash
 hote=docker ctr=monica_v4_db user=monica
-# linuxserver (monica_v4, wiki, betisier) : root@localhost sans mot de passe
+# linuxserver (monica_v4, wiki) : root@localhost sans mot de passe
 racine='exec mariadb -u root'
 # image officielle (nextcloud) : mot de passe de root lu dans l'environnement
 # racine='MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mariadb -u root'
@@ -249,7 +260,11 @@ mot de passe, par le même chemin.
    `MYSQL_ROOT_PASSWORD` est encore l'ancien alors que root a déjà le
    nouveau ; entrer à la main, `docker exec -it -e MYSQL_HISTFILE=/dev/null
    nextcloud_db mariadb -u root -p`, en collant `$r/nouveau`. Nginx demo :
-   `sudo cp -p "$f.ancien" "$f"`, puis l'étape 1 avec ce fichier.
+   `sudo cp -p "$f.ancien" "$f"`, puis la seule commande `sudo sed … |
+   docker exec …` de l'étape 1 (pas l'`openssl`, qui tirerait un troisième
+   mot de passe). Betisier n'a rien à refaire en base : son
+   `betisier-reset.service`, relancé après le redéploiement, la recrée avec
+   le mot de passe remis.
 2. SOPS : `git checkout -- secrets.sops.yaml` si le changement n'est pas
    encore commité, sinon `git revert` du commit, et les fichiers à la main de
    l'étape 2 remis à l'ancienne valeur.
