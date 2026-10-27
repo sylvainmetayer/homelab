@@ -3,6 +3,7 @@
 immich_base_path: "{{ docker_base_path }}/immich"
 immich_domain: ""
 immich_pin: ""
+# Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
 
 # Backup (borgmatic)
