@@ -30,8 +30,11 @@ on:
 
 # Pangolin's OLM VPN rejects a second concurrent connection with the same
 # credentials, so runs must be serialized rather than run in parallel.
-# cancel-in-progress: false queues later runs instead of cancelling earlier
-# ones, so every push still gets deployed.
+# cancel-in-progress: false never cancels the RUNNING run, but GitHub keeps at
+# most one PENDING run per group: a third push cancels the pending one. That
+# run's commit is caught up by the next one, which deploys everything since
+# the last successful push run (see "Determine changed files"), not just its
+# own push.
 concurrency:
   group: deploy-docker-app
   cancel-in-progress: false
@@ -46,6 +49,8 @@ jobs:
 
     permissions:
       contents: read
+      # Reads the last successful run of this workflow (Determine changed files).
+      actions: read
 
     steps:
       - name: Checkout
@@ -60,13 +65,44 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.event.after }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "files=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+          # Diff from the head of the last successful PUSH run, not from this
+          # push's own `before`: a run cancelled while pending (one pending run
+          # per concurrency group), or a failed one, is then caught up here.
+          # A failed run never becomes the base, so its changes are retried
+          # (a run failing halfway redeploys what already passed: idempotent).
+          # Dispatch runs never count: forced tags deploy only part of main.
+          # An API error fails the run: deploying only this push and turning
+          # green would make it the base and lose the missed commits for good.
+          last_ok="$(gh api "repos/$REPO/actions/workflows/deploy-docker-app.yaml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""')"
+          base=""
+          if [[ "$last_ok" =~ ^[0-9a-f]{40}$ ]] && [ "$last_ok" != "$AFTER_SHA" ] && git cat-file -e "$last_ok^{commit}" 2>/dev/null; then
+            if git merge-base --is-ancestor "$AFTER_SHA" "$last_ok"; then
+              # Re-run of an old run: a later successful run already deployed
+              # newer code, redeploying this commit would roll it back.
+              echo "::notice::$AFTER_SHA is older than $last_ok, already deployed by a later successful run: nothing to deploy"
+              echo "files=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if git merge-base --is-ancestor "$last_ok" "$AFTER_SHA"; then
+              base="$last_ok"
+            fi
+          fi
+
+          if [ -n "$base" ]; then
+            echo "Changes since the last successful deployment ($base):"
+            git log --oneline "$base..$AFTER_SHA"
+            files="$(git diff --name-only "$base" "$AFTER_SHA")"
+          # No usable base (first run, re-run of the last successful run,
+          # rewritten history): this push only, as before.
+          elif [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
             # New branch or force-push with an unknown base: fall back to the last commit only.
             files="$(git show --name-only --pretty=format: "$AFTER_SHA")"
           else
