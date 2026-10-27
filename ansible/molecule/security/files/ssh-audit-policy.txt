@@ -2,7 +2,7 @@
 # Politique ssh-audit (`ssh-audit -P <ce fichier> <hôte>`) : le sshd que rend
 # le rôle security (devsec ssh_hardening, OpenSSH 10.0p2 de Debian 13).
 # Relevée le 2026-10-27 sur docker, newt-lxc et Pangolin, identiques ; vérifiée
-# par le verify des scénarios security et security_flip.
+# par chaque scénario security* (tasks/verify_ssh_audit.yml).
 #
 # Correspondance exacte, pas un plancher : un algorithme ajouté, retiré ou
 # déplacé échoue. Une montée de devsec.hardening ou d'OpenSSH qui change ces
