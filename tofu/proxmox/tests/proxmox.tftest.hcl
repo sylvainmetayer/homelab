@@ -226,7 +226,7 @@ run "vzdump_on_nas" {
   }
 
   assert {
-    condition     = proxmox_backup_job.nightly.tmpdir == "/var/tmp"
-    error_message = "Le dossier temporaire du job doit rester local : sur le NFS, le tar du LXC non privilégié ne peut pas l'ouvrir."
+    condition     = proxmox_backup_job.nightly.tmpdir == null && strcontains(file("${path.module}/../../ansible/pve.yml"), "line: \"tmpdir: /var/tmp\"")
+    error_message = "Le dossier temporaire de vzdump doit rester local (sur le NFS, le tar du LXC non privilégié ne peut pas l'ouvrir), posé par pve.yml dans /etc/vzdump.conf : l'API refuse tmpdir à un jeton."
   }
 }
