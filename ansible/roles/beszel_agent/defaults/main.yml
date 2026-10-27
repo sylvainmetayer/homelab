@@ -57,12 +57,18 @@ beszel_agent_base_path: "{{ docker_base_path }}/{{ beszel_agent_service }}"
 # Proxy du socket Docker (wollomatic/socket-proxy), en sidecar : l'agent ne
 # voit pas le socket, seulement le socket unix du proxy, qui ne laisse passer
 # que les GET dont il a besoin (agent/docker.go de Beszel 0.21.1) : liste des
-# conteneurs, leurs statistiques, version et info du démon. Ni inspect (les
-# variables d'environnement, donc les secrets de chaque compose), ni logs, ni
-# aucune écriture. Une montée de Beszel qui appelle autre chose se voit dans
-# les logs du proxy (requête refusée, 403).
+# conteneurs, leurs statistiques, version et info du démon, et les logs d'un
+# conteneur (fiche du conteneur dans le hub, CONTAINER_DETAILS du rôle
+# beszel : les 200 dernières lignes, relayées à la demande, jamais stockées).
+# Les logs ne passent que par l'identifiant hexadécimal, seule forme que
+# l'agent envoie. Ni inspect (GET /containers/<id>/json : l'agent n'en retire
+# que Config.Env, les arguments de commande et les labels passeraient), ni
+# aucune écriture. Chaque ouverture d'une fiche laisse donc un inspect refusé
+# (403) dans les logs du proxy ; une montée de Beszel qui appelle autre chose
+# s'y voit de la même façon. Le filtre porte sur le chemin seul, pas sur la
+# requête (tail, follow) ni sur le conteneur : tous les conteneurs de l'hôte.
 beszel_agent_socket_proxy_allow_get: >-
-  /(v[0-9.]+/)?(_ping|version|info|containers/json|containers/[a-zA-Z0-9_.-]+/stats)
+  /(v[0-9.]+/)?(_ping|version|info|containers/json|containers/[a-zA-Z0-9_.-]+/stats|containers/[a-fA-F0-9]{12,64}/logs)
 beszel_agent_socket_proxy_allow_head: >-
   /(v[0-9.]+/)?_ping
 

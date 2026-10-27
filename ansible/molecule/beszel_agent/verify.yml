@@ -53,10 +53,41 @@
           - proxy.command | select('match', '^-allow(GET|HEAD)=') | list | length == 2
           - proxy.command | select('match', '^-allow(POST|PUT|DELETE|PATCH)') | list | length == 0
           - "'containers/[a-zA-Z0-9_.-]+/stats' in (proxy.command | join(' '))"
-          - "'logs' not in (proxy.command | join(' '))"
           - "'exec' not in (proxy.command | join(' '))"
           - "'images' not in (proxy.command | join(' '))"
         fail_msg: "Compose de l'agent inattendu : {{ beszel_agent_compose.services }}"
+
+    # Le proxy ancre l'expression (^...$) et la compare au chemin seul : les
+    # chemins que l'agent appelle passent (les logs par l'identifiant
+    # hexadécimal seulement), l'inspect et le reste non.
+    - name: Assert the socket proxy GET allowlist
+      vars:
+        beszel_agent_compose: "{{ beszel_agent_compose_raw.stdout | from_json }}"
+        allow_get: >-
+          {{ beszel_agent_compose.services['socket-proxy'].command
+             | select('match', '^-allowGET=') | first | regex_replace('^-allowGET=', '') }}
+        # 64 caractères hexadécimaux, la forme longue d'un identifiant.
+        container_id: "{{ '0123456789abcdef' * 4 }}"
+      ansible.builtin.assert:
+        that:
+          - (item.path is match('^' ~ allow_get ~ '$')) == item.allowed
+        fail_msg: "{{ item.path }} : attendu {{ 'autorisé' if item.allowed else 'refusé' }} par {{ allow_get }}"
+        quiet: true
+      loop:
+        - { path: /v1.47/containers/json, allowed: true }
+        - { path: "/containers/{{ container_id[:12] }}/stats", allowed: true }
+        - { path: "/v1.47/containers/{{ container_id[:12] }}/logs", allowed: true }
+        - { path: "/containers/{{ container_id }}/logs", allowed: true }
+        - { path: /containers/beszel-agent/logs, allowed: false }
+        - { path: "/containers/{{ container_id[:12] }}/json", allowed: false }
+        - { path: "/v1.47/containers/{{ container_id[:12] }}/json", allowed: false }
+        - { path: "/containers/{{ container_id[:12] }}/archive", allowed: false }
+        - { path: "/containers/{{ container_id[:12] }}/export", allowed: false }
+        - { path: "/containers/{{ container_id[:12] }}/attach/ws", allowed: false }
+        - { path: /images/json, allowed: false }
+        - { path: /events, allowed: false }
+      loop_control:
+        label: "{{ item.path }}"
 
     - name: Stat the agent folders
       become: true

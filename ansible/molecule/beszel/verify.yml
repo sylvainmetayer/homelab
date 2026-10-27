@@ -93,7 +93,7 @@
         that:
           - (beszel_contents.results[1].content | b64decode | trim) == beszel_hub_private_key
           - "'DISABLE_SSH=true' in beszel_env"
-          - "'CONTAINER_DETAILS=false' in beszel_env"
+          - "'CONTAINER_DETAILS=true' in beszel_env"
           - "'APP_URL=https://monitoring.sylvain.cloud' in beszel_env"
           - ('USER_PASSWORD=' ~ beszel_admin_password) in beszel_env
 
