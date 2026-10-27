@@ -2,3 +2,9 @@
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
 scenario:
   name: rss
+
+# Prepare propre : une configuration système de FreshRSS dont l'API est
+# active, que le rôle doit couper (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

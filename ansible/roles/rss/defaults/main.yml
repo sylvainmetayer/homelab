@@ -1,8 +1,24 @@
 ---
 rss_base_path: "{{ docker_base_path }}/rss"
 rss_domain: rss.sylvain.cloud
-rss_db_password: ""
 rss_healthcheck_url: ""
+
+# Extension « Karakeep Button » (bouton « envoyer à Karakeep » sur chaque
+# article) : code tiers (github.com/veverkap/xExtension-karakeep-button), ni
+# FreshRSS ni Karakeep, exécuté dans FreshRSS avec ses droits. Pas de release
+# depuis sa conversion de Readeck à Karakeep (le seul tag, 0.1, est antérieur) :
+# épinglée sur un commit de main, que Renovate suit (custom manager git-refs,
+# renovate.json). Une montée doit aussi changer la somme de l'archive (get_url
+# refuse tout autre fichier) et passe par une lecture du diff.
+# Réglage, par utilisateur (Configuration > Extensions > Karakeep Button) :
+# l'appel à Karakeep part du serveur FreshRSS (curl en PHP), pas du
+# navigateur. URL de l'instance http://karakeep:3000, le conteneur sur le
+# réseau newt : l'URL publique passerait par le SSO de Pangolin, qu'un
+# jeton Bearer ne franchit pas. La clé d'API Karakeep est rangée en clair
+# dans data/users/<utilisateur>/config.php (sauvegardé par borg).
+rss_karakeep_button_commit: "8ccdace7266aa94a4795a97d311a8b494d779785"
+rss_karakeep_button_sha256: "2667121cb25154aa718200f12547410683061c4fde9760381acf2acc7303ee3d"
+rss_karakeep_button_path: "{{ rss_base_path }}/freshrss_extensions/xExtension-KarakeepButton"
 
 # Borgmatic backup configuration
 rss_backup_enabled: true

@@ -234,6 +234,14 @@
         "docker.io/mauriceboe/trek"
       ],
       "sourceUrl": "https://github.com/liketrek/TREK"
+    },
+    {
+      "description": "Karakeep Button, the FreshRSS extension of the rss role: third-party code (veverkap, neither FreshRSS nor Karakeep) run inside FreshRSS, with no release since its Karakeep port, followed by commit on main. git-refs gives no release timestamp, so the 1 day cooldown would hold every update forever. Never automerged: read the diff, then update rss_karakeep_button_sha256 by hand (get_url refuses any other archive, Molecule fails until then)",
+      "matchDepNames": [
+        "veverkap/xExtension-karakeep-button"
+      ],
+      "minimumReleaseAge": null,
+      "automerge": false
     }
   ],
   "customManagers": [
@@ -311,6 +319,20 @@
         "beszel_agent_image(?:_smart)?:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Commit of the Karakeep Button FreshRSS extension pinned in the rss role defaults (no release to follow): Renovate proposes the new head of main",
+      "managerFilePatterns": [
+        "/^ansible/roles/rss/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "rss_karakeep_button_commit:\\s*\"(?<currentDigest>[a-f0-9]{40})\""
+      ],
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "veverkap/xExtension-karakeep-button",
+      "packageNameTemplate": "https://github.com/veverkap/xExtension-karakeep-button",
+      "currentValueTemplate": "main"
     }
   ]
 }
