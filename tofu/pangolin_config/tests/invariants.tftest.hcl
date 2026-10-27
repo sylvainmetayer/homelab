@@ -2051,6 +2051,32 @@ run "nas_newt_credentials_and_media" {
   }
 }
 
+# Une mise à jour de pangolin_site_resource efface ses rôles, utilisateurs et
+# clients (le provider 1.6.1 envoie des listes vides) : chaque liaison, d'hier
+# ou à venir, dans n'importe quel fichier du module, est recréée par
+# replace_triggered_by sur la ressource qu'elle lie. Le lifecycle n'est pas
+# lisible depuis un test : lu dans le source.
+run "site_resource_bindings_follow_their_resource" {
+  command = plan
+
+  assert {
+    condition = alltrue(flatten([
+      for f in fileset(path.module, "*.tf") : [
+        for body in regexall("(?s)resource\\s+\"pangolin_site_resource_(?:role|user|client)\"\\s+\"\\w+\"\\s+\\{(.*?)\\n\\}", file("${path.module}/${f}")) :
+        length(regexall("(?m)^\\s*site_resource_id\\s*=\\s*pangolin_site_resource\\.\\w+\\.id\\s*$", body[0])) == 1
+        && alltrue([
+          for target in regexall("(?m)^\\s*site_resource_id\\s*=\\s*pangolin_site_resource\\.(\\w+)\\.id\\s*$", body[0]) :
+          length(regexall("replace_triggered_by\\s*=\\s*\\[[^\\]]*\\bpangolin_site_resource\\.${target[0]}\\s*[,\\]]", body[0])) == 1
+        ])
+      ]
+      ])) && length(flatten([
+      for f in fileset(path.module, "*.tf") :
+      regexall("resource\\s+\"pangolin_site_resource_(?:role|user|client)\"\\s+\"", file("${path.module}/${f}"))
+    ])) >= 3
+    error_message = "Une pangolin_site_resource_{role,user,client} n'a pas lifecycle { replace_triggered_by = [pangolin_site_resource.<ressource liée>] } (ou ne lie pas une pangolin_site_resource par site_resource_id = pangolin_site_resource.<x>.id) : la prochaine mise à jour de la ressource l'effacerait de Pangolin en la laissant dans le state."
+  }
+}
+
 # Production et démo partagent un rôle Ansible mais rien côté Pangolin /
 # Uptime Kuma : ressource, jeton d'accès, healthcheck, moniteur de sauvegarde,
 # règle MCP et cibles sont distincts, et chaque cible vise les conteneurs de
