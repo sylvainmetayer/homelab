@@ -61,6 +61,7 @@ locals {
     immich           = local.immich_website
     immich_swipe     = local.immich_swipe_website
     karakeep         = local.karakeep_website
+    kitchenowl       = local.kitchenowl_website
     meerkat_crm      = local.meerkat_crm_website
     monica           = local.monica_website
     nextcloud        = local.nextcloud_website

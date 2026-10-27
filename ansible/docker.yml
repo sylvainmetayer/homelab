@@ -19,6 +19,7 @@
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
+        kitchenowl_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_kitchenowl_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
@@ -71,6 +72,8 @@
       tags: karakeep,app
     - role: wishlist
       tags: wishlist,app
+    - role: kitchenowl
+      tags: kitchenowl,app
     - role: nginx_demo
       tags: nginx_demo,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par

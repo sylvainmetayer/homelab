@@ -356,6 +356,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["kitchenowl"]
+  values = { id = 67 }
+}
+
+override_resource {
   target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
@@ -539,6 +544,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["kitchenowl"]
+  values = { push_token = "push-kitchenowl" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["nginx_demo"]
   values = { push_token = "push-nginx-demo" }
 }
@@ -614,6 +624,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
+      "kitchenowl",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -935,6 +946,20 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes), aux priorités 2 à 6."
   }
 
+  # L'appli mobile de KitchenOwl n'a pas de session Pangolin : l'API (son JWT
+  # la garde) et Socket.IO s'ouvrent sans SSO et de partout, l'interface web
+  # (`/`) reste derrière le mur.
+  assert {
+    condition = {
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.value => rule.priority if startswith(key, "KitchenOwl ")
+      } == {
+      "/api/*"       = 2
+      "/socket.io/*" = 2
+    }
+    error_message = "Le contournement de KitchenOwl doit se limiter à /api/* et /socket.io/* (appli mobile), en priorité 2."
+  }
+
   # Les listes publiques de Wishlist s'ouvrent sans compte et de partout, par
   # le lien envoyé à la famille : la page, le build SvelteKit, la police, les
   # images des articles et la réservation publique, rien de l'API d'édition
@@ -1078,6 +1103,8 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Karakeep /api/public/*",
       "Karakeep /api/trpc/publicBookmarks.getPublicBookmarksInList",
       "Karakeep /api/v1/rss/lists/*",
+      "KitchenOwl /api/*",
+      "KitchenOwl /socket.io/*",
       "Meerkat CRM /carddav/*",
       "Meerkat CRM /.well-known/carddav",
       "Monica CRM /dav/*",
@@ -1142,11 +1169,15 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
   # décidée et validée par l'utilisateur : Promptoramix, ouverte en entier
   # (`/*`) aux fonctions Supabase du tournoi Linkx, de n'importe quel pays,
   # sans interface ni compte, et dont chaque requête est signée en HMAC
-  # (website_promptoramix.tf).
+  # (website_promptoramix.tf). Et KitchenOwl, dont l'appli mobile demandée par
+  # l'utilisateur appelle toute l'API (`/api/*`) sans pouvoir passer le SSO :
+  # chaque route y exige le JWT de KitchenOwl, sauf la connexion et les routes
+  # listées dans website_kitchenowl.tf ; l'interface web (`/`) reste derrière
+  # le mur.
   assert {
     condition = alltrue([
       for key, rule in pangolin_resource_rule.path_bypass :
-      key == "Promptoramix /*" || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
+      contains(["Promptoramix /*", "KitchenOwl /api/*"], key) || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
     ])
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
   }
@@ -1170,7 +1201,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
+      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1518,6 +1549,7 @@ run "every_public_resource_applies_its_rules" {
       immich           = "Immich"
       immich_swipe     = "Immich Swipe"
       karakeep         = "Karakeep"
+      kitchenowl       = "KitchenOwl"
       meerkat_crm      = "Meerkat CRM"
       monica           = "Monica CRM"
       nextcloud        = "nextcloud"
@@ -1651,6 +1683,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       immich        = "Healthcheck Immich"
       immich_swipe  = "Healthcheck Immich Swipe"
       karakeep      = "Healthcheck Karakeep"
+      kitchenowl    = "Healthcheck KitchenOwl"
       meerkat_crm   = "Healthcheck Meerkat CRM"
       monica        = "Healthcheck Monica CRM"
       nextcloud     = "Healthcheck nextcloud"
@@ -1796,6 +1829,11 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         for key, rule in pangolin_resource_rule.path_bypass :
         rule.resource_id == pangolin_resource.website["karakeep"].id if startswith(key, "Karakeep ")
       ])
+      && pangolin_resource_rule.backslash_guard["KitchenOwl"].resource_id == pangolin_resource.website["kitchenowl"].id
+      && alltrue([
+        for key, rule in pangolin_resource_rule.path_bypass :
+        rule.resource_id == pangolin_resource.website["kitchenowl"].id if startswith(key, "KitchenOwl ")
+      ])
       && pangolin_resource_rule.backslash_guard["Wishlist"].resource_id == pangolin_resource.website["wishlist"].id
       && alltrue([
         for key, rule in pangolin_resource_rule.path_bypass :
@@ -1857,6 +1895,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   assert {
     condition     = output.uptime_backup_trek_url == "https://uptime.example.test/api/push/push-trek"
     error_message = "uptime_backup_trek_url (docker.yml) ne pointe pas sur le moniteur Backup TREK."
+  }
+
+  assert {
+    condition     = output.uptime_backup_kitchenowl_url == "https://uptime.example.test/api/push/push-kitchenowl"
+    error_message = "uptime_backup_kitchenowl_url (docker.yml) ne pointe pas sur le moniteur Backup KitchenOwl."
   }
 
   assert {
@@ -1933,6 +1976,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_dawarich_url,
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
+      output.uptime_backup_kitchenowl_url,
       output.uptime_backup_wishlist_url,
       output.uptime_backup_nginx_demo_url,
       output.uptime_backup_beszel_url,
@@ -2248,6 +2292,7 @@ run "monitors_are_filed_and_notify_by_email" {
       flip_planning = "Backup Flip Planning"
       immich        = "Backup Immich"
       karakeep      = "Backup Karakeep"
+      kitchenowl    = "Backup KitchenOwl"
       meerkat_crm   = "Backup Meerkat CRM"
       monica        = "Backup Monica CRM"
       nextcloud     = "Backup nextcloud"

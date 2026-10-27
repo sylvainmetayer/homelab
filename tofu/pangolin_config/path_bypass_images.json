@@ -15,6 +15,14 @@
     "reread": "apps/web/app/public, apps/web/components/public/lists, packages/api",
     "releases": "https://github.com/karakeep-app/karakeep/releases"
   },
+  "KitchenOwl": {
+    "image": "docker.io/tombursch/kitchenowl",
+    "version": "v0.7.10",
+    "compose": "ansible/roles/kitchenowl/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_kitchenowl.tf (kitchenowl_mobile_paths)",
+    "reread": "backend/app/api/register_controller.py (everything under /api, /mcp), routes without @jwt_required (or with optional=True) in backend/app/controller and backend/app/config.py, backend/app/models/file.py (checkAuthorized), backend/app/sockets, backend/wsgi.ini (uWSGI routing), kitchenowl/lib/services/api/api_service.dart (paths the app calls, Socket.IO)",
+    "releases": "https://github.com/TomBursch/kitchenowl/releases"
+  },
   "Meerkat CRM": {
     "image": "ghcr.io/fbuchner/meerkat-crm-backend",
     "version": "1.7.0",

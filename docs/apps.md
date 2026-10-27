@@ -17,6 +17,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
 | [nginx](https://nginx.org/) | `nginx_demo` | Docker VM | Pilot of app data on the NAS (NFS): static page plus an unused Postgres, both on the NAS export |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
+| [KitchenOwl](https://kitchenowl.org/) | `kitchenowl` | Docker VM | Shopping list, recipes and meal planner on `frigo.sylvain.cloud`, one KitchenOwl account each (no sign-up, no onboarding: accounts made with `manage.py`). The web interface is behind the SSO; `/api/*` and `/socket.io/*` are open without SSO, from any country, for the mobile app, guarded by KitchenOwl's own login |
 | [Beszel](https://beszel.dev/) | `beszel` | Docker VM | Host monitoring hub (CPU, memory, disks, network, containers, S.M.A.R.T.) on `monitoring.sylvain.cloud`; one agent per host (`beszel_agent`: docker, pi, pangolin, flip, newt-lxc, NAS, the Proxmox host). Behind the SSO, plus its own Beszel account; the hub port is also published on the LAN (192.168.1.216:8090), where only the Beszel account protects it |
 | [Immich](https://immich.app/) | `immich` | Raspberry Pi | Photo library |
 | Immich Swipe | `immich` | Raspberry Pi | Swipe interface to sort Immich photos |
