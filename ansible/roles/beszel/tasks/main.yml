@@ -55,6 +55,7 @@
     owner: root
     group: root
     mode: "0600"
+  register: beszel_config_file
 
 - name: Template compose configuration
   diff: false
@@ -83,14 +84,16 @@
     name: dc@beszel
     scope: user
     enabled: true
+  register: beszel_service
 
 # Le hub ne crée un système déclaré dans config.yml qu'au démarrage : il
 # redémarre ici, pas en fin de play, pour que les alertes le trouvent.
 - name: Restart the hub now if its configuration changed
   ansible.builtin.meta: flush_handlers
 
+# En --check, un hub pas encore démarré (premier déploiement) n'a pas d'API.
 - name: Declare the Beszel alerts and notification channels
-  when: beszel_alerts_enabled
+  when: beszel_alerts_enabled and not (ansible_check_mode and (beszel_service | default({})) is changed)
   tags: beszel_alerts
   ansible.builtin.import_tasks: alerts.yml
 
