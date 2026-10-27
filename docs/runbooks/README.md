@@ -29,6 +29,7 @@ Se connecter aux hôtes :
 cd ansible
 mise run ssh        # VM docker (IP lue dans l'inventaire proxmox.py)
 mise run ssh_pi     # Raspberry Pi (réseau local seulement)
+mise run ssh_newt   # LXC Newt du site proxmox-lxc (réseau local seulement)
 mise run ssh_flip   # flip, par rebond sur Pangolin
 ssh sylvain@pangolin.sylvain.cloud   # Pangolin (pas de tâche mise)
 ```

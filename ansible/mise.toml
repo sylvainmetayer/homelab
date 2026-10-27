@@ -32,10 +32,12 @@ raw = true
 
 [tasks.ssh_newt]
 description = "SSH into the Newt LXC (site proxmox-lxc, local network only)"
-# Clé d'hôte vérifiée contre ansible/known_hosts, comme Ansible.
+# Clé d'hôte vérifiée contre ansible/known_hosts, comme Ansible. Hôte statique :
+# seul inventory/hosts est lu, sans les tofu show de proxmox.py et hetzner.py
+# (la tâche reste utilisable quand le state S3 ou Pangolin ne répond pas).
 run = '''
-ip=$(ansible-inventory --host newt-lxc | jq -r '.ansible_host')
-ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes sylvain@$ip
+ip=$(ansible-inventory -i inventory/hosts --host newt-lxc | jq -er '.ansible_host') || exit 1
+ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes "sylvain@$ip"
 '''
 raw = true
 
