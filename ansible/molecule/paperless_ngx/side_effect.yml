@@ -4,7 +4,8 @@
 # vérifiée, reprise, nouvelle pause depuis l'app démarrée (compose modifié :
 # le handler notifié ne doit rien relancer), puis reprise, dont verify.yml
 # vérifie l'état. Le set_fact bat le vars_files de host_vars ; les faux
-# secrets et l'URL de push chargés au premier play restent pour les suivants.
+# secrets et l'URL de push chargés par « Resume paperless » restent pour les
+# plays suivants.
 - name: Assert the converged paperless is paused
   hosts: all
   vars_files:

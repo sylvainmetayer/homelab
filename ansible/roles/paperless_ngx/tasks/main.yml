@@ -25,20 +25,20 @@
 
 # En pause (paperless_enabled: false) : unité arrêtée et désactivée, compose et
 # données gardés, pour que la reprise soit un simple retour à true.
-- name: Make sure paperless service is {{ 'running' if paperless_enabled else 'stopped' }}
+- name: Make sure paperless service is {{ 'running' if paperless_enabled | bool else 'stopped' }}
   ansible.builtin.systemd:
-    state: "{{ 'started' if paperless_enabled else 'stopped' }}"
+    state: "{{ 'started' if paperless_enabled | bool else 'stopped' }}"
     daemon_reload: true
     name: dc@paperless
     scope: user
-    enabled: "{{ paperless_enabled }}"
+    enabled: "{{ paperless_enabled | bool }}"
 
 # Sans application, le dump PostgreSQL (docker exec dans paperless_db) échoue
 # chaque nuit : la configuration part, le dépôt distant et ses archives
 # restent. Sans configuration, borgmatic ne touche plus au dépôt : ni create,
 # ni prune, ni check.
 - name: Remove the borgmatic configuration of the paused Paperless-ngx
-  when: not paperless_enabled
+  when: not paperless_enabled | bool
   tags: backup
   become: true
   ansible.builtin.file:
@@ -47,7 +47,7 @@
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Paperless-ngx
-  when: paperless_enabled and paperless_backup_enabled
+  when: paperless_enabled | bool and paperless_backup_enabled
   tags: backup
   ansible.builtin.include_role:
     name: borgmatic
