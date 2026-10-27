@@ -49,6 +49,15 @@ RUN python3 -m venv /opt/molecule-borgmatic \
     && /opt/molecule-borgmatic/bin/pip install --no-cache-dir --only-binary :all: "borgmatic==${BORGMATIC_VERSION}" \
     && /opt/molecule-borgmatic/bin/borgmatic --version
 
+# ssh-audit, pour le verify des scénarios security : le sshd rendu par devsec
+# doit respecter ansible/molecule/security/files/ssh-audit-policy.txt. Même
+# version que l'outil du poste (mise.toml, `mise run ssh-audit`).
+# renovate: datasource=pypi depName=ssh-audit
+ARG SSH_AUDIT_VERSION=3.9.0
+RUN python3 -m venv /opt/molecule-ssh-audit \
+    && /opt/molecule-ssh-audit/bin/pip install --no-cache-dir --only-binary :all: "ssh-audit==${SSH_AUDIT_VERSION}" \
+    && /opt/molecule-ssh-audit/bin/ssh-audit -h >/dev/null
+
 # Les playbooks se connectent en `sylvain` et passent root par sudo : on
 # reproduit ce modèle, c'est lui que docker_service (unités user, lingering)
 # et les `become` des rôles supposent.
