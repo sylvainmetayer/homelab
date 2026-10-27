@@ -58,6 +58,17 @@
     # IPv6 est désactivé (sysctl ci-dessus).
     ufw_enable_ipv6: false
 
+# Vide, devsec n'écrirait aucun HostKey (sshd reprendrait ses clés par défaut)
+# et la tâche plus bas supprimerait toutes les clés d'hôte : sshd ne
+# redémarrerait plus.
+- name: Refuse an sshd without any host key
+  ansible.builtin.assert:
+    that:
+      - security_ssh_host_keys | length > 0
+      - security_ssh_host_keys is not string
+    fail_msg: "security_ssh_host_keys doit lister au moins une clé d'hôte : {{ security_ssh_host_keys }}"
+    quiet: true
+
 - name: Apply devsec ssh_hardening
   ansible.builtin.include_role:
     name: devsec.hardening.ssh_hardening
@@ -73,7 +84,40 @@
     ssh_max_auth_retries: "{{ security_ssh_max_auth_tries }}"
     ssh_allow_tcp_forwarding: "{{ security_ssh_allow_tcp_forwarding }}"
     ssh_allow_agent_forwarding: "{{ security_ssh_allow_agent_forwarding }}"
-    # Défaut devsec 4096 : sa tâche de clés d'hôte régénère la clé RSA de 3072
-    # bits (défaut Debian/cloud-init), d'où un « REMOTE HOST IDENTIFICATION
-    # HAS CHANGED » pour tout client qui l'a enregistrée.
-    ssh_host_rsa_key_size: 3072
+    # Fournis, ces quatre-là remplacent les listes que devsec choisirait selon
+    # la version d'OpenSSH (vars/main.yml de devsec). ssh_host_key_files fourni
+    # saute aussi sa tâche de clés d'hôte, qui aurait régénéré la clé RSA.
+    ssh_kex: "{{ security_ssh_kex }}"
+    ssh_ciphers: "{{ security_ssh_ciphers }}"
+    ssh_macs: "{{ security_ssh_macs }}"
+    ssh_host_key_files: "{{ security_ssh_host_keys }}"
+    ssh_host_key_algorithms: "{{ security_ssh_key_algorithms }}"
+    # Sans variable devsec : écrits en tête de son sshd_config (la première
+    # valeur l'emporte), pas dans un drop-in.
+    sshd_custom_options:
+      - PubkeyAcceptedAlgorithms {{ security_ssh_key_algorithms | join(',') }}
+      - CASignatureAlgorithms {{ security_ssh_ca_signature_algorithms | join(',') }}
+      - RequiredRSASize {{ security_ssh_required_rsa_size }}
+
+# Après le sshd_config de devsec, qui ne les cite plus : le sshd en cours les a
+# en mémoire jusqu'à son redémarrage (handler de devsec). Une clé supprimée
+# change ce que voit un client qui l'avait épinglée, d'où la liste des clients
+# dans docs/runbooks/ssh-refuse-apres-durcissement.md.
+- name: Find the SSH host keys sshd no longer offers
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns:
+      - ssh_host_*_key
+      - ssh_host_*_key.pub
+  register: security_ssh_host_key_files
+
+- name: Remove the SSH host keys sshd no longer offers
+  vars:
+    security_ssh_kept_host_key_files: >-
+      {{ security_ssh_host_keys + security_ssh_host_keys | map('regex_replace', '$', '.pub') | list }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ security_ssh_host_key_files.files | map(attribute='path')
+       | reject('in', security_ssh_kept_host_key_files) | sort }}

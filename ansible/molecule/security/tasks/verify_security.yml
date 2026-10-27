@@ -26,9 +26,13 @@
       - security_sshd_effective.stdout_lines is contains('allowagentforwarding ' ~ agent_forwarding)
       # Pangolin sert de bastion (ProxyJump) vers flip : forward local seulement.
       - security_sshd_effective.stdout_lines is contains('allowtcpforwarding ' ~ security_ssh_allow_tcp_forwarding)
+      # Ce que ssh-audit ne voit pas sans s'authentifier (sshd_custom_options).
+      - security_sshd_effective.stdout_lines is contains('pubkeyacceptedalgorithms ' ~ security_ssh_key_algorithms | join(','))
+      - security_sshd_effective.stdout_lines is contains('casignaturealgorithms ' ~ security_ssh_ca_signature_algorithms | join(','))
+      - security_sshd_effective.stdout_lines is contains('requiredrsasize ' ~ security_ssh_required_rsa_size)
     fail_msg: >-
       sshd -T : {{ security_sshd_effective.stdout_lines
-                   | select('match', '^(password|kbdinteractive|permitroot|allow|maxauthtries)')
+                   | select('match', '^(password|kbdinteractive|permitroot|allow|maxauthtries|pubkeyaccepted|casignature|requiredrsa)')
                    | list }}
 
 - name: Read the state of sshd
@@ -343,23 +347,39 @@
         - /etc/login.defs
         - /etc/sysctl.d/99-hardening.conf
 
-    - name: Read the RSA host key fingerprints, before and after hardening
+    - name: Read the ed25519 host key fingerprints, before and after hardening
       become: true
       ansible.builtin.shell: |
         set -euo pipefail
-        cat /var/lib/molecule-ssh-rsa-fingerprint
-        ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub
+        cat /var/lib/molecule-ssh-ed25519-fingerprint
+        ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
       args:
         executable: /bin/bash
-      register: security_rsa_fingerprints
+      register: security_ed25519_fingerprints
       changed_when: false
 
-    - name: Assert devsec kept the RSA host key
+    - name: Assert the role kept the ed25519 host key
       ansible.builtin.assert:
         that:
-          - security_rsa_fingerprints.stdout_lines | length == 2
-          - security_rsa_fingerprints.stdout_lines[0] == security_rsa_fingerprints.stdout_lines[1]
-        fail_msg: "Clé d'hôte RSA régénérée : {{ security_rsa_fingerprints.stdout_lines }}"
+          - security_ed25519_fingerprints.stdout_lines | length == 2
+          - security_ed25519_fingerprints.stdout_lines[0] == security_ed25519_fingerprints.stdout_lines[1]
+        fail_msg: "Clé d'hôte ed25519 changée : {{ security_ed25519_fingerprints.stdout_lines }}"
+
+    # Le paquet openssh-server pose aussi RSA et ECDSA : le rôle les supprime.
+    - name: List the SSH host keys left on disk
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns:
+          - ssh_host_*_key
+          - ssh_host_*_key.pub
+      register: security_host_key_files
+
+    - name: Assert only the ed25519 host key is left
+      ansible.builtin.assert:
+        that:
+          - security_host_key_files.files | map(attribute='path') | sort
+            == ['/etc/ssh/ssh_host_ed25519_key', '/etc/ssh/ssh_host_ed25519_key.pub']
+        fail_msg: "{{ security_host_key_files.files | map(attribute='path') | sort }}"
 
     - name: Read the password ageing of sylvain
       become: true

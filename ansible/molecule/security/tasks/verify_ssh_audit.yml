@@ -1,6 +1,7 @@
 ---
 # Algorithmes kex/ciphers/MAC/clés d'hôte que sshd annonce, vus d'un client :
-# la politique est celle relevée sur les vrais hôtes (`mise run ssh-audit`).
+# la politique du dépôt (correspondance exacte, `mise run ssh-audit` sur les
+# vrais hôtes) et la politique intégrée « Hardened Debian 13 » de ssh-audit.
 # Une montée de devsec ou d'OpenSSH qui les change échoue ici.
 # become : le verify se connecte en sylvain, /var/lib est à root ; ssh-audit
 # passe root lui aussi pour lire la politique en 0600.
@@ -12,7 +13,7 @@
     mode: "0600"
 
 # --skip-rate-test : pas de rafale de connexions (test DHEat), inutile ici.
-- name: Audit sshd against the policy
+- name: Audit sshd against the policies
   become: true
   ansible.builtin.command:
     argv:
@@ -20,14 +21,20 @@
       - --no-colors
       - --skip-rate-test
       - --policy
-      - /var/lib/molecule-ssh-audit-policy.txt
+      - "{{ item }}"
       - 127.0.0.1
+  loop:
+    - /var/lib/molecule-ssh-audit-policy.txt
+    - Hardened Debian 13 (version 1)
   register: security_ssh_audit
   changed_when: false
   failed_when: false
 
-- name: Assert sshd matches the ssh-audit policy
+- name: Assert sshd matches the ssh-audit policies
   ansible.builtin.assert:
     that:
-      - security_ssh_audit.rc == 0
-    fail_msg: "ssh-audit rc={{ security_ssh_audit.rc }} : {{ security_ssh_audit.stdout }}"
+      - item.rc == 0
+    fail_msg: "ssh-audit --policy '{{ item.item }}' rc={{ item.rc }} : {{ item.stdout }}"
+  loop: "{{ security_ssh_audit.results }}"
+  loop_control:
+    label: "{{ item.item }}"

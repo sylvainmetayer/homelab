@@ -1,25 +1,23 @@
 #
 # Politique ssh-audit (`ssh-audit -P <ce fichier> <hôte>`) : le sshd que rend
-# le rôle security (devsec ssh_hardening, OpenSSH 10.0p2 de Debian 13).
-# Relevée le 2026-10-27 sur docker, newt-lxc et Pangolin, identiques ; vérifiée
-# par chaque scénario security* (tasks/verify_ssh_audit.yml).
+# le rôle security (devsec ssh_hardening, OpenSSH 10.0p2 de Debian 13) avec les
+# listes security_ssh_* de roles/security/defaults/main.yml. Vérifiée par
+# chaque scénario security* (tasks/verify_ssh_audit.yml), avec la politique
+# intégrée « Hardened Debian 13 (version 1) », et par `mise run ssh-audit`
+# contre les hôtes.
 #
 # Correspondance exacte, pas un plancher : un algorithme ajouté, retiré ou
 # déplacé échoue. Une montée de devsec.hardening ou d'OpenSSH qui change ces
 # listes casse la Molecule : relire le diff, puis mettre ce fichier à jour.
 #
-# Écarts connus à « Hardened Debian 13 (version 1) » (politique intégrée), que
-# cette politique fige sans les corriger :
-#   - pas de mlkem768x25519-sha256 (l'échange par défaut d'OpenSSH 10) : devsec
-#     ne garde que sntrup761x25519, aussi post-quantique ;
-#   - curve25519-sha256@libssh.org et diffie-hellman-group-exchange-sha256 (non
-#     post-quantiques) encore offerts ;
-#   - hmac-sha2-256 / hmac-sha2-512 sans etm ;
-#   - clé d'hôte ecdsa-sha2-nistp256, et RSA en 3072 bits au lieu de 4096
-#     (ssh_host_rsa_key_size, cf. roles/security/tasks/devsec.yml).
+# Mêmes algorithmes, dans le même ordre, que la politique intégrée. Plus
+# stricte qu'elle sur un point : ed25519 est la seule clé d'hôte (l'intégrée
+# admet un sous-ensemble de ed25519 + RSA 4096, celle-ci non). La version 1
+# (2026-10-27) figeait les listes par défaut de devsec : DH-GEX, curve25519,
+# MAC sans etm, clés d'hôte ECDSA et RSA 3072.
 #
 name = "Homelab security role (devsec ssh_hardening, Debian 13)"
-version = 1
+version = 2
 
 allow_algorithm_subset_and_reordering = false
 allow_hostkey_subset_and_reordering = false
@@ -27,14 +25,12 @@ allow_larger_keys = false
 
 compressions = none
 
-host_key_sizes = {"rsa-sha2-256": {"hostkey_size": 3072}, "rsa-sha2-512": {"hostkey_size": 3072}, "ssh-ed25519": {"hostkey_size": 256}}
+host_key_sizes = {"ssh-ed25519": {"hostkey_size": 256}}
 
-dh_modulus_sizes = {"diffie-hellman-group-exchange-sha256": 3072}
+host keys = ssh-ed25519
 
-host keys = rsa-sha2-512, rsa-sha2-256, ecdsa-sha2-nistp256, ssh-ed25519
+key exchanges = mlkem768x25519-sha256, sntrup761x25519-sha512, sntrup761x25519-sha512@openssh.com, ext-info-s, kex-strict-s-v00@openssh.com
 
-key exchanges = sntrup761x25519-sha512@openssh.com, curve25519-sha256@libssh.org, diffie-hellman-group-exchange-sha256, ext-info-s, kex-strict-s-v00@openssh.com
+ciphers = chacha20-poly1305@openssh.com, aes256-gcm@openssh.com, aes256-ctr, aes192-ctr, aes128-gcm@openssh.com, aes128-ctr
 
-ciphers = chacha20-poly1305@openssh.com, aes256-gcm@openssh.com, aes128-gcm@openssh.com, aes256-ctr, aes192-ctr, aes128-ctr
-
-macs = hmac-sha2-512-etm@openssh.com, hmac-sha2-256-etm@openssh.com, umac-128-etm@openssh.com, hmac-sha2-512, hmac-sha2-256
+macs = hmac-sha2-512-etm@openssh.com, hmac-sha2-256-etm@openssh.com, umac-128-etm@openssh.com

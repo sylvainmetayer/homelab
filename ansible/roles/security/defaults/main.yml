@@ -47,6 +47,58 @@ security_ssh_allow_agent_forwarding: true
 # 2 (défaut devsec) coupe un agent qui présente plusieurs clés.
 security_ssh_max_auth_tries: 3
 
+# Algorithmes de sshd : ceux du guide ssh-audit « Hardened Debian 13 »
+# (version 1), dans son ordre, que la politique intégrée du même nom vérifie à
+# l'identique (molecule/security/tasks/verify_ssh_audit.yml). Sans repli non
+# post-quantique ni DH-GEX : un client sans mlkem768x25519 ni sntrup761x25519
+# (OpenSSH < 8.5, PuTTY < 0.78, paramiko…) est refusé, « no matching key
+# exchange method found ». Clients et contournements :
+# docs/runbooks/ssh-refuse-apres-durcissement.md.
+security_ssh_kex:
+  - mlkem768x25519-sha256
+  - sntrup761x25519-sha512
+  - sntrup761x25519-sha512@openssh.com
+# Le CTR reste (le guide le garde) : avec des MAC etm seulement, il n'a plus
+# la faiblesse encrypt-and-MAC.
+security_ssh_ciphers:
+  - chacha20-poly1305@openssh.com
+  - aes256-gcm@openssh.com
+  - aes256-ctr
+  - aes192-ctr
+  - aes128-gcm@openssh.com
+  - aes128-ctr
+security_ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+  - umac-128-etm@openssh.com
+
+# Clés d'hôte offertes : ed25519 seule, la clé déjà épinglée dans
+# ansible/known_hosts (Ansible, CI, bastion). Tout client qui passe l'échange
+# de clés ci-dessus connaît ed25519 : RSA n'apporterait aucun client, et
+# resterait en 3072 bits (passer à 4096 changerait son empreinte). Jamais vide :
+# tasks/devsec.yml supprime toute clé d'hôte absente de cette liste.
+# Les autres clés de /etc/ssh (RSA, ECDSA) sont supprimées (tasks/devsec.yml).
+security_ssh_host_keys:
+  - /etc/ssh/ssh_host_ed25519_key
+# Algorithmes de clé d'hôte, de clé utilisateur et de signature de CA acceptés,
+# ceux du guide : ed25519 (et sa variante FIDO), RSA SHA-2 de 3072 bits au
+# moins, et leurs certificats. Les clés de keys/*.pub sont toutes ed25519.
+security_ssh_key_algorithms:
+  - sk-ssh-ed25519-cert-v01@openssh.com
+  - ssh-ed25519-cert-v01@openssh.com
+  - rsa-sha2-512-cert-v01@openssh.com
+  - rsa-sha2-256-cert-v01@openssh.com
+  - sk-ssh-ed25519@openssh.com
+  - ssh-ed25519
+  - rsa-sha2-512
+  - rsa-sha2-256
+security_ssh_ca_signature_algorithms:
+  - sk-ssh-ed25519@openssh.com
+  - ssh-ed25519
+  - rsa-sha2-512
+  - rsa-sha2-256
+security_ssh_required_rsa_size: 3072
+
 # Sources que fail2ban ne bannit jamais. Sur un hôte joint seulement par
 # ProxyJump (flip), tout SSH arrive de l'IP privée du bastion : la bannir
 # couperait Ansible, la CI et l'accès manuel pendant le bantime.
