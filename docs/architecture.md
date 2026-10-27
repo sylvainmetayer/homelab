@@ -171,7 +171,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  subgraph host["Chaque hôte (docker, pi, pangolin, flip)"]
+  subgraph host["Chaque hôte (docker, pi, pangolin, flip, nas)"]
     timer["borgmatic.timer<br/>01:00"] --> bm["borgmatic (root)<br/>/etc/borgmatic.d/app.yaml"]
     bm -- "dump dans le conteneur" --> db[("Postgres / MariaDB")]
     bm -- "sqlite3 .backup" --> sq["/var/lib/borgmatic-sqlite/app"]
@@ -193,6 +193,14 @@ flowchart LR
 - Rétention Borg : 7 quotidiennes, 4 hebdomadaires, 6 mensuelles, 1 annuelle.
 - Un modèle unique, `ansible/roles/borgmatic/templates/app.yaml.j2`, appelé
   par chaque rôle via `include_role: borgmatic tasks_from=app.yml`.
+- **Le NAS** (Jellyfin : configuration et base SQLite, jamais les médias,
+  qui n'ont que les instantanés d'UGOS) : rien ne s'installe sous UGOS,
+  borgmatic y tourne dans son image officielle (`borgmatic_install:
+  container`, `host_vars/nas`). `borgmatic.timer` (02:30) lance
+  `docker compose run --rm` par l'enrobage `/volume1/docker/borgmatic/borgmatic`,
+  configurations et clé sous `/volume1/docker/borgmatic`, montées au même
+  chemin dans le conteneur ; même modèle, même dépôt par appli, sous-compte
+  `backup-nas`.
 - Restauration : [runbooks/sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md)
   et [backup-restore.md](backup-restore.md).
 

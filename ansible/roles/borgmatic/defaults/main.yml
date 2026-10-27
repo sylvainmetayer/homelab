@@ -24,9 +24,43 @@ borgmatic_encryption_mode: repokey-blake2
 # Default: daily at 3 AM
 borgmatic_timer_schedule: "*-*-* 01:00:00"
 
-# borgmatic lui-même (installé par pipx pour root). Les scénarios Molecule y
-# posent un bouchon (molecule/_shared/prepare.yml).
-borgmatic_bin: /root/.local/bin/borgmatic
+# host : borgmatic installé sur l'hôte (pipx, tasks/host.yml). container :
+# image officielle lancée par `docker compose run` (tasks/container.yml), pour
+# un hôte sans apt ni pipx (le NAS sous UGOS, host_vars/nas).
+borgmatic_install: host
+
+# borgmatic lui-même (installé par pipx pour root), ou l'enrobage qui le lance
+# dans son conteneur. Les scénarios Molecule y posent un bouchon
+# (molecule/_shared/prepare.yml).
+borgmatic_bin: "{{ borgmatic_container_wrapper if borgmatic_install == 'container' else '/root/.local/bin/borgmatic' }}"
+# borg tel que le voit borgmatic (local_path des configurations) : celui de
+# GitHub sur l'hôte, celui de l'image dans le conteneur.
+borgmatic_borg_bin: "{{ '/usr/local/bin/borg' if borgmatic_install == 'container' else '/root/.local/bin/borg' }}"
+# Arguments de borgmatic dans borgmatic.service. Sur l'hôte, les messages
+# vont au journal par syslog ; dans le conteneur, qui n'a pas de /dev/log, par
+# la sortie de `docker compose run`, que le journal recueille.
+borgmatic_service_args: "{{ '--verbosity 1' if borgmatic_install == 'container' else '--verbosity -1 --syslog-verbosity 1' }}"
+# Unités après lesquelles la sauvegarde démarre, en plus du réseau : le démon
+# Docker sous UGOS (docker_service_system_after, host_vars/nas), sans le
+# tirer par Wants=.
+borgmatic_service_after: "{{ (docker_service_system_after | default([])) if borgmatic_install == 'container' else [] }}"
+
+# --- borgmatic en conteneur (borgmatic_install: container) ------------------
+# Tout ce que lit une configuration (elle-même, la clé SSH, les sources,
+# le staging SQLite) est monté au même chemin dans le conteneur : les chemins
+# du gabarit app.yaml.j2 valent des deux côtés. Dossier à root, 0700, sur le
+# disque de l'hôte (survit à une réinitialisation d'UGOS, comme les applis).
+borgmatic_container_path: "{{ docker_base_path }}/borgmatic"
+# `docker compose run --rm` de l'image : appelé par borgmatic.service et par
+# le repo-create de tasks/app.yml (borgmatic_bin).
+borgmatic_container_wrapper: "{{ borgmatic_container_path }}/borgmatic"
+# Sources montées en lecture-écriture : sqlite3 « .backup » d'une base en
+# mode WAL écrit son -shm. docker_base_path entier : les applications de
+# l'hôte y ont chacune leur dossier.
+borgmatic_container_source_paths:
+  - "{{ docker_base_path }}"
+# Provisoire : à recaler à ~2x memory.peak après quelques sauvegardes.
+borgmatic_container_mem_limit: 1g
 
 # Exclusions communes à toutes les applications. borgmatic les passe à borg
 # en style « fm: », ancrées au début du chemin archivé (sans le / initial) :

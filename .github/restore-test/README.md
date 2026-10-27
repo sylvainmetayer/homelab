@@ -107,7 +107,7 @@ ce workflow ne puisse lire ni la clé age ni la clé de déploiement :
 ## `apps.json`
 
 Clé : celle du moniteur de sauvegarde (entrée de `local.websites`, ou
-`pangolin`) ; `tofu test` de `pangolin_config` échoue si une app sauvegardée
+`pangolin`, ou `jellyfin` sur le NAS) ; `tofu test` de `pangolin_config` échoue si une app sauvegardée
 manque ou si une app retirée y reste.
 
 - `host` : hôte de `backup_storage_box_hosts`, dossier `backup/<host>` ;

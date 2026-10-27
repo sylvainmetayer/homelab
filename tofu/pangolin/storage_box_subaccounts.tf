@@ -6,7 +6,7 @@
 # backup/<hôte>/.ssh/authorized_keys par ansible/backup.yaml, avec le compte
 # principal. Le mot de passe ne sert qu'à l'API ; personne ne le lit.
 locals {
-  backup_hosts = toset(["docker", "pi", "pangolin", "flip"])
+  backup_hosts = toset(["docker", "pi", "pangolin", "flip", "nas"])
 }
 
 resource "random_password" "storage_box_subaccount" {

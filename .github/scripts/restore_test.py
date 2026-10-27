@@ -44,8 +44,9 @@ SAMPLE_FILES = 20
 SAMPLE_MAX_BYTES = 5 * 1024 * 1024
 DB_READY_TIMEOUT = 180
 # Backups start every night at 01:00 Europe/Paris (borgmatic_timer_schedule,
-# 23:00 or 00:00 UTC), the test at 10:00 UTC: the last archive is ~10 h old,
-# the one before ~34 h. 28 h makes one missed night enough to fail, while
+# 23:00 or 00:00 UTC; 02:30 on the NAS), the test at 10:00 UTC: the last
+# archive is ~10 h old (~8 h for the NAS), the one before ~34 h. 28 h makes
+# one missed night enough to fail, while
 # leaving a manual rerun the same day, or a backup started late, in time.
 MAX_ARCHIVE_AGE = datetime.timedelta(hours=28)
 

@@ -157,3 +157,26 @@
     state: started
     enabled: true
     daemon_reload: true
+
+# Bases SQLite de config/data (jellyfin.db aujourd'hui) copiées par
+# sqlite3 « .backup » dans le conteneur borgmatic, copie vivante exclue.
+- name: Configure borgmatic backup for Jellyfin
+  when: jellyfin_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: jellyfin
+    borgmatic_app_title: Jellyfin
+    borgmatic_app_target: "{{ jellyfin_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ jellyfin_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ jellyfin_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ jellyfin_base_path }}/config"
+      - "{{ jellyfin_base_path }}/traefik"
+      - "{{ jellyfin_base_path }}/compose.yaml"
+    borgmatic_app_sqlite_databases:
+      - "{{ jellyfin_base_path }}/config/data/*.db"

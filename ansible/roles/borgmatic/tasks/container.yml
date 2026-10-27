@@ -1,0 +1,100 @@
+---
+# borgmatic dans l'image officielle, pour un hôte où rien ne s'installe (NAS
+# sous UGOS : ni apt ni pipx). Pas de dc@ : une sauvegarde est un job ponctuel,
+# pas un service à relancer sans fin. borgmatic.service (oneshot, lancé par
+# borgmatic.timer comme sur les autres hôtes) fait un `docker compose run
+# --rm` de l'image : Persistent=true rattrape une nuit manquée (NAS éteint),
+# le journal garde la sortie, et aucun conteneur ne tourne entre deux
+# sauvegardes. Le cron interne de l'image, lui, demanderait un conteneur
+# permanent et ne rattraperait rien.
+#
+# Les chemins que lisent les configurations sont montés à l'identique dans le
+# conteneur (compose.yaml) : gabarit app.yaml.j2 et tasks/app.yml inchangés.
+
+# Cache et sécurité de borg, état des vérifications de borgmatic (checks:
+# frequency) : persistants, sinon chaque run relit tout le dépôt.
+- name: Ensure the borgmatic container folders exist
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ borgmatic_container_path }}"
+    - "{{ borgmatic_config_dir }}"
+    - "{{ borgmatic_container_path }}/ssh"
+    - "{{ borgmatic_container_path }}/borg-cache"
+    - "{{ borgmatic_container_path }}/borg-config"
+    - "{{ borgmatic_container_path }}/state"
+    - "{{ borgmatic_sqlite_staging_dir }}"
+
+- name: Template the borgmatic compose file
+  become: true
+  diff: false
+  ansible.builtin.template:
+    src: compose.yaml
+    dest: "{{ borgmatic_container_path }}/compose.yaml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the borgmatic container wrapper
+  become: true
+  ansible.builtin.template:
+    src: borgmatic-container.sh.j2
+    dest: "{{ borgmatic_container_wrapper }}"
+    owner: root
+    group: root
+    mode: "0700"
+
+# Une clé par hôte, qui ne quitte pas l'hôte : ansible/backup.yaml dépose sa
+# partie publique chez le sous-compte de l'hôte. ssh-keygen de l'hôte (UGOS
+# en a un), clé sous borgmatic_container_path (backup_storage_box_ssh_key_path,
+# host_vars).
+- name: Generate the SSH key of root for its Storage Box subaccount
+  become: true
+  community.crypto.openssh_keypair:
+    path: "{{ backup_storage_box_ssh_key_path }}"
+    type: ed25519
+    comment: "borgmatic@{{ inventory_hostname }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Monté en /root/.ssh dans le conteneur : le ssh de borg y lit known_hosts.
+- name: Trust the Storage Box host key under the subaccount name
+  become: true
+  ansible.builtin.known_hosts:
+    path: "{{ borgmatic_container_path }}/ssh/known_hosts"
+    name: "[{{ backup_storage_box_subaccount.server }}]:23"
+    key: "[{{ backup_storage_box_subaccount.server }}]:23 {{ backup_storage_box_host_key }}"
+
+- name: Create borgmatic systemd service
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.service.j2
+    dest: /etc/systemd/system/borgmatic.service
+    mode: "0640"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Create borgmatic systemd timer
+  become: true
+  ansible.builtin.template:
+    src: borgmatic.timer.j2
+    dest: /etc/systemd/system/borgmatic.timer
+    mode: "0640"
+    owner: root
+    group: root
+  notify: Reload systemd daemon
+
+- name: Enable and start borgmatic timer
+  become: true
+  ansible.builtin.systemd:
+    name: borgmatic.timer
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,8 @@
+#!/bin/sh
+# borgmatic dans son conteneur (rôle borgmatic, tasks/container.yml), avec
+# les arguments reçus : borgmatic.service, le repo-create de tasks/app.yml,
+# une restauration à la main (`{{ borgmatic_container_wrapper }} list`).
+# --rm : rien ne reste entre deux runs ; l'image est tirée si elle manque.
+set -eu
+exec /usr/bin/docker compose --file {{ (borgmatic_container_path ~ '/compose.yaml') | quote }} \
+  run --rm --no-TTY --quiet-pull borgmatic "$@"
