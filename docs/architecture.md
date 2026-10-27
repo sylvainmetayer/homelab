@@ -53,7 +53,9 @@ flowchart LR
    `/opt/pangolin/config/letsencrypt`) puis passe la requête à **Badger**, le
    middleware de Pangolin, qui applique les règles de la ressource : chemins
    publics (priorités 1 à 9), pays FR et DE autorisés (10, 11), pays de voyage
-   (20), tout le reste refusé (99). Ensuite seulement vient le SSO.
+   (20), tout le reste refusé (99). Ensuite seulement vient le SSO. Ce qui
+   passe sans lui (applis mobiles, flux, liens de partage, MCP), appli par
+   appli : [acces-mobile.md](acces-mobile.md).
 3. **Gerbil** porte les tunnels WireGuard. Chaque hôte fait tourner un
    **Newt** qui ouvre un tunnel *sortant* vers Pangolin : aucun port entrant
    n'est ouvert à la maison ni sur flip.
