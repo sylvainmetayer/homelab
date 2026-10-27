@@ -93,8 +93,58 @@
     name: geoipupdate.service
     state: started
 
+# Journal d'accès de Traefik (traefik_config.yml), lu par CrowdSec.
+- name: Install logrotate
+  become: true
+  ansible.builtin.apt:
+    name: logrotate
+    state: present
+
+- name: Rotate the Traefik access log
+  become: true
+  ansible.builtin.template:
+    src: logrotate-traefik-access.j2
+    dest: /etc/logrotate.d/traefik-access
+    mode: "0644"
+    owner: root
+    group: root
+
+# Données gardées quand pangolin_crowdsec_enabled passe à false : seul le
+# conteneur disparaît (compose.yaml).
+- name: Create the CrowdSec directories
+  when: pangolin_crowdsec_enabled
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+  loop:
+    - "{{ pangolin_crowdsec_dir }}"
+    - "{{ pangolin_crowdsec_dir }}/config"
+    - "{{ pangolin_crowdsec_dir }}/data"
+    - "{{ pangolin_crowdsec_dir }}/local"
+
+- name: Create the CrowdSec acquisition, whitelist and AppSec files
+  when: pangolin_crowdsec_enabled
+  become: true
+  notify: Restart CrowdSec
+  ansible.builtin.template:
+    src: "crowdsec/{{ item.src }}.j2"
+    dest: "{{ pangolin_crowdsec_dir }}/local/{{ item.src }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop: "{{ pangolin_crowdsec_local_files }}"
+  loop_control:
+    label: "{{ item.src }}"
+
+# Porte la clé du bouncer CrowdSec : diff: false. Relue par Traefik dès
+# qu'elle change (fournisseur file), sans redémarrage.
 - name: Create Traefik dynamic configuration
   become: true
+  diff: false
   ansible.builtin.template:
     src: traefik_dynamic_config.yml.j2
     dest: "{{ pangolin_dir }}/config/traefik/dynamic_config.yml"
@@ -166,9 +216,16 @@
     borgmatic_app_target: "{{ pangolin_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ pangolin_backup_encryption_passphrase }}"
     borgmatic_app_healthcheck_url: "{{ pangolin_backup_healthcheck_url }}"
+    # CrowdSec ({{ pangolin_crowdsec_dir }}) n'est pas dans les sources : sa
+    # base locale (alertes, décisions locales) est jetable, la liste
+    # communautaire revient de la CAPI et le hub se réinstalle au démarrage.
     borgmatic_app_source_directories:
       - "{{ pangolin_dir }}/compose.yaml"
       - "{{ pangolin_dir }}/config"
+    # Journal d'accès de Traefik et ses rotations (access.log.1, .gz) : déjà
+    # lu par CrowdSec, inutile à une restauration.
+    borgmatic_app_exclude_patterns:
+      - "{{ pangolin_dir }}/config/traefik/logs"
     # Base SQLite de Pangolin (ressources, utilisateurs, SSO) :
     # /app/config/db/db.sqlite dans le conteneur.
     borgmatic_app_sqlite_databases:

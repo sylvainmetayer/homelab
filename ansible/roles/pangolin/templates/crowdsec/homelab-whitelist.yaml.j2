@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Jamais d'alerte, donc jamais de décision, pour ces sources : la maison,
+# l'IP publique de Pangolin, les plages privées et
+# pangolin_crowdsec_whitelist_extra (vars/main.yml du rôle pangolin). Elle ne
+# filtre pas la liste communautaire (CAPI) : c'est clientTrustedIPs, côté
+# bouncer (traefik_dynamic_config.yml), qui les protège de celle-ci.
+name: homelab/whitelist
+description: "Homelab: home, Pangolin itself and private ranges"
+whitelist:
+  reason: "homelab trusted source"
+  cidr:
+{% for cidr in pangolin_crowdsec_trusted_cidrs %}
+    - "{{ cidr }}"
+{% endfor %}

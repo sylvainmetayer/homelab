@@ -44,3 +44,45 @@ pangolin_geoip_healthcheck_url: ""
 pangolin_backup_enabled: true
 pangolin_backup_borgmatic_target: "{{ backup_storage_box_url }}/pangolin"
 pangolin_backup_encryption_passphrase: "{{ backup_passphrase }}"
+
+# CrowdSec (docs/runbooks/crowdsec.md) : agent + LAPI dans la pile, qui lit le
+# journal d'accès de Traefik, et bouncer en plugin Traefik sur l'entrypoint
+# websecure (toutes les routes HTTPS, ni le port 80 ni le défi ACME).
+# Retour arrière : false puis `ansible-playbook pangolin.yaml --tags pangolin`
+# (middleware et plugin retirés, conteneur supprimé, données gardées sous
+# pangolin_crowdsec_dir). La clé du bouncer est la clé SOPS
+# pangolin_crowdsec_bouncer_key d'ansible/secrets.sops.yaml.
+pangolin_crowdsec_enabled: true
+# WAF (AppSec) en détection seule : règles chargées hors bande, jamais de 403
+# (templates/crowdsec/appsec-config.yaml.j2). false : le bouncer n'interroge
+# plus AppSec, le reste de CrowdSec ne change pas.
+pangolin_crowdsec_appsec_enabled: true
+pangolin_crowdsec_image: "docker.io/crowdsecurity/crowdsec:v1.8.1@sha256:0f2523fa61ef507f15d953045cface490cc880670c62f2755ced17524107f71a"
+# Hors de {{ pangolin_dir }}/config, donc hors de la sauvegarde borgmatic :
+# la base locale (alertes, décisions) et les éléments du hub se recréent au
+# démarrage (CAPI, cscli hub), la configuration vient de ce rôle.
+pangolin_crowdsec_dir: "{{ pangolin_dir }}/crowdsec"
+pangolin_crowdsec_collections:
+  - crowdsecurity/traefik
+  - crowdsecurity/http-cve
+  - crowdsecurity/base-http-scenarios
+  - crowdsecurity/appsec-virtual-patching
+  - crowdsecurity/appsec-generic-rules
+# whitelists : plages privées (flip par le NAT, conteneurs Docker de l'hôte).
+# nextcloud-whitelist : les 404 normaux du client WebDAV, des aperçus…
+pangolin_crowdsec_parsers:
+  - crowdsecurity/whitelists
+  - crowdsecurity/nextcloud-whitelist
+# Jamais détectées ni bloquées, en plus de home_ip (secrets.sops.yaml), de
+# l'IP publique de Pangolin et des plages privées : IP ou CIDR.
+pangolin_crowdsec_whitelist_extra: []
+# Plafond à ~2x le pic attendu (150-250 MiB avec la liste communautaire et
+# AppSec). Pas de cpus: (doctrine des limites, AGENTS.md).
+pangolin_crowdsec_mem_limit: 512m
+# Octets du corps transmis à AppSec. Le plugin les garde en mémoire (deux
+# copies) avant de relayer la requête : 1 Mio suffit aux règles (formulaires,
+# JSON), là où les 10 Mio par défaut pèseraient sur chaque envoi de fichier.
+pangolin_crowdsec_appsec_body_limit: 1048576
+# Journal d'accès de Traefik (JSON, lu par CrowdSec) : rotation quotidienne
+# par logrotate, Traefik rouvre le fichier sur SIGUSR1.
+pangolin_traefik_access_log_rotate_days: 7

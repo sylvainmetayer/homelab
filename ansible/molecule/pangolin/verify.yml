@@ -3,6 +3,7 @@
   hosts: all
   vars_files:
     - ../../roles/pangolin/defaults/main.yml
+    - ../../roles/pangolin/vars/main.yml
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
     - ../../host_vars/pangolin/variables.yaml
@@ -52,8 +53,10 @@
       ansible.builtin.assert:
         that:
           - pangolin_compose.name == 'pangolin'
-          - pangolin_compose.services.keys() | sort == ['gerbil', 'pangolin', 'traefik']
+          - pangolin_compose.services.keys() | sort == ['crowdsec', 'gerbil', 'pangolin', 'traefik']
           - pangolin_compose.services.traefik.network_mode == 'service:gerbil'
+          # Un CrowdSec en panne ne doit pas empêcher Traefik de démarrer.
+          - "'crowdsec' not in (pangolin_compose.services.traefik.depends_on | default({}))"
 
     # Contenu du fichier lui-même : le drop-in de prepare.yml remplace
     # ExecStart*, ExecStop, ExecReload et Restart à l'exécution.
@@ -208,6 +211,152 @@
           - dynamic_config.http.middlewares['redirect-sylvain-dev-apex'].redirectRegex.permanent
           - dynamic_config.http.routers['redirect-memoire-epsi'].rule == 'Host(`memoire.epsi.sylvainmetayer.fr`)'
 
+    # --- CrowdSec (agent + LAPI + AppSec, bouncer en plugin Traefik) ---
+
+    - name: Assert the CrowdSec container is pinned, capped and unexposed
+      vars:
+        pangolin_compose: "{{ pangolin_compose_raw.stdout | from_json }}"
+        crowdsec: "{{ pangolin_compose.services.crowdsec }}"
+        crowdsec_mounts: "{{ crowdsec.volumes | map(attribute='target') | list }}"
+      ansible.builtin.assert:
+        that:
+          - crowdsec.image is search('^docker\\.io/crowdsecurity/crowdsec:v[0-9.]+@sha256:[a-f0-9]{64}$')
+          - crowdsec.ports | default([]) | length == 0
+          - crowdsec.mem_limit | int == 536870912
+          - "'cpus' not in crowdsec"
+          - crowdsec.healthcheck.test == ['CMD', 'cscli', 'lapi', 'status']
+          - crowdsec.environment.BOUNCER_KEY_traefik == pangolin_crowdsec_bouncer_key
+          - crowdsec.environment.COLLECTIONS.split() | sort == pangolin_crowdsec_collections | sort
+          - "'crowdsecurity/sshd' not in crowdsec.environment.COLLECTIONS"
+          - "'ENROLL_KEY' not in crowdsec.environment"
+          # Bouncer recréé à chaque démarrage avec la clé courante.
+          - crowdsec.entrypoint[-1] is search('cscli bouncers delete traefik')
+          - crowdsec.entrypoint[-1] is search('exec /bin/bash /docker_start.sh$')
+          - "'/var/log/traefik' in crowdsec_mounts"
+          - "'/etc/crowdsec/acquis.yaml' in crowdsec_mounts"
+          - "'/etc/crowdsec/parsers/s02-enrich/homelab-whitelist.yaml' in crowdsec_mounts"
+          - "'/etc/crowdsec/appsec-configs/homelab-alert-only.yaml' in crowdsec_mounts"
+          - "'/etc/crowdsec/scenarios/homelab-appsec-alert-only.yaml' in crowdsec_mounts"
+          - crowdsec.volumes | selectattr('target', 'equalto', '/var/log/traefik') | map(attribute='read_only') | first
+
+    - name: Stat the CrowdSec files of the role
+      become: true
+      ansible.builtin.stat:
+        path: "{{ pangolin_crowdsec_dir }}/local/{{ item.src }}"
+      register: pangolin_crowdsec_stat
+      loop: "{{ pangolin_crowdsec_local_files }}"
+      loop_control:
+        label: "{{ item.src }}"
+
+    - name: Assert the CrowdSec files of the role are private to root
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == '0600'
+          - item.stat.pw_name == 'root'
+        fail_msg: "{{ item.item.src }} : {{ item.stat.mode | default('absent') }}"
+      loop: "{{ pangolin_crowdsec_stat.results }}"
+      loop_control:
+        label: "{{ item.item.src }}"
+
+    - name: Read the CrowdSec acquisition, whitelist and AppSec files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ pangolin_crowdsec_dir }}/local/{{ item }}"
+      register: pangolin_crowdsec_files
+      loop:
+        - acquis.yaml
+        - homelab-whitelist.yaml
+        - appsec-config.yaml
+        - appsec-alert-scenario.yaml
+
+    - name: Assert CrowdSec reads Traefik, whitelists home and never blocks through AppSec
+      vars:
+        acquis: "{{ pangolin_crowdsec_files.results[0].content | b64decode | ansible.builtin.from_yaml_all | list }}"
+        whitelist: "{{ pangolin_crowdsec_files.results[1].content | b64decode | from_yaml }}"
+        appsec_config: "{{ pangolin_crowdsec_files.results[2].content | b64decode | from_yaml }}"
+        appsec_scenario: "{{ pangolin_crowdsec_files.results[3].content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - acquis[0].filenames == ['/var/log/traefik/access.log']
+          - acquis[0].labels.type == 'traefik'
+          - acquis[1].source == 'appsec'
+          - acquis[1].appsec_config == appsec_config.name
+          - (home_ip ~ '/32') in whitelist.whitelist.cidr
+          - "'10.0.0.0/8' in whitelist.whitelist.cidr"
+          - "'172.16.0.0/12' in whitelist.whitelist.cidr"
+          # Détection seule : aucune règle en bande, donc jamais de 403 ni
+          # d'événement appsec-block (scénario crowdsecurity/appsec-vpatch).
+          - appsec_config.inband_rules | default([]) | length == 0
+          - "'crowdsecurity/vpatch-*' in appsec_config.outofband_rules"
+          - "'crowdsecurity/generic-*' in appsec_config.outofband_rules"
+          - appsec_scenario.name == 'homelab/appsec-alert-only'
+          - not appsec_scenario.labels.remediation
+
+    - name: Assert the Traefik bouncer is on websecure only, in stream mode, failing open
+      vars:
+        traefik_config: "{{ pangolin_traefik.results[0].content | b64decode | from_yaml }}"
+        dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
+        bouncer: "{{ dynamic_config.http.middlewares.crowdsec.plugin.crowdsec }}"
+      ansible.builtin.assert:
+        that:
+          - traefik_config.experimental.plugins.crowdsec.moduleName == 'github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin'
+          - traefik_config.experimental.plugins.crowdsec.version is match('^v[0-9]+\\.[0-9]+\\.[0-9]+$')
+          - traefik_config.entryPoints.websecure.http.middlewares == ['crowdsec@file']
+          # Défi ACME et redirections HTTP sans bouncer.
+          - "'http' not in traefik_config.entryPoints.web"
+          # IP du client = celle de la connexion, X-Forwarded-For jamais cru.
+          - "'forwardedHeaders' not in traefik_config.entryPoints.websecure"
+          - "'forwardedHeadersTrustedIPs' not in bouncer"
+          - "'forwardedHeadersTrustedIps' not in bouncer"
+          - traefik_config.accessLog.filePath == '/var/log/traefik/access.log'
+          - traefik_config.accessLog.format == 'json'
+          - traefik_config.accessLog.fields.headers.defaultMode == 'drop'
+          - "traefik_config.accessLog.fields.headers.names == {'User-Agent': 'keep'}"
+          - bouncer.crowdsecMode == 'stream'
+          - bouncer.crowdsecLapiKey == pangolin_crowdsec_bouncer_key
+          - bouncer.updateMaxFailure == -1
+          - not bouncer.streamStartupBlock
+          - bouncer.crowdsecAppsecEnabled
+          - not bouncer.crowdsecAppsecFailureBlock
+          - not bouncer.crowdsecAppsecUnreachableBlock
+          - not bouncer.crowdsecAppsecUnreadableBodyBlock
+          - (home_ip ~ '/32') in bouncer.clientTrustedIPs
+
+    - name: Stat the Traefik dynamic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ pangolin_dir }}/config/traefik/dynamic_config.yml"
+      register: pangolin_dynamic_stat
+
+    # Elle porte la clé du bouncer.
+    - name: Assert the Traefik dynamic configuration is private to root
+      ansible.builtin.assert:
+        that:
+          - pangolin_dynamic_stat.stat.mode == '0600'
+          - pangolin_dynamic_stat.stat.pw_name == 'root'
+
+    - name: Check the logrotate configuration of the Traefik access log
+      become: true
+      ansible.builtin.command: logrotate --debug /etc/logrotate.d/traefik-access
+      changed_when: false
+
+    - name: Read the logrotate configuration of the Traefik access log
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/logrotate.d/traefik-access
+      register: pangolin_logrotate_raw
+
+    - name: Assert the access log is rotated daily and Traefik signalled
+      vars:
+        logrotate_conf: "{{ pangolin_logrotate_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - logrotate_conf is search(pangolin_dir ~ '/config/traefik/logs/access.log \\{')
+          - logrotate_conf is search('\\bdaily\\b')
+          - logrotate_conf is search('docker kill --signal=USR1 traefik')
+          - logrotate_conf is not search('copytruncate')
+
     # --- borgmatic ---
 
     - name: Verify the borgmatic configuration of Pangolin
@@ -236,4 +385,6 @@
           - pangolin_borgmatic_stat.stat.pw_name == 'root'
           - borgmatic_config.repositories[0].path == pangolin_backup_borgmatic_target
           - borgmatic_config.source_directories == [pangolin_dir ~ '/compose.yaml', pangolin_dir ~ '/config']
+          # Journal d'accès exclu ; CrowdSec (hors de config/) jamais sauvegardé.
+          - (pangolin_dir ~ '/config/traefik/logs') in borgmatic_config.exclude_patterns
           - borgmatic_config.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/pangolin_backup'

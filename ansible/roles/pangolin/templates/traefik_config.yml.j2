@@ -10,6 +10,16 @@ experimental:
     badger:
       moduleName: "github.com/fosrl/badger"
       version: "v1.7.0"
+{% if pangolin_crowdsec_enabled %}
+    # Bouncer CrowdSec (middleware crowdsec@file, dynamic_config.yml). Absent
+    # quand pangolin_crowdsec_enabled est faux : Traefik ne le télécharge plus
+    # au démarrage. Un plugin qui ne se charge pas désactive TOUS les plugins,
+    # Badger compris (toutes les routes en 404) : relire les notes de version
+    # avant d'accepter une montée de version Renovate.
+    crowdsec:
+      moduleName: "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
+      version: "v1.8.1"
+{% endif %}
 
 log:
   level: "INFO"
@@ -18,6 +28,21 @@ log:
   maxBackups: 3
   maxAge: 3
   compress: true
+
+# Journal d'accès en JSON, lu par CrowdSec (parseur crowdsecurity/traefik-logs).
+# Pas de filtre (statut, durée) : une détection ne voit que ce qui est écrit.
+# En-têtes : User-Agent seul, ni cookies ni Authorization. Rotation par
+# logrotate sur l'hôte (/etc/logrotate.d/traefik-access, SIGUSR1).
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json
+  bufferingSize: 100
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep
 
 certificatesResolvers:
   letsencrypt:
@@ -36,9 +61,21 @@ entryPoints:
     transport:
       respondingTimeouts:
         readTimeout: "30m"
+    # Pas de forwardedHeaders.trustedIPs : rien ne précède Traefik (ports
+    # publiés par gerbil, DNAT de Docker qui garde l'IP source), il retire
+    # donc les X-Forwarded-* reçus et l'IP vue par le bouncer est celle de la
+    # connexion, qu'un client ne peut pas usurper.
     http:
       tls:
         certResolver: "letsencrypt"
+{% if pangolin_crowdsec_enabled %}
+      # Avant les middlewares de chaque routeur (Badger compris) : toutes les
+      # routes HTTPS, celles de Pangolin (tableau de bord, API, websocket des
+      # Newt et clients) comme celles des ressources. Le port 80 (défi ACME,
+      # redirections) n'a pas de bouncer.
+      middlewares:
+        - crowdsec@file
+{% endif %}
       encodedCharacters:
         allowEncodedSlash: true
         allowEncodedQuestionMark: true

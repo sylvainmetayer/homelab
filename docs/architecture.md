@@ -13,10 +13,13 @@ flowchart LR
   subgraph pangolin_vm["VM Pangolin (Hetzner, IP publique)"]
     direction TB
     traefik["Traefik<br/>certificats Let's Encrypt"]
+    bouncer["bouncer CrowdSec (plugin Traefik)<br/>IP bannies : 403"]
+    crowdsec["CrowdSec<br/>journal d'accès, AppSec (alertes)"]
     badger["Badger (plugin Traefik)<br/>règles pays/chemins, SSO"]
     pangolin_app["Pangolin<br/>config, SQLite, API"]
     gerbil["Gerbil<br/>WireGuard 51820/21820 UDP"]
-    traefik --> badger --> pangolin_app
+    traefik --> bouncer --> badger --> pangolin_app
+    bouncer -. "décisions (15 s), AppSec" .-> crowdsec
     traefik -. "même espace réseau<br/>(network_mode: service:gerbil)" .-> gerbil
   end
 
@@ -50,7 +53,10 @@ flowchart LR
 1. Le DNS (`tofu/dns`, chez OVH) envoie tous les sous-domaines vers l'IP
    publique de Pangolin.
 2. **Traefik** termine le TLS (certificats Let's Encrypt dans
-   `/opt/pangolin/config/letsencrypt`) puis passe la requête à **Badger**, le
+   `/opt/pangolin/config/letsencrypt`). Le **bouncer CrowdSec** répond 403 aux
+   IP bannies (scénarios sur le journal d'accès, liste communautaire ;
+   jamais la maison : [runbooks/crowdsec.md](runbooks/crowdsec.md)), puis
+   Traefik passe la requête à **Badger**, le
    middleware de Pangolin, qui applique les règles de la ressource : chemins
    publics (priorités 1 à 9), pays FR et DE autorisés (10, 11), pays de voyage
    (20), tout le reste refusé (99). Ensuite seulement vient le SSO. Ce qui
@@ -95,7 +101,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
-| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban |
+| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, disque **rotatif**) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich |

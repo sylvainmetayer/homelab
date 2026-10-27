@@ -7,6 +7,61 @@ http:
     redirect-to-https:
       redirectScheme:
         scheme: https
+{% if pangolin_crowdsec_enabled %}
+    # Bouncer CrowdSec, sur tout l'entrypoint websecure (traefik_config.yml).
+    # Mode stream : la liste des décisions est tirée de la LAPI toutes les
+    # 15 s et gardée en mémoire, aucune requête n'attend la LAPI. Il laisse
+    # passer quand CrowdSec est injoignable (updateMaxFailure: -1, appels
+    # AppSec en échec ou injoignables) : CrowdSec en panne ne coupe pas
+    # Pangolin, il ne protège plus. docs/runbooks/crowdsec.md.
+    crowdsec:
+      plugin:
+        crowdsec:
+          enabled: true
+          logLevel: INFO
+          crowdsecMode: stream
+          updateIntervalSeconds: 15
+          updateMaxFailure: -1
+          # Premier tirage en arrière-plan : Traefik ne l'attend pas pour
+          # charger sa configuration quand CrowdSec démarre encore.
+          streamStartupBlock: false
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: crowdsec:8080
+          crowdsecLapiKey: "{{ pangolin_crowdsec_bouncer_key }}"
+{% if pangolin_crowdsec_appsec_enabled %}
+          # AppSec en détection seule (règles hors bande, toujours 200). Les
+          # trois *Block à false : une erreur ou un corps illisible (HTTP/2
+          # sans Content-Length) laisse passer au lieu de répondre 403.
+          crowdsecAppsecEnabled: true
+          crowdsecAppsecHost: crowdsec:7422
+          crowdsecAppsecFailureBlock: false
+          crowdsecAppsecUnreachableBlock: false
+          crowdsecAppsecUnreadableBodyBlock: false
+          crowdsecAppsecBodyLimit: {{ pangolin_crowdsec_appsec_body_limit }}
+{% else %}
+          crowdsecAppsecEnabled: false
+{% endif %}
+          # Pas de forwardedHeadersTrustedIPs : l'IP du client est celle de la
+          # connexion, jamais un X-Forwarded-For (traefik_config.yml).
+          # Jamais bloquées, liste communautaire et décisions manuelles
+          # comprises : les mêmes sources que la liste blanche de CrowdSec
+          # (homelab-whitelist.yaml), qui, elle, ne couvre que la détection.
+          clientTrustedIPs:
+{% for cidr in pangolin_crowdsec_trusted_cidrs %}
+            - "{{ cidr }}"
+{% endfor %}
+{% else %}
+    # CrowdSec désactivé : un middleware du même nom qui ne fait rien (il
+    # retire un en-tête que personne n'envoie ; `headers: {}` vide est refusé
+    # et ferait rejeter tout ce fichier). Ce fichier est relu tout de suite,
+    # la configuration statique seulement au redémarrage de fin de play :
+    # d'ici là, l'entrypoint websecure désigne encore crowdsec@file, et un
+    # middleware absent mettrait toutes les routes en erreur.
+    crowdsec:
+      headers:
+        customRequestHeaders:
+          X-Crowdsec-Disabled: ""
+{% endif %}
     # API d'intégration (admin complet de Pangolin, int-api-router) : maison
     # et Pangolin lui-même (sortie de la passerelle vpn-flip, NAT de flip),
     # clé pangolin_api_allowed_ips de secrets.sops.yaml (plages séparées par
