@@ -40,9 +40,20 @@ nas_proxy_media_ip: 172.30.96.10
 
 # --- Interface d'UGOS : https://nas.sylvain.cloud ---
 # Le nginx d'UGOS, joint depuis le conteneur par l'IP LAN de l'hôte (testé :
-# 307 vers /desktop/, chemins relatifs, Host d'origine accepté).
+# 307 vers /desktop/, chemins relatifs, Host d'origine accepté). HTTP en
+# clair assumé : de Traefik à l'hôte qui le fait tourner, sans traverser le
+# LAN ; le 9443 d'UGOS n'a qu'un certificat autosigné.
 nas_proxy_ugos_domain: nas.sylvain.cloud
-nas_proxy_ugos_url: "http://{{ ansible_host }}:9999"
+nas_proxy_ugos_url: "http://{{ ansible_host }}:9999" # NOSONAR
+# Sources admises sur le routeur ugos : le LAN seul, d'où arrivent les
+# navigateurs de la maison et le Newt LXC (ressource privée nas, Admin seul),
+# leur IP conservée par le DNAT de Docker sur le 8443 publié. Le Newt du site
+# nas, lui, joint le 8443 du conteneur par le réseau newt (172.x) pour la
+# ressource media.sylvain.cloud, ouverte au rôle jellyfin : sans ce filtre, un
+# membre de ce rôle atteindrait l'interface d'UGOS en y envoyant
+# Host: nas.sylvain.cloud.
+nas_proxy_ugos_source_ranges:
+  - 192.168.1.0/24
 
 # --- Migration depuis le Traefik du compose de jellyfin (27/10/2026) ---
 # Son acme.json est repris tel quel (même résolveur, letsencrypt) : pas de
