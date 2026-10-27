@@ -4,7 +4,7 @@ services:
   # Le socket unix reste dans le conteneur : seul le data directory est sur
   # le NAS. Sauvegardé par pg_dump (borgmatic), jamais par copie de fichiers.
   nginx-demo-db:
-    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     container_name: nginx-demo-db
     restart: always
     # Arrêté avant le démontage du NAS : voir rôle nas_storage.
