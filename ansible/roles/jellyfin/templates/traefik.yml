@@ -14,14 +14,19 @@ log:
 # (Authorization, X-Emby-Token) : RequestPath porte la query string tant que
 # queryParameters la garde (Traefik 3.7, pkg/middlewares/accesslog/logger.go),
 # d'où les deux drop. Sans en-têtes, le Referer et le User-Agent de la ligne
-# common valent "-". Le ping du healthcheck n'est pas journalisé
-# (addInternals: false par défaut).
+# common valent "-". Seul le chemin reste : un seul appel de Jellyfin y porte
+# un secret, DELETE /Auth/Keys/{clé} (révocation d'une clé d'API, par un
+# administrateur), journalisé s'il échoue. Le ping du healthcheck n'est pas
+# journalisé (addInternals: false par défaut). StartUTC retiré : l'heure de la
+# ligne est alors l'heure locale (TZ du compose), comme celle des autres logs.
 accessLog:
   format: common
   filters:
     statusCodes:
       - "400-599"
   fields:
+    names:
+      StartUTC: drop
     headers:
       defaultMode: drop
     queryParameters:
