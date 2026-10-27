@@ -76,6 +76,8 @@ jobs:
         run: |
           python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' .github/scripts/restore_test.py
           jq -e 'to_entries | all(.value.host and .value.repo and .value.role)' .github/restore-test/apps.json
+          jq -e 'all(.[]; (.allow_empty_databases // []) | type == "array" and all(type == "string"))' .github/restore-test/apps.json \
+            || { echo "::error::allow_empty_databases doit être une liste de noms de bases"; exit 1; }
           for role in $(jq -r '.[].role' .github/restore-test/apps.json); do
             test -d "ansible/roles/$role" || { echo "::error::rôle $role absent"; exit 1; }
           done

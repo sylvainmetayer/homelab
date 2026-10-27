@@ -63,10 +63,12 @@ manque ou si une app retirée y reste.
 - `repo` : dossier du dépôt sous celui de l'hôte, et `borgmatic_app_name`
   (dossier de staging SQLite) ;
 - `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base ;
-- `allow_empty_databases` (facultatif, `true`) : un dump PostgreSQL ou
-  MariaDB rejoué sans aucune table ne fait pas échouer l'app. Réservé à une
-  base vide par construction (`nginx_demo` : sa démo ne crée aucun schéma),
-  jamais pour faire taire une vraie app.
+- `allow_empty_databases` (facultatif, liste de noms de bases) : le dump
+  PostgreSQL ou MariaDB d'une base listée peut être rejoué sans aucune table
+  sans faire échouer l'app ; les autres bases de l'app restent tenues d'en
+  avoir une. Réservé à une base vide par construction (`nginx_demo_db` : la
+  démo `nginx_demo` ne crée aucun schéma), jamais pour faire taire une vraie
+  app.
 
 ## Lancer à la main
 
