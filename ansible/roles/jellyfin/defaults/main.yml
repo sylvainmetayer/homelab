@@ -24,7 +24,36 @@ jellyfin_media_folders:
 # périphérique (render sur le NAS), gid lu sur le périphérique au déploiement.
 jellyfin_render_device: /dev/dri/renderD128
 
-# Publié sur le LAN (TV, Chromecast, téléphones à la maison).
+# Publié sur le LAN (TV, Chromecast, téléphones à la maison) : repli en HTTP
+# simple, à côté de https://media.sylvain.cloud:8443.
 jellyfin_port: 8096
 # Provisoire : à recaler à ~2x memory.peak après une semaine d'usage.
 jellyfin_mem_limit: 3g
+
+# --- Traefik devant Jellyfin : https://media.sylvain.cloud ---
+# Une seule adresse en LAN et par le client Pangolin. Le A public
+# media.sylvain.cloud vise l'IP LAN du NAS (tofu/dns/media.tf), et la ressource
+# privée Pangolin du même nom vise ce Traefik sur le réseau newt, en 443
+# (tofu/pangolin_config/private_resources.tf). Certificat Let's Encrypt par
+# DNS-01 OVH : rien n'a besoin d'être joignable depuis Internet.
+jellyfin_domain: media.sylvain.cloud
+# Port de l'hôte NAS : 80 et 443 appartiennent au nginx d'UGOS (redirections
+# vers son interface, 9999 et 9443). En LAN, https://media.sylvain.cloud:8443 ;
+# par Pangolin, le 443 du conteneur, sans numéro de port.
+jellyfin_https_port: 8443
+jellyfin_acme_email: "{{ pangolin_le_email }}"
+# Clé OVH dédiée au DNS-01, restreinte aux trois appels que fait lego (ajout du
+# TXT, rafraîchissement de la zone, suppression du TXT), créée sur
+# https://eu.api.ovh.com/createToken/?POST=/domain/zone/sylvain.cloud/record&POST=/domain/zone/sylvain.cloud/refresh&DELETE=/domain/zone/sylvain.cloud/record/*
+# Clés SOPS préfixées nas_ovh_*, jamais le nom d'une variable du rôle.
+jellyfin_ovh_endpoint: ovh-eu
+jellyfin_ovh_application_key: "{{ nas_ovh_application_key }}"
+jellyfin_ovh_application_secret: "{{ nas_ovh_application_secret }}"
+jellyfin_ovh_consumer_key: "{{ nas_ovh_consumer_key }}"
+# Réseau privé entre Traefik et Jellyfin, à sous-réseau fixe : Traefik y a une
+# IP fixe, celle à saisir dans Jellyfin (Tableau de bord, Réseau, « Proxys
+# connus ») pour qu'il croie ses X-Forwarded-*. Hors des réseaux déjà pris sur
+# le NAS (bridge 172.17, newt 172.18, virbr 192.100).
+jellyfin_proxy_subnet: 172.30.96.0/24
+jellyfin_traefik_ip: 172.30.96.10
+jellyfin_traefik_mem_limit: 256m

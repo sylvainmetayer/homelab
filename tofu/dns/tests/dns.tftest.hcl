@@ -239,3 +239,20 @@ run "verification_google_a_l_apex" {
     error_message = "La valeur du TXT doit être le jeton google-site-verification=… entre guillemets."
   }
 }
+
+# media.sylvain.cloud vise l'IP LAN du NAS, pas Pangolin : un nom précis prime
+# sur le joker *.sylvain.cloud. Elle suit ansible/inventory/hosts.
+run "media_vers_le_nas" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.media.zone == "sylvain.cloud"
+      && ovh_domain_zone_record.media.subdomain == "media"
+      && ovh_domain_zone_record.media.fieldtype == "A"
+      && ovh_domain_zone_record.media.target != "203.0.113.10"
+      && can(regex("(?m)^\\s*nas\\s+ansible_host=${replace(ovh_domain_zone_record.media.target, ".", "\\.")}(\\s|$)", file("${path.module}/../../ansible/inventory/hosts")))
+    )
+    error_message = "media.sylvain.cloud doit être un A vers l'IP LAN du NAS (ansible/inventory/hosts), jamais vers Pangolin."
+  }
+}

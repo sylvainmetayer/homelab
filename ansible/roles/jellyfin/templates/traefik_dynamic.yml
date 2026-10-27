@@ -1,0 +1,33 @@
+---
+# Configuration dynamique du Traefik de Jellyfin : un routeur, un service.
+# Traefik ajoute lui-même X-Forwarded-For/-Proto/-Host et laisse passer les
+# websockets ; Jellyfin ne les croit que de ses « Proxys connus » (l'IP fixe de
+# Traefik, {{ jellyfin_traefik_ip }}, à saisir dans son tableau de bord).
+http:
+  routers:
+    jellyfin:
+      # Le port (8443 en LAN) ne compte pas dans Host().
+      rule: "Host(`{{ jellyfin_domain }}`)"
+      entryPoints:
+        - websecure
+      service: jellyfin
+      middlewares:
+        - jellyfin-headers
+      tls:
+        certResolver: letsencrypt
+
+  middlewares:
+    jellyfin-headers:
+      headers:
+        # HTTPS seul sur ce nom, aux deux ports ; sans includeSubdomains : les
+        # autres *.sylvain.cloud sont servis par Pangolin.
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        customFrameOptionsValue: SAMEORIGIN
+        referrerPolicy: same-origin
+
+  services:
+    jellyfin:
+      loadBalancer:
+        servers:
+          - url: "http://jellyfin:8096"

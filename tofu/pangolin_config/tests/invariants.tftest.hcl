@@ -1991,7 +1991,7 @@ run "flip_newt_credentials_come_from_the_flip_site" {
 # nas.yml lit les identifiants Newt du site nas dans ce state (et échoue s'ils
 # sont vides), sous leur forme littérale : une sortie renommée donnerait un
 # Newt sans identifiants.
-run "nas_newt_credentials_and_media_internal" {
+run "nas_newt_credentials_and_media" {
   command = apply
 
   assert {
@@ -2003,20 +2003,24 @@ run "nas_newt_credentials_and_media_internal" {
     error_message = "nas_newt_id / nas_newt_secret doivent être ceux de pangolin_site.nas, lus tels quels par ansible/nas.yml."
   }
 
-  # Le Newt du NAS joint Jellyfin par son nom de conteneur sur le réseau newt
-  # (container_name du compose du rôle jellyfin), en TCP 8096 seulement.
+  # Le Newt du NAS joint le Traefik de Jellyfin par son nom de conteneur sur le
+  # réseau newt (container_name du compose du rôle jellyfin), en TCP 443
+  # seulement : Jellyfin lui-même (8096) n'est plus joignable par Pangolin.
+  # L'alias est le nom public dont le A vise l'IP LAN du NAS (tofu/dns), pour
+  # une seule URL en LAN et dehors.
   assert {
     condition = (
       pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
       && pangolin_site_resource.jellyfin.mode == "host"
-      && pangolin_site_resource.jellyfin.alias == "media.internal"
-      && pangolin_site_resource.jellyfin.destination == "jellyfin"
-      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin\n")
-      && pangolin_site_resource.jellyfin.tcp_port_range == "8096"
+      && pangolin_site_resource.jellyfin.alias == "media.sylvain.cloud"
+      && strcontains(file("${path.module}/../dns/media.tf"), "subdomain = \"media\"")
+      && pangolin_site_resource.jellyfin.destination == "jellyfin-traefik"
+      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/templates/compose.yaml"), "container_name: jellyfin-traefik\n")
+      && pangolin_site_resource.jellyfin.tcp_port_range == "443"
       && pangolin_site_resource.jellyfin.udp_port_range == "*"
       && pangolin_site_resource.jellyfin.disable_icmp == true
     )
-    error_message = "media.internal doit viser le conteneur jellyfin, sur le site nas, en TCP 8096 seul, ICMP coupé."
+    error_message = "media.sylvain.cloud doit viser le conteneur jellyfin-traefik, sur le site nas, en TCP 443 seul, ICMP coupé."
   }
 
   # Une ressource privée, jamais publique, ouverte au seul rôle jellyfin.
@@ -2027,7 +2031,7 @@ run "nas_newt_credentials_and_media_internal" {
       && pangolin_role.jellyfin.name == "jellyfin"
       && !contains(keys(local.websites), "jellyfin")
     )
-    error_message = "media.internal doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
+    error_message = "media.sylvain.cloud doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
   }
 
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de

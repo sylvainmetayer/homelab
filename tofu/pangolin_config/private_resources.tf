@@ -104,19 +104,24 @@ resource "pangolin_site_resource" "flip" {
 }
 
 # Jellyfin (ansible/roles/jellyfin, sur le NAS), dehors par un client
-# Pangolin ; à la maison, directement sur http://192.168.1.137:8096. Servi par
-# le Newt du NAS, qui joint le conteneur par son nom sur le réseau Docker newt
-# qu'ils partagent : aucune ressource publique. TCP 8096 seul ; UDP à "*"
-# comme ailleurs (le provider ne sait pas envoyer une plage vide), le conteneur
-# n'écoute en UDP que la découverte des clients (7359).
+# Pangolin, à la même adresse qu'en LAN : https://media.sylvain.cloud (en LAN
+# sur le port 8443, 443 étant pris par le nginx d'UGOS ; repli
+# http://192.168.1.137:8096). L'alias est le nom public dont le A (tofu/dns,
+# media.tf) vise l'IP LAN du NAS : le client Pangolin le résout vers la
+# ressource, et le certificat Let's Encrypt du Traefik du NAS vaut pour les
+# deux chemins. Servi par le Newt du NAS, qui joint ce Traefik par son nom de
+# conteneur sur le réseau Docker newt qu'ils partagent : aucune ressource
+# publique. TCP 443 seul (Jellyfin n'est plus joignable en direct par
+# Pangolin) ; UDP à "*" comme ailleurs (le provider ne sait pas envoyer une
+# plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "jellyfin" {
   site_id        = pangolin_site.nas.id
   name           = "Jellyfin"
   mode           = "host"
-  alias          = "media.internal"
-  destination    = "jellyfin"
+  alias          = "media.sylvain.cloud"
+  destination    = "jellyfin-traefik"
   disable_icmp   = true
-  tcp_port_range = "8096"
+  tcp_port_range = "443"
   udp_port_range = "*"
 }
 
@@ -125,7 +130,7 @@ resource "pangolin_site_resource" "jellyfin" {
 # local.apps (roles.tf), dont chaque rôle est lié à une ressource publique.
 resource "pangolin_role" "jellyfin" {
   name        = "jellyfin"
-  description = "Role for media.internal"
+  description = "Role for media.sylvain.cloud (Jellyfin, private)"
 }
 
 resource "pangolin_site_resource_role" "jellyfin" {

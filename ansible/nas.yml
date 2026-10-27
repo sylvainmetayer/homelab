@@ -54,12 +54,13 @@
     - role: decommission_app
       tags: [decommission, never]
     # Connecteur du site Pangolin nas, sous dc@newt (unité système) : il sert
-    # media.internal aux clients Pangolin, par le réseau Docker newt qu'il
-    # crée et que rejoint Jellyfin.
+    # media.sylvain.cloud aux clients Pangolin, par le réseau Docker newt qu'il
+    # crée et que rejoint le Traefik de Jellyfin.
     - role: newt
       tags: newt
     # Médiathèque sous dc@jellyfin (unité système), médias du dossier partagé
-    # media en lecture seule. Ses vérifications (dossier partagé, Quick Sync)
+    # media en lecture seule, derrière son Traefik : https://media.sylvain.cloud
+    # (:8443 en LAN, sans port par le client Pangolin). Ses vérifications (dossier partagé, Quick Sync)
     # ne tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     # Le réseau newt est créé par dc@newt : sur un NAS neuf, --tags newt avant
     # un --tags jellyfin seul, sinon dc@jellyfin réessaie toutes les 15 s.

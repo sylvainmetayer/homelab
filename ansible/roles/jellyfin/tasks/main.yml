@@ -91,6 +91,60 @@
     group: "{{ jellyfin_gid }}"
     mode: "0700"
 
+# Traefik : configuration et certificat à root (root dans le conteneur, sans
+# CAP_DAC_OVERRIDE), sur le disque du NAS, jamais sur NFS. Rien de secret dans
+# les deux fichiers de configuration (les identifiants OVH sont dans le
+# compose), mais acme.json porte la clé privée du certificat.
+- name: Ensure the Traefik folders exist
+  become: true
+  loop:
+    - "{{ jellyfin_base_path }}/traefik"
+    - "{{ jellyfin_base_path }}/traefik/config"
+    - "{{ jellyfin_base_path }}/traefik/acme"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Template the Traefik configuration
+  become: true
+  notify: Restart jellyfin
+  loop:
+    - { src: traefik.yml, dest: traefik.yml }
+    - { src: traefik_dynamic.yml, dest: dynamic.yml }
+  ansible.builtin.template:
+    src: "templates/{{ item.src }}"
+    dest: "{{ jellyfin_base_path }}/traefik/config/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Traefik refuse un acme.json qui n'est pas en 0600. Créé vide une fois, puis
+# laissé à Traefik (force: false) : jamais écrasé par un redéploiement.
+- name: Ensure the ACME storage exists with mode 0600
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ jellyfin_base_path }}/traefik/acme/acme.json"
+    force: false
+    owner: root
+    group: root
+    mode: "0600"
+
+# copy force: false laisse un fichier existant tel quel : son mode est
+# reposé ici, au cas où il aurait été touché à la main.
+- name: Keep the ACME storage closed
+  become: true
+  ansible.builtin.file:
+    path: "{{ jellyfin_base_path }}/traefik/acme/acme.json"
+    state: file
+    owner: root
+    group: root
+    mode: "0600"
+
 - name: Template the Jellyfin compose configuration
   become: "{{ jellyfin_as_root }}"
   diff: false

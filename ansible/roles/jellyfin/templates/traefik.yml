@@ -1,0 +1,52 @@
+---
+# Configuration statique du Traefik de Jellyfin (dc@jellyfin, sur le NAS).
+# Fournisseur fichier seul : ni labels, ni socket Docker monté.
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+entryPoints:
+  # Le 443 du conteneur : celui que vise la ressource privée Pangolin, publié
+  # sur le port {{ jellyfin_https_port }} du NAS pour le LAN. Pas de port 80 :
+  # il est au nginx d'UGOS, et le DNS-01 n'en a pas besoin.
+  websecure:
+    address: ":443"
+    http:
+      # Supprime les en-têtes qui en imitent un autre (X_Forwarded_For…) :
+      # aucun client ne peut se faire passer pour ce que pose Traefik.
+      aliasHeadersStrategy: delete
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: "{{ jellyfin_domain }}"
+  # Healthcheck du conteneur (traefik healthcheck --ping), jamais publié.
+  ping:
+    address: ":8082"
+    http:
+      aliasHeadersStrategy: delete
+
+ping:
+  entryPoint: ping
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "{{ jellyfin_acme_email }}"
+      # Dans le dossier du projet, sur le disque du NAS (jamais sur NFS), 0600.
+      storage: /letsencrypt/acme.json
+      # DNS-01 par l'API OVH (identifiants OVH_* du compose) : le A de
+      # {{ jellyfin_domain }} vise une IP privée, aucun HTTP-01 possible.
+      # Résolveurs publics pour la vérification de propagation : pas de cache
+      # de la Bbox entre l'ajout du TXT et la vérification.
+      dnsChallenge:
+        provider: ovh
+        resolvers:
+          - "1.1.1.1:53"
+          - "9.9.9.9:53"
