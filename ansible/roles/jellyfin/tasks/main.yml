@@ -110,6 +110,7 @@
 
 - name: Template the Traefik configuration
   become: true
+  diff: false
   notify: Restart jellyfin
   loop:
     - { src: traefik.yml, dest: traefik.yml }
@@ -122,25 +123,15 @@
     mode: "0600"
 
 # Traefik refuse un acme.json qui n'est pas en 0600. Créé vide une fois, puis
-# laissé à Traefik (force: false) : jamais écrasé par un redéploiement.
+# laissé à Traefik : touch ne change jamais le contenu (dates préservées,
+# idempotent), mais repose propriétaire et mode à chaque passage.
 - name: Ensure the ACME storage exists with mode 0600
-  become: true
-  diff: false
-  ansible.builtin.copy:
-    content: ""
-    dest: "{{ jellyfin_base_path }}/traefik/acme/acme.json"
-    force: false
-    owner: root
-    group: root
-    mode: "0600"
-
-# copy force: false laisse un fichier existant tel quel : son mode est
-# reposé ici, au cas où il aurait été touché à la main.
-- name: Keep the ACME storage closed
   become: true
   ansible.builtin.file:
     path: "{{ jellyfin_base_path }}/traefik/acme/acme.json"
-    state: file
+    state: touch
+    access_time: preserve
+    modification_time: preserve
     owner: root
     group: root
     mode: "0600"

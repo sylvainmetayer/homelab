@@ -64,7 +64,7 @@
           - jellyfin_verify_service.healthcheck.test | select('search', '127\.0\.0\.1:8096/health') | list | length == 1
         fail_msg: "Service jellyfin inattendu : {{ jellyfin_verify_service }}"
 
-    # Traefik devant Jellyfin : 443 du conteneur publié en 8443 (80/443 de
+    # Traefik devant Jellyfin : 8443 du conteneur publié en 8443 (80/443 de
     # l'hôte sont au nginx d'UGOS), configuration en fichiers, aucun socket
     # Docker, identifiants OVH du DNS-01 tirés des clés SOPS nas_ovh_*.
     - name: Assert Traefik fronts Jellyfin without the Docker socket
@@ -77,7 +77,7 @@
           - jellyfin_verify_traefik.image is match('docker.io/traefik:v3\.[0-9.]+@sha256:[0-9a-f]{64}$')
           - jellyfin_verify_traefik.container_name == 'jellyfin-traefik'
           - jellyfin_verify_traefik.ports | map(attribute='published') | map('string') | list == ['8443']
-          - jellyfin_verify_traefik.ports | map(attribute='target') | list == [443]
+          - jellyfin_verify_traefik.ports | map(attribute='target') | list == [8443]
           - jellyfin_verify_mounts | selectattr('source', 'search', 'docker\.sock') | list | length == 0
           - jellyfin_verify_traefik.volumes | map(attribute='source') | list
             == [jellyfin_verify_path ~ '/traefik/config', jellyfin_verify_path ~ '/traefik/acme']
@@ -157,7 +157,10 @@
         that:
           - jellyfin_verify_static.providers.keys() | list == ['file']
           - jellyfin_verify_static.entryPoints.websecure.address == ':443'
-          - jellyfin_verify_static.entryPoints.keys() | sort == ['ping', 'websecure']
+          - jellyfin_verify_static.entryPoints['websecure-lan'].address == ':8443'
+          - jellyfin_verify_static.entryPoints.keys() | sort == ['ping', 'websecure', 'websecure-lan']
+          - jellyfin_verify_dynamic.http.routers.jellyfin.entryPoints | sort == ['websecure', 'websecure-lan']
+          - jellyfin_verify_dynamic.http.routers.jellyfin.tls.certResolver == 'letsencrypt'
           - jellyfin_verify_static.certificatesResolvers.letsencrypt.acme.dnsChallenge.provider == 'ovh'
           - jellyfin_verify_static.certificatesResolvers.letsencrypt.acme.storage == '/letsencrypt/acme.json'
           - jellyfin_verify_static.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
