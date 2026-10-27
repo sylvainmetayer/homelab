@@ -54,8 +54,9 @@ http:
     # CrowdSec désactivé : un middleware du même nom qui ne fait rien (il
     # retire un en-tête que personne n'envoie ; `headers: {}` vide est refusé
     # et ferait rejeter tout ce fichier). Ce fichier est relu tout de suite,
-    # la configuration statique seulement au redémarrage de fin de play :
-    # d'ici là, l'entrypoint websecure désigne encore crowdsec@file, et un
+    # la configuration statique seulement au redémarrage de la pile (handlers
+    # vidés en fin de rôle) : d'ici là, l'entrypoint websecure désigne encore
+    # crowdsec@file, et un
     # middleware absent mettrait toutes les routes en erreur.
     crowdsec:
       headers:

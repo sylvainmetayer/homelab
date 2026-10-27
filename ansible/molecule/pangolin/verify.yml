@@ -230,7 +230,12 @@
           - "'crowdsecurity/sshd' not in crowdsec.environment.COLLECTIONS"
           - "'ENROLL_KEY' not in crowdsec.environment"
           # Bouncer recréé à chaque démarrage avec la clé courante.
-          - crowdsec.entrypoint[-1] is search('cscli bouncers delete traefik')
+          # « traefik » et les « traefik@<IP> » créés par la LAPI, qui
+          # garderaient l'ancienne clé valide après une rotation.
+          # (compose config peut rendre $$ tel quel ou en $.)
+          - "'cscli bouncers list -o json' in crowdsec.entrypoint[-1]"
+          - crowdsec.entrypoint[-1] is search('traefik.\\(@')
+          - crowdsec.entrypoint[-1] is search('cscli bouncers delete "\\$\\$?b"')
           - crowdsec.entrypoint[-1] is search('exec /bin/bash /docker_start.sh$')
           - "'/var/log/traefik' in crowdsec_mounts"
           - "'/etc/crowdsec/acquis.yaml' in crowdsec_mounts"
