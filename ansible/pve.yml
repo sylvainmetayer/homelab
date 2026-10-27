@@ -1,5 +1,5 @@
 ---
-# Hôte Proxmox VE (#852) : rien que l'agent Beszel, en binaire comme sur le
+# Hôte Proxmox VE (#852) : l'agent Beszel, en binaire comme sur le
 # LXC newt. Le reste de l'hôte appartient à Proxmox (paquets, sshd, pare-feu)
 # et à tofu/proxmox : ni 00-setup, ni security. Lancé à la main seulement
 # (ansible-playbook pve.yml), jamais par la CI : aucune clé de l'hôte dans les
@@ -20,6 +20,18 @@
         file: "{{ playbook_dir }}/secrets.sops.yaml"
         expressions: evaluate-on-load
         return_method: vars-only
+  tasks:
+    # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
+    # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar
+    # d'un LXC non privilégié (uid 100000) ne peut pas ouvrir le dossier que
+    # vzdump y crée en root. Ici plutôt que dans le job : l'API réserve tmpdir
+    # à root@pam. En mode snapshot il ne reçoit que la config du guest.
+    - name: Keep the vzdump temporary directory local
+      tags: vzdump
+      ansible.builtin.lineinfile:
+        path: /etc/vzdump.conf
+        regexp: '^#?\s*tmpdir:'
+        line: "tmpdir: /var/tmp"
   roles:
     - role: beszel_agent
       tags: beszel_agent,monitoring
