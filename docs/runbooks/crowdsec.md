@@ -94,9 +94,11 @@ sudo docker exec crowdsec cscli allowlists create depannage -d "levée manuelle"
 sudo docker exec crowdsec cscli allowlists add depannage 203.0.113.7
 ```
 
-Une victime probable : le moniteur Uptime Kuma (PikaPods, IP qui peut
-changer) ou un runner GitHub (enregistrement OLM sur `pangolin.sylvain.cloud`)
-dont l'IP serait dans la liste communautaire. Symptôme : 403 vide, et
+Victimes probables, toutes sur des IP de cloud partagées que la liste
+communautaire peut contenir : le moniteur Uptime Kuma (PikaPods, IP qui peut
+changer), un runner GitHub (enregistrement OLM sur `pangolin.sylvain.cloud` :
+`deploy-docker-app` échoue), les fonctions Supabase du tournoi Linkx qui
+appellent Promptoramix. Rien n'alerte : symptôme, un 403 vide, et
 `cscli decisions list -a --ip <ip>` la montre.
 
 ## Tester un bannissement

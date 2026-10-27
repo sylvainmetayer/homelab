@@ -62,12 +62,19 @@ services:
     # l'ancienne, AppSec répondrait 401 et le plugin, qui bloque sur toute
     # réponse inattendue, refuserait toutes les requêtes (403). Le bouncer est
     # donc supprimé avant chaque démarrage, et l'image le recrée avec la clé
-    # courante. Premier démarrage : pas encore de configuration, cscli échoue
-    # sans conséquence.
+    # courante. Avec lui, les « traefik@<IP> » que la LAPI crée d'elle-même
+    # quand la même clé arrive d'une autre IP (gerbil recréé) : ils gardent
+    # l'empreinte de l'ancienne clé, qui resterait valide après une rotation.
+    # Premier démarrage : pas encore de configuration, cscli échoue sans
+    # conséquence. $$ : échappement de l'interpolation de compose.
     entrypoint:
       - /bin/bash
       - -c
-      - cscli bouncers delete traefik >/dev/null 2>&1; exec /bin/bash /docker_start.sh
+      - >-
+        for b in $$(cscli bouncers list -o json 2>/dev/null
+        | sed -n 's/^ *"name": "\(traefik\(@[^"]*\)\{0,1\}\)",$$/\1/p');
+        do cscli bouncers delete "$$b" >/dev/null 2>&1; done;
+        exec /bin/bash /docker_start.sh
     environment:
       COLLECTIONS: "{{ pangolin_crowdsec_collections | join(' ') }}"
       PARSERS: "{{ pangolin_crowdsec_parsers | join(' ') }}"

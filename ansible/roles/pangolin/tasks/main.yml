@@ -126,9 +126,11 @@
     - "{{ pangolin_crowdsec_dir }}/data"
     - "{{ pangolin_crowdsec_dir }}/local"
 
+# La liste blanche porte home_ip (secrets.sops.yaml) : diff: false.
 - name: Create the CrowdSec acquisition, whitelist and AppSec files
   when: pangolin_crowdsec_enabled
   become: true
+  diff: false
   notify: Restart CrowdSec
   ansible.builtin.template:
     src: "crowdsec/{{ item.src }}.j2"
@@ -200,6 +202,16 @@
     enabled: true
     state: started
     daemon_reload: true
+
+# Traefik relit dynamic_config.yml dès son écriture, la pile ne redémarre
+# qu'au handler : après une rotation de pangolin_crowdsec_bouncer_key, le
+# plugin présente la nouvelle clé à une LAPI qui a encore l'ancienne, AppSec
+# répond 401 et toutes les routes HTTPS sont en 403. Redémarrer ici, pas en
+# fin de play : la fenêtre se limite aux tâches ci-dessus, et un échec plus
+# loin (borgmatic, beszel_agent) ne laisse pas la pile sur l'ancienne clé
+# (sans force_handlers, les handlers notifiés ne tourneraient jamais).
+- name: Restart the Pangolin stack now on a configuration change
+  ansible.builtin.meta: flush_handlers
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Pangolin

@@ -5,7 +5,6 @@
 # crée.
 - name: Restart CrowdSec
   become: true
-  when: pangolin_crowdsec_enabled
   ansible.builtin.shell: |
     if /usr/bin/docker inspect crowdsec >/dev/null 2>&1; then
       /usr/bin/docker restart crowdsec
