@@ -1,0 +1,64 @@
+---
+# Converge applique le vrai host_vars/docker, où paperless est en pause
+# (paperless_enabled: false) : l'idempotence porte sur cet état. Ici : pause
+# vérifiée, reprise, nouvelle pause depuis l'app démarrée (compose modifié :
+# le handler notifié ne doit rien relancer), puis reprise, dont verify.yml
+# vérifie l'état. Le set_fact bat le vars_files de host_vars ; les faux
+# secrets et l'URL de push chargés au premier play restent pour les suivants.
+- name: Assert the converged paperless is paused
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Assert the paused state
+      ansible.builtin.import_tasks: tasks/assert_paused.yml
+
+- name: Resume paperless
+  hosts: all
+  vars_files: &paperless_vars_files
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    - name: Load healthcheck URLs as docker.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        paperless_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-paperless-backup
+
+    - name: Switch paperless on
+      ansible.builtin.set_fact:
+        paperless_enabled: true
+  roles:
+    - role: paperless_ngx
+
+- name: Pause the running paperless again
+  hosts: all
+  vars_files: *paperless_vars_files
+  pre_tasks:
+    - name: Switch paperless off
+      ansible.builtin.set_fact:
+        paperless_enabled: false
+
+    # Le rôle retemplate le compose et notifie « Restart paperless » : en
+    # pause, le handler ne doit pas relancer l'unité.
+    - name: Alter the compose file so the role rewrites it
+      ansible.builtin.lineinfile:
+        path: "{{ docker_base_path }}/paperless/compose.yaml"
+        line: "# altered by side_effect"
+  roles:
+    - role: paperless_ngx
+  # Les handlers des rôles passent avant post_tasks.
+  post_tasks:
+    - name: Assert the paused state
+      ansible.builtin.import_tasks: tasks/assert_paused.yml
+
+- name: Resume paperless for verify.yml
+  hosts: all
+  vars_files: *paperless_vars_files
+  pre_tasks:
+    - name: Switch paperless on
+      ansible.builtin.set_fact:
+        paperless_enabled: true
+  roles:
+    - role: paperless_ngx

@@ -1590,14 +1590,14 @@ run "every_public_resource_applies_its_rules" {
 run "every_resource_declares_the_pinned_attributes" {
   command = plan
 
-  # Aucune dérogation : une entrée de local.websites peut surcharger `enabled`
-  # (websites.tf), aucune ne le fait aujourd'hui.
+  # Aucune dérogation, sauf `enabled`, qu'une entrée de local.websites peut
+  # surcharger pour mettre l'app en pause (websites.tf).
   assert {
     condition = alltrue([
       for key, r in pangolin_resource.website :
       r.mode == local.resource_pins.mode
       && r.ssl == local.resource_pins.ssl
-      && r.enabled == local.resource_pins.enabled
+      && r.enabled == lookup(local.websites[key], "enabled", local.resource_pins.enabled)
       && r.block_access == local.resource_pins.block_access
       && r.email_whitelist_enabled == local.resource_pins.email_whitelist_enabled
       && r.sticky_session == local.resource_pins.sticky_session
@@ -1605,6 +1605,12 @@ run "every_resource_declares_the_pinned_attributes" {
     error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...)."
   }
 
+  # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
+  # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
+  assert {
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["paperless"]
+    error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
+  }
 }
 
 # Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les
@@ -2319,10 +2325,19 @@ run "monitors_are_filed_and_notify_by_email" {
       for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
-      && m.active == true
       && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien, actif et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien et notifié par e-mail."
+  }
+
+  # Actif tant que l'app tourne : une app en pause (enabled = false) n'a plus
+  # de configuration borgmatic, donc plus de push à attendre.
+  assert {
+    condition = uptimekuma_monitor_push.backup_pangolin.active == true && alltrue([
+      for key, m in uptimekuma_monitor_push.backup :
+      m.active == pangolin_resource.website[key].enabled
+    ])
+    error_message = "Un moniteur de sauvegarde doit être actif exactement quand son app l'est (Pangolin toujours)."
   }
 
   # Test de restauration du 1er et du 15 (.github/workflows/restore-test.yaml,
@@ -2344,6 +2359,17 @@ run "monitors_are_filed_and_notify_by_email" {
   assert {
     condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "jellyfin"]))
     error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin et Jellyfin compris."
+  }
+
+  # Une app en pause n'écrit plus d'archive : le test planifié la saute
+  # ("paused": true), exactement quand son moniteur de sauvegarde est en pause.
+  assert {
+    condition = sort([
+      for key, app in jsondecode(file("${path.module}/../../.github/restore-test/apps.json")) : key if lookup(app, "paused", false)
+      ]) == sort([
+      for key, m in uptimekuma_monitor_push.backup : key if !m.active
+    ])
+    error_message = "\"paused\": true dans .github/restore-test/apps.json doit marquer exactement les apps dont le moniteur Backup est en pause."
   }
 
   # Chaque dépôt est sous backup/<hôte>/ : l'hôte doit avoir un sous-compte

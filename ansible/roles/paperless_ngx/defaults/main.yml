@@ -2,6 +2,13 @@
 paperless_base_path: "{{ docker_base_path }}/paperless"
 paperless_domain: papiers.sylvain.cloud
 
+# false : application en pause (docs/runbooks/app-en-pause.md). dc@paperless
+# arrêtée et désactivée, sauvegarde borgmatic retirée ; compose, données et
+# dépôt borg gardés. Aller avec `enabled = false` dans
+# tofu/pangolin_config/website_paperless.tf et `"paused": true` dans
+# .github/restore-test/apps.json.
+paperless_enabled: true
+
 # Sensitive: must be set in secrets.sops.yaml
 paperless_secret_key: ""
 # Sensitive: must be set in secrets.sops.yaml

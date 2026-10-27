@@ -41,7 +41,8 @@ locals {
 #
 # Fields of `homepage`: group and description, both required; icon (a
 # dashboard-icons name or an `mdi-` icon, fetched by the browser) and title
-# (default: the resource name) optional.
+# (default: the resource name) optional. An app paused with `enabled = false`
+# (docs/runbooks/app-en-pause.md) has no link while it is paused.
 output "homepage_links" {
   description = "HOMEPAGE - Liens du tableau de bord, un par application publique"
   value = {
@@ -51,7 +52,7 @@ output "homepage_links" {
       group       = website.homepage.group
       description = website.homepage.description
       icon        = lookup(website.homepage, "icon", "")
-    } if website.homepage != null
+    } if website.homepage != null && lookup(website, "enabled", true)
   }
 }
 

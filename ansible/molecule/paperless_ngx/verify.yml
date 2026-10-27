@@ -1,4 +1,6 @@
 ---
+# Après side_effect.yml, qui a repris paperless (paperless_enabled: true) :
+# l'état d'une app en marche. La pause est vérifiée dans side_effect.yml.
 - name: Verify
   hosts: all
   vars_files:

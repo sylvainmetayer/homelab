@@ -1,0 +1,35 @@
+---
+# État d'une app en pause (paperless_enabled: false) : unité arrêtée et
+# désactivée, compose et dossiers de données gardés, configuration borgmatic
+# retirée.
+- name: Read the state of dc@paperless
+  ansible.builtin.systemd:
+    name: dc@paperless
+    scope: user
+  register: paperless_paused_unit
+
+- name: Stat what a pause keeps and what it removes
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ docker_base_path }}/paperless/compose.yaml"
+    - "{{ docker_base_path }}/paperless/data"
+    - "{{ docker_base_path }}/paperless/media"
+    - "{{ borgmatic_config_dir }}/paperless.yaml"
+  register: paperless_paused_paths
+
+- name: Assert paperless is paused, not removed
+  ansible.builtin.assert:
+    that:
+      - paperless_paused_unit.status.UnitFileState != 'enabled'
+      - paperless_paused_unit.status.ActiveState == 'inactive'
+      - paperless_paused_paths.results[0].stat.exists
+      - paperless_paused_paths.results[0].stat.mode == '0600'
+      - paperless_paused_paths.results[1].stat.isdir | default(false)
+      - paperless_paused_paths.results[2].stat.isdir | default(false)
+      - not paperless_paused_paths.results[3].stat.exists
+    fail_msg: >-
+      dc@paperless {{ paperless_paused_unit.status.UnitFileState }} /
+      {{ paperless_paused_unit.status.ActiveState }}, ou compose/données absents,
+      ou configuration borgmatic encore là
