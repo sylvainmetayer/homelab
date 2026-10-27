@@ -87,13 +87,13 @@
         dest: /etc/systemd/system/beszel-api-mock.service
         owner: root
         group: root
-        mode: "0644"
+        mode: "0600"
         content: |
           [Unit]
           Description=Beszel hub API mock (Molecule)
 
           [Service]
-          ExecStart=/usr/bin/python3 -I /usr/local/lib/beszel_api_mock.py /etc/beszel-api-mock/config.json
+          ExecStart=/usr/bin/python3 -I /usr/local/lib/beszel_api_mock.py
 
           [Install]
           WantedBy=multi-user.target
