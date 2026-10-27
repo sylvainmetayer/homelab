@@ -3,15 +3,15 @@
 # POST /api/beszel/test-notification envoie « Test Alert » à une URL
 # shoutrrr. Seulement sur demande :
 #   ansible-playbook docker.yml --tags beszel_alerts_test
-- name: Log in to the Beszel hub
-  ansible.builtin.import_tasks: api_login.yml
-
 - name: Refuse to test without a notification channel
   ansible.builtin.assert:
     that:
       - beszel_alerts_webhooks | length > 0
     fail_msg: "Aucun canal à tester : clés sops beszel_telegram_bot_token / beszel_telegram_chat_id absentes."
     quiet: true
+
+- name: Log in to the Beszel hub
+  ansible.builtin.import_tasks: api_login.yml
 
 - name: Send a Beszel test notification to every channel
   no_log: true
@@ -30,17 +30,18 @@
 
 # Le hub répond 200 avec {"err": false} ou {"err": "<message>"} ; le message
 # d'une erreur HTTP de shoutrrr cite l'URL de l'API Telegram, jeton compris :
-# il est masqué avant affichage.
+# il est masqué avant affichage. Pas de boucle sur les résultats : un élément
+# en échec serait affiché en entier (err en clair, et à -vvv l'invocation, jeton
+# de l'API et URL Telegram compris).
 - name: Assert every test notification left the hub
   when: not ansible_check_mode
-  loop: "{{ beszel_api_test_notification.results }}"
-  loop_control:
-    index_var: beszel_api_test_index
-    label: "canal {{ beszel_api_test_index }}"
+  vars:
+    beszel_api_test_errors: >-
+      {{ beszel_api_test_notification.results | map(attribute='json.err')
+         | reject('sameas', false) | map('string')
+         | map('regex_replace', '[0-9]+:[A-Za-z0-9_-]{20,}', '***') | list }}
   ansible.builtin.assert:
     that:
-      - item.json.err is sameas false
-    fail_msg: >-
-      Échec de l'envoi :
-      {{ item.json.err | string | regex_replace('[0-9]+:[A-Za-z0-9_-]{20,}', '***') }}
+      - beszel_api_test_errors | length == 0
+    fail_msg: "Échec de l'envoi : {{ beszel_api_test_errors | join(' ; ') }}"
     quiet: true
