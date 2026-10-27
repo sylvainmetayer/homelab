@@ -1,6 +1,6 @@
 # Un hôte a changé de clé d'hôte SSH
 
-Ansible, la CI, `mise run ssh_flip` et `mise run ssh_newt` vérifient les
+Ansible, la CI et les tâches `mise run ssh`, `ssh_pi`, `ssh_flip` et `ssh_newt` vérifient les
 clés d'hôte contre `ansible/known_hosts` (versionné), avec
 `StrictHostKeyChecking=yes`
 (`ansible.cfg`, ProxyCommand de `inventory/hetzner.py`, `~/.ssh/config` de la
