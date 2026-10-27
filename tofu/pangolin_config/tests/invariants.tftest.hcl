@@ -1427,7 +1427,7 @@ run "php_lockdown_closes_every_public_php_path" {
   assert {
     condition = (
       length(setsubtract(local.php_lockdown_sso, ["betisier", "monica", "nextcloud", "rss", "wiki"])) == 0
-      && length(setsubtract(local.php_lockdown_path_bypasses, ["Betisier", "Monica CRM", "nextcloud", "Wiki (Bookstack)"])) == 0
+      && length(setsubtract(local.php_lockdown_path_bypasses, ["Betisier", "Monica CRM", "nextcloud", "RSS", "Wiki (Bookstack)"])) == 0
     )
     error_message = "php_lockdown.tf nomme une application qui n'est pas en PHP."
   }
