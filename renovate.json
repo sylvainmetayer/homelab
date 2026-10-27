@@ -204,6 +204,13 @@
         "tofu/pangolin_config/path_bypass_images.json"
       ],
       "pinDigests": false
+    },
+    {
+      "description": "TREK: the image stays docker.io/mauriceboe/trek, but the GitHub repository moved from mauriceboe/TREK to liketrek/TREK (the old name only redirects): release notes and changelogs come from the new one",
+      "matchDepNames": [
+        "docker.io/mauriceboe/trek"
+      ],
+      "sourceUrl": "https://github.com/liketrek/TREK"
     }
   ],
   "customManagers": [
