@@ -2538,7 +2538,7 @@ run "homepage_links_cover_every_public_app" {
   # POST seulement) : une application publiée sans lien fait échouer le plan
   # (champ homepage lu sur chaque entrée), une entrée masquée l'est ici.
   assert {
-    condition     = toset(keys(output.homepage_links)) == setsubtract(toset(keys(local.websites)), ["homepage", "promptoramix"])
+    condition     = toset(keys(output.homepage_links)) == setsubtract(toset([for key, website in local.websites : key if lookup(website, "enabled", true)]), ["homepage", "promptoramix"])
     error_message = "homepage_links doit couvrir chaque entrée de local.websites, sauf Homepage et Promptoramix (homepage = null)."
   }
 
