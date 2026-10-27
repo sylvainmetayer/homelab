@@ -53,6 +53,20 @@
 # partie publique chez le sous-compte de l'hôte. ssh-keygen de l'hôte (UGOS
 # en a un), clé sous borgmatic_container_path (backup_storage_box_ssh_key_path,
 # host_vars).
+- name: Look for ssh-keygen on the host
+  ansible.builtin.command: sh -c 'command -v ssh-keygen'
+  register: borgmatic_ssh_keygen
+  changed_when: false
+  failed_when: false
+
+- name: Refuse a host without ssh-keygen
+  ansible.builtin.assert:
+    that: borgmatic_ssh_keygen.rc == 0
+    fail_msg: >-
+      ssh-keygen est absent de l'hôte : le mode conteneur de borgmatic
+      n'installe rien (UGOS interdit apt) et en a besoin pour la clé de root.
+    quiet: true
+
 - name: Generate the SSH key of root for its Storage Box subaccount
   become: true
   community.crypto.openssh_keypair:
