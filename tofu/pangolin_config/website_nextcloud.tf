@@ -6,6 +6,14 @@ locals {
     domain_id = local.domain_ids["sylvain.cloud"]
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      title       = "Nextcloud"
+      group       = "Documents"
+      description = "Fichiers synchronisés"
+      icon        = "nextcloud"
+    }
+
     # No SSO and so no role binding yet: with Betisier, the only public
     # resource without the Pangolin wall, pinned by the
     # `every_public_resource_applies_its_rules` test. The `nextcloud` slug of

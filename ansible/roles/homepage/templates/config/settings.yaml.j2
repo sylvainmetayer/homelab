@@ -1,0 +1,16 @@
+---
+# Géré par Ansible (rôle homepage) : toute modification ici est écrasée.
+title: {{ homepage_title | to_json(ensure_ascii=False) }}
+language: fr
+target: _blank
+headerStyle: clean
+# Ni numéro de version ni appel à l'API GitHub des releases.
+hideVersion: true
+disableUpdateCheck: true
+disableIndexing: true
+# Ordre des groupes (homepage_groups).
+layout:
+{% for group in homepage_groups %}
+  - {{ group | to_json(ensure_ascii=False) }}:
+      style: column
+{% endfor %}

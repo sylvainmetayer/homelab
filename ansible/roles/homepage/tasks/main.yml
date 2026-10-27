@@ -1,0 +1,64 @@
+---
+# Vide, la page ne montrerait que les liens de homepage_extra_links : l'output
+# homepage_links manque au state (pangolin_config pas encore appliqué).
+- name: Refuse to deploy Homepage without the links of pangolin_config
+  ansible.builtin.assert:
+    that:
+      - homepage_websites | length > 0
+    fail_msg: >-
+      homepage_websites est vide : appliquer tofu/pangolin_config (output
+      homepage_links) avant de déployer Homepage.
+    quiet: true
+
+- name: Ensure Homepage folders exist
+  loop:
+    - "{{ homepage_base_path }}"
+    - "{{ homepage_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Monté en lecture seule : Homepage recopie son squelette pour tout fichier
+# absent, et s'arrête (exit 1) s'il ne peut pas l'écrire. D'où les neuf
+# fichiers, même vides. Homepage relit sa configuration sans redémarrer ; le
+# redémarrage ne fait que vider son cache.
+- name: Template the Homepage configuration
+  diff: false
+  notify: Restart homepage
+  loop:
+    - settings.yaml
+    - services.yaml
+    - bookmarks.yaml
+    - widgets.yaml
+    - docker.yaml
+    - kubernetes.yaml
+    - proxmox.yaml
+    - custom.css
+    - custom.js
+  ansible.builtin.template:
+    src: "templates/config/{{ item }}.j2"
+    dest: "{{ homepage_base_path }}/config/{{ item }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart homepage
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ homepage_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure homepage service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@homepage
+    scope: user
+    enabled: true

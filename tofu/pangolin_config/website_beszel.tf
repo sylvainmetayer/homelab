@@ -10,6 +10,13 @@ locals {
     role      = "beszel"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Administration"
+      description = "Supervision des hôtes : CPU, mémoire, disques, conteneurs"
+      icon        = "beszel"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "beszel"

@@ -1,0 +1,36 @@
+---
+homepage_base_path: "{{ docker_base_path }}/homepage"
+homepage_domain: home.sylvain.cloud
+homepage_title: Homelab
+
+# Liens des applications publiques : l'output homepage_links de
+# tofu/pangolin_config (un par entrée de local.websites), passé par
+# docker.yml. Clé => {name, href, group, description, icon}.
+homepage_websites: {}
+
+# Liens qui ne sont pas une ressource publique de Pangolin, donc absents de
+# homepage_websites. Mêmes champs.
+homepage_extra_links:
+  - name: Jellyfin
+    href: https://media.sylvain.cloud:8443
+    group: Photos et médias
+    description: Films, séries, musique, livres. LAN ou client Pangolin
+    icon: jellyfin
+  - name: Pangolin
+    href: https://pangolin.sylvain.cloud
+    group: Administration
+    description: Tableau de bord du reverse proxy
+    icon: mdi-shield-key-outline
+
+# Ordre des groupes sur la page. Chaque groupe de homepage_links doit y être :
+# tofu/pangolin_config/tests/invariants.tftest.hcl
+# (homepage_links_cover_every_public_app) lit cette liste.
+homepage_groups:
+  - Documents
+  - Lecture
+  - Photos et médias
+  - Vie perso
+  - Contacts
+  - Flip Planning
+  - Administration
+  - Divers

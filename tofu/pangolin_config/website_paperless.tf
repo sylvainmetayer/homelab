@@ -7,6 +7,13 @@ locals {
     role      = "paperless"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Documents"
+      description = "Documents numérisés, avec OCR"
+      icon        = "paperless-ngx"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "paperless"

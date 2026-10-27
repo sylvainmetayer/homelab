@@ -7,6 +7,13 @@ locals {
     role      = "meerkat-crm"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Contacts"
+      description = "CRM personnel"
+      icon        = "mdi-account-group"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "meerkat-frontend"

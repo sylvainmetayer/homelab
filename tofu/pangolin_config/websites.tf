@@ -21,7 +21,7 @@
 # `*_access_token` outputs; a recreated push monitor, the push URL every backup
 # job reads from this state.
 #
-# Entry fields - only name, subdomain and domain_id are required:
+# Entry fields - only name, subdomain, domain_id and homepage are required:
 #
 #   sso          default true. false only for Betisier, nextcloud and
 #                Promptoramix, pinned by the
@@ -44,6 +44,9 @@
 #                (default "/") and hc_port (default port).
 #   sub_targets  more targets on the same resource, keyed by a suffix: the
 #                address is pangolin_target.website["<app>_<suffix>"].
+#   homepage     required: the app's link on Homepage (group, description,
+#                optional icon and title, see website_homepage.tf), or null
+#                for no link.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -54,6 +57,7 @@ locals {
     demo_planning    = local.demo_planning_website
     demo_planning_kc = local.demo_planning_kc_website
     flip_planning    = local.flip_planning_website
+    homepage         = local.homepage_website
     immich           = local.immich_website
     immich_swipe     = local.immich_swipe_website
     karakeep         = local.karakeep_website

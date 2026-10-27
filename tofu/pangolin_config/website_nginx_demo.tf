@@ -10,6 +10,13 @@ locals {
     role      = "nginx-demo"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Administration"
+      description = "Pilote des données d'application sur le NAS"
+      icon        = "nginx"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "nginx-demo"

@@ -6,6 +6,13 @@ locals {
     subdomain = "swipe-photos"
     domain_id = local.domain_ids["sylvain.cloud"]
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Photos et médias"
+      description = "Trier les photos d'Immich par balayage"
+      icon        = "immich"
+    }
+
     # Bound to Immich's role, not to one of its own.
     role = "immich"
 

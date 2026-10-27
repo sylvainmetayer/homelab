@@ -7,6 +7,13 @@ locals {
     role      = "monica"
     backup    = true
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      group       = "Contacts"
+      description = "CRM personnel"
+      icon        = "mdi-account-heart"
+    }
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "monica_v4"
