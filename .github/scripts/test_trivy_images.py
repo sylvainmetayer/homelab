@@ -9,6 +9,7 @@ import trivy_images as ti
 D1 = "sha256:" + "1" * 64
 D2 = "sha256:" + "2" * 64
 D3 = "sha256:" + "3" * 64
+D4 = "sha256:" + "4" * 64
 
 
 def tree(files):
@@ -87,22 +88,50 @@ class Names(unittest.TestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]["name"], "postgres")
 
-    def test_repository_pinned_twice_gets_its_tag(self):
+    def test_repository_pinned_twice_gets_its_role(self):
         entries = scan({
             "ansible/roles/a/templates/compose.yaml": f"    image: redis:7.4-alpine@{D1}\n",
             "ansible/roles/b/templates/compose.yaml": f"    image: redis:8@{D2}\n",
         })
-        self.assertEqual(sorted(e["name"] for e in entries), ["redis-7.4-alpine", "redis-8"])
+        self.assertEqual(sorted(e["name"] for e in entries), ["redis-a", "redis-b"])
 
-    def test_same_tag_two_digests_gets_the_digest(self):
-        entries = scan({
+    def test_bump_keeps_the_category(self):
+        # Renovate bumps one of two pins: neither category moves.
+        before = scan({
             "ansible/roles/a/templates/compose.yaml": f"    image: docker.io/traefik:v3@{D1}\n",
             "ansible/roles/b/templates/compose.yaml": f"    image: docker.io/traefik:v3@{D2}\n",
         })
+        after = scan({
+            "ansible/roles/a/templates/compose.yaml": f"    image: docker.io/traefik:v3.1@{D3}\n",
+            "ansible/roles/b/templates/compose.yaml": f"    image: docker.io/traefik:v3@{D2}\n",
+        })
+        self.assertEqual([e["name"] for e in before], ["traefik-a", "traefik-b"])
+        self.assertEqual([e["name"] for e in after], ["traefik-a", "traefik-b"])
+
+    def test_role_pinning_twice_gets_the_service_or_variable(self):
+        entries = scan({
+            "ansible/roles/a/templates/compose.yaml": (
+                "services:\n"
+                f"  web:\n    image: nginx:1@{D1}\n"
+                f"  proxy:\n    image: nginx:2@{D2}\n"
+            ),
+            "ansible/roles/a/defaults/main.yml": f'a_image: "ghcr.io/org/x:1@{D3}"\na_image_smart: "ghcr.io/org/x:2@{D4}"\n',
+        })
         self.assertEqual(
             sorted(e["name"] for e in entries),
-            ["traefik-v3-" + "1" * 12, "traefik-v3-" + "2" * 12],
+            ["nginx-a-proxy", "nginx-a-web", "org-x-a-image", "org-x-a-image_smart"],
         )
+
+    def test_playbook_role_vars_are_read(self):
+        entries = scan({
+            "ansible/flip.yml": (
+                "    - role: a\n      vars:\n"
+                '        a_image: "ghcr.io/org/a:pr-1"\n'
+                '        a_image_main: "{{ a_image_main }}"\n'
+            ),
+            "ansible/secrets.sops.yaml": 'a_image: "ghcr.io/org/secret:1"\n',
+        })
+        self.assertEqual(entries, [{"ref": "ghcr.io/org/a:pr-1", "name": "org-a"}])
 
     def test_registry_with_port_is_dropped(self):
         self.assertEqual(ti.split_ref(f"registry:5000/org/app:1@{D1}"), ("org-app", "1", D1))
@@ -116,7 +145,8 @@ class RealTree(unittest.TestCase):
         self.assertEqual(len(names), len(set(names)))
         refs = {entry["ref"].split("@")[0].rsplit(":", 1)[0] for entry in entries}
         for expected in ("ghcr.io/immich-app/immich-server", "docker.io/fosrl/pangolin",
-                         "docker.io/henrygd/beszel-agent", "ghcr.io/sylvainmetayer/planning-equipes"):
+                         "docker.io/henrygd/beszel-agent", "ghcr.io/sylvainmetayer/planning-equipes",
+                         "ghcr.io/sylvainmetayer/planning-equipes-keycloak"):
             with self.subTest(image=expected):
                 self.assertIn(expected, refs)
 
