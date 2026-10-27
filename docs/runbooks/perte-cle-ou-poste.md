@@ -27,6 +27,11 @@ Clés SSH autorisées sur les hôtes : tous les `keys/*.pub` (`perso`, `pro`,
 `android`, `github-actions`), posés en **exclusif** par `00-setup.yaml` :
 une clé absente de `keys/` est retirée. `keys/perso.pub` sert aussi à
 `tofu/pangolin` (`hcloud_ssh_key.keepassxc`, `user_data` de Pangolin).
+Hors de cette pose, une clé remplacée reste autorisée tant qu'on ne l'a pas
+retirée à la main : le compte principal de la Storage Box (`ssh_keys` en
+`ignore_changes`, son `.ssh/authorized_keys` fait foi), le NAS et l'hôte
+Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
+`--limit` hôte par hôte, à la main.
 
 ## Réparation
 
