@@ -15,7 +15,7 @@
       "pinDigests": true
     },
     {
-      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The rules below that set a groupName (beszel, pangolin-role-dependencies, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, and path-bypass-review.yaml holds it until the relecture-chemins-publics review is approved",
+      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The rules below that set a groupName (beszel, pangolin-role-dependencies, socket-proxy, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, and path-bypass-review.yaml holds it until the relecture-chemins-publics review is approved",
       "matchUpdateTypes": [
         "digest",
         "patch"
@@ -71,6 +71,13 @@
       ],
       "prBodyNotes": [
         "Avant de merger : relire `docker/docker.go` de cette version de newt contre `newt_socket_proxy_allow_get` / `_allow_head` (`ansible/roles/newt/defaults/main.yml`). Après déploiement, `docker logs newt-socket-proxy` ne doit refuser que des `containers/<id>/json`."
+      ]
+    },
+    {
+      "description": "The socket proxy sidecar of beszel_agent and of newt is one image: without this rule (after pangolin-role-dependencies, so it wins) newt's copy would ride in that group and beszel_agent's in the weekly one, two PRs whose digests drift apart",
+      "groupName": "socket-proxy",
+      "matchPackageNames": [
+        "docker.io/wollomatic/socket-proxy"
       ]
     },
     {
