@@ -74,7 +74,7 @@
       ]
     },
     {
-      "description": "Pangolin's Docker tags are prefixed with ee-(e.g. ee-1.21.0); teach Renovate to parse them as semver so EE updates are detected",
+      "description": "Pangolin's Docker tags are prefixed with ee- (e.g. ee-1.21.0); teach Renovate to parse them as semver so EE updates are detected",
       "matchDatasources": [
         "docker"
       ],
