@@ -55,6 +55,20 @@ jobs:
       actions: read # last successful run of this workflow (Determine changed files)
 
     steps:
+      # Audit seulement : journalise les connexions sortantes, les processus
+      # et les fichiers touchés de chaque étape (insights StepSecurity, publics
+      # pour un dépôt public), ne bloque rien hors de la liste noire globale de
+      # StepSecurity. Premier pas, il doit voir tout le job. Il fait passer le
+      # DNS de l'hôte par son proxy (systemd-resolved sur 127.0.0.1, `dns`
+      # de /etc/docker/daemon.json, Docker redémarré) : avant OLM, donc sans
+      # effet sur lui ; « Point host DNS at OLM tunnel » contourne ensuite ce
+      # proxy (connexions vers 100.96.128.1 vues par IP), et « Cleanup » rend
+      # le stub de systemd-resolved avant que son post n'envoie le rapport.
+      - name: Harden runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
