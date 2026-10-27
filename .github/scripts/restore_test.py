@@ -13,7 +13,8 @@ Steps, on the latest archive:
      failing every night) leaves an old archive that restores fine;
   1. extract a sample of regular files (borg checks every chunk it decrypts);
   2. replay every PostgreSQL / MySQL dump in a throwaway container of the
-     role's database image, and check that a table came back;
+     role's database image, and check that a table came back (unless the
+     database is listed in the entry's allow_empty_databases);
   3. run PRAGMA integrity_check on every SQLite copy.
 Exits non-zero on any failure; the workflow's last job pushes the overall
 result to the "Restore test" monitor.
@@ -226,7 +227,9 @@ def restore(entry, workdir):
         image = role_image(entry["role"], engine)
         restorer = restore_postgresql if engine == "postgresql" else restore_mysql
         tables = restorer(image, name, workdir / path)
-        if tables == 0 and not entry.get("allow_empty_databases"):
+        # By name, not for the whole app: a second database added later, or
+        # a non-list value ("false" is truthy), must not slip through.
+        if tables == 0 and name not in entry.get("allow_empty_databases", []):
             raise RestoreError(f"{engine} {name} : aucune table après restauration")
         report.append(f"{engine} {name} : {tables} tables")
 
