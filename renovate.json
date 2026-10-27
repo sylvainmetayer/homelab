@@ -207,7 +207,7 @@
     },
     {
       "description": "TREK: the image stays docker.io/mauriceboe/trek, but the GitHub repository moved from mauriceboe/TREK to liketrek/TREK (the old name only redirects): release notes and changelogs come from the new one",
-      "matchDepNames": [
+      "matchPackageNames": [
         "docker.io/mauriceboe/trek"
       ],
       "sourceUrl": "https://github.com/liketrek/TREK"
