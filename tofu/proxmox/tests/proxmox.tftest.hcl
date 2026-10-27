@@ -210,9 +210,9 @@ run "vzdump_on_nas" {
   assert {
     condition = anytrue([
       for e in yamldecode(file("${path.module}/../../ansible/host_vars/nas/variables.yaml")).nas_nfs_exports :
-      e.path == proxmox_storage_nfs.nas_backup.export && contains(e.clients, regex("(?m)^pve ansible_host=([0-9.]+)", file("${path.module}/../../ansible/inventory/hosts"))[0])
+      e.path == proxmox_storage_nfs.nas_backup.export && e.clients == [regex("(?m)^pve ansible_host=([0-9.]+)", file("${path.module}/../../ansible/inventory/hosts"))[0]]
     ])
-    error_message = "ansible/host_vars/nas doit exporter var.nas_backup.export pour l'IP de l'hôte Proxmox (ansible/inventory/hosts)."
+    error_message = "ansible/host_vars/nas doit exporter var.nas_backup.export pour la seule IP de l'hôte Proxmox (ansible/inventory/hosts)."
   }
 
   assert {
