@@ -13,7 +13,7 @@ resource "github_repository" "site" {
   homepage_url = "https://sylvain.dev"
   visibility   = "public"
 
-  topics = ["blog", "eleventy-website", "hacktoberfest", "personal-website", "static-site"]
+  topics = ["blog", "eleventy-website", "personal-website", "static-site"]
 
   has_issues      = true
   has_wiki        = false
