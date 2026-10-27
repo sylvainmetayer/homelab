@@ -15,6 +15,16 @@ on:
       - mise.toml
   workflow_dispatch:
 
+# Pas de paths-ignore pour la documentation : Ansible lint, OpenTofu lint et
+# CI lint sont requis par le ruleset de main, une PR où ils ne partiraient pas
+# attendrait ces checks pour toujours.
+# Un nouveau push sur une PR annule le run qu'il rend caduc. Hors PR, un
+# groupe par run : GitHub ne garde qu'un run en attente par groupe, une
+# rafale de merges annulerait sinon le lint des commits intermédiaires de main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ansible:
     name: Ansible lint
