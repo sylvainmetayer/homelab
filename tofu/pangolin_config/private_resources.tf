@@ -135,9 +135,22 @@ resource "pangolin_role" "jellyfin" {
   description = "Role for media.sylvain.cloud (Jellyfin, private)"
 }
 
+# Toute mise à jour d'une pangolin_site_resource efface ses liaisons : le
+# provider (stackopshq/pangolin 1.6.1, SitePrivateResource.Update) envoie
+# roleIds, userIds et clientIds vides, et Pangolin
+# (updateSiteResource.ts) remplace alors rôles (sauf Admin), utilisateurs et
+# clients. Sans replace_triggered_by la liaison reste dans le state, absente de
+# Pangolin, jusqu'au plan suivant. Avec, l'apply la retire (avant l'update, la
+# liaison dépendant de la ressource) puis la recrée après. Toute
+# pangolin_site_resource_{role,user,client} le porte (test
+# site_resource_bindings_follow_their_resource).
 resource "pangolin_site_resource_role" "jellyfin" {
   role_id          = pangolin_role.jellyfin.id
   site_resource_id = pangolin_site_resource.jellyfin.id
+
+  lifecycle {
+    replace_triggered_by = [pangolin_site_resource.jellyfin]
+  }
 }
 
 resource "pangolin_client" "ci_runner" {
@@ -162,11 +175,23 @@ output "ci_olm_secret" {
 resource "pangolin_site_resource_client" "docker_apps_ci" {
   client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.docker_apps.id
+
+  # Recréée à chaque mise à jour de la ressource, qui l'efface : voir
+  # pangolin_site_resource_role.jellyfin.
+  lifecycle {
+    replace_triggered_by = [pangolin_site_resource.docker_apps]
+  }
 }
 
 resource "pangolin_site_resource_client" "pi_ci" {
   client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.pi.id
+
+  # Recréée à chaque mise à jour de la ressource, qui l'efface : voir
+  # pangolin_site_resource_role.jellyfin.
+  lifecycle {
+    replace_triggered_by = [pangolin_site_resource.pi]
+  }
 }
 
 # ---------------------------------------------------------------------------
