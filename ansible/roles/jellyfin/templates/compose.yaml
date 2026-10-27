@@ -27,7 +27,7 @@ services:
       # se fait par SMB.
       - {{ jellyfin_media_path }}:/media:ro
     # Secours en HTTP simple sur le LAN, sans cast (il exige HTTPS) : l'adresse
-    # à utiliser partout, cast compris, est https://media.sylvain.cloud:8443,
+    # à utiliser partout, cast compris, est https://media.sylvain.cloud (ou :8443),
     # par le Traefik du NAS (rôle nas_proxy, docs/media.md).
     ports:
       - "{{ jellyfin_port }}:8096"

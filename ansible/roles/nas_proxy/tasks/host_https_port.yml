@@ -1,0 +1,33 @@
+---
+# Qui écoute sur le 443 de l'hôte : personne (relais en train de redémarrer,
+# ou en attente de son backoff) ou le relais, dont le Traefik tourne dans
+# l'espace réseau de l'hôte (processus « traefik » pour ss). nas-proxy, dans
+# le sien, n'y apparaît pas. Lecture seule : tourne aussi en --check.
+- name: List the listeners of the host port {{ nas_proxy_host_https_port }}
+  become: true
+  check_mode: false
+  ansible.builtin.command:
+    argv: [ss, -H, -l, -t, -n, -p, "sport = :{{ nas_proxy_host_https_port }}"]
+  register: nas_proxy_host_https_listeners
+  changed_when: false
+
+- name: Assert nothing but the relay holds the host port {{ nas_proxy_host_https_port }}
+  vars:
+    nas_proxy_host_https_others: >-
+      {{ nas_proxy_host_https_listeners.stdout_lines
+         | reject('search', '"traefik",pid=')
+         | list }}
+  ansible.builtin.assert:
+    that:
+      - nas_proxy_host_https_others | length == 0
+    fail_msg: >-
+      Le port {{ nas_proxy_host_https_port }} du NAS est tenu par autre chose
+      que le relais {{ nas_proxy_forward_container_name }} :
+      {{ nas_proxy_host_https_others | join(' | ') }}.
+      https://{{ nas_proxy_media_domain }} et https://{{ nas_proxy_ugos_domain }}
+      sans port sont cassés en LAN ; avec :{{ nas_proxy_https_port }}, ils
+      marchent toujours. Si c'est nginx : décocher la redirection HTTPS de
+      l'interface d'UGOS (defaultHttpsRedirectEnable dans
+      /etc/nginx/config.json, cf. la doc du rôle dans defaults/main.yml) ;
+      le relais reprend le port de lui-même dans la minute.
+    quiet: true

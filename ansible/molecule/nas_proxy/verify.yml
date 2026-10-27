@@ -28,8 +28,8 @@
       register: nas_proxy_verify_compose
       changed_when: false
 
-    # 8443 du conteneur publié en 8443 (80/443 de l'hôte sont au nginx
-    # d'UGOS), configuration en fichiers, aucun socket Docker, identifiants
+    # 8443 du conteneur publié en 8443, le 443 de l'hôte jamais publié par
+    # Docker (tenu par le relais, ci-dessous), configuration en fichiers, aucun socket Docker, identifiants
     # OVH du DNS-01 tirés des clés SOPS nas_ovh_*. Le réseau media est celui
     # de jellyfin (jellyfin_media pour Docker), où Traefik garde l'IP fixe des
     # « Proxys connus » de Jellyfin.
@@ -40,7 +40,7 @@
         nas_proxy_verify_traefik: "{{ nas_proxy_verify_model.services.traefik }}"
       ansible.builtin.assert:
         that:
-          - nas_proxy_verify_model.services.keys() | list == ['traefik']
+          - nas_proxy_verify_model.services.keys() | sort == ['forward', 'traefik']
           - nas_proxy_verify_traefik.image is match('docker.io/traefik:v3\.[0-9.]+@sha256:[0-9a-f]{64}$')
           - nas_proxy_verify_traefik.container_name == 'nas-proxy'
           - nas_proxy_verify_traefik.ports | map(attribute='published') | map('string') | list == ['8443']
@@ -74,6 +74,33 @@
           - not (nas_proxy_verify_jellyfin.networks.media.internal | default(false))
         fail_msg: "Service traefik inattendu : {{ nas_proxy_verify_traefik }}"
 
+    # Relais du 443 de l'hôte : réseau hôte sans port publié (un 443 déjà pris
+    # par le nginx d'UGOS ne fait pas échouer `up`, ni tomber nas-proxy), même
+    # image que nas-proxy, durci pareil, sans secret ni certificat.
+    - name: Assert the host port 443 relay runs in the host network, hardened and secretless
+      vars:
+        nas_proxy_verify_model: "{{ nas_proxy_verify_compose.results[0].stdout | from_json }}"
+        nas_proxy_verify_forward: "{{ nas_proxy_verify_model.services.forward }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_forward.image == nas_proxy_verify_model.services.traefik.image
+          - nas_proxy_verify_forward.container_name == 'nas-proxy-443'
+          - nas_proxy_verify_forward.network_mode == 'host'
+          - nas_proxy_verify_forward.ports is not defined
+          - nas_proxy_verify_forward.networks is not defined
+          - nas_proxy_verify_forward.command == ['--configFile=/etc/traefik/forward.yml']
+          - nas_proxy_verify_forward.environment.keys() | list == ['TZ']
+          - nas_proxy_verify_forward.volumes | map(attribute='source') | list == [nas_proxy_verify_path ~ '/config']
+          - nas_proxy_verify_forward.volumes | map(attribute='read_only') | list == [true]
+          - nas_proxy_verify_forward.cap_drop == ['ALL']
+          - nas_proxy_verify_forward.cap_add == ['NET_BIND_SERVICE']
+          - nas_proxy_verify_forward.read_only
+          - nas_proxy_verify_forward.security_opt == ['no-new-privileges:true']
+          - nas_proxy_verify_forward.logging.options['max-size'] == '10m'
+          - nas_proxy_verify_forward.mem_limit is defined
+          - nas_proxy_verify_forward.restart == 'unless-stopped'
+        fail_msg: "Service forward inattendu : {{ nas_proxy_verify_forward }}"
+
     - name: Stat the nas_proxy files
       ansible.builtin.stat:
         path: "{{ nas_proxy_verify_path }}/{{ item }}"
@@ -82,6 +109,8 @@
         - acme
         - config/traefik.yml
         - config/dynamic.yml
+        - config/forward.yml
+        - config/forward-dynamic.yml
         - acme/acme.json
       register: nas_proxy_verify_files
 
@@ -120,12 +149,12 @@
     - name: Read the Traefik configuration
       ansible.builtin.slurp:
         path: "{{ nas_proxy_verify_path }}/config/{{ item }}"
-      loop: [traefik.yml, dynamic.yml]
+      loop: [traefik.yml, dynamic.yml, forward.yml, forward-dynamic.yml]
       register: nas_proxy_verify_config
 
     # Fournisseur fichier seul, DNS-01 OVH, un routeur media.sylvain.cloud vers
     # Jellyfin par le réseau privé, un routeur nas.sylvain.cloud vers le nginx
-    # d'UGOS par l'IP LAN de l'hôte, en :8443 seulement.
+    # d'UGOS par l'IP LAN de l'hôte, en :8443 et par le relais du 443 de l'hôte.
     - name: Assert Traefik uses files and the OVH DNS-01 challenge
       vars:
         nas_proxy_verify_static: "{{ nas_proxy_verify_config.results[0].content | b64decode | from_yaml }}"
@@ -137,7 +166,12 @@
           - nas_proxy_verify_static.providers.keys() | list == ['file']
           - nas_proxy_verify_static.entryPoints.websecure.address == ':443'
           - nas_proxy_verify_static.entryPoints['websecure-lan'].address == ':8443'
-          - nas_proxy_verify_static.entryPoints.keys() | sort == ['ping', 'websecure', 'websecure-lan']
+          - nas_proxy_verify_static.entryPoints.keys() | sort == ['ping', 'websecure', 'websecure-forwarded', 'websecure-lan']
+          # L'entrée du relais : en-tête PROXY cru de l'hôte seul (passerelle
+          # du réseau media de jellyfin, 172.30.96.0/24).
+          - nas_proxy_verify_static.entryPoints['websecure-forwarded'].address == ':8444'
+          - nas_proxy_verify_static.entryPoints['websecure-forwarded'].proxyProtocol.trustedIPs == ['172.30.96.1/32']
+          - not (nas_proxy_verify_static.entryPoints['websecure-forwarded'].proxyProtocol.insecure | default(false))
           - nas_proxy_verify_static.certificatesResolvers.keys() | list == ['letsencrypt']
           - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.dnsChallenge.provider == 'ovh'
           - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.storage == '/letsencrypt/acme.json'
@@ -145,10 +179,10 @@
           - nas_proxy_verify_routers.keys() | sort == ['jellyfin', 'ugos']
           - nas_proxy_verify_routers.values() | map(attribute='tls.certResolver') | unique | list == ['letsencrypt']
           - nas_proxy_verify_routers.jellyfin.rule == 'Host(`media.sylvain.cloud`)'
-          - nas_proxy_verify_routers.jellyfin.entryPoints | sort == ['websecure', 'websecure-lan']
+          - nas_proxy_verify_routers.jellyfin.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_services.jellyfin.loadBalancer.servers | map(attribute='url') | list == ['http://jellyfin:8096']
           - nas_proxy_verify_routers.ugos.rule == 'Host(`nas.sylvain.cloud`)'
-          - nas_proxy_verify_routers.ugos.entryPoints == ['websecure-lan']
+          - nas_proxy_verify_routers.ugos.entryPoints | sort == ['websecure-forwarded', 'websecure-lan']
           # Le Newt du site nas joint aussi le 8443 (ressource media, rôle
           # jellyfin) : l'interface d'UGOS n'admet que le LAN.
           - nas_proxy_verify_routers.ugos.middlewares[0] == 'ugos-lan'
@@ -326,3 +360,62 @@
       ansible.builtin.systemd:
         name: molecule-push.service
         state: stopped
+
+    # Le relais : le 443 de l'hôte en TCP brut, tout vers l'entrée
+    # websecure-forwarded de nas-proxy (IP fixe sur le réseau media), en
+    # PROXY protocol v2.
+    - name: Assert the relay forwards the host port 443 to nas-proxy with the PROXY protocol
+      vars:
+        nas_proxy_verify_fwd_static: "{{ nas_proxy_verify_config.results[2].content | b64decode | from_yaml }}"
+        nas_proxy_verify_fwd_dynamic: "{{ nas_proxy_verify_config.results[3].content | b64decode | from_yaml }}"
+        nas_proxy_verify_fwd_service: "{{ nas_proxy_verify_fwd_dynamic.tcp.services['nas-proxy'].loadBalancer }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_fwd_static.entryPoints.keys() | list == ['https']
+          - nas_proxy_verify_fwd_static.entryPoints.https.address == ':443'
+          - nas_proxy_verify_fwd_static.providers.file.filename == '/etc/traefik/forward-dynamic.yml'
+          - nas_proxy_verify_fwd_static.certificatesResolvers is not defined
+          - nas_proxy_verify_fwd_dynamic.http is not defined
+          - nas_proxy_verify_fwd_dynamic.tcp.routers['nas-proxy'].rule == 'HostSNI(`*`)'
+          - nas_proxy_verify_fwd_dynamic.tcp.routers['nas-proxy'].tls is not defined
+          - nas_proxy_verify_fwd_service.servers | map(attribute='address') | list == ['172.30.96.10:8444']
+          - nas_proxy_verify_fwd_dynamic.tcp.serversTransports[nas_proxy_verify_fwd_service.serversTransport].proxyProtocol.version == 2
+        fail_msg: "Configuration du relais inattendue"
+
+    # La vérification du 443 de l'hôte (tasks/host_https_port.yml) : passée à
+    # la converge (rien n'y écoute, dc@ ne lance aucun conteneur ici), elle
+    # doit échouer quand autre chose le tient, comme le nginx d'UGOS.
+    - name: Hold the host port 443 with something else than the relay
+      ansible.builtin.command:
+        argv: [python3, -m, http.server, "443", --bind, 127.0.0.1]
+      async: 120
+      poll: 0
+      changed_when: false
+
+    - name: Wait for the port 443 listener
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 443
+        timeout: 30
+
+    - name: Run the host port 443 check against that listener
+      block:
+        - name: Run the host port 443 check of nas_proxy
+          ansible.builtin.include_role:
+            name: nas_proxy
+            tasks_from: host_https_port.yml
+
+        - name: Fail, the check let a foreign listener on 443 through
+          ansible.builtin.fail:
+            msg: "host_https_port.yml n'a pas vu le serveur python sur le 443"
+      rescue:
+        - name: Assert the check failed on the foreign listener
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name is search('Assert nothing but the relay')
+              - ansible_failed_result.msg is search('python3')
+      always:
+        - name: Stop the port 443 listener
+          ansible.builtin.command:
+            argv: [pkill, -f, "http.server 443"]
+          changed_when: false

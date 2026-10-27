@@ -5,7 +5,7 @@
 # l'emporte toujours sur le joker. Rien n'est exposé sur Internet : hors de la
 # maison, l'IP ne mène nulle part, et le client Pangolin résout le même nom
 # vers la ressource privée (alias de pangolin_site_resource.jellyfin, port 443).
-# En LAN, https://media.sylvain.cloud:8443 (443 est pris par le nginx d'UGOS).
+# En LAN, le même nom sans port (443 du NAS, relais de nas_proxy) ou en :8443.
 # La Bbox ne filtre pas les réponses DNS en IP privée (vérifié par Sylvain).
 resource "ovh_domain_zone_record" "media" {
   zone      = "sylvain.cloud"

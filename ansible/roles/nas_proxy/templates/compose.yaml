@@ -34,10 +34,12 @@ services:
       # nouvel inode, qu'un montage de fichier ne verrait jamais.
       - ./config:/etc/traefik:ro
       - ./acme:/letsencrypt
-    # LAN : https://<nom>:{{ nas_proxy_https_port }} (80 et 443 de l'hôte sont
-    # au nginx d'UGOS), même port dans le conteneur. Pangolin vise ce port par
-    # l'IP LAN (nas.sylvain.cloud, site proxmox-lxc), ou ce port et le 443 du
-    # conteneur sur le réseau newt (media.sylvain.cloud, site nas).
+    # LAN : https://<nom>:{{ nas_proxy_https_port }}, même port dans le
+    # conteneur. Pangolin vise ce port et le 443 de l'hôte par l'IP LAN
+    # (nas.sylvain.cloud, site proxmox-lxc), ou ce port et le 443 du conteneur
+    # sur le réseau newt (media.sylvain.cloud, site nas). Le 443 de l'hôte
+    # n'est pas publié ici mais tenu par le service forward : pris par le nginx
+    # d'UGOS, il ferait échouer la création de ce conteneur, 8443 compris.
     ports:
       - "{{ nas_proxy_https_port }}:{{ nas_proxy_https_port }}"
     restart: unless-stopped
@@ -55,6 +57,43 @@ services:
       newt: {}
       media:
         ipv4_address: {{ nas_proxy_media_ip }}
+
+  # Relais du 443 de l'hôte vers nas-proxy (nas_proxy_host_https_port, dans
+  # defaults/main.yml) : TCP brut, TLS terminé par nas-proxy, en PROXY
+  # protocol v2. Réseau hôte, sans port publié par Docker : si le nginx d'UGOS
+  # tient déjà le 443, ce conteneur démarre quand même, son Traefik sort sur
+  # « address already in use » et Docker le relance (backoff jusqu'à une
+  # minute) ; `docker compose up` (dc@) reste attaché, nas-proxy et son 8443
+  # tournent. Un port publié ferait au contraire échouer `up`, puis l'ExecStop
+  # de dc@ arrêterait nas-proxy à chaque essai. Même image, aucun secret :
+  # ni identifiants OVH ni certificats.
+  forward:
+    image: docker.io/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+    container_name: {{ nas_proxy_forward_container_name }}
+    mem_limit: {{ nas_proxy_forward_mem_limit }}
+    network_mode: host
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    command:
+      - --configFile=/etc/traefik/forward.yml
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      - ./config:/etc/traefik:ro
+    # Pas de healthcheck : son entrée ping prendrait un port de l'hôte. Un 443
+    # perdu se voit au redémarrage en boucle (docker ps, Beszel) et à la
+    # vérification du 443 de tasks/main.yml.
+    restart: unless-stopped
 
 networks:
   newt:

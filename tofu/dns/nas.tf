@@ -1,4 +1,4 @@
-# Interface d'UGOS (NAS) en HTTPS : https://nas.sylvain.cloud:8443, servie par
+# Interface d'UGOS (NAS) en HTTPS : https://nas.sylvain.cloud (ou :8443), servie par
 # le Traefik du NAS (ansible/roles/nas_proxy, certificat Let's Encrypt par
 # DNS-01 OVH), comme media.sylvain.cloud (media.tf). Ce A vers l'IP *privée*
 # du NAS prime sur le joker *.sylvain.cloud (pangolin.tf) : rien n'est exposé

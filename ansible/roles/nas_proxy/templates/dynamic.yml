@@ -13,6 +13,7 @@ http:
       entryPoints:
         - websecure
         - websecure-lan
+        - websecure-forwarded
       service: jellyfin
       middlewares:
         - jellyfin-headers
@@ -20,17 +21,18 @@ http:
         certResolver: letsencrypt
 
     # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
-    # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443
-    # seul, le 443 du conteneur n'est joint que par le Newt du site nas
-    # (media.sylvain.cloud). Ce Newt joint pourtant aussi le 8443 (ressource
-    # media.sylvain.cloud, rôle jellyfin) : ugos-lan n'admet que le LAN
-    # (nas_proxy_ugos_source_ranges). L'interface suit l'origine de la page
-    # (redirections relatives, API sur location.origin) : ni réécriture ni
-    # Host forcé.
+    # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443 et
+    # le 443 de l'hôte (relais, websecure-forwarded) ; le 443 du conteneur
+    # n'est joint que par le Newt du site nas (media.sylvain.cloud). Ce Newt
+    # joint pourtant aussi le 8443 (ressource media.sylvain.cloud, rôle
+    # jellyfin) : ugos-lan n'admet que le LAN (nas_proxy_ugos_source_ranges).
+    # L'interface suit l'origine de la page (redirections relatives, API sur
+    # location.origin) : ni réécriture ni Host forcé.
     ugos:
       rule: "Host(`{{ nas_proxy_ugos_domain }}`)"
       entryPoints:
         - websecure-lan
+        - websecure-forwarded
       service: ugos
       middlewares:
         - ugos-lan
@@ -41,7 +43,7 @@ http:
   middlewares:
     jellyfin-headers:
       headers:
-        # HTTPS seul sur ce nom, aux deux ports ; sans includeSubdomains : les
+        # HTTPS seul sur ce nom, à tous les ports ; sans includeSubdomains : les
         # autres *.sylvain.cloud sont servis par Pangolin.
         stsSeconds: 31536000
         contentTypeNosniff: true
@@ -53,7 +55,8 @@ http:
       headers:
         stsSeconds: 31536000
     # Adresse source de la connexion (pas de X-Forwarded-For : ipStrategy
-    # absente) : 403 pour tout ce qui ne vient pas du LAN.
+    # absente), celle de l'en-tête PROXY sur websecure-forwarded : 403 pour
+    # tout ce qui ne vient pas du LAN.
     ugos-lan:
       ipAllowList:
         sourceRange: {{ nas_proxy_ugos_source_ranges | to_json }}

@@ -10,19 +10,21 @@ se lisent sans transcodage.
 
 | Adresse | Où | À utiliser pour |
 |---|---|---|
-| `https://media.sylvain.cloud:8443` | partout : à la maison, et dehors avec le client Pangolin connecté | **l'adresse de référence**, à saisir dans toutes les applis (TV, téléphone, navigateur) |
-| `https://media.sylvain.cloud` | dehors, avec le client Pangolin connecté | la même chose, sans numéro de port |
+| `https://media.sylvain.cloud` | partout : à la maison, et dehors avec le client Pangolin connecté | **l'adresse de référence**, sans numéro de port (navigateur, nouvelles applis) |
+| `https://media.sylvain.cloud:8443` | partout aussi | la même chose ; celle des applis déjà réglées, qui n'ont rien à changer, et le secours si le port 443 du NAS est repris par UGOS |
 | `http://192.168.1.137:8096` | à la maison seulement | secours, quand l'adresse HTTPS ne répond plus ; **pas de cast** (il exige HTTPS) |
 
-Pourquoi deux ports : sur le NAS, les ports 80 et 443 appartiennent au nginx
-d'UGOS (il redirige vers son interface d'administration), et rien ne doit y
-toucher. Le Traefik du NAS (rôle `nas_proxy`), qui sert Jellyfin en HTTPS,
-écoute donc sur **8443** du NAS.
+Pourquoi deux ports : le Traefik du NAS (rôle `nas_proxy`), qui sert
+Jellyfin en HTTPS, écoute sur le **8443** du NAS depuis le début, et sur son
+**443** depuis que la redirection HTTPS de l'interface d'UGOS est décochée
+(cochée, le nginx d'UGOS prend le 443 pour renvoyer vers son interface). Si
+une mise à jour d'UGOS la recoche, l'adresse sans port ne marche plus à la
+maison, celle en `:8443` si : décocher à nouveau la case (voir
+[architecture.md](architecture.md)).
 Dehors, le client Pangolin passe par le Newt du NAS, qui joint ce Traefik
-directement dans Docker, sur son 443 comme sur son 8443 : sans port, l'adresse
-ne marche que par Pangolin, alors qu'avec `:8443` elle marche dans les deux cas.
-Une appli réglée à la maison sur `https://media.sylvain.cloud:8443` n'a donc
-rien à changer dehors.
+directement dans Docker, sur son 443 comme sur son 8443 : les deux adresses y
+marchent toujours. Une appli réglée à la maison n'a donc rien à changer
+dehors.
 
 Le nom `media.sylvain.cloud` est un enregistrement DNS public qui vise l'IP
 locale du NAS : rien n'est exposé sur Internet, mais les appareils qui
@@ -267,8 +269,8 @@ la 5.1, les sous-titres.
 ## Caster
 
 Le cast (Google Cast) vers la TV ou un Chromecast ne marche **qu'en HTTPS**,
-donc seulement sur `https://media.sylvain.cloud:8443` (ou sans port par
-Pangolin), jamais sur `http://192.168.1.137:8096`.
+donc seulement sur `https://media.sylvain.cloud` (avec ou sans `:8443`),
+jamais sur `http://192.168.1.137:8096`.
 
 - **Navigateur** : Chrome, Chromium ou Edge, sur l'adresse HTTPS. Firefox
   n'a pas Google Cast : l'icône affiche « Google Cast non pris en charge ».
@@ -283,10 +285,10 @@ Pangolin), jamais sur `http://192.168.1.137:8096`.
 
 | Appareil | Appli | Réglage |
 |---|---|---|
-| Google TV | Jellyfin (Play Store de la TV) | serveur `https://media.sylvain.cloud:8443` |
+| Google TV | Jellyfin (Play Store de la TV) | serveur `https://media.sylvain.cloud:8443` (indépendant du réglage d'UGOS) |
 | Téléphone Android | Jellyfin (Google Play, pour le cast) | serveur `https://media.sylvain.cloud:8443`, qui marche aussi dehors avec le client Pangolin connecté |
 | Dehors | client Pangolin connecté, puis l'appli ou le navigateur | même adresse ; choisir la version 1080p |
-| Navigateur | Chrome, Chromium ou Edge | `https://media.sylvain.cloud:8443` |
+| Navigateur | Chrome, Chromium ou Edge | `https://media.sylvain.cloud` |
 | Musique sur Android | Symfonium (payant, le plus complet, hors ligne), Finamp (libre), ou l'appli Jellyfin | même serveur ; Finamp et Symfonium savent télécharger pour le hors ligne |
 | Livres | le lecteur intégré de Jellyfin (navigateur ou appli) | rien à installer |
 
