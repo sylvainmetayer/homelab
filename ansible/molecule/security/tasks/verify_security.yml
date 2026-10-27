@@ -96,6 +96,35 @@
       - security_ssh_client_files.stdout is not search('/etc/ssh/ssh_config$', multiline=True)
     fail_msg: "{{ security_ssh_client_files.stdout }}"
 
+# Algorithmes kex/ciphers/MAC/clés d'hôte que sshd annonce, vus d'un client :
+# la politique est celle relevée sur les vrais hôtes (`mise run ssh-audit`).
+# Une montée de devsec ou d'OpenSSH qui les change échoue ici.
+- name: Copy the ssh-audit policy
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../security/files/ssh-audit-policy.txt"
+    dest: /var/lib/molecule-ssh-audit-policy.txt
+    mode: "0600"
+
+# --skip-rate-test : pas de rafale de connexions (test DHEat), inutile ici.
+- name: Audit sshd against the policy
+  ansible.builtin.command:
+    argv:
+      - /opt/molecule-ssh-audit/bin/ssh-audit
+      - --no-colors
+      - --skip-rate-test
+      - --policy
+      - /var/lib/molecule-ssh-audit-policy.txt
+      - 127.0.0.1
+  register: security_ssh_audit
+  changed_when: false
+  failed_when: false
+
+- name: Assert sshd matches the ssh-audit policy
+  ansible.builtin.assert:
+    that:
+      - security_ssh_audit.rc == 0
+    fail_msg: "ssh-audit rc={{ security_ssh_audit.rc }} : {{ security_ssh_audit.stdout }}"
+
 # --- ufw ---
 
 - name: Read the ufw status

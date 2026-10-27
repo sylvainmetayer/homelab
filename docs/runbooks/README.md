@@ -33,6 +33,13 @@ mise run ssh_flip   # flip, par rebond sur Pangolin
 ssh sylvain@pangolin.sylvain.cloud   # Pangolin (pas de tâche mise)
 ```
 
+Vérifier que le sshd de docker, du Pi, de newt-lxc et de Pangolin offre
+toujours les algorithmes du rôle security, depuis le LAN : `mise run
+ssh-audit` (politique `ansible/molecule/security/files/ssh-audit-policy.txt`,
+quelques connexions sans authentification par hôte, que fail2ban ne compte
+pas). Un hôte en échec a perdu ou changé son durcissement : relancer son
+playbook en `--check --diff --tags security`.
+
 L'inventaire vient de `ansible.cfg` (`inventory = ./inventory`, c'est-à-dire
 `proxmox.py`, `hetzner.py` et `hosts` ensemble). Ne pas passer
 `-i inventory/hosts` : ce fichier ne contient que le Pi, `docker.yml` ou
