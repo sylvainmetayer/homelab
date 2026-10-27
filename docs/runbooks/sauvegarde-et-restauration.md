@@ -143,10 +143,12 @@ Mise en place, dans l'ordre :
 
 1. UGOS : dossier partagé `pve-backup`, corbeille décochée, sans instantanés
    (ou avec une rétention courte : une archive élaguée reste sinon dans les
-   instantanés).
+   instantanés), sans partage SMB ni accès d'autres utilisateurs : les
+   archives ne sont pas chiffrées (disque entier de la VM docker, donc les
+   secrets de toutes les applis) et UGOS les crée en 0777.
 2. `ansible-playbook nas.yml` (depuis `ansible/`), puis depuis l'hôte :
    `showmount -e 192.168.1.137` liste `/volume1/pve-backup 192.168.1.26`.
-3. `tofu/proxmox` : `tofu init -upgrade` (provider ≥ 0.99), puis
+3. `tofu/proxmox` : `tofu init -upgrade` (provider ≥ 0.116), puis
    `tofu import proxmox_backup_job.nightly backup-cbfcde61-8413` (le job créé
    dans l'interface), puis `tofu plan` : création du storage, `storage` du job
    `local` → `nas-backup`, rien d'autre. `tofu apply`.
