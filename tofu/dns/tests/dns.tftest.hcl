@@ -480,7 +480,7 @@ run "caa_sur_chaque_zone" {
   # issuewild ";" suppose qu'aucun joker n'est demandé : Pangolin n'en
   # demande que si prefer_wildcard_cert est activé.
   assert {
-    condition     = !strcontains(file("${path.module}/../../ansible/roles/pangolin/templates/pangolin_config.yml.j2"), "prefer_wildcard_cert")
+    condition     = !can(regex("prefer_wildcard_cert:\\s*true", file("${path.module}/../../ansible/roles/pangolin/templates/pangolin_config.yml.j2")))
     error_message = "Pangolin demanderait un certificat joker, que le CAA issuewild \";\" refuse : autoriser letsencrypt.org en issuewild sur sa zone (caa.tf)."
   }
 }

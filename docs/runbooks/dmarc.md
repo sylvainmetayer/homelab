@@ -182,8 +182,11 @@ laquelle pouvait.
 
 | Zone | `issue` | Pourquoi |
 |---|---|---|
-| sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (HTTP-01), Traefik du NAS (DNS-01, media et nas.sylvain.cloud) |
-| sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin, GitHub Pages (`*.talks`), et Cloudflare Pages (ref, www, r) |
+| sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (HTTP-01), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), PikaPods (budget.sylvain.cloud, CNAME hors Tofu vers `*.pikapod.net`, sans CAA) |
+| sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin et Cloudflare Pages (ref, www, r) |
+
+Les `*.talks.sylvain.dev` (GitHub Pages) n'en dépendent pas : CNAME vers
+`sylvainmetayer.github.io`, dont le CAA s'applique à leur place.
 
 Partout : `0 issuewild ";"` (aucun joker n'est délivré : Pangolin et le NAS
 demandent un certificat par nom) et `0 iodef "mailto:<dmarc_report_address>"`.

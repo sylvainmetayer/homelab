@@ -5,8 +5,13 @@
 # Qui délivre quoi (inventaire du 2026-10-28, openssl s_client et dig ; aucun
 # CAA n'existait encore, rien à importer) :
 # - Let's Encrypt : Traefik de Pangolin (HTTP-01, un certificat par nom, aucun
-#   joker), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), GitHub Pages
-#   (*.talks.sylvain.dev).
+#   joker), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), et PikaPods
+#   pour budget.sylvain.cloud (CNAME posé hors Tofu vers *.pikapod.net, qui ne
+#   publie aucun CAA : c'est donc celui de sylvain.cloud qui s'applique ;
+#   Let's Encrypt YE1 au 2026-10-28, à revoir si PikaPods change d'autorité).
+# - GitHub Pages (*.talks.sylvain.dev) n'est pas concerné : ces noms sont des
+#   CNAME vers sylvainmetayer.github.io, dont le CAA (digicert, letsencrypt,
+#   sectigo) s'applique à leur place (RFC 8659 §3, le CNAME est suivi).
 # - Cloudflare Pages (ref, www et r.sylvain.dev : tofu/ref, tofu/site, tofu/1y) :
 #   Google Trust Services aujourd'hui (WE1), mais Cloudflare choisit seul entre
 #   Let's Encrypt, Google Trust Services et SSL.com et peut changer au
