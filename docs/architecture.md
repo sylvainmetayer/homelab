@@ -220,6 +220,7 @@ flowchart LR
 | `path-bypass-review.yaml` | PR qui touche `path_bypass_images.json` | attend l'approbation de l'environnement `relecture-chemins-publics` |
 | `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
 | `ping.yaml` | à la main | teste le tunnel OLM de la CI |
+| `maintenance-calendar.yaml` | push sur `main` touchant une source du calendrier ; à la main | rend `maintenance.ics` (`maintenance_ics.py`) et le publie sur GitHub Pages |
 
 - **Merger = déployer.** Le ruleset `main` (`tofu/github/ruleset_homelab.tf`)
   exige une PR et les checks `Ansible lint`, `OpenTofu lint`, `Tests` et
@@ -248,6 +249,41 @@ flowchart LR
   chacune leur PR, à la main. Rien de ce qui touche `path_bypass_images.json`
   ne fusionne seul : sa relecture (`relecture-chemins-publics`) n'est pas un
   check du ruleset, l'auto-merge passerait outre.
+
+## Le calendrier de maintenance
+
+Les échéances qui ne préviennent pas d'elles-mêmes, dans un agenda :
+`.github/scripts/maintenance_ics.py` les lit dans le dépôt et le workflow
+`maintenance-calendar.yaml` publie le résultat à chaque push de `main` qui
+touche l'une d'elles.
+
+| Événement | Source | Quand |
+|---|---|---|
+| Rotation des secrets | `secrets-rotation.yaml`, périodes de `check_secret_rotation.py` | un événement par jour d'échéance, rappel 7 jours avant |
+| Restore test | `cron:` de `restore-test.yaml` | le 1er et le 15, 10:00 UTC |
+| Check data borg | `cron:` de `borg-check.yaml` | le 5 de janvier, avril, juillet, octobre, 02:00 UTC |
+| Renouvellement des domaines | zones de `tofu/dns` | le 1er décembre, tant que `DOMAIN_EXPIRY` (dans le script) ne donne pas la date d'expiration de chaque domaine, 30 jours avant sinon |
+
+**S'abonner** : <https://sylvainmetayer.github.io/homelab/maintenance.ics>,
+sans compte ni jeton.
+
+- Thunderbird : Nouvel agenda → Sur le réseau → coller l'URL.
+- Android : ICSx⁵ (F-Droid) → « + » → coller l'URL ; l'agenda apparaît dans
+  l'appli Agenda.
+- Google Agenda (web) : Autres agendas → « + » → À partir de l'URL.
+- iOS / macOS : Réglages → Calendrier → Comptes → Ajouter un calendrier avec
+  abonnement.
+- Nextcloud Agenda : « + » → Nouvel abonnement par lien.
+
+L'agenda relit le fichier de lui-même (`REFRESH-INTERVAL` 12 h, Google à son
+rythme, jusqu'à une journée). Les rappels (`VALARM`) ne sont honorés que par
+certains clients (Thunderbird, ICSx⁵) : Google les ignore sur un abonnement.
+
+Pourquoi GitHub Pages : un agenda abonné ne passe pas le SSO de Pangolin, et
+le dépôt est public, donc le calendrier n'en révèle rien de plus (des noms de
+clés SOPS, jamais une valeur). Ni secret à faire tourner, ni chemin à jeton
+ouvert sur une ressource Pangolin. Pages s'active une fois à la main
+(`tofu/github/README.md`).
 
 ## Les sauvegardes
 

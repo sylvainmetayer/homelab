@@ -266,15 +266,23 @@ def add_months(date, months):
     raise ValueError(date)
 
 
+def deadline_of(entry):
+    """Échéance de rotation d'une entrée, None sans période ou sans date
+    (aussi lu par maintenance_ics.py)."""
+    months = KINDS.get(entry.get("kind"))
+    date = parse_date(entry.get("last_rotated", ""))
+    if months is None or date is None:
+        return None
+    return add_months(date, months)
+
+
 def due_entries(entries, today, window):
     """(échéance, entrée) des secrets à faire tourner d'ici `window` jours, les plus anciens d'abord."""
     due = []
     for entry in entries:
-        months = KINDS.get(entry.get("kind"))
-        date = parse_date(entry.get("last_rotated", ""))
-        if months is None or date is None:
+        deadline = deadline_of(entry)
+        if deadline is None:
             continue
-        deadline = add_months(date, months)
         if deadline <= today + datetime.timedelta(days=window):
             due.append((deadline, entry))
     return sorted(due, key=lambda item: (item[0], item[1]["key"]))

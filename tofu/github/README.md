@@ -173,3 +173,17 @@ dépôt n'en publie pas) ni check requis.
   qui porte son `renovate.json`.
 - [ ] **Installer GitGuardian** sur le dépôt, comme sur les autres.
 
+## Dépôt `homelab` : GitHub Pages
+
+Le workflow `maintenance-calendar.yaml` publie le calendrier de maintenance
+(`docs/architecture.md`, « Le calendrier de maintenance ») sur Pages. Le
+dépôt n'est qu'une data source ici (`ruleset_homelab.tf`) : Pages s'active à
+la main, une fois.
+
+- [ ] **Activer Pages, source « GitHub Actions », avant le merge** qui
+  ajoute le workflow (ce merge le lance : sans Pages, le déploiement échoue
+  et le job crée un `github-pages` sans politique de branche) — Settings → Pages →
+  Build and deployment → Source : GitHub Actions ; ou
+  `gh api -X POST repos/sylvainmetayer/homelab/pages -f build_type=workflow`.
+  GitHub crée alors l'environnement `github-pages`, limité à `main`. Puis
+  lancer le workflow une fois (`gh workflow run maintenance-calendar.yaml`).

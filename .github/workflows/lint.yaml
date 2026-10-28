@@ -85,6 +85,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_age_recipients.py
 
+      # Le calendrier de maintenance (workflow Maintenance calendar) se
+      # construit et respecte la RFC 5545 : une source illisible (cron
+      # intraduisible, zone DNS introuvable) échoue ici, pas sur main.
+      - name: Check the maintenance calendar
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/maintenance_ics.py --check
+
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts
         # Même si ansible-lint a échoué : deux régressions dans une seule passe.

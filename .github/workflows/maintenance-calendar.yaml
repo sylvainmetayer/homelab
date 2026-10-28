@@ -1,0 +1,77 @@
+name: Maintenance calendar
+
+# Calendrier iCalendar de la maintenance (échéances de rotation des secrets,
+# restore tests, check data trimestriel, renouvellement des domaines), rendu
+# par .github/scripts/maintenance_ics.py et publié sur GitHub Pages :
+# https://sylvainmetayer.github.io/homelab/maintenance.ics, auquel un agenda
+# s'abonne sans compte (docs/architecture.md, « Le calendrier de
+# maintenance »).
+#
+# Pages plutôt qu'un fichier derrière Pangolin : un agenda abonné ne passe pas
+# le SSO, et le dépôt est public, le calendrier n'en dit rien de plus (noms des
+# clés SOPS, jamais leurs valeurs). Ni secret, ni chemin à jeton, ni ressource
+# à ouvrir.
+#
+# Sur un push de main qui touche une source du calendrier ; rien de planifié :
+# le rendu ne dépend que du dépôt (les récurrences portent les dates futures).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - secrets-rotation.yaml
+      - tofu/dns/**
+      - .github/scripts/maintenance_ics.py
+      - .github/scripts/check_secret_rotation.py
+      - .github/workflows/maintenance-calendar.yaml
+      - .github/workflows/restore-test.yaml
+      - .github/workflows/borg-check.yaml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: maintenance-calendar
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Render the calendar
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Render maintenance.ics
+        run: python3 -I .github/scripts/maintenance_ics.py --output _site/maintenance.ics
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Publish on GitHub Pages
+    needs: build
+    # main seulement, quelle que soit la politique de l'environnement : un
+    # github-pages créé par un run antérieur à l'activation de Pages n'en a pas.
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # Créé par GitHub à l'activation de Pages (source : GitHub Actions,
+    # tofu/github/README.md), main seulement.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}maintenance.ics
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
