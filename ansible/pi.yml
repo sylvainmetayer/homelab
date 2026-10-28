@@ -34,6 +34,9 @@
     # Agent de supervision, vers le hub de la VM docker par le LAN.
     - role: beszel_agent
       tags: beszel_agent,monitoring
+    # Agent de journaux, vers VictoriaLogs (vmauth) de la VM docker par le LAN.
+    - role: log_agent
+      tags: log_agent,monitoring
   tasks:
     # Restes d'avant Pangolin, quand nginx et Let's Encrypt servaient Immich
     # depuis le Pi : le certificat de photos.sylvain.cloud (expiré depuis

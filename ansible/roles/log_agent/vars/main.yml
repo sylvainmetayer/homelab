@@ -1,0 +1,19 @@
+---
+# Dérivé, pas un réglage : les fichiers du conteneur appartiennent à root en
+# mode compose (`sudo docker compose`, Pangolin) et sous un dc@ système (NAS,
+# docker_service_scope: system), à l'utilisateur de déploiement sous un dc@
+# user. Pangolin n'a pas docker_service, d'où le default.
+log_agent_dc_scope: "{{ docker_service_scope | default('user') }}"
+log_agent_as_root: "{{ log_agent_mode == 'compose' or log_agent_dc_scope == 'system' }}"
+# data_dir de Vector (curseur du journal, positions des fichiers) : le volume
+# du conteneur, ou le StateDirectory de l'unité en mode binary.
+log_agent_data_dir: "{{ '/var/lib/log-agent' if log_agent_mode == 'binary' else '/var/lib/vector' }}"
+# Fichier des secrets, vu par Vector : le volume du conteneur, ou la
+# credential de l'unité (LoadCredential) en mode binary.
+log_agent_secrets_path: >-
+  {{ '/run/credentials/log-agent.service/secrets.json' if log_agent_mode == 'binary'
+     else '/etc/vector-secrets/secrets.json' }}
+# Mode binary : archive de la release pour l'architecture de l'hôte.
+log_agent_arch: "{{ 'aarch64' if ansible_facts['architecture'] == 'aarch64' else 'x86_64' }}"
+log_agent_archive: "vector-{{ log_agent_binary_version }}-{{ log_agent_arch }}-unknown-linux-gnu.tar.gz"
+log_agent_binary_member: "vector-{{ log_agent_arch }}-unknown-linux-gnu/bin/vector"

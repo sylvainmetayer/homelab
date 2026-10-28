@@ -1,0 +1,29 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Une installation précédente, comme après une montée Renovate : le rôle doit
+# supprimer son dossier de version et son archive (cf. verify.yml).
+- name: Prepare log_agent_lxc
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../../roles/log_agent/defaults/main.yml
+  tasks:
+    - name: Create a previous Vector version
+      become: true
+      ansible.builtin.file:
+        path: "{{ log_agent_binary_dir }}/0.0.1"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create its archive
+      become: true
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ log_agent_binary_dir }}/vector-0.0.1-x86_64-unknown-linux-gnu.tar.gz"
+        owner: root
+        group: root
+        mode: "0600"

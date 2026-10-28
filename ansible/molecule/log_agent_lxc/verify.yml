@@ -1,0 +1,163 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/log_agent/defaults/main.yml
+    - ../../roles/log_agent/vars/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  vars:
+    log_agent_test_dir: /root/log-agent-verify
+    log_agent_vector: "{{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }}"
+  tasks:
+    - name: Stat the agent binary, its secrets, its configuration and its unit
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: log_agent_files
+      loop:
+        - "{{ log_agent_vector }}"
+        - /etc/log-agent/secrets.json
+        - /etc/log-agent/vector.yaml
+        - /etc/systemd/system/log-agent.service
+
+    - name: List the installed Vector versions and archives
+      become: true
+      ansible.builtin.find:
+        paths: "{{ log_agent_binary_dir }}"
+        file_type: any
+      register: log_agent_installed
+
+    - name: Read the secrets, the configuration and the unit
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: log_agent_contents
+      loop:
+        - /etc/log-agent/secrets.json
+        - /etc/log-agent/vector.yaml
+        - /etc/systemd/system/log-agent.service
+
+    - name: Read the state of log-agent.service
+      ansible.builtin.systemd:
+        name: log-agent
+      register: log_agent_unit
+
+    - name: Assert the agent is installed from the pinned archive, its secret out of reach
+      vars:
+        log_agent_secrets: "{{ log_agent_contents.results[0].content | b64decode | from_json }}"
+        log_agent_config_text: "{{ log_agent_contents.results[1].content | b64decode }}"
+        log_agent_config: "{{ log_agent_config_text | from_yaml }}"
+        log_agent_unit_file: "{{ log_agent_contents.results[2].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - log_agent_files.results[0].stat.executable
+          - log_agent_files.results[0].stat.pw_name == 'root'
+          - log_agent_files.results[1].stat.mode == '0600'
+          - log_agent_files.results[1].stat.pw_name == 'root'
+          - log_agent_files.results[2].stat.mode == '0644'
+          - >-
+            log_agent_secrets == {'password': victoria_logs_agent_passwords['newt-lxc']}
+          - victoria_logs_agent_passwords['newt-lxc'] not in log_agent_config_text
+          - victoria_logs_agent_passwords['newt-lxc'] not in log_agent_unit_file
+          # Le journal seulement : pas de Docker ici.
+          - log_agent_config.sources.keys() | list == ['journald']
+          - log_agent_config.sources.journald.exclude_units == ['log-agent.service']
+          - log_agent_config.secret.agent.path == '/run/credentials/log-agent.service/secrets.json'
+          - log_agent_config.data_dir == '/var/lib/log-agent'
+          - log_agent_config.sinks.victoria_logs.uri is match('http://192\.168\.1\.216:9428/insert/jsonline\?') # NOSONAR
+          - log_agent_config.sinks.victoria_logs.auth.user == 'newt-lxc'
+          - "'LoadCredential=secrets.json:/etc/log-agent/secrets.json' in log_agent_unit_file"
+          - "'DynamicUser=yes' in log_agent_unit_file"
+          - "'SupplementaryGroups=systemd-journal' in log_agent_unit_file"
+          - "'\nCapabilityBoundingSet=\n' in log_agent_unit_file"
+          - "'MemoryMax=' in log_agent_unit_file"
+          - "'EnvironmentFile' not in log_agent_unit_file"
+          - log_agent_unit.status.UnitFileState == 'enabled'
+          # Seules la version courante et son archive restent (prepare.yml en
+          # avait posé une précédente).
+          - >-
+            log_agent_installed.files | map(attribute='path') | map('basename') | sort
+            == [log_agent_binary_version, log_agent_archive] | sort
+
+    # Les configurations rendues par le rôle, validées par le vrai binaire :
+    # celle de ce LXC, et celle de Pangolin (journald, docker, traefik et son
+    # jeton Pangolin), avec un fichier de secrets factice à la place de la
+    # credential de l'unité.
+    - name: Create the verify folder
+      become: true
+      ansible.builtin.file:
+        path: "{{ log_agent_test_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Write dummy secrets for the rendered configurations
+      become: true
+      ansible.builtin.copy:
+        content: >-
+          {{ {'password': victoria_logs_agent_passwords['pangolin'],
+              'pangolin_token_id': 'molecule-token-id',
+              'pangolin_token': 'molecule-token'} | to_json }}
+        dest: "{{ log_agent_test_dir }}/secrets.json"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Render the configuration of each mode
+      become: true
+      ansible.builtin.template:
+        src: ../../roles/log_agent/templates/vector.yaml.j2
+        dest: "{{ log_agent_test_dir }}/{{ item.name }}.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+      vars:
+        log_agent_name: "{{ item.name }}"
+        log_agent_mode: "{{ item.mode }}"
+        log_agent_url: "{{ item.url }}"
+        log_agent_traefik_log_dir: "{{ item.traefik }}"
+        log_agent_pangolin_token_id: "{{ item.token }}"
+        log_agent_secrets_path: "{{ log_agent_test_dir }}/secrets.json"
+        log_agent_data_dir: "{{ log_agent_test_dir }}/data"
+      loop:
+        - { name: newt-lxc, mode: binary, url: "http://192.168.1.216:9428", traefik: "", token: "" } # NOSONAR
+        - { name: pi, mode: dc, url: "http://192.168.1.216:9428", traefik: "", token: "" } # NOSONAR
+        - name: pangolin
+          mode: compose
+          url: https://logs.sylvain.cloud
+          traefik: /opt/pangolin/config/traefik/logs
+          token: molecule-token-id
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Validate the rendered configurations
+      become: true
+      ansible.builtin.command:
+        cmd: "{{ log_agent_vector }} validate --no-environment {{ log_agent_test_dir }}/{{ item }}.yaml"
+      loop: [newt-lxc, pi, pangolin]
+      changed_when: false
+
+    - name: Copy the Vector unit tests
+      become: true
+      ansible.builtin.copy:
+        src: files/vector_tests.yaml
+        dest: "{{ log_agent_test_dir }}/vector_tests.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+
+    # Query strings retirées, envois des agents écartés, copie compose des
+    # lignes de conteneur écartée, CrowdSec en champs : files/vector_tests.yaml.
+    - name: Run the Vector unit tests on the Pangolin configuration
+      become: true
+      ansible.builtin.command:
+        cmd: "{{ log_agent_vector }} test {{ log_agent_test_dir }}/pangolin.yaml {{ log_agent_test_dir }}/vector_tests.yaml"
+      register: log_agent_vector_tests
+      changed_when: false
+
+    - name: Assert every Vector unit test ran
+      ansible.builtin.assert:
+        that:
+          - log_agent_vector_tests.stdout is search('traefik strips the query string \.\.\. passed')
+          - log_agent_vector_tests.stdout is not search('failed')

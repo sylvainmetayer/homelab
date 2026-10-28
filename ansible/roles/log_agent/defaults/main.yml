@@ -1,0 +1,79 @@
+---
+# Agent de journaux (Vector) : un par hôte, qui envoie à VictoriaLogs (rôle
+# victoria_logs, VM docker) le journal systemd de l'hôte, les journaux de ses
+# conteneurs Docker et, sur Pangolin, le journal d'accès de Traefik. Aucun
+# port en écoute (API de Vector coupée) : rien à ouvrir dans ufw.
+#
+# Trois façons de le faire tourner (log_agent_mode), comme beszel_agent :
+#   - dc        conteneur, projet compose lancé par dc@log_agent : unité user
+#               (docker, pi, flip) ou, si docker_service_scope vaut system,
+#               unité système en root (NAS, host_vars/nas) ;
+#   - compose   le même conteneur, lancé par `docker compose up -d` et la
+#               restart policy (Pangolin, qui n'a pas docker_service) ;
+#   - binary    binaire et service systemd, sans Docker (LXC newt) : le
+#               journal seulement.
+log_agent_mode: dc
+
+# Nom de l'hôte dans VictoriaLogs (champ host, l'un des champs de flux) et
+# compte vmauth de l'agent : la clé de victoria_logs_agent_passwords (sops).
+log_agent_name: "{{ inventory_hostname }}"
+log_agent_password: "{{ victoria_logs_agent_passwords[log_agent_name] | default('') }}"
+
+# Adresse de vmauth. Par défaut le port publié sur le LAN par la VM docker
+# (rôle victoria_logs) ; 127.0.0.1 sur la VM docker elle-même ; l'URL
+# publique pour pangolin et flip, avec leur jeton d'accès Pangolin.
+# En clair sur le LAN, comme l'agent Beszel : le compte de l'agent n'y ouvre
+# que l'écriture.
+log_agent_url: "http://192.168.1.216:9428" # NOSONAR
+# Jeton d'accès Pangolin de l'agent (sortie log_agent_access_tokens de
+# tofu/pangolin_config, posée par pangolin.yaml et flip.yml), envoyé en
+# en-têtes P-Access-Token-Id / P-Access-Token. Vide sur le LAN.
+log_agent_pangolin_token_id: ""
+log_agent_pangolin_token: ""
+
+# Journal d'accès de Traefik (Pangolin) : dossier de l'hôte, monté en lecture
+# seule. Vide ailleurs. Les chaînes de requête sont retirées des chemins avant
+# l'envoi (jetons p_token et de partage) : templates/vector.yaml.j2.
+log_agent_traefik_log_dir: ""
+
+# Lignes du journal d'accès de Traefik écartées : les envois des agents
+# eux-mêmes (sinon chaque lot en ferait une ligne de plus à envoyer).
+log_agent_traefik_drop_hosts:
+  - logs.sylvain.cloud
+
+# --- Modes dc et compose (conteneur) -----------------------------------------
+# Image Debian : la seule avec journalctl (le paquet systemd de trixie,
+# celui des hôtes), que la source journald de Vector lance.
+log_agent_service: log_agent
+log_agent_base_path: "{{ docker_base_path }}/{{ log_agent_service }}"
+# Dossiers du journal monté en lecture seule, s'ils existent sur l'hôte
+# (tasks/container.yml les cherche : UGOS ne dit pas où il tient le sien).
+log_agent_journal_dirs:
+  - /var/log/journal
+  - /run/log/journal
+# Proxy du socket Docker (wollomatic/socket-proxy), en sidecar, comme
+# beszel_agent : l'agent ne voit que le socket unix du proxy, qui ne laisse
+# passer que les GET de la source docker_logs de Vector 0.60
+# (src/sources/docker_logs/mod.rs : events, liste des conteneurs, inspect et
+# logs d'un conteneur), plus version et _ping. Ni écriture, ni exec, ni
+# images. L'inspect est nécessaire (nom, image, date de création du
+# conteneur) : il montre aussi à Vector l'environnement des conteneurs, que
+# l'agent ne garde ni n'envoie ; l'agent lit déjà tout le journal de l'hôte.
+# Inspect et logs par l'identifiant hexadécimal seulement, la seule forme que
+# Vector envoie.
+log_agent_socket_proxy_allow_get: >-
+  /(v[0-9.]+/)?(_ping|version|events|containers/json|containers/[a-fA-F0-9]{12,64}/(json|logs))
+log_agent_socket_proxy_allow_head: >-
+  /(v[0-9.]+/)?_ping
+
+# --- Mode binary --------------------------------------------------------------
+# Même version que l'image du compose, suivie par Renovate.
+# renovate: datasource=github-releases depName=vectordotdev/vector
+log_agent_binary_version: "0.60.0"
+# Sommes des archives de la release (vector-<version>-SHA256SUMS) : get_url
+# refuse tout autre fichier. Une montée de version doit aussi les changer.
+log_agent_binary_sha256:
+  x86_64: 89a9f134dcc35a6fbba9cb8ad0fec2d4802657bba6cb1c374a30660ef9456bdc
+  aarch64: 1540662d8bc33af5afd287f821ba930417e0f3124073bc9db6a29c59dda88dbb
+log_agent_binary_dir: /usr/local/lib/log-agent
+log_agent_config_dir: /etc/log-agent

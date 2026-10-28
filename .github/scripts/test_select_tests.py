@@ -134,7 +134,7 @@ class Scenarios(unittest.TestCase):
 class HostVarsAndPlaybooks(unittest.TestCase):
     def test_host_vars_select_the_scenarios_loading_them(self):
         scenarios, _ = selected(["ansible/host_vars/pi/variables.yaml"])
-        self.assertEqual(scenarios, ["beszel_agent", "host_tuning", "immich", "security_pi"])
+        self.assertEqual(scenarios, ["beszel_agent", "host_tuning", "immich", "log_agent", "security_pi"])
 
     def test_any_file_of_the_host_directory_counts(self):
         tmp, tree = fake_tree(scenario("a", "- hosts: all\n  vars_files:\n    - ../../host_vars/h/variables.yaml\n"))

@@ -1,0 +1,79 @@
+---
+services:
+  agent:
+    # Version légère (#79, ADR 0011) : Vector tient quelques dizaines de Mio
+    # (sources journald et docker, tampon en mémoire). Pas encore mesuré :
+    # memory.peak relu après une semaine (docs/architecture.md, « Les
+    # journaux »).
+    mem_limit: 128m
+    # Variante Debian : la seule avec journalctl (systemd de trixie, celui
+    # des hôtes), que lance la source journald.
+    image: docker.io/timberio/vector:0.60.0-debian@sha256:3ccb4bbd36e38734394e158db1411e91a69d076ed25013f8de385046a382d36a
+    container_name: log-agent
+    # Rien en écoute (API coupée) ; le réseau de l'hôte pour joindre vmauth
+    # sur 127.0.0.1 depuis la VM docker elle-même.
+    network_mode: host
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    # root sans capacité : il lit le journal, à root (groupe systemd-journal),
+    # le journal d'accès de Traefik, à root, et le socket du proxy par le
+    # groupe docker (group_add) ; il n'écrit que dans son dossier de données.
+    cap_drop:
+      - ALL
+    group_add:
+      - "{{ log_agent_docker_gid }}"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    command:
+      - "--config"
+      - "/etc/vector/vector.yaml"
+    volumes:
+      # Le dossier, pas le fichier : un template remplace le fichier (nouvel
+      # inode), qu'un montage de fichier ne verrait jamais.
+      - ./config:/etc/vector:ro
+      # Compte vmauth et jeton Pangolin (secrets.json, 0600 root).
+      - ./secrets:/etc/vector-secrets:ro
+      - ./data:/var/lib/vector
+      - ./socket:/run/socket-proxy:ro
+      # journalctl ne lit que les journaux de cette machine-id.
+      - /etc/machine-id:/etc/machine-id:ro
+{% for dir in log_agent_journal_mounts %}
+      - "{{ dir }}:{{ dir }}:ro"
+{% endfor %}
+{% if log_agent_traefik_log_dir | length > 0 %}
+      - "{{ log_agent_traefik_log_dir }}:/traefik-logs:ro"
+{% endif %}
+    depends_on:
+      - socket-proxy
+    restart: unless-stopped
+
+  # Seul à voir le socket Docker. Sortie en socket unix (./socket), aucun
+  # réseau : rien d'autre que l'agent ne peut l'atteindre.
+  socket-proxy:
+    mem_limit: 32m
+    image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    container_name: log-agent-socket-proxy
+    user: "65534:{{ log_agent_docker_gid }}"
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command:
+      - "-loglevel=info"
+      - "-proxysocketendpoint=/run/socket-proxy/docker.sock"
+      - "-proxysocketendpointfilemode=0660"
+      # Ancrées par le proxy (^...$), sur le chemin seul.
+      - "-allowGET={{ log_agent_socket_proxy_allow_get }}"
+      - "-allowHEAD={{ log_agent_socket_proxy_allow_head }}"
+      # Un redémarrage du démon Docker casse la connexion au socket : le
+      # proxy s'arrête et la restart policy le relance.
+      - "-watchdoginterval=600"
+      - "-stoponwatchdog"
+      - "-shutdowngracetime=5"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./socket:/run/socket-proxy
+    restart: unless-stopped

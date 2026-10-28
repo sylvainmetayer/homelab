@@ -38,7 +38,7 @@ victoria_logs_ui_user: sylvain
 
 # Un compte d'écriture par agent (nom = inventory_hostname) : clé sops
 # victoria_logs_agent_passwords (dict hôte => mot de passe), lue aussi par le
-# rôle des agents (à venir). Un agent ne peut appeler que les chemins
+# rôle log_agent. Un agent ne peut appeler que les chemins
 # ci-dessous (regex de vmauth, ancrée sur le chemin entier) : ni lecture, ni
 # suppression.
 victoria_logs_agents: "{{ victoria_logs_agent_passwords | default({}) | dict2items | sort(attribute='key') }}"

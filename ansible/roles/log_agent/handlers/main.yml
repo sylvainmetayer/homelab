@@ -1,0 +1,29 @@
+---
+# Modes conteneur : le compose, secrets.json ou vector.yaml a changé. dc@ redémarre
+# le projet (unité user, ou système si docker_service_scope vaut system).
+- name: Restart log_agent
+  when: log_agent_mode == 'dc'
+  become: "{{ log_agent_dc_scope == 'system' }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ log_agent_service }}"
+    scope: "{{ log_agent_dc_scope }}"
+    state: restarted
+
+# Mode compose (Pangolin) : `up -d` recrée ce dont le compose a changé, pas
+# un conteneur dont seuls vector.yaml ou secrets.json (montés) ont changé.
+- name: Restart the log agent container
+  when: log_agent_mode == 'compose'
+  become: true
+  ansible.builtin.command:
+    cmd: docker compose restart agent
+    chdir: "{{ log_agent_base_path }}"
+  changed_when: true
+
+# Pas en --check si l'unité vient d'être posée : elle n'existe pas encore.
+- name: Restart log-agent
+  become: true
+  when: not (ansible_check_mode and log_agent_unit_install is changed)
+  ansible.builtin.systemd:
+    name: log-agent
+    state: restarted
+    daemon_reload: true

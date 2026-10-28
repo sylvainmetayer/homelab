@@ -122,6 +122,14 @@
       ]
     },
     {
+      "description": "Vector (log_agent): the image of the container agents and the binary of the newt LXC (log_agent defaults, whose sha256 must be updated by hand) move together, so every host runs the configuration the Molecule scenario log_agent_lxc tested with that binary",
+      "groupName": "vector",
+      "matchPackageNames": [
+        "docker.io/timberio/vector",
+        "vectordotdev/vector"
+      ]
+    },
+    {
       "description": "Group all Pangolin role dependencies together",
       "groupName": "pangolin-role-dependencies",
       "matchFileNames": [
@@ -375,9 +383,9 @@
     },
     {
       "customType": "regex",
-      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary): no built-in manager reads plain vars. A borg, newt or Beszel agent bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
+      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary, the Vector binary of log_agent): no built-in manager reads plain vars. A borg, newt, Beszel agent or Vector bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
       "managerFilePatterns": [
-        "/^ansible/roles/(borgmatic|newt_service|beszel_agent)/defaults/main\\.yml$/"
+        "/^ansible/roles/(borgmatic|newt_service|beszel_agent|log_agent)/defaults/main\\.yml$/"
       ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[a-z_]+:\\s*\"(?<currentValue>[^\"]+)\""

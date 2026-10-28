@@ -15,6 +15,9 @@
         pangolin_geoip_healthcheck_url: "{{ terraform_outputs.uptime_cron_geoip_url.value | default('') }}"
         # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
         beszel_agent_hub_headers: "{{ terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname] | default('') }}"
+        # Jeton d'accès Pangolin de l'agent de journaux (en-têtes P-Access-Token-*).
+        log_agent_pangolin_token_id: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id | default('') }}"
+        log_agent_pangolin_token: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -40,3 +43,14 @@
       vars:
         beszel_agent_mode: compose
         beszel_agent_hub_url: "https://monitoring.sylvain.cloud"
+    # Agent de journaux : journal de l'hôte, conteneurs (CrowdSec compris) et
+    # journal d'accès de Traefik, vers VictoriaLogs par sa ressource publique
+    # (PASS sur /insert/jsonline, jeton d'accès Pangolin). Mode compose, comme
+    # l'agent Beszel.
+    - role: log_agent
+      tags: log_agent,monitoring
+      vars:
+        log_agent_mode: compose
+        log_agent_url: "https://logs.sylvain.cloud"
+        # pangolin_dir (rôle pangolin) /config/traefik/logs, où Traefik écrit access.log.
+        log_agent_traefik_log_dir: /opt/pangolin/config/traefik/logs

@@ -47,6 +47,9 @@
         newt_client_secret: "{{ terraform_outputs.flip_newt_secret.value | default('') }}"
         # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
         beszel_agent_hub_headers: "{{ terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname] | default('') }}"
+        # Jeton d'accès Pangolin de l'agent de journaux (en-têtes P-Access-Token-*).
+        log_agent_pangolin_token_id: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id | default('') }}"
+        log_agent_pangolin_token: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token | default('') }}"
 
     # An empty NEWT_ID starts a newt that retries forever without saying why.
     - name: Fail clearly when the flip site has no newt credentials
@@ -205,3 +208,10 @@
       tags: beszel_agent,monitoring
       vars:
         beszel_agent_hub_url: "https://monitoring.sylvain.cloud"
+    # Agent de journaux, vers VictoriaLogs par sa ressource publique (PASS sur
+    # /insert/jsonline, jeton d'accès Pangolin en en-têtes), à travers le NAT
+    # de Pangolin.
+    - role: log_agent
+      tags: log_agent,monitoring
+      vars:
+        log_agent_url: "https://logs.sylvain.cloud"

@@ -35,3 +35,9 @@
       vars:
         beszel_agent_mode: binary
         beszel_agent_service_patterns: "newt*"
+    # Agent de journaux en binaire (pas de Docker ici) : le journal de l'hôte,
+    # newt.service compris, vers VictoriaLogs de la VM docker par le LAN.
+    - role: log_agent
+      tags: log_agent,monitoring
+      vars:
+        log_agent_mode: binary

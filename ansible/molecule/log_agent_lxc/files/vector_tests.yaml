@@ -1,0 +1,181 @@
+---
+# Tests unitaires des transformations de templates/vector.yaml.j2 (rôle
+# log_agent), lancés par `vector test` sur la configuration de Pangolin
+# (sources journald, docker et traefik) que le verify rend avec le rôle.
+tests:
+  - name: journald keeps the unit, the level and nothing else
+    inputs:
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: "Accepted publickey for sylvain"
+          _SYSTEMD_UNIT: ssh.service
+          SYSLOG_IDENTIFIER: sshd
+          PRIORITY: "6"
+          _PID: "1234"
+          _CMDLINE: "sshd: sylvain [priv]"
+    outputs:
+      - extract_from: journald_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.host, "pangolin")
+              assert_eq!(.source, "journald")
+              assert_eq!(.unit, "ssh.service")
+              assert_eq!(.level, "info")
+              assert_eq!(.identifier, "sshd")
+              assert!(!exists(._CMDLINE))
+
+  - name: journald prefers the user unit of a dc@ service
+    inputs:
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: "Started dc@trek.service."
+          _SYSTEMD_UNIT: user@1000.service
+          _SYSTEMD_USER_UNIT: dc@trek.service
+          PRIORITY: "6"
+    outputs:
+      - extract_from: journald_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.unit, "dc@trek.service")
+
+  # Copie de la sortie d'un conteneur par `docker compose up` : la source
+  # docker l'a déjà.
+  - name: journald drops the compose copy of a container line
+    no_outputs_from:
+      - journald_fields
+    inputs:
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: "trek  | GET /api/health 200"
+          _SYSTEMD_USER_UNIT: dc@trek.service
+          PRIORITY: "6"
+
+  - name: docker keeps the container and drops the labels
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: "listening on :3000"
+          container_name: trek
+          image: ghcr.io/example/trek:1.0
+          stream: stdout
+          label: '{"com.docker.compose.project": "trek"}'
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.source, "docker")
+              assert_eq!(.container, "trek")
+              assert_eq!(.stream, "stdout")
+              assert!(!exists(.label))
+              assert!(!exists(.crowdsec))
+
+  - name: crowdsec decisions become fields
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: >-
+            time="2026-10-28T10:00:00Z" level=info msg="(localhost/crowdsec) crowdsecurity/http-probing by ip
+            198.51.100.7 (DE/1234) : 4h ban on Ip 198.51.100.7"
+          container_name: crowdsec
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.crowdsec, "decision")
+              assert_eq!(.client_ip, "198.51.100.7")
+              assert_eq!(.scenario, "crowdsecurity/http-probing")
+              assert_eq!(.decision, "ban")
+              assert_eq!(.duration, "4h")
+
+  - name: crowdsec alerts become fields
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: >-
+            time="2026-10-28T10:00:00Z" level=info msg="Ip 198.51.100.7 performed 'crowdsecurity/http-probing'
+            (11 events over 2s) at 2026-10-28 10:00:00"
+          container_name: crowdsec
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.crowdsec, "alert")
+              assert_eq!(.client_ip, "198.51.100.7")
+              assert_eq!(.scenario, "crowdsecurity/http-probing")
+
+  # Le jeton p_token de Pangolin, ou celui d'un lien de partage, dans la
+  # chaîne de requête : jamais envoyé.
+  - name: traefik strips the query string
+    inputs:
+      - insert_at: traefik_fields
+        type: log
+        log_fields:
+          message: >-
+            {"StartUTC":"2026-10-28T10:00:00.123456789Z",
+            "ClientHost":"198.51.100.7",
+            "RequestMethod":"GET",
+            "RequestHost":"travels.sylvain.cloud",
+            "RequestPath":"/mcp?p_token=abc.def",
+            "DownstreamStatus":200,
+            "Duration":1500000,
+            "RouterName":"r@file",
+            "ServiceName":"s@file",
+            "request_User-Agent":"curl/8"}
+    outputs:
+      - extract_from: traefik_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.path, "/mcp")
+              assert_eq!(.message, "GET travels.sylvain.cloud/mcp 200")
+              assert_eq!(.status, 200)
+              assert_eq!(.duration_ms, 1.5)
+              assert_eq!(.user_agent, "curl/8")
+              assert_eq!(.source, "traefik")
+              assert_eq!(.timestamp, t'2026-10-28T10:00:00.123456789Z')
+              assert!(!contains(encode_json(.), "p_token"))
+
+  # Les envois des agents eux-mêmes : une ligne par lot, qui en ferait un de
+  # plus.
+  - name: traefik drops the agents' own uploads
+    no_outputs_from:
+      - traefik_fields
+    inputs:
+      - insert_at: traefik_fields
+        type: log
+        log_fields:
+          message: >-
+            {"StartUTC":"2026-10-28T10:00:00Z",
+            "RequestMethod":"POST",
+            "RequestHost":"logs.sylvain.cloud",
+            "RequestPath":"/insert/jsonline?_stream_fields=host",
+            "DownstreamStatus":200}
+
+  - name: traefik keeps the interface of VictoriaLogs
+    inputs:
+      - insert_at: traefik_fields
+        type: log
+        log_fields:
+          message: >-
+            {"StartUTC":"2026-10-28T10:00:00Z",
+            "RequestMethod":"GET",
+            "RequestHost":"logs.sylvain.cloud",
+            "RequestPath":"/select/vmui/",
+            "DownstreamStatus":200}
+    outputs:
+      - extract_from: traefik_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.path, "/select/vmui/")

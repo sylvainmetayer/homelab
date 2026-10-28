@@ -387,6 +387,43 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   journalières les plus anciennes partent avant les 30 jours (un hôte qui
   boucle sur une erreur). Données sur le disque local de la VM
   (`/opt/apps/victoria_logs/data`), jamais sur le NAS.
+- **Agents** (rôle `log_agent`, Vector 0.60, un par hôte) : le journal
+  systemd (unités user comprises) et, là où Docker tourne, la sortie de
+  chaque conteneur par la source `docker_logs`, à travers son propre proxy du
+  socket (GET seulement : liste, événements, inspect et logs d'un conteneur
+  par son identifiant ; inspect est nécessaire à Vector, contrairement à
+  Beszel, et lui montre l'environnement des conteneurs, qu'il ne garde pas).
+  Sous `dc@`, `docker compose up` recopie déjà la sortie des conteneurs dans
+  le journal (« conteneur  | ligne ») : ces copies sont écartées, la source
+  docker les a avec le nom du conteneur. Sur Pangolin, aussi le journal
+  d'accès de Traefik (chaînes de requête retirées : `p_token`, liens de
+  partage ; les envois des agents eux-mêmes écartés) et les alertes et
+  décisions de CrowdSec, extraites de sa sortie (champs `crowdsec`,
+  `client_ip`, `scenario`). Champs de flux : `host`, `source` (`journald`,
+  `docker`, `traefik`), `unit`, `container`.
+
+  | Hôte | Mode | Vers vmauth par |
+  |---|---|---|
+  | docker | `dc@log_agent` | `127.0.0.1:9428` |
+  | pi | `dc@log_agent` | le LAN, `192.168.1.216:9428` |
+  | NAS | `dc@log_agent` (unité système), journal d'UGOS en lecture seule | le LAN |
+  | newt-lxc | binaire Vector, service systemd (`DynamicUser`, groupe `systemd-journal`), journal seulement | le LAN |
+  | pangolin | `docker compose up -d` (pas de `docker_service`) | `https://logs.sylvain.cloud` |
+  | flip | `dc@log_agent` | `https://logs.sylvain.cloud`, par le NAT de Pangolin |
+
+  Les hôtes Hetzner passent par la ressource publique, sur le seul chemin
+  `/insert/jsonline`, en PASS (règles pays sautées : IP source privée), avec
+  un jeton d'accès Pangolin par agent (sortie `log_agent_access_tokens`) ;
+  vmauth exige encore leur compte. Sur le LAN, le compte de l'agent passe en
+  clair, comme le jeton Beszel : il n'ouvre que l'écriture.
+- **Secrets des agents** : `secrets.json` (0600 root), lu par le backend
+  `file` de Vector ; en binaire, remis à l'unité par `LoadCredential`. Jamais
+  `${VAR}` : Vector 0.60 n'interpole plus l'environnement sans
+  `--dangerously-allow-env-var-interpolation`.
+- **Pertes** : le curseur du journal et la position dans le journal d'accès
+  n'avancent qu'une fois le lot accepté par VictoriaLogs : une coupure ne perd
+  rien tant que l'hôte garde ses lignes. La source docker n'a pas ce suivi :
+  ce qu'un conteneur écrit pendant un arrêt de l'agent manque.
 - **Pas de sauvegarde** : des journaux se reproduisent (chaque hôte garde son
   journald) et leur perte ne coûte que l'historique. Pas de moniteur
   « Backup », pas d'entrée dans le test de restauration. La configuration est
@@ -396,16 +433,24 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   pas le stockage, dont l'image (distroless) n'a aucun binaire de
   healthcheck.
 - **Poids** : stockage plafonné à 320 Mio (`mem_limit`, caches à 60 %), vmauth
-  à 64 Mio, pas de `cpus`. Volume attendu : quelques centaines de Mio de
+  à 64 Mio ; chaque agent à 128 Mio (plus 32 Mio pour son proxy du socket,
+  `MemoryMax=128M` en binaire) ; pas de `cpus`. Volume attendu : quelques centaines de Mio de
   journaux bruts par jour, tous hôtes compris, qu'il compresse d'un facteur
   10 environ, soit de l'ordre de 1 à 2 Gio pour 30 jours, sous le plafond.
-- **Mesure, une semaine après le déploiement** : `memory.peak` du stockage et
-  de vmauth (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`),
+- **Mesure, une semaine après le déploiement** : `memory.peak` du stockage, de
+  vmauth et des agents (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`),
   puis l'I/O wait de la VM docker dans Beszel, avant et après ; la place
   prise (`du -sh /opt/apps/victoria_logs/data`). Recaler les `mem_limit` à
   ~2× le pic ; trop lourd pour la VM : retour arrière ci-dessous, et l'ADR
   passe en « rejetée ».
-- **Retour arrière** : retirer le rôle de `docker.yml`, puis
+- **Retour arrière** : d'abord les agents, `log_agent` retiré des playbooks
+  puis, sur chaque hôte, `dc@log_agent` arrêté et `/opt/apps/log_agent` (ou
+  `/volume1/docker/log_agent`) supprimé par le même `decommission_app`
+  (service `log_agent`), `docker compose down` dans `/opt/apps/log_agent` sur
+  Pangolin, `log-agent.service` désactivé et `/usr/local/lib/log-agent`,
+  `/etc/log-agent` supprimés sur le LXC ; `website_victoria_logs.tf` perd
+  alors sa règle et ses jetons. Puis le serveur : retirer le rôle de
+  `docker.yml`, puis
   `ansible-playbook docker.yml --tags decommission -e decommission_app_confirm=true
   -e decommission_app_service=victoria_logs
   -e decommission_app_base_path=/opt/apps/victoria_logs` (rien côté
