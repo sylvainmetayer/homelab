@@ -36,6 +36,9 @@ API = "https://api.github.com"
 MAX_MESSAGE = 3800
 RENOVATE_LOGINS = {"renovate", "renovate[bot]", "app/renovate"}
 DEPLOY_WORKFLOW = "deploy-docker-app.yaml"
+# Constantes, pas des arguments : aucune entrée ne choisit où part le jeton.
+NTFY_URL = "https://ntfy.sylvain.cloud"
+NTFY_TOPIC = "github"
 
 PULLS_QUERY = """
 query($merged: String!, $open: String!) {
@@ -244,17 +247,13 @@ def publish(url, topic, token, report):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
     )
-    # URL de ntfy : la valeur par défaut, ou celle que passe le workflow (posé
-    # par ce dépôt, jamais une entrée extérieure) : pas de SSRF.
-    with urllib.request.urlopen(request, timeout=30) as response:  # NOSONAR
+    with urllib.request.urlopen(request, timeout=30) as response:
         response.read()
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True, help="propriétaire/dépôt")
-    parser.add_argument("--url", default="https://ntfy.sylvain.cloud")
-    parser.add_argument("--topic", default="github")
     args = parser.parse_args(argv)
 
     now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
@@ -284,7 +283,7 @@ def main(argv=None):
         print("::error::NTFY_TOKEN vide (secret de l'environnement renovate-digest) : rien n'est publié.")
         return 1
     try:
-        publish(args.url, args.topic, token, report)
+        publish(NTFY_URL, NTFY_TOPIC, token, report)
     except (OSError, ValueError, http.client.HTTPException) as error:
         # Sa classe seule : une erreur d'urllib peut citer la requête.
         print(f"::error::publication sur ntfy en échec : {type(error).__name__}")
