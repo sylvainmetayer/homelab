@@ -174,6 +174,11 @@ Clé ou jeton qu'un rôle écrit dans le compose ou le `.env` d'une appli
 (`docker.yml --tags beszel`) puis l'agent de chaque hôte changé
 (`--tags beszel_agent` de son playbook).
 
+`victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
+(`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
+changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
+`victoria_logs_ui_password` ne sert qu'à l'interface (vmauth seul).
+
 ### Compte d'administration d'une appli
 
 Mots de passe des comptes admin (`*_admin_password`, `*_pgadmin_password`,

@@ -1,0 +1,6 @@
+---
+- name: Restart victoria_logs
+  ansible.builtin.systemd:
+    name: dc@victoria_logs
+    scope: user
+    state: restarted

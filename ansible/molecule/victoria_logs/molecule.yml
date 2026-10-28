@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Prepare partagé (_shared/prepare.yml) : rien de plus à poser, VictoriaLogs
+# n'a ni base à copier ni sauvegarde.
+scenario:
+  name: victoria_logs

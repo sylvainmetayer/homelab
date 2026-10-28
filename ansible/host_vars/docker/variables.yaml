@@ -38,6 +38,14 @@ beszel_publish_addresses:
   - 127.0.0.1
   - 192.168.1.216
 
+# --- VictoriaLogs (rôle victoria_logs) ---
+# vmauth publié aussi sur le LAN, pour les agents du Pi, du NAS et du LXC
+# newt. Publié par Docker, donc avant ufw : tout le LAN l'atteint, et ses
+# comptes (sops) sont la seule barrière, en clair sur le LAN comme Beszel.
+victoria_logs_publish_addresses:
+  - 127.0.0.1
+  - 192.168.1.216
+
 # --- Paperless-ngx en pause (docs/runbooks/app-en-pause.md) ---
 # Arrêté durablement depuis octobre 2026, pas supprimé : unité dc@paperless
 # arrêtée et désactivée, sauvegarde retirée, données et dépôt borg gardés.

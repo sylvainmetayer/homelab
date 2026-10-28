@@ -25,7 +25,8 @@ locals {
     "ntfy",
     "wishlist",
     "nginx-demo",
-    "beszel"
+    "beszel",
+    "victoria-logs"
   ]
 }
 
