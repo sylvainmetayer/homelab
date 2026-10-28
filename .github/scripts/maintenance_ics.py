@@ -20,7 +20,8 @@ Bibliothèque standard seulement, lancé avec `python -I` : le répertoire du
 script n'est alors pas dans sys.path, check_secret_rotation est chargé par son
 chemin.
 
-Usage (depuis la racine du dépôt) : maintenance_ics.py [--check] [--output FICHIER]
+Usage (depuis la racine du dépôt) : maintenance_ics.py [--check] (sans option : le
+.ics complet sur la sortie standard, pour le lire)
 """
 
 import argparse
@@ -128,7 +129,7 @@ def cron_rule(expression):
 
 def first_occurrence(rule, start=EPOCH):
     """Première date de la règle à partir de `start` (DTSTART doit en être une)."""
-    parts = dict(part.split("=") for part in rule.split(";"))
+    parts = {key: value for key, _, value in (part.partition("=") for part in rule.split(";"))}
     days = {int(day) for day in parts["BYMONTHDAY"].split(",")}
     months = {int(month) for month in parts.get("BYMONTH", "").split(",") if month} or set(range(1, 13))
     date = start
@@ -292,6 +293,60 @@ def build_objects(root=ROOT, now=None):
     return {event["uid"]: render([event], stamp, feed=False) for event in all_events(root)}
 
 
+REQUIRED = {"UID", "DTSTAMP", "DTSTART", "SUMMARY"}
+
+
+def unfold(physical):
+    """Lignes logiques : une ligne qui commence par une espace prolonge la précédente."""
+    logical = []
+    for line in physical:
+        if line.startswith(" ") and logical:
+            logical[-1] += line[1:]
+        else:
+            logical.append(line)
+    return logical
+
+
+class Structure:
+    """Composants ouverts, propriétés du VEVENT courant, UID déjà vus."""
+
+    def __init__(self):
+        self.stack, self.uids, self.event, self.errors = [], set(), None, []
+
+    def begin(self, value):
+        self.stack.append(value)
+        if value == "VEVENT":
+            self.event = set()
+
+    def end(self, value):
+        if not self.stack or self.stack.pop() != value:
+            self.errors.append(f"END:{value} sans BEGIN correspondant")
+        if value == "VEVENT" and self.event is not None:
+            missing = REQUIRED - self.event
+            if missing:
+                self.errors.append(f"VEVENT sans {', '.join(sorted(missing))}")
+            self.event = None
+
+    def prop(self, name, value):
+        if self.event is None or not self.stack or self.stack[-1] != "VEVENT":
+            return
+        prop = name.split(";")[0]
+        self.event.add(prop)
+        if prop == "UID":
+            if value in self.uids:
+                self.errors.append(f"UID en double : {value}")
+            self.uids.add(value)
+
+    def feed(self, line):
+        name, _, value = line.partition(":")
+        if name == "BEGIN":
+            self.begin(value)
+        elif name == "END":
+            self.end(value)
+        else:
+            self.prop(name, value)
+
+
 def validate(text):
     """Erreurs (chaînes) de structure du calendrier rendu."""
     errors = []
@@ -299,47 +354,23 @@ def validate(text):
         errors.append("fins de ligne autres que CRLF")
     physical = text.split("\r\n")[:-1]
     errors += [f"ligne {n} : plus de 75 octets" for n, line in enumerate(physical, 1) if len(line.encode("utf-8")) > 75]
-    logical = []
-    for line in physical:
-        if line.startswith(" ") and logical:
-            logical[-1] += line[1:]
-        else:
-            logical.append(line)
-    stack, uids, event = [], set(), None
+    logical = unfold(physical)
+    structure = Structure()
     for line in logical:
-        name, _, value = line.partition(":")
-        if name == "BEGIN":
-            stack.append(value)
-            if value == "VEVENT":
-                event = set()
-        elif name == "END":
-            if not stack or stack.pop() != value:
-                errors.append(f"END:{value} sans BEGIN correspondant")
-            if value == "VEVENT" and event is not None:
-                missing = {"UID", "DTSTAMP", "DTSTART", "SUMMARY"} - event
-                if missing:
-                    errors.append(f"VEVENT sans {', '.join(sorted(missing))}")
-                event = None
-        elif event is not None and stack and stack[-1] == "VEVENT":
-            prop = name.split(";")[0]
-            event.add(prop)
-            if prop == "UID":
-                if value in uids:
-                    errors.append(f"UID en double : {value}")
-                uids.add(value)
-    if stack:
-        errors.append(f"composants non fermés : {', '.join(stack)}")
+        structure.feed(line)
+    errors += structure.errors
+    if structure.stack:
+        errors.append(f"composants non fermés : {', '.join(structure.stack)}")
     if not logical or logical[0] != "BEGIN:VCALENDAR" or logical[-1] != "END:VCALENDAR":
         errors.append("attendu BEGIN:VCALENDAR … END:VCALENDAR")
-    if not uids:
+    if not structure.uids:
         errors.append("aucun événement")
     return errors
 
 
 def main(argv=None, root=ROOT):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--check", action="store_true", help="construire et valider, sans écrire")
-    parser.add_argument("--output", type=Path, help="fichier .ics à écrire (sortie standard sinon)")
+    parser.add_argument("--check", action="store_true", help="construire et valider, sans rien afficher")
     args = parser.parse_args(argv)
     try:
         text = build(root)
@@ -355,9 +386,6 @@ def main(argv=None, root=ROOT):
         return 1
     if args.check:
         print(f"Calendrier valide : {text.count('BEGIN:VEVENT')} événements.")
-    elif args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(text.encode("utf-8"))
     else:
         sys.stdout.write(text)
     return 0

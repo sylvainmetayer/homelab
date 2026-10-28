@@ -120,7 +120,8 @@ class Client:
         if status == 404:
             return None
         try:
-            tree = ET.fromstring(payload)  # NOSONAR: réponse du serveur CalDAV choisi, sans DTD ni entité externe (expat)
+            # Réponse du serveur CalDAV choisi ; expat ne charge ni DTD ni entité externe.
+            tree = ET.fromstring(payload)  # NOSONAR
         except ET.ParseError:
             raise CalDAVError("PROPFIND : réponse multistatus illisible") from None
         collection = urllib.parse.urlsplit(self.url).path

@@ -116,15 +116,17 @@ class CalDAVTest(unittest.TestCase):
         self.assertEqual([method for method, _ in self.state["log"]].count("PROPFIND"), 1)
 
     def test_a_refused_password_never_shows_up_in_the_error(self):
+        client, objects = self.client("wrong-password-value"), self.objects("a@homelab.sylvain.dev")
         with self.assertRaises(caldav.CalDAVError) as raised:
-            caldav.sync(self.client("wrong-password-value"), self.objects("a@homelab.sylvain.dev"))
+            caldav.sync(client, objects)
         self.assertEqual(str(raised.exception), "PROPFIND <calendrier> : HTTP 401")
         self.assertNotIn("wrong-password-value", str(raised.exception))
 
     def test_redirects_are_not_followed(self):
         self.state["redirect"] = True
+        client, objects = self.client(), self.objects("a@homelab.sylvain.dev")
         with self.assertRaises(caldav.CalDAVError) as raised:
-            caldav.sync(self.client(), self.objects("a@homelab.sylvain.dev"))
+            caldav.sync(client, objects)
         self.assertIn("HTTP 301", str(raised.exception))
 
     def test_refuses_plain_http_off_loopback(self):

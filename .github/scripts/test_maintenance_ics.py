@@ -140,8 +140,9 @@ class CronTest(RepoMixin, unittest.TestCase):
         self.assertEqual(restore["rrule"], "FREQ=MONTHLY;BYMONTHDAY=1,15")
 
     def test_a_workflow_without_one_cron_fails(self):
+        root = self.make_repo(restore="on: push\n")
         with self.assertRaises(ics.CalendarError):
-            ics.scheduled_events(self.make_repo(restore="on: push\n"))
+            ics.scheduled_events(root)
 
 
 class DomainTest(RepoMixin, unittest.TestCase):
@@ -191,12 +192,11 @@ class RenderTest(RepoMixin, unittest.TestCase):
         # Un composant fermé hors d'ordre est signalé, sans IndexError.
         self.assertTrue(ics.validate("BEGIN:VEVENT\r\nEND:VCALENDAR\r\nUID:x\r\n"))
 
-    def test_main_writes_the_file(self):
-        root = self.make_repo()
-        out = root / "site" / "maintenance.ics"
-        with redirect_stdout(io.StringIO()):
-            self.assertEqual(ics.main(["--output", str(out)], root=root), 0)
-        self.assertEqual(ics.validate(out.read_bytes().decode()), [])
+    def test_main_prints_the_calendar(self):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            self.assertEqual(ics.main([], root=self.make_repo()), 0)
+        self.assertEqual(ics.validate(buffer.getvalue()), [])
 
     def test_main_fails_on_a_bad_source(self):
         root = self.make_repo(restore="on: push\n")
@@ -209,7 +209,8 @@ class RenderTest(RepoMixin, unittest.TestCase):
 class IsolatedRunTest(unittest.TestCase):
     def test_runs_under_python_isolated_mode(self):
         script = Path(ics.__file__).resolve()
-        result = subprocess.run(  # NOSONAR: le script du dépôt, sans shell ni entrée externe
+        # Le script du dépôt, sans shell ni entrée externe.
+        result = subprocess.run(  # NOSONAR
             [sys.executable, "-I", str(script), "--check"], capture_output=True, text=True, check=False, cwd=script.parents[2]
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
