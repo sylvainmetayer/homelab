@@ -22,6 +22,7 @@
         kitchenowl_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_kitchenowl_url.value | default('') }}"
         homebox_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homebox_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
+        ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
@@ -30,6 +31,16 @@
 
     # Les liens de Homepage : un par entrée de local.websites
     # (tofu/pangolin_config, website_homepage.tf).
+    # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token du
+    # secrets.sops.yaml racine, que tofu/pangolin_config donne à sa
+    # notification Uptime Kuma et rend en sortie. Vide avant le premier apply :
+    # le rôle ntfy retire alors ce producteur (avertissement).
+    - name: Load the ntfy Uptime Kuma token from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        ntfy_uptime_kuma_token: "{{ terraform_outputs.ntfy_uptime_kuma_token.value | default('') }}"
+
     - name: Load the Homepage links from Terraform state outputs
       tags: always
       ansible.builtin.set_fact:
@@ -82,6 +93,8 @@
       tags: homebox,app
     - role: speedtest_tracker
       tags: speedtest_tracker,app
+    - role: ntfy
+      tags: ntfy,app
     - role: nginx_demo
       tags: nginx_demo,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par

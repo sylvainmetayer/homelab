@@ -32,19 +32,20 @@ override_data {
   target = data.sops_file.secrets
   values = {
     data = {
-      pangolin_org_id       = "homelab"
-      pangolin_url          = "https://api.pangolin.example.test"
-      pangolin_api_key      = "fake-pangolin-api-key"
-      AWS_ACCESS_KEY_ID     = "fake-access-key"
-      AWS_SECRET_ACCESS_KEY = "fake-secret-key"
-      smtp_user             = "alertes@example.test"
-      smtp_pass             = "fake-smtp-pass"
-      le_email              = "admin@example.test"
-      UPTIMEKUMA_ENDPOINT   = "https://uptime.example.test"
-      UPTIMEKUMA_USERNAME   = "admin"
-      UPTIMEKUMA_PASSWORD   = "fake-uptimekuma-pass"
-      home_ip               = "203.0.113.10"
-      immich_pin            = "123456"
+      pangolin_org_id        = "homelab"
+      pangolin_url           = "https://api.pangolin.example.test"
+      pangolin_api_key       = "fake-pangolin-api-key"
+      AWS_ACCESS_KEY_ID      = "fake-access-key"
+      AWS_SECRET_ACCESS_KEY  = "fake-secret-key"
+      smtp_user              = "alertes@example.test"
+      smtp_pass              = "fake-smtp-pass"
+      le_email               = "admin@example.test"
+      UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
+      UPTIMEKUMA_USERNAME    = "admin"
+      UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
+      home_ip                = "203.0.113.10"
+      immich_pin             = "123456"
+      ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
     }
   }
 }
@@ -441,6 +442,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["ntfy"]
+  values = { id = 71 }
+}
+
+override_resource {
   target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
@@ -649,6 +655,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["ntfy"]
+  values = { push_token = "push-ntfy" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["nginx_demo"]
   values = { push_token = "push-nginx-demo" }
 }
@@ -724,7 +735,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
-      "kitchenowl", "homebox", "speedtest_tracker",
+      "kitchenowl", "homebox", "speedtest_tracker", "ntfy",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1061,6 +1072,27 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Le contournement de KitchenOwl doit se limiter à /api/* et /socket.io/* (appli mobile), en priorité 2."
   }
 
+  # Les applis ntfy et les producteurs n'ont pas de session Pangolin : la
+  # publication JSON à la racine (Uptime Kuma), la publication sur chaque
+  # topic de producteur, et l'abonnement, le poll et la vérification de
+  # compte des applis. L'interface web et l'API /v1 restent derrière le mur ;
+  # ntfy refuse tout le reste sans compte (deny-all).
+  assert {
+    condition = {
+      for key, rule in pangolin_resource_rule.path_bypass :
+      rule.value => rule.priority if startswith(key, "ntfy ")
+      } == {
+      "/"            = 2
+      "/*/json"      = 2
+      "/*/ws"        = 2
+      "/*/auth"      = 2
+      "/uptime-kuma" = 2
+      "/beszel"      = 2
+      "/scripts"     = 2
+    }
+    error_message = "Le contournement de ntfy doit se limiter à /, /<topic> des producteurs et /*/json|ws|auth (applis), en priorité 2."
+  }
+
   # Les listes publiques de Wishlist s'ouvrent sans compte et de partout, par
   # le lien envoyé à la famille : la page, le build SvelteKit, la police, les
   # images des articles et la réservation publique, rien de l'API d'édition
@@ -1255,6 +1287,13 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "nextcloud /index.php/csrftoken",
       "nextcloud /index.php/apps/files/preview-service-worker.js",
       "nextcloud /apps/text/public/*",
+      "ntfy /",
+      "ntfy /*/json",
+      "ntfy /*/ws",
+      "ntfy /*/auth",
+      "ntfy /uptime-kuma",
+      "ntfy /beszel",
+      "ntfy /scripts",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
       "TREK /.well-known/oauth-protected-resource/mcp",
@@ -1294,6 +1333,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
   assert {
     condition = (
       length(local.path_bypasses["TREK"]) == length(local.trek_mcp_public_paths) + length(local.trek_share_paths)
+      && length(local.path_bypasses["ntfy"]) == 4 + length(local.ntfy_publish_topics)
       && length(local.path_bypass_rules) == sum([for paths in values(local.path_bypasses) : length(paths)])
     )
     error_message = "Deux tables de chemins fusionnées dans local.path_bypasses partagent une clé : l'une écrase l'autre."
@@ -1365,7 +1405,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
+      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "ntfy", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1729,6 +1769,7 @@ run "every_public_resource_applies_its_rules" {
       trek              = "TREK"
       wiki              = "Wiki (Bookstack)"
       wishlist          = "Wishlist"
+      ntfy              = "ntfy"
     }
     error_message = "Les ressources publiques ont changé (clé ou nom) : un nom renommé recrée ses règles pays ; une application ajoutée se liste ici."
   }
@@ -1883,6 +1924,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       trek              = "Healthcheck TREK"
       wiki              = "Healthcheck Wiki (Bookstack)"
       wishlist          = "Healthcheck Wishlist"
+      ntfy              = "Healthcheck ntfy"
     }
     error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
   }
@@ -2024,6 +2066,11 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         for key, rule in pangolin_resource_rule.path_bypass :
         rule.resource_id == pangolin_resource.website["kitchenowl"].id if startswith(key, "KitchenOwl ")
       ])
+      && pangolin_resource_rule.backslash_guard["ntfy"].resource_id == pangolin_resource.website["ntfy"].id
+      && alltrue([
+        for key, rule in pangolin_resource_rule.path_bypass :
+        rule.resource_id == pangolin_resource.website["ntfy"].id if startswith(key, "ntfy ")
+      ])
       && pangolin_resource_rule.backslash_guard["Wishlist"].resource_id == pangolin_resource.website["wishlist"].id
       && alltrue([
         for key, rule in pangolin_resource_rule.path_bypass :
@@ -2100,6 +2147,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   assert {
     condition     = output.uptime_backup_speedtest_tracker_url == "https://uptime.example.test/api/push/push-speedtest-tracker"
     error_message = "uptime_backup_speedtest_tracker_url (docker.yml) ne pointe pas sur le moniteur Backup Speedtest Tracker."
+  }
+
+  assert {
+    condition     = output.uptime_backup_ntfy_url == "https://uptime.example.test/api/push/push-ntfy"
+    error_message = "uptime_backup_ntfy_url (docker.yml) ne pointe pas sur le moniteur Backup ntfy."
   }
 
   assert {
@@ -2184,6 +2236,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_kitchenowl_url,
       output.uptime_backup_homebox_url,
       output.uptime_backup_speedtest_tracker_url,
+      output.uptime_backup_ntfy_url,
       output.uptime_backup_wishlist_url,
       output.uptime_backup_nginx_demo_url,
       output.uptime_backup_beszel_url,
@@ -2521,6 +2574,7 @@ run "monitors_are_filed_and_notify_by_email" {
       trek              = "Backup TREK"
       wiki              = "Backup Wiki (Bookstack)"
       wishlist          = "Backup Wishlist"
+      ntfy              = "Backup ntfy"
     }
     error_message = "Les moniteurs de sauvegarde ont changé (clé ou nom) : relire les champs backup de local.websites, puis cette liste."
   }
@@ -2812,5 +2866,42 @@ run "homepage_links_cover_every_public_app" {
   assert {
     condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.homepage_links.value | default({})")
     error_message = "docker.yml doit passer l'output homepage_links au rôle homepage (homepage_websites)."
+  }
+}
+
+# ntfy : les topics ouverts à la publication sans SSO (local.ntfy_publish_topics)
+# sont exactement ceux des producteurs du rôle (ntfy_publishers), et la
+# notification Uptime Kuma publie sur le sien, avec son jeton, sans être
+# encore branchée sur aucun moniteur (décision de Sylvain), jeton que
+# docker.yml relit dans ce state.
+run "ntfy_topics_match_the_role" {
+  command = plan
+
+  assert {
+    condition = sort(local.ntfy_publish_topics) == sort([
+      for publisher in yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_publishers :
+      publisher.topic
+    ])
+    error_message = "local.ntfy_publish_topics (website_ntfy.tf) doit lister les topics de ntfy_publishers (ansible/roles/ntfy/defaults/main.yml)."
+  }
+
+  assert {
+    condition = (
+      uptimekuma_notification_ntfy.ntfy.server_url == "https://ntfy.sylvain.cloud"
+      && uptimekuma_notification_ntfy.ntfy.topic == "uptime-kuma"
+      && uptimekuma_notification_ntfy.ntfy.authentication_method == "accessToken"
+      && uptimekuma_notification_ntfy.ntfy.is_default == false
+      && uptimekuma_notification_ntfy.ntfy.apply_existing == false
+      && contains(local.ntfy_publish_topics, uptimekuma_notification_ntfy.ntfy.topic)
+    )
+    error_message = "La notification ntfy d'Uptime Kuma doit publier sur ntfy.sylvain.cloud/uptime-kuma avec un jeton, sans s'imposer aux moniteurs."
+  }
+
+  assert {
+    condition = (
+      nonsensitive(output.ntfy_uptime_kuma_token == uptimekuma_notification_ntfy.ntfy.access_token)
+      && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.ntfy_uptime_kuma_token.value | default('')")
+    )
+    error_message = "docker.yml doit lire le jeton uptime-kuma de ntfy dans la sortie ntfy_uptime_kuma_token, celui de la notification."
   }
 }

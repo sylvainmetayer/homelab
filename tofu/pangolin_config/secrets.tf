@@ -25,4 +25,7 @@ locals {
   home_ip             = data.sops_file.secrets.data["home_ip"]
   immich_pin          = data.sops_file.secrets.data["immich_pin"]
 
+  # Write-only token of ntfy's uptime-kuma producer (website_ntfy.tf).
+  ntfy_uptime_kuma_token = data.sops_file.secrets.data["ntfy_uptime_kuma_token"]
+
 }

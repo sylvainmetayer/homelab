@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: ntfy
+
+# Prepare propre : une base user.db existante, que le backup doit copier
+# (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

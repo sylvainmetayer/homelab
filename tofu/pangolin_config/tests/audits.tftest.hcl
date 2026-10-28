@@ -31,19 +31,20 @@ override_data {
   target = data.sops_file.secrets
   values = {
     data = {
-      pangolin_org_id       = "homelab"
-      pangolin_url          = "https://api.pangolin.example.test"
-      pangolin_api_key      = "fake-pangolin-api-key"
-      AWS_ACCESS_KEY_ID     = "fake-access-key"
-      AWS_SECRET_ACCESS_KEY = "fake-secret-key"
-      smtp_user             = "alertes@example.test"
-      smtp_pass             = "fake-smtp-pass"
-      le_email              = "admin@example.test"
-      UPTIMEKUMA_ENDPOINT   = "https://uptime.example.test"
-      UPTIMEKUMA_USERNAME   = "admin"
-      UPTIMEKUMA_PASSWORD   = "fake-uptimekuma-pass"
-      home_ip               = "203.0.113.10"
-      immich_pin            = "123456"
+      pangolin_org_id        = "homelab"
+      pangolin_url           = "https://api.pangolin.example.test"
+      pangolin_api_key       = "fake-pangolin-api-key"
+      AWS_ACCESS_KEY_ID      = "fake-access-key"
+      AWS_SECRET_ACCESS_KEY  = "fake-secret-key"
+      smtp_user              = "alertes@example.test"
+      smtp_pass              = "fake-smtp-pass"
+      le_email               = "admin@example.test"
+      UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
+      UPTIMEKUMA_USERNAME    = "admin"
+      UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
+      home_ip                = "203.0.113.10"
+      immich_pin             = "123456"
+      ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
     }
   }
 }
