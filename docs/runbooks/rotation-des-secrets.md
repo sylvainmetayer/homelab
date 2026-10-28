@@ -185,6 +185,28 @@ compose et le SOPS disent la même chose. `beszel_admin_password` doit rester
 le mot de passe du compte admin : le rôle s'en sert pour écrire les alertes
 par l'API du hub.
 
+### ntfy
+
+Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
+ntfy relit à chaque démarrage : aucune commande dans l'appli.
+
+- Jeton d'un producteur (`ntfy_beszel_token`, `ntfy_scripts_token` dans
+  `ansible/secrets.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+  racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
+  `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
+  `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
+  Kuma et la sortie que relit `docker.yml`). Puis
+  `ansible-playbook docker.yml --tags ntfy`, et `--tags beszel` pour celui de
+  Beszel quand son canal ntfy est allumé ; les scripts prennent le nouveau à
+  la main. L'ancien jeton cesse de marcher au redémarrage de ntfy.
+- `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
+  ensemble : `openssl rand`, `htpasswd -niBC 10 x` (mot de passe sur
+  l'entrée standard, garder ce qui suit `x:`), `sops set` des deux, le
+  playbook, puis le nouveau mot de passe dans l'appli du téléphone.
+- `ntfy_publisher_password_hash` : hash d'un mot de passe tiré et jeté (les
+  producteurs n'entrent que par jeton) ; le refaire de même, sur incident
+  seulement.
+
 ### Identifiants Newt
 
 `newt_docker_client_secret`, `newt_pi_client_secret` (sites créés dans
