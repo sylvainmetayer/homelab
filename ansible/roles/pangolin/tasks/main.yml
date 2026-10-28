@@ -100,12 +100,13 @@
     name: logrotate
     state: present
 
+# 0600 : logrotate tourne en root, personne d'autre n'a à lire ce fichier.
 - name: Rotate the Traefik access log
   become: true
   ansible.builtin.template:
     src: logrotate-traefik-access.j2
     dest: /etc/logrotate.d/traefik-access
-    mode: "0644"
+    mode: "0600"
     owner: root
     group: root
 
