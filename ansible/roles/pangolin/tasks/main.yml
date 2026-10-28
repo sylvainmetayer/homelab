@@ -103,6 +103,7 @@
 # 0600 : logrotate tourne en root, personne d'autre n'a à lire ce fichier.
 - name: Rotate the Traefik access log
   become: true
+  diff: false
   ansible.builtin.template:
     src: logrotate-traefik-access.j2
     dest: /etc/logrotate.d/traefik-access
