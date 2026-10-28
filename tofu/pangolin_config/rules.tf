@@ -259,9 +259,9 @@ locals {
   # trek_mcp, website_trek.tf), Beszel's agent endpoint
   # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf) and
   # VictoriaLogs' (pangolin_resource_rule.victoria_logs_insert,
-  # website_victoria_logs.tf), the only path rules that are not ACCEPTs. Listed by hand for the same reason as
-  # local.declared_extra_rules below, so that the guard stays even if TREK's
-  # ACCEPTs go away.
+  # website_victoria_logs.tf), the only path rules that are not ACCEPTs.
+  # Listed by hand for the same reason as local.declared_extra_rules below, so
+  # that the guard stays even if TREK's ACCEPTs go away.
   standalone_path_rule_resources = [
     "Beszel",
     "TREK",

@@ -34,6 +34,10 @@
     - role: beszel_agent
       vars:
         beszel_agent_name: nas
+    # Sous le nom d'inventaire du NAS (sa clé dans victoria_logs_agent_passwords).
+    - role: log_agent
+      vars:
+        log_agent_name: nas
     - role: newt
     - role: jellyfin
     - role: nas_proxy
