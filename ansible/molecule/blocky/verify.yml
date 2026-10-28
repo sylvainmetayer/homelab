@@ -1,0 +1,196 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/blocky/defaults/main.yml
+  vars:
+    blocky_mode: binary
+    blocky_verify_push_dir: /tmp/molecule-blocky-push
+  tasks:
+    - name: Load the derived variables of the role
+      ansible.builtin.include_vars: ../../roles/blocky/vars/main.yml
+
+    - name: Stat the binary, the configuration and the push URL file
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      register: blocky_files
+      loop:
+        - "{{ blocky_binary_dir }}/{{ blocky_archive }}"
+        - "{{ blocky_config_file }}"
+        - "{{ blocky_config_dir }}/check.env"
+
+    - name: Assert the archive is the pinned one and the push URL is private
+      ansible.builtin.assert:
+        that:
+          - blocky_files.results[0].stat.checksum == blocky_binary_sha256['x86_64']
+          - blocky_files.results[1].stat.exists
+          - blocky_files.results[2].stat.mode == '0600'
+          - blocky_files.results[2].stat.pw_name == 'root'
+
+    - name: Validate the deployed configuration
+      ansible.builtin.command:
+        argv: ["{{ blocky_binary }}", validate, --config, "{{ blocky_config_file }}"]
+      changed_when: false
+
+    - name: Read the state of blocky.service and of the check timer
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: blocky_units
+      loop:
+        - blocky.service
+        - blocky-check.timer
+
+    - name: Assert Blocky runs unprivileged and the check is scheduled
+      vars:
+        blocky_unit: "{{ blocky_units.results[0].status }}"
+      ansible.builtin.assert:
+        that:
+          - blocky_unit.ActiveState == 'active'
+          - blocky_unit.UnitFileState == 'enabled'
+          - blocky_unit.DynamicUser == 'yes'
+          - blocky_unit.CapabilityBoundingSet == 'cap_net_bind_service'
+          - blocky_unit.MemoryMax | int == 384 * 1024 * 1024
+          - blocky_units.results[1].status.ActiveState == 'active'
+          - blocky_units.results[1].status.UnitFileState == 'enabled'
+
+    # Les listes sont chargées en arrière-plan (strategy: fast) : attendre
+    # qu'un nom bloqué le soit.
+    - name: Wait for the lists to be loaded
+      ansible.builtin.command: dig +short +time=1 +tries=1 @127.0.0.1 googlesyndication.com A
+      register: blocky_wait
+      changed_when: false
+      until: blocky_wait.stdout_lines == ['0.0.0.0']
+      retries: 30
+      delay: 2
+
+    - name: Check the answers
+      ansible.builtin.include_tasks: tasks/dig.yml
+      loop:
+        # Les amont répondent.
+        - { name: example.com, expected: [192.0.2.10] }
+        # Sur l'IP LAN aussi (celle qu'annonce le DHCP).
+        - { name: example.com, expected: [192.0.2.10], server: "{{ blocky_lan_ip }}" }
+        # Liste ads (wildcard : le domaine et ses sous-domaines).
+        - { name: googlesyndication.com, expected: [0.0.0.0] }
+        - { name: pagead2.googlesyndication.com, expected: [0.0.0.0] }
+        # Liste threats.
+        - { name: x.blocked.molecule-homelab.net, expected: [0.0.0.0] }
+        # Dans la liste ads et dans blocky_allowlist : l'allowlist gagne.
+        - { name: allowed.molecule-homelab.net, expected: [192.0.2.30] }
+        # customDNS (hôtes à IP fixe) et conditional (la Bbox, domaine lan).
+        - { name: pve.lan, expected: [192.168.1.26] }
+        - { name: pi.lan, expected: [192.168.1.96] }
+        # Rebinding : vidé, sauf un nom de blocky_rebinding_allowed_domains.
+        - { name: rebind.molecule-homelab.net, expected: [] }
+        - { name: nas.sylvain.cloud, expected: [192.168.1.137] }
+      vars:
+        dig_name: "{{ item.name }}"
+        dig_expected: "{{ item.expected }}"
+        dig_server: "{{ item.server | default('127.0.0.1') }}"
+
+    - name: Query the API of Blocky for the reason of a block
+      ansible.builtin.command:
+        argv: ["{{ blocky_binary }}", --config, "{{ blocky_config_file }}", query, googlesyndication.com]
+      register: blocky_reason
+      changed_when: false
+
+    - name: Assert the block comes from the ads list
+      ansible.builtin.assert:
+        that:
+          - "'BLOCKED (ads' in blocky_reason.stdout ~ blocky_reason.stderr"
+        fail_msg: "{{ blocky_reason.stdout ~ blocky_reason.stderr }}"
+
+    # Faux Uptime Kuma : http.server rend 200 sur le chemin du moniteur et
+    # journalise chaque requête, query string comprise.
+    - name: Create the fake Uptime Kuma push path
+      ansible.builtin.file:
+        path: "{{ blocky_verify_push_dir }}/api/push"
+        state: directory
+        mode: "0700"
+
+    - name: Create the fake Uptime Kuma push file
+      ansible.builtin.copy:
+        dest: "{{ blocky_verify_push_dir }}/api/push/molecule-dns"
+        content: "{\"ok\":true}\n"
+        mode: "0644"
+
+    - name: Start the fake Uptime Kuma
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-push
+          - --collect
+          - python3
+          - -I
+          - -m
+          - http.server
+          - "18080"
+          - --bind
+          - 127.0.0.1
+          - --directory
+          - "{{ blocky_verify_push_dir }}"
+      changed_when: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18080
+        timeout: 30
+
+    # systemctl plutôt que le module : son code de retour est ce qui est vérifié.
+    - name: Run the Blocky check
+      become: true
+      ansible.builtin.command: systemctl start blocky-check.service # noqa: command-instead-of-module
+      changed_when: true
+
+    # Un nom qui n'est pas bloqué passé pour le nom bloqué : ce que verrait la
+    # vérification si les listes n'étaient pas chargées. Le script échoue et
+    # pousse down.
+    - name: Run the check with a name that is not blocked
+      ansible.builtin.command:
+        argv: [/bin/sh, "{{ blocky_config_dir }}/blocky-check.sh", 127.0.0.1, example.com, example.com]
+      environment:
+        BLOCKY_CHECK_PUSH_URL: http://127.0.0.1:18080/api/push/molecule-dns # NOSONAR
+      register: blocky_check_down
+      changed_when: true
+      failed_when: blocky_check_down.rc == 0
+
+    - name: Read what the fake Uptime Kuma received
+      become: true
+      ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-dns"
+      register: blocky_pushes
+      changed_when: false
+      until: blocky_pushes.stdout_lines | length == 2
+      retries: 10
+      delay: 1
+
+    - name: Assert the check pushed up, then down with the reason
+      vars:
+        blocky_push_up: "{{ blocky_pushes.stdout_lines[0] | urldecode }}"
+        blocky_push_down: "{{ blocky_pushes.stdout_lines[1] | urldecode }}"
+      ansible.builtin.assert:
+        that:
+          - "'status=up&msg=OK' in blocky_push_up"
+          - "'status=down&' in blocky_push_down"
+          - "'example.com n' in blocky_push_down"
+        fail_msg: "{{ blocky_pushes.stdout_lines }}"
+
+    - name: Stop the fake Uptime Kuma
+      become: true
+      ansible.builtin.systemd:
+        name: molecule-push.service
+        state: stopped
+
+    # La mémoire du service (listes en ligne : quelques Mio). Les ~150 Mio
+    # des vraies listes sont mesurés à part (defaults, blocky_mem_limit).
+    - name: Read the memory peak of Blocky
+      ansible.builtin.command: systemctl show blocky.service --property MemoryPeak --value # noqa: command-instead-of-module
+      register: blocky_memory_peak
+      changed_when: false
+
+    - name: Show the memory peak of Blocky
+      ansible.builtin.debug:
+        msg: "MemoryPeak de blocky.service : {{ (blocky_memory_peak.stdout | int / 1048576) | round(1) }} Mio"

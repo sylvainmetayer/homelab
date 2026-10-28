@@ -8,6 +8,9 @@
 security_ufw_enabled: false
 security_auditd_enabled: false
 security_os_hardening_enabled: false
+# Sans ufw, Blocky (rôle blocky, lxc.yml) répond en 53/udp et 53/tcp à qui
+# joint le LXC : le LAN, et le client Pangolin par la ressource privée dns
+# (tofu/pangolin_config). La Bbox ne redirige aucun port vers lui.
 # Tout le LAN ne doit jamais être banni (ton poste).
 security_fail2ban_ignoreip:
   - 127.0.0.1/8

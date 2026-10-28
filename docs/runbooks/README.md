@@ -10,6 +10,7 @@ choix dans [../adr/](../adr/README.md).
 | Une appli répond 503, ou son moniteur Uptime Kuma est rouge | [appli-en-panne.md](appli-en-panne.md) |
 | Pangolin injoignable (toutes les applis tombent ensemble) | [pangolin-injoignable.md](pangolin-injoignable.md) |
 | flip injoignable (Flip Planning, Promptoramix) | [flip-injoignable.md](flip-injoignable.md) |
+| Plus d'Internet à la maison, un site ne charge plus, moniteur « DNS … » rouge (Blocky) ; bascule du DHCP de la Bbox | [dns-blocky.md](dns-blocky.md) |
 | Sauvegarde en échec, restauration d'une appli depuis Borg | [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md) |
 | Test de restauration vzdump en échec (VM docker, LXC newt), copie 990/991 restée sur Proxmox | [test-restauration-vm.md](test-restauration-vm.md) |
 | Disque plein, VM docker lente | [disque-plein-vm-lente.md](disque-plein-vm-lente.md) |

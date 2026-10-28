@@ -1,0 +1,39 @@
+---
+# Comme lxc.yml (mode binary, host_vars/newt-lxc), contre le faux résolveur
+# amont de prepare.yml au lieu de Quad9 et Mullvad, et des listes en ligne au
+# lieu de celles de HaGeZi : rien ne dépend d'Internet une fois le binaire
+# téléchargé.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/newt-lxc/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # lxc.yml lit l'URL push dans le state de pangolin_config : ici le faux
+    # Uptime Kuma du verify.
+    - name: Load the push URL from (fake) Terraform state outputs
+      no_log: true
+      ansible.builtin.set_fact:
+        blocky_check_push_url: http://127.0.0.1:18080/api/push/molecule-dns # NOSONAR
+
+  roles:
+    - role: blocky
+      vars:
+        blocky_mode: binary
+        blocky_upstreams:
+          - tcp+udp:127.0.0.1:5300
+        blocky_bootstrap_dns: []
+        blocky_bbox_ip: 127.0.0.1:5300
+        blocky_denylists:
+          ads:
+            - |
+              *.googlesyndication.com
+              allowed.molecule-homelab.net
+          threats:
+            - |
+              *.blocked.molecule-homelab.net
+        blocky_allowlist:
+          - allowed.molecule-homelab.net

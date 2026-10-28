@@ -1,0 +1,119 @@
+---
+# Blocky, filtrage DNS du réseau local (ADR 0012) : deux instances, que le
+# DHCP de la Bbox annonce toutes les deux (docs/runbooks/dns-blocky.md).
+# Modes (blocky_mode) :
+#   - dc      conteneur sous dc@blocky (le Raspberry Pi, pi.yml) ;
+#   - binary  binaire et service systemd, sans Docker (le LXC newt, lxc.yml,
+#             sur le modèle de newt_service et du mode binary de
+#             beszel_agent).
+# Même version des deux côtés : l'image et le binaire, suivis par Renovate
+# (groupe blocky de renovate.json).
+blocky_mode: dc
+
+blocky_image: "ghcr.io/0xerr0r/blocky:v0.35.0@sha256:4f165b63db0d76c96ecc47c7a8f57caeedc003a912bdce29abb0e283ce02e16b"
+blocky_service: blocky
+blocky_base_path: "{{ docker_base_path }}/{{ blocky_service }}"
+
+# renovate: datasource=github-releases depName=0xERR0R/blocky
+blocky_binary_version: "v0.35.0"
+# Sommes des archives de la release (blocky_checksums.txt) : get_url refuse
+# tout autre fichier. Une montée de version doit aussi les changer.
+blocky_binary_sha256:
+  x86_64: 97ae4257e4f2ea7ee4e0622fca152019eb92224d81b41b2549f064e4cef5584e
+  arm64: 9ac70e846f7919632e340607fb73d80a1fe280c9ceb876430d2a7d79743b4aae
+blocky_binary_dir: /usr/local/lib/blocky
+blocky_config_dir: /etc/blocky
+
+# Adresse LAN où Blocky répond aux clients : l'IP annoncée par le DHCP de la
+# Bbox. Mode dc : seule adresse publiée par Docker (les ports publiés passent
+# avant ufw, cf. host_vars/pi). Mode binary : écoute directe, plus
+# 127.0.0.1 pour la vérification locale.
+blocky_lan_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+
+# Mémoire : 147 Mio de RSS avec les deux listes ci-dessous (~640 000
+# domaines), 234 Mio après deux rafraîchissements sans GOMEMLIMIT, 177 Mio
+# avec GOMEMLIMIT=160MiB (mesuré le 2026-10-28, v0.35.0, amd64). Le plafond à
+# ~2x ce pic ; GOMEMLIMIT fait collecter le ramasse-miettes avant lui.
+blocky_mem_limit: 384m
+blocky_gomemlimit: 160MiB
+
+# --- Résolveurs amont ---------------------------------------------------------
+# DNS-over-TLS vers deux résolveurs sans journalisation : Quad9 (Suisse, à but
+# non lucratif, bloque aussi les domaines malveillants qu'il connaît) et
+# Mullvad (Suède, sans filtrage). dns0.eu, l'autre candidat, a fermé en 2025.
+# parallel_best : chaque requête part vers deux résolveurs, la plus rapide
+# gagne ; une panne de l'un ne se voit pas.
+blocky_upstreams:
+  - tcp-tls:dns.quad9.net
+  - tcp-tls:dns.mullvad.net
+# Résolution des noms ci-dessus et des URL des listes, par leurs IP en dur et
+# en DoT : ni le resolv.conf de l'hôte (qui peut pointer sur Blocky lui-même)
+# ni un DNS en clair.
+blocky_bootstrap_dns:
+  - upstream: tcp-tls:dns.quad9.net
+    ips: [9.9.9.9, 149.112.112.112]
+  - upstream: tcp-tls:dns.mullvad.net
+    ips: [194.242.2.2]
+
+# --- Noms locaux --------------------------------------------------------------
+# La Bbox (192.168.1.254) sert le domaine local `lan` à partir de son DHCP
+# (pi.lan, data.lan pour le NAS, bbox.lan) et la zone inverse du LAN : ses
+# requêtes lui sont renvoyées, ainsi que les noms sans domaine (`.`).
+blocky_bbox_ip: 192.168.1.254
+blocky_conditional_mapping:
+  lan: "{{ blocky_bbox_ip }}"
+  1.168.192.in-addr.arpa: "{{ blocky_bbox_ip }}"
+  .: "{{ blocky_bbox_ip }}"
+# Les hôtes à IP fixe que la Bbox ne nomme pas (IP de l'inventaire).
+blocky_custom_dns:
+  pve.lan: 192.168.1.26
+  docker.lan: 192.168.1.216
+  nas.lan: 192.168.1.137
+  newt-lxc.lan: 192.168.1.200
+
+# --- Protection contre le DNS rebinding ---------------------------------------
+# Une réponse des résolveurs amont qui pointe dans le LAN est vidée. Sauf les
+# noms publics qui pointent volontairement sur une IP du LAN : les A de
+# tofu/dns (media.tf, nas.tf), vers le NAS. Un nouveau A privé dans tofu/dns
+# s'ajoute ici, sinon il ne résout plus à la maison (runbook dns-blocky).
+blocky_rebinding_allowed_domains:
+  - media.sylvain.cloud
+  - nas.sylvain.cloud
+
+# --- Filtrage -----------------------------------------------------------------
+# Groupes de listes de blocage (nom => sources). HaGeZi Pro (publicités,
+# traqueurs, télémétrie ; peu de faux positifs) et HaGeZi Threat Intelligence
+# Feeds, version medium (logiciels malveillants, hameçonnage, arnaques : la
+# version complète, deux millions de domaines, ne tient pas dans le LXC). Le
+# format wildcard (`*.domaine`), qui bloque aussi les sous-domaines.
+blocky_denylists:
+  ads:
+    - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.txt
+  threats:
+    - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.medium.txt
+# Domaines jamais bloqués, quel que soit le groupe : ce qui casse (une appli
+# bancaire, un lien de suivi d'un e-mail). Un domaine par entrée, `*.` devant
+# pour ses sous-domaines aussi. Ajout par PR (runbook dns-blocky).
+#   - "*.tr.clients.boursorama.info"
+blocky_allowlist: []
+# Groupes appliqués par client (nom, IP ou CIDR => groupes). `default` vaut
+# pour tous les autres. Par exemple, un poste sans filtrage des traqueurs :
+#   192.168.1.42: [threats]
+blocky_client_groups:
+  default: "{{ blocky_denylists.keys() | list }}"
+# Rafraîchissement quotidien des listes. Copie locale (cachePath) : un
+# redémarrage sans Internet (coupure, boot avant la box) filtre encore.
+blocky_lists_refresh_period: 24h
+
+# --- Vérification locale (blocky-check.timer) ---------------------------------
+# Uptime Kuma (PikaPods) ne joint pas le LAN : chaque hôte interroge son
+# Blocky toutes les 5 minutes et pousse up, ou down avec la raison, au
+# moniteur « DNS <hôte> » (tofu/pangolin_config, cron_dns.tf), dont les
+# alertes partent par e-mail et ntfy. URL push : sortie uptime_cron_dns_*_url,
+# lue par pi.yml / lxc.yml ; vide, la vérification tourne sans rien pousser.
+blocky_check_push_url: ""
+blocky_check_schedule: "*:0/5"
+# Un nom qui doit résoudre (les amont répondent) et un nom que HaGeZi Pro
+# bloque (les listes téléchargées sont chargées, pas seulement le DNS).
+blocky_check_resolved_name: example.com
+blocky_check_blocked_name: googlesyndication.com

@@ -1,0 +1,33 @@
+---
+- name: Check the Blocky settings
+  ansible.builtin.assert:
+    that:
+      - blocky_mode in ['dc', 'binary']
+      # Une IP privée : Blocky ne doit jamais répondre sur une IP publique.
+      - blocky_lan_ip is match('^(10|192\\.168|172\\.(1[6-9]|2[0-9]|3[01]))\\.')
+      - blocky_upstreams | length > 0
+      - blocky_denylists | length > 0
+      - blocky_client_groups.default is defined
+    fail_msg: >-
+      Blocky : mode {{ blocky_mode }} (dc ou binary), IP LAN {{ blocky_lan_ip }}
+      (privée), résolveurs amont, listes et groupe default de
+      blocky_client_groups obligatoires.
+    quiet: true
+
+# dig, pour la vérification locale et le diagnostic (runbook dns-blocky).
+- name: Install dig
+  become: true
+  ansible.builtin.apt:
+    name: bind9-dnsutils
+    state: present
+
+- name: Deploy Blocky in a container
+  when: blocky_mode == 'dc'
+  ansible.builtin.include_tasks: container.yml
+
+- name: Deploy the Blocky binary
+  when: blocky_mode == 'binary'
+  ansible.builtin.include_tasks: binary.yml
+
+- name: Install the local DNS check
+  ansible.builtin.include_tasks: check.yml

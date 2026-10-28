@@ -130,6 +130,14 @@
       ]
     },
     {
+      "description": "Blocky: the image of the Pi and the binary of the newt LXC (blocky role defaults) move together, the two DNS resolvers of the house stay on one version. A bump also needs blocky_binary_sha256 (blocky_checksums.txt of the release), or get_url refuses the archive and Molecule fails. Merging deploys the Pi (pi.yml), lxc.yml is run by hand",
+      "groupName": "blocky",
+      "matchPackageNames": [
+        "ghcr.io/0xerr0r/blocky",
+        "0xERR0R/blocky"
+      ]
+    },
+    {
       "description": "Group all Pangolin role dependencies together",
       "groupName": "pangolin-role-dependencies",
       "matchFileNames": [
@@ -383,9 +391,9 @@
     },
     {
       "customType": "regex",
-      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary, the Vector binary of log_agent): no built-in manager reads plain vars. A borg, newt, Beszel agent or Vector bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
+      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary, the Vector binary of log_agent, the Blocky binary): no built-in manager reads plain vars. A borg, newt, Beszel agent, Vector or Blocky bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
       "managerFilePatterns": [
-        "/^ansible/roles/(borgmatic|newt_service|beszel_agent|log_agent)/defaults/main\\.yml$/"
+        "/^ansible/roles/(borgmatic|newt_service|beszel_agent|log_agent|blocky)/defaults/main\\.yml$/"
       ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[a-z_]+:\\s*\"(?<currentValue>[^\"]+)\""
@@ -421,6 +429,17 @@
       ],
       "matchStrings": [
         "beszel_agent_image(?:_smart)?:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Blocky image of the blocky role (the Pi's container), pinned by tag and digest in a plain var of its defaults, next to the binary of the newt LXC",
+      "managerFilePatterns": [
+        "/^ansible/roles/blocky/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "blocky_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
       ],
       "datasourceTemplate": "docker"
     },

@@ -22,6 +22,12 @@
         newt_service_id: "{{ terraform_outputs.proxmox_lxc_newt_id.value | default('') }}"
         newt_service_secret: "{{ terraform_outputs.proxmox_lxc_newt_secret.value | default('') }}"
 
+    - name: Load the push URL of the Blocky check from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        blocky_check_push_url: "{{ terraform_outputs.uptime_cron_dns_lxc_url.value | default('') }}"
+
   roles:
     - role: security
       become: true
@@ -41,3 +47,10 @@
       tags: log_agent,monitoring
       vars:
         log_agent_mode: binary
+    # Filtrage DNS du LAN, seconde instance (la première : le Pi, pi.yml). En
+    # binaire, pas de Docker ici. Après newt : une panne de Blocky n'empêche
+    # pas le tunnel de la CI de se monter.
+    - role: blocky
+      tags: blocky
+      vars:
+        blocky_mode: binary

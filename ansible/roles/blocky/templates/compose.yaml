@@ -1,0 +1,37 @@
+---
+services:
+  blocky:
+    # Image dans les defaults du rôle (suivie par un gestionnaire regex de
+    # renovate.json, avec le binaire du LXC). Entre guillemets : une
+    # expression nue après `image:` devient `image: null` pour Renovate.
+    image: "{{ blocky_image }}"
+    container_name: blocky
+    mem_limit: {{ blocky_mem_limit }}
+    environment:
+      GOMEMLIMIT: "{{ blocky_gomemlimit }}"
+      TZ: Europe/Paris
+    # Réseau bridge, pas host : Docker y abaisse le premier port non
+    # privilégié à 0, l'utilisateur 100 de l'image ouvre le 53 sans aucune
+    # capacité. Publié sur l'IP LAN seule. Ces ports passent avant ufw
+    # (host_vars/pi) : la Bbox ne redirige rien vers le Pi, seul le LAN (et le
+    # client Pangolin, par le Newt du LXC) l'atteint.
+    ports:
+      - "{{ blocky_lan_ip }}:53:53/udp"
+      - "{{ blocky_lan_ip }}:53:53/tcp"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./cache:/app/cache
+    restart: unless-stopped
+    # Celui de l'image (blocky healthcheck : une requête DNS sur 127.0.0.1:53),
+    # explicite pour la vérification des compose de Molecule.
+    healthcheck:
+      test: ["CMD", "/app/blocky", "healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 1m

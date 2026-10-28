@@ -7,10 +7,13 @@ newt_lxc = {
   hostname    = "newt"
   template_id = 9001
   cores       = 1
-  memory      = 512
-  disk_size   = 8
-  storage     = "local-lvm"
-  bridge      = "vmbr0"
+  # 1 Gio : Newt, l'agent Beszel et Blocky (ansible/roles/blocky, jusqu'à
+  # 384 Mio avec ses listes) : 512 Mio ne suffisent plus. Mise à jour en
+  # place du LXC (tofu apply), avant le premier lxc.yml avec Blocky.
+  memory    = 1024
+  disk_size = 8
+  storage   = "local-lvm"
+  bridge    = "vmbr0"
 }
 
 # Configuration Debian 13 (vérifier la somme SHA512 sur https://cloud.debian.org/images/cloud/trixie/latest/)

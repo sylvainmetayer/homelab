@@ -1,0 +1,20 @@
+---
+# Comme pi.yml : host_vars/pi, docker_service puis blocky.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pi/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # pi.yml lit l'URL push dans le state de pangolin_config.
+    - name: Load the push URL from (fake) Terraform state outputs
+      no_log: true
+      ansible.builtin.set_fact:
+        blocky_check_push_url: https://uptime.example.invalid/api/push/molecule-dns-pi
+
+  roles:
+    - role: docker_service
+    - role: blocky
