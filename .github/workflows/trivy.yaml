@@ -195,13 +195,19 @@ jobs:
           cp trivy-image.json "reports/$NAME.json"
           python3 -I .github/scripts/trivy_critical.py --dry-run reports
 
-      # Lu par le job notify, puis jeté : un jour suffit.
+      # Lu par le job notify (main seulement, comme lui), puis jeté. Sept
+      # jours, comme le cache des bases : un « Re-run failed jobs » relance
+      # notify, qui doit retrouver les rapports des images déjà passées.
+      # overwrite : le job relancé après un échec de l'envoi SARIF a déjà
+      # déposé le sien, et un nom pris refuserait le dépôt.
       - name: Keep the report for the notification
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trivy-report-${{ matrix.image.name }}
           path: reports/
-          retention-days: 1
+          retention-days: 7
+          overwrite: true
           if-no-files-found: error
 
       - name: Upload to code scanning
@@ -219,7 +225,7 @@ jobs:
   notify:
     name: Publish critical vulnerabilities to ntfy
     needs: image
-    if: ${{ !cancelled() && needs.image.result != 'skipped' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    if: ${{ !cancelled() && needs.image.result != 'skipped' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-26.04
     environment: trivy-ntfy
     timeout-minutes: 5

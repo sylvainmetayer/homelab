@@ -43,6 +43,13 @@ class CriticalFixedTest(unittest.TestCase):
         with self.assertRaises(trivy_critical.ReportError):
             trivy_critical.critical_fixed({"Results": [{"Vulnerabilities": [{"Severity": "CRITICAL", "FixedVersion": "1"}]}]})
 
+    def test_null_field_raises_a_report_error(self):
+        with self.assertRaises(trivy_critical.ReportError):
+            trivy_critical.critical_fixed(report([vuln("CVE-1"), vuln("CVE-1", pkg=None)]))
+
+    def test_null_installed_version(self):
+        self.assertEqual(trivy_critical.critical_fixed(report([vuln("CVE-1", installed=None)])), [("CVE-1", "openssl", "?", "1.0.1")])
+
 
 class CollectTest(unittest.TestCase):
     def test_images_without_critical_are_dropped(self):
@@ -78,6 +85,10 @@ class MessageTest(unittest.TestCase):
             "trek", "  CVE-1 openssl 1.0.0 → 1.0.1",
         ])
         self.assertEqual(payload["click"], "https://example.test")
+
+    def test_title_counts_distinct_cves(self):
+        payload = trivy_critical.message({"trek": [("CVE-1", "libssl3", "1", "2"), ("CVE-1", "openssl", "1", "2")]}, "")
+        self.assertEqual(payload["title"], "Trivy : 1 CVE critique corrigeable, 1 image")
 
     def test_singular(self):
         payload = trivy_critical.message({"trek": [("CVE-1", "openssl", "1", "2")]}, "")
@@ -125,7 +136,8 @@ class MainTest(unittest.TestCase):
         with mock.patch.object(trivy_critical, "publish") as publish:
             code, out = self.run_main("--dry-run", token="")
         self.assertEqual(code, 0)
-        self.assertIn("CVE-1", out)
+        self.assertIn("Trivy : 1 CVE critique", out)
+        self.assertNotIn("openssl", out)
         publish.assert_not_called()
 
     def test_missing_token_fails(self):
