@@ -24,6 +24,17 @@ mock_provider "local" {}
 mock_provider "external" {}
 mock_provider "sops" {}
 
+# secrets.sops.yaml racine : le mot de passe d'application CalDAV du
+# calendrier de maintenance (maintenance_calendar_secrets.tf).
+override_data {
+  target = data.sops_file.root_secrets
+  values = {
+    data = {
+      nextcloud_maintenance_caldav_app_password = "fake-nextcloud-app-password"
+    }
+  }
+}
+
 override_data {
   target = data.sops_file.secrets
   values = {

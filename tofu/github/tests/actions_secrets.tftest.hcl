@@ -27,6 +27,17 @@ mock_provider "local" {}
 mock_provider "external" {}
 mock_provider "sops" {}
 
+# secrets.sops.yaml racine : le mot de passe d'application CalDAV du
+# calendrier de maintenance (maintenance_calendar_secrets.tf).
+override_data {
+  target = data.sops_file.root_secrets
+  values = {
+    data = {
+      nextcloud_maintenance_caldav_app_password = "fake-nextcloud-app-password"
+    }
+  }
+}
+
 # ansible/secrets.sops.yaml : seule la clé Age du destinataire github-actions
 # est lue ici (secrets.tf).
 override_data {
@@ -470,4 +481,56 @@ run "trivy_ntfy_secrets" {
     )
     error_message = "trivy.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement trivy-ntfy."
   }
+}
+
+# .github/workflows/maintenance-calendar.yaml : le seul mot de passe
+# d'application CalDAV, tiré du secrets.sops.yaml racine, dans un
+# environnement à lui, lisible depuis main seulement.
+run "maintenance_calendar_secrets" {
+  command = plan
+
+  assert {
+    condition     = github_actions_environment_secret.maintenance_caldav_app_password[0].environment == "maintenance-calendar" && github_actions_environment_secret.maintenance_caldav_app_password[0].repository == "homelab"
+    error_message = "Le mot de passe CalDAV doit être dans l'environnement maintenance-calendar du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.maintenance_calendar.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.maintenance_calendar_main.branch_pattern == "main"
+    error_message = "L'environnement maintenance-calendar ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.maintenance_caldav_app_password[0].value == "fake-nextcloud-app-password"
+    error_message = "MAINTENANCE_CALDAV_APP_PASSWORD doit être la clé nextcloud_maintenance_caldav_app_password du secrets.sops.yaml racine."
+  }
+
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../.github/workflows/maintenance-calendar.yaml"), "secrets.MAINTENANCE_CALDAV_APP_PASSWORD")
+      && strcontains(file("${path.module}/../../.github/workflows/maintenance-calendar.yaml"), "environment: maintenance-calendar\n")
+    )
+    error_message = "maintenance-calendar.yaml doit lire MAINTENANCE_CALDAV_APP_PASSWORD dans l'environnement maintenance-calendar."
+  }
+}
+
+# Tant que la clé vaut le marqueur, aucun secret mort n'est posé et le check
+# prévient, sans bloquer le plan du reste du module.
+run "maintenance_calendar_refuses_the_placeholder" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.root_secrets
+    values = {
+      data = {
+        nextcloud_maintenance_caldav_app_password = "A_REMPLACER"
+      }
+    }
+  }
+
+  assert {
+    condition     = length(github_actions_environment_secret.maintenance_caldav_app_password) == 0
+    error_message = "Le marqueur A_REMPLACER ne doit jamais devenir le secret MAINTENANCE_CALDAV_APP_PASSWORD."
+  }
+
+  expect_failures = [check.maintenance_caldav_app_password_set]
 }

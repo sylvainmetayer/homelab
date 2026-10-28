@@ -47,6 +47,16 @@ L'environnement **`trivy-ntfy`** (`trivy_ntfy_secrets.tf`, job `notify` de
 SOPS `ntfy_scripts_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
 le topic `scripts`).
 
+L'environnement **`maintenance-calendar`** (`maintenance_calendar_secrets.tf`,
+workflow `maintenance-calendar.yaml`) ne porte que le mot de passe
+d'application Nextcloud de sylvain, clé `nextcloud_maintenance_caldav_app_password`
+du `secrets.sops.yaml` **racine** (que la clé age de la CI n'ouvre pas). Tant
+qu'elle vaut `A_REMPLACER`, le secret n'est pas posé (le workflow échoue sur
+un mot de passe vide) et le check `maintenance_caldav_app_password_set`
+avertit à chaque plan, sans bloquer le reste du module : la remplir
+(`docs/runbooks/rotation-des-secrets.md`, « Calendrier de maintenance
+(CalDAV) »), puis apply.
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
 tofu -chdir=tofu/github init
@@ -173,17 +183,3 @@ dépôt n'en publie pas) ni check requis.
   qui porte son `renovate.json`.
 - [ ] **Installer GitGuardian** sur le dépôt, comme sur les autres.
 
-## Dépôt `homelab` : GitHub Pages
-
-Le workflow `maintenance-calendar.yaml` publie le calendrier de maintenance
-(`docs/architecture.md`, « Le calendrier de maintenance ») sur Pages. Le
-dépôt n'est qu'une data source ici (`ruleset_homelab.tf`) : Pages s'active à
-la main, une fois.
-
-- [ ] **Activer Pages, source « GitHub Actions », avant le merge** qui
-  ajoute le workflow (ce merge le lance : sans Pages, le déploiement échoue
-  et le job crée un `github-pages` sans politique de branche) — Settings → Pages →
-  Build and deployment → Source : GitHub Actions ; ou
-  `gh api -X POST repos/sylvainmetayer/homelab/pages -f build_type=workflow`.
-  GitHub crée alors l'environnement `github-pages`, limité à `main`. Puis
-  lancer le workflow une fois (`gh workflow run maintenance-calendar.yaml`).

@@ -12,9 +12,9 @@
 - renouvellement des domaines : les zones de tofu/dns, un rappel annuel ; les
   dates d'expiration ne sont pas dans le dépôt (DOMAIN_EXPIRY, à renseigner).
 
-Le dépôt est public : le calendrier ne dit rien que le dépôt ne dise déjà
-(noms des clés SOPS, jamais leurs valeurs). Publié sur GitHub Pages par le
-workflow Maintenance calendar, que le Lint exécute avec --check.
+Jamais publié : le workflow Maintenance calendar le dépose, un objet par
+événement, dans un calendrier Nextcloud privé (maintenance_caldav.py, qui
+appelle build_objects) ; le Lint l'exécute avec --check.
 
 Bibliothèque standard seulement, lancé avec `python -I` : le répertoire du
 script n'est alors pas dans sys.path, check_secret_rotation est chargé par son
@@ -261,25 +261,35 @@ def render_event(event, stamp):
     return lines
 
 
-def build(root=ROOT, now=None):
-    """Le calendrier complet, en texte (CRLF)."""
-    stamp = now or datetime.datetime.now(datetime.timezone.utc)
-    events = rotation_events(root) + scheduled_events(root) + domain_events(root)
-    lines = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        f"PRODID:{PRODID}",
-        "CALSCALE:GREGORIAN",
-        "METHOD:PUBLISH",
-        "X-WR-CALNAME:Maintenance homelab",
-        "X-WR-TIMEZONE:Europe/Paris",
-        "X-PUBLISHED-TTL:PT12H",
-        "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
-    ]
+def all_events(root=ROOT):
+    return rotation_events(root) + scheduled_events(root) + domain_events(root)
+
+
+def render(events, stamp, feed=True):
+    """Un VCALENDAR (CRLF). feed=False : objet CalDAV, sans METHOD (RFC 4791 §4.1)
+    ni propriétés de flux."""
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", f"PRODID:{PRODID}", "CALSCALE:GREGORIAN"]
+    if feed:
+        lines += ["METHOD:PUBLISH", "X-WR-CALNAME:Maintenance homelab", "X-WR-TIMEZONE:Europe/Paris"]
     for event in events:
         lines += render_event(event, stamp)
     lines.append("END:VCALENDAR")
     return "".join(fold(line) + "\r\n" for line in lines)
+
+
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def build(root=ROOT, now=None):
+    """Le calendrier complet, en un fichier .ics."""
+    return render(all_events(root), now or now_utc())
+
+
+def build_objects(root=ROOT, now=None):
+    """{UID: objet CalDAV} : un VCALENDAR par événement, pour un calendrier CalDAV."""
+    stamp = now or now_utc()
+    return {event["uid"]: render([event], stamp, feed=False) for event in all_events(root)}
 
 
 def validate(text):

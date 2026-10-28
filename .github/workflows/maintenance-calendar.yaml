@@ -1,20 +1,20 @@
 name: Maintenance calendar
 
-# Calendrier iCalendar de la maintenance (échéances de rotation des secrets,
-# restore tests, check data trimestriel, renouvellement des domaines), rendu
-# par .github/scripts/maintenance_ics.py et publié sur GitHub Pages :
-# https://sylvainmetayer.github.io/homelab/maintenance.ics, auquel un agenda
-# s'abonne sans compte (docs/architecture.md, « Le calendrier de
-# maintenance »).
+# Calendrier de la maintenance (échéances de rotation des secrets, restore
+# tests, check data trimestriel, renouvellement des domaines), rendu par
+# .github/scripts/maintenance_ics.py et déposé par maintenance_caldav.py dans
+# le calendrier Nextcloud privé `maintenance-homelab` de sylvain, que DAVx5
+# synchronise sur le téléphone (docs/architecture.md, « Le calendrier de
+# maintenance »). Rien de publié : le calendrier liste des noms de secrets et
+# leurs dates de rotation.
 #
-# Pages plutôt qu'un fichier derrière Pangolin : un agenda abonné ne passe pas
-# le SSO, et le dépôt est public, le calendrier n'en dit rien de plus (noms des
-# clés SOPS, jamais leurs valeurs). Ni secret, ni chemin à jeton, ni ressource
-# à ouvrir.
-#
-# Sur un push de main qui touche une source du calendrier ; rien de planifié :
-# le rendu ne dépend que du dépôt (les récurrences portent les dates futures).
+# CalDAV par /remote.php/* (ACCEPT de chemin sans SSO, de tout pays,
+# website_nextcloud.tf), avec un mot de passe d'application Nextcloud
+# (token_auth_enforced). Chaque lundi à 07:00 UTC, à chaque push de main qui
+# touche une source du calendrier, et à la main.
 on:
+  schedule:
+    - cron: "0 7 * * 1"
   push:
     branches:
       - main
@@ -22,6 +22,7 @@ on:
       - secrets-rotation.yaml
       - tofu/dns/**
       - .github/scripts/maintenance_ics.py
+      - .github/scripts/maintenance_caldav.py
       - .github/scripts/check_secret_rotation.py
       - .github/workflows/maintenance-calendar.yaml
       - .github/workflows/restore-test.yaml
@@ -35,10 +36,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Render the calendar
+  sync:
+    name: Sync the Nextcloud calendar
     runs-on: ubuntu-26.04
     timeout-minutes: 5
+    # Le mot de passe d'application seul, lisible depuis main seulement
+    # (tofu/github/maintenance_calendar_secrets.tf).
+    environment: maintenance-calendar
     permissions:
       contents: read
     steps:
@@ -47,31 +51,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Render maintenance.ics
-        run: python3 -I .github/scripts/maintenance_ics.py --output _site/maintenance.ics
-
-      - name: Upload the Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: _site
-
-  deploy:
-    name: Publish on GitHub Pages
-    needs: build
-    # main seulement, quelle que soit la politique de l'environnement : un
-    # github-pages créé par un run antérieur à l'activation de Pages n'en a pas.
-    if: ${{ github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    # Créé par GitHub à l'activation de Pages (source : GitHub Actions,
-    # tofu/github/README.md), main seulement.
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}maintenance.ics
-    permissions:
-      pages: write
-      id-token: write
-    steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - name: Upsert the events
+        env:
+          CALDAV_URL: https://sylvain.cloud/remote.php/dav/calendars/sylvain/maintenance-homelab/
+          CALDAV_USER: sylvain
+          CALDAV_PASSWORD: ${{ secrets.MAINTENANCE_CALDAV_APP_PASSWORD }}
+        run: python3 -I .github/scripts/maintenance_caldav.py

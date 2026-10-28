@@ -300,6 +300,22 @@ publique refuse le hub.
 `pangolin_crowdsec_bouncer_key` : voir [crowdsec.md](crowdsec.md)
 (« Rotation de la clé du bouncer »).
 
+### Calendrier de maintenance (CalDAV)
+
+`nextcloud_maintenance_caldav_app_password` (`secrets.sops.yaml` racine) :
+le mot de passe d'application Nextcloud de sylvain avec lequel le workflow
+Maintenance calendar écrit dans le calendrier `maintenance-homelab`.
+
+1. Créer le nouveau : `docs/runbooks/nextcloud-app-passwords.sh add sylvain
+   "maintenance-homelab CI"` (il s'affiche une fois).
+2. `sops set secrets.sops.yaml '["nextcloud_maintenance_caldav_app_password"]' '"<valeur>"'`
+   depuis la racine (`sops edit` pour ne pas la laisser dans l'historique du
+   shell), puis `tofu -chdir=tofu/github apply` (secret
+   `MAINTENANCE_CALDAV_APP_PASSWORD` de l'environnement `maintenance-calendar`).
+3. `gh workflow run maintenance-calendar.yaml` : le run doit passer.
+4. Révoquer l'ancien dans Nextcloud (Paramètres personnels → Sécurité,
+   appareil « maintenance-homelab CI »).
+
 ## Mots de passe de base (sur incident)
 
 Pas d'échéance : `kind: database`, la date sert de mémoire. La procédure

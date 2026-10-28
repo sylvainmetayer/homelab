@@ -220,7 +220,7 @@ flowchart LR
 | `path-bypass-review.yaml` | PR qui touche `path_bypass_images.json` | attend l'approbation de l'environnement `relecture-chemins-publics` |
 | `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
 | `ping.yaml` | à la main | teste le tunnel OLM de la CI |
-| `maintenance-calendar.yaml` | push sur `main` touchant une source du calendrier ; à la main | rend `maintenance.ics` (`maintenance_ics.py`) et le publie sur GitHub Pages |
+| `maintenance-calendar.yaml` | chaque lundi, push sur `main` touchant une source du calendrier ; à la main | dépose le calendrier de maintenance (`maintenance_ics.py`) dans le calendrier Nextcloud `maintenance-homelab` (CalDAV) |
 
 - **Merger = déployer.** Le ruleset `main` (`tofu/github/ruleset_homelab.tf`)
   exige une PR et les checks `Ansible lint`, `OpenTofu lint`, `Tests` et
@@ -252,10 +252,14 @@ flowchart LR
 
 ## Le calendrier de maintenance
 
-Les échéances qui ne préviennent pas d'elles-mêmes, dans un agenda :
-`.github/scripts/maintenance_ics.py` les lit dans le dépôt et le workflow
-`maintenance-calendar.yaml` publie le résultat à chaque push de `main` qui
-touche l'une d'elles.
+Les échéances qui ne préviennent pas d'elles-mêmes, dans un agenda privé :
+`.github/scripts/maintenance_ics.py` les lit dans le dépôt, et le workflow
+`maintenance-calendar.yaml` (chaque lundi, à chaque push de `main` qui touche
+une source, à la main) les dépose avec `maintenance_caldav.py` dans le
+calendrier Nextcloud `maintenance-homelab` de sylvain, un objet CalDAV par
+événement. L'UID de chaque événement est stable : un passage remplace l'objet,
+et un événement que le dépôt ne génère plus est supprimé (seulement ceux de
+suffixe `@homelab.sylvain.dev` : un rendez-vous ajouté à la main reste).
 
 | Événement | Source | Quand |
 |---|---|---|
@@ -264,26 +268,15 @@ touche l'une d'elles.
 | Check data borg | `cron:` de `borg-check.yaml` | le 5 de janvier, avril, juillet, octobre, 02:00 UTC |
 | Renouvellement des domaines | zones de `tofu/dns` | le 1er décembre, tant que `DOMAIN_EXPIRY` (dans le script) ne donne pas la date d'expiration de chaque domaine, 30 jours avant sinon |
 
-**S'abonner** : <https://sylvainmetayer.github.io/homelab/maintenance.ics>,
-sans compte ni jeton.
-
-- Thunderbird : Nouvel agenda → Sur le réseau → coller l'URL.
-- Android : ICSx⁵ (F-Droid) → « + » → coller l'URL ; l'agenda apparaît dans
-  l'appli Agenda.
-- Google Agenda (web) : Autres agendas → « + » → À partir de l'URL.
-- iOS / macOS : Réglages → Calendrier → Comptes → Ajouter un calendrier avec
-  abonnement.
-- Nextcloud Agenda : « + » → Nouvel abonnement par lien.
-
-L'agenda relit le fichier de lui-même (`REFRESH-INTERVAL` 12 h, Google à son
-rythme, jusqu'à une journée). Les rappels (`VALARM`) ne sont honorés que par
-certains clients (Thunderbird, ICSx⁵) : Google les ignore sur un abonnement.
-
-Pourquoi GitHub Pages : un agenda abonné ne passe pas le SSO de Pangolin, et
-le dépôt est public, donc le calendrier n'en révèle rien de plus (des noms de
-clés SOPS, jamais une valeur). Ni secret à faire tourner, ni chemin à jeton
-ouvert sur une ressource Pangolin. Pages s'active une fois à la main
-(`tofu/github/README.md`).
+Rien n'est publié : le calendrier liste des noms de secrets et leurs dates de
+rotation. Le runner passe par `/remote.php/*` (ACCEPT de chemin sans SSO,
+`website_nextcloud.tf`) avec un mot de passe d'application de sylvain
+(`token_auth_enforced`), clé sops `nextcloud_maintenance_caldav_app_password`
+du `secrets.sops.yaml` racine, posée par `tofu/github`
+(`maintenance_calendar_secrets.tf`) dans l'environnement GitHub
+`maintenance-calendar`, lisible depuis `main` seulement. Sur le téléphone, le
+compte Nextcloud de DAVx⁵ montre le calendrier : cocher
+« Maintenance homelab » dans ses calendriers.
 
 ## Les sauvegardes
 
