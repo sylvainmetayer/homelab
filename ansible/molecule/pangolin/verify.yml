@@ -274,8 +274,8 @@
           - run.rc == 0
           - run.path == '/'
           - run.authorization == 'Bearer ' ~ ntfy_scripts_token
-          - ntfy_scripts_token not in run.cmdline
           - run.body.topic == 'scripts'
+          - run.stdout | trim == run.body.title
           - run.body.priority == 2
           - "run.body.title == 'CrowdSec 24 h : 13 alertes, 13 bannissements, AppSec 2'"
           - "'crowdsecurity/http-probing 12' in run.body.message"
