@@ -417,7 +417,8 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   vmauth exige encore leur compte. Sur le LAN, le compte de l'agent passe en
   clair, comme le jeton Beszel : il n'ouvre que l'écriture.
 - **Secrets des agents** : `secrets.json` (0600 root), lu par le backend
-  `file` de Vector ; en binaire, remis à l'unité par `LoadCredential`. Jamais
+  `file` de Vector ; en binaire, remis à l'unité par `LoadCredential`, comme
+  `vector.yaml` (les deux à root en 0600). Jamais
   `${VAR}` : Vector 0.60 n'interpole plus l'environnement sans
   `--dangerously-allow-env-var-interpolation`.
 - **Pertes** : le curseur du journal et la position dans le journal d'accès

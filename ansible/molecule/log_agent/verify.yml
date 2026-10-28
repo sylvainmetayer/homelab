@@ -114,8 +114,8 @@
         - /opt/apps/log_agent/.env
       register: log_agent_files
 
-    # L'agent tourne en root sans capacité : ses données et ses secrets sont à
-    # root, privés ; sa configuration, sans secret, lisible.
+    # L'agent tourne en root sans capacité : ses données, ses secrets et sa
+    # configuration sont à root, privés.
     - name: Assert the agent files belong to root and to the proxy
       vars:
         docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
@@ -131,7 +131,7 @@
           - log_agent_files.results[3].stat.uid == 0
           - log_agent_files.results[3].stat.mode == '0600'
           - log_agent_files.results[4].stat.uid == 0
-          - log_agent_files.results[4].stat.mode == '0644'
+          - log_agent_files.results[4].stat.mode == '0600'
           - not log_agent_files.results[5].stat.exists
 
     - name: Read the agent secrets and configuration

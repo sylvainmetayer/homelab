@@ -48,9 +48,8 @@
     group: root
     creates: "{{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }}"
 
-# 0755 et vector.yaml en 0644 : l'utilisateur dynamique doit les lire, et ils
-# ne portent aucun secret. secrets.json reste à root, remis au service par
-# LoadCredential.
+# À root seul : vector.yaml et secrets.json sont remis au service par
+# LoadCredential (copies sous /run/credentials, lisibles par lui seul).
 - name: Create the log agent configuration directory
   become: true
   ansible.builtin.file:
@@ -58,7 +57,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0700"
 
 - name: Template the Vector configuration
   become: true
@@ -68,7 +67,7 @@
     dest: "{{ log_agent_config_dir }}/vector.yaml"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"
 
 - name: Write the log agent credentials
   become: true
@@ -89,7 +88,7 @@
     dest: /etc/systemd/system/log-agent.service
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
   register: log_agent_unit_install
 
 # Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.
