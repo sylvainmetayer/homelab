@@ -14,4 +14,4 @@
       vars:
         beszel_agent_name: newt-lxc
         beszel_agent_mode: binary
-        beszel_agent_service_patterns: "newt*"
+        beszel_agent_service_patterns: "newt*,blocky*"

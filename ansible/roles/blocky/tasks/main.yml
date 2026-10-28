@@ -21,6 +21,16 @@
     name: bind9-dnsutils
     state: present
 
+# La vérification locale dans les deux modes, la configuration en binary.
+- name: Create the Blocky configuration directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ blocky_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Deploy Blocky in a container
   when: blocky_mode == 'dc'
   ansible.builtin.include_tasks: container.yml

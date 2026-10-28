@@ -116,6 +116,14 @@
         content: "{\"ok\":true}\n"
         mode: "0644"
 
+    # Le timer ne doit pas pousser pendant le test : les deux lignes lues
+    # ensuite sont celles des deux vérifications lancées ici.
+    - name: Pause the check timer during the push test
+      become: true
+      ansible.builtin.systemd:
+        name: blocky-check.timer
+        state: stopped
+
     - name: Start the fake Uptime Kuma
       become: true
       ansible.builtin.command:
@@ -183,6 +191,12 @@
       ansible.builtin.systemd:
         name: molecule-push.service
         state: stopped
+
+    - name: Resume the check timer
+      become: true
+      ansible.builtin.systemd:
+        name: blocky-check.timer
+        state: started
 
     # La mémoire du service (listes en ligne : quelques Mio). Les ~150 Mio
     # des vraies listes sont mesurés à part (defaults, blocky_mem_limit).

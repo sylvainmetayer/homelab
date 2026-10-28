@@ -1,16 +1,6 @@
 ---
 # Uptime Kuma (PikaPods) ne joint pas le LAN : l'hôte vérifie son Blocky
 # lui-même et pousse le résultat (defaults, « Vérification locale »).
-# Le dossier existe déjà en mode binary (configuration de Blocky).
-- name: Create the Blocky check folder
-  become: true
-  ansible.builtin.file:
-    path: "{{ blocky_config_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: Install the Blocky check script
   become: true
   ansible.builtin.copy:
