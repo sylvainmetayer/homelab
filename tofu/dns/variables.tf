@@ -20,3 +20,17 @@ variable "state_encryption_passphrase" {
   type        = string
   sensitive   = true
 }
+
+# Destinataire des rapports DMARC agrégés (rua) et TLS-RPT de toutes les zones
+# (mail.tf). Un alias de la boîte Infomaniak, à créer dans le Manager avant
+# l'apply : une adresse inexistante fait rebondir chaque rapport.
+variable "dmarc_report_address" {
+  description = "Adresse qui reçoit les rapports DMARC (rua) et TLS-RPT des zones"
+  type        = string
+  default     = "dmarc@sylvainmetayer.fr"
+
+  validation {
+    condition     = can(regex("^[^@\\s;,!]+@[a-z0-9.-]+\\.[a-z]+$", var.dmarc_report_address))
+    error_message = "dmarc_report_address doit être une adresse e-mail simple (pas de ; , ou ! : ils ont un sens dans un rua)."
+  }
+}

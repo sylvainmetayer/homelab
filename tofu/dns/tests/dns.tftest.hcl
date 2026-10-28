@@ -273,3 +273,134 @@ run "nas_vers_le_nas" {
     error_message = "nas.sylvain.cloud doit être un A vers l'IP LAN du NAS (ansible/inventory/hosts), comme media.sylvain.cloud, jamais vers Pangolin."
   }
 }
+
+# Authentification des e-mails (mail.tf, docs/runbooks/dmarc.md).
+run "dmarc_sur_chaque_zone" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(keys(ovh_domain_zone_record.dmarc)) == toset(["sylvainmetayer.fr", "sylvain.dev", "metayer.dev", "sylvain.cloud"])
+      && alltrue([for z, r in ovh_domain_zone_record.dmarc : r.zone == z && r.subdomain == "_dmarc" && r.fieldtype == "TXT"])
+    )
+    error_message = "Chaque zone OVH doit avoir son TXT _dmarc (mail.tf)."
+  }
+
+  assert {
+    condition = alltrue([
+      for r in values(ovh_domain_zone_record.dmarc) :
+      startswith(r.target, "\"v=DMARC1; p=") && strcontains(r.target, "; rua=mailto:dmarc@sylvainmetayer.fr")
+    ])
+    error_message = "Chaque DMARC doit commencer par v=DMARC1; p= et envoyer ses rapports agrégés (rua) à dmarc_report_address."
+  }
+
+  # Déjà à quarantine avant mail.tf : les rapports ne doivent pas faire
+  # redescendre une politique.
+  assert {
+    condition = alltrue([
+      for z in ["sylvain.dev", "metayer.dev"] :
+      can(regex("p=(quarantine|reject)", ovh_domain_zone_record.dmarc[z].target))
+    ])
+    error_message = "sylvain.dev et metayer.dev étaient à p=quarantine : ne pas les redescendre à p=none."
+  }
+}
+
+# Rapports adressés à un autre domaine (RFC 7489 §7.1) : le domaine de
+# l'adresse doit publier <domaine rapporté>._report._dmarc, sinon aucun rapport.
+run "rapports_externes_autorises" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(keys(ovh_domain_zone_record.dmarc_external_report)) == toset(["sylvain.dev", "metayer.dev", "sylvain.cloud"])
+      && alltrue([
+        for z, r in ovh_domain_zone_record.dmarc_external_report :
+        r.zone == "sylvainmetayer.fr" && r.subdomain == "${z}._report._dmarc" && r.target == "\"v=DMARC1\""
+      ])
+    )
+    error_message = "sylvainmetayer.fr doit autoriser les rapports DMARC de chaque autre zone (<zone>._report._dmarc TXT v=DMARC1)."
+  }
+}
+
+run "rapports_externes_suivent_l_adresse" {
+  command = plan
+
+  variables {
+    dmarc_report_address = "rapports@sylvain.dev"
+  }
+
+  assert {
+    condition = (
+      toset(keys(ovh_domain_zone_record.dmarc_external_report)) == toset(["sylvainmetayer.fr", "metayer.dev", "sylvain.cloud"])
+      && alltrue([for r in values(ovh_domain_zone_record.dmarc_external_report) : r.zone == "sylvain.dev"])
+    )
+    error_message = "Les autorisations de rapports externes doivent suivre le domaine de dmarc_report_address."
+  }
+}
+
+run "adresse_de_rapport_invalide" {
+  command = plan
+
+  variables {
+    dmarc_report_address = "a@b.fr,mailto:c@d.fr"
+  }
+
+  expect_failures = [var.dmarc_report_address]
+}
+
+run "spf_un_seul_par_zone" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for z, r in ovh_domain_zone_record.spf :
+      r.zone == z && r.subdomain == "" && r.fieldtype == "TXT" && can(regex("^\"v=spf1( include:[a-z0-9.-]+)* -all\"$", r.target))
+    ])
+    error_message = "Un SPF par zone, en TXT à l'apex, qui finit par -all."
+  }
+
+  assert {
+    condition     = strcontains(ovh_domain_zone_record.spf["sylvainmetayer.fr"].target, "include:spf.infomaniak.ch")
+    error_message = "sylvainmetayer.fr envoie par Infomaniak : son SPF doit inclure spf.infomaniak.ch."
+  }
+}
+
+# sylvain.cloud n'envoie ni ne reçoit rien : verrouillé.
+run "sylvain_cloud_verrouille" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.sylvain_cloud_null_mx.zone == "sylvain.cloud"
+      && ovh_domain_zone_record.sylvain_cloud_null_mx.subdomain == ""
+      && ovh_domain_zone_record.sylvain_cloud_null_mx.fieldtype == "MX"
+      && ovh_domain_zone_record.sylvain_cloud_null_mx.target == "0 ."
+    )
+    error_message = "sylvain.cloud doit avoir un MX nul (0 ., RFC 7505)."
+  }
+
+  assert {
+    condition     = ovh_domain_zone_record.spf["sylvain.cloud"].target == "\"v=spf1 -all\""
+    error_message = "sylvain.cloud n'envoie rien : SPF v=spf1 -all."
+  }
+
+  assert {
+    condition     = startswith(ovh_domain_zone_record.dmarc["sylvain.cloud"].target, "\"v=DMARC1; p=reject;")
+    error_message = "sylvain.cloud n'envoie rien : DMARC p=reject."
+  }
+}
+
+run "tls_rpt_des_zones_qui_recoivent" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(keys(ovh_domain_zone_record.tls_rpt)) == toset(["sylvainmetayer.fr", "sylvain.dev", "metayer.dev"])
+      && alltrue([
+        for z, r in ovh_domain_zone_record.tls_rpt :
+        r.zone == z && r.subdomain == "_smtp._tls" && r.fieldtype == "TXT" && r.target == "\"v=TLSRPTv1; rua=mailto:dmarc@sylvainmetayer.fr\""
+      ])
+    )
+    error_message = "Chaque zone qui reçoit du courrier doit publier _smtp._tls (TLS-RPT) vers dmarc_report_address."
+  }
+}
