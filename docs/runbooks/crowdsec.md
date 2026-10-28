@@ -57,6 +57,30 @@ sont toutes « parsed » ; celles de la maison sont « whitelisted ». `appsec` 
 « Processed » monte, « Blocked » reste à zéro. `ClientHost` est une vraie IP
 publique, jamais une 172.x (sinon l'IP réelle est perdue, voir plus bas).
 
+## Résumé quotidien sur ntfy
+
+Chaque matin vers 07:30 (`crowdsec-summary.timer`, rôle `pangolin`),
+`/usr/local/bin/crowdsec-summary` lit `cscli alerts list --since 24h`
+(alertes locales, sans la liste communautaire) et publie sur le topic
+`scripts` de ntfy : alertes par scénario et par pays, bannissements, et
+correspondances AppSec en détection seule. Priorité basse d'habitude,
+**haute** quand un scénario s'emballe (au moins 10 alertes et 3 fois sa
+moyenne des 7 jours précédents) ou qu'AppSec touche une règle jamais vue, et
+quand cscli ne répond pas (le service échoue aussi). L'historique est dans
+`/var/lib/crowdsec-summary/state.json` : le supprimer remet le premier
+passage, sans pic ni règle nouvelle. Le jeton (`ntfy_scripts_token`) est dans
+`/etc/crowdsec-summary/env` (0600), jamais sur une ligne de commande.
+
+```bash
+sudo systemctl list-timers crowdsec-summary.timer
+sudo /usr/local/bin/crowdsec-summary --dry-run  # le message, sans le publier
+sudo systemctl start crowdsec-summary.service  # le publier maintenant
+sudo journalctl -u crowdsec-summary.service -n 20
+```
+
+Sans CrowdSec (`pangolin_crowdsec_enabled: false`) ou sans jeton, le timer et
+le script sont retirés.
+
 ## Décisions et alertes
 
 ```bash

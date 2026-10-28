@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+"""Lance crowdsec-summary contre un faux ntfy local, scénario pangolin.
+
+Un serveur HTTP sur 127.0.0.1 (port libre) reçoit la publication ; le
+script de résumé tourne avec l'environnement de l'unité (EnvironmentFile
+lu ici, NTFY_URL remplacée par ce serveur) et le faux cscli. Affiche en JSON
+le code de sortie, la ligne de commande vue par le noyau (le jeton ne doit
+pas y être), l'en-tête Authorization et le corps reçus.
+
+    fake-ntfy-run <env file> <fake cscli> <state file>
+"""
+import json
+import os
+import subprocess
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+env_file, fake_cscli, state = sys.argv[1:4]
+received = {}
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        received["path"] = self.path
+        received["authorization"] = self.headers.get("Authorization", "")
+        received["body"] = json.loads(self.rfile.read(length))
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"{}")
+
+    def log_message(self, *args):
+        pass
+
+
+server = HTTPServer(("127.0.0.1", 0), Handler)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+
+env = {"PATH": "/usr/bin:/bin"}
+with open(env_file, encoding="utf-8") as handle:
+    for line in handle:
+        key, _, value = line.rstrip("\n").partition("=")
+        if key:
+            env[key] = value
+env["NTFY_URL"] = f"http://127.0.0.1:{server.server_port}/"
+env["CROWDSEC_SUMMARY_CSCLI"] = fake_cscli
+env["CROWDSEC_SUMMARY_STATE"] = state
+
+process = subprocess.Popen(["/usr/bin/python3", "-I", "/usr/local/bin/crowdsec-summary"], env=env)  # NOSONAR: fixed argv, test helper
+with open(f"/proc/{process.pid}/cmdline", "rb") as handle:
+    cmdline = handle.read().replace(b"\0", b" ").decode()
+code = process.wait(timeout=60)
+server.shutdown()
+print(json.dumps({"rc": code, "cmdline": cmdline, **received}))

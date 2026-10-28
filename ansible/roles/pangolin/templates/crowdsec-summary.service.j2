@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Résumé des alertes CrowdSec des dernières 24 h sur ntfy (topic
+# {{ pangolin_crowdsec_summary_ntfy_topic }}) : /usr/local/bin/crowdsec-summary,
+# docs/runbooks/crowdsec.md. Le jeton ntfy est dans l'EnvironmentFile (0600),
+# jamais sur une ligne de commande.
+[Unit]
+Description=Daily CrowdSec summary to ntfy
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ pangolin_crowdsec_summary_config_dir }}/env
+ExecStart=/usr/bin/python3 -I /usr/local/bin/crowdsec-summary
+# Historique des pics et des règles AppSec déjà vues (CROWDSEC_SUMMARY_STATE).
+StateDirectory=crowdsec-summary
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
