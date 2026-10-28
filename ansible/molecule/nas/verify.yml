@@ -5,6 +5,7 @@
   gather_facts: false
   vars_files:
     - ../../host_vars/nas/variables.yaml
+    - ../_shared/vars/fake_secrets.yml
   vars:
     nas_verify_unit_path: /etc/systemd/system/dc@.service
   tasks:
@@ -167,6 +168,67 @@
           - nas_verify_agent.devices | map(attribute='source') | list == ['/dev/sda', '/dev/sdb', '/dev/sdc']
           - nas_verify_agent.volumes | selectattr('source', 'equalto', '/volume1') | map(attribute='target') | list == ['/extra-filesystems/volume1']
         fail_msg: "Agent du NAS inattendu : {{ nas_verify_agent }}"
+
+    # Agent de journaux : dc@log_agent en unité système, tout à root sous
+    # docker_base_path (log_agent dérive tout de docker_service_scope, sans
+    # les faits que nas.yml ne collecte pas).
+    - name: Verify the log agent deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: log_agent
+        verify_app_borgmatic_config: ""
+
+    - name: Stat the log agent files
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/log_agent/{{ item }}"
+      loop: ["", data, secrets, secrets/secrets.json, config, config/vector.yaml]
+      register: nas_verify_log_agent_files
+
+    - name: Assert the log agent files belong to root, closed to others
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.stat.isdir else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ nas_verify_log_agent_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the log agent unit
+      ansible.builtin.systemd:
+        name: dc@log_agent
+      register: nas_verify_log_agent_unit
+
+    - name: Render the log agent compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ docker_base_path }}/log_agent"
+      register: nas_verify_log_agent_compose
+      changed_when: false
+
+    - name: Read the log agent secrets
+      ansible.builtin.slurp:
+        src: "{{ docker_base_path }}/log_agent/secrets/secrets.json"
+      register: nas_verify_log_agent_secrets
+
+    # Le journal monté en lecture seule (seuls les dossiers qui existent), le
+    # compte du NAS, sans jeton Pangolin : il parle à vmauth par le LAN.
+    - name: Assert the log agent runs under the system dc@ unit and reads the journal only
+      vars:
+        nas_verify_log_agent: "{{ (nas_verify_log_agent_compose.stdout | from_json).services.agent }}"
+        nas_verify_journal_mounts: "{{ nas_verify_log_agent.volumes | selectattr('target', 'search', '/log/journal$') | list }}"
+      ansible.builtin.assert:
+        that:
+          - nas_verify_log_agent_unit.status.FragmentPath == nas_verify_unit_path
+          - nas_verify_log_agent_unit.status.WorkingDirectory == docker_base_path ~ '/log_agent'
+          - nas_verify_journal_mounts | length > 0
+          - nas_verify_journal_mounts | rejectattr('read_only', 'defined') | list | length == 0
+          - >-
+            (nas_verify_log_agent_secrets.content | b64decode | from_json)
+            == {'password': victoria_logs_agent_passwords['nas']}
+        fail_msg: "Agent de journaux du NAS inattendu : {{ nas_verify_log_agent.volumes }}"
 
     # Newt du site nas, Jellyfin et le Traefik du NAS (détaillés par les
     # scénarios jellyfin et nas_proxy) : dc@ système, composes à root en 0600.
