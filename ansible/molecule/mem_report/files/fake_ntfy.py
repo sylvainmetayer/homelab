@@ -20,4 +20,5 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b"{}")
 
 
-HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+# Faux serveur local du verify, sur 127.0.0.1 seulement : pas de TLS à tester.
+HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()  # NOSONAR
