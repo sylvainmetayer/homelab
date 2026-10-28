@@ -29,8 +29,6 @@
         nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
 
-    # Les liens de Homepage : un par entrée de local.websites
-    # (tofu/pangolin_config, website_homepage.tf).
     # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token du
     # secrets.sops.yaml racine, que tofu/pangolin_config donne à sa
     # notification Uptime Kuma et rend en sortie. Vide avant le premier apply :
@@ -41,6 +39,8 @@
       ansible.builtin.set_fact:
         ntfy_uptime_kuma_token: "{{ terraform_outputs.ntfy_uptime_kuma_token.value | default('') }}"
 
+    # Les liens de Homepage : un par entrée de local.websites
+    # (tofu/pangolin_config, website_homepage.tf).
     - name: Load the Homepage links from Terraform state outputs
       tags: always
       ansible.builtin.set_fact:

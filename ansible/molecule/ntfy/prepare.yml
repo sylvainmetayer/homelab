@@ -9,17 +9,24 @@
   hosts: all
   gather_facts: false
   tasks:
+    # /opt/apps n'existe pas encore : root le crée, au nom de sylvain, comme
+    # docker_service au converge.
     - name: Ensure the ntfy data folder exists
+      become: true
       loop:
+        - /opt/apps
         - /opt/apps/ntfy
         - /opt/apps/ntfy/data
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
+        owner: sylvain
+        group: sylvain
         # Le rôle (et docker_service pour /opt/apps) remet son propre mode
         # au premier converge ; l'idempotence porte sur le second.
         mode: "0700"
 
+    # Sous sylvain, l'utilisateur du conteneur sur l'hôte.
     - name: Create the ntfy SQLite databases
       loop:
         - user.db
