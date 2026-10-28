@@ -30,6 +30,7 @@ override_data {
     data = {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKE"
       backup_passphrase           = "fake-backup-passphrase"
+      hcloud_readonly_token       = "fake-hcloud-readonly-token"
     }
   }
 }
@@ -41,7 +42,8 @@ override_data {
       ci_olm_id     = "fake-olm-id"
       ci_olm_secret = "fake-olm-secret"
       # restore_test_monitor.tf
-      uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
+      uptime_restore_test_url      = "https://uptime.example.test/api/push/restore-test"
+      uptime_storage_box_quota_url = "https://uptime.example.test/api/push/storage-box-quota"
     }
   }
 }

@@ -16,6 +16,14 @@ Ce module porte quatre choses sans rapport entre elles :
   dont des chemins sont ouverts sans SSO, jusqu'à l'approbation dans
   l'interface (« Review deployments »).
 
+L'environnement **`storage-box-quota`** (`storage_box_quota_secrets.tf`,
+workflow `storage-box-quota.yaml`) lit la clé SOPS `hcloud_readonly_token`
+d'`ansible/secrets.sops.yaml`, qui ne se crée qu'à la main, avant le premier
+plan qui la cite : Console Hetzner, projet de la Storage Box, Security → API
+tokens, permission **Read**, puis
+`printf '"%s"' "$jeton" | sops set --value-stdin ansible/secrets.sops.yaml '["hcloud_readonly_token"]'`.
+Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture.
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
 tofu -chdir=tofu/github init

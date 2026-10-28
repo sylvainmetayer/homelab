@@ -2454,6 +2454,21 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Le moniteur Restore test doit être dans le dossier Backup, à 20 jours, actif et notifié par e-mail."
   }
 
+  # Remplissage de la Storage Box, chaque lundi
+  # (.github/workflows/storage-box-quota.yaml) : un run par semaine, plus un
+  # jour de marge, sous le plafond de 24 jours du provider.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.storage_box_quota.parent == uptimekuma_monitor_group.backups.id
+      && uptimekuma_monitor_push.storage_box_quota.interval > 7 * 86400
+      && uptimekuma_monitor_push.storage_box_quota.interval < 24 * 86400
+      && uptimekuma_monitor_push.storage_box_quota.active == true
+      && contains(uptimekuma_monitor_push.storage_box_quota.notification_ids, uptimekuma_notification_smtp.email.id)
+      && strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "- cron: \"0 6 * * 1\"")
+    )
+    error_message = "Le moniteur Storage Box doit être dans le dossier Backup, entre une semaine et 24 jours, actif et notifié par e-mail, et le workflow hebdomadaire."
+  }
+
   # Le workflow teste les dépôts de .github/restore-test/apps.json : un par
   # moniteur de sauvegarde, Pangolin et Jellyfin compris. Une app ajoutée avec
   # `backup = true` doit y entrer, une app retirée en sortir.

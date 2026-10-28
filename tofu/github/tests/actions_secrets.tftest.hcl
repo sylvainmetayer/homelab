@@ -35,6 +35,7 @@ override_data {
     data = {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
       backup_passphrase           = "fake-backup-passphrase"
+      hcloud_readonly_token       = "fake-hcloud-readonly-token"
     }
   }
 }
@@ -49,6 +50,8 @@ override_data {
       ci_olm_secret = "fake-olm-secret"
       # restore_test_monitor.tf
       uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
+      # storage_box_quota_monitor.tf
+      uptime_storage_box_quota_url = "https://uptime.example.test/api/push/storage-box-quota"
     }
   }
 }
@@ -303,5 +306,45 @@ run "restore_test_secrets" {
   assert {
     condition     = !strcontains(file("${path.module}/../../.github/workflows/restore-test.yaml"), "SOPS_AGE_KEY")
     error_message = "restore-test.yaml ne doit pas lire la clé age : la passphrase borg lui suffit."
+  }
+}
+
+# .github/workflows/storage-box-quota.yaml : un jeton Hetzner en lecture seule
+# et l'URL push de son moniteur, dans un environnement à lui, lisible depuis
+# main seulement.
+run "storage_box_quota_secrets" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for s in [
+        github_actions_environment_secret.storage_box_quota_hcloud_token,
+        github_actions_environment_secret.storage_box_quota_push_url,
+      ] : s.environment == "storage-box-quota" && s.repository == "homelab"
+    ])
+    error_message = "Les secrets du contrôle de la Storage Box doivent être dans l'environnement storage-box-quota du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.storage_box_quota.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.storage_box_quota_main.branch_pattern == "main"
+    error_message = "L'environnement storage-box-quota ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.storage_box_quota_hcloud_token.value == "fake-hcloud-readonly-token"
+    error_message = "STORAGE_BOX_QUOTA_HCLOUD_TOKEN doit être hcloud_readonly_token d'ansible/secrets.sops.yaml (jeton en lecture seule), jamais HCLOUD_TOKEN."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.storage_box_quota_push_url.value == "https://uptime.example.test/api/push/storage-box-quota"
+    error_message = "STORAGE_BOX_QUOTA_PUSH_URL doit être l'output uptime_storage_box_quota_url de tofu/pangolin_config."
+  }
+
+  assert {
+    condition = alltrue([
+      for name in ["STORAGE_BOX_QUOTA_HCLOUD_TOKEN", "STORAGE_BOX_QUOTA_PUSH_URL"] :
+      strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "secrets.${name}")
+    ]) && strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "environment: storage-box-quota\n")
+    error_message = "storage-box-quota.yaml doit lire ses secrets sous les noms déclarés par tofu/github, dans l'environnement storage-box-quota."
   }
 }

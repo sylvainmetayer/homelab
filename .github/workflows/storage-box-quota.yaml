@@ -1,0 +1,42 @@
+name: Storage Box quota
+
+# Remplissage de la Storage Box des sauvegardes (tofu/pangolin, storage_box.tf),
+# chaque lundi : au-delà de 80 % (données et snapshots), le run échoue et le
+# moniteur Uptime Kuma « Storage Box » passe « down » avec le pourcentage
+# (.github/scripts/storage_box_quota.py). Sans push pendant 8 jours (workflow
+# désactivé, jeton révoqué sans réponse), il passe « down » aussi.
+#
+# Lundi 06:00 UTC : loin des sauvegardes (01:00 Paris), des snapshots (03:00
+# UTC) et des restore tests (1er et 15, 10:00 UTC).
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: storage-box-quota
+  cancel-in-progress: false
+
+jobs:
+  quota:
+    name: Check usage
+    runs-on: ubuntu-26.04
+    # Jeton Hetzner en lecture seule et URL push, lisibles depuis main
+    # seulement (tofu/github/storage_box_quota_secrets.tf) : rien d'autre.
+    environment: storage-box-quota
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check usage against the quota
+        env:
+          HCLOUD_READONLY_TOKEN: ${{ secrets.STORAGE_BOX_QUOTA_HCLOUD_TOKEN }}
+          PUSH_URL: ${{ secrets.STORAGE_BOX_QUOTA_PUSH_URL }}
+        run: python3 -I .github/scripts/storage_box_quota.py --name backups --threshold 80
