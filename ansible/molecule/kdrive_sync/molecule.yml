@@ -3,7 +3,7 @@
 scenario:
   name: kdrive_sync
 
-# Prepare du scénario nas (UGOS, dc@ système), plus le dossier partagé kdrive.
+# Prepare commun, plus les dossiers partagés docker et kdrive (prepare.yml).
 ansible:
   playbooks:
     prepare: prepare.yml

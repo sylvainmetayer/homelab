@@ -6,9 +6,10 @@ main seulement). Sens unique, sans suppression :
 
 - `rclone copy`, jamais `sync` : un fichier supprimé dans kDrive, par erreur
   ou par un rançongiciel, **reste** sur le NAS.
-- Un fichier *remplacé* dans kDrive (modifié, ou chiffré sur place) est
-  recopié, et sa version précédente est **déplacée**, pas écrasée, dans
-  `versions/<date et heure du passage>/` (`--backup-dir`).
+- Un fichier *remplacé* dans kDrive (modifié, ou chiffré sur place) dont la
+  taille change est recopié, et sa version précédente est **déplacée**, pas
+  écrasée, dans `versions/<date et heure du passage>/` (`--backup-dir`). À
+  taille égale, il n'est pas recopié (plus bas).
 - Rien n'efface jamais rien côté NAS : `versions/` ne fait que grossir, son
   ménage est manuel (plus bas).
 
@@ -24,8 +25,11 @@ main seulement). Sens unique, sans suppression :
 rclone parle WebDAV (`https://<id>.connect.kdrive.infomaniak.com`, [doc
 Infomaniak](https://www.infomaniak.com/fr/support/faq/2636)) : il n'a pas de
 backend kDrive, et le jeton API de `kdvc` (kdrive-version-cleaner) n'ouvre
-pas WebDAV. Il compare taille et date de modification : WebDAV de kDrive ne
-donne aucune somme de contrôle, `--checksum` ne comparerait que les tailles.
+pas WebDAV. Il ne compare que les tailles : en WebDAV « other », rclone ne
+lit ni date de modification ni somme de contrôle ([doc
+rclone](https://rclone.org/webdav/)). Un fichier modifié dans kDrive **à
+taille égale** n'est pas recopié : le miroir garde l'ancien contenu, rien ne
+part dans `versions/`.
 
 ## Mise en place (une fois)
 
@@ -54,8 +58,12 @@ donne aucune somme de contrôle, `--checksum` ne comparerait que les tailles.
 5. **Moniteur** : `tofu apply` dans `tofu/pangolin_config` (crée « kDrive
    vers NAS » et la sortie `uptime_cron_kdrive_sync_url` que lit `nas.yml`).
 6. **Déploiement** : `ansible-playbook nas.yml --tags kdrive_sync`. Le rôle
-   refuse de déployer sans le dossier partagé ou les clés SOPS ; il active le
-   timer, ne lance pas de copie.
+   refuse de déployer sans le dossier partagé ou les clés SOPS. Il ne lance
+   aucune copie et laisse le timer **coupé** (`kdrive_sync_timer_enabled:
+   false`, `host_vars/nas`) : la copie ne supprimant jamais rien, ce qu'un
+   premier passage automatique rapatrierait à tort (corbeille, dossier
+   inattendu) resterait sur le NAS. Faire d'abord le premier passage
+   ci-dessous.
 
 ## Premier passage
 
@@ -82,6 +90,15 @@ Bornée à 23 h (`kdrive_sync_timeout`) : une copie plus longue est arrêtée
 où elle en était. Pour une première copie d'une traite, `--bwlimit` reste
 vide par défaut ; à régler (`kdrive_sync_bwlimit`, par exemple
 `"08:00,10M 23:00,off"`) si elle gêne la connexion de la maison.
+
+Une fois la première copie terminée et vérifiée (moniteur vert, `du -sh
+/volume1/kdrive/miroir` proche de la taille du kDrive), activer les passages
+nocturnes : `kdrive_sync_timer_enabled: true` dans `host_vars/nas`, puis
+`ansible-playbook nas.yml --tags kdrive_sync`.
+
+Les dossiers `miroir/` et `versions/` sont à `sylvain`, en 0700 : seul ce
+compte les lit par SMB. Un autre compte du NAS (famille, médias) n'y a pas
+accès, volontairement.
 
 ## Retrouver un fichier
 

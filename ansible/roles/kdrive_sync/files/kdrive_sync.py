@@ -19,8 +19,10 @@ ligne de commande, jamais affichée.
 """
 
 import argparse
+import http.client
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -54,8 +56,13 @@ def summary(stats):
 
 
 def run(command):
-    """Relaie la sortie de la commande, renvoie (code, stats, dernière erreur)."""
-    stats, last_error = None, ""
+    """Relaie la sortie de la commande.
+
+    Renvoie (code, stats, dernière erreur, interrompu). Un SIGTERM (arrêt de
+    l'unité, dépassement de TimeoutStartSec) n'arrête pas le script : il
+    arrête la commande, puis le script pousse quand même le rouge.
+    """
+    stats, last_error, interrupted = None, "", False
     with subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -63,6 +70,13 @@ def run(command):
         text=True,
         errors="replace",
     ) as process:
+
+        def stop(_signum, _frame):
+            nonlocal interrupted
+            interrupted = True
+            process.terminate()
+
+        signal.signal(signal.SIGTERM, stop)
         for line in process.stdout:
             print(line, end="", flush=True)
             try:
@@ -75,7 +89,7 @@ def run(command):
                 stats = entry["stats"]
             if entry.get("level") in ("error", "critical", "fatal"):
                 last_error = str(entry.get("msg", ""))
-    return process.returncode, stats, last_error
+    return process.returncode, stats, last_error, interrupted
 
 
 def push(url, status, msg):
@@ -94,9 +108,17 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     backup_dir = f"{args.backup_dir_root.rstrip('/')}/{time.strftime('%Y-%m-%dT%H%M%S')}"
-    returncode, stats, last_error = run(args.command + ["--backup-dir", backup_dir])
+    try:
+        returncode, stats, last_error, interrupted = run(args.command + ["--backup-dir", backup_dir])
+    except OSError as error:
+        # Commande introuvable ou non exécutable : rouge tout de suite, pas
+        # au bout des 49 h du moniteur.
+        returncode, stats, last_error, interrupted = 127, None, type(error).__name__, False
 
-    if returncode == 0:
+    if interrupted:
+        status = "down"
+        msg = f"interrompu (arrêt de l'unité ou TimeoutStartSec) ; {summary(stats)}"
+    elif returncode == 0:
         status, msg = "up", summary(stats)
     else:
         status = "down"
@@ -108,13 +130,14 @@ def main(argv=None):
     if url:
         try:
             push(url, status, msg)
-        except OSError as error:
-            # Une erreur d'urllib peut citer l'URL : sa classe seule est affichée.
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            # Une erreur d'urllib peut citer l'URL (ValueError d'une URL
+            # malformée comprise) : sa classe seule est affichée.
             print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
             return 2
     else:
         print(f"{PUSH_URL_VARIABLE} vide : rien n'est poussé.", file=sys.stderr)
-    return 1 if returncode else 0
+    return 1 if returncode or interrupted else 0
 
 
 if __name__ == "__main__":
