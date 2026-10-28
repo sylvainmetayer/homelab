@@ -1,10 +1,12 @@
 ---
 services:
   victoria-logs:
-    # Pas encore mesuré : un binaire Go, caches bornés à 60 % de cette limite
-    # (-memory.allowedPercent, lu dans le cgroup). À recaler sur memory.peak
-    # après une semaine. Réservation : une base, son cache de pages protégé.
-    mem_limit: 1g
+    # Version légère (#79, ADR 0011) : un binaire Go dont les caches sont
+    # bornés à 60 % de cette limite (-memory.allowedPercent, lu dans le
+    # cgroup). Pas encore mesuré : memory.peak relu après une semaine
+    # (docs/architecture.md, « Les journaux »). Réservation : une base, son
+    # cache de pages protégé.
+    mem_limit: 320m
     mem_reservation: 128m
     image: docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
     container_name: victoria-logs
@@ -29,15 +31,16 @@ services:
     # (10 s) le tuerait au milieu.
     stop_grace_period: 60s
     restart: unless-stopped
-    # Image scratch : aucun binaire pour un healthcheck. /health est sondé à
-    # travers vmauth par Pangolin et Uptime Kuma.
+    # Image distroless : aucun binaire pour un healthcheck. Pangolin et Uptime
+    # Kuma sondent le /health de vmauth, pas celui du stockage.
     networks:
       - victoria-logs
 
   # Seul conteneur à joindre le stockage. Il lit auth.yml (comptes de
   # l'interface et des agents) et ne laisse passer, sans compte, que /health.
   auth:
-    mem_limit: 128m
+    # Un proxy sans état : quelques dizaines de Mio au plus.
+    mem_limit: 64m
     image: docker.io/victoriametrics/vmauth:v1.154.1@sha256:d8c65a73b8a30a0777417d43a13fbfaea1da1aa4ec4cd68905baf996072376bf
     container_name: victoria-logs-auth
     user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
@@ -49,6 +52,11 @@ services:
     command:
       - "-auth.config=/etc/vmauth/auth.yml"
       - "-httpListenAddr=:8427"
+      # Routes internes, servies à tous sans ces clés (comptes ou pas).
+      - "-metricsAuthKey={{ victoria_logs_internal_auth_key }}"
+      - "-flagsAuthKey={{ victoria_logs_internal_auth_key }}"
+      - "-pprofAuthKey={{ victoria_logs_internal_auth_key }}"
+      - "-reloadAuthKey={{ victoria_logs_internal_auth_key }}"
     volumes:
       - ./auth.yml:/etc/vmauth/auth.yml:ro
     depends_on:
@@ -60,6 +68,13 @@ services:
       - "{{ address }}:{{ victoria_logs_port }}:8427"
 {% endfor %}
     restart: unless-stopped
+    # Image Alpine : le wget de busybox. /health est servi sans compte.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8427/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - newt
       - victoria-logs

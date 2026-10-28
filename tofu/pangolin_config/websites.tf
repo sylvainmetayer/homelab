@@ -36,9 +36,10 @@
 #                Absent: no binding (Betisier and Promptoramix have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
-#                resource URL. Only for an app whose root answers no GET
+#                resource URL. Only for an app whose root answers no 2xx GET
 #                (Promptoramix only takes POSTs there, and a 405 is DOWN for
-#                Uptime Kuma): its own health endpoint instead.
+#                Uptime Kuma; VictoriaLogs' vmauth answers 401 without its
+#                account): its own health endpoint instead.
 #   backup       default false: a push monitor "Backup <name>".
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
