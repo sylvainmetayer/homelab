@@ -400,7 +400,9 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   partage ; les envois des agents eux-mêmes écartés) et les alertes et
   décisions de CrowdSec, extraites de sa sortie (champs `crowdsec`,
   `client_ip`, `scenario`). Champs de flux : `host`, `source` (`journald`,
-  `docker`, `traefik`), `unit`, `container`.
+  `docker`, `traefik`), `unit`, `container` ; les sessions SSH et les unités
+  transitoires y sont repliées (`session.scope`, `run.service`, nom exact dans
+  `unit_instance`), sans quoi chaque connexion ouvrirait un flux.
 
   | Hôte | Mode | Vers vmauth par |
   |---|---|---|

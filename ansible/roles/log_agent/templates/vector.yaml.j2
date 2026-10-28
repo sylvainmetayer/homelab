@@ -33,12 +33,13 @@ sources:
 {% endif %}
 {% if log_agent_mode != 'binary' %}
 
-  # Les journaux des conteneurs, par le proxy du socket Docker.
+  # Les journaux des conteneurs, par le proxy du socket Docker. Pas
+  # d'exclude_containers : il compare par préfixe, et `log-agent` écarterait
+  # aussi log-agent-socket-proxy (ses refus 403). L'agent lui-même est écarté
+  # par nom exact dans docker_fields.
   docker:
     type: docker_logs
     docker_host: unix:///run/socket-proxy/docker.sock
-    exclude_containers:
-      - log-agent
 {% endif %}
 {% if log_agent_traefik_log_dir | length > 0 %}
 
@@ -71,24 +72,40 @@ transforms:
         abort
       }
       priority = to_int(.PRIORITY) ?? 6
-      . = {
+      # unit est un champ de flux : une valeur par session SSH (session-42.scope)
+      # ou par unité transitoire (run-u7.service) en ferait un flux de plus à
+      # chaque connexion, sans fin sur 30 jours. Leur nom exact reste dans
+      # unit_instance, hors flux.
+      stream_unit = replace(unit, r'^session-[0-9]+\.scope$', "session.scope")
+      stream_unit = replace(stream_unit, r'^run-[^.]+\.(?P<kind>scope|service)$', "run.$kind")
+      event = {
         "timestamp": .timestamp,
         "message": message,
         "host": "{{ log_agent_name }}",
         "source": "journald",
-        "unit": unit,
+        "unit": stream_unit,
         "identifier": .SYSLOG_IDENTIFIER,
         "pid": ._PID,
         "level": to_syslog_level(priority) ?? "info",
       }
+      if stream_unit != unit {
+        event.unit_instance = unit
+      }
+      . = event
 {% if log_agent_mode != 'binary' %}
 
   docker_fields:
     type: remap
     inputs:
       - docker
+    drop_on_abort: true
     source: |
       container = string(.container_name) ?? ""
+      # Les lignes de l'agent lui-même : en cas d'échec d'envoi, chaque erreur
+      # en ferait une de plus à envoyer.
+      if container == "log-agent" {
+        abort
+      }
       message = string(.message) ?? ""
       event = {
         "timestamp": .timestamp,

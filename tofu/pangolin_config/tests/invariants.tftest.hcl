@@ -1579,10 +1579,9 @@ run "trek_mcp_connector_url_carries_the_token" {
   }
 }
 
-# Les agents Beszel des hôtes Hetzner passent le PASS de leur point d'entrée
-# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes (HUB_HEADERS, au
-# format « Nom: valeur » séparé par des virgules que lit l'agent). Ceux du LAN
-# n'en ont pas : ils parlent au hub sans Pangolin.
+# Les agents de journaux des hôtes Hetzner passent le PASS de /insert/jsonline
+# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes P-Access-Token-Id /
+# P-Access-Token. Ceux du LAN n'en ont pas : ils parlent à vmauth sans Pangolin.
 run "log_remote_agents_use_their_own_access_token" {
   command = apply
 
@@ -1619,6 +1618,10 @@ run "log_remote_agents_use_their_own_access_token" {
   }
 }
 
+# Les agents Beszel des hôtes Hetzner passent le PASS de leur point d'entrée
+# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes (HUB_HEADERS, au
+# format « Nom: valeur » séparé par des virgules que lit l'agent). Ceux du LAN
+# n'en ont pas : ils parlent au hub sans Pangolin.
 run "beszel_remote_agents_use_their_own_access_token" {
   command = apply
 

@@ -83,6 +83,7 @@
 
 - name: Template the Vector configuration
   become: true
+  diff: false
   notify:
     - Restart log_agent
     - Restart the log agent container

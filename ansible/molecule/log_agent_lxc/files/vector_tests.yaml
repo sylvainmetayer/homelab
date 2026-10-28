@@ -26,6 +26,30 @@ tests:
               assert_eq!(.identifier, "sshd")
               assert!(!exists(._CMDLINE))
 
+  # Une session SSH par connexion : un seul flux pour toutes.
+  - name: journald folds SSH sessions and transient units into one stream each
+    inputs:
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: "pam_unix(sshd:session): session opened"
+          _SYSTEMD_UNIT: session-42.scope
+          PRIORITY: "6"
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: "transient"
+          _SYSTEMD_UNIT: run-u7.service
+          PRIORITY: "6"
+    outputs:
+      - extract_from: journald_fields
+        conditions:
+          - type: vrl
+            source: |
+              session = .unit == "session.scope" && .unit_instance == "session-42.scope"
+              transient = .unit == "run.service" && .unit_instance == "run-u7.service"
+              assert!(session || transient)
+
   - name: journald prefers the user unit of a dc@ service
     inputs:
       - insert_at: journald_fields
@@ -75,6 +99,35 @@ tests:
               assert_eq!(.stream, "stdout")
               assert!(!exists(.label))
               assert!(!exists(.crowdsec))
+
+  # Ses propres lignes : chaque erreur d'envoi en ferait une de plus.
+  - name: docker drops the agent's own lines
+    no_outputs_from:
+      - docker_fields
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: "ERROR sink{component_id=victoria_logs}: Service call failed."
+          container_name: log-agent
+          stream: stderr
+
+  # Son proxy, nom au même préfixe, reste : ses refus 403 disent quel appel
+  # Docker manque à l'allowlist.
+  - name: docker keeps the socket proxy of the agent
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: "blocked request: GET /v1.47/info"
+          container_name: log-agent-socket-proxy
+          stream: stderr
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.container, "log-agent-socket-proxy")
 
   - name: crowdsec decisions become fields
     inputs:

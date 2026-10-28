@@ -61,6 +61,7 @@
 
 - name: Template the Vector configuration
   become: true
+  diff: false
   notify: Restart log-agent
   ansible.builtin.template:
     src: vector.yaml.j2
