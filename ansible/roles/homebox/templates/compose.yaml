@@ -1,0 +1,37 @@
+---
+services:
+  app:
+    # Pas encore mesuré : un binaire Go (API et interface Nuxt embarquée),
+    # base SQLite, miniatures générées à l'envoi d'une image. À recaler sur
+    # memory.peak après quelques jours.
+    mem_limit: 512m
+    # Variante -rootless : l'image normale tourne en root, la -hardened
+    # (distroless) n'a pas le wget du healthcheck.
+    image: ghcr.io/sysadminsmedia/homebox:0.27.1-rootless@sha256:6bb4472e91d3084d292ce654772e26df765d01aa0d38aa7077a7bb07b7d44ac7
+    container_name: homebox
+    # Utilisateur 65532 sans capacité : il écoute sur 7745 et n'écrit que dans
+    # /data, qui est à lui (tasks/main.yml).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - .env
+    volumes:
+      # homebox.db (SQLite), pièces jointes et miniatures.
+      - ./data:/data
+    restart: unless-stopped
+    # La route de santé du HEALTHCHECK de l'image, qui répond sans compte.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:7745/api/v1/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

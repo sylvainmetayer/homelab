@@ -1,0 +1,29 @@
+---
+homebox_base_path: "{{ docker_base_path }}/homebox"
+homebox_domain: homebox.sylvain.cloud
+# Utilisateur de l'image -rootless (nonroot, Dockerfile.rootless) : l'image
+# ne lit ni PUID ni PGID, data/ lui appartient (tasks/main.yml).
+homebox_uid: 65532
+homebox_gid: 65532
+
+# Inscription libre fermée. Homebox n'a pas de commande pour créer un compte
+# (la seule est `reset-password`) et son inscription ne fait aucune exception
+# pour le premier compte : on la rouvre le temps de le créer,
+#   ansible-playbook docker.yml --tags homebox -e homebox_allow_registration=true
+# puis « Register » sur https://homebox.sylvain.cloud (derrière le SSO), puis
+# le même passage sans le -e, qui la referme. Les comptes suivants passent par
+# une invitation du groupe, acceptée même inscription fermée.
+homebox_allow_registration: false
+
+# Taille maximale (Mo) d'une pièce jointe (photo, facture, notice).
+homebox_max_upload_size: 25
+
+# Clé HMAC des empreintes de clés d'API (au moins 32 octets, sinon Homebox
+# refuse de démarrer). La changer invalide toutes les clés d'API émises.
+homebox_api_key_pepper: "{{ (backup_passphrase ~ '-homebox-api-key-pepper') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+homebox_backup_enabled: true
+homebox_backup_borgmatic_target: "{{ backup_storage_box_url }}/homebox"
+homebox_backup_encryption_passphrase: "{{ backup_passphrase }}"
+homebox_backup_healthcheck_url: ""

@@ -20,6 +20,7 @@ locals {
     "trek",
     "karakeep",
     "kitchenowl",
+    "homebox",
     "wishlist",
     "nginx-demo",
     "beszel"
