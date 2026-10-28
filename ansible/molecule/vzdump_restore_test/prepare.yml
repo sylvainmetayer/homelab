@@ -77,8 +77,8 @@
         state: link
         force: true
 
-    # « VMA » en tête : ce que le faux vma verify accepte. Les journaux à
-    # côté, comme vzdump les écrit.
+    # Les archives (leur contenu est dans l'état du verify : le faux zstd
+    # n'ouvre aucun fichier) et leurs journaux, comme vzdump les écrit.
     - name: Write the fake archives and their vzdump logs
       become: true
       loop:
