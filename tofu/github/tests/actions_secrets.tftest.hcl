@@ -167,6 +167,68 @@ run "ruleset_de_main" {
     condition     = github_repository_ruleset.homelab_main.rules[0].non_fast_forward && github_repository_ruleset.homelab_main.rules[0].deletion
     error_message = "main refuse le force-push et la suppression."
   }
+
+  # Interrupteur à false par défaut : tant que le dépôt fusionne en rebase,
+  # exiger des signatures bloquerait toutes les PR.
+  assert {
+    condition     = length(github_repository_ruleset.homelab_main_signed_commits) == 0
+    error_message = "Le ruleset des commits signés n'existe que si homelab_require_signed_commits vaut true."
+  }
+}
+
+run "commits_signes_sur_main" {
+  command = plan
+
+  variables {
+    homelab_require_signed_commits = true
+  }
+
+  override_data {
+    target = data.github_repository.homelab
+    values = {
+      allow_rebase_merge = false
+      allow_squash_merge = true
+      allow_merge_commit = false
+    }
+  }
+
+  assert {
+    condition     = github_repository_ruleset.homelab_main_signed_commits[0].rules[0].required_signatures
+    error_message = "main exige des commits signés."
+  }
+
+  # Un bypass couvre toutes les règles de son ruleset : le push direct de
+  # l'admin passerait non signé.
+  assert {
+    condition     = length(github_repository_ruleset.homelab_main_signed_commits[0].bypass_actors) == 0
+    error_message = "Le ruleset des commits signés ne doit avoir aucun bypass_actors."
+  }
+
+  assert {
+    condition     = github_repository_ruleset.homelab_main_signed_commits[0].enforcement == "active" && github_repository_ruleset.homelab_main_signed_commits[0].conditions[0].ref_name[0].include == tolist(["~DEFAULT_BRANCH"])
+    error_message = "Le ruleset des commits signés vise la branche par défaut, en mode actif."
+  }
+}
+
+# GitHub ne signe pas les commits d'un « Rebase and merge » : activer la règle
+# tant que le rebase est permis bloquerait toutes les PR, Renovate compris.
+run "commits_signes_refuses_avec_le_rebase" {
+  command = plan
+
+  variables {
+    homelab_require_signed_commits = true
+  }
+
+  override_data {
+    target = data.github_repository.homelab
+    values = {
+      allow_rebase_merge = true
+      allow_squash_merge = true
+      allow_merge_commit = false
+    }
+  }
+
+  expect_failures = [github_repository_ruleset.homelab_main_signed_commits]
 }
 
 run "valeurs_tirees_de_la_bonne_source" {

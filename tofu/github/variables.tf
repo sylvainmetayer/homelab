@@ -51,6 +51,15 @@ variable "promptoramix_repository" {
   default     = "promptoramix"
 }
 
+# Ruleset « commits signés » de main (ruleset_homelab.tf). À false tant que les
+# PR du dépôt fusionnent en rebase : GitHub ne signe pas les commits qu'il
+# rebase. Passer à true une fois le squash en place (docs/runbooks/commits-signes.md).
+variable "homelab_require_signed_commits" {
+  description = "Exiger des commits signés sur la branche main du dépôt homelab"
+  type        = bool
+  default     = false
+}
+
 # Passphrase du chiffrement du state (encryption.tf), fournie par
 # TF_VAR_state_encryption_passphrase : clé du secrets.sops.yaml racine, que
 # mise charge dans l'environnement. Les tests en donnent une factice.

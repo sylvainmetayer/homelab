@@ -16,6 +16,16 @@ Ce module porte quatre choses sans rapport entre elles :
   dont des chemins sont ouverts sans SSO, jusqu'à l'approbation dans
   l'interface (« Review deployments »).
 
+La branche `main` du dépôt `homelab` porte deux rulesets
+(`ruleset_homelab.tf`) : `main` (PR obligatoire, checks requis, ni
+force-push ni suppression, contournable par l'admin) et, si
+`homelab_require_signed_commits` vaut `true`, `main-signed-commits`
+(commits signés, **sans** contournement). Ce second ruleset est incompatible
+avec le « Rebase and merge » de GitHub, qui ne signe pas les commits qu'il
+réécrit : la précondition refuse le plan tant que le rebase est permis. La
+bascule (signature SSH du poste, clé de signature GitHub, passage au squash)
+est dans [docs/runbooks/commits-signes.md](../../docs/runbooks/commits-signes.md).
+
 L'environnement **`storage-box-quota`** (`storage_box_quota_secrets.tf`,
 workflow `storage-box-quota.yaml`) lit la clé SOPS `hcloud_readonly_token`
 d'`ansible/secrets.sops.yaml`, qui ne se crée qu'à la main, avant le premier
