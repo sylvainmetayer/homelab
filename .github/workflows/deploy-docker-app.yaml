@@ -289,8 +289,10 @@ jobs:
         if: steps.resolve-tags.outputs.any_tags == 'true'
         shell: bash
         run: |
-          for i in {1..20}; do
-            echo "Check $i/20"
+          # 60 × 2 s : OLM joint chaque site (hole punch) avant de lancer son
+          # proxy DNS ; 40 s ne suffisaient plus (deux échecs le 28/10).
+          for i in {1..60}; do
+            echo "Check $i/60"
 
             if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
               echo "DNS proxy started"
