@@ -365,7 +365,9 @@ flowchart LR
 
 Beszel montre les 200 dernières lignes d'un conteneur, à la demande ;
 VictoriaLogs garde tous les journaux de tous les hôtes **30 jours** et les
-interroge en LogsQL. Rôle `victoria_logs` sur la VM docker, interface (vmui)
+interroge en LogsQL. Version légère, à l'essai (#79,
+[ADR 0011](adr/0011-journaux-victorialogs.md), « proposée ») : VictoriaLogs
+seul, ni Grafana ni métriques. Rôle `victoria_logs` sur la VM docker, interface (vmui)
 sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le compte
 vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
 
@@ -380,7 +382,7 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   qu'écrire, sur le seul chemin `/insert/jsonline` : ni lecture, ni
   suppression. Un hôte compromis peut écrire de faux journaux, pas lire ceux
   des autres.
-- **Rétention** : `-retentionPeriod=30d`, et un plafond de 10 Gio
+- **Rétention** : `-retentionPeriod=30d`, et un plafond strict de 5 Gio
   (`-retention.maxDiskSpaceUsageBytes`) au-delà duquel les partitions
   journalières les plus anciennes partent avant les 30 jours (un hôte qui
   boucle sur une erreur). Données sur le disque local de la VM
@@ -391,4 +393,23 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   dans git, les mots de passe dans sops.
 - **Supervision** : Pangolin et le moniteur `Healthcheck VictoriaLogs`
   sondent le `/health` de vmauth (servi sans compte) : ils voient vmauth,
-  pas le stockage, dont l'image (scratch) n'a aucun binaire de healthcheck.
+  pas le stockage, dont l'image (distroless) n'a aucun binaire de
+  healthcheck.
+- **Poids** : stockage plafonné à 320 Mio (`mem_limit`, caches à 60 %), vmauth
+  à 64 Mio, pas de `cpus`. Volume attendu : quelques centaines de Mio de
+  journaux bruts par jour, tous hôtes compris, qu'il compresse d'un facteur
+  10 environ, soit de l'ordre de 1 à 2 Gio pour 30 jours, sous le plafond.
+- **Mesure, une semaine après le déploiement** : `memory.peak` du stockage et
+  de vmauth (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`),
+  puis l'I/O wait de la VM docker dans Beszel, avant et après ; la place
+  prise (`du -sh /opt/apps/victoria_logs/data`). Recaler les `mem_limit` à
+  ~2× le pic ; trop lourd pour la VM : retour arrière ci-dessous, et l'ADR
+  passe en « rejetée ».
+- **Retour arrière** : retirer le rôle de `docker.yml`, puis
+  `ansible-playbook docker.yml --tags decommission -e decommission_app_confirm=true
+  -e decommission_app_service=victoria_logs
+  -e decommission_app_base_path=/opt/apps/victoria_logs` (rien côté
+  borgmatic : aucune sauvegarde), supprimer `website_victoria_logs.tf`, son
+  entrée de `local.websites` et le slug `victoria-logs` de `roles.tf` (puis
+  `tofu apply`), et les clés sops `victoria_logs_*`. Rien d'autre n'en
+  dépend : aucune appli ne lit VictoriaLogs.
