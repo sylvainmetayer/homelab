@@ -119,7 +119,8 @@ class Handler(BaseHTTPRequestHandler):
             superusers = {}
         password = data.get("password")
         if password and superusers.get(data.get("identity")) == password:
-            return self.reply(200, {"token": secrets.token_hex(16), "record": {"email": data["identity"]}})
+            # Nothing of the request echoed back: the role only reads the status.
+            return self.reply(200, {"token": secrets.token_hex(16), "record": {"collectionName": "_superusers"}})
         return self.reply(400, {"message": "Failed to authenticate."})
 
     # Authenticated reads.
