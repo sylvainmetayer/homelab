@@ -23,7 +23,7 @@ Hôte, listes de blocage et bascule du DHCP : à décider dans la PR.
   leur état vit dans leur propre base ou fichier réécrit par l'appli, pas
   dans le dépôt.
 - **NextDNS** (#29) : service tiers, hors de l'infrastructure as code
-  (jamais mis en place ; écarté au profit d'un DNS déclaré dans le dépôt).
+  (jamais mis en place).
 
 ## Conséquences
 

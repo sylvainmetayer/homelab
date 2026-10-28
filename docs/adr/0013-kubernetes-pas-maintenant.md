@@ -13,11 +13,9 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
 ## Décision
 
 - **Pas de Kubernetes pour la prod** tant qu'il n'y a qu'un nœud.
-- Plus tard, **k3s + Flux** comme terrain d'apprentissage, en migration
-  partielle et réversible appli par appli (plan d'analyse du 2026-10-28 :
-  cluster jetable, puis une VM k3s à côté de la VM docker ; Pangolin, le NAS,
-  le Pi et flip restent dehors). Préalable : vérifier la RAM libre de l'hôte
-  Proxmox et le vrai type du disque des VM (`ssd = false` dans Tofu).
+- Plus tard, **k3s + Flux** pour apprendre, sur un cluster à part (plan du
+  2026-10-28). Y passer une appli de prod demandera un nouvel ADR.
+  Préalable : RAM libre de l'hôte ; disque SSD (`ansible/pve.yml`) ou rotatif ?
 
 ## Alternatives écartées
 
@@ -28,8 +26,8 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
   - borgmatic resterait : la Storage Box n'est pas un stockage S3, cible des
     outils de sauvegarde de Kubernetes ([0001](0001-sauvegardes-borgmatic.md)).
 - **Reprendre Talos** : déjà essayé et abandonné, faute de ressources
-  (RAM, disque, matériel trop justes, d'après Sylvain le 2026-10-28) ; etcd,
-  imposé par Talos même sur un nœud, aggrave ce point.
+  (d'après Sylvain le 2026-10-28). Talos impose aussi etcd, même sur un nœud
+  (constat de l'analyse, pas de Sylvain).
 
 ## Conséquences
 
@@ -38,4 +36,4 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
 
 ## Liens
 
-Décision du 2026-10-28, hors PR (aucune trace écrite avant cet ADR).
+Décision et plan d'analyse du 2026-10-28, hors PR et non versionnés.
