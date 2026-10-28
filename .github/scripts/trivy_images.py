@@ -4,7 +4,7 @@ Reads every image reference written in clear in the repository: the `image:`
 lines of the roles' compose templates (and of compose/), and the
 `<role>_image*:` variables of the role defaults and of the playbooks' role
 entries that those templates reference through Jinja (beszel_agent,
-flip_planning and its Keycloak demo, pangolin's geoipupdate). A Jinja
+flip_planning and its Keycloak demo, pangolin's geoipupdate and crowdsec). A Jinja
 expression is skipped, its value is read where it is defined. Prints a JSON
 list of {"ref", "name"} for the workflow matrix, one entry per distinct image
 (two references of one digest are scanned once).
