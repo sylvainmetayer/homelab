@@ -11,3 +11,15 @@ resource "ovh_domain_zone_record" "www" {
 
 # L'apex sylvain.dev (A vers Pangolin, redirection 301 vers www) est dans
 # tofu/dns/pangolin.tf, à côté du joker : variable sylvain_dev_apex_to_pangolin.
+
+# Handle Bluesky sur le domaine (variable bluesky_did) : vérifié par DNS, pas
+# par HTTPS, à cause de la redirection de l'apex vers www.
+resource "ovh_domain_zone_record" "atproto" {
+  count = var.bluesky_did == null ? 0 : 1
+
+  zone      = var.domain_zone
+  subdomain = "_atproto"
+  fieldtype = "TXT"
+  ttl       = 3600
+  target    = "did=${var.bluesky_did}"
+}
