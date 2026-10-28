@@ -2,7 +2,8 @@
 
 La carte à garder en tête quand quelque chose casse. Le détail des conventions
 est dans [AGENTS.md](../AGENTS.md) ; les procédures d'incident dans
-[runbooks/](runbooks/README.md).
+[runbooks/](runbooks/README.md) ; le pourquoi des choix structurants dans
+[adr/](adr/README.md).
 
 ## Le chemin d'une requête
 
