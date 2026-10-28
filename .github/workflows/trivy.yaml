@@ -189,7 +189,7 @@ jobs:
             [ "$attempt" = 3 ] && exit 1
             sleep $((attempt * 60))
           done
-          trivy convert --skip-version-check --format sarif --output trivy-image.sarif trivy-image.json
+          trivy convert --format sarif --output trivy-image.sarif trivy-image.json
           echo "Findings: $(jq '[.runs[].results[]] | length' trivy-image.sarif)"
           mkdir reports
           cp trivy-image.json "reports/$NAME.json"
