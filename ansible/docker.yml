@@ -110,5 +110,10 @@
     # des journaux se reproduisent, chaque hôte garde son journald.
     - role: victoria_logs
       tags: victoria_logs,app
+    # L'agent de journaux de cet hôte, vers vmauth par 127.0.0.1.
+    - role: log_agent
+      tags: log_agent,monitoring
+      vars:
+        log_agent_url: "http://127.0.0.1:9428"
     - role: homepage
       tags: homepage,app

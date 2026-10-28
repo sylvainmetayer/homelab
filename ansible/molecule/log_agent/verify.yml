@@ -1,0 +1,172 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Verify the log_agent deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: log_agent
+        verify_app_borgmatic_config: ""
+
+    - name: Render the log_agent compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/log_agent
+      register: log_agent_compose_raw
+      changed_when: false
+
+    - name: Read the docker group
+      ansible.builtin.getent:
+        database: group
+        key: docker
+
+    # L'agent ne voit jamais le socket Docker : seul le proxy le monte, sans
+    # réseau, et l'agent lit le socket unix du proxy par le groupe docker. Le
+    # journal, la machine-id, la configuration et les secrets en lecture seule.
+    - name: Assert only the socket proxy sees the Docker socket
+      vars:
+        log_agent_compose: "{{ log_agent_compose_raw.stdout | from_json }}"
+        docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+        agent: "{{ log_agent_compose.services.agent }}"
+        proxy: "{{ log_agent_compose.services['socket-proxy'] }}"
+        agent_targets: "{{ agent.volumes | map(attribute='target') | list }}"
+        agent_ro_targets: "{{ agent.volumes | selectattr('read_only', 'defined') | selectattr('read_only') | map(attribute='target') | list }}"
+        agent_journal_targets: "{{ agent_targets | select('search', '/log/journal$') | list }}"
+      ansible.builtin.assert:
+        that:
+          - agent.container_name == 'log-agent'
+          - agent.image is search('timberio/vector:[0-9.]+-debian@sha256:[0-9a-f]{64}$')
+          - agent.volumes | selectattr('source', 'equalto', '/var/run/docker.sock') | list | length == 0
+          - "'/run/socket-proxy' in agent_ro_targets"
+          - "'/etc/machine-id' in agent_ro_targets"
+          - "'/etc/vector' in agent_ro_targets"
+          - "'/etc/vector-secrets' in agent_ro_targets"
+          - "'/var/lib/vector' in agent_targets"
+          - "'/var/lib/vector' not in agent_ro_targets"
+          - agent_journal_targets | length > 0
+          - agent_journal_targets | difference(agent_ro_targets) | length == 0
+          - "'/traefik-logs' not in agent_targets"
+          - agent.env_file is not defined
+          - agent.network_mode == 'host'
+          - agent.read_only
+          - agent.cap_drop == ['ALL']
+          - agent.cap_add is not defined
+          - agent.group_add == [docker_gid]
+          - agent.cpus is not defined
+          - agent.mem_limit is defined
+          - proxy.volumes | selectattr('source', 'equalto', '/var/run/docker.sock') | list | length == 1
+          - proxy.network_mode == 'none'
+          - proxy.user == '65534:' ~ docker_gid
+          - proxy.read_only
+          - proxy.cap_drop == ['ALL']
+          - proxy.mem_limit is defined
+          - proxy.command | select('match', '^-allow(GET|HEAD)=') | list | length == 2
+          - proxy.command | select('match', '^-allow(POST|PUT|DELETE|PATCH)') | list | length == 0
+        fail_msg: "Compose de l'agent inattendu : {{ log_agent_compose.services }}"
+
+    # Le proxy ancre l'expression (^...$) et la compare au chemin seul : les
+    # appels de la source docker_logs de Vector passent (inspect et logs par
+    # l'identifiant hexadécimal seulement), le reste non.
+    - name: Assert the socket proxy GET allowlist
+      vars:
+        log_agent_compose: "{{ log_agent_compose_raw.stdout | from_json }}"
+        allow_get: >-
+          {{ log_agent_compose.services['socket-proxy'].command
+             | select('match', '^-allowGET=') | first | regex_replace('^-allowGET=', '') }}
+        container_id: "{{ '0123456789abcdef' * 4 }}"
+      ansible.builtin.assert:
+        that:
+          - (item.path is match('^' ~ allow_get ~ '$')) == item.allowed
+        fail_msg: "{{ item.path }} : attendu {{ 'autorisé' if item.allowed else 'refusé' }} par {{ allow_get }}"
+        quiet: true
+      loop:
+        - { path: /v1.47/containers/json, allowed: true }
+        - { path: /v1.47/events, allowed: true }
+        - { path: /version, allowed: true }
+        - { path: /_ping, allowed: true }
+        - { path: "/v1.47/containers/{{ container_id }}/json", allowed: true }
+        - { path: "/containers/{{ container_id }}/logs", allowed: true }
+        - { path: /containers/log-agent/logs, allowed: false }
+        - { path: /containers/trek/json, allowed: false }
+        - { path: "/containers/{{ container_id[:11] }}/logs", allowed: false }
+        - { path: "/containers/{{ container_id }}/top", allowed: false }
+        - { path: "/containers/{{ container_id }}/archive", allowed: false }
+        - { path: "/containers/{{ container_id }}/export", allowed: false }
+        - { path: "/containers/{{ container_id }}/attach/ws", allowed: false }
+        - { path: /images/json, allowed: false }
+        - { path: /info, allowed: false }
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Stat the agent folders and files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/log_agent/data
+        - /opt/apps/log_agent/socket
+        - /opt/apps/log_agent/secrets
+        - /opt/apps/log_agent/secrets/secrets.json
+        - /opt/apps/log_agent/config/vector.yaml
+        - /opt/apps/log_agent/.env
+      register: log_agent_files
+
+    # L'agent tourne en root sans capacité : ses données et ses secrets sont à
+    # root, privés ; sa configuration, sans secret, lisible.
+    - name: Assert the agent files belong to root and to the proxy
+      vars:
+        docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+      ansible.builtin.assert:
+        that:
+          - log_agent_files.results[0].stat.uid == 0
+          - log_agent_files.results[0].stat.mode == '0700'
+          - log_agent_files.results[1].stat.uid == 65534
+          - log_agent_files.results[1].stat.gid == docker_gid | int
+          - log_agent_files.results[1].stat.mode == '0750'
+          - log_agent_files.results[2].stat.uid == 0
+          - log_agent_files.results[2].stat.mode == '0700'
+          - log_agent_files.results[3].stat.uid == 0
+          - log_agent_files.results[3].stat.mode == '0600'
+          - log_agent_files.results[4].stat.uid == 0
+          - log_agent_files.results[4].stat.mode == '0644'
+          - not log_agent_files.results[5].stat.exists
+
+    - name: Read the agent secrets and configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/log_agent/secrets/secrets.json
+        - /opt/apps/log_agent/config/vector.yaml
+      register: log_agent_contents
+
+    # Le compte du Pi seulement, sans jeton Pangolin (LAN) ; la
+    # configuration n'en porte aucun, elle passe par le backend de secrets.
+    - name: Assert the agent writes to vmauth on the LAN with its own account
+      vars:
+        log_agent_secrets: "{{ log_agent_contents.results[0].content | b64decode | from_json }}"
+        log_agent_config_text: "{{ log_agent_contents.results[1].content | b64decode }}"
+        log_agent_config: "{{ log_agent_config_text | from_yaml }}"
+        log_agent_sink: "{{ log_agent_config.sinks.victoria_logs }}"
+      ansible.builtin.assert:
+        that:
+          - >-
+            log_agent_secrets == {'password': victoria_logs_agent_passwords['pi']}
+          - victoria_logs_agent_passwords['pi'] not in log_agent_config_text
+          - log_agent_config.secret.agent.path == '/etc/vector-secrets/secrets.json'
+          - log_agent_sink.uri is match('http://192\.168\.1\.216:9428/insert/jsonline\?') # NOSONAR
+          - >-
+            log_agent_sink.auth == {'strategy': 'basic', 'user': 'pi', 'password': 'SECRET[agent.password]'}
+          - log_agent_sink.request is not defined
+          - log_agent_sink.acknowledgements.enabled
+          - log_agent_config.api.enabled == false
+          - log_agent_config.sources.keys() | sort == ['docker', 'journald']
+          - log_agent_config.sources.docker.docker_host == 'unix:///run/socket-proxy/docker.sock'
+          - log_agent_config.sources.journald.since_now
+          - log_agent_sink.inputs | sort == ['docker_fields', 'journald_fields']
+          - >-
+            log_agent_config.transforms.journald_fields.source is search('"host": "pi"')
+        fail_msg: "Configuration de l'agent inattendue (secrets masqués) : {{ log_agent_config.sinks.victoria_logs.uri }}"

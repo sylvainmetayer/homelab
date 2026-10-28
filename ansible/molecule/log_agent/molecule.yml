@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# L'agent en conteneur (mode dc) avec les variables du Pi, vers vmauth par le
+# LAN. Le proxy du socket Docker en sidecar. Aucune image n'est tirée (bouchon
+# dc@ du prepare commun) : le verify regarde le modèle compose, la
+# configuration de Vector et ses secrets. Les transformations elles-mêmes
+# sont testées par `vector test` dans le scénario log_agent_lxc.
+scenario:
+  name: log_agent

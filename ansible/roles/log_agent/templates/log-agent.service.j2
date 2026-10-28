@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Agent de journaux (rôle log_agent, mode binary). Compte vmauth dans
+# {{ log_agent_config_dir }}/secrets.json (0600 root), remis au service par
+# LoadCredential (lisible par lui seul, sous /run/credentials), jamais sur la
+# ligne de commande ni dans l'environnement.
+[Unit]
+Description=Log agent (Vector) to VictoriaLogs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+LoadCredential=secrets.json:{{ log_agent_config_dir }}/secrets.json
+ExecStart={{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }} --config {{ log_agent_config_dir }}/vector.yaml
+Restart=always
+RestartSec=10
+# Compte éphémère sans privilège, dans le groupe du journal : il lit tout le
+# journal (c'est son rôle) et n'écrit que son curseur (StateDirectory).
+DynamicUser=yes
+SupplementaryGroups=systemd-journal
+StateDirectory=log-agent
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CapabilityBoundingSet=
+# Version légère (#79, ADR 0011) : le petit LXC (512 Mio) ne lui doit pas
+# plus.
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

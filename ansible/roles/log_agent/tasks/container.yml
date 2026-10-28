@@ -1,0 +1,144 @@
+---
+# Le proxy tourne sous nobody avec le groupe docker (accès au socket), et
+# l'agent rejoint ce groupe pour son socket à lui : le gid de l'hôte. getent
+# plutôt que les faits : nas.yml n'en collecte pas.
+- name: Read the docker group of the host
+  ansible.builtin.getent:
+    database: group
+    key: docker
+
+- name: Remember the docker gid
+  ansible.builtin.set_fact:
+    log_agent_docker_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+
+# Où l'hôte tient son journal : /var/log/journal (persistant), /run/log/journal
+# (volatil), l'un ou l'autre ou les deux. Seuls ceux qui existent sont
+# montés : Docker créerait les autres, et rien n'est créé sur l'hôte (UGOS).
+- name: Find the journal directories of the host
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ log_agent_journal_dirs }}"
+  register: log_agent_journal_stats
+
+- name: Keep the journal directories that exist
+  ansible.builtin.set_fact:
+    log_agent_journal_mounts: >-
+      {{ log_agent_journal_stats.results | selectattr('stat.isdir', 'defined')
+         | selectattr('stat.isdir') | map(attribute='item') | list }}
+
+# journalctl ne lit que les journaux de la machine-id de l'hôte, montée dans
+# le conteneur. Absente, Docker créerait un dossier à sa place sur l'hôte.
+- name: Look for the machine-id of the host
+  ansible.builtin.stat:
+    path: /etc/machine-id
+    follow: true
+  register: log_agent_machine_id
+
+- name: Refuse to deploy the log agent without a journal to read
+  ansible.builtin.assert:
+    that:
+      - log_agent_journal_mounts | length > 0
+      - log_agent_machine_id.stat.isreg | default(false)
+    fail_msg: >-
+      Sur {{ log_agent_name }} : aucun de {{ log_agent_journal_dirs }}, ou pas
+      de fichier /etc/machine-id.
+    quiet: true
+
+# dc@ user : dossier de l'utilisateur de déploiement, que lit son dc@. dc@
+# système (NAS) et compose (Pangolin) : root (log_agent_as_root, vars/).
+- name: Ensure the log agent folder exists
+  become: "{{ log_agent_as_root }}"
+  ansible.builtin.file:
+    path: "{{ log_agent_base_path }}"
+    state: directory
+    owner: "{{ omit if log_agent_as_root else ansible_facts['user_id'] }}"
+    group: "{{ omit if log_agent_as_root else ansible_facts['user_gid'] }}"
+    mode: "0700"
+
+# L'agent (root sans capacité) est propriétaire de ses données et de ses
+# secrets, et lit sa configuration, qui n'en porte aucun.
+- name: Ensure the log agent data, secrets and configuration folders belong to root
+  become: true
+  loop:
+    - { path: "{{ log_agent_base_path }}/data", mode: "0700" }
+    - { path: "{{ log_agent_base_path }}/secrets", mode: "0700" }
+    - { path: "{{ log_agent_base_path }}/config", mode: "0755" }
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+
+# Le proxy (nobody, groupe docker) y crée son socket ; l'agent le traverse par
+# le groupe.
+- name: Ensure the socket proxy folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ log_agent_base_path }}/socket"
+    state: directory
+    owner: "65534"
+    group: "{{ log_agent_docker_gid }}"
+    mode: "0750"
+
+- name: Template the Vector configuration
+  become: true
+  notify:
+    - Restart log_agent
+    - Restart the log agent container
+  ansible.builtin.template:
+    src: templates/vector.yaml.j2
+    dest: "{{ log_agent_base_path }}/config/vector.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Template the log agent compose configuration
+  become: "{{ log_agent_as_root }}"
+  diff: false
+  notify: Restart log_agent
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ log_agent_base_path }}/compose.yaml"
+    owner: "{{ omit if log_agent_as_root else ansible_facts['user_id'] }}"
+    group: "{{ omit if log_agent_as_root else ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# À root (le conteneur le lit en root sans CAP_DAC_OVERRIDE), en 0600.
+# Vector ne lit ses secrets qu'au démarrage : redémarrage à chaque changement.
+- name: Template the log agent secrets
+  become: true
+  diff: false
+  notify:
+    - Restart log_agent
+    - Restart the log agent container
+  ansible.builtin.template:
+    src: templates/secrets.json.j2
+    dest: "{{ log_agent_base_path }}/secrets/secrets.json"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Unité user, ou système sur le NAS (docker_service_scope: system,
+# /etc/systemd/system/dc@.service posée par docker_service dans nas.yml).
+- name: Make sure the log agent service is running
+  when: log_agent_mode == 'dc'
+  become: "{{ log_agent_dc_scope == 'system' }}"
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: "dc@{{ log_agent_service }}"
+    scope: "{{ log_agent_dc_scope }}"
+    enabled: true
+
+# Pangolin : pas de docker_service (ni dc@ ni lingering). `up -d` recrée ce
+# dont le compose a changé et ne touche pas au reste ; la restart
+# policy fait le reste au démarrage de Pangolin.
+- name: Start the log agent with docker compose
+  when: log_agent_mode == 'compose'
+  become: true
+  ansible.builtin.command:
+    cmd: docker compose up -d --remove-orphans
+    chdir: "{{ log_agent_base_path }}"
+  register: log_agent_compose_up
+  changed_when: log_agent_compose_up.stderr is search('(Creat|Recreat|Start|Remov)(ed|ing)')

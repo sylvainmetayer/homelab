@@ -1,0 +1,202 @@
+# {{ ansible_managed }}
+# Agent de journaux de {{ log_agent_name }} (rôle log_agent, mode {{ log_agent_mode }}).
+# Aucun secret ici : le compte vmauth et le jeton Pangolin sont dans
+# secrets.json (0600), lu par le backend de secrets de Vector. Pas de
+# variables d'environnement : Vector 0.60 ne les interpole plus sans
+# --dangerously-allow-env-var-interpolation.
+data_dir: {{ log_agent_data_dir }}
+
+secret:
+  agent:
+    type: file
+    path: {{ log_agent_secrets_path }}
+
+# Pas d'API (aucun port en écoute).
+api:
+  enabled: false
+
+sources:
+  # Le journal systemd de l'hôte, unités user comprises. Au premier démarrage,
+  # à partir de maintenant (pas tout l'historique) ; ensuite, à partir du
+  # curseur gardé dans data_dir, avancé seulement une fois le lot accepté par
+  # VictoriaLogs (acknowledgements du sink) : une coupure ne perd rien tant
+  # que journald garde les lignes. Le boot courant seulement : systemd 250 à
+  # 257 (Debian 13) ne sait pas suivre tous les boots.
+  journald:
+    type: journald
+    since_now: true
+{% if log_agent_mode == 'binary' %}
+    # Les lignes de l'agent lui-même : en cas d'échec d'envoi, chaque erreur
+    # en ferait une de plus à envoyer.
+    exclude_units:
+      - log-agent.service
+{% endif %}
+{% if log_agent_mode != 'binary' %}
+
+  # Les journaux des conteneurs, par le proxy du socket Docker.
+  docker:
+    type: docker_logs
+    docker_host: unix:///run/socket-proxy/docker.sock
+    exclude_containers:
+      - log-agent
+{% endif %}
+{% if log_agent_traefik_log_dir | length > 0 %}
+
+  # Journal d'accès de Traefik (JSON). logrotate le renomme en access.log.1
+  # (compressé le lendemain) puis Traefik rouvre access.log sur SIGUSR1 : les
+  # deux noms sont suivis, Vector reconnaît le fichier renommé à son empreinte
+  # et finit de le lire.
+  traefik:
+    type: file
+    include:
+      - /traefik-logs/access.log
+      - /traefik-logs/access.log.1
+    read_from: end
+{% endif %}
+
+transforms:
+  journald_fields:
+    type: remap
+    inputs:
+      - journald
+    drop_on_abort: true
+    source: |
+      unit = string(._SYSTEMD_USER_UNIT) ?? string(._SYSTEMD_UNIT) ?? ""
+      message = string(.message) ?? ""
+      # Sous dc@<service>, `docker compose up` recopie la sortie de chaque
+      # conteneur dans le journal (« conteneur  | ligne ») : la source docker
+      # l'a déjà, avec le nom du conteneur. Les lignes de dc@ lui-même
+      # (démarrage, téléchargement des images, échecs) restent.
+      if starts_with(unit, "dc@") && match(message, r'^[A-Za-z0-9][A-Za-z0-9_.-]*\s+\| ') {
+        abort
+      }
+      priority = to_int(.PRIORITY) ?? 6
+      . = {
+        "timestamp": .timestamp,
+        "message": message,
+        "host": "{{ log_agent_name }}",
+        "source": "journald",
+        "unit": unit,
+        "identifier": .SYSLOG_IDENTIFIER,
+        "pid": ._PID,
+        "level": to_syslog_level(priority) ?? "info",
+      }
+{% if log_agent_mode != 'binary' %}
+
+  docker_fields:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      container = string(.container_name) ?? ""
+      message = string(.message) ?? ""
+      event = {
+        "timestamp": .timestamp,
+        "message": message,
+        "host": "{{ log_agent_name }}",
+        "source": "docker",
+        "container": container,
+        "image": .image,
+        "stream": .stream,
+      }
+      # CrowdSec (Pangolin) : une alerte (« Ip x performed 'scénario' ») ou
+      # une décision (« 4h ban on Ip x ») devient un champ interrogeable.
+      if container == "crowdsec" {
+        alert = parse_regex(message, r'Ip (?P<ip>[0-9A-Fa-f:.]+) performed \x27(?P<scenario>[^\x27]+)\x27') ?? null
+        decision = parse_regex(message, r'(?P<scenario>[\w./-]+) by ip [^:]*: (?P<duration>\S+) (?P<type>\w+) on Ip (?P<ip>[0-9A-Fa-f:.]+)') ?? null
+        if decision != null {
+          event.crowdsec = "decision"
+          event.client_ip = decision.ip
+          event.scenario = decision.scenario
+          event.decision = decision.type
+          event.duration = decision.duration
+        } else if alert != null {
+          event.crowdsec = "alert"
+          event.client_ip = alert.ip
+          event.scenario = alert.scenario
+        }
+      }
+      . = event
+{% endif %}
+{% if log_agent_traefik_log_dir | length > 0 %}
+
+  traefik_fields:
+    type: remap
+    inputs:
+      - traefik
+    drop_on_abort: true
+    source: |
+      parsed, err = parse_json(string(.message) ?? "")
+      if err != null {
+        abort
+      }
+      access = object(parsed) ?? {}
+      # La chaîne de requête porte des jetons (p_token de Pangolin, liens de
+      # partage) : jamais envoyée.
+      path_parts = split(string(access.RequestPath) ?? "", "?", limit: 2)
+      path = string(path_parts[0]) ?? ""
+      request_host = string(access.RequestHost) ?? ""
+      if includes({{ log_agent_traefik_drop_hosts | to_json }}, request_host) && starts_with(path, "/insert/") {
+        abort
+      }
+      method = string(access.RequestMethod) ?? ""
+      status = to_int(access.DownstreamStatus) ?? 0
+      . = {
+        "timestamp": parse_timestamp(string(access.StartUTC) ?? "", "%+") ?? .timestamp,
+        "message": method + " " + request_host + path + " " + to_string(status),
+        "host": "{{ log_agent_name }}",
+        "source": "traefik",
+        "client_ip": access.ClientHost,
+        "method": method,
+        "request_host": request_host,
+        "path": path,
+        "status": status,
+        "duration_ms": (to_float(access.Duration) ?? 0.0) / 1000000.0,
+        "router": access.RouterName,
+        "service": access.ServiceName,
+        "user_agent": get(access, ["request_User-Agent"]) ?? null,
+      }
+{% endif %}
+
+sinks:
+  victoria_logs:
+    type: http
+    inputs:
+      - journald_fields
+{% if log_agent_mode != 'binary' %}
+      - docker_fields
+{% endif %}
+{% if log_agent_traefik_log_dir | length > 0 %}
+      - traefik_fields
+{% endif %}
+    # Champs de flux : peu de valeurs chacun (hôte, source, unité systemd,
+    # conteneur), ce que VictoriaLogs indexe par flux.
+    uri: "{{ log_agent_url }}/insert/jsonline?_stream_fields=host,source,unit,container&_msg_field=message&_time_field=timestamp"
+    method: post
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    compression: gzip
+    auth:
+      strategy: basic
+      user: "{{ log_agent_name }}"
+      password: "SECRET[agent.password]"
+{% if log_agent_pangolin_token_id | length > 0 %}
+    request:
+      # Jeton d'accès Pangolin de cet agent (PASS sur /insert/jsonline).
+      headers:
+        P-Access-Token-Id: "SECRET[agent.pangolin_token_id]"
+        P-Access-Token: "SECRET[agent.pangolin_token]"
+{% endif %}
+    # Pas de sonde au démarrage : vmauth ne sert sans compte que /health, et
+    # la sonde de Vector vise l'URI elle-même.
+    healthcheck:
+      enabled: false
+    # Le curseur du journal (et la position dans le journal d'accès)
+    # n'avance qu'une fois le lot accepté.
+    acknowledgements:
+      enabled: true
+    batch:
+      max_bytes: 1048576
+      timeout_secs: 5

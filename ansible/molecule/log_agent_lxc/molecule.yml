@@ -1,0 +1,16 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# L'agent en binaire (mode binary) avec les variables du LXC newt, comme
+# lxc.yml. Le vrai binaire de Vector est téléchargé (somme vérifiée) ; sans
+# VictoriaLogs, il ne livre rien : le verify regarde l'installation, puis fait
+# valider (`vector validate`) et tester (`vector test`, files/vector_tests.yaml)
+# par ce binaire les configurations rendues par le rôle, celle de Pangolin
+# comprise (sources docker et traefik, CrowdSec).
+scenario:
+  name: log_agent_lxc
+
+# Prepare propre : une version précédente installée, que le rôle doit
+# supprimer (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

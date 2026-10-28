@@ -149,6 +149,11 @@ override_resource {
   values = { id = 2012 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.victoria_logs_insert
+  values = { id = 2013 }
+}
+
 # Identifiants des cibles, des jetons d'accès et des rôles, lus par les audits
 # target_inventory (rules.tf) et access_inventory (access_inventory.tf) : sans
 # valeur fixe, le mock leur donne une valeur que les réponses simulées
@@ -527,6 +532,12 @@ override_resource {
 override_resource {
   target = pangolin_resource_access_token.beszel_agents
   values = { id = "tok-beszel-agent", token = "jeton-beszel-agent" }
+}
+
+# Un identifiant commun aux deux agents de journaux distants.
+override_resource {
+  target = pangolin_resource_access_token.log_agents
+  values = { id = "tok-log-agent", token = "jeton-log-agent" }
 }
 
 override_resource {
@@ -1162,6 +1173,23 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Le point d'entrée des agents Beszel doit être un PASS sur /api/beszel/agent-connect exact, avant les règles pays, et rien de Beszel dans local.path_bypasses."
   }
 
+  # Point d'entrée des agents de journaux : le même PASS sur le chemin exact
+  # d'écriture, le seul que vmauth ouvre à un compte d'agent ; rien de
+  # VictoriaLogs ne s'ouvre sans SSO ni jeton.
+  assert {
+    condition = (
+      pangolin_resource_rule.victoria_logs_insert.action == "PASS"
+      && pangolin_resource_rule.victoria_logs_insert.match == "PATH"
+      && pangolin_resource_rule.victoria_logs_insert.value == "/insert/jsonline"
+      && pangolin_resource_rule.victoria_logs_insert.enabled == true
+      && pangolin_resource_rule.victoria_logs_insert.priority >= 2 && pangolin_resource_rule.victoria_logs_insert.priority < 10
+      && pangolin_resource_rule.victoria_logs_insert.resource_id == pangolin_resource.website["victoria_logs"].id
+      && pangolin_resource.website["victoria_logs"].sso == true
+      && !contains(keys(local.path_bypasses), "VictoriaLogs")
+    )
+    error_message = "Le point d'entrée des agents de journaux doit être un PASS sur /insert/jsonline exact, avant les règles pays, VictoriaLogs derrière le SSO et absent de local.path_bypasses."
+  }
+
   # Ni l'enregistrement dynamique, ni l'autorisation (navigateur de
   # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface : la
   # surface OAuth est la seule ouverture de TREK en priorité 2, sur des
@@ -1200,7 +1228,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       for rule in concat(
         values(pangolin_resource_rule.path_bypass),
         values(pangolin_resource_rule.backslash_guard),
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
       ) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
@@ -1415,7 +1443,8 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
       "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "ntfy", "Paperless-ngx", "Promptoramix", "TREK", "Wishlist",
+      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "ntfy", "Paperless-ngx", "Promptoramix", "TREK",
+      "VictoriaLogs", "Wishlist",
     ])
     error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
   }
@@ -1432,7 +1461,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = alltrue([
       for rule in concat(
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
@@ -1554,6 +1583,42 @@ run "trek_mcp_connector_url_carries_the_token" {
 # avec un jeton d'accès Pangolin chacun, envoyé en en-têtes (HUB_HEADERS, au
 # format « Nom: valeur » séparé par des virgules que lit l'agent). Ceux du LAN
 # n'en ont pas : ils parlent au hub sans Pangolin.
+run "log_remote_agents_use_their_own_access_token" {
+  command = apply
+
+  assert {
+    condition     = toset(keys(pangolin_resource_access_token.log_agents)) == toset(["flip", "pangolin"])
+    error_message = "Un jeton d'accès Pangolin par agent de journaux distant : flip et pangolin, rien d'autre."
+  }
+
+  assert {
+    condition = alltrue([
+      for token in pangolin_resource_access_token.log_agents :
+      token.resource_id == pangolin_resource.website["victoria_logs"].id
+    ])
+    error_message = "Les jetons des agents de journaux doivent viser la ressource VictoriaLogs."
+  }
+
+  assert {
+    condition = output.log_agent_access_tokens == {
+      flip     = { id = "tok-log-agent", token = "jeton-log-agent" }
+      pangolin = { id = "tok-log-agent", token = "jeton-log-agent" }
+    }
+    error_message = "log_agent_access_tokens doit donner à chaque agent distant l'identifiant et le jeton de son accès Pangolin."
+  }
+
+  # Le contrat avec Ansible : chaque playbook des hôtes distants lit son
+  # jeton sous cette forme.
+  assert {
+    condition = alltrue([
+      for playbook in ["flip.yml", "pangolin.yaml"] :
+      strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id")
+      && strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token")
+    ])
+    error_message = "flip.yml et pangolin.yaml doivent lire terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id et .token."
+  }
+}
+
 run "beszel_remote_agents_use_their_own_access_token" {
   command = apply
 

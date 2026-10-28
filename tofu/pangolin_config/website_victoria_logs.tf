@@ -37,6 +37,51 @@ locals {
       hc_path = "/health"
     }
   }
+
+  # Agents that reach vmauth through this public resource: the two Hetzner
+  # hosts. Those of the LAN (docker, pi, newt-lxc, nas) post to the port
+  # vmauth publishes on the docker VM, without Pangolin.
+  log_remote_agents = toset(["flip", "pangolin"])
+}
+
+# The agents' write endpoint (vmauth routes only this path for an agent
+# account, ansible/roles/victoria_logs). PASS, not ACCEPT, as Beszel's
+# `/api/beszel/agent-connect`: it skips the country rules (both agents arrive
+# with a private source IP, Pangolin's own Traefik or flip through the NAT,
+# which GeoLite2 places nowhere) but keeps Pangolin's authentication, here
+# each agent's own access token below, sent as headers. Behind it vmauth still
+# wants the agent's account (sops victoria_logs_agent_passwords), which can
+# only write.
+#
+# Exact path, no wildcard: the query string (`_stream_fields`...) is not part
+# of the match. Not in local.path_bypasses (not an ACCEPT), hence not in
+# path_bypass_images.json: a route moved by a new version would cut the agents
+# off, it would open nothing.
+resource "pangolin_resource_rule" "victoria_logs_insert" {
+  resource_id = pangolin_resource.website["victoria_logs"].id
+  action      = "PASS"
+  match       = "PATH"
+  value       = "/insert/jsonline"
+  priority    = 3
+  enabled     = true
+}
+
+# One token per remote agent: a compromised host is revoked alone.
+# `persist_session` stays false (default): the agent keeps no cookie.
+resource "pangolin_resource_access_token" "log_agents" {
+  for_each = local.log_remote_agents
+
+  resource_id = pangolin_resource.website["victoria_logs"].id
+  title       = "Log agent ${each.key}"
+}
+
+output "log_agent_access_tokens" {
+  description = "VICTORIA LOGS - Jeton d'accès Pangolin de chaque agent de journaux distant (clé = inventory_hostname), lu par pangolin.yaml et flip.yml"
+  value = {
+    for host, token in pangolin_resource_access_token.log_agents :
+    host => { id = token.id, token = token.token }
+  }
+  sensitive = true
 }
 
 output "victoria_logs_access_token" {

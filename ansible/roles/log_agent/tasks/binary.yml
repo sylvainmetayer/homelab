@@ -1,0 +1,127 @@
+---
+# Sur le modèle de beszel_agent (mode binary) : archive de la release vérifiée
+# par sa somme, service systemd sous un utilisateur dynamique, secret dans un
+# fichier 0600. log_agent_arch et log_agent_archive : vars/main.yml.
+
+# Le dossier parent aussi : un parent laissé en 0700 rendrait le binaire
+# inaccessible à l'utilisateur dynamique.
+- name: Create the log agent install folder
+  become: true
+  loop:
+    - "{{ log_agent_binary_dir }}"
+    - "{{ log_agent_binary_dir }}/{{ log_agent_binary_version }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    # Traversable par tous : le service tourne sous un utilisateur dynamique.
+    mode: "0755" # NOSONAR
+  register: log_agent_install_dirs
+
+# Sur un premier --check, ni le dossier ni l'archive n'existent : get_url
+# refuse un dossier absent, unarchive une archive absente.
+- name: Download the Vector archive
+  become: true
+  when: not (ansible_check_mode and log_agent_install_dirs is changed)
+  ansible.builtin.get_url:
+    url: "https://github.com/vectordotdev/vector/releases/download/v{{ log_agent_binary_version }}/{{ log_agent_archive }}"
+    dest: "{{ log_agent_binary_dir }}/{{ log_agent_archive }}"
+    checksum: "sha256:{{ log_agent_binary_sha256[log_agent_arch] }}"
+    owner: root
+    group: root
+    mode: "0600"
+  register: log_agent_download
+
+# Le binaire seul (l'archive porte aussi licences et unités d'exemple).
+- name: Unpack the Vector binary
+  become: true
+  when: not (ansible_check_mode and (log_agent_install_dirs is changed or log_agent_download is changed))
+  notify: Restart log-agent
+  ansible.builtin.unarchive:
+    src: "{{ log_agent_binary_dir }}/{{ log_agent_archive }}"
+    dest: "{{ log_agent_binary_dir }}/{{ log_agent_binary_version }}"
+    remote_src: true
+    include:
+      - "./{{ log_agent_binary_member }}"
+    owner: root
+    group: root
+    creates: "{{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }}"
+
+# 0755 et vector.yaml en 0644 : l'utilisateur dynamique doit les lire, et ils
+# ne portent aucun secret. secrets.json reste à root, remis au service par
+# LoadCredential.
+- name: Create the log agent configuration directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ log_agent_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Template the Vector configuration
+  become: true
+  notify: Restart log-agent
+  ansible.builtin.template:
+    src: vector.yaml.j2
+    dest: "{{ log_agent_config_dir }}/vector.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Write the log agent credentials
+  become: true
+  diff: false
+  notify: Restart log-agent
+  ansible.builtin.template:
+    src: secrets.json.j2
+    dest: "{{ log_agent_config_dir }}/secrets.json"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the log agent service
+  become: true
+  notify: Restart log-agent
+  ansible.builtin.template:
+    src: log-agent.service.j2
+    dest: /etc/systemd/system/log-agent.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: log_agent_unit_install
+
+# Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.
+- name: Start and enable the log agent
+  become: true
+  when: not (ansible_check_mode and log_agent_unit_install is changed)
+  ansible.builtin.systemd:
+    name: log-agent
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# Chaque version s'installe à côté des précédentes : sans ce ménage, chaque
+# montée Renovate laisse un dossier et une archive (~60 Mo) sur le petit
+# disque du LXC. Après « Start and enable », dont le daemon-reload a déjà
+# pointé l'unité vers la nouvelle version.
+- name: Find the previous Vector versions
+  become: true
+  ansible.builtin.find:
+    paths: "{{ log_agent_binary_dir }}"
+    file_type: any
+    patterns:
+      - "[0-9]*"
+      - "vector-*-unknown-linux-gnu.tar.gz"
+    excludes:
+      - "{{ log_agent_binary_version }}"
+      - "{{ log_agent_archive }}"
+  register: log_agent_stale
+
+- name: Remove the previous Vector versions
+  become: true
+  loop: "{{ log_agent_stale.files | map(attribute='path') | list }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent

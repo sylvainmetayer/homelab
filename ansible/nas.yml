@@ -65,6 +65,11 @@
     # ni groupe docker sous UGOS), réglé dans host_vars/nas.
     - role: beszel_agent
       tags: beszel_agent,monitoring
+    # Agent de journaux sous dc@log_agent en unité système : journal d'UGOS et
+    # conteneurs, en lecture seule (rien n'est changé dans UGOS), vers
+    # VictoriaLogs de la VM docker par le LAN.
+    - role: log_agent
+      tags: log_agent,monitoring
     - role: decommission_app
       tags: [decommission, never]
     # Connecteur du site Pangolin nas, sous dc@newt (unité système) : il sert

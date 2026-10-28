@@ -1,0 +1,29 @@
+---
+- name: Refuse to start the log agent without its credentials
+  ansible.builtin.assert:
+    that:
+      - log_agent_mode in ['dc', 'compose', 'binary']
+      - log_agent_password | length > 0
+      - log_agent_url is match('https?://')
+      # Une URL publique passe par Pangolin : sans jeton d'accès, le mur SSO
+      # refuse l'agent.
+      - >-
+        log_agent_url is not match('https://')
+        or (log_agent_pangolin_token_id | length > 0 and log_agent_pangolin_token | length > 0)
+      # Le journal d'accès de Traefik n'existe qu'avec Docker (Pangolin).
+      - log_agent_mode != 'binary' or log_agent_traefik_log_dir | length == 0
+    fail_msg: >-
+      Agent de journaux de {{ log_agent_name }} : mode {{ log_agent_mode }},
+      compte (victoria_logs_agent_passwords.{{ log_agent_name }}, sops) ou,
+      pour une URL https, jeton d'accès Pangolin (sortie
+      log_agent_access_tokens de tofu/pangolin_config : tofu apply fait ?)
+      manquants.
+    quiet: true
+
+- name: Deploy the log agent container
+  when: log_agent_mode in ['dc', 'compose']
+  ansible.builtin.include_tasks: container.yml
+
+- name: Deploy the log agent binary
+  when: log_agent_mode == 'binary'
+  ansible.builtin.include_tasks: binary.yml
