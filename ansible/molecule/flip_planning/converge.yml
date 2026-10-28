@@ -97,8 +97,6 @@
         flip_planning_admin_password: "{{ prod_planning_admin_password }}"
         flip_planning_session_encryption_key: "{{ prod_planning_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
-        flip_planning_mcp_pangolin_access_token_id: "{{ prod_planning_mcp_pangolin_access_token_id }}"
-        flip_planning_mcp_pangolin_access_token: "{{ prod_planning_mcp_pangolin_access_token }}"
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
     - role: flip_planning
       vars:

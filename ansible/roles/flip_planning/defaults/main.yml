@@ -84,15 +84,12 @@ flip_planning_db_password: ""
 # demo_planning_mcp_api_key); never a flip_planning_* key in secrets.sops.yaml,
 # which would beat that override.
 flip_planning_mcp_api_key: ""
-# Sensitive: passed by flip.yml to the production instance only
-# (prod_planning_mcp_pangolin_access_token_id); the demos have none (#763) and
-# keep this empty default. Never a flip_planning_* key in secrets.sops.yaml,
-# which would beat that override.
+# Sensitive. No instance has one any more: the demos dropped theirs (#763),
+# the production its own (#525); /mcp/* answers without SSO. An instance that
+# needs one gets it as a role-entry var from a <instance>_* SOPS key, never a
+# flip_planning_* key, which would beat that override.
 flip_planning_mcp_pangolin_access_token_id: ""
-# Sensitive: passed by flip.yml to the production instance only
-# (prod_planning_mcp_pangolin_access_token); the demos have none (#763) and
-# keep this empty default. Never a flip_planning_* key in secrets.sops.yaml,
-# which would beat that override.
+# Sensitive. Same as flip_planning_mcp_pangolin_access_token_id above.
 flip_planning_mcp_pangolin_access_token: ""
 
 # Rate ceiling on /mcp, per source address and per window. Every request is

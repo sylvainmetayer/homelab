@@ -20,8 +20,9 @@
         db_password: "{{ prod_planning_db_password }}"
         admin_password: "{{ prod_planning_admin_password }}"
         mcp_api_key: "{{ prod_planning_mcp_api_key }}"
-        mcp_pangolin_access_token_id: "{{ prod_planning_mcp_pangolin_access_token_id }}"
-        mcp_pangolin_access_token: "{{ prod_planning_mcp_pangolin_access_token }}"
+        # Plus de jeton MCP Pangolin, ni en prod (#525) ni en démo (#763).
+        mcp_pangolin_access_token_id: ""
+        mcp_pangolin_access_token: ""
         repository: "{{ flip_planning_backup_borgmatic_target }}"
         healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
         analytics_token: "{{ flip_planning_cloudflare_web_analytics_token }}"
