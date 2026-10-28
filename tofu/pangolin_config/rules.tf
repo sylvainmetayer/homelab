@@ -345,6 +345,7 @@ locals {
     for name, response in data.http.pangolin_targets : [
       for target in try(jsondecode(response.response_body).data.targets, []) : {
         resource   = name
+        id         = tostring(target.targetId)
         label      = "${name}#${target.targetId}${try(target.path, null) == null ? "" : " ${target.path}"}"
         hc_enabled = try(target.hcEnabled, false)
         hc_scheme  = try(target.hcScheme, null)
@@ -405,6 +406,62 @@ check "target_health" {
   assert {
     condition     = length(local.unhealthy_targets) == 0
     error_message = "Targets whose probe is currently failing: ${join(", ", local.unhealthy_targets)}."
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Target inventory audit.
+#
+# Same blind spot as the rules below, on targets: a target added by hand in the
+# Pangolin UI to a managed resource joins its load balancer (Traefik spreads the
+# requests over every healthy target), and `tofu plan` never sees it, since it
+# only compares pangolin_target.website against itself. Every target a managed
+# resource holds must be one this configuration created, compared on ids. The
+# probe audit above already reads them (data.http.pangolin_targets) and stops
+# the plan when a response does not decode, so this only adds the comparison.
+# ---------------------------------------------------------------------------
+locals {
+  # Stringified so the ids compare cleanly against the JSON numbers. Every
+  # target comes from the for_each of websites.tf: a standalone pangolin_target
+  # would have to be added here, or the audit reports it as undeclared.
+  declared_target_ids = toset([for target in pangolin_target.website : tostring(target.id)])
+
+  truncated_target_lists = [
+    for name, response in data.http.pangolin_targets : name
+    if try(
+      length(jsondecode(response.response_body).data.targets) != jsondecode(response.response_body).data.pagination.total,
+      false
+    )
+  ]
+
+  undeclared_targets = [
+    for target in local.live_targets : target.label
+    if !contains(local.declared_target_ids, target.id)
+  ]
+}
+
+resource "terraform_data" "target_inventory" {
+  input = length(local.live_targets)
+
+  lifecycle {
+    precondition {
+      condition = length(local.truncated_target_lists) == 0
+      error_message = join(" ", [
+        "Pangolin returned a truncated target list for:",
+        "${join(", ", local.truncated_target_lists)}.",
+        "The audit below would not see the missing targets, so it is meaningless.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_targets) == 0
+      error_message = join(" ", [
+        "Targets live in Pangolin that this configuration did not create:",
+        "${join(", ", local.undeclared_targets)}.",
+        "Either declare them (a target or a sub_target of the app's entry in",
+        "local.websites) or delete them in Pangolin.",
+      ])
+    }
   }
 }
 
