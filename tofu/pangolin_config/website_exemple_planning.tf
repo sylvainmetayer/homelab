@@ -23,6 +23,14 @@ locals {
     domain_id = local.domain_ids["sylvain.dev"]
     sso       = false
 
+    # Its link on Homepage (homepage_links output, website_homepage.tf).
+    homepage = {
+      title       = "Vitrine planning"
+      group       = "Flip Planning"
+      description = "Exemple public, remis à zéro chaque nuit"
+      icon        = "mdi-calendar-account"
+    }
+
     # Catch-all target, must have a lower priority than the sub-path ones.
     target = {
       site_id  = pangolin_site.flip.id
