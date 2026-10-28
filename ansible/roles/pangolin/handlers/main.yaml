@@ -6,7 +6,7 @@
 - name: Restart CrowdSec
   become: true
   ansible.builtin.shell: |
-    if /usr/bin/docker inspect crowdsec >/dev/null 2>&1; then
+    if /usr/bin/docker container inspect crowdsec >/dev/null 2>&1; then
       /usr/bin/docker restart crowdsec
     fi
   changed_when: true

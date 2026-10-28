@@ -66,13 +66,17 @@ services:
     # quand la même clé arrive d'une autre IP (gerbil recréé) : ils gardent
     # l'empreinte de l'ancienne clé, qui resterait valide après une rotation.
     # Premier démarrage : pas encore de configuration, cscli échoue sans
-    # conséquence. $$ : échappement de l'interpolation de compose.
+    # conséquence. $$ : échappement de l'interpolation de compose. grep -o
+    # plutôt qu'une ligne entière : JSON indenté ou compact, champ « name »
+    # n'importe où dans l'objet (une version de cscli qui change la mise en
+    # forme ne doit pas arrêter la suppression sans bruit).
     entrypoint:
       - /bin/bash
       - -c
       - >-
         for b in $$(cscli bouncers list -o json 2>/dev/null
-        | sed -n 's/^ *"name": "\(traefik\(@[^"]*\)\{0,1\}\)",$$/\1/p');
+        | grep -o '"name": *"traefik\(@[^"]*\)\{0,1\}"'
+        | sed 's/.*"\(traefik[^"]*\)"$$/\1/');
         do cscli bouncers delete "$$b" >/dev/null 2>&1; done;
         exec /bin/bash /docker_start.sh
     environment:
