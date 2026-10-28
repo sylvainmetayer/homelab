@@ -1,0 +1,53 @@
+---
+# Un passage de kdrive_sync.py contre le faux rclone (files/fake_rclone.sh) et
+# le faux Uptime Kuma, avec l'URL push du fichier d'environnement du rôle.
+#
+# Variables :
+#   run_case_rc      code de sortie du faux rclone
+#   run_case_status  ce que le script doit pousser (up ou down)
+#   run_case_index   rang du passage (1, 2…) : nombre de push attendus
+
+- name: Run the copy script, rclone exiting {{ run_case_rc }}
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -I
+      - "{{ kdrive_sync_verify_path }}/kdrive_sync.py"
+      - --backup-dir-root
+      - /data/versions
+      - --
+      - "{{ kdrive_sync_verify_tmp }}/fake_rclone.sh"
+  environment:
+    KDRIVE_SYNC_PUSH_URL: "{{ kdrive_sync_verify_env | regex_replace('^KDRIVE_SYNC_PUSH_URL=', '') | trim }}"
+    FAKE_RCLONE_RC: "{{ run_case_rc }}"
+  register: kdrive_sync_verify_run
+  changed_when: true
+  failed_when: (kdrive_sync_verify_run.rc == 0) != (run_case_status == 'up')
+
+- name: Read the arguments the fake rclone received
+  ansible.builtin.slurp:
+    path: "{{ kdrive_sync_verify_tmp }}/args"
+  register: kdrive_sync_verify_args
+
+# La dernière requête reçue par le faux Uptime Kuma : celle de ce passage.
+- name: Read what the fake Uptime Kuma received
+  ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-kdrive"
+  register: kdrive_sync_verify_pushes
+  changed_when: false
+  until: kdrive_sync_verify_pushes.stdout_lines | length == run_case_index
+  retries: 10
+  delay: 1
+
+# Un --backup-dir daté par passage, la sortie de rclone relayée, le volume
+# copié dans le battement (ou l'erreur et le code de sortie).
+- name: Assert the script pushed {{ run_case_status }}
+  vars:
+    kdrive_sync_verify_push: "{{ kdrive_sync_verify_pushes.stdout_lines | last | urldecode }}"
+  ansible.builtin.assert:
+    that:
+      - kdrive_sync_verify_args.content | b64decode is match('^--backup-dir /data/versions/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{6}\n$')
+      - "'not json: a plain line' in kdrive_sync_verify_run.stdout"
+      - ('status=' ~ run_case_status ~ '&') in kdrive_sync_verify_push
+      - "'3 fichier(s) copié(s), 1.0 Mio en 2 min' in kdrive_sync_verify_push"
+      - "run_case_status == 'up' or 'rclone code 1 : Failed to copy: 401 Unauthorized' in kdrive_sync_verify_push"
+    fail_msg: "{{ kdrive_sync_verify_push }}"

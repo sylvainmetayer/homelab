@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: kdrive_sync
+
+# Prepare du scénario nas (UGOS, dc@ système), plus le dossier partagé kdrive.
+ansible:
+  playbooks:
+    prepare: prepare.yml

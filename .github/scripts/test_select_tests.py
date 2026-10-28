@@ -143,7 +143,7 @@ class HostVarsAndPlaybooks(unittest.TestCase):
 
     def test_host_playbook_selects_its_host_scenarios(self):
         scenarios, _ = selected(["ansible/nas.yml"])
-        self.assertEqual(scenarios, ["jellyfin", "nas", "nas_proxy"])
+        self.assertEqual(scenarios, ["jellyfin", "kdrive_sync", "nas", "nas_proxy"])
         self.assertIn("flip_planning", selected(["ansible/flip.yml"])[0])
 
     def test_hostless_playbook_selects_the_scenarios_of_its_roles(self):

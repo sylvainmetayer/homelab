@@ -1,0 +1,13 @@
+# Une copie par nuit ; Persistent rattrape une nuit manquée (NAS éteint) au
+# boot, après l'attente du démon Docker de l'unité. Le moniteur « kDrive vers
+# NAS » tolère une nuit manquée, pas deux.
+[Unit]
+Description=Nightly one-way copy of kDrive to the NAS
+
+[Timer]
+OnCalendar={{ kdrive_sync_schedule }}
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

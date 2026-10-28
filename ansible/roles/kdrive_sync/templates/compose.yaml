@@ -1,0 +1,45 @@
+---
+# rclone (rôle kdrive_sync) : jamais démarré par dc@, mais par `docker compose
+# run --rm` (kdrive-sync.service, à travers kdrive_sync.py), le temps d'une
+# copie. Le fichier porte le mot de passe d'application kDrive : 0600 root.
+services:
+  rclone:
+    image: docker.io/rclone/rclone:1.75.2@sha256:2687085f718d3c628f7fdfb77c52a1d344332aed543110bb88088f2c70d43eb5
+    # Script de vars/main.yml : obscurcit le mot de passe, puis `rclone copy`
+    # avec les arguments que kdrive_sync.py ajoute (--backup-dir daté).
+    entrypoint: {{ ['/bin/sh', '-c', kdrive_sync_entrypoint_script, 'kdrive-sync'] | to_json }}
+    # Le compte propriétaire de la copie, jamais root : il la lit par SMB.
+    user: "{{ kdrive_sync_uid }}:{{ kdrive_sync_gid }}"
+    # Pont Docker par défaut : sortie vers kDrive seulement, aucun port.
+    network_mode: bridge
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Paris
+      # Aucun fichier de configuration : le remote « kdrive » vient de
+      # l'environnement, rclone n'écrit que dans /tmp.
+      HOME: /tmp
+      RCLONE_CONFIG: /tmp/rclone.conf
+      RCLONE_CONFIG_KDRIVE_TYPE: webdav
+      RCLONE_CONFIG_KDRIVE_URL: {{ kdrive_sync_url | to_json }}
+      RCLONE_CONFIG_KDRIVE_VENDOR: other
+      RCLONE_CONFIG_KDRIVE_USER: {{ kdrive_sync_webdav_user | replace('$', '$$') | to_json }}
+      KDRIVE_APP_PASSWORD: {{ kdrive_sync_app_password | replace('$', '$$') | to_json }}
+    # Job par lots : un cœur reste toujours aux autres, et il perd face à eux
+    # sous contention (doctrine des limites, AGENTS.md).
+    mem_limit: {{ kdrive_sync_mem_limit }}
+    cpus: 2.00
+    cpu_shares: 512
+    volumes:
+      # Le dossier partagé entier, miroir et versions : --backup-dir doit
+      # être sur le même montage que la destination (un renommage).
+      - "{{ kdrive_sync_share_path }}:/data"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m

@@ -1,0 +1,168 @@
+---
+# Le NAS seul : unités système, exécutées en root (host_vars/nas).
+- name: Refuse to run outside a system-scope dc@ host
+  ansible.builtin.assert:
+    that:
+      - docker_service_scope | default('user') == 'system'
+    fail_msg: "kdrive_sync ne tourne que sur le NAS (docker_service_scope: system, host_vars/nas)."
+    quiet: true
+
+# Avant toute écriture : le dossier partagé se crée dans l'interface d'UGOS,
+# jamais ici. Sans lui, rien n'est déployé.
+- name: Check the kDrive shared folder
+  become: true
+  ansible.builtin.stat:
+    path: "{{ kdrive_sync_share_path }}"
+  register: kdrive_sync_share_stat
+
+- name: Assert the kDrive shared folder exists
+  ansible.builtin.assert:
+    that:
+      - kdrive_sync_share_stat.stat.isdir | default(false)
+    fail_msg: >-
+      {{ kdrive_sync_share_path }} absent ou pas un dossier. Créer dans UGOS
+      (Fichiers, Dossier partagé, Créer) le dossier partagé
+      « {{ kdrive_sync_share_path | basename }} » sur le volume 1, puis
+      relancer nas.yml --tags kdrive_sync.
+    quiet: true
+
+# Un identifiant vide donnerait une URL https://.connect… et un échec
+# d'authentification chaque nuit, sans dire pourquoi.
+- name: Assert the kDrive credentials are set
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - kdrive_sync_drive_id | string is match('^[0-9]+$')
+      - kdrive_sync_webdav_user | length > 0
+      - kdrive_sync_app_password | length > 0
+    fail_msg: >-
+      kdrive_drive_id (numérique), kdrive_webdav_user ou
+      kdrive_webdav_app_password absents d'ansible/secrets.sops.yaml
+      (docs/runbooks/kdrive-nas.md).
+    quiet: true
+
+# Copier vers Borg demande que le conteneur borgmatic voie le dossier.
+- name: Assert borgmatic can read the copy before backing it up
+  when: kdrive_sync_backup_enabled
+  ansible.builtin.assert:
+    that:
+      - borgmatic_container_source_paths | select('in', [kdrive_sync_share_path, kdrive_sync_share_path | dirname]) | list | length > 0
+    fail_msg: >-
+      kdrive_sync_backup_enabled : ajouter {{ kdrive_sync_share_path }} à
+      borgmatic_container_source_paths (host_vars/nas).
+    quiet: true
+
+# nas.yml ne collecte pas de faits : uid et gid sont lus ici (getent échoue
+# si le compte n'existe pas).
+- name: Read the account rclone runs as
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ kdrive_sync_user }}"
+
+- name: Remember the ids rclone runs with
+  ansible.builtin.set_fact:
+    kdrive_sync_uid: "{{ ansible_facts['getent_passwd'][kdrive_sync_user][1] }}"
+    kdrive_sync_gid: "{{ ansible_facts['getent_passwd'][kdrive_sync_user][2] }}"
+
+- name: Refuse to run rclone as root
+  ansible.builtin.assert:
+    that:
+      - kdrive_sync_uid | int != 0
+      - kdrive_sync_gid | int != 0
+    fail_msg: "rclone tourne sous le compte propriétaire de la copie, jamais root ({{ kdrive_sync_user }})."
+    quiet: true
+
+# Miroir et versions au compte de rclone, mode explicite (UGOS crée tout en
+# 0777 sinon).
+- name: Ensure the mirror and versions folders exist
+  become: true
+  loop:
+    - "{{ kdrive_sync_share_path }}/{{ kdrive_sync_mirror_dir }}"
+    - "{{ kdrive_sync_share_path }}/{{ kdrive_sync_versions_dir }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kdrive_sync_uid }}"
+    group: "{{ kdrive_sync_gid }}"
+    mode: "0700"
+
+- name: Ensure the kdrive_sync folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ kdrive_sync_base_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Mot de passe d'application dans le compose : 0600 root, diff: false.
+- name: Template the rclone compose configuration
+  become: true
+  diff: false
+  ansible.builtin.template:
+    src: compose.yaml
+    dest: "{{ kdrive_sync_base_path }}/compose.yaml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the copy script
+  become: true
+  ansible.builtin.copy:
+    src: kdrive_sync.py
+    dest: "{{ kdrive_sync_base_path }}/kdrive_sync.py"
+    owner: root
+    group: root
+    mode: "0700"
+
+# L'URL push porte le jeton du moniteur : 0600 et diff: false.
+- name: Write the push URL of the kDrive copy monitor
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "KDRIVE_SYNC_PUSH_URL={{ kdrive_sync_healthcheck_url }}\n"
+    dest: "{{ kdrive_sync_base_path }}/kdrive_sync.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the kDrive copy service and timer
+  become: true
+  loop:
+    - kdrive-sync.service
+    - kdrive-sync.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Le timer seul : le service, oneshot, n'est jamais démarré par Ansible (la
+# première copie dure des heures ; runbook).
+- name: Enable the nightly kDrive copy
+  become: true
+  ansible.builtin.systemd:
+    name: kdrive-sync.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Configure borgmatic backup for the kDrive copy
+  when: kdrive_sync_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: kdrive
+    borgmatic_app_title: kDrive
+    borgmatic_app_target: "{{ kdrive_sync_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ kdrive_sync_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ kdrive_sync_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ kdrive_sync_share_path }}"
+    borgmatic_app_extra_options:
+      source_directories_must_exist: true
