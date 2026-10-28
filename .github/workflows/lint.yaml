@@ -15,6 +15,8 @@ on:
       - mise.toml
       - secrets.sops.yaml
       - secrets-rotation.yaml
+      - .sops.yaml
+      - docs/runbooks/test-cle-secours.md
   workflow_dispatch:
 
 # Pas de paths-ignore pour la documentation : Ansible lint, OpenTofu lint et

@@ -14,8 +14,9 @@ Les destinataires sont en clair dans les métadonnées `sops:` du fichier
 chiffré : rien n'est déchiffré, aucune clé age n'est lue. Le test de
 déchiffrement avec la clé secours, lui, est manuel :
 docs/runbooks/test-cle-secours.md. Bibliothèque standard seulement ; les
-deux fichiers suivent le format que sops et ce dépôt écrivent (une règle
-par `- path_regex:`, une clé publique par ligne, son nom en commentaire).
+deux fichiers suivent le format que sops et ce dépôt écrivent (chaque
+règle ouverte par `- path_regex:`, une clé publique par ligne, son nom en
+commentaire ; une règle qui ne commence pas par path_regex est refusée).
 
 Usage (depuis la racine du dépôt, workflow Lint) : check_age_recipients.py
 """
@@ -34,6 +35,7 @@ SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 REQUIRED_LABELS = ("secours",)
 
 RULE_RE = re.compile(r"^\s*-\s+path_regex:\s*(.+?)\s*$")
+ITEM_RE = re.compile(r"^(\s*)-\s+[A-Za-z_]+:")
 AGE_KEY_RE = re.compile(r"\bage1[02-9ac-hj-np-z]{58}\b")
 LABEL_RE = re.compile(r"#\s*(\S+)")
 RECIPIENT_RE = re.compile(r"^\s+recipient:\s*(\S+)\s*$")
@@ -45,10 +47,23 @@ class ConfigError(Exception):
 
 def parse_rules(text):
     """[(path_regex, {clé publique: nom})] des creation_rules, dans l'ordre."""
-    rules = []
+    rules, indent, inside = [], None, False
     for number, line in enumerate(text.splitlines(), 1):
+        if line[:1].strip() and not line.startswith("#"):
+            # Clé de premier niveau : seules les creation_rules comptent
+            # (destination_rules, stores… ont leurs propres listes).
+            inside, indent = line.startswith("creation_rules:"), None
+            continue
+        if not inside:
+            continue
         rule = RULE_RE.match(line)
+        item = ITEM_RE.match(line)
+        if item and not rule and indent is not None and len(item.group(1)) == indent:
+            # Une règle sans path_regex en tête : ses clés iraient à la
+            # précédente sans un mot.
+            raise ConfigError(f"{SOPS_CONFIG}:{number} : règle sans `- path_regex:` en première clé")
         if rule:
+            indent = len(item.group(1))
             pattern = rule.group(1)
             if len(pattern) >= 2 and pattern[0] == pattern[-1] and pattern[0] in "\"'":
                 pattern = pattern[1:-1]
@@ -57,12 +72,16 @@ def parse_rules(text):
             except re.error as error:
                 raise ConfigError(f"{SOPS_CONFIG}:{number} : path_regex invalide ({error})") from error
             continue
-        key = AGE_KEY_RE.search(line.split("#", 1)[0])
-        if key:
+        code, _, comment = line.partition("#")
+        keys = AGE_KEY_RE.findall(code)
+        if keys:
             if not rules:
                 raise ConfigError(f"{SOPS_CONFIG}:{number} : clé age hors d'une règle path_regex")
-            label = LABEL_RE.search(line[key.end():])
-            rules[-1][1][key.group(0)] = label.group(1) if label else key.group(0)
+            # Le nom en commentaire ne vaut que pour une clé seule sur sa
+            # ligne (`age: a,b` en compte plusieurs).
+            label = LABEL_RE.match("#" + comment) if comment and len(keys) == 1 else None
+            for key in keys:
+                rules[-1][1][key] = label.group(1) if label else key
     if not rules:
         raise ConfigError(f"{SOPS_CONFIG} : aucune creation_rules avec path_regex")
     return rules
