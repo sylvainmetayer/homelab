@@ -130,16 +130,22 @@ class BuildTest(unittest.TestCase):
         self.assertIn("package-number-0199", full)
 
     def test_unexpected_answer_is_an_error(self):
+        no_runs = runs()
         with self.assertRaises(renovate_digest.DigestError):
-            renovate_digest.build({"merged": {}}, runs(), "o/r", NOW)
+            renovate_digest.build({"merged": {}}, no_runs, "o/r", NOW)
 
     def test_malformed_node_is_an_error(self):
         broken = runs(1)
         del broken["workflow_runs"][0]["html_url"]
+        pulls = answer()
         with self.assertRaises(renovate_digest.DigestError):
-            renovate_digest.build(answer(), broken, "o/r", NOW)
+            renovate_digest.build(pulls, broken, "o/r", NOW)
+
+    def test_malformed_date_is_an_error(self):
+        pulls = answer(open_nodes=[opened(1, "chore(deps): update x to 1", "2026-11-02")])
+        no_runs = runs()
         with self.assertRaises(renovate_digest.DigestError):
-            renovate_digest.build(answer(open_nodes=[opened(1, "chore(deps): update x to 1", "2026-11-02")]), runs(), "o/r", NOW)
+            renovate_digest.build(pulls, no_runs, "o/r", NOW)
 
     def test_security_bumps_are_grouped_and_keep_their_marker(self):
         report, _ = renovate_digest.build(

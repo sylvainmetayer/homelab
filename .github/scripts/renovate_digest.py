@@ -54,7 +54,7 @@ query($merged: String!, $open: String!) {
 # le paquet, sans la version cible ; le « [SECURITY] » que Renovate ajoute aux
 # PR de vulnérabilité reste.
 TITLE_PREFIX = re.compile(r"^(?:chore|fix|build|ci)\(deps\):\s*", re.IGNORECASE)
-TITLE_TARGET = re.compile(r"\s+to\s+\S+(\s+\[SECURITY\])?$", re.IGNORECASE)
+SECURITY_MARKER = " [SECURITY]"
 
 
 class DigestError(Exception):
@@ -70,7 +70,14 @@ def short_title(title):
 
 
 def package(title):
-    return TITLE_TARGET.sub(r"\1", short_title(title))
+    name = short_title(title)
+    security = name.upper().endswith(SECURITY_MARKER)
+    if security:
+        name = name[: -len(SECURITY_MARKER)]
+    head, separator, target = name.rpartition(" to ")
+    if separator and target and " " not in target:
+        name = head
+    return name + (SECURITY_MARKER if security else "")
 
 
 def grouped(pulls):
@@ -124,44 +131,56 @@ def build(pulls, runs, repo, now):
         raise DigestError(f"réponse inattendue : {error!r}") from error
 
 
-def _build(pulls, runs, repo, now):
-    merged = nodes(pulls, "merged")
-    opened = nodes(pulls, "open")
-    failed = list(runs["workflow_runs"])
-    # Dernier run de push réussi (fetch) : il a redéployé tout ce que les
-    # échecs d'avant n'avaient pas fait (diff depuis le dernier succès).
-    last_success = runs.get("last_success")
-    caught_up_at = parse_time(last_success["created_at"]) if last_success else None
-
-    def caught_up(run):
-        return caught_up_at is not None and parse_time(run["created_at"]) < caught_up_at
-
+def split_merged(merged):
+    """(fusionnées par Renovate lui-même, fusionnées à la main)."""
     automerged, by_hand = [], []
     for pull in merged:
         login = ((pull.get("mergedBy") or {}).get("login") or "").lower()
         (automerged if login in RENOVATE_LOGINS else by_hand).append(pull)
-    opened.sort(key=lambda p: p["createdAt"])
+    return automerged, by_hand
 
-    def open_line(pull):
-        notes = []
-        if pull.get("autoMergeRequest"):
-            notes.append("auto-merge en attente des checks")
-        if pull.get("isDraft"):
-            notes.append("brouillon")
-        note = f" ({', '.join(notes)})" if notes else ""
-        return f"- #{pull['number']} {short_title(pull['title'])} : {age(pull['createdAt'], now)}{note}"
 
-    def run_line(run):
-        when = parse_time(run["created_at"]).strftime("%d/%m %H:%M UTC")
-        note = f" (rattrapé par le run #{last_success['run_number']})" if caught_up(run) else ""
-        return (
-            f"- run #{run['run_number']} du {when} ({run['event']}){note} : "
-            f"{run.get('display_title', '')} {run['html_url']}"
-        )
+def open_line(pull, now):
+    notes = []
+    if pull.get("autoMergeRequest"):
+        notes.append("auto-merge en attente des checks")
+    if pull.get("isDraft"):
+        notes.append("brouillon")
+    note = f" ({', '.join(notes)})" if notes else ""
+    return f"- #{pull['number']} {short_title(pull['title'])} : {age(pull['createdAt'], now)}{note}"
+
+
+def caught_up(run, last_success):
+    """Un échec suivi d'un run de push réussi : ce run a redéployé tout ce que
+    l'échec n'avait pas fait (diff depuis le dernier succès)."""
+    return last_success is not None and parse_time(run["created_at"]) < parse_time(last_success["created_at"])
+
+
+def run_line(run, last_success):
+    when = parse_time(run["created_at"]).strftime("%d/%m %H:%M UTC")
+    note = f" (rattrapé par le run #{last_success['run_number']})" if caught_up(run, last_success) else ""
+    return f"- run #{run['run_number']} du {when} ({run['event']}){note} : {run.get('display_title', '')} {run['html_url']}"
+
+
+def priority_of(failed, opened, last_success):
+    if any(not caught_up(run, last_success) for run in failed):
+        return 4, ["warning"]
+    if opened or failed:
+        return 3, ["hourglass"]
+    return 2, ["white_check_mark"]
+
+
+def _build(pulls, runs, repo, now):
+    merged = nodes(pulls, "merged")
+    opened = sorted(nodes(pulls, "open"), key=lambda p: p["createdAt"])
+    failed = list(runs["workflow_runs"])
+    # Dernier run de push réussi, ajouté par fetch.
+    last_success = runs.get("last_success")
+    automerged, by_hand = split_merged(merged)
 
     sections = [
-        (f"Déploiements en échec ({len(failed)}) :", [run_line(r) for r in failed]),
-        (f"En attente de relecture ({pulls['open'].get('issueCount') or len(opened)}) :", [open_line(p) for p in opened]),
+        (f"Déploiements en échec ({len(failed)}) :", [run_line(r, last_success) for r in failed]),
+        (f"En attente de relecture ({pulls['open'].get('issueCount') or len(opened)}) :", [open_line(p, now) for p in opened]),
         (f"Fusionnées automatiquement ({len(automerged)}) :", grouped(automerged)),
         (f"Fusionnées à la main ({len(by_hand)}) :", grouped(by_hand)),
     ]
@@ -172,20 +191,14 @@ def _build(pulls, runs, repo, now):
     if not any(lines for _, lines in sections):
         sections = [("Rien cette semaine :", ["aucune PR de Renovate fusionnée ni ouverte, aucun déploiement en échec."])]
 
-    if any(not caught_up(run) for run in failed):
-        priority, tags = 4, ["warning"]
-    elif opened or failed:
-        priority, tags = 3, ["hourglass"]
-    else:
-        priority, tags = 2, ["white_check_mark"]
-    full = render(sections, footer)
+    priority, tags = priority_of(failed, opened, last_success)
     return {
         "title": f"Renovate, semaine au {now.strftime('%d/%m')}",
         "message": fit(sections, footer),
         "priority": priority,
         "tags": tags,
         "click": f"https://github.com/{repo}/pulls?q=" + urllib.parse.quote("is:pr is:open author:app/renovate"),
-    }, full
+    }, render(sections, footer)
 
 
 def github(token, path, body=None):
@@ -231,7 +244,9 @@ def publish(url, topic, token, report):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    # URL de ntfy : la valeur par défaut, ou celle que passe le workflow (posé
+    # par ce dépôt, jamais une entrée extérieure) : pas de SSRF.
+    with urllib.request.urlopen(request, timeout=30) as response:  # NOSONAR
         response.read()
 
 
