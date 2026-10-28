@@ -48,6 +48,27 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "Nextcloud's database (official mariadb image) stays on the 12.3 LTS line (maintained until June 2029). 13.0 and the releases after it are rolling releases, superseded every quarter with no bug-fix release of their own, and a MariaDB major has no way back. Raise the bound to the next LTS once MariaDB announces it, and plan that upgrade (mariadb-upgrade, run by MARIADB_AUTO_UPGRADE) as a migration. linuxserver/mariadb (11.8 LTS) is another package, not affected",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^(docker\\.io/)?(library/)?mariadb$/"
+      ],
+      "allowedVersions": "<13"
+    },
+    {
+      "description": "Redis builds -bookworm tags only up to the 8.2 line (8.4 and later are trixie or alpine; 8.4.0-bookworm is a stale February 2026 tag, never patched since). Without this cap Renovate offers 8.4.0-bookworm to Nextcloud's cache, older than the 8.2.x it runs, and that minor update shares the renovate/redis-8.x branch with Dawarich's 7.4 -> 8 major, so the major's dashboard approval holds it too. Moving off bookworm is a deliberate tag change, not a bump. A regex, not \"<8.3\": a suffixed tag is valid npm semver (a prerelease), which no plain range satisfies, so \"<8.3\" would also drop the 8.2 patches",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^(docker\\.io/)?(library/)?redis$/"
+      ],
+      "matchCurrentValue": "/-bookworm$/",
+      "allowedVersions": "/^8\\.[0-2]\\./"
+    },
+    {
       "description": "Beszel: the hub, the agent image (plain and -alpine) and the agent binary of the newt LXC (beszel_agent defaults) move together, an agent newer or older than its hub is not supported",
       "groupName": "beszel",
       "matchPackageNames": [
