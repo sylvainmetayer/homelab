@@ -177,6 +177,11 @@ override_resource {
   values = { id = 2012 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.victoria_logs_insert
+  values = { id = 2013 }
+}
+
 # Identifiants des cibles, des jetons d'accès et des rôles, lus par les audits
 # target_inventory (rules.tf) et access_inventory (access_inventory.tf) : sans
 # valeur fixe, le mock leur donne une valeur que les réponses simulées
@@ -218,6 +223,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.log_agents
+  values = { id = "tok-log-agent", token = "jeton-log-agent" }
+}
+
+override_resource {
   target = pangolin_role.jellyfin
   values = { id = 90 }
 }
@@ -236,7 +246,8 @@ override_data {
         {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
         {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
-        {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null}
+        {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
+        {"accessTokenId": "tok-log-agent", "title": "Log agent", "resourceName": "VictoriaLogs", "expiresAt": null}
       ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
       "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
     EOT
@@ -322,7 +333,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2012) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2013) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -341,10 +352,11 @@ override_data {
         {"ruleId": 2007, "action": "ACCEPT", "match": "PATH", "value": "/public/lists/*", "priority": 2, "enabled": true},
         {"ruleId": 2009, "action": "PASS", "match": "PATH", "value": "/mcp", "priority": 3, "enabled": true},
         {"ruleId": 2012, "action": "PASS", "match": "PATH", "value": "/api/beszel/agent-connect", "priority": 3, "enabled": true},
+        {"ruleId": 2013, "action": "PASS", "match": "PATH", "value": "/insert/jsonline", "priority": 3, "enabled": true},
         {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 14, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 15, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -407,8 +419,8 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 14
-    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (14 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 15
+    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (15 règles chacune dans la réponse simulée)."
   }
 
   assert {
@@ -416,10 +428,10 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 4 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
+  # 5 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
   assert {
-    condition     = terraform_data.access_inventory.output == 8 && length(local.stale_inventory_exceptions) == 0
-    error_message = "access_inventory doit lire les 4 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
+    condition     = terraform_data.access_inventory.output == 9 && length(local.stale_inventory_exceptions) == 0
+    error_message = "access_inventory doit lire les 5 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
   }
 
   assert {
