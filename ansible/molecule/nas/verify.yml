@@ -454,4 +454,4 @@
           - (nas_verify_update_requests[0].body | from_json).title == nas_verify_update_reminder
           - nas_verify_update_requests[1].path is search('^/api/push/molecule-nas-updates\?status=up&msg=UGOS\+1\.20\.0\.0142&')
           - nas_verify_update_state.version == '1.20.0.0142'
-        fail_msg: "{{ nas_verify_update_requests }}"
+        fail_msg: "{{ nas_verify_update_requests | to_json }}"

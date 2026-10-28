@@ -178,7 +178,7 @@
         that:
           - (update_notify_verify_requests | last).method == 'GET'
           - (update_notify_verify_requests | last).path is search('^' ~ update_notify_verify_push ~ '\?status=up&')
-        fail_msg: "{{ update_notify_verify_requests }}"
+        fail_msg: "{{ update_notify_verify_requests | to_json }}"
 
     # --- Mode apt ---
     - name: Check an update set with a security update
@@ -210,7 +210,7 @@
           - "'docs/runbooks/mises-a-jour-proxmox-ugos.md' in update_notify_verify_msg.message"
           - update_notify_case_requests[1].path is search('\?status=up&')
           - ('1 de sécurité, noyau ' ~ update_notify_verify_kernel ~ ' en attente') in (update_notify_case_requests[1].path | urldecode)
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Check a host up to date
       ansible.builtin.include_tasks: tasks/case.yml
@@ -224,7 +224,7 @@
         that:
           - update_notify_case_requests | length == 1
           - update_notify_case_requests[0].path is search('\?status=up&msg=%C3%A0\+jour&')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Check a failing apt-get update
       ansible.builtin.include_tasks: tasks/case.yml
@@ -239,7 +239,7 @@
           - update_notify_case_requests | length == 1
           - update_notify_case_requests[0].path is search('\?status=down&')
           - (update_notify_case_requests[0].path | urldecode) is search('apt-get update en échec')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     # Une alerte qui ne part pas doit se voir : down au moniteur.
     - name: Check updates with no ntfy token
@@ -255,7 +255,7 @@
           - update_notify_case_requests | length == 1
           - update_notify_case_requests[0].path is search('\?status=down&')
           - (update_notify_case_requests[0].path | urldecode) is search('NTFY_TOKEN vide')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     # --- Mode ugos ---
     - name: Write the os-release of UGOS 1.20
@@ -287,7 +287,7 @@
           - update_notify_verify_msg.title == update_notify_verify_titles.reminder
           - "'UGOS 1.20.0.0142 installé' in update_notify_verify_msg.message"
           - (update_notify_case_requests[1].path | urldecode) is search('status=up&msg=UGOS 1\.20\.0\.0142&')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Check UGOS, second run of the month
       ansible.builtin.include_tasks: tasks/case.yml
@@ -301,7 +301,7 @@
         that:
           - update_notify_case_requests | length == 1
           - update_notify_case_requests[0].path is search('\?status=up&')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Update the fake UGOS
       ansible.builtin.replace:
@@ -325,7 +325,7 @@
           - update_notify_verify_msg.priority == 4
           - update_notify_verify_msg.title == update_notify_verify_titles.updated
           - "'Rejouer nas.yml' in update_notify_verify_msg.message"
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Drop the version from the fake os-release
       ansible.builtin.lineinfile:
@@ -345,7 +345,7 @@
         that:
           - update_notify_case_requests | length == 1
           - (update_notify_case_requests[0].path | urldecode) is search('status=down&msg=OS_VERSION absent')
-        fail_msg: "{{ update_notify_case_requests }}"
+        fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Stop the fake servers
       ansible.builtin.systemd:
