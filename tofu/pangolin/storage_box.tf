@@ -15,6 +15,12 @@ resource "hcloud_storage_box" "backups" {
   labels           = var.labels
   password         = random_password.storage_box_password.result
 
+  # prevent_destroy ne protège que de tofu : la protection de l'API refuse
+  # aussi la suppression depuis la console Hetzner ou un autre client (un
+  # jeton hcloud volé, une fausse manipulation). La lever d'abord pour
+  # supprimer la box, ici ou dans la console.
+  delete_protection = true
+
   # Compte principal : les clés personnelles seulement, les hôtes passent par
   # leur sous-compte (storage_box_subaccounts.tf). L'API ne modifie pas cette
   # liste (tout changement remplacerait la box) : la liste réelle se tient
