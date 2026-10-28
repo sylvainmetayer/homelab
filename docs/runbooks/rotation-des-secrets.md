@@ -200,8 +200,7 @@ heures d'usage.
 `*_healthcheck_url` du fichier Ansible : régénérer le jeton push du
 moniteur dans Uptime Kuma (ou, pour un moniteur déclaré dans
 `tofu/pangolin_config`, le recréer), `sops set`, le playbook du rôle, et
-attendre un push « up ». `wiki_healthcheck_url` n'est plus lue par aucun
-rôle : la retirer de SOPS et de l'inventaire plutôt que la faire tourner.
+attendre un push « up ».
 
 ### Uptime Kuma
 
@@ -224,9 +223,8 @@ d'Uptime Kuma).
 
 `immich_pin` du fichier racine est le PIN de la ressource Pangolin d'Immich
 (`tofu/pangolin_config/website_immich.tf`) : nouveau PIN par `sops set`,
-puis `tofu apply` de `pangolin_config`. Sa copie du fichier Ansible n'est
-lue par aucun template du rôle `immich` (défaut vide) : la changer en même
-temps pour qu'elles ne divergent pas, ou la retirer.
+puis `tofu apply` de `pangolin_config`. C'est la seule copie : celle du
+fichier Ansible, lue par rien, a été retirée le 2026-10-28.
 
 ### Secrets du site sylvain.dev
 
