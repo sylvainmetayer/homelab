@@ -166,7 +166,8 @@
     # agrandir (OOM-kill, au plafond ; memory.current faute de memory.peak),
     # à réduire (cgroup_parent du NAS, pic sur 2 jours), sans limite. Ni le
     # petit conteneur (48 Mio libérés seulement), ni celui à 58 % (pilote
-    # cgroupfs), ni le cgroup que docker ne liste pas.
+    # cgroupfs), ni celui que Docker a relancé hier, ni le cgroup que docker
+    # ne liste pas.
     - name: Assert the report lists what to grow, shrink and limit
       vars:
         mem_report_verify_lines: "{{ (mem_report_verify_received.content | b64decode).splitlines() }}"
@@ -193,7 +194,8 @@
           - "'- molecule-nolimit : pic 50 Mio -> mem_limit 112m' in mem_report_verify_message"
           - "'molecule-small' not in mem_report_verify_message"
           - "'molecule-cgroupfs' not in mem_report_verify_message"
-          - "'6 conteneur(s) lu(s), 1 sans cgroup trouvé' in mem_report_verify_message"
+          - "'molecule-relaunched' not in mem_report_verify_message"
+          - "'7 conteneur(s) lu(s), 1 sans cgroup trouvé' in mem_report_verify_message"
           - "'repartent de zéro à chaque redémarrage du conteneur' in mem_report_verify_message"
           - ntfy_scripts_token not in mem_report_verify_run.stdout
         fail_msg: "{{ mem_report_verify_message }}"

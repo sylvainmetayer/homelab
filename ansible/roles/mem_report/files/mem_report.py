@@ -45,7 +45,9 @@ AT_CAP_PERCENT = 98
 # Pilote systemd (docker-<id>.scope, sous system.slice ou le cgroup_parent du
 # compose) ou cgroupfs (docker/<id>).
 SCOPE_RE = re.compile(r"^(?:docker-)?([0-9a-f]{64})(?:\.scope)?$")
-INSPECT_FORMAT = "{{.Id}}\t{{.Name}}\t{{.RestartCount}}\t{{.State.OOMKilled}}\t{{.State.StartedAt}}"
+# Pas de State.OOMKilled : Docker le remet à false à chaque démarrage, il est
+# toujours faux sur un conteneur en cours.
+INSPECT_FORMAT = "{{.Id}}\t{{.Name}}\t{{.RestartCount}}\t{{.State.StartedAt}}"
 
 
 def human(size):
@@ -109,7 +111,7 @@ def find_scopes(root):
 
 
 def list_containers(docker):
-    """Les conteneurs en cours : (id, nom, redémarrages, OOMKilled, démarrage)."""
+    """Les conteneurs en cours : (id, nom, redémarrages, démarrage)."""
     # Binaire posé par l'ExecStart de l'unité (root, Ansible), sans shell :
     # aucune entrée extérieure.
     ids = subprocess.run(  # NOSONAR
@@ -127,10 +129,10 @@ def list_containers(docker):
     containers = []
     for line in result.stdout.splitlines():
         fields = line.split("\t")
-        if len(fields) != 5:
+        if len(fields) != 4:
             continue
-        container_id, name, restarts, oom_killed, started = fields
-        containers.append((container_id, name.lstrip("/"), int(restarts or 0), oom_killed == "true", started))
+        container_id, name, restarts, started = fields
+        containers.append((container_id, name.lstrip("/"), int(restarts or 0), started))
     return containers
 
 
@@ -144,13 +146,19 @@ def age_days(started, now):
 
 def measure(containers, scopes, now):
     measures, missing = [], 0
-    for container_id, name, restarts, oom_killed, started in containers:
+    for container_id, name, restarts, started in containers:
         scope = scopes.get(container_id)
         if scope is None:
             missing += 1
             continue
+        current = read_bytes(scope / "memory.current")
+        if current is None:
+            # Cgroup disparu depuis le parcours (conteneur arrêté), ou
+            # contrôleur memory absent (Pi sans cgroup_enable=memory) : rien à
+            # lire, surtout pas « sans limite, pic 0 ».
+            missing += 1
+            continue
         peak = read_bytes(scope / "memory.peak")
-        current = read_bytes(scope / "memory.current") or 0
         events = read_events(scope / "memory.events")
         measures.append(
             {
@@ -162,7 +170,6 @@ def measure(containers, scopes, now):
                 "oom_kill": events.get("oom_kill", 0),
                 "max_events": events.get("max", 0),
                 "restarts": restarts,
-                "oom_killed": oom_killed,
                 "days": age_days(started, now),
             }
         )
@@ -179,6 +186,17 @@ def window_note(measure_):
     return f" ({', '.join(notes)})" if notes else ""
 
 
+def recently_restarted(m):
+    """Relancé par Docker, pic mesuré sur peu de jours : un OOM-kill du
+    processus principal relance le conteneur dans un cgroup neuf, et son pic
+    bas ne dit pas qu'il faut réduire."""
+    return m["restarts"] > 0 and m["days"] is not None and m["days"] < SHORT_WINDOW_DAYS
+
+
+def restarts_note(m):
+    return f", redémarré x{m['restarts']}" if m["restarts"] else ""
+
+
 def classify(measures, high, low, min_saving):
     grow, shrink, unlimited = [], [], []
     for m in measures:
@@ -188,9 +206,13 @@ def classify(measures, high, low, min_saving):
         percent = 100 * m["peak"] / m["limit"]
         m["percent"] = percent
         m["suggested"] = suggested_limit(m["peak"])
-        if percent >= high or m["oom_kill"] or m["oom_killed"]:
+        if percent >= high or m["oom_kill"]:
+            # Tué sous un pic loin de la limite (memory.current faute de
+            # memory.peak) : 2x le pic serait une réduction.
+            if m["suggested"] <= m["limit"]:
+                m["suggested"] = suggested_limit(m["limit"])
             grow.append(m)
-        elif percent < low and m["limit"] - m["suggested"] >= min_saving:
+        elif percent < low and m["limit"] - m["suggested"] >= min_saving and not recently_restarted(m):
             shrink.append(m)
     grow.sort(key=lambda m: (-m["oom_kill"], -m["percent"]))
     shrink.sort(key=lambda m: m["suggested"] - m["limit"])
@@ -202,8 +224,6 @@ def grow_line(m):
     details = [f"pic {human(m['peak'])} / {human(m['limit'])} ({m['percent']:.0f} %)"]
     if m["oom_kill"]:
         details.append(f"OOM-kill x{m['oom_kill']}")
-    if m["oom_killed"]:
-        details.append("tué par l'OOM killer à son dernier arrêt")
     if m["max_events"]:
         details.append(f"plafond atteint x{m['max_events']}")
     if m["restarts"]:
@@ -217,17 +237,22 @@ def grow_line(m):
 def shrink_line(m):
     return (
         f"- {m['name']} : pic {human(m['peak'])} / {human(m['limit'])} ({m['percent']:.0f} %)"
-        f"{window_note(m)} -> mem_limit {compose_size(m['suggested'])}"
+        f"{restarts_note(m)}{window_note(m)} -> mem_limit {compose_size(m['suggested'])}"
     )
 
 
 def unlimited_line(m):
-    return f"- {m['name']} : pic {human(m['peak'])}{window_note(m)} -> mem_limit {compose_size(suggested_limit(m['peak']))}"
+    return (
+        f"- {m['name']} : pic {human(m['peak'])}{restarts_note(m)}{window_note(m)}"
+        f" -> mem_limit {compose_size(suggested_limit(m['peak']))}"
+    )
 
 
 def fit(sections, footer):
-    """Le message sous MAX_MESSAGE octets : les dernières lignes de chaque
-    section (les moins urgentes, sections triées) partent les premières."""
+    """(message sous MAX_MESSAGE octets, texte complet pour le journal). Les
+    dernières lignes (sections triées) de la plus longue section partent les
+    premières ; « À agrandir », la première, seulement quand les autres sont
+    vides."""
     sections = [(title, list(lines)) for title, lines in sections if lines]
     dropped = 0
 
@@ -237,13 +262,14 @@ def fit(sections, footer):
             parts.append(f"... et {dropped} ligne(s) de plus : journalctl -u mem-report")
         return "\n\n".join(parts + [footer])
 
-    message = render()
+    full = message = render()
     while len(message.encode()) > MAX_MESSAGE and any(lines for _, lines in sections):
-        longest = max((lines for _, lines in sections), key=len)
+        others = [lines for _, lines in sections[1:] if lines]
+        longest = max(others or [sections[0][1]], key=len)
         longest.pop()
         dropped += 1
         message = render()
-    return message
+    return message, full
 
 
 def build_report(host, measures, missing, args):
@@ -273,13 +299,18 @@ def build_report(host, measures, missing, args):
         sections = [
             (
                 "Rien à signaler :",
-                [f"aucun conteneur à {args.high} % de sa limite ni tué, aucun sous {args.low} %."],
+                [
+                    f"aucun conteneur à {args.high} % de sa limite ni tué, aucun sous {args.low} % "
+                    f"dont la réduction libère {args.min_saving_mb} Mio ou plus."
+                ],
             )
         ]
     title = f"Mémoire des conteneurs : {host}"
     if not measures and not missing:
-        return {"title": title, "message": "Aucun conteneur en cours : rien à mesurer.", "priority": 2, "tags": tags}
-    return {"title": title, "message": fit(sections, footer), "priority": priority, "tags": tags}
+        message = "Aucun conteneur en cours : rien à mesurer."
+        return {"title": title, "message": message, "priority": 2, "tags": tags}, message
+    message, full = fit(sections, footer)
+    return {"title": title, "message": message, "priority": priority, "tags": tags}, full
 
 
 def publish(url, topic, token, report):
@@ -311,7 +342,8 @@ def main(argv=None):
     now = datetime.datetime.now(datetime.timezone.utc)
     try:
         measures, missing = measure(list_containers(args.docker), find_scopes(args.cgroup_root), now)
-        report = build_report(args.host, measures, missing, args)
+        # Le journal garde le texte complet, lignes coupées du message comprises.
+        report, journal = build_report(args.host, measures, missing, args)
         failed = False
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         # Publié quand même : un rapport qui ne vient plus ne se remarque pas.
@@ -322,8 +354,9 @@ def main(argv=None):
             "tags": ["warning"],
         }
         print(f"lecture en échec : {error}", file=sys.stderr)
+        journal = report["message"]
         failed = True
-    print(f"{report['title']}\n\n{report['message']}", flush=True)
+    print(f"{report['title']}\n\n{journal}", flush=True)
 
     token = os.environ.get(TOKEN_VARIABLE, "")
     if not token:
