@@ -35,6 +35,7 @@ override_resource {
   target = cloudflare_web_analytics_site.site
   values = {
     site_token = "fake-beacon-token"
+    site_tag   = "fake-site-tag"
   }
 }
 
@@ -187,6 +188,68 @@ run "jeton_webmention_en_production_seulement" {
   assert {
     condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
     error_message = "Les previews ne doivent recevoir aucun jeton webmention.io."
+  }
+}
+
+# Avec un jeton Web Analytics en lecture, la liste « les plus lus » reçoit le
+# jeton (secret), le compte et le site, en production seulement, à côté du
+# jeton webmention.io.
+run "les_plus_lus_en_production_seulement" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        CLOUDFLARE_API_TOKEN     = "fake-cloudflare-token"
+        CLOUDFLARE_ACCOUNT_ID    = "0123456789abcdef0123456789abcdef"
+        SITE_PAGES_DEPLOY_HOOK   = "https://example.invalid/fake-deploy-hook"
+        SITE_WEBMENTION_IO_TOKEN = "fake-webmention-token"
+        SITE_CF_ANALYTICS_TOKEN  = "fake-analytics-token"
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ANALYTICS_TOKEN"].type == "secret_text" &&
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ACCOUNT_ID"].value == "0123456789abcdef0123456789abcdef" &&
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ANALYTICS_SITE_TAG"].value == "fake-site-tag" &&
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["WEBMENTION_IO_TOKEN"].type == "secret_text"
+    )
+    error_message = "La production doit recevoir CF_ANALYTICS_TOKEN (secret), CF_ACCOUNT_ID, CF_ANALYTICS_SITE_TAG et toujours WEBMENTION_IO_TOKEN."
+  }
+
+  assert {
+    condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
+    error_message = "Les previews ne doivent recevoir aucun jeton."
+  }
+}
+
+# Sans DID, pas d'enregistrement _atproto ; avec, un TXT did=… sur le domaine.
+run "handle_bluesky_absent_par_defaut" {
+  command = plan
+
+  assert {
+    condition     = length(ovh_domain_zone_record.atproto) == 0
+    error_message = "Sans bluesky_did, aucun enregistrement _atproto."
+  }
+}
+
+run "handle_bluesky" {
+  command = plan
+
+  variables {
+    bluesky_did = "did:plc:abcdefghijklmnop"
+  }
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.atproto[0].subdomain == "_atproto" &&
+      ovh_domain_zone_record.atproto[0].fieldtype == "TXT" &&
+      ovh_domain_zone_record.atproto[0].target == "did=did:plc:abcdefghijklmnop"
+    )
+    error_message = "Le handle Bluesky se vérifie par un TXT _atproto.sylvain.dev contenant did=<DID>."
   }
 }
 

@@ -9,9 +9,10 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets.sops.yaml`) |
 | `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets.sops.yaml`) |
 | `check.daily_build_deploy_hook` | Avertit au plan si `SITE_PAGES_DEPLOY_HOOK` manque (Daily Build en échec) |
-| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH` ; seule variable : `WEBMENTION_IO_TOKEN` en production (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`) |
+| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
+| `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée) |
 | `ovh_domain_zone_record.www` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
 L'enregistrement A de l'apex `sylvain.dev` vers Pangolin n'est pas ici mais dans `tofu/dns/pangolin.tf`, à côté du joker (`ovh_domain_zone_record.sylvain_dev_root`, variable `sylvain_dev_apex_to_pangolin`).

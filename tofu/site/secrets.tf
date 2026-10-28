@@ -16,6 +16,12 @@ locals {
   # variable d'environnement, le site n'affiche simplement rien (cloudflare.tf).
   webmention_io_token = try(data.sops_file.secrets.data["SITE_WEBMENTION_IO_TOKEN"], null)
 
+  # Jeton API Cloudflare en lecture seule (Account Analytics: Read), lu au build
+  # de production pour la liste « les plus lus » de l'accueil
+  # (src/_data/popularPaths.js). Absent = pas de variables CF_ANALYTICS_*, la
+  # liste n'apparaît pas (cloudflare.tf).
+  cf_analytics_token = try(data.sops_file.secrets.data["SITE_CF_ANALYTICS_TOKEN"], null)
+
   # Jeton d'analyse SonarCloud (My Account → Security). Absent = pas de secret
   # GitHub Actions, le workflow sonarcloud du dépôt site saute l'analyse (github.tf).
   sonar_token = try(data.sops_file.secrets.data["SITE_SONAR_TOKEN"], null)

@@ -55,3 +55,17 @@ variable "required_checks" {
     "SonarCloud Code Analysis",
   ]
 }
+
+# Handle Bluesky @sylvain.dev : l'apex redirige vers www, la vérification par
+# /.well-known/atproto-did ne suivrait pas la redirection. Un TXT _atproto le
+# remplace (dns.tf). null = pas d'enregistrement.
+variable "bluesky_did" {
+  description = "DID du compte Bluesky (did:plc:…) à rattacher au domaine, ou null"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.bluesky_did == null || can(regex("^did:(plc|web):[a-zA-Z0-9._:%-]+$", var.bluesky_did))
+    error_message = "bluesky_did doit être un DID (did:plc:… ou did:web:…)."
+  }
+}
