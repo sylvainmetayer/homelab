@@ -16,9 +16,12 @@ resource "hcloud_storage_box" "backups" {
   password         = random_password.storage_box_password.result
 
   # prevent_destroy ne protège que de tofu : la protection de l'API refuse
-  # aussi la suppression depuis la console Hetzner ou un autre client (un
-  # jeton hcloud volé, une fausse manipulation). La lever d'abord pour
-  # supprimer la box, ici ou dans la console.
+  # aussi la suppression depuis la console Hetzner ou un autre client (une
+  # fausse manipulation, un script). Supprimer la box emporterait ses
+  # snapshots, le filet contre un hôte compromis. Ce n'est pas une barrière
+  # contre un jeton hcloud en écriture volé : il peut lever la protection
+  # puis supprimer. La lever d'abord pour supprimer la box, ici ou dans la
+  # console.
   delete_protection = true
 
   # Compte principal : les clés personnelles seulement, les hôtes passent par
