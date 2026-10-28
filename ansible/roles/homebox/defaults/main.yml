@@ -17,6 +17,10 @@ homebox_allow_registration: false
 
 # Taille maximale (Mo) d'une pièce jointe (photo, facture, notice).
 homebox_max_upload_size: 25
+# Temps maximal pour lire une requête entière, son corps compris (durée Go) :
+# celui d'un envoi de homebox_max_upload_size sur une connexion lente
+# (templates/env.j2).
+homebox_read_timeout: 5m
 
 # Clé HMAC des empreintes de clés d'API (au moins 32 octets, sinon Homebox
 # refuse de démarrer). La changer invalide toutes les clés d'API émises.
