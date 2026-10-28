@@ -16,18 +16,20 @@
       ansible.builtin.stat:
         path: "{{ item }}"
       loop:
+        - "{{ mem_report_verify_script | dirname }}"
         - "{{ mem_report_verify_script }}"
         - /etc/mem-report.env
       register: mem_report_verify_files
 
-    # Le script est lisible par le compte de l'unité ; le fichier
-    # d'environnement porte le jeton.
+    # Le dossier du script, retiré par le prepare (absent du Pi), est recréé
+    # par le rôle ; le script est lisible par le compte de l'unité ; le
+    # fichier d'environnement porte le jeton.
     - name: Assert the memory report files are root-owned
       ansible.builtin.assert:
         that:
           - item.stat.exists
           - item.stat.pw_name == 'root'
-          - item.stat.mode == ('0600' if item.item.endswith('.env') else '0644')
+          - item.stat.mode == ('0755' if item.stat.isdir else '0600' if item.item.endswith('.env') else '0644')
         fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
         quiet: true
       loop: "{{ mem_report_verify_files.results }}"
