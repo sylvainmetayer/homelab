@@ -57,7 +57,12 @@ run "docker_vm_sizing" {
 
   assert {
     condition     = proxmox_virtual_environment_vm.docker.disk[0].ssd == false
-    error_message = "Disque virtio-blk : Proxmox n'y émule pas de SSD, ssd = true serait sans effet (TRIM : discard = on + fstrim.timer)."
+    error_message = "Disque virtio-blk : Proxmox n'y propose pas l'émulation SSD, laisser ssd = false."
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.docker.disk[0].discard == "on"
+    error_message = "Le TRIM de la VM Docker (fstrim.timer) passe par discard = on jusqu'au SSD de l'hôte."
   }
 
   assert {

@@ -116,7 +116,7 @@ migration ratée, mais rien ne les surveille.
 
 Chaque commit fait un aller-retour réseau plus une écriture synchrone sur les
 disques du NAS, soit quelques millisecondes. Pour des applis à quelques
-utilisateurs, c'est invisible (le disque de la VM est déjà rotatif). Si une
+utilisateurs, c'est invisible. Si une
 base en souffre un jour, on ramène **seulement son data directory** sur le
 disque local : ses fichiers restent sur le NAS et le dump borg ne change pas.
 
