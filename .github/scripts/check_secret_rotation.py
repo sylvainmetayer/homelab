@@ -67,7 +67,7 @@ SOPS_NAME = "secrets.sops.yaml"
 SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 ENTRY_RE = re.compile(r"^  - ([a-z_]+):(?: (.*))?$")
 FIELD_RE = re.compile(r"^    ([a-z_]+):(?: (.*))?$")
-LAST_TEST_RE = re.compile(r"^dernier_test:\s*(\S*)\s*$")
+LAST_TEST_RE = re.compile(r"^dernier_test:\s*([^\s#]*)\s*(?:#.*)?$")
 
 
 class InventoryError(Exception):
@@ -333,7 +333,7 @@ def main(argv=None, root=ROOT):
         return 1 if errors else 0
 
     if errors:
-        status, msg, lines = "down", f"inventaire {INVENTORY} invalide ({len(errors)} erreur(s)), voir le run", []
+        status, msg, lines = "down", f"{INVENTORY} ou {SECOURS_TEST} invalide ({len(errors)} erreur(s)), voir le run", []
     else:
         status, msg, lines = report(due_entries(entries, args.today, args.window), args.today, args.window)
         overdue = secours_overdue(test_date, args.today)

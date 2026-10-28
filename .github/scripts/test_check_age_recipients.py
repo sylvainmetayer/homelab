@@ -74,6 +74,19 @@ class ParseRulesTest(unittest.TestCase):
         rules = recipients.parse_rules(CONFIG.replace(f"- {PRO} # pro", f"# - {PRO} # pro", 1))
         self.assertNotIn(PRO, rules[0][1])
 
+    def test_several_keys_on_one_line(self):
+        rules = recipients.parse_rules(f"creation_rules:\n  - path_regex: x$\n    age: {PERSO},{PRO} # perso\n")
+        self.assertEqual(rules[0][1], {PERSO: PERSO, PRO: PRO})
+
+    def test_rule_without_leading_path_regex_is_an_error(self):
+        # A catch-all rule would otherwise lend its keys to the previous one.
+        with self.assertRaises(recipients.ConfigError):
+            recipients.parse_rules(CONFIG + f"  - age: {OLD}\n")
+
+    def test_other_top_level_lists_are_ignored(self):
+        rules = recipients.parse_rules(CONFIG + f"destination_rules:\n  - s3_bucket: b\n    age: {OLD}\n")
+        self.assertNotIn(OLD, rules[-1][1])
+
     def test_no_rule_is_an_error(self):
         with self.assertRaises(recipients.ConfigError):
             recipients.parse_rules("creation_rules: []\n")

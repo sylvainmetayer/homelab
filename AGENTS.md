@@ -89,7 +89,7 @@ Add `--check` for a dry run, `--tags <tag>` to scope to one role/app (e.g. `--ta
 ### Secrets (SOPS + Age)
 
 - Two SOPS files hold the secrets: `secrets.sops.yaml` at the repo root (OpenTofu/mise environment) and `ansible/secrets.sops.yaml` (what the playbooks load), both encrypted with Age (`.sops.yaml` lists the recipient age public keys: `perso`, `pro` and `secours` for both files, `github-actions` — the CI's `SOPS_AGE_KEY` — for `ansible/secrets.sops.yaml` only).
-- Age private key path is configured in `.sopsrc` (`ageKeyFile: /home/sylvain/.age.key`) — needed to decrypt.
+- `.sopsrc` (`ageKeyFile: /home/sylvain/.age.key`) is read only by the editor extension, not by sops: sops adds up `SOPS_AGE_KEY_FILE`, `SOPS_AGE_KEY`, `~/.config/sops/age/keys.txt` and `~/.ssh/id_ed25519` (see `docs/runbooks/test-cle-secours.md`).
 - `mise.toml` auto-loads (and redacts) `secrets.sops.yaml` into task environments via `_.file`.
 - In Ansible playbooks, secrets are loaded with:
   ```yaml

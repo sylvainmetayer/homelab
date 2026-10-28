@@ -281,6 +281,9 @@ class SecoursTestTest(unittest.TestCase):
                 self.assertIsNone(date)
                 self.assertIn(message, errors[0])
 
+    def test_trailing_comment_is_allowed(self):
+        self.assertEqual(rotation.secours_test("---\ndernier_test: 2026-10-20 # USB\n---\n", TODAY)[0], datetime.date(2026, 10, 20))
+
     def test_a_line_outside_the_front_matter_does_not_count(self):
         self.assertIsNone(rotation.secours_test("---\n---\ndernier_test: 2026-10-20\n", TODAY)[0])
 
