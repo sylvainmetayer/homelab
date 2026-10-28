@@ -641,6 +641,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_vzdump_restore_test
+  values = { push_token = "push-cron-vzdump-restore-test" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -2303,6 +2308,12 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_kdrive_sync_url (nas.yml) ne pointe pas sur le moniteur kDrive vers NAS."
   }
 
+  # pve.yml
+  assert {
+    condition     = output.uptime_cron_vzdump_restore_test_url == "https://uptime.example.test/api/push/push-cron-vzdump-restore-test"
+    error_message = "uptime_cron_vzdump_restore_test_url (pve.yml) ne pointe pas sur le moniteur Test restauration vzdump."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2334,6 +2345,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_geoip_url,
       output.uptime_cron_nas_cert_url,
       output.uptime_cron_kdrive_sync_url,
+      output.uptime_cron_vzdump_restore_test_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2351,7 +2363,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         regexall("output \"(uptime_(?:backup|cron)_\\w+_url)\"", file("${path.module}/${f}"))
       ]) :
       anytrue([
-        for playbook in ["docker.yml", "flip.yml", "nas.yml", "pi.yml", "pangolin.yaml"] :
+        for playbook in ["docker.yml", "flip.yml", "nas.yml", "pi.yml", "pangolin.yaml", "pve.yml"] :
         strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.${name}.value")
       ])
     ]) && output.uptime_backup_trek_url != ""

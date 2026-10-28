@@ -27,6 +27,11 @@ journaux des conteneurs de base, ni détail d'`integrity_check`, ni traceback
 Python (seulement le type de l'exception). Pour le détail d'un échec, rejouer
 la commande depuis un poste.
 
+Les sauvegardes vzdump de Proxmox (VM docker, LXC newt), qui ne passent pas
+par Borg, ont leur propre test sur l'hôte même, le 2 et le 16 du mois
+(rôle `vzdump_restore_test`, `ansible/pve.yml`) : voir
+`docs/runbooks/test-restauration-vm.md`.
+
 Rien d'autre n'est téléchargé : immich ne coûte que la liste de l'archive,
 le dump de sa base et l'échantillon.
 

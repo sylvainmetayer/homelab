@@ -260,6 +260,13 @@ flowchart LR
   configurations et clé sous `/volume1/docker/borgmatic`, montées au même
   chemin dans le conteneur ; même modèle, même dépôt par appli, sous-compte
   `backup-nas`.
+- **L'hôte Proxmox** sauvegarde en plus la VM docker et le LXC newt entiers
+  (job vzdump de `tofu/proxmox/backup.tf`, 21:00, sur le NFS du NAS). Le 2 et
+  le 16 du mois, `vzdump-restore-test.timer` (rôle `vzdump_restore_test`,
+  `pve.yml`) restaure le LXC sur un id jetable, sans réseau, le démarre puis
+  le détruit, et vérifie l'archive entière de la VM ; résultat sur ntfy et au
+  moniteur « Test restauration vzdump » :
+  [runbooks/test-restauration-vm.md](runbooks/test-restauration-vm.md).
 - Restauration : [runbooks/sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md)
   et [backup-restore.md](backup-restore.md).
 

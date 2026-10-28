@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+# Test de restauration des sauvegardes vzdump (rôle vzdump_restore_test,
+# files/vzdump_restore_test.py). L'URL push et le jeton ntfy sont dans
+# l'EnvironmentFile, 0600 root, jamais sur la ligne de commande : systemctl
+# show et ps les montreraient.
+#
+# Pas de bac à sable (ProtectSystem, CapabilityBoundingSet…) : pct et qm
+# montent des rootfs, créent des volumes LVM, écrivent dans /etc/pve et
+# lancent des invités, en root.
+[Unit]
+Description=Restore test of the vzdump backups (throwaway guests, no network)
+Wants=network-online.target
+After=network-online.target pve-cluster.service pvestatd.service
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ vzdump_restore_test_config_dir }}/env
+ExecStart=/usr/bin/python3 -I {{ vzdump_restore_test_script_dir }}/vzdump_restore_test.py --config {{ vzdump_restore_test_config_dir }}/config.json
+# Chaque étape a son délai (config.json) ; celui-ci borne le tout. Dépassé,
+# systemd envoie SIGTERM au script seul (KillMode=mixed) : il tue la commande
+# en cours, détruit ses invités jetables et rapporte l'échec, avant le
+# SIGKILL de TimeoutStopSec.
+TimeoutStartSec={{ vzdump_restore_test_timeout_start_sec }}
+KillMode=mixed
+TimeoutStopSec=15min
+Nice=10

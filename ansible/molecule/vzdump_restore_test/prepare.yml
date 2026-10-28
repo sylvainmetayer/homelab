@@ -1,0 +1,95 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Le faux Proxmox : un script, un lien par commande, sous /usr/local/sbin
+# (avant /usr/sbin dans le PATH de systemd), ses archives et le rootfs que
+# « contient » la sauvegarde du LXC.
+- name: Prepare vzdump_restore_test
+  hosts: all
+  gather_facts: false
+  vars:
+    fake_pve_dir: /var/lib/fake-pve
+  tasks:
+    - name: Install the fake Proxmox commands
+      become: true
+      ansible.builtin.copy:
+        src: files/fake_pve.py
+        dest: /usr/local/sbin/fake-pve
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Link every simulated command to it
+      become: true
+      loop: [pvesh, pvesm, pct, qm, vma, zstd]
+      ansible.builtin.file:
+        src: /usr/local/sbin/fake-pve
+        dest: "/usr/local/sbin/{{ item }}"
+        state: link
+
+    - name: Install the fake Uptime Kuma and ntfy
+      become: true
+      ansible.builtin.copy:
+        src: files/fake_http.py
+        dest: /usr/local/lib/molecule-fake-http.py
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create the fake Proxmox directories
+      become: true
+      loop:
+        - "{{ fake_pve_dir }}"
+        - "{{ fake_pve_dir }}/dump"
+        - "{{ fake_pve_dir }}/rootfs"
+        - "{{ fake_pve_dir }}/rootfs-fixture/etc/systemd/system/multi-user.target.wants"
+        - "{{ fake_pve_dir }}/rootfs-fixture/etc/newt"
+        - "{{ fake_pve_dir }}/rootfs-fixture/usr/local/bin"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    # Le LXC newt tel que le pose newt_service : hostname, unité activée,
+    # identifiants, binaire.
+    - name: Fill the rootfs of the fake LXC backup
+      become: true
+      loop:
+        - { path: etc/hostname, content: "newt\n", mode: "0600" }
+        - { path: etc/systemd/system/newt.service, content: "[Service]\nExecStart=/usr/local/bin/newt\n", mode: "0600" }
+        - { path: etc/newt/env, content: "NEWT_ID=molecule\n", mode: "0600" }
+        - { path: usr/local/bin/newt, content: "#!/bin/sh\n", mode: "0700" }
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ fake_pve_dir }}/rootfs-fixture/{{ item.path }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+
+    - name: Enable newt in the fake LXC backup
+      become: true
+      ansible.builtin.file:
+        src: /etc/systemd/system/newt.service
+        dest: "{{ fake_pve_dir }}/rootfs-fixture/etc/systemd/system/multi-user.target.wants/newt.service"
+        state: link
+        force: true
+
+    # « VMA » en tête : ce que le faux vma verify accepte. Les journaux à
+    # côté, comme vzdump les écrit.
+    - name: Write the fake archives and their vzdump logs
+      become: true
+      loop:
+        - { path: vzdump-lxc-200-2026_10_27-21_00_00.tar.zst, content: "fake tar" }
+        - { path: vzdump-lxc-200-2026_10_27-21_00_00.log, content: "INFO: Finished Backup of VM 200 (00:00:24)\n" }
+        - { path: vzdump-qemu-100-2026_10_27-21_01_00.vma.zst, content: "VMA fake archive" }
+        - { path: vzdump-qemu-100-2026_10_27-21_01_00.log, content: "INFO: Finished Backup of VM 100 (00:13:12)\n" }
+        - { path: vzdump-qemu-100-2026_10_25-21_01_00.vma.zst, content: "corrupt" }
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ fake_pve_dir }}/dump/{{ item.path }}"
+        owner: root
+        group: root
+        mode: "0600"

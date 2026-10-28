@@ -1,6 +1,7 @@
 ---
 # Hôte Proxmox VE (#852) : l'agent Beszel, en binaire comme sur le
-# LXC newt, et le tmpdir de /etc/vzdump.conf. Le reste de l'hôte appartient à
+# LXC newt, le test de restauration des sauvegardes vzdump et le tmpdir de
+# /etc/vzdump.conf. Le reste de l'hôte appartient à
 # Proxmox (paquets, sshd, pare-feu) et à tofu/proxmox : ni 00-setup, ni
 # security. Lancé à la main seulement (ansible-playbook pve.yml), jamais par
 # la CI : aucune clé de l'hôte dans les secrets GitHub. Connexion en root,
@@ -13,14 +14,19 @@
 - name: Configure the Proxmox VE host
   hosts: pve
   pre_tasks:
-    # Le jeton de l'agent Beszel et la clé du hub. Pas de state Tofu : l'agent
+    # Secrets SOPS (jeton de l'agent Beszel, clé du hub, jeton ntfy des
+    # scripts) et sorties du state de tofu/pangolin_config (terraform_outputs :
+    # URL push du test de restauration). Comme ailleurs, un state illisible
+    # (S3, clés) arrête la play quel que soit le tag : l'agent Beszel, lui,
     # parle au hub par le LAN, sans jeton Pangolin (comme nas.yml).
-    - name: Load secrets variable into global namespace
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    - name: Load healthcheck URLs from Terraform state outputs
       tags: always
-      community.sops.load_vars:
-        file: "{{ playbook_dir }}/secrets.sops.yaml"
-        expressions: evaluate-on-load
-        return_method: vars-only
+      no_log: true
+      ansible.builtin.set_fact:
+        vzdump_restore_test_healthcheck_url: "{{ terraform_outputs.uptime_cron_vzdump_restore_test_url.value | default('') }}"
   roles:
     - role: beszel_agent
       tags: beszel_agent,monitoring
@@ -30,6 +36,11 @@
         beszel_agent_service_patterns: "pve*"
         beszel_agent_smart_devices:
           - { path: /dev/sda }
+    # Deux fois par mois, la dernière sauvegarde vzdump du LXC newt restaurée
+    # sur un id jetable et démarrée sans réseau, celle de la VM docker
+    # vérifiée en entier (docs/runbooks/test-restauration-vm.md).
+    - role: vzdump_restore_test
+      tags: vzdump_restore_test,vzdump
   tasks:
     # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
     # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar

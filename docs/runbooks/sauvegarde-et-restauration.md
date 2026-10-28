@@ -170,3 +170,7 @@ temporaire sur le NFS, que le tar du LXC non privilégié ne peut pas ouvrir : l
 la taille de la VM : `df -h /` et `docker system df` dans la VM. Les images
 Docker remplacées par Renovate restent sur le disque tant qu'elles ne sont pas
 supprimées (`docker image prune -a`) et grossissent chaque archive.
+
+Ces archives sont restaurées à l'essai le 2 et le 16 du mois sur l'hôte
+(LXC démarré sans réseau, archive de la VM vérifiée en entier) :
+[test-restauration-vm.md](test-restauration-vm.md).

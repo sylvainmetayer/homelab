@@ -1,0 +1,83 @@
+---
+# Test de restauration des sauvegardes vzdump (files/vzdump_restore_test.py),
+# sur l'hôte Proxmox (pve.yml) : la dernière sauvegarde du LXC newt
+# restaurée sur un id jetable et démarrée sans réseau, celle de la VM docker
+# vérifiée en entier. Runbook : docs/runbooks/test-restauration-vm.md.
+vzdump_restore_test_enabled: true
+
+# Deux fois par mois, pas une : le moniteur push d'Uptime Kuma plafonne à
+# 24 jours (« Test restauration vzdump », 20 jours, tofu/pangolin_config).
+# 10:00 : loin du job vzdump de 21:00 (fini vers 21:30), des sauvegardes borg
+# de la nuit et des redémarrages de 05:00/05:30 ; la sauvegarde de la veille
+# a alors une douzaine d'heures. Pas de rattrapage (Persistent) : au boot de
+# l'hôte, le NFS du NAS et les invités démarrent à peine.
+vzdump_restore_test_schedule: "*-*-02,16 10:00:00"
+
+# Storage du job (tofu/proxmox/backup.tf) et storage où restaurer : le
+# lvm-thin du SSD de l'hôte, jamais le NFS.
+vzdump_restore_test_backup_storage: nas-backup
+vzdump_restore_test_restore_storage: local-lvm
+# La sauvegarde de la veille, pas plus vieille : une nuit manquée suffit.
+vzdump_restore_test_max_age_hours: 26
+
+# Ids des invités sauvegardés (vmid du job de tofu/proxmox/backup.tf : la VM
+# docker a reçu le 100 à sa création, var.docker_vm.vm_id n'est lu par
+# aucune ressource) et ids jetables, réservés à ce test : 900-999, refusés
+# s'ils existent.
+vzdump_restore_test_lxc_source: 200
+vzdump_restore_test_lxc_target: 990
+vzdump_restore_test_vm_source: 100
+vzdump_restore_test_vm_target: 991
+
+# Tailles plancher des archives (le 27/10/2026 : 355 Mio pour le LXC,
+# 50,6 Gio pour la VM) : une archive presque vide se restaure aussi.
+vzdump_restore_test_lxc_min_size_mb: 100
+vzdump_restore_test_vm_min_size_mb: 10240
+
+# Lus dans le rootfs restauré, hors ligne (chemins relatifs à la racine du
+# LXC) : l'unité et les identifiants de newt_service, son binaire.
+vzdump_restore_test_lxc_expect_files:
+  - etc/systemd/system/newt.service
+  - etc/newt/env
+vzdump_restore_test_lxc_expect_executables:
+  - usr/local/bin/newt
+# Masquées dans la copie avant son démarrage : un second Newt avec les
+# identifiants du site proxmox-lxc volerait son tunnel. La copie n'a déjà
+# plus d'interface réseau ; ceci couvre une interface oubliée.
+vzdump_restore_test_lxc_mask_units:
+  - newt.service
+
+# Restauration complète de la VM (qm create --archive : 190 Gio de disque
+# virtuel, ~105 Gio écrits sur le lvm-thin), puis démarrage sans réseau
+# jusqu'au ping de l'agent QEMU. Désactivée : sans elle, l'archive est
+# entièrement décompressée et vérifiée (zstd, vma verify), ce que la
+# restauration vérifie aussi, sans écrire 100 Gio sur le SSD des invités.
+# Quand elle est demandée : sautée (vérification seule) si le storage n'a pas
+# la taille des disques plus free_margin_percent de sa taille ; démarrage
+# sauté si la mémoire disponible de l'hôte moins boot_memory_mb passe sous
+# host_memory_reserve_mb (l'hôte a 15 Gio, la VM docker en prend 12).
+vzdump_restore_test_vm_full_restore: false
+vzdump_restore_test_vm_boot_memory_mb: 1024
+vzdump_restore_test_host_memory_reserve_mb: 1024
+vzdump_restore_test_free_margin_percent: 10
+
+# Délais, en secondes. La vérification lit l'archive entière sur le NFS
+# (50 Gio : une dizaine de minutes en gigabit). Le TimeoutStartSec de l'unité
+# en est la somme, plus une marge.
+vzdump_restore_test_lxc_restore_timeout: 1800
+vzdump_restore_test_lxc_boot_timeout: 300
+vzdump_restore_test_vm_verify_timeout: 7200
+vzdump_restore_test_vm_restore_timeout: 10800
+vzdump_restore_test_vm_boot_timeout: 600
+
+# Rapport : ntfy (topic scripts, jeton du producteur scripts du rôle ntfy,
+# écriture seule sur ce topic) et moniteur push d'Uptime Kuma (sortie
+# uptime_cron_vzdump_restore_test_url de tofu/pangolin_config, lue par
+# pve.yml). Vides, le test tourne sans rien envoyer de ce côté.
+vzdump_restore_test_ntfy_url: https://ntfy.sylvain.cloud
+vzdump_restore_test_ntfy_topic: scripts
+vzdump_restore_test_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+vzdump_restore_test_healthcheck_url: ""
+
+vzdump_restore_test_script_dir: /usr/local/lib/vzdump-restore-test
+vzdump_restore_test_config_dir: /etc/vzdump-restore-test

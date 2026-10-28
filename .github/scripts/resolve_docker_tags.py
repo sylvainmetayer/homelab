@@ -20,8 +20,9 @@ ROLE_PATH_RE = re.compile(r"^ansible/roles/([^/]+)/")
 # ouvert vient de cette liste, jamais de l'argument (pas de traversée de chemin).
 ANSIBLE_DIR = Path(__file__).resolve().parents[2] / "ansible"
 PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
-# Playbooks never run by the deploy workflow.
-MANUAL_PLAYBOOKS = ["nas.yml"]
+# Playbooks never run by the deploy workflow (no key of the NAS nor of the
+# Proxmox host in the GitHub secrets).
+MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml"]
 
 
 def safe_playbook_path(playbook_path):
@@ -152,8 +153,8 @@ def main():
         result[playbook_path] = ",".join(sorted(resolved))
 
     unreferenced = sorted(unreferenced_roles(pulled_by, referenced, deployed))
-    # Roles of a playbook run by hand only (nas.yml: no NAS key in the GitHub
-    # secrets) are expected here: a notice, not a warning. Read only when
+    # Roles of a playbook run by hand only (nas.yml, pve.yml: no key of those
+    # hosts in the GitHub secrets) are expected here: a notice, not a warning. Read only when
     # needed: most merges leave no unreferenced role.
     manual_roles = {
         role for playbook in MANUAL_PLAYBOOKS for role in load_role_tags(ANSIBLE_DIR / playbook)

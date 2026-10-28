@@ -1,0 +1,311 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../host_vars/pve/variables.yaml
+    - ../../roles/vzdump_restore_test/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  vars:
+    fake_pve_dir: /var/lib/fake-pve
+    lxc_volid: nas-backup:backup/vzdump-lxc-200-2026_10_27-21_00_00.tar.zst
+    vm_volid: nas-backup:backup/vzdump-qemu-100-2026_10_27-21_01_00.vma.zst
+    # L'hôte du 27/10/2026, réduit à ce que lit le test : la VM docker (100)
+    # et le LXC newt (200) en marche, leurs disques, leurs sauvegardes de la
+    # veille (et une plus ancienne de la VM, illisible : la plus récente doit
+    # être choisie), le lvm-thin local.
+    base_state:
+      guests:
+        "100": { kind: qemu, status: running, config: { name: docker, onboot: "1" } }
+        "200": { kind: lxc, status: running, config: { hostname: newt, onboot: "1" } }
+      volumes:
+        - { volid: "local-lvm:vm-100-disk-0", vmid: 100 }
+        - { volid: "local-lvm:vm-200-disk-0", vmid: 200 }
+      backups:
+        - volid: "{{ lxc_volid }}"
+          vmid: 200
+          age_hours: 13
+          size: 372908706
+          format: tar.zst
+          subtype: lxc
+          path: "{{ fake_pve_dir }}/dump/vzdump-lxc-200-2026_10_27-21_00_00.tar.zst"
+          config: |
+            arch: amd64
+            hostname: newt
+            memory: 512
+            net0: name=eth0,bridge=vmbr0,gw=192.168.1.254,hwaddr=BC:24:11:4E:A0:5D,ip=192.168.1.200/24,type=veth
+            onboot: 1
+            rootfs: local-lvm:vm-200-disk-0,size=8G
+            unprivileged: 1
+        - volid: "{{ vm_volid }}"
+          vmid: 100
+          age_hours: 13
+          size: 54343916849
+          format: vma.zst
+          subtype: qemu
+          path: "{{ fake_pve_dir }}/dump/vzdump-qemu-100-2026_10_27-21_01_00.vma.zst"
+          config: |
+            #Docker apps
+            agent: enabled=1,fstrim_cloned_disks=0,type=virtio
+            boot: order=virtio0;net0
+            ide2: local-lvm:vm-100-cloudinit,size=4M
+            memory: 12288
+            name: docker
+            net0: virtio=BC:24:11:80:F6:42,bridge=vmbr0,firewall=0
+            onboot: 1
+            virtio0: local-lvm:vm-100-disk-0,aio=io_uring,backup=1,size=190G
+        - volid: nas-backup:backup/vzdump-qemu-100-2026_10_25-21_01_00.vma.zst
+          vmid: 100
+          age_hours: 61
+          size: 54343916849
+          format: vma.zst
+          subtype: qemu
+          path: "{{ fake_pve_dir }}/dump/vzdump-qemu-100-2026_10_25-21_01_00.vma.zst"
+          config: "name: docker\n"
+      storage_status:
+        local-lvm: { total: 374538764288, avail: 259555363652, used: 114983400636 }
+      lxc_rootfs_fixture: "{{ fake_pve_dir }}/rootfs-fixture"
+      # Sans réseau, ifupdown échoue sur eth0 : degraded est accepté.
+      lxc_system_state: degraded
+      lxc_failed_units: "networking.service loaded failed failed Raise network interfaces"
+  tasks:
+    - name: Read the installed files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ vzdump_restore_test_config_dir }}"
+        - "{{ vzdump_restore_test_config_dir }}/env"
+        - "{{ vzdump_restore_test_config_dir }}/config.json"
+        - "{{ vzdump_restore_test_script_dir }}/vzdump_restore_test.py"
+      register: vzdump_verify_stats
+
+    - name: Read the credentials file and the configuration
+      loop:
+        - "{{ vzdump_restore_test_config_dir }}/env"
+        - "{{ vzdump_restore_test_config_dir }}/config.json"
+        - /etc/systemd/system/vzdump-restore-test.service
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: vzdump_verify_contents
+
+    # Lus comme systemd les charge : une directive mal écrite y serait
+    # ignorée (avec un avertissement), pas refusée.
+    - name: Read the loaded unit and timer properties
+      loop:
+        - vzdump-restore-test.service
+        - vzdump-restore-test.timer
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: vzdump_verify_units
+
+    - name: Assert the test is installed, its secrets in the 0600 environment file only
+      vars:
+        vzdump_verify_env: "{{ vzdump_verify_contents.results[0].content | b64decode }}"
+        vzdump_verify_config: "{{ vzdump_verify_contents.results[1].content | b64decode | from_json }}"
+        vzdump_verify_unit: "{{ vzdump_verify_contents.results[2].content | b64decode }}"
+        vzdump_verify_service: "{{ vzdump_verify_units.results[0].status }}"
+        vzdump_verify_timer: "{{ vzdump_verify_units.results[1].status }}"
+      ansible.builtin.assert:
+        that:
+          - vzdump_verify_stats.results[0].stat.mode == '0700'
+          - vzdump_verify_stats.results[1].stat.mode == '0600'
+          - vzdump_verify_stats.results[2].stat.mode == '0600'
+          - vzdump_verify_stats.results[3].stat.executable
+          - ('VZDUMP_RESTORE_TEST_NTFY_TOKEN=' ~ ntfy_scripts_token ~ '\n') in vzdump_verify_env
+          - "'VZDUMP_RESTORE_TEST_PUSH_URL=http://127.0.0.1:18080/api/push/molecule-vzdump\n' in vzdump_verify_env" # NOSONAR
+          - ntfy_scripts_token not in vzdump_verify_unit
+          - "'molecule-vzdump' not in vzdump_verify_unit"
+          - vzdump_verify_config.lxc.source == 200
+          - vzdump_verify_config.lxc.target == 990
+          - vzdump_verify_config.vm.source == 100
+          - vzdump_verify_config.vm.target == 991
+          - not vzdump_verify_config.vm.full_restore
+          - vzdump_verify_service.KillMode == 'mixed'
+          - vzdump_verify_service.Type == 'oneshot'
+          - vzdump_verify_service.TimeoutStartUSec == '6h 15min'
+          - vzdump_verify_service.ActiveState == 'inactive'
+          - vzdump_verify_timer.UnitFileState == 'enabled'
+          - vzdump_verify_timer.ActiveState == 'active'
+          - vzdump_verify_timer.TimersCalendar is search('OnCalendar=\*-\*-02,16 10:00:00')
+
+    - name: Start the fake Uptime Kuma and ntfy
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-http
+          - --collect
+          - python3
+          - -I
+          - /usr/local/lib/molecule-fake-http.py
+          - "18080"
+          - "{{ fake_pve_dir }}/http.jsonl"
+      changed_when: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18080
+        timeout: 30
+
+    # 1. Le cas nominal : le LXC restauré sur 990 avec son câble débranché,
+    # l'interface supprimée avant le démarrage, newt masqué, puis détruit ;
+    # l'archive de la VM vérifiée, sans restauration.
+    - name: Run the nominal case
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: nominal
+        case_state: "{{ base_state }}"
+        case_failed: false
+        case_guests: ["100", "200"]
+
+    - name: Assert the LXC went through restore, offline boot and destroy
+      vars:
+        restore: "{{ case_argvs | select('match', 'pct restore 990 ') | first }}"
+      ansible.builtin.assert:
+        that:
+          - restore.startswith('pct restore 990 ' ~ lxc_volid ~ ' --storage local-lvm --unique 1 --unprivileged 1 --onboot 0 ')
+          - "'--net0 name=eth0,bridge=vmbr0,link_down=1' in restore"
+          - "'vzdump-restore-test' in restore"
+          - "'pct set 990 --delete net0' in case_argvs"
+          - case_starts | length == 1
+          - case_starts[0].start == 990
+          - case_starts[0].masked == ['newt.service']
+          - case_starts[0].config.keys() | select('match', 'net') | list == []
+          - case_starts[0].config.onboot == '0'
+          - "'pct destroy 990 --purge 0 --destroy-unreferenced-disks 0' in case_argvs"
+          - "'zstd -q -d -c ' ~ fake_pve_dir ~ '/dump/vzdump-qemu-100-2026_10_27-21_01_00.vma.zst' in case_argvs"
+          - "'vma verify -' in case_argvs"
+          - case_argvs | select('match', 'qm ') | list == []
+          - "'networking.service' in case_message"
+          - "'local-lvm : ' in case_message"
+          - "'restauration complète désactivée' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 2. Un invité 990 qui n'est pas le nôtre : rien n'est restauré par-dessus
+    # ni détruit ; la VM est testée quand même.
+    - name: Run the case of a taken target id
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: target id taken
+        case_state: >-
+          {{ base_state | combine({'guests': base_state.guests | combine({'990': {'kind': 'lxc', 'status': 'stopped',
+          'config': {'hostname': 'someone-else'}}})}) }}
+        case_failed: true
+        case_guests: ["100", "200", "990"]
+
+    - name: Assert nothing touched the taken id
+      ansible.builtin.assert:
+        that:
+          - case_argvs | select('match', 'pct (restore|set|start|stop|destroy) ') | list == []
+          - "'vma verify -' in case_argvs"
+          - "'990 déjà pris' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 3. La sauvegarde de la VM a deux jours : échec, le LXC est testé quand
+    # même et l'archive n'est pas lue.
+    - name: Run the case of a stale VM backup
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: stale VM backup
+        case_state: >-
+          {{ base_state | combine({'backups': [base_state.backups[0], base_state.backups[1] | combine({'age_hours': 50})]}) }}
+        case_failed: true
+        case_guests: ["100", "200"]
+
+    - name: Assert the stale backup failed the run without stopping the LXC test
+      ansible.builtin.assert:
+        that:
+          - "'pct destroy 990 --purge 0 --destroy-unreferenced-disks 0' in case_argvs"
+          - case_argvs | select('match', '(zstd|vma) ') | list == []
+          - "'VM 100 : dernière sauvegarde' in case_message"
+          - "'plus vieille que 26 h' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 4. Une archive de la VM illisible (celle du 25/10 à la place de la
+    # dernière) : vma verify échoue, le run aussi.
+    - name: Run the case of a corrupt VM archive
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: corrupt VM archive
+        case_state: >-
+          {{ base_state | combine({'backups': [base_state.backups[0], base_state.backups[1]
+          | combine({'path': base_state.backups[2].path})]}) }}
+        case_failed: true
+        case_guests: ["100", "200"]
+
+    - name: Assert the corrupt archive failed the run
+      ansible.builtin.assert:
+        that:
+          - "'vma verify -' in case_argvs"
+          - "'vma : code 1 sur l' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 5. Une interface que pct set ne supprime pas : pas de démarrage, la
+    # copie (marquée) est détruite.
+    - name: Run the case of a network interface left on the copy
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: interface left
+        case_state: "{{ base_state | combine({'set_ignores_delete': true}) }}"
+        case_failed: true
+        case_guests: ["100", "200"]
+
+    - name: Assert the copy never started and was destroyed
+      ansible.builtin.assert:
+        that:
+          - case_starts | length == 0
+          - "'pct destroy 990 --purge 0 --destroy-unreferenced-disks 0' in case_argvs"
+          - "'interfaces réseau encore présentes (net0)' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 6. La restauration complète de la VM, demandée : sur 991, sans réseau,
+    # démarrée jusqu'au ping de l'agent, détruite. Mémoire de démarrage et
+    # réserve réduites : la mémoire du runner n'est pas celle de l'hôte.
+    - name: Request the full VM restore
+      vars:
+        vzdump_verify_config: "{{ vzdump_verify_contents.results[1].content | b64decode | from_json }}"
+      ansible.builtin.copy:
+        content: >-
+          {{ vzdump_verify_config | combine({'vm': {'full_restore': true, 'boot_memory_mb': 1,
+          'host_memory_reserve_mb': 0}}, recursive=true) | to_nice_json }}
+        dest: "{{ vzdump_restore_test_config_dir }}/config.json"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Run the full VM restore case
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: full VM restore
+        case_state: "{{ base_state }}"
+        case_failed: false
+        case_guests: ["100", "200"]
+
+    - name: Assert the VM went through restore, offline boot and destroy
+      vars:
+        create: "{{ case_argvs | select('match', 'qm create 991 ') | first }}"
+        vm_start: "{{ case_starts | selectattr('start', 'equalto', 991) | first }}"
+      ansible.builtin.assert:
+        that:
+          - create.startswith('qm create 991 --archive ' ~ vm_volid ~ ' --storage local-lvm --unique 1 --onboot 0 --memory 1 --balloon 0 ')
+          - "'--net0 virtio,bridge=vmbr0,link_down=1' in create"
+          - "'qm set 991 --delete net0 --boot order=virtio0' in case_argvs"
+          - vm_start.config.keys() | select('match', 'net') | list == []
+          - vm_start.config.boot == 'order=virtio0'
+          - "'qm guest cmd 991 ping' in case_argvs"
+          - "'qm destroy 991 --purge 0 --destroy-unreferenced-disks 0' in case_argvs"
+          - case_argvs | select('match', 'vma ') | list == []
+          - "'agent QEMU joint' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    - name: Restore the default configuration
+      ansible.builtin.copy:
+        content: "{{ vzdump_verify_contents.results[1].content | b64decode }}"
+        dest: "{{ vzdump_restore_test_config_dir }}/config.json"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Stop the fake Uptime Kuma and ntfy
+      ansible.builtin.systemd:
+        name: molecule-http.service
+        state: stopped
