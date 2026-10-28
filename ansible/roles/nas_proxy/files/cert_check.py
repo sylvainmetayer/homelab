@@ -30,9 +30,11 @@ PUSH_URL_VARIABLE = "NAS_PROXY_CERT_PUSH_URL"
 
 def days_left(host, port, name, context):
     """Jours restants avant le notAfter du certificat servi pour `name`."""
-    with socket.create_connection((host, port), timeout=15) as sock:
-        with context.wrap_socket(sock, server_hostname=name) as tls:
-            cert = tls.getpeercert()
+    with (
+        socket.create_connection((host, port), timeout=15) as sock,  # NOSONAR: hôte et port de l'unité, pas d'une entrée
+        context.wrap_socket(sock, server_hostname=name) as tls,
+    ):
+        cert = tls.getpeercert()
     return (ssl.cert_time_to_seconds(cert["notAfter"]) - time.time()) / 86400
 
 
@@ -52,6 +54,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     problems, report = [], []
     for name in args.names:
         try:

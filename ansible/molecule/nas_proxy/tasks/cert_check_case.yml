@@ -80,8 +80,10 @@
     state: stopped
 
 # La dernière requête reçue par le faux Uptime Kuma : celle de ce passage.
+# -I : la dernière invocation de l'unité seule, un `molecule verify` relancé
+# ne compte pas les push du précédent.
 - name: Read what the fake Uptime Kuma received
-  ansible.builtin.command: journalctl --unit molecule-push --output cat --no-pager --grep "GET /api/push/molecule-cert"
+  ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-cert"
   register: nas_proxy_verify_pushes
   changed_when: false
   until: nas_proxy_verify_pushes.stdout_lines | length == cert_check_case_index

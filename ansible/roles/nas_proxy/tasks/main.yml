@@ -150,7 +150,7 @@
     dest: "/etc/systemd/system/{{ item }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 - name: Enable the daily certificate expiry check
   become: true
