@@ -19,6 +19,7 @@ d'ensemble est dans [../architecture.md](../architecture.md).
 | Connexion SSH refusée après durcissement (« no matching key exchange ») | [ssh-refuse-apres-durcissement.md](ssh-refuse-apres-durcissement.md) |
 | Changer le mot de passe d'une base Postgres ou MariaDB (procédure, pas un incident) | [mot-de-passe-base.md](mot-de-passe-base.md) |
 | Quelqu'un reçoit un 403 vide : CrowdSec (débannir, tester un bannissement, retour arrière) | [crowdsec.md](crowdsec.md) |
+| Clients Nextcloud : qui est encore sur le mot de passe de connexion, créer un mot de passe d'application (procédure, pas un incident) | [nextcloud-mots-de-passe-application.md](nextcloud-mots-de-passe-application.md) |
 
 ## Avant de commencer
 
