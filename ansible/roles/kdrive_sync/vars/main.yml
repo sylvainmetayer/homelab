@@ -1,0 +1,25 @@
+---
+# Dérivé, pas un réglage. Ce que lance le conteneur rclone : `copy`, jamais
+# `sync` ni `move`, et aucun `--delete*` (le scénario Molecule le vérifie).
+# --backup-dir (dossier daté) est ajouté par files/kdrive_sync.py, d'où "$@".
+kdrive_sync_rclone_args: >-
+  {{ ['copy', 'kdrive:' ~ kdrive_sync_source_path, '/data/' ~ kdrive_sync_mirror_dir,
+      '--create-empty-src-dirs',
+      '--transfers', kdrive_sync_transfers | string,
+      '--checkers', kdrive_sync_checkers | string,
+      '--retries', '3', '--low-level-retries', '10',
+      '--timeout', '5m', '--contimeout', '1m',
+      '--use-json-log', '--stats', '24h', '--stats-log-level', 'NOTICE']
+     + (['--bwlimit', kdrive_sync_bwlimit] if kdrive_sync_bwlimit | length > 0 else [])
+     + kdrive_sync_exclude_patterns | map('regex_replace', '^', '--exclude=') | list }}
+
+# Le mot de passe d'application arrive en clair dans l'environnement du
+# conteneur ; rclone n'accepte qu'un mot de passe « obscurci » (rclone
+# obscure, par l'entrée standard : jamais sur une ligne de commande que ps
+# montrerait). $$ : échappement de l'interpolation de Compose.
+kdrive_sync_entrypoint_script: |-
+  set -eu
+  pass="$$(printf '%s' "$$KDRIVE_APP_PASSWORD" | rclone obscure -)"
+  unset KDRIVE_APP_PASSWORD
+  export RCLONE_CONFIG_KDRIVE_PASS="$$pass"
+  exec rclone {{ kdrive_sync_rclone_args | map('replace', '$', '$$') | map('quote') | join(' ') }} "$$@"

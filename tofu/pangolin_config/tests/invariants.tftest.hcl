@@ -620,6 +620,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_kdrive_sync
+  values = { push_token = "push-cron-kdrive-sync" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -2218,6 +2223,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_nas_cert_url (nas.yml) ne pointe pas sur le moniteur Certificats NAS."
   }
 
+  assert {
+    condition     = output.uptime_cron_kdrive_sync_url == "https://uptime.example.test/api/push/push-cron-kdrive-sync"
+    error_message = "uptime_cron_kdrive_sync_url (nas.yml) ne pointe pas sur le moniteur kDrive vers NAS."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2248,6 +2258,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_jellyfin_url,
       output.uptime_cron_geoip_url,
       output.uptime_cron_nas_cert_url,
+      output.uptime_cron_kdrive_sync_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2698,6 +2709,23 @@ run "monitors_are_filed_and_notify_by_email" {
       && yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_cert_check_min_days < 30
     )
     error_message = "Certificats NAS : timer quotidien, intervalle de deux à trois jours, seuil sous les 30 jours du renouvellement de Traefik."
+  }
+
+  # La copie de kDrive (kdrive-sync.timer, rôle kdrive_sync) : une fois par
+  # nuit, entre 03:00 et 07:00, hors des sauvegardes borg (01:00 sur les autres
+  # hôtes, 02:30 sur le NAS lui-même) et avant le test de restauration ;
+  # l'intervalle laisse passer une nuit manquée, pas deux, et la copie est
+  # bornée sous la journée pour que le timer du lendemain reparte.
+  assert {
+    condition = (
+      can(regex("^\\*-\\*-\\* 0[3-6]:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/kdrive_sync/defaults/main.yml")).kdrive_sync_schedule))
+      && can(regex("^([1-9]|1[0-9]|2[0-3])h$", yamldecode(file("${path.module}/../../ansible/roles/kdrive_sync/defaults/main.yml")).kdrive_sync_timeout))
+      && uptimekuma_monitor_push.cron_kdrive_sync.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.cron_kdrive_sync.interval < 60 * 60 * 24 * 3
+      && uptimekuma_monitor_push.cron_kdrive_sync.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(uptimekuma_monitor_push.cron_kdrive_sync.notification_ids, uptimekuma_notification_smtp.email.id)
+    )
+    error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié par e-mail."
   }
 
   assert {

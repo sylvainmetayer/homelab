@@ -1,0 +1,231 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    kdrive_sync_verify_path: "{{ docker_base_path }}/kdrive_sync"
+    kdrive_sync_verify_share: /volume1/kdrive
+    kdrive_sync_verify_tmp: /root/molecule-kdrive
+  pre_tasks:
+    # Identifiants kDrive comparés aux fausses valeurs.
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    - name: Read the account rclone runs as
+      ansible.builtin.getent:
+        database: passwd
+        key: sylvain
+
+    - name: Render the rclone compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ kdrive_sync_verify_path }}"
+      register: kdrive_sync_verify_compose
+      changed_when: false
+
+    # Copie à sens unique : `rclone copy`, jamais sync ni move, aucun
+    # --delete* ; image épinglée, compte de sylvain, conteneur durci, le seul
+    # dossier partagé monté. Le mot de passe d'application (avec un $ dans la
+    # fausse valeur) arrive intact, échappé pour Compose.
+    - name: Assert rclone only ever copies, hardened, as sylvain
+      vars:
+        kdrive_sync_verify_model: "{{ kdrive_sync_verify_compose.stdout | from_json }}"
+        kdrive_sync_verify_rclone: "{{ kdrive_sync_verify_model.services.rclone }}"
+        kdrive_sync_verify_script: "{{ kdrive_sync_verify_rclone.entrypoint[2] }}"
+        kdrive_sync_verify_ids: "{{ ansible_facts['getent_passwd']['sylvain'][1] }}:{{ ansible_facts['getent_passwd']['sylvain'][2] }}"
+      ansible.builtin.assert:
+        that:
+          - kdrive_sync_verify_model.services.keys() | list == ['rclone']
+          - kdrive_sync_verify_rclone.image is match('docker.io/rclone/rclone:1\.[0-9.]+@sha256:[0-9a-f]{64}$')
+          - kdrive_sync_verify_rclone.entrypoint[:2] == ['/bin/sh', '-c']
+          - kdrive_sync_verify_rclone.entrypoint | length == 4
+          - kdrive_sync_verify_script is search('\nexec rclone copy kdrive: /data/miroir ')
+          # `docker compose config` réécrit les $ échappés ($$) tels quels.
+          - kdrive_sync_verify_script is search(' "\$?\$@"$')
+          - kdrive_sync_verify_script is not search('\\b(sync|move|moveto|bisync|purge|delete|deletefile|rmdirs?)\\b')
+          - kdrive_sync_verify_script is not search('--(delete|max-delete|track-renames)')
+          - "'--use-json-log --stats 24h' in kdrive_sync_verify_script"
+          - "'--bwlimit' not in kdrive_sync_verify_script"
+          - "'rclone obscure -' in kdrive_sync_verify_script"
+          - "'unset KDRIVE_APP_PASSWORD' in kdrive_sync_verify_script"
+          - kdrive_sync_verify_rclone.command is not defined or not kdrive_sync_verify_rclone.command
+          - kdrive_sync_verify_rclone.user == kdrive_sync_verify_ids
+          - kdrive_sync_verify_ids is not match('^0:')
+          - kdrive_sync_verify_rclone.network_mode == 'bridge'
+          - kdrive_sync_verify_rclone.ports is not defined
+          - kdrive_sync_verify_rclone.read_only
+          - kdrive_sync_verify_rclone.cap_drop == ['ALL']
+          - kdrive_sync_verify_rclone.security_opt == ['no-new-privileges:true']
+          - kdrive_sync_verify_rclone.mem_limit is defined
+          - kdrive_sync_verify_rclone.cpus | float == 2.0
+          - kdrive_sync_verify_rclone.volumes | map(attribute='source') | list == [kdrive_sync_verify_share]
+          - kdrive_sync_verify_rclone.volumes | map(attribute='target') | list == ['/data']
+          - kdrive_sync_verify_rclone.volumes | selectattr('source', 'search', 'docker\.sock') | list | length == 0
+          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_TYPE == 'webdav'
+          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_VENDOR == 'other'
+          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_URL == 'https://' ~ kdrive_drive_id ~ '.connect.kdrive.infomaniak.com'
+          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_USER == kdrive_webdav_user
+          # Non échappé, le $HOME de la fausse valeur serait interpolé (vide).
+          - kdrive_sync_verify_rclone.environment.KDRIVE_APP_PASSWORD
+            in [kdrive_webdav_app_password, kdrive_webdav_app_password | replace('$', '$$')]
+          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_PASS is not defined
+        fail_msg: "Service rclone inattendu"
+
+    - name: Stat the kdrive_sync files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ kdrive_sync_verify_path }}"
+        - "{{ kdrive_sync_verify_path }}/compose.yaml"
+        - "{{ kdrive_sync_verify_path }}/kdrive_sync.py"
+        - "{{ kdrive_sync_verify_path }}/kdrive_sync.env"
+      register: kdrive_sync_verify_files
+
+    # Le compose porte le mot de passe d'application, le fichier
+    # d'environnement l'URL push (jeton du moniteur).
+    - name: Assert the kdrive_sync files are root-owned and closed
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.stat.isdir or item.item.endswith('.py') else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ kdrive_sync_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Stat the mirror and versions folders
+      ansible.builtin.stat:
+        path: "{{ kdrive_sync_verify_share }}/{{ item }}"
+      loop: [miroir, versions]
+      register: kdrive_sync_verify_dirs
+
+    - name: Assert the mirror and versions folders belong to sylvain
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+          - item.stat.pw_name == 'sylvain'
+          - item.stat.mode == '0700'
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ kdrive_sync_verify_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Verify the kDrive copy units
+      ansible.builtin.command: systemd-analyze verify kdrive-sync.service kdrive-sync.timer
+      register: kdrive_sync_verify_analyze
+      changed_when: false
+      failed_when: >-
+        kdrive_sync_verify_analyze.rc != 0
+        or (kdrive_sync_verify_analyze.stderr_lines | select('search', 'kdrive-sync') | list | length > 0)
+
+    - name: Read the kDrive copy timer
+      ansible.builtin.systemd:
+        name: kdrive-sync.timer
+      register: kdrive_sync_verify_timer
+
+    - name: Read the kDrive copy service
+      ansible.builtin.systemd:
+        name: kdrive-sync.service
+      register: kdrive_sync_verify_unit
+
+    # Timer actif, service jamais lancé par Ansible ; rclone par `docker
+    # compose run --rm` du compose du rôle, versions datées sous /data/versions,
+    # URL push par le fichier d'environnement seul.
+    - name: Assert the copy runs nightly through docker compose run
+      vars:
+        kdrive_sync_verify_exec: "{{ kdrive_sync_verify_unit.status.ExecStart }}"
+      ansible.builtin.assert:
+        that:
+          - kdrive_sync_verify_timer.status.UnitFileState == 'enabled'
+          - kdrive_sync_verify_timer.status.ActiveState == 'active'
+          - kdrive_sync_verify_unit.status.ActiveState == 'inactive'
+          - kdrive_sync_verify_unit.status.Type == 'oneshot'
+          - "'--backup-dir-root /data/versions -- ' in kdrive_sync_verify_exec"
+          - "'docker compose --file ' ~ kdrive_sync_verify_path ~ '/compose.yaml run --rm --no-TTY --quiet-pull rclone' in kdrive_sync_verify_exec"
+          - "'molecule-kdrive' not in kdrive_sync_verify_exec"
+          - kdrive_sync_verify_unit.status.EnvironmentFiles is search(kdrive_sync_verify_path ~ '/kdrive_sync.env')
+          - kdrive_sync_verify_unit.status.ExecStopPost is search('com.docker.compose.project=kdrive_sync')
+        fail_msg: "{{ kdrive_sync_verify_exec }}"
+
+    - name: Read the push URL file
+      ansible.builtin.slurp:
+        path: "{{ kdrive_sync_verify_path }}/kdrive_sync.env"
+      register: kdrive_sync_verify_env_file
+
+    - name: Remember the push URL file
+      ansible.builtin.set_fact:
+        kdrive_sync_verify_env: "{{ kdrive_sync_verify_env_file.content | b64decode }}"
+
+    - name: Assert the push URL file holds the monitor URL only
+      ansible.builtin.assert:
+        that:
+          - kdrive_sync_verify_env == "KDRIVE_SYNC_PUSH_URL=http://127.0.0.1:18080/api/push/molecule-kdrive\n"
+
+    # Faux rclone et faux Uptime Kuma : http.server rend 200 sur le chemin du
+    # moniteur et journalise chaque requête, query string comprise.
+    - name: Create the fake Uptime Kuma push folder
+      ansible.builtin.file:
+        path: "{{ kdrive_sync_verify_tmp }}/push/api/push"
+        state: directory
+        mode: "0700"
+
+    - name: Install the fake rclone
+      ansible.builtin.copy:
+        src: files/fake_rclone.sh
+        dest: "{{ kdrive_sync_verify_tmp }}/fake_rclone.sh"
+        mode: "0700"
+
+    - name: Create the fake Uptime Kuma push path
+      ansible.builtin.copy:
+        dest: "{{ kdrive_sync_verify_tmp }}/push/api/push/molecule-kdrive"
+        content: "{\"ok\":true}\n"
+        mode: "0600"
+
+    - name: Start the fake Uptime Kuma
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-push
+          - --collect
+          - python3
+          - -I
+          - -m
+          - http.server
+          - "18080"
+          - --bind
+          - 127.0.0.1
+          - --directory
+          - "{{ kdrive_sync_verify_tmp }}/push"
+      changed_when: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18080
+        timeout: 30
+
+    - name: Check a successful copy
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        run_case_rc: 0
+        run_case_status: up
+        run_case_index: 1
+
+    - name: Check a failed copy
+      ansible.builtin.include_tasks: tasks/run_case.yml
+      vars:
+        run_case_rc: 1
+        run_case_status: down
+        run_case_index: 2
+
+    - name: Stop the fake Uptime Kuma
+      ansible.builtin.systemd:
+        name: molecule-push.service
+        state: stopped

@@ -1,0 +1,26 @@
+# Copie à sens unique de kDrive vers le NAS (rôle kdrive_sync) : rclone copy
+# dans son conteneur, résultat poussé au moniteur « kDrive vers NAS ». L'URL
+# push (jeton du moniteur) est dans l'EnvironmentFile, 0600 root, jamais sur
+# la ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=One-way copy of kDrive to the NAS (never deletes)
+Wants=network-online.target
+After={{ (['network-online.target'] + docker_service_system_after | default([])) | join(' ') }}
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile={{ kdrive_sync_base_path }}/kdrive_sync.env
+# After= ne fait qu'ordonner : sous UGOS, docker_serv active docker.socket
+# après le montage des volumes, et le rattrapage d'une nuit manquée
+# (Persistent=true) part dès le boot. Attendre que le démon réponde, comme
+# borgmatic.service.
+ExecStartPre=/usr/bin/timeout 300 /bin/sh -c 'until /usr/bin/docker info >/dev/null 2>&1; do sleep 2; done'
+ExecStart=/usr/bin/python3 -I {{ kdrive_sync_base_path }}/kdrive_sync.py --backup-dir-root /data/{{ kdrive_sync_versions_dir }} -- /usr/bin/docker compose --file {{ kdrive_sync_base_path }}/compose.yaml run --rm --no-TTY --quiet-pull rclone
+# Le conteneur appartient à dockerd, pas à cette unité : un arrêt ou un
+# dépassement de TimeoutStartSec tuerait le client docker et laisserait rclone
+# copier, en parallèle du passage suivant. Retiré à chaque fin d'unité (rien
+# à retirer après un passage normal, --rm l'a fait).
+ExecStopPost=/bin/sh -c '/usr/bin/docker ps --all --quiet --filter label=com.docker.compose.project={{ kdrive_sync_service }} | xargs -r /usr/bin/docker rm --force'
+TimeoutStartSec={{ kdrive_sync_timeout }}

@@ -1,0 +1,30 @@
+---
+# Docker : prepare commun. Pas celui du scénario nas : kdrive_sync n'a besoin
+# ni de dc@, ni des fichiers d'UGOS, ni de ceux de Jellyfin, et
+# select_tests.py relancerait ce scénario à chaque changement des rôles du
+# NAS.
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# docker_base_path (le dossier partagé de l'appli Docker d'UGOS) et le
+# dossier partagé de la copie, créés dans l'interface d'UGOS sur le NAS, ce
+# dernier lisible et inscriptible par sylvain.
+- name: Create the shared folders of the NAS
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create the Docker shared folder
+      ansible.builtin.file:
+        path: /volume1/docker
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create the kDrive shared folder
+      ansible.builtin.file:
+        path: /volume1/kdrive
+        state: directory
+        owner: sylvain
+        mode: "0700"

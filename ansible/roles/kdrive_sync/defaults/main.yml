@@ -1,0 +1,89 @@
+---
+# Copie à sens unique de kDrive vers le NAS (nas.yml), chaque nuit : kDrive
+# reçoit les envois du téléphone, le NAS en garde la deuxième copie. `rclone
+# copy`, jamais `sync` ni `--delete*` : un fichier supprimé dans kDrive (par
+# erreur, ou par un rançongiciel) reste sur le NAS ; un fichier remplacé dans
+# kDrive (chiffré sur place) garde sa version précédente sur le NAS, déplacée
+# dans un dossier daté de kdrive_sync_versions_dir (--backup-dir). Rien n'est
+# jamais effacé côté NAS : ce dossier ne fait que grossir, son ménage est
+# manuel (docs/runbooks/kdrive-nas.md).
+#
+# Pas de dc@ : une copie est un job ponctuel, comme borgmatic sur le NAS.
+# kdrive-sync.service (oneshot, lancé par kdrive-sync.timer) fait un `docker
+# compose run --rm` de l'image rclone à travers files/kdrive_sync.py, qui
+# pousse le résultat au moniteur « kDrive vers NAS ».
+kdrive_sync_service: kdrive_sync
+kdrive_sync_base_path: "{{ docker_base_path }}/{{ kdrive_sync_service }}"
+
+# Dossier partagé UGOS de la copie, créé dans l'interface (Fichiers, Dossier
+# partagé, Créer) : le rôle refuse de déployer s'il manque. Il y crée deux
+# dossiers, au compte kdrive_sync_user : le miroir de kDrive et les versions
+# remplacées. Un seul montage dans le conteneur (/data) : --backup-dir est
+# alors un simple renommage, sur le même système de fichiers.
+kdrive_sync_share_path: /volume1/kdrive
+kdrive_sync_mirror_dir: miroir
+kdrive_sync_versions_dir: versions
+# Compte de l'hôte sous lequel tourne rclone (uid et gid lus au déploiement) :
+# les fichiers copiés lui appartiennent, il les lit par SMB. Jamais root.
+kdrive_sync_user: "{{ ansible_user }}"
+
+# --- kDrive (WebDAV) ---
+# rclone n'a pas de backend kDrive : WebDAV, comme le documente Infomaniak
+# (https://www.infomaniak.com/fr/support/faq/2636), sur
+# https://<id du kDrive>.connect.kdrive.infomaniak.com. L'id est le nombre de
+# l'URL de l'appli web (kdrive.infomaniak.com/app/drive/<id>/…). Le jeton API
+# de kdvc (kdrive-version-cleaner) n'ouvre pas WebDAV : identifiant de
+# connexion Infomaniak (e-mail) et *mot de passe d'application*, jamais celui
+# du compte. Clés SOPS préfixées kdrive_*, jamais le nom d'une variable du
+# rôle.
+kdrive_sync_drive_id: "{{ kdrive_drive_id }}"
+kdrive_sync_webdav_user: "{{ kdrive_webdav_user }}"
+kdrive_sync_app_password: "{{ kdrive_webdav_app_password }}"
+kdrive_sync_url: "https://{{ kdrive_sync_drive_id }}.connect.kdrive.infomaniak.com"
+# Sous-dossier de kDrive à copier ("" : tout le kDrive).
+kdrive_sync_source_path: ""
+# Motifs --exclude de rclone (filtres rclone, ancrés à la racine copiée si
+# ils commencent par /). La corbeille et les anciennes versions de kDrive ne
+# sont que dans l'appli web et l'API, pas dans l'arborescence WebDAV :
+# vérifier au premier passage (`rclone lsd`, runbook) et ajouter ici ce qui
+# ne doit pas venir.
+kdrive_sync_exclude_patterns: []
+
+# --- Débit et parallélisme ---
+# Taille et date de modification, pas --checksum : WebDAV de kDrive
+# (vendor other) ne donne aucune somme, --checksum ne comparerait que les
+# tailles et manquerait un fichier modifié à taille égale.
+kdrive_sync_transfers: 4
+kdrive_sync_checkers: 4
+# Limite de débit rclone (--bwlimit), par exemple "20M" ou
+# "08:00,10M 23:00,off" ; vide : aucune.
+kdrive_sync_bwlimit: ""
+
+# Après les sauvegardes des autres hôtes (01:00) et celle du NAS (02:30),
+# avant la vérification des certificats (07:00) et le test de restauration.
+kdrive_sync_schedule: "*-*-* 04:00:00"
+# La première copie prend des heures : bornée sous la journée, pour que le
+# timer du lendemain reparte. Une copie interrompue reprend là où elle en
+# était (les fichiers déjà copiés sont sautés).
+kdrive_sync_timeout: 23h
+# Provisoire : à recaler à ~2x memory.peak après quelques nuits. Job par lots
+# (doctrine des limites, AGENTS.md) : cpus 2.00 et cpu_shares 512.
+kdrive_sync_mem_limit: 512m
+
+# URL push du moniteur « kDrive vers NAS » (nas.yml, sortie
+# uptime_cron_kdrive_sync_url de tofu/pangolin_config) ; vide, la copie
+# tourne sans rien pousser.
+kdrive_sync_healthcheck_url: ""
+
+# --- Sauvegarde borg (rôle borgmatic, tasks/app.yml) : désactivée ---
+# Le NAS *est* la deuxième copie de kDrive (kDrive en garde l'historique :
+# versions, corbeille, retour arrière). Une troisième sur la Storage Box
+# (à ~49 % de 1 Tio) coûterait la taille du kDrive entière, versions du NAS
+# comprises. Pour l'activer : ajouter kdrive_sync_share_path à
+# borgmatic_container_source_paths (host_vars/nas, sinon le conteneur
+# borgmatic ne le voit pas, ce que le rôle vérifie), et un moniteur Backup
+# dans tofu/pangolin_config pour kdrive_sync_backup_healthcheck_url.
+kdrive_sync_backup_enabled: false
+kdrive_sync_backup_borgmatic_target: "{{ backup_storage_box_url }}/kdrive"
+kdrive_sync_backup_encryption_passphrase: "{{ backup_passphrase }}"
+kdrive_sync_backup_healthcheck_url: ""
