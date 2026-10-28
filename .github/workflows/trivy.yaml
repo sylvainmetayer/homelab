@@ -13,6 +13,9 @@ name: Trivy
 # log du job le dit. Code scanning ferme les alertes masquées comme « Fixed »
 # sans qu'elles le soient ; une CVE qui reçoit un correctif revient comme une
 # nouvelle alerte.
+# Les CRITICAL corrigeables, et elles seules, partent aussi sur ntfy (job
+# notify, topic scripts, .github/scripts/trivy_critical.py) : une ligne par
+# CVE, par image, avec la version qui la corrige. Aucune : aucun message.
 # Le lundi à 05:00 UTC, après les tests de la nuit (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
 # ce que corrigent ses montées de version.
@@ -27,6 +30,7 @@ on:
       - .github/workflows/trivy.yaml
       - .github/actions/install-trivy/**
       - .github/scripts/trivy_images.py
+      - .github/scripts/trivy_critical.py
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -165,10 +169,13 @@ jobs:
       # timeout par défaut (5 min) ne suffit pas aux grosses images
       # (immich-machine-learning). Trois essais espacés : lscr.io répond
       # TOOMANYREQUESTS quand plusieurs jobs lisent ses images en même temps
-      # (vu sur bookstack, mariadb et nextcloud au premier run).
+      # (vu sur bookstack, mariadb et nextcloud au premier run). Rapport en
+      # JSON, converti en SARIF ensuite : le job notify lit le JSON (version
+      # corrigée de chaque CVE), code scanning le SARIF, d'une seule analyse.
       - name: Run trivy image
         env:
           IMAGE: ${{ matrix.image.ref }}
+          NAME: ${{ matrix.image.name }}
         run: |
           for attempt in 1 2 3; do
             if trivy image --skip-version-check --no-progress \
@@ -176,13 +183,26 @@ jobs:
               --image-src remote --scanners vuln --severity HIGH,CRITICAL \
               --ignore-unfixed \
               --timeout 20m \
-              --format sarif --output trivy-image.sarif "$IMAGE"; then
+              --format json --output trivy-image.json "$IMAGE"; then
               break
             fi
             [ "$attempt" = 3 ] && exit 1
             sleep $((attempt * 60))
           done
+          trivy convert --skip-version-check --format sarif --output trivy-image.sarif trivy-image.json
           echo "Findings: $(jq '[.runs[].results[]] | length' trivy-image.sarif)"
+          mkdir reports
+          cp trivy-image.json "reports/$NAME.json"
+          python3 -I .github/scripts/trivy_critical.py --dry-run reports
+
+      # Lu par le job notify, puis jeté : un jour suffit.
+      - name: Keep the report for the notification
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-report-${{ matrix.image.name }}
+          path: reports/
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload to code scanning
         if: github.event_name != 'pull_request'
@@ -190,6 +210,40 @@ jobs:
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.image.name }}
+
+  # Les CRITICAL corrigeables de toutes les images, en un message ntfy (rien
+  # s'il n'y en a pas). Aussi quand une image a échoué : les autres sont
+  # signalées, le run reste rouge. Depuis main seulement : l'environnement
+  # trivy-ntfy (tofu/github/trivy_ntfy_secrets.tf) ne porte que le jeton du
+  # producteur scripts de ntfy, et refuse toute autre branche.
+  notify:
+    name: Publish critical vulnerabilities to ntfy
+    needs: image
+    if: ${{ !cancelled() && needs.image.result != 'skipped' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-26.04
+    environment: trivy-ntfy
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: trivy-report-*
+          merge-multiple: true
+          path: reports
+
+      - name: Publish to ntfy
+        env:
+          NTFY_TOKEN: ${{ secrets.TRIVY_NTFY_TOKEN }}
+        run: python3 -I .github/scripts/trivy_critical.py reports
 
   # Les bases pèsent lourd dans le cache Actions (10 Go par dépôt, partagés
   # avec l'image Molecule) : l'entrée du run est supprimée dès que toutes les
