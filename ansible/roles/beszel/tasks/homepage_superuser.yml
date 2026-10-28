@@ -4,7 +4,10 @@
 # absent, mot de passe changé dans sops), `beszel superuser upsert` le crée ou
 # remet son mot de passe. Le mot de passe passe en argument de `docker exec`
 # (l'image n'a pas de shell pour le lire ailleurs) : visible un instant dans
-# /proc de l'hôte, qui n'a que sylvain ; no_log le garde hors de run.log.
+# /proc de l'hôte, qui n'a que sylvain, et dans l'événement Docker
+# exec_create (flux /events, que les proxys de newt et de log_agent laissent
+# lire, rien ne le garde) ;
+# no_log le garde hors de run.log.
 - name: Wait for the Beszel hub API
   ansible.builtin.import_tasks: api_wait.yml
 

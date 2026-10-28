@@ -45,6 +45,9 @@ homepage_groups:
 # utilisateur : un compte à lui, beszel_homepage_email (host_vars/docker), que
 # le rôle beszel crée avec la clé sops homepage_beszel_password. Sans cette
 # clé, pas de widget. Par le réseau newt, sans passer par Pangolin.
+# Risque accepté (Sylvain, 2026-10-28) : ce superuser lit et écrit tout le
+# hub, donc qui lit la configuration de Homepage (VM docker, 0600) a la main
+# sur Beszel.
 homepage_beszel_url: http://beszel:8090
 homepage_beszel_email: "{{ beszel_homepage_email | default('') }}"
 homepage_beszel_widget_password: "{{ homepage_beszel_password | default('') }}"
@@ -59,8 +62,10 @@ homepage_link_widgets: >-
 
 # Uptime Kuma (PikaPods) : un widget par page de statut publiée (sondes en
 # ligne, en panne, disponibilité, incident), seule lecture qu'Uptime Kuma
-# offre sans compte. URL : output homepage_uptimekuma_url de
-# tofu/pangolin_config, lu par docker.yml ; vide, pas de widget. Chaque slug
+# offre sans compte. sylvain-dev seulement : pas de page publique des
+# sauvegardes (décision de Sylvain, leurs noms et leur état restent privés).
+# URL : output homepage_uptimekuma_url de tofu/pangolin_config
+# (status_page_site.tf), lu par docker.yml ; vide, pas de widget. Chaque slug
 # est celui d'une uptimekuma_status_page de tofu/pangolin_config (test
 # homepage_status_pages_match_the_role). Pas de href : l'URL d'Uptime Kuma
 # vient d'une clé sops, elle n'est pas écrite dans la page.
@@ -71,8 +76,3 @@ homepage_uptimekuma_status_pages:
     group: Administration
     description: Disponibilité du site personnel (Uptime Kuma)
     icon: uptime-kuma
-  - name: Sauvegardes
-    slug: homelab-sauvegardes
-    group: Administration
-    description: Sauvegardes de la nuit, restore test, Storage Box (Uptime Kuma)
-    icon: mdi-backup-restore

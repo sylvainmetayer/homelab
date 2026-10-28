@@ -1,9 +1,9 @@
 ---
 services:
   app:
-    # Pas encore mesuré : un serveur Next.js qui sert des liens et trois
-    # widgets (Beszel, deux pages d'Uptime Kuma), interrogés côté serveur à
-    # l'affichage. À recaler sur memory.peak après quelques jours.
+    # Pas encore mesuré : un serveur Next.js qui sert des liens et deux
+    # widgets (Beszel, la page sylvain-dev d'Uptime Kuma), interrogés côté
+    # serveur à l'affichage. À recaler sur memory.peak après quelques jours.
     mem_limit: 256m
     image: ghcr.io/gethomepage/homepage:v2.7.0@sha256:19c5c09184458a41b7b5915e71463a39f36cd33540f41bdbed008791b8182d5f
     container_name: homepage
