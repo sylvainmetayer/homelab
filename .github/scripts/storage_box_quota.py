@@ -12,6 +12,7 @@ Le jeton et l'URL push arrivent par l'environnement, jamais affichés.
 """
 
 import argparse
+import http.client
 import json
 import os
 import sys
@@ -29,7 +30,10 @@ class QuotaError(Exception):
 
 def usage(payload, name):
     """(occupé, taille de l'offre, détail) de la Storage Box `name`."""
-    boxes = [box for box in payload.get("storage_boxes", []) if box.get("name") == name]
+    try:
+        boxes = [box for box in payload["storage_boxes"] if box["name"] == name]
+    except (KeyError, TypeError) as error:
+        raise QuotaError(f"liste storage_boxes absente ou invalide dans la réponse de l'API : {error!r}") from error
     if len(boxes) != 1:
         raise QuotaError(f"{len(boxes)} Storage Box nommée(s) {name!r} dans la réponse de l'API")
     box = boxes[0]
@@ -54,7 +58,7 @@ def evaluate(payload, name, threshold):
     used, quota, detail = usage(payload, name)
     percent = 100 * used / quota
     status = "down" if percent >= threshold else "up"
-    return status, f"{percent:.1f} % occupés (seuil {threshold} %) : {detail}"
+    return status, f"{percent:.1f} % occupés (seuil {threshold:g} %) : {detail}"
 
 
 def fetch(token, name):
@@ -88,7 +92,7 @@ def main(argv=None):
             status, msg = "down", str(error)
         except urllib.error.HTTPError as error:
             status, msg = "down", f"API Hetzner : HTTP {error.code}"
-        except (OSError, ValueError) as error:
+        except (OSError, ValueError, http.client.HTTPException) as error:
             # Le message d'une erreur réseau peut citer l'URL : sa classe seule.
             status, msg = "down", f"API Hetzner injoignable : {type(error).__name__}"
 
@@ -101,7 +105,8 @@ def main(argv=None):
     if push_url:
         try:
             push(push_url, status, msg)
-        except OSError as error:
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            # Sa classe seule : le message peut citer l'URL push, un secret.
             print(f"::error::push vers Uptime Kuma en échec : {type(error).__name__}")
             return 1
     else:

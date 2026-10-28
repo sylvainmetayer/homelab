@@ -1,6 +1,7 @@
 """Tests of storage_box_quota.py: reading the Hetzner API answer, threshold
 (Lint workflow: python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
 
+import http.client
 import io
 import os
 import tempfile
@@ -58,6 +59,15 @@ class EvaluateTest(unittest.TestCase):
         with self.assertRaises(storage_box_quota.QuotaError):
             storage_box_quota.evaluate(data, "backups", 80)
 
+    def test_malformed_payload_is_an_error(self):
+        # Une réponse inattendue pousse « down » : jamais une trace sans push.
+        for data in ([], {"storage_boxes": None}, {"storage_boxes": ["x"]}, {"storage_boxes": [{}]}):
+            with self.subTest(data=data), self.assertRaises(storage_box_quota.QuotaError):
+                storage_box_quota.evaluate(data, "backups", 80)
+
+    def test_threshold_is_printed_as_given(self):
+        self.assertIn("seuil 80 %", storage_box_quota.evaluate(payload(1), "backups", 80.0)[1])
+
     def test_zero_quota_is_an_error(self):
         with self.assertRaises(storage_box_quota.QuotaError):
             storage_box_quota.evaluate(payload(1, quota=0), "backups", 80)
@@ -109,6 +119,26 @@ class MainTest(unittest.TestCase):
         rc, pushes, _ = self.run_main(fail)
         self.assertEqual(rc, 1)
         self.assertIn("HTTP 401", pushes[0][2])
+
+    def test_truncated_answer_pushes_down(self):
+        def fail(*_):
+            raise http.client.IncompleteRead(b"{")
+
+        rc, pushes, _ = self.run_main(fail)
+        self.assertEqual(rc, 1)
+        self.assertEqual(pushes[0][1], "down")
+
+    def test_push_failure_fails_without_the_url(self):
+        url = "https://uptime.example.test/api/push/x"
+        with (
+            mock.patch.dict(os.environ, {"HCLOUD_READONLY_TOKEN": "fake-token", "PUSH_URL": url}, clear=True),
+            mock.patch.object(storage_box_quota, "fetch", side_effect=lambda *a: payload(1)),
+            mock.patch.object(storage_box_quota, "push", side_effect=http.client.InvalidURL(url)),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as stdout,
+        ):
+            rc = storage_box_quota.main([])
+        self.assertEqual(rc, 1)
+        self.assertNotIn(url, stdout.getvalue())
 
     def test_summary_is_written(self):
         with tempfile.NamedTemporaryFile("r", encoding="utf-8", suffix=".md") as summary:
