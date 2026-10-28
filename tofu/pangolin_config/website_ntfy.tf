@@ -37,7 +37,7 @@ locals {
   # The topics the producers publish to, one each (ntfy_publishers in
   # ansible/roles/ntfy/defaults/main.yml, compared by the
   # `ntfy_topics_match_the_role` test). Sylvain reads all of them.
-  ntfy_publish_topics = ["uptime-kuma", "beszel", "scripts"]
+  ntfy_publish_topics = ["uptime-kuma", "beszel", "scripts", "github"]
 }
 
 # The phone apps (Android, iOS) and the publishers (Uptime Kuma, Beszel,

@@ -1,0 +1,49 @@
+name: Renovate digest
+
+# Bilan hebdomadaire de Renovate sur ntfy, topic github
+# (.github/scripts/renovate_digest.py) : PR de Renovate fusionnées sur
+# 7 jours (automatiquement, puis à la main), PR ouvertes en attente avec
+# leur âge, runs en échec de deploy-docker-app.yaml. Le texte complet est
+# aussi dans le résumé du run. Une API en échec publie quand même un message
+# et fait échouer le run.
+#
+# Lundi 13:00 UTC (14:00 ou 15:00 à Paris) : après le passage de Renovate
+# (« before 9am on monday », renovate.json) et les fusions automatiques que
+# ses checks débloquent dans la matinée.
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: renovate-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    name: Publish the digest
+    runs-on: ubuntu-26.04
+    # Le jeton ntfy seul (écriture seule sur le topic github), lisible depuis
+    # main seulement (tofu/github/renovate_digest_secrets.tf).
+    environment: renovate-digest
+    timeout-minutes: 5
+    # GITHUB_TOKEN en lecture : le script (checkout), les PR (GraphQL) et
+    # les runs du workflow de déploiement.
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Publish the Renovate digest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NTFY_TOKEN: ${{ secrets.RENOVATE_DIGEST_NTFY_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: python3 -I .github/scripts/renovate_digest.py --repo "$REPOSITORY"

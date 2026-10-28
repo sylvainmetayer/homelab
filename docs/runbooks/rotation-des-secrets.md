@@ -201,8 +201,8 @@ par l'API du hub.
 Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
-- Jeton d'un producteur (`ntfy_beszel_token`, `ntfy_scripts_token` dans
-  `ansible/secrets.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+- Jeton d'un producteur (`ntfy_beszel_token`, `ntfy_scripts_token`,
+  `ntfy_github_token` dans `ansible/secrets.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
@@ -213,7 +213,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   de restauration vzdump, mises à jour en attente),
   `ansible-playbook nas.yml --tags update_notify`, sans quoi leurs moniteurs
   passent au rouge au passage suivant, et `tofu -chdir=tofu/github apply`
-  (secret `TRIVY_NTFY_TOKEN` de l'environnement `trivy-ntfy`) ; les autres
+  (secret `TRIVY_NTFY_TOKEN` de l'environnement `trivy-ntfy`). Pour
+  `ntfy_github_token`, `tofu -chdir=tofu/github apply` (secret
+  `RENOVATE_DIGEST_NTFY_TOKEN` de l'environnement `renovate-digest`) ; les autres
   scripts prennent le nouveau à la main. L'ancien jeton cesse de marcher au
   redémarrage de ntfy.
 - `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
