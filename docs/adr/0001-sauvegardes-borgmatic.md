@@ -1,7 +1,7 @@
 # 0001. Sauvegardes : Borgmatic et Borg vers la Storage Box, restaurées en CI
 
 - **Statut** : acceptée
-- **Date** : 2026-01-16 (Borgmatic), complétée jusqu'au 2026-10-26
+- **Date** : 2026-01-16 (Borgmatic), complétée jusqu'au 2026-10-27
 
 ## Contexte
 
@@ -23,8 +23,8 @@ verrou de lecture de `db.sqlite` le temps de tout l'envoi.
 
 ## Alternatives écartées
 
-- **Restic** (resticprofile vers S3, essayé en janvier 2026, remplacé au
-  commit `4a5fb41b`) : raison non écrite, à confirmer.
+- **Restic** (resticprofile vers S3, janvier 2026 ; Borgmatic dès `4a5fb41b`,
+  restic retiré au 2026-01-27, `0ed2c98e`) : raison non écrite, à confirmer.
 - **Copie à chaud des dossiers de base** : archive incohérente.
 - **`sqlite_databases` de borgmatic** : a figé Pangolin (voir Contexte).
 

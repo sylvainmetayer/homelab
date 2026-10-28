@@ -11,8 +11,8 @@ code plutôt que cliquées.
 
 ## Décision
 
-- **Pangolin** (VM Hetzner) est la seule entrée publique ; chaque hôte a un
-  **Newt**, tunnel WireGuard sortant. Tout est déclaré dans
+- **Pangolin** (VM Hetzner) est la seule entrée publique ; chaque site (VM docker,
+  pi, flip, NAS, LXC) a un **Newt**, tunnel WireGuard sortant. Tout est déclaré dans
   `tofu/pangolin_config`, jamais en labels Docker.
 - **FR et DE seulement** (`local.allowed_countries`) sur toute ressource
   publique, plus un pays de voyage à date de fin (`travel_countries`).

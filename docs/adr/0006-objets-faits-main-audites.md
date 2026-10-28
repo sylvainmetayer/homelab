@@ -1,7 +1,7 @@
 # 0006. Objets faits main : audités au plan dans Pangolin, relevés dans Uptime Kuma
 
 - **Statut** : acceptée
-- **Date** : 2026-08-31 (règles), 2026-10-06 (VPN), 2026-10-28 (cibles, jetons, rôles)
+- **Date** : 2026-08-30 (couverture pays), 2026-08-31 (règles), 2026-10-06 (VPN), 2026-10-28 (cibles, jetons, rôles)
 
 ## Contexte
 
