@@ -43,7 +43,7 @@
           - kdrive_sync_verify_rclone.image is match('docker.io/rclone/rclone:1\.[0-9.]+@sha256:[0-9a-f]{64}$')
           - kdrive_sync_verify_rclone.entrypoint[:2] == ['/bin/sh', '-c']
           - kdrive_sync_verify_rclone.entrypoint | length == 4
-          - kdrive_sync_verify_script is search('\nexec rclone copy kdrive: /data/miroir ')
+          - "kdrive_sync_verify_script is search('\\nexec rclone copy kdrive: /data/miroir ')"
           # `docker compose config` réécrit les $ échappés ($$) tels quels.
           - kdrive_sync_verify_script is search(' "\$?\$@"$')
           - kdrive_sync_verify_script is not search('\\b(sync|move|moveto|bisync|purge|delete|deletefile|rmdirs?)\\b')
