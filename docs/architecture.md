@@ -228,7 +228,9 @@ flowchart LR
   par `ansible/backup.yaml`.
 - **Snapshots** de la Storage Box (`tofu/pangolin/storage_box.tf`) : 9
   automatiques, qu'aucun sous-compte ne peut effacer. C'est le filet si un
-  hôte compromis efface ses dépôts.
+  hôte compromis efface ses dépôts. Ils disparaîtraient avec la box : elle
+  porte `delete_protection` (l'API refuse sa suppression tant que la
+  protection n'est pas levée) en plus du `prevent_destroy` de tofu.
 - Rétention Borg : 7 quotidiennes, 4 hebdomadaires, 6 mensuelles, 1 annuelle.
 - Un modèle unique, `ansible/roles/borgmatic/templates/app.yaml.j2`, appelé
   par chaque rôle via `include_role: borgmatic tasks_from=app.yml`.
