@@ -144,9 +144,20 @@ lives in one file and one line, so removal is a few edits + an apply:
   alone only drops it from the *next* plan, it doesn't tear down existing
   resources):
 
+  A full plan fails first: the inventory audits (`access_inventory`,
+  `access_inventory.tf`) read Pangolin's org-wide token and role lists at
+  plan time, where the app's healthcheck token and role are still live but
+  no longer declared. Destroy those two (and the role's binding) with a
+  targeted apply, which leaves the audits out of the graph, then run the
+  normal plan:
+
 ```bash
 cd tofu/pangolin_config
 tofu fmt -recursive
+tofu apply \
+  -target='pangolin_resource_access_token.healthcheck["<service>"]' \
+  -target='pangolin_resource_role.website["<service>"]' \
+  -target='pangolin_role.apps["<slug>"]'
 tofu plan    # must show a *destroy* for every <service>-named resource, not just a diff
 tofu apply
 tofu state list | grep <service>   # should print nothing once applied
