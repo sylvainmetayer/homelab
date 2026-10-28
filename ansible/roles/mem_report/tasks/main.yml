@@ -1,4 +1,15 @@
 ---
+# /usr/local/libexec n'existe pas partout (absent du Pi, 28/10) : le créer
+# plutôt que de supposer l'arborescence de l'hôte.
+- name: Ensure the memory report script folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ mem_report_script | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Install the memory report script
   become: true
   ansible.builtin.copy:
