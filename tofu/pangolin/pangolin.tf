@@ -23,11 +23,14 @@ resource "hcloud_server" "pangolin" {
   }
 
   firewall_ids = [hcloud_firewall.pangolin.id]
-  backups      = false
-  name         = var.vm_name
-  server_type  = var.server_type
-  image        = var.image
-  location     = var.location
+  # Sauvegardes Hetzner (7 images glissantes, +20 % du prix du serveur) :
+  # la reprise rapide, même IP et même clé d'hôte, en quelques minutes.
+  # Borg reste la copie hors Hetzner (docs/runbooks/reconstruction-pangolin.md).
+  backups     = true
+  name        = var.vm_name
+  server_type = var.server_type
+  image       = var.image
+  location    = var.location
 
   ssh_keys = [hcloud_ssh_key.keepassxc.id]
 
