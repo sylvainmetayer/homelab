@@ -348,8 +348,23 @@ run "adresse_de_rapport_invalide" {
   expect_failures = [var.dmarc_report_address]
 }
 
+run "adresse_de_rapport_hors_zones" {
+  command = plan
+
+  variables {
+    dmarc_report_address = "dmarc@example.org"
+  }
+
+  expect_failures = [ovh_domain_zone_record.dmarc_external_report]
+}
+
 run "spf_un_seul_par_zone" {
   command = plan
+
+  assert {
+    condition     = toset(keys(ovh_domain_zone_record.spf)) == toset(keys(ovh_domain_zone_record.dmarc))
+    error_message = "Chaque zone qui a un DMARC doit avoir son SPF ici (local.spf_records)."
+  }
 
   assert {
     condition = alltrue([
@@ -370,13 +385,8 @@ run "sylvain_cloud_verrouille" {
   command = plan
 
   assert {
-    condition = (
-      ovh_domain_zone_record.sylvain_cloud_null_mx.zone == "sylvain.cloud"
-      && ovh_domain_zone_record.sylvain_cloud_null_mx.subdomain == ""
-      && ovh_domain_zone_record.sylvain_cloud_null_mx.fieldtype == "MX"
-      && ovh_domain_zone_record.sylvain_cloud_null_mx.target == "0 ."
-    )
-    error_message = "sylvain.cloud doit avoir un MX nul (0 ., RFC 7505)."
+    condition     = length(ovh_domain_zone_record.sylvain_cloud_null_mx) == 0
+    error_message = "Le MX nul de sylvain.cloud reste désactivé par défaut tant que l'API OVH n'a pas accepté « 0 . »."
   }
 
   assert {
@@ -402,5 +412,23 @@ run "tls_rpt_des_zones_qui_recoivent" {
       ])
     )
     error_message = "Chaque zone qui reçoit du courrier doit publier _smtp._tls (TLS-RPT) vers dmarc_report_address."
+  }
+}
+
+run "sylvain_cloud_mx_nul" {
+  command = plan
+
+  variables {
+    sylvain_cloud_null_mx = true
+  }
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.sylvain_cloud_null_mx[0].zone == "sylvain.cloud"
+      && ovh_domain_zone_record.sylvain_cloud_null_mx[0].subdomain == ""
+      && ovh_domain_zone_record.sylvain_cloud_null_mx[0].fieldtype == "MX"
+      && ovh_domain_zone_record.sylvain_cloud_null_mx[0].target == "0 ."
+    )
+    error_message = "Activé, le MX nul de sylvain.cloud doit être « 0 . » à l'apex (RFC 7505)."
   }
 }
