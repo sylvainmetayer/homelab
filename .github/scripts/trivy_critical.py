@@ -45,10 +45,11 @@ def critical_fixed(report):
             for vuln in result.get("Vulnerabilities") or []:
                 if vuln.get("Severity") != "CRITICAL" or not vuln.get("FixedVersion"):
                     continue
-                found.add((vuln["VulnerabilityID"], vuln["PkgName"], vuln.get("InstalledVersion", "?"), vuln["FixedVersion"]))
+                found.add((vuln["VulnerabilityID"], vuln["PkgName"], vuln.get("InstalledVersion") or "?", vuln["FixedVersion"]))
+        # Dans le try : un champ à null ne se trie pas avec des chaînes.
+        return sorted(found)
     except (AttributeError, KeyError, TypeError) as error:
         raise ReportError(f"rapport Trivy inattendu : {error!r}") from error
-    return sorted(found)
 
 
 def collect(directory):
@@ -72,7 +73,8 @@ def message(images, link):
     """Charge JSON de la publication ntfy, ou None sans vulnérabilité."""
     if not images:
         return None
-    total = sum(len(vulns) for vulns in images.values())
+    # Des CVE, pas des lignes : une même CVE touche souvent plusieurs paquets.
+    total = sum(len({vuln[0] for vuln in vulns}) for vulns in images.values())
     lines = []
     for name in sorted(images):
         lines.append(name)
@@ -124,7 +126,8 @@ def main(argv=None):
     if payload is None:
         print("Aucune vulnérabilité CRITICAL corrigeable : rien n'est publié.")
         return 0
-    print(f"{payload['title']}\n{payload['message']}")
+    # Le titre seul : le dépôt est public, le détail reste sur ntfy et dans l'onglet Security.
+    print(payload["title"])
     if args.dry_run:
         return 0
 
