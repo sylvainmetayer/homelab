@@ -43,9 +43,9 @@
     mode: "0600"
   # Carries the push URL of the "Reset Betisier" monitor.
   diff: false
-  notify:
-    - Reload systemd user
-    - Restart betisier
+  # No app restart: it would reload the dump without the password UPDATE,
+  # which only a run of betisier-reset.service applies.
+  notify: Reload systemd user
 
 - name: Template betisier-reset timer
   ansible.builtin.template:
