@@ -81,11 +81,6 @@ run "flip_has_no_public_ip" {
   }
 
   assert {
-    condition     = hcloud_server.pangolin.backups == true
-    error_message = "Les sauvegardes Hetzner de Pangolin sont la reprise rapide du runbook de reconstruction : les couper doit être voulu."
-  }
-
-  assert {
     condition     = hcloud_server.flip.backups == false
     error_message = "Les backups Hetzner de flip sont désactivés (Borgmatic s'en charge) : un changement ici doit être voulu."
   }
@@ -277,6 +272,11 @@ run "pangolin_rebuilds_from_plain_debian" {
   assert {
     condition     = can(regex("ignore_changes\\s*=\\s*\\[[^]]*\\bimage\\b", file("${path.module}/pangolin.tf")))
     error_message = "hcloud_server.pangolin doit garder `image` dans ignore_changes : le serveur en place vient d'un snapshot Packer."
+  }
+
+  assert {
+    condition     = hcloud_server.pangolin.backups == true
+    error_message = "Les sauvegardes Hetzner de Pangolin sont la reprise rapide du runbook de reconstruction : les couper doit être voulu."
   }
 }
 
