@@ -10,9 +10,13 @@ sont actives (`backups = true`, 7 images glissantes, une par jour). Si le
 serveur existe encore chez Hetzner et que la panne n'est pas une
 compromission, restaurer l'image de la veille (console Hetzner → serveur →
 Backups → Restore) : même IP, même clé d'hôte, pas de DNS ni de
-`known_hosts` à toucher, base SQLite de la veille. Après une compromission,
-ou si le projet Hetzner est perdu, c'est la reconstruction ci-dessous, depuis
-Borg (hors Hetzner).
+`known_hosts` à toucher, base SQLite de la veille. L'image ramène le disque
+à son état d'alors : ensuite, `ansible-playbook pangolin.yaml --check --diff`
+puis sans `--check` (ce qui a été déployé depuis), et `tofu plan` dans
+`tofu/pangolin_config` (ressources, cibles, jetons ou sites créés depuis
+l'image manquent dans la base restaurée : `tofu apply` les recrée). Après
+une compromission, ou si le projet Hetzner est perdu, c'est la
+reconstruction ci-dessous, depuis Borg (hors Hetzner).
 
 ## Symptôme
 
@@ -24,7 +28,8 @@ CI ne déploie plus.
 
 Avant de reconstruire, s'assurer qu'une réparation ne suffit pas
 ([pangolin-injoignable.md](pangolin-injoignable.md)) : console Hetzner,
-mode rescue. Une reconstruction change l'IP publique et la clé d'hôte SSH.
+mode rescue, puis la restauration d'une sauvegarde Hetzner (plus haut).
+Une reconstruction change l'IP publique et la clé d'hôte SSH.
 
 Le dépôt Borg de Pangolin se lit depuis n'importe quel hôte avec le
 sous-compte en lecture seule `restore-test` (clé : `tofu output -raw
@@ -40,6 +45,9 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
 1. **Recréer le serveur** (`tofu/pangolin`).
    - Serveur déjà supprimé chez Hetzner : `mise run plan` propose de le
      recréer, `mise run apply`.
+   - Les sauvegardes Hetzner disparaissent avec le serveur (suppression ou
+     `-replace`) : pour garder une image, convertir d'abord la dernière en
+     snapshot (console Hetzner → serveur → Backups → Convert to snapshot).
    - Serveur encore là mais irrécupérable : `hcloud_server.pangolin` porte
      `prevent_destroy = true`. Le lever temporairement dans
      `tofu/pangolin/pangolin.tf`, puis :
