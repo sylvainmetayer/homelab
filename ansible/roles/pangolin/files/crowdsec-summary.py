@@ -76,7 +76,9 @@ def appsec_rules(alert):
         for meta in event.get("meta") or []:
             if meta.get("key") == "rule_name" and meta.get("value"):
                 rules.add(meta["value"])
-    return rules or {alert.get("scenario") or "?"}
+    # Sans meta rule_name, aucune règle : une « règle nouvelle » inventée
+    # serait une fausse alerte en priorité haute.
+    return rules
 
 
 def summarize(alerts):
@@ -117,9 +119,19 @@ def load_state(path):
         return None
     if not isinstance(state, dict):
         return None
+    history, rules = state.get("history", []), state.get("rules", [])
+    if not isinstance(history, list) or not isinstance(rules, list):
+        return None
+    # Un historique abîmé ne doit pas faire planter le résumé : seuls les
+    # comptes entiers sont gardés.
+    days = [
+        {scenario: count for scenario, count in day.items() if isinstance(count, int)}
+        for day in history
+        if isinstance(day, dict)
+    ]
     return {
-        "history": [day for day in state.get("history", []) if isinstance(day, dict)][-HISTORY_DAYS:],
-        "rules": [rule for rule in state.get("rules", []) if isinstance(rule, str)],
+        "history": days[-HISTORY_DAYS:],
+        "rules": [rule for rule in rules if isinstance(rule, str)],
     }
 
 

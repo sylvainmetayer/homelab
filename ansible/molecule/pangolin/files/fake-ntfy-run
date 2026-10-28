@@ -4,8 +4,7 @@
 Un serveur HTTP sur 127.0.0.1 (port libre) reçoit la publication ; le
 script de résumé tourne avec l'environnement de l'unité (EnvironmentFile
 lu ici, NTFY_URL remplacée par ce serveur) et le faux cscli. Affiche en JSON
-le code de sortie, la ligne de commande vue par le noyau (le jeton ne doit
-pas y être), l'en-tête Authorization et le corps reçus.
+le code de sortie, la sortie du script, l'en-tête Authorization et le corps reçus.
 
     fake-ntfy-run <env file> <fake cscli> <state file>
 """
@@ -47,9 +46,11 @@ env["NTFY_URL"] = f"http://127.0.0.1:{server.server_port}/"
 env["CROWDSEC_SUMMARY_CSCLI"] = fake_cscli
 env["CROWDSEC_SUMMARY_STATE"] = state
 
-process = subprocess.Popen(["/usr/bin/python3", "-I", "/usr/local/bin/crowdsec-summary"], env=env)  # NOSONAR: fixed argv, test helper
-with open(f"/proc/{process.pid}/cmdline", "rb") as handle:
-    cmdline = handle.read().replace(b"\0", b" ").decode()
-code = process.wait(timeout=60)
+# Sortie du script captée : son titre imprimé ne doit pas précéder le JSON
+# que le verify relit avec from_json.
+process = subprocess.Popen(  # NOSONAR: fixed argv, test helper
+    ["/usr/bin/python3", "-I", "/usr/local/bin/crowdsec-summary"], env=env, stdout=subprocess.PIPE, text=True
+)
+stdout, _ = process.communicate(timeout=60)
 server.shutdown()
-print(json.dumps({"rc": code, "cmdline": cmdline, **received}))
+print(json.dumps({"rc": process.returncode, "stdout": stdout, **received}))
