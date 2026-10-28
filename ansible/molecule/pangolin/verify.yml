@@ -248,17 +248,19 @@
 
     # Sans historique : aucun pic ni règle nouvelle, priorité basse ; la
     # publication réussie écrit l'historique.
+    # Les assistants passent par python3 : rien ne s'exécute depuis /tmp.
     - name: Publish a first summary to the fake ntfy
       become: true
       ansible.builtin.command:
         argv:
+          - /usr/bin/python3
+          - -I
           - "{{ pangolin_summary_tmp.path }}/fake-ntfy-run"
           - /etc/crowdsec-summary/env
-          - "{{ pangolin_summary_tmp.path }}/fake-cscli"
+          - "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
           - "{{ pangolin_summary_tmp.path }}/state.json"
       register: pangolin_summary_first
       changed_when: false
-      no_log: true
 
     - name: Stat the summary history
       become: true
@@ -297,7 +299,7 @@
       become: true
       ansible.builtin.command: /usr/bin/python3 -I /usr/local/bin/crowdsec-summary --dry-run
       environment:
-        CROWDSEC_SUMMARY_CSCLI: "{{ pangolin_summary_tmp.path }}/fake-cscli"
+        CROWDSEC_SUMMARY_CSCLI: "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
         CROWDSEC_SUMMARY_STATE: "{{ pangolin_summary_tmp.path }}/state.json"
         NTFY_TOPIC: scripts
       register: pangolin_summary_spike
@@ -307,7 +309,7 @@
       become: true
       ansible.builtin.command: /usr/bin/python3 -I /usr/local/bin/crowdsec-summary --dry-run
       environment:
-        CROWDSEC_SUMMARY_CSCLI: "{{ pangolin_summary_tmp.path }}/fake-cscli"
+        CROWDSEC_SUMMARY_CSCLI: "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
         CROWDSEC_SUMMARY_STATE: "{{ pangolin_summary_tmp.path }}/state.json"
         NTFY_TOPIC: scripts
         FAKE_CSCLI_FAIL: "1"

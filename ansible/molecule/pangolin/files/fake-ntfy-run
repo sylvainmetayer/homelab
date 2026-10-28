@@ -6,7 +6,7 @@ script de résumé tourne avec l'environnement de l'unité (EnvironmentFile
 lu ici, NTFY_URL remplacée par ce serveur) et le faux cscli. Affiche en JSON
 le code de sortie, la sortie du script, l'en-tête Authorization et le corps reçus.
 
-    fake-ntfy-run <env file> <fake cscli> <state file>
+    fake-ntfy-run <env file> <fake cscli> <state file> [script]
 """
 import json
 import os
@@ -16,6 +16,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 env_file, fake_cscli, state = sys.argv[1:4]
+script = sys.argv[4] if len(sys.argv) > 4 else "/usr/local/bin/crowdsec-summary"
 received = {}
 
 
@@ -49,7 +50,7 @@ env["CROWDSEC_SUMMARY_STATE"] = state
 # Sortie du script captée : son titre imprimé ne doit pas précéder le JSON
 # que le verify relit avec from_json.
 process = subprocess.Popen(  # NOSONAR: fixed argv, test helper
-    ["/usr/bin/python3", "-I", "/usr/local/bin/crowdsec-summary"], env=env, stdout=subprocess.PIPE, text=True
+    ["/usr/bin/python3", "-I", script], env=env, stdout=subprocess.PIPE, text=True
 )
 stdout, _ = process.communicate(timeout=60)
 server.shutdown()
