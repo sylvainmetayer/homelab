@@ -10,8 +10,11 @@ After=network-online.target
 
 [Service]
 Type=simple
+# Les deux fichiers, à root en 0600, copiés pour le service sous
+# /run/credentials/log-agent.service (%d).
+LoadCredential=vector.yaml:{{ log_agent_config_dir }}/vector.yaml
 LoadCredential=secrets.json:{{ log_agent_config_dir }}/secrets.json
-ExecStart={{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }} --config {{ log_agent_config_dir }}/vector.yaml
+ExecStart={{ log_agent_binary_dir }}/{{ log_agent_binary_version }}/{{ log_agent_binary_member }} --config %d/vector.yaml
 Restart=always
 RestartSec=10
 # Compte éphémère sans privilège, dans le groupe du journal : il lit tout le

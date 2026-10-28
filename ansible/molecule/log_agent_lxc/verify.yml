@@ -54,7 +54,7 @@
           - log_agent_files.results[0].stat.pw_name == 'root'
           - log_agent_files.results[1].stat.mode == '0600'
           - log_agent_files.results[1].stat.pw_name == 'root'
-          - log_agent_files.results[2].stat.mode == '0644'
+          - log_agent_files.results[2].stat.mode == '0600'
           - >-
             log_agent_secrets == {'password': victoria_logs_agent_passwords['newt-lxc']}
           - victoria_logs_agent_passwords['newt-lxc'] not in log_agent_config_text
@@ -67,6 +67,8 @@
           - log_agent_config.sinks.victoria_logs.uri is match('http://192\.168\.1\.216:9428/insert/jsonline\?') # NOSONAR
           - log_agent_config.sinks.victoria_logs.auth.user == 'newt-lxc'
           - "'LoadCredential=secrets.json:/etc/log-agent/secrets.json' in log_agent_unit_file"
+          - "'LoadCredential=vector.yaml:/etc/log-agent/vector.yaml' in log_agent_unit_file"
+          - "' --config %d/vector.yaml' in log_agent_unit_file"
           - "'DynamicUser=yes' in log_agent_unit_file"
           - "'SupplementaryGroups=systemd-journal' in log_agent_unit_file"
           - "'\nCapabilityBoundingSet=\n' in log_agent_unit_file"

@@ -55,14 +55,14 @@
     group: "{{ omit if log_agent_as_root else ansible_facts['user_gid'] }}"
     mode: "0700"
 
-# L'agent (root sans capacité) est propriétaire de ses données et de ses
-# secrets, et lit sa configuration, qui n'en porte aucun.
+# L'agent (root sans capacité) est propriétaire de ses données, de ses
+# secrets et de sa configuration : root seul.
 - name: Ensure the log agent data, secrets and configuration folders belong to root
   become: true
   loop:
     - { path: "{{ log_agent_base_path }}/data", mode: "0700" }
     - { path: "{{ log_agent_base_path }}/secrets", mode: "0700" }
-    - { path: "{{ log_agent_base_path }}/config", mode: "0755" }
+    - { path: "{{ log_agent_base_path }}/config", mode: "0700" }
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
@@ -91,7 +91,7 @@
     dest: "{{ log_agent_base_path }}/config/vector.yaml"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"
 
 - name: Template the log agent compose configuration
   become: "{{ log_agent_as_root }}"
