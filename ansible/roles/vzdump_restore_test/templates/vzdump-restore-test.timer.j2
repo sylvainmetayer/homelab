@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Deux fois par mois (defaults/main.yml, vzdump_restore_test_schedule), sans
+# rattrapage : au boot, le NFS du NAS et les invités démarrent à peine. Un run
+# manqué se voit au moniteur « Test restauration vzdump » (20 jours).
+[Unit]
+Description=Twice-monthly restore test of the vzdump backups
+
+[Timer]
+OnCalendar={{ vzdump_restore_test_schedule }}
+
+[Install]
+WantedBy=timers.target

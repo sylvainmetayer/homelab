@@ -1,0 +1,24 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    # En root sans become, comme sur l'hôte : ces variables de play
+    # l'emportent sur l'ansible_user de l'inventaire Molecule.
+    - ../../host_vars/pve/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # Comme pve.yml (sortie uptime_cron_vzdump_restore_test_url), vers le
+    # faux Uptime Kuma du prepare.
+    - name: Load healthcheck URLs as pve.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        vzdump_restore_test_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-vzdump # NOSONAR
+
+  roles:
+    - role: vzdump_restore_test
+      vars:
+        # Le faux ntfy du prepare ; le jeton reste ntfy_scripts_token.
+        vzdump_restore_test_ntfy_url: http://127.0.0.1:18080 # NOSONAR

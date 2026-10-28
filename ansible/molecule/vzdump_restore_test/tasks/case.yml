@@ -1,0 +1,82 @@
+---
+# Un passage de vzdump-restore-test.service contre le faux Proxmox, depuis un
+# état donné. Pose ensuite, pour les assertions propres au cas :
+#   case_argvs  chaque commande lancée, en une chaîne
+#   case_starts les démarrages d'invités (unités masquées, configuration)
+#   case_ntfy   le corps JSON reçu par le faux ntfy
+#   case_push   la requête reçue par le faux Uptime Kuma (décodée)
+#
+# Variables :
+#   case_name      nom du cas (affiché)
+#   case_state     état du faux Proxmox avant le passage
+#   case_failed    le passage doit-il échouer
+#   case_guests    ids d'invités attendus à la fin (triés)
+
+- name: Reset the fake Proxmox for {{ case_name }}
+  loop:
+    - { path: "{{ fake_pve_dir }}/state.json", content: "{{ case_state | to_nice_json }}" }
+    - { path: "{{ fake_pve_dir }}/calls.jsonl", content: "" }
+    - { path: "{{ fake_pve_dir }}/http.jsonl", content: "" }
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# systemctl plutôt que le module : son code de retour est ce qui est vérifié.
+- name: Run the restore test ({{ case_name }})
+  ansible.builtin.command: systemctl start vzdump-restore-test.service # noqa: command-instead-of-module
+  register: case_run
+  changed_when: true
+  failed_when: (case_run.rc != 0) != (case_failed | bool)
+
+- name: Read the calls, the requests and the final state
+  loop:
+    - "{{ fake_pve_dir }}/calls.jsonl"
+    - "{{ fake_pve_dir }}/http.jsonl"
+    - "{{ fake_pve_dir }}/state.json"
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  register: case_files
+
+- name: Parse what the fakes recorded
+  vars:
+    case_calls: "{{ case_files.results[0].content | b64decode | trim | split('\n') | map('from_json') | list }}"
+    case_http: "{{ case_files.results[1].content | b64decode | trim | split('\n') | map('from_json') | list }}"
+  ansible.builtin.set_fact:
+    case_argvs: "{{ case_calls | selectattr('argv', 'defined') | map(attribute='argv') | map('join', ' ') | list }}"
+    case_violations: "{{ case_calls | selectattr('violation', 'defined') | list }}"
+    case_starts: "{{ case_calls | selectattr('start', 'defined') | list }}"
+    case_ntfy_requests: "{{ case_http | selectattr('method', 'equalto', 'POST') | list }}"
+    case_push_requests: "{{ case_http | selectattr('method', 'equalto', 'GET') | list }}"
+    case_final: "{{ case_files.results[2].content | b64decode | from_json }}"
+
+- name: Show the run journal on failure of the assertions below
+  ansible.builtin.command: journalctl --unit vzdump-restore-test.service -I --output cat --no-pager
+  register: case_journal
+  changed_when: false
+
+- name: Assert the common outcome of {{ case_name }}
+  vars:
+    case_ntfy: "{{ case_ntfy_requests[0].body | from_json }}"
+    case_push: "{{ case_push_requests[0].path | urldecode }}"
+  ansible.builtin.assert:
+    that:
+      - case_violations | length == 0
+      - "'--force' not in (case_argvs | join(' '))"
+      - case_ntfy_requests | length == 1
+      - case_ntfy_requests[0].path == '/'
+      - case_ntfy_requests[0].authorization == 'Bearer ' ~ ntfy_scripts_token
+      - case_ntfy.topic == 'scripts'
+      - case_ntfy.priority == (4 if case_failed | bool else 2)
+      - ('ÉCHEC' in case_ntfy.title) == (case_failed | bool)
+      - case_push_requests | length == 1
+      - case_push.startswith('/api/push/molecule-vzdump?')
+      - ('status=' ~ ('down' if case_failed | bool else 'up') ~ '&') in case_push
+      - case_final.guests.keys() | sort == case_guests
+    fail_msg: "{{ case_journal.stdout_lines }}"
+
+- name: Keep the message for the assertions of {{ case_name }}
+  ansible.builtin.set_fact:
+    case_message: "{{ (case_ntfy_requests[0].body | from_json).message }}"

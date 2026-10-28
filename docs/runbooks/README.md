@@ -11,6 +11,7 @@ choix dans [../adr/](../adr/README.md).
 | Pangolin injoignable (toutes les applis tombent ensemble) | [pangolin-injoignable.md](pangolin-injoignable.md) |
 | flip injoignable (Flip Planning, Promptoramix) | [flip-injoignable.md](flip-injoignable.md) |
 | Sauvegarde en échec, restauration d'une appli depuis Borg | [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md) |
+| Test de restauration vzdump en échec (VM docker, LXC newt), copie 990/991 restée sur Proxmox | [test-restauration-vm.md](test-restauration-vm.md) |
 | Disque plein, VM docker lente | [disque-plein-vm-lente.md](disque-plein-vm-lente.md) |
 | Déploiement CI cassé, PR Renovate qui casse une appli | [deploiement-ci-casse.md](deploiement-ci-casse.md) |
 | Perte de la clé age, d'une clé SSH ou d'un poste | [perte-cle-ou-poste.md](perte-cle-ou-poste.md) |

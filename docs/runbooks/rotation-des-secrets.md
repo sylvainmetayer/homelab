@@ -202,8 +202,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
   Kuma et la sortie que relit `docker.yml`). Puis
   `ansible-playbook docker.yml --tags ntfy`, et `--tags beszel` pour celui de
-  Beszel quand son canal ntfy est allumé ; les scripts prennent le nouveau à
-  la main. L'ancien jeton cesse de marcher au redémarrage de ntfy.
+  Beszel quand son canal ntfy est allumé, `ansible-playbook pve.yml --tags
+  vzdump_restore_test` pour `ntfy_scripts_token` (test de restauration
+  vzdump) ; les autres scripts prennent le nouveau à la main. L'ancien jeton
+  cesse de marcher au redémarrage de ntfy.
 - `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
   ensemble : `openssl rand`, `htpasswd -niBC 10 x` (mot de passe sur
   l'entrée standard, garder ce qui suit `x:`), `sops set` des deux, le

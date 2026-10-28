@@ -1,0 +1,81 @@
+---
+# Test de restauration des sauvegardes vzdump, sur l'hôte Proxmox (pve.yml,
+# en root : ansible_become est faux dans host_vars/pve, les become: true
+# ci-dessous ne servent qu'ailleurs). Voir defaults/main.yml et
+# docs/runbooks/test-restauration-vm.md.
+- name: Create the vzdump restore test directories
+  become: true
+  loop:
+    - { path: "{{ vzdump_restore_test_script_dir }}", mode: "0755" }
+    - { path: "{{ vzdump_restore_test_config_dir }}", mode: "0700" }
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+
+- name: Install the vzdump restore test script
+  become: true
+  ansible.builtin.copy:
+    src: vzdump_restore_test.py
+    dest: "{{ vzdump_restore_test_script_dir }}/vzdump_restore_test.py"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the vzdump restore test configuration
+  become: true
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ vzdump_restore_test_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0600"
+
+# L'URL push porte le jeton du moniteur, l'autre ligne le jeton ntfy : 0600
+# et diff: false.
+- name: Write the push URL and the ntfy token
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: |
+      VZDUMP_RESTORE_TEST_PUSH_URL={{ vzdump_restore_test_healthcheck_url }}
+      VZDUMP_RESTORE_TEST_NTFY_TOKEN={{ vzdump_restore_test_ntfy_token }}
+    dest: "{{ vzdump_restore_test_config_dir }}/env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Warn when the restore test has nowhere to report
+  when: vzdump_restore_test_healthcheck_url | length == 0 or vzdump_restore_test_ntfy_token | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      AVERTISSEMENT : URL push (sortie uptime_cron_vzdump_restore_test_url de
+      tofu/pangolin_config) ou jeton ntfy (ntfy_scripts_token) vide : le test
+      de restauration n'enverra rien de ce côté.
+
+- name: Install the vzdump restore test service and timer
+  become: true
+  loop:
+    - vzdump-restore-test.service
+    - vzdump-restore-test.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Reload systemd for vzdump-restore-test
+
+- name: Reload systemd now if a unit changed
+  ansible.builtin.meta: flush_handlers
+
+# Le service n'est jamais démarré ici : un test lancé par un déploiement
+# prendrait une demi-heure et restaurerait des invités pendant le playbook.
+- name: Enable or disable the vzdump restore test timer
+  become: true
+  ansible.builtin.systemd:
+    name: vzdump-restore-test.timer
+    state: "{{ 'started' if vzdump_restore_test_enabled | bool else 'stopped' }}"
+    enabled: "{{ vzdump_restore_test_enabled | bool }}"

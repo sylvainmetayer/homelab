@@ -113,7 +113,14 @@ class RealPlaybooks(unittest.TestCase):
         # jellyfin has an entry in nas.yml only, which CI never runs.
         result, stderr = self.run_script("ansible/roles/jellyfin/tasks/main.yml")
         self.assertEqual(set(result.values()), {""})
-        self.assertIn("::notice::role 'jellyfin' changed, deployed by hand only (nas.yml)", stderr)
+        self.assertIn("::notice::role 'jellyfin' changed, deployed by hand only (nas.yml, pve.yml)", stderr)
+        self.assertNotIn("::warning::", stderr)
+
+    def test_role_of_the_proxmox_host_gets_a_notice(self):
+        # vzdump_restore_test has an entry in pve.yml only, which CI never runs.
+        result, stderr = self.run_script("ansible/roles/vzdump_restore_test/files/vzdump_restore_test.py")
+        self.assertEqual(set(result.values()), {""})
+        self.assertIn("::notice::role 'vzdump_restore_test' changed, deployed by hand only", stderr)
         self.assertNotIn("::warning::", stderr)
 
     def test_nas_storage_deploys_its_dependents(self):

@@ -1,0 +1,13 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le test de restauration vzdump de pve.yml, contre un faux Proxmox
+# (files/fake_pve.py : pvesh, pvesm, pct, qm, vma, zstd) et un faux
+# Uptime Kuma / ntfy (files/fake_http.py). Le faux Proxmox refuse toute
+# modification d'un invité hors de 900-999 et le journalise : le verify n'en
+# accepte aucune.
+scenario:
+  name: vzdump_restore_test
+
+ansible:
+  playbooks:
+    prepare: prepare.yml

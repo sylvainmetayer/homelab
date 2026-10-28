@@ -1,0 +1,5 @@
+---
+- name: Reload systemd for vzdump-restore-test
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
