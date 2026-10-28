@@ -1,3 +1,18 @@
+# Restent faits main dans Uptime Kuma (relevé du 28/10/2026, #525), en
+# attendant une décision de Sylvain :
+#   - page `default` (« Services », publiée) : un groupe VPS vide et ActualBudget
+#     (uptimekuma_monitor_http.actualbudget), rien d'autre ;
+#   - page `onepoint` (publiée) : les moniteurs professionnels, faits main par
+#     décision (external_monitors.tf), qu'une page déclarée ici devrait
+#     référencer par identifiant brut ;
+#   - maintenance 1 « Reset betisier.sylvain.dev » (récurrente, active) : liée
+#     à aucun moniteur, seulement à la page `default`, elle ne suspend rien
+#     (le reset quotidien pousse de lui-même vers betisier_reset_healthcheck_url,
+#     clé SOPS d'ansible/secrets.sops.yaml) ;
+#   - clés d'API `test` / `testé` : le provider ne les gère pas et l'API ne
+#     les liste pas, à vérifier et supprimer dans l'UI.
+# La notification « Supervision Telegram » est traitée dans notifications.tf.
+#
 # Page de statut publique du site personnel. Elle sert surtout aux badges du
 # README du dépôt site : Uptime Kuma ne sert /api/badge/<id>/… que pour les
 # sondes présentes sur une page de statut publiée.

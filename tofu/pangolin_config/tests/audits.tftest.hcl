@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
-# Audits de rules.tf (les trois terraform_data à preconditions et le check
-# target_health) et de private_resources.tf (passerelles VPN), nourris par les
-# data "http" qui lisent l'API Pangolin.
+# Audits de rules.tf (les quatre terraform_data à preconditions et le check
+# target_health), d'access_inventory.tf (jetons d'accès et rôles) et de
+# private_resources.tf (passerelles VPN), nourris par les data "http" qui
+# lisent l'API Pangolin.
 #
 # Chaque run négatif fait échouer UNE precondition à la fois, sur une réponse
 # d'API minimale construite pour ne déclencher qu'elle : c'est ce qui prouve
@@ -175,7 +176,94 @@ override_resource {
   values = { id = 2012 }
 }
 
+# Identifiants des cibles, des jetons d'accès et des rôles, lus par les audits
+# target_inventory (rules.tf) et access_inventory (access_inventory.tf) : sans
+# valeur fixe, le mock leur donne une valeur que les réponses simulées
+# ci-dessous ne peuvent pas porter. Un identifiant commun à toutes les cibles,
+# et un propre à l'une d'elles : la réponse simulée porte les deux.
+override_resource {
+  target = pangolin_target.website
+  values = { id = 101 }
+}
+
+override_resource {
+  target = pangolin_target.website["flip_planning_mailpit"]
+  values = { id = 102 }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.healthcheck
+  values = { id = "tok-healthcheck", token = "jeton-healthcheck" }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.karakeep_clients
+  values = { id = "tok-karakeep", token = "jeton-karakeep" }
+}
+
+override_resource {
+  target = pangolin_role.apps
+  values = { id = 3001 }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.beszel_agents
+  values = { id = "tok-beszel-agent", token = "jeton-beszel-agent" }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.trek_mcp_clients
+  values = { id = "tok-trek-mcp", token = "jeton-trek-mcp" }
+}
+
+override_resource {
+  target = pangolin_role.jellyfin
+  values = { id = 90 }
+}
+
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
+
+# GET /v1/org/{org}/access-tokens?limit=1000 : un jeton par ressource de
+# jetons déclarée (les identifiants fixés plus haut), plus les deux jetons faits
+# main que local.unmanaged_access_tokens garde en exception. Comme en vrai,
+# `pagination.total` ne compte pas la liste.
+override_data {
+  target = data.http.pangolin_access_tokens
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"accessTokens": [
+        {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
+        {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
+        {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
+        {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
+        {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
+        {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null}
+      ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
+      "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, Restreint
+# (en exception), celui commun à pangolin_role.apps et celui de Jellyfin.
+override_data {
+  target = data.http.pangolin_roles
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"roles": [
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+        {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
+        {"roleId": 5, "name": "Restreint", "description": "", "isAdmin": null},
+        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+      ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
+      "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
 
 # GET /v1/org/{org}/resources?pageSize=1000 : les ressources gérées, et un
 # reste désactivé créé dans l'UI, que l'audit doit ignorer puisqu'il n'est pas
@@ -327,6 +415,17 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
+    condition     = terraform_data.target_inventory.output == length(local.managed_resources) * 2
+    error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
+  }
+
+  # 6 jetons et 5 rôles dans les réponses simulées, aucune exception périmée.
+  assert {
+    condition     = terraform_data.access_inventory.output == 11 && length(local.stale_inventory_exceptions) == 0
+    error_message = "access_inventory doit lire les 6 jetons et les 5 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
+  }
+
+  assert {
     condition = (
       terraform_data.vpn_gateways.output == tolist(["vpn", "vpn-flip"])
       && length(local.live_site_resources) == 6
@@ -406,7 +505,7 @@ run "enabled_probe_without_scheme_or_port_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"targets": [
-          {"targetId": 57, "ip": "grampsweb", "method": "http", "port": 5000, "enabled": true,
+          {"targetId": 101, "ip": "grampsweb", "method": "http", "port": 5000, "enabled": true,
            "path": null, "pathMatchType": null, "priority": 100,
            "hcEnabled": true, "hcScheme": null, "hcMode": "http", "hcHostname": "grampsweb",
            "hcPort": null, "hcPath": "/", "hcHealth": "unhealthy"}
@@ -490,6 +589,208 @@ run "unhealthy_target_only_warns" {
       && !anytrue([for label in local.unhealthy_targets : startswith(label, "Wishlist#")])
     )
     error_message = "Une cible en échec doit lever l'avertissement target_health, sauf celle d'une ressource désactivée (Wishlist ici)."
+  }
+}
+
+# ---------------------------------------------------------------------------
+# target_inventory
+# ---------------------------------------------------------------------------
+
+# Une cible ajoutée à la main dans l'UI à une ressource gérée : Traefik lui
+# envoie sa part des requêtes, et aucune pangolin_target ne la porte.
+run "hand_made_target_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_targets
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"targets": [
+          {"targetId": 101, "ip": "flip-planning", "method": "http", "port": 8080, "enabled": true,
+           "path": "/", "pathMatchType": "prefix", "priority": 1,
+           "hcEnabled": true, "hcScheme": "http", "hcMode": "http", "hcHostname": "flip-planning",
+           "hcPort": 8080, "hcPath": "/", "hcHealth": "healthy"},
+          {"targetId": 4343, "ip": "192.168.1.50", "method": "http", "port": 80, "enabled": true,
+           "path": null, "pathMatchType": null, "priority": 100,
+           "hcEnabled": false, "hcScheme": null, "hcMode": null, "hcHostname": null,
+           "hcPort": null, "hcPath": null, "hcHealth": "unknown"}
+        ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Targets retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.target_inventory,
+  ]
+
+  assert {
+    condition     = length(local.undeclared_targets) == length(local.managed_resources) && alltrue([for label in local.undeclared_targets : strcontains(label, "#4343")])
+    error_message = "Seule la cible faite main (4343) doit être signalée, sur chaque ressource gérée."
+  }
+}
+
+# Liste de cibles tronquée : la cible faite main pourrait être hors de la page.
+run "truncated_target_list_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_targets
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"targets": [
+          {"targetId": 101, "ip": "flip-planning", "method": "http", "port": 8080, "enabled": true,
+           "path": "/", "pathMatchType": "prefix", "priority": 1,
+           "hcEnabled": true, "hcScheme": "http", "hcMode": "http", "hcHostname": "flip-planning",
+           "hcPort": 8080, "hcPath": "/", "hcHealth": "healthy"}
+        ], "pagination": {"total": 3, "pageSize": 1, "page": 1}},
+        "success": true, "error": false, "message": "Targets retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.target_inventory,
+  ]
+}
+
+# ---------------------------------------------------------------------------
+# access_inventory (access_inventory.tf)
+# ---------------------------------------------------------------------------
+
+# Un jeton fait main hors des exceptions : un accès permanent derrière le mur
+# SSO que rien dans le dépôt ne mentionne.
+run "hand_made_access_token_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_access_tokens
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"accessTokens": [
+          {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
+          {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
+          {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null},
+          {"accessTokenId": "zz99main", "title": "partage", "resourceName": "Immich", "expiresAt": null}
+        ], "pagination": {"total": 4, "limit": 1000, "offset": 0}},
+        "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = length(local.undeclared_access_tokens) == 1 && strcontains(local.undeclared_access_tokens[0], "zz99main")
+    error_message = "Seul le jeton fait main hors exception (zz99main) doit être signalé."
+  }
+}
+
+# Un rôle fait main hors des exceptions.
+run "hand_made_role_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+          {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
+          {"roleId": 5, "name": "Restreint", "description": "", "isAdmin": null},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null},
+          {"roleId": 77, "name": "invités", "description": "", "isAdmin": null}
+        ], "pagination": {"total": 6, "page": 1, "pageSize": 1000}},
+        "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.undeclared_roles == ["77 (invités)"]
+    error_message = "Seul le rôle fait main hors exception (77) doit être signalé."
+  }
+}
+
+# Liste de rôles tronquée (la valeur par défaut de l'API est 20 par page).
+run "truncated_role_list_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true}
+        ], "pagination": {"total": 23, "page": 1, "pageSize": 20}},
+        "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+}
+
+# Clé API privée de listAccessTokens : la liste ne se décode pas, et l'audit le
+# dit au lieu de passer pour « aucun jeton ».
+run "unreadable_access_tokens_fail_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_access_tokens
+    values = {
+      status_code   = 403
+      response_body = <<-EOT
+        {"data": null, "success": false, "error": true, "message": "Key does not have permission perform this action", "status": 403}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+}
+
+# Le jeton d'une exception supprimé dans Pangolin : l'exception est périmée,
+# un avertissement le dit sans bloquer le plan.
+run "stale_inventory_exception_only_warns" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_access_tokens
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"accessTokens": [
+          {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
+          {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null}
+        ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
+        "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    check.inventory_exceptions_stale,
+  ]
+
+  assert {
+    condition     = tolist(local.stale_inventory_exceptions) == tolist(["access token jup2pfkh"])
+    error_message = "Seule l'exception du jeton disparu (jup2pfkh) doit être signalée."
   }
 }
 
