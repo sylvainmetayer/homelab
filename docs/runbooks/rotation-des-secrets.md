@@ -296,6 +296,13 @@ déconnexion, et n'apporte rien sans fuite.
   `paperless_secret_key` : `sops set` d'une valeur `openssl rand`, puis le
   playbook du rôle. Tous les utilisateurs sont déconnectés ; pour Pangolin,
   lire d'abord ce que chiffre son secret serveur dans sa documentation.
+- `speedtest_tracker_app_key` : l'`APP_KEY` de Laravel, au format
+  `base64:` suivi de 32 octets en base64
+  (`valeur="base64:$(openssl rand -base64 32 | tr -d '\n')"`) : sans le
+  préfixe, Laravel refuse de démarrer (clé de longueur invalide pour
+  AES-256). Puis `docker.yml --tags speedtest_tracker`. Les sessions tombent
+  et ce que l'appli a chiffré en base devient illisible : se reconnecter,
+  revoir les canaux de notification (Settings > Notifications).
 
 ## Vérification
 
