@@ -154,16 +154,24 @@ jobs:
 
       # Lue directement dans le registre (pas de docker pull) ; vulnérabilités
       # seulement. Le timeout par défaut (5 min) ne suffit pas aux grosses
-      # images (immich-machine-learning).
+      # images (immich-machine-learning). Trois essais espacés : lscr.io répond
+      # TOOMANYREQUESTS quand plusieurs jobs lisent ses images en même temps
+      # (vu sur bookstack, mariadb et nextcloud au premier run).
       - name: Run trivy image
         env:
           IMAGE: ${{ matrix.image.ref }}
         run: |
-          trivy image --skip-version-check --no-progress \
-            --skip-db-update --skip-java-db-update \
-            --image-src remote --scanners vuln --severity HIGH,CRITICAL \
-            --timeout 20m \
-            --format sarif --output trivy-image.sarif "$IMAGE"
+          for attempt in 1 2 3; do
+            if trivy image --skip-version-check --no-progress \
+              --skip-db-update --skip-java-db-update \
+              --image-src remote --scanners vuln --severity HIGH,CRITICAL \
+              --timeout 20m \
+              --format sarif --output trivy-image.sarif "$IMAGE"; then
+              break
+            fi
+            [ "$attempt" = 3 ] && exit 1
+            sleep $((attempt * 60))
+          done
           echo "Findings: $(jq '[.runs[].results[]] | length' trivy-image.sarif)"
 
       - name: Upload to code scanning
