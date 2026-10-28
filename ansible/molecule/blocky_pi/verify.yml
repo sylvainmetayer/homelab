@@ -5,7 +5,8 @@
     - ../../group_vars/all/variables.yml
     - ../../roles/blocky/defaults/main.yml
   vars:
-    blocky_verify_dir: /tmp/molecule-blocky
+    # Sous le home : /tmp est un tmpfs noexec dans le conteneur Molecule.
+    blocky_verify_dir: "{{ ansible_facts['user_dir'] }}/molecule-blocky"
   tasks:
     - name: Load the derived variables of the role
       ansible.builtin.include_vars: ../../roles/blocky/vars/main.yml
