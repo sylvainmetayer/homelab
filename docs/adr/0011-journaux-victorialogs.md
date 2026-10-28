@@ -23,8 +23,8 @@ Pangolin), mémoire plafonnée. Aucune sauvegarde (journaux reproductibles).
 ## Alternatives écartées
 
 - **Pile complète node_exporter + VictoriaMetrics/VictoriaLogs + Grafana** :
-  écartée en octobre 2026 pour son poids sur une VM de 12 Gio à disque
-  rotatif (#79). Seule la partie journaux est reprise, à mesurer.
+  écartée en octobre 2026 pour son poids sur la VM docker de 12 Gio (#79).
+  Seule la partie journaux est reprise, à mesurer.
 - **Rester sur journald par hôte** : suffisant d'après #79, voir Contexte.
 
 ## Conséquences
