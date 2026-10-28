@@ -1,0 +1,100 @@
+---
+# Un passage de nas-proxy-cert-check.service contre un faux Traefik : un
+# openssl s_server sur le 8443 (rien d'autre ne l'écoute ici, dc@ ne lance
+# aucun conteneur) qui sert un certificat de l'AC de test, valable
+# cert_check_case_days jours, pour les deux noms du NAS.
+#
+# Variables :
+#   cert_check_case_days    validité du certificat servi, en jours
+#   cert_check_case_status  ce que l'unité doit pousser (up ou down)
+#   cert_check_case_index   rang du passage (1, 2…) : nombre de push attendus
+
+# Python 3.13 vérifie en X509_STRICT : extensions d'une vraie feuille.
+- name: Issue a certificate for the NAS names, valid days {{ cert_check_case_days }}
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -newkey
+      - ec
+      - -pkeyopt
+      - ec_paramgen_curve:P-256
+      - -nodes
+      - -keyout
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.key"
+      - -out
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.pem"
+      - -days
+      - "{{ cert_check_case_days }}"
+      - -subj
+      - /CN=media.sylvain.cloud
+      - -CA
+      - "{{ nas_proxy_verify_tls_dir }}/ca.pem"
+      - -CAkey
+      - "{{ nas_proxy_verify_tls_dir }}/ca.key"
+      - -addext
+      - subjectAltName=DNS:media.sylvain.cloud,DNS:nas.sylvain.cloud
+      - -addext
+      - basicConstraints=critical,CA:FALSE
+      - -addext
+      - keyUsage=critical,digitalSignature
+      - -addext
+      - extendedKeyUsage=serverAuth
+  changed_when: true
+
+- name: Serve the certificate on 8443 as Traefik would
+  ansible.builtin.command:
+    argv:
+      - systemd-run
+      - --unit=molecule-tls
+      - --collect
+      - openssl
+      - s_server
+      - -quiet
+      - -www
+      - -accept
+      - 127.0.0.1:8443
+      - -cert
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.pem"
+      - -key
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.key"
+  changed_when: true
+
+- name: Wait for the fake Traefik to listen
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 8443
+    timeout: 30
+
+# systemctl plutôt que le module : son code de retour est ce qui est vérifié.
+- name: Run the certificate expiry check
+  ansible.builtin.command: systemctl start nas-proxy-cert-check.service # noqa: command-instead-of-module
+  register: nas_proxy_verify_check
+  changed_when: true
+  failed_when: (nas_proxy_verify_check.rc == 0) != (cert_check_case_status == 'up')
+
+- name: Stop the fake Traefik
+  ansible.builtin.systemd:
+    name: molecule-tls.service
+    state: stopped
+
+# La dernière requête reçue par le faux Uptime Kuma : celle de ce passage.
+- name: Read what the fake Uptime Kuma received
+  ansible.builtin.command: journalctl --unit molecule-push --output cat --no-pager --grep "GET /api/push/molecule-cert"
+  register: nas_proxy_verify_pushes
+  changed_when: false
+  until: nas_proxy_verify_pushes.stdout_lines | length == cert_check_case_index
+  retries: 10
+  delay: 1
+
+- name: Assert the check pushed {{ cert_check_case_status }}
+  vars:
+    nas_proxy_verify_push: "{{ nas_proxy_verify_pushes.stdout_lines | last | urldecode }}"
+  ansible.builtin.assert:
+    that:
+      - ('status=' ~ cert_check_case_status ~ '&') in nas_proxy_verify_push
+      - "'media.sylvain.cloud: ' in nas_proxy_verify_push"
+      - "'nas.sylvain.cloud: ' in nas_proxy_verify_push"
+      - cert_check_case_status == 'up' or 'seuil 14 j' in nas_proxy_verify_push
+    fail_msg: "{{ nas_proxy_verify_push }}"

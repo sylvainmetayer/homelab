@@ -1,0 +1,21 @@
+# Échéance des certificats du Traefik du NAS (rôle nas_proxy, files/
+# cert_check.py), poussée au moniteur « Certificats NAS » d'Uptime Kuma. L'URL
+# push (jeton du moniteur) est dans l'EnvironmentFile, 0600 root, jamais sur la
+# ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=Expiry check of the NAS Traefik certificates
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ nas_proxy_base_path }}/cert_check.env
+ExecStart=/usr/bin/python3 -I {{ nas_proxy_base_path }}/cert_check.py --host {{ nas_proxy_cert_check_host }} --port {{ nas_proxy_https_port }} --min-days {{ nas_proxy_cert_check_min_days }} {{ nas_proxy_cert_check_names | join(' ') }}
+# Root pour lire son script et son fichier d'environnement (dossier 0700 root),
+# sans aucune capacité : propriétaire, il n'a pas besoin de CAP_DAC_OVERRIDE.
+# Une connexion TLS et une requête HTTPS, rien à écrire.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes

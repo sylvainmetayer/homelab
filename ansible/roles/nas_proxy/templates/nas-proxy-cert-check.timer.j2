@@ -1,0 +1,13 @@
+# Une vérification par jour, sans rattrapage (pas de Persistent) : au boot,
+# Traefik n'aurait pas encore démarré et la vérification pousserait un faux
+# « down ». Le moniteur « Certificats NAS » tolère une journée manquée (NAS
+# éteint à l'heure dite).
+[Unit]
+Description=Daily expiry check of the NAS Traefik certificates
+
+[Timer]
+OnCalendar={{ nas_proxy_cert_check_schedule }}
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

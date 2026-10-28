@@ -116,3 +116,46 @@
     state: started
     enabled: true
     daemon_reload: true
+
+# Échéance des certificats servis, vérifiée sur le NAS chaque jour
+# (defaults, « Échéance des certificats ») : l'Uptime Kuma de PikaPods ne
+# joint pas le NAS.
+- name: Install the certificate expiry check script
+  become: true
+  ansible.builtin.copy:
+    src: cert_check.py
+    dest: "{{ nas_proxy_base_path }}/cert_check.py"
+    owner: root
+    group: root
+    mode: "0700"
+
+# L'URL push porte le jeton du moniteur : 0600 et diff: false.
+- name: Write the push URL of the certificate expiry monitor
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "NAS_PROXY_CERT_PUSH_URL={{ nas_proxy_cert_healthcheck_url }}\n"
+    dest: "{{ nas_proxy_base_path }}/cert_check.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the certificate expiry check service and timer
+  become: true
+  loop:
+    - nas-proxy-cert-check.service
+    - nas-proxy-cert-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable the daily certificate expiry check
+  become: true
+  ansible.builtin.systemd:
+    name: nas-proxy-cert-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true

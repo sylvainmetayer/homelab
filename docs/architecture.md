@@ -86,6 +86,11 @@ l'interface d'UGOS : `https://nas.sylvain.cloud:8443` (A public vers l'IP LAN
 du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 (ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
 du NAS en TCP 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
+L'Uptime Kuma de PikaPods ne joint pas ces deux noms : le NAS vérifie
+lui-même chaque matin l'échéance de leurs certificats
+(`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur
+« Certificats NAS », rouge sous 14 jours restants ou sans nouvelles depuis
+deux jours.
 
 - En LAN : `https://media.sylvain.cloud:8443` (80 et 443 du NAS appartiennent
   au nginx d'UGOS). Repli : `http://192.168.1.137:8096`.

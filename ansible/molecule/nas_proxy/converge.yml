@@ -15,4 +15,8 @@
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   roles:
+    # nas.yml lit l'URL push dans le state de pangolin_config : ici un
+    # serveur HTTP local du verify, qui journalise ce qu'il reçoit.
     - role: nas_proxy
+      vars:
+        nas_proxy_cert_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-cert # NOSONAR

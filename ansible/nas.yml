@@ -12,7 +12,7 @@
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
     # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas,
-    # URL push de la sauvegarde de Jellyfin).
+    # URL push de la sauvegarde de Jellyfin et de l'échéance des certificats).
     # Comme ailleurs, un state illisible (S3, clés) arrête la play quel que
     # soit le tag, --tags beszel_agent compris : l'agent Beszel, lui, parle au
     # hub par le LAN, sans jeton Pangolin.
@@ -46,6 +46,7 @@
       no_log: true
       ansible.builtin.set_fact:
         jellyfin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellyfin_url.value | default('') }}"
+        nas_proxy_cert_healthcheck_url: "{{ terraform_outputs.uptime_cron_nas_cert_url.value | default('') }}"
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
     # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
@@ -81,6 +82,7 @@
     # d'UGOS), en :8443 sur le LAN. Après jellyfin : il rejoint en externe le
     # réseau media que crée dc@jellyfin, et newt, créé par dc@newt. Sur un NAS
     # neuf, --tags newt,jellyfin avant un --tags nas_proxy seul, sinon
-    # dc@nas_proxy réessaie toutes les 15 s.
+    # dc@nas_proxy réessaie toutes les 15 s. Vérifie aussi chaque jour
+    # l'échéance des certificats servis (moniteur « Certificats NAS »).
     - role: nas_proxy
       tags: nas_proxy,app
