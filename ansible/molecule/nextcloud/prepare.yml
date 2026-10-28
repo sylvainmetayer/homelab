@@ -28,6 +28,7 @@
 
     - name: Stand in for the config.php of an installed Nextcloud
       become: true
+      diff: false
       ansible.builtin.copy:
         dest: /opt/apps/nextcloud/config/www/nextcloud/config/config.php
         owner: sylvain

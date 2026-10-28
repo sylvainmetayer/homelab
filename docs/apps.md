@@ -10,7 +10,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Monica](https://www.monicahq.com/) | `monica_v4` | Docker VM | Personal CRM |
 | [Meerkat CRM](https://github.com/fbuchner/meerkat-crm) | `meerkat_crm` | Docker VM | Personal CRM |
 | [BookStack](https://www.bookstackapp.com/) | `wiki` | Docker VM | Wiki |
-| [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, public without SSO (clients log in to Nextcloud itself) |
+| [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, behind the SSO; sync clients (app passwords only, `token_auth_enforced`) and public share links pass by path (`tofu/pangolin_config/website_nextcloud.tf`) |
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR. **Paused** since October 2026 (`paperless_enabled: false`): stopped, not backed up, Pangolin resource disabled, data and borg repository kept; see [runbooks/app-en-pause.md](runbooks/app-en-pause.md) to resume |
 | [Stirling-PDF](https://www.stirlingpdf.com/) | `stirling_pdf` | Docker VM | PDF tools (merge, split, OCR in French and English, conversions) on `pdf.sylvain.cloud`, behind the SSO with no login of its own, telemetry off. Stateless: only `configs/` persists (its `settings.yml` and the JVM's AOT cache, not backed up) |
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
