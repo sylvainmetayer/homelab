@@ -2,7 +2,8 @@
 
 Un fichier par incident, toujours le même plan : **Symptôme**,
 **Diagnostic**, **Réparation**, **Vérification**, **Prévention**. La carte
-d'ensemble est dans [../architecture.md](../architecture.md).
+d'ensemble est dans [../architecture.md](../architecture.md), le pourquoi des
+choix dans [../adr/](../adr/README.md).
 
 | Incident | Fichier |
 |---|---|
