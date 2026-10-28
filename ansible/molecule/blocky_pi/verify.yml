@@ -44,7 +44,7 @@
           - blocky_compose.mem_limit | int == 384 * 1024 * 1024
           - blocky_compose.cpus is not defined
           - blocky_compose.network_mode is not defined
-        fail_msg: "{{ blocky_compose }}"
+        fail_msg: "{{ blocky_compose | to_json }}"
 
     # Le binaire de la même version que l'image, pour valider la
     # configuration rendue telle que le conteneur la lira.
