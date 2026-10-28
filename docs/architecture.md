@@ -176,9 +176,11 @@ flowchart LR
 - Renovate : épingle les images par digest ; seules les versions de
   `planning-equipes` et de `promptoramix` fusionnent seules
   (`renovate.json`) ; les montées majeures de bases attendent une case cochée
-  sur le Dependency Dashboard. Les digests et les correctifs (hors
-  `planning-equipes` et `promptoramix`) arrivent groupés en une PR par
-  semaine, le lundi avant 9 h ; mineures et majeures gardent chacune la leur.
+  sur le Dependency Dashboard (la MariaDB officielle de Nextcloud n'en voit
+  aucune : elle reste sur la LTS 12.3, et son Redis `-bookworm` sur la 8.2).
+  Les digests et les correctifs (hors `planning-equipes` et `promptoramix`)
+  arrivent groupés en une PR par semaine, le lundi avant 9 h ; mineures et
+  majeures gardent chacune la leur.
 
 ## Les sauvegardes
 
