@@ -116,4 +116,6 @@
           - "'HBOX_OPTIONS_TRUST_PROXY=true' in homebox_env_lines"
           - "'HBOX_OPTIONS_ALLOW_ANALYTICS=false' in homebox_env_lines"
           - "'HBOX_OPTIONS_GITHUB_RELEASE_CHECK=false' in homebox_env_lines"
+          - "'HBOX_WEB_MAX_UPLOAD_SIZE=25' in homebox_env_lines"
+          - "'HBOX_WEB_READ_TIMEOUT=5m' in homebox_env_lines"
           - homebox_env_lines | select('match', '^HBOX_AUTH_API_KEY_PEPPER=[0-9a-f]{64}$') | list | length == 1
