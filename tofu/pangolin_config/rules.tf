@@ -460,6 +460,7 @@ resource "terraform_data" "target_inventory" {
         "${join(", ", local.undeclared_targets)}.",
         "Either declare them (a target or a sub_target of the app's entry in",
         "local.websites) or delete them in Pangolin.",
+        local.inventory_destroy_hint,
       ])
     }
   }

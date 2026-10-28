@@ -660,8 +660,9 @@ run "truncated_target_list_fails_plan" {
 # access_inventory (access_inventory.tf)
 # ---------------------------------------------------------------------------
 
-# Un jeton fait main hors des exceptions : un accès permanent derrière le mur
-# SSO que rien dans le dépôt ne mentionne.
+# Un jeton fait main hors des exceptions, sans titre (coalesce ne doit pas
+# faire planter le plan) : un accès permanent derrière le mur SSO que rien
+# dans le dépôt ne mentionne.
 run "hand_made_access_token_fails_plan" {
   command = plan
 
@@ -674,7 +675,7 @@ run "hand_made_access_token_fails_plan" {
           {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
           {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
           {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null},
-          {"accessTokenId": "zz99main", "title": "partage", "resourceName": "Immich", "expiresAt": null}
+          {"accessTokenId": "zz99main", "title": null, "resourceName": "Immich", "expiresAt": null}
         ], "pagination": {"total": 4, "limit": 1000, "offset": 0}},
         "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
       EOT

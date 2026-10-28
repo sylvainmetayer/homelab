@@ -40,6 +40,19 @@ data "http" "pangolin_roles" {
 locals {
   access_token_page_limit = 1000
 
+  # The lists are read at plan time, before anything is destroyed or replaced:
+  # a token, role or target this configuration just stopped declaring (an app
+  # removed, a slug or a sub_target dropped) is still live, so every full plan
+  # stops until it is gone, and an apply that replaces one fails on the old id
+  # after the replacement went through. Shared by the inventory preconditions
+  # here and in rules.tf (target_inventory).
+  inventory_destroy_hint = join(" ", [
+    "If it is one this change stops declaring, destroy it first with a targeted",
+    "apply (e.g. tofu apply -target='pangolin_role.apps[\"<slug>\"]'), which",
+    "leaves this audit out of the graph; if the apply that just failed replaced",
+    "it, the next plan is clean.",
+  ])
+
   # Live, made by hand, kept on purpose or pending a decision. Keyed by id
   # (`accessTokenId` / `roleId`), never by title or name: two tokens can share
   # a title, and a renamed role keeps its id. An entry leaves this list the day
@@ -93,8 +106,10 @@ locals {
 
   live_access_tokens = [
     for token in coalesce(local.live_access_tokens_raw, []) : {
-      id    = tostring(token.accessTokenId)
-      label = "${token.accessTokenId} (\"${coalesce(try(token.title, null), "")}\" on ${coalesce(try(token.resourceName, null), "an unnamed resource")})"
+      id = tostring(token.accessTokenId)
+      # coalesce() fails when every argument is null or "": an untitled token
+      # must still be reported, not crash the plan.
+      label = "${token.accessTokenId} (\"${try(coalesce(token.title), "")}\" on ${try(coalesce(token.resourceName), "an unnamed resource")})"
     }
   ]
 
@@ -110,9 +125,17 @@ locals {
     local.live_roles_raw == null ? ["roles (HTTP ${data.http.pangolin_roles.status_code})"] : [],
   )
 
+  live_access_token_ids = toset([for token in local.live_access_tokens : token.id])
+  live_role_ids         = toset([for role in local.live_roles : role.id])
+
   # A role list without `pagination.total` counts as truncated, not complete.
+  # The token page is full at the limit Pangolin says it applied, should it cap
+  # the one asked for.
   inventory_truncated_lists = concat(
-    length(local.live_access_tokens) >= local.access_token_page_limit ? ["access tokens"] : [],
+    length(local.live_access_tokens) >= min(
+      local.access_token_page_limit,
+      try(tonumber(jsondecode(data.http.pangolin_access_tokens.response_body).data.pagination.limit), local.access_token_page_limit),
+    ) ? ["access tokens"] : [],
     local.live_roles_raw != null && try(
       length(local.live_roles) != jsondecode(data.http.pangolin_roles.response_body).data.pagination.total,
       true
@@ -133,8 +156,8 @@ locals {
   # Only on complete lists: a page missing would make every exception on it
   # look stale, on top of the precondition that already stops the plan.
   stale_inventory_exceptions = length(local.inventory_lookup_failures) + length(local.inventory_truncated_lists) > 0 ? [] : concat(
-    [for id in keys(local.unmanaged_access_tokens) : "access token ${id}" if !contains([for token in local.live_access_tokens : token.id], id)],
-    [for id in keys(local.unmanaged_roles) : "role ${id}" if !contains([for role in local.live_roles : role.id], id)],
+    [for id in keys(local.unmanaged_access_tokens) : "access token ${id}" if !contains(local.live_access_token_ids, id)],
+    [for id in keys(local.unmanaged_roles) : "role ${id}" if !contains(local.live_role_ids, id)],
   )
 }
 
@@ -168,6 +191,7 @@ resource "terraform_data" "access_inventory" {
         "Either declare them (a pangolin_resource_access_token, plus its line in",
         "local.declared_access_token_ids), delete them in Pangolin, or list them",
         "in local.unmanaged_access_tokens (access_inventory.tf) with the reason.",
+        local.inventory_destroy_hint,
       ])
     }
 
@@ -179,6 +203,7 @@ resource "terraform_data" "access_inventory" {
         "Either declare them (a pangolin_role, plus its line in",
         "local.declared_role_ids), delete them in Pangolin, or list them in",
         "local.unmanaged_roles (access_inventory.tf) with the reason.",
+        local.inventory_destroy_hint,
       ])
     }
   }
