@@ -291,12 +291,20 @@ jobs:
         run: |
           # 60 × 2 s : OLM joint chaque site (hole punch) avant de lancer son
           # proxy DNS ; 40 s ne suffisaient plus (deux échecs le 28/10).
+          # Un OLM sorti (--rm : conteneur et journaux déjà effacés) échoue
+          # tout de suite au lieu d'attendre les 2 min pour rien.
           for i in {1..60}; do
             echo "Check $i/60"
 
             if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
               echo "DNS proxy started"
               break
+            fi
+
+            if [ "$(docker inspect -f '{{.State.Running}}' olm 2>/dev/null)" != true ]; then
+              echo "OLM container exited before starting its DNS proxy"
+              docker logs olm 2>&1 || true
+              exit 1
             fi
 
             docker logs --tail 5 olm || true
