@@ -44,6 +44,7 @@ override_data {
       # restore_test_monitor.tf
       uptime_restore_test_url      = "https://uptime.example.test/api/push/restore-test"
       uptime_storage_box_quota_url = "https://uptime.example.test/api/push/storage-box-quota"
+      uptime_secrets_rotation_url  = "https://uptime.example.test/api/push/secrets-rotation"
     }
   }
 }

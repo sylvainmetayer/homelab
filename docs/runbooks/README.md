@@ -21,6 +21,7 @@ d'ensemble est dans [../architecture.md](../architecture.md).
 | Quelqu'un reçoit un 403 vide : CrowdSec (débannir, tester un bannissement, retour arrière) | [crowdsec.md](crowdsec.md) |
 | Clients Nextcloud : qui est encore sur le mot de passe de connexion, créer un mot de passe d'application (procédure, pas un incident) | [nextcloud-mots-de-passe-application.md](nextcloud-mots-de-passe-application.md) |
 | Commits signés sur `main` : signature SSH du poste, clé de signature GitHub, bascule en squash (procédure, pas un incident) | [commits-signes.md](commits-signes.md) |
+| Rotation planifiée des secrets : périodes par nature, procédure par secret, date à mettre à jour, alerte « Rotation des secrets » (procédure, pas un incident) | [rotation-des-secrets.md](rotation-des-secrets.md) |
 
 ## Avant de commencer
 
