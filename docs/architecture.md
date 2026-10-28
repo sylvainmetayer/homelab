@@ -360,3 +360,35 @@ flowchart LR
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
   déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
   capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.
+
+## Les journaux (VictoriaLogs)
+
+Beszel montre les 200 dernières lignes d'un conteneur, à la demande ;
+VictoriaLogs garde tous les journaux de tous les hôtes **30 jours** et les
+interroge en LogsQL. Rôle `victoria_logs` sur la VM docker, interface (vmui)
+sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le compte
+vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
+
+- **Deux conteneurs** : `victoria-logs` (le stockage) n'est que sur un réseau
+  interne ; `victoria-logs-auth` (vmauth) est seul à le joindre, sur `newt`
+  (cible de Pangolin) et publié sur `127.0.0.1:9428` et
+  `192.168.1.216:9428`. VictoriaLogs n'a pas de comptes : sans vmauth, tout
+  conteneur de `newt`, et tout le LAN par le port publié (Docker publie avant
+  ufw), lirait les journaux. vmauth répond 401 à tout sauf `/health`.
+- **Comptes** : `sylvain` voit tout ; un compte par agent
+  (`victoria_logs_agent_passwords`, un mot de passe par hôte) ne peut
+  qu'écrire, sur le seul chemin `/insert/jsonline` : ni lecture, ni
+  suppression. Un hôte compromis peut écrire de faux journaux, pas lire ceux
+  des autres.
+- **Rétention** : `-retentionPeriod=30d`, et un plafond de 10 Gio
+  (`-retention.maxDiskSpaceUsageBytes`) au-delà duquel les partitions
+  journalières les plus anciennes partent avant les 30 jours (un hôte qui
+  boucle sur une erreur). Données sur le disque local de la VM
+  (`/opt/apps/victoria_logs/data`), jamais sur le NAS.
+- **Pas de sauvegarde** : des journaux se reproduisent (chaque hôte garde son
+  journald) et leur perte ne coûte que l'historique. Pas de moniteur
+  « Backup », pas d'entrée dans le test de restauration. La configuration est
+  dans git, les mots de passe dans sops.
+- **Supervision** : Pangolin et le moniteur `Healthcheck VictoriaLogs`
+  sondent le `/health` de vmauth (servi sans compte) : ils voient vmauth,
+  pas le stockage, dont l'image (scratch) n'a aucun binaire de healthcheck.

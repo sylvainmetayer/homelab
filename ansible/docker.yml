@@ -106,5 +106,9 @@
       tags: beszel_agent,monitoring
       vars:
         beszel_agent_hub_url: "http://127.0.0.1:8090"
+    # Journaux centralisés (VictoriaLogs derrière vmauth). Pas de sauvegarde :
+    # des journaux se reproduisent, chaque hôte garde son journald.
+    - role: victoria_logs
+      tags: victoria_logs,app
     - role: homepage
       tags: homepage,app

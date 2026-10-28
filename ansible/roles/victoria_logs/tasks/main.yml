@@ -1,0 +1,58 @@
+---
+- name: Refuse to deploy VictoriaLogs without its accounts
+  ansible.builtin.assert:
+    that:
+      - victoria_logs_ui_password | default('') | length >= 32
+      - victoria_logs_agents | length > 0
+      - victoria_logs_agents | map(attribute='value') | map('string') | map('length') | min >= 32
+    fail_msg: >-
+      Clés sops manquantes ou trop courtes (32 caractères au moins) :
+      victoria_logs_ui_password, victoria_logs_agent_passwords
+      (ansible/secrets.sops.yaml).
+    quiet: true
+
+- name: Ensure VictoriaLogs app folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ victoria_logs_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Sur le disque local de la VM, jamais sur le NAS : un stockage à fichiers
+# mmap et à verrous, comme SQLite.
+- name: Ensure VictoriaLogs data folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ victoria_logs_base_path }}/data"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template the vmauth accounts
+  diff: false
+  notify: Restart victoria_logs
+  ansible.builtin.template:
+    src: templates/auth.yml.j2
+    dest: "{{ victoria_logs_base_path }}/auth.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart victoria_logs
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ victoria_logs_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure victoria_logs service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@victoria_logs
+    scope: user
+    enabled: true

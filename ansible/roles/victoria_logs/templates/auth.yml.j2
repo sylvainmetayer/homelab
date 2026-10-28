@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Comptes de vmauth (devant VictoriaLogs). Sans compte, vmauth ne sert que
+# /health (sondes de Pangolin et d'Uptime Kuma) et répond 401 au reste.
+users:
+  # L'interface (vmui) et les requêtes LogsQL : tout VictoriaLogs.
+  - username: {{ victoria_logs_ui_user | to_json }}
+    password: {{ victoria_logs_ui_password | to_json }}
+    url_prefix: "http://victoria-logs:9428"
+{% for agent in victoria_logs_agents %}
+  # Agent {{ agent.key }} : écriture seule.
+  - username: {{ agent.key | to_json }}
+    password: {{ agent.value | to_json }}
+    url_map:
+      - src_paths: {{ victoria_logs_agent_paths | to_json }}
+        url_prefix: "http://victoria-logs:9428"
+{% endfor %}

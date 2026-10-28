@@ -1,0 +1,110 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Verify the victoria_logs deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: victoria_logs
+        verify_app_borgmatic_config: ""
+
+    - name: Verify the victoria_logs storage network is internal
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: victoria_logs
+        verify_compose_internal_networks:
+          - victoria-logs
+
+    - name: Render the victoria_logs compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/victoria_logs
+      register: victoria_logs_compose_raw
+      changed_when: false
+
+    # Le stockage n'est joignable que par vmauth (réseau interne, aucun port
+    # publié) ; vmauth est sur newt (cible de Pangolin, website_logs.tf) et
+    # publié sur 127.0.0.1 et l'adresse LAN de la VM, jamais sur toutes les
+    # interfaces. Rétention et plafond disque passés au stockage.
+    - name: Assert the storage is only reachable through vmauth
+      vars:
+        victoria_logs_compose: "{{ victoria_logs_compose_raw.stdout | from_json }}"
+        victoria_logs_storage: "{{ victoria_logs_compose.services['victoria-logs'] }}"
+        victoria_logs_auth: "{{ victoria_logs_compose.services.auth }}"
+      ansible.builtin.assert:
+        that:
+          - victoria_logs_storage.container_name == 'victoria-logs'
+          - victoria_logs_storage.networks.keys() | list == ['victoria-logs']
+          - victoria_logs_storage.ports is not defined
+          - "'-retentionPeriod=30d' in victoria_logs_storage.command"
+          - "'-retention.maxDiskSpaceUsageBytes=10GiB' in victoria_logs_storage.command"
+          - "'-storageDataPath=/data' in victoria_logs_storage.command"
+          - victoria_logs_storage.volumes | map(attribute='target') | list == ['/data']
+          - victoria_logs_storage.volumes[0].source == '/opt/apps/victoria_logs/data'
+          - victoria_logs_storage.stop_grace_period is defined
+          - victoria_logs_storage.mem_reservation is defined
+          - victoria_logs_auth.container_name == 'victoria-logs-auth'
+          - victoria_logs_auth.networks.keys() | sort == ['newt', 'victoria-logs']
+          - victoria_logs_auth.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
+          - victoria_logs_auth.ports | map(attribute='target') | unique == [8427]
+          - victoria_logs_auth.ports | map(attribute='published') | map('string') | unique == ['9428']
+          - victoria_logs_compose.services.values() | map(attribute='cap_drop') | unique == [['ALL']]
+          - victoria_logs_compose.services.values() | selectattr('cpus', 'defined') | list == []
+          - victoria_logs_compose.services.values() | selectattr('mem_limit', 'undefined') | list == []
+          - victoria_logs_compose.services.values() | map(attribute='user') | unique == [ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']]
+          - victoria_logs_compose.services.values() | map(attribute='image') | select('search', '@sha256:[0-9a-f]{64}$') | list | length == 2
+        fail_msg: "Compose victoria_logs inattendu : {{ victoria_logs_compose.services }}"
+
+    # Une sauvegarde ne servirait à rien (journaux reproductibles) : aucune
+    # configuration borgmatic.
+    - name: Stat the borgmatic configuration that must not exist
+      become: true
+      ansible.builtin.stat:
+        path: /etc/borgmatic.d/victoria_logs.yaml
+      register: victoria_logs_borgmatic
+
+    - name: Stat the vmauth accounts and the data folder
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/victoria_logs/auth.yml
+        - /opt/apps/victoria_logs/data
+      register: victoria_logs_files
+
+    - name: Assert there is no backup and the accounts are private
+      ansible.builtin.assert:
+        that:
+          - not victoria_logs_borgmatic.stat.exists
+          - victoria_logs_files.results[0].stat.mode == '0600'
+          - victoria_logs_files.results[0].stat.pw_name == ansible_facts['user_id']
+          - victoria_logs_files.results[1].stat.isdir
+          - victoria_logs_files.results[1].stat.mode == '0700'
+          - victoria_logs_files.results[1].stat.pw_name == ansible_facts['user_id']
+
+    - name: Read the vmauth accounts
+      ansible.builtin.slurp:
+        src: /opt/apps/victoria_logs/auth.yml
+      register: victoria_logs_auth_raw
+
+    # Le compte de l'interface voit tout ; chaque agent n'a qu'une route,
+    # l'écriture (/insert/jsonline) : ni lecture, ni suppression. Aucun
+    # unauthorized_user : sans compte, vmauth ne sert que /health.
+    - name: Assert the agents can only write and the interface has its own account
+      vars:
+        victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
+        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | rejectattr('username', 'eq', 'sylvain') | list }}"
+      ansible.builtin.assert:
+        that:
+          - victoria_logs_accounts.keys() | list == ['users']
+          - victoria_logs_accounts.users | selectattr('username', 'eq', 'sylvain') | map(attribute='password') | list == [victoria_logs_ui_password]
+          - victoria_logs_accounts.users | selectattr('username', 'eq', 'sylvain') | map(attribute='url_prefix') | list == ['http://victoria-logs:9428']
+          - victoria_logs_agent_users | map(attribute='username') | sort == victoria_logs_agent_passwords.keys() | sort
+          - victoria_logs_agent_users | selectattr('url_prefix', 'defined') | list == []
+          - victoria_logs_agent_users | map(attribute='url_map') | map('map', attribute='src_paths') | map('flatten') | unique == [['/insert/jsonline']]
+          - >-
+            victoria_logs_agent_users | items2dict(key_name='username', value_name='password')
+            == victoria_logs_agent_passwords
+        fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_accounts.users | map(attribute='username') | list }}"

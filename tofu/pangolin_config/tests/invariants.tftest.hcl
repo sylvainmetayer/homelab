@@ -447,6 +447,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["victoria_logs"]
+  values = { id = 72, full_domain = "logs.sylvain.cloud" }
+}
+
+override_resource {
   target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
@@ -735,7 +740,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
-      "kitchenowl", "homebox", "speedtest_tracker", "ntfy",
+      "kitchenowl", "homebox", "speedtest_tracker", "ntfy", "victoria_logs",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1767,6 +1772,7 @@ run "every_public_resource_applies_its_rules" {
       speedtest_tracker = "Speedtest Tracker"
       stirling_pdf      = "Stirling-PDF"
       trek              = "TREK"
+      victoria_logs     = "VictoriaLogs"
       wiki              = "Wiki (Bookstack)"
       wishlist          = "Wishlist"
       ntfy              = "ntfy"
@@ -1922,6 +1928,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       speedtest_tracker = "Healthcheck Speedtest Tracker"
       stirling_pdf      = "Healthcheck Stirling-PDF"
       trek              = "Healthcheck TREK"
+      victoria_logs     = "Healthcheck VictoriaLogs"
       wiki              = "Healthcheck Wiki (Bookstack)"
       wishlist          = "Healthcheck Wishlist"
       ntfy              = "Healthcheck ntfy"
@@ -2711,16 +2718,18 @@ run "monitors_are_filed_and_notify_by_email" {
 
   # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
   # DOWN pour Uptime Kuma. Celle de ntfy répond 404 à un GET (web-root:
-  # /app). Leurs moniteurs lisent leur route de santé (monitor_path) ; les
-  # autres gardent la racine de leur ressource.
+  # /app), celle de VictoriaLogs 401 sans le compte vmauth. Leurs moniteurs
+  # lisent leur route de santé (monitor_path) ; les autres gardent la racine
+  # de leur ressource.
   assert {
     condition = (
       uptimekuma_monitor_http_keyword.healthcheck["promptoramix"].url == "https://promptoramix.sylvain.cloud/health"
       && uptimekuma_monitor_http_keyword.healthcheck["ntfy"].url == "https://${pangolin_resource.website["ntfy"].full_domain}/v1/health"
+      && uptimekuma_monitor_http_keyword.healthcheck["victoria_logs"].url == "https://logs.sylvain.cloud/health"
       && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
-      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix"]
+      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix", "victoria_logs"]
     )
-    error_message = "Les healthchecks de Promptoramix et de ntfy doivent lire leur route de santé, et seuls eux ont un monitor_path."
+    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, et seuls eux ont un monitor_path."
   }
 
   assert {

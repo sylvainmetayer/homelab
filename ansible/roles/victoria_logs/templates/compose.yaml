@@ -1,0 +1,72 @@
+---
+services:
+  victoria-logs:
+    # Pas encore mesuré : un binaire Go, caches bornés à 60 % de cette limite
+    # (-memory.allowedPercent, lu dans le cgroup). À recaler sur memory.peak
+    # après une semaine. Réservation : une base, son cache de pages protégé.
+    mem_limit: 1g
+    mem_reservation: 128m
+    image: docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
+    container_name: victoria-logs
+    # Utilisateur de déploiement, sans capacité : il n'écrit que dans /data,
+    # qui est à lui.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    command:
+      - "-storageDataPath=/data"
+      - "-retentionPeriod={{ victoria_logs_retention_period }}"
+      - "-retention.maxDiskSpaceUsageBytes={{ victoria_logs_max_disk_space_usage }}"
+      - "-httpListenAddr=:9428"
+    volumes:
+      - ./data:/data
+    # Vide ses tampons en mémoire sur SIGTERM : le défaut de `compose stop`
+    # (10 s) le tuerait au milieu.
+    stop_grace_period: 60s
+    restart: unless-stopped
+    # Image scratch : aucun binaire pour un healthcheck. /health est sondé à
+    # travers vmauth par Pangolin et Uptime Kuma.
+    networks:
+      - victoria-logs
+
+  # Seul conteneur à joindre le stockage. Il lit auth.yml (comptes de
+  # l'interface et des agents) et ne laisse passer, sans compte, que /health.
+  auth:
+    mem_limit: 128m
+    image: docker.io/victoriametrics/vmauth:v1.154.1@sha256:d8c65a73b8a30a0777417d43a13fbfaea1da1aa4ec4cd68905baf996072376bf
+    container_name: victoria-logs-auth
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    command:
+      - "-auth.config=/etc/vmauth/auth.yml"
+      - "-httpListenAddr=:8427"
+    volumes:
+      - ./auth.yml:/etc/vmauth/auth.yml:ro
+    depends_on:
+      - victoria-logs
+    # Agents du LAN et de la VM elle-même. Publiés par Docker, donc avant ufw :
+    # vmauth exige un compte.
+    ports:
+{% for address in victoria_logs_publish_addresses %}
+      - "{{ address }}:{{ victoria_logs_port }}:8427"
+{% endfor %}
+    restart: unless-stopped
+    networks:
+      - newt
+      - victoria-logs
+
+networks:
+  newt:
+    external: true
+  # Le stockage n'a besoin de rien d'autre que vmauth : aucune sortie.
+  victoria-logs:
+    internal: true

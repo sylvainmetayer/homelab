@@ -1,0 +1,50 @@
+---
+# VictoriaLogs : journaux centralisés de tous les hôtes (journald, conteneurs
+# Docker, journal d'accès de Traefik et CrowdSec sur Pangolin), 30 jours.
+# Interface (vmui) en https://logs.sylvain.cloud derrière le SSO Pangolin
+# (tofu/pangolin_config/website_logs.tf), puis le mot de passe de vmauth.
+#
+# Deux conteneurs :
+#   - victoria-logs       le stockage, sur un réseau privé interne seulement ;
+#   - victoria-logs-auth  vmauth devant lui, seul à le joindre : sur newt
+#                         (Pangolin) et publié sur la VM (agents du LAN). Il
+#                         exige un compte pour tout sauf /health : celui de
+#                         l'interface (lecture et écriture) ou celui d'un
+#                         agent, qui ne peut qu'écrire (/insert/jsonline).
+# VictoriaLogs n'a aucune authentification propre au-delà d'un compte unique
+# (-httpAuth.*) : sans vmauth, n'importe quel conteneur de newt, ou du LAN par
+# le port publié, lirait tous les journaux.
+victoria_logs_base_path: "{{ docker_base_path }}/victoria_logs"
+victoria_logs_domain: logs.sylvain.cloud
+victoria_logs_port: 9428
+
+# Rétention : 30 jours, et un plafond disque au cas où un hôte se mettrait à
+# bavarder (une boucle d'erreurs) : au-delà, VictoriaLogs supprime les
+# partitions journalières les plus anciennes avant les 30 jours. 10 Gio sur
+# les 190 Go de la VM ; volume attendu bien en dessous (docs/architecture.md,
+# « Les journaux »).
+victoria_logs_retention_period: 30d
+victoria_logs_max_disk_space_usage: 10GiB
+
+# Adresses de la VM où vmauth est publié : 127.0.0.1 pour l'agent de la VM
+# elle-même, l'adresse LAN (host_vars/docker) pour ceux du Pi, du NAS et du
+# LXC newt. Publiées par Docker, donc avant ufw : tout le LAN atteint vmauth,
+# qui refuse quiconque n'a pas de compte.
+victoria_logs_publish_addresses:
+  - 127.0.0.1
+
+# Compte de l'interface (lecture, requêtes LogsQL, vmui). Mot de passe : clé
+# sops victoria_logs_ui_password.
+victoria_logs_ui_user: sylvain
+
+# Un compte d'écriture par agent (nom = inventory_hostname) : clé sops
+# victoria_logs_agent_passwords (dict hôte => mot de passe), lue aussi par le
+# rôle log_agent. Un agent ne peut appeler que les chemins ci-dessous (regex
+# de vmauth, ancrée sur le chemin entier) : ni lecture, ni suppression.
+victoria_logs_agents: "{{ victoria_logs_agent_passwords | default({}) | dict2items | sort(attribute='key') }}"
+victoria_logs_agent_paths:
+  - /insert/jsonline
+
+# Pas de sauvegarde : des journaux se reproduisent (chaque hôte garde son
+# journald), et leur perte ne coûte que l'historique. La configuration est
+# dans git, les mots de passe dans sops.

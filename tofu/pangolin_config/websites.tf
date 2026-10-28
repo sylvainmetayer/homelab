@@ -75,6 +75,7 @@ locals {
     speedtest_tracker = local.speedtest_tracker_website
     stirling_pdf      = local.stirling_pdf_website
     trek              = local.trek_website
+    victoria_logs     = local.victoria_logs_website
     wiki              = local.wiki_website
     wishlist          = local.wishlist_website
   }
