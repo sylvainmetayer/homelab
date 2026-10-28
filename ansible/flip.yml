@@ -215,3 +215,6 @@
       tags: log_agent,monitoring
       vars:
         log_agent_url: "https://logs.sylvain.cloud"
+    # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
+    - role: mem_report
+      tags: mem_report,monitoring

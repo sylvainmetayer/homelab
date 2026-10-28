@@ -1,0 +1,39 @@
+---
+# Rapport hebdomadaire de la mémoire des conteneurs, sur ntfy (docker.yml,
+# pi.yml, flip.yml). files/mem_report.py lit le cgroup v2 de chaque conteneur
+# en cours (memory.max, memory.peak, memory.current, memory.events) et publie
+# ceux à agrandir (pic à mem_report_high_percent % de la limite ou plus, ou
+# OOM-kill), ceux à réduire (pic sous mem_report_low_percent %) et ceux sans
+# limite, avec une limite suggérée de 2x le pic (doctrine des limites,
+# AGENTS.md). Un message par hôte, « Rien à signaler » compris : un rapport
+# qui ne vient plus se remarque.
+#
+# memory.peak repart de zéro avec le cgroup, à chaque redémarrage du
+# conteneur ou de l'hôte (redémarrages automatiques après une mise à jour du
+# noyau, security_unattended_reboot_time) : le message le rappelle et signale
+# un pic mesuré sur moins de 7 jours.
+
+# Lundi matin, après la semaine écoulée. Heure locale de l'hôte (Europe/Paris,
+# 00-setup.yaml), loin des redémarrages automatiques (04:30-05:30).
+mem_report_schedule: "Mon *-*-* 09:00:00"
+
+mem_report_high_percent: 80
+mem_report_low_percent: 25
+# Un conteneur sous mem_report_low_percent % n'est cité que si la limite
+# suggérée libère au moins ça : sans ce seuil, chaque petit conteneur (64m
+# pour un pic de 4 Mio) remplirait le message.
+mem_report_min_saving_mb: 64
+
+# Producteur « scripts » du rôle ntfy (écriture seule sur son topic), jeton
+# ntfy_scripts_token d'ansible/secrets.sops.yaml. Publication JSON sur « / »,
+# ouvert sans SSO (local.ntfy_client_paths, website_ntfy.tf). Jeton vide : le
+# rapport ne va qu'au journal (journalctl -u mem-report).
+mem_report_ntfy_url: https://ntfy.sylvain.cloud
+mem_report_ntfy_topic: scripts
+mem_report_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+
+# Le script tourne sous ce compte, groupe docker en plus (docker ps et
+# inspect ; les fichiers des cgroups sont lisibles par tous), jamais root.
+mem_report_user: "{{ ansible_user }}"
+# Nom de l'hôte dans le titre du message.
+mem_report_host_label: "{{ inventory_hostname }}"

@@ -1,0 +1,5 @@
+---
+# Dérivé, pas un réglage.
+mem_report_script: /usr/local/libexec/mem_report.py
+# Le jeton ntfy, lu par systemd (root) avant de passer au compte du script.
+mem_report_env_file: /etc/mem-report.env

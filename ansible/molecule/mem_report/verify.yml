@@ -1,0 +1,270 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    mem_report_verify_tmp: /root/molecule-mem-report
+    mem_report_verify_log: /root/molecule-mem-report/ntfy.jsonl
+    mem_report_verify_script: /usr/local/libexec/mem_report.py
+  pre_tasks:
+    # Le jeton ntfy comparé à la fausse valeur.
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    - name: Stat the memory report files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ mem_report_verify_script }}"
+        - /etc/mem-report.env
+      register: mem_report_verify_files
+
+    # Le script est lisible par le compte de l'unité ; le fichier
+    # d'environnement porte le jeton.
+    - name: Assert the memory report files are root-owned
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0600' if item.item.endswith('.env') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ mem_report_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the token file
+      ansible.builtin.slurp:
+        path: /etc/mem-report.env
+      register: mem_report_verify_env_file
+
+    - name: Assert the token file holds the scripts publisher token only
+      ansible.builtin.assert:
+        that:
+          - mem_report_verify_env_file.content | b64decode == 'MEM_REPORT_NTFY_TOKEN=' ~ ntfy_scripts_token ~ '\n'
+        quiet: true
+
+    - name: Verify the memory report units
+      ansible.builtin.command: systemd-analyze verify mem-report.service mem-report.timer
+      register: mem_report_verify_analyze
+      changed_when: false
+      failed_when: >-
+        mem_report_verify_analyze.rc != 0
+        or (mem_report_verify_analyze.stderr_lines | select('search', 'mem-report') | list | length > 0)
+
+    - name: Read the memory report timer
+      ansible.builtin.systemd:
+        name: mem-report.timer
+      register: mem_report_verify_timer
+
+    - name: Read the memory report service
+      ansible.builtin.systemd:
+        name: mem-report.service
+      register: mem_report_verify_unit
+
+    # Chaque lundi, sous sylvain (jamais root) avec le groupe docker, le jeton
+    # par le fichier d'environnement seul.
+    - name: Assert the report runs weekly, unprivileged
+      vars:
+        mem_report_verify_exec: "{{ mem_report_verify_unit.status.ExecStart }}"
+      ansible.builtin.assert:
+        that:
+          - mem_report_verify_timer.status.UnitFileState == 'enabled'
+          - mem_report_verify_timer.status.ActiveState == 'active'
+          - mem_report_verify_timer.status.TimersCalendar is search('OnCalendar=Mon \*-\*-\* 09:00:00')
+          - mem_report_verify_unit.status.Type == 'oneshot'
+          - mem_report_verify_unit.status.User == 'sylvain'
+          - mem_report_verify_unit.status.SupplementaryGroups == 'docker'
+          - mem_report_verify_unit.status.ProtectSystem == 'strict'
+          - mem_report_verify_unit.status.NoNewPrivileges == 'yes'
+          - mem_report_verify_unit.status.EnvironmentFiles is search('/etc/mem-report.env')
+          - "'python3 -I ' ~ mem_report_verify_script in mem_report_verify_exec"
+          - "'--url http://127.0.0.1:18081 --topic scripts --high 80 --low 25 --min-saving-mb 64' in mem_report_verify_exec"
+          - "'--host molecule-mem_report' in mem_report_verify_exec"
+          - ntfy_scripts_token not in mem_report_verify_exec
+        fail_msg: "{{ mem_report_verify_exec }}"
+
+    - name: Create the fixtures folder
+      ansible.builtin.file:
+        path: "{{ mem_report_verify_tmp }}"
+        state: directory
+        mode: "0700"
+
+    - name: Install the fake docker, fake ntfy and fixture builder
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ mem_report_verify_tmp }}/{{ item }}"
+        mode: "0700"
+      loop:
+        - fake_docker.sh
+        - fake_ntfy.py
+        - make_fixture.py
+
+    - name: Build the fake cgroup tree and docker answers
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -I
+          - "{{ mem_report_verify_tmp }}/make_fixture.py"
+          - "{{ mem_report_verify_tmp }}"
+        creates: "{{ mem_report_verify_tmp }}/inspect.tsv"
+
+    # Un `molecule verify` relancé repart d'un journal vide.
+    - name: Remove what an earlier verify received
+      ansible.builtin.file:
+        path: "{{ mem_report_verify_log }}"
+        state: absent
+
+    - name: Start the fake ntfy
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-ntfy
+          - --collect
+          - python3
+          - -I
+          - "{{ mem_report_verify_tmp }}/fake_ntfy.py"
+          - "18081"
+          - "{{ mem_report_verify_log }}"
+      changed_when: true
+
+    - name: Wait for the fake ntfy to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18081
+        timeout: 30
+
+    - name: Run the report against the fixtures
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -I
+          - "{{ mem_report_verify_script }}"
+          - --host
+          - docker
+          - --url
+          - http://127.0.0.1:18081 # NOSONAR
+          - --topic
+          - scripts
+          - --cgroup-root
+          - "{{ mem_report_verify_tmp }}/cgroup"
+          - --docker
+          - "{{ mem_report_verify_tmp }}/fake_docker.sh"
+      environment:
+        FAKE_DOCKER_FIXTURE: "{{ mem_report_verify_tmp }}/inspect.tsv"
+        MEM_REPORT_NTFY_TOKEN: "{{ ntfy_scripts_token }}"
+      register: mem_report_verify_run
+      changed_when: true
+
+    - name: Read what the fake ntfy received
+      ansible.builtin.slurp:
+        path: "{{ mem_report_verify_log }}"
+      register: mem_report_verify_received
+
+    # Une publication JSON sur « / », avec le jeton du producteur scripts : à
+    # agrandir (OOM-kill, au plafond ; memory.current faute de memory.peak),
+    # à réduire (cgroup_parent du NAS, pic sur 2 jours), sans limite. Ni le
+    # petit conteneur (48 Mio libérés seulement), ni celui à 58 % (pilote
+    # cgroupfs), ni le cgroup que docker ne liste pas.
+    - name: Assert the report lists what to grow, shrink and limit
+      vars:
+        mem_report_verify_lines: "{{ (mem_report_verify_received.content | b64decode).splitlines() }}"
+        mem_report_verify_post: "{{ mem_report_verify_lines | last | from_json }}"
+        mem_report_verify_message: "{{ mem_report_verify_post.body.message }}"
+      ansible.builtin.assert:
+        that:
+          - mem_report_verify_lines | length == 1
+          - mem_report_verify_post.path == '/'
+          - mem_report_verify_post.auth == 'Bearer ' ~ ntfy_scripts_token
+          - mem_report_verify_post.body.topic == 'scripts'
+          - "mem_report_verify_post.body.title == 'Mémoire des conteneurs : docker'"
+          - mem_report_verify_post.body.priority == 4
+          - mem_report_verify_post.body.tags == ['warning']
+          - >-
+            '- molecule-big : pic 255 Mio / 256 Mio (100 %), OOM-kill x1, plafond atteint x12 -> mem_limit 512m au moins'
+            in mem_report_verify_message
+          - >-
+            '- molecule-oldkernel : pic 900 Mio / 1.0 Gio (88 %), redémarré x3 (memory.current, pas de memory.peak) -> mem_limit 2g'
+            in mem_report_verify_message
+          - >-
+            '- molecule-idle : pic 100 Mio / 1.0 Gio (10 %) (pic sur 2 j seulement) -> mem_limit 208m'
+            in mem_report_verify_message
+          - "'- molecule-nolimit : pic 50 Mio -> mem_limit 112m' in mem_report_verify_message"
+          - "'molecule-small' not in mem_report_verify_message"
+          - "'molecule-cgroupfs' not in mem_report_verify_message"
+          - "'6 conteneur(s) lu(s), 1 sans cgroup trouvé' in mem_report_verify_message"
+          - "'repartent de zéro à chaque redémarrage du conteneur' in mem_report_verify_message"
+          - ntfy_scripts_token not in mem_report_verify_run.stdout
+        fail_msg: "{{ mem_report_verify_message }}"
+
+    # Jeton vide : le rapport au journal, rien de publié.
+    - name: Run the report without a token
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -I
+          - "{{ mem_report_verify_script }}"
+          - --host
+          - docker
+          - --url
+          - http://127.0.0.1:18081 # NOSONAR
+          - --topic
+          - scripts
+          - --cgroup-root
+          - "{{ mem_report_verify_tmp }}/cgroup"
+          - --docker
+          - "{{ mem_report_verify_tmp }}/fake_docker.sh"
+      environment:
+        FAKE_DOCKER_FIXTURE: "{{ mem_report_verify_tmp }}/inspect.tsv"
+        MEM_REPORT_NTFY_TOKEN: ""
+      register: mem_report_verify_tokenless
+      changed_when: true
+
+    - name: Read what the fake ntfy received
+      ansible.builtin.slurp:
+        path: "{{ mem_report_verify_log }}"
+      register: mem_report_verify_received
+
+    - name: Assert nothing was published without a token
+      ansible.builtin.assert:
+        that:
+          - (mem_report_verify_received.content | b64decode).splitlines() | length == 1
+          - "'molecule-big' in mem_report_verify_tokenless.stdout"
+          - "'rien n\\'est publié' in mem_report_verify_tokenless.stderr"
+
+    # La vraie unité, durcie, sous sylvain : vrais cgroups, Docker du
+    # conteneur Molecule sans aucun conteneur.
+    - name: Run the memory report service
+      ansible.builtin.systemd:
+        name: mem-report.service
+        state: started
+
+    - name: Read the memory report service result
+      ansible.builtin.systemd:
+        name: mem-report.service
+      register: mem_report_verify_run_unit
+
+    - name: Read what the fake ntfy received
+      ansible.builtin.slurp:
+        path: "{{ mem_report_verify_log }}"
+      register: mem_report_verify_received
+
+    - name: Assert the service published an empty report
+      vars:
+        mem_report_verify_lines: "{{ (mem_report_verify_received.content | b64decode).splitlines() }}"
+        mem_report_verify_post: "{{ mem_report_verify_lines | last | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - mem_report_verify_run_unit.status.Result == 'success'
+          - mem_report_verify_lines | length == 2
+          - mem_report_verify_post.auth == 'Bearer ' ~ ntfy_scripts_token
+          - "mem_report_verify_post.body.title == 'Mémoire des conteneurs : molecule-mem_report'"
+          - "mem_report_verify_post.body.message == 'Aucun conteneur en cours : rien à mesurer.'"
+          - mem_report_verify_post.body.priority == 2
+        fail_msg: "{{ mem_report_verify_lines }}"
+
+    - name: Stop the fake ntfy
+      ansible.builtin.systemd:
+        name: molecule-ntfy.service
+        state: stopped

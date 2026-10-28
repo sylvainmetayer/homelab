@@ -1,0 +1,49 @@
+---
+- name: Install the memory report script
+  become: true
+  ansible.builtin.copy:
+    src: mem_report.py
+    dest: "{{ mem_report_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Le jeton ntfy : 0600 root, diff: false.
+- name: Write the ntfy token of the memory report
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "MEM_REPORT_NTFY_TOKEN={{ mem_report_ntfy_token }}\n"
+    dest: "{{ mem_report_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Warn that the report will not be published
+  when: mem_report_ntfy_token | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      ntfy_scripts_token vide : le rapport mémoire n'ira qu'au journal
+      (journalctl -u mem-report), rien n'est publié sur ntfy.
+
+- name: Install the memory report service and timer
+  become: true
+  loop:
+    - mem-report.service
+    - mem-report.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart mem-report timer
+
+# Le timer seul : le service, oneshot, n'est jamais lancé par Ansible.
+- name: Enable the weekly memory report
+  become: true
+  ansible.builtin.systemd:
+    name: mem-report.timer
+    state: started
+    enabled: true
+    daemon_reload: true
