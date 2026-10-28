@@ -21,6 +21,14 @@ flip_planning_service: flip_planning
 # with the `ip` / `hc_hostname` of tofu/pangolin_config/website_<instance>.tf.
 # kebab-case.
 flip_planning_container_prefix: flip-planning
+# false: this application of the role does nothing (first task of
+# tasks/main.yml, meta end_role). For an instance skipped until its secrets
+# exist (flip.yml: `"{{ <instance>_db_password is defined }}"`). Never a
+# `when:` on the `roles:` entry instead: a role's `when` also applies to its
+# handlers, and Ansible notifies the LAST loaded handler of a given name — so
+# a skipped last instance would silently skip the restart handlers of every
+# other instance (checked on ansible-core 2.21).
+flip_planning_deploy: true
 # ---------------------------------------------------------------------------
 
 flip_planning_base_path: "{{ docker_base_path }}/{{ flip_planning_service }}"

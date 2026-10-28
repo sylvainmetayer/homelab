@@ -48,6 +48,7 @@ trap 'docker compose up -d --no-deps mailpit app' EXIT
 docker compose stop app mailpit
 # The dump carries the schema and the Flyway history; whatever a visitor
 # created goes with the old database. WITH (FORCE) closes what is still
-# connected (a stuck session).
-psql_admin -c "DROP DATABASE \"$db\" WITH (FORCE)" \
+# connected (a stuck session). IF EXISTS: a run that dropped it and then failed
+# on the rename is retried (Restart=on-failure) with no database left to drop.
+psql_admin -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" \
   -c "ALTER DATABASE \"$side\" RENAME TO \"$db\""

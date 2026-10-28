@@ -17,6 +17,10 @@
       ansible.builtin.assert:
         that:
           - converge_flip_instances == playbook_flip_instances
+          # Un `when:` sur une entrée s'applique aussi à ses handlers, et le
+          # dernier handler chargé d'un nom gagne : une dernière instance
+          # sautée sauterait le redémarrage de toutes (flip_planning_deploy).
+          - playbook_flip_play.roles | selectattr('role', 'equalto', 'flip_planning') | selectattr('when', 'defined') | list | length == 0
           # Régression documentée (flip.yml, AGENTS.md) : un set_fact d'une
           # variable du rôle l'emporte sur les `vars:` de chaque instance.
           - playbook_flip_facts | select('match', '^flip_planning_') | list | length == 0
@@ -121,8 +125,8 @@
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
     - role: flip_planning
-      when: demo_planning_kc_db_password is defined
       vars:
+        flip_planning_deploy: "{{ demo_planning_kc_db_password is defined }}"
         flip_planning_service: demo_planning_kc
         flip_planning_container_prefix: demo-planning-kc
         flip_planning_domain: demo-planning-kc.sylvain.dev
@@ -147,8 +151,8 @@
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
         flip_planning_backup_enabled: false
     - role: flip_planning
-      when: exemple_planning_db_password is defined
       vars:
+        flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
         flip_planning_service: exemple_planning
         flip_planning_container_prefix: exemple-planning
         flip_planning_domain: exemple-planning.sylvain.dev

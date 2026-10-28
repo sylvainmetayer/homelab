@@ -1,4 +1,11 @@
 ---
+# See flip_planning_deploy in defaults/main.yml: why this, not a `when:` on
+# the role entry.
+- name: Skip this instance when it is not deployed on this run, {{ flip_planning_service }}
+  when: not (flip_planning_deploy | bool)
+  tags: always
+  ansible.builtin.meta: end_role
+
 - name: Ensure app folders exist for {{ flip_planning_service }}
   loop:
     - "{{ flip_planning_base_path }}"
