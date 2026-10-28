@@ -144,6 +144,94 @@
   loop_control:
     label: "{{ item.src }}"
 
+# Résumé quotidien sur ntfy (defaults/main.yml). Le jeton est dans un
+# fichier d'environnement 0600 lu par l'unité : diff: false, jamais sur une
+# ligne de commande.
+- name: Warn that the CrowdSec summary has no ntfy token
+  when: pangolin_crowdsec_summary_enabled | bool and not pangolin_crowdsec_summary_active | bool
+  ansible.builtin.debug:
+    msg: "ntfy_scripts_token vide : pas de résumé CrowdSec quotidien sur ntfy."
+
+- name: Install the CrowdSec summary
+  when: pangolin_crowdsec_summary_active | bool
+  become: true
+  block:
+    - name: Create the CrowdSec summary configuration directory
+      ansible.builtin.file:
+        path: "{{ pangolin_crowdsec_summary_config_dir }}"
+        state: directory
+        mode: "0700"
+        owner: root
+        group: root
+
+    - name: Write the ntfy credentials of the CrowdSec summary
+      diff: false
+      no_log: true
+      ansible.builtin.template:
+        src: crowdsec-summary.env.j2
+        dest: "{{ pangolin_crowdsec_summary_config_dir }}/env"
+        mode: "0600"
+        owner: root
+        group: root
+
+    - name: Install the CrowdSec summary script
+      ansible.builtin.copy:
+        src: crowdsec-summary.py
+        dest: /usr/local/bin/crowdsec-summary
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Install the CrowdSec summary service and timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        mode: "0644"
+        owner: root
+        group: root
+      loop:
+        - crowdsec-summary.service
+        - crowdsec-summary.timer
+
+    - name: Enable the daily CrowdSec summary
+      ansible.builtin.systemd:
+        name: crowdsec-summary.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+- name: Check whether a CrowdSec summary timer is installed
+  when: not pangolin_crowdsec_summary_active | bool
+  ansible.builtin.stat:
+    path: /etc/systemd/system/crowdsec-summary.timer
+  register: pangolin_crowdsec_summary_timer
+
+- name: Remove the CrowdSec summary
+  when:
+    - not pangolin_crowdsec_summary_active | bool
+    - pangolin_crowdsec_summary_timer.stat.exists
+  become: true
+  block:
+    - name: Stop the daily CrowdSec summary
+      ansible.builtin.systemd:
+        name: crowdsec-summary.timer
+        state: stopped
+        enabled: false
+
+    - name: Delete the CrowdSec summary files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/crowdsec-summary.timer
+        - /etc/systemd/system/crowdsec-summary.service
+        - /usr/local/bin/crowdsec-summary
+        - "{{ pangolin_crowdsec_summary_config_dir }}"
+
+    - name: Forget the CrowdSec summary units
+      ansible.builtin.systemd:
+        daemon_reload: true
+
 # Porte la clé du bouncer CrowdSec : diff: false. Relue par Traefik dès
 # qu'elle change (fournisseur file), sans redémarrage.
 - name: Create Traefik dynamic configuration

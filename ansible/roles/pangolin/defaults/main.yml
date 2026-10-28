@@ -86,3 +86,17 @@ pangolin_crowdsec_appsec_body_limit: 1048576
 # Journal d'accès de Traefik (JSON, lu par CrowdSec) : rotation quotidienne
 # par logrotate, Traefik rouvre le fichier sur SIGUSR1.
 pangolin_traefik_access_log_rotate_days: 7
+
+# Résumé quotidien de CrowdSec sur ntfy (crowdsec-summary.timer,
+# files/crowdsec-summary.py, docs/runbooks/crowdsec.md) : alertes et
+# bannissements des dernières 24 h par scénario et par pays, AppSec en
+# détection seule. Priorité basse, haute sur un pic ou une règle AppSec
+# nouvelle. Jeton du producteur scripts de ntfy (clé SOPS ntfy_scripts_token,
+# écriture seule sur son topic) ; vide, le résumé est retiré avec un
+# avertissement.
+pangolin_crowdsec_summary_enabled: "{{ pangolin_crowdsec_enabled }}"
+pangolin_crowdsec_summary_ntfy_url: https://ntfy.sylvain.cloud/
+pangolin_crowdsec_summary_ntfy_topic: scripts
+pangolin_crowdsec_summary_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+pangolin_crowdsec_summary_config_dir: /etc/crowdsec-summary
+pangolin_crowdsec_summary_on_calendar: "*-*-* 07:30:00"

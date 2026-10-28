@@ -1,0 +1,44 @@
+#!/usr/bin/python3
+"""Faux cscli du scénario pangolin : `alerts list --since 24h --limit 0 -o json`.
+
+Rend, au format de cscli 1.8, 12 alertes crowdsecurity/http-probing (US,
+bannies), une crowdsecurity/http-sensitive-files (FR, bannie) et deux
+correspondances AppSec homelab/appsec-alert-only (règle
+crowdsecurity/vpatch-CVE-2026-0001, une IP). FAKE_CSCLI_FAIL=1 : cscli en
+échec, comme un conteneur crowdsec arrêté. Tout autre appel échoue.
+"""
+import json
+import os
+import sys
+
+EXPECTED = ["alerts", "list", "--since", "24h", "--limit", "0", "-o", "json"]
+
+if os.environ.get("FAKE_CSCLI_FAIL") == "1":
+    print("Error: No such container: crowdsec", file=sys.stderr)
+    sys.exit(1)
+if sys.argv[1:] != EXPECTED:
+    print(f"fake-cscli : appel inattendu {sys.argv[1:]}", file=sys.stderr)
+    sys.exit(2)
+
+
+def alert(scenario, ip, country, ban=True, rule=None):
+    events = []
+    if rule:
+        events.append({"timestamp": "2026-10-28T06:00:00Z", "meta": [{"key": "rule_name", "value": rule}]})
+    decisions = [{"type": "ban", "value": ip, "origin": "crowdsec", "scenario": scenario, "duration": "3h59m"}] if ban else []
+    return {
+        "scenario": scenario,
+        "source": {"scope": "Ip", "value": ip, "ip": ip, "cn": country},
+        "decisions": decisions,
+        "events": events,
+        "events_count": 5,
+    }
+
+
+alerts = [alert("crowdsecurity/http-probing", f"198.51.100.{i}", "US") for i in range(12)]
+alerts.append(alert("crowdsecurity/http-sensitive-files", "192.0.2.7", "FR"))
+alerts += [
+    alert("homelab/appsec-alert-only", "203.0.113.9", "DE", ban=False, rule="crowdsecurity/vpatch-CVE-2026-0001")
+    for _ in range(2)
+]
+print(json.dumps(alerts))

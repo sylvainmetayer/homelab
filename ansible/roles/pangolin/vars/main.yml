@@ -29,3 +29,8 @@ pangolin_crowdsec_trusted_cidrs: >-
      | map('regex_replace', '^([^/:]+)$', '\1/32')
      | map('regex_replace', '^([^/]*:[^/]*)$', '\1/128')
      | unique | list }}
+
+# Installé seulement avec CrowdSec et un jeton ntfy (defaults/main.yml).
+pangolin_crowdsec_summary_active: >-
+  {{ (pangolin_crowdsec_summary_enabled | bool)
+     and (pangolin_crowdsec_summary_ntfy_token | length > 0) }}
