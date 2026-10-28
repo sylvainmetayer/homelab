@@ -1,13 +1,18 @@
 name: Trivy
 
 # Analyse hebdomadaire Trivy, en rapport seulement : les vulnérabilités HIGH
-# et CRITICAL des images épinglées dans les rôles (et compose/) qui ont un
-# correctif publié (--ignore-unfixed : sans lui, quelque 5 300 alertes
-# noyaient celles qu'une montée de version peut régler), les
-# mauvaises configurations de tofu/, ansible/ et du Dockerfile Molecule. Les
-# résultats vont dans l'onglet Security (code scanning, SARIF), une
-# catégorie par image : une trouvaille ne fait jamais échouer le run, une
-# erreur de l'outil (image introuvable, base absente, SARIF refusé) si.
+# et CRITICAL qui ont un correctif publié, dans les images épinglées des rôles
+# (et compose/), et les mauvaises configurations de tofu/, ansible/ et du
+# Dockerfile Molecule. Les résultats vont dans l'onglet Security (code
+# scanning, SARIF), une catégorie par image : une trouvaille ne fait jamais
+# échouer le run, une erreur de l'outil (image introuvable, base absente,
+# SARIF refusé) si.
+# --ignore-unfixed : sans lui, les CVE sans correctif, que Renovate ne peut
+# pas régler, noyaient les autres. Il masque aussi le statut end_of_life :
+# une image restée sur une distribution en fin de vie paraît propre, seul le
+# log du job le dit. Code scanning ferme les alertes masquées comme « Fixed »
+# sans qu'elles le soient ; une CVE qui reçoit un correctif revient comme une
+# nouvelle alerte.
 # Le lundi à 05:00 UTC, après les tests de la nuit (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
 # ce que corrigent ses montées de version.
