@@ -29,6 +29,9 @@ CONTAINERS = [
     ("e", "molecule-oldkernel", "system.slice/docker-{}.scope", 1024 * MIB, None, 900 * MIB, 0, 0, 3, 30),
     # Pilote cgroupfs (docker/<id>), 300 Mio sur 512 Mio : rien à dire.
     ("f", "molecule-cgroupfs", "docker/{}", 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30),
+    # 50 Mio sur 1 Gio, mais relancé par Docker hier (un OOM-kill du
+    # processus principal, peut-être) : jamais proposé à la réduction.
+    ("7", "molecule-relaunched", "system.slice/docker-{}.scope", 1024 * MIB, 50 * MIB, 40 * MIB, 0, 0, 2, 1),
     # Listé par docker, cgroup introuvable.
     ("9", "molecule-gone", None, None, None, None, 0, 0, 0, 30),
 ]
@@ -55,7 +58,7 @@ with open(os.path.join(ROOT, "inspect.tsv"), "w") as tsv:
                 f"low 0\nhigh 0\nmax {max_events}\noom {oom_kill}\noom_kill {oom_kill}\noom_group_kill 0",
             )
         started = (NOW - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.123456789Z")
-        tsv.write(f"{container_id}\t/{name}\t{restarts}\tfalse\t{started}\n")
+        tsv.write(f"{container_id}\t/{name}\t{restarts}\t{started}\n")
 
 # Le cgroup d'un conteneur que docker ne liste pas (ceux du runner de la CI,
 # vus à travers cgroupns host) : ignoré.

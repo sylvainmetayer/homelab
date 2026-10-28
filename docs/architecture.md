@@ -372,8 +372,10 @@ flowchart LR
   moins de 7 jours est signalé, et un redémarrage automatique après une
   mise à jour du noyau remet tout l'hôte à zéro. Un OOM-kill du processus
   principal, suivi d'un redémarrage du conteneur, n'apparaît que par
-  `redémarré xN` (le nouveau cgroup a perdu le compteur). À la main :
-  `sudo systemctl start mem-report`, le texte aussi dans
+  `redémarré xN` (le nouveau cgroup a perdu le compteur), et un conteneur
+  relancé depuis moins de 7 jours n'est jamais proposé à la réduction. À la
+  main : `sudo systemctl start mem-report`, le texte complet (lignes coupées
+  du message ntfy comprises) dans
   `journalctl -u mem-report`.
 
 ## Les journaux (VictoriaLogs)
