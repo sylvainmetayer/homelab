@@ -1,0 +1,107 @@
+---
+# Date du dernier test réussi (AAAA-MM-JJ), lue par
+# .github/scripts/check_secret_rotation.py : le workflow Secrets rotation
+# passe le moniteur « Rotation des secrets » à « down » au-delà de 100 jours.
+# Valeur initiale : l'ajout de la clé (f7be1d86), pas un test connu.
+dernier_test: 2026-10-23
+---
+
+# Tester la clé age `secours` (chaque trimestre)
+
+Procédure, pas un incident. La clé `secours` est la clé age hors ligne qui
+ouvre les deux fichiers SOPS quand `perso` et `pro` sont perdues
+([perte-cle-ou-poste.md](perte-cle-ou-poste.md)). Elle ne sert jamais
+autrement : rien ne dirait qu'elle est abîmée, illisible, ou que les
+fichiers ne sont plus chiffrés pour elle, avant le jour où on en a besoin.
+
+Deux contrôles :
+
+- **automatique** (workflow Lint, chaque PR) :
+  `.github/scripts/check_age_recipients.py` compare les destinataires age
+  inscrits en clair dans chaque `secrets.sops.yaml` à la règle de
+  `.sops.yaml` qui le désigne, et exige `secours` dans chaque règle. Un
+  fichier rechiffré sans elle, ou pour une clé de trop, fait échouer le
+  Lint. Il ne prouve pas que la clé privée existe encore ni qu'elle ouvre
+  quoi que ce soit ;
+- **manuel** (ce runbook, chaque trimestre) : déchiffrer les deux fichiers
+  avec la clé `secours` seule. Le workflow Secrets rotation (chaque lundi)
+  passe le moniteur « Rotation des secrets » à « down » quand
+  `dernier_test`, en tête de ce fichier, a plus de 100 jours.
+
+## Le test
+
+1. Sortir la clé de sa cachette hors ligne et la monter sur le poste, par
+   exemple une clé USB en `/run/media/sylvain/SECOURS/secours.key`. Ne
+   jamais la copier sur le disque du poste.
+2. Depuis la racine du dépôt (à jour de `main`), vérifier que c'est bien la
+   clé `secours` : la clé publique affichée doit être celle de la ligne
+   `# secours` de `.sops.yaml`.
+
+   ```bash
+   KEY=/run/media/sylvain/SECOURS/secours.key
+   mise exec -- age-keygen -y "$KEY"
+   grep '# secours' .sops.yaml
+   ```
+
+3. Déchiffrer les deux fichiers avec **cette clé seule**. sops additionne
+   toutes les clés qu'il trouve : `SOPS_AGE_KEY_FILE` s'ajoute à
+   `SOPS_AGE_KEY`, à `~/.config/sops/age/keys.txt` (présent sur le poste)
+   et à `~/.ssh/id_ed25519`, il ne les remplace pas (`.sopsrc` n'est lu
+   que par l'extension d'éditeur, pas par sops). Sans isolement, le test réussirait avec la clé
+   `perso` et ne prouverait rien. D'où `env -i` (ni `SOPS_AGE_KEY` ni
+   l'environnement de mise) et un `HOME` vide (pas de `keys.txt`) :
+
+   ```bash
+   SOPS=$(mise which sops)
+   EMPTY=$(mktemp -d)
+   for f in secrets.sops.yaml ansible/secrets.sops.yaml; do
+     env -i PATH=/usr/bin:/bin HOME="$EMPTY" SOPS_AGE_KEY_FILE="$KEY" \
+       "$SOPS" decrypt "$f" > /dev/null && echo "ok $f" || echo "ÉCHEC $f"
+   done
+   rmdir "$EMPTY"
+   ```
+
+   Rien ne s'affiche des secrets : la sortie va à `/dev/null`. Contre-épreuve
+   (une fois, pour se convaincre de l'isolement) : la même boucle avec
+   `SOPS_AGE_KEY_FILE=/dev/null` doit afficher deux `ÉCHEC` (« Failed to
+   get the data key »), alors que, sans `env -i` ni `HOME` vide, elle
+   affiche deux `ok` grâce à `keys.txt` (vérifié le 2026-10-28).
+4. Démonter et ranger la clé.
+5. Deux `ok` : mettre `dernier_test` (en tête de ce fichier) à la date du
+   jour, PR, merge. Le moniteur repasse « up » au prochain lundi (ou
+   relancer le workflow Secrets rotation à la main).
+
+## En cas d'échec
+
+- **`age-keygen -y` échoue, ou affiche une autre clé** : la clé est
+  abîmée, ou ce n'est pas la bonne. Chercher l'autre copie, s'il y en a
+  une. Sinon, en faire une nouvelle (ci-dessous) : tant qu'elle n'est pas
+  posée, `perso` et `pro` sont les seules clés.
+- **la clé publique est la bonne, mais `ÉCHEC`** : un fichier n'est plus
+  chiffré pour elle. Le Lint (`check_age_recipients.py`) aurait dû
+  l'attraper : regarder `python -I .github/scripts/check_age_recipients.py`.
+  Rechiffrer avec une clé qui ouvre encore (`perso`) :
+  `sops updatekeys <fichier>`, PR, puis refaire le test.
+
+### Remplacer la clé `secours`
+
+1. Sur un poste de confiance, sans réseau si possible :
+   `age-keygen -o /run/media/sylvain/SECOURS/secours.key` (la clé publique
+   s'affiche). Faire la deuxième copie hors ligne (papier, seconde clé
+   USB) tout de suite.
+2. Remplacer la ligne `# secours` dans les **deux** règles de `.sops.yaml`,
+   puis, consigne en tête de `.sops.yaml` :
+
+   ```bash
+   sops updatekeys secrets.sops.yaml
+   sops updatekeys ansible/secrets.sops.yaml
+   sops rotate -i secrets.sops.yaml
+   sops rotate -i ansible/secrets.sops.yaml
+   ```
+
+3. PR, merge, puis le test ci-dessus avec la nouvelle clé, et
+   `dernier_test` à la date du jour.
+
+L'ancienne clé ouvre toujours les versions de l'historique git : si elle a
+pu être lue par un tiers (et pas seulement perdue), c'est le cas « clé
+volée » de [perte-cle-ou-poste.md](perte-cle-ou-poste.md).

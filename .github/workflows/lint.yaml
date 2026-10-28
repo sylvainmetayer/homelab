@@ -76,6 +76,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_secret_rotation.py
 
+      # Chaque fichier SOPS chiffré pour les destinataires de sa règle de
+      # .sops.yaml, la clé secours comprise : un fichier rechiffré sans elle ne
+      # s'ouvrirait plus avec la clé hors ligne (docs/runbooks/test-cle-secours.md).
+      - name: Check the age recipients of the SOPS files
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/check_age_recipients.py
+
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts
         # Même si ansible-lint a échoué : deux régressions dans une seule passe.

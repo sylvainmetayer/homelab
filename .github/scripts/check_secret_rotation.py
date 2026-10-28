@@ -13,6 +13,11 @@ Deux usages :
   est dépassée, et pousse « down » avec leurs noms au moniteur Uptime Kuma
   « Rotation des secrets » (PUSH_URL), « up » sinon.
 
+Les deux modes lisent aussi `dernier_test`, en tête de
+docs/runbooks/test-cle-secours.md (test trimestriel, à la main, de la clé age
+hors ligne `secours`) : le Lint échoue sur une date absente, invalide ou dans
+le futur ; `--due` pousse « down » quand elle a plus de 100 jours.
+
 Les noms de clés d'un fichier SOPS sont en clair : le fichier chiffré est lu
 tel quel, sans clé age, et aucune valeur n'est jamais déchiffrée ni affichée.
 Bibliothèque standard seulement : l'inventaire suit un sous-ensemble fixe de
@@ -34,6 +39,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 INVENTORY = "secrets-rotation.yaml"
 SOPS_FILES = ("secrets.sops.yaml", "ansible/secrets.sops.yaml")
+# Test de la clé secours : date en tête du runbook, échéance en jours
+# (un trimestre et une semaine de marge).
+SECOURS_TEST = "docs/runbooks/test-cle-secours.md"
+SECOURS_TEST_MAX_DAYS = 100
 
 # Nature -> période de rotation en mois ; None : pas d'échéance (rotation sur
 # incident seulement, ou pas un secret).
@@ -58,6 +67,7 @@ SOPS_NAME = "secrets.sops.yaml"
 SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 ENTRY_RE = re.compile(r"^  - ([a-z_]+):(?: (.*))?$")
 FIELD_RE = re.compile(r"^    ([a-z_]+):(?: (.*))?$")
+LAST_TEST_RE = re.compile(r"^dernier_test:\s*(\S*)\s*$")
 
 
 class InventoryError(Exception):
@@ -221,6 +231,30 @@ def check_link(how, root, cache):
     return []
 
 
+def secours_test(text, today):
+    """(date, erreurs) du `dernier_test` du front matter (entre deux `---`) du runbook."""
+    lines = text.splitlines()
+    if not lines or lines[0] != "---" or "---" not in lines[1:]:
+        return None, [f"{SECOURS_TEST} : front matter `---` absent en tête"]
+    values = [m.group(1) for m in map(LAST_TEST_RE.match, lines[1:lines.index("---", 1)]) if m]
+    if len(values) != 1:
+        return None, [f"{SECOURS_TEST} : attendu une ligne `dernier_test: AAAA-MM-JJ` dans le front matter"]
+    date = parse_date(values[0])
+    if date is None:
+        return None, [f"{SECOURS_TEST} : dernier_test {values[0]!r} n'est pas une date AAAA-MM-JJ"]
+    if date > today + datetime.timedelta(days=1):
+        return None, [f"{SECOURS_TEST} : dernier_test {date} est dans le futur"]
+    return date, []
+
+
+def secours_overdue(date, today):
+    """Ligne du détail si le dernier test de la clé secours a plus de SECOURS_TEST_MAX_DAYS jours."""
+    age = (today - date).days
+    if age <= SECOURS_TEST_MAX_DAYS:
+        return None
+    return f"test de la clé age secours : le dernier date du {date} ({age} jours, plus de {SECOURS_TEST_MAX_DAYS}), {SECOURS_TEST}"
+
+
 def add_months(date, months):
     month = date.month - 1 + months
     year, month = date.year + month // 12, month % 12 + 1
@@ -285,18 +319,29 @@ def main(argv=None, root=ROOT):
         errors = validate(entries, keys, args.today, root) + stray_sops_files(root)
     except (InventoryError, OSError) as error:
         entries, errors = [], [str(error)]
+    try:
+        test_date, test_errors = secours_test((root / SECOURS_TEST).read_text(encoding="utf-8"), args.today)
+    except OSError as error:
+        test_date, test_errors = None, [f"{SECOURS_TEST} illisible : {error}"]
+    errors += test_errors
 
     for error in errors:
         print(f"::error::{error}")
     if not args.due:
         if not errors:
-            print(f"{INVENTORY} : {len(entries)} entrées, chaque clé SOPS couverte.")
+            print(f"{INVENTORY} : {len(entries)} entrées, chaque clé SOPS couverte ; clé secours testée le {test_date}.")
         return 1 if errors else 0
 
     if errors:
         status, msg, lines = "down", f"inventaire {INVENTORY} invalide ({len(errors)} erreur(s)), voir le run", []
     else:
         status, msg, lines = report(due_entries(entries, args.today, args.window), args.today, args.window)
+        overdue = secours_overdue(test_date, args.today)
+        if overdue:
+            lines.append(overdue)
+            late = f"test de la clé secours en retard ({(args.today - test_date).days} j)"
+            msg = late if status == "up" else f"{late} ; {msg}"
+            status = "down"
     print(f"{'::error::' if status == 'down' else ''}{msg}")
     for line in lines:
         print(f"- {line}")
