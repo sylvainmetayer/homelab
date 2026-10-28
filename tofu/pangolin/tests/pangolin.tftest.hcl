@@ -81,6 +81,11 @@ run "flip_has_no_public_ip" {
   }
 
   assert {
+    condition     = hcloud_server.pangolin.backups == true
+    error_message = "Les sauvegardes Hetzner de Pangolin sont la reprise rapide du runbook de reconstruction : les couper doit être voulu."
+  }
+
+  assert {
     condition     = hcloud_server.flip.backups == false
     error_message = "Les backups Hetzner de flip sont désactivés (Borgmatic s'en charge) : un changement ici doit être voulu."
   }

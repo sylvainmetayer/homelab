@@ -3,9 +3,16 @@
 Le serveur en place vient d'un ancien snapshot Packer (Packer a quitté le
 dépôt). Une reconstruction repart de `debian-13` nu + `user_data.yaml`, puis
 `00-setup.yaml` et `pangolin.yaml`, puis la restauration de `/opt/pangolin`
-(config, base SQLite, certificats Let's Encrypt) depuis son dépôt Borg. Les
-sauvegardes Hetzner de la VM sont désactivées (`backups = false`) : Borg est
-la seule copie.
+(config, base SQLite, certificats Let's Encrypt) depuis son dépôt Borg.
+
+**Avant tout cela, la reprise rapide** : les sauvegardes Hetzner de la VM
+sont actives (`backups = true`, 7 images glissantes, une par jour). Si le
+serveur existe encore chez Hetzner et que la panne n'est pas une
+compromission, restaurer l'image de la veille (console Hetzner → serveur →
+Backups → Restore) : même IP, même clé d'hôte, pas de DNS ni de
+`known_hosts` à toucher, base SQLite de la veille. Après une compromission,
+ou si le projet Hetzner est perdu, c'est la reconstruction ci-dessous, depuis
+Borg (hors Hetzner).
 
 ## Symptôme
 
