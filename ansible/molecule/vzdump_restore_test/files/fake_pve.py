@@ -20,6 +20,8 @@ BASE = os.environ.get("FAKE_PVE_DIR", "/var/lib/fake-pve")
 STATE = f"{BASE}/state.json"
 CALLS = f"{BASE}/calls.jsonl"
 ROOTFS = f"{BASE}/rootfs"
+# Le rootfs que « contient » la sauvegarde du LXC (prepare.yml).
+FIXTURE = f"{BASE}/rootfs-fixture"
 
 
 def load():
@@ -128,7 +130,7 @@ def create(state, kind, vmid, volid, opts):
     state["guests"][str(vmid)] = {"kind": kind, "status": "stopped", "config": conf}
     state["volumes"].append({"volid": f"local-lvm:vm-{vmid}-disk-0", "vmid": vmid})
     if kind == "lxc":
-        shutil.copytree(state["lxc_rootfs_fixture"], rootfs(vmid), symlinks=True)
+        shutil.copytree(FIXTURE, rootfs(vmid), symlinks=True)
 
 
 def delete_keys(state, entry, opts):
@@ -250,13 +252,13 @@ def target_of(args):
     return args[1] if len(args) > 1 else ""
 
 
-def archive_path(state, argument):
-    """Le chemin d'une archive connue de l'état, jamais celui de l'argument."""
+def archive_content(state, argument):
+    """Le contenu d'une archive, pris dans l'état : aucun fichier n'est ouvert."""
     for item in state["backups"]:
         if item["path"] == argument:
-            return item["path"]
+            return item["content"].encode()
     fail(f"archive inconnue : {argument}", 2)
-    return None
+    return b""
 
 
 def guest_command(state, name, args):
@@ -275,15 +277,10 @@ def main():
     log({"argv": [name, *args]})
     state = load()
     if name == "zstd":
-        with open(archive_path(state, args[-1]), "rb") as handle:
-            shutil.copyfileobj(handle, sys.stdout.buffer)
+        sys.stdout.buffer.write(archive_content(state, args[-1]))
         return
     if name == "vma":
-        if args[-1] == "-":
-            data = sys.stdin.buffer.read()
-        else:
-            with open(archive_path(state, args[-1]), "rb") as handle:
-                data = handle.read()
+        data = sys.stdin.buffer.read() if args[-1] == "-" else archive_content(state, args[-1])
         if not data.startswith(b"VMA"):
             fail("vma: verify failed - wrong vma extent header", 1)
         return

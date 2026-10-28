@@ -28,6 +28,7 @@
           format: tar.zst
           subtype: lxc
           path: "{{ fake_pve_dir }}/dump/vzdump-lxc-200-2026_10_27-21_00_00.tar.zst"
+          content: fake tar
           config: |
             arch: amd64
             hostname: newt
@@ -43,6 +44,8 @@
           format: vma.zst
           subtype: qemu
           path: "{{ fake_pve_dir }}/dump/vzdump-qemu-100-2026_10_27-21_01_00.vma.zst"
+          # « VMA » en tête : ce que le faux vma verify accepte.
+          content: VMA fake archive
           config: |
             #Docker apps
             agent: enabled=1,fstrim_cloned_disks=0,type=virtio
@@ -60,10 +63,10 @@
           format: vma.zst
           subtype: qemu
           path: "{{ fake_pve_dir }}/dump/vzdump-qemu-100-2026_10_25-21_01_00.vma.zst"
+          content: corrupt
           config: "name: docker\n"
       storage_status:
         local-lvm: { total: 374538764288, avail: 259555363652, used: 114983400636 }
-      lxc_rootfs_fixture: "{{ fake_pve_dir }}/rootfs-fixture"
       # Sans réseau, ifupdown échoue sur eth0 : degraded est accepté.
       lxc_system_state: degraded
       lxc_failed_units: "networking.service loaded failed failed Raise network interfaces"
@@ -220,15 +223,15 @@
           - "'plus vieille que 26 h' in case_message"
         fail_msg: "{{ case_argvs }}"
 
-    # 4. Une archive de la VM illisible (celle du 25/10 à la place de la
-    # dernière) : vma verify échoue, le run aussi.
+    # 4. La dernière archive de la VM illisible : vma verify échoue, le run
+    # aussi.
     - name: Run the case of a corrupt VM archive
       ansible.builtin.include_tasks: tasks/case.yml
       vars:
         case_name: corrupt VM archive
         case_state: >-
           {{ base_state | combine({'backups': [base_state.backups[0], base_state.backups[1]
-          | combine({'path': base_state.backups[2].path})]}) }}
+          | combine({'content': 'corrupt'})]}) }}
         case_failed: true
         case_guests: ["100", "200"]
 
