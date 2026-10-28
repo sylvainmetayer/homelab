@@ -100,7 +100,7 @@
       ansible.builtin.assert:
         that:
           - "'PUBLIC_DASHBOARD=false' in speedtest_tracker_env_lines"
-          - "'SPEEDTEST_SCHEDULE=\"15 3,9,15,21 * * *\"' in speedtest_tracker_env_lines"
+          - "'SPEEDTEST_SCHEDULE=\"15 3,9,15,20 * * *\"' in speedtest_tracker_env_lines"
           - "'PRUNE_RESULTS_OLDER_THAN=0' in speedtest_tracker_env_lines"
           - "'DISPLAY_TIMEZONE=Europe/Paris' in speedtest_tracker_env_lines"
           - "'TZ=Europe/Paris' in speedtest_tracker_env_lines"

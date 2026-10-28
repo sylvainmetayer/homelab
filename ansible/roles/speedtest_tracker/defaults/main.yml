@@ -7,8 +7,11 @@ speedtest_tracker_domain: speedtest.sylvain.cloud
 # vingtaine de secondes : aucun entre 01:00 et 03:00, où borgmatic
 # (borgmatic_timer_schedule, 01:00) envoie les sauvegardes de la nuit à la
 # Storage Box (le test mesurerait une ligne déjà occupée, et ralentirait
-# l'envoi), ni vers 05:00, où la VM redémarre après une mise à jour du noyau.
-speedtest_tracker_schedule: "15 3,9,15,21 * * *"
+# l'envoi), ni vers 05:00, où la VM redémarre après une mise à jour du noyau,
+# ni après 21:00, où vzdump copie la VM elle-même sur le NAS (tofu/proxmox,
+# backup.tf : des dizaines de Go par la carte réseau de l'hôte, qui porte
+# aussi l'envoi du test).
+speedtest_tracker_schedule: "15 3,9,15,20 * * *"
 
 # Résultats gardés sans limite (0 : pas d'élagage) : une ligne par test,
 # quelques Ko par jour.
