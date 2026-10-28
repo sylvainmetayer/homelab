@@ -1,0 +1,6 @@
+---
+- name: Restart ntfy
+  ansible.builtin.systemd:
+    name: dc@ntfy
+    scope: user
+    state: restarted

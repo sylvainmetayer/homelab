@@ -47,6 +47,14 @@
     "reread": "server: core/routes.php, apps/*/appinfo/routes.php of files_sharing, files, files_trashbin, files_versions, theming, text, files_pdfviewer, core/ajax (never opened); linuxserver root/defaults/nginx/site-confs/default.conf.sample (front controller, .well-known); clients: desktop src/libsync + src/gui/wizard, Android ConnectivityServiceImpl.kt, NextcloudKit, DAVx5",
     "releases": "https://github.com/nextcloud/server/releases"
   },
+  "ntfy": {
+    "image": "docker.io/binwiederhier/ntfy",
+    "version": "v2.34.0",
+    "compose": "ansible/roles/ntfy/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_ntfy.tf (ntfy_client_paths)",
+    "reread": "server/server.go (handleInternal and the path regexes above it: every route answering /, /<topic>, /<topic>/json|ws|auth, and which of them skip authorizeTopic*), server/server_middleware.go (authorizeTopicRead/Write), server/server_account.go and server/server_admin.go (nothing under /v1 opened), user/manager.go (auth-default-access deny-all, provisioned users and tokens); the clients: ntfy-android ApiService.kt, WsConnection.kt and util/Util.kt, ntfy-ios ntfy/Utils/ApiService.swift and Helpers.swift, Uptime Kuma server/notification-providers/ntfy.js, shoutrrr pkg/services/push/ntfy",
+    "releases": "https://github.com/binwiederhier/ntfy/releases"
+  },
   "Paperless-ngx": {
     "image": "ghcr.io/paperless-ngx/paperless-ngx",
     "version": "3.3",

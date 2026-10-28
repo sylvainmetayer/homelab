@@ -1,0 +1,3 @@
+---
+# Les producteurs qui ont un jeton : les seuls écrits dans server.yml.
+ntfy_active_publishers: "{{ ntfy_publishers | rejectattr('token', 'equalto', '') | list }}"

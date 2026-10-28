@@ -1,0 +1,21 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # docker.yml le lit dans le state de pangolin_config (sortie
+    # ntfy_uptime_kuma_token), pas dans SOPS : un faux jeton au bon format,
+    # dérivé plutôt qu'écrit en dur.
+    - name: Load the ntfy Uptime Kuma token as docker.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        ntfy_uptime_kuma_token: "tk_{{ ('molecule-ntfy-uptime-kuma' | hash('sha1'))[:29] }}"
+
+  roles:
+    - role: docker_service
+    - role: ntfy

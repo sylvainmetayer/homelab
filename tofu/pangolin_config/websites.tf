@@ -68,6 +68,7 @@ locals {
     monica            = local.monica_website
     nextcloud         = local.nextcloud_website
     nginx_demo        = local.nginx_demo_website
+    ntfy              = local.ntfy_website
     paperless         = local.paperless_website
     promptoramix      = local.promptoramix_website
     rss               = local.rss_website

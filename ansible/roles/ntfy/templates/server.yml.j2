@@ -1,0 +1,49 @@
+# Géré par Ansible (rôle ntfy) : toute modification locale est écrasée.
+# Options : https://docs.ntfy.sh/config/ (server/server.yml des sources).
+
+base-url: "https://{{ ntfy_domain }}"
+listen-http: ":{{ ntfy_port }}"
+log-level: info
+
+# Messages gardés pour since= et poll=1 (applis, poll_request d'upstream).
+cache-file: /var/lib/ntfy/cache.db
+cache-duration: "{{ ntfy_cache_duration }}"
+
+# Pas d'attachment-cache-dir : pièces jointes désactivées (rien à exposer sous
+# /file/*, rien à sauvegarder).
+
+# Rien sans compte. Comptes, droits et jetons déclarés ci-dessous, recréés à
+# chaque démarrage ; ceux qui disparaissent de la liste sont supprimés.
+auth-file: /var/lib/ntfy/user.db
+auth-default-access: deny-all
+auth-users:
+  - {{ (ntfy_admin_user ~ ':' ~ ntfy_sylvain_password_hash ~ ':user') | to_json }}
+{% for publisher in ntfy_active_publishers %}
+  - {{ (publisher.name ~ ':' ~ ntfy_publisher_password_hash ~ ':user') | to_json }}
+{% endfor %}
+auth-access:
+{% for publisher in ntfy_publishers %}
+  - {{ (ntfy_admin_user ~ ':' ~ publisher.topic ~ ':rw') | to_json }}
+{% endfor %}
+{% for publisher in ntfy_active_publishers %}
+  - {{ (publisher.name ~ ':' ~ publisher.topic ~ ':wo') | to_json }}
+{% endfor %}
+auth-tokens:
+{% for publisher in ntfy_active_publishers %}
+  - {{ (publisher.name ~ ':' ~ publisher.token ~ ':' ~ publisher.name) | to_json }}
+{% endfor %}
+
+# Interface web derrière le SSO de Pangolin, puis la connexion ntfy : pas
+# d'inscription, pas de réservation de topic.
+enable-login: true
+require-login: true
+enable-signup: false
+enable-reservations: false
+
+# Derrière Pangolin (Traefik, puis newt) : l'adresse du client vient de
+# X-Forwarded-For, posé par Traefik. Sans cela, tous les visiteurs auraient
+# l'adresse de newt et partageraient les mêmes limites de débit.
+behind-proxy: true
+proxy-forwarded-header: X-Forwarded-For
+
+upstream-base-url: "{{ ntfy_upstream_base_url }}"

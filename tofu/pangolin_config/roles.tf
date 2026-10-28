@@ -22,6 +22,7 @@ locals {
     "kitchenowl",
     "homebox",
     "speedtest-tracker",
+    "ntfy",
     "wishlist",
     "nginx-demo",
     "beszel"

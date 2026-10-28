@@ -1,0 +1,105 @@
+---
+# Formats exigés par ntfy au démarrage (cmd/serve.go, parseUsers et
+# parseTokens) : un hash bcrypt de coût 10 au moins, un jeton tk_ de 32
+# caractères. Vérifiés ici, sinon le conteneur redémarre en boucle sur une
+# erreur de configuration que seul `docker logs` montre.
+- name: Assert the ntfy password hashes and tokens are well-formed
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - ntfy_sylvain_password_hash is match('^[$]2[aby][$](1[0-9]|2[0-9]|3[01])[$][./A-Za-z0-9]{53}$')
+      - ntfy_publisher_password_hash is match('^[$]2[aby][$](1[0-9]|2[0-9]|3[01])[$][./A-Za-z0-9]{53}$')
+      - ntfy_active_publishers | rejectattr('token', 'match', '^tk_[-_A-Za-z0-9]{29}$') | list | length == 0
+      - ntfy_active_publishers | map(attribute='token') | unique | length == ntfy_active_publishers | length
+      - ntfy_publishers | map(attribute='name') | unique | length == ntfy_publishers | length
+    fail_msg: >-
+      ntfy_sylvain_password_hash / ntfy_publisher_password_hash (bcrypt, coût
+      ≥ 10) ou un jeton de ntfy_publishers (tk_ + 29 caractères, tous
+      distincts) mal formé.
+
+- name: Report the ntfy publishers left out for want of a token
+  ansible.builtin.debug:
+    msg: >-
+      Producteurs ntfy sans jeton, retirés de server.yml :
+      {{ ntfy_publishers | selectattr('token', 'equalto', '') | map(attribute='name') | join(', ') }}.
+      Pour uptime-kuma : appliquer tofu/pangolin_config (sortie
+      ntfy_uptime_kuma_token) avant docker.yml.
+  when: ntfy_active_publishers | length < ntfy_publishers | length
+
+- name: Ensure ntfy folders exist
+  loop:
+    - "{{ ntfy_base_path }}"
+    # server.yml, monté en lecture seule.
+    - "{{ ntfy_base_path }}/config"
+    # user.db (comptes, jetons, réglages de l'interface web) et cache.db.
+    - "{{ ntfy_base_path }}/data"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart ntfy
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ ntfy_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Hashes et jetons en clair : 0600, et diff: false (un --diff les écrirait
+# dans run.log). Le conteneur tourne sous ce même utilisateur.
+- name: Template ntfy server configuration
+  diff: false
+  notify: Restart ntfy
+  ansible.builtin.template:
+    src: "templates/server.yml.j2"
+    dest: "{{ ntfy_base_path }}/config/server.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure ntfy service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@ntfy
+    scope: user
+    enabled: true
+
+# ntfy crée user.db à son premier démarrage : l'attendre avant borgmatic, qui
+# résout ses bases SQLite au déploiement, pour que le premier passage la
+# sauvegarde déjà.
+- name: Wait for the ntfy user database
+  ansible.builtin.wait_for:
+    path: "{{ ntfy_base_path }}/data/user.db"
+    timeout: 180
+  when: not ansible_check_mode
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). user.db
+# copiée par « .backup » : les comptes et jetons déclarés se recréent seuls
+# depuis server.yml, mais pas les réglages et abonnements de l'interface web
+# ni les abonnements Web Push. cache.db n'est pas sauvegardé : des messages de
+# 12 h au plus, déjà reçus. data/ n'est donc pas une source.
+- name: Configure borgmatic backup for ntfy
+  when: ntfy_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: ntfy
+    borgmatic_app_title: ntfy
+    borgmatic_app_target: "{{ ntfy_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ ntfy_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ ntfy_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ ntfy_base_path }}/config"
+      - "{{ ntfy_base_path }}/compose.yaml"
+    borgmatic_app_sqlite_databases:
+      - "{{ ntfy_base_path }}/data/user.db"

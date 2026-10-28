@@ -1,0 +1,288 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  vars:
+    ntfy_verify_dir: /tmp/ntfy-molecule
+    ntfy_verify_url: http://127.0.0.1:18080
+    # Le même que converge.yml.
+    ntfy_verify_uptime_kuma_token: "tk_{{ ('molecule-ntfy-uptime-kuma' | hash('sha1'))[:29] }}"
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+  tasks:
+    - name: Verify the ntfy deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: ntfy
+        verify_app_borgmatic_config: /etc/borgmatic.d/ntfy.yaml
+
+    - name: Verify the ntfy healthcheck
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: ntfy
+        verify_compose_healthchecks:
+          - app
+
+    - name: Render the ntfy compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/ntfy
+      register: ntfy_compose_raw
+      changed_when: false
+
+    # Un seul conteneur, sous l'utilisateur de déploiement et sans capacité,
+    # sur newt seulement. Son nom est la cible de Pangolin (website_ntfy.tf).
+    - name: Assert ntfy only joins newt, runs unprivileged and has a memory cap
+      vars:
+        ntfy_compose: "{{ ntfy_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - ntfy_compose.services.app.container_name == 'ntfy'
+          - ntfy_compose.services.app.image is search('^docker[.]io/binwiederhier/ntfy:v[0-9.]+@sha256:')
+          - ntfy_compose.services.app.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
+          - ntfy_compose.services.app.networks.keys() | list == ['newt']
+          - ntfy_compose.networks.keys() | list == ['newt']
+          - ntfy_compose.services.app.cap_drop == ['ALL']
+          - ntfy_compose.services.app.cap_add is not defined
+          - ntfy_compose.services.app.mem_limit is defined
+          - ntfy_compose.services.app.cpus is not defined
+          - ntfy_compose.services.app.ports is not defined
+          - ntfy_compose.services.app.volumes | selectattr('target', 'equalto', '/etc/ntfy/server.yml') | map(attribute='read_only') | list == [true]
+        fail_msg: "Service ntfy inattendu : {{ ntfy_compose.services.app }}"
+
+    - name: Stat the ntfy server configuration
+      ansible.builtin.stat:
+        path: /opt/apps/ntfy/config/server.yml
+      register: ntfy_server_yml
+
+    # Hashes et jetons en clair : jamais lisible par d'autres.
+    - name: Assert the ntfy server configuration is private
+      ansible.builtin.assert:
+        that:
+          - ntfy_server_yml.stat.exists
+          - ntfy_server_yml.stat.mode == '0600'
+          - ntfy_server_yml.stat.pw_name == ansible_facts['user_id']
+
+    - name: Read the ntfy server configuration
+      ansible.builtin.slurp:
+        src: /opt/apps/ntfy/config/server.yml
+      register: ntfy_server_raw
+
+    # Rien sans compte, un relais ntfy.sh, pas d'inscription ; Sylvain en
+    # lecture-écriture sur chaque topic, chaque producteur en écriture seule
+    # sur le sien, avec son seul jeton.
+    - name: Assert the ntfy server configuration denies anonymous access and declares every account
+      no_log: true
+      vars:
+        ntfy_server: "{{ ntfy_server_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - ntfy_server['base-url'] == 'https://ntfy.sylvain.cloud'
+          - ntfy_server['listen-http'] == ':8080'
+          - ntfy_server['auth-default-access'] == 'deny-all'
+          - ntfy_server['auth-file'] == '/var/lib/ntfy/user.db'
+          - ntfy_server['cache-file'] == '/var/lib/ntfy/cache.db'
+          - ntfy_server['upstream-base-url'] == 'https://ntfy.sh'
+          - ntfy_server['enable-signup'] == false
+          - ntfy_server['enable-login'] == true
+          - ntfy_server['require-login'] == true
+          - ntfy_server['behind-proxy'] == true
+          - ntfy_server['attachment-cache-dir'] is not defined
+          - ntfy_server['auth-users'] | sort == ([
+              'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
+              'uptime-kuma:' ~ ntfy_publisher_password_hash ~ ':user',
+              'beszel:' ~ ntfy_publisher_password_hash ~ ':user',
+              'scripts:' ~ ntfy_publisher_password_hash ~ ':user',
+            ] | sort)
+          - ntfy_server['auth-access'] | sort == ([
+              'sylvain:uptime-kuma:rw', 'sylvain:beszel:rw', 'sylvain:scripts:rw',
+              'uptime-kuma:uptime-kuma:wo', 'beszel:beszel:wo', 'scripts:scripts:wo',
+            ] | sort)
+          - ntfy_server['auth-tokens'] | sort == ([
+              'uptime-kuma:' ~ ntfy_verify_uptime_kuma_token ~ ':uptime-kuma',
+              'beszel:' ~ ntfy_beszel_token ~ ':beszel',
+              'scripts:' ~ ntfy_scripts_token ~ ':scripts',
+            ] | sort)
+        fail_msg: Configuration ntfy inattendue (contenu masqué, il porte les jetons).
+
+    - name: Read the ntfy borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/ntfy.yaml
+      register: ntfy_borgmatic_raw
+
+    # prepare.yml a posé user.db : copiée par « .backup », sa copie vivante
+    # hors de l'archive. Ni data/ (cache.db : des messages de 12 h au plus)
+    # ni sqlite_databases de borgmatic.
+    - name: Assert the ntfy user database is copied by .backup and the cache is left out
+      vars:
+        ntfy_borgmatic: "{{ ntfy_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - ntfy_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/ntfy' in ntfy_borgmatic.source_directories"
+          - >-
+            ntfy_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/ntfy/data/user\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/ntfy/opt_apps_ntfy_data_user\\.db')
+            | list | length == 1
+          - ntfy_borgmatic.commands[0].run | select('search', 'cache\\.db') | list | length == 0
+          - "'/opt/apps/ntfy/data' not in ntfy_borgmatic.source_directories"
+          - "'/opt/apps/ntfy/config' in ntfy_borgmatic.source_directories"
+          - ntfy_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./ntfy'
+          - ntfy_borgmatic.archive_name_format is match('ntfy-')
+        fail_msg: "Configuration borgmatic de ntfy inattendue : {{ ntfy_borgmatic }}"
+
+    # Le vrai ntfy, à la version de l'image, sur la configuration rendue :
+    # elle doit passer sa validation au démarrage (formats des comptes, des
+    # droits et des jetons), et les droits doivent tenir. Seuls l'écoute, les
+    # bases et le relais ntfy.sh sont remplacés en ligne de commande (les
+    # options passées l'emportent sur server.yml).
+    - name: Run the real ntfy on the rendered configuration
+      vars:
+        ntfy_compose: "{{ ntfy_compose_raw.stdout | from_json }}"
+        # docker.io/binwiederhier/ntfy:v<version>@sha256:…
+        ntfy_verify_version: "{{ ntfy_compose.services.app.image.split('@')[0].split(':v')[-1] }}"
+        ntfy_verify_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}"
+        ntfy_verify_release: "https://github.com/binwiederhier/ntfy/releases/download/v{{ ntfy_verify_version }}"
+        ntfy_verify_bin: "{{ ntfy_verify_dir }}/ntfy_{{ ntfy_verify_version }}_linux_{{ ntfy_verify_arch }}/ntfy"
+      block:
+        - name: Create the ntfy verify folder
+          ansible.builtin.file:
+            path: "{{ ntfy_verify_dir }}/db"
+            state: directory
+            mode: "0700"
+
+        - name: Download the ntfy release of the image
+          ansible.builtin.get_url:
+            url: "{{ ntfy_verify_release }}/ntfy_{{ ntfy_verify_version }}_linux_{{ ntfy_verify_arch }}.tar.gz"
+            checksum: "sha256:{{ ntfy_verify_release }}/checksums.txt"
+            dest: "{{ ntfy_verify_dir }}/ntfy.tar.gz"
+            mode: "0600"
+
+        - name: Extract the ntfy binary
+          ansible.builtin.unarchive:
+            src: "{{ ntfy_verify_dir }}/ntfy.tar.gz"
+            dest: "{{ ntfy_verify_dir }}"
+            remote_src: true
+
+        - name: Start ntfy on the rendered configuration
+          ansible.builtin.command:
+            argv:
+              - systemd-run
+              - --user
+              - --unit=ntfy-molecule
+              - --collect
+              - "{{ ntfy_verify_bin }}"
+              - serve
+              - --config=/opt/apps/ntfy/config/server.yml
+              - --listen-http=127.0.0.1:18080
+              - --auth-file={{ ntfy_verify_dir }}/db/user.db
+              - --cache-file={{ ntfy_verify_dir }}/db/cache.db
+              - --upstream-base-url=
+          changed_when: true
+
+        - name: Wait for ntfy to answer its health route
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}/v1/health"
+            return_content: true
+          register: ntfy_verify_health
+          until: ntfy_verify_health.status == 200
+          retries: 20
+          delay: 1
+
+        - name: Assert ntfy reports healthy
+          ansible.builtin.assert:
+            that:
+              - ntfy_verify_health.json.healthy == true
+
+        # Chaque producteur publie sur son topic avec son jeton, en POST sur
+        # /<topic> (shoutrrr de Beszel, curl des scripts) ; Uptime Kuma, lui,
+        # en JSON sur la racine.
+        - name: Publish to each topic with its own token
+          no_log: true
+          loop:
+            - { topic: uptime-kuma, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+            - { topic: beszel, token: "{{ ntfy_beszel_token }}" }
+            - { topic: scripts, token: "{{ ntfy_scripts_token }}" }
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}/{{ item.topic }}"
+            method: POST
+            body: molecule
+            headers:
+              Authorization: "Bearer {{ item.token }}"
+            status_code: 200
+
+        - name: Publish as JSON on the root, as Uptime Kuma does
+          no_log: true
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}/"
+            method: POST
+            body_format: json
+            body: { topic: uptime-kuma, message: molecule }
+            headers:
+              Authorization: "Bearer {{ ntfy_verify_uptime_kuma_token }}"
+            status_code: 200
+
+        # Refusés : un autre topic que le sien, la lecture (écriture seule), et
+        # tout sans compte (deny-all).
+        - name: Refuse what a producer token may not do
+          no_log: true
+          loop:
+            - { url: /beszel, method: POST, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+            - { url: /uptime-kuma, method: POST, token: "{{ ntfy_scripts_token }}" }
+            - { url: "/uptime-kuma/json?poll=1", method: GET, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+            - { url: /uptime-kuma/auth, method: GET, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}{{ item.url }}"
+            method: "{{ item.method }}"
+            body: "{{ 'molecule' if item.method == 'POST' else omit }}"
+            headers:
+              Authorization: "Bearer {{ item.token }}"
+            status_code: [401, 403]
+
+        - name: Refuse anonymous publishing and reading
+          loop:
+            - { url: /uptime-kuma, method: POST }
+            - { url: "/scripts/json?poll=1", method: GET }
+            - { url: /beszel/ws, method: GET }
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}{{ item.url }}"
+            method: "{{ item.method }}"
+            body: "{{ 'molecule' if item.method == 'POST' else omit }}"
+            status_code: [401, 403]
+
+        - name: List the ntfy accounts and grants
+          ansible.builtin.command:
+            argv:
+              - "{{ ntfy_verify_bin }}"
+              - access
+              - --config=/opt/apps/ntfy/config/server.yml
+              - --auth-file={{ ntfy_verify_dir }}/db/user.db
+          register: ntfy_verify_access
+          changed_when: false
+
+        # Comptes et droits provisionnés depuis server.yml, rien d'autre.
+        - name: Assert the provisioned accounts and grants
+          vars:
+            ntfy_verify_lines: "{{ ntfy_verify_access.stdout_lines | map('trim') | list }}"
+          ansible.builtin.assert:
+            that:
+              - ntfy_verify_lines | select('match', '^user sylvain [(]role: user,') | list | length == 1
+              - ntfy_verify_lines | select('match', '^user (uptime-kuma|beszel|scripts) [(]role: user,') | list | length == 3
+              - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 4
+              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|beszel|scripts)\\b') | list | length == 3
+              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|beszel|scripts)\\b') | list | length == 3
+              - ntfy_verify_lines | select('match', '^- read-write access to all') | list | length == 0
+              - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
+            fail_msg: "{{ ntfy_verify_access.stdout }}"
+      always:
+        - name: Stop the verify ntfy
+          ansible.builtin.systemd:
+            name: ntfy-molecule
+            scope: user
+            state: stopped
+          failed_when: false

@@ -1,0 +1,31 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# user.db déjà là, comme sur l'hôte après le premier démarrage de ntfy (le
+# dc@ du scénario ne démarre aucun conteneur) : le rôle l'attend avant
+# borgmatic, qui doit la trouver et la copier par « .backup ».
+- name: Prepare ntfy
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure the ntfy data folder exists
+      loop:
+        - /opt/apps/ntfy
+        - /opt/apps/ntfy/data
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        # Le rôle (et docker_service pour /opt/apps) remet son propre mode
+        # au premier converge ; l'idempotence porte sur le second.
+        mode: "0700"
+
+    - name: Create the ntfy SQLite databases
+      loop:
+        - user.db
+        - cache.db
+      ansible.builtin.command:
+        cmd: >-
+          python3 -c "import os, sqlite3; os.umask(0o077);
+          sqlite3.connect('/opt/apps/ntfy/data/{{ item }}').execute('CREATE TABLE schemaVersion (id INT PRIMARY KEY)')"
+        creates: "/opt/apps/ntfy/data/{{ item }}"

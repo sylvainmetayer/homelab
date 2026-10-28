@@ -1,0 +1,61 @@
+---
+ntfy_base_path: "{{ docker_base_path }}/ntfy"
+ntfy_domain: ntfy.sylvain.cloud
+# Port d'écoute dans le conteneur : la cible Pangolin (website_ntfy.tf).
+ntfy_port: 8080
+
+# Durée de vie des messages dans cache.db : ce que les applis rattrapent
+# (since=, poll=1) après une coupure ou à la réception d'un poll_request.
+# Le cache n'est pas sauvegardé (tasks/main.yml).
+ntfy_cache_duration: 12h
+
+# Relais vers ntfy.sh pour les notifications instantanées d'Android (FCM) et
+# d'iOS (APNs) : ntfy.sh ne reçoit qu'un poll_request (identifiant du
+# message, topic haché), le téléphone vient lire le message ici.
+ntfy_upstream_base_url: https://ntfy.sh
+
+# Comptes, droits et jetons, déclarés dans server.yml (auth-users,
+# auth-access, auth-tokens) : ntfy les recrée à chaque démarrage et retire
+# ceux qui ne sont plus listés. Rien n'est ouvert à l'anonyme
+# (auth-default-access: deny-all).
+#
+# Sylvain (appli Android/iOS, interface web) : lecture-écriture sur chaque
+# topic de ntfy_publishers. Son mot de passe est la clé SOPS
+# ntfy_sylvain_password (lue par personne : c'est celui qu'il saisit dans
+# l'appli), son hash bcrypt ntfy_sylvain_password_hash.
+ntfy_admin_user: sylvain
+
+# Un compte par producteur, en écriture seule sur son topic, avec un seul
+# jeton d'accès (tk_ + 29 caractères). Son mot de passe ne sert pas : le hash
+# ntfy_publisher_password_hash est celui d'un mot de passe tiré au hasard et
+# jeté. Un jeton vide (sortie de state absente avant le premier apply de
+# pangolin_config) retire le producteur, avec un avertissement.
+#
+# Les topics sont aussi ceux que tofu/pangolin_config ouvre sans SSO pour la
+# publication (local.ntfy_publish_topics, website_ntfy.tf) : le test
+# ntfy_topics_match_the_role de tofu/pangolin_config les compare à cette liste.
+ntfy_publishers:
+  # Notification « ntfy » d'Uptime Kuma (website_ntfy.tf). Jeton : clé
+  # ntfy_uptime_kuma_token du secrets.sops.yaml racine, que docker.yml lit
+  # dans le state de pangolin_config (sortie ntfy_uptime_kuma_token).
+  - name: uptime-kuma
+    topic: uptime-kuma
+    token: "{{ ntfy_uptime_kuma_token | default('') }}"
+  # Alertes du hub Beszel (beszel_alerts_ntfy_enabled, rôle beszel).
+  - name: beszel
+    topic: beszel
+    token: "{{ ntfy_beszel_token | default('') }}"
+  # Scripts et tâches planifiées (curl -H "Authorization: Bearer …").
+  - name: scripts
+    topic: scripts
+    token: "{{ ntfy_scripts_token | default('') }}"
+
+# Pas encore mesuré : un binaire Go, deux bases SQLite, quelques connexions
+# ouvertes (téléphone). À recaler sur memory.peak après quelques jours.
+ntfy_mem_limit: 128m
+
+# Borgmatic backup configuration
+ntfy_backup_enabled: true
+ntfy_backup_borgmatic_target: "{{ backup_storage_box_url }}/ntfy"
+ntfy_backup_encryption_passphrase: "{{ backup_passphrase }}"
+ntfy_backup_healthcheck_url: ""
