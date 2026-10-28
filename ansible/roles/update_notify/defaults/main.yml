@@ -16,8 +16,8 @@ update_notify_mode: apt
 # Nom de l'hôte dans les titres des messages.
 update_notify_host_label: "{{ inventory_hostname }}"
 
-# Script et fichier d'environnement (0700 root). Sur le NAS, sous
-# docker_base_path comme les autres fichiers du homelab (nas.yml).
+# Script et fichier d'environnement (0700 root). nas.yml les place sous
+# docker_base_path, comme les autres fichiers du homelab sur le NAS.
 update_notify_dir: /usr/local/lib/update-notify
 
 # Topic scripts de ntfy (rôle ntfy, ntfy_publishers) : son jeton n'écrit que

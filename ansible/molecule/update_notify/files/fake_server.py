@@ -32,4 +32,5 @@ class Handler(http.server.BaseHTTPRequestHandler):
     do_POST = record
 
 
-http.server.HTTPServer(("127.0.0.1", 18081), Handler).serve_forever()
+# HTTP en clair sur 127.0.0.1, dans le conteneur Molecule seulement.
+http.server.HTTPServer(("127.0.0.1", 18081), Handler).serve_forever()  # NOSONAR
