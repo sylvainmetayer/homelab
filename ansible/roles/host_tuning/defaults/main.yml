@@ -2,7 +2,7 @@
 # Swap compressé en RAM (zram). Filet de sécurité contre l'overcommit : la
 # somme des pics mémoire des conteneurs approche la RAM de la VM, et sans swap
 # un débordement fait tuer un conteneur au hasard par l'OOM killer de l'hôte.
-# zram évite d'écrire sur le disque (rotatif) de la VM.
+# zram évite d'écrire sur le disque de la VM (le SSD SATA d'entrée de gamme de l'hôte).
 host_tuning_zram_size_mb: 2048
 host_tuning_zram_algo: zstd
 host_tuning_zram_priority: 100
