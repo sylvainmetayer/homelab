@@ -1,0 +1,32 @@
+---
+# Un passage du script hors de l'unité, contre le faux apt-get (FAKE_APT_CASE)
+# ou un faux os-release, le faux ntfy et le faux Uptime Kuma.
+#
+# Variables :
+#   case_args  arguments du script après son chemin
+#   case_env   environnement en plus de PATH (FAKE_APT_CASE, NTFY_TOKEN…)
+#   case_rc    code de retour attendu
+# Résultat : update_notify_case_requests, les requêtes reçues par les faux
+# serveurs pendant ce passage (ntfy : POST /, Uptime Kuma : GET /api/push/…).
+- name: Forget the requests of the previous case
+  ansible.builtin.file:
+    path: "{{ update_notify_verify_dir }}/requests.jsonl"
+    state: absent
+
+- name: Run the update check, {{ case_args | first }}
+  ansible.builtin.command:
+    argv: "{{ ['/usr/bin/python3', '-I', update_notify_dir ~ '/update_notify.py'] + case_args }}"
+  environment: "{{ {'PATH': update_notify_verify_dir ~ '/bin:/usr/sbin:/usr/bin:/sbin:/bin'} | combine(case_env) }}"
+  register: update_notify_case_run
+  changed_when: true
+  failed_when: update_notify_case_run.rc != case_rc
+
+- name: Read what the fake servers received
+  ansible.builtin.slurp:
+    src: "{{ update_notify_verify_dir }}/requests.jsonl"
+  register: update_notify_case_log
+
+- name: Keep the requests of this case
+  ansible.builtin.set_fact:
+    update_notify_case_requests: >-
+      {{ update_notify_case_log.content | b64decode | trim | split('\n') | map('from_json') | list }}

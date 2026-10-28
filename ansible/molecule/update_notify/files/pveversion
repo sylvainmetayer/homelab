@@ -1,0 +1,4 @@
+#!/bin/sh
+# Faux pveversion du verify (scénario update_notify) : la première ligne de
+# la vraie commande.
+echo "pve-manager/9.2.24/66bc407c6d90a67a (running kernel: 7.0.14-11-pve)"

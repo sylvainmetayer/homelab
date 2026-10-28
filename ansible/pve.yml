@@ -1,6 +1,7 @@
 ---
 # Hôte Proxmox VE (#852) : l'agent Beszel, en binaire comme sur le
-# LXC newt, le test de restauration des sauvegardes vzdump et le tmpdir de
+# LXC newt, le test de restauration des sauvegardes vzdump, l'alerte
+# hebdomadaire des mises à jour en attente (ntfy) et le tmpdir de
 # /etc/vzdump.conf. Le reste de l'hôte appartient à
 # Proxmox (paquets, sshd, pare-feu) et à tofu/proxmox : ni 00-setup, ni
 # security. Lancé à la main seulement (ansible-playbook pve.yml), jamais par
@@ -16,9 +17,10 @@
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub, jeton ntfy des
     # scripts) et sorties du state de tofu/pangolin_config (terraform_outputs :
-    # URL push du test de restauration). Comme ailleurs, un state illisible
-    # (S3, clés) arrête la play quel que soit le tag : l'agent Beszel, lui,
-    # parle au hub par le LAN, sans jeton Pangolin (comme nas.yml).
+    # URL push du test de restauration et du moniteur « Mises à jour
+    # Proxmox »). Comme ailleurs, un state illisible (S3, clés) arrête la
+    # play quel que soit le tag : l'agent Beszel, lui, parle au hub par le
+    # LAN, sans jeton Pangolin (comme nas.yml).
     - name: Load secrets and the pangolin_config state outputs
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
@@ -27,6 +29,7 @@
       no_log: true
       ansible.builtin.set_fact:
         vzdump_restore_test_healthcheck_url: "{{ terraform_outputs.uptime_cron_vzdump_restore_test_url.value | default('') }}"
+        update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}"
   roles:
     - role: beszel_agent
       tags: beszel_agent,monitoring
@@ -41,6 +44,14 @@
     # vérifiée en entier (docs/runbooks/test-restauration-vm.md).
     - role: vzdump_restore_test
       tags: vzdump_restore_test,vzdump
+    # Mises à jour en attente, chaque lundi, publiées sur ntfy (topic
+    # scripts), sécurité d'abord, sans rien installer : Proxmox n'a pas
+    # d'unattended-upgrades et ne doit pas en avoir (un paquet pve-* ou un
+    # noyau se met à jour VM arrêtées, docs/runbooks/mises-a-jour-proxmox-ugos.md).
+    - role: update_notify
+      tags: update_notify,monitoring
+      vars:
+        update_notify_mode: apt
   tasks:
     # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
     # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar

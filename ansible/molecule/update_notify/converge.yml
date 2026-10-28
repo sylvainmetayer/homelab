@@ -1,0 +1,26 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    # En root sans become, comme sur l'hôte : ces variables de play
+    # l'emportent sur l'ansible_user de l'inventaire Molecule.
+    - ../../host_vars/pve/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # pve.yml la lit dans le state de pangolin_config : ici le faux Uptime
+    # Kuma du verify.
+    - name: Set the push URL as pve.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        update_notify_healthcheck_url: http://127.0.0.1:18081/api/push/molecule-updates # NOSONAR
+
+  roles:
+    # Comme pve.yml, ntfy remplacé par le faux du verify.
+    - role: update_notify
+      vars:
+        update_notify_host_label: pve
+        update_notify_mode: apt
+        update_notify_ntfy_url: http://127.0.0.1:18081 # NOSONAR

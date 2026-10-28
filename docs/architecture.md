@@ -344,8 +344,16 @@ flowchart LR
   main) et sur l'hôte Proxmox (`pve.yml`, à la main, en root sans become :
   pas de sudo sur l'hôte), qui lit aussi le S.M.A.R.T. de `sda`, le SSD M.2
   SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
-  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent : ni `00-setup`, ni
-  `security`.
+  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent et le vérificateur des mises à
+  jour (ci-dessous) : ni `00-setup`, ni `security`.
+- **Mises à jour** : ni l'hôte Proxmox ni UGOS ne se mettent à jour seuls.
+  Le rôle `update_notify` (`pve.yml`, `nas.yml`) publie chaque lundi sur le
+  topic `scripts` de ntfy ce qui attend sur Proxmox (sécurité d'abord,
+  priorité haute s'il y en a), et chaque mois un rappel avec la version
+  d'UGOS installée (UGOS ne dit pas sans session si une mise à jour attend) ;
+  moniteurs push « Mises à jour Proxmox » et « Mises à jour NAS » pour un
+  vérificateur mort. Procédure :
+  [runbooks/mises-a-jour-proxmox-ugos.md](runbooks/mises-a-jour-proxmox-ugos.md).
 - **Alertes** : déclarées par le rôle `beszel` (`beszel_alerts`, tag
   `beszel_alerts`) sur tous les systèmes : hôte muet 5 min, CPU et mémoire à
   plus de 90 % sur 10 min, disque à plus de 85 % ; température au-dessus de
