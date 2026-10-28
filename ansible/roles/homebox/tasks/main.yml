@@ -1,0 +1,72 @@
+---
+- name: Ensure Homebox app folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ homebox_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# L'image -rootless tourne en 65532 sans aucune capacité (cap_drop: ALL) :
+# data/ (homebox.db et les pièces jointes) est à cet utilisateur.
+- name: Ensure Homebox data folder is owned by the image user
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ homebox_base_path }}/data"
+    state: directory
+    owner: "{{ homebox_uid }}"
+    group: "{{ homebox_gid }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart homebox
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ homebox_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart homebox
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ homebox_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
+# SQLite (data/homebox.db, créée au premier démarrage) est copiée par
+# « .backup » ; le reste de data/ (pièces jointes et miniatures, rangées par
+# groupe à côté de la base) part tel quel.
+- name: Configure borgmatic backup for Homebox
+  when: homebox_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: homebox
+    borgmatic_app_title: Homebox
+    borgmatic_app_target: "{{ homebox_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ homebox_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ homebox_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ homebox_base_path }}/data"
+      - "{{ homebox_base_path }}/compose.yaml"
+      - "{{ homebox_base_path }}/.env"
+    borgmatic_app_sqlite_databases:
+      - "{{ homebox_base_path }}/data/*.db"
+
+- name: Make sure homebox service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@homebox
+    scope: user
+    enabled: true

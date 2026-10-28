@@ -1,0 +1,119 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the homebox deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: homebox
+        verify_app_borgmatic_config: /etc/borgmatic.d/homebox.yaml
+
+    - name: Verify the homebox healthcheck
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: homebox
+        verify_compose_healthchecks:
+          - app
+
+    - name: Render the homebox compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/homebox
+      register: homebox_compose_raw
+      changed_when: false
+
+    # Un seul conteneur, sans capacité : rien à isoler sur un réseau privé,
+    # newt suffit. Son nom est la cible de Pangolin (website_homebox.tf).
+    - name: Assert homebox only joins newt and drops every capability
+      vars:
+        homebox_compose: "{{ homebox_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - homebox_compose.services.app.container_name == 'homebox'
+          - homebox_compose.services.app.image is search(':[0-9.]+-rootless@sha256:')
+          - homebox_compose.services.app.networks.keys() | list == ['newt']
+          - homebox_compose.networks.keys() | list == ['newt']
+          - homebox_compose.services.app.cap_drop == ['ALL']
+          - homebox_compose.services.app.cap_add is not defined
+          - homebox_compose.services.app.mem_limit is defined
+          - homebox_compose.services.app.cpus is not defined
+        fail_msg: "Service homebox inattendu : {{ homebox_compose.services.app }}"
+
+    - name: Read the homebox borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/homebox.yaml
+      register: homebox_borgmatic_raw
+
+    # prepare.yml a posé homebox.db : copiée par « .backup » dans le dossier
+    # de staging archivé, sa copie vivante hors de l'archive. Jamais
+    # sqlite_databases : son « .dump » en flux bloque les écritures tout le
+    # temps de l'envoi.
+    - name: Assert the homebox SQLite database is copied by .backup, not dumped or copied live
+      vars:
+        homebox_borgmatic: "{{ homebox_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - homebox_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/homebox' in homebox_borgmatic.source_directories"
+          - >-
+            homebox_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/homebox/data/homebox\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/homebox/opt_apps_homebox_data_homebox\\.db')
+            | list | length == 1
+          - "'/opt/apps/homebox/data/homebox.db' in homebox_borgmatic.exclude_patterns"
+          - "'/opt/apps/homebox/data/homebox.db-wal' in homebox_borgmatic.exclude_patterns"
+          - "'/opt/apps/homebox/data' in homebox_borgmatic.source_directories"
+          - homebox_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./homebox'
+          - homebox_borgmatic.archive_name_format is match('homebox-')
+        fail_msg: "Configuration borgmatic de homebox inattendue : {{ homebox_borgmatic }}"
+
+    - name: Stat the homebox data folder
+      become: true
+      ansible.builtin.stat:
+        path: /opt/apps/homebox/data
+      register: homebox_data
+
+    # L'image -rootless tourne en 65532 sans CAP_DAC_OVERRIDE : le dossier
+    # doit être à lui.
+    - name: Assert the homebox data folder belongs to the image user
+      ansible.builtin.assert:
+        that:
+          - homebox_data.stat.isdir
+          - homebox_data.stat.uid == 65532
+          - homebox_data.stat.gid == 65532
+          - homebox_data.stat.mode == '0700'
+
+    - name: Stat the homebox environment file
+      ansible.builtin.stat:
+        path: /opt/apps/homebox/.env
+      register: homebox_env
+
+    # Il porte la clé HMAC des clés d'API : jamais lisible par d'autres.
+    - name: Assert the homebox environment file is private
+      ansible.builtin.assert:
+        that:
+          - homebox_env.stat.exists
+          - homebox_env.stat.mode == '0600'
+
+    - name: Read the homebox environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/homebox/.env
+      register: homebox_env_content
+
+    # Inscription fermée par défaut (homebox_allow_registration), URL publique
+    # fixée, rien d'envoyé à l'équipe Homebox ni à GitHub, et une clé HMAC
+    # d'au moins 32 octets, sans quoi Homebox refuse de démarrer.
+    - name: Assert homebox registration is closed and the environment is complete
+      vars:
+        homebox_env_lines: "{{ (homebox_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'HBOX_OPTIONS_ALLOW_REGISTRATION=false' in homebox_env_lines"
+          - "'HBOX_OPTIONS_HOSTNAME=https://homebox.sylvain.cloud' in homebox_env_lines"
+          - "'HBOX_OPTIONS_TRUST_PROXY=true' in homebox_env_lines"
+          - "'HBOX_OPTIONS_ALLOW_ANALYTICS=false' in homebox_env_lines"
+          - "'HBOX_OPTIONS_GITHUB_RELEASE_CHECK=false' in homebox_env_lines"
+          - homebox_env_lines | select('match', '^HBOX_AUTH_API_KEY_PEPPER=[0-9a-f]{64}$') | list | length == 1

@@ -1,0 +1,6 @@
+---
+- name: Restart homebox
+  ansible.builtin.systemd:
+    name: dc@homebox
+    scope: user
+    state: restarted

@@ -431,6 +431,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["homebox"]
+  values = { id = 69 }
+}
+
+override_resource {
   target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
@@ -629,6 +634,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["homebox"]
+  values = { push_token = "push-homebox" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["nginx_demo"]
   values = { push_token = "push-nginx-demo" }
 }
@@ -704,7 +714,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
-      "kitchenowl",
+      "kitchenowl", "homebox",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1691,6 +1701,7 @@ run "every_public_resource_applies_its_rules" {
       demo_planning    = "Demo Planning"
       demo_planning_kc = "Demo Planning KC"
       flip_planning    = "Flip Planning"
+      homebox          = "Homebox"
       homepage         = "Homepage"
       immich           = "Immich"
       immich_swipe     = "Immich Swipe"
@@ -1843,6 +1854,7 @@ run "maintenance_page_and_inverted_keyword_monitors" {
       dawarich      = "Healthcheck Dawarich"
       demo_planning = "Healthcheck Demo Planning"
       flip_planning = "Healthcheck Flip Planning"
+      homebox       = "Healthcheck Homebox"
       homepage      = "Healthcheck Homepage"
       immich        = "Healthcheck Immich"
       immich_swipe  = "Healthcheck Immich Swipe"
@@ -2069,6 +2081,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
+    condition     = output.uptime_backup_homebox_url == "https://uptime.example.test/api/push/push-homebox"
+    error_message = "uptime_backup_homebox_url (docker.yml) ne pointe pas sur le moniteur Backup Homebox."
+  }
+
+  assert {
     condition     = output.uptime_backup_karakeep_url == "https://uptime.example.test/api/push/push-karakeep"
     error_message = "uptime_backup_karakeep_url (docker.yml) ne pointe pas sur le moniteur Backup Karakeep."
   }
@@ -2148,6 +2165,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_trek_url,
       output.uptime_backup_karakeep_url,
       output.uptime_backup_kitchenowl_url,
+      output.uptime_backup_homebox_url,
       output.uptime_backup_wishlist_url,
       output.uptime_backup_nginx_demo_url,
       output.uptime_backup_beszel_url,
@@ -2471,6 +2489,7 @@ run "monitors_are_filed_and_notify_by_email" {
       dawarich      = "Backup Dawarich"
       demo_planning = "Backup Demo Planning"
       flip_planning = "Backup Flip Planning"
+      homebox       = "Backup Homebox"
       immich        = "Backup Immich"
       karakeep      = "Backup Karakeep"
       kitchenowl    = "Backup KitchenOwl"

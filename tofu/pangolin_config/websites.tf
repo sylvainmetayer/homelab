@@ -58,6 +58,7 @@ locals {
     demo_planning    = local.demo_planning_website
     demo_planning_kc = local.demo_planning_kc_website
     flip_planning    = local.flip_planning_website
+    homebox          = local.homebox_website
     homepage         = local.homepage_website
     immich           = local.immich_website
     immich_swipe     = local.immich_swipe_website
