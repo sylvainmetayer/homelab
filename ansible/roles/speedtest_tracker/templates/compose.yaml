@@ -1,0 +1,37 @@
+---
+services:
+  app:
+    # Mesuré en local (podman, image 1.15.1) : memory.peak à 145 Mio après
+    # la migration initiale et une rafale de pages (nginx, php-fpm jusqu'à
+    # 5 enfants, le worker de file d'attente). Le CLI Ookla d'un test s'y
+    # ajoute. Plafond à ~2× ce pic, à recaler sur memory.peak de la VM après
+    # quelques jours de tests.
+    mem_limit: 320m
+    # L'image linuxserver, celle que la documentation de Speedtest Tracker
+    # recommande (nginx, php-fpm, cron du planificateur et CLI Ookla dans un
+    # seul conteneur s6) ; son init démarre en root, puis rend config/ à
+    # PUID/PGID et tourne en abc.
+    image: lscr.io/linuxserver/speedtest-tracker:1.15.1@sha256:8d3c2826b708c18be7fb46c1afebc6bb3b1ab7c519473df1be89f5ecaa8bb31f
+    container_name: speedtest-tracker
+    env_file:
+      - .env
+    volumes:
+      # database.sqlite, logs, réglages nginx et php générés.
+      - ./config:/config
+    restart: unless-stopped
+    # Route de l'API qui répond sans compte, à travers Laravel (pas seulement
+    # nginx).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost/api/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit (le CLI
+    # Ookla sort vers Internet par lui).
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

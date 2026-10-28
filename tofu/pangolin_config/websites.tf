@@ -52,29 +52,30 @@
 
 locals {
   websites = {
-    beszel           = local.beszel_website
-    betisier         = local.betisier_website
-    dawarich         = local.dawarich_website
-    demo_planning    = local.demo_planning_website
-    demo_planning_kc = local.demo_planning_kc_website
-    flip_planning    = local.flip_planning_website
-    homebox          = local.homebox_website
-    homepage         = local.homepage_website
-    immich           = local.immich_website
-    immich_swipe     = local.immich_swipe_website
-    karakeep         = local.karakeep_website
-    kitchenowl       = local.kitchenowl_website
-    meerkat_crm      = local.meerkat_crm_website
-    monica           = local.monica_website
-    nextcloud        = local.nextcloud_website
-    nginx_demo       = local.nginx_demo_website
-    paperless        = local.paperless_website
-    promptoramix     = local.promptoramix_website
-    rss              = local.rss_website
-    stirling_pdf     = local.stirling_pdf_website
-    trek             = local.trek_website
-    wiki             = local.wiki_website
-    wishlist         = local.wishlist_website
+    beszel            = local.beszel_website
+    betisier          = local.betisier_website
+    dawarich          = local.dawarich_website
+    demo_planning     = local.demo_planning_website
+    demo_planning_kc  = local.demo_planning_kc_website
+    flip_planning     = local.flip_planning_website
+    homebox           = local.homebox_website
+    homepage          = local.homepage_website
+    immich            = local.immich_website
+    immich_swipe      = local.immich_swipe_website
+    karakeep          = local.karakeep_website
+    kitchenowl        = local.kitchenowl_website
+    meerkat_crm       = local.meerkat_crm_website
+    monica            = local.monica_website
+    nextcloud         = local.nextcloud_website
+    nginx_demo        = local.nginx_demo_website
+    paperless         = local.paperless_website
+    promptoramix      = local.promptoramix_website
+    rss               = local.rss_website
+    speedtest_tracker = local.speedtest_tracker_website
+    stirling_pdf      = local.stirling_pdf_website
+    trek              = local.trek_website
+    wiki              = local.wiki_website
+    wishlist          = local.wishlist_website
   }
 
   # `target` under the app's own key, each sub_target under "<app>_<suffix>":

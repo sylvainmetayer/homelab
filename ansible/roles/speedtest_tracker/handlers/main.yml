@@ -1,0 +1,6 @@
+---
+- name: Restart speedtest_tracker
+  ansible.builtin.systemd:
+    name: dc@speedtest_tracker
+    scope: user
+    state: restarted

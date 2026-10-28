@@ -1,0 +1,67 @@
+---
+# config/ : database.sqlite, logs, réglages nginx et php générés par l'image
+# linuxserver, qui le rend à PUID/PGID (l'utilisateur du compte) au démarrage.
+- name: Ensure Speedtest Tracker app folders exist
+  loop:
+    - "{{ speedtest_tracker_base_path }}"
+    - "{{ speedtest_tracker_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart speedtest_tracker
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ speedtest_tracker_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart speedtest_tracker
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ speedtest_tracker_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
+# SQLite (config/database.sqlite, créée au premier démarrage) est copiée par
+# « .backup » ; le reste de config/ part tel quel, les logs exceptés.
+- name: Configure borgmatic backup for Speedtest Tracker
+  when: speedtest_tracker_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: speedtest_tracker
+    borgmatic_app_title: Speedtest Tracker
+    borgmatic_app_target: "{{ speedtest_tracker_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ speedtest_tracker_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ speedtest_tracker_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ speedtest_tracker_base_path }}/config"
+      - "{{ speedtest_tracker_base_path }}/compose.yaml"
+      - "{{ speedtest_tracker_base_path }}/.env"
+    borgmatic_app_exclude_patterns:
+      - "{{ speedtest_tracker_base_path }}/config/log"
+    borgmatic_app_sqlite_databases:
+      - "{{ speedtest_tracker_base_path }}/config/*.sqlite"
+
+- name: Make sure speedtest_tracker service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@speedtest_tracker
+    scope: user
+    enabled: true
