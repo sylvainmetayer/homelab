@@ -19,7 +19,9 @@ SSH=(ssh -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes "sylv
 # nom de jeton à espaces (« GNOME Online Accounts ») deviendrait trois
 # arguments. Chacun est donc remis entre apostrophes.
 quote() { local a; for a; do printf "'%s' " "${a//\'/\'\\\'\'}"; done; }
-occ() { "${SSH[@]}" "sudo docker exec nextcloud occ $(quote "$@")"; }
+# php occ directement : le /usr/bin/occ de l'image linuxserver relance
+# « bash -c "php occ $*" », qui redécoupe un nom avec des espaces.
+occ() { "${SSH[@]}" "sudo docker exec -u abc nextcloud php /app/www/public/occ $(quote "$@")"; }
 
 case "${1:-audit}" in
 add)
