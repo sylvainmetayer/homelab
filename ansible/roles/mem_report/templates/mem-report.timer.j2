@@ -1,0 +1,12 @@
+# Un rapport par semaine ; Persistent rattrape une semaine manquée (hôte
+# éteint) au démarrage suivant.
+[Unit]
+Description=Weekly memory report of the containers
+
+[Timer]
+OnCalendar={{ mem_report_schedule }}
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

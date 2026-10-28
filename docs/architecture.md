@@ -375,6 +375,21 @@ flowchart LR
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
   déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
   capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.
+- **Rapport mémoire hebdomadaire** (rôle `mem_report`, docker, pi et flip,
+  hors Beszel) : chaque lundi à 09:00, `mem-report.timer` lit le cgroup v2 de
+  chaque conteneur (`memory.max`, `memory.peak`, `memory.current`,
+  `memory.events`) et publie sur ntfy (topic `scripts`, jeton
+  `ntfy_scripts_token`) un message par hôte : à agrandir (pic à 80 % de la
+  limite ou plus, ou OOM-kill), à réduire (pic sous 25 %, s'il libère
+  64 Mio au moins), sans limite, chacun avec une limite suggérée de 2x le
+  pic, arrondie (doctrine des limites, `AGENTS.md`). `memory.peak` et
+  `memory.events` repartent de zéro avec le conteneur : un pic mesuré sur
+  moins de 7 jours est signalé, et un redémarrage automatique après une
+  mise à jour du noyau remet tout l'hôte à zéro. Un OOM-kill du processus
+  principal, suivi d'un redémarrage du conteneur, n'apparaît que par
+  `redémarré xN` (le nouveau cgroup a perdu le compteur). À la main :
+  `sudo systemctl start mem-report`, le texte aussi dans
+  `journalctl -u mem-report`.
 
 ## Les journaux (VictoriaLogs)
 

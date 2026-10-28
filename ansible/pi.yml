@@ -37,6 +37,9 @@
     # Agent de journaux, vers VictoriaLogs (vmauth) de la VM docker par le LAN.
     - role: log_agent
       tags: log_agent,monitoring
+    # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
+    - role: mem_report
+      tags: mem_report,monitoring
   tasks:
     # Restes d'avant Pangolin, quand nginx et Let's Encrypt servaient Immich
     # depuis le Pi : le certificat de photos.sylvain.cloud (expiré depuis

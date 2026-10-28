@@ -1,0 +1,26 @@
+# Rapport hebdomadaire de la mémoire des conteneurs (rôle mem_report), publié
+# sur ntfy. Le jeton ntfy est dans l'EnvironmentFile, 0600 root, jamais sur la
+# ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=Weekly memory report of the containers, to ntfy
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User={{ mem_report_user }}
+# docker ps et inspect ; memory.* des cgroups est lisible par tous.
+SupplementaryGroups=docker
+EnvironmentFile={{ mem_report_env_file }}
+ExecStart=/usr/bin/python3 -I {{ mem_report_script }} --host {{ mem_report_host_label | quote }} --url {{ mem_report_ntfy_url | quote }} --topic {{ mem_report_ntfy_topic | quote }} --high {{ mem_report_high_percent | int }} --low {{ mem_report_low_percent | int }} --min-saving-mb {{ mem_report_min_saving_mb | int }}
+TimeoutStartSec=5min
+# Lecture seule partout : le script n'écrit rien, il lit /sys/fs/cgroup et
+# parle au socket Docker et à ntfy.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

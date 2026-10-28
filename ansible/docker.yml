@@ -106,6 +106,9 @@
       tags: beszel_agent,monitoring
       vars:
         beszel_agent_hub_url: "http://127.0.0.1:8090"
+    # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
+    - role: mem_report
+      tags: mem_report,monitoring
     # Journaux centralisés (VictoriaLogs derrière vmauth). Pas de sauvegarde :
     # des journaux se reproduisent, chaque hôte garde son journald.
     - role: victoria_logs
