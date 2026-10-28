@@ -224,8 +224,7 @@ override_resource {
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/access-tokens?limit=1000 : un jeton par ressource de
-# jetons déclarée (les identifiants fixés plus haut), plus les deux jetons faits
-# main que local.unmanaged_access_tokens garde en exception. Comme en vrai,
+# jetons déclarée (les identifiants fixés plus haut). Comme en vrai,
 # `pagination.total` ne compte pas la liste.
 override_data {
   target = data.http.pangolin_access_tokens
@@ -236,17 +235,14 @@ override_data {
         {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
         {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
-        {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
-        {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
-        {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null}
+        {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null}
       ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
       "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
     EOT
   }
 }
 
-# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, Restreint
-# (en exception), celui commun à pangolin_role.apps et celui de Jellyfin.
+# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui commun à pangolin_role.apps et celui de Jellyfin.
 override_data {
   target = data.http.pangolin_roles
   values = {
@@ -255,10 +251,9 @@ override_data {
       {"data": {"roles": [
         {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
         {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-        {"roleId": 5, "name": "Restreint", "description": "", "isAdmin": null},
-        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+                {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
         {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
-      ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
+      ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
       "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
     EOT
   }
@@ -421,8 +416,8 @@ run "audits_pass_on_realistic_api_responses" {
 
   # 6 jetons et 5 rôles dans les réponses simulées, aucune exception périmée.
   assert {
-    condition     = terraform_data.access_inventory.output == 11 && length(local.stale_inventory_exceptions) == 0
-    error_message = "access_inventory doit lire les 6 jetons et les 5 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
+    condition     = terraform_data.access_inventory.output == 8 && length(local.stale_inventory_exceptions) == 0
+    error_message = "access_inventory doit lire les 4 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
   }
 
   assert {
@@ -673,8 +668,6 @@ run "hand_made_access_token_fails_plan" {
       response_body = <<-EOT
         {"data": {"accessTokens": [
           {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
-          {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
-          {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null},
           {"accessTokenId": "zz99main", "title": null, "resourceName": "Immich", "expiresAt": null}
         ], "pagination": {"total": 4, "limit": 1000, "offset": 0}},
         "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
@@ -704,11 +697,10 @@ run "hand_made_role_fails_plan" {
         {"data": {"roles": [
           {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
           {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-          {"roleId": 5, "name": "Restreint", "description": "", "isAdmin": null},
-          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+                    {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
           {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null},
           {"roleId": 77, "name": "invités", "description": "", "isAdmin": null}
-        ], "pagination": {"total": 6, "page": 1, "pageSize": 1000}},
+        ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
         "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
       EOT
     }
@@ -766,21 +758,22 @@ run "unreadable_access_tokens_fail_plan" {
   ]
 }
 
-# Le jeton d'une exception supprimé dans Pangolin : l'exception est périmée,
-# un avertissement le dit sans bloquer le plan.
+# Le rôle d'une exception disparu de Pangolin (ici Member) : l'exception est
+# périmée, un avertissement le dit sans bloquer le plan.
 run "stale_inventory_exception_only_warns" {
   command = plan
 
   override_data {
-    target = data.http.pangolin_access_tokens
+    target = data.http.pangolin_roles
     values = {
       status_code   = 200
       response_body = <<-EOT
-        {"data": {"accessTokens": [
-          {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
-          {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null}
-        ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
-        "success": true, "error": false, "message": "Access tokens retrieved successfully", "status": 200}
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+        ], "pagination": {"total": 3, "page": 1, "pageSize": 1000}},
+        "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
       EOT
     }
   }
@@ -790,8 +783,8 @@ run "stale_inventory_exception_only_warns" {
   ]
 
   assert {
-    condition     = tolist(local.stale_inventory_exceptions) == tolist(["access token jup2pfkh"])
-    error_message = "Seule l'exception du jeton disparu (jup2pfkh) doit être signalée."
+    condition     = tolist(local.stale_inventory_exceptions) == tolist(["role 2"])
+    error_message = "Seule l'exception du rôle disparu (2) doit être signalée."
   }
 }
 

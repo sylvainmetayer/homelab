@@ -58,30 +58,14 @@ locals {
   # a title, and a renamed role keeps its id. An entry leaves this list the day
   # its token or role is deleted in Pangolin (check.inventory_exceptions_stale
   # says so) or declared here.
-  unmanaged_access_tokens = {
-    # Flip Planning, title "MCP ". The production planning only shows it to
-    # its admins on its MCP page (prod_planning_mcp_pangolin_access_token* in
-    # ansible/secrets.sops.yaml): /mcp/* already answers without SSO through
-    # local.flip_planning_mcp_paths, so no MCP client needs it, while it opens
-    # the whole planning to whoever holds it. The demo dropped its own in #763.
-    # Decision pending (#525): delete it and empty the two prod variables.
-    "3nexu81w" = "Flip Planning \"MCP\": hand-made, decision pending (#525)"
-
-    # Immich, title "todo wip", made by hand on 2026-07-11; nothing in this
-    # repository or in the Immich role reads it. Decision pending (#525):
-    # delete it unless a client still sends it.
-    "jup2pfkh" = "Immich \"todo wip\": hand-made, decision pending (#525)"
-  }
+  # None today: Flip Planning "MCP" and Immich "todo wip" were deleted on
+  # 2026-10-28 (#525).
+  unmanaged_access_tokens = {}
 
   unmanaged_roles = {
     # Made by Pangolin with the org; neither can be deleted.
     "1" = "Admin: built in"
     "2" = "Member: built in"
-
-    # "Rôle par défaut pour l'OIDC", made by hand: on 2026-10-28 no user holds
-    # it, no resource or private resource is bound to it and no IdP has an org
-    # policy (`orgCount` 0 on both). Decision pending (#525): delete it.
-    "5" = "Restreint: hand-made, decision pending (#525)"
   }
 
   # Every token and role resource of this configuration. HCL cannot enumerate

@@ -114,7 +114,6 @@
       - prod_planning_admin_password not in env_content
       - prod_planning_session_encryption_key not in env_content
       - prod_planning_mcp_api_key not in env_content
-      - prod_planning_mcp_pangolin_access_token not in env_content
     fail_msg: "Un secret de la production a fuité dans le .env de {{ flip_instance.service }}"
 
 # Le mot de passe pgAdmin est écrit dans compose.yaml, pas dans le .env : on

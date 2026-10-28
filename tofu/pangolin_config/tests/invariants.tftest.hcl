@@ -194,8 +194,6 @@ override_data {
         {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
         {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
-        {"accessTokenId": "3nexu81w", "title": "MCP ", "resourceName": "Flip Planning", "expiresAt": null},
-        {"accessTokenId": "jup2pfkh", "title": "todo wip", "resourceName": "Immich", "expiresAt": null},
         {"accessTokenId": "tok-flip-planning", "title": "Healthcheck Flip Planning", "resourceName": "Flip Planning", "expiresAt": null},
         {"accessTokenId": "tok-demo-planning", "title": "Healthcheck Demo Planning", "resourceName": "Demo Planning", "expiresAt": null}
       ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
@@ -204,8 +202,7 @@ override_data {
   }
 }
 
-# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, Restreint
-# (en exception), celui commun à pangolin_role.apps et celui de Jellyfin.
+# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui commun à pangolin_role.apps et celui de Jellyfin.
 override_data {
   target = data.http.pangolin_roles
   values = {
@@ -214,10 +211,9 @@ override_data {
       {"data": {"roles": [
         {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
         {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-        {"roleId": 5, "name": "Restreint", "description": "", "isAdmin": null},
         {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
         {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
-      ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
+      ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
       "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
     EOT
   }
