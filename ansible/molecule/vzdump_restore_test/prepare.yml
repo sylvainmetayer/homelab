@@ -18,7 +18,7 @@
         dest: /usr/local/sbin/fake-pve
         owner: root
         group: root
-        mode: "0755"
+        mode: "0700"
 
     - name: Link every simulated command to it
       become: true

@@ -156,12 +156,14 @@ def main():
     # Roles of a playbook run by hand only (nas.yml, pve.yml: no key of those
     # hosts in the GitHub secrets) are expected here: a notice, not a warning. Read only when
     # needed: most merges leave no unreferenced role.
-    manual_roles = {
-        role for playbook in MANUAL_PLAYBOOKS for role in load_role_tags(ANSIBLE_DIR / playbook)
-    } if unreferenced else set()
+    # role -> the manual playbooks that apply it (jellyfin: nas.yml only).
+    manual_roles = {}
+    for playbook in MANUAL_PLAYBOOKS if unreferenced else []:
+        for role in load_role_tags(ANSIBLE_DIR / playbook):
+            manual_roles.setdefault(role, []).append(playbook)
     for role in unreferenced:
         if role in manual_roles:
-            print(f"::notice::role '{role}' changed, deployed by hand only ({', '.join(MANUAL_PLAYBOOKS)}), not by CI", file=sys.stderr)
+            print(f"::notice::role '{role}' changed, deployed by hand only ({', '.join(manual_roles[role])}), not by CI", file=sys.stderr)
             continue
         print(f"::warning::role '{role}' changed but is not deployed by any of {', '.join(playbook_paths)} (no entry, or only through roles tagged never), ignoring", file=sys.stderr)
 

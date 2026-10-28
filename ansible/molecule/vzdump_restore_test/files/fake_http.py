@@ -29,4 +29,5 @@ class Handler(http.server.BaseHTTPRequestHandler):
     do_POST = record
 
 
-http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+# HTTP sur la boucle locale du conteneur de test : pas de TLS à simuler.
+http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()  # NOSONAR
