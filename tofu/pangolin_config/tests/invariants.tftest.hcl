@@ -603,6 +603,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_nas_cert
+  values = { push_token = "push-cron-nas-cert" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -2060,6 +2065,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_geoip_url (pangolin.yaml) ne pointe pas sur le moniteur GeoIP Pangolin."
   }
 
+  assert {
+    condition     = output.uptime_cron_nas_cert_url == "https://uptime.example.test/api/push/push-cron-nas-cert"
+    error_message = "uptime_cron_nas_cert_url (nas.yml) ne pointe pas sur le moniteur Certificats NAS."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2086,6 +2096,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_pangolin_url,
       output.uptime_backup_jellyfin_url,
       output.uptime_cron_geoip_url,
+      output.uptime_cron_nas_cert_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2481,10 +2492,26 @@ run "monitors_are_filed_and_notify_by_email" {
       && contains(uptimekuma_monitor_push.cron_geoip.notification_ids, uptimekuma_notification_smtp.email.id)
       && uptimekuma_monitor_push.cron_geoip.interval < 60 * 60 * 24 * 24
       && uptimekuma_monitor_push.cron_geoip.interval > 60 * 60 * 24 * 7
+      && uptimekuma_monitor_push.cron_nas_cert.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(uptimekuma_monitor_push.cron_nas_cert.notification_ids, uptimekuma_notification_smtp.email.id)
       && uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
       && contains(uptimekuma_monitor_push.cron_monica.notification_ids, uptimekuma_notification_smtp.email.id)
     )
     error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié par e-mail."
+  }
+
+  # Le NAS pousse une fois par jour (nas-proxy-cert-check.timer, rôle
+  # nas_proxy) : l'intervalle laisse passer une journée manquée, pas deux. Le
+  # seuil reste sous les 30 jours avant l'échéance où Traefik renouvelle, sinon
+  # chaque certificat frais serait « down ».
+  assert {
+    condition = (
+      can(regex("^\\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_cert_check_schedule))
+      && uptimekuma_monitor_push.cron_nas_cert.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.cron_nas_cert.interval < 60 * 60 * 24 * 3
+      && yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_cert_check_min_days < 30
+    )
+    error_message = "Certificats NAS : timer quotidien, intervalle de deux à trois jours, seuil sous les 30 jours du renouvellement de Traefik."
   }
 
   assert {

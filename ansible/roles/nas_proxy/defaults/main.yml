@@ -55,6 +55,24 @@ nas_proxy_ugos_url: "http://{{ ansible_host }}:9999" # NOSONAR
 nas_proxy_ugos_source_ranges:
   - 192.168.1.0/24
 
+# --- Échéance des certificats (nas-proxy-cert-check.timer) ---
+# Le NAS n'est joignable que du LAN et par le client Pangolin : l'Uptime Kuma
+# de PikaPods ne peut pas lire ses certificats. Chaque jour, files/cert_check.py
+# s'y connecte depuis le NAS, sur le port publié, avec chaque nom en SNI, et
+# pousse le résultat au moniteur « Certificats NAS ». URL push : l'output
+# uptime_cron_nas_cert_url de tofu/pangolin_config (nas.yml) ; vide, la
+# vérification tourne sans rien pousser.
+nas_proxy_cert_healthcheck_url: ""
+nas_proxy_cert_check_host: 127.0.0.1
+nas_proxy_cert_check_names:
+  - "{{ nas_proxy_media_domain }}"
+  - "{{ nas_proxy_ugos_domain }}"
+# Traefik renouvelle 30 jours avant l'échéance (certificats Let's Encrypt de
+# 90 jours) : sous 14 jours, le renouvellement échoue depuis plus de deux
+# semaines, et il reste deux semaines pour réparer.
+nas_proxy_cert_check_min_days: 14
+nas_proxy_cert_check_schedule: "*-*-* 07:00:00"
+
 # --- Migration depuis le Traefik du compose de jellyfin (27/10/2026) ---
 # Son acme.json est repris tel quel (même résolveur, letsencrypt) : pas de
 # nouveau certificat pour media.sylvain.cloud, ni de minute en certificat

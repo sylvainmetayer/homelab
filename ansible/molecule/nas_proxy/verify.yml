@@ -8,6 +8,7 @@
     - ../../host_vars/nas/variables.yaml
   vars:
     nas_proxy_verify_path: "{{ docker_base_path }}/nas_proxy"
+    nas_proxy_verify_tls_dir: /root/molecule-tls
   pre_tasks:
     # Identifiants OVH et e-mail ACME comparés aux fausses valeurs.
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
@@ -165,3 +166,157 @@
           - nas_proxy_verify_static.accessLog.fields.names.StartUTC == 'drop'
           - not (nas_proxy_verify_static.accessLog.addInternals | default(false))
         fail_msg: "Configuration Traefik inattendue"
+
+    # --- Échéance des certificats (nas-proxy-cert-check.timer) ---
+    - name: Stat the certificate expiry check files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ nas_proxy_verify_path }}/cert_check.py"
+        - "{{ nas_proxy_verify_path }}/cert_check.env"
+      register: nas_proxy_verify_check_files
+
+    # Le fichier d'environnement porte l'URL push (jeton du moniteur).
+    - name: Assert the check script and its push URL are root-only
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0700' if item.item.endswith('.py') else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ nas_proxy_verify_check_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Verify the certificate expiry check units
+      ansible.builtin.command: systemd-analyze verify nas-proxy-cert-check.service nas-proxy-cert-check.timer
+      register: nas_proxy_verify_check_analyze
+      changed_when: false
+      failed_when: >-
+        nas_proxy_verify_check_analyze.rc != 0
+        or (nas_proxy_verify_check_analyze.stderr_lines | select('search', 'nas-proxy-cert-check') | list | length > 0)
+
+    - name: Read the certificate expiry check timer
+      ansible.builtin.systemd:
+        name: nas-proxy-cert-check.timer
+      register: nas_proxy_verify_timer
+
+    - name: Read the certificate expiry check service
+      ansible.builtin.systemd:
+        name: nas-proxy-cert-check.service
+      register: nas_proxy_verify_check_unit
+
+    # Les deux noms du NAS sur le port publié, le seuil des defaults, l'URL
+    # par le fichier d'environnement seul (jamais sur la ligne de commande).
+    - name: Assert the check runs daily against both names of the NAS
+      vars:
+        nas_proxy_verify_exec: "{{ nas_proxy_verify_check_unit.status.ExecStart }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_timer.status.UnitFileState == 'enabled'
+          - nas_proxy_verify_timer.status.ActiveState == 'active'
+          - "'--port 8443 ' in nas_proxy_verify_exec"
+          - "'--min-days 14 ' in nas_proxy_verify_exec"
+          - "'media.sylvain.cloud nas.sylvain.cloud' in nas_proxy_verify_exec"
+          - "'molecule-cert' not in nas_proxy_verify_exec"
+          - nas_proxy_verify_check_unit.status.EnvironmentFiles is search(nas_proxy_verify_path ~ '/cert_check.env')
+          - nas_proxy_verify_check_unit.status.NoNewPrivileges == 'yes'
+          - nas_proxy_verify_check_unit.status.ProtectSystem == 'strict'
+        fail_msg: "{{ nas_proxy_verify_exec }}"
+
+    # Une AC de test dans le magasin du système, que lit le script comme il lit
+    # celui d'UGOS sur le NAS.
+    - name: Create the test TLS folder
+      ansible.builtin.file:
+        path: "{{ nas_proxy_verify_tls_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create the test certificate authority
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -newkey
+          - ec
+          - -pkeyopt
+          - ec_paramgen_curve:P-256
+          - -nodes
+          - -keyout
+          - "{{ nas_proxy_verify_tls_dir }}/ca.key"
+          - -out
+          - "{{ nas_proxy_verify_tls_dir }}/ca.pem"
+          - -days
+          - "365"
+          - -subj
+          - /CN=molecule-ca
+          - -addext
+          - basicConstraints=critical,CA:TRUE
+          - -addext
+          - keyUsage=critical,keyCertSign,cRLSign
+        creates: "{{ nas_proxy_verify_tls_dir }}/ca.pem"
+
+    - name: Trust the test certificate authority system-wide
+      ansible.builtin.copy:
+        src: "{{ nas_proxy_verify_tls_dir }}/ca.pem"
+        dest: /usr/local/share/ca-certificates/molecule-ca.crt
+        remote_src: true
+        mode: "0644"
+
+    - name: Update the system certificate store
+      ansible.builtin.command: update-ca-certificates
+      changed_when: true
+
+    # Faux Uptime Kuma : http.server rend 200 sur le chemin du moniteur et
+    # journalise chaque requête, query string comprise.
+    - name: Create the fake Uptime Kuma push path
+      ansible.builtin.copy:
+        dest: "{{ nas_proxy_verify_tls_dir }}/push/api/push/molecule-cert"
+        content: "{\"ok\":true}\n"
+        mode: "0600"
+
+    - name: Start the fake Uptime Kuma
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-push
+          - --collect
+          - python3
+          - -I
+          - -m
+          - http.server
+          - "18080"
+          - --bind
+          - 127.0.0.1
+          - --directory
+          - "{{ nas_proxy_verify_tls_dir }}/push"
+      changed_when: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18080
+        timeout: 30
+
+    # Un certificat frais : up, avec les jours restants de chaque nom ; puis
+    # un certificat à 5 jours, sous le seuil : l'unité échoue et pousse down.
+    - name: Check a fresh certificate
+      ansible.builtin.include_tasks: tasks/cert_check_case.yml
+      vars:
+        cert_check_case_days: 60
+        cert_check_case_status: up
+        cert_check_case_index: 1
+
+    - name: Check a certificate close to expiry
+      ansible.builtin.include_tasks: tasks/cert_check_case.yml
+      vars:
+        cert_check_case_days: 5
+        cert_check_case_status: down
+        cert_check_case_index: 2
+
+    - name: Stop the fake Uptime Kuma
+      ansible.builtin.systemd:
+        name: molecule-push.service
+        state: stopped
