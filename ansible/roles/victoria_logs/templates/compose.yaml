@@ -41,7 +41,7 @@ services:
   auth:
     # Un proxy sans état : quelques dizaines de Mio au plus.
     mem_limit: 64m
-    image: docker.io/victoriametrics/vmauth:v1.154.1@sha256:d8c65a73b8a30a0777417d43a13fbfaea1da1aa4ec4cd68905baf996072376bf
+    image: docker.io/victoriametrics/vmauth:v1.155.0@sha256:dfeb63e5eff4bc32ed0fa2d43d8e85b717e8442c8b5c753e83c216669665a7de
     container_name: victoria-logs-auth
     user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
     read_only: true
