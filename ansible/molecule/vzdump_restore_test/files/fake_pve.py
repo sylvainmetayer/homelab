@@ -20,10 +20,6 @@ BASE = os.environ.get("FAKE_PVE_DIR", "/var/lib/fake-pve")
 STATE = f"{BASE}/state.json"
 CALLS = f"{BASE}/calls.jsonl"
 ROOTFS = f"{BASE}/rootfs"
-MUTATING = {
-    "pct": {"restore", "set", "mount", "unmount", "start", "exec", "stop", "destroy"},
-    "qm": {"create", "set", "start", "stop", "destroy", "guest"},
-}
 
 
 def load():
@@ -132,7 +128,7 @@ def create(state, kind, vmid, volid, opts):
     state["guests"][str(vmid)] = {"kind": kind, "status": "stopped", "config": conf}
     state["volumes"].append({"volid": f"local-lvm:vm-{vmid}-disk-0", "vmid": vmid})
     if kind == "lxc":
-        shutil.copytree(state["lxc_rootfs_fixture"], f"{ROOTFS}/{vmid}", symlinks=True)
+        shutil.copytree(state["lxc_rootfs_fixture"], rootfs(vmid), symlinks=True)
 
 
 def delete_keys(state, entry, opts):
@@ -151,110 +147,154 @@ def destroy(state, vmid, opts):
         fail("destroy sans --destroy-unreferenced-disks 0", 97)
     del state["guests"][str(vmid)]
     state["volumes"] = [v for v in state["volumes"] if str(v["vmid"]) != str(vmid)]
-    shutil.rmtree(f"{ROOTFS}/{vmid}", ignore_errors=True)
+    shutil.rmtree(rootfs(vmid), ignore_errors=True)
 
 
-def pct(state, args):
-    command, vmid = args[0], args[1] if len(args) > 1 else ""
-    if command == "restore":
-        create(state, "lxc", vmid, args[2], options(args[3:]))
-    elif command == "set":
-        delete_keys(state, guest(state, vmid, "lxc"), options(args[2:]))
-    elif command == "mount":
-        guest(state, vmid, "lxc")["mounted"] = True
-        print(f"mounted CT {vmid} in '{ROOTFS}/{vmid}'")
-    elif command == "unmount":
-        entry = guest(state, vmid, "lxc")
-        if not entry.pop("mounted", False):
-            fail(f"CT {vmid} is not mounted", 2)
-    elif command == "start":
-        entry = guest(state, vmid, "lxc")
-        if entry.get("mounted"):
-            fail(f"CT {vmid} is locked (mounted)")
-        masked = [
-            unit
-            for unit in ("newt.service",)
-            if os.path.islink(f"{ROOTFS}/{vmid}/etc/systemd/system/{unit}")
-            and os.readlink(f"{ROOTFS}/{vmid}/etc/systemd/system/{unit}") == "/dev/null"
-        ]
-        log({"start": int(vmid), "masked": masked, "config": entry["config"]})
-        entry["status"] = "running"
-    elif command == "exec":
-        entry = guest(state, vmid, "lxc")
-        if entry["status"] != "running":
-            fail(f"CT {vmid} not running")
-        inner = args[args.index("--") + 1:]
-        if inner == ["ls", "-1", "/sys/class/net"]:
-            print("\n".join(["lo"] + [f"eth{key[3:]}" for key in entry["config"] if key.startswith("net")]))
-        elif "is-system-running" in inner:
-            print(state["lxc_system_state"])
-            sys.exit(0 if state["lxc_system_state"] == "running" else 1)
-        elif "--failed" in inner:
-            print(state.get("lxc_failed_units", ""))
-        else:
-            fail(f"commande non simulée : {inner}", 2)
-    elif command == "status":
-        print(f"status: {guest(state, vmid, 'lxc')['status']}")
-    elif command == "stop":
-        guest(state, vmid, "lxc")["status"] = "stopped"
-    elif command == "destroy":
-        destroy(state, vmid, options(args[2:]))
+def rootfs(vmid):
+    # vmid est un int (main) : rien du chemin ne vient de la ligne de commande.
+    return os.path.join(ROOTFS, str(int(vmid)))
+
+
+def pct_mount(state, vmid, _args):
+    guest(state, vmid, "lxc")["mounted"] = True
+    print(f"mounted CT {vmid} in '{rootfs(vmid)}'")
+
+
+def pct_unmount(state, vmid, _args):
+    if not guest(state, vmid, "lxc").pop("mounted", False):
+        fail(f"CT {vmid} is not mounted", 2)
+
+
+def pct_start(state, vmid, _args):
+    entry = guest(state, vmid, "lxc")
+    if entry.get("mounted"):
+        fail(f"CT {vmid} is locked (mounted)")
+    unit = os.path.join(rootfs(vmid), "etc/systemd/system/newt.service")
+    masked = ["newt.service"] if os.path.islink(unit) and os.readlink(unit) == "/dev/null" else []
+    log({"start": vmid, "masked": masked, "config": entry["config"]})
+    entry["status"] = "running"
+
+
+def pct_exec(state, vmid, args):
+    entry = guest(state, vmid, "lxc")
+    if entry["status"] != "running":
+        fail(f"CT {vmid} not running")
+    inner = args[args.index("--") + 1:]
+    if inner == ["ls", "-1", "/sys/class/net"]:
+        print("\n".join(["lo"] + [f"eth{key[3:]}" for key in entry["config"] if key.startswith("net")]))
+    elif "is-system-running" in inner:
+        print(state["lxc_system_state"])
+        sys.exit(0 if state["lxc_system_state"] == "running" else 1)
+    elif "--failed" in inner:
+        print(state.get("lxc_failed_units", ""))
     else:
-        fail(f"pct {command} non simulé", 2)
+        fail(f"commande non simulée : {inner}", 2)
 
 
-def qm(state, args):
-    command, vmid = args[0], args[1] if len(args) > 1 else ""
-    if command == "create":
-        opts = options(args[2:])
-        create(state, "qemu", vmid, opts["archive"], opts)
-    elif command == "set":
-        delete_keys(state, guest(state, vmid, "qemu"), options(args[2:]))
-    elif command == "start":
-        entry = guest(state, vmid, "qemu")
-        log({"start": int(vmid), "config": entry["config"]})
-        entry["status"] = "running"
-    elif command == "guest":
-        # qm guest cmd <vmid> ping : l'id est le troisième argument.
-        sys.exit(0 if guest(state, args[2], "qemu")["status"] == "running" else 2)
-    elif command == "status":
-        print(f"status: {guest(state, vmid, 'qemu')['status']}")
-    elif command == "stop":
-        guest(state, vmid, "qemu")["status"] = "stopped"
-    elif command == "destroy":
-        destroy(state, vmid, options(args[2:]))
-    else:
-        fail(f"qm {command} non simulé", 2)
+def set_status(kind, status):
+    def handler(state, vmid, _args):
+        guest(state, vmid, kind)["status"] = status
+    return handler
+
+
+def print_status(kind):
+    def handler(state, vmid, _args):
+        print(f"status: {guest(state, vmid, kind)['status']}")
+    return handler
+
+
+def qm_create(state, vmid, args):
+    opts = options(args[2:])
+    create(state, "qemu", vmid, opts["archive"], opts)
+
+
+def qm_start(state, vmid, _args):
+    entry = guest(state, vmid, "qemu")
+    log({"start": vmid, "config": entry["config"]})
+    entry["status"] = "running"
+
+
+def qm_guest(state, vmid, _args):
+    sys.exit(0 if guest(state, vmid, "qemu")["status"] == "running" else 2)
+
+
+HANDLERS = {
+    "pct": {
+        "restore": lambda state, vmid, args: create(state, "lxc", vmid, args[2], options(args[3:])),
+        "set": lambda state, vmid, args: delete_keys(state, guest(state, vmid, "lxc"), options(args[2:])),
+        "mount": pct_mount,
+        "unmount": pct_unmount,
+        "start": pct_start,
+        "exec": pct_exec,
+        "status": print_status("lxc"),
+        "stop": set_status("lxc", "stopped"),
+        "destroy": lambda state, vmid, args: destroy(state, vmid, options(args[2:])),
+    },
+    "qm": {
+        "create": qm_create,
+        "set": lambda state, vmid, args: delete_keys(state, guest(state, vmid, "qemu"), options(args[2:])),
+        "start": qm_start,
+        # qm guest cmd <vmid> ping
+        "guest": qm_guest,
+        "status": print_status("qemu"),
+        "stop": set_status("qemu", "stopped"),
+        "destroy": lambda state, vmid, args: destroy(state, vmid, options(args[2:])),
+    },
+}
+
+
+def target_of(args):
+    """L'id visé : `qm guest cmd <vmid> …` le met en troisième position."""
+    if args[:2] == ["guest", "cmd"]:
+        return args[2] if len(args) > 2 else ""
+    return args[1] if len(args) > 1 else ""
+
+
+def archive_path(state, argument):
+    """Le chemin d'une archive connue de l'état, jamais celui de l'argument."""
+    for item in state["backups"]:
+        if item["path"] == argument:
+            return item["path"]
+    fail(f"archive inconnue : {argument}", 2)
+    return None
+
+
+def guest_command(state, name, args):
+    handler = HANDLERS[name].get(args[0] if args else "")
+    if handler is None:
+        fail(f"{name} {' '.join(args[:1])} non simulé", 2)
+    target = target_of(args)
+    if not target.isdigit() or not 900 <= int(target) <= 999:
+        log({"violation": [name, *args]})
+        fail("le faux Proxmox refuse de toucher un invité hors de 900-999", 99)
+    handler(state, int(target), args)
 
 
 def main():
     name, args = os.path.basename(sys.argv[0]), sys.argv[1:]
     log({"argv": [name, *args]})
+    state = load()
     if name == "zstd":
-        with open(args[-1], "rb") as handle:
+        with open(archive_path(state, args[-1]), "rb") as handle:
             shutil.copyfileobj(handle, sys.stdout.buffer)
         return
     if name == "vma":
-        data = sys.stdin.buffer.read() if args[-1] == "-" else open(args[-1], "rb").read()
+        if args[-1] == "-":
+            data = sys.stdin.buffer.read()
+        else:
+            with open(archive_path(state, args[-1]), "rb") as handle:
+                data = handle.read()
         if not data.startswith(b"VMA"):
             fail("vma: verify failed - wrong vma extent header", 1)
         return
-    state = load()
-    if name in MUTATING and args and args[0] in MUTATING[name]:
-        target = args[2] if args[:2] == ["guest", "cmd"] and len(args) > 2 else (args[1] if len(args) > 1 else "")
-        if not target.isdigit() or not 900 <= int(target) <= 999:
-            log({"violation": [name, *args]})
-            fail("le faux Proxmox refuse de toucher un invité hors de 900-999", 99)
     if name == "pvesh":
         pvesh(state, args)
     elif name == "pvesm":
         if args[:1] != ["path"]:
             fail("seul pvesm path est simulé", 2)
         print(backup(state, args[1])["path"])
-    elif name == "pct":
-        pct(state, args)
-    elif name == "qm":
-        qm(state, args)
+    elif name in HANDLERS:
+        guest_command(state, name, args)
     else:
         fail(f"commande non simulée : {name}", 2)
     save(state)

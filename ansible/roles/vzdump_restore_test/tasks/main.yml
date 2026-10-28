@@ -6,7 +6,7 @@
 - name: Create the vzdump restore test directories
   become: true
   loop:
-    - { path: "{{ vzdump_restore_test_script_dir }}", mode: "0755" }
+    - { path: "{{ vzdump_restore_test_script_dir }}", mode: "0700" }
     - { path: "{{ vzdump_restore_test_config_dir }}", mode: "0700" }
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -22,7 +22,7 @@
     dest: "{{ vzdump_restore_test_script_dir }}/vzdump_restore_test.py"
     owner: root
     group: root
-    mode: "0755"
+    mode: "0700"
 
 - name: Write the vzdump restore test configuration
   become: true

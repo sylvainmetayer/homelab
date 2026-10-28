@@ -58,6 +58,8 @@ LOCK_PATH = "/run/lock/vzdump-restore-test.lock"
 VZDUMP_LOCK_PATH = "/var/run/vzdump.lock"
 PUSH_URL_VARIABLE = "VZDUMP_RESTORE_TEST_PUSH_URL"
 NTFY_TOKEN_VARIABLE = "VZDUMP_RESTORE_TEST_NTFY_TOKEN"
+# Délai laissé à une commande interrompue (SIGTERM) pour annuler sa tâche.
+STOP_GRACE = 120
 
 NET_KEY = re.compile(r"net\d+")
 DRIVE_KEY = re.compile(r"(?:ide|sata|scsi|virtio|efidisk|tpmstate)\d+")
@@ -77,26 +79,52 @@ def on_sigterm(signum, _frame):
     raise Terminated(f"interrompu par le signal {signum}")
 
 
+def stop(proc):
+    """SIGTERM d'abord, SIGKILL après STOP_GRACE secondes.
+
+    pct restore et qm create confient le travail à une tâche détachée
+    (fork + setsid) : leur SIGTERM lui est relayé, elle annule la
+    restauration et supprime l'invité à moitié créé. Un SIGKILL d'emblée ne
+    tuerait que le client : la tâche finirait seule, ou serait tuée à la
+    sortie de l'unité en laissant l'invité verrouillé (lock: create), sans
+    la marque, que destroy() refuse alors de détruire.
+    """
+    proc.terminate()
+    try:
+        proc.communicate(timeout=STOP_GRACE)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
 def run(argv, timeout=600, check=True, quiet=False):
     """Lance une commande, sortie dans le journal (sauf quiet : le JSON de
     pvesh) ; jamais de secret en argv.
 
-    subprocess.run tue l'enfant sur toute exception, Terminated comprise.
+    Délai dépassé ou exception (Terminated comprise) : l'enfant est arrêté
+    par stop(), jamais laissé derrière.
     """
     print("+ " + " ".join(argv), flush=True)
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             argv,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
             stdin=subprocess.DEVNULL,
-            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
-    except subprocess.TimeoutExpired as error:
-        raise TestFailure(f"{' '.join(argv[:3])} : plus de {timeout} s") from error
     except OSError as error:
         raise TestFailure(f"{argv[0]} : {error.strerror}") from error
+    with proc:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            stop(proc)
+            raise TestFailure(f"{' '.join(argv[:3])} : plus de {timeout} s") from error
+        except BaseException:
+            stop(proc)
+            raise
+    proc = subprocess.CompletedProcess(argv, proc.returncode, stdout, stderr)
     for stream in (proc.stderr,) if quiet else (proc.stdout, proc.stderr):
         if stream.strip():
             print(stream.rstrip(), flush=True)
@@ -263,7 +291,9 @@ class Run:
             if lxc:
                 first = f"name={option(value, 'name') or 'eth' + key[3:]}"
             else:
-                first = value.split(",", 1)[0].split("=", 1)[0]
+                # Le modèle : « virtio=MAC » ou « model=virtio,macaddr=MAC ».
+                name, _, model = value.split(",", 1)[0].partition("=")
+                first = model if name == "model" else name
             argv += [f"--{key}", first + (f",bridge={bridge}" if bridge else "") + ",link_down=1"]
         return argv
 
@@ -424,6 +454,8 @@ class Run:
             run(["qm", "set", str(target), *change])
         self.assert_offline("qemu", target)
 
+        # Relue : la restauration a pu durer des heures depuis la mesure.
+        memory = mem_available_mib()
         if memory - settings["boot_memory_mb"] < settings["host_memory_reserve_mb"]:
             self.lines.append(f"VM {source} : {backup['summary']}, restaurée sur {target}, démarrage sauté (mémoire)")
             self.lines.append(space)
@@ -531,6 +563,11 @@ class Run:
                 test(settings)
             except TestFailure as error:
                 self.failures.append(str(error))
+            except (OSError, ValueError, KeyError) as error:
+                # Un rootfs illisible, un JSON inattendu : ce test échoue, le
+                # suivant tourne quand même. Terminated, lui, remonte.
+                traceback.print_exc()
+                self.failures.append(f"{name.upper()} : erreur inattendue : {type(error).__name__}: {error}")
             finally:
                 # La copie détruite dès son test fini : le LXC n'attend pas
                 # la demi-heure de lecture de l'archive de la VM.
@@ -587,7 +624,7 @@ def notify(config, failures, lines):
     if token and config.get("ntfy"):
         try:
             ntfy(config["ntfy"], token, title, message, failed)
-        except OSError as error:
+        except (OSError, ValueError) as error:
             # Une erreur d'urllib peut citer l'URL : sa classe seule est affichée.
             print(f"envoi à ntfy en échec : {type(error).__name__}", file=sys.stderr)
             problems += 1
@@ -598,7 +635,9 @@ def notify(config, failures, lines):
     if url:
         try:
             push(url, "down" if failed else "up", "; ".join(failures) or " ; ".join(lines))
-        except OSError as error:
+        # ValueError : http.client.InvalidURL et « unknown url type » citent
+        # l'URL, donc le jeton du moniteur, dans un traceback.
+        except (OSError, ValueError) as error:
             print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
             problems += 1
     else:
