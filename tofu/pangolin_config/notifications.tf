@@ -36,11 +36,29 @@ resource "uptimekuma_notification_smtp" "email" {
   apply_existing = false
 }
 
-# Notification 1 is "Supervision Telegram", created by hand in Uptime Kuma: its
-# bot token is not in sops, so the notification itself cannot be declared and
-# its id is referenced raw. Used by FolderSync (external_monitors.tf) and the
-# SSH login monitors (ssh_login_monitors.tf). Changing it would silently drop
-# their only alert.
-locals {
-  telegram_notification_id = 1
+# Telegram: the only alert of FolderSync (external_monitors.tf) and of the SSH
+# login monitors (ssh_login_monitors.tf), which must arrive at once.
+#
+# It replaces notification 1, "Supervision Telegram", made by hand, which
+# cannot be imported: the UI stored its chat id as a JSON number and provider
+# 0.4.0 fails to read it ("cannot unmarshal number into ...telegramChatID of
+# type string"), on import as on every refresh. This one is created instead,
+# same bot and chat (root secrets.sops.yaml), and the hand-made one is deleted
+# in the UI once the monitors point here.
+resource "uptimekuma_notification_telegram" "supervision" {
+  name = "Telegram"
+
+  bot_token = local.telegram_bot_token
+  chat_id   = local.telegram_chat_id
+
+  # All optional+computed, pinned (see the SMTP notification above).
+  is_active      = true
+  is_default     = false # e-mail stays the default; Telegram is opt-in
+  apply_existing = false
+
+  server_url          = "https://api.telegram.org"
+  send_silently       = false
+  protect_content     = false
+  use_template        = false
+  template_parse_mode = "HTML"
 }

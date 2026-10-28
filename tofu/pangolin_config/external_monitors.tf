@@ -243,8 +243,7 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
 # here. Reparented from the legacy "Backups" folder to the managed one, which
 # leaves that folder empty and deletable.
 #
-# Its only alert is the hand-made "Supervision Telegram" notification,
-# referenced by id (local.telegram_notification_id, notifications.tf).
+# Its only alert is the Telegram notification (notifications.tf).
 resource "uptimekuma_monitor_push" "foldersync" {
   name   = "FolderSync"
   parent = uptimekuma_monitor_group.backups.id
@@ -254,7 +253,7 @@ resource "uptimekuma_monitor_push" "foldersync" {
   resend_interval = 0
   active          = true
 
-  notification_ids = [local.telegram_notification_id]
+  notification_ids = [uptimekuma_notification_telegram.supervision.id]
   tags             = [local.tofu_tag]
 }
 

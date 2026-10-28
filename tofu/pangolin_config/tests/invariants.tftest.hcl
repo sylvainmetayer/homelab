@@ -46,6 +46,9 @@ override_data {
       home_ip                = "203.0.113.10"
       immich_pin             = "123456"
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
+
+      uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
+      uptimekuma_telegram_chat_id   = "-100123456789"
     }
   }
 }
@@ -557,6 +560,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_notification_telegram.supervision
+  values = { id = 9 }
+}
+
+override_resource {
   target = uptimekuma_monitor_group.backups
   values = { id = 11 }
 }
@@ -628,6 +636,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.cron_geoip
   values = { push_token = "push-cron-geoip" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_betisier_reset
+  values = { push_token = "push-cron-betisier-reset" }
 }
 
 override_resource {
@@ -2357,6 +2370,12 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_dns_lxc_url (lxc.yml) ne pointe pas sur le moniteur DNS LXC newt."
   }
 
+  # docker.yml (reset du bêtisier)
+  assert {
+    condition     = output.uptime_cron_betisier_reset_url == "https://uptime.example.test/api/push/push-cron-betisier-reset"
+    error_message = "uptime_cron_betisier_reset_url (docker.yml) ne pointe pas sur le moniteur Reset Betisier."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2393,6 +2412,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_nas_updates_url,
       output.uptime_cron_dns_pi_url,
       output.uptime_cron_dns_lxc_url,
+      output.uptime_cron_betisier_reset_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2879,6 +2899,19 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié par e-mail."
   }
 
+  # Le reset du bêtisier tourne une fois par jour (betisier-reset.timer) : une
+  # nuit manquée passe, pas deux.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_betisier_reset.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(uptimekuma_monitor_push.cron_betisier_reset.notification_ids, uptimekuma_notification_smtp.email.id)
+      && strcontains(file("${path.module}/../../ansible/roles/betisier/templates/betisier-reset.timer.j2"), "OnCalendar=daily")
+      && uptimekuma_monitor_push.cron_betisier_reset.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.cron_betisier_reset.interval < 60 * 60 * 24 * 3
+    )
+    error_message = "Reset Betisier : rangé avec les healthchecks, notifié par e-mail, timer quotidien et intervalle de deux à trois jours."
+  }
+
   # Le NAS pousse une fois par jour (nas-proxy-cert-check.timer, rôle
   # nas_proxy) : l'intervalle laisse passer une journée manquée, pas deux. Le
   # seuil reste sous les 30 jours avant l'échéance où Traefik renouvelle, sinon
@@ -3014,14 +3047,26 @@ run "ssh_login_monitors_alert_on_every_login" {
     error_message = "Chaque moniteur SSH doit être inversé, sur 60 s, sans retry ni renvoi, actif, dans le dossier Connexions SSH."
   }
 
-  # Telegram (notification faite à la main, id 1), comme FolderSync ; pas le
-  # mail : une alerte de connexion doit arriver tout de suite.
+  # Telegram (notifications.tf), comme FolderSync ; pas le mail : une alerte
+  # de connexion doit arriver tout de suite.
   assert {
     condition = alltrue([
       for m in values(uptimekuma_monitor_push.ssh_login) :
-      toset(m.notification_ids) == toset([1])
-    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([1])
-    error_message = "Les moniteurs SSH (et FolderSync) notifient la notification Telegram (id 1), et elle seule."
+      toset(m.notification_ids) == toset([9])
+    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([9])
+    error_message = "Les moniteurs SSH (et FolderSync) notifient la notification Telegram, et elle seule."
+  }
+
+  # Ni canal par défaut (un moniteur ajouté dans l'UI reçoit le mail, pas
+  # Telegram) ni rattachement en masse ; le chat vient de la clé SOPS.
+  assert {
+    condition = (
+      uptimekuma_notification_telegram.supervision.is_default == false
+      && uptimekuma_notification_telegram.supervision.apply_existing == false
+      && uptimekuma_notification_telegram.supervision.is_active == true
+      && uptimekuma_notification_telegram.supervision.chat_id == "-100123456789"
+    )
+    error_message = "La notification Telegram n'est ni par défaut ni rattachée en masse, et lit son chat dans uptimekuma_telegram_chat_id."
   }
 
   assert {

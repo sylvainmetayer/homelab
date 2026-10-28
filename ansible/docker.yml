@@ -16,6 +16,7 @@
         monica_v4_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_monica_url.value | default('') }}"
         monica_v4_cron_healthcheck_url: "{{ terraform_outputs.uptime_cron_monica_url.value | default('') }}"
         betisier_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_betisier_url.value | default('') }}"
+        betisier_reset_healthcheck_url: "{{ terraform_outputs.uptime_cron_betisier_reset_url.value | default('') }}"
         meerkat_crm_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_meerkat_crm_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"

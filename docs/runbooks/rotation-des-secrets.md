@@ -148,6 +148,15 @@ README).
 écran, **Roll** du jeton (mêmes permissions), `sops set`, puis
 `apply` de `tofu/site` et un nouveau déploiement Pages pour qu'il soit pris.
 
+### Bot Telegram
+
+`uptimekuma_telegram_bot_token` (fichier racine, notification « Telegram »
+d'Uptime Kuma, `tofu/pangolin_config/notifications.tf`) : dans Telegram,
+@BotFather → `/mybots` → le bot → **API Token** → **Revoke current token**,
+`sops set`, puis `apply` de `tofu/pangolin_config`. Si Beszel utilise le même
+bot (`beszel_telegram_bot_token`), le mettre à jour aussi, puis
+`docker.yml --tags beszel_alerts`. Le chat id ne change pas.
+
 ### Clé API Pangolin
 
 `pangolin_api_key` (fichier racine, provider de `tofu/pangolin_config`) :

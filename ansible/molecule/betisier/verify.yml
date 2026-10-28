@@ -96,6 +96,16 @@
           - "'ExecStart=/usr/bin/systemctl --user start dc@betisier' in (betisier_reset_unit.content | b64decode)"
         fail_msg: "betisier-reset.service ne relance plus dc@betisier"
 
+    # Le moniteur « Reset Betisier » ne reçoit que ce que pousse le service,
+    # après les ExecStart : l'URL vient du state (set_fact de docker.yml).
+    - name: Assert the betisier reset pushes to its monitor
+      ansible.builtin.assert:
+        that:
+          - >-
+            'ExecStartPost=/usr/bin/curl -fsS -m 30 --retry 3 -o /dev/null https://uptime.example.invalid/api/push/tofu-betisier-reset'
+            in (betisier_reset_unit.content | b64decode)
+        fail_msg: "betisier-reset.service ne pousse pas vers le moniteur Reset Betisier"
+
     - name: Stat the betisier borgmatic configuration
       become: true
       ansible.builtin.stat:
