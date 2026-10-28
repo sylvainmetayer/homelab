@@ -1135,6 +1135,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       "/uptime-kuma" = 2
       "/beszel"      = 2
       "/scripts"     = 2
+      "/github"      = 2
     }
     error_message = "Le contournement de ntfy doit se limiter à /, /<topic> des producteurs et /*/json|ws|auth (applis), en priorité 2."
   }
@@ -1357,6 +1358,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /uptime-kuma",
       "ntfy /beszel",
       "ntfy /scripts",
+      "ntfy /github",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
       "TREK /.well-known/oauth-protected-resource/mcp",

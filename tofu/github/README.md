@@ -47,6 +47,12 @@ L'environnement **`trivy-ntfy`** (`trivy_ntfy_secrets.tf`, job `notify` de
 SOPS `ntfy_scripts_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
 le topic `scripts`).
 
+L'environnement **`renovate-digest`** (`renovate_digest_secrets.tf`, workflow
+`renovate-digest.yaml`, le bilan Renovate du lundi sur ntfy) ne porte que le
+jeton du producteur ntfy `github`, clé SOPS `ntfy_github_token`
+d'`ansible/secrets.sops.yaml` (écriture seule sur le topic `github`, rôle
+`ntfy`) : ntfy ne l'accepte qu'une fois `docker.yml --tags ntfy` déployé.
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
 tofu -chdir=tofu/github init

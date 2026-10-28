@@ -37,6 +37,7 @@ override_data {
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
       ntfy_scripts_token          = "fake-ntfy-scripts-token"
+      ntfy_github_token           = "tk_fakentfygithubtoken0000000"
     }
   }
 }
@@ -469,5 +470,43 @@ run "trivy_ntfy_secrets" {
       && strcontains(file("${path.module}/../../.github/workflows/trivy.yaml"), "environment: trivy-ntfy\n")
     )
     error_message = "trivy.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement trivy-ntfy."
+  }
+}
+
+# .github/workflows/renovate-digest.yaml : le seul jeton du producteur ntfy
+# github, dans un environnement à lui, lisible depuis main seulement.
+run "renovate_digest_secrets" {
+  command = plan
+
+  assert {
+    condition     = github_actions_environment_secret.renovate_digest_ntfy_token.environment == "renovate-digest" && github_actions_environment_secret.renovate_digest_ntfy_token.repository == "homelab"
+    error_message = "Le jeton ntfy du bilan Renovate doit être dans l'environnement renovate-digest du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.renovate_digest.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.renovate_digest_main.branch_pattern == "main"
+    error_message = "L'environnement renovate-digest ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.renovate_digest_ntfy_token.value == "tk_fakentfygithubtoken0000000"
+    error_message = "RENOVATE_DIGEST_NTFY_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github), jamais le jeton scripts des hôtes."
+  }
+
+  # Le producteur github du rôle ntfy : sans lui, ntfy refuse le jeton.
+  assert {
+    condition = strcontains(
+      file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml"),
+      "  - name: github\n    topic: github\n    token: \"{{ ntfy_github_token | default('') }}\"\n"
+    )
+    error_message = "ansible/roles/ntfy/defaults/main.yml doit déclarer le producteur github (topic github, jeton ntfy_github_token)."
+  }
+
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../.github/workflows/renovate-digest.yaml"), "secrets.RENOVATE_DIGEST_NTFY_TOKEN")
+      && strcontains(file("${path.module}/../../.github/workflows/renovate-digest.yaml"), "environment: renovate-digest\n")
+    )
+    error_message = "renovate-digest.yaml doit lire RENOVATE_DIGEST_NTFY_TOKEN dans l'environnement renovate-digest."
   }
 }

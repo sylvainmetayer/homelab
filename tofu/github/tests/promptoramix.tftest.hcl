@@ -32,6 +32,7 @@ override_data {
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
       ntfy_scripts_token          = "fake-ntfy-scripts-token"
+      ntfy_github_token           = "tk_fakentfygithubtoken0000000"
     }
   }
 }
