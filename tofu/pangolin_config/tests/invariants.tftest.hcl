@@ -2471,6 +2471,29 @@ run "dns_resource_points_at_the_lxc_blocky" {
     )
     error_message = "La ressource dns doit viser le LXC newt de ansible/inventory/hosts (site proxmox-lxc), en TCP et UDP 53, et lxc.yml y déployer Blocky."
   }
+
+  # Les noms fixes de Blocky (blocky_custom_dns) suivent les IP de
+  # l'inventaire et de la VM docker (tofu/proxmox) ; les noms publics qui
+  # pointent dans le LAN (A de tofu/dns vers le NAS) passent la protection
+  # contre le rebinding, sinon ils ne résolvent plus à la maison.
+  assert {
+    condition = (
+      yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_custom_dns == {
+        "pve.lan"      = "192.168.1.26"
+        "docker.lan"   = "192.168.1.216"
+        "nas.lan"      = "192.168.1.137"
+        "newt-lxc.lan" = "192.168.1.200"
+      }
+      && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "pve ansible_host=192.168.1.26\n")
+      && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "nas ansible_host=192.168.1.137 ")
+      && strcontains(file("${path.module}/../proxmox/proxmox_docker_vm.tf"), "address = \"192.168.1.216/24\"")
+      && toset(yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_rebinding_allowed_domains) == toset([
+        for f in fileset("${path.module}/../dns", "*.tf") : "${trimsuffix(f, ".tf")}.sylvain.cloud"
+        if can(regex("(?m)^\\s*target\\s*=\\s*\"192\\.168\\.", file("${path.module}/../dns/${f}")))
+      ])
+    )
+    error_message = "blocky_custom_dns doit suivre les IP de ansible/inventory/hosts et de tofu/proxmox, et blocky_rebinding_allowed_domains lister chaque A de tofu/dns vers une IP du LAN (fichier <sous-domaine>.tf)."
+  }
 }
 
 # nas.yml lit les identifiants Newt du site nas dans ce state (et échoue s'ils

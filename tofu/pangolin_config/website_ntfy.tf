@@ -97,8 +97,9 @@ locals {
 }
 
 # Uptime Kuma's ntfy channel, publishing to the uptime-kuma topic with that
-# producer's write-only token. Declared but wired to no monitor yet: Sylvain
-# decides (e-mail stays the default channel). To use it on every monitor,
+# producer's write-only token. Wired to the two DNS monitors only
+# (cron_dns.tf, Blocky: without DNS the whole house is offline); e-mail stays
+# the default channel elsewhere. To use it on every monitor,
 # add `uptimekuma_notification_ntfy.ntfy.id` next to
 # `uptimekuma_notification_smtp.email.id` in the `notification_ids` of the
 # monitors to switch (websites.tf, external_monitors.tf...), or set

@@ -47,15 +47,6 @@
     group: root
     creates: "{{ blocky_binary }}"
 
-- name: Create the Blocky configuration directory
-  become: true
-  ansible.builtin.file:
-    path: "{{ blocky_config_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 # Validé par le binaire installé avant d'être posé : une configuration
 # refusée ne remplace jamais celle qui tourne. Lisible par tous : le service
 # la lit sous son utilisateur dynamique, rien de secret dedans.

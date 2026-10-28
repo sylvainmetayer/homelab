@@ -162,6 +162,9 @@ DNS tant que le client Pangolin est connecté (le déconnecter).
   déploie le Pi, `lxc.yml --tags blocky` le LXC. Vérifier que le Pi répond
   (`dig @192.168.1.96`) avant de lancer `lxc.yml` : les deux instances ne
   tombent jamais ensemble sur une version cassée.
-- Les listes HaGeZi sont tirées de GitHub une fois par jour : une liste
-  disparue ou renommée se voit au moniteur (nom bloqué de la vérification),
-  pas au DNS, qui continue de répondre.
+- Les listes HaGeZi sont tirées de GitHub une fois par jour. Une liste
+  injoignable, disparue ou renommée peut continuer d'être servie depuis sa
+  copie sur disque (`cachePath`) sans que rien n'alerte : la vérification
+  ne teste qu'un nom de la liste `ads`, et ne voit donc qu'une liste `ads`
+  jamais chargée, rien pour `threats`. Après une montée de version ou une
+  longue coupure, lire les `import succeeded count=…` dans les logs.

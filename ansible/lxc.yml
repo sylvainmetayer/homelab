@@ -35,12 +35,12 @@
     - role: newt_service
       tags: newt,setup
     # Agent de supervision en binaire (pas de Docker ici), vers le hub de la
-    # VM docker par le LAN. Il suit aussi newt.service.
+    # VM docker par le LAN. Il suit aussi newt.service et blocky.service.
     - role: beszel_agent
       tags: beszel_agent,monitoring
       vars:
         beszel_agent_mode: binary
-        beszel_agent_service_patterns: "newt*"
+        beszel_agent_service_patterns: "newt*,blocky*"
     # Agent de journaux en binaire (pas de Docker ici) : le journal de l'hôte,
     # newt.service compris, vers VictoriaLogs de la VM docker par le LAN.
     - role: log_agent
