@@ -41,7 +41,7 @@ locals {
 }
 
 # The phone apps (Android, iOS) and the publishers (Uptime Kuma, Beszel,
-# scripts) talk to ntfy from wherever they are and cannot pass the SSO wall:
+# scripts, github) talk to ntfy from wherever they are and cannot pass the SSO wall:
 # none of them holds a Pangolin session. ACCEPT through local.path_bypasses
 # (rules.tf), from any country like every path ACCEPT. Every route below runs
 # ntfy's own authorization first: auth-default-access is deny-all, so nothing

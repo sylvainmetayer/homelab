@@ -8,7 +8,9 @@ les fusions automatiques qui le suivent. Sur les 7 derniers jours :
     répétées d'un même paquet (images maison, une par build) regroupées ;
   - les PR de Renovate encore ouvertes, avec leur âge, les plus vieilles
     d'abord ; celles dont l'auto-merge attend les checks sont signalées ;
-  - les runs en échec de deploy-docker-app.yaml.
+  - les runs en échec de deploy-docker-app.yaml ; un échec suivi d'un run
+    de push réussi est « rattrapé » (ce run redéploie tout depuis le
+    dernier succès) et ne fait plus monter la priorité.
 
 API GraphQL (une recherche pour les PR, avec mergedBy et autoMergeRequest)
 et REST (runs du workflow), avec le GITHUB_TOKEN du job (lecture seule). Le
@@ -49,9 +51,10 @@ query($merged: String!, $open: String!) {
 """
 
 # « chore(deps): update planning-equipes main (demo_planning) to 12d83c7 » :
-# le paquet, sans la version cible.
+# le paquet, sans la version cible ; le « [SECURITY] » que Renovate ajoute aux
+# PR de vulnérabilité reste.
 TITLE_PREFIX = re.compile(r"^(?:chore|fix|build|ci)\(deps\):\s*", re.IGNORECASE)
-TITLE_TARGET = re.compile(r"\s+to\s+\S+$")
+TITLE_TARGET = re.compile(r"\s+to\s+\S+(\s+\[SECURITY\])?$", re.IGNORECASE)
 
 
 class DigestError(Exception):
@@ -67,7 +70,7 @@ def short_title(title):
 
 
 def package(title):
-    return TITLE_TARGET.sub("", short_title(title))
+    return TITLE_TARGET.sub(r"\1", short_title(title))
 
 
 def grouped(pulls):
@@ -84,23 +87,23 @@ def age(created, now):
     return f"{days:.0f} j" if days >= 1 else "moins d'un jour"
 
 
+def render(sections, footer, dropped=0):
+    parts = [title + "\n" + "\n".join(lines) for title, lines in sections if lines]
+    if dropped:
+        parts.append(f"... et {dropped} ligne(s) de plus : résumé du run")
+    return "\n\n".join(parts + [footer])
+
+
 def fit(sections, footer):
     """Le message sous MAX_MESSAGE octets : les dernières lignes de la plus
     longue section partent les premières."""
     sections = [(title, list(lines)) for title, lines in sections if lines]
     dropped = 0
-
-    def render():
-        parts = [title + "\n" + "\n".join(lines) for title, lines in sections if lines]
-        if dropped:
-            parts.append(f"... et {dropped} ligne(s) de plus : résumé du run")
-        return "\n\n".join(parts + [footer])
-
-    message = render()
+    message = render(sections, footer)
     while len(message.encode()) > MAX_MESSAGE and any(lines for _, lines in sections):
         max((lines for _, lines in sections), key=len).pop()
         dropped += 1
-        message = render()
+        message = render(sections, footer, dropped)
     return message
 
 
@@ -112,16 +115,31 @@ def nodes(search, name):
 
 
 def build(pulls, runs, repo, now):
-    """{title, message, priority, tags, click} pour ntfy, et le texte complet."""
+    """{title, message, priority, tags, click} pour ntfy, et le texte complet.
+    Un champ absent, d'un autre type ou une date d'un autre format devient une
+    DigestError : main publie alors quand même un message."""
     try:
-        merged = nodes(pulls, "merged")
-        opened = nodes(pulls, "open")
-        failed = list(runs["workflow_runs"])
-    except (KeyError, TypeError) as error:
+        return _build(pulls, runs, repo, now)
+    except (KeyError, TypeError, AttributeError, ValueError) as error:
         raise DigestError(f"réponse inattendue : {error!r}") from error
 
-    automerged = [p for p in merged if ((p.get("mergedBy") or {}).get("login") or "").lower() in RENOVATE_LOGINS]
-    by_hand = [p for p in merged if p not in automerged]
+
+def _build(pulls, runs, repo, now):
+    merged = nodes(pulls, "merged")
+    opened = nodes(pulls, "open")
+    failed = list(runs["workflow_runs"])
+    # Dernier run de push réussi (fetch) : il a redéployé tout ce que les
+    # échecs d'avant n'avaient pas fait (diff depuis le dernier succès).
+    last_success = runs.get("last_success")
+    caught_up_at = parse_time(last_success["created_at"]) if last_success else None
+
+    def caught_up(run):
+        return caught_up_at is not None and parse_time(run["created_at"]) < caught_up_at
+
+    automerged, by_hand = [], []
+    for pull in merged:
+        login = ((pull.get("mergedBy") or {}).get("login") or "").lower()
+        (automerged if login in RENOVATE_LOGINS else by_hand).append(pull)
     opened.sort(key=lambda p: p["createdAt"])
 
     def open_line(pull):
@@ -135,11 +153,15 @@ def build(pulls, runs, repo, now):
 
     def run_line(run):
         when = parse_time(run["created_at"]).strftime("%d/%m %H:%M UTC")
-        return f"- run #{run['run_number']} du {when} ({run['event']}) : {run.get('display_title', '')} {run['html_url']}"
+        note = f" (rattrapé par le run #{last_success['run_number']})" if caught_up(run) else ""
+        return (
+            f"- run #{run['run_number']} du {when} ({run['event']}){note} : "
+            f"{run.get('display_title', '')} {run['html_url']}"
+        )
 
     sections = [
         (f"Déploiements en échec ({len(failed)}) :", [run_line(r) for r in failed]),
-        (f"En attente de relecture ({len(opened)}) :", [open_line(p) for p in opened]),
+        (f"En attente de relecture ({pulls['open'].get('issueCount') or len(opened)}) :", [open_line(p) for p in opened]),
         (f"Fusionnées automatiquement ({len(automerged)}) :", grouped(automerged)),
         (f"Fusionnées à la main ({len(by_hand)}) :", grouped(by_hand)),
     ]
@@ -150,13 +172,13 @@ def build(pulls, runs, repo, now):
     if not any(lines for _, lines in sections):
         sections = [("Rien cette semaine :", ["aucune PR de Renovate fusionnée ni ouverte, aucun déploiement en échec."])]
 
-    if failed:
+    if any(not caught_up(run) for run in failed):
         priority, tags = 4, ["warning"]
-    elif opened:
+    elif opened or failed:
         priority, tags = 3, ["hourglass"]
     else:
         priority, tags = 2, ["white_check_mark"]
-    full = "\n\n".join(title + "\n" + "\n".join(lines) for title, lines in sections if lines) + "\n\n" + footer
+    full = render(sections, footer)
     return {
         "title": f"Renovate, semaine au {now.strftime('%d/%m')}",
         "message": fit(sections, footer),
@@ -189,10 +211,16 @@ def fetch(token, repo, since):
         "/graphql",
         {"query": PULLS_QUERY, "variables": {"merged": f"{base} is:merged merged:>={stamp} sort:updated-desc", "open": f"{base} is:open"}},
     )
-    if answer.get("errors") or "data" not in answer:
-        raise DigestError(f"GraphQL : {[e.get('message') for e in answer.get('errors') or []]}")
+    if not isinstance(answer, dict) or answer.get("errors") or "data" not in answer:
+        errors = answer.get("errors") if isinstance(answer, dict) else None
+        raise DigestError(f"GraphQL : {[e.get('message') for e in errors or [] if isinstance(e, dict)]}")
     query = urllib.parse.urlencode({"status": "failure", "created": f">={stamp}", "per_page": 100})
     runs = github(token, f"/repos/{repo}/actions/workflows/{DEPLOY_WORKFLOW}/runs?{query}")
+    query = urllib.parse.urlencode({"status": "success", "event": "push", "per_page": 1})
+    latest = github(token, f"/repos/{repo}/actions/workflows/{DEPLOY_WORKFLOW}/runs?{query}")
+    if not isinstance(runs, dict) or not isinstance(latest, dict):
+        raise DigestError("runs de deploy-docker-app : réponse inattendue")
+    runs["last_success"] = (latest.get("workflow_runs") or [None])[0]
     return answer["data"], runs
 
 
