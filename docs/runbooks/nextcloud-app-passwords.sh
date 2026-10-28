@@ -55,6 +55,9 @@ SH
 import json, sys, os, re, time
 from collections import defaultdict
 tmp = sys.argv[1]
+# Le jour du journal nginx est celui du conteneur (TZ du compose) : lastActivity
+# se convertit dans le même fuseau, pas dans celui du poste.
+os.environ["TZ"] = "Europe/Paris"; time.tzset()
 # Agent → famille de client, et mots attendus dans le nom de son jeton.
 FAMILIES = [
     ("DAVx5",          r"DAVx5|davdroid",            r"davx|davdroid"),

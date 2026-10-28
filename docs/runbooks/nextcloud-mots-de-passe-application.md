@@ -10,7 +10,8 @@ navigateur, et un client resté dessus cesse de synchroniser.
 L'outil : [`nextcloud-app-passwords.sh`](nextcloud-app-passwords.sh), à
 lancer depuis le poste, sur le réseau local (il joint la VM docker en SSH,
 clé d'hôte vérifiée contre `ansible/known_hosts`, et passe par
-`sudo docker exec nextcloud occ`).
+`sudo docker exec -u abc nextcloud php /app/www/public/occ` : le wrapper
+`occ` de l'image redécoupe les arguments à espaces).
 
 ## Symptôme
 
