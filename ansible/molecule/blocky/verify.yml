@@ -185,7 +185,7 @@
           - "'status=up&msg=OK' in blocky_push_up"
           - "'status=down&' in blocky_push_down"
           - "'example.com n' in blocky_push_down"
-        fail_msg: "{{ blocky_pushes.stdout_lines | join(" | ") }}"
+        fail_msg: "{{ blocky_pushes.stdout_lines | join(' | ') }}"
 
     - name: Stop the fake Uptime Kuma
       become: true
