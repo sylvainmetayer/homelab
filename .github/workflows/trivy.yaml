@@ -1,7 +1,9 @@
 name: Trivy
 
 # Analyse hebdomadaire Trivy, en rapport seulement : les vulnérabilités HIGH
-# et CRITICAL des images épinglées dans les rôles (et compose/), les
+# et CRITICAL des images épinglées dans les rôles (et compose/) qui ont un
+# correctif publié (--ignore-unfixed : sans lui, quelque 5 300 alertes
+# noyaient celles qu'une montée de version peut régler), les
 # mauvaises configurations de tofu/, ansible/ et du Dockerfile Molecule. Les
 # résultats vont dans l'onglet Security (code scanning, SARIF), une
 # catégorie par image : une trouvaille ne fait jamais échouer le run, une
@@ -153,8 +155,10 @@ jobs:
           fail-on-cache-miss: true
 
       # Lue directement dans le registre (pas de docker pull) ; vulnérabilités
-      # seulement. Le timeout par défaut (5 min) ne suffit pas aux grosses
-      # images (immich-machine-learning). Trois essais espacés : lscr.io répond
+      # seulement, et seulement celles qui ont un correctif (--ignore-unfixed,
+      # voir l'en-tête ; trivy config n'a pas de notion de correctif). Le
+      # timeout par défaut (5 min) ne suffit pas aux grosses images
+      # (immich-machine-learning). Trois essais espacés : lscr.io répond
       # TOOMANYREQUESTS quand plusieurs jobs lisent ses images en même temps
       # (vu sur bookstack, mariadb et nextcloud au premier run).
       - name: Run trivy image
@@ -165,6 +169,7 @@ jobs:
             if trivy image --skip-version-check --no-progress \
               --skip-db-update --skip-java-db-update \
               --image-src remote --scanners vuln --severity HIGH,CRITICAL \
+              --ignore-unfixed \
               --timeout 20m \
               --format sarif --output trivy-image.sarif "$IMAGE"; then
               break
