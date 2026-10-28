@@ -5,9 +5,10 @@
 
 ## Contexte
 
-Le réseau local n'a pas de filtrage DNS (publicités, traqueurs). Une piste
-« AdGuard Like » a été ouverte puis fermée (« completed ») en janvier 2026,
-sans trace d'un déploiement (#29, seule mention : NextDNS). Tout le reste du homelab est déclaré dans le
+Le réseau local n'a aucun filtrage DNS (publicités, traqueurs ; confirmé par
+Sylvain le 2026-10-28, ni NextDNS ni autre). Une piste « AdGuard Like » a été
+ouverte puis fermée (« completed ») en janvier 2026, sans déploiement (#29,
+seule mention : NextDNS). Tout le reste du homelab est déclaré dans le
 dépôt et déployé par Ansible ; un DNS réglé dans une UI y ferait exception.
 
 ## Décision
@@ -22,7 +23,7 @@ Hôte, listes de blocage et bascule du DHCP : à décider dans la PR.
   leur état vit dans leur propre base ou fichier réécrit par l'appli, pas
   dans le dépôt.
 - **NextDNS** (#29) : service tiers, hors de l'infrastructure as code
-  (non retenu, raison non écrite : à confirmer).
+  (jamais mis en place ; écarté au profit d'un DNS déclaré dans le dépôt).
 
 ## Conséquences
 

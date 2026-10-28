@@ -13,8 +13,11 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
 ## Décision
 
 - **Pas de Kubernetes pour la prod** tant qu'il n'y a qu'un nœud.
-- Plus tard, **k3s + Flux** comme terrain d'apprentissage (forme et
-  périmètre à confirmer).
+- Plus tard, **k3s + Flux** comme terrain d'apprentissage, en migration
+  partielle et réversible appli par appli (plan d'analyse du 2026-10-28 :
+  cluster jetable, puis une VM k3s à côté de la VM docker ; Pangolin, le NAS,
+  le Pi et flip restent dehors). Préalable : vérifier la RAM libre de l'hôte
+  Proxmox et le vrai type du disque des VM (`ssd = false` dans Tofu).
 
 ## Alternatives écartées
 
@@ -24,8 +27,9 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
   - environ 1,2 à 1,5 Gio de RAM de plus (estimation, à confirmer), sur une VM de 12 Gio ;
   - borgmatic resterait : la Storage Box n'est pas un stockage S3, cible des
     outils de sauvegarde de Kubernetes ([0001](0001-sauvegardes-borgmatic.md)).
-- **Reprendre Talos** : déjà essayé et abandonné (raison non écrite, à
-  confirmer).
+- **Reprendre Talos** : déjà essayé et abandonné, faute de ressources
+  (RAM, disque, matériel trop justes, d'après Sylvain le 2026-10-28) ; etcd,
+  imposé par Talos même sur un nœud, aggrave ce point.
 
 ## Conséquences
 
