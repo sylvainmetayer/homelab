@@ -63,7 +63,10 @@ def run(command):
     arrête la commande, puis le script pousse quand même le rouge.
     """
     stats, last_error, interrupted = None, "", False
-    with subprocess.Popen(
+    # La commande vient de l'ExecStart de l'unité (root, posée par Ansible),
+    # sans shell : aucune entrée extérieure, la règle d'injection de Sonar ne
+    # s'applique pas.
+    with subprocess.Popen(  # NOSONAR
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
