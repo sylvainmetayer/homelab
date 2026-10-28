@@ -110,11 +110,15 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   (`renovate.json`) : les versions de `planning-equipes` (mineures et
   correctifs) et de `promptoramix`, et la PR du lundi « weekly stateless
   automerged updates » (digests et correctifs des images sans base de la liste
-  blanche, et des GitHub Actions), dès que le ruleset a ses checks verts. Un
-  déploiement rouge juste après un merge de `renovate[bot]` vient donc
-  souvent d'elle : revenir au digest précédent par une PR (`git revert` du
-  commit), et retirer l'image de la liste blanche si elle a cassé sans que
-  Molecule le voie. Les montées majeures de bases
+  blanche, et des correctifs des GitHub Actions), dès que le ruleset a ses
+  checks verts. Molecule ne tire aucune image : ces checks ne prouvent pas
+  qu'elle démarre. Une image introuvable rend le déploiement rouge ; une image
+  qui démarre puis plante le laisse vert (`dc@` est actif dès que
+  `docker compose up` tourne) : c'est le moniteur Uptime Kuma de l'appli qui
+  passe DOWN. Dans les deux cas, revenir au digest précédent par une PR
+  (`git revert` du commit) **et**, dans la même PR, retirer l'image de la
+  liste blanche : sans cela, Renovate repropose le même digest le lundi
+  suivant et le refusionne seul. Les montées majeures de bases
   attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
   de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
   `-bookworm` sur la 8.2).

@@ -30,7 +30,7 @@
       ]
     },
     {
-      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml), a failed deploy fails that run. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its PR waits for the relecture-chemins-publics review, which the ruleset does not require: auto-merge would skip it), Traefik and the socket proxy (edge and security sidecars, grouped with Pangolin or newt). nginx: the static nginx_demo and the flip_planning assets sidecar; mailpit: flip_planning's in-memory mail catcher",
+      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml). Molecule never pulls an image, so the checks do not prove it starts: a missing image fails the deploy run, one that starts then crashes leaves it green (dc@ is active once docker compose up runs) and only its Uptime Kuma monitor goes DOWN; roll back with a revert that also drops the image from this list, or Renovate re-merges the same digest the next Monday. A listed image restarts its whole compose project (dc@ restart), databases included: hence matchFileNames leaves out flip_planning, whose nginx assets sidecar and mailpit would restart the three Flip Planning instances, production and its Postgres included, nearly every week (they stay in the manual weekly PR); nginx_demo's restart takes its demo Postgres along, accepted. rebaseWhen conflicted: the ruleset does not require an up-to-date branch, so rebasing on every push to main would only rerun the checks and cancel the running ones. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its PR waits for the relecture-chemins-publics review, which the ruleset does not require: auto-merge would skip it), Traefik and the socket proxy (edge and security sidecars, grouped with Pangolin or newt). nginx: the static nginx_demo",
       "matchDatasources": [
         "docker"
       ],
@@ -39,8 +39,10 @@
         "docker.io/apache/tika",
         "docker.io/stirlingtools/stirling-pdf",
         "ghcr.io/gethomepage/homepage",
-        "axllent/mailpit",
         "nginx"
+      ],
+      "matchFileNames": [
+        "!ansible/roles/flip_planning/**"
       ],
       "matchUpdateTypes": [
         "digest",
@@ -50,10 +52,11 @@
       "schedule": [
         "before 9am on monday"
       ],
+      "rebaseWhen": "conflicted",
       "automerge": true
     },
     {
-      "description": "GitHub Actions (uses: of the workflows and composite actions, pinned by digest): digest and patch updates join the stateless automerged PR. The PR's own Lint and Tests run them, except the steps only deploy-docker-app, restore-test, borg-check and storage-box-quota run: those break on their next run after the merge, which fails visibly. Container images and runner labels of the workflows are not actions (depType docker, container, service, github-runner) and stay manual",
+      "description": "GitHub Actions (uses: of the workflows and composite actions, pinned by digest with their version in a comment): patch updates join the stateless automerged PR. Not digest updates: under an unchanged version tag, a new digest means the tag was moved, the very attack the SHA pin guards against (tj-actions/changed-files, March 2025), and an automerged action runs in deploy-docker-app's production job, next to SOPS_AGE_KEY and the deploy SSH key; those stay in the manual weekly PR. The PR's own Lint and Tests run them, except the steps only deploy-docker-app, restore-test, borg-check and storage-box-quota run: those break on their next run after the merge, which fails visibly. Container images and runner labels of the workflows are not actions (depType docker, container, service, github-runner) and stay manual",
       "matchManagers": [
         "github-actions"
       ],
@@ -61,13 +64,13 @@
         "action"
       ],
       "matchUpdateTypes": [
-        "digest",
         "patch"
       ],
       "groupName": "weekly stateless automerged updates",
       "schedule": [
         "before 9am on monday"
       ],
+      "rebaseWhen": "conflicted",
       "automerge": true
     },
     {
