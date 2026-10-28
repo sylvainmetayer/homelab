@@ -70,8 +70,9 @@ locals {
 # /v1/webpush: only used by the browser, under the SSO session), the
 # server-side SSE and raw streams (/*/sse, /*/raw: no app nor publisher of
 # this homelab uses them), message updates and deletion (/<topic>/<id>...),
-# /file/* (attachments are disabled), /v1/health (Uptime Kuma probes it with
-# the healthcheck access token), /metrics (disabled), /_matrix/* (no Matrix
+# /file/* (attachments are disabled), /v1/health (the target healthcheck,
+# hc_path, which Newt runs from inside; the Uptime Kuma monitor probes `/`),
+# /metrics (disabled), /_matrix/* (no Matrix
 # gateway here), and the admin routes (/v1/users*, /v1/version).
 locals {
   ntfy_client_paths = merge(
