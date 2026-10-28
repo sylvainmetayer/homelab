@@ -257,7 +257,27 @@
           - "'interfaces réseau encore présentes (net0)' in case_message"
         fail_msg: "{{ case_argvs }}"
 
-    # 6. La restauration complète de la VM, demandée : sur 991, sans réseau,
+    # 6. Un montage lié d'un chemin de l'hôte dans l'archive du LXC : la
+    # copie n'est pas démarrée, elle est détruite.
+    - name: Run the case of a host bind mount in the LXC backup
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: host bind mount
+        case_state: >-
+          {{ base_state | combine({'backups': [base_state.backups[0] | combine({'config': base_state.backups[0].config
+          ~ 'mp0: /srv/data,mp=/data\n'}), base_state.backups[1], base_state.backups[2]]}) }}
+        case_failed: true
+        case_guests: ["100", "200"]
+
+    - name: Assert the copy with a bind mount never started
+      ansible.builtin.assert:
+        that:
+          - case_starts | length == 0
+          - "'pct destroy 990 --purge 0 --destroy-unreferenced-disks 0' in case_argvs"
+          - "'accès direct à l' in case_message"
+        fail_msg: "{{ case_argvs }}"
+
+    # 7. La restauration complète de la VM, demandée : sur 991, sans réseau,
     # démarrée jusqu'au ping de l'agent, détruite. Mémoire de démarrage et
     # réserve réduites : la mémoire du runner n'est pas celle de l'hôte.
     - name: Request the full VM restore

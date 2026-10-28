@@ -24,3 +24,6 @@ TimeoutStartSec={{ vzdump_restore_test_timeout_start_sec }}
 KillMode=mixed
 TimeoutStopSec=15min
 Nice=10
+# Poids CPU de 20 contre 100 par défaut : la lecture de l'archive (zstd)
+# cède le CPU aux invités.
+CPUWeight=20

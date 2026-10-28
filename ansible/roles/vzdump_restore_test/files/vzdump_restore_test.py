@@ -63,6 +63,8 @@ STOP_GRACE = 120
 
 NET_KEY = re.compile(r"net\d+")
 DRIVE_KEY = re.compile(r"(?:ide|sata|scsi|virtio|efidisk|tpmstate)\d+")
+MOUNT_KEY = re.compile(r"mp\d+")
+HOST_KEY = re.compile(r"hostpci\d+|usb\d+|args|dev\d+")
 SIZE_UNITS = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4}
 GIB = 1024**3
 
@@ -306,6 +308,18 @@ class Run:
             raise TestFailure(f"{vmid} : onboot actif, pas de démarrage")
         if MARKER not in (conf.get("description") or ""):
             raise TestFailure(f"{vmid} : marque {MARKER} absente de la description, pas de démarrage")
+        # Ce qui ferait toucher à la copie un périphérique ou un chemin de
+        # l'hôte, partagé avec l'invité de production : montage lié, disque
+        # en passthrough, PCI/USB, lignes brutes lxc.* ou args de QEMU.
+        shared = sorted(
+            key
+            for key, value in conf.items()
+            if HOST_KEY.fullmatch(key)
+            or key.startswith("lxc")
+            or ((MOUNT_KEY.fullmatch(key) or DRIVE_KEY.fullmatch(key)) and str(value).startswith("/"))
+        )
+        if shared:
+            raise TestFailure(f"{vmid} : accès direct à l'hôte ({', '.join(shared)}), pas de démarrage")
         return conf
 
     # --- LXC ----------------------------------------------------------------

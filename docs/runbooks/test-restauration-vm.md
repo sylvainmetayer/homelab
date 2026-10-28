@@ -38,6 +38,11 @@ Garde-fous du script :
 - jamais de `--force` ; `pct destroy` / `qm destroy` avec
   `--destroy-unreferenced-disks 0`, et seulement sur un invité créé par ce
   run **et** dont la description porte `vzdump-restore-test` ;
+- aucune copie ne démarre avec une interface réseau, `onboot` actif, sans
+  la marque, ou avec un accès direct à l'hôte (montage lié `mpN: /…`,
+  disque en passthrough `/dev/…`, `hostpciN`, `usbN`, `devN`, `args`,
+  lignes brutes `lxc.*`) : elle serait branchée sur ce qu'utilise l'invité
+  de production ;
 - un verrou (`/run/lock/vzdump-restore-test.lock`) et celui de vzdump
   (`/var/run/vzdump.lock`), tenu pendant tout le test : pas de sauvegarde
   ni d'élagage de l'archive pendant sa lecture (un vzdump lancé à la main
