@@ -114,7 +114,7 @@
       ansible.builtin.copy:
         dest: "{{ blocky_verify_push_dir }}/api/push/molecule-dns"
         content: "{\"ok\":true}\n"
-        mode: "0644"
+        mode: "0600"
 
     # Le timer ne doit pas pousser pendant le test : les deux lignes lues
     # ensuite sont celles des deux vérifications lancées ici.

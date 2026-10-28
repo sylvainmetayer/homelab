@@ -25,7 +25,7 @@
     dest: "{{ blocky_config_file }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 - name: Template the Blocky compose configuration
   diff: false

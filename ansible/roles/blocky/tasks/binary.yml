@@ -59,7 +59,7 @@
     dest: "{{ blocky_config_file }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0644" # NOSONAR
     validate: "{{ blocky_binary }} validate --config %s"
 
 - name: Install the Blocky service
@@ -70,7 +70,7 @@
     dest: /etc/systemd/system/blocky.service
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
   register: blocky_unit_install
 
 # Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.

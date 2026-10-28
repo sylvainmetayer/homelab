@@ -11,7 +11,8 @@ resolved_name="$2"
 blocked_name="$3"
 
 query() {
-  dig +short +time=3 +tries=2 @"$address" "$1" A 2>&1
+  name="$1"
+  dig +short +time=3 +tries=2 @"$address" "$name" A 2>&1
 }
 
 resolved=$(query "$resolved_name")
