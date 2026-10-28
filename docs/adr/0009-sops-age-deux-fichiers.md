@@ -28,7 +28,7 @@ montée de version aurait donné à la démo publique les secrets de la prod.
 - **Garder les noms du rôle en SOPS et compter sur la précédence** : vrai en
   2.20 (`vars:` gagnait), faux en 2.21 (vérifié dans #762).
 - **Un seul fichier** : la clé age de la CI ouvrirait aussi les secrets
-  OpenTofu (raison déduite des destinataires de `.sops.yaml`, à confirmer).
+  OpenTofu (commentaire en tête de `.sops.yaml`).
 
 ## Conséquences
 

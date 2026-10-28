@@ -21,7 +21,7 @@ Ansible. Un premier essai Kubernetes a existé : cluster Talos et Flux en mars
 - **Migrer la prod sur un k3s à un nœud** :
   - un seul nœud n'apporte presque aucune fiabilité : la VM tombe, tout
     tombe, comme aujourd'hui ;
-  - environ 1,2 à 1,5 Gio de RAM de plus, sur une VM de 12 Gio ;
+  - environ 1,2 à 1,5 Gio de RAM de plus (estimation, à confirmer), sur une VM de 12 Gio ;
   - borgmatic resterait : la Storage Box n'est pas un stockage S3, cible des
     outils de sauvegarde de Kubernetes ([0001](0001-sauvegardes-borgmatic.md)).
 - **Reprendre Talos** : déjà essayé et abandonné (raison non écrite, à

@@ -36,4 +36,4 @@ disque plein ou une VM docker lente (disque rotatif, 12 Gio).
 
 PR #854 (issue #79) ; issue #852 (agent de l'hôte Proxmox) ;
 [architecture.md](../architecture.md) (« La supervision (Beszel) »),
-`tofu/pangolin_config/external_monitors.tf`.
+`tofu/pangolin_config/websites.tf` (moniteurs), `cron_nas_cert.tf` (PikaPods).
