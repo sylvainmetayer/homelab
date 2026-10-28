@@ -182,7 +182,10 @@ def pct_exec(state, vmid, args):
     if entry["status"] != "running":
         fail(f"CT {vmid} not running")
     inner = args[args.index("--") + 1:]
-    if inner == ["ls", "-1", "/sys/class/net"]:
+    if inner[:2] == ["find", "/sys/class/net"]:
+        # Only the symlinks (interfaces); the real directory also holds the
+        # plain file bonding_masters, which a find -type l never lists.
+        assert "-type" in inner and inner[inner.index("-type") + 1] == "l", inner
         print("\n".join(["lo"] + [f"eth{key[3:]}" for key in entry["config"] if key.startswith("net")]))
     elif "is-system-running" in inner:
         print(state["lxc_system_state"])

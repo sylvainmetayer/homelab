@@ -352,7 +352,11 @@ class Run:
         self.check_rootfs(target, hostname, settings)
 
         run(["pct", "start", str(target)], timeout=300)
-        interfaces = run(["pct", "exec", str(target), "--", "ls", "-1", "/sys/class/net"]).stdout.split()
+        # Interfaces only: each one is a symlink in /sys/class/net, next to
+        # plain files such as bonding_masters (bonding module loaded on the host).
+        interfaces = run(["pct", "exec", str(target), "--", "find", "/sys/class/net",
+                          "-mindepth", "1", "-maxdepth", "1", "-type", "l",
+                          "-printf", "%f\\n"]).stdout.split()
         if set(interfaces) - {"lo"}:
             run(["pct", "stop", str(target)], timeout=180, check=False)
             raise TestFailure(f"LXC {target} : interfaces réseau au démarrage ({', '.join(interfaces)}), arrêté")
