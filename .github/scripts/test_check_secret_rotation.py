@@ -99,6 +99,10 @@ class SopsKeysTest(unittest.TestCase):
         self.assertEqual(rotation.sops_keys(ROOT_SOPS), {"HCLOUD_TOKEN", "home_ip"})
         self.assertEqual(rotation.sops_keys(ANSIBLE_SOPS), {"wiki_db_password", "beszel_agent_tokens"})
 
+    def test_any_key_characters(self):
+        text = 'a-b: ENC[x]\nc.d: ENC[x]\n"e f": ENC[x]\n---\nsops:\n    mac: ENC[x]\n'
+        self.assertEqual(rotation.sops_keys(text), {"a-b", "c.d", "e f"})
+
 
 class ParseTest(unittest.TestCase):
     def test_entries_and_scalars(self):
@@ -135,6 +139,11 @@ class SlugTest(unittest.TestCase):
 
     def test_fenced_lines_are_not_headings(self):
         self.assertNotIn("pas-un-titre", rotation.anchors(RUNBOOK))
+        indented = "- liste\n\n  ```bash\n# pas un titre\n  ```\n"
+        self.assertNotIn("pas-un-titre", rotation.anchors(indented))
+
+    def test_duplicate_headings_get_a_suffix(self):
+        self.assertEqual(rotation.anchors("## OVH\n### OVH\n#!/bin/sh\n"), {"ovh", "ovh-1"})
 
 
 class ValidateTest(unittest.TestCase):
@@ -188,6 +197,11 @@ class ValidateTest(unittest.TestCase):
         errors = self.make(inventory=inventory).errors()
         self.assertTrue(any("n'est pas une date" in e for e in errors), errors)
         self.assertTrue(any("dans le futur" in e for e in errors), errors)
+
+    def test_tomorrow_is_tolerated(self):
+        # Runner en UTC, rotation datée du jour à Paris juste après minuit.
+        inventory = INVENTORY.replace("2026-01-14", "2026-10-29")
+        self.assertEqual(self.make(inventory=inventory).errors(), [])
 
     def test_estimated_must_be_boolean(self):
         errors = self.make(inventory=INVENTORY.replace("estimated: true", "estimated: yes", 1)).errors()
@@ -255,6 +269,16 @@ class MainTest(unittest.TestCase):
         code, out = self.run_main(["--today", "2026-10-28"])
         self.assertEqual(code, 1)
         self.assertIn("::error::secrets.sops.yaml : la clé NEW manque", out)
+
+    def test_stray_sops_file(self):
+        (self.repo.root / "tofu/x").mkdir(parents=True)
+        (self.repo.root / "tofu/x/secrets.sops.yaml").write_text(ROOT_SOPS, encoding="utf-8")
+        (self.repo.root / ".terraform").mkdir()
+        (self.repo.root / ".terraform/secrets.sops.yaml").write_text(ROOT_SOPS, encoding="utf-8")
+        code, out = self.run_main(["--today", "2026-10-28"])
+        self.assertEqual(code, 1)
+        self.assertIn("::error::tofu/x/secrets.sops.yaml : fichier SOPS hors de SOPS_FILES", out)
+        self.assertNotIn(".terraform", out)
 
     def test_due_pushes_up(self):
         with mock.patch.object(rotation, "push") as push:

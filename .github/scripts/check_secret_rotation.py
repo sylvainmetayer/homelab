@@ -7,7 +7,7 @@ Deux usages :
   manque à l'inventaire, quand une entrée de l'inventaire ne correspond plus
   à aucune clé, ou quand une entrée est invalide (nature inconnue, date
   absente ou dans le futur, lien vers un fichier ou une ancre qui n'existe
-  pas) ;
+  pas), ou quand un `secrets.sops.yaml` du dépôt n'est pas dans SOPS_FILES ;
 - `--due` (workflow Secrets rotation, chaque lundi) : en plus, liste les
   secrets dont l'échéance tombe dans les `--window` jours (30 par défaut) ou
   est dépassée, et pousse « down » avec leurs noms au moniteur Uptime Kuma
@@ -48,7 +48,14 @@ FIELDS = {"key", "file", "kind", "last_rotated", "estimated", "how"}
 # Tout sauf `identifier` porte une date et un lien vers sa procédure.
 DATED_FIELDS = ("last_rotated", "estimated", "how")
 
-TOP_KEY_RE = re.compile(r"^([A-Za-z0-9_]+):")
+# Une clé de premier niveau, quels que soient ses caractères (tiret, point,
+# guillemets) : un motif plus étroit ignorerait la clé sans un mot.
+TOP_KEY_RE = re.compile(r"""^(?:"([^"]+)"|'([^']+)'|([^\s#'"-][^:]*?)):(?:\s|$)""")
+HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
+FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+# Le seul nom que chiffrent les creation_rules de .sops.yaml.
+SOPS_NAME = "secrets.sops.yaml"
+SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 ENTRY_RE = re.compile(r"^  - ([a-z_]+):(?: (.*))?$")
 FIELD_RE = re.compile(r"^    ([a-z_]+):(?: (.*))?$")
 
@@ -62,9 +69,23 @@ def sops_keys(text):
     keys = set()
     for line in text.splitlines():
         match = TOP_KEY_RE.match(line)
-        if match and match.group(1) != "sops":
-            keys.add(match.group(1))
+        if match:
+            key = next(group for group in match.groups() if group is not None)
+            if key != "sops":
+                keys.add(key)
     return keys
+
+
+def stray_sops_files(root=ROOT):
+    """Erreurs : fichiers SOPS du dépôt absents de SOPS_FILES (jamais inventoriés)."""
+    errors = []
+    for directory, subdirs, files in os.walk(root):
+        subdirs[:] = [d for d in subdirs if not d.startswith(".") and d not in SKIP_DIRS]
+        if SOPS_NAME in files:
+            path = Path(directory, SOPS_NAME).relative_to(root).as_posix()
+            if path not in SOPS_FILES:
+                errors.append(f"{path} : fichier SOPS hors de SOPS_FILES ({Path(__file__).name}), ses clés ne sont pas inventoriées")
+    return errors
 
 
 def _scalar(value):
@@ -117,12 +138,18 @@ def slug(heading):
 
 
 def anchors(markdown):
-    found, fenced = set(), False
+    """Ancres des titres ATX hors blocs de code, `-1`, `-2`… aux doublons comme GitHub."""
+    found, counts, fenced = set(), {}, False
     for line in markdown.splitlines():
-        if line.startswith("```"):
+        if FENCE_RE.match(line):
             fenced = not fenced
-        elif not fenced and line.startswith("#"):
-            found.add(slug(line.lstrip("#")))
+            continue
+        heading = None if fenced else HEADING_RE.match(line)
+        if heading:
+            base = slug(heading.group(1))
+            count = counts.get(base, 0)
+            counts[base] = count + 1
+            found.add(f"{base}-{count}" if count else base)
     return found
 
 
@@ -167,7 +194,9 @@ def validate(entries, keys_by_file, today, root=ROOT):
         date = parse_date(entry["last_rotated"])
         if date is None:
             errors.append(f"{label} : last_rotated {entry['last_rotated']!r} n'est pas une date AAAA-MM-JJ")
-        elif date > today:
+        # Un jour de marge : le runner est en UTC, Paris en avance d'une à
+        # deux heures ; une rotation datée du jour juste après minuit passe.
+        elif date > today + datetime.timedelta(days=1):
             errors.append(f"{label} : last_rotated {date} est dans le futur")
         if not isinstance(entry["estimated"], bool):
             errors.append(f"{label} : estimated doit valoir true ou false")
@@ -253,7 +282,7 @@ def main(argv=None, root=ROOT):
 
     try:
         entries, keys = load(root)
-        errors = validate(entries, keys, args.today, root)
+        errors = validate(entries, keys, args.today, root) + stray_sops_files(root)
     except (InventoryError, OSError) as error:
         entries, errors = [], [str(error)]
 

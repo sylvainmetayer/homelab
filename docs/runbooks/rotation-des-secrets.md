@@ -50,9 +50,15 @@ depuis son ajout porte donc la date de son ajout.
   ```bash
   read -rs valeur        # collée depuis la console du fournisseur
   # ou : valeur="$(openssl rand -base64 32 | tr -d '\n')"
-  printf '"%s"' "$valeur" | sops set --value-stdin <fichier> '["<clé>"]'
+  printf '%s' "$valeur" \
+    | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
+    | sops set --value-stdin <fichier> '["<clé>"]'
   unset valeur
   ```
+
+  `--value-stdin` attend du JSON : `json.dumps` échappe `"` et `\`, qu'un
+  `printf '"%s"'` laisserait passer (refus de sops, ou pire, un `\t` lu
+  comme une tabulation et une valeur stockée fausse).
 
   `<fichier>` est celui de l'entrée (`file`). `sops set` ne re-chiffre que
   cette clé : le diff git ne montre qu'elle, plus `mac` et `lastmodified`.
