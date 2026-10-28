@@ -26,6 +26,12 @@ ExecStart=/bin/sleep 10
 # Reset the database password
 ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e "UPDATE personne set per_pwd = '\''73fd51e2fbe484ff3b05e124f253ebd1'\'';"'
 
+{% if betisier_reset_healthcheck_url %}
+# Signal the "Reset Betisier" Uptime Kuma monitor: only reached when every
+# ExecStart above succeeded.
+ExecStartPost=/usr/bin/curl -fsS -m 30 --retry 3 -o /dev/null {{ betisier_reset_healthcheck_url }}
+
+{% endif %}
 # Restart policy
 Restart=no
 

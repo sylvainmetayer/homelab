@@ -19,6 +19,10 @@ locals {
   # already the admin mailbox for this infrastructure - no new secret to manage.
   alert_email = data.sops_file.secrets.data["le_email"]
 
+  # Bot and chat of the Telegram notification (notifications.tf).
+  telegram_bot_token = data.sops_file.secrets.data["uptimekuma_telegram_bot_token"]
+  telegram_chat_id   = data.sops_file.secrets.data["uptimekuma_telegram_chat_id"]
+
   uptimekuma_endpoint = data.sops_file.secrets.data["UPTIMEKUMA_ENDPOINT"]
   uptimekuma_username = data.sops_file.secrets.data["UPTIMEKUMA_USERNAME"]
   uptimekuma_password = data.sops_file.secrets.data["UPTIMEKUMA_PASSWORD"]

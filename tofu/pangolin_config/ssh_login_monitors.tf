@@ -50,7 +50,7 @@ resource "uptimekuma_monitor_push" "ssh_login" {
   resend_interval = 0
   active          = true
 
-  notification_ids = [local.telegram_notification_id]
+  notification_ids = [uptimekuma_notification_telegram.supervision.id]
   tags             = [local.tofu_tag]
 }
 
