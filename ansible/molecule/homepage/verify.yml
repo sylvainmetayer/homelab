@@ -3,6 +3,7 @@
   hosts: all
   vars_files:
     - ../../group_vars/all/variables.yml
+    - ../_shared/vars/fake_secrets.yml
   tasks:
     # Sans état : aucune configuration borgmatic.
     - name: Verify the homepage deployment
@@ -96,15 +97,44 @@
           - homepage_documents[1]['Paperless-ngx'].icon is not defined
           - homepage_media[0]['Jellyfin'].href == 'https://media.sylvain.cloud:8443'
           - homepage_services[3]['Groupe hors liste'][0]['Betisier'].description == 'Bêtisier, application de TP'
-          - "'widget:' not in (homepage_services_raw.content | b64decode)"
+          - homepage_documents[0]['BookStack'].widget is not defined
         fail_msg: "services.yaml inattendu : {{ homepage_services }}"
+
+    # Widgets : Beszel sur son lien (superuser du rôle beszel, réseau newt),
+    # une carte par page de statut d'Uptime Kuma, sans href (l'URL d'Uptime
+    # Kuma reste dans la configuration).
+    - name: Assert the Beszel and Uptime Kuma widgets
+      vars:
+        homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
+        homepage_admin_list: "{{ (homepage_services | selectattr('Administration', 'defined') | first)['Administration'] }}"
+        homepage_admin: "{{ homepage_admin_list | map('dict2items') | flatten | items2dict }}"
+        homepage_kuma_widgets: "{{ [homepage_admin['sylvain.dev'].widget, homepage_admin['Sauvegardes'].widget] }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_admin_list | map('first') | list == ['Beszel', 'Pangolin', 'Sauvegardes', 'sylvain.dev']
+          - homepage_admin['Beszel'].href == 'https://monitoring.sylvain.cloud'
+          - homepage_admin['Beszel'].widget.type == 'beszel'
+          - homepage_admin['Beszel'].widget.version == 2
+          - homepage_admin['Beszel'].widget.url == 'http://beszel:8090'
+          - homepage_admin['Beszel'].widget.username == 'homepage@monitoring.sylvain.cloud'
+          - homepage_admin['Beszel'].widget.password == homepage_beszel_password
+          - homepage_admin['Beszel'].widget.fields == ['systems', 'up']
+          - homepage_admin['Pangolin'].widget is not defined
+          - homepage_admin['sylvain.dev'].widget.slug == 'sylvain-dev'
+          - homepage_admin['Sauvegardes'].widget.slug == 'homelab-sauvegardes'
+          - homepage_kuma_widgets | map(attribute='type') | unique == ['uptimekuma']
+          - homepage_kuma_widgets | map(attribute='url') | unique == ['https://uptime.example.invalid']
+          - homepage_kuma_widgets | map('list') | map('sort') | unique == [['slug', 'type', 'url']]
+          - homepage_admin['sylvain.dev'].href is not defined
+          - homepage_admin['Sauvegardes'].href is not defined
+        fail_msg: "Widgets inattendus : {{ homepage_admin_list | map('first') | list }}"
 
     - name: Read the homepage widgets
       ansible.builtin.slurp:
         src: /opt/apps/homepage/config/widgets.yaml
       register: homepage_widgets_raw
 
-    - name: Assert homepage has no widget
+    - name: Assert homepage has no header widget
       ansible.builtin.assert:
         that:
           - homepage_widgets_raw.content | b64decode | from_yaml == []

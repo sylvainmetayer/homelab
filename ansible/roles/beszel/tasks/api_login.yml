@@ -5,13 +5,7 @@
 # connecté. Le jeton reste dans beszel_api_token (no_log) : chaque appel qui
 # le porte est no_log aussi, sinon -v l'écrit dans ansible/run.log.
 - name: Wait for the Beszel hub API
-  ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/health"
-  register: beszel_api_health
-  until: beszel_api_health.status == 200
-  retries: 60
-  delay: 2
-  check_mode: false
+  ansible.builtin.import_tasks: api_wait.yml
 
 - name: Log in to the Beszel hub as the admin account
   no_log: true

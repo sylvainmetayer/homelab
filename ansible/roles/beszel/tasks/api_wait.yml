@@ -1,0 +1,12 @@
+---
+# Le hub répond-il ? Au premier déploiement, il vient de démarrer
+# (flush_handlers de main.yml). Partagé par api_login.yml et
+# homepage_superuser.yml.
+- name: Wait for the Beszel hub API
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/health"
+  register: beszel_api_health
+  until: beszel_api_health.status == 200
+  retries: 60
+  delay: 2
+  check_mode: false

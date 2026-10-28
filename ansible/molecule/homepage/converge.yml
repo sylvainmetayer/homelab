@@ -32,6 +32,18 @@
             group: Groupe hors liste
             description: Bêtisier, application de TP
             icon: mdi-emoticon-lol-outline
+          # Le lien qui porte le widget Beszel.
+          beszel:
+            name: Beszel
+            href: https://monitoring.sylvain.cloud
+            group: Administration
+            description: Supervision des hôtes
+            icon: beszel
+
+    # Ce que docker.yml lit dans l'output homepage_uptimekuma_url.
+    - name: Set the Uptime Kuma URL as docker.yml does
+      ansible.builtin.set_fact:
+        homepage_uptimekuma_url: https://uptime.example.invalid
 
   roles:
     - role: docker_service

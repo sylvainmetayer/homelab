@@ -61,6 +61,25 @@
         group: root
         mode: "0700"
 
+    # `beszel superuser upsert` à la place de `docker exec beszel` (converge :
+    # beszel_superuser_command). Lancé en sylvain comme la vraie commande ; le
+    # mock, root, lit ce qu'il écrit.
+    - name: Create the superuser mock directory
+      ansible.builtin.file:
+        path: /var/lib/beszel-superuser-mock
+        state: directory
+        owner: sylvain
+        group: sylvain
+        mode: "0700"
+
+    - name: Install the superuser command mock
+      ansible.builtin.copy:
+        src: beszel_superuser_mock.py
+        dest: /usr/local/bin/beszel-superuser-mock
+        owner: sylvain
+        group: sylvain
+        mode: "0700"
+
     - name: Write the mock configuration
       diff: false
       ansible.builtin.copy:

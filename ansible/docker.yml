@@ -46,6 +46,14 @@
       ansible.builtin.set_fact:
         homepage_websites: "{{ terraform_outputs.homepage_links.value | default({}) }}"
 
+    # L'instance qu'interrogent les widgets Uptime Kuma de Homepage
+    # (status_page_backups.tf). Vide avant l'apply : pas de widget.
+    - name: Load the Uptime Kuma URL of the Homepage widgets from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        homepage_uptimekuma_url: "{{ terraform_outputs.homepage_uptimekuma_url.value | default('') }}"
+
   roles:
     - role: geerlingguy.docker
       become: true
