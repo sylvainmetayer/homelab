@@ -41,14 +41,15 @@ locals {
 #
 # Fields of `homepage`: group and description, both required; icon (a
 # dashboard-icons name or an `mdi-` icon, fetched by the browser) and title
-# (default: the resource name) optional. An app paused with `enabled = false`
+# (default: the resource name) and path (appended to the resource URL, default
+# none: ntfy's web app lives under /app) optional. An app paused with `enabled = false`
 # (docs/runbooks/app-en-pause.md) has no link while it is paused.
 output "homepage_links" {
   description = "HOMEPAGE - Liens du tableau de bord, un par application publique"
   value = {
     for key, website in local.websites : key => {
       name        = lookup(website.homepage, "title", website.name)
-      href        = "https://${pangolin_resource.website[key].full_domain}"
+      href        = "https://${pangolin_resource.website[key].full_domain}${lookup(website.homepage, "path", "")}"
       group       = website.homepage.group
       description = website.homepage.description
       icon        = lookup(website.homepage, "icon", "")

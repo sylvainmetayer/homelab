@@ -34,7 +34,11 @@ auth-tokens:
 {% endfor %}
 
 # Interface web derrière le SSO de Pangolin, puis la connexion ntfy : pas
-# d'inscription, pas de réservation de topic.
+# d'inscription, pas de réservation de topic. Sous /app, pas à la racine :
+# « / » est ouvert sans SSO pour la publication JSON d'Uptime Kuma
+# (website_ntfy.tf), et un navigateur sans session Pangolin y recevrait une
+# page dont il ne peut charger les /static/*. Sous /app, il passe par le SSO.
+web-root: /app
 enable-login: true
 require-login: true
 enable-signup: false

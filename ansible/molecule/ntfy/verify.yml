@@ -86,6 +86,7 @@
           - ntfy_server['auth-file'] == '/var/lib/ntfy/user.db'
           - ntfy_server['cache-file'] == '/var/lib/ntfy/cache.db'
           - ntfy_server['upstream-base-url'] == 'https://ntfy.sh'
+          - ntfy_server['web-root'] == '/app'
           - ntfy_server['enable-signup'] == false
           - ntfy_server['enable-login'] == true
           - ntfy_server['require-login'] == true
@@ -254,6 +255,16 @@
             method: "{{ item.method }}"
             body: "{{ 'molecule' if item.method == 'POST' else omit }}"
             status_code: [401, 403]
+
+        # L'interface web sous /app (derrière le SSO de Pangolin) ; « / »,
+        # ouvert sans SSO pour Uptime Kuma, ne la sert pas.
+        - name: Serve the web app under /app only
+          loop:
+            - { url: /app, status: 200 }
+            - { url: /, status: 404 }
+          ansible.builtin.uri:
+            url: "{{ ntfy_verify_url }}{{ item.url }}"
+            status_code: "{{ item.status }}"
 
         - name: List the ntfy accounts and grants
           ansible.builtin.command:
