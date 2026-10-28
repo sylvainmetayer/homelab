@@ -30,9 +30,10 @@ Il lit trois choses et ne fait sortir de la VM que des noms et des dates :
 - les comptes (`occ user:list`) ;
 - leurs mots de passe d'application (`occ user:auth-tokens:list`, type 1) :
   id, nom, dernière activité, jamais la valeur ;
-- les requêtes de synchronisation des 14 jours de journaux nginx
-  (`/remote.php`, `/ocs`, les API des applis) : utilisateur, jour, agent
-  client. Ni IP ni URL.
+- les requêtes de synchronisation de tous les journaux nginx gardés
+  (`/remote.php`, `/ocs`, les API des applis ; rotation hebdomadaire, 14
+  anciens : jusqu'à ~15 semaines, la période lue est affichée) :
+  utilisateur, jour, agent client, triés dans le conteneur. Ni IP ni URL.
 
 Chaque agent est rangé dans une famille (DAVx5, Nextcloud Android, client de
 bureau, Thunderbird, Évolution, GNOME Online Accounts, rclone, davfs2,
@@ -44,9 +45,10 @@ script Go, Outlook), puis rapproché d'un jeton par son nom :
 - **AUCUN, à migrer** : sans doute le mot de passe de connexion.
 
 C'est une déduction : le journal ne dit pas quel secret le client a envoyé.
-Un « à vérifier » se tranche dans les réglages du compte du client. Un
-client absent des familles n'apparaît pas : l'ajouter à `FAMILIES` dans le
-script.
+Un « à vérifier » se tranche dans les réglages du compte du client, comme
+un « compte inconnu » (le client se connecte par une adresse e-mail, pas par
+l'uid). Un client absent des familles n'apparaît pas : l'ajouter à
+`FAMILIES` dans le script.
 
 ## Réparation
 
