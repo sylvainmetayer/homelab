@@ -197,14 +197,24 @@ flowchart LR
   lisible depuis `main` seulement (`tofu/github/environments.tf`).
 - La CI ne lance **jamais** `tofu apply` : l'infra et le routage Pangolin
   s'appliquent à la main.
-- Renovate : épingle les images par digest ; seules les versions de
-  `planning-equipes` et de `promptoramix` fusionnent seules
-  (`renovate.json`) ; les montées majeures de bases attendent une case cochée
-  sur le Dependency Dashboard (la MariaDB officielle de Nextcloud n'en voit
-  aucune : elle reste sur la LTS 12.3, et son Redis `-bookworm` sur la 8.2).
-  Les digests et les correctifs (hors `planning-equipes` et `promptoramix`)
-  arrivent groupés en une PR par semaine, le lundi avant 9 h ; mineures et
-  majeures gardent chacune la leur.
+- Renovate : épingle les images par digest ; les montées majeures de bases
+  attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
+  de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
+  `-bookworm` sur la 8.2). Les digests et les correctifs (hors
+  `planning-equipes` et `promptoramix`) arrivent groupés le lundi avant 9 h,
+  en deux PR :
+  - « weekly stateless automerged updates » **fusionne seule** (auto-merge
+    GitHub, une fois les quatre checks du ruleset verts, donc déployée dans la
+    foulée) : les images sans base ni migration de données, sur liste
+    blanche (`gotenberg`, `tika`, `stirling-pdf`, `homepage`, `mailpit`,
+    `nginx`), et les GitHub Actions (`uses:`) ;
+  - « weekly digest and patch updates », tout le reste, à fusionner à la main.
+
+  Fusionnent seules aussi : les versions de `planning-equipes` (mineures et
+  correctifs) et de `promptoramix`. Mineures et majeures gardent chacune leur
+  PR, à la main. Rien de ce qui touche `path_bypass_images.json` ne fusionne
+  seul : sa relecture (`relecture-chemins-publics`) n'est pas un check du
+  ruleset, l'auto-merge passerait outre.
 
 ## Les sauvegardes
 

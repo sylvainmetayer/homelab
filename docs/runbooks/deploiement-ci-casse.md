@@ -106,9 +106,15 @@ ansible-playbook docker.yml --tags <tag> --check --diff
 - Avant de merger une PR qui touche un rôle : savoir **ce que le merge va
   déployer**, et sur quel hôte (un changement du rôle `borgmatic` ou
   `security` part sur plusieurs hôtes à la fois).
-- Lire les notes de version d'une PR Renovate d'appli. Seules les versions de
-  `planning-equipes` (mineures et correctifs) et de `promptoramix`
-  fusionnent seules (`renovate.json`) ; les montées majeures de bases
+- Lire les notes de version d'une PR Renovate d'appli. Fusionnent seules
+  (`renovate.json`) : les versions de `planning-equipes` (mineures et
+  correctifs) et de `promptoramix`, et la PR du lundi « weekly stateless
+  automerged updates » (digests et correctifs des images sans base de la liste
+  blanche, et des GitHub Actions), dès que le ruleset a ses checks verts. Un
+  déploiement rouge juste après un merge de `renovate[bot]` vient donc
+  souvent d'elle : revenir au digest précédent par une PR (`git revert` du
+  commit), et retirer l'image de la liste blanche si elle a cassé sans que
+  Molecule le voie. Les montées majeures de bases
   attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
   de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
   `-bookworm` sur la 8.2).

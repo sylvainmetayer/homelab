@@ -15,7 +15,7 @@
       "pinDigests": true
     },
     {
-      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The rules below that set a groupName (beszel, pangolin-role-dependencies, socket-proxy, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, and path-bypass-review.yaml holds it until the relecture-chemins-publics review is approved",
+      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The stateless images and the GitHub Actions of the next two rules leave this PR for their own weekly one, which automerges. The rules below that set a groupName (beszel, pangolin-role-dependencies, socket-proxy, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, and path-bypass-review.yaml holds it until the relecture-chemins-publics review is approved",
       "matchUpdateTypes": [
         "digest",
         "patch"
@@ -28,6 +28,47 @@
       "schedule": [
         "before 9am on monday"
       ]
+    },
+    {
+      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml), a failed deploy fails that run. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its PR waits for the relecture-chemins-publics review, which the ruleset does not require: auto-merge would skip it), Traefik and the socket proxy (edge and security sidecars, grouped with Pangolin or newt). nginx: the static nginx_demo and the flip_planning assets sidecar; mailpit: flip_planning's in-memory mail catcher",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/gotenberg/gotenberg",
+        "docker.io/apache/tika",
+        "docker.io/stirlingtools/stirling-pdf",
+        "ghcr.io/gethomepage/homepage",
+        "axllent/mailpit",
+        "nginx"
+      ],
+      "matchUpdateTypes": [
+        "digest",
+        "patch"
+      ],
+      "groupName": "weekly stateless automerged updates",
+      "schedule": [
+        "before 9am on monday"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "GitHub Actions (uses: of the workflows and composite actions, pinned by digest): digest and patch updates join the stateless automerged PR. The PR's own Lint and Tests run them, except the steps only deploy-docker-app, restore-test, borg-check and storage-box-quota run: those break on their next run after the merge, which fails visibly. Container images and runner labels of the workflows are not actions (depType docker, container, service, github-runner) and stay manual",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "action"
+      ],
+      "matchUpdateTypes": [
+        "digest",
+        "patch"
+      ],
+      "groupName": "weekly stateless automerged updates",
+      "schedule": [
+        "before 9am on monday"
+      ],
+      "automerge": true
     },
     {
       "description": "Stateful images: a MAJOR upgrade changes the on-disk format of the data they keep. PostgreSQL (and postgis, Immich's postgres) refuses to start on a data directory of the previous major (scanopy 17 -> 18 would have left it down: dump/restore or pg_upgrade first); MariaDB/MySQL need mariadb-upgrade and have no way back (the official mariadb image is also held on its LTS line by the next rule); Meilisearch refuses ANY other version's database, patch included, so Karakeep sets MEILI_UPGRADE_DB for minor and patch bumps, and a major may need a dump/import; Redis/Valkey change their RDB/AOF format. Renovate only lists these on the Dependency Dashboard and opens the PR once its box is ticked, so a migration is planned instead of merged as a routine bump. Minor, patch and digest updates are unaffected. Regexes because the same image is written docker.io/postgres, docker.io/library/postgres or postgres depending on the compose file",
@@ -287,6 +328,13 @@
         "actions/python-versions"
       ],
       "allowedVersions": "<3.15"
+    },
+    {
+      "description": "Guard, kept last: an update of path_bypass_images.json never automerges. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the relecture-chemins-publics review",
+      "matchFileNames": [
+        "tofu/pangolin_config/path_bypass_images.json"
+      ],
+      "automerge": false
     }
   ],
   "customManagers": [
