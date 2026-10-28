@@ -1,7 +1,7 @@
 # Accès sans le SSO : applis mobiles, flux, liens de partage
 
 Toutes les ressources publiques de Pangolin sont derrière le SSO (le « mur »
-de connexion Pangolin), sauf trois. Mais un téléphone qui synchronise ses
+de connexion Pangolin), sauf deux. Mais un téléphone qui synchronise ses
 contacts, une appli mobile, un assistant hébergé ou un visiteur qui ouvre un
 lien de partage n'a pas de session Pangolin. Ce document recense, appli par
 appli, ce qui passe **sans** le SSO, quel client s'en sert et ce qui protège
@@ -49,6 +49,8 @@ partage, mot de passe, clé d'API, signature), jamais Pangolin.
 | KitchenOwl (`frigo.sylvain.cloud`) | `/api/*`, `/socket.io/*` | appli mobile (Android, iOS) | JWT de KitchenOwl sur toutes les routes sauf la connexion, les infos serveur, l'OpenAPI, l'onboarding (toujours faux) et une recette publique ; inscription fermée (`OPEN_REGISTRATION=false`, `ansible/roles/kitchenowl/templates/env.j2`) ; pas de limite de débit sur la connexion : la force du mot de passe la remplace |
 | Meerkat CRM (`crm.sylvain.cloud`) | `/carddav/*`, `/.well-known/carddav` | contacts du téléphone (CardDAV) | HTTP Basic avec le **mot de passe du compte**, verrouillage par compte et limite de débit |
 | Monica (`crm.sylvain.dev`) | `/dav/*`, `/.well-known/carddav`, `/.well-known/caldav` | contacts et agenda du téléphone (CardDAV, CalDAV) | HTTP Basic avec un jeton d'accès personnel de Monica (pas le mot de passe du compte). **Désactivés** aujourd'hui, voir « Verrouillage PHP » |
+| Nextcloud (`sylvain.cloud`, l'apex), clients | `/status.php`, `/index.php/204`, `/remote.php/*`, `/ocs/v1.php/*`, `/ocs/v2.php/*`, `/index.php/login/v2` (exact), `/login/v2/poll`, `/index.php/login/v2/poll`, `/index.php/core/wipe/*`, `/index.php/core/preview`, `/index.php/core/preview.png`, `/index.php/apps/files_trashbin/preview`, `/index.php/apps/files_versions/preview`, `/index.php/apps/files/api/v1/thumbnail/*`, `/.well-known/caldav`, `/.well-known/carddav` (`local.nextcloud_client_paths`) | clients de synchronisation (bureau, Android, iOS), DAVx5, Thunderbird | mot de passe d'application seulement sur DAV et OCS (`token_auth_enforced`, rôle `nextcloud`) ; la moitié navigateur du login flow v2, le formulaire de connexion et les réglages restent derrière le SSO. Tout OCS est ouvert : un mot de passe d'application administrateur y atteint aussi l'API de provisioning |
+| Nextcloud, partages | `/s/*`, `/public.php/*`, l'API et les aperçus de `files_sharing`, theming, `/dist/*`, les dossiers statiques de `/core`, les fichiers statiques des applis (`/apps/*/js/*`… et `/custom_apps`), `/csrftoken`, la visionneuse PDF, les points publics de Text (`local.nextcloud_share_paths`, liste complète dans le test) | visiteur d'un lien de partage public | jeton aléatoire du partage, mot de passe et expiration facultatifs, vérifiés par `files_sharing`. `/apps/*/js/*` et ses voisins valent pour tout chemin de `/apps` qui contient un segment `js` (`css`, `img`, `l10n`) : sans SSO, mais pas sans l'authentification de Nextcloud. `/core/*` n'est jamais ouvert en entier (`/core/ajax/update.php`) |
 | Paperless-ngx (`papiers.sylvain.cloud`) | `/share/*` | lien de partage d'un document | slug de 50 caractères aléatoires, expiration vérifiée par la vue. **Appli en pause** : ressource désactivée, rien ne répond |
 | Promptoramix (`promptoramix.sylvain.cloud`) | `/*`, toute la ressource | fonctions edge Supabase du tournoi Linkx, sans plage d'IP fixe | signature HMAC de chaque POST (`LINKX_SECRET`) ; `/health` ne révèle rien. Seule ouverture d'une appli entière, assumée |
 | TREK (`travels.sylvain.cloud`), OAuth du MCP | `/.well-known/oauth-protected-resource/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-authorization-server/mcp`, `/.well-known/openid-configuration`, `/mcp/.well-known/oauth-protected-resource`, `/mcp/.well-known/oauth-authorization-server`, `/mcp/.well-known/openid-configuration`, `/oauth/token` | serveurs des assistants (Claude.ai…) | documents de découverte statiques ; `/oauth/token` exige le code PKCE ou le jeton de rafraîchissement plus le secret du client, débit limité par TREK. Restent derrière le SSO : `/oauth/authorize`, `/oauth/consent`, `/oauth/register`, `/oauth/revoke`, `/oauth/userinfo` |
@@ -79,14 +81,13 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
 
 ## Ressources sans SSO
 
-Le test `every_public_resource_applies_its_rules` épingle ces trois-là comme
+Le test `every_public_resource_applies_its_rules` épingle ces deux-là comme
 les seules. Les règles pays s'y appliquent quand même (`apply_rules = true`
 partout).
 
 | Ressource | Client | Ce qui protège |
 |---|---|---|
 | Betisier (`betisier.sylvain.dev`) | navigateur (appli de TP, publique) | l'appli elle-même ; FR et DE seulement |
-| Nextcloud (`sylvain.cloud`, l'apex) | navigateur, clients de synchronisation (bureau, mobile) | comptes Nextcloud ; FR et DE seulement. Le passage derrière le SSO, chemins des clients mobiles ouverts, est l'issue #332 |
 | Promptoramix | serveurs du tournoi | HMAC ; et son `ACCEPT` de `/*` lève aussi le filtre pays |
 
 ## L'IP de la maison

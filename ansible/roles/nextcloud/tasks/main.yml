@@ -71,8 +71,9 @@
       - nextcloud_trusted_proxies | reject('match', '^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$') | list | length == 0
     fail_msg: >-
       nextcloud_trusted_proxies vide ou invalide ({{ nextcloud_trusted_proxies }}) :
-      le réseau {{ nextcloud_newt_network }} ne déclare aucun sous-réseau IPAM.
-      Le renseigner à la main (liste d'adresses ou de CIDR).
+      soit le réseau {{ nextcloud_newt_network }} ne déclare aucun sous-réseau
+      IPAM, soit la valeur fixée à la main n'est pas une liste d'adresses ou
+      de CIDR. La renseigner (ou la corriger) dans host_vars.
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Nextcloud
