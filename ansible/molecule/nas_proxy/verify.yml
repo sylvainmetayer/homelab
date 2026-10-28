@@ -263,7 +263,7 @@
         src: "{{ nas_proxy_verify_tls_dir }}/ca.pem"
         dest: /usr/local/share/ca-certificates/molecule-ca.crt
         remote_src: true
-        mode: "0644"
+        mode: "0644" # NOSONAR
 
     - name: Update the system certificate store
       ansible.builtin.command: update-ca-certificates
@@ -271,6 +271,12 @@
 
     # Faux Uptime Kuma : http.server rend 200 sur le chemin du moniteur et
     # journalise chaque requête, query string comprise.
+    - name: Create the fake Uptime Kuma push folder
+      ansible.builtin.file:
+        path: "{{ nas_proxy_verify_tls_dir }}/push/api/push"
+        state: directory
+        mode: "0700"
+
     - name: Create the fake Uptime Kuma push path
       ansible.builtin.copy:
         dest: "{{ nas_proxy_verify_tls_dir }}/push/api/push/molecule-cert"

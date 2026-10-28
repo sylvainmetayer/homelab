@@ -11,11 +11,15 @@ After=network-online.target
 Type=oneshot
 EnvironmentFile={{ nas_proxy_base_path }}/cert_check.env
 ExecStart=/usr/bin/python3 -I {{ nas_proxy_base_path }}/cert_check.py --host {{ nas_proxy_cert_check_host }} --port {{ nas_proxy_https_port }} --min-days {{ nas_proxy_cert_check_min_days }} {{ nas_proxy_cert_check_names | join(' ') }}
-# Root pour lire son script et son fichier d'environnement (dossier 0700 root),
-# sans aucune capacité : propriétaire, il n'a pas besoin de CAP_DAC_OVERRIDE.
-# Une connexion TLS et une requête HTTPS, rien à écrire.
+# Deux connexions TLS et une requête HTTPS : borné, pour qu'un push bloqué ne
+# laisse pas l'unité « activating » et le timer du lendemain sans effet.
+TimeoutStartSec=5min
+# Root pour lire son script (dossier 0700 root), avec la seule capacité de
+# lecture et de traversée : UGOS présente à root des modes de dossiers
+# partagés qui ne sont pas les vrais (nas-storage-docker/
+# homelab-storage-architecture.md), /volume1/docker compris. Rien à écrire.
 NoNewPrivileges=yes
-CapabilityBoundingSet=
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
