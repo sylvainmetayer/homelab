@@ -46,8 +46,9 @@ locals {
 # controller with front_controller_active, so a route answers both as `/x` and
 # as `/index.php/x`, and the server generates the first form) and off the
 # clients that talk to it: desktop (src/libsync, src/gui/wizard), Android (app
-# and android-library), iOS (NextcloudKit), DAVx5. Re-read them when a major
-# version lands.
+# and android-library), iOS (NextcloudKit), DAVx5. path_bypass_images.json
+# notes the deployed tag: each bump waits on path-bypass-review.yaml for a
+# re-read of the sources listed there.
 #
 # 1. Clients, local.nextcloud_client_paths:
 #    - /status.php: the first request of every client (server detection,
