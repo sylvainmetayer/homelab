@@ -2710,15 +2710,17 @@ run "monitors_are_filed_and_notify_by_email" {
   }
 
   # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
-  # DOWN pour Uptime Kuma. Son moniteur lit /health (monitor_path) ; les
+  # DOWN pour Uptime Kuma. Celle de ntfy répond 404 à un GET (web-root:
+  # /app). Leurs moniteurs lisent leur route de santé (monitor_path) ; les
   # autres gardent la racine de leur ressource.
   assert {
     condition = (
       uptimekuma_monitor_http_keyword.healthcheck["promptoramix"].url == "https://promptoramix.sylvain.cloud/health"
+      && uptimekuma_monitor_http_keyword.healthcheck["ntfy"].url == "https://${pangolin_resource.website["ntfy"].full_domain}/v1/health"
       && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
-      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["promptoramix"]
+      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix"]
     )
-    error_message = "Le healthcheck de Promptoramix doit lire https://promptoramix.sylvain.cloud/health, et seul lui a un monitor_path."
+    error_message = "Les healthchecks de Promptoramix et de ntfy doivent lire leur route de santé, et seuls eux ont un monitor_path."
   }
 
   assert {
@@ -2903,5 +2905,17 @@ run "ntfy_topics_match_the_role" {
       && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.ntfy_uptime_kuma_token.value | default('')")
     )
     error_message = "docker.yml doit lire le jeton uptime-kuma de ntfy dans la sortie ntfy_uptime_kuma_token, celui de la notification."
+  }
+
+  # « / » est ouvert sans SSO et répond 404 à un GET (web-root: /app) : le
+  # lien Homepage mène à /app, le moniteur sonde la route de santé.
+  assert {
+    condition = (
+      output.homepage_links["ntfy"].href == "https://${pangolin_resource.website["ntfy"].full_domain}/app"
+      && output.homepage_links["trek"].href == "https://${pangolin_resource.website["trek"].full_domain}"
+      && local.websites["ntfy"].monitor_path == "/v1/health"
+      && strcontains(file("${path.module}/../../ansible/roles/ntfy/templates/server.yml.j2"), "\nweb-root: /app\n")
+    )
+    error_message = "ntfy : le lien Homepage doit viser /app, le moniteur /v1/health, et server.yml garder web-root: /app."
   }
 }

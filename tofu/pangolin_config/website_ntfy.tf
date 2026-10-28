@@ -16,7 +16,14 @@ locals {
       group       = "Administration"
       description = "Notifications push du homelab"
       icon        = "ntfy"
+      # The web app (web-root: /app, role ntfy): `/` itself is a path
+      # ACCEPT below and answers 404 to a GET.
+      path = "/app"
     }
+
+    # `/` answers 404 to a GET (web-root: /app): the inverted-keyword monitor
+    # probes the health route instead, through the same access token.
+    monitor_path = "/v1/health"
 
     target = {
       site_id = pangolin_site.proxmox_docker.id
@@ -47,8 +54,10 @@ locals {
 #   then the topic's write check). Uptime Kuma's ntfy provider posts there,
 #   always (server/notification-providers/ntfy.js: axios.post(ntfyserverurl)).
 #   Exact path: Pangolin's matcher (server/lib/pathMatch.ts) gives `/` no
-#   segment, so it matches the root and nothing under it. GET / serves the
-#   web app's HTML shell, whose /static/* stays behind the SSO.
+#   segment, so it matches the root and nothing under it. A GET / answers
+#   404: the web app is moved to /app (web-root, role ntfy), behind the SSO,
+#   so that a browser without a Pangolin session is sent to the SSO login
+#   rather than served an HTML shell whose /static/* it cannot load.
 # - `/<topic>`, for each of local.ntfy_publish_topics: publishing to one
 #   topic (POST/PUT, topicPathRegex): Beszel's shoutrrr (pkg/services/push/
 #   ntfy GetAPIURL: /<topic>), curl in the scripts, and the app's own "publish"
@@ -71,7 +80,8 @@ locals {
 # server-side SSE and raw streams (/*/sse, /*/raw: no app nor publisher of
 # this homelab uses them), message updates and deletion (/<topic>/<id>...),
 # /file/* (attachments are disabled), /v1/health (the target healthcheck,
-# hc_path, which Newt runs from inside; the Uptime Kuma monitor probes `/`),
+# hc_path, run by Newt from inside, and the Uptime Kuma monitor, monitor_path,
+# through the healthcheck access token),
 # /metrics (disabled), /_matrix/* (no Matrix
 # gateway here), and the admin routes (/v1/users*, /v1/version).
 locals {
