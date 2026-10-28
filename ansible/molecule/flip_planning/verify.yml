@@ -36,7 +36,7 @@
         db_password: "{{ demo_planning_db_password }}"
         admin_password: "{{ demo_planning_admin_password }}"
         mcp_api_key: "{{ demo_planning_mcp_api_key }}"
-        # Pas de jeton MCP Pangolin pour la démo (#763) : seule la prod en a un.
+        # Pas de jeton MCP Pangolin pour la démo (#763), ni pour la prod (#525).
         mcp_pangolin_access_token_id: ""
         mcp_pangolin_access_token: ""
         repository: "{{ demo_planning_backup_borgmatic_target }}"

@@ -181,8 +181,7 @@ override_resource {
 # --- Réponses réalistes de l'API Pangolin (cas nominal) ---------------------
 
 # GET /v1/org/{org}/access-tokens?limit=1000 : un jeton par ressource de
-# jetons déclarée (les identifiants fixés plus haut), plus les deux jetons faits
-# main que local.unmanaged_access_tokens garde en exception. Comme en vrai,
+# jetons déclarée (les identifiants fixés plus haut). Comme en vrai,
 # `pagination.total` ne compte pas la liste.
 override_data {
   target = data.http.pangolin_access_tokens
@@ -202,7 +201,8 @@ override_data {
   }
 }
 
-# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui commun à pangolin_role.apps et celui de Jellyfin.
+# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui
+# commun à pangolin_role.apps et celui de Jellyfin.
 override_data {
   target = data.http.pangolin_roles
   values = {

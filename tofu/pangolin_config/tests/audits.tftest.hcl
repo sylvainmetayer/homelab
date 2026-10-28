@@ -242,7 +242,8 @@ override_data {
   }
 }
 
-# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui commun à pangolin_role.apps et celui de Jellyfin.
+# GET /v1/org/{org}/roles?pageSize=1000 : les deux rôles intégrés, celui
+# commun à pangolin_role.apps et celui de Jellyfin.
 override_data {
   target = data.http.pangolin_roles
   values = {
@@ -251,7 +252,7 @@ override_data {
       {"data": {"roles": [
         {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
         {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-                {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
         {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
       ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
       "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
@@ -414,7 +415,7 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 6 jetons et 5 rôles dans les réponses simulées, aucune exception périmée.
+  # 4 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
   assert {
     condition     = terraform_data.access_inventory.output == 8 && length(local.stale_inventory_exceptions) == 0
     error_message = "access_inventory doit lire les 4 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
@@ -697,7 +698,7 @@ run "hand_made_role_fails_plan" {
         {"data": {"roles": [
           {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
           {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-                    {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
           {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null},
           {"roleId": 77, "name": "invités", "description": "", "isAdmin": null}
         ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
