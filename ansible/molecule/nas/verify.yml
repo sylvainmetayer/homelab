@@ -445,7 +445,7 @@
     - name: Assert the reminder was published, the state kept, the monitor pushed
       vars:
         nas_verify_update_requests: >-
-          {{ nas_verify_update_run.results[0].content | b64decode | trim | split('\n') | map('from_json') | list }}
+          {{ (nas_verify_update_run.results[0].content | b64decode).splitlines() | map('from_json') | list }}
         nas_verify_update_state: "{{ nas_verify_update_run.results[1].content | b64decode | from_json }}"
         nas_verify_update_reminder: "nas : rappel mensuel des mises à jour d'UGOS"
       ansible.builtin.assert:

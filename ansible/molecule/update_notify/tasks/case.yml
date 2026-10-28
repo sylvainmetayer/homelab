@@ -29,4 +29,4 @@
 - name: Keep the requests of this case
   ansible.builtin.set_fact:
     update_notify_case_requests: >-
-      {{ update_notify_case_log.content | b64decode | trim | split('\n') | map('from_json') | list }}
+      {{ (update_notify_case_log.content | b64decode).splitlines() | map('from_json') | list }}
