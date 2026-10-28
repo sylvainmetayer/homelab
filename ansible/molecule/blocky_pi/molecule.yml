@@ -1,0 +1,8 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Blocky en conteneur (mode dc) avec les variables du Raspberry Pi, comme
+# pi.yml. dc@ ne lance pas le conteneur (bouchon du prepare commun) : le
+# verify regarde le compose et valide la configuration avec le binaire de la
+# même version ; l'interrogation par dig est le scénario blocky (binaire).
+scenario:
+  name: blocky_pi

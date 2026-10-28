@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# Vérification locale de Blocky (rôle blocky), poussée au moniteur « DNS
+# {{ inventory_hostname }} » d'Uptime Kuma. L'URL push (jeton du moniteur) est
+# dans l'EnvironmentFile, 0600 root, lu par systemd avant de passer à
+# l'utilisateur dynamique : ni la ligne de commande ni systemctl show ne la
+# montrent.
+[Unit]
+Description=Local check of the Blocky DNS filter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ blocky_config_dir }}/check.env
+ExecStart=/bin/sh {{ blocky_config_dir }}/blocky-check.sh {{ blocky_check_address }} {{ blocky_check_resolved_name }} {{ blocky_check_blocked_name }}
+DynamicUser=yes
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes

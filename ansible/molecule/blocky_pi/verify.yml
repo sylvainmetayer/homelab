@@ -1,0 +1,131 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/blocky/defaults/main.yml
+  vars:
+    blocky_verify_dir: /tmp/molecule-blocky
+  tasks:
+    - name: Load the derived variables of the role
+      ansible.builtin.include_vars: ../../roles/blocky/vars/main.yml
+
+    - name: Verify the blocky deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: blocky
+        verify_app_borgmatic_config: ""
+
+    - name: Verify the healthcheck of blocky
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: blocky
+        verify_compose_healthchecks:
+          - blocky
+
+    - name: Render the compose model of blocky
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ blocky_base_path }}"
+      register: blocky_compose_raw
+      changed_when: false
+
+    # Publié sur l'IP LAN seule, sans privilège, sous son plafond mémoire.
+    - name: Assert the container is published on the LAN IP only, unprivileged
+      vars:
+        blocky_compose: "{{ (blocky_compose_raw.stdout | from_json).services.blocky }}"
+      ansible.builtin.assert:
+        that:
+          - blocky_compose.ports | map(attribute='host_ip') | unique == [blocky_lan_ip]
+          - blocky_compose.ports | map(attribute='published') | unique == ['53']
+          - blocky_compose.ports | map(attribute='protocol') | sort == ['tcp', 'udp']
+          - blocky_compose.cap_drop == ['ALL']
+          - blocky_compose.read_only
+          - blocky_compose.mem_limit | int == 384 * 1024 * 1024
+          - blocky_compose.cpus is not defined
+          - blocky_compose.network_mode is not defined
+        fail_msg: "{{ blocky_compose }}"
+
+    # Le binaire de la même version que l'image, pour valider la
+    # configuration rendue telle que le conteneur la lira.
+    - name: Create the validation folder
+      ansible.builtin.file:
+        path: "{{ blocky_verify_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Download Blocky for the validation
+      ansible.builtin.get_url:
+        url: "https://github.com/0xERR0R/blocky/releases/download/{{ blocky_binary_version }}/blocky_{{ blocky_binary_version }}_Linux_x86_64.tar.gz"
+        dest: "{{ blocky_verify_dir }}/blocky.tar.gz"
+        checksum: "sha256:{{ blocky_binary_sha256['x86_64'] }}"
+        mode: "0600"
+
+    - name: Unpack Blocky for the validation
+      ansible.builtin.unarchive:
+        src: "{{ blocky_verify_dir }}/blocky.tar.gz"
+        dest: "{{ blocky_verify_dir }}"
+        remote_src: true
+        include:
+          - blocky
+        creates: "{{ blocky_verify_dir }}/blocky"
+
+    - name: Validate the rendered configuration
+      ansible.builtin.command:
+        argv: ["{{ blocky_verify_dir }}/blocky", validate, --config, "{{ blocky_config_file }}"]
+      changed_when: false
+
+    # L'image (Renovate) et le binaire (lxc.yml) suivent la même version.
+    - name: Assert the image and the binary are the same release
+      ansible.builtin.assert:
+        that:
+          - (':' ~ blocky_binary_version ~ '@sha256:') in blocky_image
+
+    - name: Stat the configuration, the list cache and the push URL file
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: blocky_files
+      loop:
+        - "{{ blocky_config_file }}"
+        - "{{ blocky_base_path }}/cache"
+        - "{{ blocky_config_dir }}/check.env"
+
+    - name: Assert the image user owns the cache and the push URL is private
+      ansible.builtin.assert:
+        that:
+          - blocky_files.results[0].stat.mode == '0644'
+          - blocky_files.results[1].stat.uid == 100
+          - blocky_files.results[2].stat.mode == '0600'
+          - blocky_files.results[2].stat.pw_name == 'root'
+
+    - name: Read the push URL file and the check unit
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: blocky_check_files
+      loop:
+        - "{{ blocky_config_dir }}/check.env"
+        - /etc/systemd/system/blocky-check.service
+
+    # Sur le Pi, la vérification passe par l'IP publiée, comme les clients.
+    - name: Assert the check pushes to its monitor through the LAN IP
+      vars:
+        blocky_check_env: "{{ blocky_check_files.results[0].content | b64decode }}"
+        blocky_check_unit: "{{ blocky_check_files.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'BLOCKY_CHECK_PUSH_URL=https://uptime.example.invalid/api/push/molecule-dns-pi' in blocky_check_env"
+          - ("blocky-check.sh " ~ blocky_lan_ip ~ " ") in blocky_check_unit
+          - "'molecule-dns-pi' not in blocky_check_unit"
+
+    - name: Read the state of the check timer
+      ansible.builtin.systemd:
+        name: blocky-check.timer
+      register: blocky_check_timer
+
+    - name: Assert the check is scheduled
+      ansible.builtin.assert:
+        that:
+          - blocky_check_timer.status.ActiveState == 'active'
+          - blocky_check_timer.status.UnitFileState == 'enabled'

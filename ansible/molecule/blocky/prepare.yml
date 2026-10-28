@@ -1,0 +1,64 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Le faux résolveur amont : le binaire de la release du rôle, dans son propre
+# dossier, sous une unité transitoire.
+- name: Prepare blocky
+  hosts: all
+  vars_files:
+    - ../../roles/blocky/defaults/main.yml
+  vars:
+    blocky_fake_upstream_dir: /opt/molecule-fake-upstream
+  tasks:
+    - name: Create the fake upstream folder
+      become: true
+      ansible.builtin.file:
+        path: "{{ blocky_fake_upstream_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Download Blocky for the fake upstream
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/0xERR0R/blocky/releases/download/{{ blocky_binary_version }}/blocky_{{ blocky_binary_version }}_Linux_x86_64.tar.gz"
+        dest: "{{ blocky_fake_upstream_dir }}/blocky.tar.gz"
+        checksum: "sha256:{{ blocky_binary_sha256['x86_64'] }}"
+        mode: "0600"
+
+    - name: Unpack Blocky for the fake upstream
+      become: true
+      ansible.builtin.unarchive:
+        src: "{{ blocky_fake_upstream_dir }}/blocky.tar.gz"
+        dest: "{{ blocky_fake_upstream_dir }}"
+        remote_src: true
+        include:
+          - blocky
+        creates: "{{ blocky_fake_upstream_dir }}/blocky"
+
+    - name: Install the fake upstream configuration
+      become: true
+      ansible.builtin.copy:
+        src: fake-upstream.yml
+        dest: "{{ blocky_fake_upstream_dir }}/config.yml"
+        mode: "0600"
+
+    - name: Start the fake upstream
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-fake-upstream
+          - "{{ blocky_fake_upstream_dir }}/blocky"
+          - serve
+          - --config
+          - "{{ blocky_fake_upstream_dir }}/config.yml"
+        creates: /run/systemd/transient/molecule-fake-upstream.service
+
+    - name: Wait for the fake upstream to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 5300
+        timeout: 60

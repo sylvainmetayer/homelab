@@ -1,0 +1,11 @@
+---
+# dc@blocky (unité user, mode dc) ou blocky.service (mode binary). Pas en
+# --check si l'unité vient d'être posée : elle n'existe pas encore.
+- name: Restart blocky
+  become: "{{ blocky_mode == 'binary' }}"
+  when: not (ansible_check_mode and blocky_unit_install is defined and blocky_unit_install is changed)
+  ansible.builtin.systemd:
+    name: "{{ 'dc@' ~ blocky_service if blocky_mode == 'dc' else 'blocky' }}"
+    scope: "{{ 'user' if blocky_mode == 'dc' else 'system' }}"
+    state: restarted
+    daemon_reload: true

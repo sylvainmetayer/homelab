@@ -1,0 +1,117 @@
+---
+# Sur le modèle du mode binary de beszel_agent : archive de la release
+# vérifiée par sa somme, une version par dossier, service systemd sous un
+# utilisateur dynamique.
+# Le dossier parent aussi : un parent laissé en 0700 (mkdir -p d'un autre
+# outil) rendrait le binaire inaccessible à l'utilisateur dynamique.
+- name: Create the Blocky install folder
+  become: true
+  loop:
+    - "{{ blocky_binary_dir }}"
+    - "{{ blocky_binary_dir }}/{{ blocky_binary_version }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    # Traversable par tous : le service tourne sous un utilisateur dynamique
+    # (DynamicUser), qui doit atteindre le binaire.
+    mode: "0755" # NOSONAR
+  register: blocky_install_dirs
+
+# Sur un premier --check, ni le dossier ni l'archive n'existent : get_url
+# refuse un dossier absent, unarchive une archive absente.
+- name: Download the Blocky archive
+  become: true
+  when: not (ansible_check_mode and blocky_install_dirs is changed)
+  ansible.builtin.get_url:
+    url: "https://github.com/0xERR0R/blocky/releases/download/{{ blocky_binary_version }}/{{ blocky_archive }}"
+    dest: "{{ blocky_binary_dir }}/{{ blocky_archive }}"
+    checksum: "sha256:{{ blocky_binary_sha256[blocky_arch] }}"
+    owner: root
+    group: root
+    mode: "0600"
+  register: blocky_download
+
+- name: Unpack Blocky
+  become: true
+  when: not (ansible_check_mode and (blocky_install_dirs is changed or blocky_download is changed))
+  notify: Restart blocky
+  ansible.builtin.unarchive:
+    src: "{{ blocky_binary_dir }}/{{ blocky_archive }}"
+    dest: "{{ blocky_binary_dir }}/{{ blocky_binary_version }}"
+    remote_src: true
+    include:
+      - blocky
+    owner: root
+    group: root
+    creates: "{{ blocky_binary }}"
+
+- name: Create the Blocky configuration directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ blocky_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Validé par le binaire installé avant d'être posé : une configuration
+# refusée ne remplace jamais celle qui tourne. Lisible par tous : le service
+# la lit sous son utilisateur dynamique, rien de secret dedans.
+- name: Template the Blocky configuration
+  become: true
+  when: not (ansible_check_mode and blocky_install_dirs is changed)
+  notify: Restart blocky
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ blocky_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ blocky_binary }} validate --config %s"
+
+- name: Install the Blocky service
+  become: true
+  notify: Restart blocky
+  ansible.builtin.template:
+    src: blocky.service.j2
+    dest: /etc/systemd/system/blocky.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: blocky_unit_install
+
+# Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.
+- name: Start and enable Blocky
+  become: true
+  when: not (ansible_check_mode and blocky_unit_install is changed)
+  ansible.builtin.systemd:
+    name: blocky
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# Chaque version s'installe à côté des précédentes : sans ce ménage, chaque
+# montée Renovate laisse un dossier et une archive sur le petit disque du LXC.
+# Après « Start and enable », dont le daemon-reload a déjà pointé l'unité vers
+# la nouvelle version ; l'ancien processus garde son inode jusqu'au handler.
+- name: Find the previous Blocky versions
+  become: true
+  ansible.builtin.find:
+    paths: "{{ blocky_binary_dir }}"
+    file_type: any
+    patterns:
+      - "v[0-9]*"
+      - "blocky_*_Linux_*.tar.gz"
+    excludes:
+      - "{{ blocky_binary_version }}"
+      - "{{ blocky_archive }}"
+  register: blocky_stale
+
+- name: Remove the previous Blocky versions
+  become: true
+  loop: "{{ blocky_stale.files | map(attribute='path') | list }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent

@@ -656,6 +656,16 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_dns["pi"]
+  values = { push_token = "push-cron-dns-pi" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_dns["lxc"]
+  values = { push_token = "push-cron-dns-lxc" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -2334,6 +2344,17 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_nas_updates_url (nas.yml) ne pointe pas sur le moniteur Mises à jour NAS."
   }
 
+  # pi.yml et lxc.yml (vérification de Blocky, rôle blocky)
+  assert {
+    condition     = output.uptime_cron_dns_pi_url == "https://uptime.example.test/api/push/push-cron-dns-pi"
+    error_message = "uptime_cron_dns_pi_url (pi.yml) ne pointe pas sur le moniteur DNS Raspberry Pi."
+  }
+
+  assert {
+    condition     = output.uptime_cron_dns_lxc_url == "https://uptime.example.test/api/push/push-cron-dns-lxc"
+    error_message = "uptime_cron_dns_lxc_url (lxc.yml) ne pointe pas sur le moniteur DNS LXC newt."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2368,6 +2389,8 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_vzdump_restore_test_url,
       output.uptime_cron_pve_updates_url,
       output.uptime_cron_nas_updates_url,
+      output.uptime_cron_dns_pi_url,
+      output.uptime_cron_dns_lxc_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2385,7 +2408,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         regexall("output \"(uptime_(?:backup|cron)_\\w+_url)\"", file("${path.module}/${f}"))
       ]) :
       anytrue([
-        for playbook in ["docker.yml", "flip.yml", "nas.yml", "pi.yml", "pangolin.yaml", "pve.yml"] :
+        for playbook in ["docker.yml", "flip.yml", "lxc.yml", "nas.yml", "pi.yml", "pangolin.yaml", "pve.yml"] :
         strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.${name}.value")
       ])
     ]) && output.uptime_backup_trek_url != ""
@@ -2427,6 +2450,26 @@ run "flip_newt_credentials_come_from_the_flip_site" {
       && pangolin_site_resource.flip.udp_port_range == "*"
     )
     error_message = "flip.internal doit viser l'IP privée de flip (remote state), sur le site flip, en TCP 22 (UDP à \"*\" : le provider ne sait pas envoyer une plage vide, ufw sur flip ne laisse entrer que 22/tcp)."
+  }
+}
+
+# Le Blocky du LXC newt (lxc.yml, rôle blocky en binaire), pour un téléphone
+# en 4G par le client Pangolin : la ressource vise l'IP du LXC de l'inventaire,
+# sur le site du LXC lui-même, en TCP et UDP 53 seulement.
+run "dns_resource_points_at_the_lxc_blocky" {
+  command = plan
+
+  assert {
+    condition = (
+      pangolin_site_resource.dns.site_id == pangolin_site.proxmox_lxc.id
+      && pangolin_site_resource.dns.mode == "host"
+      && pangolin_site_resource.dns.destination == "192.168.1.200"
+      && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "newt-lxc ansible_host=192.168.1.200 ")
+      && pangolin_site_resource.dns.tcp_port_range == "53"
+      && pangolin_site_resource.dns.udp_port_range == "53"
+      && strcontains(file("${path.module}/../../ansible/lxc.yml"), "- role: blocky\n")
+    )
+    error_message = "La ressource dns doit viser le LXC newt de ansible/inventory/hosts (site proxmox-lxc), en TCP et UDP 53, et lxc.yml y déployer Blocky."
   }
 }
 
@@ -2859,6 +2902,20 @@ run "monitors_are_filed_and_notify_by_email" {
       && strcontains(file("${path.module}/../../ansible/nas.yml"), "update_notify_mode: ugos\n")
     )
     error_message = "Mises à jour Proxmox / NAS : timer hebdomadaire, intervalle de deux semaines à 24 jours, une URL push par hôte (pve.yml en apt, nas.yml en ugos)."
+  }
+
+  # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes
+  # (blocky-check.timer) ; l'intervalle laisse passer deux vérifications
+  # manquées, pas trois. Une panne DNS coupe toute la maison : e-mail et ntfy.
+  assert {
+    condition = alltrue([
+      for m in values(uptimekuma_monitor_push.cron_dns) :
+      m.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
+      && contains(m.notification_ids, uptimekuma_notification_ntfy.ntfy.id)
+      && m.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_check_schedule)[0])
+    ])
+    error_message = "Moniteurs DNS : rangés avec les healthchecks, e-mail et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
   }
 
   assert {

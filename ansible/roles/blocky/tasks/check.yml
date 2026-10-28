@@ -1,0 +1,54 @@
+---
+# Uptime Kuma (PikaPods) ne joint pas le LAN : l'hôte vérifie son Blocky
+# lui-même et pousse le résultat (defaults, « Vérification locale »).
+# Le dossier existe déjà en mode binary (configuration de Blocky).
+- name: Create the Blocky check folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ blocky_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the Blocky check script
+  become: true
+  ansible.builtin.copy:
+    src: blocky-check.sh
+    dest: "{{ blocky_config_dir }}/blocky-check.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+# L'URL push porte le jeton du moniteur : 0600 et diff: false.
+- name: Write the push URL of the Blocky check
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "BLOCKY_CHECK_PUSH_URL={{ blocky_check_push_url }}\n"
+    dest: "{{ blocky_config_dir }}/check.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the Blocky check service and timer
+  become: true
+  loop:
+    - blocky-check.service
+    - blocky-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: blocky_check_units
+
+- name: Enable the Blocky check
+  become: true
+  when: not (ansible_check_mode and blocky_check_units is changed)
+  ansible.builtin.systemd:
+    name: blocky-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true

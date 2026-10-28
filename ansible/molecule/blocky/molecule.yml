@@ -1,0 +1,13 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Blocky en binaire (mode binary) avec les variables du LXC newt, comme
+# lxc.yml. Le vrai binaire est téléchargé (somme vérifiée) et démarré, contre
+# un faux résolveur amont (un second Blocky, prepare.yml) et des listes en
+# ligne : le verify l'interroge avec dig (bloqué, autorisé, noms locaux,
+# rebinding) et lance la vérification locale contre un faux Uptime Kuma.
+scenario:
+  name: blocky
+
+ansible:
+  playbooks:
+    prepare: prepare.yml

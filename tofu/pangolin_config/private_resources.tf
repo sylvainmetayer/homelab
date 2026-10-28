@@ -91,6 +91,27 @@ resource "pangolin_site_resource" "nas" {
   udp_port_range = "*"
 }
 
+# Blocky (DNS filtering, ansible/roles/blocky) on the newt LXC, for a phone on
+# mobile data: in the Pangolin Android app, "Override DNS" + "Tunnel DNS" with
+# 192.168.1.200 as primary upstream DNS server (the app asks for the DNS
+# server to be a Pangolin resource, docs/runbooks/dns-blocky.md). The
+# Pangolin server pushes no DNS setting to its clients (1.25: every field of
+# buildOlmDnsConfig is undefined), hence the manual setting. Served by the
+# newt of this same LXC: a restart of blocky.service never touches the tunnel.
+# The Pi's Blocky, the secondary, already answers through the `pi` resource
+# (UDP "*"); its TCP 53 is not opened, so only this primary takes DNS over
+# TCP (large answers). No binding: Admin only, like the NAS.
+resource "pangolin_site_resource" "dns" {
+  site_id        = pangolin_site.proxmox_lxc.id
+  name           = "DNS"
+  mode           = "host"
+  alias          = "dns.internal"
+  destination    = "192.168.1.200"
+  disable_icmp   = true
+  tcp_port_range = "53"
+  udp_port_range = "53"
+}
+
 # SSH to the flip server, which has no public IP, for manual access through a
 # Pangolin client. Not for Ansible, local or CI: this resource is served by the
 # newt running on flip itself, so a play that restarts newt or docker there

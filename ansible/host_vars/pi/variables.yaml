@@ -40,7 +40,10 @@ backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pi }}"
 # poste, le LXC newt par où passe la CI). Les ports publiés par Docker
 # contournent ufw (leurs règles passent avant) : Immich (2283), Postgres
 # (5432), Valkey (6379) et le timelapse (5000) restent joignables depuis le
-# LAN, pour le worker distant.
+# LAN, pour le worker distant. De même Blocky (53/udp et 53/tcp, rôle
+# blocky) : publié sur l'IP LAN du Pi seule, sans règle ufw (elle ne servirait
+# à rien) ; la Bbox ne redirige aucun port vers le Pi, seuls le LAN et le
+# client Pangolin (par le Newt du LXC, une IP du LAN) l'atteignent.
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp, from: 192.168.1.0/24 }
 # Tout le LAN ne doit jamais être banni : la CI arrive par le LXC newt, et un

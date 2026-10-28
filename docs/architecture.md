@@ -129,8 +129,8 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
 | `docker` | VM Proxmox 300 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
-| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich |
-| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security` et `newt_service`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local |
+| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) |
+| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security`, `newt_service` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet
@@ -149,6 +149,36 @@ lui-même est `dc@newt`.
 - `flip.internal` (ressource privée Pangolin) passe par le Newt de flip
   lui-même : jamais pour Ansible, une play qui relance newt couperait sa
   propre connexion.
+
+## Le DNS de la maison (Blocky)
+
+Le DHCP de la Bbox annonce deux résolveurs Blocky (rôle `blocky`,
+[ADR 0012](adr/0012-filtrage-dns-blocky.md)) : le LXC newt (192.168.1.200,
+binaire, `lxc.yml`) et le Pi (192.168.1.96, conteneur publié sur son IP LAN
+seule, `pi.yml`). Une panne de l'un passe inaperçue des clients, qui
+basculent sur l'autre.
+
+- **Amont** : DNS-over-TLS vers Quad9 et Mullvad (`parallel_best`), amorcé par
+  leurs IP (`bootstrapDns`) : Blocky ne dépend ni du `resolv.conf` de son hôte
+  ni de la Bbox. Cache et préchargement des noms fréquents.
+- **Filtrage** : HaGeZi Pro (publicités, traqueurs) et HaGeZi TIF medium
+  (domaines malveillants), téléchargées chaque jour, copie gardée sur disque ;
+  réponse `0.0.0.0`. Exceptions : `blocky_allowlist`, par PR. Groupes par
+  client possibles (`blocky_client_groups`), un seul aujourd'hui.
+- **Noms locaux** : le domaine `lan` (noms du DHCP de la Bbox, `pi.lan`,
+  `data.lan`…) et la zone inverse du LAN renvoyés à la Bbox ; `pve.lan`,
+  `docker.lan`, `nas.lan`, `newt-lxc.lan` déclarés dans le rôle.
+- **Rebinding** : une réponse publique qui pointe dans le LAN est vidée, sauf
+  `media.sylvain.cloud` et `nas.sylvain.cloud` (A de `tofu/dns` vers le NAS).
+- **Aucun journal des requêtes.**
+- **Supervision** : Uptime Kuma (PikaPods) ne joint pas le LAN ; chaque hôte
+  vérifie son Blocky toutes les 5 minutes (`blocky-check.timer` : un nom qui
+  résout, un nom bloqué) et pousse aux moniteurs « DNS Raspberry Pi » et
+  « DNS LXC newt » (`tofu/pangolin_config/cron_dns.tf`), alertes par e-mail
+  et ntfy.
+- **Dehors** : le client Pangolin d'un téléphone peut envoyer son DNS dans le
+  tunnel vers 192.168.1.200 (ressource privée `dns`), réglage à faire dans
+  l'appli ([runbook](runbooks/dns-blocky.md)).
 
 ## D'où vient chaque secret
 

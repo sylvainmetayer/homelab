@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Toutes les 5 minutes ; le moniteur « DNS {{ inventory_hostname }} » tolère
+# deux vérifications manquées (intervalle de 15 minutes, cron_dns.tf), et un
+# « down » isolé (une vérification juste après un redémarrage, listes en cours
+# de chargement) ne l'alerte pas : il faut deux échecs de suite.
+[Unit]
+Description=Periodic local check of the Blocky DNS filter
+
+[Timer]
+OnCalendar={{ blocky_check_schedule }}
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

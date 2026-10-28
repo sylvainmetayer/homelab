@@ -1,0 +1,28 @@
+# Faux résolveur amont (et fausse Bbox) du scénario blocky : un second Blocky
+# qui ne répond que ces noms, sans résolveur derrière lui (rien n'écoute sur
+# 127.0.0.1:5399). Le Blocky du rôle le consulte en DNS clair.
+upstreams:
+  init:
+    strategy: fast
+  groups:
+    default:
+      - tcp+udp:127.0.0.1:5399
+customDNS:
+  mapping:
+    example.com: 192.0.2.10
+    # Bloqué par les listes du converge : 192.0.2.20 dans une réponse veut
+    # dire que le blocage n'a pas joué.
+    googlesyndication.com: 192.0.2.20
+    allowed.molecule-homelab.net: 192.0.2.30
+    # Rebinding : un nom public qui répond une IP du LAN est vidé, sauf
+    # nas.sylvain.cloud (blocky_rebinding_allowed_domains).
+    rebind.molecule-homelab.net: 192.168.50.5
+    nas.sylvain.cloud: 192.168.1.137
+    # Ce que sert la Bbox (conditional) : le domaine lan.
+    pi.lan: 192.168.1.96
+queryLog:
+  type: none
+ports:
+  dns:
+    - 127.0.0.1:5300
+  http: 127.0.0.1:4300

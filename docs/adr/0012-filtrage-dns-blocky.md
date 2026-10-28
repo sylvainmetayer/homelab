@@ -1,6 +1,6 @@
 # 0012. Filtrage DNS du réseau local : Blocky
 
-- **Statut** : proposée (aucune PR à ce jour)
+- **Statut** : proposée (mise en œuvre par la PR du rôle `blocky`, acceptée une fois déployée)
 - **Date** : 2026-10-28
 
 ## Contexte
@@ -15,7 +15,10 @@ dépôt et déployé par Ansible ; un DNS réglé dans une UI y ferait exception
 
 **Blocky**, parce que sa configuration est un fichier YAML : un rôle Ansible
 le template, Molecule le valide, une PR le relit, comme le reste du dépôt.
-Hôte, listes de blocage et bascule du DHCP : à décider dans la PR.
+Deux instances, que le DHCP de la Bbox annonce toutes les deux : le Pi
+(conteneur) et le LXC newt (binaire, pas de Docker). Listes HaGeZi Pro et
+TIF medium ; amont en DoT chez Quad9 et Mullvad. Bascule du DHCP faite à la
+main dans la Bbox ([runbook](../runbooks/dns-blocky.md)).
 
 ## Alternatives écartées
 
@@ -28,8 +31,9 @@ Hôte, listes de blocage et bascule du DHCP : à décider dans la PR.
 ## Conséquences
 
 - Pas d'UI d'administration : un domaine à débloquer passe par une PR.
-- Le DNS de toute la maison dépend de l'hôte de Blocky : prévoir un second
-  résolveur dans le DHCP, ou accepter la panne.
+- Le DNS de la maison dépend de Blocky : deux hôtes, une panne de l'un ne
+  coupe rien. Le DHCP se règle dans l'UI de la Bbox, hors du dépôt.
+- Le LXC newt passe à 1 Gio (Blocky y prend jusqu'à 384 Mio avec ses listes).
 
 ## Liens
 

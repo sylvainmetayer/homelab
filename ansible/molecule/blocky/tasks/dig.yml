@@ -1,0 +1,24 @@
+---
+# Une requête A au Blocky du rôle, comparée à la réponse attendue.
+# Variables :
+#   dig_name      le nom demandé
+#   dig_expected  la liste des lignes de `dig +short` attendues ([] : vide)
+#   dig_server    l'adresse interrogée (défaut : 127.0.0.1)
+- name: Query {{ dig_name }}
+  ansible.builtin.command:
+    argv:
+      - dig
+      - +short
+      - +time=2
+      - +tries=3
+      - "@{{ dig_server | default('127.0.0.1') }}"
+      - "{{ dig_name }}"
+      - A
+  register: dig_result
+  changed_when: false
+
+- name: Assert the answer for {{ dig_name }}
+  ansible.builtin.assert:
+    that:
+      - dig_result.stdout_lines == dig_expected
+    fail_msg: "{{ dig_name }} : {{ dig_result.stdout_lines }}, attendu {{ dig_expected }}"

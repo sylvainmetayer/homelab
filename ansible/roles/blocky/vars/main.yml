@@ -1,0 +1,19 @@
+---
+# Dérivé du mode, pas un réglage.
+# Archive de la release pour l'architecture de l'hôte (mode binary).
+blocky_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'x86_64' }}"
+blocky_archive: "blocky_{{ blocky_binary_version }}_Linux_{{ blocky_arch }}.tar.gz"
+blocky_binary: "{{ blocky_binary_dir }}/{{ blocky_binary_version }}/blocky"
+# Où Blocky écoute, vu de son processus : dans le conteneur, toutes ses
+# interfaces (Docker ne publie que blocky_lan_ip) ; en binaire, l'IP LAN et la
+# boucle locale, rien d'autre.
+blocky_dns_listen: "{{ ['53'] if blocky_mode == 'dc' else [blocky_lan_ip ~ ':53', '127.0.0.1:53'] }}"
+# Copie des listes téléchargées : volume du conteneur (/app/cache, à
+# l'utilisateur 100 de l'image) ou StateDirectory du service.
+blocky_lists_cache_path: "{{ '/app/cache/lists' if blocky_mode == 'dc' else '/var/lib/blocky/lists' }}"
+# Fichier de configuration lu par Blocky, et celui que valide la tâche
+# `blocky validate` (le même fichier, vu de l'hôte).
+blocky_config_file: "{{ blocky_base_path ~ '/config.yml' if blocky_mode == 'dc' else blocky_config_dir ~ '/config.yml' }}"
+# Adresse interrogée par la vérification locale : celle des clients en
+# conteneur (Docker ne publie que celle-là), la boucle locale en binaire.
+blocky_check_address: "{{ blocky_lan_ip if blocky_mode == 'dc' else '127.0.0.1' }}"

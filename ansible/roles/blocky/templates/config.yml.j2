@@ -1,0 +1,75 @@
+# {{ ansible_managed }}
+# Blocky (rôle blocky), référence : https://0xerr0r.github.io/blocky/
+# Rendu par Ansible ; validé par `blocky validate` avant d'être posé en mode
+# binary, par Molecule dans les deux modes.
+upstreams:
+  init:
+    # Démarre même si aucun résolveur amont ne répond encore (boot avant la
+    # box) : les requêtes échouent jusqu'à son retour, le service tient.
+    strategy: fast
+  groups:
+    default: {{ blocky_upstreams | to_json }}
+  strategy: parallel_best
+  timeout: 2s
+
+# Le LAN et le réseau Docker du Pi sont en IPv4 seulement.
+connectIPVersion: v4
+
+bootstrapDns: {{ blocky_bootstrap_dns | to_json }}
+
+customDNS:
+  customTTL: 1h
+  filterUnmappedTypes: true
+  mapping: {{ blocky_custom_dns | to_json }}
+
+conditional:
+  mapping: {{ blocky_conditional_mapping | to_json }}
+
+rebindingProtection:
+  enable: true
+  allowedDomains: {{ blocky_rebinding_allowed_domains | to_json }}
+
+blocking:
+  denylists: {{ blocky_denylists | to_json }}
+{% if blocky_allowlist | length > 0 %}
+  # Même liste pour chaque groupe : un domaine autorisé l'est pour tous.
+  allowlists:
+{% for group in blocky_denylists %}
+    {{ group }}:
+      - |
+{% for domain in blocky_allowlist %}
+        {{ domain }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+  clientGroupsBlock: {{ blocky_client_groups | to_json }}
+  # 0.0.0.0 (et :: en AAAA) : le client échoue tout de suite, sans attendre.
+  blockType: zeroIp
+  blockTTL: 1m
+  loading:
+    refreshPeriod: {{ blocky_lists_refresh_period }}
+    # Sert tout de suite, listes chargées en arrière-plan.
+    strategy: fast
+    downloads:
+      timeout: 60s
+      attempts: 5
+      cooldown: 10s
+      cachePath: {{ blocky_lists_cache_path }}
+
+caching:
+  # Réponses gardées au moins 5 minutes, même à TTL plus court ; les noms
+  # demandés souvent sont rafraîchis avant d'expirer.
+  minTime: 5m
+  prefetching: true
+
+# Pas de journal des requêtes : il dirait qui visite quoi dans la maison.
+queryLog:
+  type: none
+
+ports:
+  dns: {{ blocky_dns_listen | to_json }}
+  # API (blocky query, blocky lists refresh) : locale seulement.
+  http: 127.0.0.1:4000
+
+log:
+  level: info
