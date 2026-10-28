@@ -140,13 +140,26 @@
 
 # Le timer seul : le service, oneshot, n'est jamais démarré par Ansible (la
 # première copie dure des heures ; runbook).
-- name: Enable the nightly kDrive copy
+# Coupé tant que le premier passage n'a pas été fait à la main
+# (kdrive_sync_timer_enabled) : la copie ne supprimant jamais rien, ce qu'un
+# passage automatique aurait rapatrié à tort resterait sur le NAS.
+- name: Enable or disable the nightly kDrive copy
   become: true
   ansible.builtin.systemd:
     name: kdrive-sync.timer
-    state: started
-    enabled: true
+    state: "{{ 'started' if kdrive_sync_timer_enabled else 'stopped' }}"
+    enabled: "{{ kdrive_sync_timer_enabled }}"
     daemon_reload: true
+
+# Sauvegarde désactivée après coup : la configuration part (borgmatic ne
+# touche plus au dépôt), le dépôt distant et ses archives restent.
+- name: Remove the borgmatic configuration of the kDrive copy
+  when: not kdrive_sync_backup_enabled
+  tags: backup
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_config_dir }}/kdrive.yaml"
+    state: absent
 
 - name: Configure borgmatic backup for the kDrive copy
   when: kdrive_sync_backup_enabled

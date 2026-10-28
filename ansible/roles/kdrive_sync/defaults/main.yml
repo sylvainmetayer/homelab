@@ -50,9 +50,11 @@ kdrive_sync_source_path: ""
 kdrive_sync_exclude_patterns: []
 
 # --- Débit et parallélisme ---
-# Taille et date de modification, pas --checksum : WebDAV de kDrive
-# (vendor other) ne donne aucune somme, --checksum ne comparerait que les
-# tailles et manquerait un fichier modifié à taille égale.
+# Taille seule : en vendor other, rclone ne lit ni date de modification ni
+# somme sur WebDAV (« Plain WebDAV does not support modified times […] nor
+# hashes », rclone.org/webdav). Un fichier modifié dans kDrive à taille
+# égale n'est donc pas recopié (ni sa version précédente déplacée dans
+# versions/) : le miroir garde l'ancien contenu.
 kdrive_sync_transfers: 4
 kdrive_sync_checkers: 4
 # Limite de débit rclone (--bwlimit), par exemple "20M" ou
@@ -62,6 +64,9 @@ kdrive_sync_bwlimit: ""
 # Après les sauvegardes des autres hôtes (01:00) et celle du NAS (02:30),
 # avant la vérification des certificats (07:00) et le test de restauration.
 kdrive_sync_schedule: "*-*-* 04:00:00"
+# Timer actif. Le NAS le coupe (host_vars/nas) jusqu'au premier passage à la
+# main, après vérification de ce que WebDAV expose (runbook).
+kdrive_sync_timer_enabled: true
 # La première copie prend des heures : bornée sous la journée, pour que le
 # timer du lendemain reparte. Une copie interrompue reprend là où elle en
 # était (les fichiers déjà copiés sont sautés).

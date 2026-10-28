@@ -135,7 +135,7 @@
         name: kdrive-sync.service
       register: kdrive_sync_verify_unit
 
-    # Timer actif, service jamais lancé par Ansible ; rclone par `docker
+    # Timer selon kdrive_sync_timer_enabled, service jamais lancé par Ansible ; rclone par `docker
     # compose run --rm` du compose du rôle, versions datées sous /data/versions,
     # URL push par le fichier d'environnement seul.
     - name: Assert the copy runs nightly through docker compose run
@@ -143,8 +143,9 @@
         kdrive_sync_verify_exec: "{{ kdrive_sync_verify_unit.status.ExecStart }}"
       ansible.builtin.assert:
         that:
-          - kdrive_sync_verify_timer.status.UnitFileState == 'enabled'
-          - kdrive_sync_verify_timer.status.ActiveState == 'active'
+          # Coupé sur le NAS jusqu'au premier passage à la main (host_vars/nas).
+          - kdrive_sync_verify_timer.status.UnitFileState == ('enabled' if kdrive_sync_timer_enabled else 'disabled')
+          - kdrive_sync_verify_timer.status.ActiveState == ('active' if kdrive_sync_timer_enabled else 'inactive')
           - kdrive_sync_verify_unit.status.ActiveState == 'inactive'
           - kdrive_sync_verify_unit.status.Type == 'oneshot'
           - "'--backup-dir-root /data/versions -- ' in kdrive_sync_verify_exec"

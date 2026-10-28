@@ -59,3 +59,9 @@ beszel_agent_smart_devices:
   - { path: /dev/sdc }
 beszel_agent_extra_filesystems:
   - { path: /volume1, name: volume1 }
+
+# --- Copie de kDrive (rôle kdrive_sync, nas.yml) ---
+# Timer coupé jusqu'au premier passage à la main (--dry-run puis copie,
+# docs/runbooks/kdrive-nas.md) : ensuite, passer à true et relancer
+# nas.yml --tags kdrive_sync.
+kdrive_sync_timer_enabled: false
