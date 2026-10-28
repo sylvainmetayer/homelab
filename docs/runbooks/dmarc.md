@@ -1,4 +1,4 @@
-# DMARC : lire les rapports, durcir, ajouter un expéditeur
+# DMARC et CAA : lire les rapports, durcir, ajouter un expéditeur ou une CA
 
 Procédure, pas un incident. Les enregistrements SPF, DMARC, TLS-RPT et le MX
 nul de sylvain.cloud sont dans `tofu/dns/mail.tf` (tests :
@@ -170,3 +170,55 @@ domaine en expéditeur.
 Une zone qui n'envoyait rien et se met à envoyer (sylvain.cloud) : enlever
 son MX nul seulement si elle doit aussi recevoir, ajouter le SPF du service,
 et repartir de `p = "none"` le temps de vérifier les rapports.
+
+## CAA : qui peut délivrer un certificat
+
+Pas du courrier, mais la même zone et le même destinataire de rapports :
+`tofu/dns/caa.tf` (tests : `caa_*` dans `tofu/dns/tests/dns.tftest.hcl`)
+publie à l'apex de chaque zone les autorités de certification (CA) qui ont
+le droit de délivrer un certificat pour ses noms (RFC 8659). Une CA absente
+de la liste refuse ; sans aucun CAA (le cas jusqu'au 2026-10-28), n'importe
+laquelle pouvait.
+
+| Zone | `issue` | Pourquoi |
+|---|---|---|
+| sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (HTTP-01), Traefik du NAS (DNS-01, media et nas.sylvain.cloud) |
+| sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin, GitHub Pages (`*.talks`), et Cloudflare Pages (ref, www, r) |
+
+Partout : `0 issuewild ";"` (aucun joker n'est délivré : Pangolin et le NAS
+demandent un certificat par nom) et `0 iodef "mailto:<dmarc_report_address>"`.
+
+Pourquoi trois CA sur sylvain.dev : Cloudflare Pages choisit seul l'autorité
+de ses domaines personnalisés, entre Let's Encrypt, Google Trust Services
+(`pki.goog`) et SSL.com, et peut en changer au renouvellement (aujourd'hui
+ref, www et r ont un certificat Google Trust Services WE1). Ces noms sont des
+CNAME vers `*.pages.dev`, qui ne publie aucun CAA : la CA remonte alors à
+l'apex sylvain.dev. Retirer `pki.goog` ou `ssl.com` ne casse rien tout de
+suite, mais fait échouer le prochain renouvellement, sans alerte. La liste
+vient de developers.cloudflare.com/ssl/reference/certificate-authorities :
+la relire si Cloudflare annonce un changement d'autorités.
+
+L'adresse iodef est `dmarc_report_address`, pas `pangolin_le_email` : un CAA
+est public, l'alias de rapports l'est déjà (DMARC, TLS-RPT), alors que
+`pangolin_le_email` est un secret d'Ansible, illisible par `tofu/dns`. Peu
+de CA envoient quoi que ce soit à iodef.
+
+Vérifier après l'apply :
+
+```bash
+for d in sylvainmetayer.fr sylvain.dev metayer.dev sylvain.cloud; do
+  echo "== $d"; dig +short CAA $d
+done
+dig +short CAA ref.sylvain.dev   # vide : pages.dev n'en publie pas, on remonte à sylvain.dev
+```
+
+puis `tofu plan` doit être vide (si OVH réécrit la valeur d'un CAA, le plan
+le montre en modification perpétuelle : aligner `caa.tf` sur ce qu'OVH
+renvoie).
+
+Ajouter une CA (un nouveau service qui obtient ses certificats ailleurs, ou
+un joker) : l'ajouter à `local.caa_issuers` de sa zone dans `caa.tf` (ou un
+`issuewild` dédié pour un joker), et le test qui liste les CA hors Let's
+Encrypt, dans la même PR. Symptôme d'un oubli : le service n'obtient pas son
+certificat, avec une erreur « CAA record … prevents issuance » dans ses logs
+ACME (sur Pangolin `docker logs traefik`, sur le NAS `docker logs nas-proxy`).

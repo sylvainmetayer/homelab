@@ -432,3 +432,68 @@ run "sylvain_cloud_mx_nul" {
     error_message = "Activé, le MX nul de sylvain.cloud doit être « 0 . » à l'apex (RFC 7505)."
   }
 }
+
+# CAA (caa.tf) : Let's Encrypt partout, plus les autorités de Cloudflare
+# Pages sur sylvain.dev, aucun joker, rapports à l'adresse DMARC.
+run "caa_sur_chaque_zone" {
+  command = plan
+
+  assert {
+    condition = (
+      toset([for r in values(ovh_domain_zone_record.caa) : r.zone]) == toset(keys(ovh_domain_zone_record.dmarc))
+      && alltrue([for r in values(ovh_domain_zone_record.caa) : r.subdomain == "" && r.fieldtype == "CAA" && r.ttl == 300])
+    )
+    error_message = "Chaque zone OVH doit porter ses CAA à l'apex (caa.tf)."
+  }
+
+  assert {
+    condition = alltrue([
+      for z in keys(ovh_domain_zone_record.dmarc) :
+      ovh_domain_zone_record.caa["${z} issue letsencrypt.org"].target == "0 issue \"letsencrypt.org\""
+      && ovh_domain_zone_record.caa["${z} issuewild"].target == "0 issuewild \";\""
+      && ovh_domain_zone_record.caa["${z} iodef"].target == "0 iodef \"mailto:dmarc@sylvainmetayer.fr\""
+    ])
+    error_message = "Chaque zone : issue letsencrypt.org, issuewild \";\" (aucun joker) et iodef vers dmarc_report_address."
+  }
+
+  # Seul sylvain.dev porte des noms Cloudflare Pages : ailleurs, Let's Encrypt seul.
+  assert {
+    condition = toset([
+      for k, r in ovh_domain_zone_record.caa : k
+      if startswith(r.target, "0 issue ") && r.target != "0 issue \"letsencrypt.org\""
+    ]) == toset(["sylvain.dev issue pki.goog", "sylvain.dev issue ssl.com"])
+    error_message = "Hors Let's Encrypt, seules les autorités de Cloudflare Pages (pki.goog, ssl.com) sont autorisées, et seulement sur sylvain.dev."
+  }
+
+  # Les CNAME de Pages visent *.pages.dev, sans CAA : la recherche remonte à
+  # l'apex de leur zone, qui doit autoriser les trois autorités de Cloudflare.
+  assert {
+    condition = alltrue(flatten([
+      for m in ["ref", "site", "1y"] : [
+        for ca in ["letsencrypt.org", "pki.goog", "ssl.com"] :
+        contains(keys(ovh_domain_zone_record.caa), "${regex("variable \"domain_zone\"[^}]*default\\s*=\\s*\"([^\"]+)\"", file("${path.module}/../${m}/variables.tf"))[0]} issue ${ca}")
+      ]
+    ]))
+    error_message = "La zone des domaines Cloudflare Pages (tofu/ref, site, 1y) doit autoriser letsencrypt.org, pki.goog et ssl.com, sinon leurs certificats ne se renouvellent plus."
+  }
+
+  # issuewild ";" suppose qu'aucun joker n'est demandé : Pangolin n'en
+  # demande que si prefer_wildcard_cert est activé.
+  assert {
+    condition     = !strcontains(file("${path.module}/../../ansible/roles/pangolin/templates/pangolin_config.yml.j2"), "prefer_wildcard_cert")
+    error_message = "Pangolin demanderait un certificat joker, que le CAA issuewild \";\" refuse : autoriser letsencrypt.org en issuewild sur sa zone (caa.tf)."
+  }
+}
+
+run "caa_iodef_suit_l_adresse" {
+  command = plan
+
+  variables {
+    dmarc_report_address = "rapports@sylvain.dev"
+  }
+
+  assert {
+    condition     = ovh_domain_zone_record.caa["metayer.dev iodef"].target == "0 iodef \"mailto:rapports@sylvain.dev\""
+    error_message = "L'iodef des CAA doit suivre dmarc_report_address."
+  }
+}
