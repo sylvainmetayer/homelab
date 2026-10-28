@@ -79,7 +79,9 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   temps.
 - **Urgence** : l'admin peut pousser directement sur `main` (contournement du
   ruleset) ; le push déclenche le même déploiement. À réserver aux cas où
-  attendre la CI coûte plus que le risque.
+  attendre la CI coûte plus que le risque. Si le ruleset
+  `main-signed-commits` est actif, ce contournement ne le couvre pas : le
+  commit doit porter ma signature SSH ([commits-signes.md](commits-signes.md)).
 - **Relancer un déploiement** sans nouveau commit :
 
   ```bash
