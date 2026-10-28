@@ -1,0 +1,12 @@
+# Mises à jour en attente (rôle update_notify), chaque semaine. Persistent :
+# un hôte éteint à l'heure dite rattrape le passage à son démarrage.
+[Unit]
+Description=Weekly check of the pending updates
+
+[Timer]
+OnCalendar={{ update_notify_schedule }}
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

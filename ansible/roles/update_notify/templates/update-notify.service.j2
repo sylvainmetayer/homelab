@@ -1,0 +1,36 @@
+# Mises à jour en attente (rôle update_notify, files/update_notify.py), mode
+# {{ update_notify_mode }} : liste sans rien installer, publie sur le topic
+# {{ update_notify_ntfy_topic }} de ntfy, pousse au moniteur Uptime Kuma de
+# l'hôte. Jeton ntfy et URL push dans l'EnvironmentFile (0600 root), jamais
+# sur la ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=Check of the pending updates ({{ update_notify_mode }})
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ update_notify_dir }}/update-notify.env
+ExecStart=/usr/bin/python3 -I {{ update_notify_dir }}/update_notify.py {{ update_notify_mode }} --host {{ update_notify_host_label }} --ntfy-url {{ update_notify_ntfy_url }} --topic {{ update_notify_ntfy_topic }} --state /var/lib/update-notify/state.json
+# /var/lib/update-notify : la version d'UGOS et le mois du dernier rappel.
+StateDirectory=update-notify
+StateDirectoryMode=0700
+# Trois apt-get update espacés d'une minute au pire, puis deux requêtes HTTPS :
+# borné, pour qu'un miroir bloqué ne laisse pas l'unité « activating ».
+TimeoutStartSec=15min
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+{% if update_notify_mode == 'apt' %}
+# apt-get update écrit sous /var (listes, cache) et passe ses
+# téléchargements à l'utilisateur _apt : /usr, /boot et /etc en lecture
+# seule, toutes les capacités de root gardées.
+ProtectSystem=full
+{% else %}
+# Root pour lire son script (dossier 0700 root sous /volume1/docker), avec la
+# seule capacité de lecture et de traversée, comme la vérification des
+# certificats de nas_proxy : UGOS présente à root des modes de dossiers
+# partagés qui ne sont pas les vrais. N'écrit que dans son StateDirectory.
+ProtectSystem=strict
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+{% endif %}

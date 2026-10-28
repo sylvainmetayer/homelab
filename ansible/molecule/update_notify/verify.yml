@@ -1,0 +1,338 @@
+---
+- name: Verify
+  hosts: all
+  # En root, comme l'unité : le dossier du script est 0700 root.
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../roles/update_notify/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  vars:
+    update_notify_verify_dir: /root/molecule-update-notify
+    update_notify_verify_push: /api/push/molecule-updates
+    # Les arguments de l'unité, faux serveurs et fixtures en plus.
+    update_notify_verify_common:
+      - --host
+      - pve
+      - --ntfy-url
+      - http://127.0.0.1:18081 # NOSONAR
+      - --topic
+      - scripts
+      - --retry-delay
+      - "0"
+    update_notify_verify_env:
+      NTFY_TOKEN: "{{ ntfy_scripts_token }}"
+      UPTIME_PUSH_URL: "http://127.0.0.1:18081{{ update_notify_verify_push }}" # NOSONAR
+    update_notify_verify_ugos_args: >-
+      {{ ['ugos'] + update_notify_verify_common
+         + ['--os-release', update_notify_verify_dir ~ '/os-release',
+            '--state', update_notify_verify_dir ~ '/state/state.json'] }}
+    # Ce qu'attend chaque cas, entre guillemets : un « : » dans une
+    # expression nue en ferait un dictionnaire YAML.
+    update_notify_verify_titles:
+      security: "pve : 4 mise(s) à jour, dont 1 de sécurité"
+      reminder: "pve : rappel mensuel des mises à jour d'UGOS"
+      updated: "pve : UGOS mis à jour, 1.20.0.0142 → 1.21.0.0007"
+    update_notify_verify_security_head: |-
+      Sécurité (1) :
+        libc-bin 2.41-12+deb13u4 → 2.41-12+deb13u5
+      Proxmox et noyaux (2) :
+        pve-manager 9.2.24 → 9.2.25
+        proxmox-kernel-7.0.15-1-pve-signed (nouveau) → 7.0.15-1
+      Autres (1) :
+        vim-common 2:9.1.1230-2 → 2:9.1.1230-3
+      Retirés par dist-upgrade (1) :
+        proxmox-kernel-6.8.12-4-pve-signed
+  tasks:
+    - name: Read the environment file and the units
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: update_notify_verify_files
+      loop:
+        - "{{ update_notify_dir }}/update-notify.env"
+        - /etc/systemd/system/update-notify.service
+        - /etc/systemd/system/update-notify.timer
+
+    - name: Stat the environment file
+      ansible.builtin.stat:
+        path: "{{ update_notify_dir }}/update-notify.env"
+      register: update_notify_verify_env_stat
+
+    # systemd-analyze verify échoue sur une directive inconnue ou mal écrite,
+    # que systemd ne ferait qu'ignorer au chargement.
+    - name: Verify the units as systemd parses them
+      ansible.builtin.command: systemd-analyze verify /etc/systemd/system/update-notify.service /etc/systemd/system/update-notify.timer
+      changed_when: false
+
+    - name: Read the loaded unit properties
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: update_notify_verify_units
+      loop: [update-notify.service, update-notify.timer]
+
+    - name: Assert the units, the secrets kept off the command line
+      vars:
+        update_notify_verify_envfile: "{{ update_notify_verify_files.results[0].content | b64decode }}"
+        update_notify_verify_service: "{{ update_notify_verify_files.results[1].content | b64decode }}"
+        update_notify_verify_timer: "{{ update_notify_verify_files.results[2].content | b64decode }}"
+        update_notify_verify_props: "{{ update_notify_verify_units.results[0].status }}"
+      ansible.builtin.assert:
+        that:
+          - update_notify_verify_env_stat.stat.mode == '0600'
+          - update_notify_verify_env_stat.stat.pw_name == 'root'
+          - ('NTFY_TOKEN=' ~ ntfy_scripts_token ~ '\n') in update_notify_verify_envfile
+          - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ update_notify_verify_push ~ '\n') in update_notify_verify_envfile
+          - ntfy_scripts_token not in update_notify_verify_service
+          - update_notify_verify_push not in update_notify_verify_service
+          - "' apt --host pve --ntfy-url http://127.0.0.1:18081 --topic scripts ' in update_notify_verify_service" # NOSONAR
+          - "'\nOnCalendar=Mon *-*-* 08:00:00\n' in update_notify_verify_timer"
+          - update_notify_verify_props.ProtectSystem == 'full'
+          - update_notify_verify_props.NoNewPrivileges == 'yes'
+          - update_notify_verify_props.Type == 'oneshot'
+          # Toutes les capacités de root : apt passe ses téléchargements à _apt.
+          - "'CapabilityBoundingSet' not in update_notify_verify_service"
+          - update_notify_verify_units.results[1].status.UnitFileState == 'enabled'
+          - update_notify_verify_units.results[1].status.ActiveState == 'active'
+        fail_msg: "{{ update_notify_verify_service }}"
+
+    - name: Create the folders of the fakes
+      ansible.builtin.file:
+        path: "{{ update_notify_verify_dir }}/{{ item }}"
+        state: directory
+        mode: "0700"
+      loop: ["", bin, boot, boot-empty, state]
+
+    - name: Install the fake apt-get and pveversion
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ update_notify_verify_dir }}/bin/{{ item }}"
+        mode: "0700"
+      loop: [apt-get, pveversion]
+
+    # Un noyau installé plus récent que tout noyau en service.
+    - name: Install a newer kernel in the fake /boot
+      ansible.builtin.copy:
+        dest: "{{ update_notify_verify_dir }}/boot/vmlinuz-999.0.0-1-pve"
+        content: ""
+        mode: "0600"
+
+    - name: Install the fake servers
+      ansible.builtin.copy:
+        src: files/fake_server.py
+        dest: "{{ update_notify_verify_dir }}/fake_server.py"
+        mode: "0600"
+
+    - name: Start the fake ntfy and Uptime Kuma
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-update-notify-fakes
+          - --collect
+          - python3
+          - -I
+          - "{{ update_notify_verify_dir }}/fake_server.py"
+          - "{{ update_notify_verify_dir }}/requests.jsonl"
+      changed_when: true
+
+    - name: Wait for the fake servers to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18081
+        timeout: 30
+
+    # La vraie unité, durcie, sur le vrai apt du conteneur : apt-get update
+    # passe sous ProtectSystem=full et NoNewPrivileges, le push arrive.
+    - name: Forget the requests made before the unit run
+      ansible.builtin.file:
+        path: "{{ update_notify_verify_dir }}/requests.jsonl"
+        state: absent
+
+    - name: Run the update check unit
+      ansible.builtin.command: systemctl start update-notify.service # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: Read what the unit sent
+      ansible.builtin.slurp:
+        src: "{{ update_notify_verify_dir }}/requests.jsonl"
+      register: update_notify_verify_unit_log
+
+    - name: Assert the unit pushed up to its monitor
+      vars:
+        update_notify_verify_requests: >-
+          {{ update_notify_verify_unit_log.content | b64decode | trim | split('\n') | map('from_json') | list }}
+      ansible.builtin.assert:
+        that:
+          - (update_notify_verify_requests | last).method == 'GET'
+          - (update_notify_verify_requests | last).path is search('^' ~ update_notify_verify_push ~ '\?status=up&')
+        fail_msg: "{{ update_notify_verify_requests }}"
+
+    # --- Mode apt ---
+    - name: Check an update set with a security update
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot'] }}"
+        case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'security'}) }}"
+        case_rc: 0
+
+    # Priorité haute, la sécurité listée d'abord, puis Proxmox et noyaux, le
+    # noyau en attente de redémarrage, le runbook.
+    - name: Assert a high priority message, security first
+      vars:
+        update_notify_verify_ntfy: "{{ update_notify_case_requests[0] }}"
+        update_notify_verify_msg: "{{ update_notify_verify_ntfy.body | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 2
+          - update_notify_verify_ntfy.method == 'POST'
+          - update_notify_verify_ntfy.path == '/'
+          - update_notify_verify_ntfy.authorization == 'Bearer ' ~ ntfy_scripts_token
+          - update_notify_verify_msg.topic == 'scripts'
+          - update_notify_verify_msg.priority == 4
+          - update_notify_verify_msg.title == update_notify_verify_titles.security
+          - update_notify_verify_msg.message.startswith(update_notify_verify_security_head ~ '\n')
+          - "'Noyau 999.0.0-1-pve installé' in update_notify_verify_msg.message"
+          - "'\npve-manager/9.2.24/' in update_notify_verify_msg.message"
+          - "'docs/runbooks/mises-a-jour-proxmox-ugos.md' in update_notify_verify_msg.message"
+          - update_notify_case_requests[1].path is search('\?status=up&')
+          - (update_notify_case_requests[1].path | urldecode) is search('1 de sécurité, noyau 999\.0\.0-1-pve en attente')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Check a host up to date
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'uptodate'}) }}"
+        case_rc: 0
+
+    - name: Assert nothing is published, the monitor gets up
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 1
+          - update_notify_case_requests[0].path is search('\?status=up&msg=%C3%A0\+jour&')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Check a failing apt-get update
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'broken'}) }}"
+        case_rc: 1
+
+    - name: Assert a failing apt-get update pushes down, publishes nothing
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 1
+          - update_notify_case_requests[0].path is search('\?status=down&')
+          - (update_notify_case_requests[0].path | urldecode) is search('apt-get update en échec')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    # Une alerte qui ne part pas doit se voir : down au moniteur.
+    - name: Check updates with no ntfy token
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'security', 'NTFY_TOKEN': ''}) }}"
+        case_rc: 1
+
+    - name: Assert a message that cannot be published pushes down
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 1
+          - update_notify_case_requests[0].path is search('\?status=down&')
+          - (update_notify_case_requests[0].path | urldecode) is search('NTFY_TOKEN vide')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    # --- Mode ugos ---
+    - name: Write the os-release of UGOS 1.20
+      ansible.builtin.copy:
+        dest: "{{ update_notify_verify_dir }}/os-release"
+        content: |
+          PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+          VERSION_ID="12"
+          OS_VERSION=1.20.0.0142
+          OS_IS_BETA=False
+        mode: "0600"
+
+    - name: Check UGOS, first run
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ update_notify_verify_ugos_args }}"
+        case_env: "{{ update_notify_verify_env }}"
+        case_rc: 0
+
+    - name: Assert the monthly reminder with the installed version
+      vars:
+        update_notify_verify_msg: "{{ update_notify_case_requests[0].body | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 2
+          - update_notify_case_requests[0].authorization == 'Bearer ' ~ ntfy_scripts_token
+          - update_notify_verify_msg.topic == 'scripts'
+          - update_notify_verify_msg.priority == 3
+          - update_notify_verify_msg.title == update_notify_verify_titles.reminder
+          - "'UGOS 1.20.0.0142 installé' in update_notify_verify_msg.message"
+          - (update_notify_case_requests[1].path | urldecode) is search('status=up&msg=UGOS 1\.20\.0\.0142&')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Check UGOS, second run of the month
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ update_notify_verify_ugos_args }}"
+        case_env: "{{ update_notify_verify_env }}"
+        case_rc: 0
+
+    - name: Assert one reminder a month only
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 1
+          - update_notify_case_requests[0].path is search('\?status=up&')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Update the fake UGOS
+      ansible.builtin.replace:
+        path: "{{ update_notify_verify_dir }}/os-release"
+        regexp: '^OS_VERSION=.*$'
+        replace: OS_VERSION=1.21.0.0007
+
+    - name: Check UGOS after an update
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ update_notify_verify_ugos_args }}"
+        case_env: "{{ update_notify_verify_env }}"
+        case_rc: 0
+
+    - name: Assert a high priority message asking to replay nas.yml
+      vars:
+        update_notify_verify_msg: "{{ update_notify_case_requests[0].body | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 2
+          - update_notify_verify_msg.priority == 4
+          - update_notify_verify_msg.title == update_notify_verify_titles.updated
+          - "'Rejouer nas.yml' in update_notify_verify_msg.message"
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Drop the version from the fake os-release
+      ansible.builtin.lineinfile:
+        path: "{{ update_notify_verify_dir }}/os-release"
+        regexp: '^OS_VERSION='
+        state: absent
+
+    - name: Check UGOS without a readable version
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_args: "{{ update_notify_verify_ugos_args }}"
+        case_env: "{{ update_notify_verify_env }}"
+        case_rc: 1
+
+    - name: Assert an unreadable version pushes down
+      ansible.builtin.assert:
+        that:
+          - update_notify_case_requests | length == 1
+          - (update_notify_case_requests[0].path | urldecode) is search('status=down&msg=OS_VERSION absent')
+        fail_msg: "{{ update_notify_case_requests }}"
+
+    - name: Stop the fake servers
+      ansible.builtin.systemd:
+        name: molecule-update-notify-fakes.service
+        state: stopped

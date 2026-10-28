@@ -1,0 +1,64 @@
+---
+# Un jeton vide publierait en vain chaque semaine : échec franc au déploiement.
+- name: Assert the update check has an ntfy token and a known mode
+  ansible.builtin.assert:
+    that:
+      - update_notify_mode in ['apt', 'ugos']
+      - update_notify_ntfy_token | length > 0
+    fail_msg: >-
+      update_notify_mode doit valoir apt ou ugos, et ntfy_scripts_token
+      (ansible/secrets.sops.yaml) ne pas être vide.
+    quiet: true
+
+- name: Ensure the update check folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ update_notify_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the update check script
+  become: true
+  ansible.builtin.copy:
+    src: update_notify.py
+    dest: "{{ update_notify_dir }}/update_notify.py"
+    owner: root
+    group: root
+    mode: "0700"
+
+# Le jeton ntfy et l'URL push (jeton du moniteur) : 0600, diff: false, jamais
+# sur la ligne de commande de l'unité (systemctl show, ps).
+- name: Write the ntfy token and the push URL of the update check
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: |
+      NTFY_TOKEN={{ update_notify_ntfy_token }}
+      UPTIME_PUSH_URL={{ update_notify_healthcheck_url }}
+    dest: "{{ update_notify_dir }}/update-notify.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the update check service and timer
+  become: true
+  loop:
+    - update-notify.service
+    - update-notify.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+- name: Enable the weekly update check
+  become: true
+  ansible.builtin.systemd:
+    name: update-notify.timer
+    state: started
+    enabled: true
+    daemon_reload: true
