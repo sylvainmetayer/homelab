@@ -21,6 +21,14 @@ variable "state_encryption_passphrase" {
   sensitive   = true
 }
 
+# MX nul de sylvain.cloud (mail.tf), à n'activer qu'une fois vérifié que
+# l'API OVH accepte la cible « 0 . » (docs/runbooks/dmarc.md).
+variable "sylvain_cloud_null_mx" {
+  description = "Remplacer les MX OVH de sylvain.cloud par un MX nul (RFC 7505)"
+  type        = bool
+  default     = false
+}
+
 # Destinataire des rapports DMARC agrégés (rua) et TLS-RPT de toutes les zones
 # (mail.tf). Un alias de la boîte Infomaniak, à créer dans le Manager avant
 # l'apply : une adresse inexistante fait rebondir chaque rapport.

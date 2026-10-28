@@ -8,12 +8,13 @@
 #   karakeep, dawarich, wishlist…). DKIM signé par Infomaniak (sélecteur
 #   20230615, posé hors Tofu par Infomaniak). DMARC à p=none le temps de lire
 #   les rapports.
-# - sylvain.dev, metayer.dev : SimpleLogin (MX, SPF, DKIM dkim/dkim02/dkim03 en
-#   CNAME vers simplelogin.co, posés hors Tofu). DMARC déjà à quarantine
-#   strict avant ce fichier : on n'ajoute que les rapports.
+# - sylvain.dev, metayer.dev : SimpleLogin (MX, DKIM dkim/dkim02/dkim03 en
+#   CNAME vers simplelogin.co, posés hors Tofu ; le SPF est ici). DMARC déjà à quarantine strict avant ce
+#   fichier : on n'ajoute que les rapports.
 # - sylvain.cloud : n'envoie ni ne reçoit rien (offre e-mail OVH « redirect »
 #   sans compte ni redirection, aucune appli n'écrit depuis @sylvain.cloud) :
-#   verrouillé (MX nul RFC 7505, SPF -all, DMARC reject).
+#   verrouillé à l'envoi (SPF -all, DMARC reject) ; MX nul RFC 7505 derrière
+#   sylvain_cloud_null_mx, que l'API OVH pourrait refuser.
 #
 # Plusieurs de ces noms existaient déjà dans la zone : ils sont importés une
 # fois avec `tofu import` avant le premier apply (docs/runbooks/dmarc.md),
@@ -40,7 +41,6 @@ locals {
       pol.pct < 100 ? "pct=${pol.pct}" : "",
       pol.strict ? "adkim=s" : "",
       pol.strict ? "aspf=s" : "",
-      "fo=1",
       "rua=${local.dmarc_rua}",
     ]))
   }
@@ -48,14 +48,12 @@ locals {
   # Rapports envoyés à une adresse d'un autre domaine que celui rapporté :
   # le domaine de l'adresse doit l'accepter (RFC 7489 §7.1), sinon les
   # récepteurs n'envoient rien.
-  dmarc_external_report_zones = [
-    for zone in keys(local.dmarc_policies) : zone if zone != local.dmarc_report_domain
-  ]
   dmarc_report_domain = split("@", var.dmarc_report_address)[1]
 
   # SPF de chaque zone : un seul enregistrement par nom, sinon permerror.
   spf_records = {
     "sylvainmetayer.fr" = "v=spf1 include:spf.infomaniak.ch -all"
+    "sylvain.dev"       = "v=spf1 include:simplelogin.co -all"
     "metayer.dev"       = "v=spf1 include:simplelogin.co -all"
     "sylvain.cloud"     = "v=spf1 -all"
   }
@@ -75,13 +73,22 @@ resource "ovh_domain_zone_record" "dmarc" {
 }
 
 resource "ovh_domain_zone_record" "dmarc_external_report" {
-  for_each = toset(local.dmarc_external_report_zones)
+  for_each = setsubtract(keys(local.dmarc_policies), [local.dmarc_report_domain])
 
   zone      = local.dmarc_report_domain
   subdomain = "${each.key}._report._dmarc"
   fieldtype = "TXT"
   ttl       = 300
   target    = "\"v=DMARC1\""
+
+  # L'autorisation se publie dans la zone de l'adresse : hors des zones OVH
+  # gérées ici, l'apply échouerait (zone inconnue) et aucun rapport n'arriverait.
+  lifecycle {
+    precondition {
+      condition     = contains(keys(local.dmarc_policies), local.dmarc_report_domain)
+      error_message = "dmarc_report_address doit être sur une des zones de local.dmarc_policies (mail.tf), qui publie les autorisations <zone>._report._dmarc."
+    }
+  }
 }
 
 resource "ovh_domain_zone_record" "spf" {
@@ -105,8 +112,12 @@ resource "ovh_domain_zone_record" "tls_rpt" {
 }
 
 # MX nul (RFC 7505) : sylvain.cloud ne reçoit rien, les expéditeurs échouent
-# tout de suite au lieu de réessayer des jours vers les MX OVH.
+# tout de suite au lieu de réessayer vers les MX OVH. Désactivé par défaut :
+# un fil du forum OVH (community.ovhcloud.com/t/3029) dit que la zone refuse
+# la cible « . ». À tester d'abord dans le Manager (docs/runbooks/dmarc.md).
 resource "ovh_domain_zone_record" "sylvain_cloud_null_mx" {
+  count = var.sylvain_cloud_null_mx ? 1 : 0
+
   zone      = "sylvain.cloud"
   subdomain = ""
   fieldtype = "MX"

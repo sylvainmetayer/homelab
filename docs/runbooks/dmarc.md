@@ -10,7 +10,7 @@ fournisseur publie sa clé (Infomaniak, SimpleLogin).
 | sylvainmetayer.fr | Infomaniak (boîte, et tous les hôtes et applis via `pangolin_smtp_user`) | `20230615._domainkey` (Infomaniak) | `p=none`, rapports |
 | sylvain.dev | SimpleLogin (alias, réponses) | `dkim`, `dkim02`, `dkim03` (CNAME vers simplelogin.co) | `p=quarantine` strict, rapports |
 | metayer.dev | SimpleLogin | idem | `p=quarantine` strict, rapports |
-| sylvain.cloud | rien | aucun | `p=reject`, MX nul, `v=spf1 -all` |
+| sylvain.cloud | rien | aucun | `p=reject`, `v=spf1 -all` (MX nul en option, voir plus bas) |
 
 Tous les rapports (DMARC agrégés `rua`, TLS-RPT) vont à
 `dmarc_report_address` (`tofu/dns/variables.tf`, par défaut
@@ -35,22 +35,21 @@ zone de l'adresse pour chaque autre zone.
    tofu import 'ovh_domain_zone_record.dmarc["metayer.dev"]'     5397217722.metayer.dev
    tofu import 'ovh_domain_zone_record.spf["sylvainmetayer.fr"]' 5397225838.sylvainmetayer.fr
    tofu import 'ovh_domain_zone_record.spf["metayer.dev"]'       5397217672.metayer.dev
+   tofu import 'ovh_domain_zone_record.spf["sylvain.dev"]'       5397217435.sylvain.dev
    tofu import 'ovh_domain_zone_record.spf["sylvain.cloud"]'     5305117000.sylvain.cloud
-   tofu import 'ovh_domain_zone_record.sylvain_cloud_null_mx'    5305117097.sylvain.cloud
    tofu plan
    ```
 
    Le plan attendu : 9 créations (DMARC de sylvainmetayer.fr et
    sylvain.cloud, trois `_report._dmarc`, trois `_smtp._tls`, le SPF de
    sylvain.cloud recréé en TXT), 5 modifications (les deux DMARC gagnent
-   `fo=1; rua=…`, le SPF de metayer.dev passe de `~all` à `-all`, le MX
-   `mx1.mail.ovh.net` devient `0 .`, TTL 0 → 300), 1 destruction (l'ancien
+   `rua=…`, le SPF de metayer.dev passe de `~all` à `-all`, les SPF de
+   sylvainmetayer.fr et sylvain.dev ne changent que de TTL, 0 → 300
+   partout), 1 destruction (l'ancien
    enregistrement de type OVH `SPF` de sylvain.cloud, remplacé par un TXT).
    Rien d'autre.
 3. `tofu apply`, puis supprimer à la main, dans la zone DNS du Manager OVH,
    ce que Tofu ne gère pas et qui contredirait `mail.tf` :
-   - sylvain.cloud : les MX `5 mx2.mail.ovh.net.` et `100 mx3.mail.ovh.net.`
-     (un MX nul doit être le seul MX, RFC 7505) ;
    - metayer.dev : l'enregistrement de type `SPF` `v=spf1 include:mx.ovh.com
      -all` et le TXT `v=spf1 include:mx.ovh.com -all 1|www.metayer.dev`
      (trois SPF à l'apex : permerror, SPF ne passait jamais). Garder le TXT
@@ -68,6 +67,25 @@ zone de l'adresse pour chaque autre zone.
    Un seul `v=spf1` par zone, un seul `v=DMARC1`. Puis s'envoyer un mail
    depuis la boîte Infomaniak vers une adresse Gmail : « Afficher
    l'original » doit montrer `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS`.
+
+### MX nul de sylvain.cloud (optionnel)
+
+sylvain.cloud garde pour l'instant les trois MX OVH (offre « redirect »
+sans redirection : OVH rebondit tout). Un MX nul (`0 .`, RFC 7505) fait
+échouer l'expéditeur tout de suite, mais un fil du forum OVH dit que la zone
+refuse la cible « . » : d'abord essayer d'ajouter `MX 0 .` à la main dans le
+Manager. S'il l'accepte, le supprimer, puis :
+
+```bash
+tofu import 'ovh_domain_zone_record.sylvain_cloud_null_mx[0]' 5305117097.sylvain.cloud
+tofu plan -var sylvain_cloud_null_mx=true   # le MX mx1 devient « 0 . »
+```
+
+passer `sylvain_cloud_null_mx` à `true` dans `variables.tf` (PR), appliquer,
+et supprimer à la main `5 mx2.mail.ovh.net.` et `100 mx3.mail.ovh.net.` : un
+MX nul doit être le seul MX. Il ne couvre que l'apex : `x@foo.sylvain.cloud`
+retombe sur le A du joker (Pangolin, port 25 fermé), ce qui ne change rien à
+l'usurpation, que `p=reject` couvre aussi pour les sous-domaines.
 
 ## Lire les rapports
 
