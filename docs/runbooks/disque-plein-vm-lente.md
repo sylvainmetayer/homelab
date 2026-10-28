@@ -21,7 +21,7 @@ cd ansible && mise run ssh
 uptime
 cat /proc/pressure/io          # avg10 élevé = processus qui attendent le disque
 cat /proc/pressure/memory
-cat /sys/block/vda/queue/rotational   # 1 : disque rotatif
+cat /sys/block/vda/queue/rotational   # 1, mais trompeur : virtio-blk sur le SSD de l'hôte
 free -m
 df -h / /opt/apps
 ```

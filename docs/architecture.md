@@ -128,7 +128,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 |---|---|---|---|---|
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
-| `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, disque **rotatif**) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
+| `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security` et `newt_service`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
@@ -360,5 +360,5 @@ flowchart LR
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
   déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
   capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.
-- **Hors périmètre** : l'hôte Proxmox, seul à voir le disque rotatif de la VM
+- **Hors périmètre** : l'hôte Proxmox, seul à voir le SSD physique sous la VM
   docker (#852).

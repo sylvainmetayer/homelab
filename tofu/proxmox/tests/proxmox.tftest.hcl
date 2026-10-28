@@ -35,7 +35,7 @@ override_data {
   }
 }
 
-# Doctrine de AGENTS.md : 3 cœurs / 12 GiB, disque rotatif ; les mem_limit des
+# Doctrine de AGENTS.md : 3 cœurs / 12 GiB, sur le SSD de l'hôte ; les mem_limit des
 # composes sont calibrées sur cette RAM fixe.
 run "docker_vm_sizing" {
   command = plan
@@ -57,7 +57,7 @@ run "docker_vm_sizing" {
 
   assert {
     condition     = proxmox_virtual_environment_vm.docker.disk[0].ssd == false
-    error_message = "Le disque de la VM Docker est rotatif : ne pas l'annoncer comme SSD."
+    error_message = "Disque virtio-blk : Proxmox n'y émule pas de SSD, ssd = true serait sans effet (TRIM : discard = on + fstrim.timer)."
   }
 
   assert {

@@ -40,7 +40,7 @@ sudo journalctl -u borgmatic.service -n 300 --no-pager
 ```
 
 Ne pas lancer `journalctl --since -30days` sur la VM docker : lire tout le
-journal sur son disque rotatif fait monter la charge à plus de 30.
+journal sur son disque (SSD SATA d'entrée de gamme de l'hôte) fait monter la charge à plus de 30.
 
 Erreurs courantes :
 

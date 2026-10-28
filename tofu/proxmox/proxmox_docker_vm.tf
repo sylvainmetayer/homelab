@@ -82,9 +82,12 @@ resource "proxmox_virtual_environment_vm" "docker" {
     file_id      = proxmox_virtual_environment_download_file.debian_13.id
     interface    = "virtio0"
     iothread     = true
-    discard      = "on"
-    ssd          = false
-    size         = var.docker_vm.disk_size
+    # Sur le SSD M.2 SATA de l'hôte. Pas d'émulation SSD sur virtio-blk (la VM
+    # voit rotational = 1, sans conséquence) ; le TRIM passe par discard + le
+    # fstrim.timer hebdomadaire de la VM.
+    discard = "on"
+    ssd     = false
+    size    = var.docker_vm.disk_size
   }
 
   lifecycle {
