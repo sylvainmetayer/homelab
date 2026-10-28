@@ -22,7 +22,9 @@ d'`ansible/secrets.sops.yaml`, qui ne se crée qu'à la main, avant le premier
 plan qui la cite : Console Hetzner, projet de la Storage Box, Security → API
 tokens, permission **Read**, puis
 `printf '"%s"' "$jeton" | sops set --value-stdin ansible/secrets.sops.yaml '["hcloud_readonly_token"]'`.
-Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture.
+Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture. Son URL push est l'output
+`uptime_storage_box_quota_url` de `tofu/pangolin_config` : appliquer ce module
+avant le plan d'ici, qui échoue sinon sur un attribut absent.
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
