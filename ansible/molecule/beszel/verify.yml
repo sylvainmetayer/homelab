@@ -3,6 +3,7 @@
   hosts: all
   vars_files:
     - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
     - ../_shared/vars/fake_secrets.yml
   tasks:
     - name: Verify the beszel deployment
@@ -189,3 +190,26 @@
           - beszel_mock_last_write.path == '/api/beszel/test-notification'
           - beszel_mock_last_write.body.url == beszel_mock_telegram_url
         fail_msg: "Notification de test inattendue : {{ beszel_mock_last_write }}"
+
+    # Superuser du widget Beszel de Homepage (tasks/homepage_superuser.yml) :
+    # créé une fois au premier converge, jamais recréé ensuite (l'idempotence
+    # a déjà rejoué le rôle : la connexion réussit, rien n'est relancé).
+    - name: Read the superuser command calls and the recorded superusers
+      become: true
+      loop:
+        - calls
+        - superusers.json
+      ansible.builtin.slurp:
+        src: "/var/lib/beszel-superuser-mock/{{ item }}"
+      register: beszel_superuser_mock_files
+
+    - name: Assert the Homepage superuser was created once, with its sops password
+      vars:
+        beszel_superuser_calls: "{{ beszel_superuser_mock_files.results[0].content | b64decode | trim | split('\n') }}"
+        beszel_superusers: "{{ beszel_superuser_mock_files.results[1].content | b64decode | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - beszel_superuser_calls == [beszel_homepage_email]
+          - beszel_homepage_email == 'homepage@monitoring.sylvain.cloud'
+          - beszel_superusers[beszel_homepage_email] == homepage_beszel_password
+        fail_msg: "Superuser Homepage inattendu : appels {{ beszel_superuser_calls }}"

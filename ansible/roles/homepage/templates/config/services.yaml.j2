@@ -1,17 +1,33 @@
 ---
 # Géré par Ansible (rôle homepage) : toute modification ici est écrasée.
 # Un lien par application publique (output homepage_links de
-# tofu/pangolin_config) plus homepage_extra_links. Liens seulement : aucun widget.
-{% set links = (homepage_websites | dict2items | map(attribute='value') | list) + homepage_extra_links %}
+# tofu/pangolin_config) plus homepage_extra_links, et les widgets : ceux de
+# homepage_link_widgets sur leur lien, une carte par page de statut d'Uptime
+# Kuma (defaults/main.yml).
+{% set links = [] %}
+{% for key, link in homepage_websites.items() %}
+{%   set _ = links.append(link | combine({'widget': homepage_link_widgets[key]}) if key in homepage_link_widgets else link) %}
+{% endfor %}
+{% if homepage_uptimekuma_url | length > 0 %}
+{%   for page in homepage_uptimekuma_status_pages %}
+{%     set _ = links.append(page | combine({'widget': {'type': 'uptimekuma', 'url': homepage_uptimekuma_url, 'slug': page.slug}})) %}
+{%   endfor %}
+{% endif %}
+{% set links = links + homepage_extra_links %}
 {% set groups = homepage_groups + (links | map(attribute='group') | reject('in', homepage_groups) | unique | sort | list) %}
 {% for group in groups if links | selectattr('group', 'equalto', group) | list | length > 0 %}
 - {{ group | to_json(ensure_ascii=False) }}:
 {% for link in links | selectattr('group', 'equalto', group) | sort(attribute='name') %}
     - {{ link.name | to_json(ensure_ascii=False) }}:
+{% if link.href | default('') | length > 0 %}
         href: {{ link.href | to_json(ensure_ascii=False) }}
+{% endif %}
         description: {{ link.description | to_json(ensure_ascii=False) }}
 {% if link.icon | default('') | length > 0 %}
         icon: {{ link.icon | to_json(ensure_ascii=False) }}
+{% endif %}
+{% if link.widget is defined %}
+        widget: {{ link.widget | to_json(ensure_ascii=False) }}
 {% endif %}
 {% endfor %}
 {% endfor %}

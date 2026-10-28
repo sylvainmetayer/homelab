@@ -97,6 +97,15 @@
   tags: beszel_alerts
   ansible.builtin.import_tasks: alerts.yml
 
+# Le compte du widget Beszel de Homepage. Même réserve en --check que les
+# alertes : un hub pas encore démarré n'a pas d'API.
+- name: Declare the Homepage superuser of the hub
+  when:
+    - beszel_homepage_email | length > 0
+    - beszel_homepage_password | length > 0
+    - not (ansible_check_mode and (beszel_service | default({})) is changed)
+  ansible.builtin.import_tasks: homepage_superuser.yml
+
 # Sur demande seulement. Pas de tag never : les tâches héritent des tags du
 # rôle (beszel), et --tags beszel les sélectionnerait alors.
 - name: Send a Beszel test notification

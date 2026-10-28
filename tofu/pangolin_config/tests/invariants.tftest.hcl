@@ -3162,3 +3162,41 @@ run "ntfy_topics_match_the_role" {
     error_message = "ntfy : le lien Homepage doit viser /app, le moniteur /v1/health, et server.yml garder web-root: /app."
   }
 }
+
+# Les widgets Uptime Kuma de Homepage lisent une page de statut par son slug
+# (homepage_uptimekuma_status_pages du rôle homepage) : chaque slug du rôle
+# doit être celui d'une page déclarée ici, sinon le widget affiche une erreur.
+# La page des sauvegardes porte chaque sonde de sauvegarde active, et docker.yml
+# lit l'URL d'Uptime Kuma de son output.
+run "homepage_status_pages_match_the_role" {
+  command = plan
+
+  assert {
+    condition = toset([
+      for page in yamldecode(file("${path.module}/../../ansible/roles/homepage/defaults/main.yml")).homepage_uptimekuma_status_pages : page.slug
+    ]) == toset([uptimekuma_status_page.site.slug, uptimekuma_status_page.backups.slug])
+    error_message = "homepage_uptimekuma_status_pages (rôle homepage) doit lister exactement les slugs des pages de statut sylvain-dev et des sauvegardes."
+  }
+
+  assert {
+    condition = (
+      uptimekuma_status_page.backups.published
+      && uptimekuma_status_page.backups.public_group_list[0].name == "Sauvegardes"
+      && length(uptimekuma_status_page.backups.public_group_list[0].monitor_list) == length([
+        for key, website in local.websites : key if lookup(website, "backup", false) && lookup(website, "enabled", true)
+      ]) + 2
+      && length(uptimekuma_status_page.backups.public_group_list[1].monitor_list) == 2
+    )
+    error_message = "La page des sauvegardes doit être publiée et porter une sonde par sauvegarde active de local.websites, plus Pangolin et Jellyfin, puis le restore test et la Storage Box."
+  }
+
+  assert {
+    condition     = output.homepage_uptimekuma_url == "https://uptime.example.test"
+    error_message = "homepage_uptimekuma_url doit être l'URL d'Uptime Kuma (UPTIMEKUMA_ENDPOINT), sans chemin."
+  }
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "homepage_uptimekuma_url: \"{{ terraform_outputs.homepage_uptimekuma_url.value | default('') }}\"")
+    error_message = "docker.yml doit lire homepage_uptimekuma_url de l'output du même nom."
+  }
+}

@@ -11,3 +11,6 @@
   roles:
     - role: docker_service
     - role: beszel
+      vars:
+        # Aucun conteneur : le mock de prepare.yml, pas `docker exec beszel`.
+        beszel_superuser_command: [/usr/local/bin/beszel-superuser-mock]

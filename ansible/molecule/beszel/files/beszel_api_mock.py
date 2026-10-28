@@ -23,6 +23,9 @@ from urllib.parse import urlparse
 CONFIG_YML = "/opt/apps/beszel/beszel_data/config.yml"
 CONFIG_JSON = "/etc/beszel-api-mock/config.json"
 WRITES_LOG = "/var/lib/beszel-api-mock/writes.jsonl"
+# Superusers written by beszel_superuser_mock.py, the stand-in of
+# `beszel superuser upsert` (email -> password).
+SUPERUSERS_JSON = "/var/lib/beszel-superuser-mock/superusers.json"
 LOCK = threading.Lock()
 
 
@@ -107,6 +110,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"token": st.token, "record": {"id": st.user_id, "email": st.email}})
         return self.reply(400, {"message": "Failed to authenticate."})
 
+    def post_superuser_login(self, _path):
+        data = self.body()
+        try:
+            with open(SUPERUSERS_JSON, encoding="utf-8") as f:
+                superusers = json.load(f)
+        except FileNotFoundError:
+            superusers = {}
+        password = data.get("password")
+        if password and superusers.get(data.get("identity")) == password:
+            return self.reply(200, {"token": secrets.token_hex(16), "record": {"email": data["identity"]}})
+        return self.reply(400, {"message": "Failed to authenticate."})
+
     # Authenticated reads.
     def get_systems(self, _path):
         return self.reply(200, {"items": declared_systems()})
@@ -167,6 +182,7 @@ class Handler(BaseHTTPRequestHandler):
         ("GET", "/api/health"): "get_health",
         ("GET", "/mock/state"): "get_state",
         ("POST", "/api/collections/users/auth-with-password"): "post_login",
+        ("POST", "/api/collections/_superusers/auth-with-password"): "post_superuser_login",
     }
     READS = {
         ("GET", "/api/collections/systems/records"): "get_systems",

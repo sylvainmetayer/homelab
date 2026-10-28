@@ -174,6 +174,12 @@ Clé ou jeton qu'un rôle écrit dans le compose ou le `.env` d'une appli
 (`docker.yml --tags beszel`) puis l'agent de chaque hôte changé
 (`--tags beszel_agent` de son playbook).
 
+`homepage_beszel_password` (superuser PocketBase du widget Beszel de
+Homepage) : `openssl rand -base64 32`, `sops set`, puis
+`docker.yml --tags beszel,homepage`. Le rôle beszel voit que l'ancien mot de
+passe ne se connecte plus et le remplace (`beszel superuser upsert`), le rôle
+homepage réécrit sa configuration. Rien à changer dans l'interface.
+
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
 changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
