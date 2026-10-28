@@ -99,6 +99,20 @@ class BuildTest(unittest.TestCase):
         self.assertIn("https://github.com/o/r/actions/runs/336", report["message"])
         self.assertEqual((report["priority"], report["tags"]), (4, ["warning"]))
 
+    def test_failures_caught_up_by_a_later_success_do_not_warn(self):
+        failures = runs(336)
+        failures["last_success"] = {"run_number": 340, "created_at": "2026-10-31T09:00:00Z"}
+        report, _ = renovate_digest.build(answer(), failures, "o/r", NOW)
+        self.assertIn("- run #336 du 30/10 14:46 UTC (push) (rattrapé par le run #340) :", report["message"])
+        self.assertEqual((report["priority"], report["tags"]), (3, ["hourglass"]))
+
+    def test_failure_after_the_last_success_still_warns(self):
+        failures = runs(336)
+        failures["last_success"] = {"run_number": 330, "created_at": "2026-10-29T09:00:00Z"}
+        report, _ = renovate_digest.build(answer(), failures, "o/r", NOW)
+        self.assertNotIn("rattrapé", report["message"])
+        self.assertEqual(report["priority"], 4)
+
     def test_quiet_week(self):
         report, _ = renovate_digest.build(answer(), runs(), "o/r", NOW)
         self.assertIn("Rien cette semaine", report["message"])
@@ -118,6 +132,34 @@ class BuildTest(unittest.TestCase):
     def test_unexpected_answer_is_an_error(self):
         with self.assertRaises(renovate_digest.DigestError):
             renovate_digest.build({"merged": {}}, runs(), "o/r", NOW)
+
+    def test_malformed_node_is_an_error(self):
+        broken = runs(1)
+        del broken["workflow_runs"][0]["html_url"]
+        with self.assertRaises(renovate_digest.DigestError):
+            renovate_digest.build(answer(), broken, "o/r", NOW)
+        with self.assertRaises(renovate_digest.DigestError):
+            renovate_digest.build(answer(open_nodes=[opened(1, "chore(deps): update x to 1", "2026-11-02")]), runs(), "o/r", NOW)
+
+    def test_security_bumps_are_grouped_and_keep_their_marker(self):
+        report, _ = renovate_digest.build(
+            answer(
+                [
+                    merged(1, "fix(deps): update dependency foo to v1.2.3 [SECURITY]"),
+                    merged(2, "fix(deps): update dependency foo to v1.2.4 [SECURITY]"),
+                ]
+            ),
+            runs(),
+            "o/r",
+            NOW,
+        )
+        self.assertIn("- update dependency foo [SECURITY] x2", report["message"])
+
+    def test_open_count_is_the_search_total(self):
+        pulls = answer(open_nodes=[opened(5, "chore(deps): update x to 1", "2026-11-01T08:00:00Z")])
+        pulls["open"]["issueCount"] = 120
+        report, _ = renovate_digest.build(pulls, runs(), "o/r", NOW)
+        self.assertIn("En attente de relecture (120) :", report["message"])
 
 
 class MainTest(unittest.TestCase):
@@ -147,6 +189,14 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("HTTP 502", publish.call_args.args[3]["message"])
         self.assertIn("::error::API GitHub : HTTP 502", out)
+
+    def test_malformed_answer_still_publishes_and_fails_the_run(self):
+        publish = mock.Mock()
+        broken = runs(1)
+        del broken["workflow_runs"][0]["run_number"]
+        code, out = self.run_main(mock.Mock(return_value=(answer(), broken)), publish)
+        self.assertEqual(code, 1)
+        self.assertIn("réponse inattendue", publish.call_args.args[3]["message"])
 
     def test_ntfy_failure_fails_the_run_without_quoting_the_request(self):
         code, out = self.run_main(mock.Mock(return_value=(answer(), runs())), mock.Mock(side_effect=OSError("tk-fake leaked")))
