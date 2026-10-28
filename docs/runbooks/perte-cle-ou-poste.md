@@ -43,7 +43,11 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
    SOPS_AGE_KEY_FILE=/chemin/vers/secours.key sops decrypt secrets.sops.yaml > /dev/null && echo ok
    ```
 
-   Que `SOPS_AGE_KEY_FILE` l'emporte sur `ageKeyFile` de `.sopsrc` : à vérifier.
+   `SOPS_AGE_KEY_FILE` ne remplace pas les autres clés : sops les additionne
+   (`SOPS_AGE_KEY`, `~/.config/sops/age/keys.txt`, `~/.ssh/id_ed25519` ;
+   `.sopsrc` n'est lu que par l'extension d'éditeur). Ici, peu importe
+   laquelle ouvre ; pour prouver qu'une clé précise ouvre, l'isoler :
+   [test-cle-secours.md](test-cle-secours.md).
 2. Créer la nouvelle clé : `age-keygen -o ~/.age.key` (chmod 600). Noter la
    clé publique affichée.
 3. Remplacer la ligne `# perso` dans les **deux** règles de `.sops.yaml`.
@@ -118,8 +122,10 @@ n'a pas changé).
 
 ## Prévention
 
-- La clé `secours` existe pour ce cas : la garder hors ligne, et vérifier de
-  temps en temps qu'elle déchiffre encore.
+- La clé `secours` existe pour ce cas : la garder hors ligne, et vérifier
+  chaque trimestre qu'elle déchiffre encore
+  ([test-cle-secours.md](test-cle-secours.md) ; le moniteur « Rotation des
+  secrets » le rappelle après 100 jours).
 - Plusieurs clés SSH autorisées (`perso`, `pro`, `android`) : la perte d'une
   ne ferme pas la porte.
 - Le mot de passe de `sylvain` (hash `host_user_password_hash`, généré par

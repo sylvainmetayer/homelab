@@ -71,6 +71,14 @@ secrets:
     estimated: false
     how: docs/rb.md#secret-dappli-lu-par-ansible
 """
+SECOURS_RUNBOOK = """\
+---
+# commentaire
+dernier_test: 2026-10-20
+---
+
+# Tester la clé secours
+"""
 
 
 class Repo:
@@ -85,6 +93,8 @@ class Repo:
         (self.root / "ansible/secrets.sops.yaml").write_text(ansible_sops, encoding="utf-8")
         (self.root / "docs/rb.md").write_text(RUNBOOK, encoding="utf-8")
         (self.root / rotation.INVENTORY).write_text(inventory, encoding="utf-8")
+        (self.root / rotation.SECOURS_TEST).parent.mkdir(parents=True)
+        (self.root / rotation.SECOURS_TEST).write_text(SECOURS_RUNBOOK, encoding="utf-8")
 
     def errors(self, today=TODAY):
         entries, keys = rotation.load(self.root)
@@ -252,6 +262,34 @@ class DueTest(unittest.TestCase):
         self.assertIn("échéance 2026-11-20 proche", lines[1])
 
 
+class SecoursTestTest(unittest.TestCase):
+    def test_reads_the_front_matter(self):
+        self.assertEqual(rotation.secours_test(SECOURS_RUNBOOK, TODAY), (datetime.date(2026, 10, 20), []))
+
+    def test_rejects_missing_bad_and_future_dates(self):
+        cases = {
+            "# pas de front matter\n": "front matter",
+            "---\nautre: 1\n---\n": "dernier_test: AAAA-MM-JJ",
+            "---\ndernier_test: 2026-10-20\ndernier_test: 2026-10-21\n---\n": "dernier_test: AAAA-MM-JJ",
+            "---\ndernier_test: hier\n---\n": "n'est pas une date",
+            "---\ndernier_test: 2026-11-28\n---\n": "dans le futur",
+            "---\ndernier_test: 2026-10-20\n": "front matter",
+        }
+        for text, message in cases.items():
+            with self.subTest(text=text):
+                date, errors = rotation.secours_test(text, TODAY)
+                self.assertIsNone(date)
+                self.assertIn(message, errors[0])
+
+    def test_a_line_outside_the_front_matter_does_not_count(self):
+        self.assertIsNone(rotation.secours_test("---\n---\ndernier_test: 2026-10-20\n", TODAY)[0])
+
+    def test_overdue_after_100_days(self):
+        date = datetime.date(2026, 7, 20)
+        self.assertIsNone(rotation.secours_overdue(date, date + datetime.timedelta(days=100)))
+        self.assertIn("101 jours", rotation.secours_overdue(date, date + datetime.timedelta(days=101)))
+
+
 class MainTest(unittest.TestCase):
     def setUp(self):
         self.repo = Repo()
@@ -308,6 +346,29 @@ class MainTest(unittest.TestCase):
             code, out = self.run_main(["--due", "--today", "2026-10-28"], {"PUSH_URL": "https://kuma.test/api/push/SECRET"})
         self.assertEqual(code, 1)
         self.assertNotIn("SECRET", out)
+
+    def test_missing_secours_runbook_fails_lint_with_the_other_errors(self):
+        (self.repo.root / rotation.SECOURS_TEST).unlink()
+        (self.repo.root / "secrets.sops.yaml").write_text(ROOT_SOPS.replace("sops:", "NEW: x\nsops:"), encoding="utf-8")
+        code, out = self.run_main(["--today", "2026-10-28"])
+        self.assertEqual(code, 1)
+        self.assertIn(f"::error::{rotation.SECOURS_TEST} illisible", out)
+        self.assertIn("la clé NEW manque", out)
+
+    def test_overdue_secours_test_pushes_down(self):
+        (self.repo.root / rotation.SECOURS_TEST).write_text(SECOURS_RUNBOOK.replace("2026-10-20", "2026-07-19"), encoding="utf-8")
+        with mock.patch.object(rotation, "push") as push:
+            code, out = self.run_main(["--due", "--today", "2026-10-28"], {"PUSH_URL": "https://kuma.test/x"})
+        self.assertEqual(code, 1)
+        self.assertEqual(push.call_args.args[1:], ("down", "test de la clé secours en retard (101 j)"))
+        self.assertIn(rotation.SECOURS_TEST, out)
+
+    def test_overdue_secours_test_joins_due_secrets(self):
+        with mock.patch.object(rotation, "push") as push:
+            self.run_main(["--due", "--today", "2027-02-15"], {"PUSH_URL": "https://kuma.test/x"})
+        status, msg = push.call_args.args[1:]
+        self.assertEqual(status, "down")
+        self.assertTrue(msg.startswith("test de la clé secours en retard (118 j) ; 1 secret(s)"), msg)
 
     def test_no_push_url_only_warns(self):
         with mock.patch.object(rotation, "push") as push:
