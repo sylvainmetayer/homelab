@@ -21,6 +21,7 @@ locals {
     "karakeep",
     "kitchenowl",
     "homebox",
+    "speedtest-tracker",
     "wishlist",
     "nginx-demo",
     "beszel"

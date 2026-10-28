@@ -21,6 +21,7 @@
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
         kitchenowl_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_kitchenowl_url.value | default('') }}"
         homebox_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homebox_url.value | default('') }}"
+        speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
@@ -79,6 +80,8 @@
       tags: kitchenowl,app
     - role: homebox
       tags: homebox,app
+    - role: speedtest_tracker
+      tags: speedtest_tracker,app
     - role: nginx_demo
       tags: nginx_demo,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par

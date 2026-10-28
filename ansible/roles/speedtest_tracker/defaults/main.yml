@@ -1,0 +1,28 @@
+---
+speedtest_tracker_base_path: "{{ docker_base_path }}/speedtest_tracker"
+speedtest_tracker_domain: speedtest.sylvain.cloud
+
+# Quatre tests par jour, en cron. Speedtest Tracker l'évalue dans
+# DISPLAY_TIMEZONE, donc à l'heure de Paris. Chaque test sature la ligne une
+# vingtaine de secondes : aucun entre 01:00 et 03:00, où borgmatic
+# (borgmatic_timer_schedule, 01:00) envoie les sauvegardes de la nuit à la
+# Storage Box (le test mesurerait une ligne déjà occupée, et ralentirait
+# l'envoi), ni vers 05:00, où la VM redémarre après une mise à jour du noyau.
+speedtest_tracker_schedule: "15 3,9,15,21 * * *"
+
+# Résultats gardés sans limite (0 : pas d'élagage) : une ligne par test,
+# quelques Ko par jour.
+speedtest_tracker_prune_results_older_than: 0
+
+# Compte administrateur, créé par la première migration seulement : changer
+# ces valeurs ensuite ne fait rien. Son mot de passe est la clé SOPS
+# speedtest_tracker_admin_password, la clé de chiffrement Laravel (APP_KEY,
+# format base64:…) la clé SOPS speedtest_tracker_app_key ; changer cette
+# dernière invalide les sessions et ce que l'application a chiffré.
+speedtest_tracker_admin_email: "{{ pangolin_le_email }}"
+
+# Borgmatic backup configuration
+speedtest_tracker_backup_enabled: true
+speedtest_tracker_backup_borgmatic_target: "{{ backup_storage_box_url }}/speedtest_tracker"
+speedtest_tracker_backup_encryption_passphrase: "{{ backup_passphrase }}"
+speedtest_tracker_backup_healthcheck_url: ""

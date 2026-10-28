@@ -1,0 +1,33 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# La base SQLite déjà là, comme sur l'hôte après le premier démarrage de
+# Speedtest Tracker (migrations Laravel) : le rôle borgmatic (tasks/app.yml)
+# doit la trouver, la copier par « .backup » et exclure sa copie vivante.
+- name: Prepare speedtest_tracker
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Ensure the speedtest_tracker config folder exists
+      loop:
+        - /opt/apps
+        - /opt/apps/speedtest_tracker
+        - /opt/apps/speedtest_tracker/config
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: sylvain
+        group: sylvain
+        # Le rôle (et docker_service pour /opt/apps) remet son propre mode
+        # au premier converge ; l'idempotence porte sur le second.
+        mode: "0700"
+
+    - name: Create a speedtest_tracker SQLite database
+      become_user: sylvain
+      ansible.builtin.command:
+        cmd: >-
+          python3 -c "import os, sqlite3; os.umask(0o077);
+          sqlite3.connect('/opt/apps/speedtest_tracker/config/database.sqlite').execute('CREATE TABLE results (id INTEGER PRIMARY KEY)')"
+        creates: /opt/apps/speedtest_tracker/config/database.sqlite

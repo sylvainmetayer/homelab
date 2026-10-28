@@ -16,6 +16,7 @@
   "pangolin": { "host": "pangolin", "repo": "pangolin", "role": "pangolin" },
   "paperless": { "host": "docker", "repo": "paperless", "role": "paperless_ngx", "paused": true },
   "rss": { "host": "docker", "repo": "rss", "role": "rss" },
+  "speedtest_tracker": { "host": "docker", "repo": "speedtest_tracker", "role": "speedtest_tracker" },
   "trek": { "host": "docker", "repo": "trek", "role": "trek" },
   "wiki": { "host": "docker", "repo": "wiki", "role": "wiki" },
   "wishlist": { "host": "docker", "repo": "wishlist", "role": "wishlist" }

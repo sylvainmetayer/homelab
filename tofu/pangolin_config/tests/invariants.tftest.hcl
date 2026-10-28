@@ -436,6 +436,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["speedtest_tracker"]
+  values = { id = 70 }
+}
+
+override_resource {
   target = pangolin_resource.website["karakeep"]
   values = { id = 62 }
 }
@@ -639,6 +644,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["speedtest_tracker"]
+  values = { push_token = "push-speedtest-tracker" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["nginx_demo"]
   values = { push_token = "push-nginx-demo" }
 }
@@ -714,7 +724,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
       "homepage",
       "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
-      "kitchenowl", "homebox",
+      "kitchenowl", "homebox", "speedtest_tracker",
       "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
       "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
       "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
@@ -1695,29 +1705,30 @@ run "every_public_resource_applies_its_rules" {
   # pangolin-route).
   assert {
     condition = { for key, r in pangolin_resource.website : key => r.name } == {
-      beszel           = "Beszel"
-      betisier         = "Betisier"
-      dawarich         = "Dawarich"
-      demo_planning    = "Demo Planning"
-      demo_planning_kc = "Demo Planning KC"
-      flip_planning    = "Flip Planning"
-      homebox          = "Homebox"
-      homepage         = "Homepage"
-      immich           = "Immich"
-      immich_swipe     = "Immich Swipe"
-      karakeep         = "Karakeep"
-      kitchenowl       = "KitchenOwl"
-      meerkat_crm      = "Meerkat CRM"
-      monica           = "Monica CRM"
-      nextcloud        = "nextcloud"
-      nginx_demo       = "Nginx Demo"
-      paperless        = "Paperless-ngx"
-      promptoramix     = "Promptoramix"
-      rss              = "RSS"
-      stirling_pdf     = "Stirling-PDF"
-      trek             = "TREK"
-      wiki             = "Wiki (Bookstack)"
-      wishlist         = "Wishlist"
+      beszel            = "Beszel"
+      betisier          = "Betisier"
+      dawarich          = "Dawarich"
+      demo_planning     = "Demo Planning"
+      demo_planning_kc  = "Demo Planning KC"
+      flip_planning     = "Flip Planning"
+      homebox           = "Homebox"
+      homepage          = "Homepage"
+      immich            = "Immich"
+      immich_swipe      = "Immich Swipe"
+      karakeep          = "Karakeep"
+      kitchenowl        = "KitchenOwl"
+      meerkat_crm       = "Meerkat CRM"
+      monica            = "Monica CRM"
+      nextcloud         = "nextcloud"
+      nginx_demo        = "Nginx Demo"
+      paperless         = "Paperless-ngx"
+      promptoramix      = "Promptoramix"
+      rss               = "RSS"
+      speedtest_tracker = "Speedtest Tracker"
+      stirling_pdf      = "Stirling-PDF"
+      trek              = "TREK"
+      wiki              = "Wiki (Bookstack)"
+      wishlist          = "Wishlist"
     }
     error_message = "Les ressources publiques ont changé (clé ou nom) : un nom renommé recrée ses règles pays ; une application ajoutée se liste ici."
   }
@@ -1849,28 +1860,29 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   # s'ajoute ici (voir le skill pangolin-route).
   assert {
     condition = { for key, m in uptimekuma_monitor_http_keyword.healthcheck : key => m.name } == {
-      beszel        = "Healthcheck Beszel"
-      betisier      = "Healthcheck Betisier"
-      dawarich      = "Healthcheck Dawarich"
-      demo_planning = "Healthcheck Demo Planning"
-      flip_planning = "Healthcheck Flip Planning"
-      homebox       = "Healthcheck Homebox"
-      homepage      = "Healthcheck Homepage"
-      immich        = "Healthcheck Immich"
-      immich_swipe  = "Healthcheck Immich Swipe"
-      karakeep      = "Healthcheck Karakeep"
-      kitchenowl    = "Healthcheck KitchenOwl"
-      meerkat_crm   = "Healthcheck Meerkat CRM"
-      monica        = "Healthcheck Monica CRM"
-      nextcloud     = "Healthcheck nextcloud"
-      nginx_demo    = "Healthcheck Nginx Demo"
-      paperless     = "Healthcheck Paperless-ngx"
-      promptoramix  = "Healthcheck Promptoramix"
-      rss           = "Healthcheck RSS"
-      stirling_pdf  = "Healthcheck Stirling-PDF"
-      trek          = "Healthcheck TREK"
-      wiki          = "Healthcheck Wiki (Bookstack)"
-      wishlist      = "Healthcheck Wishlist"
+      beszel            = "Healthcheck Beszel"
+      betisier          = "Healthcheck Betisier"
+      dawarich          = "Healthcheck Dawarich"
+      demo_planning     = "Healthcheck Demo Planning"
+      flip_planning     = "Healthcheck Flip Planning"
+      homebox           = "Healthcheck Homebox"
+      homepage          = "Healthcheck Homepage"
+      immich            = "Healthcheck Immich"
+      immich_swipe      = "Healthcheck Immich Swipe"
+      karakeep          = "Healthcheck Karakeep"
+      kitchenowl        = "Healthcheck KitchenOwl"
+      meerkat_crm       = "Healthcheck Meerkat CRM"
+      monica            = "Healthcheck Monica CRM"
+      nextcloud         = "Healthcheck nextcloud"
+      nginx_demo        = "Healthcheck Nginx Demo"
+      paperless         = "Healthcheck Paperless-ngx"
+      promptoramix      = "Healthcheck Promptoramix"
+      rss               = "Healthcheck RSS"
+      speedtest_tracker = "Healthcheck Speedtest Tracker"
+      stirling_pdf      = "Healthcheck Stirling-PDF"
+      trek              = "Healthcheck TREK"
+      wiki              = "Healthcheck Wiki (Bookstack)"
+      wishlist          = "Healthcheck Wishlist"
     }
     error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
   }
@@ -2086,6 +2098,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   assert {
+    condition     = output.uptime_backup_speedtest_tracker_url == "https://uptime.example.test/api/push/push-speedtest-tracker"
+    error_message = "uptime_backup_speedtest_tracker_url (docker.yml) ne pointe pas sur le moniteur Backup Speedtest Tracker."
+  }
+
+  assert {
     condition     = output.uptime_backup_karakeep_url == "https://uptime.example.test/api/push/push-karakeep"
     error_message = "uptime_backup_karakeep_url (docker.yml) ne pointe pas sur le moniteur Backup Karakeep."
   }
@@ -2166,6 +2183,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_backup_karakeep_url,
       output.uptime_backup_kitchenowl_url,
       output.uptime_backup_homebox_url,
+      output.uptime_backup_speedtest_tracker_url,
       output.uptime_backup_wishlist_url,
       output.uptime_backup_nginx_demo_url,
       output.uptime_backup_beszel_url,
@@ -2484,24 +2502,25 @@ run "monitors_are_filed_and_notify_by_email" {
   # moved.tf lui a donnée et le nom qu'Uptime Kuma affiche.
   assert {
     condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
-      beszel        = "Backup Beszel"
-      betisier      = "Backup Betisier"
-      dawarich      = "Backup Dawarich"
-      demo_planning = "Backup Demo Planning"
-      flip_planning = "Backup Flip Planning"
-      homebox       = "Backup Homebox"
-      immich        = "Backup Immich"
-      karakeep      = "Backup Karakeep"
-      kitchenowl    = "Backup KitchenOwl"
-      meerkat_crm   = "Backup Meerkat CRM"
-      monica        = "Backup Monica CRM"
-      nextcloud     = "Backup nextcloud"
-      nginx_demo    = "Backup Nginx Demo"
-      paperless     = "Backup Paperless-ngx"
-      rss           = "Backup RSS"
-      trek          = "Backup TREK"
-      wiki          = "Backup Wiki (Bookstack)"
-      wishlist      = "Backup Wishlist"
+      beszel            = "Backup Beszel"
+      betisier          = "Backup Betisier"
+      dawarich          = "Backup Dawarich"
+      demo_planning     = "Backup Demo Planning"
+      flip_planning     = "Backup Flip Planning"
+      homebox           = "Backup Homebox"
+      immich            = "Backup Immich"
+      karakeep          = "Backup Karakeep"
+      kitchenowl        = "Backup KitchenOwl"
+      meerkat_crm       = "Backup Meerkat CRM"
+      monica            = "Backup Monica CRM"
+      nextcloud         = "Backup nextcloud"
+      nginx_demo        = "Backup Nginx Demo"
+      paperless         = "Backup Paperless-ngx"
+      rss               = "Backup RSS"
+      speedtest_tracker = "Backup Speedtest Tracker"
+      trek              = "Backup TREK"
+      wiki              = "Backup Wiki (Bookstack)"
+      wishlist          = "Backup Wishlist"
     }
     error_message = "Les moniteurs de sauvegarde ont changé (clé ou nom) : relire les champs backup de local.websites, puis cette liste."
   }
