@@ -366,6 +366,11 @@ run "storage_box_backups" {
   }
 
   assert {
+    condition     = hcloud_storage_box.backups.delete_protection == true
+    error_message = "La Storage Box doit refuser sa suppression par l'API (console, autre client), pas seulement par tofu (prevent_destroy)."
+  }
+
+  assert {
     condition     = hcloud_storage_box.backups.access_settings.ssh_enabled == true && hcloud_storage_box.backups.access_settings.reachable_externally == true
     error_message = "La Storage Box doit être joignable en SSH depuis l'extérieur (borgmatic, ansible/backup.yaml)."
   }
