@@ -8,7 +8,9 @@
     dest: "{{ blocky_config_dir }}/blocky-check.sh"
     owner: root
     group: root
-    mode: "0755"
+    # Lu par l'utilisateur dynamique de blocky-check.service ; rien de secret
+    # (l'URL push est dans check.env, 0600).
+    mode: "0755" # NOSONAR
 
 # L'URL push porte le jeton du moniteur : 0600 et diff: false.
 - name: Write the push URL of the Blocky check
@@ -31,7 +33,7 @@
     dest: "/etc/systemd/system/{{ item }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
   register: blocky_check_units
 
 - name: Enable the Blocky check

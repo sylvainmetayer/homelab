@@ -29,7 +29,9 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    # Traversable par tous : Blocky (mode binary) et la vérification tournent
+    # sous un utilisateur dynamique, qui lit sa configuration et son script.
+    mode: "0755" # NOSONAR
 
 - name: Deploy Blocky in a container
   when: blocky_mode == 'dc'
