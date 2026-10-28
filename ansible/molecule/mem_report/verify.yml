@@ -107,7 +107,6 @@
           - python3
           - -I
           - "{{ mem_report_verify_tmp }}/make_fixture.py"
-          - "{{ mem_report_verify_tmp }}"
         creates: "{{ mem_report_verify_tmp }}/inspect.tsv"
 
     # Un `molecule verify` relancé repart d'un journal vide.
