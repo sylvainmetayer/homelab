@@ -15,7 +15,11 @@ set -euo pipefail
 HOST=${NC_HOST:-192.168.1.216}
 KNOWN_HOSTS=${KNOWN_HOSTS:-$(dirname "$(readlink -f "$0")")/../../ansible/known_hosts}
 SSH=(ssh -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes "sylvain@$HOST")
-occ() { "${SSH[@]}" sudo docker exec nextcloud occ "$@"; }
+# ssh recolle ses arguments en une ligne que le shell distant redécoupe : un
+# nom de jeton à espaces (« GNOME Online Accounts ») deviendrait trois
+# arguments. Chacun est donc remis entre apostrophes.
+quote() { local a; for a; do printf "'%s' " "${a//\'/\'\\\'\'}"; done; }
+occ() { "${SSH[@]}" "sudo docker exec nextcloud occ $(quote "$@")"; }
 
 case "${1:-audit}" in
 add)
@@ -31,16 +35,19 @@ delete)
 audit)
   tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
   occ user:list --output=json > "$tmp/users.json"
-  for u in $(python3 -I -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))))' "$tmp/users.json"); do
-    occ user:auth-tokens:list "$u" --output=json > "$tmp/tokens.$u.json"
-  done
-  # Requêtes DAV/OCS des 14 jours de journaux : utilisateur (Basic ou jeton),
-  # date, agent. Rien d'autre ne sort de la VM.
-  "${SSH[@]}" sudo docker exec -i nextcloud sh -s <<'SH' \
-    | awk -F'"' '{split($1,a," "); d=substr(a[4],2,11); print a[3] "\t" d "\t" $6}' > "$tmp/log.tsv"
+  # Un uid Nextcloud peut contenir une espace : une ligne par compte, et
+  # ssh sans stdin (il avalerait le reste de la liste).
+  while IFS= read -r u; do
+    occ user:auth-tokens:list "$u" --output=json < /dev/null > "$tmp/tokens.$u.json"
+  done < <(python3 -I -c 'import json,sys; print("\n".join(json.load(open(sys.argv[1]))))' "$tmp/users.json")
+  # Requêtes DAV/OCS de tous les journaux gardés (rotation hebdomadaire, 14
+  # anciens : jusqu'à ~15 semaines) : utilisateur (Basic ou jeton), date,
+  # agent. Le tri se fait dans le conteneur : ni IP ni URL ne sort de la VM.
+  "${SSH[@]}" sudo docker exec -i nextcloud sh -s <<'SH' > "$tmp/log.tsv"
 for f in /config/log/nginx/access.log*; do
   case $f in *.gz) gzip -dc "$f" ;; *) cat "$f" ;; esac
-done 2>/dev/null | grep -E '"[A-Z]+ /(remote\.php|ocs|index\.php/apps/[a-z_]+/api)' || true
+done 2>/dev/null | grep -E '"[A-Z]+ /(remote\.php|ocs|index\.php/apps/[a-z_]+/api)' \
+  | awk -F'"' '{split($1,a," "); print a[3] "\t" substr(a[4],2,11) "\t" $6}' || true
 SH
   python3 -I - "$tmp" <<'PY'
 import json, sys, os, re, time
@@ -64,17 +71,26 @@ def family(ua):
         if re.search(pat, ua, re.I): return name
     return None
 seen = defaultdict(lambda: [0, ""])  # (user, famille) -> [requêtes, dernier jour]
+days = set()
 for line in open(os.path.join(tmp, "log.tsv"), errors="replace"):
-    try: user, day, ua = line.rstrip("\n").split("\t", 2)
+    try:
+        user, day, ua = line.rstrip("\n").split("\t", 2)
+        day = time.strftime("%Y-%m-%d", time.strptime(day, "%d/%b/%Y"))
     except ValueError: continue
+    days.add(day)
     fam = family(ua)
     if user in ("-", "") or not fam: continue
-    s = seen[(user, fam)]; s[0] += 1
-    t = time.strptime(day, "%d/%b/%Y"); s[1] = max(s[1], time.strftime("%Y-%m-%d", t))
+    s = seen[(user, fam)]; s[0] += 1; s[1] = max(s[1], day)
 users = json.load(open(os.path.join(tmp, "users.json")))
-print("=== Clients vus dans les journaux (14 j) ===")
+span = f"du {min(days)} au {max(days)}" if days else "vides"
+print(f"=== Clients vus dans les journaux ({span}) ===")
 for (user, fam), (n, last) in sorted(seen.items()):
-    toks = json.load(open(os.path.join(tmp, f"tokens.{user}.json"))) if os.path.exists(os.path.join(tmp, f"tokens.{user}.json")) else []
+    if user not in users:
+        # Basic porte le nom de connexion : une adresse e-mail n'est pas l'uid.
+        print(f"- {user:10} {fam:22} {n:6} req., dernier {last}  compte inconnu de user:list"
+              " (connexion par e-mail ?) : à vérifier à la main")
+        continue
+    toks = json.load(open(os.path.join(tmp, f"tokens.{user}.json")))
     words = next(w for f, _, w in FAMILIES if f == fam)
     match = [t for t in toks if t.get("type") == 1 and re.search(words, t.get("name", ""), re.I)]
     if match:
