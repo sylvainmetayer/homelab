@@ -3052,8 +3052,8 @@ run "ssh_login_monitors_alert_on_every_login" {
   assert {
     condition = alltrue([
       for m in values(uptimekuma_monitor_push.ssh_login) :
-      toset(m.notification_ids) == toset([9])
-    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([9])
+      toset(m.notification_ids) == toset([uptimekuma_notification_telegram.supervision.id])
+    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([uptimekuma_notification_telegram.supervision.id])
     error_message = "Les moniteurs SSH (et FolderSync) notifient la notification Telegram, et elle seule."
   }
 
