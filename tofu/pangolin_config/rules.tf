@@ -41,6 +41,8 @@ locals {
   #            - trek_mcp and beszel_agent_connect, the two PASS, the only
   #              standalone path rules: they skip the country rules but keep
   #              the authentication;
+  #            - exemple_planning_drop, the DROPs of the public showcase
+  #              (website_exemple_planning.tf);
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, dawarich_home_ip,
   #              trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
@@ -254,12 +256,14 @@ locals {
   # Resources with a path rule that lives in a standalone resource rather than
   # in local.path_bypasses: the two PASS, TREK's `/mcp` (pangolin_resource_rule.
   # trek_mcp, website_trek.tf) and Beszel's agent endpoint
-  # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf), the only
-  # path rules that are not ACCEPTs. Listed by hand for the same reason as
-  # local.declared_extra_rules below, so that the guard stays even if TREK's
-  # ACCEPTs go away.
+  # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf), and the
+  # showcase's DROPs (pangolin_resource_rule.exemple_planning_drop,
+  # website_exemple_planning.tf), the only path rules that are not ACCEPTs.
+  # Listed by hand for the same reason as local.declared_extra_rules below, so
+  # that the guard stays even if TREK's ACCEPTs go away.
   standalone_path_rule_resources = [
     "Beszel",
+    "Exemple Planning",
     "TREK",
   ]
 
@@ -512,6 +516,7 @@ locals {
       pangolin_resource_rule.trek_mcp,
     ],
     values(pangolin_resource_rule.backslash_guard),
+    values(pangolin_resource_rule.exemple_planning_drop),
     values(pangolin_resource_rule.path_bypass),
   )
 
