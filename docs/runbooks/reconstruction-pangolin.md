@@ -22,7 +22,10 @@ mode rescue. Une reconstruction change l'IP publique et la clé d'hôte SSH.
 Le dépôt Borg de Pangolin se lit depuis n'importe quel hôte avec le
 sous-compte en lecture seule `restore-test` (clé : `tofu output -raw
 storage_box_restore_test_ssh_private_key` dans `tofu/pangolin`, dépôt
-`ssh://<user>@<server>:23/./pangolin/pangolin`, `borg --bypass-lock`) :
+`ssh://<user>@<server>:23/./pangolin/pangolin`, `<user>` et `<server>` :
+outputs `storage_box_restore_test_username` et `_server`, clé d'hôte
+`backup_storage_box_host_key` pour `[<server>]:23`, phrase de passe
+`backup_passphrase`, `borg --bypass-lock`) :
 vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus bas).
 
 ## Réparation
@@ -82,7 +85,8 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
    ```
 
    Le conteneur tourne en root : le fichier SQLite reste `root:root`
-   `0644`, comme le laisse `cp -a` (vérifié le 2026-10-28). L'archive pèse
+   `0644`, comme le crée le `cp` de root (umask 022 ; vérifié le
+   2026-10-28). L'archive pèse
    ~10 Go (la base ~2,3 Go, et `config/db/backups/`, les copies que Pangolin
    fait avant chaque migration, ~7,7 Go) : compter ~3 min d'extraction et
    ~20 Go libres sur le disque.
@@ -128,12 +132,25 @@ appris :
   échoue (« 10.0.0.1 and the default route both go through eth0 ») :
   normal, le rattachement vient de `tofu/pangolin`. Pour une répétition,
   `--skip-tags nat`.
+- **Viser la VM, jamais le vrai serveur** : l'hôte `pangolin` de
+  l'inventaire vient du state (`hetzner.py`). La répétition passe donc un
+  inventaire à elle (`-i /chemin/inventory.ini`, une ligne `[hetzner]` puis
+  `pangolin ansible_host=<IP de la VM> ansible_user=sylvain` : le nom
+  `pangolin` garde ses `host_vars`) et son propre fichier de clés d'hôte
+  (`ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o
+  UserKnownHostsFile=/chemin/known_hosts -o StrictHostKeyChecking=yes"`),
+  sans toucher à `ansible/known_hosts`. Chaque commande ad hoc sur la VM
+  (`systemctl …`) passe par ce même inventaire ou par `ssh` vers son IP.
 - **Pour répéter sans toucher à la production** : jamais `backup.yaml` (il
   remplacerait la clé du vrai sous-compte de Pangolin), restaurer par
   `restore-test` ; `--skip-tags backup,beszel_agent,monitoring` (un second
   agent Beszel avec le même jeton ferait clignoter le vrai) ;
-  `systemctl disable --now borgmatic.timer` après `--tags setup` (sinon le
-  moniteur de sauvegarde passe DOWN à 01:00) ;
+  `systemctl disable --now borgmatic.timer` après `--tags setup` (sans la
+  config d'app, sautée par `--skip-tags backup`, il échoue sans rien
+  pousser ; mais un `--tags backup` y poserait l'URL push du vrai moniteur
+  de sauvegarde, que la sauvegarde, clé non autorisée, passerait DOWN à
+  01:00) ; `geoipupdate.timer` pousse sur le vrai moniteur `GeoIP Pangolin`
+  (mercredi 02:30) : le couper aussi si la VM passe la nuit ;
   `-e ssh_login_notify_enabled=false` sur `00-setup.yaml` ; une clé d'hôte
   générée d'avance et donnée par `ssh_keys` de cloud-init, ce qui évite
   `ssh-keyscan`. Les DNS ne bougent pas : les Newt restent sur le vrai
