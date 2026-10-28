@@ -5,9 +5,14 @@
     - ../../group_vars/all/variables.yml
     - ../../roles/blocky/defaults/main.yml
   vars:
-    blocky_mode: binary
     blocky_verify_push_dir: /tmp/molecule-blocky-push
   tasks:
+    # set_fact : le blocky_mode: dc des defaults (vars_files) passerait
+    # devant un vars: du play.
+    - name: Select the binary mode, as lxc.yml
+      ansible.builtin.set_fact:
+        blocky_mode: binary
+
     - name: Load the derived variables of the role
       ansible.builtin.include_vars: ../../roles/blocky/vars/main.yml
 
