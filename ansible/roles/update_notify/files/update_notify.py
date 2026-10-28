@@ -40,12 +40,14 @@ import urllib.request
 NTFY_TOKEN_VARIABLE = "NTFY_TOKEN"
 PUSH_URL_VARIABLE = "UPTIME_PUSH_URL"
 RUNBOOK = "docs/runbooks/mises-a-jour-proxmox-ugos.md"
-# ntfy refuse un message de plus de 4096 octets (message-size-limit) : la
-# liste est coupée bien avant.
+# ntfy refuse un message de plus de 4096 octets (message-size-limit, sans
+# pièces jointes) : chaque section est coupée à MAX_LISTED paquets, puis le
+# message entier à MESSAGE_LIMIT octets (quatre sections pleines le passeraient).
 MAX_LISTED = 25
+MESSAGE_LIMIT = 3900
 
 # Inst <paquet> [<installée>] (<candidate> <origine>[, <origine>…] [<arch>])
-INST_RE = re.compile(r"^Inst (\S+) (?:\[([^\]]+)\] )?\((\S+) (.+?) \[[^\]]+\]\)")
+INST_RE = re.compile(r"^Inst (\S+) (?:\[([^\]]+)\] )?\((\S+) ([^\[]+) \[[^\]]+\]\)")
 REMV_RE = re.compile(r"^Remv (\S+)")
 PROXMOX_NAME_RE = re.compile(r"^(pve-|proxmox-|libpve|qemu-server|lxc-pve|corosync|libknet)")
 KERNEL_NAME_RE = re.compile(r"(^|-)kernel|^linux-image")
@@ -87,9 +89,16 @@ def parse_simulation(output):
 
 
 def pending_kernel(boot_dir, running):
-    """Le noyau installé le plus récent, s'il n'est pas celui qui tourne."""
+    """Le noyau installé le plus récent de la même famille que celui qui
+    tourne (suffixe -pve), s'il est plus récent que lui. Un noyau Debian
+    resté installé (-amd64) n'est pas comparé : il ne démarrerait pas par
+    défaut."""
+    flavour = "-" + running.rsplit("-", 1)[-1] if "-" in running else ""
     try:
-        kernels = [f[len("vmlinuz-"):] for f in os.listdir(boot_dir) if f.startswith("vmlinuz-")]
+        kernels = [
+            f[len("vmlinuz-"):] for f in os.listdir(boot_dir)
+            if f.startswith("vmlinuz-") and f.endswith(flavour)
+        ]
     except OSError:
         return None
     if not kernels:
@@ -108,24 +117,55 @@ def section(title, entries):
     return lines
 
 
-def check_apt(args):
-    """Retourne (notification ou None, résumé pour Uptime Kuma)."""
+def fit_message(body, tail, limit=MESSAGE_LIMIT):
+    """Les lignes de body, coupées pour que le message tienne en limit
+    octets, puis celles de tail (noyau, version, runbook), gardées entières."""
+    marker = "… liste tronquée : apt list --upgradable sur l'hôte"
+    budget = limit - len("\n".join([marker] + tail).encode()) - 1
+    kept, size = [], 0
+    for line in body:
+        size += len(line.encode()) + 1
+        if size > budget:
+            return "\n".join(kept + [marker] + tail)
+        kept.append(line)
+    return "\n".join(kept + tail)
+
+
+def last_error(result):
+    return (result.stderr.strip().splitlines() or ["?"])[-1]
+
+
+def apt_update(retry_delay):
+    """apt-get update, deux nouvelles tentatives : les listes verrouillées
+    par pve-daily-update, un miroir indisponible."""
     for attempt in range(3):
         update = run(["apt-get", "update", "-q"])
         if update.returncode == 0:
-            break
-        # Les listes d'apt verrouillées par pve-daily-update, un miroir
-        # indisponible : deux nouvelles tentatives.
+            return
         if attempt < 2:
-            time.sleep(args.retry_delay)
-    else:
-        last = (update.stderr.strip().splitlines() or ["?"])[-1]
-        raise CheckError(f"apt-get update en échec : {last}")
+            time.sleep(retry_delay)
+    raise CheckError(f"apt-get update en échec : {last_error(update)}")
+
+
+def apt_tail(newest, running):
+    """Les dernières lignes du message, jamais coupées."""
+    tail = []
+    if newest:
+        tail.append(f"Noyau {newest} installé, {running} en service : redémarrage à prévoir.")
+    pveversion = run(["pveversion"]) if shutil.which("pveversion") else None
+    if pveversion is not None and pveversion.returncode == 0 and pveversion.stdout.strip():
+        tail.append(pveversion.stdout.strip().splitlines()[0])
+    tail.append(f"Rien n'est installé seul : {RUNBOOK}")
+    return tail
+
+
+def check_apt(args):
+    """Retourne (notification ou None, résumé pour Uptime Kuma)."""
+    apt_update(args.retry_delay)
 
     simulation = run(["apt-get", "-s", "-o", "Debug::NoLocking=1", "dist-upgrade"])
     if simulation.returncode != 0:
-        last = (simulation.stderr.strip().splitlines() or ["?"])[-1]
-        raise CheckError(f"simulation de dist-upgrade en échec : {last}")
+        raise CheckError(f"simulation de dist-upgrade en échec : {last_error(simulation)}")
     security, proxmox, other, removed = parse_simulation(simulation.stdout)
     total = len(security) + len(proxmox) + len(other)
 
@@ -141,12 +181,7 @@ def check_apt(args):
     lines += section("Proxmox et noyaux", proxmox)
     lines += section("Autres", other)
     lines += section("Retirés par dist-upgrade", removed)
-    if newest:
-        lines.append(f"Noyau {newest} installé, {running} en service : redémarrage à prévoir.")
-    pveversion = run(["pveversion"]) if shutil.which("pveversion") else None
-    if pveversion is not None and pveversion.returncode == 0 and pveversion.stdout.strip():
-        lines.append(pveversion.stdout.strip().splitlines()[0])
-    lines.append(f"Rien n'est installé seul : {RUNBOOK}")
+    tail = apt_tail(newest, running)
 
     if total:
         title = f"{args.host} : {total} mise(s) à jour, dont {len(security)} de sécurité"
@@ -154,16 +189,19 @@ def check_apt(args):
         title = f"{args.host} : redémarrage en attente"
     notification = {
         "title": title,
-        "message": "\n".join(lines),
+        "message": fit_message(lines, tail),
         "priority": 4 if security else 3,
         "tags": ["warning"] if security else ["package"],
     }
     return notification, summary
 
 
+# Les chemins (--os-release, --state) viennent de l'ExecStart de l'unité
+# (root), pas d'une entrée extérieure : la règle de traversée de chemin de
+# Sonar ne s'applique pas.
 def read_os_release(path):
     values = {}
-    with open(path, encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:  # NOSONAR
         for line in handle:
             key, sep, value = line.strip().partition("=")
             if sep:
@@ -182,9 +220,11 @@ def check_ugos(args):
         raise CheckError(f"OS_VERSION absent de {args.os_release}")
 
     try:
-        with open(args.state, encoding="utf-8") as handle:
+        with open(args.state, encoding="utf-8") as handle:  # NOSONAR
             state = json.load(handle)
     except (OSError, ValueError):
+        state = {}
+    if not isinstance(state, dict):
         state = {}
     month = time.strftime("%Y-%m")
     previous = state.get("version")
@@ -253,9 +293,9 @@ def push(url, status, msg):
 
 def save_state(path, state):
     temporary = f"{path}.tmp"
-    with open(temporary, "w", encoding="utf-8") as handle:
+    with open(temporary, "w", encoding="utf-8") as handle:  # NOSONAR
         json.dump(state, handle)
-    os.replace(temporary, path)
+    os.replace(temporary, path)  # NOSONAR
 
 
 def main(argv=None):
@@ -283,8 +323,12 @@ def main(argv=None):
             print(f"publié : {notification['title']}", flush=True)
         if state is not None:
             # Après la publication seulement : un rappel perdu est renvoyé au
-            # passage suivant.
-            save_state(args.state, state)
+            # passage suivant. Un état non écrit renverrait chaque semaine
+            # le même message : down, pas une trace sans push.
+            try:
+                save_state(args.state, state)
+            except OSError as error:
+                raise CheckError(f"état {args.state} non écrit : {error}") from error
     except CheckError as error:
         print(f"down: {error}", flush=True)
         push(push_url, "down", str(error))

@@ -23,6 +23,7 @@
     update_notify_verify_env:
       NTFY_TOKEN: "{{ ntfy_scripts_token }}"
       UPTIME_PUSH_URL: "http://127.0.0.1:18081{{ update_notify_verify_push }}" # NOSONAR
+    update_notify_verify_kernel: "999.0.0-1-{{ update_notify_verify_uname.stdout | split('-') | last }}"
     update_notify_verify_ugos_args: >-
       {{ ['ugos'] + update_notify_verify_common
          + ['--os-release', update_notify_verify_dir ~ '/os-release',
@@ -109,10 +110,23 @@
         mode: "0700"
       loop: [apt-get, pveversion]
 
-    # Un noyau installé plus récent que tout noyau en service.
-    - name: Install a newer kernel in the fake /boot
+    # Le noyau du conteneur est celui de l'hôte de la CI : le faux noyau
+    # prend son suffixe (-pve sur Proxmox), seul comparé par le script.
+    - name: Read the running kernel
+      ansible.builtin.command: uname -r
+      register: update_notify_verify_uname
+      changed_when: false
+
+    - name: Install a newer kernel of the same flavour in the fake /boot
       ansible.builtin.copy:
-        dest: "{{ update_notify_verify_dir }}/boot/vmlinuz-999.0.0-1-pve"
+        dest: "{{ update_notify_verify_dir }}/boot/vmlinuz-{{ update_notify_verify_kernel }}"
+        content: ""
+        mode: "0600"
+
+    # Un noyau d'une autre famille, plus récent encore : jamais signalé.
+    - name: Install a newer kernel of another flavour in the fake /boot
+      ansible.builtin.copy:
+        dest: "{{ update_notify_verify_dir }}/boot/vmlinuz-9999.0.0-1-otherflavour"
         content: ""
         mode: "0600"
 
@@ -190,11 +204,11 @@
           - update_notify_verify_msg.priority == 4
           - update_notify_verify_msg.title == update_notify_verify_titles.security
           - update_notify_verify_msg.message.startswith(update_notify_verify_security_head ~ '\n')
-          - "'Noyau 999.0.0-1-pve installé' in update_notify_verify_msg.message"
+          - ('Noyau ' ~ update_notify_verify_kernel ~ ' installé') in update_notify_verify_msg.message
           - "'\npve-manager/9.2.24/' in update_notify_verify_msg.message"
           - "'docs/runbooks/mises-a-jour-proxmox-ugos.md' in update_notify_verify_msg.message"
           - update_notify_case_requests[1].path is search('\?status=up&')
-          - (update_notify_case_requests[1].path | urldecode) is search('1 de sécurité, noyau 999\.0\.0-1-pve en attente')
+          - ('1 de sécurité, noyau ' ~ update_notify_verify_kernel ~ ' en attente') in (update_notify_case_requests[1].path | urldecode)
         fail_msg: "{{ update_notify_case_requests }}"
 
     - name: Check a host up to date
