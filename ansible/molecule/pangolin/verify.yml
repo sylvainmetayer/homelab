@@ -360,7 +360,8 @@
           - logrotate_conf is search(pangolin_dir ~ '/config/traefik/logs/access.log \\{')
           - logrotate_conf is search('\\bdaily\\b')
           - logrotate_conf is search('docker kill --signal=USR1 traefik')
-          - logrotate_conf is not search('copytruncate')
+          # La directive, pas le commentaire qui explique son absence.
+          - logrotate_conf is not search('(?m)^\\s*copytruncate')
 
     # --- borgmatic ---
 
