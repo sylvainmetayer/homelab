@@ -36,6 +36,12 @@ Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture. Son URL push 
 `uptime_storage_box_quota_url` de `tofu/pangolin_config` : appliquer ce module
 avant le plan d'ici, qui échoue sinon sur un attribut absent.
 
+L'environnement **`secrets-rotation`** (`secrets_rotation_secrets.tf`,
+workflow `secrets-rotation.yaml`, échéances de `secrets-rotation.yaml`) ne
+porte que l'URL push du moniteur « Rotation des secrets », output
+`uptime_secrets_rotation_url` de `tofu/pangolin_config` : même ordre,
+`pangolin_config` appliqué d'abord.
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
 tofu -chdir=tofu/github init

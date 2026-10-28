@@ -52,6 +52,8 @@ override_data {
       uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
       # storage_box_quota_monitor.tf
       uptime_storage_box_quota_url = "https://uptime.example.test/api/push/storage-box-quota"
+      # secrets_rotation_monitor.tf
+      uptime_secrets_rotation_url = "https://uptime.example.test/api/push/secrets-rotation"
     }
   }
 }
@@ -408,5 +410,34 @@ run "storage_box_quota_secrets" {
       strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "secrets.${name}")
     ]) && strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "environment: storage-box-quota\n")
     error_message = "storage-box-quota.yaml doit lire ses secrets sous les noms déclarés par tofu/github, dans l'environnement storage-box-quota."
+  }
+}
+
+# .github/workflows/secrets-rotation.yaml : la seule URL push de son moniteur,
+# dans un environnement à lui, lisible depuis main seulement.
+run "secrets_rotation_secrets" {
+  command = plan
+
+  assert {
+    condition     = github_actions_environment_secret.secrets_rotation_push_url.environment == "secrets-rotation" && github_actions_environment_secret.secrets_rotation_push_url.repository == "homelab"
+    error_message = "Le secret du contrôle des rotations doit être dans l'environnement secrets-rotation du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.secrets_rotation.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.secrets_rotation_main.branch_pattern == "main"
+    error_message = "L'environnement secrets-rotation ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.secrets_rotation_push_url.value == "https://uptime.example.test/api/push/secrets-rotation"
+    error_message = "SECRETS_ROTATION_PUSH_URL doit être l'output uptime_secrets_rotation_url de tofu/pangolin_config."
+  }
+
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../.github/workflows/secrets-rotation.yaml"), "secrets.SECRETS_ROTATION_PUSH_URL")
+      && strcontains(file("${path.module}/../../.github/workflows/secrets-rotation.yaml"), "environment: secrets-rotation\n")
+    )
+    error_message = "secrets-rotation.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement secrets-rotation."
   }
 }

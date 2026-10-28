@@ -96,6 +96,7 @@ NO_TEST = [
     ".sopsrc",
     "renovate.json",
     "secrets.sops.yaml",
+    "secrets-rotation.yaml",
 ]
 
 ROLE_INCLUDE_KEYS = {

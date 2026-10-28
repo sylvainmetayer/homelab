@@ -13,6 +13,8 @@ on:
       - tofu/**
       - pyproject.toml
       - mise.toml
+      - secrets.sops.yaml
+      - secrets-rotation.yaml
   workflow_dispatch:
 
 # Pas de paths-ignore pour la documentation : Ansible lint, OpenTofu lint et
@@ -66,6 +68,13 @@ jobs:
       # rôle : une surcharge du même nom perdrait sans un mot (AGENTS.md).
       - name: Check that no SOPS key shadows a vars entry
         run: python -I .github/scripts/check_sops_shadowing.py
+
+      # Chaque clé des deux fichiers SOPS a son entrée dans
+      # secrets-rotation.yaml (nature, dernière rotation, procédure), et
+      # chaque entrée sa clé. Les échéances : secrets-rotation.yaml (workflow).
+      - name: Check the secret rotation inventory
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/check_secret_rotation.py
 
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts
