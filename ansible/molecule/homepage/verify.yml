@@ -101,17 +101,18 @@
         fail_msg: "services.yaml inattendu : {{ homepage_services }}"
 
     # Widgets : Beszel sur son lien (superuser du rôle beszel, réseau newt),
-    # une carte par page de statut d'Uptime Kuma, sans href (l'URL d'Uptime
-    # Kuma reste dans la configuration).
+    # une carte pour la page de statut sylvain-dev d'Uptime Kuma, sans href
+    # (l'URL d'Uptime Kuma reste dans la configuration). Aucune carte des
+    # sauvegardes : pas de page publique pour elles.
     - name: Assert the Beszel and Uptime Kuma widgets
       vars:
         homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
         homepage_admin_list: "{{ (homepage_services | selectattr('Administration', 'defined') | first)['Administration'] }}"
         homepage_admin: "{{ homepage_admin_list | map('dict2items') | flatten | items2dict }}"
-        homepage_kuma_widgets: "{{ [homepage_admin['sylvain.dev'].widget, homepage_admin['Sauvegardes'].widget] }}"
+        homepage_kuma_widget: "{{ homepage_admin['sylvain.dev'].widget }}"
       ansible.builtin.assert:
         that:
-          - homepage_admin_list | map('first') | list == ['Beszel', 'Pangolin', 'Sauvegardes', 'sylvain.dev']
+          - homepage_admin_list | map('first') | list == ['Beszel', 'Pangolin', 'sylvain.dev']
           - homepage_admin['Beszel'].href == 'https://monitoring.sylvain.cloud'
           - homepage_admin['Beszel'].widget.type == 'beszel'
           - homepage_admin['Beszel'].widget.version == 2
@@ -120,13 +121,11 @@
           - homepage_admin['Beszel'].widget.password == homepage_beszel_password
           - homepage_admin['Beszel'].widget.fields == ['systems', 'up']
           - homepage_admin['Pangolin'].widget is not defined
-          - homepage_admin['sylvain.dev'].widget.slug == 'sylvain-dev'
-          - homepage_admin['Sauvegardes'].widget.slug == 'homelab-sauvegardes'
-          - homepage_kuma_widgets | map(attribute='type') | unique == ['uptimekuma']
-          - homepage_kuma_widgets | map(attribute='url') | unique == ['https://uptime.example.invalid']
-          - homepage_kuma_widgets | map('list') | map('sort') | unique == [['slug', 'type', 'url']]
+          - homepage_kuma_widget.type == 'uptimekuma'
+          - homepage_kuma_widget.url == 'https://uptime.example.invalid'
+          - homepage_kuma_widget.slug == 'sylvain-dev'
+          - homepage_kuma_widget.keys() | list | sort == ['slug', 'type', 'url']
           - homepage_admin['sylvain.dev'].href is not defined
-          - homepage_admin['Sauvegardes'].href is not defined
         fail_msg: "Widgets inattendus : {{ homepage_admin_list | map('first') | list }}"
 
     - name: Read the homepage widgets

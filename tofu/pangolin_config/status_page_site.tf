@@ -52,3 +52,12 @@ output "status_page_site_badges" {
   }
   sensitive = true
 }
+
+# Lu par docker.yml (homepage_uptimekuma_url) : le widget Uptime Kuma de
+# Homepage lit cette page côté serveur (GET /api/status-page/<slug>, sans
+# compte), l'URL ne va pas au navigateur.
+output "homepage_uptimekuma_url" {
+  description = "URL d'Uptime Kuma, pour le widget de Homepage"
+  value       = local.uptimekuma_endpoint
+  sensitive   = true
+}

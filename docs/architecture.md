@@ -310,16 +310,17 @@ un agent par hôte (rôle `beszel_agent`). Les agents ouvrent eux-mêmes une
 WebSocket vers le hub : aucun n'écoute de port.
 
 Homepage (`home.sylvain.cloud`) en montre le résumé, groupe Administration :
-sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; deux
-cartes Uptime Kuma, la page de statut `sylvain-dev` et `homelab-sauvegardes`
-(chaque sauvegarde, le restore test, la Storage Box,
-`tofu/pangolin_config/status_page_backups.tf`). Homepage les interroge côté
-serveur. Le widget Beszel exige un superuser PocketBase : il a le sien
+sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; une carte
+Uptime Kuma, la page de statut publique `sylvain-dev`. Homepage les interroge
+côté serveur. Les sauvegardes n'ont pas de page de statut publique (leurs
+noms et leur état restent dans Uptime Kuma), donc pas de carte.
+
+Le widget Beszel exige un superuser PocketBase : il a le sien
 (`beszel_homepage_email`, `host_vars/docker` ; clé sops
 `homepage_beszel_password`), que le rôle `beszel` crée par
-`beszel superuser upsert`, distinct du compte administrateur. Un superuser lit
-et écrit tout le hub : celui qui lit la configuration de Homepage (`0600`, VM
-docker) a la main sur Beszel.
+`beszel superuser upsert`, distinct du compte administrateur. **Risque
+accepté** (Sylvain, 2026-10-28) : un superuser lit et écrit tout le hub, donc
+qui lit la configuration de Homepage (`0600`, VM docker) a la main sur Beszel.
 
 ```mermaid
 flowchart LR

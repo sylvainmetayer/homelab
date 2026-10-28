@@ -3163,31 +3163,34 @@ run "ntfy_topics_match_the_role" {
   }
 }
 
-# Les widgets Uptime Kuma de Homepage lisent une page de statut par son slug
+# Le widget Uptime Kuma de Homepage lit une page de statut publiée par son slug
 # (homepage_uptimekuma_status_pages du rôle homepage) : chaque slug du rôle
 # doit être celui d'une page déclarée ici, sinon le widget affiche une erreur.
-# La page des sauvegardes porte chaque sonde de sauvegarde active, et docker.yml
-# lit l'URL d'Uptime Kuma de son output.
+# Aucune page de statut des sauvegardes (décision de Sylvain : rien de public
+# sur elles). docker.yml lit l'URL d'Uptime Kuma de son output.
 run "homepage_status_pages_match_the_role" {
   command = plan
 
   assert {
     condition = toset([
       for page in yamldecode(file("${path.module}/../../ansible/roles/homepage/defaults/main.yml")).homepage_uptimekuma_status_pages : page.slug
-    ]) == toset([uptimekuma_status_page.site.slug, uptimekuma_status_page.backups.slug])
-    error_message = "homepage_uptimekuma_status_pages (rôle homepage) doit lister exactement les slugs des pages de statut sylvain-dev et des sauvegardes."
+    ]) == toset([uptimekuma_status_page.site.slug])
+    error_message = "homepage_uptimekuma_status_pages (rôle homepage) doit lister exactement le slug de la page de statut sylvain-dev."
   }
 
   assert {
+    condition     = uptimekuma_status_page.site.published
+    error_message = "Le widget de Homepage lit la page sans compte : elle doit rester publiée."
+  }
+
+  # homepage_link_widgets (rôle homepage) pose le widget Beszel sur le lien de
+  # clé beszel : renommer l'entrée le ferait disparaître sans un mot.
+  assert {
     condition = (
-      uptimekuma_status_page.backups.published
-      && uptimekuma_status_page.backups.public_group_list[0].name == "Sauvegardes"
-      && length(uptimekuma_status_page.backups.public_group_list[0].monitor_list) == length([
-        for key, website in local.websites : key if lookup(website, "backup", false) && lookup(website, "enabled", true)
-      ]) + 2
-      && length(uptimekuma_status_page.backups.public_group_list[1].monitor_list) == 2
+      strcontains(file("${path.module}/../../ansible/roles/homepage/defaults/main.yml"), "{{ {'beszel': {'type': 'beszel'")
+      && contains(keys(output.homepage_links), "beszel")
     )
-    error_message = "La page des sauvegardes doit être publiée et porter une sonde par sauvegarde active de local.websites, plus Pangolin et Jellyfin, puis le restore test et la Storage Box."
+    error_message = "Le widget Beszel de Homepage est posé sur le lien de clé beszel de homepage_links : l'entrée beszel de local.websites ne doit pas être renommée sans homepage_link_widgets."
   }
 
   assert {
