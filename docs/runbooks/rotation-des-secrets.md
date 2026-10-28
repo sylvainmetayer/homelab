@@ -204,10 +204,12 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `ansible-playbook docker.yml --tags ntfy`, et `--tags beszel` pour celui de
   Beszel quand son canal ntfy est allumé. Pour `ntfy_scripts_token`, aussi
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
-  de restauration vzdump, mises à jour en attente) et
+  de restauration vzdump, mises à jour en attente),
   `ansible-playbook nas.yml --tags update_notify`, sans quoi leurs moniteurs
-  passent au rouge au passage suivant ; les autres scripts prennent le
-  nouveau à la main. L'ancien jeton cesse de marcher au redémarrage de ntfy.
+  passent au rouge au passage suivant, et `tofu -chdir=tofu/github apply`
+  (secret `TRIVY_NTFY_TOKEN` de l'environnement `trivy-ntfy`) ; les autres
+  scripts prennent le nouveau à la main. L'ancien jeton cesse de marcher au
+  redémarrage de ntfy.
 - `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
   ensemble : `openssl rand`, `htpasswd -niBC 10 x` (mot de passe sur
   l'entrée standard, garder ce qui suit `x:`), `sops set` des deux, le

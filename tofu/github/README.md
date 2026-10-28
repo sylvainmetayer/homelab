@@ -42,6 +42,11 @@ porte que l'URL push du moniteur « Rotation des secrets », output
 `uptime_secrets_rotation_url` de `tofu/pangolin_config` : même ordre,
 `pangolin_config` appliqué d'abord.
 
+L'environnement **`trivy-ntfy`** (`trivy_ntfy_secrets.tf`, job `notify` de
+`trivy.yaml`) ne porte que le jeton ntfy du producteur `scripts`, la clé
+SOPS `ntfy_scripts_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
+le topic `scripts`).
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
 tofu -chdir=tofu/github init

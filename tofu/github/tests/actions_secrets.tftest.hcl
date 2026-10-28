@@ -36,6 +36,7 @@ override_data {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
+      ntfy_scripts_token          = "fake-ntfy-scripts-token"
     }
   }
 }
@@ -439,5 +440,34 @@ run "secrets_rotation_secrets" {
       && strcontains(file("${path.module}/../../.github/workflows/secrets-rotation.yaml"), "environment: secrets-rotation\n")
     )
     error_message = "secrets-rotation.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement secrets-rotation."
+  }
+}
+
+# .github/workflows/trivy.yaml : le seul jeton ntfy du producteur scripts,
+# dans un environnement à lui, lisible depuis main seulement.
+run "trivy_ntfy_secrets" {
+  command = plan
+
+  assert {
+    condition     = github_actions_environment_secret.trivy_ntfy_token.environment == "trivy-ntfy" && github_actions_environment_secret.trivy_ntfy_token.repository == "homelab"
+    error_message = "Le jeton ntfy de Trivy doit être dans l'environnement trivy-ntfy du dépôt homelab."
+  }
+
+  assert {
+    condition     = github_repository_environment.trivy_ntfy.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.trivy_ntfy_main.branch_pattern == "main"
+    error_message = "L'environnement trivy-ntfy ne doit être lisible que depuis main."
+  }
+
+  assert {
+    condition     = github_actions_environment_secret.trivy_ntfy_token.value == "fake-ntfy-scripts-token"
+    error_message = "TRIVY_NTFY_TOKEN doit être ntfy_scripts_token d'ansible/secrets.sops.yaml (écriture seule sur le topic scripts)."
+  }
+
+  assert {
+    condition = (
+      strcontains(file("${path.module}/../../.github/workflows/trivy.yaml"), "secrets.TRIVY_NTFY_TOKEN")
+      && strcontains(file("${path.module}/../../.github/workflows/trivy.yaml"), "environment: trivy-ntfy\n")
+    )
+    error_message = "trivy.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement trivy-ntfy."
   }
 }
