@@ -1,0 +1,14 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# Comme sur le Pi (28/10) : pas de /usr/local/libexec, que le rôle doit créer.
+- name: Prepare mem_report
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Remove /usr/local/libexec, absent on some hosts
+      become: true
+      ansible.builtin.file:
+        path: /usr/local/libexec
+        state: absent

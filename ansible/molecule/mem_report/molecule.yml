@@ -1,7 +1,13 @@
 ---
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
-# Prepare commun (Docker, aucun conteneur). Le verify lance le script contre
-# un faux arbre de cgroups et un faux docker, puis la vraie unité (vrais
-# cgroups, Docker vide), les deux vers un faux ntfy local.
+# Le verify lance le script contre un faux arbre de cgroups et un faux docker,
+# puis la vraie unité (vrais cgroups, Docker vide), les deux vers un faux ntfy
+# local.
 scenario:
   name: mem_report
+
+# Prepare propre : le commun, puis sans /usr/local/libexec, comme sur le Pi
+# (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml
