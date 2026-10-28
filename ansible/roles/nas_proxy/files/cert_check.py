@@ -30,8 +30,10 @@ PUSH_URL_VARIABLE = "NAS_PROXY_CERT_PUSH_URL"
 
 def days_left(host, port, name, context):
     """Jours restants avant le notAfter du certificat servi pour `name`."""
+    # Hôte et port viennent de l'ExecStart de l'unité (root), pas d'une entrée
+    # extérieure : la règle SSRF de Sonar ne s'applique pas.
     with (
-        socket.create_connection((host, port), timeout=15) as sock,  # NOSONAR: hôte et port de l'unité, pas d'une entrée
+        socket.create_connection((host, port), timeout=15) as sock,  # NOSONAR
         context.wrap_socket(sock, server_hostname=name) as tls,
     ):
         cert = tls.getpeercert()
