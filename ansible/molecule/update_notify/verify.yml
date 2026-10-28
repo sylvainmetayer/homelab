@@ -81,8 +81,8 @@
         that:
           - update_notify_verify_env_stat.stat.mode == '0600'
           - update_notify_verify_env_stat.stat.pw_name == 'root'
-          - ('NTFY_TOKEN=' ~ ntfy_scripts_token ~ '\n') in update_notify_verify_envfile
-          - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ update_notify_verify_push ~ '\n') in update_notify_verify_envfile
+          - ('NTFY_TOKEN=' ~ ntfy_scripts_token) in update_notify_verify_envfile.splitlines()
+          - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ update_notify_verify_push) in update_notify_verify_envfile.splitlines()
           - ntfy_scripts_token not in update_notify_verify_service
           - update_notify_verify_push not in update_notify_verify_service
           - "' apt --host pve --ntfy-url http://127.0.0.1:18081 --topic scripts ' in update_notify_verify_service" # NOSONAR
@@ -173,7 +173,7 @@
     - name: Assert the unit pushed up to its monitor
       vars:
         update_notify_verify_requests: >-
-          {{ update_notify_verify_unit_log.content | b64decode | trim | split('\n') | map('from_json') | list }}
+          {{ (update_notify_verify_unit_log.content | b64decode).splitlines() | map('from_json') | list }}
       ansible.builtin.assert:
         that:
           - (update_notify_verify_requests | last).method == 'GET'
@@ -194,6 +194,7 @@
       vars:
         update_notify_verify_ntfy: "{{ update_notify_case_requests[0] }}"
         update_notify_verify_msg: "{{ update_notify_verify_ntfy.body | from_json }}"
+        update_notify_verify_head_lines: "{{ update_notify_verify_security_head.splitlines() }}"
       ansible.builtin.assert:
         that:
           - update_notify_case_requests | length == 2
@@ -203,7 +204,7 @@
           - update_notify_verify_msg.topic == 'scripts'
           - update_notify_verify_msg.priority == 4
           - update_notify_verify_msg.title == update_notify_verify_titles.security
-          - update_notify_verify_msg.message.startswith(update_notify_verify_security_head ~ '\n')
+          - update_notify_verify_msg.message.splitlines()[:update_notify_verify_head_lines | length] == update_notify_verify_head_lines
           - ('Noyau ' ~ update_notify_verify_kernel ~ ' installé') in update_notify_verify_msg.message
           - "'\npve-manager/9.2.24/' in update_notify_verify_msg.message"
           - "'docs/runbooks/mises-a-jour-proxmox-ugos.md' in update_notify_verify_msg.message"
