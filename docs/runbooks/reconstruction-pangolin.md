@@ -19,9 +19,11 @@ Avant de reconstruire, s'assurer qu'une réparation ne suffit pas
 ([pangolin-injoignable.md](pangolin-injoignable.md)) : console Hetzner,
 mode rescue. Une reconstruction change l'IP publique et la clé d'hôte SSH.
 
-Vérifier que le dépôt Borg de Pangolin est lisible depuis un autre hôte de
-confiance : à vérifier (chaque sous-compte ne voit que son hôte ; le compte
-principal voit `backup/pangolin/pangolin`).
+Le dépôt Borg de Pangolin se lit depuis n'importe quel hôte avec le
+sous-compte en lecture seule `restore-test` (clé : `tofu output -raw
+storage_box_restore_test_ssh_private_key` dans `tofu/pangolin`, dépôt
+`ssh://<user>@<server>:23/./pangolin/pangolin`, `borg --bypass-lock`) :
+vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus bas).
 
 ## Réparation
 
@@ -79,9 +81,11 @@ principal voit `backup/pangolin/pangolin`).
    cp /root/restore/pangolin/var/lib/borgmatic-sqlite/pangolin/opt_pangolin_config_db_db.sqlite /opt/pangolin/config/db/db.sqlite
    ```
 
-   Rendre au fichier SQLite le propriétaire attendu par le conteneur : à
-   vérifier (comparer avec `stat -c %u:%g` sur un autre fichier de
-   `/opt/pangolin/config/db/`).
+   Le conteneur tourne en root : le fichier SQLite reste `root:root`
+   `0644`, comme le laisse `cp -a` (vérifié le 2026-10-28). L'archive pèse
+   ~10 Go (la base ~2,3 Go, et `config/db/backups/`, les copies que Pangolin
+   fait avant chaque migration, ~7,7 Go) : compter ~3 min d'extraction et
+   ~20 Go libres sur le disque.
 
 6. **Le reste de la play** (pile, NAT, sécurité) :
 
@@ -108,6 +112,32 @@ curl -sSI https://pangolin.sylvain.cloud | head -1
 - `tofu plan` dans `tofu/pangolin_config` ne montre pas de dérive importante.
 - flip sort de nouveau sur Internet ([flip-injoignable.md](flip-injoignable.md)).
 - Le lendemain, le moniteur de sauvegarde de Pangolin est UP.
+
+## Répétition
+
+Faite le 2026-10-28 sur une VM jetable (`cx23`, `debian-13`, sans réseau
+privé), détruite ensuite : ~45 min de bout en bout, sans incident bloquant.
+Base intègre (`pragma integrity_check` : ok, 23 ressources, 6 sites),
+certificats Let's Encrypt restaurés valides, pile (pangolin, gerbil,
+traefik, crowdsec) saine, pages servies avec `curl --resolve`. Ce qu'elle a
+appris :
+
+- **Toujours partir de `main` à jour** : une branche ancienne déploie un
+  rôle d'avant les derniers merges (la première passe a oublié CrowdSec).
+- **Sur un serveur pas encore rattaché au réseau privé**, `nat_gateway`
+  échoue (« 10.0.0.1 and the default route both go through eth0 ») :
+  normal, le rattachement vient de `tofu/pangolin`. Pour une répétition,
+  `--skip-tags nat`.
+- **Pour répéter sans toucher à la production** : jamais `backup.yaml` (il
+  remplacerait la clé du vrai sous-compte de Pangolin), restaurer par
+  `restore-test` ; `--skip-tags backup,beszel_agent,monitoring` (un second
+  agent Beszel avec le même jeton ferait clignoter le vrai) ;
+  `systemctl disable --now borgmatic.timer` après `--tags setup` (sinon le
+  moniteur de sauvegarde passe DOWN à 01:00) ;
+  `-e ssh_login_notify_enabled=false` sur `00-setup.yaml` ; une clé d'hôte
+  générée d'avance et donnée par `ssh_keys` de cloud-init, ce qui évite
+  `ssh-keyscan`. Les DNS ne bougent pas : les Newt restent sur le vrai
+  serveur.
 
 ## Prévention
 
