@@ -4,7 +4,8 @@
   vars_files:
     - ../../group_vars/all/variables.yml
   vars:
-    ntfy_verify_dir: /tmp/ntfy-molecule
+    # Sous le home, pas /tmp : le binaire doit pouvoir s'y exécuter.
+    ntfy_verify_dir: "{{ ansible_facts['user_dir'] }}/ntfy-molecule"
     ntfy_verify_url: http://127.0.0.1:18080
     # Le même que converge.yml.
     ntfy_verify_uptime_kuma_token: "tk_{{ ('molecule-ntfy-uptime-kuma' | hash('sha1'))[:29] }}"
@@ -291,6 +292,16 @@
               - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
             fail_msg: "{{ ntfy_verify_access.stdout }}"
       always:
+        - name: Read the journal of the verify ntfy
+          ansible.builtin.command: journalctl --user -u ntfy-molecule --no-pager -n 40
+          register: ntfy_verify_journal
+          changed_when: false
+          failed_when: false
+
+        - name: Show the journal of the verify ntfy
+          ansible.builtin.debug:
+            var: ntfy_verify_journal.stdout_lines
+
         - name: Stop the verify ntfy
           ansible.builtin.systemd:
             name: ntfy-molecule
