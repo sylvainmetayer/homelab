@@ -1,39 +1,40 @@
 # 0011. Journaux centralisés : VictoriaLogs
 
-- **Statut** : proposée (aucune PR à ce jour)
-- **Date** : à confirmer
+- **Statut** : proposée (#931 serveur, puis la PR des agents ; acceptée une fois déployée et mesurée)
+- **Date** : 2026-10-28
 
 ## Contexte
 
-Les journaux restent sur chaque hôte : `dc@` envoie ceux des conteneurs dans
-journald, plafonné par `host_tuning`. Chercher un incident qui touche
-plusieurs hôtes (Pangolin, Newt, l'appli) veut dire ouvrir une session SSH
-par hôte. Beszel ne fait que relayer à la demande les 200 dernières lignes
-d'un conteneur, sans rien garder ([0010](0010-supervision-beszel-uptime-kuma.md)).
+Les journaux restent sur chaque hôte (journald, plafonné par `host_tuning`) :
+un incident qui touche plusieurs hôtes veut dire une session SSH par hôte.
+Beszel ne relaie que les 200 dernières lignes d'un conteneur, sans rien
+garder ([0010](0010-supervision-beszel-uptime-kuma.md)).
 
 ## Décision
 
-Centraliser les journaux dans **VictoriaLogs** ; les métriques restent à
-Beszel. Hôte, collecteur, interface, rétention et sauvegarde : à confirmer
-dans la PR qui l'introduira.
+**VictoriaLogs seul**, en version légère : ni Grafana, ni métriques (Beszel).
+Sur la VM docker, disque local, 30 jours et un plafond de 5 Gio, 320 Mio de
+mémoire (plus 64 Mio pour vmauth, seul à le joindre, qui exige un compte :
+lecture pour l'interface, écriture seule pour chaque agent). Interface vmui
+sur `logs.sylvain.cloud`, derrière le SSO puis vmauth. Un agent Vector par
+hôte (journald, conteneurs, journal d'accès de Traefik et CrowdSec sur
+Pangolin), mémoire plafonnée. Aucune sauvegarde (journaux reproductibles).
 
 ## Alternatives écartées
 
 - **Pile complète node_exporter + VictoriaMetrics/VictoriaLogs + Grafana** :
   écartée en octobre 2026 pour son poids sur une VM de 12 Gio à disque
-  rotatif (#79). Cette ADR n'en reprend que la partie journaux, à mesurer
-  avant d'accepter.
-- **Rester sur journald par hôte** : la situation actuelle, suffisante
-  d'après #79 ; c'est ce que cette proposition remet en cause.
+  rotatif (#79). Seule la partie journaux est reprise, à mesurer.
+- **Rester sur journald par hôte** : suffisant d'après #79, voir Contexte.
 
 ## Conséquences
 
-- Sur la VM docker, une appli de plus qui écrit beaucoup sur un disque
-  rotatif : mesurer `memory.peak` et les I/O avant d'en dépendre.
-- Les journaux peuvent contenir des secrets : accès derrière le SSO, jamais
-  de chemin ouvert.
+- Mesure après une semaine : `memory.peak` du stockage, de vmauth et des
+  agents, et l'I/O wait de la VM (Beszel). Trop lourd : retrait
+  (`docs/architecture.md`, « Les journaux », retour arrière).
+- Journaux à secrets possibles : SSO puis vmauth, aucun chemin ouvert, ni
+  chaîne de requête du journal d'accès de Traefik.
 
 ## Liens
 
-Issue #79 (« Hors périmètre / questions ouvertes », point 3) ; `TODO.md`
-(piste Grafana + VictoriaLogs).
+#79 ; `docs/architecture.md` (« Les journaux (VictoriaLogs) »).
