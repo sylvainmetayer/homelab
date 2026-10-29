@@ -337,6 +337,14 @@ ne bloque plus la play : un 403 prouve que le mot de passe est bon (depuis
 l'hôte, la source est la passerelle Docker), et tout autre échec avertit et
 fait omettre le widget pour le run.
 
+**Risque accepté** (Sylvain, 2026-10-29) : sur le LAN, la liste d'IP ne
+protège pas. Le hub est publié sur `192.168.1.216:8090` (les agents LAN s'y
+connectent), et PocketBase prend l'adresse du client dans `X-Forwarded-For`,
+que n'importe quel appareil du réseau peut écrire : il lui suffit d'annoncer
+`172.16.97.3`. Reste le mot de passe, exigé partout. Par
+`monitoring.sylvain.cloud`, c'est Pangolin qui écrit l'en-tête : la liste
+joue son rôle.
+
 Pour le rétablir après une coupure :
 
 1. Dans l'interface PocketBase du hub (`https://monitoring.sylvain.cloud/_/`,
