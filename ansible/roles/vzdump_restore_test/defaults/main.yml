@@ -22,12 +22,11 @@ vzdump_restore_test_max_age_hours: 26
 
 # Ids des invités sauvegardés (vmid du job de tofu/proxmox/backup.tf : la VM
 # docker a reçu le 100 à sa création, var.docker_vm.vm_id n'est lu par
-# aucune ressource) et ids jetables, réservés à ce test : 900-999, refusés
-# s'ils existent.
+# aucune ressource) et id jetable du LXC restauré, dans la plage réservée à ce
+# test : 900-999, refusé s'il existe.
 vzdump_restore_test_lxc_source: 200
 vzdump_restore_test_lxc_target: 990
 vzdump_restore_test_vm_source: 100
-vzdump_restore_test_vm_target: 991
 
 # Tailles plancher des archives (le 27/10/2026 : 355 Mio pour le LXC,
 # 50,6 Gio pour la VM) : une archive presque vide se restaure aussi.
@@ -47,28 +46,12 @@ vzdump_restore_test_lxc_expect_executables:
 vzdump_restore_test_lxc_mask_units:
   - newt.service
 
-# Restauration complète de la VM (qm create --archive : 190 Gio de disque
-# virtuel, ~105 Gio écrits sur le lvm-thin), puis démarrage sans réseau
-# jusqu'au ping de l'agent QEMU. Désactivée : sans elle, l'archive est
-# entièrement décompressée et vérifiée (zstd, vma verify), ce que la
-# restauration vérifie aussi, sans écrire 100 Gio sur le SSD des invités.
-# Quand elle est demandée : sautée (vérification seule) si le storage n'a pas
-# la taille des disques plus free_margin_percent de sa taille ; démarrage
-# sauté si la mémoire disponible de l'hôte moins boot_memory_mb passe sous
-# host_memory_reserve_mb (l'hôte a 15 Gio, la VM docker en prend 12).
-vzdump_restore_test_vm_full_restore: false
-vzdump_restore_test_vm_boot_memory_mb: 1024
-vzdump_restore_test_host_memory_reserve_mb: 1024
-vzdump_restore_test_free_margin_percent: 10
-
 # Délais, en secondes. La vérification lit l'archive entière sur le NFS
 # (50 Gio : une dizaine de minutes en gigabit). Le TimeoutStartSec de l'unité
 # en est la somme, plus une marge.
 vzdump_restore_test_lxc_restore_timeout: 1800
 vzdump_restore_test_lxc_boot_timeout: 300
 vzdump_restore_test_vm_verify_timeout: 7200
-vzdump_restore_test_vm_restore_timeout: 10800
-vzdump_restore_test_vm_boot_timeout: 600
 
 # Rapport : ntfy (topic scripts, jeton du producteur scripts du rôle ntfy,
 # écriture seule sur ce topic) et moniteur push d'Uptime Kuma (sortie
