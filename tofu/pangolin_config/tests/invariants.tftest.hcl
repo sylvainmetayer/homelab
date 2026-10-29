@@ -764,23 +764,86 @@ override_resource {
 # Runs `plan` : valeurs issues de la configuration
 # ===========================================================================
 
+# Moins de bruit de sondes (2026-10-29) : à une sonde par minute, les
+# healthchecks Uptime Kuma faisaient 990k des 1,52M lignes du journal des
+# requêtes de Pangolin, et Newt sondait sans fin les cibles des applis en
+# pause. Chaque moniteur HTTP sonde toutes les 5 minutes et ne passe DOWN
+# qu'après un nouvel essai une minute plus tard ; une sonde Pangolin par
+# minute sur une cible active, aucune sur celle d'une appli en pause.
+run "probes_are_sparse_and_paused_apps_are_not_probed" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for m in concat(
+        values(uptimekuma_monitor_http_keyword.healthcheck),
+        [
+          uptimekuma_monitor_http.pangolin_dashboard,
+          uptimekuma_monitor_http.actualbudget,
+          uptimekuma_monitor_http.redirect,
+          uptimekuma_monitor_http.blog,
+          uptimekuma_monitor_http.blog_apex,
+          uptimekuma_monitor_http.ref,
+          uptimekuma_monitor_http.agent_ready_cloudflare,
+          uptimekuma_monitor_http.kdrive,
+          uptimekuma_monitor_http.simplelogin,
+          uptimekuma_monitor_http.ustalence_tt,
+        ],
+      ) :
+      m.interval == 300 && m.max_retries == 1 && m.retry_interval == 60 && m.resend_interval == 0
+    ])
+    error_message = "Chaque moniteur HTTP sonde toutes les 300 s, avec un nouvel essai (max_retries 1) 60 s plus tard et sans rappel (resend_interval 0)."
+  }
+
+  # Le filet de la liste ci-dessus : tout moniteur HTTP du module, écrit à la
+  # main ou généré, lit sa cadence dans local.http_probe.
+  assert {
+    condition = alltrue(flatten([
+      for f in fileset(path.module, "*.tf") : [
+        for block in regexall("(?s)resource\\s+\"uptimekuma_monitor_http(?:_keyword)?\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) :
+        length(regexall("(?m)^\\s*interval\\s*=\\s*local\\.http_probe\\.interval\\s*$", block)) == 1
+      ]
+    ]))
+    error_message = "Un moniteur uptimekuma_monitor_http(_keyword) ne lit pas son intervalle dans local.http_probe."
+  }
+
+  assert {
+    condition = alltrue([
+      for key, t in pangolin_target.website :
+      t.hc_enabled == lookup(local.websites[local.website_targets[key].website], "enabled", true)
+      && t.hc_interval == 60
+      && t.hc_unhealthy_interval == 10
+    ])
+    error_message = "La sonde Pangolin d'une cible est coupée exactement quand son appli est en pause (enabled = false), et passe toutes les 60 s (10 s en échec) sinon."
+  }
+
+  assert {
+    condition = (
+      !pangolin_target.website["paperless"].hc_enabled
+      && !pangolin_target.website["demo_planning_kc_keycloak"].hc_enabled
+      && pangolin_target.website["wiki"].hc_enabled
+    )
+    error_message = "Paperless et le banc Keycloak sont en pause : leurs cibles ne sont plus sondées ; le wiki l'est."
+  }
+}
+
 # Chaque cible sondée déclare hc_scheme / hc_mode / hc_port. Ils sont
 # optionnels+calculés : non déclarés, Pangolin a stocké NULL pour gramps et
 # scanopy, la sonde ne pouvait jamais réussir et les deux sites ont servi
 # "no available server" pendant que `tofu plan` ne voyait rien.
 #
 # Les cibles des applications sont les instances de pangolin_target.website
-# (websites.tf), toutes sondées. Les clés sont les anciens noms des ressources, ceux
-# vers lesquels les blocs moved (appliqués) ont migré l'état : une clé qui change
-# recréerait la cible, sauf bloc moved.
+# (websites.tf), toutes sondées sauf celles d'une appli en pause, dont la
+# sonde est coupée mais garde ses réglages. Les clés sont les anciens noms des
+# ressources, ceux vers lesquels les blocs moved (appliqués) ont migré l'état :
+# une clé qui change recréerait la cible, sauf bloc moved.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
   assert {
     condition = alltrue([
       for t in values(pangolin_target.website) :
-      t.hc_enabled == true
-      && contains(["http", "https"], t.hc_scheme)
+      contains(["http", "https"], t.hc_scheme)
       && t.hc_mode == "http"
       && t.hc_port != null
     ])
@@ -816,13 +879,13 @@ run "every_probed_target_declares_scheme_mode_and_port" {
 
   # Filet par fichier, indépendant des listes ci-dessus : tout bloc
   # `pangolin_target` du module, généré (websites.tf) ou écrit à la main
-  # (celui qui viendra), qui active sa sonde déclare aussi
+  # (celui qui viendra), qui ne coupe pas sa sonde en dur déclare aussi
   # hc_scheme, hc_mode, hc_port et hc_hostname.
   assert {
     condition = alltrue(flatten([
       for f in fileset(path.module, "*.tf") : [
         for block in regexall("(?s)resource\\s+\"pangolin_target\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) :
-        length(regexall("hc_enabled\\s*=\\s*true", block)) == 0 || alltrue([
+        length(regexall("(?m)^\\s*hc_enabled\\s*=\\s*false\\s*$", block)) > 0 || alltrue([
           for attribute in ["hc_scheme", "hc_mode", "hc_port", "hc_hostname"] :
           length(regexall("(?m)^\\s*${attribute}\\s*=", block)) > 0
         ])
@@ -3002,17 +3065,21 @@ run "monitors_are_filed_and_alert" {
   # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
   # DOWN pour Uptime Kuma. Celle de ntfy répond 404 à un GET (web-root:
   # /app), celle de VictoriaLogs 401 sans le compte vmauth. Leurs moniteurs
-  # lisent leur route de santé (monitor_path) ; les autres gardent la racine
-  # de leur ressource.
+  # lisent leur route de santé (monitor_path). Celles de BookStack et de
+  # FreshRSS redirigent (302 vers /login, vers /i/) : sonder la racine
+  # coûtait deux requêtes par sonde, leurs moniteurs lisent la page d'arrivée.
+  # Les autres gardent la racine de leur ressource.
   assert {
     condition = (
       uptimekuma_monitor_http_keyword.healthcheck["promptoramix"].url == "https://promptoramix.sylvain.cloud/health"
       && uptimekuma_monitor_http_keyword.healthcheck["ntfy"].url == "https://${pangolin_resource.website["ntfy"].full_domain}/v1/health"
       && uptimekuma_monitor_http_keyword.healthcheck["victoria_logs"].url == "https://logs.sylvain.cloud/health"
       && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
-      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix", "victoria_logs"]
+      && uptimekuma_monitor_http_keyword.healthcheck["wiki"].url == "https://${pangolin_resource.website["wiki"].full_domain}/login"
+      && uptimekuma_monitor_http_keyword.healthcheck["rss"].url == "https://${pangolin_resource.website["rss"].full_domain}/i/"
+      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix", "rss", "victoria_logs", "wiki"]
     )
-    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, et seuls eux ont un monitor_path."
+    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, ceux de BookStack et de FreshRSS la page où leur racine redirige, et seuls eux ont un monitor_path."
   }
 
   # Telegram et ntfy, l'un ne passant pas par Pangolin, l'autre si : plus

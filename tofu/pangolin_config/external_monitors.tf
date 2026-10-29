@@ -8,9 +8,10 @@
 # Everything below mirrors the live monitors, `tofu import` included - Ref,
 # added afterwards, being the one exception. Each alerts on Telegram and ntfy
 # like the rest of the module (local.alert_notification_ids, notifications.tf;
-# until 2026-10-29 none paged anybody but FolderSync). One live property is
-# still mirrored rather than corrected: `max_retries = 0` means a single failed
-# probe is a DOWN, with no retry.
+# until 2026-10-29 none paged anybody but FolderSync). Their cadence and
+# retries are the module's (local.http_probe, uptime_globals.tf) since
+# 2026-10-29: one probe every five minutes, a DOWN only after a retry, where
+# the imported `max_retries = 0` paged on a single failed probe.
 #
 # The professional groups further down are folders only. Their children are
 # client URLs that have no place in this repository and stay defined by hand in
@@ -31,11 +32,11 @@ resource "uptimekuma_monitor_http" "actualbudget" {
   parent = uptimekuma_monitor_group.pikapods.id
   url    = "https://budget.sylvain.cloud"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -52,11 +53,11 @@ resource "uptimekuma_monitor_http" "redirect" {
   parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://r.sylvain.dev"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -72,11 +73,11 @@ resource "uptimekuma_monitor_http" "blog" {
   parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://www.sylvain.dev"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -93,11 +94,11 @@ resource "uptimekuma_monitor_http" "blog_apex" {
   parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://sylvain.dev"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -120,11 +121,11 @@ resource "uptimekuma_monitor_http" "ref" {
   parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://ref.sylvain.dev"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -139,11 +140,11 @@ resource "uptimekuma_monitor_http" "agent_ready_cloudflare" {
   parent = uptimekuma_monitor_group.cloudflare.id
   url    = "https://agent-ready.pages.dev/"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -166,11 +167,11 @@ resource "uptimekuma_monitor_http" "kdrive" {
   parent = uptimekuma_monitor_group.third_parties.id
   url    = "https://kdrive.infomaniak.com/app/drive"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -185,11 +186,11 @@ resource "uptimekuma_monitor_http" "simplelogin" {
   parent = uptimekuma_monitor_group.third_parties.id
   url    = "https://app.simplelogin.io/"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 
@@ -205,11 +206,11 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
   name = "US Talence Tennis de Table"
   url  = "https://ustalencett.fr"
 
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 48
-  max_retries     = 0
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 

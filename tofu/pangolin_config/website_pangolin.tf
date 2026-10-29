@@ -16,11 +16,11 @@ resource "uptimekuma_monitor_http" "pangolin_dashboard" {
   parent = uptimekuma_monitor_group.self_hosted.id
 
   url             = "https://pangolin.sylvain.cloud"
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 30
-  max_retries     = 2
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = true
   method          = "GET"
 

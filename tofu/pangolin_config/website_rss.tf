@@ -7,6 +7,12 @@ locals {
     role      = "rss"
     backup    = true
 
+    # FreshRSS's root answers 302 to /i/: monitoring "/" cost two requests per
+    # probe (the redirect, followed). /i/ itself, a 200, is the one request.
+    # Pangolin serves its maintenance page on any path, so the inverted
+    # keyword still sees an outage.
+    monitor_path = "/i/"
+
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
       title       = "FreshRSS"

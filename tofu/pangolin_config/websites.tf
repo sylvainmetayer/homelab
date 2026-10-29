@@ -31,7 +31,8 @@
 #   enabled      default local.resource_pins.enabled. false pauses the app
 #                (docs/runbooks/app-en-pause.md): it also pauses the
 #                healthcheck and backup monitors, since the role then stops
-#                the app and removes its borgmatic configuration. Nothing is
+#                the app and removes its borgmatic configuration, and turns
+#                off its targets' Pangolin probes (hc_enabled). Nothing is
 #                destroyed: tokens, push URL and monitor history stay.
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and Promptoramix have no SSO).
@@ -183,15 +184,28 @@ resource "pangolin_target" "website" {
   path_match_type = lookup(each.value, "path", null) == null ? null : "prefix"
   priority        = lookup(each.value, "priority", null)
 
-  hc_enabled             = true
-  hc_scheme              = "http"
-  hc_mode                = "http"
-  hc_port                = lookup(each.value, "hc_port", each.value.port)
-  hc_hostname            = each.value.ip
-  hc_path                = lookup(each.value, "hc_path", "/")
-  hc_method              = "GET"
-  hc_status              = 200
-  hc_interval            = 30
+  # Off on a paused app's targets (entry `enabled = false`): Newt would probe
+  # a stopped container every hc_unhealthy_interval for months, thousands of
+  # failures for nothing, and a disabled resource has no route anyway. The
+  # other fields stay pinned, ready for the day the app comes back.
+  hc_enabled  = lookup(local.websites[each.value.website], "enabled", local.resource_pins.enabled)
+  hc_scheme   = "http"
+  hc_mode     = "http"
+  hc_port     = lookup(each.value, "hc_port", each.value.port)
+  hc_hostname = each.value.ip
+  hc_path     = lookup(each.value, "hc_path", "/")
+  hc_method   = "GET"
+  hc_status   = 200
+  # What the probe is for: the automatic maintenance page (served once every
+  # target of a resource is unhealthy, maintenance.tf) and the target_health
+  # check (rules.tf). No resource load-balances two targets on one path, so
+  # there is no failover to speed up. A minute between healthy probes (was 30
+  # s) halves the probe lines in every app's access log, now shipped to
+  # VictoriaLogs; a dead app gets the maintenance page within
+  # hc_unhealthy_threshold minutes (Traefik answers 502 until then, which
+  # Uptime Kuma reads as DOWN all the same), and the 10 s unhealthy interval
+  # keeps recovery fast.
+  hc_interval            = 60
   hc_unhealthy_interval  = 10
   hc_timeout             = 5
   hc_healthy_threshold   = 2
@@ -216,11 +230,11 @@ resource "uptimekuma_monitor_http_keyword" "healthcheck" {
   # Grouped under the Self-hosted folder. See uptime_globals.tf.
   parent          = uptimekuma_monitor_group.self_hosted.id
   url             = "https://${pangolin_resource.website[each.key].full_domain}${lookup(each.value, "monitor_path", "")}"
-  interval        = 60
+  interval        = local.http_probe.interval
   timeout         = 30
-  max_retries     = 2
-  retry_interval  = 60
-  resend_interval = 0
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
   active          = pangolin_resource.website[each.key].enabled
   method          = "GET"
 

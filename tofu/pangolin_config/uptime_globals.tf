@@ -21,6 +21,25 @@ locals {
   # Spelled out once: a tag with a value is a per-monitor association, not a
   # property of the tag itself, so it has to be repeated on every resource.
   tofu_tag = { tag_id : uptimekuma_tag.managed_by.id, value : "tofu" }
+
+  # Cadence of every HTTP monitor (app healthchecks, the Pangolin dashboard,
+  # the external sites); push monitors keep their own. Every five minutes
+  # since 2026-10-29: at one probe a minute, the healthchecks were 990k of
+  # the 1.52M lines of Pangolin's request log (each goes through an access
+  # token) and weighed on its SQLite, where "database is locked" was seen.
+  #
+  # A failed probe turns the monitor PENDING and retries once a minute later;
+  # only the second failure in a row is a DOWN and pages (Telegram, ntfy). So
+  # a blip shorter than a minute never pages (the external monitors used to
+  # page on the first failure, max_retries 0), and a real outage pages within
+  # interval + retry_interval, six minutes at worst. resend_interval 0: one
+  # alert per outage, no reminder.
+  http_probe = {
+    interval        = 60 * 5
+    max_retries     = 1
+    retry_interval  = 60
+    resend_interval = 0
+  }
 }
 
 resource "uptimekuma_monitor_group" "backups" {

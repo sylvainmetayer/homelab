@@ -12,7 +12,7 @@ Flip Planning (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-pla
 | Où | Pause | Effet |
 |---|---|---|
 | `ansible/host_vars/docker/variables.yaml` | `paperless_enabled: false` | `dc@paperless` arrêtée et désactivée, aucun handler de redémarrage ; `/etc/borgmatic.d/paperless.yaml` retiré. Le compose reste templaté |
-| `tofu/pangolin_config/website_paperless.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, moniteurs « Healthcheck » et « Backup » en pause (`websites.tf`) |
+| `tofu/pangolin_config/website_paperless.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, moniteurs « Healthcheck » et « Backup » en pause, sonde Pangolin de ses cibles coupée (`hc_enabled`, `websites.tf`) |
 | `tofu/pangolin_config/tests/invariants.tftest.hcl` | `["paperless"]` dans la liste des apps en pause | la liste est écrite en toutes lettres : une pause est une décision |
 | `.github/restore-test/apps.json` | `"paused": true` | le test de restauration du 1er et du 15 saute l'app ; un run manuel qui la nomme restaure sa dernière archive sans en exiger l'âge |
 
@@ -49,13 +49,13 @@ indéfiniment ses archives.
    retirée.
 3. `tofu plan` puis `tofu apply` dans `tofu/pangolin_config` (pas
    `mise run plan`/`apply`, qui visent `tofu/pangolin`) :
-   ressource désactivée, deux moniteurs en pause (3 changements en place,
-   aucune destruction). Avant ou après le merge, peu importe ; après, la
+   ressource désactivée, deux moniteurs en pause, sonde de la cible coupée
+   (4 changements en place, aucune destruction). Avant ou après le merge, peu importe ; après, la
    nuit suivante ne laisse aucun moniteur rouge.
 
 Le `check "target_health"` du plan signale la cible de Paperless en échec
 tant que la ressource est encore active ; une fois désactivée, il l'ignore
-(`rules.tf`).
+(`rules.tf`), et Newt ne la sonde plus du tout.
 
 ## Reprendre
 

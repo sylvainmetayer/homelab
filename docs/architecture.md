@@ -314,6 +314,20 @@ ntfy (`local.alert_notification_ids`, `notifications.tf`) : Telegram ne passe
 pas par Pangolin, ntfy si. Les moniteurs de connexion SSH n'alertent que sur
 Telegram. Plus de mail depuis le 2026-10-29.
 
+Cadence des sondes (`local.http_probe`, `uptime_globals.tf`, depuis le
+2026-10-29) : chaque moniteur HTTP (healthchecks des applis, dashboard
+Pangolin, sites externes) sonde toutes les 5 minutes, une seule requête par
+appli (BookStack et FreshRSS sont sondés sur la page où leur racine
+redirige, `/login` et `/i/`). Un échec met le moniteur en PENDING et
+réessaie une minute plus tard ; seul le second échec d'affilée passe DOWN et
+alerte : une coupure réelle alerte en 6 minutes au pire, un raté isolé
+jamais. À une sonde par minute, les healthchecks faisaient les deux tiers du
+journal des requêtes de Pangolin (990k lignes sur 1,52M) et pesaient sur sa
+base SQLite. Les moniteurs push gardent leur propre intervalle. Côté
+Pangolin, Newt sonde chaque cible toutes les 60 s (10 s quand elle est en
+échec), pour la page de maintenance et le `check "target_health"` du plan ;
+la cible d'une appli en pause n'est plus sondée du tout.
+
 Homepage (`home.sylvain.cloud`) en montre le résumé, groupe Administration :
 sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; une carte
 Uptime Kuma, la page de statut publique `sylvain-dev`. Homepage les interroge
