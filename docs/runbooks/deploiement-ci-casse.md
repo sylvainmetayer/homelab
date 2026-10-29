@@ -41,7 +41,7 @@ Où ça casse :
 
 | Étape | Cause probable |
 |---|---|
-| `Wait OLM startup` | Pangolin injoignable, identifiants OLM invalides ([pangolin-injoignable.md](pangolin-injoignable.md)) ; tester avec `ping.yaml` (lancement manuel) |
+| `Start the OLM tunnel` (action `.github/actions/olm-tunnel`, sous-étape `Wait OLM startup`) | Pangolin injoignable, identifiants OLM invalides ([pangolin-injoignable.md](pangolin-injoignable.md)) ; tester avec `ping.yaml` (lancement manuel) |
 | `Deploy …` : `Host key verification failed` | clé d'hôte changée ([cle-hote-ssh-changee.md](cle-hote-ssh-changee.md)) |
 | `Deploy …` : `Permission denied (publickey)` | `keys/github-actions.pub` absente d'`authorized_keys` de l'hôte |
 | `Load secrets …` | `SOPS_AGE_KEY` ne déchiffre plus (`.sops.yaml` ou destinataire `github-actions` modifié) |

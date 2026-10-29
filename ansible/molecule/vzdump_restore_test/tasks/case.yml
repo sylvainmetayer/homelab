@@ -64,6 +64,9 @@
   ansible.builtin.assert:
     that:
       - case_violations | length == 0
+      # qm n'est plus simulé, donc plus gardé par la plage 900-999 du faux
+      # Proxmox : le test ne restaure aucune VM, aucun cas n'appelle qm.
+      - case_argvs | select('match', 'qm ') | list == []
       - "'--force' not in (case_argvs | join(' '))"
       - case_ntfy_requests | length == 1
       - case_ntfy_requests[0].path == '/'

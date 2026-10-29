@@ -297,7 +297,7 @@ class Run:
         hostname = conf.get("hostname", "")
         nets = [key for key in conf if NET_KEY.fullmatch(key)]
 
-        self.created.append(("lxc", target))
+        self.created.append(target)
         run(
             [
                 "pct", "restore", str(target), backup["volid"],
@@ -441,12 +441,12 @@ class Run:
 
     # --- nettoyage ----------------------------------------------------------
 
-    def destroy(self, kind, vmid):
+    def destroy(self, vmid):
         if vmid not in TARGET_IDS or vmid in self.protected:
             raise TestFailure(f"{vmid} : refus de détruire un id hors de la plage de test ou préexistant")
         if vmid not in self.guests():
             return
-        conf = self.guest_conf(kind, vmid)
+        conf = self.guest_conf("lxc", vmid)
         if MARKER not in (conf.get("description") or ""):
             raise TestFailure(f"{vmid} existe sans la marque {MARKER} : laissé en place, à voir à la main")
         run(["pct", "unmount", str(vmid)], check=False)
@@ -458,9 +458,9 @@ class Run:
 
     def cleanup(self):
         while self.created:
-            kind, vmid = self.created[-1]
+            vmid = self.created[-1]
             try:
-                self.destroy(kind, vmid)
+                self.destroy(vmid)
             except (TestFailure, OSError, ValueError, KeyError) as error:
                 self.failures.append(f"nettoyage de {vmid} : {error}")
             # Pas retiré sur SIGTERM (Terminated) : le nettoyage final de

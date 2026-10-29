@@ -96,16 +96,24 @@ def parse_rules(text):
 
 
 def file_recipients(text):
-    """Destinataires age des métadonnées `sops:` d'un fichier chiffré (liste, doublons gardés)."""
+    """Destinataires age des métadonnées `sops:` d'un fichier chiffré (liste, doublons gardés).
+
+    `sops.age`, ou `sops.key_groups[].age` quand sops écrit plusieurs
+    groupes (shamir). Un YAML illisible lève ConfigError : ce n'est pas
+    « aucun destinataire ».
+    """
     try:
         data = yaml.safe_load(text)
-    except yaml.YAMLError:
-        return []
+    except yaml.YAMLError as error:
+        raise ConfigError(f"YAML invalide ({error})") from error
     sops = data.get("sops") if isinstance(data, dict) else None
-    stanzas = sops.get("age") if isinstance(sops, dict) else None
+    if not isinstance(sops, dict):
+        return []
+    groups = [sops] + [group for group in sops.get("key_groups") or [] if isinstance(group, dict)]
     return [
         stanza["recipient"]
-        for stanza in stanzas or []
+        for group in groups
+        for stanza in group.get("age") or []
         if isinstance(stanza, dict) and isinstance(stanza.get("recipient"), str)
     ]
 
@@ -133,7 +141,11 @@ def check(rules, files):
             errors.append(f"{path} : aucune règle de {SOPS_CONFIG} ne le désigne")
             continue
         pattern, expected = rule
-        actual = file_recipients(text)
+        try:
+            actual = file_recipients(text)
+        except ConfigError as error:
+            errors.append(f"{path} : {error}")
+            continue
         if not actual:
             errors.append(f"{path} : aucun destinataire age dans ses métadonnées sops (pas chiffré par sops ?)")
             continue
