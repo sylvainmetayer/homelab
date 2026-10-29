@@ -4,7 +4,8 @@ newt_client_id: ""
 newt_client_secret: ""
 newt_endpoint: ""
 # Plafond mémoire du conteneur (doctrine d'AGENTS.md : ~2x le pic mesuré).
-# Surchargé dans host_vars/pi, où passe tout le trafic d'Immich.
+# Surchargé dans host_vars/pi, où passe tout le trafic d'Immich, et dans
+# host_vars/docker, relais de toutes les applis de la VM.
 newt_mem_limit: 256m
 
 # Proxy du socket Docker (wollomatic/socket-proxy, #853) : newt ne voit que
