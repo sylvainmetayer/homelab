@@ -42,8 +42,13 @@
   tags: backup
   become: true
   ansible.builtin.file:
-    path: "{{ borgmatic_config_dir }}/paperless.yaml"
+    path: "{{ item }}"
     state: absent
+  # La configuration et le fichier de son URL push (rôle borgmatic,
+  # tasks/app.yml), qui garderait sinon le jeton du moniteur.
+  loop:
+    - "{{ borgmatic_config_dir }}/paperless.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/paperless.curl"
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for Paperless-ngx
