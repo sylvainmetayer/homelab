@@ -65,6 +65,16 @@ resource "proxmox_virtual_environment_vm" "docker" {
   tags        = ["tofu", "apps", "homelab"]
   node_name   = var.proxmox_node
 
+  # Jamais de redémarrage par le provider : un changement qui exige un arrêt
+  # (port série, type de CPU…) est écrit dans la config Proxmox, en attente,
+  # avec un avertissement « Please reboot the VM manually », et s'applique au
+  # prochain arrêt complet fait à la main (`qm shutdown 100 && qm start 100` ;
+  # un reboot dans la VM ne suffit pas). Un changement qui ne peut pas attendre
+  # (redimensionner ou déplacer un disque à chaud) fait échouer l'apply au lieu
+  # d'éteindre la VM. Défaut du provider : true, qui éteint et rallume toutes
+  # les applis sans prévenir.
+  reboot_after_update = false
+
   cpu {
     cores = var.docker_vm.cores
     type  = "host"
@@ -103,6 +113,18 @@ resource "proxmox_virtual_environment_vm" "docker" {
 
   operating_system {
     type = "l26"
+  }
+
+  # serial0 : l'image cloud Debian démarre avec console=ttyS0, et sans port
+  # série serial-getty@ttyS0 échouait toutes les ~20 s (agetty « failed to get
+  # terminal attributes: Input/output error », ~27 000 fois par semaine en
+  # priorité err). Avec lui, la console xterm.js de Proxmox (et `qm terminal
+  # 100`) ouvre un vrai login, les messages du noyau compris. L'écran VGA par
+  # défaut reste : la console noVNC marche toujours. Ajouté à une VM qui
+  # tourne, il n'est pris qu'à son prochain arrêt complet (voir
+  # reboot_after_update).
+  serial_device {
+    device = "socket"
   }
 
   agent {
