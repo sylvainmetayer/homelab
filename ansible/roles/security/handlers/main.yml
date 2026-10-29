@@ -5,3 +5,9 @@
   ansible.builtin.systemd:
     name: fail2ban
     state: restarted
+
+# Relit les générateurs : systemd-ssh-generator masqué n'est plus lancé.
+- name: Reload systemd
+  become: true
+  ansible.builtin.systemd_service:
+    daemon_reload: true

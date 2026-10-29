@@ -15,6 +15,30 @@
 - name: Harden the system and sshd with devsec.hardening
   ansible.builtin.import_tasks: devsec.yml
 
+# systemd-ssh-generator (systemd 257) ouvre en plus sshd sur un socket AF_UNIX
+# local et, dans une VM, sur AF_VSOCK vers l'hyperviseur. Sur les VM du homelab
+# (docker, Pangolin, flip), /dev/vsock existe sans CID attribué : à chaque boot
+# et chaque daemon-reload, il journalise « Failed to query local AF_VSOCK CID »
+# puis « systemd-ssh-generator failed with exit status 1 », en priorité err.
+# sshd n'est joint que par TCP (ufw, fail2ban, ssh-audit portent sur lui) :
+# le générateur est masqué par un lien vers /dev/null (systemd.generator(7)),
+# ce qui retire aussi ces deux sockets, inutilisés. Effet au daemon-reload ;
+# un sshd-unix-local.socket déjà à l'écoute le reste jusqu'au prochain boot.
+- name: Ensure the local generator directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system-generators
+    state: directory
+    owner: root
+    group: root
+    mode: "0755" # NOSONAR
+
+- name: Mask systemd-ssh-generator
+  notify: Reload systemd
+  ansible.builtin.file:
+    src: /dev/null
+    dest: /etc/systemd/system-generators/systemd-ssh-generator
+    state: link
+
 # Écrit sans être chargé : systemd-sysctl l'applique au prochain boot. Voulu :
 # disable_ipv6 à chaud retirerait l'IPv6 du bridge Docker de Pangolin déjà
 # monté, et le scénario Molecule protège ainsi les sysctls globaux du noyau du

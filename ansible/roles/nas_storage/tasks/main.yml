@@ -57,7 +57,7 @@
     dest: "/etc/systemd/system/{{ nas_storage_slice }}"
     owner: root
     group: root
-    mode: "0640"
+    mode: "0644" # NOSONAR
 
 # Même ordre pour dockerd lui-même, qui arrête aussi les conteneurs.
 - name: Order docker before the NAS mount at shutdown
@@ -72,7 +72,7 @@
     - name: Template the docker.service drop-in
       ansible.builtin.copy:
         dest: /etc/systemd/system/docker.service.d/nas-storage.conf
-        mode: "0640"
+        mode: "0644" # NOSONAR
         content: |
           # Géré par Ansible (rôle nas_storage).
           [Unit]

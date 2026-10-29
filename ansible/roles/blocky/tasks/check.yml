@@ -23,6 +23,8 @@
     group: root
     mode: "0600"
 
+# 0644 : l'URL push est dans check.env (0600). Fermées à "others", systemd
+# journalise « marked world-inaccessible » à chaque daemon-reload.
 - name: Install the Blocky check service and timer
   become: true
   loop:
@@ -33,7 +35,7 @@
     dest: "/etc/systemd/system/{{ item }}"
     owner: root
     group: root
-    mode: "0640"
+    mode: "0644" # NOSONAR
   register: blocky_check_units
 
 - name: Enable the Blocky check

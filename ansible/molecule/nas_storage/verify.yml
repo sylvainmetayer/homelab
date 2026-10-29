@@ -16,8 +16,11 @@
         - /etc/systemd/system/docker.service.d/nas-storage.conf
       register: nas_storage_files
 
-    # Rien de lisible par "others" (SonarCloud) ; le script reste exécutable
-    # par l'utilisateur des unités dc@ via son groupe.
+    # Le script n'est pas lisible par "others" (SonarCloud) et reste exécutable
+    # par l'utilisateur des unités dc@ via son groupe. Les unités sont 0644 :
+    # systemd journalise « marked world-inaccessible » à chaque daemon-reload
+    # pour un fichier d'unité fermé à "others", sans rien protéger (l'API D-Bus
+    # le publie).
     - name: Assert the files exist with their modes
       ansible.builtin.assert:
         that:
@@ -25,9 +28,9 @@
           - nas_storage_files.results[0].stat.mode == '0750'
           - nas_storage_files.results[0].stat.gid == ansible_facts['user_gid']
           - nas_storage_files.results[1].stat.exists
-          - nas_storage_files.results[1].stat.mode == '0640'
+          - nas_storage_files.results[1].stat.mode == '0644'
           - nas_storage_files.results[2].stat.exists
-          - nas_storage_files.results[2].stat.mode == '0640'
+          - nas_storage_files.results[2].stat.mode == '0644'
 
     - name: Read the slice and the docker.service drop-in
       become: true

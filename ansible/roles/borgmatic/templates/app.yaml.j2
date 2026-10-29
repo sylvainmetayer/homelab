@@ -36,8 +36,10 @@ postgresql_databases:
 # à travers {{ borgmatic_docker_dump_bin }} : borgmatic 2.1 lui passe un
 # --result-file de l'hôte, introuvable dans le conteneur ; le script le
 # retire et écrit lui-même la sortie du client dans ce fichier. Le mot de
-# passe passe par l'environnement (password_transport), que le script
-# transmet au conteneur (« --env MYSQL_PWD »).
+# passe arrive au script par l'environnement (password_transport), qui le
+# remet au client dans un fichier d'options lu sur son entrée standard : par
+# MYSQL_PWD, le client MariaDB ne vérifierait pas le certificat TLS du
+# serveur (« insecure passwordless login »).
 mysql_databases:
 {% for database in borgmatic_app_mysql_databases %}
     - container: {{ database.container | to_json }}
