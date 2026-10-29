@@ -296,11 +296,13 @@ jobs:
           # grep sans -q : -q s'arrête au premier résultat, docker logs prend
           # un SIGPIPE et pipefail (shell bash d'Actions) fait échouer le test
           # alors que la ligne est là (déploiement du 29/10).
+          started=false
           for i in {1..60}; do
             echo "Check $i/60"
 
             if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
               echo "DNS proxy started"
+              started=true
               break
             fi
 
@@ -314,7 +316,7 @@ jobs:
             sleep 2
           done
 
-          if ! docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
+          if [ "$started" != true ]; then
             echo "OLM startup failed"
             docker logs olm
             exit 1
