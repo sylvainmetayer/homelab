@@ -186,10 +186,8 @@ couperait le client, elle n'ouvrirait rien.
 
 **À chaque montée de version** d'une image de `path_bypass_images.json`,
 Renovate monte le fichier en même temps que le compose (même `depName`), et
-`.github/workflows/path-bypass-review.yaml` retient la PR sur
-l'environnement `relecture-chemins-publics` (relecteur obligatoire,
-`tofu/github/environments.tf`). Lire les notes de version et les sources
-listées dans le résumé du run ; si une route ouverte a bougé, corriger les
-`_paths` de l'appli dans la même PR ; puis approuver le run dans l'interface
-de GitHub (« Review deployments »). Rien n'est déployé par l'approbation,
-elle passe seulement le check au vert.
+la PR ne fusionne jamais seule (`automerge: false` sur ce fichier, dernière
+règle de `renovate.json`) ; une note dans sa description le rappelle. Avant
+de merger, lire les notes de version (`releases`) et les sources listées
+dans `reread` de l'entrée de l'appli ; si une route ouverte a bougé, corriger
+les `_paths` de l'appli dans la même PR.
