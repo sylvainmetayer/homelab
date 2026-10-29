@@ -58,7 +58,8 @@ variable "required_checks" {
 
 # Handle Bluesky @sylvain.dev : l'apex redirige vers www, la vérification par
 # /.well-known/atproto-did ne suivrait pas la redirection. Un TXT _atproto le
-# remplace (dns.tf). null = pas d'enregistrement.
+# remplace (dns.tf). null = pas d'enregistrement. Le DID est public : le mettre
+# en valeur par défaut, un -var oublié à l'apply suivant supprimerait le TXT.
 variable "bluesky_did" {
   description = "DID du compte Bluesky (did:plc:…) à rattacher au domaine, ou null"
   type        = string
