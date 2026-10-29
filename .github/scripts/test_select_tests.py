@@ -192,8 +192,19 @@ class Tofu(unittest.TestCase):
             self.assertEqual(selected(["ansible/roles/r/tasks/main.yml"], tree), ([], []))
 
     def test_disabled_module_is_not_tested(self):
-        self.assertNotIn("tofu/keycloak_demo_planning_kc", REAL.modules)
-        self.assertEqual(selected(["tofu/keycloak_demo_planning_kc/main.tf"]), ([], []))
+        tmp, tree = fake_tree({
+            "tofu/m/tests/m.tftest.hcl": "",
+            "tofu/m/tests/.disabled": "raison\n",
+            "tofu/n/tests/n.tftest.hcl": "",
+        })
+        with tmp:
+            self.assertEqual(tree.modules, ["tofu/n"])
+            self.assertEqual(selected(["tofu/m/main.tf"], tree), ([], []))
+
+    def test_vendored_submodule_selects_its_root_module(self):
+        self.assertIn("tofu/keycloak_demo_planning_kc", REAL.modules)
+        self.assertEqual(selected(["tofu/keycloak_demo_planning_kc/modules/realm/main.tf"]),
+                         ([], ["tofu/keycloak_demo_planning_kc"]))
 
     def test_mise_toml_runs_every_module(self):
         self.assertEqual(selected(["mise.toml"]), ([], REAL.modules))

@@ -1,7 +1,10 @@
 # Realm Keycloak du banc demo-planning-kc (planning-equipes#72).
 #
-# Le realm est décrit par terraform/keycloak du dépôt applicatif ; ce dossier ne
-# fait que l'instancier avec un état distant. Le module porte son propre bloc
+# Le realm est décrit par terraform/keycloak du dépôt applicatif, vendorisé tel
+# quel dans modules/realm depuis le commit bb374eac0562365973530a1e8ec8f506fbc6c4d0
+# de planning-equipes : ce commit n'est atteignable depuis aucune branche ni
+# aucun tag, la source git ne s'initialisait plus. Ce dossier ne fait que
+# l'instancier avec un état distant. Le module porte son propre bloc
 # provider : il se connecte avec le bootstrap admin du conteneur Keycloak, dont
 # le mot de passe est lu dans ansible/secrets.sops.yaml (secrets.tf). Aucune
 # variable d'environnement à exporter.
@@ -20,7 +23,7 @@ resource "random_password" "client" {
 }
 
 module "realm" {
-  source = "git::https://github.com/sylvainmetayer/planning-equipes.git//terraform/keycloak?ref=bb374eac0562365973530a1e8ec8f506fbc6c4d0"
+  source = "./modules/realm"
 
   keycloak_url        = "https://demo-planning-kc.sylvain.dev/auth"
   planning_public_url = "https://demo-planning-kc.sylvain.dev"
