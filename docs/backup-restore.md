@@ -12,7 +12,7 @@ An archive holds:
 
 Borg keeps 7 daily, 4 weekly, 6 monthly and 1 yearly archives. When the app has a backup healthcheck URL, each run pushes to its Uptime Kuma monitor, which alerts when a night is missed.
 
-[AGENTS.md](../AGENTS.md) lists the rules the template follows. The `borgmatic-backup` skill wires a new app.
+[ansible/roles/borgmatic/README.md](../ansible/roles/borgmatic/README.md) lists the rules the template follows. The `borgmatic-backup` skill wires a new app.
 
 ## Restore an app
 

@@ -1,0 +1,7 @@
+# Role `jellyfin`
+
+Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there links here.
+
+Part of `nas.yml` (row in `docs/conventions/ansible.md`): `dc@jellyfin`, media from the UGOS shared folder `media` mounted `:ro`; the role asserts the share and its library folders before writing anything, under its own tag only. TLS in front: `ansible/roles/nas_proxy/README.md`.
+
+Jellyfin itself sits on its project's `media` network only (`jellyfin_media` for Docker, fixed subnet, created by `dc@jellyfin` and joined as external by `nas_proxy`, hence `nas_proxy` after `jellyfin`; Traefik at `172.30.96.10`, the IP set in Jellyfin's "Known proxies") and keeps `8096` published on the LAN as a fallback.

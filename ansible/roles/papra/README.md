@@ -1,0 +1,16 @@
+# Role `papra`
+
+Papra (`papra.sylvain.cloud`, Docker VM) is **on trial** as the replacement of
+Paperless-ngx (paused, `docs/runbooks/app-en-pause.md`). Whichever of the two
+loses the trial is removed with the `remove-app` skill. App description:
+`docs/apps.md`.
+
+- OCR: tesseract.js inside the image. The container runs as the host uid
+  (`user:` in `templates/compose.yaml`, as Papra's documentation advises), so
+  tesseract.js cannot cache its language models in `/app` and fetches them
+  again from `cdn.jsdelivr.net` for every document. Keep the container's
+  outbound Internet through `newt` (its only network). If the CDN cannot be
+  reached, the document is imported with no text: reprocess it
+  (`DOCUMENT_REPROCESSING_ENABLED`, on by default).
+- Sign-up is closed (`papra_registration_enabled: false`): each account is
+  made by reopening it for one run (`-e papra_registration_enabled=true`).

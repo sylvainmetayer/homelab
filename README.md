@@ -52,7 +52,7 @@ ansible-playbook pangolin.yaml --check --diff    # dry run (inventory from ansib
 
 Apply `tofu/pangolin` first, because `tofu/pangolin_config` and `tofu/dns` read its state. Then apply `tofu/pangolin_config` before running the Ansible playbooks: they read its outputs (healthcheck URLs, Newt credentials). The Ansible inventory is built from the OpenTofu state, so a new host only shows up after its `tofu apply`.
 
-[AGENTS.md](AGENTS.md) has the rest: every mise task, the playbook for each host, how a role is put together, the tests and the conventions to follow.
+[AGENTS.md](AGENTS.md) is the index of the rest: every mise task, the rules not to break, and where each topic is documented (`docs/conventions/`, a `README.md` per role or Tofu module).
 
 ## Hosted apps
 

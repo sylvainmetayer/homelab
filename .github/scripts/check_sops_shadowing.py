@@ -5,7 +5,7 @@ that a playbook, a shared task file or a role sets in a layer it outranks.
 community.sops.load_vars (return_method: vars-only, ansible-core 2.21+) puts
 the secrets in the include_vars layer: they beat play `vars:`, the `vars:` of a
 `roles:` entry, block and task `vars:` (import_role's included) and a role's
-vars/*.yml, and the override silently loses (AGENTS.md, "Secrets"). Not
+vars/*.yml, and the override silently loses (docs/conventions/secrets.md). Not
 checked, because they outrank the secrets: set_fact/register, role params (bare
 keys of a `roles:` entry) and the `vars:` of an include_role.
 

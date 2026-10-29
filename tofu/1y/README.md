@@ -4,7 +4,7 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 
 | Ressource | Rôle |
 |---|---|
-| `github_repository.r` | Dépôt `1y`, **importé** une fois (bloc `import` retiré depuis, `tofu test` le refuse ; état perdu : `tofu import github_repository.r 1y`, voir « Utilisation ») : description, sujets, options de fusion, scan de secrets |
+| `github_repository.r` | Dépôt `1y`, **importé** une fois (bloc `import` retiré le 2026-10-29, `tofu test` le refuse, suite de tests rétablie ; état perdu : `tofu import github_repository.r 1y`, voir « Utilisation ») : description, sujets, options de fusion, scan de secrets |
 | `github_repository_vulnerability_alerts.r` / `github_repository_dependabot_security_updates.r` | Alertes Dependabot oui, PR Dependabot non : Renovate (`renovate.json` du dépôt) gère les montées |
 | `github_workflow_repository_permissions.r` | `GITHUB_TOKEN` en lecture seule par défaut |
 | `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
