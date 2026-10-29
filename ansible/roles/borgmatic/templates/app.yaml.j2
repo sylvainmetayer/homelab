@@ -142,12 +142,30 @@ commands:
           - {{ command | to_json }}
 {% endfor %}
 {% if borgmatic_app_healthcheck_url %}
-
-# https://torsion.org/borgmatic/reference/configuration/monitoring/uptime-kuma/
-uptime_kuma:
-    push_url: {{ borgmatic_app_healthcheck_url | to_json }}
-    states:
-        - start
-        - finish
-        - fail
+{% set push = 'curl -q -fsS -m 10 --retry 2 -o /dev/null -A borgmatic -K ' ~ (borgmatic_app_push_config | quote) ~ ' -G' %}
+    # Moniteur push Uptime Kuma, aux mêmes moments que le hook uptime_kuma de
+    # borgmatic : début, fin ou échec de la configuration, pour create,
+    # prune, compact ou check. Pas ce hook-là : il écrit l'URL push, jeton
+    # compris, au journal à chaque run (« Pushing Uptime Kuma push_url … »,
+    # niveau INFO), d'où elle partait vers VictoriaLogs. L'URL est dans un
+    # fichier de configuration curl (0600 root, tasks/app.yml), jamais sur la
+    # ligne de commande, et curl n'écrit pas le chemin dans ses erreurs.
+    # « || true » : comme avec le hook natif, un push raté avertit sans faire
+    # échouer la sauvegarde.
+    - before: configuration
+      when: {{ borgmatic_push_actions | to_json }}
+      run:
+          - {{ (push ~ ' -d status=up -d msg=start || true') | to_json }}
+    - after: configuration
+      when: {{ borgmatic_push_actions | to_json }}
+      states:
+          - finish
+      run:
+          - {{ (push ~ ' -d status=up -d msg=finish || true') | to_json }}
+    - after: configuration
+      when: {{ borgmatic_push_actions | to_json }}
+      states:
+          - fail
+      run:
+          - {{ (push ~ ' -d status=down -d msg=fail || true') | to_json }}
 {% endif %}

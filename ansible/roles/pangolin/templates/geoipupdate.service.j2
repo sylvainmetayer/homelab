@@ -22,5 +22,7 @@ ExecStart=/bin/sh -c '\
     /usr/bin/docker restart pangolin; \
   fi'
 {% if pangolin_geoip_healthcheck_url %}
-ExecStartPost=/usr/bin/curl -fsS -m 30 --retry 3 -o /dev/null {{ pangolin_geoip_healthcheck_url }}
+# URL push (jeton du moniteur) lue dans un fichier de configuration curl,
+# jamais sur la ligne de commande (ps, systemctl show, _CMDLINE du journal).
+ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 -o /dev/null -K {{ pangolin_geoipupdate_config_dir }}/push.curl
 {% endif %}

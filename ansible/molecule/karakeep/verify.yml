@@ -10,6 +10,7 @@
       vars:
         verify_app_service: karakeep
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/karakeep.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-karakeep-backup
 
     - name: Verify the supporting services of karakeep
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -100,7 +101,6 @@
         that:
           - "'/opt/apps/karakeep/data' in karakeep_borgmatic.source_directories"
           - "'/opt/apps/karakeep/.env' in karakeep_borgmatic.source_directories"
-          - karakeep_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-karakeep-backup'
         fail_msg: "Configuration borgmatic de karakeep inattendue : {{ karakeep_borgmatic.source_directories }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for karakeep

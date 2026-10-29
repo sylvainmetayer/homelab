@@ -162,4 +162,6 @@
       ansible.builtin.assert:
         that:
           - log_agent_vector_tests.stdout is search('traefik strips the query string \.\.\. passed')
+          - log_agent_vector_tests.stdout is search('journald masks push and ntfy tokens \.\.\. passed')
+          - log_agent_vector_tests.stdout is search('docker masks push tokens \.\.\. passed')
           - log_agent_vector_tests.stdout is not search('failed')

@@ -12,6 +12,7 @@
       vars:
         verify_app_service: dawarich
         verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/dawarich.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/molecule-dawarich
 
     - name: Verify the supporting services of dawarich
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -106,7 +107,6 @@
           - dawarich_db.name == dawarich_env.DATABASE_NAME
           - dawarich_db.username == dawarich_env.DATABASE_USERNAME
           - dawarich_db.password == dawarich_env.DATABASE_PASSWORD
-          - dawarich_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/molecule-dawarich'
       vars:
         dawarich_db: "{{ dawarich_borgmatic.postgresql_databases[0] }}"
 

@@ -9,6 +9,7 @@
       vars:
         verify_app_service: betisier
         verify_app_borgmatic_config: /etc/borgmatic.d/betisier.yaml
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-betisier-backup
 
     - name: Verify the supporting services of betisier
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -93,9 +94,29 @@
       ansible.builtin.assert:
         that:
           - >-
-            'ExecStartPost=/usr/bin/curl -fsS -m 30 --retry 3 -o /dev/null https://uptime.example.invalid/api/push/tofu-betisier-reset'
+            'ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 -o /dev/null -K /opt/apps/betisier/reset-push.curl'
             in (betisier_reset_unit.content | b64decode)
+          - "'/api/push/' not in (betisier_reset_unit.content | b64decode)"
         fail_msg: "betisier-reset.service ne pousse pas vers le moniteur Reset Betisier"
+
+    - name: Stat the push URL file of the betisier reset
+      ansible.builtin.stat:
+        path: /opt/apps/betisier/reset-push.curl
+      register: betisier_reset_push_stat
+
+    - name: Read the push URL file of the betisier reset
+      ansible.builtin.slurp:
+        src: /opt/apps/betisier/reset-push.curl
+      register: betisier_reset_push
+
+    # Le jeton du moniteur n'est que dans ce fichier, privé.
+    - name: Assert the push URL file is private and holds the URL
+      ansible.builtin.assert:
+        that:
+          - betisier_reset_push_stat.stat.mode == '0600'
+          - betisier_reset_push_stat.stat.pw_name == 'sylvain'
+          - (betisier_reset_push.content | b64decode) == 'url = "https://uptime.example.invalid/api/push/tofu-betisier-reset"\n'
+        fail_msg: "/opt/apps/betisier/reset-push.curl : 0600 sylvain, « url = … » attendu"
 
     # `down` sans `-v` laissait un volume anonyme de /config à chaque reset.
     - name: Assert the betisier reset removes the anonymous volume of the database
@@ -147,7 +168,6 @@
           # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
           # avertit « Deprecated program name » et disparaîtra.
           - betisier_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump betisier_db mariadb-dump'
-          - betisier_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-betisier-backup'
         fail_msg: "Configuration borgmatic de betisier inattendue : {{ betisier_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for betisier

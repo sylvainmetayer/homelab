@@ -57,7 +57,27 @@
   loop_control:
     label: "{{ item.name }}"
 
-# L'URL push porte le jeton du moniteur : 0600 et diff: false.
+# URL push du moniteur « GeoIP Pangolin » (jeton) : lue par curl -K, hors
+# de la ligne de commande de l'unité.
+- name: Write the GeoLite2 push URL
+  when: pangolin_geoip_healthcheck_url | length > 0
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: "url = {{ pangolin_geoip_healthcheck_url | to_json }}\n"
+    dest: "{{ pangolin_geoipupdate_config_dir }}/push.curl"
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Remove the GeoLite2 push URL
+  when: pangolin_geoip_healthcheck_url | length == 0
+  become: true
+  ansible.builtin.file:
+    path: "{{ pangolin_geoipupdate_config_dir }}/push.curl"
+    state: absent
+
 - name: Install the geoipupdate service and timer
   become: true
   diff: false

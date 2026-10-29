@@ -63,7 +63,11 @@ transforms:
     drop_on_abort: true
     source: |
       unit = string(._SYSTEMD_USER_UNIT) ?? string(._SYSTEMD_UNIT) ?? ""
+      # Filet de sécurité : jetons masqués avant l'envoi (log_agent_redactions).
       message = string(.message) ?? ""
+{% for redaction in log_agent_redactions %}
+      message = replace(message, r'{{ redaction.pattern }}', {{ redaction.replacement | to_json }})
+{% endfor %}
       # Sous dc@<service>, `docker compose up` recopie la sortie de chaque
       # conteneur dans le journal (« conteneur  | ligne ») : la source docker
       # l'a déjà, avec le nom du conteneur. Les lignes de dc@ lui-même
@@ -107,6 +111,9 @@ transforms:
         abort
       }
       message = string(.message) ?? ""
+{% for redaction in log_agent_redactions %}
+      message = replace(message, r'{{ redaction.pattern }}', {{ redaction.replacement | to_json }})
+{% endfor %}
       event = {
         "timestamp": .timestamp,
         "message": message,

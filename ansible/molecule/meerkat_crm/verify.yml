@@ -9,6 +9,7 @@
       vars:
         verify_app_service: meerkat_crm
         verify_app_borgmatic_config: /etc/borgmatic.d/meerkat_crm.yaml
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-meerkat-crm-backup
 
     - name: Stat the Meerkat CRM environment file
       ansible.builtin.stat:
@@ -79,7 +80,6 @@
         that:
           - "'/opt/apps/meerkat_crm/data' in meerkat_crm_borgmatic.source_directories"
           - "'/opt/apps/meerkat_crm/.env.docker' in meerkat_crm_borgmatic.source_directories"
-          - meerkat_crm_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-meerkat-crm-backup'
         fail_msg: "Configuration borgmatic de meerkat_crm inattendue : {{ meerkat_crm_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for meerkat_crm

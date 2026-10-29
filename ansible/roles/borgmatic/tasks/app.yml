@@ -59,6 +59,37 @@
     mode: "0700"
   when: borgmatic_app_sqlite_found.stdout_lines | default([]) | length > 0
 
+# URL push Uptime Kuma (jeton du moniteur) : un fichier de configuration
+# curl lu par les hooks de la configuration (app.yaml.j2), jamais la ligne de
+# commande ni le journal.
+- name: Ensure the Uptime Kuma push directory exists for {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_push_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write the Uptime Kuma push URL of {{ borgmatic_app_title }}
+  when: borgmatic_app_healthcheck_url | length > 0
+  diff: false
+  no_log: true
+  become: true
+  ansible.builtin.copy:
+    content: "url = {{ borgmatic_app_healthcheck_url | to_json }}\n"
+    dest: "{{ borgmatic_app_push_config }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Remove the Uptime Kuma push URL of {{ borgmatic_app_title }}
+  when: borgmatic_app_healthcheck_url | length == 0
+  become: true
+  ansible.builtin.file:
+    path: "{{ borgmatic_app_push_config }}"
+    state: absent
+
 - name: Create borgmatic configuration for {{ borgmatic_app_title }}
   diff: false
   become: true

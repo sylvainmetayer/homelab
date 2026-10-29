@@ -59,12 +59,17 @@
   changed_when: decommission_app_repo_delete.rc | default(1) == 0
   failed_when: false
 
+# La configuration et le fichier de son URL push Uptime Kuma (rôle borgmatic,
+# tasks/app.yml).
 - name: Remove borgmatic configuration
   become: true
   when: decommission_app_remove_borgmatic_config
   ansible.builtin.file:
-    path: "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml"
+    path: "{{ item }}"
     state: absent
+  loop:
+    - "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/{{ decommission_app_service }}.curl"
 
 - name: Remove app data directory
   become: true

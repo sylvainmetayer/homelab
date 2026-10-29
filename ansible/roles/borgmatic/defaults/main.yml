@@ -103,8 +103,16 @@ borgmatic_app_label: "{{ borgmatic_app_archive_prefix }}-backup"
 borgmatic_app_target: "{{ backup_storage_box_url }}/{{ borgmatic_app_name }}"
 borgmatic_app_passphrase: "{{ backup_passphrase }}"
 borgmatic_app_encryption_mode: "{{ borgmatic_encryption_mode }}"
-# URL push Uptime Kuma ; vide : pas de bloc uptime_kuma.
+# URL push Uptime Kuma ; vide : pas de push. Poussée par curl depuis les
+# hooks de la configuration (app.yaml.j2), pas par le hook uptime_kuma de
+# borgmatic, qui écrit l'URL et son jeton au journal à chaque run.
 borgmatic_app_healthcheck_url: ""
+# Fichier de configuration curl (« url = … », 0600 root) qui porte l'URL
+# push : hors de la ligne de commande, que ps, systemctl et le journal
+# (_CMDLINE) montreraient. Sous borgmatic_config_dir, monté au même chemin
+# dans le conteneur borgmatic du NAS ; un sous-dossier, que borgmatic ne lit
+# pas (il ne prend que les *.yaml du dossier, sans descendre).
+borgmatic_app_push_config: "{{ borgmatic_push_config_dir }}/{{ borgmatic_app_name }}.curl"
 # Exclusions en plus de borgmatic_exclude_patterns, en chemins absolus.
 borgmatic_app_exclude_patterns: []
 # Bases dumpées par le client du conteneur de la base (docker exec) : client
@@ -153,6 +161,16 @@ borgmatic_app_extra_options: {}
 # resté là serait rejoué sur la copie), puis lui rendre son propriétaire
 # (stat -c %u:%g sur l'ancienne avant, chown après).
 borgmatic_sqlite_staging_dir: /var/lib/borgmatic-sqlite
+
+# Fichiers des URL push Uptime Kuma (borgmatic_app_push_config), root, 0700.
+borgmatic_push_config_dir: "{{ borgmatic_config_dir }}/uptime-kuma"
+# Actions qui poussent au moniteur : celles pour lesquelles le hook
+# uptime_kuma de borgmatic poussait (ni repo-create, ni list, ni extract).
+borgmatic_push_actions:
+  - create
+  - prune
+  - compact
+  - check
 
 # Enrobage du client de dump MySQL/MariaDB (files/borgmatic-docker-dump).
 borgmatic_docker_dump_bin: /usr/local/bin/borgmatic-docker-dump

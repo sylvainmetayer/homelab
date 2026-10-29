@@ -153,12 +153,16 @@
         - /etc/systemd/system/geoipupdate.service
         - /etc/geoipupdate/env
         - /etc/geoipupdate/license_key
+        - /etc/geoipupdate/push.curl
 
-    - name: Stat the MaxMind license key
+    - name: Stat the MaxMind license key and the push URL file
       become: true
       ansible.builtin.stat:
-        path: /etc/geoipupdate/license_key
-      register: pangolin_geoip_license
+        path: "{{ item }}"
+      register: pangolin_geoip_private
+      loop:
+        - /etc/geoipupdate/license_key
+        - /etc/geoipupdate/push.curl
 
     - name: Assert GeoLite2 is kept up to date by the pinned geoipupdate
       vars:
@@ -169,12 +173,15 @@
           - pangolin_geoip_timer.status.ActiveState == 'active'
           - pangolin_geoip_timer.status.UnitFileState == 'enabled'
           - geoip_unit is search('ghcr\\.io/maxmind/geoipupdate:v[0-9.]+@sha256:[a-f0-9]{64}')
-          - "'https://uptime.example.invalid/api/push/pangolin_geoip' in geoip_unit"
+          # URL push dans un fichier curl, jamais sur la ligne de commande.
+          - "'-K /etc/geoipupdate/push.curl' in geoip_unit"
+          - "'/api/push/' not in geoip_unit"
+          - (pangolin_geoip_files.results[3].content | b64decode) == 'url = "https://uptime.example.invalid/api/push/pangolin_geoip"\n'
           - "'docker restart pangolin' in geoip_unit"
           - ('GEOIPUPDATE_ACCOUNT_ID=' ~ pangolin_maxmind_account_id) in geoip_env
           - "'GEOIPUPDATE_EDITION_IDS=GeoLite2-Country' in geoip_env"
           - (pangolin_geoip_files.results[2].content | b64decode | trim) == pangolin_maxmind_license_key
-          - pangolin_geoip_license.stat.mode == '0600'
+          - pangolin_geoip_private.results | map(attribute='stat.mode') | unique | list == ['0600']
 
     # --- résumé CrowdSec hebdomadaire sur ntfy ---
 
@@ -552,4 +559,9 @@
           - borgmatic_config.source_directories == [pangolin_dir ~ '/compose.yaml', pangolin_dir ~ '/config']
           # Journal d'accès exclu ; CrowdSec (hors de config/) jamais sauvegardé.
           - (pangolin_dir ~ '/config/traefik/logs') in borgmatic_config.exclude_patterns
-          - borgmatic_config.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/pangolin_backup'
+
+    - name: Verify the Uptime Kuma push of the Pangolin backup
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_borgmatic_push.yml
+      vars:
+        verify_borgmatic_push_config: "{{ borgmatic_config_dir }}/pangolin.yaml"
+        verify_borgmatic_push_url: https://uptime.example.invalid/api/push/pangolin_backup
