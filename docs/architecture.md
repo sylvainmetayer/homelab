@@ -337,14 +337,6 @@ ne bloque plus la play : un 403 prouve que le mot de passe est bon (depuis
 l'hôte, la source est la passerelle Docker), et tout autre échec avertit et
 fait omettre le widget pour le run.
 
-**Risque accepté** (Sylvain, 2026-10-29) : sur le LAN, la liste d'IP ne
-protège pas. Le hub est publié sur `192.168.1.216:8090` (les agents LAN s'y
-connectent), et PocketBase prend l'adresse du client dans `X-Forwarded-For`,
-que n'importe quel appareil du réseau peut écrire : il lui suffit d'annoncer
-`172.16.97.3`. Reste le mot de passe, exigé partout. Par
-`monitoring.sylvain.cloud`, c'est Pangolin qui écrit l'en-tête : la liste
-joue son rôle.
-
 Pour le rétablir après une coupure :
 
 1. Dans l'interface PocketBase du hub (`https://monitoring.sylvain.cloud/_/`,
@@ -363,12 +355,16 @@ supprime pas un réseau retiré du compose) et `172.16.97.3` retiré des
 « Superuser IPs ». Le compte du widget reste sur le hub : le retirer à la main
 (interface PocketBase `/_/`) si la coupure dure.
 
-Le réglage `trustedProxy` du hub (`X-Forwarded-For`, IP la plus à droite) vaut
-pour toute requête, d'où qu'elle vienne : PocketBase ne vérifie pas qu'elle
-passe par un proxy. Par Pangolin, Traefik ajoute la vraie IP en dernier ; mais
-sur le port publié (`192.168.1.216:8090`, tout le LAN), un client peut
-annoncer l'IP admise dans cet en-tête. La liste d'IP n'y arrête donc pas un
-superuser qui a le mot de passe ; seul le mot de passe le fait.
+**Risque accepté** (Sylvain, 2026-10-29) : la liste d'IP ne protège que ce
+qui passe par Traefik. Le réglage `trustedProxy` du hub (`X-Forwarded-For`,
+IP la plus à droite, posé dans l'interface) vaut pour toute requête, d'où
+qu'elle vienne : PocketBase ne vérifie pas qu'elle passe par un proxy. Par
+`monitoring.sylvain.cloud`, Traefik ajoute la vraie IP en dernier : la liste
+joue son rôle. Mais tout ce qui joint le hub en direct peut annoncer
+`172.16.97.3` dans cet en-tête : le LAN sur le port publié
+(`192.168.1.216:8090`, celui des agents du LAN), la VM elle-même
+(`127.0.0.1:8090`) et tout conteneur du réseau `newt`, où le hub est
+joignable. Seul le mot de passe, exigé partout, les arrête.
 
 ```mermaid
 flowchart LR
