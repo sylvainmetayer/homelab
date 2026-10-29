@@ -97,6 +97,27 @@
             in (betisier_reset_unit.content | b64decode)
         fail_msg: "betisier-reset.service ne pousse pas vers le moniteur Reset Betisier"
 
+    # `down` sans `-v` laissait un volume anonyme de /config à chaque reset.
+    - name: Assert the betisier reset removes the anonymous volume of the database
+      ansible.builtin.assert:
+        that:
+          - "'ExecStart=/usr/bin/docker compose down -v' in (betisier_reset_unit.content | b64decode)"
+        fail_msg: "betisier-reset.service doit lancer « docker compose down -v »"
+
+    - name: List the fake orphan volumes left after converge
+      become: true
+      ansible.builtin.command:
+        cmd: docker volume ls -q --filter name=molecule-
+      register: betisier_remaining_volumes
+      changed_when: false
+
+    - name: Assert only the betisier orphan volume was removed
+      ansible.builtin.assert:
+        that:
+          - "'molecule-betisier-orphan' not in betisier_remaining_volumes.stdout_lines"
+          - "'molecule-other-orphan' in betisier_remaining_volumes.stdout_lines"
+        fail_msg: "Volumes restants : {{ betisier_remaining_volumes.stdout_lines }}"
+
     - name: Stat the betisier borgmatic configuration
       become: true
       ansible.builtin.stat:

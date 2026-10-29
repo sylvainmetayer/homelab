@@ -14,8 +14,11 @@ ExecStart=/usr/bin/systemctl --user stop dc@betisier
 # Wait for service to stop
 ExecStart=/bin/sleep 2
 
-# Docker compose down
-ExecStart=/usr/bin/docker compose down
+# Docker compose down. `-v` : l'image linuxserver/mariadb déclare
+# `VOLUME /config`, donc chaque betisier_db neuf crée un volume anonyme
+# (~150 Mo) que `down` seul laissait orphelin (46 en six semaines). Le compose
+# n'a que des bind mounts : `-v` ne supprime que ces volumes anonymes.
+ExecStart=/usr/bin/docker compose down -v
 
 # Restart the betisier service
 ExecStart=/usr/bin/systemctl --user start dc@betisier

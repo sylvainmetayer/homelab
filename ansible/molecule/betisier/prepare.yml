@@ -27,3 +27,43 @@
           [Service]
           ExecStart=
           ExecStart=/bin/true
+
+    # Deux volumes orphelins marqués anonymes, comme ceux de l'ancien reset :
+    # l'un a le contenu de betisier_db (le rôle doit le supprimer), l'autre
+    # non (il doit rester). Les noms sont fixes pour que verify les retrouve.
+    - name: Create the fake orphan volumes
+      become: true
+      loop:
+        - molecule-betisier-orphan
+        - molecule-other-orphan
+      ansible.builtin.command:
+        cmd: docker volume create --label com.docker.volume.anonymous= {{ item }}
+      changed_when: true
+
+    - name: Read the mountpoint of the fake orphan volumes
+      become: true
+      loop:
+        - molecule-betisier-orphan
+        - molecule-other-orphan
+      ansible.builtin.command:
+        cmd: docker volume inspect --format {{ '{{.Mountpoint}}' }} {{ item }}
+      register: betisier_orphan_mountpoints
+      changed_when: false
+
+    - name: Fill the betisier-like orphan volume
+      become: true
+      loop:
+        - databases/betisier
+        - initdb.d
+      ansible.builtin.file:
+        path: "{{ betisier_orphan_mountpoints.results[0].stdout }}/{{ item }}"
+        state: directory
+        mode: "0700"
+
+    - name: Add the custom.cnf of the linuxserver image to both orphan volumes
+      become: true
+      loop: "{{ betisier_orphan_mountpoints.results }}"
+      ansible.builtin.copy:
+        dest: "{{ item.stdout }}/custom.cnf"
+        content: "[mysqld]\n"
+        mode: "0600"
