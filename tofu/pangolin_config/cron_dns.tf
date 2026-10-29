@@ -8,8 +8,7 @@
 # Clé = suffixe de la sortie lue par le playbook (uptime_cron_dns_<clé>_url).
 # Quinze minutes : deux vérifications manquées passent, pas trois ; un down
 # poussé passe d'abord en PENDING (max_retries) : un échec isolé, juste après
-# un redémarrage, n'alerte pas. E-mail et ntfy : sans DNS, toute la maison est
-# coupée d'Internet.
+# un redémarrage, n'alerte pas. Telegram et ntfy, comme partout ailleurs.
 locals {
   dns_check_hosts = {
     pi  = "Raspberry Pi"
@@ -34,7 +33,7 @@ resource "uptimekuma_monitor_push" "cron_dns" {
   active          = true
   tags            = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id, uptimekuma_notification_ntfy.ntfy.id]
+  notification_ids = local.alert_notification_ids
 }
 
 output "uptime_cron_dns_pi_url" {

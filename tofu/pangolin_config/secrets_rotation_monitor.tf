@@ -15,7 +15,7 @@ resource "uptimekuma_monitor_push" "secrets_rotation" {
   active         = true
   tags           = [local.tofu_tag]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 # Lu par tofu/github (secret SECRETS_ROTATION_PUSH_URL de l'environnement

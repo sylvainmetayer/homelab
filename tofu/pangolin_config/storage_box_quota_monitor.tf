@@ -15,7 +15,7 @@ resource "uptimekuma_monitor_push" "storage_box_quota" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 # Lu par tofu/github (secret STORAGE_BOX_QUOTA_PUSH_URL de l'environnement

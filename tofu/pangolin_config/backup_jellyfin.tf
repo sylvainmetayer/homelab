@@ -14,7 +14,7 @@ resource "uptimekuma_monitor_push" "backup_jellyfin" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 output "uptime_backup_jellyfin_url" {

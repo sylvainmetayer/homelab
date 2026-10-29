@@ -233,7 +233,7 @@ resource "uptimekuma_monitor_http_keyword" "healthcheck" {
   expiry_notification = true
   tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 # Every backup job pushes here (the URL is the `uptime_backup_<app>_url` output
@@ -253,5 +253,5 @@ resource "uptimekuma_monitor_push" "backup" {
   active = pangolin_resource.website[each.key].enabled
   tags   = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }

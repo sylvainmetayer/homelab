@@ -97,13 +97,9 @@ locals {
 }
 
 # Uptime Kuma's ntfy channel, publishing to the uptime-kuma topic with that
-# producer's write-only token. Wired to the two DNS monitors only
-# (cron_dns.tf, Blocky: without DNS the whole house is offline); e-mail stays
-# the default channel elsewhere. To use it on every monitor,
-# add `uptimekuma_notification_ntfy.ntfy.id` next to
-# `uptimekuma_notification_smtp.email.id` in the `notification_ids` of the
-# monitors to switch (websites.tf, external_monitors.tf...), or set
-# is_default = true here so that a monitor made by hand in the UI gets it.
+# producer's write-only token. One of the two alerts of every monitor, next
+# to Telegram (local.alert_notification_ids, notifications.tf). Not the
+# default: a monitor made by hand in the UI gets no channel unless picked.
 #
 # The token is the key ntfy_uptime_kuma_token of the root secrets.sops.yaml:
 # docker.yml reads it back from this state (output ntfy_uptime_kuma_token)
@@ -119,7 +115,7 @@ resource "uptimekuma_notification_ntfy" "ntfy" {
   # that overrides Do Not Disturb.
   priority = 4
 
-  # Optional+computed: pinned, as on uptimekuma_notification_smtp.email.
+  # Optional+computed: pinned, as on uptimekuma_notification_telegram.supervision.
   is_active      = true
   is_default     = false
   apply_existing = false

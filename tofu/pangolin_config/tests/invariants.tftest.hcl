@@ -37,9 +37,6 @@ override_data {
       pangolin_api_key       = "fake-pangolin-api-key"
       AWS_ACCESS_KEY_ID      = "fake-access-key"
       AWS_SECRET_ACCESS_KEY  = "fake-secret-key"
-      smtp_user              = "alertes@example.test"
-      smtp_pass              = "fake-smtp-pass"
-      le_email               = "admin@example.test"
       UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
       UPTIMEKUMA_USERNAME    = "admin"
       UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
@@ -555,8 +552,8 @@ override_resource {
 
 # Uptime Kuma : canal de notification et dossiers.
 override_resource {
-  target = uptimekuma_notification_smtp.email
-  values = { id = 7 }
+  target = uptimekuma_notification_ntfy.ntfy
+  values = { id = 13 }
 }
 
 override_resource {
@@ -2767,10 +2764,10 @@ run "demo_and_production_planning_share_nothing" {
 
 # Rangement et alerting des moniteurs : chaque sauvegarde dans le dossier
 # Backup avec un battement quotidien, chaque healthcheck dans Self-hosted, et
-# tous reliés au canal e-mail (un moniteur sans notification ne prévient
+# tous reliés à Telegram et ntfy (un moniteur sans notification ne prévient
 # personne, comme gramps et scanopy en 503 pendant des heures). Tout moniteur
 # de sauvegarde est actif.
-run "monitors_are_filed_and_notify_by_email" {
+run "monitors_are_filed_and_alert" {
   command = apply
 
   # Les moniteurs de sauvegarde sont les instances de
@@ -2810,9 +2807,9 @@ run "monitors_are_filed_and_notify_by_email" {
       for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 86400
-      && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(m.notification_ids) == toset(local.alert_notification_ids)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien et notifié par e-mail."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien et notifié sur Telegram et ntfy."
   }
 
   # Actif tant que l'app tourne : une app en pause (enabled = false) n'a plus
@@ -2833,9 +2830,9 @@ run "monitors_are_filed_and_notify_by_email" {
       uptimekuma_monitor_push.restore_test.parent == uptimekuma_monitor_group.backups.id
       && uptimekuma_monitor_push.restore_test.interval == 20 * 86400
       && uptimekuma_monitor_push.restore_test.active == true
-      && contains(uptimekuma_monitor_push.restore_test.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.restore_test.notification_ids) == toset(local.alert_notification_ids)
     )
-    error_message = "Le moniteur Restore test doit être dans le dossier Backup, à 20 jours, actif et notifié par e-mail."
+    error_message = "Le moniteur Restore test doit être dans le dossier Backup, à 20 jours, actif et notifié sur Telegram et ntfy."
   }
 
   # Remplissage de la Storage Box, chaque lundi
@@ -2847,10 +2844,10 @@ run "monitors_are_filed_and_notify_by_email" {
       && uptimekuma_monitor_push.storage_box_quota.interval > 7 * 86400
       && uptimekuma_monitor_push.storage_box_quota.interval < 24 * 86400
       && uptimekuma_monitor_push.storage_box_quota.active == true
-      && contains(uptimekuma_monitor_push.storage_box_quota.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.storage_box_quota.notification_ids) == toset(local.alert_notification_ids)
       && strcontains(file("${path.module}/../../.github/workflows/storage-box-quota.yaml"), "- cron: \"0 6 * * 1\"")
     )
-    error_message = "Le moniteur Storage Box doit être dans le dossier Backup, entre une semaine et 24 jours, actif et notifié par e-mail, et le workflow hebdomadaire."
+    error_message = "Le moniteur Storage Box doit être dans le dossier Backup, entre une semaine et 24 jours, actif et notifié sur Telegram et ntfy, et le workflow hebdomadaire."
   }
 
   # Échéances de rotation des secrets, chaque lundi
@@ -2862,10 +2859,10 @@ run "monitors_are_filed_and_notify_by_email" {
       && uptimekuma_monitor_push.secrets_rotation.interval > 7 * 86400
       && uptimekuma_monitor_push.secrets_rotation.interval < 24 * 86400
       && uptimekuma_monitor_push.secrets_rotation.active == true
-      && contains(uptimekuma_monitor_push.secrets_rotation.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.secrets_rotation.notification_ids) == toset(local.alert_notification_ids)
       && strcontains(file("${path.module}/../../.github/workflows/secrets-rotation.yaml"), "- cron: \"30 6 * * 1\"")
     )
-    error_message = "Le moniteur Rotation des secrets doit être dans le dossier Self-hosted, entre une semaine et 24 jours, actif et notifié par e-mail, et le workflow hebdomadaire."
+    error_message = "Le moniteur Rotation des secrets doit être dans le dossier Self-hosted, entre une semaine et 24 jours, actif et notifié sur Telegram et ntfy, et le workflow hebdomadaire."
   }
 
   # Le workflow teste les dépôts de .github/restore-test/apps.json : un par
@@ -2901,20 +2898,20 @@ run "monitors_are_filed_and_notify_by_email" {
   assert {
     condition = (
       uptimekuma_monitor_push.cron_geoip.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(uptimekuma_monitor_push.cron_geoip.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.cron_geoip.notification_ids) == toset(local.alert_notification_ids)
       && uptimekuma_monitor_push.cron_geoip.interval < 60 * 60 * 24 * 24
       && uptimekuma_monitor_push.cron_geoip.interval > 60 * 60 * 24 * 7
       && uptimekuma_monitor_push.cron_nas_cert.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(uptimekuma_monitor_push.cron_nas_cert.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.cron_nas_cert.notification_ids) == toset(local.alert_notification_ids)
       && alltrue([
         for m in [uptimekuma_monitor_push.cron_pve_updates, uptimekuma_monitor_push.cron_nas_updates] :
         m.parent == uptimekuma_monitor_group.self_hosted.id
-        && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
+        && toset(m.notification_ids) == toset(local.alert_notification_ids)
       ])
       && uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(uptimekuma_monitor_push.cron_monica.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.cron_monica.notification_ids) == toset(local.alert_notification_ids)
     )
-    error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié par e-mail."
+    error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié sur Telegram et ntfy."
   }
 
   # Le reset du bêtisier tourne une fois par jour (betisier-reset.timer) : une
@@ -2922,12 +2919,12 @@ run "monitors_are_filed_and_notify_by_email" {
   assert {
     condition = (
       uptimekuma_monitor_push.cron_betisier_reset.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(uptimekuma_monitor_push.cron_betisier_reset.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.cron_betisier_reset.notification_ids) == toset(local.alert_notification_ids)
       && strcontains(file("${path.module}/../../ansible/roles/betisier/templates/betisier-reset.timer.j2"), "OnCalendar=daily")
       && uptimekuma_monitor_push.cron_betisier_reset.interval > 60 * 60 * 24 * 2
       && uptimekuma_monitor_push.cron_betisier_reset.interval < 60 * 60 * 24 * 3
     )
-    error_message = "Reset Betisier : rangé avec les healthchecks, notifié par e-mail, timer quotidien et intervalle de deux à trois jours."
+    error_message = "Reset Betisier : rangé avec les healthchecks, notifié sur Telegram et ntfy, timer quotidien et intervalle de deux à trois jours."
   }
 
   # Le NAS pousse une fois par jour (nas-proxy-cert-check.timer, rôle
@@ -2956,9 +2953,9 @@ run "monitors_are_filed_and_notify_by_email" {
       && uptimekuma_monitor_push.cron_kdrive_sync.interval > 60 * 60 * 24 * 2
       && uptimekuma_monitor_push.cron_kdrive_sync.interval < 60 * 60 * 24 * 3
       && uptimekuma_monitor_push.cron_kdrive_sync.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(uptimekuma_monitor_push.cron_kdrive_sync.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(uptimekuma_monitor_push.cron_kdrive_sync.notification_ids) == toset(local.alert_notification_ids)
     )
-    error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié par e-mail."
+    error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié sur Telegram et ntfy."
   }
 
   # Les vérificateurs de mises à jour (rôle update_notify) passent une fois
@@ -2982,25 +2979,24 @@ run "monitors_are_filed_and_notify_by_email" {
 
   # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes
   # (blocky-check.timer) ; l'intervalle laisse passer deux vérifications
-  # manquées, pas trois. Une panne DNS coupe toute la maison : e-mail et ntfy.
+  # manquées, pas trois. Telegram et ntfy, comme les autres.
   assert {
     condition = alltrue([
       for m in values(uptimekuma_monitor_push.cron_dns) :
       m.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
-      && contains(m.notification_ids, uptimekuma_notification_ntfy.ntfy.id)
+      && toset(m.notification_ids) == toset(local.alert_notification_ids)
       && m.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_check_schedule)[0])
     ])
-    error_message = "Moniteurs DNS : rangés avec les healthchecks, e-mail et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
+    error_message = "Moniteurs DNS : rangés avec les healthchecks, Telegram et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
   }
 
   assert {
     condition = alltrue([
       for m in concat(values(uptimekuma_monitor_http_keyword.healthcheck), [uptimekuma_monitor_http.pangolin_dashboard]) :
       m.parent == uptimekuma_monitor_group.self_hosted.id
-      && contains(m.notification_ids, uptimekuma_notification_smtp.email.id)
+      && toset(m.notification_ids) == toset(local.alert_notification_ids)
     ])
-    error_message = "Chaque healthcheck doit être dans le dossier Self-hosted et notifié par e-mail."
+    error_message = "Chaque healthcheck doit être dans le dossier Self-hosted et notifié sur Telegram et ntfy."
   }
 
   # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
@@ -3019,13 +3015,33 @@ run "monitors_are_filed_and_notify_by_email" {
     error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, et seuls eux ont un monitor_path."
   }
 
+  # Telegram et ntfy, l'un ne passant pas par Pangolin, l'autre si : plus
+  # de canal e-mail (supprimé le 2026-10-29).
   assert {
     condition = (
-      uptimekuma_notification_smtp.email.is_default == true
-      && uptimekuma_notification_smtp.email.apply_existing == false
-      && uptimekuma_notification_smtp.email.to == "admin@example.test"
+      toset(local.alert_notification_ids) == toset([uptimekuma_notification_telegram.supervision.id, uptimekuma_notification_ntfy.ntfy.id])
+      && length(distinct(local.alert_notification_ids)) == 2
     )
-    error_message = "Le canal e-mail est le canal par défaut, n'est pas rattaché en masse, et écrit à l'adresse Let's Encrypt (le_email)."
+    error_message = "Les moniteurs alertent sur Telegram et ntfy (local.alert_notification_ids), et sur eux seuls."
+  }
+
+  # Les moniteurs externes (external_monitors.tf) alertent comme les autres.
+  assert {
+    condition = alltrue([
+      for m in [
+        uptimekuma_monitor_http.actualbudget,
+        uptimekuma_monitor_http.redirect,
+        uptimekuma_monitor_http.blog,
+        uptimekuma_monitor_http.blog_apex,
+        uptimekuma_monitor_http.ref,
+        uptimekuma_monitor_http.agent_ready_cloudflare,
+        uptimekuma_monitor_http.kdrive,
+        uptimekuma_monitor_http.simplelogin,
+        uptimekuma_monitor_http.ustalence_tt,
+        uptimekuma_monitor_push.foldersync,
+      ] : toset(m.notification_ids) == toset(local.alert_notification_ids)
+    ])
+    error_message = "Chaque moniteur externe (et FolderSync) alerte sur Telegram et ntfy."
   }
 }
 
@@ -3065,18 +3081,18 @@ run "ssh_login_monitors_alert_on_every_login" {
     error_message = "Chaque moniteur SSH doit être inversé, sur 60 s, sans retry ni renvoi, actif, dans le dossier Connexions SSH."
   }
 
-  # Telegram (notifications.tf), comme FolderSync ; pas le mail : une alerte
-  # de connexion doit arriver tout de suite.
+  # Telegram seul (notifications.tf) : une alerte de connexion doit arriver
+  # tout de suite, sans passer par ntfy.
   assert {
     condition = alltrue([
       for m in values(uptimekuma_monitor_push.ssh_login) :
       toset(m.notification_ids) == toset([uptimekuma_notification_telegram.supervision.id])
-    ]) && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset([uptimekuma_notification_telegram.supervision.id])
-    error_message = "Les moniteurs SSH (et FolderSync) notifient la notification Telegram, et elle seule."
+    ])
+    error_message = "Les moniteurs SSH notifient la notification Telegram, et elle seule."
   }
 
-  # Ni canal par défaut (un moniteur ajouté dans l'UI reçoit le mail, pas
-  # Telegram) ni rattachement en masse ; le chat vient de la clé SOPS.
+  # Ni canal par défaut ni rattachement en masse ; le chat vient de la clé
+  # SOPS.
   assert {
     condition = (
       uptimekuma_notification_telegram.supervision.is_default == false

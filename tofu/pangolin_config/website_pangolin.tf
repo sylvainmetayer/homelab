@@ -27,7 +27,7 @@ resource "uptimekuma_monitor_http" "pangolin_dashboard" {
   expiry_notification = true
   tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 resource "uptimekuma_monitor_push" "backup_pangolin" {
@@ -42,7 +42,7 @@ resource "uptimekuma_monitor_push" "backup_pangolin" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 output "uptime_backup_pangolin_url" {
@@ -66,7 +66,7 @@ resource "uptimekuma_monitor_push" "cron_geoip" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 output "uptime_cron_geoip_url" {
