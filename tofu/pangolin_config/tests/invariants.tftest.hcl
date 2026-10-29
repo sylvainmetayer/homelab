@@ -442,6 +442,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["papra"]
+  values = { id = 73 }
+}
+
+override_resource {
   target = pangolin_resource.website["speedtest_tracker"]
   values = { id = 70 }
 }
