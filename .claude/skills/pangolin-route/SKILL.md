@@ -85,21 +85,19 @@ carries: `pangolin_resource.website["<service>"]`,
 (the country rules and the audits of `rules.tf`) is derived from
 `local.websites`, nothing to register there.
 
-`tests/invariants.tftest.hcl` pins the inventory on purpose, so that adding,
-renaming or dropping an app is a visible decision and not a side effect. Add
-the new app to:
+`tests/invariants.tftest.hcl` derives most of its checks from
+`local.websites` (targets, healthchecks, backup monitors, rule attachment), so
+a new app needs no name list there. Renaming an entry key or a Pangolin
+`name` is not caught by a test: read the plan (a renamed name re-keys every
+country rule of the resource, a renamed key recreates its targets, token and
+monitors unless a `moved` block follows). Add the new app to:
 
-- the resource name map of `every_public_resource_applies_its_rules` (key =>
-  Pangolin name: a renamed name re-keys every country rule of the resource);
-- the target key list of `every_probed_target_declares_scheme_mode_and_port`
-  (one key per target, `<service>_<suffix>` for each sub_target);
-- the healthcheck name map of `maintenance_page_and_inverted_keyword_monitors`
-  (unless `healthcheck = false`);
-- with `backup = true`, the backup name map of
-  `monitors_are_filed_and_alert`, an `override_resource` giving
-  `uptimekuma_monitor_push.backup["<service>"]` its own `push_token`, and the
-  `uptime_backup_<service>_url` assertions of
-  `outputs_read_by_ansible_point_at_their_own_push_monitor`;
+- with `backup = true`, `.github/restore-test/apps.json`, an
+  `override_resource` giving `uptimekuma_monitor_push.backup["<service>"]`
+  the `push_token` `push-<service-in-kebab-case>`, and its
+  `uptime_backup_<service>_url` line in the output map of
+  `outputs_read_by_ansible_point_at_their_own_push_monitor` (the expected
+  token is derived from the output's name);
 - an `override_resource` giving `pangolin_resource.website["<service>"]` its
   own `id` (the country-rule run needs distinct ids);
 - with path rules, the key list of `path_bypasses_open_exactly_the_reviewed_paths`.
