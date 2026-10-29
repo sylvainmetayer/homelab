@@ -1,7 +1,7 @@
 {
   "Dawarich": {
     "image": "freikin/dawarich",
-    "version": "1.18.1",
+    "version": "1.19.0",
     "compose": "ansible/roles/dawarich/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_dawarich.tf (dawarich_share_paths)",
     "reread": "config/routes.rb, app/controllers/shared/*, app/controllers/api/v1/shared/*",
