@@ -167,7 +167,7 @@ Aucune sortie = réussi. `MYSQL_PWD` reste dans l'environnement du conteneur,
 jamais dans les arguments d'une commande.
 
 **Betisier** ne passe pas par là : sa base n'a pas de volume nommé, le
-service `betisier-reset` (`docker compose down` puis `up`, chaque jour) la
+service `betisier-reset` (`docker compose down -v` puis `up`, chaque jour) la
 recrée depuis `dump.sql` avec le mot de passe du compose. Après SOPS et le
 redéploiement (étapes 2 et 3), lancer `systemctl --user start
 betisier-reset.service` sur la VM : base neuve, nouveau mot de passe. Un
