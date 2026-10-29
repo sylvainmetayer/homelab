@@ -56,7 +56,7 @@
           - "'/var/lib/borgmatic-sqlite/speedtest_tracker' in speedtest_tracker_borgmatic.source_directories"
           - >-
             speedtest_tracker_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/speedtest_tracker/config/database\\.sqlite ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/speedtest_tracker/config/database\\.sqlite ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/speedtest_tracker/opt_apps_speedtest_tracker_config_database\\.sqlite')
             | list | length == 1
           - "'/opt/apps/speedtest_tracker/config/database.sqlite' in speedtest_tracker_borgmatic.exclude_patterns"

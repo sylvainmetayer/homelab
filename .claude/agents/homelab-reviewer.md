@@ -46,7 +46,7 @@ For any backup wiring (`borgmatic_app_*` vars of the `include_role`):
 - [ ] No live database directory in `borgmatic_app_source_directories`:
       PostgreSQL/MySQL go through `borgmatic_app_postgresql_databases` /
       `_mysql_databases` (dumped inside the DB container), SQLite files
-      through `borgmatic_app_sqlite_databases` globs (copied by `sqlite3 .backup`,
+      through `borgmatic_app_sqlite_databases` globs (copied by `sqlite3`, `VACUUM INTO`/`.backup`,
       never borgmatic's `sqlite_databases` hook).
 - [ ] Every `borgmatic_app_exclude_patterns` entry is an absolute path (a
       relative `cache/*` matches nothing in borg's `fm:` style).

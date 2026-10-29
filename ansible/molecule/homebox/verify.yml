@@ -57,7 +57,7 @@
           - "'/var/lib/borgmatic-sqlite/homebox' in homebox_borgmatic.source_directories"
           - >-
             homebox_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/homebox/data/homebox\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/homebox/data/homebox\\.db ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/homebox/opt_apps_homebox_data_homebox\\.db')
             | list | length == 1
           - "'/opt/apps/homebox/data/homebox.db' in homebox_borgmatic.exclude_patterns"

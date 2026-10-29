@@ -118,7 +118,7 @@
           - "'/var/lib/borgmatic-sqlite/ntfy' in ntfy_borgmatic.source_directories"
           - >-
             ntfy_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/ntfy/data/user\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/ntfy/data/user\\.db ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/ntfy/opt_apps_ntfy_data_user\\.db')
             | list | length == 1
           - ntfy_borgmatic.commands[0].run | select('search', 'cache\\.db') | list | length == 0

@@ -4,6 +4,13 @@ services:
     image: docker.io/fosrl/pangolin:ee-1.25.3@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e
     container_name: pangolin
     restart: unless-stopped
+    environment:
+      # Base en WAL (et synchronous = NORMAL, posé avec) : les journaux de
+      # requêtes l'écrivent en continu, et en mode journal la copie nocturne
+      # (« .backup », hook SQLite du gabarit borgmatic) recommençait à chaque
+      # écriture jusqu'à « database is locked » (28/10/2026). En WAL, elle
+      # passe par « VACUUM INTO », sans bloquer ni être bloquée par Pangolin.
+      ENABLE_SQLITE_WAL_MODE: "true"
     volumes:
       - ./config:/app/config
     healthcheck:

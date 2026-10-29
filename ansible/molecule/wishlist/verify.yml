@@ -57,7 +57,7 @@
           - "'/var/lib/borgmatic-sqlite/wishlist' in wishlist_borgmatic.source_directories"
           - >-
             wishlist_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/wishlist/data/prod\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/wishlist/data/prod\\.db ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/wishlist/opt_apps_wishlist_data_prod\\.db')
             | list | length == 1
           - "'/opt/apps/wishlist/data/prod.db' in wishlist_borgmatic.exclude_patterns"

@@ -103,15 +103,25 @@ commands:
       run:
           - echo "Starting {{ borgmatic_app_title }} backup at $(date)"
 {% if borgmatic_app_sqlite_paths | length > 0 %}
-          # Bases SQLite trouvées au déploiement : copie par l'API de
-          # sauvegarde en ligne (« .backup »), cohérente même application
-          # démarrée. Le verrou ne dure que la copie locale, pas l'envoi vers
-          # la Storage Box (cf. borgmatic_app_sqlite_databases). « .timeout »
-          # attend une écriture en cours au lieu d'échouer sur « database is
-          # locked » ; -bail fait échouer la sauvegarde si la copie échoue.
+          # Bases SQLite trouvées au déploiement : copie cohérente même
+          # application démarrée, dans le dossier de staging. Le verrou ne
+          # dure que la copie locale, pas l'envoi vers la Storage Box (cf.
+          # borgmatic_app_sqlite_databases). Base en WAL : « VACUUM INTO »,
+          # une seule transaction de lecture, qui ne bloque pas les écritures
+          # de l'application. Sinon « .backup », qui lâche le verrou entre
+          # deux paquets de pages mais recommence au début à chaque écriture
+          # d'un autre processus : sur une base écrite en continu il ne finit
+          # jamais (Pangolin, 28/10/2026), d'où le WAL pour celles-là.
+          # « .timeout » attend une écriture en cours au lieu d'échouer sur
+          # « database is locked » ; -bail fait échouer la sauvegarde si la
+          # copie échoue.
           - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
 {% for path in borgmatic_app_sqlite_paths %}
-          - {{ ('sqlite3 -bail -cmd ' ~ ('.timeout 60000' | quote) ~ ' ' ~ (path | quote) ~ ' ' ~ ('.backup ' ~ ((sqlite_staging ~ '/' ~ (path | regex_replace('^/', '') | replace('/', '_'))) | quote)) | quote) | to_json }}
+{% set sqlite_copy = sqlite_staging ~ '/' ~ (path | regex_replace('^/', '') | replace('/', '_')) %}
+{% set sqlite_cli = 'sqlite3 -bail -cmd ' ~ ('.timeout 60000' | quote) ~ ' ' ~ (path | quote) %}
+          - {{ ('if [ "$(' ~ sqlite_cli ~ ' ' ~ ('pragma journal_mode' | quote) ~ ')" = wal ]; then '
+                ~ sqlite_cli ~ ' ' ~ (("VACUUM INTO '" ~ (sqlite_copy | replace("'", "''")) ~ "'") | quote)
+                ~ '; else ' ~ sqlite_cli ~ ' ' ~ (('.backup ' ~ (sqlite_copy | quote)) | quote) ~ '; fi') | to_json }}
 {% endfor %}
 {% endif %}
 {% for command in borgmatic_app_before_commands %}
