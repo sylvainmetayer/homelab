@@ -43,8 +43,9 @@ resource "pangolin_resource_rule" "dawarich_home_ip" {
 }
 
 # Public share links, opened worldwide without SSO through
-# local.path_bypasses (rules.tf). Read off Dawarich 1.15.3 (config/routes.rb,
-# app/controllers/shared/*, app/controllers/api/v1/shared/*):
+# local.path_bypasses (rules.tf). Read off the version recorded in
+# path_bypass_images.json (config/routes.rb, app/controllers/shared/*,
+# app/controllers/api/v1/shared/*):
 #
 # - Shared links (trip, track, timeline, live map), `/s/<uuid>`: random UUID,
 #   expiry, revocation, optional magic phrase (POST /s/<uuid>/unlock sets an
