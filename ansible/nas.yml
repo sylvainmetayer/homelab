@@ -49,7 +49,6 @@
         jellyfin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellyfin_url.value | default('') }}"
         nas_proxy_cert_healthcheck_url: "{{ terraform_outputs.uptime_cron_nas_cert_url.value | default('') }}"
         kdrive_sync_healthcheck_url: "{{ terraform_outputs.uptime_cron_kdrive_sync_url.value | default('') }}"
-        update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_nas_updates_url.value | default('') }}"
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
     # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
@@ -102,12 +101,3 @@
     # (docs/runbooks/kdrive-nas.md).
     - role: kdrive_sync
       tags: kdrive_sync
-    # Rappel mensuel des mises à jour d'UGOS sur ntfy (topic scripts), avec la
-    # version installée, et alerte quand elle a changé (rejouer nas.yml) :
-    # UGOS ne dit pas sans session de son interface si une mise à jour
-    # attend. Timer hebdomadaire, pour le moniteur « Mises à jour NAS ».
-    - role: update_notify
-      tags: update_notify,monitoring
-      vars:
-        update_notify_mode: ugos
-        update_notify_dir: "{{ docker_base_path }}/update_notify"

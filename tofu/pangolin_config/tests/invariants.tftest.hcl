@@ -661,11 +661,6 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.cron_nas_updates
-  values = { push_token = "push-cron-nas-updates" }
-}
-
-override_resource {
   target = uptimekuma_monitor_push.cron_dns["pi"]
   values = { push_token = "push-cron-dns-pi" }
 }
@@ -2426,11 +2421,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_pve_updates_url (pve.yml) ne pointe pas sur le moniteur Mises à jour Proxmox."
   }
 
-  assert {
-    condition     = output.uptime_cron_nas_updates_url == "https://uptime.example.test/api/push/push-cron-nas-updates"
-    error_message = "uptime_cron_nas_updates_url (nas.yml) ne pointe pas sur le moniteur Mises à jour NAS."
-  }
-
   # pi.yml et lxc.yml (vérification de Blocky, rôle blocky)
   assert {
     condition     = output.uptime_cron_dns_pi_url == "https://uptime.example.test/api/push/push-cron-dns-pi"
@@ -2481,7 +2471,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_kdrive_sync_url,
       output.uptime_cron_vzdump_restore_test_url,
       output.uptime_cron_pve_updates_url,
-      output.uptime_cron_nas_updates_url,
       output.uptime_cron_dns_pi_url,
       output.uptime_cron_dns_lxc_url,
       output.uptime_cron_betisier_reset_url,
@@ -2966,11 +2955,8 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_push.cron_geoip.interval > 60 * 60 * 24 * 7
       && uptimekuma_monitor_push.cron_nas_cert.parent == uptimekuma_monitor_group.self_hosted.id
       && toset(uptimekuma_monitor_push.cron_nas_cert.notification_ids) == toset(local.alert_notification_ids)
-      && alltrue([
-        for m in [uptimekuma_monitor_push.cron_pve_updates, uptimekuma_monitor_push.cron_nas_updates] :
-        m.parent == uptimekuma_monitor_group.self_hosted.id
-        && toset(m.notification_ids) == toset(local.alert_notification_ids)
-      ])
+      && uptimekuma_monitor_push.cron_pve_updates.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_pve_updates.notification_ids) == toset(local.alert_notification_ids)
       && uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
       && toset(uptimekuma_monitor_push.cron_monica.notification_ids) == toset(local.alert_notification_ids)
     )
@@ -3021,23 +3007,17 @@ run "monitors_are_filed_and_alert" {
     error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié sur Telegram et ntfy."
   }
 
-  # Les vérificateurs de mises à jour (rôle update_notify) passent une fois
-  # par semaine : l'intervalle laisse passer une semaine manquée, pas deux,
-  # sous le plafond de 24 jours d'Uptime Kuma. pve.yml et nas.yml donnent
-  # chacun son moniteur au rôle, dans le mode de son hôte.
+  # Le vérificateur de mises à jour (rôle update_notify) passe une fois par
+  # semaine : l'intervalle laisse passer une semaine manquée, pas deux, sous
+  # le plafond de 24 jours d'Uptime Kuma. pve.yml donne son moniteur au rôle.
   assert {
     condition = (
       can(regex("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/update_notify/defaults/main.yml")).update_notify_schedule))
-      && alltrue([
-        for m in [uptimekuma_monitor_push.cron_pve_updates, uptimekuma_monitor_push.cron_nas_updates] :
-        m.interval > 60 * 60 * 24 * 14 && m.interval < 60 * 60 * 24 * 24
-      ])
+      && uptimekuma_monitor_push.cron_pve_updates.interval > 60 * 60 * 24 * 14
+      && uptimekuma_monitor_push.cron_pve_updates.interval < 60 * 60 * 24 * 24
       && strcontains(file("${path.module}/../../ansible/pve.yml"), "update_notify_healthcheck_url: \"{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}\"")
-      && strcontains(file("${path.module}/../../ansible/nas.yml"), "update_notify_healthcheck_url: \"{{ terraform_outputs.uptime_cron_nas_updates_url.value | default('') }}\"")
-      && strcontains(file("${path.module}/../../ansible/pve.yml"), "update_notify_mode: apt\n")
-      && strcontains(file("${path.module}/../../ansible/nas.yml"), "update_notify_mode: ugos\n")
     )
-    error_message = "Mises à jour Proxmox / NAS : timer hebdomadaire, intervalle de deux semaines à 24 jours, une URL push par hôte (pve.yml en apt, nas.yml en ugos)."
+    error_message = "Mises à jour Proxmox : timer hebdomadaire, intervalle de deux semaines à 24 jours, URL push donnée par pve.yml."
   }
 
   # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes

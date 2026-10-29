@@ -3,32 +3,32 @@
 Procédure, pas un incident. Ni l'hôte Proxmox VE ni le NAS n'ont de mises à
 jour automatiques, et ce n'est pas un oubli : un paquet `pve-*`, `qemu-server`
 ou un noyau se met à jour VM arrêtées, une mise à jour d'UGOS redémarre le
-NAS sous la VM docker, sous Jellyfin et sous les sauvegardes vzdump. Le rôle
-`update_notify` prévient, Sylvain applique.
+NAS sous la VM docker, sous Jellyfin et sous les sauvegardes vzdump. Pour
+Proxmox, le rôle `update_notify` prévient, Sylvain applique ; pour UGOS,
+rien ne prévient (voir plus bas).
 
 ## Ce qui prévient
 
-`update-notify.timer` (rôle `update_notify`), le lundi vers 08:00, publie sur
-le topic `scripts` de ntfy et pousse à un moniteur Uptime Kuma par hôte
-(`tofu/pangolin_config/cron_updates.tf`, intervalle de 15 jours) :
+`update-notify.timer` (rôle `update_notify`, `pve.yml`), le lundi vers 08:00,
+publie sur le topic `scripts` de ntfy et pousse au moniteur Uptime Kuma
+« Mises à jour Proxmox » (`tofu/pangolin_config/cron_updates.tf`, intervalle
+de 15 jours). Message chaque lundi où quelque chose attend :
+`pve : N mise(s) à jour, dont S de sécurité`, la sécurité listée d'abord,
+puis Proxmox et noyaux, puis le reste ; priorité haute dès que `S > 0`. Aussi
+`pve : redémarrage en attente` quand un noyau plus récent que celui qui
+tourne est installé. Rien n'est installé : `apt-get update` puis une
+simulation (`apt-get -s dist-upgrade`).
 
-| Hôte | Playbook | Message ntfy | Moniteur |
-|---|---|---|---|
-| Proxmox (`pve`) | `pve.yml`, mode `apt` | chaque lundi où quelque chose attend : `pve : N mise(s) à jour, dont S de sécurité`, la sécurité listée d'abord, puis Proxmox et noyaux, puis le reste ; priorité haute dès que `S > 0`. Aussi `pve : redémarrage en attente` quand un noyau plus récent que celui qui tourne est installé | « Mises à jour Proxmox » |
-| NAS (`nas`) | `nas.yml`, mode `ugos` | le premier lundi de chaque mois : un rappel avec la version d'UGOS installée ; priorité haute `UGOS mis à jour, X → Y` dès que la version a changé | « Mises à jour NAS » |
-
-Côté Proxmox, rien n'est installé : `apt-get update` puis une simulation
-(`apt-get -s dist-upgrade`). Côté NAS, le script ne sait pas si une mise à
-jour attend : UGOS n'a pas d'apt, et ni son interface (API à session, mot de
-passe chiffré, double authentification possible) ni Ugreen (aucun flux de
-versions public) ne le disent sans compte. Le rappel mensuel est le repli
-assumé : il donne la version installée, à comparer dans l'interface.
+Rien ne prévient pour le NAS : UGOS n'a pas d'apt, et ni son interface (API à
+session, mot de passe chiffré, double authentification possible) ni Ugreen
+(aucun flux de versions public) ne disent sans compte si une mise à jour
+attend. Ses mises à jour se regardent dans l'interface (« NAS Ugreen »
+ci-dessous).
 
 Un moniteur rouge veut dire que le vérificateur ne passe plus ou échoue
 (message du push) : `apt-get update en échec` (miroir, verrou des listes
-tenu par `pve-daily-update`), `publication ntfy en échec`, `OS_VERSION
-absent`, ou aucun battement (hôte éteint deux lundis, timer arrêté, unités
-effacées par une réinitialisation d'UGOS). Diagnostic sur l'hôte :
+tenu par `pve-daily-update`), `publication ntfy en échec`, ou aucun
+battement (hôte éteint deux lundis, timer arrêté). Diagnostic sur l'hôte :
 
 ```bash
 systemctl status update-notify.timer update-notify.service
@@ -36,7 +36,7 @@ journalctl -u update-notify.service -n 50 --no-pager
 systemctl start update-notify.service   # un passage tout de suite
 ```
 
-Unités absentes : rejouer le playbook de l'hôte (`--tags update_notify`).
+Unités absentes : rejouer `pve.yml --tags update_notify`.
 
 ## Proxmox VE
 
@@ -162,14 +162,11 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
    sans port en LAN, `showmount -e 192.168.1.137` (exports `/volume1/...`
    vers la VM docker et l'hôte Proxmox), le moniteur « Certificats NAS » et
    l'agent Beszel `nas` au vert, `findmnt /mnt/nas/apps` sur la VM docker.
-3. Au lundi suivant, `update-notify` publie `UGOS mis à jour, X → Y`
-   (priorité haute) : c'est le rappel de ce point 1 si on l'a sauté. Pour
-   l'avoir tout de suite : `sudo systemctl start update-notify.service`.
 
 ## Prévention
 
 - Ne pas ajouter d'`unattended-upgrades` sur l'hôte Proxmox : il
   installerait `pve-*` ou un noyau VM allumées, sans redémarrage, et masquerait
   l'alerte.
-- Le moniteur de chaque vérificateur tolère un lundi manqué, pas deux : un
-  hôte éteint plus de deux semaines le met au rouge, attendu.
+- Le moniteur du vérificateur tolère un lundi manqué, pas deux : un hôte
+  éteint plus de deux semaines le met au rouge, attendu.

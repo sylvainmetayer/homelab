@@ -132,13 +132,3 @@
           ExecStart=
           ExecStart=/bin/sleep infinity
           ExecStop=
-
-    # La version d'UGOS, que lit le rappel des mises à jour (update_notify) :
-    # le /etc/os-release d'UGOS est celui de Debian plus ces clés.
-    - name: Add the UGOS version keys to os-release
-      ansible.builtin.blockinfile:
-        path: /etc/os-release
-        marker: "# {mark} UGOS (molecule)"
-        block: |
-          OS_VERSION=1.20.0.0142
-          OS_IS_BETA=False

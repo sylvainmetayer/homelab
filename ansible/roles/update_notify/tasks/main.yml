@@ -1,13 +1,10 @@
 ---
 # Un jeton vide publierait en vain chaque semaine : échec franc au déploiement.
-- name: Assert the update check has an ntfy token and a known mode
+- name: Assert the update check has an ntfy token
   ansible.builtin.assert:
     that:
-      - update_notify_mode in ['apt', 'ugos']
       - update_notify_ntfy_token | length > 0
-    fail_msg: >-
-      update_notify_mode doit valoir apt ou ugos, et ntfy_scripts_token
-      (ansible/secrets.sops.yaml) ne pas être vide.
+    fail_msg: ntfy_scripts_token (ansible/secrets.sops.yaml) ne doit pas être vide.
     quiet: true
 
 - name: Ensure the update check folder exists

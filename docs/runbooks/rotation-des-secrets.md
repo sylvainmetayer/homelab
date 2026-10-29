@@ -273,8 +273,7 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   Kuma et la sortie que relit `docker.yml`). Puis
   `ansible-playbook docker.yml --tags ntfy`. Pour `ntfy_scripts_token`, aussi
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
-  de restauration vzdump, mises à jour en attente),
-  `ansible-playbook nas.yml --tags update_notify`, sans quoi leurs moniteurs
+  de restauration vzdump, mises à jour en attente), sans quoi leurs moniteurs
   passent au rouge au passage suivant ; les autres scripts prennent le
   nouveau à la main. Pour `ntfy_github_token` (tout ce que publie la CI),
   `tofu -chdir=tofu/github apply` : secrets `TRIVY_NTFY_TOKEN` de

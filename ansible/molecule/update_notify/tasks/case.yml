@@ -1,6 +1,6 @@
 ---
-# Un passage du script hors de l'unité, contre le faux apt-get (FAKE_APT_CASE)
-# ou un faux os-release, le faux ntfy et le faux Uptime Kuma.
+# Un passage du script hors de l'unité, contre le faux apt-get (FAKE_APT_CASE),
+# le faux ntfy et le faux Uptime Kuma.
 #
 # Variables :
 #   case_args  arguments du script après son chemin
@@ -13,7 +13,7 @@
     path: "{{ update_notify_verify_dir }}/requests.jsonl"
     state: absent
 
-- name: Run the update check, {{ case_args | first }}
+- name: Run the update check, {{ case_env.FAKE_APT_CASE | default('no fake case') }}
   ansible.builtin.command:
     argv: "{{ ['/usr/bin/python3', '-I', update_notify_dir ~ '/update_notify.py'] + case_args }}"
   environment: "{{ {'PATH': update_notify_verify_dir ~ '/bin:/usr/sbin:/usr/bin:/sbin:/bin'} | combine(case_env) }}"

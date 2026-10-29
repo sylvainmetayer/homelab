@@ -24,16 +24,10 @@
       NTFY_TOKEN: "{{ ntfy_scripts_token }}"
       UPTIME_PUSH_URL: "http://127.0.0.1:18081{{ update_notify_verify_push }}" # NOSONAR
     update_notify_verify_kernel: "999.0.0-1-{{ update_notify_verify_uname.stdout | split('-') | last }}"
-    update_notify_verify_ugos_args: >-
-      {{ ['ugos'] + update_notify_verify_common
-         + ['--os-release', update_notify_verify_dir ~ '/os-release',
-            '--state', update_notify_verify_dir ~ '/state/state.json'] }}
     # Ce qu'attend chaque cas, entre guillemets : un « : » dans une
     # expression nue en ferait un dictionnaire YAML.
     update_notify_verify_titles:
       security: "pve : 4 mise(s) à jour, dont 1 de sécurité"
-      reminder: "pve : rappel mensuel des mises à jour d'UGOS"
-      updated: "pve : UGOS mis à jour, 1.20.0.0142 → 1.21.0.0007"
     update_notify_verify_security_head: |-
       Sécurité (1) :
         libc-bin 2.41-12+deb13u4 → 2.41-12+deb13u5
@@ -85,7 +79,7 @@
           - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ update_notify_verify_push) in update_notify_verify_envfile.splitlines()
           - ntfy_scripts_token not in update_notify_verify_service
           - update_notify_verify_push not in update_notify_verify_service
-          - "' apt --host pve --ntfy-url http://127.0.0.1:18081 --topic scripts ' in update_notify_verify_service" # NOSONAR
+          - "'update_notify.py --host pve --ntfy-url http://127.0.0.1:18081 --topic scripts\n' in update_notify_verify_service" # NOSONAR
           - "'\nOnCalendar=Mon *-*-* 08:00:00\n' in update_notify_verify_timer"
           - update_notify_verify_props.ProtectSystem == 'full'
           - update_notify_verify_props.NoNewPrivileges == 'yes'
@@ -101,7 +95,7 @@
         path: "{{ update_notify_verify_dir }}/{{ item }}"
         state: directory
         mode: "0700"
-      loop: ["", bin, boot, boot-empty, state]
+      loop: ["", bin, boot, boot-empty]
 
     - name: Install the fake apt-get and pveversion
       ansible.builtin.copy:
@@ -180,11 +174,10 @@
           - (update_notify_verify_requests | last).path is search('^' ~ update_notify_verify_push ~ '\?status=up&')
         fail_msg: "{{ update_notify_verify_requests | to_json }}"
 
-    # --- Mode apt ---
     - name: Check an update set with a security update
       ansible.builtin.include_tasks: tasks/case.yml
       vars:
-        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot'] }}"
+        case_args: "{{ update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot'] }}"
         case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'security'}) }}"
         case_rc: 0
 
@@ -215,7 +208,7 @@
     - name: Check a host up to date
       ansible.builtin.include_tasks: tasks/case.yml
       vars:
-        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_args: "{{ update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
         case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'uptodate'}) }}"
         case_rc: 0
 
@@ -229,7 +222,7 @@
     - name: Check a failing apt-get update
       ansible.builtin.include_tasks: tasks/case.yml
       vars:
-        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_args: "{{ update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
         case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'broken'}) }}"
         case_rc: 1
 
@@ -245,7 +238,7 @@
     - name: Check updates with no ntfy token
       ansible.builtin.include_tasks: tasks/case.yml
       vars:
-        case_args: "{{ ['apt'] + update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
+        case_args: "{{ update_notify_verify_common + ['--boot-dir', update_notify_verify_dir ~ '/boot-empty'] }}"
         case_env: "{{ update_notify_verify_env | combine({'FAKE_APT_CASE': 'security', 'NTFY_TOKEN': ''}) }}"
         case_rc: 1
 
@@ -255,96 +248,6 @@
           - update_notify_case_requests | length == 1
           - update_notify_case_requests[0].path is search('\?status=down&')
           - (update_notify_case_requests[0].path | urldecode) is search('NTFY_TOKEN vide')
-        fail_msg: "{{ update_notify_case_requests | to_json }}"
-
-    # --- Mode ugos ---
-    - name: Write the os-release of UGOS 1.20
-      ansible.builtin.copy:
-        dest: "{{ update_notify_verify_dir }}/os-release"
-        content: |
-          PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
-          VERSION_ID="12"
-          OS_VERSION=1.20.0.0142
-          OS_IS_BETA=False
-        mode: "0600"
-
-    - name: Check UGOS, first run
-      ansible.builtin.include_tasks: tasks/case.yml
-      vars:
-        case_args: "{{ update_notify_verify_ugos_args }}"
-        case_env: "{{ update_notify_verify_env }}"
-        case_rc: 0
-
-    - name: Assert the monthly reminder with the installed version
-      vars:
-        update_notify_verify_msg: "{{ update_notify_case_requests[0].body | from_json }}"
-      ansible.builtin.assert:
-        that:
-          - update_notify_case_requests | length == 2
-          - update_notify_case_requests[0].authorization == 'Bearer ' ~ ntfy_scripts_token
-          - update_notify_verify_msg.topic == 'scripts'
-          - update_notify_verify_msg.priority == 3
-          - update_notify_verify_msg.title == update_notify_verify_titles.reminder
-          - "'UGOS 1.20.0.0142 installé' in update_notify_verify_msg.message"
-          - (update_notify_case_requests[1].path | urldecode) is search('status=up&msg=UGOS 1\.20\.0\.0142&')
-        fail_msg: "{{ update_notify_case_requests | to_json }}"
-
-    - name: Check UGOS, second run of the month
-      ansible.builtin.include_tasks: tasks/case.yml
-      vars:
-        case_args: "{{ update_notify_verify_ugos_args }}"
-        case_env: "{{ update_notify_verify_env }}"
-        case_rc: 0
-
-    - name: Assert one reminder a month only
-      ansible.builtin.assert:
-        that:
-          - update_notify_case_requests | length == 1
-          - update_notify_case_requests[0].path is search('\?status=up&')
-        fail_msg: "{{ update_notify_case_requests | to_json }}"
-
-    - name: Update the fake UGOS
-      ansible.builtin.replace:
-        path: "{{ update_notify_verify_dir }}/os-release"
-        regexp: '^OS_VERSION=.*$'
-        replace: OS_VERSION=1.21.0.0007
-
-    - name: Check UGOS after an update
-      ansible.builtin.include_tasks: tasks/case.yml
-      vars:
-        case_args: "{{ update_notify_verify_ugos_args }}"
-        case_env: "{{ update_notify_verify_env }}"
-        case_rc: 0
-
-    - name: Assert a high priority message asking to replay nas.yml
-      vars:
-        update_notify_verify_msg: "{{ update_notify_case_requests[0].body | from_json }}"
-      ansible.builtin.assert:
-        that:
-          - update_notify_case_requests | length == 2
-          - update_notify_verify_msg.priority == 4
-          - update_notify_verify_msg.title == update_notify_verify_titles.updated
-          - "'Rejouer nas.yml' in update_notify_verify_msg.message"
-        fail_msg: "{{ update_notify_case_requests | to_json }}"
-
-    - name: Drop the version from the fake os-release
-      ansible.builtin.lineinfile:
-        path: "{{ update_notify_verify_dir }}/os-release"
-        regexp: '^OS_VERSION='
-        state: absent
-
-    - name: Check UGOS without a readable version
-      ansible.builtin.include_tasks: tasks/case.yml
-      vars:
-        case_args: "{{ update_notify_verify_ugos_args }}"
-        case_env: "{{ update_notify_verify_env }}"
-        case_rc: 1
-
-    - name: Assert an unreadable version pushes down
-      ansible.builtin.assert:
-        that:
-          - update_notify_case_requests | length == 1
-          - (update_notify_case_requests[0].path | urldecode) is search('status=down&msg=OS_VERSION absent')
         fail_msg: "{{ update_notify_case_requests | to_json }}"
 
     - name: Stop the fake servers

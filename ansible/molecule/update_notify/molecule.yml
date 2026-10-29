@@ -1,9 +1,7 @@
 ---
 # Configuration commune : .config/molecule/config.yml (racine du dépôt).
-# Le rôle comme pve.yml (mode apt, en root sans become). Le verify lance la
-# vraie unité une fois (vrai apt-get update dans le conteneur), puis le script
-# contre un faux apt-get et un faux os-release, en modes apt et ugos, avec un
-# faux ntfy et un faux Uptime Kuma. Le mode ugos sous l'unité du NAS est
-# vérifié par le scénario nas.
+# Le rôle comme pve.yml (en root sans become). Le verify lance la vraie unité
+# une fois (vrai apt-get update dans le conteneur), puis le script contre un
+# faux apt-get, avec un faux ntfy et un faux Uptime Kuma.
 scenario:
   name: update_notify
