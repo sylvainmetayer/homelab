@@ -32,6 +32,7 @@ mise run molecule [role]   # Molecule scenario of one role (all when omitted); b
 mise run tofu-test         # tofu test of every tofu/<module> that has a tests/ dir
 mise run generate_password # prints the sha512 hash to store as host_user_password_hash
 mise run secrets-scan      # gitleaks over the whole history
+mise run test-cle-secours <keyfile>  # quarterly secours age key test, sets dernier_test (docs/runbooks/test-cle-secours.md)
 ```
 
 `mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc), without touching any state. Modules with no plan task (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.

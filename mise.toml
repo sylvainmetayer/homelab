@@ -181,6 +181,16 @@ done
 exit "$rc"
 '''
 
+# docs/runbooks/test-cle-secours.md : la clé passe par son chemin, jamais copiée.
+# Le vrai binaire de sops, pas le shim : le script le lance avec PATH=/usr/bin:/bin.
+[tasks.test-cle-secours]
+description = "Quarterly test of the offline secours age key: public key, isolated decryption of both SOPS files, counter-test, then dernier_test"
+usage = '''
+arg "<keyfile>" help="the secours age key file (mounted USB stick)"
+'''
+run = 'python3 -I .github/scripts/secours_key_check.py --sops "$(mise which sops)" --age-keygen "$(mise which age-keygen)" "${usage_keyfile}"'
+raw = true
+
 [tasks.secrets-scan]
 description = "Scan the whole git history for secrets (gitleaks, .gitleaks.toml); the pre-commit hook covers staged changes"
 run = "gitleaks git . --no-banner --redact"
