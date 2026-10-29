@@ -122,9 +122,9 @@ manque ou si une app retirée y reste.
 - `allow_empty_databases` (facultatif, liste de noms de bases) : le dump
   PostgreSQL ou MariaDB d'une base listée peut être rejoué sans aucune table
   sans faire échouer l'app ; les autres bases de l'app restent tenues d'en
-  avoir une. Réservé à une base vide par construction (`nginx_demo_db` : la
-  démo `nginx_demo` ne crée aucun schéma), jamais pour faire taire une vraie
-  app ;
+  avoir une. Réservé à une base vide par construction (une démo qui ne crée
+  aucun schéma ; aucune app ne s'en sert aujourd'hui), jamais pour faire
+  taire une vraie app ;
 - `paused` (facultatif, booléen) : app en pause
   (`docs/runbooks/app-en-pause.md`), arrêtée exprès et sans sauvegarde. Le run
   complet la saute ; un run manuel qui la nomme restaure sa dernière archive

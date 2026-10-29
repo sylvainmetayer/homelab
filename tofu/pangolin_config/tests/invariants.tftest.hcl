@@ -246,7 +246,6 @@ override_data {
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 64, "niceId": "nginx-demo", "name": "Nginx Demo", "fullDomain": "demo-nginx.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
@@ -255,7 +254,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 20, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 19, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -479,11 +478,6 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["beszel"]
   values = { id = 65 }
-}
-
-override_resource {
-  target = pangolin_resource.website["nginx_demo"]
-  values = { id = 64 }
 }
 
 override_resource {
@@ -718,11 +712,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["ntfy"]
   values = { push_token = "push-ntfy" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["nginx_demo"]
-  values = { push_token = "push-nginx-demo" }
 }
 
 override_resource {
@@ -1837,7 +1826,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_speedtest_tracker_url = output.uptime_backup_speedtest_tracker_url
         uptime_backup_ntfy_url              = output.uptime_backup_ntfy_url
         uptime_backup_wishlist_url          = output.uptime_backup_wishlist_url
-        uptime_backup_nginx_demo_url        = output.uptime_backup_nginx_demo_url
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
         uptime_backup_paperless_url         = output.uptime_backup_paperless_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url

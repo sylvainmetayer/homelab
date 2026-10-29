@@ -119,7 +119,7 @@ sauvegarde vzdump faite avant (`qmrestore`, interface de Proxmox > storage
 Le NAS redémarre pendant la mise à jour (une dizaine de minutes). Pendant
 ce temps : Jellyfin et l'interface d'UGOS tombent, la VM docker attend son
 montage NFS (`hard` : les applis qui y ont leurs données se figent, puis
-repartent seules ; `nginx_demo` aujourd'hui), le site Pangolin `nas` est
+repartent seules ; aucune aujourd'hui), le site Pangolin `nas` est
 hors ligne. Éviter 21:00-22:00 (vzdump vers le NAS) et 02:30 (borgmatic du
 NAS).
 

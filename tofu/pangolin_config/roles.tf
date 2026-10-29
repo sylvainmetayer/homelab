@@ -25,7 +25,6 @@ locals {
     "speedtest-tracker",
     "ntfy",
     "wishlist",
-    "nginx-demo",
     "beszel",
     "victoria-logs"
   ]

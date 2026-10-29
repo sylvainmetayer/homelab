@@ -72,7 +72,6 @@ locals {
     meerkat_crm       = local.meerkat_crm_website
     monica            = local.monica_website
     nextcloud         = local.nextcloud_website
-    nginx_demo        = local.nginx_demo_website
     ntfy              = local.ntfy_website
     paperless         = local.paperless_website
     papra             = local.papra_website

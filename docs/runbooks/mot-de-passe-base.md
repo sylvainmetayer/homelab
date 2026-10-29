@@ -37,7 +37,6 @@ session quand son mot de passe change), seules les nouvelles échouent.
 | Immich (`immich`) | pi, `pi.yml`, `immich` | `immich_postgres` (`ghcr.io/immich-app/postgres:14-…`) | `postgres` (superutilisateur), base `immich` | SOPS `immich_db_password` | `.env` (`DB_PASSWORD`, templaté) ; le worker distant du poste, `compose/immich/.env` (à la main, hors dépôt) : Postgres est publié en 5432 sur le LAN |
 | Dawarich (`dawarich`) | docker, `docker.yml`, `dawarich` | `dawarich-db` (`postgis/postgis:17-3.5-alpine`) | `dawarich`, base `dawarich` | **dérivé** : `sha256(backup_passphrase ~ '-dawarich-db')` (`defaults/main.yml`) | `.env` (`DATABASE_PASSWORD`, templaté) |
 | Paperless-ngx (`paperless_ngx`) | docker, `docker.yml`, `paperless` | `paperless_db` (`postgres:18`) | `paperless`, base `paperless` | SOPS `paperless_db_password` | compose (`PAPERLESS_DBPASS`). **En pause** : voir plus bas |
-| Nginx demo (`nginx_demo`) | docker, `docker.yml`, `nginx_demo` | `nginx-demo-db` (`postgres:18.6-alpine`) | `nginx_demo`, base `nginx_demo_db` | **fichier tiré une fois** sur le NAS : `/mnt/nas/apps/nginx_demo/db_password` (root, `0600`), relu à chaque déploiement | `.env` (`NGINX_DEMO_DB_PASSWORD`, templaté) |
 | Flip Planning, production (`flip_planning`) | flip, `flip.yml`, `flip_planning` | `flip-planning-db` (`postgres:18.6`) | `festival`, base `festival` | SOPS `prod_planning_db_password` (`vars:` de l'entrée de `flip.yml`) | `.env` (`DB_PASSWORD`, templaté) |
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
 | Flip Planning, démo Keycloak | flip, `flip.yml`, `demo_planning_kc` | `demo-planning-kc-db` et `demo-planning-kc-keycloak-db` | `festival` (base `festival`) et `keycloak` (base `keycloak`) | SOPS `demo_planning_kc_db_password` et `demo_planning_kc_keycloak_db_password` | `.env` ; compose (`KC_DB_PASSWORD` de Keycloak) |
@@ -128,20 +127,6 @@ ssh_hote "$hote" "docker exec -i $ctr psql -U $user -d $db -v ON_ERROR_STOP=1" <
 Réponse attendue : `ALTER ROLE`. `psql` passe par la socket du conteneur
 (`trust`) : aucun mot de passe à fournir pour entrer.
 
-Nginx demo fait exception, son mot de passe n'est pas dans SOPS mais dans un
-fichier du NAS. Tout se fait sur la VM (`mise run ssh`) :
-
-```bash
-f=/mnt/nas/apps/nginx_demo/db_password
-sudo cp -p "$f" "$f.ancien"
-sudo sh -c "umask 077; openssl rand -hex 24 | tr -d '\n' > $f; chmod 0600 $f"
-sudo sed "s/.*/ALTER ROLE nginx_demo PASSWORD '&';/" "$f" \
-  | docker exec -i nginx-demo-db psql -U nginx_demo -d nginx_demo_db -v ON_ERROR_STOP=1
-```
-
-Le `chmod` explicite compte : UGOS crée tout en `0777` quel que soit
-l'umask. Puis passer directement au redéploiement (étape 3), sans SOPS.
-
 ### 1 bis. MariaDB : `ALTER USER` dans le conteneur
 
 Monica, Nextcloud, BookStack. Exemple Monica :
@@ -225,8 +210,7 @@ l'environnement a changé.
 Branche, commit de `ansible/secrets.sops.yaml` (et `fake_secrets.yml` pour
 Dawarich), PR, merge sans attendre : tant que `main` porte l'ancien mot de
 passe, le prochain déploiement CI de ce rôle le remettrait. Puis effacer les
-fichiers de travail : `rm -r "$r"` (et `sudo rm
-/mnt/nas/apps/nginx_demo/db_password.ancien` pour Nginx demo).
+fichiers de travail : `rm -r "$r"`.
 
 ## Vérification
 
@@ -259,12 +243,9 @@ mot de passe, par le même chemin.
    `$r/nouveau`. Exception, Nextcloud **avant** le redéploiement : son
    `MYSQL_ROOT_PASSWORD` est encore l'ancien alors que root a déjà le
    nouveau ; entrer à la main, `docker exec -it -e MYSQL_HISTFILE=/dev/null
-   nextcloud_db mariadb -u root -p`, en collant `$r/nouveau`. Nginx demo :
-   `sudo cp -p "$f.ancien" "$f"`, puis la seule commande `sudo sed … |
-   docker exec …` de l'étape 1 (pas l'`openssl`, qui tirerait un troisième
-   mot de passe). Betisier n'a rien à refaire en base : son
-   `betisier-reset.service`, relancé après le redéploiement, la recrée avec
-   le mot de passe remis.
+   nextcloud_db mariadb -u root -p`, en collant `$r/nouveau`. Betisier n'a
+   rien à refaire en base : son `betisier-reset.service`, relancé après le
+   redéploiement, la recrée avec le mot de passe remis.
 2. SOPS : `git checkout -- secrets.sops.yaml` si le changement n'est pas
    encore commité, sinon `git revert` du commit, et les fichiers à la main de
    l'étape 2 remis à l'ancienne valeur.
@@ -273,9 +254,10 @@ mot de passe, par le même chemin.
 ## Prévention
 
 - Une base neuve d'appli Postgres garde le mot de passe hors de SOPS, tiré
-  une fois et rangé à côté du cluster, comme Nginx demo
-  (`nginx_demo_db_password_path`) : SOPS ne peut alors plus diverger de la
-  base.
+  une fois et rangé à côté du cluster, comme le faisait le pilote
+  `nginx_demo` (retiré le 2026-10-29 ; extraits dans
+  `ansible/roles/nas_storage/README.md`) : SOPS ne peut alors plus diverger
+  de la base.
 - Rien n'automatise la rotation (une tâche Ansible faisant l'`ALTER`) : pas
   justifié tant qu'aucune rotation n'est planifiée.
 
@@ -292,8 +274,9 @@ même réseau (le chemin de l'appli), dump à la façon de borgmatic (`docker
 exec`, `--host` = IP du conteneur) en échec avec l'ancien et réussi avec le
 nouveau, puis conteneurs et réseau supprimés. Testés aussi : le refus d'une
 valeur non JSON par `sops set --value-stdin` (sops 3.13.3, sur un fichier
-SOPS jetable), le `sed` de Nginx demo, la fonction `ssh_hote` (arguments
-reçus par un faux `ssh`, `ProxyCommand` de flip compris). Non testés en
+SOPS jetable), le `sed` de Nginx demo (retiré depuis), la fonction
+`ssh_hote` (arguments reçus par un faux `ssh`, `ProxyCommand` de flip
+compris). Non testés en
 conteneur : les fichiers des applis elles-mêmes (`config.php` de Nextcloud,
 `.env` de BookStack et Monica, `config.inc.php` de Betisier), lus dans leurs
 sources ou leurs images.

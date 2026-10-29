@@ -132,9 +132,12 @@ class RealPlaybooks(unittest.TestCase):
         result, _ = self.run_script("ansible/roles/trek/README.md", "ansible/roles/trek/tasks/main.yml")
         self.assertIn("trek", result["ansible/docker.yml"].split(","))
 
-    def test_nas_storage_deploys_its_dependents(self):
-        result, _ = self.run_script("ansible/roles/nas_storage/tasks/main.yml")
-        self.assertIn("nginx_demo", result["ansible/docker.yml"].split(","))
+    def test_nas_storage_without_dependent_is_reported(self):
+        # Pulled in only through meta dependencies, none today: a change
+        # deploys nothing and says so (AddDependents covers the dependents).
+        result, stderr = self.run_script("ansible/roles/nas_storage/tasks/main.yml")
+        self.assertEqual(set(result.values()), {""})
+        self.assertIn("::warning::role 'nas_storage'", stderr)
 
 
 if __name__ == "__main__":

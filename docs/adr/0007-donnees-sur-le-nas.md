@@ -12,7 +12,8 @@ nginx tient les ports 80 et 443.
 ## Décision
 
 - **Données d'applis sur le NAS** en NFSv3, export `sync`, montage `hard` +
-  automount (rôle `nas_storage`, pilote `nginx_demo`) ; Borg sauvegarde tout.
+  automount (rôle `nas_storage`, pilote `nginx_demo`, retiré le
+  2026-10-29) ; Borg sauvegarde tout.
 - **SQLite (et toute base mmap/verrous) jamais sur NFS** : disque local.
 - **Jellyfin sur le NAS** (`dc@jellyfin` système), privé : LAN, ou client
   Pangolin par le site `nas`. `nas_proxy` (Traefik, DNS-01 OVH) termine le
