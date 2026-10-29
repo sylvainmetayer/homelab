@@ -351,6 +351,11 @@ Pour le rétablir :
 3. Le lien Beszel de Homepage montre les compteurs ; sinon, « API Error » du
    widget = adresse toujours refusée.
 
+Le recouper ensuite : `beszel_homepage_email` vide, le même `--tags`, puis
+`docker network rm beszel_homepage` sur la VM (`docker compose up` ne
+supprime pas un réseau retiré du compose) et `172.16.97.3` retiré des
+« Superuser IPs ».
+
 Le réglage `trustedProxy` du hub (`X-Forwarded-For`, IP la plus à droite) vaut
 pour toute requête, d'où qu'elle vienne : PocketBase ne vérifie pas qu'elle
 passe par un proxy. Par Pangolin, Traefik ajoute la vraie IP en dernier ; mais

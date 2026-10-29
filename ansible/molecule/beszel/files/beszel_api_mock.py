@@ -5,10 +5,10 @@ The scenario never pulls the hub image, so this answers on 127.0.0.1:8090 the
 few PocketBase / Beszel routes the role calls, with the semantics of
 internal/alerts/alerts_api.go and internal/users/users.go: auth-with-password
 on the users collection (and on _superusers, with the hub's superuser IP
-allowlist: 403 for a valid superuser from elsewhere), the systems listed from config.yml (as the hub syncs
-them at start), alerts upserted and deleted per user through
-/api/beszel/user-alerts, user_settings whose emails the hub fills on create,
-and test-notification. Every write is appended to WRITES_LOG, and
+allowlist: 403 for a valid superuser from elsewhere), the systems listed from
+config.yml (as the hub syncs them at start), alerts upserted and deleted per
+user through /api/beszel/user-alerts, user_settings whose emails the hub
+fills on create, and test-notification. Every write is appended to WRITES_LOG, and
 GET /mock/state dumps the state for verify.yml.
 
 Reads its seed from CONFIG_JSON (written by prepare.yml).
