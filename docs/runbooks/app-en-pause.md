@@ -17,8 +17,10 @@ Flip Planning (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-pla
 | `.github/restore-test/apps.json` | `"paused": true` | le test de restauration du 1er et du 15 saute l'app ; un run manuel qui la nomme restaure sa dernière archive sans en exiger l'âge |
 
 Hors de ces quatre endroits, `renovate.json` porte une règle « Paused apps »
-(`enabled: false` sur `ansible/roles/paperless_ngx/**`) : aucune PR de mise à
-jour pour une appli qui ne tourne pas. La reprise retire la règle dans la
+(`enabled: false` sur `ansible/roles/paperless_ngx/**`, plus une seconde
+sur l'image Paperless de `path_bypass_images.json`, que Renovate monterait
+sinon seule, PR que le test `path_bypasses_follow_their_image` refuse) :
+aucune PR de mise à jour pour une appli qui ne tourne pas. La reprise retire les règles dans la
 même PR ; Renovate propose alors les versions parues entre-temps. Le banc
 Keycloak n'en a pas besoin : ses images sont écrites dans `flip.yml` sur le
 tag mobile `pr-72`, qu'aucun manager ne lit.
@@ -69,8 +71,8 @@ tant que la ressource est encore active ; une fois désactivée, il l'ignore
 1. PR inverse : `paperless_enabled: true` (ou la ligne retirée, c'est le
    défaut), `enabled = false` retiré de `website_paperless.tf`, la liste des
    apps en pause vidée dans `invariants.tftest.hcl`, `"paused": true` retiré
-   d'`apps.json`, et la règle « Paused apps » de `renovate.json` retirée
-   (ou `paperless_ngx` retiré de sa liste).
+   d'`apps.json`, et les deux règles « Paused apps » de `renovate.json`
+   retirées (ou `paperless_ngx` et son image retirés de leurs listes).
 2. `tofu apply` dans `tofu/pangolin_config` **avant** le merge :
    ressource réactivée, moniteurs repris, sonde de la cible rallumée. L'URL
    de push n'a pas changé.
