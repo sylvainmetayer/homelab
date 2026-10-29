@@ -144,13 +144,13 @@
   loop_control:
     label: "{{ item.src }}"
 
-# Résumé quotidien sur ntfy (defaults/main.yml). Le jeton est dans un
+# Résumé hebdomadaire sur ntfy (defaults/main.yml). Le jeton est dans un
 # fichier d'environnement 0600 lu par l'unité : diff: false, jamais sur une
 # ligne de commande.
 - name: Warn that the CrowdSec summary has no ntfy token
   when: pangolin_crowdsec_summary_enabled | bool and not pangolin_crowdsec_summary_active | bool
   ansible.builtin.debug:
-    msg: "ntfy_scripts_token vide : pas de résumé CrowdSec quotidien sur ntfy."
+    msg: "ntfy_scripts_token vide : pas de résumé CrowdSec hebdomadaire sur ntfy."
 
 - name: Install the CrowdSec summary
   when: pangolin_crowdsec_summary_active | bool
@@ -193,7 +193,14 @@
         - crowdsec-summary.service
         - crowdsec-summary.timer
 
-    - name: Enable the daily CrowdSec summary
+    # Historique du résumé quotidien d'avant (pics, règles AppSec vues) : le
+    # résumé hebdomadaire est sans état.
+    - name: Remove the former CrowdSec summary history
+      ansible.builtin.file:
+        path: /var/lib/crowdsec-summary
+        state: absent
+
+    - name: Enable the weekly CrowdSec summary
       ansible.builtin.systemd:
         name: crowdsec-summary.timer
         state: started
@@ -212,7 +219,7 @@
   when: not pangolin_crowdsec_summary_active | bool
   become: true
   block:
-    - name: Stop the daily CrowdSec summary
+    - name: Stop the weekly CrowdSec summary
       when: pangolin_crowdsec_summary_timer.stat.exists
       ansible.builtin.systemd:
         name: crowdsec-summary.timer
@@ -228,6 +235,7 @@
         - /etc/systemd/system/crowdsec-summary.service
         - /usr/local/bin/crowdsec-summary
         - "{{ pangolin_crowdsec_summary_config_dir }}"
+        - /var/lib/crowdsec-summary
 
     - name: Forget the CrowdSec summary units
       when: pangolin_crowdsec_summary_timer.stat.exists

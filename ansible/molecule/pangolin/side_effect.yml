@@ -50,6 +50,7 @@
         - /etc/systemd/system/crowdsec-summary.service
         - /usr/local/bin/crowdsec-summary
         - /etc/crowdsec-summary
+        - /var/lib/crowdsec-summary
 
     - name: Assert CrowdSec is out of the stack and of Traefik, its data kept
       vars:
@@ -67,7 +68,7 @@
           - "'plugin' not in dynamic_config.http.middlewares.crowdsec"
           - "pangolin_crowdsec_bouncer_key not in (pangolin_disabled_files.results[2].content | b64decode)"
           - pangolin_disabled_data.stat.isdir
-          # Sans CrowdSec, plus de résumé quotidien : timer, unité, script et
+          # Sans CrowdSec, plus de résumé hebdomadaire : timer, unité, script et
           # jeton retirés.
           - pangolin_disabled_summary.results | selectattr('stat.exists') | list | length == 0
           # Le journal d'accès reste : il ne dépend pas de CrowdSec.
