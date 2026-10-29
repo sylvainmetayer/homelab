@@ -130,7 +130,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) |
-| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security`, `newt_service` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
+| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, borgmatic en conteneur ; stockage des sauvegardes vzdump |
 | `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
@@ -138,7 +138,8 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet
 Compose dans `/opt/apps/<service>`, lancé par l'unité systemd **utilisateur**
 `dc@<service>` de `sylvain` (modèle `ansible/roles/docker_service`). Newt
-lui-même est `dc@newt`.
+lui-même est `dc@newt`. Sur le NAS, le même modèle tourne en unité
+**système**, root, sous `/volume1/docker/<service>`.
 
 **flip** n'a pas d'IP publique :
 

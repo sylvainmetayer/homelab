@@ -31,7 +31,7 @@ justement ce canal qui est en doute.
 | Hôte | Canal sûr | Commande |
 |---|---|---|
 | `pangolin`, `flip` | console Hetzner (Cloud Console → serveur → Console) | `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` |
-| `docker` | agent invité, depuis le shell du nœud Proxmox (interface web → nœud `proxmox` → Shell) | `qm guest exec 300 -- ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` |
+| `docker` | agent invité, depuis le shell du nœud Proxmox (interface web → nœud `proxmox` → Shell) | `qm guest exec 100 -- ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` |
 | `pi` | écran et clavier branchés sur le Pi | `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` |
 | Storage Box | empreinte publiée par Hetzner (documentation Storage Box) | rien à lancer sur la machine |
 
