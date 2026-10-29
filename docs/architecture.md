@@ -216,7 +216,7 @@ flowchart LR
 | Workflow | Quand | Ce qu'il fait |
 |---|---|---|
 | `lint.yaml` | chaque PR | jobs `Ansible lint` (+ `check_sops_shadowing.py`), `OpenTofu lint`, `CI lint` (zizmor, actionlint, hadolint) |
-| `test.yaml` | chaque PR (sélection), chaque nuit et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
+| `test.yaml` | chaque PR (sélection), le lundi et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
 | `codeql.yaml` | le lundi, à la main, PR et push sur `main` touchant `.github/scripts/**` | analyse CodeQL (`actions`, `python`) vers l'onglet Security ; la configuration par défaut de GitHub reste désactivée |
 | `path-bypass-review.yaml` | PR qui touche `path_bypass_images.json` | attend l'approbation de l'environnement `relecture-chemins-publics` |
 | `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
