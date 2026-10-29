@@ -16,6 +16,9 @@ import yaml
 
 GENERIC_TAGS = {"app", "setup"}
 ROLE_PATH_RE = re.compile(r"^ansible/roles/([^/]+)/")
+# A role's README.md is documentation for humans and agents, never read by
+# Ansible: changing it redeploys nothing.
+ROLE_README_RE = re.compile(r"^ansible/roles/[^/]+/README\.md$")
 # Seuls les playbooks à la racine de ansible/ peuvent être lus : le fichier
 # ouvert vient de cette liste, jamais de l'argument (pas de traversée de chemin).
 ANSIBLE_DIR = Path(__file__).resolve().parents[2] / "ansible"
@@ -59,6 +62,8 @@ def load_role_tags(playbook_path):
 def changed_roles(changed_files):
     roles = set()
     for path in changed_files:
+        if ROLE_README_RE.match(path):
+            continue
         match = ROLE_PATH_RE.match(path)
         if match:
             roles.add(match.group(1))

@@ -123,6 +123,15 @@ class RealPlaybooks(unittest.TestCase):
         self.assertIn("::notice::role 'vzdump_restore_test' changed, deployed by hand only (pve.yml), not by CI", stderr)
         self.assertNotIn("::warning::", stderr)
 
+    def test_role_readme_deploys_nothing(self):
+        result, stderr = self.run_script("ansible/roles/trek/README.md")
+        self.assertEqual(set(result.values()), {""})
+        self.assertNotIn("::warning::", stderr)
+
+    def test_role_readme_does_not_hide_a_real_change(self):
+        result, _ = self.run_script("ansible/roles/trek/README.md", "ansible/roles/trek/tasks/main.yml")
+        self.assertIn("trek", result["ansible/docker.yml"].split(","))
+
     def test_nas_storage_deploys_its_dependents(self):
         result, _ = self.run_script("ansible/roles/nas_storage/tasks/main.yml")
         self.assertIn("nginx_demo", result["ansible/docker.yml"].split(","))
