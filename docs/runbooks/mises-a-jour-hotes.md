@@ -36,7 +36,8 @@ seulement les lundis où quelque chose attend :
 `<hôte> : N mise(s) à jour, dont S de sécurité`, la sécurité listée
 d'abord, puis Docker (`docker-ce`, `containerd.io`, plugins), Proxmox et
 noyaux, puis le reste ; priorité haute dès que `S > 0`. Une ligne le dit
-quand Docker attend (tous les conteneurs redémarreront). Aussi
+quand `docker-ce` ou `containerd.io` attend (tous les conteneurs
+redémarreront ; pas pour `docker-ce-cli` ni les plugins). Aussi
 `<hôte> : redémarrage en attente` quand un noyau plus récent que celui qui
 tourne est installé. Rien n'est installé : `apt-get update` puis une
 simulation (`apt-get -s dist-upgrade`). Tout à jour : pas de message, le
@@ -60,7 +61,7 @@ l'hôte :
 
 ```bash
 systemctl status update-notify.timer update-notify.service
-journalctl -u update-notify.service -n 50 --no-pager
+sudo journalctl -u update-notify.service -n 50 --no-pager   # sudo : sylvain n'est pas dans adm
 sudo systemctl start update-notify.service   # un passage tout de suite (root sur pve, sans sudo)
 ```
 
@@ -92,7 +93,7 @@ Toujours de jour et à la main, jamais pendant les sauvegardes (borgmatic à
    ```bash
    sudo apt update && apt list --upgradable
    ```
-   Pour `docker-ce` : lire les notes de version de Docker Engine (une mineure
+   Pour `docker-ce` : lire les notes de version de Docker Engine (une majeure
    29.x → 30.x en particulier). Une version majeure de Debian n'est **pas**
    cette procédure.
 2. Les sauvegardes de la nuit sont vertes (moniteurs de sauvegarde Uptime
@@ -117,7 +118,7 @@ l'heure de l'hôte).
 ```bash
 docker ps --format '{{.Names}}\t{{.Status}}' | sort   # tout « Up »
 systemctl --user list-units 'dc@*' --state=failed     # vide (pas sur Pangolin)
-sudo systemctl start update-notify.service && journalctl -u update-notify.service -n 5 --no-pager
+sudo systemctl start update-notify.service && sudo journalctl -u update-notify.service -n 5 --no-pager
 ```
 
 Puis : les moniteurs Uptime Kuma de l'hôte reviennent au vert, l'agent

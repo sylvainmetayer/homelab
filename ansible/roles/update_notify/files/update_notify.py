@@ -46,9 +46,12 @@ INST_RE = re.compile(r"^Inst (\S+) (?:\[([^\]]+)\] )?\((\S+) ([^\[]+) \[[^\]]+\]
 REMV_RE = re.compile(r"^Remv (\S+)")
 PROXMOX_NAME_RE = re.compile(r"^(pve-|proxmox-|libpve|qemu-server|lxc-pve|corosync|libknet)")
 KERNEL_NAME_RE = re.compile(r"(^|-)kernel|^linux-image")
-# Le moteur Docker et ce qui l'accompagne (dépôt download.docker.com) : sa
-# mise à jour redémarre dockerd, donc tous les conteneurs de l'hôte.
+# Les paquets du dépôt download.docker.com, rangés avec Proxmox et les noyaux.
 DOCKER_NAME_RE = re.compile(r"^(docker-|containerd)")
+# Ceux dont la mise à jour redémarre dockerd, donc tous les conteneurs de
+# l'hôte (pas docker-ce-cli ni les plugins compose/buildx), au début d'une
+# entrée « <paquet> <installée> → <candidate> ».
+DOCKERD_ENTRY_RE = re.compile(r"^(docker-ce|containerd\.io) ")
 
 
 class CheckError(Exception):
@@ -140,7 +143,7 @@ def last_error(result):
 
 def apt_update(retry_delay):
     """apt-get update, deux nouvelles tentatives : les listes verrouillées
-    par pve-daily-update, un miroir indisponible."""
+    par pve-daily-update ou apt-daily, un miroir indisponible."""
     for attempt in range(3):
         update = run(["apt-get", "update", "-q"])
         if update.returncode == 0:
@@ -173,7 +176,7 @@ def check_apt(args):
         raise CheckError(f"simulation de dist-upgrade en échec : {last_error(simulation)}")
     security, sensitive, other, removed = parse_simulation(simulation.stdout)
     total = len(security) + len(sensitive) + len(other)
-    docker = any(DOCKER_NAME_RE.search(e) for e in security + sensitive)
+    docker = any(DOCKERD_ENTRY_RE.match(e) for e in security + sensitive)
 
     running = os.uname().release
     newest = pending_kernel(args.boot_dir, running)
