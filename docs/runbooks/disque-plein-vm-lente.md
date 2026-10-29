@@ -53,9 +53,17 @@ journalctl --disk-usage
 ## Réparation
 
 - **Images obsolètes** (anciens digests après les montées Renovate) :
-  `docker image prune -a` retire les images qu'aucun conteneur n'utilise.
-  Sans risque pour les applis en place ; une appli arrêtée retéléchargera son
-  image au prochain démarrage.
+  normalement retirées chaque dimanche vers 04:30 par
+  `docker-image-prune.timer` (rôle `docker_service`, sur docker, pi et flip ;
+  pas le NAS) : `docker image prune --all --force --filter until=168h`, les
+  images qu'aucun conteneur, même arrêté, n'utilise et construites il y a plus
+  de 7 jours. Dernier passage et place libérée :
+  `systemctl --user list-timers docker-image-prune.timer` et
+  `journalctl --user -u docker-image-prune`. Pour libérer tout de suite :
+  `systemctl --user start docker-image-prune.service`, ou à la main
+  `docker image prune -a` (sans filtre de date). Sans risque pour les applis
+  en place ni pour une appli en pause (ses conteneurs arrêtés gardent leurs
+  images) ; jamais de `docker system prune --volumes`.
 - **Journaux** : journald est borné à 500 Mo (`host_tuning`), les journaux
   Docker à 3 × 10 Mo par conteneur (`group_vars/all/geerlingguy.docker.yml`,
   seulement pour les conteneurs recréés depuis). Au besoin :

@@ -102,3 +102,59 @@
         owner: root
         group: root
         mode: "0644"
+
+# Purge hebdomadaire des images inutilisées (defaults/main.yml), unité user à
+# côté de dc@ : sylvain est dans le groupe docker. Pas en scope system : le
+# NAS est hors champ (son appli Docker UGOS a ses propres projets).
+- name: Schedule the weekly removal of unused Docker images
+  when:
+    - docker_service_scope == 'user'
+    - docker_service_image_prune_enabled | bool
+  block:
+    - name: Install the image prune units
+      loop:
+        - docker-image-prune.service
+        - docker-image-prune.timer
+      ansible.builtin.template:
+        src: "./templates/{{ item }}.j2"
+        dest: "~/.config/systemd/user/{{ item }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        owner: "{{ ansible_facts['user_uid'] }}"
+        mode: "0600"
+      register: docker_service_image_prune_units
+
+    - name: Enable the image prune timer
+      ansible.builtin.systemd:
+        name: docker-image-prune.timer
+        scope: user
+        state: started
+        enabled: true
+        # Recharge aussi un OnCalendar modifié : le timer se réarme dessus.
+        daemon_reload: "{{ docker_service_image_prune_units is changed }}"
+
+- name: Remove the weekly removal of unused Docker images
+  when:
+    - docker_service_scope == 'user'
+    - not docker_service_image_prune_enabled | bool
+  block:
+    - name: Check the image prune timer
+      ansible.builtin.stat:
+        path: "~/.config/systemd/user/docker-image-prune.timer"
+      register: docker_service_image_prune_timer
+
+    - name: Stop and disable the image prune timer
+      ansible.builtin.systemd:
+        name: docker-image-prune.timer
+        scope: user
+        state: stopped
+        enabled: false
+      when: docker_service_image_prune_timer.stat.exists
+
+    - name: Remove the image prune units
+      loop:
+        - docker-image-prune.service
+        - docker-image-prune.timer
+      ansible.builtin.file:
+        path: "~/.config/systemd/user/{{ item }}"
+        state: absent
+      notify: Daemon reload

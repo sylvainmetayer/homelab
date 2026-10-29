@@ -85,7 +85,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Resource limits doctrine | `docs/conventions/resource-limits.md` |
 | Second environment of an app, pausing, removing | `docs/conventions/app-lifecycle.md` |
 | OpenTofu backends, state encryption | `docs/conventions/opentofu.md` |
-| `dc@.service` systemd pattern, NAS system scope | `ansible/roles/docker_service/README.md` |
+| `dc@.service` systemd pattern, NAS system scope, weekly unused-image prune | `ansible/roles/docker_service/README.md` |
 | App data on the NAS (NFS) | `ansible/roles/nas_storage/README.md` |
 | Borgmatic template rules, NAS container mode, Storage Box subaccounts | `ansible/roles/borgmatic/README.md` |
 | Host hardening (ufw, fail2ban, devsec, ssh-audit), LAN hosts' SSH | `ansible/roles/security/README.md` |

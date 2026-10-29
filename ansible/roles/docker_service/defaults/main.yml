@@ -14,3 +14,22 @@ docker_service_scope: user
 # Docker sous UGOS.
 docker_service_system_after:
   - docker.service
+
+# Purge hebdomadaire des images Docker inutilisées (docker-image-prune.timer,
+# unité user : scope user seulement, donc docker, pi et flip ; jamais le NAS,
+# où l'appli Docker d'UGOS gère aussi ses propres projets). La commande est
+# `docker image prune --all --force --filter until=<durée>` et rien d'autre :
+# ni volume, ni conteneur, ni réseau, ni cache de build. --all retire toute
+# image qu'aucun conteneur n'utilise, même arrêté : celles d'une appli en
+# pause (dc@ arrêté = `compose stop`, conteneurs gardés) restent.
+# false arrête le timer et retire ses unités.
+docker_service_image_prune_enabled: true
+# Filtre `until` de Docker : il porte sur la date de CRÉATION de l'image (son
+# build), pas sur sa dernière utilisation. Il n'épargne que les images
+# construites depuis moins de cette durée ; une image amont plus ancienne part
+# au premier passage où aucun conteneur ne s'en sert.
+docker_service_image_prune_until: 168h
+# Dimanche 04:30 (+ 15 min au plus) : après borgmatic (02:30), avant les
+# redémarrages pour mise à jour du noyau (05:00 docker, 05:30 pi) et loin des
+# déploiements (merges en journée).
+docker_service_image_prune_schedule: "Sun *-*-* 04:30:00"
