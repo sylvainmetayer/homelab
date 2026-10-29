@@ -48,6 +48,7 @@
         wiki_borgmatic: "{{ wiki_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
+          - wiki_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - wiki_borgmatic.mysql_databases[0].container == 'bookstack_db'
           - wiki_borgmatic.mysql_databases[0].password == 'molecule-wiki-db-password'
           # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver

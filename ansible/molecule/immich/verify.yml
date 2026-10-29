@@ -2,7 +2,6 @@
 - name: Verify
   hosts: all
   vars_files:
-    - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
   vars:
     immich_path: "{{ docker_base_path }}/immich"
