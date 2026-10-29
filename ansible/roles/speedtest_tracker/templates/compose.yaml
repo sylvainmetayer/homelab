@@ -7,6 +7,7 @@ services:
     # ajoute. Sur la VM, memory.peak à 285 Mio le 2026-10-29 (89 % des 320m
     # d'alors, surtout du page cache) : plafond à ~2× ce pic.
     mem_limit: 640m
+    mem_reservation: 320m
     # L'image linuxserver, celle que la documentation de Speedtest Tracker
     # recommande (nginx, php-fpm, cron du planificateur et CLI Ookla dans un
     # seul conteneur s6) ; son init démarre en root, puis rend config/ à
