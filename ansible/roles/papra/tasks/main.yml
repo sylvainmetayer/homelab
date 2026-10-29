@@ -39,7 +39,8 @@
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
 # SQLite (app-data/db/db.sqlite, créée au premier démarrage : présente dans la
 # configuration à partir du passage suivant) est copiée par « .backup » ; les
-# originaux (app-data/documents/<org>/originals/) partent tels quels.
+# originaux (app-data/documents/<org>/<nom>, ou <org>/originals/<id> pour
+# ceux d'avant le nommage par nom, templates/env.j2) partent tels quels.
 # ingestion/ n'est qu'un sas, vidé à chaque import.
 - name: Configure borgmatic backup for Papra
   when: papra_backup_enabled
