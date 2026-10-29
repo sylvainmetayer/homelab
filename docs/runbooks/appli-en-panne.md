@@ -110,8 +110,8 @@ systemctl --user is-active dc@rss
 docker compose -f /opt/apps/rss/compose.yaml ps
 ```
 
-Puis le moniteur Uptime Kuma repasse UP (intervalle 60 s, 2 essais) et la
-page s'ouvre dans le navigateur.
+Puis le moniteur Uptime Kuma repasse UP à sa sonde suivante (une toutes les
+5 minutes, `local.http_probe`) et la page s'ouvre dans le navigateur.
 
 ## Prévention
 

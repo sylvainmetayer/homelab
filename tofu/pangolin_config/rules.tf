@@ -367,8 +367,9 @@ locals {
     if target.hc_enabled && (target.hc_scheme == null || target.hc_port == null)
   ]
 
-  # A disabled resource (an app stopped on purpose) keeps its target and its
-  # probe for the day it comes back; its probe failing meanwhile is expected,
+  # A disabled resource (an app stopped on purpose) keeps its target for the
+  # day it comes back, its probe turned off (hc_enabled, websites.tf). Between
+  # the pause and the apply that turns it off, its probe failing is expected,
   # and a permanent warning would only teach to skim past real ones.
   unhealthy_targets = [
     for target in local.live_targets : target.label

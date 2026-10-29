@@ -64,7 +64,8 @@ tant que la ressource est encore active ; une fois désactivée, il l'ignore
    apps en pause vidée dans `invariants.tftest.hcl`, `"paused": true` retiré
    d'`apps.json`.
 2. `tofu apply` dans `tofu/pangolin_config` **avant** le merge :
-   ressource réactivée et moniteurs repris. L'URL de push n'a pas changé.
+   ressource réactivée, moniteurs repris, sonde de la cible rallumée. L'URL
+   de push n'a pas changé.
 3. Merge, puis `ansible-playbook docker.yml --tags paperless` (ou
    `workflow_dispatch` de `deploy-docker-app`, tags `paperless`) : une PR qui
    ne touche que `host_vars` ne déclenche aucun déploiement. Le rôle
@@ -88,7 +89,7 @@ instance). Les mêmes quatre endroits, adaptés :
 | Où | Pause | Effet |
 |---|---|---|
 | `ansible/flip.yml`, entrée `demo_planning_kc` | `flip_planning_enabled: false` | `dc@demo_planning_kc` arrêtée et désactivée, aucune notification de redémarrage, configuration borgmatic retirée (il n'en a pas : `flip_planning_backup_enabled: false`). Compose, `.env`, volumes gardés |
-| `tofu/pangolin_config/website_demo_planning_kc.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, lien retiré de la sortie `homepage_links` (Homepage le perd au prochain `docker.yml --tags homepage`) ; ni healthcheck ni moniteur « Backup » à mettre en pause, il n'en a pas |
+| `tofu/pangolin_config/website_demo_planning_kc.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, sonde Pangolin de ses trois cibles coupée (`hc_enabled`), lien retiré de la sortie `homepage_links` (Homepage le perd au prochain `docker.yml --tags homepage`) ; ni healthcheck ni moniteur « Backup » à mettre en pause, il n'en a pas |
 | `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"demo_planning_kc"` dans la liste des apps en pause | et `flip_planning_enabled` de l'entrée de `flip.yml` doit être égal à `enabled` |
 | `.github/restore-test/apps.json` | rien | pas d'entrée : le banc n'est pas sauvegardé |
 
@@ -100,7 +101,8 @@ du rôle, pas forcément les siens. Les tâches notifient donc
 Au merge, `deploy-docker-app` rejoue le rôle (`ansible/roles/**` et
 `flip.yml` changent) : unité désactivée, la production et la démo ne
 redémarrent que si leur compose a changé. `tofu apply` dans
-`tofu/pangolin_config` : une seule ressource change, en place. Pour
+`tofu/pangolin_config` : la ressource et la sonde de ses trois cibles
+changent, en place. Pour
 reprendre : `flip_planning_enabled: false` retiré de `flip.yml`,
 `enabled = false` retiré de l'entrée, la liste des apps en pause mise à jour,
 et le scénario Molecule `flip_planning` dans la même PR : la copie de
