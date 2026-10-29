@@ -14,7 +14,7 @@ name: Trivy
 # sans qu'elles le soient ; une CVE qui reçoit un correctif revient comme une
 # nouvelle alerte.
 # Les CRITICAL corrigeables, et elles seules, partent aussi sur ntfy (job
-# notify, topic scripts, .github/scripts/trivy_critical.py) : une ligne par
+# notify, topic github, .github/scripts/trivy_critical.py) : une ligne par
 # CVE, par image, avec la version qui la corrige. Aucune : aucun message.
 # Le lundi à 05:00 UTC, après les tests de la nuit (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
@@ -221,7 +221,7 @@ jobs:
   # s'il n'y en a pas). Aussi quand une image a échoué : les autres sont
   # signalées, le run reste rouge. Depuis main seulement : l'environnement
   # trivy-ntfy (tofu/github/trivy_ntfy_secrets.tf) ne porte que le jeton du
-  # producteur scripts de ntfy, et refuse toute autre branche.
+  # producteur github de ntfy, et refuse toute autre branche.
   notify:
     name: Publish critical vulnerabilities to ntfy
     needs: image

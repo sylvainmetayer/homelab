@@ -78,7 +78,7 @@ class MessageTest(unittest.TestCase):
             {"trek": [("CVE-1", "openssl", "1.0.0", "1.0.1")], "immich": [("CVE-2", "zlib", "1.2", "1.3"), ("CVE-3", "curl", "8", "8.1")]},
             "https://example.test",
         )
-        self.assertEqual(payload["topic"], "scripts")
+        self.assertEqual(payload["topic"], "github")
         self.assertEqual(payload["title"], "Trivy : 3 CVE critiques corrigeables, 2 images")
         self.assertEqual(payload["message"].splitlines(), [
             "immich", "  CVE-2 zlib 1.2 → 1.3", "  CVE-3 curl 8 → 8.1",

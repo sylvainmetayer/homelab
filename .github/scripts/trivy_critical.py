@@ -4,7 +4,7 @@ Lu par le job `notify` de .github/workflows/trivy.yaml : chaque job d'image y
 dépose son rapport JSON (`<nom de l'image>.json`, déjà filtré par
 --severity HIGH,CRITICAL --ignore-unfixed). Seules les CRITICAL restent,
 regroupées par image avec la version qui les corrige ; sans aucune, rien
-n'est publié. Le message part sur le topic `scripts` de ntfy.sylvain.cloud
+n'est publié. Le message part sur le topic `github` de ntfy.sylvain.cloud
 (JSON sur `/`, le chemin ouvert sans SSO de tofu/pangolin_config), le
 détail reste dans l'onglet Security (code scanning).
 
@@ -23,7 +23,8 @@ import urllib.request
 from pathlib import Path
 
 NTFY_URL = "https://ntfy.sylvain.cloud/"
-TOPIC = "scripts"
+# Celui de tout ce que publie la CI (producteur github du rôle ntfy).
+TOPIC = "github"
 # ntfy refuse (ou change en pièce jointe, désactivées ici) un message de plus
 # de 4096 octets : le reste est résumé en une ligne.
 MAX_MESSAGE_BYTES = 3500

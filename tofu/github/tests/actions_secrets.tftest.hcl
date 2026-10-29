@@ -36,7 +36,6 @@ override_data {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
-      ntfy_scripts_token          = "fake-ntfy-scripts-token"
       ntfy_github_token           = "tk_fakentfygithubtoken0000000"
     }
   }
@@ -444,7 +443,7 @@ run "secrets_rotation_secrets" {
   }
 }
 
-# .github/workflows/trivy.yaml : le seul jeton ntfy du producteur scripts,
+# .github/workflows/trivy.yaml : le seul jeton ntfy du producteur github,
 # dans un environnement à lui, lisible depuis main seulement.
 run "trivy_ntfy_secrets" {
   command = plan
@@ -460,8 +459,8 @@ run "trivy_ntfy_secrets" {
   }
 
   assert {
-    condition     = github_actions_environment_secret.trivy_ntfy_token.value == "fake-ntfy-scripts-token"
-    error_message = "TRIVY_NTFY_TOKEN doit être ntfy_scripts_token d'ansible/secrets.sops.yaml (écriture seule sur le topic scripts)."
+    condition     = github_actions_environment_secret.trivy_ntfy_token.value == "tk_fakentfygithubtoken0000000"
+    error_message = "TRIVY_NTFY_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github de la CI), jamais le jeton scripts des hôtes."
   }
 
   assert {

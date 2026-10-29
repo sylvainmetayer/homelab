@@ -43,9 +43,10 @@ porte que l'URL push du moniteur « Rotation des secrets », output
 `pangolin_config` appliqué d'abord.
 
 L'environnement **`trivy-ntfy`** (`trivy_ntfy_secrets.tf`, job `notify` de
-`trivy.yaml`) ne porte que le jeton ntfy du producteur `scripts`, la clé
-SOPS `ntfy_scripts_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
-le topic `scripts`).
+`trivy.yaml`) ne porte que le jeton ntfy du producteur `github`, la clé
+SOPS `ntfy_github_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
+le topic `github`) : tout ce que publie la CI passe par ce producteur, jamais
+par le `scripts` des hôtes.
 
 L'environnement **`renovate-digest`** (`renovate_digest_secrets.tf`, workflow
 `renovate-digest.yaml`, le bilan Renovate du lundi sur ntfy) ne porte que le
