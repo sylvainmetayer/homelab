@@ -8,7 +8,7 @@ appli, ce qui passe **sans** le SSO, quel client s'en sert et ce qui protège
 le contenu derrière. C'est le « mode mixte » : navigateur derrière le SSO,
 clients non interactifs par des ouvertures étroites.
 
-Il décrit `tofu/pangolin_config` au 2026-10-28. Le code fait foi : chaque
+Il décrit `tofu/pangolin_config` au 2026-10-29. Le code fait foi : chaque
 liste de chemins est la `local.<app>_*_paths` de `website_<app>.tf`, avec en
 commentaire la vérification faite par l'appli pour chaque chemin, et la
 liste complète des ouvertures est écrite en toutes lettres dans le test
@@ -25,7 +25,7 @@ règles passent **avant** le SSO (`rules.tf`) :
 | Priorité | Règle | Effet |
 |---|---|---|
 | 1 | `DROP` des chemins qui contiennent un `\` (`backslash_guard`), sur toute ressource qui a une règle de chemin | Pangolin ne normalise pas `\`, que Node change en `/` : `/shared/..\..\api/trips` passerait pour `/shared/*` |
-| 2 à 9 | `ACCEPT` de chemin (`local.path_bypasses`, 2 à 6 aujourd'hui), les deux `PASS` de chemin (TREK `/mcp`, Beszel, à 3) | `ACCEPT` : servi tout de suite, **sans SSO et sans filtre pays**. `PASS` : saute les règles pays, garde l'authentification Pangolin |
+| 2 à 9 | `ACCEPT` de chemin (`local.path_bypasses`, 2 à 6 aujourd'hui), les trois `PASS` de chemin (TREK `/mcp`, Beszel, VictoriaLogs, à 3) | `ACCEPT` : servi tout de suite, **sans SSO et sans filtre pays**. `PASS` : saute les règles pays, garde l'authentification Pangolin |
 | 9 | `ACCEPT` de l'IP de la maison (`home_ip`, Immich, Dawarich, TREK) | toute la ressource, sans SSO, depuis la connexion de la maison |
 | 10, 11 | `PASS` pays FR, DE | vers l'authentification (SSO) |
 | 20 | `PASS` pays de voyage (`var.travel_countries`) | idem, jusqu'à la date de fin |
@@ -51,6 +51,7 @@ partage, mot de passe, clé d'API, signature), jamais Pangolin.
 | Monica (`crm.sylvain.dev`) | `/dav/*`, `/.well-known/carddav`, `/.well-known/caldav` | contacts et agenda du téléphone (CardDAV, CalDAV) | HTTP Basic avec un jeton d'accès personnel de Monica (pas le mot de passe du compte). **Désactivés** aujourd'hui, voir « Verrouillage PHP » |
 | Nextcloud (`sylvain.cloud`, l'apex), clients | `/status.php`, `/index.php/204`, `/remote.php/*`, `/ocs/v1.php/*`, `/ocs/v2.php/*`, `/index.php/login/v2` (exact), `/login/v2/poll`, `/index.php/login/v2/poll`, `/index.php/core/wipe/*`, `/index.php/core/preview`, `/index.php/core/preview.png`, `/index.php/apps/files_trashbin/preview`, `/index.php/apps/files_versions/preview`, `/index.php/apps/files/api/v1/thumbnail/*`, `/.well-known/caldav`, `/.well-known/carddav` (`local.nextcloud_client_paths`) | clients de synchronisation (bureau, Android, iOS), DAVx5, Thunderbird | mot de passe d'application seulement sur DAV et OCS (`token_auth_enforced`, rôle `nextcloud`) ; la moitié navigateur du login flow v2, le formulaire de connexion et les réglages restent derrière le SSO. Tout OCS est ouvert : un mot de passe d'application administrateur y atteint aussi l'API de provisioning |
 | Nextcloud, partages | `/s/*`, `/public.php/*`, l'API et les aperçus de `files_sharing`, theming, `/dist/*`, les dossiers statiques de `/core`, les fichiers statiques des applis (`/apps/*/js/*`… et `/custom_apps`), `/csrftoken`, la visionneuse PDF, les points publics de Text (`local.nextcloud_share_paths`, liste complète dans le test) | visiteur d'un lien de partage public | jeton aléatoire du partage, mot de passe et expiration facultatifs, vérifiés par `files_sharing`. `/apps/*/js/*` et ses voisins valent pour tout chemin de `/apps` qui contient un segment `js` (`css`, `img`, `l10n`) : sans SSO, mais pas sans l'authentification de Nextcloud. `/core/*` n'est jamais ouvert en entier (`/core/ajax/update.php`) |
+| ntfy (`ntfy.sylvain.cloud`) | `/`, `/uptime-kuma`, `/scripts`, `/github`, `/*/json`, `/*/ws`, `/*/auth` | appli ntfy du téléphone (abonnements) ; publieurs : Uptime Kuma, scripts des hôtes, CI GitHub, chacun sur son topic | comptes de ntfy : rien sans authentification (`auth-default-access: deny-all`), le téléphone sous le compte `sylvain`, chaque producteur avec un jeton en écriture seule sur son topic. L'interface web reste derrière le SSO |
 | Paperless-ngx (`papiers.sylvain.cloud`) | `/share/*` | lien de partage d'un document | slug de 50 caractères aléatoires, expiration vérifiée par la vue. **Appli en pause** : ressource désactivée, rien ne répond |
 | Promptoramix (`promptoramix.sylvain.cloud`) | `/*`, toute la ressource | fonctions edge Supabase du tournoi Linkx, sans plage d'IP fixe | signature HMAC de chaque POST (`LINKX_SECRET`) ; `/health` ne révèle rien. Seule ouverture d'une appli entière, assumée |
 | TREK (`travels.sylvain.cloud`), OAuth du MCP | `/.well-known/oauth-protected-resource/mcp`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-authorization-server/mcp`, `/.well-known/openid-configuration`, `/mcp/.well-known/oauth-protected-resource`, `/mcp/.well-known/oauth-authorization-server`, `/mcp/.well-known/openid-configuration`, `/oauth/token` | serveurs des assistants (Claude.ai…) | documents de découverte statiques ; `/oauth/token` exige le code PKCE ou le jeton de rafraîchissement plus le secret du client, débit limité par TREK. Restent derrière le SSO : `/oauth/authorize`, `/oauth/consent`, `/oauth/register`, `/oauth/revoke`, `/oauth/userinfo` |
@@ -68,6 +69,7 @@ la ressource (`pangolin_resource_access_token`), envoyé en en-têtes
 |---|---|---|---|
 | TREK | `/mcp` (exact, priorité 3) | assistants : jetons `claude-ai` (dans l'URL du connecteur, Claude.ai n'envoie pas d'en-tête) et `claude-code` (`tofu output -json trek_mcp_client_access_tokens`) | jeton OAuth de TREK. Depuis la maison aussi, le jeton Pangolin est exigé : le `PASS` passe avant l'`ACCEPT` de l'IP |
 | Beszel (`monitoring.sylvain.cloud`) | `/api/beszel/agent-connect` (exact, priorité 3) | agents de Pangolin et de flip, un jeton par agent (`beszel_agent_hub_headers`) | jeton de l'agent (`X-Token`), puis son empreinte, figée à la première connexion. Les agents du LAN passent par le port publié sur la VM docker, pas par Pangolin |
+| VictoriaLogs (`logs.sylvain.cloud`) | `/insert/jsonline` (exact, priorité 3) | agents Vector de Pangolin et de flip, un jeton par agent (`log_agent_access_tokens`) | compte vmauth de l'agent, en écriture seule sur ce chemin. Les agents du LAN passent par le port publié sur la VM docker, pas par Pangolin |
 
 Sans règle de chemin, d'autres clients passent le SSO avec un jeton d'accès,
 mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :

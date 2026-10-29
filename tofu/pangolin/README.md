@@ -2,7 +2,7 @@
 
 Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there links here.
 
-`tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, the flip VM (private network only) and the network route that makes Pangolin its NAT gateway, and Hetzner Storage Box config (see `STORAGE_BOX_SETUP.md` there for the manual setup steps SSH/rsync require). The state bucket is not here but in `tofu/s3_state/` (OVH Object Storage).
+`tofu/pangolin/` — Hetzner Cloud provider: the Pangolin VM, the flip VM (private network only) and the network route that makes Pangolin its NAT gateway, and the Hetzner Storage Box with its per-host and read-only subaccounts (`STORAGE_BOX_SETUP.md`: accounts, keys, repositories). The state bucket is not here but in `tofu/s3_state/` (OVH Object Storage).
 
 ## The Pangolin server: image, backups, rebuild
 

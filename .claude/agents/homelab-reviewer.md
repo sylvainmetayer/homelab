@@ -37,7 +37,7 @@ For any new or modified app role (`ansible/roles/<service>/`):
       repo-create task (both live in the `borgmatic` role now).
 - [ ] The role was actually registered: `- role: <service>` +
       `tags: <service>,app` present in the right playbook (`ansible/docker.yml`,
-      `pangolin.yaml`, or `pi.yml`), and if it has a backup healthcheck, a
+      `pangolin.yaml`, `pi.yml`, `flip.yml` or `nas.yml`), and if it has a backup healthcheck, a
       matching `<service>_backup_healthcheck_url` line was added to that
       playbook's `pre_tasks` `set_fact` block.
 
@@ -67,8 +67,8 @@ For any `tofu/pangolin_config/website_<service>.tf` (new or modified):
 - [ ] The app is a `local.<service>_website` entry listed in `local.websites`
       (`websites.tf`), not hand-written `pangolin_resource` / `pangolin_target`
       / token / monitor blocks: those are generated there, with the pins, the
-      maintenance page and `hc_hostname = ip`. A target written by hand (only
-      NAS and Proxmox today) sets `hc_hostname` explicitly (it is **not**
+      maintenance page and `hc_hostname = ip`. A target written by hand (none
+      today: the NAS and Proxmox are private resources) must set `hc_hostname` explicitly (it is **not**
       inferred from `ip` — a missing value silently breaks the healthcheck;
       this exact bug shipped once for `sparky_fitness`).
 - [ ] A renamed or removed generic resource address (a changed key of

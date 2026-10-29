@@ -9,7 +9,7 @@ This is the reverse of the **new-app** skill: same ~7 touchpoints, but deleting
 instead of adding. **The `photoprism` removal (commit `7e848ed`) got this
 wrong** — it deleted the role directory but left `photoprism` behind in
 `host_vars/backups/variables.yaml`, `host_vars/pi/variables.yaml`, and
-`secrets.sops.yaml` (still there today). Don't repeat that: grep the whole
+`secrets.sops.yaml` for months, until a later clean-up. Don't repeat that: grep the whole
 repo for the service name at the end (step 6) before calling this done.
 
 Pick up the service's slug the same way `new-app` assigns it: `snake_case`
@@ -82,7 +82,7 @@ that no longer exists), and remove the app's keys from
 
 ## 3. Deregister from the playbook(s)
 
-In `ansible/docker.yml` (and/or `ansible/pi.yml`, whichever the app was on):
+In `ansible/docker.yml` (or `pi.yml`, `flip.yml`, `nas.yml`, whichever the app was on):
 - Remove the `- role: <service>` / `tags: <service>,app` entry from `roles:`.
 - Remove its `<service>_backup_healthcheck_url: ...` line from `pre_tasks` →
   `Load healthcheck URLs from Terraform state outputs`.
@@ -107,9 +107,11 @@ Delete, don't comment out.)
 
 ## 5. Remove secrets
 
-If the service had entries in `secrets.sops.yaml` (DB password, admin
-password, API keys, its own `_backup_healthcheck_url`), remove them via
-`sops secrets.sops.yaml` — never hand-edit the encrypted blob.
+If the service had entries in `ansible/secrets.sops.yaml` (DB password, admin
+password, API keys), remove them via `sops ansible/secrets.sops.yaml` — never
+hand-edit the encrypted blob — and remove each key's entry from
+`secrets-rotation.yaml` in the same commit (the Lint workflow fails on an
+entry whose key is gone).
 
 ## 6. Remove Pangolin/Tofu routing
 

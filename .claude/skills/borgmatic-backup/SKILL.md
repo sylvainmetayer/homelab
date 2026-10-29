@@ -1,6 +1,6 @@
 ---
 name: borgmatic-backup
-description: Wire up or fix a Borgmatic backup for a service on the docker/pangolin/pi host, targeting the Hetzner Storage Box. Use when adding backup coverage to an existing service, or when a borgmatic config needs to match this repo's required (non-standard) structure.
+description: Wire up or fix a Borgmatic backup for a service on the docker, pangolin, pi, flip or NAS host, targeting the Hetzner Storage Box. Use when adding backup coverage to an existing service, or when a borgmatic config needs to match this repo's required (non-standard) structure.
 ---
 
 # Borgmatic backup wiring
@@ -28,7 +28,8 @@ are written down in `ansible/roles/borgmatic/README.md`. The interface — the
   changing it takes the existing archives out of `prune`'s reach.
 - `compression: zstd,10` — not `auto,zstd`.
 - `ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23` (a key per host, generated on it) and
-  `local_path: /root/.local/bin/borg` (installed by the `borgmatic` role).
+  `local_path: {{ borgmatic_borg_bin }}` (`/root/.local/bin/borg`, installed by
+  the `borgmatic` role; `/usr/local/bin/borg` inside the container on the NAS).
 - `uptime_kuma:` push block with `states: [start, finish, fail]` when a
   healthcheck URL is given.
 - `exclude_patterns` are borg `fm:` patterns anchored at the start of the
@@ -135,6 +136,10 @@ shared `verify_app.yml` validates it with the real borgmatic pinned in
 seed a SQLite database in `prepare.yml` and assert it is copied by `.backup`.
 
 ## Verify
+
+On the NAS, `borgmatic` is the wrapper `/volume1/docker/borgmatic/borgmatic`
+(`borgmatic_bin`, as root) instead of `/root/.local/bin/borgmatic`, and the
+configs are under `/volume1/docker/borgmatic/borgmatic.d/`.
 
 ```bash
 ansible-playbook <playbook>.yml --check --tags backup

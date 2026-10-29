@@ -106,9 +106,10 @@ monitors unless a `moved` block follows). Add the new app to:
   third-party image gets its `path_bypass_images.json` entry instead.
 
 The other fields of an entry, all optional, are documented at the top of
-`websites.tf`: `sso` (default true), `enabled` (default true; false also
-pauses the healthcheck monitor, while the backup monitor stays active since
-the backup job keeps running), `healthcheck` (default true), `backup` (default
+`websites.tf`: `sso` (default true), `enabled` (default true; false pauses the app,
+`docs/runbooks/app-en-pause.md`: healthcheck and backup monitors paused, the
+targets' Pangolin probes off, since the role stops the app and removes its
+borgmatic configuration), `healthcheck` (default true), `backup` (default
 false), and on a target `hc_port` (default `port`), `path` and `priority`.
 What is specific to one app stays in its file: path rules
 (`local.<service>_*_paths`, turned into rules by `local.path_bypasses` in
@@ -164,15 +165,17 @@ tofu apply
 curl -I https://<full_domain>
 ```
 
-Check the resource's HTTP healthcheck goes green within `hc_interval` seconds
-in Pangolin/Uptime Kuma.
+Check the target goes healthy in Pangolin within `hc_interval` (60 s) and the
+Uptime Kuma monitor green within its 5-minute interval (`local.http_probe`,
+`uptime_globals.tf`).
 
 ## Pitfalls (both come from real bugs shipped in this repo)
 
 - **`hc_hostname` is not inferred from `ip`.** Omitting it silently breaks
   the healthcheck (fixed after the fact for `sparky_fitness`). The
-  generated targets of `websites.tf` set it to `ip`; a target written by
-  hand (NAS, Proxmox) must set it explicitly to the container name.
+  generated targets of `websites.tf` set it to `ip` (every target is
+  generated there today); a target ever written by hand must set it
+  explicitly to the container name.
 - **`priority` is not "higher = matched first".** For path-based sub-routing,
   the catch-all `"/"` needs the *lowest* number and more specific paths need
   *higher* numbers — this was shipped backwards once for `flip_planning` and

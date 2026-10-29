@@ -30,7 +30,7 @@ flowchart LR
   gerbil == tunnel ==> newt_lxc
 
   subgraph home["Maison (réseau local)"]
-    subgraph docker_vm["VM docker (Proxmox, id 300)"]
+    subgraph docker_vm["VM docker (Proxmox, id 100)"]
       newt_docker["newt (dc@newt)"] -- "réseau docker newt" --> app1["rss, nextcloud, …<br/>(dc@service)"]
     end
     subgraph pi["Raspberry Pi"]
@@ -128,9 +128,11 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 |---|---|---|---|---|
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
-| `docker` | VM Proxmox 300 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
+| `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security`, `newt_service` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
+| NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, borgmatic en conteneur ; stockage des sauvegardes vzdump |
+| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet
@@ -202,8 +204,8 @@ flowchart LR
   deux fichiers ; `github-actions` pour `ansible/secrets.sops.yaml` seulement
   (la CI n'a pas les jetons cloud).
 - **States OpenTofu** : tous dans le bucket S3 `homelab-tf-state-sylvain`
-  (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Ceux de `pangolin`, `github` et
-  `s3_state` sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
+  (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Ceux de `pangolin`, `github`,
+  `s3_state` et `keepass_backup` sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
   `TF_VAR_state_encryption_passphrase` du SOPS racine, sans repli en clair).
   Celui de `pangolin_config` reste en clair parce qu'Ansible le lit : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
@@ -504,11 +506,14 @@ flowchart LR
   l'API du hub (`127.0.0.1:8090`, connecté au compte administrateur avec
   `beszel_admin_password`, qui doit donc rester son mot de passe). Elles font
   autorité : une alerte ajoutée dans l'interface est supprimée au déploiement
-  suivant. Envoi par Telegram (URL shoutrrr bâtie des clés sops
-  `beszel_telegram_bot_token` et `beszel_telegram_chat_id`) et par e-mail
-  (SMTP Infomaniak réglé dans l'interface du hub). Test :
+  suivant. Envoi par e-mail (SMTP Infomaniak réglé dans l'interface du hub),
+  et par Telegram dès que les clés sops `beszel_telegram_bot_token` et
+  `beszel_telegram_chat_id` existent (URL shoutrrr) : elles ne sont pas
+  créées aujourd'hui, Beszel n'alerte donc que par e-mail. Test du canal
+  Telegram, une fois les clés posées :
   `ansible-playbook docker.yml --tags beszel_alerts_test` (le bouton « Test »
-  des réglages, `POST /api/beszel/test-notification`). Si la VM docker tombe,
+  des réglages, `POST /api/beszel/test-notification` ; il refuse de tourner
+  sans canal Telegram). Si la VM docker tombe,
   Beszel se tait : Uptime Kuma (hors VM) le voit par le moniteur
   `Healthcheck Beszel`.
 - **Limites connues** : sur le Pi, la mémoire par conteneur reste vide tant

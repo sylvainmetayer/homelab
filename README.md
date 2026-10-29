@@ -2,7 +2,7 @@
 
 This repository holds the code for my self-hosted setup. OpenTofu creates the machines and the Pangolin configuration, Ansible configures the hosts and deploys each app with Docker Compose, SOPS with Age keeps the secrets, and Borgmatic backs everything up to a Hetzner Storage Box.
 
-Every public app goes through Pangolin, a reverse proxy and tunnel server on a Hetzner VM. Each host runs a Newt client that keeps a tunnel open to Pangolin, so nothing at home and nothing on `flip` needs an inbound port. The apps run on three hosts: a Docker VM on Proxmox at home, a Raspberry Pi for Immich, and `flip`, a Hetzner VM with no public IP that reaches the Internet through Pangolin.
+Every public app goes through Pangolin, a reverse proxy and tunnel server on a Hetzner VM. Each host runs a Newt client that keeps a tunnel open to Pangolin, so nothing at home and nothing on `flip` needs an inbound port. The apps run on four hosts: a Docker VM on Proxmox at home, a Raspberry Pi for Immich, the Ugreen NAS for Jellyfin (private, reached at home or through the Pangolin client), and `flip`, a Hetzner VM with no public IP that reaches the Internet through Pangolin.
 
 ```mermaid
 flowchart LR
@@ -19,6 +19,7 @@ flowchart LR
   subgraph home[Home network]
     docker[Docker VM on Proxmox]
     pi[Raspberry Pi]
+    nas[Ugreen NAS]
   end
 
   code -- OpenTofu, Ansible --> hetzner
@@ -27,11 +28,13 @@ flowchart LR
   pangolin <-. Newt tunnel .-> flip
   pangolin <-. Newt tunnel .-> docker
   pangolin <-. Newt tunnel .-> pi
+  pangolin <-. Newt tunnel .-> nas
 
   pangolin -. borg .-> box
   flip -. borg .-> box
   docker -. borg .-> box
   pi -. borg .-> box
+  nas -. borg .-> box
 ```
 
 ## Quick start

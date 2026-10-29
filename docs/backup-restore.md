@@ -4,6 +4,8 @@
 
 The `borgmatic` role installs Borg and Borgmatic for root, and a `borgmatic.timer` that runs every night at 01:00. Each app role adds its own config, `/etc/borgmatic.d/<app>.yaml`, rendered from the shared template `ansible/roles/borgmatic/templates/app.yaml.j2`. Each app gets its own Borg repository on the Hetzner Storage Box, through the Storage Box subaccount of its host: `ssh://<subaccount>@<server>/./<app>` (port 23, key `/root/.ssh/borgmatic_storage_box_ed25519`, generated on the host), i.e. `backup/<host>/<app>` seen from the main account. A subaccount only sees its own host's folder, and the Storage Box keeps 9 daily snapshots that no subaccount can delete.
 
+The NAS (Jellyfin) is the exception: nothing is installed under UGOS, borgmatic runs in its official container at 02:30, with its configs, key and wrapper under `/volume1/docker/borgmatic` ([runbooks/sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md) gives the paths to use instead of the ones below).
+
 An archive holds:
 
 - the app's files, usually its `compose.yaml` and data folders under `/opt/apps/<app>`;

@@ -2,142 +2,76 @@
 
 ## Overview
 
-The Hetzner Storage Box 1TB is used as a remote backup destination for all Borg/Borgmatic backups, replacing the S3 bucket for better direct storage management.
+One Hetzner Storage Box (BX11, 1 TB, `fsn1`) holds every Borg repository of
+the homelab. It is declared in this module, not ordered by hand:
+`storage_box.tf` (`hcloud_storage_box.backups`, `delete_protection` plus
+`prevent_destroy`, 9 daily snapshots at 03:00 UTC that no subaccount can
+delete) and `storage_box_subaccounts.tf` (one subaccount per backed-up host).
 
-**Hostname**: `u<ID>.your-storagebox.de` (example: `u123456.your-storagebox.de`)
-**Username**: `u<ID>` (example: `u123456`)
-**Protocol**: SSH/SFTP
-**Port**: 22
+Borg talks SSH on **port 23** (`ssh_command: ssh -i … -p 23` in the shared
+borgmatic template); port 22 of a Storage Box is SFTP only.
 
-## Setup Steps
+## Accounts
 
-### 1. Create Storage Box via Hetzner Robot
+- **Main account**: the personal keys only (`keys/perso.pub`, `pro.pub`,
+  `android.pub`), set at creation. The API cannot edit that list
+  (`ignore_changes = [ssh_keys]`): the real list is the main account's
+  `.ssh/authorized_keys`, edited by hand (`scp -P 23`).
+- **One subaccount per host** (`backup-<host>`, home `backup/<host>`, for
+  `local.backup_hosts`: docker, pi, pangolin, flip, nas). Root on one host can
+  neither read nor delete another host's repositories. Copy the
+  `storage_box_subaccounts` output into the SOPS key
+  `backup_storage_box_subaccounts` (`ansible/secrets.sops.yaml`). The borgmatic
+  role generates root's key on each host (`/root/.ssh/borgmatic_storage_box_ed25519`;
+  on the NAS under `/volume1/docker/borgmatic/ssh/`), then `ansible/backup.yaml`
+  creates `backup/<host>/.ssh` and uploads that key as the subaccount's
+  `authorized_keys`.
+- **`restore-test`**, read-only, home `backup/`: the GitHub Actions restore
+  test and quarterly `borg check` (`.github/restore-test/README.md`). Its key
+  is the `storage_box_restore_test_ssh_public_key` output, uploaded into
+  `backup/.ssh/authorized_keys` by `ansible/backup.yaml`.
 
-1. Log in to [Hetzner Robot](https://robot.hetzner.com/)
-2. Navigate to **Products** → **Storage Boxes**
-3. Click **Order a Storage Box**
-4. Select **Storage Box 1 TB**
-5. Choose the location (recommend: same as Pangolin server for latency)
-6. Complete the order
+Adding a host: add it to `local.backup_hosts` here, to
+`backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`) and to
+the SOPS key, set `backup_storage_box_subaccount` in its `host_vars`, run its
+playbook with `--tags setup` (key generated, no app yet), then `backup.yaml`,
+then the full playbook.
 
-### 2. Initial Configuration
+## Repositories
 
-After creation, you'll receive:
-- Hostname: `u<ID>.your-storagebox.de`
-- SSH Username: `u<ID>`
-- Password: (auto-generated, available in Robot dashboard)
+Nothing to create per app: borgmatic's `repo-create` (run by
+`ansible/roles/borgmatic/tasks/app.yml` at deploy time) creates each
+repository (`repokey-blake2`, passphrase `backup_passphrase`) in the host's
+folder. Seen from the main account (each subaccount sees its own folder as
+`/`):
 
-### 3. Generate SSH Key Pair (on Pangolin server)
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/storagebox -C "homelab-backups"
-```
-
-### 4. Add SSH Public Key to Storage Box
-
-```bash
-scp ~/.ssh/storagebox.pub u<ID>@u<ID>.your-storagebox.de:.ssh/authorized_keys
-```
-
-Or manually via Hetzner Robot:
-1. Go to **Subaccounts** → **+New**
-2. Create SSH key entry with public key content
-
-### 5. Create Backup Directories
-
-```bash
-ssh -i ~/.ssh/storagebox u<ID>@u<ID>.your-storagebox.de << 'EOF'
-mkdir -p backup/{betisier,monica_v4,wiki,nextcloud,rss,immich,pangolin}
-chmod 700 backup
-EOF
-```
-
-### 6. Update Tofu Configuration
-
-Edit `terraform.tfvars`:
-```hcl
-storage_box_enabled  = true
-storage_box_hostname = "u123456.your-storagebox.de"  # Replace with actual ID
-storage_box_username = "u123456"                     # Replace with actual ID
-```
-
-### 7. Per-host subaccounts and keys
-
-Hosts never use the main account. `storage_box_subaccounts.tf` creates one
-subaccount per backed-up host, whose home is `backup/<host>`; copy the
-`storage_box_subaccounts` output into the SOPS key
-`backup_storage_box_subaccounts` (`ansible/secrets.sops.yaml`). The borgmatic
-role generates root's key on each host (`/root/.ssh/borgmatic_storage_box_ed25519`),
-then `ansible/backup.yaml` creates `backup/<host>/.ssh` and uploads that key as
-the subaccount's `authorized_keys`. The main account keeps the personal keys
-only (perso, pro, android), in its own `.ssh/authorized_keys`.
-
-Migration from the former shared key: removing it from `ssh_keys` in
-`storage_box.tf` revokes nothing (`ignore_changes`, the API does not edit the
-list). Remove its line by hand from the main account's `.ssh/authorized_keys`
-(download it with `scp -P 23`, delete the `tls_private_key.storage_box` key,
-upload it back), otherwise the old private key, still in the SOPS history and
-the former clear-text `tofu/pangolin` state, keeps full access to every
-repository.
-
-## Borg Repository Initialization
-
-Borgmatic will automatically initialize repositories on first run. However, you can pre-initialize manually:
-
-```bash
-ssh -i ~/.ssh/storagebox root@<docker-host> << 'EOF'
-export BORG_REPO="ssh://u<ID>@u<ID>.your-storagebox.de:22/backup/betisier"
-export BORG_PASSPHRASE="<encryption_passphrase>"
-/root/.local/bin/borg repo create --encryption=repokey-blake2
-EOF
-```
-
-## Bandwidth & Quotas
-
-- **Monthly bandwidth**: Included in subscription
-- **Disk quota**: 1 TB
-- **INodes**: ~27 million
-
-Monitor usage:
-```bash
-ssh -i ~/.ssh/storagebox u<ID>@u<ID>.your-storagebox.de quota
-```
-
-## Backup Paths
-
-Seen from the main account (each subaccount sees its own folder as `/`):
 ```
 backup/
 ├── docker/      wiki/, nextcloud/, rss/, paperless/, trek/, karakeep/, …
 ├── pi/          immich/
 ├── pangolin/    pangolin/
-└── flip/        flip_planning/, demo_planning/
+├── flip/        flip_planning/, demo_planning/
+└── nas/         jellyfin/
 ```
+
+## Quota
+
+The weekly `storage-box-quota.yaml` workflow reads the usage (data and
+snapshots) through the Hetzner API and pushes down to the `Storage Box`
+Uptime Kuma monitor at 80 % or more (`docs/conventions/ci.md`).
 
 ## Verification
 
-Test SSH connectivity from Docker host:
+From a backed-up host, as root:
+
 ```bash
-ssh -i ~/.ssh/storagebox -p 22 u<ID>@u<ID>.your-storagebox.de ls -la backup/
+sudo ssh backup_storage_box ls                                   # the subaccount answers
+sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/rss.yaml list
 ```
 
-Test Borg connectivity:
-```bash
-export BORG_REPO="ssh://u<ID>@u<ID>.your-storagebox.de:22/backup/betisier"
-/root/.local/bin/borg list
-```
-
-## Decommissioning
-
-To remove backups from Storage Box:
-```bash
-ssh -i ~/.ssh/storagebox u<ID>@u<ID>.your-storagebox.de rm -rf backup/
-```
-
-To cancel the Storage Box, use the Hetzner Robot interface.
+Failures and restores: `docs/runbooks/sauvegarde-et-restauration.md`.
 
 ## References
 
-- [Hetzner Storage Box Documentation](https://docs.hetzner.cloud/robot/storage-box/)
-- [Borg SSH Configuration](https://borgbackup.readthedocs.io/en/stable/usage/serve.html)
-- [Borgmatic Remote Repository Guide](https://torsion.org/borgmatic/docs/reference/configuration/#archive-upload)
+- [Hetzner Storage Box documentation](https://docs.hetzner.com/storage/storage-box/)
+- [Borg SSH configuration](https://borgbackup.readthedocs.io/en/stable/usage/serve.html)
