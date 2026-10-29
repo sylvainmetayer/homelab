@@ -4,7 +4,7 @@ Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code
 
 | Ressource | Rôle |
 |---|---|
-| `github_repository.r` | Dépôt `1y`, **importé** (bloc `import` de `github.tf`) : description, sujets, options de fusion, scan de secrets |
+| `github_repository.r` | Dépôt `1y`, **importé** une fois (bloc `import` retiré depuis, `tofu test` le refuse ; état perdu : `tofu import github_repository.r 1y`, voir « Utilisation ») : description, sujets, options de fusion, scan de secrets |
 | `github_repository_vulnerability_alerts.r` / `github_repository_dependabot_security_updates.r` | Alertes Dependabot oui, PR Dependabot non : Renovate (`renovate.json` du dépôt) gère les montées |
 | `github_workflow_repository_permissions.r` | `GITHUB_TOKEN` en lecture seule par défaut |
 | `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
@@ -34,6 +34,12 @@ export GITHUB_TOKEN=<PAT classique, scope repo>
 export GITHUB_TOKEN="$(gh auth token)"
 mise exec -- tofu -chdir=tofu/1y init
 mise exec -- tofu -chdir=tofu/1y plan
+```
+
+Le dépôt existait avant le module : si l'état est perdu, le réimporter avant tout `apply` (sinon Tofu tente de le créer et GitHub refuse un nom déjà pris) :
+
+```bash
+mise exec -- tofu -chdir=tofu/1y import github_repository.r 1y
 ```
 
 ## Migration depuis Netlify
