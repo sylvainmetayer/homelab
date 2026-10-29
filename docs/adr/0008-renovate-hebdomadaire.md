@@ -17,7 +17,7 @@ parfois sans retour arrière.
   majeure attend une case cochée sur le Dependency Dashboard ; MariaDB reste
   sur la LTS 12.3, Redis `-bookworm` plafonné à 8.2.
 - **Automerge ciblé**, CI verte : **liste blanche** d'images sans état
-  (gotenberg, tika, stirling-pdf, homepage, nginx, karakeep-chrome, rclone,
+  (gotenberg, tika, stirling-pdf, homepage, karakeep-chrome, rclone,
   debian de l'image Molecule ; hors `flip_planning`), correctifs
   des GitHub Actions, nos images (planning-equipes hors majeures, promptoramix) ; jamais si `path_bypass_images.json` change.
 - **Apps en pause** : aucune PR (`enabled: false` sur les fichiers du rôle,
