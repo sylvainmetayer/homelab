@@ -1,7 +1,7 @@
 # 0008. Renovate : PR hebdomadaires groupées, images à état manuelles, automerge ciblé
 
 - **Statut** : acceptée
-- **Date** : 2026-10-06 (majeures à état), 2026-10-27 (groupe hebdo), 2026-10-28 (automerge)
+- **Date** : 2026-10-06 (majeures à état), 2026-10-27 (groupe hebdo), 2026-10-28 (automerge), 2026-10-29 (liste élargie, apps en pause)
 
 ## Contexte
 
@@ -17,8 +17,11 @@ parfois sans retour arrière.
   majeure attend une case cochée sur le Dependency Dashboard ; MariaDB reste
   sur la LTS 12.3, Redis `-bookworm` plafonné à 8.2.
 - **Automerge ciblé**, CI verte : **liste blanche** d'images sans état
-  (gotenberg, tika, stirling-pdf, homepage, nginx ; hors `flip_planning`), correctifs
+  (gotenberg, tika, stirling-pdf, homepage, nginx, karakeep-chrome, rclone,
+  debian de l'image Molecule ; hors `flip_planning`), correctifs
   des GitHub Actions, nos images (planning-equipes hors majeures, promptoramix) ; jamais si `path_bypass_images.json` change.
+- **Apps en pause** : aucune PR (`enabled: false` sur les fichiers du rôle,
+  Paperless-ngx aujourd'hui), la règle part à la reprise.
 
 ## Alternatives écartées
 

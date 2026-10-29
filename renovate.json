@@ -30,7 +30,7 @@
       ]
     },
     {
-      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml). Molecule never pulls an image, so the checks do not prove it starts: a missing image fails the deploy run, one that starts then crashes leaves it green (dc@ is active once docker compose up runs) and only its Uptime Kuma monitor goes DOWN; roll back with a revert that also drops the image from this list, or Renovate re-merges the same digest the next Monday. A listed image restarts its whole compose project (dc@ restart), databases included: hence matchFileNames leaves out flip_planning, whose nginx assets sidecar and mailpit would restart the three Flip Planning instances, production and its Postgres included, nearly every week (they stay in the manual weekly PR); nginx_demo's restart takes its demo Postgres along, accepted. rebaseWhen conflicted: the ruleset does not require an up-to-date branch, so rebasing on every push to main would only rerun the checks and cancel the running ones. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its PR waits for the relecture-chemins-publics review, which the ruleset does not require: auto-merge would skip it), Traefik and the socket proxy (edge and security sidecars, grouped with Pangolin or newt). nginx: the static nginx_demo",
+      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml). Molecule never pulls an image, so the checks do not prove it starts: a missing image fails the deploy run, one that starts then crashes leaves it green (dc@ is active once docker compose up runs) and only its Uptime Kuma monitor goes DOWN; roll back with a revert that also drops the image from this list, or Renovate re-merges the same digest the next Monday. A listed image restarts its whole compose project (dc@ restart), databases included: hence matchFileNames leaves out flip_planning, whose nginx assets sidecar and mailpit would restart the three Flip Planning instances, production and its Postgres included, nearly every week (they stay in the manual weekly PR); nginx_demo's restart takes its demo Postgres along, accepted. rebaseWhen conflicted: the ruleset does not require an up-to-date branch, so rebasing on every push to main would only rerun the checks and cancel the running ones. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its PR waits for the relecture-chemins-publics review, which the ruleset does not require: auto-merge would skip it), Traefik, the socket proxy and vmauth (edge and security sidecars), an image whose updates a later groupName rule takes (immich-role-dependencies, pangolin-role-dependencies, beszel, vector, blocky, borgmatic: that group would never automerge anyway), an app with a database of its own even when it is reset (betisier), and a frontend released in lockstep with a reviewed backend (meerkat-crm-frontend, whose backend is in path_bypass_images.json: automerging it alone would skew the two). nginx: the static nginx_demo. gotenberg and tika: Paperless-ngx's converters, inert while Paperless is paused (a later rule disables its role). karakeep-chrome: Karakeep's headless Chromium, a crawler without volume (Karakeep itself, its Meilisearch and the karakeep image of path_bypass_images.json stay manual). rclone: kdrive_sync's one-shot `docker compose run --rm`, no state but its obscured config rewritten on every run, on the NAS whose playbook is run by hand (the merge deploys nothing there). debian: the base of the Molecule image (ansible/molecule/_shared/Dockerfile), never deployed, and the PR's Tests build it and run every scenario on it",
       "matchDatasources": [
         "docker"
       ],
@@ -39,7 +39,10 @@
         "docker.io/apache/tika",
         "docker.io/stirlingtools/stirling-pdf",
         "ghcr.io/gethomepage/homepage",
-        "nginx"
+        "nginx",
+        "ghcr.io/karakeep-app/karakeep-chrome",
+        "docker.io/rclone/rclone",
+        "debian"
       ],
       "matchFileNames": [
         "!ansible/roles/flip_planning/**"
@@ -347,6 +350,13 @@
         "actions/python-versions"
       ],
       "allowedVersions": "<3.15"
+    },
+    {
+      "description": "Paused apps (docs/runbooks/app-en-pause.md): no PR for an app that does not run. Paperless-ngx (paperless_enabled: false in host_vars/docker): every image of its role, gotenberg and tika included (they run nowhere else). Resuming the app removes this rule in the same PR, and Renovate then proposes the versions published meanwhile. The Keycloak bench of flip_planning (demo_planning_kc, paused too) needs no rule: its two images are written in ansible/flip.yml on the mobile pr-72 tag, which no manager reads, and the compose template it shares with production and the demo must stay tracked",
+      "matchFileNames": [
+        "ansible/roles/paperless_ngx/**"
+      ],
+      "enabled": false
     },
     {
       "description": "Guard, kept last: an update of path_bypass_images.json never automerges. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the relecture-chemins-publics review",
