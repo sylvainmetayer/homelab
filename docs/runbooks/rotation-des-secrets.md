@@ -26,7 +26,7 @@ playbooks) a son entrée dans [`secrets-rotation.yaml`](../../secrets-rotation.y
   lance le même script avec `--due` : un secret dont l'échéance tombe dans
   les 30 jours, ou est dépassée, fait échouer le run et pousse « down » au
   moniteur Uptime Kuma « Rotation des secrets » (dossier Self-hosted,
-  8 jours, notifié par e-mail), avec les noms des clés. Le détail
+  8 jours, notifié sur Telegram et ntfy), avec les noms des clés. Le détail
   (échéance, procédure) est dans le résumé du run. Sans push pendant
   8 jours (workflow désactivé, URL révoquée), le moniteur passe « down »
   aussi.
@@ -268,14 +268,13 @@ changer le mot de passe du compte dans Uptime Kuma (Settings → Security),
 
 ### Compte SMTP Infomaniak
 
-`smtp_pass` (fichier racine : notification e-mail d'Uptime Kuma par
-`tofu/pangolin_config`) et `pangolin_smtp_pass` (fichier Ansible : msmtp du
-rôle `security`, Pangolin et les applis qui envoient des mails) : nouveau
-mot de passe du compte dans Infomaniak, `sops set` des deux s'il s'agit du
-même compte, `tofu apply` de `pangolin_config`, puis les playbooks des hôtes
-(`--tags security`, et les rôles qui écrivent ces identifiants). Vérifier
-par un envoi de test (`--tags beszel_alerts_test`, une notification de test
-d'Uptime Kuma).
+`pangolin_smtp_pass` (fichier Ansible : msmtp du rôle `security`, Pangolin
+et les applis qui envoient des mails) : nouveau mot de passe du compte dans
+Infomaniak, `sops set`, puis les playbooks des hôtes (`--tags security`, et
+les rôles qui écrivent ces identifiants). Vérifier par un envoi de test
+(`--tags beszel_alerts_test`). Uptime Kuma n'envoie plus de mail (Telegram et
+ntfy depuis le 2026-10-29) : `smtp_pass` du fichier racine n'a plus de
+lecteur.
 
 ### Code PIN Immich
 

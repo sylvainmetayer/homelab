@@ -2,7 +2,7 @@
 
 ## Symptôme
 
-- Le moniteur « Healthcheck <Appli> » d'Uptime Kuma passe DOWN (mail).
+- Le moniteur « Healthcheck <Appli> » d'Uptime Kuma passe DOWN (Telegram et ntfy).
 - Le navigateur affiche la page de maintenance de Pangolin, ou une erreur
   503 « no available server ».
 - Les autres applis répondent (sinon : [pangolin-injoignable.md](pangolin-injoignable.md)).

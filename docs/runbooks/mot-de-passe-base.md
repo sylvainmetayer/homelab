@@ -23,7 +23,7 @@ vérifié (`scram-sha-256` pour Postgres), et non par la socket locale, où
 l'image officielle de Postgres fait confiance à tout le monde (`trust`). Un
 dump en échec fait échouer la configuration de l'appli : borgmatic pousse
 `fail` vers le moniteur `Backup <app>` (états `start`, `finish`, `fail` de
-`app.yaml.j2`), qui passe rouge et alerte par e-mail aussitôt.
+`app.yaml.j2`), qui passe rouge et alerte aussitôt (Telegram et ntfy).
 
 D'où l'ordre : **d'abord la base (`ALTER`), ensuite SOPS et le
 redéploiement**, coup sur coup. Entre les deux, les connexions déjà ouvertes

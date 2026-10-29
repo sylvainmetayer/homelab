@@ -19,7 +19,7 @@ resource "uptimekuma_monitor_push" "restore_test" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 # Lu par tofu/github (secret RESTORE_TEST_PUSH_URL de l'environnement

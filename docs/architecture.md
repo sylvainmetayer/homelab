@@ -174,8 +174,8 @@ basculent sur l'autre.
 - **Supervision** : Uptime Kuma (PikaPods) ne joint pas le LAN ; chaque hôte
   vérifie son Blocky toutes les 5 minutes (`blocky-check.timer` : un nom qui
   résout, un nom bloqué) et pousse aux moniteurs « DNS Raspberry Pi » et
-  « DNS LXC newt » (`tofu/pangolin_config/cron_dns.tf`), alertes par e-mail
-  et ntfy.
+  « DNS LXC newt » (`tofu/pangolin_config/cron_dns.tf`), alertes sur
+  Telegram et ntfy.
 - **Dehors** : le client Pangolin d'un téléphone peut envoyer son DNS dans le
   tunnel vers 192.168.1.200 (ressource privée `dns`), réglage à faire dans
   l'appli ([runbook](runbooks/dns-blocky.md)).
@@ -308,6 +308,11 @@ S.M.A.R.T. là où il y a des disques physiques. Un hub (rôle `beszel`, VM
 docker, `monitoring.sylvain.cloud` derrière le SSO puis le compte Beszel) et
 un agent par hôte (rôle `beszel_agent`). Les agents ouvrent eux-mêmes une
 WebSocket vers le hub : aucun n'écoute de port.
+
+Chaque moniteur Uptime Kuma de `tofu/pangolin_config` alerte sur Telegram et
+ntfy (`local.alert_notification_ids`, `notifications.tf`) : Telegram ne passe
+pas par Pangolin, ntfy si. Les moniteurs de connexion SSH n'alertent que sur
+Telegram. Plus de mail depuis le 2026-10-29.
 
 Homepage (`home.sylvain.cloud`) en montre le résumé, groupe Administration :
 sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; une carte

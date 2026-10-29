@@ -96,7 +96,7 @@ the new app to:
 - the healthcheck name map of `maintenance_page_and_inverted_keyword_monitors`
   (unless `healthcheck = false`);
 - with `backup = true`, the backup name map of
-  `monitors_are_filed_and_notify_by_email`, an `override_resource` giving
+  `monitors_are_filed_and_alert`, an `override_resource` giving
   `uptimekuma_monitor_push.backup["<service>"]` its own `push_token`, and the
   `uptime_backup_<service>_url` assertions of
   `outputs_read_by_ansible_point_at_their_own_push_monitor`;

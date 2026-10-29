@@ -18,7 +18,7 @@ resource "uptimekuma_monitor_push" "cron_nas_cert" {
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
-  notification_ids = [uptimekuma_notification_smtp.email.id]
+  notification_ids = local.alert_notification_ids
 }
 
 output "uptime_cron_nas_cert_url" {

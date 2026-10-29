@@ -8,36 +8,24 @@
 #
 # Uptime Kuma sends on both edges by default - once when a monitor goes DOWN,
 # once when it comes back UP - so no extra configuration is needed for recovery
-# mail.
+# alerts.
+#
+# Every monitor of this module alerts on Telegram and ntfy (website_ntfy.tf)
+# through this local. E-mail was the channel until 2026-10-29 and is gone:
+# ntfy rides on Pangolin (ntfy.sylvain.cloud), Telegram does not, so an outage
+# of Pangolin itself still reaches the phone. Only the SSH login monitors
+# (ssh_login_monitors.tf) keep Telegram alone.
 # ---------------------------------------------------------------------------
-resource "uptimekuma_notification_smtp" "email" {
-  name = "Email"
-
-  host     = "mail.infomaniak.com"
-  port     = 465
-  secure   = true # implicit TLS on 465, same as Pangolin's own SMTP config
-  username = local.smtp_user
-  password = local.smtp_pass
-
-  from = local.smtp_user
-  to   = local.alert_email
-
-  # `is_active`, `is_default`, `html_body`, `ignore_tls_error` and
-  # `apply_existing` are all optional+computed. Leaving them out means
-  # "whatever the API decides", which is exactly how the health-check probes
-  # ended up silently unconfigured - so they are pinned here on purpose.
-  is_active  = true
-  is_default = true # a monitor added by hand in the UI gets it too
-
-  html_body        = true
-  ignore_tls_error = false
-
-  # Monitors are wired explicitly below, so this must not also bulk-attach.
-  apply_existing = false
+locals {
+  alert_notification_ids = [
+    uptimekuma_notification_telegram.supervision.id,
+    uptimekuma_notification_ntfy.ntfy.id,
+  ]
 }
 
-# Telegram: the only alert of FolderSync (external_monitors.tf) and of the SSH
-# login monitors (ssh_login_monitors.tf), which must arrive at once.
+# Telegram: one of the two alerts of every monitor (alert_notification_ids
+# above), and the only one of the SSH login monitors (ssh_login_monitors.tf),
+# which must arrive at once.
 #
 # It replaces notification 1, "Supervision Telegram", made by hand, which
 # cannot be imported: the UI stored its chat id as a JSON number and provider
@@ -55,9 +43,12 @@ resource "uptimekuma_notification_telegram" "supervision" {
   bot_token = local.telegram_bot_token
   chat_id   = local.telegram_chat_id
 
-  # All optional+computed, pinned (see the SMTP notification above).
+  # `is_active`, `is_default` and `apply_existing` are optional+computed.
+  # Leaving them out means "whatever the API decides", which is exactly how
+  # the health-check probes ended up silently unconfigured - so every one is
+  # pinned here on purpose.
   is_active      = true
-  is_default     = false # e-mail stays the default; Telegram is opt-in
+  is_default     = false # monitors are wired explicitly, none by default
   apply_existing = false
 
   server_url          = "https://api.telegram.org"

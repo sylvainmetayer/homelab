@@ -30,7 +30,7 @@ revient, sans filtrage. Un seul poste : lui donner `192.168.1.254` comme DNS
 - Un site ou une appli ne charge plus, ou une partie seulement (connexion à
   la banque, lien d'un e-mail, paiement) : un domaine bloqué à tort.
 - Moniteur Uptime Kuma « DNS Raspberry Pi » ou « DNS LXC newt » rouge
-  (e-mail et ntfy) : la vérification locale de l'hôte (`blocky-check.timer`,
+  (Telegram et ntfy) : la vérification locale de l'hôte (`blocky-check.timer`,
   toutes les 5 minutes) a échoué, ou ne pousse plus.
 
 ## Diagnostic

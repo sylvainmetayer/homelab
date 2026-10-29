@@ -30,7 +30,7 @@
 # Pangolin's automatic maintenance page is a Next.js server component proxied
 # by a Traefik router at priority 2000, so a service that is completely down
 # answers 200 with that page instead of failing. A plain status-code monitor
-# reads that as UP and never sends the downtime mail - the exact alerting the
+# reads that as UP and never sends the downtime alert - the exact alerting the
 # maintenance page was added on top of.
 #
 # So every resource healthcheck is an uptimekuma_monitor_http_keyword with
