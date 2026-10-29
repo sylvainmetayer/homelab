@@ -6,7 +6,8 @@
 # script d'attente, les dossiers des applis et leurs propriétaires (root non
 # squashé, comme la règle NFS) se comportent alors comme sur l'hôte. Le tmpfs
 # est fermé à "others", comme peut l'être la racine du partage créée par UGOS.
-# Réutilisé par le scénario nginx_demo.
+# Réutilisable par le scénario d'une appli qui dépend de nas_storage
+# (roles/nas_storage/README.md).
 - name: Shared prepare
   ansible.builtin.import_playbook: ../_shared/prepare.yml
 

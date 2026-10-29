@@ -28,7 +28,6 @@
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
-        nginx_demo_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_nginx_demo_url.value | default('') }}"
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
 
     # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token du
@@ -114,8 +113,6 @@
       tags: speedtest_tracker,app
     - role: ntfy
       tags: ntfy,app
-    - role: nginx_demo
-      tags: nginx_demo,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).

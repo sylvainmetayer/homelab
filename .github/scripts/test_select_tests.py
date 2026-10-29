@@ -100,7 +100,7 @@ class Roles(unittest.TestCase):
 
     def test_borgmatic_reaches_every_app_including_it(self):
         scenarios = selected(["ansible/roles/borgmatic/templates/app.yaml.j2"])[0]
-        for app in ("borgmatic", "karakeep", "flip_planning", "pangolin", "nginx_demo"):
+        for app in ("borgmatic", "karakeep", "flip_planning", "pangolin"):
             self.assertIn(app, scenarios)
         self.assertNotIn("security", scenarios)
 
@@ -115,8 +115,13 @@ class Scenarios(unittest.TestCase):
         self.assertNotIn("karakeep", scenarios)
 
     def test_shared_prepare_named_in_molecule_yml(self):
-        # nginx_demo's molecule.yml takes nas_storage's prepare.
-        self.assertEqual(selected(["ansible/molecule/nas_storage/prepare.yml"])[0], ["nas_storage", "nginx_demo"])
+        tmp, tree = fake_tree({
+            "ansible/molecule/base/molecule.yml": "",
+            "ansible/molecule/base/prepare.yml": "",
+            "ansible/molecule/app/molecule.yml": "ansible:\n  playbooks:\n    prepare: ../base/prepare.yml\n",
+        })
+        with tmp:
+            self.assertEqual(selected(["ansible/molecule/base/prepare.yml"], tree)[0], ["app", "base"])
 
     def test_deleted_file_still_read_selects_its_reader(self):
         tmp, tree = fake_tree(scenario("a", "- hosts: all\n  tasks:\n    - ansible.builtin.include_tasks: ../../tasks/gone.yml\n"))
@@ -244,7 +249,6 @@ class History(unittest.TestCase):
         # #873 meilisearch 1.56.0, #866 postgres 18.6, #865 promptoramix digest.
         self.assertEqual(selected(["ansible/roles/karakeep/templates/compose.yaml"]),
                          (["karakeep"], ["tofu/pangolin_config"]))
-        self.assertEqual(selected(["ansible/roles/nginx_demo/templates/compose.yaml"]), (["nginx_demo"], []))
         self.assertEqual(selected(["ansible/roles/promptoramix/templates/compose.yaml"]),
                          (["promptoramix"], ["tofu/github"]))
 

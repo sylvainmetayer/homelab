@@ -151,7 +151,10 @@ Variables (`roles/nas_storage/defaults/main.yml`) : `nas_storage_server`,
 
 ### Une appli avec ses données sur le NAS
 
-Référence : `ansible/roles/nginx_demo`.
+Aucune appli ne s'en sert aujourd'hui : le pilote `nginx_demo` a été retiré
+le 2026-10-29. Ses extraits de référence sont dans
+`ansible/roles/nas_storage/README.md`, son dernier état dans l'historique
+git (`git show c945b564:ansible/roles/nginx_demo/tasks/main.yml`).
 
 1. `meta/main.yml` : `dependencies: [{role: nas_storage}]`. `--tags <service>`
    monte aussi le NAS, et le rôle ne s'exécute qu'une fois par play. La CI
@@ -285,7 +288,7 @@ il n'y a pas de lingering à gérer.
 - **Les droits demandés à la création sont ignorés** : tout fichier ou dossier
   créé par NFS sort en `0777`, même sous `umask 077` (ACL d'UGOS). Un
   `chmod`/`chown` explicite, lui, est respecté et persiste (`0750 101:101`,
-  `0640` vérifiés). Les modes du rôle `nginx_demo` (module `file`/`copy` avec
+  `0640` vérifiés). Les modes posés par un rôle (module `file`/`copy` avec
   `mode:`) tiennent donc, mais **tout ce qu'une appli crée elle-même** sur le
   NAS est lisible et modifiable par tous les clients NFS autorisés et par les
   comptes UGOS qui ont accès au dossier. L'entrypoint Postgres fait un
@@ -304,22 +307,12 @@ il n'y a pas de lingering à gérer.
   qu'après plusieurs minutes.
 
 
-## Déployer l'appli pilote
-
-```bash
-cd tofu/pangolin_config && tofu plan && tofu apply   # route + monitors nginx-demo
-cd ../../ansible
-ansible-playbook docker.yml --check --tags nginx_demo   # borg crée seul le dépôt (sous-compte de docker)
-ansible-playbook docker.yml --tags nginx_demo
-```
-
-Vérifier :
+## Vérifier une appli sur le NAS
 
 ```bash
 findmnt /mnt/nas/apps                                  # nfs, vers=3, hard
-docker exec nginx-demo-db psql -U nginx_demo -d nginx_demo_db -c 'select 1'
-sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/nginx_demo.yaml create --stats
-sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/nginx_demo.yaml list --archive latest | grep -E 'html|postgresql'
+sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/<service>.yaml create --stats
+sudo /root/.local/bin/borgmatic -c /etc/borgmatic.d/<service>.yaml list --archive latest
 ```
 
 ## Restaurer

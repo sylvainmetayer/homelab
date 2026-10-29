@@ -17,7 +17,6 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [Dawarich](https://dawarich.app/) | `dawarich` | Docker VM | Location history |
 | [TREK](https://github.com/liketrek/TREK) | `trek` | Docker VM | Trip planner |
 | [Karakeep](https://karakeep.app/) | `karakeep` | Docker VM | Bookmarks and read-later |
-| [nginx](https://nginx.org/) | `nginx_demo` | Docker VM | Pilot of app data on the NAS (NFS): static page plus an unused Postgres, both on the NAS export |
 | [Wishlist](https://github.com/cmintey/wishlist) | `wishlist` | Docker VM | Gift wishlists shared with family; a public list's link opens without SSO |
 | [KitchenOwl](https://kitchenowl.org/) | `kitchenowl` | Docker VM | Shopping list, recipes and meal planner on `frigo.sylvain.cloud`, one KitchenOwl account each (no sign-up, no onboarding: accounts made with `manage.py`). The web interface is behind the SSO; `/api/*` and `/socket.io/*` are open without SSO, from any country, for the mobile app, guarded by KitchenOwl's own login |
 | [Homebox](https://homebox.software/) | `homebox` | Docker VM | Home inventory (items, locations, receipts, warranties) on `homebox.sylvain.cloud`, behind the SSO with no path opened. Sign-up closed (`homebox_allow_registration: false`): the first account is made by reopening it for one run (`-e homebox_allow_registration=true`), the next ones by a group invitation |
