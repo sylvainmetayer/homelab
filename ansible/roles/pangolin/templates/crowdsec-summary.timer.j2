@@ -1,9 +1,8 @@
 # {{ ansible_managed }}
-# Chaque matin (heure de Paris, 00-setup.yaml), après les sauvegardes
-# (01:00), la mise à jour GeoLite2 du mercredi (02:30) et le redémarrage
-# automatique (04:00).
+# Chaque lundi matin (heure de Paris, 00-setup.yaml), après les sauvegardes
+# (01:00) et le redémarrage automatique (04:00).
 [Unit]
-Description=Daily CrowdSec summary to ntfy
+Description=Weekly CrowdSec summary to ntfy
 
 [Timer]
 OnCalendar={{ pangolin_crowdsec_summary_on_calendar }}

@@ -1,22 +1,26 @@
 #!/usr/bin/python3
-"""Faux cscli du scénario pangolin : `alerts list --since 24h --limit 0 -o json`.
+"""Faux cscli du scénario pangolin : `alerts list --since 168h --limit 0 -o json`
+et `decisions list --limit 0 -o json`.
 
-Rend, au format de cscli 1.8, 12 alertes crowdsecurity/http-probing (US,
+Alertes : au format de cscli 1.8, 12 alertes crowdsecurity/http-probing (US,
 bannies), une crowdsecurity/http-sensitive-files (FR, bannie) et deux
 correspondances AppSec homelab/appsec-alert-only (règle
-crowdsecurity/vpatch-CVE-2026-0001, une IP). FAKE_CSCLI_FAIL=1 : cscli en
+crowdsecurity/vpatch-CVE-2026-0001, une IP). Décisions : 3 bannissements
+actifs, portés par 2 alertes. FAKE_CSCLI_NO_APPSEC=1 : les alertes sans
+AppSec. FAKE_CSCLI_FAIL=1 : cscli en
 échec, comme un conteneur crowdsec arrêté. Tout autre appel échoue.
 """
 import json
 import os
 import sys
 
-EXPECTED = ["alerts", "list", "--since", "24h", "--limit", "0", "-o", "json"]
+ALERTS = ["alerts", "list", "--since", "168h", "--limit", "0", "-o", "json"]
+DECISIONS = ["decisions", "list", "--limit", "0", "-o", "json"]
 
 if os.environ.get("FAKE_CSCLI_FAIL") == "1":
     print("Error: No such container: crowdsec", file=sys.stderr)
     sys.exit(1)
-if sys.argv[1:] != EXPECTED:
+if sys.argv[1:] not in (ALERTS, DECISIONS):
     print(f"fake-cscli : appel inattendu {sys.argv[1:]}", file=sys.stderr)
     sys.exit(2)
 
@@ -35,10 +39,17 @@ def alert(scenario, ip, country, ban=True, rule=None):
     }
 
 
+if sys.argv[1:] == DECISIONS:
+    held = [alert("crowdsecurity/http-probing", "198.51.100.1", "US"), alert("crowdsecurity/http-probing", "198.51.100.2", "US")]
+    held[0]["decisions"].append(dict(held[0]["decisions"][0], type="captcha"))
+    print(json.dumps(held))
+    sys.exit(0)
+
 alerts = [alert("crowdsecurity/http-probing", f"198.51.100.{i}", "US") for i in range(12)]
 alerts.append(alert("crowdsecurity/http-sensitive-files", "192.0.2.7", "FR"))
-alerts += [
-    alert("homelab/appsec-alert-only", "203.0.113.9", "DE", ban=False, rule="crowdsecurity/vpatch-CVE-2026-0001")
-    for _ in range(2)
-]
+if os.environ.get("FAKE_CSCLI_NO_APPSEC") != "1":
+    alerts += [
+        alert("homelab/appsec-alert-only", "203.0.113.9", "DE", ban=False, rule="crowdsecurity/vpatch-CVE-2026-0001")
+        for _ in range(2)
+    ]
 print(json.dumps(alerts))

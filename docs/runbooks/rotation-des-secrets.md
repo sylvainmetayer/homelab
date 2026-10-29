@@ -239,7 +239,7 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
 - `ntfy_publisher_password_hash` : hash d'un mot de passe tiré et jeté (les
   producteurs n'entrent que par jeton) ; le refaire de même, sur incident
   seulement.
-- `ntfy_scripts_token` sert aussi au résumé CrowdSec quotidien de Pangolin
+- `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`.
 

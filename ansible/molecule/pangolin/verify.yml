@@ -176,7 +176,7 @@
           - (pangolin_geoip_files.results[2].content | b64decode | trim) == pangolin_maxmind_license_key
           - pangolin_geoip_license.stat.mode == '0600'
 
-    # --- résumé CrowdSec quotidien sur ntfy ---
+    # --- résumé CrowdSec hebdomadaire sur ntfy ---
 
     - name: Read the state of crowdsec-summary.timer
       become: true
@@ -192,6 +192,7 @@
       loop:
         - /etc/crowdsec-summary/env
         - /usr/local/bin/crowdsec-summary
+        - /var/lib/crowdsec-summary
 
     - name: Read the CrowdSec summary unit, timer and credentials
       become: true
@@ -211,7 +212,7 @@
         /etc/systemd/system/crowdsec-summary.timer
       changed_when: false
 
-    - name: Assert the summary runs each morning, its token in a private file only
+    - name: Assert the summary runs each Monday, stateless, its token in a private file only
       vars:
         summary_unit: "{{ pangolin_summary_files.results[0].content | b64decode }}"
         summary_timer: "{{ pangolin_summary_files.results[1].content | b64decode }}"
@@ -220,14 +221,16 @@
         that:
           - pangolin_summary_timer.status.ActiveState == 'active'
           - pangolin_summary_timer.status.UnitFileState == 'enabled'
-          - "'OnCalendar=*-*-* 07:30:00' in summary_timer"
+          - "'OnCalendar=Mon *-*-* 07:30:00' in summary_timer"
           - "'EnvironmentFile=/etc/crowdsec-summary/env' in summary_unit"
           - "'ExecStart=/usr/bin/python3 -I /usr/local/bin/crowdsec-summary' in summary_unit"
+          - "'StateDirectory' not in summary_unit"
           - ntfy_scripts_token not in summary_unit
           - summary_env | sort == ['NTFY_TOKEN=' ~ ntfy_scripts_token, 'NTFY_TOPIC=scripts', 'NTFY_URL=https://ntfy.sylvain.cloud/']
           - pangolin_summary_stats.results[0].stat.mode == '0600'
           - pangolin_summary_stats.results[0].stat.pw_name == 'root'
           - pangolin_summary_stats.results[1].stat.mode == '0755'
+          - not pangolin_summary_stats.results[2].stat.exists
 
     - name: Create a scratch directory for the summary runs
       become: true
@@ -246,10 +249,9 @@
         - fake-cscli
         - fake-ntfy-run
 
-    # Sans historique : aucun pic ni règle nouvelle, priorité basse ; la
-    # publication réussie écrit l'historique.
+    # Correspondances AppSec : priorité haute.
     # Les assistants passent par python3 : rien ne s'exécute depuis /tmp.
-    - name: Publish a first summary to the fake ntfy
+    - name: Publish a summary to the fake ntfy
       become: true
       ansible.builtin.command:
         argv:
@@ -258,19 +260,12 @@
           - "{{ pangolin_summary_tmp.path }}/fake-ntfy-run"
           - /etc/crowdsec-summary/env
           - "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
-          - "{{ pangolin_summary_tmp.path }}/state.json"
-      register: pangolin_summary_first
+      register: pangolin_summary_run
       changed_when: false
 
-    - name: Stat the summary history
-      become: true
-      ansible.builtin.stat:
-        path: "{{ pangolin_summary_tmp.path }}/state.json"
-      register: pangolin_summary_state
-
-    - name: Assert the first summary is low priority, sent with the token
+    - name: Assert the summary is sent with the token, high priority on AppSec hits
       vars:
-        run: "{{ pangolin_summary_first.stdout | from_json }}"
+        run: "{{ pangolin_summary_run.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - run.rc == 0
@@ -278,31 +273,21 @@
           - run.authorization == 'Bearer ' ~ ntfy_scripts_token
           - run.body.topic == 'scripts'
           - run.stdout | trim == run.body.title
-          - run.body.priority == 2
-          - "run.body.title == 'CrowdSec 24 h : 13 alertes, 13 bannissements, AppSec 2'"
+          - run.body.priority == 4
+          - "run.body.title == 'CrowdSec 7 j : 13 alertes, 3 décisions actives, AppSec 2'"
           - "'crowdsecurity/http-probing 12' in run.body.message"
           - "'Pays : US 12, FR 1' in run.body.message"
-          - "'AppSec (détection seule) : 2 alertes, 1 IP' in run.body.message"
-          - pangolin_summary_state.stat.mode == '0600'
+          - "'Décisions actives : 3' in run.body.message"
         fail_msg: "rc {{ run.rc }}, corps reçu : {{ run.body | default('aucun') }}"
 
-    # Historique où http-probing est rare et la règle AppSec inconnue : pic et
-    # règle nouvelle, priorité haute.
-    - name: Seed a quiet history
-      become: true
-      ansible.builtin.copy:
-        dest: "{{ pangolin_summary_tmp.path }}/state.json"
-        content: '{"history": [{"crowdsecurity/http-probing": 2}], "rules": ["crowdsecurity/vpatch-old"]}'
-        mode: "0600"
-
-    - name: Dry-run the summary against the quiet history
+    - name: Dry-run the summary without AppSec hits
       become: true
       ansible.builtin.command: /usr/bin/python3 -I /usr/local/bin/crowdsec-summary --dry-run
       environment:
         CROWDSEC_SUMMARY_CSCLI: "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
-        CROWDSEC_SUMMARY_STATE: "{{ pangolin_summary_tmp.path }}/state.json"
         NTFY_TOPIC: scripts
-      register: pangolin_summary_spike
+        FAKE_CSCLI_NO_APPSEC: "1"
+      register: pangolin_summary_quiet
       changed_when: false
 
     - name: Dry-run the summary with cscli down
@@ -310,22 +295,20 @@
       ansible.builtin.command: /usr/bin/python3 -I /usr/local/bin/crowdsec-summary --dry-run
       environment:
         CROWDSEC_SUMMARY_CSCLI: "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
-        CROWDSEC_SUMMARY_STATE: "{{ pangolin_summary_tmp.path }}/state.json"
         NTFY_TOPIC: scripts
         FAKE_CSCLI_FAIL: "1"
       register: pangolin_summary_down
       changed_when: false
       failed_when: pangolin_summary_down.rc != 1
 
-    - name: Assert a spike or a new AppSec rule raises the priority, a dead cscli too
+    - name: Assert a quiet week is low priority, a dead cscli high
       vars:
-        spike: "{{ pangolin_summary_spike.stdout | from_json }}"
+        quiet: "{{ pangolin_summary_quiet.stdout | from_json }}"
         down: "{{ pangolin_summary_down.stdout | from_json }}"
       ansible.builtin.assert:
         that:
-          - spike.priority == 4
-          - "'crowdsecurity/http-probing 12 (pic, moyenne 2)' in spike.message"
-          - "'Règles nouvelles : crowdsecurity/vpatch-CVE-2026-0001' in spike.message"
+          - quiet.priority == 2
+          - "'AppSec' not in quiet.message"
           - down.priority == 4
           - "down.title == 'CrowdSec : résumé impossible'"
           - "'No such container' in down.message"
