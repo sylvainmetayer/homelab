@@ -63,7 +63,7 @@ variable "required_checks" {
 variable "bluesky_did" {
   description = "DID du compte Bluesky (did:plc:…) à rattacher au domaine, ou null"
   type        = string
-  default     = null
+  default     = "did:plc:pbspgulrbrcxalhy6ienvxlo"
 
   validation {
     condition     = var.bluesky_did == null || can(regex("^did:(plc|web):[a-zA-Z0-9._:%-]+$", var.bluesky_did))
