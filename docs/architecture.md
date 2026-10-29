@@ -228,8 +228,10 @@ flowchart LR
   lisible depuis `main` seulement (`tofu/github/environments.tf`).
 - La CI ne lance **jamais** `tofu apply` : l'infra et le routage Pangolin
   s'appliquent à la main.
-- Renovate : épingle les images par digest ; les montées majeures de bases
-  attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
+- Renovate : épingle les images par digest, ne propose une version tierce
+  que 3 jours après sa publication (`minimumReleaseAge`), ne rebase une PR
+  que si elle est en conflit ; toute montée majeure (hors nos images)
+  attend une case cochée sur le Dependency Dashboard, l'issue #5 (la MariaDB officielle
   de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
   `-bookworm` sur la 8.2). Les digests et les correctifs (hors
   `planning-equipes` et `promptoramix`) arrivent groupés le lundi avant 9 h,
@@ -244,9 +246,13 @@ flowchart LR
     (`uses:` ; jamais un digest seul, signe d'un tag déplacé) ;
   - « weekly digest and patch updates », tout le reste, à fusionner à la main.
 
-  Fusionnent seules aussi : les versions de `planning-equipes` (mineures et
-  correctifs) et de `promptoramix`. Les autres mineures et majeures gardent
-  chacune leur PR, à la main. Rien de ce qui touche `path_bypass_images.json`
+  Les mineures arrivent dans la même fenêtre, dans une troisième PR
+  « weekly minor updates », à la main (les groupes nommés, `beszel`,
+  `pangolin-role-dependencies`…, gardent leur PR, le lundi aussi).
+  Fusionnent seules aussi, sans délai ni fenêtre : les versions de
+  `planning-equipes` (mineures et correctifs) et de `promptoramix`. Le chemin
+  rapide d'un correctif de sécurité d'image n'est pas Renovate : l'alerte
+  CRITICAL du lundi de `trivy.yaml`, puis un bump à la main. Rien de ce qui touche `path_bypass_images.json`
   ne fusionne seul : la note de la PR demande de relire les sources listées
   dans `reread` avant le merge à la main.
 
