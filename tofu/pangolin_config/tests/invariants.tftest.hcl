@@ -1815,7 +1815,8 @@ run "path_bypasses_follow_their_image" {
     error_message = "Une ressource de local.path_bypasses n'a pas d'entrée dans path_bypass_images.json (ou une entrée n'y correspond à aucune) : sa version relue ne serait pas gardée."
   }
 
-  # Le workflow lit ces champs pour le résumé affiché avant l'approbation.
+  # La note de PR de Renovate (dernière règle de renovate.json) renvoie à ces
+  # champs : releases et reread disent quoi relire avant le merge.
   assert {
     condition = alltrue([
       for app, pin in jsondecode(file("${path.module}/path_bypass_images.json")) :

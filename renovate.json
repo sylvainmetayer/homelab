@@ -352,9 +352,19 @@
       "allowedVersions": "<3.15"
     },
     {
-      "description": "Paused apps (docs/runbooks/app-en-pause.md): no PR for an app that does not run. Paperless-ngx (paperless_enabled: false in host_vars/docker): every image of its role, gotenberg and tika included (they run nowhere else). Resuming the app removes this rule in the same PR, and Renovate then proposes the versions published meanwhile. The Keycloak bench of flip_planning (demo_planning_kc, paused too) needs no rule: its two images are written in ansible/flip.yml on the mobile pr-72 tag, which no manager reads, and the compose template it shares with production and the demo must stay tracked",
+      "description": "Paused apps (docs/runbooks/app-en-pause.md): no PR for an app that does not run. Paperless-ngx (paperless_enabled: false in host_vars/docker): every image of its role, gotenberg and tika included (they run nowhere else). Resuming the app removes this rule and the next one in the same PR, and Renovate then proposes the versions published meanwhile. The Keycloak bench of flip_planning (demo_planning_kc, paused too) needs no rule: its two images are written in ansible/flip.yml on the mobile pr-72 tag, which no manager reads, and the compose template it shares with production and the demo must stay tracked",
       "matchFileNames": [
         "ansible/roles/paperless_ngx/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Paused apps, second half: the Paperless-ngx entry of path_bypass_images.json. The rule above only covers the role's files, and the custom manager would otherwise bump the json alone, a PR the path_bypasses_follow_their_image tofu test always fails (compose and json no longer at the same version). Removed together with the rule above",
+      "matchFileNames": [
+        "tofu/pangolin_config/path_bypass_images.json"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/paperless-ngx/paperless-ngx"
       ],
       "enabled": false
     },

@@ -3,7 +3,7 @@ name: Tests
 # Sur une PR, seuls les scénarios Molecule et les modules Tofu qu'atteignent
 # les fichiers modifiés tournent (.github/scripts/select_tests.py). La matrice
 # complète tourne chaque semaine sur main (le lundi à 03:30 UTC, avant Trivy
-# et la PR hebdomadaire de Renovate), à la main (workflow_dispatch), et sur
+# et CodeQL), à la main (workflow_dispatch), et sur
 # une PR qui porte le label full-tests. Plus de run sur push : le run de la
 # semaine rattrape ce qu'une sélection aurait manqué.
 on:
