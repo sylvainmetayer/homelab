@@ -110,6 +110,20 @@ class FileRecipientsTest(unittest.TestCase):
     def test_unencrypted_file_has_none(self):
         self.assertEqual(recipients.file_recipients("a: b\n"), [])
 
+    def test_reads_every_key_group(self):
+        # With several key groups (shamir), sops writes sops.key_groups.
+        text = (
+            "sops:\n  key_groups:\n"
+            f"    - age:\n        - recipient: {PERSO}\n          enc: x\n"
+            f"    - age:\n        - recipient: {SECOURS}\n          enc: y\n"
+        )
+        self.assertEqual(recipients.file_recipients(text), [PERSO, SECOURS])
+
+    def test_invalid_yaml_is_reported_as_such(self):
+        errors = recipients.check(recipients.parse_rules(CONFIG), {"secrets.sops.yaml": "<<<<<<< HEAD\na: [\n"})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("YAML invalide", errors[0])
+
 
 class CheckTest(unittest.TestCase):
     def setUp(self):

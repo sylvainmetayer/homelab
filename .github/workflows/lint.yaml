@@ -171,10 +171,12 @@ jobs:
           echo "${HADOLINT_SHA256}  /tmp/hadolint" | sha256sum -c -
           chmod +x /tmp/hadolint
 
+      # .github et pas .github/workflows : les actions composites
+      # (.github/actions, dont olm-tunnel et ses secrets) sont auditées aussi.
       - name: Run zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uvx --no-build "zizmor==${ZIZMOR_VERSION}" --format github .github/workflows
+        run: uvx --no-build "zizmor==${ZIZMOR_VERSION}" --format github .github
 
       - name: Run actionlint
         run: /tmp/actionlint -color

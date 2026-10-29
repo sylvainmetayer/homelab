@@ -12,8 +12,8 @@
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
     # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas,
-    # URL push de la sauvegarde de Jellyfin, de l'échéance des certificats,
-    # de la copie de kDrive et du rappel des mises à jour d'UGOS).
+    # URL push de la sauvegarde de Jellyfin, de l'échéance des certificats et
+    # de la copie de kDrive).
     # Comme ailleurs, un state illisible (S3, clés) arrête la play quel que
     # soit le tag, --tags beszel_agent compris : l'agent Beszel, lui, parle au
     # hub par le LAN, sans jeton Pangolin.
