@@ -102,9 +102,10 @@ restore` des dumps SQL, cas SQLite) est dans
    --archive latest`.
 5. **Bases SQLite** : la copie est dans l'archive sous
    `var/lib/borgmatic-sqlite/<app>/`, nommée d'après son chemin d'origine
-   (`/` remplacés par `_`). Appli arrêtée, la remettre en place, puis lui
-   rendre son propriétaire (`stat -c %u:%g` sur l'ancienne avant, `chown`
-   après ; `borgmatic/defaults/main.yml`).
+   (`/` remplacés par `_`). Appli arrêtée, la remettre en place en supprimant
+   les `-wal` et `-shm` de l'ancienne (un WAL resté là serait rejoué sur la
+   copie), puis lui rendre son propriétaire (`stat -c %u:%g` sur l'ancienne
+   avant, `chown` après ; `borgmatic/defaults/main.yml`).
 6. **Dépôt lui-même effacé ou abîmé** : les snapshots de la Storage Box
    (9 quotidiens, `tofu/pangolin/storage_box.tf`) se restaurent depuis la
    console Hetzner (Storage Box → Snapshots), avec le compte principal.

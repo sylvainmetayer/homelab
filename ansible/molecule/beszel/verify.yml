@@ -118,7 +118,7 @@
           - "'/opt/apps/beszel/beszel_data' in beszel_borgmatic.source_directories"
           - >-
             beszel_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/beszel/beszel_data/data\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/beszel/beszel_data/data\\.db ')
             | list | length == 1
           - "'/opt/apps/beszel/beszel_data/*.db' in beszel_borgmatic.exclude_patterns"
           - "'/opt/apps/beszel/beszel_data/*.db-wal' in beszel_borgmatic.exclude_patterns"

@@ -75,7 +75,7 @@
           - "'/var/lib/borgmatic-sqlite/papra' in papra_borgmatic.source_directories"
           - >-
             papra_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/papra/app-data/db/db\\.sqlite ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/papra/app-data/db/db\\.sqlite ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/papra/opt_apps_papra_app-data_db_db\\.sqlite')
             | list | length == 1
           - "'/opt/apps/papra/app-data/db/db.sqlite' in papra_borgmatic.exclude_patterns"

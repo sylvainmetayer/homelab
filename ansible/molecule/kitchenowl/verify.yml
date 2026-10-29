@@ -49,7 +49,7 @@
           - "'/var/lib/borgmatic-sqlite/kitchenowl' in kitchenowl_borgmatic.source_directories"
           - >-
             kitchenowl_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/kitchenowl/data/database\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/kitchenowl/data/database\\.db ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/kitchenowl/opt_apps_kitchenowl_data_database\\.db')
             | list | length == 1
           - "'/opt/apps/kitchenowl/data/database.db' in kitchenowl_borgmatic.exclude_patterns"

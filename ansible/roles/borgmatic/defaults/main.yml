@@ -124,16 +124,19 @@ borgmatic_app_postgresql_databases: []
 borgmatic_app_mysql_databases: []
 # Globs (chemins absolus sur l'hôte) des bases SQLite de l'application,
 # résolus au déploiement. Chaque fichier trouvé qui est bien une base SQLite
-# est copié, avant borg, par l'API de sauvegarde en ligne de SQLite
-# (sqlite3 « .backup ») dans borgmatic_sqlite_staging_dir/<application>/,
+# est copié à chaud, avant borg, par sqlite3 (« VACUUM INTO » en WAL,
+# « .backup » sinon : cf. le hook de templates/app.yaml.j2) dans
+# borgmatic_sqlite_staging_dir/<application>/,
 # que borg archive ; la copie vivante (base, -wal, -shm, -journal) est
 # exclue. Pas le hook sqlite_databases de borgmatic : son « .dump » en flux
 # garde un verrou de lecture tant que borg n'a pas fini de lire le tube,
 # soit tout l'envoi vers la Storage Box, et une base en mode journal (pas
 # WAL) ne peut plus écrire pendant ce temps (Pangolin entier figé le
-# 07/10/2026). « .backup » ne tient le verrou que le temps de la copie
-# locale. Une base supprimée après coup (son dossier avec elle) fait
-# échouer le backup jusqu'au déploiement suivant, qui la retire.
+# 07/10/2026). La copie ne tient le verrou que le temps de la copie
+# locale. Une base écrite en continu doit passer en WAL : « .backup »
+# recommence à chaque écriture d'un autre processus. Une base supprimée
+# après coup (son dossier avec elle) fait échouer le backup jusqu'au
+# déploiement suivant, qui la retire.
 borgmatic_app_sqlite_databases: []
 # Commandes en plus des messages de début et de fin (hooks before/after
 # action, create seulement).
@@ -146,7 +149,8 @@ borgmatic_app_extra_options: {}
 # (root, 0700), archivées puis vidées après chaque sauvegarde réussie.
 # Restauration, application arrêtée : extraire la copie de l'archive
 # (borgmatic extract --archive <archive> --path <dossier>/<application>),
-# la remettre à la place de la base, puis lui rendre son propriétaire
+# la remettre à la place de la base en supprimant ses -wal et -shm (un WAL
+# resté là serait rejoué sur la copie), puis lui rendre son propriétaire
 # (stat -c %u:%g sur l'ancienne avant, chown après).
 borgmatic_sqlite_staging_dir: /var/lib/borgmatic-sqlite
 

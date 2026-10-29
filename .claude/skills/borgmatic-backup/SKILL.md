@@ -79,8 +79,10 @@ In the app role's `tasks/main.yml`, after the compose/env templating:
   2.1 passes the client a `--result-file` on the host, which does not exist
   in the container; the wrapper strips it and writes the client's output there.
   SQLite files matched by the globs (and checked to really be SQLite) are
-  copied by a `before` hook with the host's `sqlite3 ".backup"` (online backup
-  API: consistent while the app runs, lock held only for the local copy) into
+  copied by a `before` hook with the host's `sqlite3` (`VACUUM INTO` for a WAL
+  database, `.backup` otherwise, which restarts at every outside write: an app
+  writing all the time needs WAL; consistent while the app runs, lock held
+  only for the local copy) into
   `/var/lib/borgmatic-sqlite/<app>/`, which borg archives; their live copy
   (`-wal`, `-shm`, `-journal` too) is excluded. Never borgmatic's
   `sqlite_databases`: its streamed `.dump` keeps a read lock until borg has
@@ -133,7 +135,8 @@ pattern).
 The scenario's `verify.yml` reads `/etc/borgmatic.d/<service>.yaml`; the
 shared `verify_app.yml` validates it with the real borgmatic pinned in
 `ansible/molecule/_shared/Dockerfile`. `ansible/molecule/trek/` shows how to
-seed a SQLite database in `prepare.yml` and assert it is copied by `.backup`.
+seed a SQLite database in `prepare.yml` and assert it is copied (`.backup`,
+or `VACUUM INTO` in WAL).
 
 ## Verify
 

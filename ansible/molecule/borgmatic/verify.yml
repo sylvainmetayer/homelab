@@ -119,6 +119,80 @@
           - exec db_container mariadb-dump --databases app
           - env=
 
+    # --- copie des bases SQLite (hook before de app.yaml.j2) ---
+
+    # Le gabarit des applications, rendu pour une base en journal (copiée par
+    # « .backup ») et une base en WAL (par « VACUUM INTO »), puis son hook
+    # exécuté pour de bon avec le sqlite3 que le rôle installe.
+    - name: Create a rollback-journal and a WAL SQLite database
+      become: true
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          install -d -m 0700 /root/sqlite-hook-test {{ borgmatic_sqlite_staging_dir }}/sqlite_hook_test
+          cd /root/sqlite-hook-test
+          rm -f journal.db wal.db
+          sqlite3 journal.db "CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('journal');"
+          sqlite3 wal.db "PRAGMA journal_mode = WAL; CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('wal');" >/dev/null
+      changed_when: false
+
+    - name: Render the application template for the two databases
+      become: true
+      diff: false
+      ansible.builtin.template:
+        src: ../../roles/borgmatic/templates/app.yaml.j2
+        dest: /root/sqlite-hook-test/app.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      vars:
+        borgmatic_app_name: sqlite_hook_test
+        borgmatic_app_source_directories: []
+        borgmatic_app_target: ssh://test@localhost/./sqlite_hook_test
+        borgmatic_app_passphrase: "{{ backup_passphrase }}"
+        borgmatic_app_sqlite_paths:
+          - /root/sqlite-hook-test/journal.db
+          - /root/sqlite-hook-test/wal.db
+
+    - name: Read the rendered application template
+      become: true
+      ansible.builtin.slurp:
+        src: /root/sqlite-hook-test/app.yaml
+      register: borgmatic_sqlite_hook_raw
+
+    - name: Run the before hook of the rendered template
+      become: true
+      vars:
+        borgmatic_sqlite_hook: "{{ borgmatic_sqlite_hook_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.shell:
+        cmd: |
+          set -eu
+          {{ borgmatic_sqlite_hook.commands[0].run | join('\n') }}
+          cd {{ borgmatic_sqlite_staging_dir }}/sqlite_hook_test
+          for db in root_sqlite-hook-test_journal.db root_sqlite-hook-test_wal.db; do
+            printf '%s %s %s %s\n' "$db" "$(sqlite3 "$db" 'PRAGMA integrity_check;')" \
+              "$(sqlite3 "$db" 'SELECT v FROM t;')" "$(sqlite3 "$db" 'PRAGMA journal_mode;')"
+          done
+          find . -mindepth 1 -delete
+      register: borgmatic_sqlite_hook_run
+      changed_when: false
+
+    # « .backup » d'une base en WAL donnerait une copie en WAL : la copie en
+    # journal de wal.db prouve qu'elle est passée par « VACUUM INTO ».
+    - name: Assert both databases are copied whole, each by its own method
+      vars:
+        borgmatic_sqlite_hook: "{{ borgmatic_sqlite_hook_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - borgmatic_sqlite_hook_run.stdout_lines[-2:] == [
+              'root_sqlite-hook-test_journal.db ok journal delete',
+              'root_sqlite-hook-test_wal.db ok wal delete']
+          - borgmatic_sqlite_hook.commands[0].run
+            | select('search', "VACUUM INTO .*/var/lib/borgmatic-sqlite/sqlite_hook_test/root_sqlite-hook-test_wal\\.db")
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/sqlite_hook_test/root_sqlite-hook-test_wal\\.db')
+            | list | length == 1
+        fail_msg: "Hook SQLite : {{ borgmatic_sqlite_hook_run.stdout_lines }}"
+
     # --- unités systemd ---
 
     - name: Read the state of the borgmatic timer

@@ -47,7 +47,7 @@
           - "'/var/lib/borgmatic-sqlite/trek' in trek_borgmatic.source_directories"
           - >-
             trek_borgmatic.commands[0].run
-            | select('search', '^sqlite3 -bail .*/opt/apps/trek/data/travel\\.db ')
+            | select('search', 'sqlite3 -bail .*/opt/apps/trek/data/travel\\.db ')
             | select('search', '\\.backup /var/lib/borgmatic-sqlite/trek/opt_apps_trek_data_travel\\.db')
             | list | length == 1
           - trek_borgmatic.commands[0].run | select('search', 'notes\\.db') | list | length == 0
