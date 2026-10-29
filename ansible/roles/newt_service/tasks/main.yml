@@ -52,7 +52,7 @@
     dest: /etc/systemd/system/newt.service
     owner: root
     group: root
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 - name: Start and enable newt
   become: true
