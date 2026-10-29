@@ -7,6 +7,7 @@
     "helpers:pinGitHubActionDigests"
   ],
   "minimumReleaseAge": "1 day",
+  "rebaseWhen": "conflicted",
   "packageRules": [
     {
       "matchCategories": [
@@ -15,7 +16,7 @@
       "pinDigests": true
     },
     {
-      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The stateless images and the GitHub Actions of the next two rules leave this PR for their own weekly one, which automerges. The rules below that set a groupName (beszel, pangolin-role-dependencies, socket-proxy, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, which carries the re-read note of the last rule and is merged by hand",
+      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor and major updates keep their own PR, at any time. Our own images are left out: their rules below take every build as soon as it is published and automerge it. The stateless images and the GitHub Actions of the next two rules leave this PR for their own weekly one, which automerges. The rules below that set a groupName (beszel, pangolin-role-dependencies, socket-proxy, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, which carries the re-read note of the last rule and is merged by hand. rebaseWhen is conflicted for every branch (top level): the main ruleset does not require an up-to-date branch (strict_required_status_checks_policy = false, tofu/github/ruleset_homelab.tf), so rebasing every open PR on each push to main would only rerun its checks and cancel the running ones; a PR is rebased only when it conflicts",
       "matchUpdateTypes": [
         "digest",
         "patch"
@@ -30,7 +31,7 @@
       ]
     },
     {
-      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml). Molecule never pulls an image, so the checks do not prove it starts: a missing image fails the deploy run, one that starts then crashes leaves it green (dc@ is active once docker compose up runs) and only its Uptime Kuma monitor goes DOWN; roll back with a revert that also drops the image from this list, or Renovate re-merges the same digest the next Monday. A listed image restarts its whole compose project (dc@ restart), databases included: hence matchFileNames leaves out flip_planning, whose nginx assets sidecar and mailpit would restart the three Flip Planning instances, production and its Postgres included, nearly every week (they stay in the manual weekly PR); nginx_demo's restart takes its demo Postgres along, accepted. rebaseWhen conflicted: the ruleset does not require an up-to-date branch, so rebasing on every push to main would only rerun the checks and cancel the running ones. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its public paths are re-read by a human before the merge, see the last rule), Traefik, the socket proxy and vmauth (edge and security sidecars), an image whose updates a later groupName rule takes (immich-role-dependencies, pangolin-role-dependencies, beszel, vector, blocky, borgmatic: that group would never automerge anyway), an app with a database of its own even when it is reset (betisier), and a frontend released in lockstep with a reviewed backend (meerkat-crm-frontend, whose backend is in path_bypass_images.json: automerging it alone would skew the two). nginx: the static nginx_demo. gotenberg and tika: Paperless-ngx's converters, inert while Paperless is paused (a later rule disables its role). karakeep-chrome: Karakeep's headless Chromium, a crawler without volume (Karakeep itself, its Meilisearch and the karakeep image of path_bypass_images.json stay manual). rclone: kdrive_sync's one-shot `docker compose run --rm`, no state but its obscured config rewritten on every run, on the NAS whose playbook is run by hand (the merge deploys nothing there). debian: the base of the Molecule image (ansible/molecule/_shared/Dockerfile), never deployed, and the PR's Tests build it and run every scenario on it",
+      "description": "Stateless images (no database of their own, no schema migration on start): their digest and patch updates leave the weekly PR for a second weekly PR, merged by Renovate (GitHub auto-merge, platformAutomerge) once the checks the main ruleset requires pass (Ansible lint, OpenTofu lint, CI lint, Tests); the merge deploys them (deploy-docker-app.yaml). Molecule never pulls an image, so the checks do not prove it starts: a missing image fails the deploy run, one that starts then crashes leaves it green (dc@ is active once docker compose up runs) and only its Uptime Kuma monitor goes DOWN; roll back with a revert that also drops the image from this list, or Renovate re-merges the same digest the next Monday. A listed image restarts its whole compose project (dc@ restart), databases included: hence matchFileNames leaves out flip_planning, whose nginx assets sidecar and mailpit would restart the three Flip Planning instances, production and its Postgres included, nearly every week (they stay in the manual weekly PR); nginx_demo's restart takes its demo Postgres along, accepted. An allowlist, not a denylist: an image not listed here, or a minor or major update, stays manual. Never listed: databases, redis/valkey, meilisearch, an app whose image migrates its own data (Immich, Nextcloud, Monica, Paperless-ngx, Dawarich, Karakeep, planning-equipes, Jellyfin, Beszel, Pangolin...), an image of path_bypass_images.json (its public paths are re-read by a human before the merge, see the last rule), Traefik, the socket proxy and vmauth (edge and security sidecars), an image whose updates a later groupName rule takes (immich-role-dependencies, pangolin-role-dependencies, beszel, vector, blocky, borgmatic: that group would never automerge anyway), an app with a database of its own even when it is reset (betisier), and a frontend released in lockstep with a reviewed backend (meerkat-crm-frontend, whose backend is in path_bypass_images.json: automerging it alone would skew the two). nginx: the static nginx_demo. gotenberg and tika: Paperless-ngx's converters, inert while Paperless is paused (a later rule disables its role). karakeep-chrome: Karakeep's headless Chromium, a crawler without volume (Karakeep itself, its Meilisearch and the karakeep image of path_bypass_images.json stay manual). rclone: kdrive_sync's one-shot `docker compose run --rm`, no state but its obscured config rewritten on every run, on the NAS whose playbook is run by hand (the merge deploys nothing there). debian: the base of the Molecule image (ansible/molecule/_shared/Dockerfile), never deployed, and the PR's Tests build it and run every scenario on it",
       "matchDatasources": [
         "docker"
       ],
@@ -55,7 +56,6 @@
       "schedule": [
         "before 9am on monday"
       ],
-      "rebaseWhen": "conflicted",
       "automerge": true
     },
     {
@@ -73,7 +73,6 @@
       "schedule": [
         "before 9am on monday"
       ],
-      "rebaseWhen": "conflicted",
       "automerge": true
     },
     {
