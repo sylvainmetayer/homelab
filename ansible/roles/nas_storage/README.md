@@ -97,6 +97,7 @@ chmod'ed, hence an explicit `mode:` everywhere) and the password drawn once:
   become: true  # NFS rule "No mapping": root creates and chowns as on a local disk
   loop:
     - { path: "{{ <service>_data_path }}", owner: "{{ ansible_facts['user_id'] }}", group: "{{ ansible_facts['user_gid'] }}", mode: "0750" }
+    - { path: "{{ <service>_data_path }}/html", owner: "{{ ansible_facts['user_id'] }}", group: "101", mode: "0750" }  # files, read by nginx alpine (gid 101)
     - { path: "{{ <service>_data_path }}/postgresql", owner: "70", group: "70", mode: "0700" }  # postgres alpine
   loop_control:
     label: "{{ item.path }}"
