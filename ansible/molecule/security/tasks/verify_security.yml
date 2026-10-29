@@ -444,6 +444,7 @@
 - name: Assert systemd-ssh-generator is masked
   ansible.builtin.assert:
     that:
+      - security_ssh_generator.stat.exists
       - security_ssh_generator.stat.islnk
       - security_ssh_generator.stat.lnk_source == '/dev/null'
     fail_msg: "systemd-ssh-generator n'est pas masqué : {{ security_ssh_generator.stat }}"

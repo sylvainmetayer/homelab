@@ -62,14 +62,13 @@ if [[ -z $password ]]; then
         docker exec "$container" "$client" "${args[@]}"
     }
 else
-    if [[ $password == *$'\n'* ]]; then
-        echo "$0: mot de passe sur plusieurs lignes, intransmissible par un fichier d'options" >&2
-        exit 2
-    fi
     # Valeur entre guillemets doubles : « # », « ; », « ' » et les espaces
-    # restent dans le mot de passe ; seuls « \ » et « " » y sont échappés.
+    # restent dans le mot de passe ; « \ », « " » et le saut de ligne y sont
+    # échappés (« \n », que le client relit comme un saut de ligne), dans cet
+    # ordre : un « \ » ajouté ne doit pas l'être deux fois.
     password=${password//\\/\\\\}
     password=${password//\"/\\\"}
+    password=${password//$'\n'/\\n}
     # --defaults-extra-file doit être la première option du client.
     dump() {
         printf '[client]\npassword="%s"\n' "$password" \
