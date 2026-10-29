@@ -108,8 +108,10 @@ class Roles(unittest.TestCase):
 class Scenarios(unittest.TestCase):
     def test_scenario_importing_another_scenario_depends_on_it(self):
         scenarios = selected(["ansible/molecule/security/tasks/verify_security.yml"])[0]
-        for name in ("security", "security_flip", "security_pi", "security_lxc", "security_docker", "nat_gateway"):
+        for name in ("security", "security_flip", "security_lxc", "nat_gateway"):
             self.assertIn(name, scenarios)
+        # security_lan only reads host_vars: devsec's tasks do not reach it.
+        self.assertNotIn("security_lan", scenarios)
         self.assertNotIn("karakeep", scenarios)
 
     def test_shared_prepare_named_in_molecule_yml(self):
@@ -134,7 +136,7 @@ class Scenarios(unittest.TestCase):
 class HostVarsAndPlaybooks(unittest.TestCase):
     def test_host_vars_select_the_scenarios_loading_them(self):
         scenarios, _ = selected(["ansible/host_vars/pi/variables.yaml"])
-        self.assertEqual(scenarios, ["beszel_agent", "blocky_pi", "host_tuning", "immich", "log_agent", "security_pi"])
+        self.assertEqual(scenarios, ["beszel_agent", "blocky_pi", "host_tuning", "immich", "log_agent", "security_lan"])
 
     def test_any_file_of_the_host_directory_counts(self):
         tmp, tree = fake_tree(scenario("a", "- hosts: all\n  vars_files:\n    - ../../host_vars/h/variables.yaml\n"))

@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Les hôtes du LAN (VM docker, Pi) ne diffèrent de Pangolin et flip, pour le
+# rôle security, que par quelques variables de leurs host_vars : le scénario
+# security rejoue déjà devsec, ufw et fail2ban, celui-ci vérifie seulement ces
+# valeurs, sans conteneur (localhost) ni rejeu du rôle.
+scenario:
+  name: security_lan
+  test_sequence:
+    - converge
