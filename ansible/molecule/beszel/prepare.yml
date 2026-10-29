@@ -93,6 +93,10 @@
           email: "{{ pangolin_le_email }}"
           password: "{{ beszel_admin_password }}"
           user_id: usr000000000001
+          # Comme le vrai hub : une seule IP publique admise pour les
+          # superusers, pas 127.0.0.1. Le rôle doit prendre le 403 qui en
+          # résulte pour un compte valide, sans échouer ni recréer le compte.
+          superuser_ips: ["{{ home_ip }}"]
           alerts:
             - { system: docker, name: CPU, value: 80, min: 5 }
             - { system: flip, name: Status, value: 0, min: 5 }

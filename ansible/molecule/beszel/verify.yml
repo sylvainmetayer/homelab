@@ -26,15 +26,22 @@
       register: beszel_compose_raw
       changed_when: false
 
-    # Un seul conteneur, sur newt ; le port publié sur 127.0.0.1 (l'agent de
-    # l'hôte) et sur l'adresse LAN de la VM docker (Pi, NAS, LXC), jamais sur
-    # toutes les interfaces.
+    # Un seul conteneur, sur newt et (widget Homepage activé par converge.yml)
+    # sur le réseau interne du widget, à IP fixe ; le port publié sur
+    # 127.0.0.1 (l'agent de l'hôte) et sur l'adresse LAN de la VM docker (Pi,
+    # NAS, LXC), jamais sur toutes les interfaces.
     - name: Assert the hub joins newt and publishes its port on the listed addresses only
       vars:
         beszel_compose: "{{ beszel_compose_raw.stdout | from_json }}"
+        beszel_widget_network: "{{ beszel_compose.networks.homepage }}"
       ansible.builtin.assert:
         that:
-          - beszel_compose.services.hub.networks.keys() | list == ['newt']
+          - beszel_compose.services.hub.networks.keys() | list | sort == ['homepage', 'newt']
+          - beszel_compose.services.hub.networks.homepage.ipv4_address == beszel_homepage_hub_ip
+          - beszel_widget_network.name == beszel_homepage_network
+          - beszel_widget_network.internal
+          - beszel_widget_network.ipam.config | map(attribute='subnet') | list == [beszel_homepage_subnet]
+          - beszel_homepage_hub_ip != beszel_homepage_client_ip
           - beszel_compose.services.hub.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
           - beszel_compose.services.hub.ports | map(attribute='target') | unique == [8090]
           - beszel_compose.services.hub.cap_drop == ['ALL']
@@ -193,7 +200,26 @@
 
     # Superuser du widget Beszel de Homepage (tasks/homepage_superuser.yml) :
     # créé une fois au premier converge, jamais recréé ensuite (l'idempotence
-    # a déjà rejoué le rôle : la connexion réussit, rien n'est relancé).
+    # a déjà rejoué le rôle : la connexion répond 403, comme le vrai hub dont
+    # les « superuser IPs » n'admettent pas 127.0.0.1, et rien n'est relancé).
+    - name: Log in as the Homepage superuser from the host
+      no_log: true
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8090/api/collections/_superusers/auth-with-password
+        method: POST
+        body_format: json
+        body:
+          identity: homepage@monitoring.sylvain.cloud
+          password: "{{ homepage_beszel_password }}"
+        status_code: [200, 400, 403]
+      register: beszel_homepage_login_from_host
+
+    - name: Assert the mock refuses the superuser from an address off its list
+      ansible.builtin.assert:
+        that:
+          - beszel_homepage_login_from_host.status == 403
+        fail_msg: "Statut inattendu : {{ beszel_homepage_login_from_host.status }}"
+
     - name: Read the superuser command calls and the recorded superusers
       become: true
       loop:
@@ -214,3 +240,19 @@
           - beszel_superuser_calls == [beszel_verify_homepage_email]
           - beszel_superusers[beszel_verify_homepage_email] == homepage_beszel_password
         fail_msg: "Superuser Homepage inattendu : appels {{ beszel_superuser_calls }}"
+
+    # Un compte que le hub ne peut pas créer (upsert en échec) : avertissement
+    # et widget omis, jamais une play en échec.
+    - name: Declare a Homepage superuser whose creation fails
+      ansible.builtin.include_role:
+        name: beszel
+        tasks_from: homepage_superuser.yml
+      vars:
+        beszel_homepage_email: refused@monitoring.sylvain.cloud
+        beszel_superuser_command: [/bin/false]
+
+    - name: Assert the widget is dropped instead of failing the play
+      ansible.builtin.assert:
+        that:
+          - not (beszel_homepage_account_ready | bool)
+        fail_msg: "Échec de l'upsert non rattrapé : {{ beszel_homepage_account_ready }}"

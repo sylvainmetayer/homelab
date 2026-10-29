@@ -4,7 +4,8 @@
 The scenario never pulls the hub image, so this answers on 127.0.0.1:8090 the
 few PocketBase / Beszel routes the role calls, with the semantics of
 internal/alerts/alerts_api.go and internal/users/users.go: auth-with-password
-on the users collection, the systems listed from config.yml (as the hub syncs
+on the users collection (and on _superusers, with the hub's superuser IP
+allowlist: 403 for a valid superuser from elsewhere), the systems listed from config.yml (as the hub syncs
 them at start), alerts upserted and deleted per user through
 /api/beszel/user-alerts, user_settings whose emails the hub fills on create,
 and test-notification. Every write is appended to WRITES_LOG, and
@@ -49,6 +50,8 @@ class State:
         self.email = config["email"]
         self.password = config["password"]
         self.user_id = config["user_id"]
+        # The hub's Settings.SuperuserIPs (empty: no restriction).
+        self.superuser_ips = config.get("superuser_ips", [])
         self.token = secrets.token_hex(16)
         self.next_id = 0
         self.alerts = []
@@ -118,10 +121,16 @@ class Handler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             superusers = {}
         password = data.get("password")
-        if password and superusers.get(data.get("identity")) == password:
-            # Nothing of the request echoed back: the role only reads the status.
-            return self.reply(200, {"token": secrets.token_hex(16), "record": {"collectionName": "_superusers"}})
-        return self.reply(400, {"message": "Failed to authenticate."})
+        if not password or superusers.get(data.get("identity")) != password:
+            return self.reply(400, {"message": "Failed to authenticate."})
+        # PocketBase checks the password first, then Settings.SuperuserIPs
+        # against the request's real IP (apis/record_helpers.go): a valid
+        # superuser from an address off the list gets a bare 403.
+        allowed = self.state.superuser_ips
+        if allowed and self.client_address[0] not in allowed:
+            return self.reply(403, {"message": "You are not allowed to perform this request."})
+        # Nothing of the request echoed back: the role only reads the status.
+        return self.reply(200, {"token": secrets.token_hex(16), "record": {"collectionName": "_superusers"}})
 
     # Authenticated reads.
     def get_systems(self, _path):

@@ -44,13 +44,25 @@ homepage_groups:
 # en superuser PocketBase (collections/_superusers), pas en simple
 # utilisateur : un compte à lui, beszel_homepage_email (host_vars/docker), que
 # le rôle beszel crée avec la clé sops homepage_beszel_password. Sans cette
-# clé, pas de widget. Par le réseau newt, sans passer par Pangolin.
+# clé, pas de widget. Ni par Pangolin ni par newt : par le réseau du widget
+# (beszel_homepage_network, host_vars/docker), créé par dc@beszel, où
+# Homepage a une IP fixe, beszel_homepage_client_ip. PocketBase refuse (403)
+# un superuser venu d'une adresse absente des « superuser IPs » du hub : c'est
+# celle-là qu'on y ajoute (docs/architecture.md, « La supervision »). L'URL
+# vise l'IP du hub sur ce réseau, pas son nom, que le DNS de Docker pourrait
+# résoudre en son IP sur newt (l'IP source serait alors celle de newt).
+# Le rôle beszel pose beszel_homepage_account_ready à false quand il n'a pas
+# pu déclarer le compte : widget omis pour ce run (absent, par exemple en
+# --tags homepage seul : le compte est supposé déjà là).
 # Risque accepté (Sylvain, 2026-10-28) : ce superuser lit et écrit tout le
 # hub, donc qui lit la configuration de Homepage (VM docker, 0600) a la main
 # sur Beszel.
-homepage_beszel_url: http://beszel:8090
 homepage_beszel_email: "{{ beszel_homepage_email | default('') }}"
 homepage_beszel_widget_password: "{{ homepage_beszel_password | default('') }}"
+homepage_beszel_enabled: >-
+  {{ homepage_beszel_email | length > 0 and homepage_beszel_widget_password | length > 0
+     and (beszel_homepage_account_ready | default(true) | bool) }}
+homepage_beszel_url: "http://{{ beszel_homepage_hub_ip | default('') }}:8090"
 
 # Widget posé sur un lien de homepage_websites, par clé de lien : le gabarit
 # services.yaml.j2 ne connaît aucune application. Une entrée absente, pas de
@@ -58,7 +70,7 @@ homepage_beszel_widget_password: "{{ homepage_beszel_password | default('') }}"
 homepage_link_widgets: >-
   {{ {'beszel': {'type': 'beszel', 'url': homepage_beszel_url, 'username': homepage_beszel_email,
                  'password': homepage_beszel_widget_password, 'version': 2, 'fields': ['systems', 'up']}}
-     if homepage_beszel_email | length > 0 and homepage_beszel_widget_password | length > 0 else {} }}
+     if homepage_beszel_enabled | bool else {} }}
 
 # Uptime Kuma (PikaPods) : un widget par page de statut publiée (sondes en
 # ligne, en panne, disponibilité, incident), seule lecture qu'Uptime Kuma

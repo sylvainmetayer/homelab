@@ -49,6 +49,6 @@
     - role: docker_service
     - role: homepage
       vars:
-        # Vide dans host_vars/docker tant que Beszel refuse la connexion de ce
-        # superuser (403) : le scénario garde le widget couvert.
+        # Vide dans host_vars/docker tant que l'IP de Homepage n'est pas dans
+        # les « superuser IPs » du hub : le scénario garde le widget couvert.
         homepage_beszel_email: homepage@monitoring.sylvain.cloud
