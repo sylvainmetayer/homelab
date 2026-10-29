@@ -10,4 +10,9 @@ Description=Remove the Docker images no container uses
 
 [Service]
 Type=oneshot
+# Unité *user* : pas d'After=docker.service possible, et le rattrapage d'une
+# semaine manquée (Persistent=true) part dès le boot, souvent avant que le
+# démon réponde. Attendre comme dc@, deux minutes au plus, sans quoi la purge
+# échoue et la semaine saute.
+ExecStartPre=/usr/bin/timeout 120 /bin/sh -c 'until /usr/bin/docker info >/dev/null 2>&1; do sleep 2; done'
 ExecStart=/usr/bin/docker image prune --all --force --filter until={{ docker_service_image_prune_until }}

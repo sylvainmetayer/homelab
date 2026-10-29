@@ -111,6 +111,15 @@
     - docker_service_scope == 'user'
     - docker_service_image_prune_enabled | bool
   block:
+    # Filtre `until` de Docker : une durée Go (168h, 90m…) ; « 7d » est refusé
+    # par Docker, et l'unité échouerait chaque semaine sans bruit.
+    - name: Check the image prune age filter
+      ansible.builtin.assert:
+        that:
+          - docker_service_image_prune_until is match('^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$')
+        fail_msg: "docker_service_image_prune_until vaut {{ docker_service_image_prune_until }} : une durée Go (168h), pas de jours"
+        quiet: true
+
     - name: Install the image prune units
       loop:
         - docker-image-prune.service
@@ -121,7 +130,6 @@
         group: "{{ ansible_facts['user_gid'] }}"
         owner: "{{ ansible_facts['user_uid'] }}"
         mode: "0600"
-      register: docker_service_image_prune_units
 
     - name: Enable the image prune timer
       ansible.builtin.systemd:
@@ -129,8 +137,9 @@
         scope: user
         state: started
         enabled: true
-        # Recharge aussi un OnCalendar modifié : le timer se réarme dessus.
-        daemon_reload: "{{ docker_service_image_prune_units is changed }}"
+        # Toujours, comme mem_report : un OnCalendar modifié lors d'un passage
+        # interrompu avant cette tâche serait sinon ignoré au suivant.
+        daemon_reload: true
 
 - name: Remove the weekly removal of unused Docker images
   when:
