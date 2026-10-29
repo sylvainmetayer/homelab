@@ -267,7 +267,7 @@ flowchart LR
   subgraph host["Chaque hôte (docker, pi, pangolin, flip, nas)"]
     timer["borgmatic.timer<br/>01:00"] --> bm["borgmatic (root)<br/>/etc/borgmatic.d/app.yaml"]
     bm -- "dump dans le conteneur" --> db[("Postgres / MariaDB")]
-    bm -- "sqlite3 .backup" --> sq["/var/lib/borgmatic-sqlite/app"]
+    bm -- "sqlite3 VACUUM INTO / .backup" --> sq["/var/lib/borgmatic-sqlite/app"]
   end
   bm -- "borg sur SSH, port 23<br/>clé /root/.ssh/borgmatic_storage_box_ed25519" --> sub["Sous-compte backup-hôte<br/>voit seulement backup/hôte/"]
   sub --> box[("Storage Box<br/>9 snapshots quotidiens")]

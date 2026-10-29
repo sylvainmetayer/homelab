@@ -160,10 +160,12 @@
         src: /root/sqlite-hook-test/app.yaml
       register: borgmatic_sqlite_hook_raw
 
+    - name: Parse the rendered application template
+      ansible.builtin.set_fact:
+        borgmatic_sqlite_hook: "{{ borgmatic_sqlite_hook_raw.content | b64decode | from_yaml }}"
+
     - name: Run the before hook of the rendered template
       become: true
-      vars:
-        borgmatic_sqlite_hook: "{{ borgmatic_sqlite_hook_raw.content | b64decode | from_yaml }}"
       ansible.builtin.shell:
         cmd: |
           set -eu
@@ -180,8 +182,6 @@
     # « .backup » d'une base en WAL donnerait une copie en WAL : la copie en
     # journal de wal.db prouve qu'elle est passée par « VACUUM INTO ».
     - name: Assert both databases are copied whole, each by its own method
-      vars:
-        borgmatic_sqlite_hook: "{{ borgmatic_sqlite_hook_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
           - borgmatic_sqlite_hook_run.stdout_lines[-2:] == [

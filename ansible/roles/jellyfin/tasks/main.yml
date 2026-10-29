@@ -121,7 +121,8 @@
   ansible.builtin.meta: flush_handlers
 
 # Bases SQLite de config/data (jellyfin.db aujourd'hui) copiées par
-# sqlite3 « .backup » dans le conteneur borgmatic, copie vivante exclue.
+# sqlite3 (« VACUUM INTO » en WAL, « .backup » sinon) dans le conteneur
+# borgmatic, copie vivante exclue.
 - name: Configure borgmatic backup for Jellyfin
   when: jellyfin_backup_enabled
   tags: backup

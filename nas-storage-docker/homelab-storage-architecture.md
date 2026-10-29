@@ -17,7 +17,7 @@
 |---|---|---|---|
 | Fichiers (uploads, médias, données de l'appli) | NAS | NFSv3, export monté sur la VM (`/mnt/nas/apps`), bind mount dans le conteneur | copie des fichiers |
 | BDD serveur (Postgres, MariaDB) | NAS | même export, sous-dossier de l'appli | **dump logique** (`borgmatic_app_postgresql_databases` / `_mysql_databases`), jamais la copie du data directory |
-| BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `borgmatic_app_sqlite_databases` (copie `sqlite3 .backup`, jamais le `sqlite_databases` de borgmatic) ou fichiers |
+| BDD embarquée (SQLite, LMDB, BoltDB…) | disque local de la VM | bind mount sous `/opt/apps/<service>` comme aujourd'hui | `borgmatic_app_sqlite_databases` (copie `sqlite3`, `VACUUM INTO` ou `.backup`, jamais le `sqlite_databases` de borgmatic) ou fichiers |
 | Caches (redis/valkey, vignettes régénérables) | disque local de la VM | | aucune |
 | `compose.yaml`, `.env` | disque local de la VM | régénérés par Ansible à chaque run | copie, comme aujourd'hui |
 

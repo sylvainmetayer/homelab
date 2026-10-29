@@ -10,7 +10,7 @@ An archive holds:
 
 - the app's files, usually its `compose.yaml` and data folders under `/opt/apps/<app>`;
 - a dump of each PostgreSQL or MariaDB database, made by the client inside the database container;
-- a copy of each SQLite database, made with `sqlite3 .backup` into `/var/lib/borgmatic-sqlite/<app>/` before the run. The live SQLite file is excluded.
+- a copy of each SQLite database, made with `sqlite3` (`VACUUM INTO` for a WAL database, `.backup` otherwise) into `/var/lib/borgmatic-sqlite/<app>/` before the run. The live SQLite file is excluded.
 
 Borg keeps 7 daily, 4 weekly, 6 monthly and 1 yearly archives. When the app has a backup healthcheck URL, each run pushes to its Uptime Kuma monitor, which alerts when a night is missed.
 
@@ -62,6 +62,6 @@ The example uses `betisier` on the Docker VM. Replace it with the app name, whic
 
 ### SQLite apps
 
-For an app whose data is SQLite (Pangolin, for example), there is no step 5. The copy is in the extracted archive under `var/lib/borgmatic-sqlite/<app>/`, named after its original path with the slashes turned into underscores: `/opt/pangolin/config/db/db.sqlite` becomes `opt_pangolin_config_db_db.sqlite`. With the app stopped, copy it back to its original path.
+For an app whose data is SQLite (Pangolin, for example), there is no step 5. The copy is in the extracted archive under `var/lib/borgmatic-sqlite/<app>/`, named after its original path with the slashes turned into underscores: `/opt/pangolin/config/db/db.sqlite` becomes `opt_pangolin_config_db_db.sqlite`. With the app stopped, copy it back to its original path and delete the old database's `-wal` and `-shm` files next to it (Pangolin runs in WAL: a leftover WAL would be replayed onto the restored copy).
 
 Pangolin itself is a root systemd service, `pangolin`, so it is stopped and started with `systemctl stop pangolin` and `systemctl start pangolin` as root.
