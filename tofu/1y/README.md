@@ -2,19 +2,21 @@
 
 Infra du gestionnaire d'URL courtes [r.sylvain.dev](https://r.sylvain.dev) (code : dépôt [`sylvainmetayer/1y`](https://github.com/sylvainmetayer/1y), 11ty), migré de Netlify vers Cloudflare Pages sur le modèle de [`tofu/ref`](../ref/README.md).
 
+Le dépôt, le projet Pages, son domaine et le CNAME viennent du module commun [`tofu/modules/pages_site`](../modules/pages_site), appelé dans `main.tf` (`module.pages`), comme pour `tofu/ref` et `tofu/site`.
+
 | Ressource | Rôle |
 |---|---|
-| `github_repository.r` | Dépôt `1y`, **importé** (bloc `import` de `github.tf`) : description, sujets, options de fusion, scan de secrets |
-| `github_repository_vulnerability_alerts.r` / `github_repository_dependabot_security_updates.r` | Alertes Dependabot oui, PR Dependabot non : Renovate (`renovate.json` du dépôt) gère les montées |
-| `github_workflow_repository_permissions.r` | `GITHUB_TOKEN` en lecture seule par défaut |
-| `github_branch_protection.r_master` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
-| `github_app_installation_repository.cloudflare` / `.renovate` | Accès des apps GitHub Cloudflare et Renovate au dépôt (si `*_github_installation_id` est renseigné) |
-| `cloudflare_pages_project.r` | Build `npm run build` → `_site`, déploiement à chaque push sur `master`, previews sur les autres branches |
-| `data.github_repository_file.mise` / `.wrangler` | `mise.toml` et `wrangler.toml` du dépôt : une précondition de `cloudflare_pages_project.r` vérifie qu'ils déclarent la même version de Node |
-| `cloudflare_pages_domain.r` | Domaine personnalisé `r.sylvain.dev` |
-| `ovh_domain_zone_record.r` | CNAME `r` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+| `module.pages.github_repository.this` | Dépôt `1y`, **importé** en 2026 (le bloc `import` est retiré depuis) : description, sujets, options de fusion, scan de secrets |
+| `module.pages.github_repository_vulnerability_alerts.this` / `module.pages.github_repository_dependabot_security_updates.this` | Alertes Dependabot oui, PR Dependabot non : Renovate (`renovate.json` du dépôt) gère les montées |
+| `module.pages.github_workflow_repository_permissions.this[0]` | `GITHUB_TOKEN` en lecture seule par défaut |
+| `module.pages.github_branch_protection.production[0]` | Pas de suppression ni de force-push sur `master` (sans PR obligatoire) |
+| `module.pages.github_app_installation_repository.cloudflare` / `github_app_installation_repository.renovate` | Accès des apps GitHub Cloudflare et Renovate au dépôt (si `*_github_installation_id` est renseigné) |
+| `module.pages.cloudflare_pages_project.wrangler[0]` | Build `npm run build` → `_site`, déploiement à chaque push sur `master`, previews sur les autres branches |
+| `data.github_repository_file.mise` / `.wrangler` | `mise.toml` et `wrangler.toml` du dépôt : une postcondition (`node.tf`) vérifie qu'ils déclarent la même version de Node |
+| `module.pages.cloudflare_pages_domain.this` | Domaine personnalisé `r.sylvain.dev` |
+| `module.pages.ovh_domain_zone_record.cname` | CNAME `r` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
-**Version de Node** : avec un `wrangler.toml`, le build Pages ignore les variables du dashboard (log : `Build environment variables: (none found)`) et ne lit pas `mise.toml`. La version vient donc de `[vars] NODE_VERSION` dans `wrangler.toml`, gérée côté dépôt `1y` (Renovate met à jour les deux fichiers ensemble, un workflow vérifie qu'ils sont égaux). Ici, la précondition fait échouer `plan` et `apply` si les deux divergent sur la branche de production.
+**Version de Node** : avec un `wrangler.toml`, le build Pages ignore les variables du dashboard (log : `Build environment variables: (none found)`) et ne lit pas `mise.toml`. La version vient donc de `[vars] NODE_VERSION` dans `wrangler.toml`, gérée côté dépôt `1y` (Renovate met à jour les deux fichiers ensemble, un workflow vérifie qu'ils sont égaux). Ici, la postcondition fait échouer `plan` et `apply` si les deux divergent sur la branche de production.
 
 Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure, aucune page ne chargerait le beacon.
 
@@ -43,7 +45,7 @@ mise exec -- tofu -chdir=tofu/1y plan
 
    ```bash
    # API OVH : GET /domain/zone/sylvain.dev/record?subDomain=r
-   mise exec -- tofu -chdir=tofu/1y import ovh_domain_zone_record.r sylvain.dev.<id>
+   mise exec -- tofu -chdir=tofu/1y import module.pages.ovh_domain_zone_record.cname sylvain.dev.<id>
    ```
 
    S'il n'existe pas d'enregistrement `r` (domaine délégué autrement, redirection OVH…), sauter cette étape.

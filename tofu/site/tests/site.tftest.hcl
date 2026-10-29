@@ -25,14 +25,14 @@ override_data {
 # si le nom est pris) : une valeur réaliste pour que la cible du CNAME soit
 # connue au plan.
 override_resource {
-  target = cloudflare_pages_project.site
+  target = module.pages.cloudflare_pages_project.env_vars
   values = {
     subdomain = "sylvain-dev-9f1.pages.dev"
   }
 }
 
 override_resource {
-  target = cloudflare_web_analytics_site.site
+  target = module.pages.cloudflare_web_analytics_site.this
   values = {
     site_token = "fake-beacon-token"
     site_tag   = "fake-site-tag"
@@ -43,43 +43,43 @@ run "depot_github" {
   command = plan
 
   assert {
-    condition     = github_repository.site.name == "site" && github_repository.site.visibility == "public"
+    condition     = module.pages.repository.name == "site" && module.pages.repository.visibility == "public"
     error_message = "Le dépôt site doit être public."
   }
 
   assert {
-    condition     = github_repository.site.homepage_url == "https://sylvain.dev"
+    condition     = module.pages.repository.homepage_url == "https://sylvain.dev"
     error_message = "La page d'accueil du dépôt doit être https://sylvain.dev."
   }
 
   # Comparés au dépôt réel : un topic retiré sur GitHub (hacktoberfest, après
   # octobre 2026) se voyait seulement dans un plan.
   assert {
-    condition     = toset(github_repository.site.topics) == toset(["blog", "eleventy-website", "personal-website", "static-site"])
+    condition     = toset(module.pages.repository.topics) == toset(["blog", "eleventy-website", "personal-website", "static-site"])
     error_message = "Les topics du dépôt site ont changé : aligner la config sur le dépôt GitHub."
   }
 
   assert {
-    condition     = github_repository.site.archive_on_destroy == true
+    condition     = module.pages.repository.archive_on_destroy == true
     error_message = "archive_on_destroy doit rester à true."
   }
 
   assert {
     condition = (
-      github_repository.site.security_and_analysis[0].secret_scanning[0].status == "enabled" &&
-      github_repository.site.security_and_analysis[0].secret_scanning_push_protection[0].status == "enabled"
+      module.pages.repository.security_and_analysis[0].secret_scanning[0].status == "enabled" &&
+      module.pages.repository.security_and_analysis[0].secret_scanning_push_protection[0].status == "enabled"
     )
     error_message = "Scan de secrets et protection à la poussée doivent être activés sur le dépôt public site."
   }
 
   assert {
-    condition     = github_repository_vulnerability_alerts.site.enabled == true
+    condition     = module.pages.vulnerability_alerts.enabled == true
     error_message = "Les alertes Dependabot doivent rester activées sur site."
   }
 
   # Renovate gère les montées de version : des PR Dependabot feraient doublon.
   assert {
-    condition     = github_repository_dependabot_security_updates.site.enabled == false
+    condition     = module.pages.dependabot_security_updates.enabled == false
     error_message = "Les mises à jour de sécurité Dependabot doivent rester désactivées sur site : Renovate s'en charge."
   }
 }
@@ -91,11 +91,18 @@ run "ruleset_de_main" {
 
   assert {
     condition = (
-      github_repository_ruleset.site_main.repository == github_repository.site.name &&
+      github_repository_ruleset.site_main.repository == module.pages.repository.name &&
       github_repository_ruleset.site_main.target == "branch" &&
       github_repository_ruleset.site_main.enforcement == "active"
     )
     error_message = "Le ruleset doit viser les branches du dépôt site et être actif."
+  }
+
+  # Le module pose par défaut une protection de branche classique et restreint
+  # le jeton des workflows : le site n'a jamais eu ni l'une ni l'autre.
+  assert {
+    condition     = module.pages.branch_protection == null && module.pages.workflow_permissions == null
+    error_message = "main du dépôt site est protégée par le ruleset seul (protect_production_branch = false), sans restriction du jeton des workflows déclarée (restrict_workflow_token = false)."
   }
 
   assert {
@@ -133,33 +140,33 @@ run "projet_cloudflare_pages" {
 
   # « site » serait trop générique pour le sous-domaine pages.dev.
   assert {
-    condition     = cloudflare_pages_project.site.name == "sylvain-dev" && cloudflare_pages_project.site.production_branch == "main"
+    condition     = module.pages.pages_project.name == "sylvain-dev" && module.pages.pages_project.production_branch == "main"
     error_message = "Le projet Pages doit s'appeler sylvain-dev et déployer main en production."
   }
 
   assert {
-    condition     = cloudflare_pages_project.site.account_id == "0123456789abcdef0123456789abcdef"
+    condition     = module.pages.pages_project.account_id == "0123456789abcdef0123456789abcdef"
     error_message = "Le projet Pages doit être créé dans le compte CLOUDFLARE_ACCOUNT_ID de secrets.sops.yaml."
   }
 
   assert {
     condition = (
-      cloudflare_pages_project.site.source.type == "github" &&
-      cloudflare_pages_project.site.source.config.owner == "sylvainmetayer" &&
-      cloudflare_pages_project.site.source.config.repo_name == github_repository.site.name &&
-      cloudflare_pages_project.site.source.config.production_branch == "main"
+      module.pages.pages_project.source.type == "github" &&
+      module.pages.pages_project.source.config.owner == "sylvainmetayer" &&
+      module.pages.pages_project.source.config.repo_name == module.pages.repository.name &&
+      module.pages.pages_project.source.config.production_branch == "main"
     )
     error_message = "Le projet Pages doit être relié au dépôt GitHub sylvainmetayer/site, branche main."
   }
 
   assert {
-    condition     = cloudflare_pages_project.site.build_config.build_command == "npm run production" && cloudflare_pages_project.site.build_config.destination_dir == "dist"
+    condition     = module.pages.pages_project.build_config.build_command == "npm run production" && module.pages.pages_project.build_config.destination_dir == "dist"
     error_message = "Build Pages : npm run production, sortie dans dist."
   }
 
   # Pages n'accepte un apex que si la zone est chez Cloudflare.
   assert {
-    condition     = cloudflare_pages_domain.site.name == "www.sylvain.dev" && cloudflare_pages_domain.site.project_name == cloudflare_pages_project.site.name
+    condition     = module.pages.pages_domain.name == "www.sylvain.dev" && module.pages.pages_domain.project_name == module.pages.pages_project.name
     error_message = "Le domaine personnalisé www.sylvain.dev doit être attaché au projet Pages sylvain-dev."
   }
 }
@@ -181,17 +188,17 @@ run "jeton_webmention_en_production_seulement" {
   }
 
   assert {
-    condition     = cloudflare_pages_project.site.deployment_configs.production.env_vars["WEBMENTION_IO_TOKEN"].type == "secret_text"
+    condition     = module.pages.pages_project.env_vars.production["WEBMENTION_IO_TOKEN"].type == "secret_text"
     error_message = "WEBMENTION_IO_TOKEN doit être une variable secrète du déploiement de production."
   }
 
   assert {
-    condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
+    condition     = try(length(module.pages.pages_project.env_vars.preview), 0) == 0
     error_message = "Les previews ne doivent recevoir aucun jeton webmention.io."
   }
 
   assert {
-    condition     = toset(keys(cloudflare_pages_project.site.deployment_configs.production.env_vars)) == toset(["WEBMENTION_IO_TOKEN"])
+    condition     = toset(keys(module.pages.pages_project.env_vars.production)) == toset(["WEBMENTION_IO_TOKEN"])
     error_message = "Sans SITE_CF_ANALYTICS_TOKEN, aucune variable CF_ANALYTICS_* en production."
   }
 }
@@ -217,16 +224,16 @@ run "les_plus_lus_en_production_seulement" {
 
   assert {
     condition = (
-      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ANALYTICS_TOKEN"].type == "secret_text" &&
-      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ACCOUNT_ID"].value == "0123456789abcdef0123456789abcdef" &&
-      cloudflare_pages_project.site.deployment_configs.production.env_vars["CF_ANALYTICS_SITE_TAG"].value == "fake-site-tag" &&
-      cloudflare_pages_project.site.deployment_configs.production.env_vars["WEBMENTION_IO_TOKEN"].type == "secret_text"
+      module.pages.pages_project.env_vars.production["CF_ANALYTICS_TOKEN"].type == "secret_text" &&
+      module.pages.pages_project.env_vars.production["CF_ACCOUNT_ID"].value == "0123456789abcdef0123456789abcdef" &&
+      module.pages.pages_project.env_vars.production["CF_ANALYTICS_SITE_TAG"].value == "fake-site-tag" &&
+      module.pages.pages_project.env_vars.production["WEBMENTION_IO_TOKEN"].type == "secret_text"
     )
     error_message = "La production doit recevoir CF_ANALYTICS_TOKEN (secret), CF_ACCOUNT_ID, CF_ANALYTICS_SITE_TAG et toujours WEBMENTION_IO_TOKEN."
   }
 
   assert {
-    condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
+    condition     = try(length(module.pages.pages_project.env_vars.preview), 0) == 0
     error_message = "Les previews ne doivent recevoir aucun jeton."
   }
 }
@@ -268,12 +275,12 @@ run "web_analytics" {
   command = plan
 
   assert {
-    condition     = cloudflare_web_analytics_site.site.host == "www.sylvain.dev"
+    condition     = module.pages.web_analytics_site.host == "www.sylvain.dev"
     error_message = "Web Analytics doit suivre l'hôte www.sylvain.dev."
   }
 
   assert {
-    condition     = cloudflare_web_analytics_site.site.auto_install == false
+    condition     = module.pages.web_analytics_site.auto_install == false
     error_message = "auto_install doit rester à false : sylvain.dev n'est pas une zone Cloudflare."
   }
 
@@ -288,21 +295,21 @@ run "cname_ovh_court_circuite_le_joker" {
 
   assert {
     condition = (
-      ovh_domain_zone_record.www.zone == "sylvain.dev" &&
-      ovh_domain_zone_record.www.subdomain == "www" &&
-      ovh_domain_zone_record.www.fieldtype == "CNAME"
+      module.pages.cname_record.zone == "sylvain.dev" &&
+      module.pages.cname_record.subdomain == "www" &&
+      module.pages.cname_record.fieldtype == "CNAME"
     )
     error_message = "www.sylvain.dev doit être un CNAME explicite dans la zone OVH sylvain.dev, sinon le joker l'envoie vers Pangolin."
   }
 
   # Sans le point final, OVH complète la cible avec la zone.
   assert {
-    condition     = ovh_domain_zone_record.www.target == "sylvain-dev-9f1.pages.dev."
+    condition     = module.pages.cname_record.target == "sylvain-dev-9f1.pages.dev."
     error_message = "La cible du CNAME doit être le sous-domaine pages.dev du projet, terminé par un point."
   }
 
   assert {
-    condition     = ovh_domain_zone_record.www.ttl == 300
+    condition     = module.pages.cname_record.ttl == 300
     error_message = "TTL du CNAME : 300."
   }
 
@@ -320,7 +327,7 @@ run "deploy_hook_present" {
     condition = (
       length(github_actions_secret.pages_deploy_hook) == 1 &&
       github_actions_secret.pages_deploy_hook[0].secret_name == "CLOUDFLARE_PAGES_DEPLOY_HOOK" &&
-      github_actions_secret.pages_deploy_hook[0].repository == github_repository.site.name
+      github_actions_secret.pages_deploy_hook[0].repository == module.pages.repository.name
     )
     error_message = "Avec SITE_PAGES_DEPLOY_HOOK, le secret CLOUDFLARE_PAGES_DEPLOY_HOOK doit être posé sur le dépôt site."
   }
@@ -377,7 +384,7 @@ run "jeton_sonarcloud_present" {
     condition = (
       length(github_actions_secret.sonar_token) == 1 &&
       github_actions_secret.sonar_token[0].secret_name == "SONAR_TOKEN" &&
-      github_actions_secret.sonar_token[0].repository == github_repository.site.name
+      github_actions_secret.sonar_token[0].repository == module.pages.repository.name
     )
     error_message = "Avec SITE_SONAR_TOKEN, le secret SONAR_TOKEN doit être posé sur le dépôt site."
   }
@@ -387,7 +394,7 @@ run "app_cloudflare_absente_par_defaut" {
   command = plan
 
   assert {
-    condition     = length(github_app_installation_repository.cloudflare) == 0
+    condition     = length(module.pages.cloudflare_app_installation) == 0
     error_message = "Sans cloudflare_github_installation_id, aucun accès d'app GitHub ne doit être posé."
   }
 }
@@ -401,9 +408,9 @@ run "app_cloudflare_en_mode_depots_choisis" {
 
   assert {
     condition = (
-      length(github_app_installation_repository.cloudflare) == 1 &&
-      tostring(github_app_installation_repository.cloudflare[0].installation_id) == "12345678" &&
-      github_app_installation_repository.cloudflare[0].repository == github_repository.site.name
+      length(module.pages.cloudflare_app_installation) == 1 &&
+      tostring(module.pages.cloudflare_app_installation[0].installation_id) == "12345678" &&
+      module.pages.cloudflare_app_installation[0].repository == module.pages.repository.name
     )
     error_message = "Avec cloudflare_github_installation_id, l'app GitHub Cloudflare doit recevoir l'accès au dépôt site."
   }

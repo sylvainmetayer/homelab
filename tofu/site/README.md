@@ -2,18 +2,22 @@
 
 Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylvainmetayer/site`, Eleventy + Sveltia CMS), migré de Netlify vers Cloudflare Pages sur le modèle de [`tofu/ref`](../ref/README.md).
 
+Le dépôt, le projet Pages, son domaine, Web Analytics et le CNAME viennent du module commun [`tofu/modules/pages_site`](../modules/pages_site), appelé dans `main.tf` (`module.pages`), comme pour `tofu/ref` et `tofu/1y` ; le reste est propre au site.
+
 | Ressource | Rôle |
 |---|---|
-| `data.github_repository.site` | Dépôt existant, lu seulement (pas géré ici) |
-| `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
+| `module.pages.github_repository.this` | Dépôt existant depuis 2017, importé : réglages repris tels quels, plus le scan de secrets |
+| `module.pages.github_repository_vulnerability_alerts.this` / `module.pages.github_repository_dependabot_security_updates.this` | Alertes Dependabot oui, PR Dependabot non : Renovate gère les montées |
+| `github_repository_ruleset.site_main` | `main` : PR obligatoire, checks verts (`required_checks`), ni suppression ni force-push, sans bypass (`github.tf`) |
+| `module.pages.github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
 | `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets.sops.yaml`) |
 | `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets.sops.yaml`) |
 | `check.daily_build_deploy_hook` | Avertit au plan si `SITE_PAGES_DEPLOY_HOOK` manque (Daily Build en échec) |
-| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
-| `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
-| `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
+| `module.pages.cloudflare_pages_project.env_vars[0]` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement (`local.production_env_vars`, `main.tf`) : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
+| `module.pages.cloudflare_pages_domain.this` | Domaine personnalisé `www.sylvain.dev` |
+| `module.pages.cloudflare_web_analytics_site.this[0]` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
 | `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée : en valeur par défaut dans `variables.tf`, un DID est public ; passée en `-var`, l'apply suivant sans elle supprime l'enregistrement) |
-| `ovh_domain_zone_record.www` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+| `module.pages.ovh_domain_zone_record.cname` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
 L'enregistrement A de l'apex `sylvain.dev` vers Pangolin n'est pas ici mais dans `tofu/dns/pangolin.tf`, à côté du joker (`ovh_domain_zone_record.sylvain_dev_root`, variable `sylvain_dev_apex_to_pangolin`).
 
@@ -51,7 +55,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 1. **Web Analytics existant** : avant le premier apply, importer le site créé à la main (jeton `b127465e…`, celui du `site.json`) pour garder l'historique et le jeton. Son identifiant (*site tag*) est dans le dashboard, *Analytics & Logs → Web Analytics → Manage site*.
 
    ```bash
-   mise exec -- tofu -chdir=tofu/site import cloudflare_web_analytics_site.site '<account_id>/<site_tag>'
+   mise exec -- tofu -chdir=tofu/site import 'module.pages.cloudflare_web_analytics_site.this[0]' '<account_id>/<site_tag>'
    ```
 
    Le plan ne doit montrer qu'un changement d'hôte (`sylvain.dev` → `www.sylvain.dev`), pas un remplacement. S'il propose de le recréer, le jeton changerait : le reporter alors dans `src/_data/site.json` (`cfBeaconToken`) du dépôt `site`.

@@ -2,17 +2,21 @@
 
 Infra du site de parrainage [ref.sylvain.dev](https://ref.sylvain.dev) (code : dépôt `sylvainmetayer/ref`, local `~/Documents/ref`).
 
+Le dépôt, le projet Pages, son domaine, Web Analytics et le CNAME viennent du module commun [`tofu/modules/pages_site`](../modules/pages_site), appelé dans `main.tf` (`module.pages`), comme pour `tofu/site` et `tofu/1y`.
+
 | Ressource | Rôle |
 |---|---|
-| `github_repository.ref` | Dépôt public, vide (poussé à la main), issues ouvertes (lien « Un code ne marche plus ? ») |
-| `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
-| `github_branch_protection.ref_main` | Ni suppression ni force-push sur `main`, propriétaire compris ; pas de PR obligatoire (Sveltia CMS commite directement) |
-| `github_workflow_repository_permissions.ref` | Jeton des workflows en lecture seule par défaut |
-| `github_repository_dependabot_security_updates.ref` | PR Dependabot pour les failles connues |
-| `cloudflare_pages_project.ref` | Build `npm run build` → `_site`, déploiement à chaque push, previews sur les branches |
-| `cloudflare_pages_domain.ref` | Domaine personnalisé `ref.sylvain.dev` |
-| `ovh_domain_zone_record.ref` | CNAME `ref` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
-| `cloudflare_web_analytics_site.ref` | Pages vues ; jeton du beacon en sortie `web_analytics_token`, comparé au plan à `site.json` du dépôt `ref` (`check "beacon_token"`) |
+| `module.pages.github_repository.this` | Dépôt public, vide (poussé à la main, `auto_init = false`), issues ouvertes (lien « Un code ne marche plus ? ») |
+| `module.pages.github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
+| `module.pages.github_branch_protection.production[0]` | Ni suppression ni force-push sur `main`, propriétaire compris ; pas de PR obligatoire (Sveltia CMS commite directement) |
+| `module.pages.github_workflow_repository_permissions.this[0]` | Jeton des workflows en lecture seule par défaut |
+| `module.pages.github_repository_dependabot_security_updates.this` | PR Dependabot pour les failles connues |
+| `module.pages.cloudflare_pages_project.wrangler[0]` | Build `npm run build` → `_site`, déploiement à chaque push, previews sur les branches ; `deployment_configs` laissé au `wrangler.toml` du dépôt |
+| `module.pages.cloudflare_pages_domain.this` | Domaine personnalisé `ref.sylvain.dev` |
+| `module.pages.ovh_domain_zone_record.cname` | CNAME `ref` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+| `module.pages.cloudflare_web_analytics_site.this[0]` | Pages vues ; jeton du beacon en sortie `web_analytics_token`, comparé au plan à `site.json` du dépôt `ref` (`check "beacon_token"`, `main.tf`) |
+
+Le `wrangler.toml` du dépôt `ref` ne déclare pas de `NODE_VERSION` : le build Pages prend la version de Node par défaut de son image, pas celle de `mise.toml` (voir `tofu/1y/node.tf` pour la vérification que fait `1y`).
 
 La vérification Google Search Console de `sylvain.dev` (TXT à l'apex) vit dans `tofu/dns` : elle couvre tout le domaine, pas seulement ce site.
 
@@ -34,7 +38,7 @@ Les bindings Pages (dataset Analytics Engine `ref_events`) sont déclarés dans 
 3. **Application GitHub Cloudflare** (« Cloudflare Workers and Pages ») :
    - **première installation, à la main** (consentement navigateur, aucune API) : *Workers & Pages → Create → Pages → Connect to Git* ;
    - si elle est installée en mode **« All repositories »** : rien d'autre à faire ;
-   - en mode **« Only select repositories »** : Terraform ajoute le dépôt (`github_app_installation_repository.cloudflare`). Renseigner l'ID visible dans l'URL `https://github.com/settings/installations/<id>` :
+   - en mode **« Only select repositories »** : Terraform ajoute le dépôt (`module.pages.github_app_installation_repository.cloudflare`). Renseigner l'ID visible dans l'URL `https://github.com/settings/installations/<id>` :
 
      ```bash
      export TF_VAR_cloudflare_github_installation_id=<id>
