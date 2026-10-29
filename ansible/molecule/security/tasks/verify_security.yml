@@ -433,3 +433,17 @@
       - security_modprobe_conf is not search('^install ' ~ item ~ ' ', multiline=True)
     fail_msg: "devsec bloque {{ item }}, en liste blanche : {{ security_modprobe_conf }}"
   loop: "{{ security_filesystem_whitelist }}"
+
+# --- systemd-ssh-generator masqué (erreur AF_VSOCK à chaque daemon-reload) ---
+
+- name: Read the local override of systemd-ssh-generator
+  ansible.builtin.stat:
+    path: /etc/systemd/system-generators/systemd-ssh-generator
+  register: security_ssh_generator
+
+- name: Assert systemd-ssh-generator is masked
+  ansible.builtin.assert:
+    that:
+      - security_ssh_generator.stat.islnk
+      - security_ssh_generator.stat.lnk_source == '/dev/null'
+    fail_msg: "systemd-ssh-generator n'est pas masqué : {{ security_ssh_generator.stat }}"

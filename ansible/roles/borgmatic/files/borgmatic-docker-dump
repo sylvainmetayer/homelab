@@ -12,8 +12,17 @@
 # tube, côté hôte.
 #
 # Le mot de passe arrive dans l'environnement (password_transport:
-# environment) : « --env MYSQL_PWD » sans valeur le transmet au conteneur,
-# docker exec n'héritant pas de l'environnement de l'hôte.
+# environment), docker exec n'héritant pas de celui de l'hôte. Il ne passe pas
+# au client par MYSQL_PWD : le client MariaDB (11.4+) ne le compte pas comme
+# un mot de passe donné, avertit « option --ssl-verify-server-cert is
+# disabled, because of an insecure passwordless login » et ne vérifie plus le
+# certificat TLS du serveur (« cert is UNKNOWN » dans `status`). Le script
+# l'écrit dans un fichier d'options que le client lit sur son entrée standard
+# (--defaults-extra-file=/dev/stdin, par `docker exec -i`) : le client le
+# connaît, vérifie le certificat auto-signé du serveur par l'empreinte qui en
+# dérive (« cert is OK ») et n'avertit plus. Le mot de passe ne paraît ni sur
+# une ligne de commande (printf est interne à bash) ni dans l'environnement du
+# conteneur. Vérifié sur mariadb:12.3.3 et lscr.io/linuxserver/mariadb:11.8.9.
 set -euo pipefail
 
 if (($# < 2)); then
@@ -44,8 +53,32 @@ while (($#)); do
     esac
 done
 
-if [[ -n $result_file ]]; then
-    docker exec --env MYSQL_PWD "$container" "$client" "${args[@]}" > "$result_file"
+password=${MYSQL_PWD:-}
+unset MYSQL_PWD
+
+if [[ -z $password ]]; then
+    # Sans mot de passe, rien à transmettre : le client tourne tel quel.
+    dump() {
+        docker exec "$container" "$client" "${args[@]}"
+    }
 else
-    exec docker exec --env MYSQL_PWD "$container" "$client" "${args[@]}"
+    if [[ $password == *$'\n'* ]]; then
+        echo "$0: mot de passe sur plusieurs lignes, intransmissible par un fichier d'options" >&2
+        exit 2
+    fi
+    # Valeur entre guillemets doubles : « # », « ; », « ' » et les espaces
+    # restent dans le mot de passe ; seuls « \ » et « " » y sont échappés.
+    password=${password//\\/\\\\}
+    password=${password//\"/\\\"}
+    # --defaults-extra-file doit être la première option du client.
+    dump() {
+        printf '[client]\npassword="%s"\n' "$password" \
+            | docker exec -i "$container" "$client" --defaults-extra-file=/dev/stdin "${args[@]}"
+    }
+fi
+
+if [[ -n $result_file ]]; then
+    dump > "$result_file"
+else
+    dump
 fi

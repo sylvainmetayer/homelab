@@ -92,12 +92,15 @@
     owner: "root"
     group: "root"
 
+# Unités sans secret (l'URL push est dans les configs de /etc/borgmatic.d) :
+# 0644. Fermées à "others", systemd journalise « marked world-inaccessible »
+# à chaque daemon-reload, sans rien protéger (l'API D-Bus les publie).
 - name: Create borgmatic systemd service
   become: true
   ansible.builtin.template:
     src: borgmatic.service.j2
     dest: /etc/systemd/system/borgmatic.service
-    mode: "0640"
+    mode: "0644" # NOSONAR
     owner: root
     group: root
   notify: Reload systemd daemon
@@ -107,7 +110,7 @@
   ansible.builtin.template:
     src: borgmatic.timer.j2
     dest: /etc/systemd/system/borgmatic.timer
-    mode: "0640"
+    mode: "0644" # NOSONAR
     owner: root
     group: root
   notify: Reload systemd daemon

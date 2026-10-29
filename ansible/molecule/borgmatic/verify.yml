@@ -88,19 +88,36 @@
           # Pas sous /tmp, monté noexec dans le conteneur de test : le shell
           # y ignorerait le faux docker et lancerait le vrai.
           d=$(mktemp -d -p /root)
-          printf '#!/bin/sh\necho "$@"\n' > "$d/docker"
+          # Le faux docker affiche ses arguments, puis ce que le client lirait
+          # sur son entrée standard, puis ce qu'il voit de MYSQL_PWD.
+          printf '#!/bin/sh\necho "$@"\n[ -t 0 ] || cat\necho "env=${MYSQL_PWD:-}"\n' > "$d/docker"
           chmod 0700 "$d/docker"
-          PATH="$d:$PATH" /usr/local/bin/borgmatic-docker-dump db_container mariadb-dump --databases app --result-file "$d/out"
+          MYSQL_PWD='dump"pass\word #1' PATH="$d:$PATH" /usr/local/bin/borgmatic-docker-dump db_container mariadb-dump --databases app --result-file "$d/out"
           cat "$d/out"
+          echo ---
+          PATH="$d:$PATH" /usr/local/bin/borgmatic-docker-dump db_container mariadb-dump --databases app </dev/null
           rm -rf "$d"
       register: borgmatic_wrapper_run
       changed_when: false
 
+    # Le mot de passe passe par un fichier d'options sur l'entrée standard,
+    # jamais par MYSQL_PWD : le client MariaDB n'y voit pas de mot de passe,
+    # avertit « insecure passwordless login » et ne vérifie plus le certificat
+    # TLS du serveur. « \ » et « " » échappés, la valeur entre guillemets.
     - name: Assert the wrapper runs the client in the container and writes its output on the host
       ansible.builtin.assert:
         that:
-          - borgmatic_wrapper_run.stdout == 'exec --env MYSQL_PWD db_container mariadb-dump --databases app'
-        fail_msg: "Sortie de l'enrobage : {{ borgmatic_wrapper_run.stdout }}"
+          - borgmatic_wrapper_run.stdout_lines == expected
+        fail_msg: "Sortie de l'enrobage : {{ borgmatic_wrapper_run.stdout_lines }}"
+      vars:
+        expected:
+          - exec -i db_container mariadb-dump --defaults-extra-file=/dev/stdin --databases app
+          - "[client]"
+          - 'password="dump\"pass\\word #1"'
+          - env=
+          - "---"
+          - exec db_container mariadb-dump --databases app
+          - env=
 
     # --- unités systemd ---
 
@@ -131,6 +148,25 @@
           - "'\nExecStart=/root/.local/bin/borgmatic ' in (borgmatic_units.results[0].content | b64decode)"
           - "'\nUser=root\n' in (borgmatic_units.results[0].content | b64decode)"
           - ('\nOnCalendar=' ~ borgmatic_timer_schedule ~ '\n') in (borgmatic_units.results[1].content | b64decode)
+
+    # Sans secret, lisibles par tous : fermées à "others", systemd journalise
+    # « marked world-inaccessible » à chaque daemon-reload.
+    - name: Stat the borgmatic units
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ item }}"
+      register: borgmatic_unit_stats
+      loop:
+        - borgmatic.service
+        - borgmatic.timer
+
+    - name: Assert the borgmatic units are world-readable
+      ansible.builtin.assert:
+        that:
+          - item.stat.mode == '0644'
+        fail_msg: "{{ item.item }} : {{ item.stat.mode }}"
+      loop: "{{ borgmatic_unit_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
     # --- accès à la Storage Box ---
 
