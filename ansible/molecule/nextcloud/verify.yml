@@ -127,8 +127,8 @@
         src: /etc/borgmatic.d/nextcloud.yaml
       register: nextcloud_borgmatic_raw
 
-    # Archives nommées d'après le service ; match_archives couvre aussi les
-    # anciennes 'betisier-…' de ce dépôt (cf. roles/nextcloud/tasks/main.yml).
+    # match_archives couvre aussi les anciennes archives 'betisier-…' de ce
+    # dépôt (cf. roles/nextcloud/tasks/main.yml).
     - name: Assert the nextcloud backup covers data and database and pushes to Uptime Kuma
       vars:
         nextcloud_borgmatic: "{{ nextcloud_borgmatic_raw.content | b64decode | from_yaml }}"
