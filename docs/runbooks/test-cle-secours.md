@@ -33,9 +33,44 @@ Deux contrôles :
 1. Sortir la clé de sa cachette hors ligne et la monter sur le poste, par
    exemple une clé USB en `/run/media/sylvain/SECOURS/secours.key`. Ne
    jamais la copier sur le disque du poste.
-2. Depuis la racine du dépôt (à jour de `main`), vérifier que c'est bien la
-   clé `secours` : la clé publique affichée doit être celle de la ligne
-   `# secours` de `.sops.yaml`.
+2. Depuis la racine du dépôt (à jour de `main`, sur une branche) :
+
+   ```bash
+   mise run test-cle-secours /run/media/sylvain/SECOURS/secours.key
+   ```
+
+   Le script (`.github/scripts/secours_key_check.py`) fait les étapes
+   manuelles ci-dessous, dans l'ordre, et n'affiche que des lignes `ok` /
+   `ÉCHEC` : la clé publique (`age-keygen -y`) est celle de la ligne
+   `# secours` de `.sops.yaml` ; chaque fichier SOPS se déchiffre avec cette
+   clé seule (environnement vide, `HOME` temporaire vide, sortie jetée) ; la
+   contre-épreuve (`SOPS_AGE_KEY_FILE=/dev/null`) échoue. Tout `ok` : il
+   met `dernier_test` (en tête de ce fichier) à la date du jour. La clé
+   n'est passée que par son chemin à `age-keygen` et à `sops`, jamais
+   copiée ni affichée.
+
+   `mise run` déchiffre d'abord `secrets.sops.yaml` pour son environnement
+   (`_.file` de `mise.toml`) : si `perso` et `pro` sont perdues, il échoue
+   avant le script. Le lancer alors sans mise, avec les binaires installés
+   par mise (les vrais, pas les shims ; versions de `mise.toml`) :
+
+   ```bash
+   I=~/.local/share/mise/installs
+   python3 -I .github/scripts/secours_key_check.py \
+     --sops "$I/sops/<version>/sops" --age-keygen "$I/age/<version>/age/age-keygen" \
+     /run/media/sylvain/SECOURS/secours.key
+   ```
+
+3. Démonter et ranger la clé.
+4. Tout `ok` : committer `dernier_test`, PR, merge. Le moniteur repasse
+   « up » au prochain lundi (ou relancer le workflow Secrets rotation à la
+   main). Un `ÉCHEC` : `dernier_test` n'est pas touché, voir « En cas
+   d'échec ».
+
+### À la main (si le script ne tourne pas)
+
+1. Vérifier que c'est bien la clé `secours` : la clé publique affichée doit
+   être celle de la ligne `# secours` de `.sops.yaml`.
 
    ```bash
    KEY=/run/media/sylvain/SECOURS/secours.key
@@ -43,7 +78,7 @@ Deux contrôles :
    grep '# secours' .sops.yaml
    ```
 
-3. Déchiffrer les deux fichiers avec **cette clé seule**. sops additionne
+2. Déchiffrer les deux fichiers avec **cette clé seule**. sops additionne
    toutes les clés qu'il trouve : `SOPS_AGE_KEY_FILE` s'ajoute à
    `SOPS_AGE_KEY`, à `~/.config/sops/age/keys.txt` (présent sur le poste)
    et à `~/.ssh/id_ed25519`, il ne les remplace pas (`.sopsrc` n'est lu
@@ -62,14 +97,13 @@ Deux contrôles :
    ```
 
    Rien ne s'affiche des secrets : la sortie va à `/dev/null`. Contre-épreuve
-   (une fois, pour se convaincre de l'isolement) : la même boucle avec
-   `SOPS_AGE_KEY_FILE=/dev/null` doit afficher deux `ÉCHEC` (« Failed to
-   get the data key »), alors que, sans `env -i` ni `HOME` vide, elle
-   affiche deux `ok` grâce à `keys.txt` (vérifié le 2026-10-28).
-4. Démonter et ranger la clé.
-5. Deux `ok` : mettre `dernier_test` (en tête de ce fichier) à la date du
-   jour, PR, merge. Le moniteur repasse « up » au prochain lundi (ou
-   relancer le workflow Secrets rotation à la main).
+   (pour se convaincre de l'isolement ; le script la fait à chaque fois) :
+   la même boucle avec `SOPS_AGE_KEY_FILE=/dev/null` doit afficher deux
+   `ÉCHEC` (« Failed to get the data key »), alors que, sans `env -i` ni
+   `HOME` vide, elle affiche deux `ok` grâce à `keys.txt` (vérifié le
+   2026-10-28).
+3. Deux `ok` : mettre `dernier_test` (en tête de ce fichier) à la date du
+   jour à la main.
 
 ## En cas d'échec
 
