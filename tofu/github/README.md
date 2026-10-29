@@ -56,10 +56,11 @@ Renommer un environnement (clé de `local.environments`) le détruit sur
 GitHub avec ses secrets, puis en crée un neuf : fusionner la PR qui change
 l'`environment:` des workflows, **puis** appliquer aussitôt, entre deux runs
 planifiés. Un job qui cite un environnement absent le fait créer par GitHub,
-vide et sans politique de branche : avant l'apply, `ntfy-github` (adopté
-ensuite par l'apply, qui y pose politique et secret) ; après un apply fait
-avant le merge, `trivy-ntfy` ou `renovate-digest` à nouveau, à supprimer à
-la main (Settings → Environments).
+vide et sans politique de branche : avant l'apply, le nouveau nom (adopté
+ensuite par l'apply, qui y pose politique et secrets) ; après un apply fait
+avant le merge, l'ancien à nouveau, à supprimer à la main (Settings →
+Environments). Un `moved` vers la nouvelle clé ne fait que lier le
+remplacement dans le plan ; il se retire une fois appliqué.
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
