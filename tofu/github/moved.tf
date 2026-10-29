@@ -91,7 +91,8 @@ moved {
 # (destruction puis création), moved ou pas. trivy-ntfy est déplacé vers
 # ntfy-github, ce qui fait lire le plan comme un remplacement de l'un plutôt
 # qu'une création sans lien ; renovate-digest, sans adresse d'arrivée, est
-# détruit avec sa politique et son secret.
+# détruit avec sa politique et son secret. Ordre : merger la PR (workflows
+# sur ntfy-github), puis appliquer (README, « Renommer un environnement »).
 moved {
   from = github_repository_environment.trivy_ntfy
   to   = github_repository_environment.this["ntfy-github"]
