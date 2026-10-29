@@ -324,22 +324,20 @@ qui lit la configuration de Homepage (`0600`, VM docker) a la main sur Beszel.
 Homepage 2.7.0 ne sait pas faire autrement : sa version 2 du widget se
 connecte en dur par `collections/_superusers` (`src/widgets/beszel/widget.js`).
 
-**Coupé depuis le 29/10/2026** (`beszel_homepage_email` vide). Le hub a des
-« superuser IPs » (réglage PocketBase `superuserIPs`, posé dans l'interface,
-une seule IP publique) : PocketBase vérifie le mot de passe, puis répond 403
-« You are not allowed to perform this request. » à tout superuser venu d'une
-autre adresse (`apis/record_helpers.go` de PocketBase 0.40.5, celui de
-Beszel 0.21.1 ; un mauvais mot de passe donne 400). Homepage, sur newt, n'y
-est pas. D'où le réseau du widget, `beszel_homepage` (interne, `172.16.97.0/29`,
+**Rétabli le 29/10/2026**, après une coupure le même jour. Le hub a des
+« superuser IPs » (réglage PocketBase `superuserIPs`, posé dans l'interface :
+une IP publique, plus `172.16.97.3` depuis le 29/10) : PocketBase vérifie le
+mot de passe, puis répond 403 « You are not allowed to perform this
+request. » à tout superuser venu d'une autre adresse
+(`apis/record_helpers.go` de PocketBase 0.40.5, celui de Beszel 0.21.1 ; un
+mauvais mot de passe donne 400). Homepage, sur newt, n'y est pas. D'où le réseau du widget, `beszel_homepage` (interne, `172.16.97.0/29`,
 `host_vars/docker`) : créé par `dc@beszel` (hub en `172.16.97.2`), rejoint par
 Homepage en `172.16.97.3`, son adresse source vers le hub. Le rôle `beszel`
 ne bloque plus la play : un 403 prouve que le mot de passe est bon (depuis
 l'hôte, la source est la passerelle Docker), et tout autre échec avertit et
-fait omettre le widget pour le run. Le compte créé le 29/10 reste sur le hub,
-à retirer à la main (interface PocketBase `/_/`) si le widget n'est pas
-rétabli.
+fait omettre le widget pour le run.
 
-Pour le rétablir :
+Pour le rétablir après une coupure :
 
 1. Dans l'interface PocketBase du hub (`https://monitoring.sylvain.cloud/_/`,
    depuis la maison : seule l'IP déjà listée y ouvre une session superuser),
@@ -351,10 +349,11 @@ Pour le rétablir :
 3. Le lien Beszel de Homepage montre les compteurs ; sinon, « API Error » du
    widget = adresse toujours refusée.
 
-Le recouper ensuite : `beszel_homepage_email` vide, le même `--tags`, puis
+Pour le couper : `beszel_homepage_email` vide, le même `--tags`, puis
 `docker network rm beszel_homepage` sur la VM (`docker compose up` ne
 supprime pas un réseau retiré du compose) et `172.16.97.3` retiré des
-« Superuser IPs ».
+« Superuser IPs ». Le compte du widget reste sur le hub : le retirer à la main
+(interface PocketBase `/_/`) si la coupure dure.
 
 Le réglage `trustedProxy` du hub (`X-Forwarded-For`, IP la plus à droite) vaut
 pour toute requête, d'où qu'elle vienne : PocketBase ne vérifie pas qu'elle
