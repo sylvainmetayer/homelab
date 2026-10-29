@@ -143,6 +143,11 @@ existant (mêmes permissions, nouvelle valeur), `sops set`, puis un `plan`
 vide dans les trois modules (avec `GITHUB_TOKEN` exporté, voir leurs
 README).
 
+`SITE_CF_ANALYTICS_TOKEN` (fichier racine, `tofu/site` : secret Pages
+`CF_ANALYTICS_TOKEN` de production, lu par la page « les plus lus ») : même
+écran, **Roll** du jeton (mêmes permissions), `sops set`, puis
+`apply` de `tofu/site` et un nouveau déploiement Pages pour qu'il soit pris.
+
 ### Clé API Pangolin
 
 `pangolin_api_key` (fichier racine, provider de `tofu/pangolin_config`) :
