@@ -12,7 +12,7 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
-| `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée) |
+| `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée : en valeur par défaut dans `variables.tf`, un DID est public ; passée en `-var`, l'apply suivant sans elle supprime l'enregistrement) |
 | `ovh_domain_zone_record.www` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 
 L'enregistrement A de l'apex `sylvain.dev` vers Pangolin n'est pas ici mais dans `tofu/dns/pangolin.tf`, à côté du joker (`ovh_domain_zone_record.sylvain_dev_root`, variable `sylvain_dev_apex_to_pangolin`).
@@ -77,19 +77,21 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
 ## Secrets du dépôt site
 
-Trois clés de `secrets.sops.yaml` (racine du dépôt), toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
+Quatre clés de `secrets.sops.yaml` (racine du dépôt), toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
 
 | Clé sops | Ce que l'apply en fait | Utilisée par |
 |---|---|---|
 | `SITE_PAGES_DEPLOY_HOOK` | secret GitHub `CLOUDFLARE_PAGES_DEPLOY_HOOK` | workflow *Daily Build* (articles programmés, nouvelles webmentions) |
 | `SITE_WEBMENTION_IO_TOKEN` | variable `WEBMENTION_IO_TOKEN` (secret, production) du projet Pages | `src/_data/webmentions.js` au build |
 | `SITE_SONAR_TOKEN` | secret GitHub `SONAR_TOKEN` | workflow *SonarCloud* |
+| `SITE_CF_ANALYTICS_TOKEN` | variables `CF_ANALYTICS_TOKEN` (secret), `CF_ACCOUNT_ID` et `CF_ANALYTICS_SITE_TAG` (production) du projet Pages | `src/_data/popularPaths.js` au build (« les plus lus ») |
 
 ### 1. Obtenir les valeurs
 
 - **Build quotidien** : *Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks → Add deploy hook*, nom `daily-build`, branche `main`. Copier l'URL (`https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/…`). Pas d'API documentée pour le créer, d'où l'étape manuelle.
 - **Webmentions** : se connecter sur <https://webmention.io> avec `www.sylvain.dev`, puis copier l'*API Key* de <https://webmention.io/settings>.
 - **SonarCloud** : sur <https://sonarcloud.io>, *+ → Analyze new project*, organisation `sylvainmetayer-github`, dépôt `site` (clé de projet `sylvainmetayer_site`, celle de `sonar-project.properties`). Dans le projet, *Administration → Analysis Method* : désactiver l'*Automatic Analysis*. Puis *My Account → Security → Generate Tokens*, type *Project Analysis Token* sur `sylvainmetayer_site`, sans expiration ou avec un rappel.
+- **Les plus lus** : *My Profile → API Tokens → Create Token → Custom token*, permission *Account → Account Analytics → Read* sur le seul compte du site, rien d'autre (rotation : `docs/runbooks/rotation-des-secrets.md`, « Cloudflare »).
 
 ### 2. Les ajouter à sops
 
@@ -99,9 +101,10 @@ Depuis la racine du dépôt homelab (la clé age perso ou pro doit être disponi
 sops set secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/<id>"'
 sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
 sops set secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
+sops set secrets.sops.yaml '["SITE_CF_ANALYTICS_TOKEN"]' '"<jeton Account Analytics: Read>"'
 ```
 
-Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets.sops.yaml` et ajouter les trois lignes `CLE: valeur` dans l'éditeur.
+Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets.sops.yaml` et ajouter les lignes `CLE: valeur` dans l'éditeur.
 
 Vérifier (noms seulement, sans afficher les valeurs) :
 
@@ -120,7 +123,7 @@ mise exec -- tofu -chdir=tofu/site apply
 mise exec -- tofu -chdir=tofu/site plan    # doit être vide
 ```
 
-Si le second plan propose encore de réécrire `WEBMENTION_IO_TOKEN` (valeur `secret_text` non renvoyée par l'API), ajouter `ignore_changes = [deployment_configs]` au projet Pages.
+Si le second plan propose encore de réécrire `WEBMENTION_IO_TOKEN` ou `CF_ANALYTICS_TOKEN` (valeur `secret_text` non renvoyée par l'API), ajouter `ignore_changes = [deployment_configs]` au projet Pages : toute variable de production ne changera plus alors qu'à la main.
 
 ### 4. Vérifier
 

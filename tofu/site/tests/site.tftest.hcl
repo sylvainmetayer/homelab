@@ -189,6 +189,11 @@ run "jeton_webmention_en_production_seulement" {
     condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
     error_message = "Les previews ne doivent recevoir aucun jeton webmention.io."
   }
+
+  assert {
+    condition     = toset(keys(cloudflare_pages_project.site.deployment_configs.production.env_vars)) == toset(["WEBMENTION_IO_TOKEN"])
+    error_message = "Sans SITE_CF_ANALYTICS_TOKEN, aucune variable CF_ANALYTICS_* en production."
+  }
 }
 
 # Avec un jeton Web Analytics en lecture, la liste « les plus lus » reçoit le
@@ -247,7 +252,7 @@ run "handle_bluesky" {
     condition = (
       ovh_domain_zone_record.atproto[0].subdomain == "_atproto" &&
       ovh_domain_zone_record.atproto[0].fieldtype == "TXT" &&
-      ovh_domain_zone_record.atproto[0].target == "did=did:plc:abcdefghijklmnop"
+      ovh_domain_zone_record.atproto[0].target == "\"did=did:plc:abcdefghijklmnop\""
     )
     error_message = "Le handle Bluesky se vérifie par un TXT _atproto.sylvain.dev contenant did=<DID>."
   }
