@@ -47,7 +47,7 @@ jobs:
           for i in {1..60}; do
             echo "Check $i/60"
 
-            if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+            if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
               echo "✓ DNS proxy started"
               break
             fi
@@ -62,7 +62,7 @@ jobs:
             sleep 2
           done
 
-          if ! docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+          if ! docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
             echo "OLM startup failed"
             docker logs olm
             exit 1

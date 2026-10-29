@@ -293,10 +293,13 @@ jobs:
           # proxy DNS ; 40 s ne suffisaient plus (deux échecs le 28/10).
           # Un OLM sorti (--rm : conteneur et journaux déjà effacés) échoue
           # tout de suite au lieu d'attendre les 2 min pour rien.
+          # grep sans -q : -q s'arrête au premier résultat, docker logs prend
+          # un SIGPIPE et pipefail (shell bash d'Actions) fait échouer le test
+          # alors que la ligne est là (déploiement du 29/10).
           for i in {1..60}; do
             echo "Check $i/60"
 
-            if docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+            if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
               echo "DNS proxy started"
               break
             fi
@@ -311,7 +314,7 @@ jobs:
             sleep 2
           done
 
-          if ! docker logs olm 2>&1 | grep -q "DNS proxy started"; then
+          if ! docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
             echo "OLM startup failed"
             docker logs olm
             exit 1
