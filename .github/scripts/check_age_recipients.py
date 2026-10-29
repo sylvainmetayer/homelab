@@ -13,10 +13,9 @@ ancienne clé que `sops updatekeys` n'a pas retirée) échoue aussi.
 Les destinataires sont en clair dans les métadonnées `sops:` du fichier
 chiffré : rien n'est déchiffré, aucune clé age n'est lue. Le test de
 déchiffrement avec la clé secours, lui, est manuel :
-docs/runbooks/test-cle-secours.md. Bibliothèque standard seulement ; les
-deux fichiers suivent le format que sops et ce dépôt écrivent (chaque
-règle ouverte par `- path_regex:`, une clé publique par ligne, son nom en
-commentaire ; une règle qui ne commence pas par path_regex est refusée).
+docs/runbooks/test-cle-secours.md. Les deux fichiers sont lus avec PyYAML
+(yaml.safe_load, l'environnement uv du workflow Lint) ; seul le nom d'une
+clé, en commentaire sur sa ligne dans .sops.yaml, est lu dans le texte.
 
 Usage (depuis la racine du dépôt, workflow Lint) : check_age_recipients.py
 """
@@ -26,6 +25,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 SOPS_CONFIG = ".sops.yaml"
 # Le seul nom que chiffrent les creation_rules de .sops.yaml.
@@ -34,73 +35,79 @@ SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 # Nom (commentaire de .sops.yaml) d'une clé que chaque règle doit compter.
 REQUIRED_LABELS = ("secours",)
 
-RULE_RE = re.compile(r"^\s*-\s+path_regex:\s*(.+?)\s*$")
-ITEM_RE = re.compile(r"^(\s*)-\s+[A-Za-z_]+:")
 AGE_KEY_RE = re.compile(r"\bage1[02-9ac-hj-np-z]{58}\b")
 LABEL_RE = re.compile(r"#\s*(\S+)")
-RECIPIENT_RE = re.compile(r"^\s+recipient:\s*(\S+)\s*$")
 
 
 class ConfigError(Exception):
     """.sops.yaml illisible."""
 
 
-def parse_rules(text):
-    """[(path_regex, {clé publique: nom})] des creation_rules, dans l'ordre."""
-    rules, indent, inside = [], None, False
-    for number, line in enumerate(text.splitlines(), 1):
-        if line[:1].strip() and not line.startswith("#"):
-            # Clé de premier niveau : seules les creation_rules comptent
-            # (destination_rules, stores… ont leurs propres listes).
-            inside, indent = line.startswith("creation_rules:"), None
-            continue
-        if not inside:
-            continue
-        rule = RULE_RE.match(line)
-        item = ITEM_RE.match(line)
-        if item and not rule and indent is not None and len(item.group(1)) == indent:
-            # Une règle sans path_regex en tête : ses clés iraient à la
-            # précédente sans un mot.
-            raise ConfigError(f"{SOPS_CONFIG}:{number} : règle sans `- path_regex:` en première clé")
-        if rule:
-            indent = len(item.group(1))
-            pattern = rule.group(1)
-            if len(pattern) >= 2 and pattern[0] == pattern[-1] and pattern[0] in "\"'":
-                pattern = pattern[1:-1]
-            try:
-                rules.append((re.compile(pattern), {}))
-            except re.error as error:
-                raise ConfigError(f"{SOPS_CONFIG}:{number} : path_regex invalide ({error})") from error
-            continue
+def key_labels(text):
+    """{clé publique: nom} des clés seules sur leur ligne, nom en commentaire.
+
+    safe_load jette les commentaires : le nom se lit dans le texte. Une
+    ligne `age: a,b` en compte plusieurs : pas de nom.
+    """
+    labels = {}
+    for line in text.splitlines():
         code, _, comment = line.partition("#")
         keys = AGE_KEY_RE.findall(code)
-        if keys:
-            if not rules:
-                raise ConfigError(f"{SOPS_CONFIG}:{number} : clé age hors d'une règle path_regex")
-            # Le nom en commentaire ne vaut que pour une clé seule sur sa
-            # ligne (`age: a,b` en compte plusieurs).
-            label = LABEL_RE.match("#" + comment) if comment and len(keys) == 1 else None
-            for key in keys:
-                rules[-1][1][key] = label.group(1) if label else key
-    if not rules:
+        label = LABEL_RE.match("#" + comment) if comment else None
+        if len(keys) == 1 and label:
+            labels[keys[0]] = label.group(1)
+    return labels
+
+
+def rule_keys(rule):
+    """Clés age d'une règle : `age:` et l'`age:` de chaque key_groups."""
+    values = [rule.get("age")] + [group.get("age") for group in rule.get("key_groups") or [] if isinstance(group, dict)]
+    keys = []
+    for value in values:
+        for item in value if isinstance(value, list) else [value]:
+            if isinstance(item, str):
+                keys += [key for key in AGE_KEY_RE.findall(item) if key not in keys]
+    return keys
+
+
+def parse_rules(text):
+    """[(path_regex, {clé publique: nom})] des creation_rules, dans l'ordre."""
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        raise ConfigError(f"{SOPS_CONFIG} : YAML invalide ({error})") from error
+    entries = data.get("creation_rules") if isinstance(data, dict) else None
+    if not isinstance(entries, list) or not entries:
         raise ConfigError(f"{SOPS_CONFIG} : aucune creation_rules avec path_regex")
+    labels = key_labels(text)
+    rules = []
+    for number, rule in enumerate(entries, 1):
+        pattern = rule.get("path_regex") if isinstance(rule, dict) else None
+        if not isinstance(pattern, str):
+            # Sans path_regex, sops l'appliquerait à tous les fichiers que
+            # les règles précédentes ne désignent pas.
+            raise ConfigError(f"{SOPS_CONFIG} : règle n° {number} sans path_regex")
+        try:
+            compiled = re.compile(pattern)
+        except re.error as error:
+            raise ConfigError(f"{SOPS_CONFIG} : règle n° {number}, path_regex invalide ({error})") from error
+        rules.append((compiled, {key: labels.get(key, key) for key in rule_keys(rule)}))
     return rules
 
 
 def file_recipients(text):
     """Destinataires age des métadonnées `sops:` d'un fichier chiffré (liste, doublons gardés)."""
-    recipients, inside = [], False
-    for line in text.splitlines():
-        if line.startswith("sops:"):
-            inside = True
-            continue
-        if inside and line and not line[0].isspace():
-            inside = False
-        if inside:
-            match = RECIPIENT_RE.match(line)
-            if match:
-                recipients.append(match.group(1))
-    return recipients
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return []
+    sops = data.get("sops") if isinstance(data, dict) else None
+    stanzas = sops.get("age") if isinstance(sops, dict) else None
+    return [
+        stanza["recipient"]
+        for stanza in stanzas or []
+        if isinstance(stanza, dict) and isinstance(stanza.get("recipient"), str)
+    ]
 
 
 def sops_files(root=ROOT):
