@@ -47,7 +47,7 @@ Où ça casse :
 | `Load secrets …` | `SOPS_AGE_KEY` ne déchiffre plus (`.sops.yaml` ou destinataire `github-actions` modifié) |
 | `Read Terraform state from S3 bucket` | clés `state_s3_*` invalides, bucket OVH indisponible |
 | tâche d'un rôle, handler `Restart <service>` | l'appli elle-même ne démarre plus : [appli-en-panne.md](appli-en-panne.md) |
-| `No matching role changed` (vert) | seul un playbook a changé, pas un rôle : rien n'est déployé |
+| `No matching role changed` (vert) | seul un playbook a changé, pas un rôle, ou seulement le `README.md` d'un rôle (jamais lu par Ansible) : rien n'est déployé |
 | `Determine changed files` (vert) : « already deployed by a later successful run » | relance d'un vieux run : un run plus récent a déjà déployé ce commit, rien n'est rejoué (ce serait un retour en arrière) |
 | `Determine changed files` : avertissement « no usable last successful push run » | premier run, plus aucun run réussi dans l'API ou historique réécrit : seul ce push est déployé, les runs annulés ou rouges d'avant ne sont pas rattrapés (les relancer à la main, `workflow_dispatch` avec `tags`) |
 

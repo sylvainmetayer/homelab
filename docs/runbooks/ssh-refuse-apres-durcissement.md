@@ -126,7 +126,7 @@ revenir en arrière.
 | Hôte | Console |
 |---|---|
 | `pangolin`, `flip` | console Hetzner (Cloud Console → serveur → Console), `sylvain` + son mot de passe |
-| `docker` (VM 300) | interface Proxmox → VM 300 → Console, `sylvain` + son mot de passe |
+| `docker` (VM 100) | interface Proxmox → VM 100 → Console, `sylvain` + son mot de passe |
 | `newt-lxc` (CT 200) | shell du nœud Proxmox : `pct enter 200` (root, sans mot de passe) |
 | `pi` | écran et clavier, ou la carte SD lue sur le poste (`/etc/ssh/sshd_config` sur la partition racine) |
 

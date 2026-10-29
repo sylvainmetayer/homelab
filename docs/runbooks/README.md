@@ -46,6 +46,8 @@ mise run ssh_pi     # Raspberry Pi (réseau local seulement)
 mise run ssh_newt   # LXC Newt du site proxmox-lxc (réseau local seulement)
 mise run ssh_flip   # flip, par rebond sur Pangolin
 ssh sylvain@pangolin.sylvain.cloud   # Pangolin (pas de tâche mise)
+ssh sylvain@192.168.1.137            # NAS (réseau local seulement)
+ssh root@192.168.1.26                # hôte Proxmox (LAN, ou pve.internal avec le client Pangolin)
 ```
 
 Vérifier que le sshd de docker, du Pi, de newt-lxc et de Pangolin offre
@@ -57,8 +59,9 @@ playbook en `--check --diff --tags security`.
 
 L'inventaire vient de `ansible.cfg` (`inventory = ./inventory`, c'est-à-dire
 `proxmox.py`, `hetzner.py` et `hosts` ensemble). Ne pas passer
-`-i inventory/hosts` : ce fichier ne contient que le Pi, `docker.yml` ou
-`pangolin.yaml` n'y trouveraient aucun hôte.
+`-i inventory/hosts` : ce fichier ne contient que les hôtes statiques (Pi,
+LXC newt, NAS, hôte Proxmox), `docker.yml`, `flip.yml` ou `pangolin.yaml`
+n'y trouveraient aucun hôte.
 
 Deux règles qui valent pour tous les runbooks :
 

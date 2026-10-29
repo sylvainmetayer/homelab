@@ -36,7 +36,7 @@ mise run secrets-scan      # gitleaks over the whole history
 
 `mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc), without touching any state. Modules with no plan task (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.
 
-There is no mise task running a playbook and no `site.yml`: from `ansible/`, run the playbook of the host group you change (`00-setup.yaml`, `docker.yml`, `flip.yml`, `pangolin.yaml`, `pi.yml`, `lxc.yml`, `nas.yml`, `pve.yml`, `backup.yaml`, `pc-nas.yml`), with `--check`, `--tags <role>`, `-v`. **No `-i`**: `ansible.cfg` sets `inventory = ./inventory` (`proxmox.py`, `hetzner.py` and `hosts` together); `-i inventory/hosts` alone would only know the Pi and the LXC. Every run is logged to `ansible/run.log`. Detail (inventory, flip's bastion jump, the host table): `docs/conventions/ansible.md`.
+There is no mise task running a playbook and no `site.yml`: from `ansible/`, run the playbook of the host group you change (`00-setup.yaml`, `docker.yml`, `flip.yml`, `pangolin.yaml`, `pi.yml`, `lxc.yml`, `nas.yml`, `pve.yml`, `backup.yaml`, `pc-nas.yml`), with `--check`, `--tags <role>`, `-v`. **No `-i`**: `ansible.cfg` sets `inventory = ./inventory` (`proxmox.py`, `hetzner.py` and `hosts` together); `-i inventory/hosts` alone would only know the static hosts (Pi, LXC, NAS, Proxmox host). Every run is logged to `ansible/run.log`. Detail (inventory, flip's bastion jump, the host table): `docs/conventions/ansible.md`.
 
 ## Hard rules (one line each; the pointer has the detail)
 
