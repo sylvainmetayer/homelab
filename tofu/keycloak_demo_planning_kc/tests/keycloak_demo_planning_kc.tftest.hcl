@@ -3,9 +3,10 @@
 # Le module realm (terraform/keycloak de planning-equipes, vendorisé dans
 # modules/realm) porte son propre bloc provider "keycloak", que mock_provider
 # ne remplace pas : seuls les providers du module racine sont mockés (vérifié :
-# sans override_module, le plan tente la connexion à Keycloak). override_module le court-circuite
-# entièrement (aucune ressource planifiée, provider jamais configuré, donc
-# aucune connexion à https://demo-planning-kc.sylvain.dev/auth). Ses
+# sans override_module, le plan tente la connexion à Keycloak).
+# override_module le court-circuite entièrement (aucune ressource planifiée,
+# provider jamais configuré, donc aucune connexion à
+# https://demo-planning-kc.sylvain.dev/auth). Ses
 # variables, elles, restent évaluées avec leurs validations : c'est ce qui
 # vérifie que les entrées passées par main.tf (URL publique, SMTP, secrets de
 # client) sont acceptées par le module à cette révision.
