@@ -321,10 +321,42 @@ Le widget Beszel exige un superuser PocketBase : il a le sien
 `beszel superuser upsert`, distinct du compte administrateur. **Risque
 accepté** (Sylvain, 2026-10-28) : un superuser lit et écrit tout le hub, donc
 qui lit la configuration de Homepage (`0600`, VM docker) a la main sur Beszel.
-**Coupé depuis le 29/10/2026** : Beszel 0.21.1 répond 403 à la connexion par
-mot de passe de ce superuser, `beszel_homepage_email` est donc vide (pas de
-compte géré, pas de widget). Le compte créé le 29/10 reste sur le hub, à
-retirer à la main (interface PocketBase `/_/`) si le widget n'est pas rétabli.
+Homepage 2.7.0 ne sait pas faire autrement : sa version 2 du widget se
+connecte en dur par `collections/_superusers` (`src/widgets/beszel/widget.js`).
+
+**Coupé depuis le 29/10/2026** (`beszel_homepage_email` vide). Le hub a des
+« superuser IPs » (réglage PocketBase `superuserIPs`, posé dans l'interface,
+une seule IP publique) : PocketBase vérifie le mot de passe, puis répond 403
+« You are not allowed to perform this request. » à tout superuser venu d'une
+autre adresse (`apis/record_helpers.go` de PocketBase 0.40.5, celui de
+Beszel 0.21.1 ; un mauvais mot de passe donne 400). Homepage, sur newt, n'y
+est pas. D'où le réseau du widget, `beszel_homepage` (interne, `172.16.97.0/29`,
+`host_vars/docker`) : créé par `dc@beszel` (hub en `172.16.97.2`), rejoint par
+Homepage en `172.16.97.3`, son adresse source vers le hub. Le rôle `beszel`
+ne bloque plus la play : un 403 prouve que le mot de passe est bon (depuis
+l'hôte, la source est la passerelle Docker), et tout autre échec avertit et
+fait omettre le widget pour le run. Le compte créé le 29/10 reste sur le hub,
+à retirer à la main (interface PocketBase `/_/`) si le widget n'est pas
+rétabli.
+
+Pour le rétablir :
+
+1. Dans l'interface PocketBase du hub (`https://monitoring.sylvain.cloud/_/`,
+   depuis la maison : seule l'IP déjà listée y ouvre une session superuser),
+   Settings → Application, volet « Superuser IPs » : ajouter `172.16.97.3`
+   après l'IP existante (liste séparée par des virgules), sans la retirer.
+2. `beszel_homepage_email: homepage@monitoring.sylvain.cloud` dans
+   `host_vars/docker`, puis `ansible-playbook docker.yml --tags beszel,homepage`
+   (les deux : `dc@beszel` crée le réseau que Homepage rejoint).
+3. Le lien Beszel de Homepage montre les compteurs ; sinon, « API Error » du
+   widget = adresse toujours refusée.
+
+Le réglage `trustedProxy` du hub (`X-Forwarded-For`, IP la plus à droite) vaut
+pour toute requête, d'où qu'elle vienne : PocketBase ne vérifie pas qu'elle
+passe par un proxy. Par Pangolin, Traefik ajoute la vraie IP en dernier ; mais
+sur le port publié (`192.168.1.216:8090`, tout le LAN), un client peut
+annoncer l'IP admise dans cet en-tête. La liste d'IP n'y arrête donc pas un
+superuser qui a le mot de passe ; seul le mot de passe le fait.
 
 ```mermaid
 flowchart LR

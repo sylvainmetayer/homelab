@@ -1,43 +1,79 @@
 ---
 # Superuser PocketBase du widget Beszel de Homepage (defaults/main.yml,
-# beszel_homepage_*). Une connexion qui réussit : rien à faire. Sinon (compte
-# absent, mot de passe changé dans sops), `beszel superuser upsert` le crée ou
-# remet son mot de passe. Le mot de passe passe en argument de `docker exec`
+# beszel_homepage_*). Le mot de passe passe en argument de `docker exec`
 # (l'image n'a pas de shell pour le lire ailleurs) : visible un instant dans
 # /proc de l'hôte, qui n'a que sylvain, et dans l'événement Docker
 # exec_create (flux /events, que les proxys de newt et de log_agent laissent
 # lire, rien ne le garde) ;
 # no_log le garde hors de run.log.
-- name: Wait for the Beszel hub API
-  ansible.builtin.import_tasks: api_wait.yml
+#
+# Réponses de la connexion (PocketBase 0.40.5, celui de Beszel 0.21.1,
+# apis/record_auth_with_password.go puis record_helpers.go) :
+# - 400 : compte absent ou mot de passe faux. `beszel superuser upsert` le crée
+#   ou remet son mot de passe.
+# - 403 « You are not allowed to perform this request. » : mot de passe bon
+#   (vérifié avant), mais l'adresse source n'est pas dans les « superuser
+#   IPs » du hub (Settings.SuperuserIPs, réglé dans l'interface). Attendu
+#   ici : l'API publiée sur 127.0.0.1 voit la passerelle Docker, pas
+#   Homepage, qui vient de beszel_homepage_client_ip. Le compte est donc bon.
+# - 200 : aucune liste d'IP sur le hub.
+#
+# Jamais bloquant : le widget est accessoire. Un échec (hub muet, upsert
+# refusé, mot de passe toujours refusé) avertit et pose
+# beszel_homepage_account_ready à false, que lit le rôle homepage (omis pour
+# ce run, sans faire échouer la play).
+- name: Declare the Homepage superuser without blocking the play
+  block:
+    - name: Wait for the Beszel hub API
+      ansible.builtin.import_tasks: api_wait.yml
 
-- name: Log in to the Beszel hub as the Homepage superuser
-  no_log: true
-  ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
-    method: POST
-    body_format: json
-    body:
-      identity: "{{ beszel_homepage_email }}"
-      password: "{{ beszel_homepage_password }}"
-    status_code: [200, 400]
-  register: beszel_homepage_login
-  check_mode: false
+    - name: Log in to the Beszel hub as the Homepage superuser
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
+        method: POST
+        body_format: json
+        body:
+          identity: "{{ beszel_homepage_email }}"
+          password: "{{ beszel_homepage_password }}"
+        status_code: [200, 400, 403]
+      register: beszel_homepage_login
+      check_mode: false
 
-- name: Create the Homepage superuser or reset its password
-  when: beszel_homepage_login.status != 200
-  no_log: true
-  ansible.builtin.command:
-    argv: "{{ beszel_superuser_command + ['upsert', beszel_homepage_email, beszel_homepage_password] }}"
-  changed_when: true
+    - name: Create the Homepage superuser or reset its password
+      when: beszel_homepage_login.status == 400
+      no_log: true
+      ansible.builtin.command:
+        argv: "{{ beszel_superuser_command + ['upsert', beszel_homepage_email, beszel_homepage_password] }}"
+      changed_when: true
 
-- name: Check that the Homepage superuser logs in
-  when: beszel_homepage_login.status != 200 and not ansible_check_mode
-  no_log: true
-  ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
-    method: POST
-    body_format: json
-    body:
-      identity: "{{ beszel_homepage_email }}"
-      password: "{{ beszel_homepage_password }}"
+    - name: Check that the hub now accepts the Homepage superuser password
+      when: beszel_homepage_login.status == 400 and not ansible_check_mode
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
+        method: POST
+        body_format: json
+        body:
+          identity: "{{ beszel_homepage_email }}"
+          password: "{{ beszel_homepage_password }}"
+        status_code: [200, 403]
+
+    - name: Keep the Homepage widget
+      ansible.builtin.set_fact:
+        beszel_homepage_account_ready: true
+
+  rescue:
+    - name: Drop the Homepage widget for this run
+      ansible.builtin.set_fact:
+        beszel_homepage_account_ready: false
+
+    # ansible_failed_result ne sort pas : les tâches en échec sont no_log.
+    - name: Warn that the Homepage superuser could not be declared
+      ansible.builtin.debug:
+        msg: >-
+          AVERTISSEMENT : superuser Homepage ({{ beszel_homepage_email }}) non
+          déclaré sur le hub Beszel (tâche « {{ ansible_failed_task.name }} »).
+          Le widget Beszel de Homepage est omis pour ce run, rien d'autre
+          n'est arrêté. Rejouer avec --tags beszel,homepage une fois le hub
+          réparé.

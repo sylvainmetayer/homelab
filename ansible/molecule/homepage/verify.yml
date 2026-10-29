@@ -31,7 +31,8 @@
       changed_when: false
 
     # Liens seulement : ni socket Docker ni autre montage que la configuration,
-    # en lecture seule, et seulement le réseau newt.
+    # en lecture seule ; le réseau newt, plus celui du widget Beszel (externe,
+    # créé par dc@beszel) à l'IP fixe que les « superuser IPs » du hub admettent.
     - name: Assert homepage only mounts its read-only configuration and joins newt
       vars:
         homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
@@ -41,8 +42,11 @@
           - homepage_service.volumes | length == 1
           - homepage_service.volumes[0].target == '/app/config'
           - homepage_service.volumes[0].read_only | default(false)
-          - homepage_service.networks.keys() | list == ['newt']
-          - homepage_compose.networks.keys() | list == ['newt']
+          - homepage_service.networks.keys() | list | sort == ['beszel', 'newt']
+          - homepage_service.networks.beszel.ipv4_address == '172.16.97.3'
+          - homepage_compose.networks.keys() | list | sort == ['beszel', 'newt']
+          - homepage_compose.networks.beszel.name == 'beszel_homepage'
+          - homepage_compose.networks.beszel.external
           - homepage_service.environment.HOMEPAGE_ALLOWED_HOSTS.split(',') == ['home.sylvain.cloud', 'homepage:3000', 'homepage']
           - homepage_service.environment.LOG_TARGETS == 'stdout'
           - homepage_service.mem_limit is defined
@@ -100,7 +104,8 @@
           - homepage_documents[0]['BookStack'].widget is not defined
         fail_msg: "services.yaml inattendu : {{ homepage_services }}"
 
-    # Widgets : Beszel sur son lien (superuser du rôle beszel, réseau newt),
+    # Widgets : Beszel sur son lien (superuser du rôle beszel, par l'IP du hub
+    # sur le réseau du widget, pas par son nom sur newt),
     # une carte pour la page de statut sylvain-dev d'Uptime Kuma, sans href
     # (l'URL d'Uptime Kuma reste dans la configuration). Aucune carte des
     # sauvegardes : pas de page publique pour elles.
@@ -116,7 +121,7 @@
           - homepage_admin['Beszel'].href == 'https://monitoring.sylvain.cloud'
           - homepage_admin['Beszel'].widget.type == 'beszel'
           - homepage_admin['Beszel'].widget.version == 2
-          - homepage_admin['Beszel'].widget.url == 'http://beszel:8090'
+          - homepage_admin['Beszel'].widget.url == 'http://172.16.97.2:8090' # NOSONAR
           - homepage_admin['Beszel'].widget.username == 'homepage@monitoring.sylvain.cloud'
           - homepage_admin['Beszel'].widget.password == homepage_beszel_password
           - homepage_admin['Beszel'].widget.fields == ['systems', 'up']

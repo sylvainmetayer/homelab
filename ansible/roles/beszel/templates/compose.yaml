@@ -29,10 +29,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    # Seul conteneur du projet : pas de réseau privé, newt suffit. Plus, avec
+    # le widget de Homepage, le réseau de ce widget, à IP fixes : PocketBase
+    # n'admet un superuser que depuis les « superuser IPs » du hub, et l'IP de
+    # Homepage sur newt change à chaque recréation (docs/architecture.md,
+    # « La supervision »).
     networks:
-      - newt
+      newt: {}
+{% if beszel_homepage_enabled | bool %}
+      homepage:
+        ipv4_address: {{ beszel_homepage_hub_ip }}
+{% endif %}
 
 networks:
   newt:
     external: true
+{% if beszel_homepage_enabled | bool %}
+  # Créé ici, rejoint en externe par Homepage (rôle homepage, après celui-ci
+  # dans docker.yml). Interne : eux deux seulement, aucune route vers Internet.
+  homepage:
+    name: {{ beszel_homepage_network }}
+    internal: true
+    ipam:
+      config:
+        - subnet: {{ beszel_homepage_subnet }}
+{% endif %}

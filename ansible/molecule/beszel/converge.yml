@@ -14,6 +14,6 @@
       vars:
         # Aucun conteneur : le mock de prepare.yml, pas `docker exec beszel`.
         beszel_superuser_command: [/usr/local/bin/beszel-superuser-mock]
-        # Vide dans host_vars/docker tant que Beszel refuse la connexion de ce
-        # superuser (403) : le scénario garde le chemin couvert.
+        # Vide dans host_vars/docker tant que l'IP de Homepage n'est pas dans
+        # les « superuser IPs » du hub : le scénario garde le chemin couvert.
         beszel_homepage_email: homepage@monitoring.sylvain.cloud

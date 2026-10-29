@@ -76,15 +76,21 @@ beszel_alerts_webhooks: >-
 beszel_alerts_emails: ["{{ beszel_admin_email }}"]
 
 # Superuser PocketBase du widget Beszel de Homepage (tasks/homepage_superuser.yml) :
-# le widget (version 2) se connecte par collections/_superusers, un compte
+# le widget (version 2) se connecte par collections/_superusers, en dur dans
+# Homepage 2.7.0 (src/widgets/beszel/widget.js, mapping authv2) : un compte
 # utilisateur ne lui suffit pas. Un compte à lui, pour que son mot de passe,
 # écrit dans la configuration de Homepage, ne soit pas celui de
 # l'administrateur. Créé (ou son mot de passe remis) par `beszel superuser
-# upsert` dans le conteneur quand il ne se connecte pas ; adresse vide ou clé
-# sops absente : rien n'est fait. Un compte créé ainsi est retiré à la main
-# (interface PocketBase /_/), jamais par le rôle.
+# upsert` dans le conteneur quand son mot de passe est refusé ; adresse vide
+# ou clé sops absente : rien n'est fait. Un compte créé ainsi est retiré à la
+# main (interface PocketBase /_/), jamais par le rôle.
+# Jamais bloquant : un échec avertit et pose beszel_homepage_account_ready à
+# false, et le rôle homepage omet alors le widget pour ce run.
+# Le réseau du widget (beszel_homepage_network, _subnet, _hub_ip, _client_ip)
+# est dans host_vars/docker : le rôle homepage le lit aussi.
 beszel_homepage_email: ""
 beszel_homepage_password: "{{ homepage_beszel_password | default('') }}"
+beszel_homepage_enabled: "{{ beszel_homepage_email | length > 0 and beszel_homepage_password | length > 0 }}"
 beszel_superuser_command: [docker, exec, beszel, /beszel, superuser]
 
 # Borgmatic backup configuration
