@@ -41,13 +41,12 @@ beszel_publish_addresses:
 # utilisé par le rôle homepage (mot de passe : clé sops
 # homepage_beszel_password). Jamais une adresse qui reçoit du courrier :
 # PocketBase ne l'utilise que comme identifiant.
-# Vide (widget coupé, compte non géré) tant que l'IP de Homepage n'est pas dans
-# les « superuser IPs » du hub : sans elle, PocketBase répond 403 à la
-# connexion de tout superuser venu d'une autre adresse que la seule qui y
-# figure, une IP publique (réglage fait dans l'interface ; procédure :
-# docs/architecture.md, « La supervision »). Valeur à remettre :
-# homepage@monitoring.sylvain.cloud.
-beszel_homepage_email: ""
+# Exige l'IP de Homepage (172.16.97.3, réseau beszel_homepage) dans les
+# « superuser IPs » du hub, ajoutée le 2026-10-29 à côté de l'IP publique déjà
+# listée : sans elle, PocketBase répond 403 à la connexion. Pour couper le
+# widget : vider cette valeur (procédure : docs/architecture.md, « La
+# supervision »).
+beszel_homepage_email: homepage@monitoring.sylvain.cloud
 # Réseau du widget, créé par dc@beszel (interne, sous-réseau fixe) et rejoint
 # par Homepage : la source de ses requêtes au hub est toujours
 # beszel_homepage_client_ip, la seule adresse à ajouter aux « superuser IPs ».
