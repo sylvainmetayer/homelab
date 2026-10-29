@@ -1,23 +1,50 @@
-# Mises à jour de l'hôte Proxmox et du NAS (UGOS)
+# Mises à jour des hôtes : Proxmox, VM docker, Pi, flip, Pangolin, NAS
 
-Procédure, pas un incident. Ni l'hôte Proxmox VE ni le NAS n'ont de mises à
-jour automatiques, et ce n'est pas un oubli : un paquet `pve-*`, `qemu-server`
-ou un noyau se met à jour VM arrêtées, une mise à jour d'UGOS redémarre le
-NAS sous la VM docker, sous Jellyfin et sous les sauvegardes vzdump. Pour
-Proxmox, le rôle `update_notify` prévient, Sylvain applique ; pour UGOS,
-rien ne prévient (voir plus bas).
+Procédure, pas un incident. Rien ne met ces hôtes entièrement à jour seul, et
+ce n'est pas un oubli :
+
+- l'hôte Proxmox VE n'a pas de mises à jour automatiques : un paquet `pve-*`,
+  `qemu-server` ou un noyau se met à jour VM arrêtées ;
+- la VM docker, le Pi, flip et Pangolin ont `unattended-upgrades` (rôle
+  `security`), qui n'installe que Debian-Security (plus le noyau et le
+  firmware de Raspberry Pi sur le Pi) et redémarre l'hôte la nuit si un
+  noyau le demande. Le reste attend, Docker compris, exprès : mettre à jour
+  `docker-ce` ou `containerd.io` redémarre `dockerd`, donc **tous** les
+  conteneurs de l'hôte ;
+- une mise à jour d'UGOS redémarre le NAS sous la VM docker, sous Jellyfin
+  et sous les sauvegardes vzdump.
+
+Pour les cinq hôtes Debian, le rôle `update_notify` prévient, Sylvain
+applique ; pour UGOS, rien ne prévient (voir plus bas).
 
 ## Ce qui prévient
 
-`update-notify.timer` (rôle `update_notify`, `pve.yml`), le lundi vers 08:00,
-publie sur le topic `scripts` de ntfy et pousse au moniteur Uptime Kuma
-« Mises à jour Proxmox » (`tofu/pangolin_config/cron_updates.tf`, intervalle
-de 15 jours). Message chaque lundi où quelque chose attend :
-`pve : N mise(s) à jour, dont S de sécurité`, la sécurité listée d'abord,
-puis Proxmox et noyaux, puis le reste ; priorité haute dès que `S > 0`. Aussi
-`pve : redémarrage en attente` quand un noyau plus récent que celui qui
+`update-notify.timer` (rôle `update_notify`) passe chaque lundi matin, un
+hôte après l'autre (le timer ajoute jusqu'à un quart d'heure au hasard) :
+
+| Hôte | Playbook | Heure | Moniteur Uptime Kuma |
+|---|---|---|---|
+| `pve` (Proxmox VE) | `pve.yml` (à la main) | 08:00 | « Mises à jour Proxmox » |
+| `docker` (VM docker) | `docker.yml` | 08:30 | « Mises à jour VM docker » |
+| `pi` | `pi.yml` | 08:45 | « Mises à jour Raspberry Pi » |
+| `flip` | `flip.yml` | 09:00 | « Mises à jour flip » |
+| `pangolin` | `pangolin.yaml` | 09:15 | « Mises à jour Pangolin » |
+
+Il publie sur le topic `scripts` de ntfy et pousse au moniteur de l'hôte
+(`tofu/pangolin_config/cron_updates.tf`, intervalle de 15 jours). Message
+seulement les lundis où quelque chose attend :
+`<hôte> : N mise(s) à jour, dont S de sécurité`, la sécurité listée
+d'abord, puis Docker (`docker-ce`, `containerd.io`, plugins), Proxmox et
+noyaux, puis le reste ; priorité haute dès que `S > 0`. Une ligne le dit
+quand Docker attend (tous les conteneurs redémarreront). Aussi
+`<hôte> : redémarrage en attente` quand un noyau plus récent que celui qui
 tourne est installé. Rien n'est installé : `apt-get update` puis une
-simulation (`apt-get -s dist-upgrade`).
+simulation (`apt-get -s dist-upgrade`). Tout à jour : pas de message, le
+moniteur reçoit « à jour ».
+
+Sur les hôtes à `unattended-upgrades`, une mise à jour de sécurité listée le
+lundi est en général installée la nuit suivante : relancer le vérificateur
+le lendemain avant de s'en occuper à la main.
 
 Rien ne prévient pour le NAS : UGOS n'a pas d'apt, et ni son interface (API à
 session, mot de passe chiffré, double authentification possible) ni Ugreen
@@ -27,16 +54,76 @@ ci-dessous).
 
 Un moniteur rouge veut dire que le vérificateur ne passe plus ou échoue
 (message du push) : `apt-get update en échec` (miroir, verrou des listes
-tenu par `pve-daily-update`), `publication ntfy en échec`, ou aucun
-battement (hôte éteint deux lundis, timer arrêté). Diagnostic sur l'hôte :
+tenu par `pve-daily-update` ou `apt-daily`), `publication ntfy en échec`, ou
+aucun battement (hôte éteint deux lundis, timer arrêté). Diagnostic sur
+l'hôte :
 
 ```bash
 systemctl status update-notify.timer update-notify.service
 journalctl -u update-notify.service -n 50 --no-pager
-systemctl start update-notify.service   # un passage tout de suite
+sudo systemctl start update-notify.service   # un passage tout de suite (root sur pve, sans sudo)
 ```
 
-Unités absentes : rejouer `pve.yml --tags update_notify`.
+Unités absentes : rejouer le playbook de l'hôte avec `--tags update_notify`.
+
+## VM docker, Pi, flip et Pangolin
+
+Toujours de jour et à la main, jamais pendant les sauvegardes (borgmatic à
+01:00) ni pendant la fenêtre de redémarrage d'`unattended-upgrades` (04:00 à
+05:30 selon l'hôte). Ce qui tombe pendant la mise à jour :
+
+- **VM docker** (`mise run ssh`) : avec Docker, toutes les applis de
+  `docker.yml`, Homepage, Beszel et VictoriaLogs compris (moniteurs Uptime
+  Kuma rouges, attendu) ; avec un noyau, pareil au redémarrage.
+- **Pi** (`mise run ssh_pi`) : Immich et le premier résolveur DNS du LAN
+  (Blocky ; le second, sur le LXC newt, prend le relais).
+- **flip** (`mise run ssh_flip`, rebond par Pangolin) : le **planning de
+  production**, sa démo et Promptoramix. Hors des périodes où le planning
+  sert (événement en cours, collecte des disponibilités ouverte).
+- **Pangolin** (`ssh sylvain@pangolin.sylvain.cloud`) : **toutes les applis
+  publiques** (Traefik, Pangolin, Newt de chaque site passent par lui), la
+  sortie Internet de flip (NAT) et l'accès distant à la maison, donc la CI :
+  ne rien merger qui déploie pendant ce temps. Le faire depuis le LAN ou avec
+  une console Hetzner sous la main.
+
+### Avant
+
+1. Lire la liste du message ntfy, puis sur l'hôte :
+   ```bash
+   sudo apt update && apt list --upgradable
+   ```
+   Pour `docker-ce` : lire les notes de version de Docker Engine (une mineure
+   29.x → 30.x en particulier). Une version majeure de Debian n'est **pas**
+   cette procédure.
+2. Les sauvegardes de la nuit sont vertes (moniteurs de sauvegarde Uptime
+   Kuma). Pour Pangolin, l'image Hetzner du jour existe (`backups = true`,
+   `tofu/pangolin/pangolin.tf`).
+
+### Appliquer
+
+```bash
+sudo apt full-upgrade
+```
+
+Relire ce qu'apt propose de **retirer**. Avec `docker-ce` ou
+`containerd.io`, `dockerd` redémarre pendant l'installation : les unités
+`dc@` relancent leurs applis (attente bornée du démon, puis `docker compose
+up`), sur Pangolin la restart policy de la stack. Avec un noyau :
+`sudo reboot` (sinon `unattended-upgrades` le fera la nuit suivante, à
+l'heure de l'hôte).
+
+### Après
+
+```bash
+docker ps --format '{{.Names}}\t{{.Status}}' | sort   # tout « Up »
+systemctl --user list-units 'dc@*' --state=failed     # vide (pas sur Pangolin)
+sudo systemctl start update-notify.service && journalctl -u update-notify.service -n 5 --no-pager
+```
+
+Puis : les moniteurs Uptime Kuma de l'hôte reviennent au vert, l'agent
+Beszel remonte, et le dernier `update-notify` pousse « à jour ». Après
+Pangolin : une appli publique au hasard répond, et `flip` (Beszel, planning)
+est revenu, sa sortie Internet passant par Pangolin.
 
 ## Proxmox VE
 
@@ -168,5 +255,8 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
 - Ne pas ajouter d'`unattended-upgrades` sur l'hôte Proxmox : il
   installerait `pve-*` ou un noyau VM allumées, sans redémarrage, et masquerait
   l'alerte.
+- Ne pas ouvrir `unattended-upgrades` au dépôt de Docker
+  (`security_unattended_extra_origins`) : `dockerd` redémarrerait la nuit,
+  avec toutes les applis, sans personne pour vérifier qu'elles reviennent.
 - Le moniteur du vérificateur tolère un lundi manqué, pas deux : un hôte
   éteint plus de deux semaines le met au rouge, attendu.

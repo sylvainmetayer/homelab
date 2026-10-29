@@ -12,6 +12,7 @@
       ansible.builtin.set_fact:
         immich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_immich_url.value | default('') }}"
         blocky_check_push_url: "{{ terraform_outputs.uptime_cron_dns_pi_url.value | default('') }}"
+        update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pi_updates_url.value | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -45,6 +46,13 @@
     # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
     - role: mem_report
       tags: mem_report,monitoring
+    # Mises à jour apt en attente, chaque lundi sur ntfy (topic scripts) :
+    # unattended-upgrades n'installe que Debian-Security et le noyau de
+    # Raspberry Pi, pas Docker (docs/runbooks/mises-a-jour-hotes.md).
+    - role: update_notify
+      tags: update_notify,monitoring
+      vars:
+        update_notify_schedule: "Mon *-*-* 08:45:00"
   tasks:
     # Restes d'avant Pangolin, quand nginx et Let's Encrypt servaient Immich
     # depuis le Pi : le certificat de photos.sylvain.cloud (expiré depuis

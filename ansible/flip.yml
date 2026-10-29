@@ -43,6 +43,7 @@
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
+        update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_flip_updates_url.value | default('') }}"
         newt_client_id: "{{ terraform_outputs.flip_newt_id.value | default('') }}"
         newt_client_secret: "{{ terraform_outputs.flip_newt_secret.value | default('') }}"
         # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
@@ -224,3 +225,11 @@
     # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
     - role: mem_report
       tags: mem_report,monitoring
+    # Mises à jour apt en attente, chaque lundi sur ntfy (topic scripts) :
+    # unattended-upgrades n'installe que Debian-Security. Docker reste à la
+    # main : redémarrer dockerd coupe le planning de production
+    # (docs/runbooks/mises-a-jour-hotes.md).
+    - role: update_notify
+      tags: update_notify,monitoring
+      vars:
+        update_notify_schedule: "Mon *-*-* 09:00:00"

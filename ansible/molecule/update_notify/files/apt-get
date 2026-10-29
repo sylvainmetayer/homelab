@@ -1,6 +1,6 @@
 #!/bin/sh
 # Faux apt-get du verify (scénario update_notify), choisi par FAKE_APT_CASE :
-#   security  une simulation de dist-upgrade comme sur Proxmox (lignes Inst
+#   security  une simulation de dist-upgrade (Proxmox et Docker, lignes Inst
 #             et Remv de la vraie sortie d'apt-get -s, LC_ALL=C)
 #   uptodate  rien à mettre à jour
 #   broken    apt-get update en échec
@@ -19,6 +19,7 @@ case "$1" in
       echo "Inst vim-common [2:9.1.1230-2] (2:9.1.1230-3 Debian:13.7/stable [all])"
       echo "Inst pve-manager [9.2.24] (9.2.25 Proxmox:trixie/stable [all])"
       echo "Inst proxmox-kernel-7.0.15-1-pve-signed (7.0.15-1 Proxmox:trixie/stable [amd64])"
+      echo "Inst docker-ce [5:29.9.0-1~debian.13~trixie] (5:29.9.2-1~debian.13~trixie Docker CE:trixie/trixie [amd64])"
       echo "Inst libc-bin [2.41-12+deb13u4] (2.41-12+deb13u5 Debian:13.7/stable, Debian-Security:13/stable-security [amd64])"
       echo "Remv proxmox-kernel-6.8.12-4-pve-signed [6.8.12-4]"
       echo "Conf libc-bin (2.41-12+deb13u5 Debian:13.7/stable, Debian-Security:13/stable-security [amd64])"

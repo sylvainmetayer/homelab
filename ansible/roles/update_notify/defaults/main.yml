@@ -1,10 +1,13 @@
 ---
-# Mises à jour en attente sur l'hôte Proxmox VE (pve.yml), que ni la CI ni
-# unattended-upgrades ne mettent à jour. Chaque semaine, update-notify.timer
+# Mises à jour apt en attente, sur l'hôte Proxmox VE (pve.yml, ni la CI ni
+# unattended-upgrades ne le mettent à jour) et sur la VM docker, le Pi, flip
+# et Pangolin (unattended-upgrades n'y installe que Debian-Security : Docker,
+# containerd et le reste attendent). Chaque semaine, update-notify.timer
 # lance files/update_notify.py : apt-get update puis simulation de
-# dist-upgrade, sécurité d'abord, priorité haute dès qu'une mise à jour de
-# sécurité attend. Rien n'est installé ; la procédure pour appliquer est
-# docs/runbooks/mises-a-jour-proxmox-ugos.md.
+# dist-upgrade, sécurité d'abord, puis Docker, Proxmox et noyaux, priorité
+# haute dès qu'une mise à jour de sécurité attend, aucun message quand tout
+# est à jour. Rien n'est installé ; la procédure pour appliquer est
+# docs/runbooks/mises-a-jour-hotes.md.
 
 # Nom de l'hôte dans les titres des messages.
 update_notify_host_label: "{{ inventory_hostname }}"
@@ -19,11 +22,14 @@ update_notify_ntfy_url: https://ntfy.sylvain.cloud
 update_notify_ntfy_topic: scripts
 update_notify_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
 
-# URL push du moniteur Uptime Kuma (sortie uptime_cron_pve_updates_url de
-# tofu/pangolin_config, lue par pve.yml) : vide, rien n'est poussé.
+# URL push du moniteur Uptime Kuma de l'hôte (sortie
+# uptime_cron_<hôte>_updates_url de tofu/pangolin_config, lue par son
+# playbook) : vide, rien n'est poussé.
 update_notify_healthcheck_url: ""
 
 # Une fois par semaine, le lundi matin : loin du pve-daily-update de Proxmox
 # (nuit) qui verrouille aussi les listes d'apt. Le moniteur tolère un passage
 # manqué (hôte éteint), pas deux (tofu/pangolin_config/cron_updates.tf).
+# Valeur de pve ; les autres playbooks décalent leur hôte d'un quart d'heure
+# chacun (vars: de l'entrée du rôle), pour ne pas tout recevoir à la fois.
 update_notify_schedule: "Mon *-*-* 08:00:00"

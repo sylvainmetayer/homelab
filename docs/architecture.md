@@ -497,14 +497,19 @@ flowchart LR
   SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
   `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent et le vérificateur des mises à
   jour (ci-dessous) : ni `00-setup`, ni `security`.
-- **Mises à jour** : ni l'hôte Proxmox ni UGOS ne se mettent à jour seuls.
-  Le rôle `update_notify` (`pve.yml`) publie chaque lundi sur le topic
-  `scripts` de ntfy ce qui attend sur Proxmox (sécurité d'abord, priorité
-  haute s'il y en a) ; moniteur push « Mises à jour Proxmox » pour un
-  vérificateur mort. UGOS ne dit pas sans session de son interface si une
+- **Mises à jour** : ni l'hôte Proxmox ni UGOS ne se mettent à jour seuls ;
+  la VM docker, le Pi, flip et Pangolin n'installent seuls que
+  Debian-Security (`unattended-upgrades`), Docker restant à la main exprès
+  (redémarrer `dockerd` redémarre toutes les applis de l'hôte). Le rôle
+  `update_notify` (`pve.yml`, `docker.yml`, `pi.yml`, `flip.yml`,
+  `pangolin.yaml`) publie chaque lundi sur le topic `scripts` de ntfy ce qui
+  attend sur chacun de ces hôtes, et seulement s'il y a quelque chose
+  (sécurité d'abord, puis Docker, Proxmox et noyaux ; priorité haute s'il y
+  a de la sécurité) ; un moniteur push « Mises à jour <hôte> » par hôte pour
+  un vérificateur mort. UGOS ne dit pas sans session de son interface si une
   mise à jour attend : rien ne le surveille, ses mises à jour se regardent
   dans l'interface. Procédure :
-  [runbooks/mises-a-jour-proxmox-ugos.md](runbooks/mises-a-jour-proxmox-ugos.md).
+  [runbooks/mises-a-jour-hotes.md](runbooks/mises-a-jour-hotes.md).
 - **Alertes** : déclarées par le rôle `beszel` (`beszel_alerts`, tag
   `beszel_alerts`) sur tous les systèmes : hôte muet 5 min, CPU et mémoire à
   plus de 90 % sur 10 min, disque à plus de 85 % ; température au-dessus de

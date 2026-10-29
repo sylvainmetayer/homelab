@@ -1,20 +1,22 @@
 #!/usr/bin/python3
-"""Mises à jour en attente sur l'hôte Proxmox, publiées sur ntfy.
+"""Mises à jour apt en attente sur l'hôte, publiées sur ntfy.
 
-Lancé chaque semaine par update-notify.timer (rôle update_notify), en root.
-N'installe jamais rien : il liste, puis prévient. apt-get update, puis une
-simulation de dist-upgrade (apt-get -s, rien n'est installé). Les paquets de
-Debian-Security sont listés d'abord, puis ceux de Proxmox et les noyaux, puis
-le reste ; un noyau installé plus récent que celui qui tourne est signalé
-(redémarrage en attente). Message ntfy de priorité haute dès qu'une mise à
-jour de sécurité attend, normale sinon, aucun quand tout est à jour.
+Lancé chaque semaine par update-notify.timer (rôle update_notify), en root,
+sur l'hôte Proxmox, la VM docker, le Pi, flip et Pangolin. N'installe jamais
+rien : il liste, puis prévient. apt-get update, puis une simulation de
+dist-upgrade (apt-get -s, rien n'est installé). Les paquets de
+Debian-Security sont listés d'abord, puis Docker (docker-ce, containerd…),
+Proxmox et les noyaux, puis le reste ; un noyau installé plus récent que
+celui qui tourne est signalé (redémarrage en attente). Message ntfy de
+priorité haute dès qu'une mise à jour de sécurité attend, normale sinon,
+aucun quand tout est à jour.
 
 Chaque passage pousse aussi au moniteur push d'Uptime Kuma de l'hôte : up avec
 un résumé, down si apt-get ou ntfy échouent. Un vérificateur mort (timer
 arrêté, hôte éteint) laisse le moniteur sans battement : il passe au rouge au
 bout de son intervalle.
 
-Bibliothèque standard seule (le Python de Proxmox). Le jeton ntfy et l'URL
+Bibliothèque standard seule (le Python de Debian). Le jeton ntfy et l'URL
 push viennent de l'environnement (EnvironmentFile de l'unité, 0600 root),
 jamais de la ligne de commande, jamais affichés.
 """
@@ -32,7 +34,7 @@ import urllib.request
 
 NTFY_TOKEN_VARIABLE = "NTFY_TOKEN"
 PUSH_URL_VARIABLE = "UPTIME_PUSH_URL"
-RUNBOOK = "docs/runbooks/mises-a-jour-proxmox-ugos.md"
+RUNBOOK = "docs/runbooks/mises-a-jour-hotes.md"
 # ntfy refuse un message de plus de 4096 octets (message-size-limit, sans
 # pièces jointes) : chaque section est coupée à MAX_LISTED paquets, puis le
 # message entier à MESSAGE_LIMIT octets (quatre sections pleines le passeraient).
@@ -44,6 +46,9 @@ INST_RE = re.compile(r"^Inst (\S+) (?:\[([^\]]+)\] )?\((\S+) ([^\[]+) \[[^\]]+\]
 REMV_RE = re.compile(r"^Remv (\S+)")
 PROXMOX_NAME_RE = re.compile(r"^(pve-|proxmox-|libpve|qemu-server|lxc-pve|corosync|libknet)")
 KERNEL_NAME_RE = re.compile(r"(^|-)kernel|^linux-image")
+# Le moteur Docker et ce qui l'accompagne (dépôt download.docker.com) : sa
+# mise à jour redémarre dockerd, donc tous les conteneurs de l'hôte.
+DOCKER_NAME_RE = re.compile(r"^(docker-|containerd)")
 
 
 class CheckError(Exception):
@@ -60,8 +65,10 @@ def version_key(version):
 
 
 def parse_simulation(output):
-    """Paquets d'une simulation de dist-upgrade, rangés par catégorie."""
-    security, proxmox, other, removed = [], [], [], []
+    """Paquets d'une simulation de dist-upgrade, rangés par catégorie :
+    sécurité, Docker/Proxmox/noyaux (sensibles : un redémarrage du démon,
+    des VM ou de l'hôte), le reste, les retirés."""
+    security, sensitive, other, removed = [], [], [], []
     for line in output.splitlines():
         removal = REMV_RE.match(line)
         if removal:
@@ -74,11 +81,14 @@ def parse_simulation(output):
         entry = f"{name} {installed or '(nouveau)'} → {candidate}"
         if "-Security:" in origins or "-security" in origins:
             security.append(entry)
-        elif "Proxmox" in origins or PROXMOX_NAME_RE.search(name) or KERNEL_NAME_RE.search(name):
-            proxmox.append(entry)
+        elif (
+            "Proxmox" in origins or "Docker" in origins or PROXMOX_NAME_RE.search(name)
+            or KERNEL_NAME_RE.search(name) or DOCKER_NAME_RE.search(name)
+        ):
+            sensitive.append(entry)
         else:
             other.append(entry)
-    return security, proxmox, other, removed
+    return security, sensitive, other, removed
 
 
 def pending_kernel(boot_dir, running):
@@ -140,15 +150,17 @@ def apt_update(retry_delay):
     raise CheckError(f"apt-get update en échec : {last_error(update)}")
 
 
-def apt_tail(newest, running):
+def apt_tail(newest, running, docker):
     """Les dernières lignes du message, jamais coupées."""
     tail = []
+    if docker:
+        tail.append("Docker en attente : sa mise à jour redémarre tous les conteneurs de l'hôte.")
     if newest:
         tail.append(f"Noyau {newest} installé, {running} en service : redémarrage à prévoir.")
     pveversion = run(["pveversion"]) if shutil.which("pveversion") else None
     if pveversion is not None and pveversion.returncode == 0 and pveversion.stdout.strip():
         tail.append(pveversion.stdout.strip().splitlines()[0])
-    tail.append(f"Rien n'est installé seul : {RUNBOOK}")
+    tail.append(f"À appliquer à la main : {RUNBOOK}")
     return tail
 
 
@@ -159,8 +171,9 @@ def check_apt(args):
     simulation = run(["apt-get", "-s", "-o", "Debug::NoLocking=1", "dist-upgrade"])
     if simulation.returncode != 0:
         raise CheckError(f"simulation de dist-upgrade en échec : {last_error(simulation)}")
-    security, proxmox, other, removed = parse_simulation(simulation.stdout)
-    total = len(security) + len(proxmox) + len(other)
+    security, sensitive, other, removed = parse_simulation(simulation.stdout)
+    total = len(security) + len(sensitive) + len(other)
+    docker = any(DOCKER_NAME_RE.search(e) for e in security + sensitive)
 
     running = os.uname().release
     newest = pending_kernel(args.boot_dir, running)
@@ -171,10 +184,10 @@ def check_apt(args):
         return None, "à jour"
 
     lines = section("Sécurité", security)
-    lines += section("Proxmox et noyaux", proxmox)
+    lines += section("Docker, Proxmox et noyaux", sensitive)
     lines += section("Autres", other)
     lines += section("Retirés par dist-upgrade", removed)
-    tail = apt_tail(newest, running)
+    tail = apt_tail(newest, running, docker)
 
     if total:
         title = f"{args.host} : {total} mise(s) à jour, dont {len(security)} de sécurité"
