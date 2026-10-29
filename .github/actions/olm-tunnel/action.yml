@@ -1,0 +1,77 @@
+name: OLM tunnel
+description: >-
+  Démarre le client OLM de Pangolin (conteneur `olm`, --network host) et
+  attend son proxy DNS. Partagé par deploy-docker-app.yaml et ping.yaml ;
+  le résolveur du runner reste à pointer sur 100.96.128.1 par l'appelant
+  (voir ping.yaml), et à restaurer dans son nettoyage.
+
+inputs:
+  pangolin-endpoint:
+    description: URL de Pangolin (secret PANGOLIN_ENDPOINT)
+    required: true
+  olm-id:
+    description: Identifiant du client OLM (secret OLM_ID)
+    required: true
+  olm-secret:
+    description: Secret du client OLM (secret OLM_SECRET)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Start OLM
+      shell: bash
+      env:
+        PANGOLIN_ENDPOINT: ${{ inputs.pangolin-endpoint }}
+        OLM_ID: ${{ inputs.olm-id }}
+        OLM_SECRET: ${{ inputs.olm-secret }}
+      # `-e NAME` sans valeur : docker reprend la variable de son propre
+      # environnement, le secret n'apparaît pas dans la ligne de commande
+      # (/proc/<pid>/cmdline, que l'agent de harden-runner relève).
+      run: |
+        docker run -d --rm \
+          --name olm \
+          --network host \
+          --cap-add=NET_ADMIN \
+          --device /dev/net/tun:/dev/net/tun \
+          -e PANGOLIN_ENDPOINT \
+          -e OLM_ID \
+          -e OLM_SECRET \
+          -e OVERRIDE_DNS=true \
+          docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
+
+    - name: Wait OLM startup
+      shell: bash
+      run: |
+        # 60 × 2 s : OLM joint chaque site (hole punch) avant de lancer son
+        # proxy DNS ; 40 s ne suffisaient plus (deux échecs le 28/10).
+        # Un OLM sorti (--rm : conteneur et journaux déjà effacés) échoue
+        # tout de suite au lieu d'attendre les 2 min pour rien.
+        # grep sans -q : -q s'arrête au premier résultat, docker logs prend
+        # un SIGPIPE et pipefail (shell bash d'Actions) fait échouer le test
+        # alors que la ligne est là (déploiement du 29/10).
+        started=false
+        for i in {1..60}; do
+          echo "Check $i/60"
+
+          if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
+            echo "DNS proxy started"
+            started=true
+            break
+          fi
+
+          if [ "$(docker inspect -f '{{.State.Running}}' olm 2>/dev/null)" != true ]; then
+            echo "OLM container exited before starting its DNS proxy"
+            docker logs olm 2>&1 || true
+            exit 1
+          fi
+
+          docker logs --tail 5 olm || true
+          sleep 2
+        done
+
+        if [ "$started" != true ]; then
+          echo "OLM startup failed"
+          docker logs olm
+          exit 1
+        fi
