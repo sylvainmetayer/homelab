@@ -43,8 +43,8 @@
     mode: "0600"
   # Carries the push URL of the "Reset Betisier" monitor.
   diff: false
-  # No app restart: it would reload the dump without the password UPDATE,
-  # which only a run of betisier-reset.service applies.
+  # No app restart: this unit does not touch the app, and a new push URL
+  # would otherwise restart betisier for nothing.
   notify: Reload systemd user
 
 - name: Template betisier-reset timer
