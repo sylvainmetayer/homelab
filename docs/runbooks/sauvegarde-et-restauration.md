@@ -168,8 +168,9 @@ temporaire sur le NFS, que le tar du LXC non privilégié ne peut pas ouvrir : l
 `tmpdir: /var/tmp` de `/etc/vzdump.conf` manque : `ansible-playbook pve.yml
 --tags vzdump`), et
 la taille de la VM : `df -h /` et `docker system df` dans la VM. Les images
-Docker remplacées par Renovate restent sur le disque tant qu'elles ne sont pas
-supprimées (`docker image prune -a`) et grossissent chaque archive.
+Docker remplacées par Renovate grossissent chaque archive tant qu'elles restent
+sur le disque : `docker-image-prune.timer` (rôle `docker_service`) les retire
+chaque dimanche, ou `docker image prune -a` à la main.
 
 Ces archives sont restaurées à l'essai le 2 et le 16 du mois sur l'hôte
 (LXC démarré sans réseau, archive de la VM vérifiée en entier) :

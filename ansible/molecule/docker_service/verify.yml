@@ -123,3 +123,59 @@
         docker_service_manager_groups: >-
           {{ (docker_service_manager_proc.content | b64decode).splitlines()
              | select('match', '^Groups:') | first | regex_replace('^Groups:\s*', '') | split }}
+
+    - name: Read the image prune service
+      ansible.builtin.slurp:
+        src: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/docker-image-prune.service"
+      register: docker_service_prune_unit_raw
+
+    # La seule commande attendue : images inutilisées et plus vieilles que le
+    # filtre, jamais de volume (--volumes, volume prune) ni de `system prune`.
+    - name: Assert the image prune service runs exactly the safe command
+      ansible.builtin.assert:
+        that:
+          - docker_service_prune_exec == ['ExecStart=/usr/bin/docker image prune --all --force --filter until=168h']
+          - docker_service_prune_unit_lines | select('search', 'volume|system prune|builder|container prune|network prune') | list | length == 0
+        fail_msg: "ExecStart de docker-image-prune.service : {{ docker_service_prune_exec }}"
+      vars:
+        docker_service_prune_unit_lines: "{{ (docker_service_prune_unit_raw.content | b64decode).splitlines() | reject('match', '^#') | list }}"
+        docker_service_prune_exec: "{{ docker_service_prune_unit_lines | select('match', '^ExecStart') | list }}"
+
+    - name: Read the image prune timer
+      ansible.builtin.systemd:
+        name: docker-image-prune.timer
+        scope: user
+      register: docker_service_prune_timer
+
+    - name: Assert the image prune timer is enabled and waiting
+      ansible.builtin.assert:
+        that:
+          - docker_service_prune_timer.status.UnitFileState == 'enabled'
+          - docker_service_prune_timer.status.ActiveState == 'active'
+          - docker_service_prune_timer.status.Unit == 'docker-image-prune.service'
+          - docker_service_prune_timer.status.Persistent == 'yes'
+        fail_msg: >-
+          docker-image-prune.timer : {{ docker_service_prune_timer.status.UnitFileState }},
+          {{ docker_service_prune_timer.status.ActiveState }}
+
+    # Un passage réel contre le démon Docker du conteneur de test (aucune image
+    # utile à perdre) : la commande est acceptée et l'unité réussit.
+    - name: Run the image prune service once
+      ansible.builtin.systemd:
+        name: docker-image-prune.service
+        scope: user
+        state: started
+      changed_when: false
+
+    - name: Read the image prune service after its run
+      ansible.builtin.systemd:
+        name: docker-image-prune.service
+        scope: user
+      register: docker_service_prune_service
+
+    - name: Assert the image prune service succeeded
+      ansible.builtin.assert:
+        that:
+          - docker_service_prune_service.status.Result == 'success'
+          - docker_service_prune_service.status.ExecMainStatus == '0'
+        fail_msg: "docker-image-prune.service : {{ docker_service_prune_service.status.Result }}"

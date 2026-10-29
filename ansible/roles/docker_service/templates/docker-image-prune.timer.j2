@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Une purge par semaine ; Persistent rattrape une semaine manquée (hôte
+# éteint) au démarrage suivant.
+[Unit]
+Description=Weekly removal of the unused Docker images
+
+[Timer]
+OnCalendar={{ docker_service_image_prune_schedule }}
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

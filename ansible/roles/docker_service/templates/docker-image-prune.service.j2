@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Lancée par docker-image-prune.timer. Retire les images qu'aucun conteneur,
+# même arrêté, n'utilise et construites il y a plus de
+# {{ docker_service_image_prune_until }} ; rien d'autre (ni volume, ni
+# conteneur, ni réseau, ni cache de build). La sortie de Docker (images
+# supprimées, « Total reclaimed space ») va dans le journal :
+#   journalctl --user -u docker-image-prune
+[Unit]
+Description=Remove the Docker images no container uses
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker image prune --all --force --filter until={{ docker_service_image_prune_until }}
