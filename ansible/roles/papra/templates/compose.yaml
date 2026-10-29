@@ -16,9 +16,11 @@ services:
     # L'uid de l'hôte, comme le recommande la documentation de Papra : les
     # bind mounts lui appartiennent (tasks/main.yml). Contrepartie :
     # tesseract.js met ses modèles de langue en cache dans /app, qui est à
-    # l'utilisateur de l'image (999) ; l'écriture échoue en silence, sans
-    # effet sur l'OCR, et fra/eng sont retéléchargés depuis cdn.jsdelivr.net
-    # à chaque document (vu en local). L'accès à Internet passe par newt.
+    # l'utilisateur de l'image (999) ; l'écriture échoue en silence et fra/eng
+    # (3,6 Mo compressés) sont retéléchargés depuis cdn.jsdelivr.net à chaque
+    # document (vu en local). L'accès à Internet passe par newt. CDN
+    # injoignable : le document est importé sans texte, sans erreur visible ;
+    # son retraitement (DOCUMENT_REPROCESSING_ENABLED, défaut) le refait.
     user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
     security_opt:
       - no-new-privileges:true
@@ -32,13 +34,14 @@ services:
       - ./ingestion:/app/ingestion
     restart: unless-stopped
     # L'image n'a ni curl ni wget : node, et la route de santé qui interroge
-    # la base (/api/health, 500 si la base ne répond pas).
+    # la base (/api/health, 500 si la base ne répond pas). 127.0.0.1, pas
+    # localhost : Node résout localhost en ::1 d'abord.
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://localhost:1221/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:1221/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3

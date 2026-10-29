@@ -24,6 +24,14 @@
       register: papra_compose_raw
       changed_when: false
 
+    - name: Assert papra drops every capability
+      vars:
+        papra_compose: "{{ papra_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - papra_compose.services.app.cap_drop == ['ALL']
+          - papra_compose.services.app.cap_add is not defined
+
     - name: Stat the papra bind mounts
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -41,7 +49,6 @@
       ansible.builtin.assert:
         that:
           - papra_compose.services.app.user == (item.stat.uid | string) ~ ':' ~ (item.stat.gid | string)
-          - papra_compose.services.app.cap_drop == ['ALL']
           - item.stat.mode == '0700'
         fail_msg: "{{ item.item }} : propriétaire {{ item.stat.uid }}:{{ item.stat.gid }}, conteneur {{ papra_compose.services.app.user }}"
       loop: "{{ papra_dirs.results }}"
