@@ -88,3 +88,25 @@
         name: betisier
         username: betisier
         password: "{{ betisier_db_password }}"
+
+# Rattrapage des volumes anonymes laissés par l'ancien reset (`down` sans
+# `-v`). Ils ne portent aucun label de projet compose : on ne supprime qu'un
+# volume anonyme, orphelin (dangling) et dont le contenu est celui de
+# betisier_db (`databases/betisier` et `custom.cnf` de l'image linuxserver).
+# Le volume de la base en cours est attaché, donc jamais dangling. Rien à
+# supprimer : aucun changement.
+- name: Remove the dangling anonymous volumes left by the betisier reset
+  become: true
+  register: betisier_orphan_volumes
+  changed_when: betisier_orphan_volumes.stdout | length > 0
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      set -euo pipefail
+      for v in $(docker volume ls -q --filter dangling=true --filter label=com.docker.volume.anonymous); do
+        d=$(docker volume inspect --format '{{ "{{.Mountpoint}}" }}' "$v")
+        if [ -d "$d/databases/betisier" ] && [ -f "$d/custom.cnf" ]; then
+          docker volume rm "$v" >/dev/null
+          echo "$v"
+        fi
+      done
