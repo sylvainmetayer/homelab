@@ -5,10 +5,11 @@ et `decisions list --limit 0 -o json`.
 Alertes : au format de cscli 1.8, 12 alertes crowdsecurity/http-probing (US,
 bannies), une crowdsecurity/http-sensitive-files (FR, bannie) et deux
 correspondances AppSec homelab/appsec-alert-only (règle
-crowdsecurity/vpatch-CVE-2026-0001, une IP). Décisions : 3 bannissements
-actifs, portés par 2 alertes. FAKE_CSCLI_NO_APPSEC=1 : les alertes sans
-AppSec. FAKE_CSCLI_FAIL=1 : cscli en
-échec, comme un conteneur crowdsec arrêté. Tout autre appel échoue.
+crowdsecurity/vpatch-CVE-2026-0001, une IP). Décisions : 3 actives
+(2 bannissements, 1 captcha), portées par 2 alertes. FAKE_CSCLI_NO_APPSEC=1 :
+les alertes sans AppSec. FAKE_CSCLI_BAD=1 : un objet JSON au lieu d'une liste.
+FAKE_CSCLI_FAIL=1 : cscli en échec, comme un conteneur crowdsec arrêté. Tout
+autre appel échoue.
 """
 import json
 import os
@@ -23,6 +24,9 @@ if os.environ.get("FAKE_CSCLI_FAIL") == "1":
 if sys.argv[1:] not in (ALERTS, DECISIONS):
     print(f"fake-cscli : appel inattendu {sys.argv[1:]}", file=sys.stderr)
     sys.exit(2)
+if os.environ.get("FAKE_CSCLI_BAD") == "1":
+    print(json.dumps({"message": "unexpected"}))
+    sys.exit(0)
 
 
 def alert(scenario, ip, country, ban=True, rule=None):
