@@ -50,9 +50,9 @@ ntfy_publishers:
   - name: scripts
     topic: scripts
     token: "{{ ntfy_scripts_token | default('') }}"
-  # Workflows GitHub Actions (renovate-digest.yaml) : leur propre jeton, posé
-  # en secret d'environnement par tofu/github (renovate_digest_secrets.tf),
-  # pas celui des hôtes.
+  # Workflows GitHub Actions (renovate-digest.yaml, trivy.yaml) : leur propre
+  # jeton, posé en secret d'environnement par tofu/github
+  # (renovate_digest_secrets.tf, trivy_ntfy_secrets.tf), pas celui des hôtes.
   - name: github
     topic: github
     token: "{{ ntfy_github_token | default('') }}"

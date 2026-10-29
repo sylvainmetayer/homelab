@@ -470,6 +470,13 @@ run "trivy_ntfy_secrets" {
     )
     error_message = "trivy.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement trivy-ntfy."
   }
+
+  # Le jeton du producteur github n'écrit que sur son topic : ntfy refuse
+  # (403) un script qui publierait ailleurs avec lui.
+  assert {
+    condition     = strcontains(file("${path.module}/../../.github/scripts/trivy_critical.py"), "\nTOPIC = \"github\"\n")
+    error_message = ".github/scripts/trivy_critical.py doit publier sur le topic github, celui du jeton ntfy_github_token."
+  }
 }
 
 # .github/workflows/renovate-digest.yaml : le seul jeton du producteur ntfy
