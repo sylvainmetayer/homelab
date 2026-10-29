@@ -6,8 +6,10 @@
     name: fail2ban
     state: restarted
 
-# Relit les générateurs : systemd-ssh-generator masqué n'est plus lancé.
-- name: Reload systemd
+# Relit les générateurs : systemd-ssh-generator masqué n'est plus lancé. Nom
+# propre au rôle : os_hardening de devsec, inclus avant, a un handler
+# « Reload systemd », et un notify par nom va au dernier chargé.
+- name: Reload systemd generators
   become: true
   ansible.builtin.systemd_service:
     daemon_reload: true

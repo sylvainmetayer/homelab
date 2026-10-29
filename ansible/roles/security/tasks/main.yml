@@ -33,7 +33,7 @@
     mode: "0755" # NOSONAR
 
 - name: Mask systemd-ssh-generator
-  notify: Reload systemd
+  notify: Reload systemd generators
   ansible.builtin.file:
     src: /dev/null
     dest: /etc/systemd/system-generators/systemd-ssh-generator
