@@ -264,63 +264,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y dnsutils
 
-      - name: Start OLM
+      # Conteneur, attente du proxy DNS et image épinglée :
+      # .github/actions/olm-tunnel, partagé avec ping.yaml.
+      - name: Start the OLM tunnel
         if: steps.resolve-tags.outputs.any_tags == 'true'
-        env:
-          PANGOLIN_ENDPOINT: ${{ secrets.PANGOLIN_ENDPOINT }}
-          OLM_ID: ${{ secrets.OLM_ID }}
-          OLM_SECRET: ${{ secrets.OLM_SECRET }}
-        # `-e NAME` sans valeur : docker reprend la variable de son propre
-        # environnement, le secret n'apparaît pas dans la ligne de commande
-        # (/proc/<pid>/cmdline, que l'agent de harden-runner relève).
-        run: |
-          docker run -d --rm \
-            --name olm \
-            --network host \
-            --cap-add=NET_ADMIN \
-            --device /dev/net/tun:/dev/net/tun \
-            -e PANGOLIN_ENDPOINT \
-            -e OLM_ID \
-            -e OLM_SECRET \
-            -e OVERRIDE_DNS=true \
-            docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
-
-      - name: Wait OLM startup
-        if: steps.resolve-tags.outputs.any_tags == 'true'
-        shell: bash
-        run: |
-          # 60 × 2 s : OLM joint chaque site (hole punch) avant de lancer son
-          # proxy DNS ; 40 s ne suffisaient plus (deux échecs le 28/10).
-          # Un OLM sorti (--rm : conteneur et journaux déjà effacés) échoue
-          # tout de suite au lieu d'attendre les 2 min pour rien.
-          # grep sans -q : -q s'arrête au premier résultat, docker logs prend
-          # un SIGPIPE et pipefail (shell bash d'Actions) fait échouer le test
-          # alors que la ligne est là (déploiement du 29/10).
-          started=false
-          for i in {1..60}; do
-            echo "Check $i/60"
-
-            if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
-              echo "DNS proxy started"
-              started=true
-              break
-            fi
-
-            if [ "$(docker inspect -f '{{.State.Running}}' olm 2>/dev/null)" != true ]; then
-              echo "OLM container exited before starting its DNS proxy"
-              docker logs olm 2>&1 || true
-              exit 1
-            fi
-
-            docker logs --tail 5 olm || true
-            sleep 2
-          done
-
-          if [ "$started" != true ]; then
-            echo "OLM startup failed"
-            docker logs olm
-            exit 1
-          fi
+        uses: ./.github/actions/olm-tunnel # zizmor: ignore[self-repository]
+        with:
+          pangolin-endpoint: ${{ secrets.PANGOLIN_ENDPOINT }}
+          olm-id: ${{ secrets.OLM_ID }}
+          olm-secret: ${{ secrets.OLM_SECRET }}
 
       # See .github/workflows/ping.yaml for why the runner's own resolver
       # needs to be pointed at the OLM DNS proxy directly.
