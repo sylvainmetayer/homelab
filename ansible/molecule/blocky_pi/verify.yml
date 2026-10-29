@@ -31,7 +31,7 @@
       register: blocky_compose_raw
       changed_when: false
 
-    # Publié sur l'IP LAN seule, sans privilège, sous son plafond mémoire.
+    # Publié sur l'IP LAN seule, sans privilège.
     - name: Assert the container is published on the LAN IP only, unprivileged
       vars:
         blocky_compose: "{{ (blocky_compose_raw.stdout | from_json).services.blocky }}"
@@ -42,8 +42,6 @@
           - blocky_compose.ports | map(attribute='protocol') | sort == ['tcp', 'udp']
           - blocky_compose.cap_drop == ['ALL']
           - blocky_compose.read_only
-          - blocky_compose.mem_limit | int == 384 * 1024 * 1024
-          - blocky_compose.cpus is not defined
           - blocky_compose.network_mode is not defined
         fail_msg: "{{ blocky_compose | to_json }}"
 

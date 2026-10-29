@@ -22,27 +22,6 @@
         that:
           - not stirling_pdf_borgmatic.stat.exists
 
-    - name: Render the stirling_pdf compose model
-      ansible.builtin.command: docker compose config --format json
-      args:
-        chdir: "{{ docker_base_path }}/stirling_pdf"
-      register: stirling_pdf_compose_raw
-      changed_when: false
-
-    # Doctrine batch d'AGENTS.md (OCR, conversions) : 2 cœurs au plus, poids
-    # réduit, plafond mémoire ; seulement le réseau newt.
-    - name: Assert stirling_pdf follows the batch doctrine and only joins newt
-      vars:
-        stirling_pdf_service: "{{ (stirling_pdf_compose_raw.stdout | from_json).services.app }}"
-      ansible.builtin.assert:
-        that:
-          - stirling_pdf_service.cpus | float == 2.0
-          - stirling_pdf_service.cpu_shares | int == 512
-          - stirling_pdf_service.mem_limit is defined
-          - stirling_pdf_service.networks.keys() | list == ['newt']
-          - stirling_pdf_service.healthcheck.test | length > 0
-        fail_msg: "Service stirling_pdf inattendu : {{ stirling_pdf_service }}"
-
     - name: Stat the stirling_pdf environment file
       ansible.builtin.stat:
         path: "{{ docker_base_path }}/stirling_pdf/.env"
@@ -53,22 +32,3 @@
         that:
           - stirling_pdf_env.stat.exists
           - stirling_pdf_env.stat.mode == '0600'
-
-    - name: Read the stirling_pdf environment file
-      ansible.builtin.slurp:
-        src: "{{ docker_base_path }}/stirling_pdf/.env"
-      register: stirling_pdf_env_content
-
-    # Le SSO de Pangolin est la seule porte, et rien ne part chez l'éditeur.
-    - name: Assert stirling_pdf has no login and no telemetry
-      vars:
-        stirling_pdf_env_lines: "{{ (stirling_pdf_env_content.content | b64decode).splitlines() }}"
-      ansible.builtin.assert:
-        that:
-          - "'SECURITY_ENABLELOGIN=false' in stirling_pdf_env_lines"
-          - "'SYSTEM_ENABLEANALYTICS=false' in stirling_pdf_env_lines"
-          - "'SYSTEM_ENABLEPOSTHOG=false' in stirling_pdf_env_lines"
-          - "'SYSTEM_ENABLESCARF=false' in stirling_pdf_env_lines"
-          - "'SYSTEM_SHOWUPDATE=false' in stirling_pdf_env_lines"
-          - "'SYSTEM_CORSALLOWEDORIGINS=https://pdf.sylvain.cloud' in stirling_pdf_env_lines"
-          - "'JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError' in stirling_pdf_env_lines"

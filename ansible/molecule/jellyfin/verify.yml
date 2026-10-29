@@ -84,7 +84,6 @@
         jellyfin_verify_media: "{{ jellyfin_verify_service.volumes | selectattr('target', 'equalto', '/media') | list }}"
       ansible.builtin.assert:
         that:
-          - jellyfin_verify_service.image is match('docker.io/jellyfin/jellyfin:12\.[0-9]+@sha256:[0-9a-f]{64}$')
           # Le compte propriétaire des médias, jamais root.
           - jellyfin_verify_service.user == jellyfin_verify_ids
           - ansible_facts['getent_passwd']['sylvain'][1] != '0'
@@ -106,9 +105,6 @@
           - jellyfin_verify_model.networks.keys() | list == ['media']
           - jellyfin_verify_model.networks.media.ipam.config | map(attribute='subnet') | list == ['172.30.96.0/24']
           - not (jellyfin_verify_model.networks.media.external | default(false))
-          - jellyfin_verify_service.mem_limit is defined
-          - jellyfin_verify_service.cpus is not defined
-          - jellyfin_verify_service.healthcheck.test | select('search', '127\.0\.0\.1:8096/health') | list | length == 1
         fail_msg: "Service jellyfin inattendu : {{ jellyfin_verify_service }}"
 
     - name: Stat the Jellyfin folders

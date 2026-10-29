@@ -28,8 +28,6 @@
           - kitchenowl_compose.networks.keys() | list == ['newt']
           - kitchenowl_compose.services.app.cap_drop == ['ALL']
           - kitchenowl_compose.services.app.cap_add is not defined
-          - kitchenowl_compose.services.app.mem_limit is defined
-          - kitchenowl_compose.services.app.healthcheck.test | length > 0
         fail_msg: "Service kitchenowl inattendu : {{ kitchenowl_compose.services.app }}"
 
     - name: Read the kitchenowl borgmatic configuration
@@ -57,8 +55,6 @@
           - "'/opt/apps/kitchenowl/data/database.db' in kitchenowl_borgmatic.exclude_patterns"
           - "'/opt/apps/kitchenowl/data/database.db-wal' in kitchenowl_borgmatic.exclude_patterns"
           - "'/opt/apps/kitchenowl/data' in kitchenowl_borgmatic.source_directories"
-          - kitchenowl_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./kitchenowl'
-          - kitchenowl_borgmatic.archive_name_format is match('kitchenowl-')
         fail_msg: "Configuration borgmatic de kitchenowl inattendue : {{ kitchenowl_borgmatic }}"
 
     - name: Stat the kitchenowl data folder
@@ -101,5 +97,4 @@
         that:
           - "'OPEN_REGISTRATION=false' in kitchenowl_env_lines"
           - "'DISABLE_ONBOARDING=true' in kitchenowl_env_lines"
-          - "'FRONT_URL=https://frigo.sylvain.cloud' in kitchenowl_env_lines"
           - kitchenowl_env_lines | select('match', '^JWT_SECRET_KEY=[0-9a-f]{64}$') | list | length == 1

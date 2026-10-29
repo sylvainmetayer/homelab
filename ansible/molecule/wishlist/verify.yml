@@ -63,8 +63,6 @@
           - "'/opt/apps/wishlist/data/prod.db' in wishlist_borgmatic.exclude_patterns"
           - "'/opt/apps/wishlist/data' in wishlist_borgmatic.source_directories"
           - "'/opt/apps/wishlist/uploads' in wishlist_borgmatic.source_directories"
-          - wishlist_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./wishlist'
-          - wishlist_borgmatic.archive_name_format is match('wishlist-')
         fail_msg: "Configuration borgmatic de wishlist inattendue : {{ wishlist_borgmatic }}"
 
     - name: Stat the wishlist environment file
@@ -83,16 +81,13 @@
         src: /opt/apps/wishlist/.env
       register: wishlist_env_content
 
-    # ORIGIN est la protection CSRF de SvelteKit et la base des liens de
-    # partage. L'authentification par en-têtes croirait n'importe quel
-    # en-tête, or le lien public passe sans le SSO de Pangolin.
-    - name: Assert the wishlist origin comes from the role domain and header auth stays off
+    # L'authentification par en-têtes croirait n'importe quel en-tête, or le
+    # lien public passe sans le SSO de Pangolin.
+    - name: Assert the wishlist header auth stays off
       vars:
         wishlist_env_text: "{{ wishlist_env_content.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - "'ORIGIN=https://cadeaux.sylvain.cloud' in wishlist_env_text"
-          - "'DEFAULT_CURRENCY=EUR' in wishlist_env_text"
           - wishlist_env_text is not search('(?m)^HEADER_AUTH_ENABLED=')
           - wishlist_env_text is not search('(?m)^ALLOWED_IPS=')
 

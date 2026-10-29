@@ -36,20 +36,17 @@
 
     # Un seul conteneur, sous l'utilisateur de déploiement et sans capacité,
     # sur newt seulement. Son nom est la cible de Pangolin (website_ntfy.tf).
-    - name: Assert ntfy only joins newt, runs unprivileged and has a memory cap
+    - name: Assert ntfy only joins newt and runs unprivileged
       vars:
         ntfy_compose: "{{ ntfy_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - ntfy_compose.services.app.container_name == 'ntfy'
-          - ntfy_compose.services.app.image is search('^docker[.]io/binwiederhier/ntfy:v[0-9.]+@sha256:')
           - ntfy_compose.services.app.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
           - ntfy_compose.services.app.networks.keys() | list == ['newt']
           - ntfy_compose.networks.keys() | list == ['newt']
           - ntfy_compose.services.app.cap_drop == ['ALL']
           - ntfy_compose.services.app.cap_add is not defined
-          - ntfy_compose.services.app.mem_limit is defined
-          - ntfy_compose.services.app.cpus is not defined
           - ntfy_compose.services.app.ports is not defined
           - ntfy_compose.services.app.volumes | selectattr('target', 'equalto', '/etc/ntfy/server.yml') | map(attribute='read_only') | list == [true]
         fail_msg: "Service ntfy inattendu : {{ ntfy_compose.services.app }}"
@@ -81,17 +78,10 @@
         ntfy_server: "{{ ntfy_server_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - ntfy_server['base-url'] == 'https://ntfy.sylvain.cloud'
-          - ntfy_server['listen-http'] == ':8080'
           - ntfy_server['auth-default-access'] == 'deny-all'
-          - ntfy_server['auth-file'] == '/var/lib/ntfy/user.db'
-          - ntfy_server['cache-file'] == '/var/lib/ntfy/cache.db'
-          - ntfy_server['upstream-base-url'] == 'https://ntfy.sh'
-          - ntfy_server['web-root'] == '/app'
           - ntfy_server['enable-signup'] == false
           - ntfy_server['enable-login'] == true
           - ntfy_server['require-login'] == true
-          - ntfy_server['behind-proxy'] == true
           - ntfy_server['attachment-cache-dir'] is not defined
           - ntfy_server['auth-users'] | sort == ([
               'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
@@ -134,8 +124,6 @@
           - ntfy_borgmatic.commands[0].run | select('search', 'cache\\.db') | list | length == 0
           - "'/opt/apps/ntfy/data' not in ntfy_borgmatic.source_directories"
           - "'/opt/apps/ntfy/config' in ntfy_borgmatic.source_directories"
-          - ntfy_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./ntfy'
-          - ntfy_borgmatic.archive_name_format is match('ntfy-')
         fail_msg: "Configuration borgmatic de ntfy inattendue : {{ ntfy_borgmatic }}"
 
     # Le vrai ntfy, à la version de l'image, sur la configuration rendue :

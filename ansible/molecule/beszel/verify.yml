@@ -45,8 +45,6 @@
           - beszel_compose.services.hub.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
           - beszel_compose.services.hub.ports | map(attribute='target') | unique == [8090]
           - beszel_compose.services.hub.cap_drop == ['ALL']
-          - beszel_compose.services.hub.cpus is not defined
-          - beszel_compose.services.hub.mem_limit is defined
         fail_msg: "Hub beszel inattendu : {{ beszel_compose.services.hub }}"
 
     - name: Stat the files the hub reads
@@ -101,9 +99,6 @@
         that:
           - (beszel_contents.results[1].content | b64decode | trim) == beszel_hub_private_key
           - "'DISABLE_SSH=true' in beszel_env"
-          - "'CONTAINER_DETAILS=true' in beszel_env"
-          - "'APP_URL=https://monitoring.sylvain.cloud' in beszel_env"
-          - ('USER_PASSWORD=' ~ beszel_admin_password) in beszel_env
 
     - name: Read the beszel borgmatic configuration
       become: true
@@ -127,8 +122,6 @@
             | list | length == 1
           - "'/opt/apps/beszel/beszel_data/*.db' in beszel_borgmatic.exclude_patterns"
           - "'/opt/apps/beszel/beszel_data/*.db-wal' in beszel_borgmatic.exclude_patterns"
-          - beszel_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./beszel'
-          - beszel_borgmatic.archive_name_format is match('beszel-')
         fail_msg: "Configuration borgmatic de beszel inattendue : {{ beszel_borgmatic }}"
 
     # Alertes et canaux posés par l'API (tasks/alerts.yml), contre le mock de

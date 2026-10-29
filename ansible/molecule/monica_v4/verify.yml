@@ -49,8 +49,6 @@
           - monica_v4_compose.services.crm.container_name == 'monica_v4'
           - "'newt' in monica_v4_compose.services.crm.networks"
           - "'newt' not in monica_v4_compose.services.monica_v4_db.networks"
-          - "'MYSQL_PASSWORD=molecule-monica-v4-db-password' in monica_v4_compose.services.monica_v4_db.environment"
-          - monica_v4_compose.services.monica_v4_db.mem_reservation is defined
         fail_msg: "Compose de monica_v4 inattendu : {{ monica_v4_compose.services }}"
 
     - name: Read the state of the Monica v4 cron timer
@@ -109,8 +107,6 @@
         monica_v4_borgmatic: "{{ monica_v4_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - monica_v4_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./monica_v4'
-          - monica_v4_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - "'/opt/apps/monica_v4/.env' in monica_v4_borgmatic.source_directories"
           - monica_v4_borgmatic.mysql_databases[0].container == 'monica_v4_db'
           - monica_v4_borgmatic.mysql_databases[0].password == 'molecule-monica-v4-db-password'

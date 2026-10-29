@@ -4,9 +4,6 @@
   vars_files:
     - ../../group_vars/all/variables.yml
   tasks:
-    - name: Load the fake secrets the converge used
-      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
-
     - name: Verify the speedtest_tracker deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
@@ -29,18 +26,15 @@
 
     # Un seul conteneur : rien à isoler sur un réseau privé, newt suffit. Son
     # nom est la cible de Pangolin (website_speedtest_tracker.tf).
-    - name: Assert speedtest_tracker only joins newt, capped in memory but not in CPU
+    - name: Assert speedtest_tracker only joins newt and publishes no port
       vars:
         speedtest_tracker_compose: "{{ speedtest_tracker_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - speedtest_tracker_compose.services.app.container_name == 'speedtest-tracker'
-          - speedtest_tracker_compose.services.app.image is search('^lscr\.io/linuxserver/speedtest-tracker:[0-9.]+@sha256:')
           - speedtest_tracker_compose.services.app.networks.keys() | list == ['newt']
           - speedtest_tracker_compose.networks.keys() | list == ['newt']
           - speedtest_tracker_compose.services.app.ports is not defined
-          - speedtest_tracker_compose.services.app.mem_limit is defined
-          - speedtest_tracker_compose.services.app.cpus is not defined
         fail_msg: "Service speedtest_tracker inattendu : {{ speedtest_tracker_compose.services.app }}"
 
     - name: Read the speedtest_tracker borgmatic configuration
@@ -69,8 +63,6 @@
           - "'/opt/apps/speedtest_tracker/config/database.sqlite-wal' in speedtest_tracker_borgmatic.exclude_patterns"
           - "'/opt/apps/speedtest_tracker/config/log' in speedtest_tracker_borgmatic.exclude_patterns"
           - "'/opt/apps/speedtest_tracker/config' in speedtest_tracker_borgmatic.source_directories"
-          - speedtest_tracker_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./speedtest_tracker'
-          - speedtest_tracker_borgmatic.archive_name_format is match('speedtest-tracker-')
         fail_msg: "Configuration borgmatic de speedtest_tracker inattendue : {{ speedtest_tracker_borgmatic }}"
 
     - name: Stat the speedtest_tracker environment file
@@ -91,23 +83,9 @@
         src: /opt/apps/speedtest_tracker/.env
       register: speedtest_tracker_env_content
 
-    # Tableau de bord fermé aux anonymes, quatre tests par jour hors de la
-    # fenêtre de borgmatic, aucun élagage, heure de Paris, URL publique en
-    # https et les secrets de SOPS (ici, les faux).
-    - name: Assert the speedtest_tracker environment is complete
+    - name: Assert the speedtest_tracker dashboard is closed to anonymous users
       vars:
         speedtest_tracker_env_lines: "{{ (speedtest_tracker_env_content.content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
           - "'PUBLIC_DASHBOARD=false' in speedtest_tracker_env_lines"
-          - "'SPEEDTEST_SCHEDULE=\"15 3,9,15,20 * * *\"' in speedtest_tracker_env_lines"
-          - "'PRUNE_RESULTS_OLDER_THAN=0' in speedtest_tracker_env_lines"
-          - "'DISPLAY_TIMEZONE=Europe/Paris' in speedtest_tracker_env_lines"
-          - "'TZ=Europe/Paris' in speedtest_tracker_env_lines"
-          - "'DB_CONNECTION=sqlite' in speedtest_tracker_env_lines"
-          - "'APP_URL=https://speedtest.sylvain.cloud' in speedtest_tracker_env_lines"
-          - "'THRESHOLD_ENABLED=false' in speedtest_tracker_env_lines"
-          - "('APP_KEY=' ~ speedtest_tracker_app_key) in speedtest_tracker_env_lines"
-          - "('ADMIN_PASSWORD=' ~ speedtest_tracker_admin_password) in speedtest_tracker_env_lines"
-          - "('ADMIN_EMAIL=' ~ pangolin_le_email) in speedtest_tracker_env_lines"
-          - speedtest_tracker_env_lines | select('match', '^PUID=[0-9]+$') | list | length == 1

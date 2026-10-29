@@ -5,23 +5,11 @@
     - ../_shared/vars/fake_secrets.yml
     - ../../group_vars/all/variables.yml
   tasks:
+    # verify_app : compose (il porte NEWT_SECRET) en 0600 à l'utilisateur.
     - name: Verify the newt deployment
       ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
       vars:
         verify_app_service: newt
-
-    - name: Stat the newt compose file
-      ansible.builtin.stat:
-        path: "{{ docker_base_path }}/newt/compose.yaml"
-      register: newt_compose_stat
-
-    # Il porte NEWT_SECRET : personne d'autre que l'utilisateur ne le lit.
-    - name: Assert the newt compose file is private
-      ansible.builtin.assert:
-        that:
-          - newt_compose_stat.stat.mode == '0600'
-          - newt_compose_stat.stat.pw_name == ansible_facts['user_id']
-        fail_msg: "{{ docker_base_path }}/newt/compose.yaml doit être 0600 à {{ ansible_facts['user_id'] }}"
 
     - name: Read the newt compose file
       ansible.builtin.slurp:
@@ -57,8 +45,6 @@
           - newt_compose.services.newt.hostname == 'newt'
           - "'DOCKER_SOCKET=unix:///run/socket-proxy/docker.sock' in newt_env"
           - "'DOCKER_ENFORCE_NETWORK_VALIDATION=true' in newt_env"
-          # Défaut du rôle (host_vars/docker ne le surcharge pas ; le Pi, si).
-          - newt_compose.services.newt.mem_limit == '256m'
           # Seul le proxy monte le socket du démon, sans réseau ni capacité.
           - "'/var/run/docker.sock:/var/run/docker.sock:ro' in newt_proxy.volumes"
           - newt_proxy.network_mode == 'none'
@@ -66,7 +52,6 @@
           - newt_proxy.cap_drop == ['ALL']
           - newt_proxy.user is match('^65534:[0-9]+$')
           - (newt_proxy.user.split(':')[1] | int) in newt_compose.services.newt.group_add | map('int')
-          - newt_proxy.mem_limit is defined
           # GET et HEAD seulement, et pas d'inspect des autres conteneurs.
           - newt_proxy.command | select('match', '-allow(?!GET=|HEAD=)') | list == []
           - "'-allowGET=/(v[0-9.]+/)?(_ping|containers/json|containers/newt/json|events)' in newt_proxy.command"

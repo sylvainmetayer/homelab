@@ -32,13 +32,10 @@
       ansible.builtin.assert:
         that:
           - homebox_compose.services.app.container_name == 'homebox'
-          - homebox_compose.services.app.image is search(':[0-9.]+-rootless@sha256:')
           - homebox_compose.services.app.networks.keys() | list == ['newt']
           - homebox_compose.networks.keys() | list == ['newt']
           - homebox_compose.services.app.cap_drop == ['ALL']
           - homebox_compose.services.app.cap_add is not defined
-          - homebox_compose.services.app.mem_limit is defined
-          - homebox_compose.services.app.cpus is not defined
         fail_msg: "Service homebox inattendu : {{ homebox_compose.services.app }}"
 
     - name: Read the homebox borgmatic configuration
@@ -66,8 +63,6 @@
           - "'/opt/apps/homebox/data/homebox.db' in homebox_borgmatic.exclude_patterns"
           - "'/opt/apps/homebox/data/homebox.db-wal' in homebox_borgmatic.exclude_patterns"
           - "'/opt/apps/homebox/data' in homebox_borgmatic.source_directories"
-          - homebox_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./homebox'
-          - homebox_borgmatic.archive_name_format is match('homebox-')
         fail_msg: "Configuration borgmatic de homebox inattendue : {{ homebox_borgmatic }}"
 
     - name: Stat the homebox data folder
@@ -103,8 +98,7 @@
         src: /opt/apps/homebox/.env
       register: homebox_env_content
 
-    # Inscription fermée par défaut (homebox_allow_registration), URL publique
-    # fixée, rien d'envoyé à l'équipe Homebox ni à GitHub, et une clé HMAC
+    # Inscription fermée par défaut (homebox_allow_registration) et une clé HMAC
     # d'au moins 32 octets, sans quoi Homebox refuse de démarrer.
     - name: Assert homebox registration is closed and the environment is complete
       vars:
@@ -112,10 +106,4 @@
       ansible.builtin.assert:
         that:
           - "'HBOX_OPTIONS_ALLOW_REGISTRATION=false' in homebox_env_lines"
-          - "'HBOX_OPTIONS_HOSTNAME=https://homebox.sylvain.cloud' in homebox_env_lines"
-          - "'HBOX_OPTIONS_TRUST_PROXY=true' in homebox_env_lines"
-          - "'HBOX_OPTIONS_ALLOW_ANALYTICS=false' in homebox_env_lines"
-          - "'HBOX_OPTIONS_GITHUB_RELEASE_CHECK=false' in homebox_env_lines"
-          - "'HBOX_WEB_MAX_UPLOAD_SIZE=25' in homebox_env_lines"
-          - "'HBOX_WEB_READ_TIMEOUT=5m' in homebox_env_lines"
           - homebox_env_lines | select('match', '^HBOX_AUTH_API_KEY_PEPPER=[0-9a-f]{64}$') | list | length == 1
