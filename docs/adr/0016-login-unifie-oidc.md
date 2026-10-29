@@ -29,7 +29,7 @@ un projet qui publie ses CVE ailleurs est sous-compté. RAM : annoncée, à mesu
 | IdP (version) | Mot de passe + TOTP | WebAuthn 2ᵉ facteur | Passkey seul | OIDC : groupes, PKCE, refresh, groupes par client | Reset / SMTP | RAM, stockage | Admin | Tofu | Sécurité 2025-26 | Santé | Pangolin |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [Pocket ID](https://pocket-id.org/docs/guides/sign-in-methods) v2.19.1 | **non**, par conception ([#937](https://github.com/pocket-id/pocket-id/issues/937) « not planned ») | — | oui | oui, oui, oui, oui (allowed groups) | codes de login par e-mail (SMTP) ou par l'admin ; QR depuis un autre appareil | ~30 Mio (à confirmer), SQLite ou Postgres | UI | communautaire `trozz/pocketid` | 17 (6) | 28 versions en 12 mois | [guide officiel](https://docs.pangolin.net/manage/identity-providers/pocket-id) |
-| [Authelia](https://www.authelia.com/configuration/second-factor/webauthn/) v4.39.28 | oui | oui | oui depuis 4.39 (`enable_passkey_login`), compte un facteur : mot de passe demandé ensuite en `two_factor` | oui, oui, oui, oui (`authorization_policy` par client) ; [OpenID Certified](https://www.authelia.com/blog/we-are-now-openid-certified/) (5 profils) | reset et changement de mot de passe, enrôlement TOTP/WebAuthn vérifié par e-mail (SMTP) | ~30 Mio (à confirmer), SQLite ou Postgres | fichier YAML, pas d'UI admin | aucun (config Ansible) | 4 (0) | 15 versions en 12 mois (correctifs 4.39), 3 mainteneurs bénévoles | [guide Authelia](https://www.authelia.com/integration/openid-connect/clients/pangolin/) |
+| [Authelia](https://www.authelia.com/configuration/second-factor/webauthn/) v4.39.28 | oui | oui | oui depuis 4.39 (`enable_passkey_login`), compte un facteur : en `two_factor`, mot de passe ensuite, peut-être derrière `experimental_enable_passkey_upgrade` (à confirmer) | oui, oui, oui, oui (`authorization_policy` par client) ; [OpenID Certified](https://www.authelia.com/blog/we-are-now-openid-certified/) (5 profils) | reset et changement de mot de passe, enrôlement TOTP/WebAuthn vérifié par e-mail (SMTP) | ~30 Mio (à confirmer), SQLite ou Postgres | fichier YAML, pas d'UI admin | aucun (config Ansible) | 4 (0) | 15 versions en 12 mois (correctifs 4.39), 3 mainteneurs bénévoles | [guide Authelia](https://www.authelia.com/integration/openid-connect/clients/pangolin/) |
 | LLDAP v0.6.3 + Authelia | oui (Authelia) | oui | oui | comme Authelia, groupes gérés dans LLDAP | reset en libre-service par LLDAP ou Authelia (SMTP) | + ~10 Mio (à confirmer), SQLite | UI LLDAP | communautaire `tasansga/lldap` | 0 (0) LLDAP | LLDAP : 2 versions en 15 mois | comme Authelia |
 | [VoidAuth](https://github.com/voidauth/voidauth) v1.17.1 | oui | oui | oui (comptes passkey seul) | oui, oui, oui, oui ; MFA exigible par appli ou groupe | reset par e-mail (SMTP), invitations | Node, ~100 Mio (à confirmer), SQLite ou Postgres | UI | communautaire, inutilisé | 5 (3) dont 1 critical (2026-09) | né en 2025-04, un mainteneur quasi seul | guide VoidAuth |
 | [Rauthy](https://github.com/sebadob/rauthy) v0.37.2 | **pas de TOTP** (à confirmer) | oui | oui (UV exigé) | oui, oui, oui, à confirmer | e-mail (SMTP) | ~40 Mio annoncés, Hiqlite (SQLite + Raft) ou Postgres | UI | aucun | 3 (1) | un mainteneur principal, versions mensuelles | OIDC générique |
@@ -68,7 +68,10 @@ Tofu) / sécurité et santé / Pangolin / confort (UI, libre-service).
 - Facteurs : passkey (`enable_passkey_login`) puis mot de passe, ou mot de
   passe + TOTP ou clé WebAuthn ; tous les clients en `two_factor`. Le mode
   passkey seul (`experimental_enable_passkey_uv_two_factors`) n'est pas
-  supporté par Authelia : pas activé.
+  supporté par Authelia : pas activé. Si le mot de passe après un passkey
+  exige lui aussi une option expérimentale
+  (`experimental_enable_passkey_upgrade`, à confirmer), le passkey ne sert
+  qu'en second facteur WebAuthn.
 - Utilisateurs dans le fichier YAML (deux comptes), hachés depuis SOPS et
   rendus par Ansible ; clients OIDC dans la config Ansible, pas de provider
   Tofu (aucun n'existe) ; côté Pangolin, `pangolin_idp` reste en Tofu.
@@ -99,17 +102,19 @@ Tofu) / sécurité et santé / Pangolin / confort (UI, libre-service).
   passkey ni WebAuthn.
 - **Keycloak** (~1,3 Gio), **Authentik**, **Zitadel**, **Logto** : Postgres et
   trop lourds pour la VM Pangolin ; sur la VM docker, l'IdP serait derrière
-  Pangolin et sa panne fermerait le mur. **Casdoor** : CVE non publiées sur son
+  Pangolin (ressource `sso = false`) et sa panne fermerait aussi le mur des
+  applis du Pi et de flip. **Casdoor** : CVE non publiées sur son
   dépôt (à confirmer), éditeur peu transparent.
 
 ## Conséquences
 
-- Un passkey ou mot de passe + TOTP ouvre tout ; panne d'Authelia : admin
+- Un passkey suivi du mot de passe, ou mot de passe + TOTP, ouvre tout ; panne d'Authelia : admin
   interne Pangolin et logins locaux.
 - Pas d'UI d'admin : un compte ou un client de plus passe par une PR, comme le
   reste du homelab ; un mot de passe oublié se refait par Ansible.
 - Comptes Pangolin à recréer ; secrets clients en SOPS (hachés pbkdf2 dans la
-  config) sauf Wishlist et Beszel (saisis dans l'UI) ; RAM et clé EE à vérifier
+  config), Wishlist et Beszel compris : seul leur côté appli est saisi dans
+  l'UI ; RAM et clé EE à vérifier
   d'abord.
 
 ## Liens
