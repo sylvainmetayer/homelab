@@ -770,8 +770,9 @@ override_resource {
 # "no available server" pendant que `tofu plan` ne voyait rien.
 #
 # Les cibles des applications sont les instances de pangolin_target.website
-# (websites.tf), toutes sondées. Les clés sont les anciens noms des ressources, ceux que
-# moved.tf vise : une clé qui change recréerait la cible.
+# (websites.tf), toutes sondées. Les clés sont les anciens noms des ressources, ceux
+# vers lesquels les blocs moved (appliqués) ont migré l'état : une clé qui change
+# recréerait la cible, sauf bloc moved.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
@@ -798,7 +799,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       "demo_planning_kc_keycloak",
       "stirling_pdf",
     ])
-    error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (moved.tf), et une nouvelle cible être listée ici."
+    error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (sinon un bloc moved), et une nouvelle cible être listée ici."
   }
 
   # local.website_targets fusionne par merge() les clés des applications et les
@@ -1855,8 +1856,8 @@ run "every_public_resource_applies_its_rules" {
   # Les noms Pangolin, écrits en toutes lettres : les règles pays et les
   # audits de rules.tf en font leurs clés, si bien qu'un nom changé détruit et
   # recrée toutes les règles de la ressource (aucun moved ne suit un nom). La
-  # clé de l'entrée, elle, est l'adresse que moved.tf a donnée à chaque
-  # ressource. Une nouvelle application s'ajoute ici (voir le skill
+  # clé de l'entrée, elle, est l'adresse que les blocs moved (appliqués) ont
+  # donnée à chaque ressource. Une nouvelle application s'ajoute ici (voir le skill
   # pangolin-route).
   assert {
     condition = { for key, r in pangolin_resource.website : key => r.name } == {
@@ -2774,8 +2775,7 @@ run "monitors_are_filed_and_alert" {
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
   # plus ceux de Pangolin et de Jellyfin (NAS). Clés et noms sont écrits en
   # toutes lettres : en ajouter ou en retirer un est une décision, chacun garde
-  # l'adresse que
-  # moved.tf lui a donnée et le nom qu'Uptime Kuma affiche.
+  # l'adresse que les blocs moved (appliqués) lui ont donnée et le nom qu'Uptime Kuma affiche.
   assert {
     condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
       beszel            = "Backup Beszel"
