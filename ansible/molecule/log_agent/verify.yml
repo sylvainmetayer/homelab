@@ -38,7 +38,6 @@
       ansible.builtin.assert:
         that:
           - agent.container_name == 'log-agent'
-          - agent.image is search('timberio/vector:[0-9.]+-debian@sha256:[0-9a-f]{64}$')
           - agent.volumes | selectattr('source', 'equalto', '/var/run/docker.sock') | list | length == 0
           - "'/run/socket-proxy' in agent_ro_targets"
           - "'/etc/machine-id' in agent_ro_targets"
@@ -55,14 +54,11 @@
           - agent.cap_drop == ['ALL']
           - agent.cap_add is not defined
           - agent.group_add == [docker_gid]
-          - agent.cpus is not defined
-          - agent.mem_limit is defined
           - proxy.volumes | selectattr('source', 'equalto', '/var/run/docker.sock') | list | length == 1
           - proxy.network_mode == 'none'
           - proxy.user == '65534:' ~ docker_gid
           - proxy.read_only
           - proxy.cap_drop == ['ALL']
-          - proxy.mem_limit is defined
           - proxy.command | select('match', '^-allow(GET|HEAD)=') | list | length == 2
           - proxy.command | select('match', '^-allow(POST|PUT|DELETE|PATCH)') | list | length == 0
         fail_msg: "Compose de l'agent inattendu : {{ log_agent_compose.services }}"

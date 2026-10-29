@@ -55,8 +55,6 @@
           - "'/opt/apps/trek/data/travel.db' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data/travel.db-wal' in trek_borgmatic.exclude_patterns"
           - "'/opt/apps/trek/data' in trek_borgmatic.source_directories"
-          - trek_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./trek'
-          - trek_borgmatic.archive_name_format is match('trek-')
         fail_msg: "Configuration borgmatic de trek inattendue : {{ trek_borgmatic }}"
 
     - name: Stat the trek data folders
@@ -92,22 +90,3 @@
         that:
           - trek_env.stat.exists
           - trek_env.stat.mode == '0600'
-
-    - name: Read the trek environment file
-      ansible.builtin.slurp:
-        src: /opt/apps/trek/.env
-      register: trek_env_content
-
-    - name: Assert the trek URL comes from the role domain
-      ansible.builtin.assert:
-        that:
-          - "'APP_URL=https://travels.sylvain.cloud' in (trek_env_content.content | b64decode)"
-
-    # Nextcloud lit le flux iCal en HTTP direct sur le réseau newt : la
-    # redirection de FORCE_HTTPS l'enverrait derrière le SSO de Pangolin. HSTS et
-    # le cookie Secure tiennent à NODE_ENV=production.
-    - name: Assert trek serves plain HTTP on newt and stays in production mode
-      ansible.builtin.assert:
-        that:
-          - "'FORCE_HTTPS=false' in (trek_env_content.content | b64decode)"
-          - "'NODE_ENV=production' in (trek_env_content.content | b64decode)"

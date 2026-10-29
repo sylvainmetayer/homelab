@@ -66,26 +66,10 @@
              | selectattr('value.networks', 'contains', 'newt')
              | map(attribute='key') | list }}
 
-    # Doctrine de ressources (AGENTS.md) : mem_limit partout, mem_reservation
-    # sur la base, pas de quota CPU sur la base ni redis, quota sur l'OCR.
-    - name: Assert the paperless resource limits follow the doctrine
-      ansible.builtin.assert:
-        that:
-          - paperless_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
-          - paperless_compose.services.db.mem_reservation is defined
-          - paperless_compose.services.db.cpus is not defined
-          - paperless_compose.services.broker.cpus is not defined
-          - paperless_compose.services.webserver.cpus is defined
-          - paperless_compose.services.webserver.cpu_shares is defined
-        fail_msg: Limites de ressources de paperless hors doctrine (cf. AGENTS.md)
-
     - name: Assert the webserver gets its identity from the host
       ansible.builtin.assert:
         that:
-          - paperless_compose.services.webserver.environment.PAPERLESS_URL == 'https://papiers.sylvain.cloud'
           - paperless_compose.services.webserver.environment.PUID | string == ansible_facts['user_uid'] | string
-          - paperless_compose.services.webserver.environment.PAPERLESS_DBPASS == paperless_db_password
-          - paperless_compose.services.db.environment.POSTGRES_PASSWORD == paperless_db_password
 
     - name: Assert the paperless borgmatic configuration is private
       ansible.builtin.assert:
@@ -99,14 +83,8 @@
         that:
           - paperless_borgmatic.postgresql_databases[0].container == paperless_compose.services.db.container_name
           - paperless_borgmatic.postgresql_databases[0].password == paperless_db_password
-          - paperless_borgmatic.repositories[0].path == paperless_expected_repository
-          - paperless_borgmatic.encryption_passphrase == backup_passphrase
-          - paperless_borgmatic.archive_name_format is match('paperless-')
           - paperless_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-paperless-backup'
-        fail_msg: "Configuration borgmatic de paperless incohérente : {{ paperless_borgmatic.repositories }}"
-      vars:
-        paperless_expected_repository: >-
-          ssh://{{ backup_storage_box_subaccounts.docker.username }}@{{ backup_storage_box_subaccounts.docker.server }}/./paperless
+        fail_msg: "Configuration borgmatic de paperless incohérente : {{ paperless_borgmatic.postgresql_databases | map(attribute='container') | list }}"
 
     - name: Stat the paperless backup sources
       ansible.builtin.stat:

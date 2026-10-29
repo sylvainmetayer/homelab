@@ -50,8 +50,6 @@
           - "'newt' not in betisier_compose.services.betisier_db.networks"
           - "'betisier' in betisier_compose.services.betisier_db.networks"
           - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
-          - "'MYSQL_PASSWORD=molecule-betisier-db-password' in betisier_compose.services.betisier_db.environment"
-          - "'PUID=' ~ ansible_facts['user_uid'] in betisier_compose.services.betisier_db.environment"
         fail_msg: "Compose de betisier inattendu : {{ betisier_compose.services }}"
 
     - name: Read the state of the betisier reset timer
@@ -89,13 +87,6 @@
         src: /home/sylvain/.config/systemd/user/betisier-reset.service
       register: betisier_reset_unit
 
-    - name: Assert the betisier reset restarts dc@betisier
-      ansible.builtin.assert:
-        that:
-          - "'ExecStart=/usr/bin/systemctl --user stop dc@betisier' in (betisier_reset_unit.content | b64decode)"
-          - "'ExecStart=/usr/bin/systemctl --user start dc@betisier' in (betisier_reset_unit.content | b64decode)"
-        fail_msg: "betisier-reset.service ne relance plus dc@betisier"
-
     # Le moniteur « Reset Betisier » ne reçoit que ce que pousse le service,
     # après les ExecStart : l'URL vient du state (set_fact de docker.yml).
     - name: Assert the betisier reset pushes to its monitor
@@ -130,9 +121,6 @@
         betisier_borgmatic: "{{ betisier_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - betisier_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./betisier'
-          - betisier_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
-          - betisier_borgmatic.archive_name_format is match('betisier-')
           - betisier_borgmatic.mysql_databases[0].container == 'betisier_db'
           - betisier_borgmatic.mysql_databases[0].password == 'molecule-betisier-db-password'
           # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver

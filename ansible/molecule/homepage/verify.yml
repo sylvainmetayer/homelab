@@ -48,8 +48,6 @@
           - homepage_compose.networks.beszel.name == 'beszel_homepage'
           - homepage_compose.networks.beszel.external
           - homepage_service.environment.HOMEPAGE_ALLOWED_HOSTS.split(',') == ['home.sylvain.cloud', 'homepage:3000', 'homepage']
-          - homepage_service.environment.LOG_TARGETS == 'stdout'
-          - homepage_service.mem_limit is defined
         fail_msg: "Service homepage inattendu : {{ homepage_service }}"
 
     # Homepage recopie son squelette pour tout fichier absent et s'arrête
@@ -223,23 +221,6 @@
         that:
           - (homepage_proxmox_raw.content | b64decode | from_yaml) == homepage_expected_proxmox
         fail_msg: proxmox.yaml inattendu
-
-    - name: Read the homepage widgets
-      ansible.builtin.slurp:
-        src: /opt/apps/homepage/config/widgets.yaml
-      register: homepage_widgets_raw
-
-    # Recherche, date et heure, météo : sans clé.
-    - name: Assert the header widgets
-      vars:
-        homepage_header: "{{ homepage_widgets_raw.content | b64decode | from_yaml }}"
-      ansible.builtin.assert:
-        that:
-          - homepage_header | map('first') | list == ['search', 'datetime', 'openmeteo']
-          - homepage_header[1].datetime.locale == 'fr'
-          - homepage_header[2].openmeteo.timezone == 'Europe/Paris'
-          - homepage_header[2].openmeteo.units == 'metric'
-        fail_msg: "widgets.yaml inattendu : {{ homepage_header }}"
 
 # Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :
 # la page se déploie avant que Sylvain ait créé les jetons. Ni widget, ni

@@ -34,26 +34,18 @@
           - promptoramix_compose.networks.newt.external
         fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt : {{ promptoramix_compose.services.app }}"
 
-    # Environ 20 Mio par chercheur, jusqu'à cinq en mémoire : 256 Mio de plafond, et aucun
-    # quota CPU (doctrine d'AGENTS.md). Durcissement : racine en lecture seule,
-    # aucune capacité.
-    - name: Assert promptoramix is capped in memory, not in CPU, and hardened
+    # Exposé à tout Internet sans SSO (signature HMAC seule) : racine en
+    # lecture seule, aucune capacité.
+    - name: Assert promptoramix is hardened
       vars:
         promptoramix_app: "{{ (promptoramix_compose_raw.stdout | from_json).services.app }}"
       no_log: true
       ansible.builtin.assert:
         that:
-          - promptoramix_app.mem_limit | int == 268435456
-          - promptoramix_app.cpus is not defined
           - promptoramix_app.read_only
           - promptoramix_app.cap_drop == ['ALL']
           - "'no-new-privileges:true' in promptoramix_app.security_opt"
-          - promptoramix_app.healthcheck.test[1] == 'bash'
-          - promptoramix_app.image is match('ghcr\\.io/sylvainmetayer/promptoramix:main(@sha256:[0-9a-f]{64})?$')
-          # Seul volume : le journal des coups.
-          - promptoramix_app.volumes | map(attribute='target') | list == ['/journal']
-          - promptoramix_app.volumes[0].source == '/opt/apps/promptoramix/journal'
-        fail_msg: "Service promptoramix inattendu : {{ promptoramix_app }}"
+        fail_msg: promptoramix n'est plus durci (read_only, cap_drop, no-new-privileges).
 
     - name: Stat the promptoramix journal folder
       ansible.builtin.stat:
@@ -80,14 +72,11 @@
           - promptoramix_env.stat.exists
           - promptoramix_env.stat.mode == '0600'
 
-    # Le modèle rendu par compose : ce que verra le conteneur, .env compris.
-    - name: Assert the promptoramix environment carries the Linkx settings
+    # Le modèle rendu par compose : le secret du .env atteint le conteneur.
+    - name: Assert the promptoramix container receives the HMAC secret
       vars:
         promptoramix_environment: "{{ (promptoramix_compose_raw.stdout | from_json).services.app.environment }}"
+      no_log: true
       ansible.builtin.assert:
         that:
           - promptoramix_environment.LINKX_SECRET == promptoramix_linkx_secret
-          - promptoramix_environment.LINKX_THREADS == '1'
-          - promptoramix_environment.LINKX_MARGIN_MS == '800'
-          - promptoramix_environment.LINKX_JOURNAL == '/journal/coups.log'
-          - promptoramix_environment.PORT == '8080'

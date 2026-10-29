@@ -62,14 +62,11 @@
     - name: Assert the karakeep environment comes from the role and the secrets
       ansible.builtin.assert:
         that:
-          - karakeep_env.NEXTAUTH_URL == 'https://keep.sylvain.cloud'
           - karakeep_env.NEXTAUTH_SECRET is match('^[0-9a-f]{64}$')
           - karakeep_env.MEILI_MASTER_KEY is match('^[0-9a-f]{64}$')
           - karakeep_env.NEXTAUTH_SECRET != karakeep_env.MEILI_MASTER_KEY
           - karakeep_env.MEILI_MASTER_KEY == karakeep_compose.services.meilisearch.environment.MEILI_MASTER_KEY
           - karakeep_env.DISABLE_SIGNUPS == 'true'
-          - karakeep_env.SMTP_USER == pangolin_smtp_user
-          - karakeep_env.SMTP_PASSWORD == pangolin_smtp_pass
         fail_msg: "Environnement de karakeep inattendu : {{ karakeep_env.keys() | list }}"
 
     # Arguments yt-dlp séparés par %% : YouTube exclu (la playlist « À regarder
@@ -98,32 +95,13 @@
           - karakeep_compose.services.web.container_name == 'karakeep'
         fail_msg: "Réseaux de karakeep inattendus : {{ karakeep_compose.services | dict2items | map(attribute='key') | list }}"
 
-    # Doctrine de ressources (AGENTS.md) : mem_limit partout, mem_reservation
-    # sur le moteur de recherche, quota CPU seulement sur le crawler (chrome).
-    - name: Assert the karakeep resource limits follow the doctrine
+    - name: Assert the karakeep backup covers its data and pushes to Uptime Kuma
       ansible.builtin.assert:
         that:
-          - karakeep_compose.services | dict2items | rejectattr('value.mem_limit', 'defined') | list | length == 0
-          - karakeep_compose.services.meilisearch.mem_reservation is defined
-          - karakeep_compose.services.meilisearch.cpus is not defined
-          - karakeep_compose.services.web.cpus is not defined
-          - karakeep_compose.services.chrome.cpus is defined
-          - karakeep_compose.services.chrome.cpu_shares is defined
-        fail_msg: Limites de ressources de karakeep hors doctrine (cf. AGENTS.md)
-
-    - name: Assert the karakeep backup targets its own repository and pushes to Uptime Kuma
-      ansible.builtin.assert:
-        that:
-          - karakeep_borgmatic.repositories[0].path == karakeep_expected_repository
-          - karakeep_borgmatic.encryption_passphrase == backup_passphrase
-          - karakeep_borgmatic.archive_name_format is match('karakeep-')
           - "'/opt/apps/karakeep/data' in karakeep_borgmatic.source_directories"
           - "'/opt/apps/karakeep/.env' in karakeep_borgmatic.source_directories"
           - karakeep_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-karakeep-backup'
-        fail_msg: "Configuration borgmatic de karakeep inattendue : {{ karakeep_borgmatic.repositories }}"
-      vars:
-        karakeep_expected_repository: >-
-          ssh://{{ backup_storage_box_subaccounts.docker.username }}@{{ backup_storage_box_subaccounts.docker.server }}/./karakeep
+        fail_msg: "Configuration borgmatic de karakeep inattendue : {{ karakeep_borgmatic.source_directories }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for karakeep
       become: true

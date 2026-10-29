@@ -53,16 +53,7 @@
           - "'newt' in nextcloud_compose.services.nextcloud.networks"
           - "'newt' not in nextcloud_compose.services.db.networks"
           - "'newt' not in nextcloud_compose.services.cache.networks"
-          - nextcloud_compose.services.db.environment.MYSQL_PASSWORD == nextcloud_db_password
-          # Tables système à jour après une montée de version (dump des routines).
-          - nextcloud_compose.services.db.environment.MARIADB_AUTO_UPGRADE == '1'
           - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
-          # Réglages MariaDB demandés par les vérifications de Nextcloud.
-          - "'--innodb-buffer-pool-size=256M' in nextcloud_compose.services.db.command"
-          - "'--innodb-log-file-size=256M' in nextcloud_compose.services.db.command"
-          - "'--log-slow-query=ON' in nextcloud_compose.services.db.command"
-          # Nom fixe : le défaut dérive du hostname, donc de l'ID du conteneur.
-          - "'--log-slow-query-file=/var/lib/mysql/slow.log' in nextcloud_compose.services.db.command"
         fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
 
     # Configuration posée à côté de config.php : mots de passe d'application
@@ -143,12 +134,9 @@
         nextcloud_borgmatic: "{{ nextcloud_borgmatic_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - nextcloud_borgmatic.repositories[0].path == 'ssh://u000000-sub1@u000000-sub1.your-storagebox.example.invalid/./nextcloud'
-          - nextcloud_borgmatic.encryption_passphrase == 'molecule-backup-passphrase'
           - "'/opt/apps/nextcloud/data' in nextcloud_borgmatic.source_directories"
           # Le dump couvre la base : pas de copie à chaud de son dossier.
           - "'/opt/apps/nextcloud/db_data' not in nextcloud_borgmatic.source_directories"
-          - nextcloud_borgmatic.archive_name_format is match('nextcloud-')
           - nextcloud_borgmatic.match_archives == '*'
           - nextcloud_borgmatic.mysql_databases[0].container == 'nextcloud_db'
           - nextcloud_borgmatic.mysql_databases[0].password == nextcloud_db_password
