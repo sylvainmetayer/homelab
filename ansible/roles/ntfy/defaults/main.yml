@@ -41,10 +41,6 @@ ntfy_publishers:
   - name: uptime-kuma
     topic: uptime-kuma
     token: "{{ ntfy_uptime_kuma_token | default('') }}"
-  # Alertes du hub Beszel (beszel_alerts_ntfy_enabled, rôle beszel).
-  - name: beszel
-    topic: beszel
-    token: "{{ ntfy_beszel_token | default('') }}"
   # Scripts et tâches planifiées des hôtes (curl -H "Authorization: Bearer
   # …", rôle mem_report).
   - name: scripts

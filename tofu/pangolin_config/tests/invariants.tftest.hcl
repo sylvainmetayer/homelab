@@ -1209,7 +1209,6 @@ run "bypass_rules_sit_in_their_priority_band" {
       "/*/ws"        = 2
       "/*/auth"      = 2
       "/uptime-kuma" = 2
-      "/beszel"      = 2
       "/scripts"     = 2
       "/github"      = 2
     }
@@ -1432,7 +1431,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /*/ws",
       "ntfy /*/auth",
       "ntfy /uptime-kuma",
-      "ntfy /beszel",
       "ntfy /scripts",
       "ntfy /github",
       "Paperless-ngx /share/*",

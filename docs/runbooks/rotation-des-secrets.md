@@ -265,14 +265,13 @@ par l'API du hub.
 Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
-- Jeton d'un producteur (`ntfy_beszel_token`, `ntfy_scripts_token`,
+- Jeton d'un producteur (`ntfy_scripts_token`,
   `ntfy_github_token` dans `ansible/secrets.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
   Kuma et la sortie que relit `docker.yml`). Puis
-  `ansible-playbook docker.yml --tags ntfy`, et `--tags beszel` pour celui de
-  Beszel quand son canal ntfy est allumé. Pour `ntfy_scripts_token`, aussi
+  `ansible-playbook docker.yml --tags ntfy`. Pour `ntfy_scripts_token`, aussi
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
   de restauration vzdump, mises à jour en attente),
   `ansible-playbook nas.yml --tags update_notify`, sans quoi leurs moniteurs

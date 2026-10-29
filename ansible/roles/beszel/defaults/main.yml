@@ -62,17 +62,8 @@ beszel_alerts_telegram_url: >-
   if (beszel_telegram_bot_token | default('') | length > 0
       and beszel_telegram_chat_id | default('') | string | length > 0)
   else '' }}
-# ntfy (rôle ntfy) : le topic beszel, avec le jeton du producteur beszel (clé
-# sops ntfy_beszel_token, écriture seule sur ce topic). Prêt mais éteint :
-# true l'ajoute aux canaux, à côté de Telegram. shoutrrr publie en POST sur
-# /beszel, ouvert sans SSO (website_ntfy.tf).
-beszel_alerts_ntfy_enabled: false
-beszel_alerts_ntfy_url: >-
-  {{ ('ntfy://ntfy.sylvain.cloud/beszel?token=' ~ ntfy_beszel_token)
-  if ntfy_beszel_token | default('') | length > 0 else '' }}
 beszel_alerts_webhooks: >-
-  {{ ([beszel_alerts_telegram_url] if beszel_alerts_telegram_url | length > 0 else [])
-  + ([beszel_alerts_ntfy_url] if beszel_alerts_ntfy_enabled | bool and beszel_alerts_ntfy_url | length > 0 else []) }}
+  {{ [beszel_alerts_telegram_url] if beszel_alerts_telegram_url | length > 0 else [] }}
 beszel_alerts_emails: ["{{ beszel_admin_email }}"]
 
 # Superuser PocketBase du widget Beszel de Homepage (tasks/homepage_superuser.yml) :

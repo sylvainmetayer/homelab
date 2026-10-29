@@ -96,17 +96,15 @@
           - ntfy_server['auth-users'] | sort == ([
               'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
               'uptime-kuma:' ~ ntfy_publisher_password_hash ~ ':user',
-              'beszel:' ~ ntfy_publisher_password_hash ~ ':user',
               'scripts:' ~ ntfy_publisher_password_hash ~ ':user',
               'github:' ~ ntfy_publisher_password_hash ~ ':user',
             ] | sort)
           - ntfy_server['auth-access'] | sort == ([
-              'sylvain:uptime-kuma:rw', 'sylvain:beszel:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
-              'uptime-kuma:uptime-kuma:wo', 'beszel:beszel:wo', 'scripts:scripts:wo', 'github:github:wo',
+              'sylvain:uptime-kuma:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
+              'uptime-kuma:uptime-kuma:wo', 'scripts:scripts:wo', 'github:github:wo',
             ] | sort)
           - ntfy_server['auth-tokens'] | sort == ([
               'uptime-kuma:' ~ ntfy_verify_uptime_kuma_token ~ ':uptime-kuma',
-              'beszel:' ~ ntfy_beszel_token ~ ':beszel',
               'scripts:' ~ ntfy_scripts_token ~ ':scripts',
               'github:' ~ ntfy_github_token ~ ':github',
             ] | sort)
@@ -204,13 +202,12 @@
               - ntfy_verify_health.json.healthy == true
 
         # Chaque producteur publie sur son topic avec son jeton, en POST sur
-        # /<topic> (shoutrrr de Beszel, curl des scripts) ; Uptime Kuma, lui,
+        # /<topic> (curl des scripts et des workflows) ; Uptime Kuma, lui,
         # en JSON sur la racine.
         - name: Publish to each topic with its own token
           no_log: true
           loop:
             - { topic: uptime-kuma, token: "{{ ntfy_verify_uptime_kuma_token }}" }
-            - { topic: beszel, token: "{{ ntfy_beszel_token }}" }
             - { topic: scripts, token: "{{ ntfy_scripts_token }}" }
             - { topic: github, token: "{{ ntfy_github_token }}" }
           ansible.builtin.uri:
@@ -237,7 +234,7 @@
         - name: Refuse what a producer token may not do
           no_log: true
           loop:
-            - { url: /beszel, method: POST, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+            - { url: /github, method: POST, token: "{{ ntfy_verify_uptime_kuma_token }}" }
             - { url: /uptime-kuma, method: POST, token: "{{ ntfy_scripts_token }}" }
             - { url: "/uptime-kuma/json?poll=1", method: GET, token: "{{ ntfy_verify_uptime_kuma_token }}" }
             - { url: /uptime-kuma/auth, method: GET, token: "{{ ntfy_verify_uptime_kuma_token }}" }
@@ -253,7 +250,7 @@
           loop:
             - { url: /uptime-kuma, method: POST }
             - { url: "/scripts/json?poll=1", method: GET }
-            - { url: /beszel/ws, method: GET }
+            - { url: /github/ws, method: GET }
           ansible.builtin.uri:
             url: "{{ ntfy_verify_url }}{{ item.url }}"
             method: "{{ item.method }}"
@@ -287,10 +284,10 @@
           ansible.builtin.assert:
             that:
               - ntfy_verify_lines | select('match', '^user sylvain [(]role:[ ]user,') | list | length == 1
-              - ntfy_verify_lines | select('match', '^user (uptime-kuma|beszel|scripts|github) [(]role:[ ]user,') | list | length == 4
-              - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 5
-              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|beszel|scripts|github)\\b') | list | length == 4
-              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|beszel|scripts|github)\\b') | list | length == 4
+              - ntfy_verify_lines | select('match', '^user (uptime-kuma|scripts|github) [(]role:[ ]user,') | list | length == 3
+              - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 4
+              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|scripts|github)\\b') | list | length == 3
+              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|scripts|github)\\b') | list | length == 3
               - ntfy_verify_lines | select('match', '^- read-write access to all') | list | length == 0
               - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
             fail_msg: "{{ ntfy_verify_access.stdout }}"

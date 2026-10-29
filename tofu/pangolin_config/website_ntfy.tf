@@ -37,11 +37,21 @@ locals {
   # The topics the producers publish to, one each (ntfy_publishers in
   # ansible/roles/ntfy/defaults/main.yml, compared by the
   # `ntfy_topics_match_the_role` test). Sylvain reads all of them.
-  ntfy_publish_topics = ["uptime-kuma", "beszel", "scripts", "github"]
+  ntfy_publish_topics = ["uptime-kuma", "scripts", "github"]
 }
 
-# The phone apps (Android, iOS) and the publishers (Uptime Kuma, Beszel,
-# scripts, github) talk to ntfy from wherever they are and cannot pass the SSO wall:
+# The beszel topic (a producer prepared, never used) left that list: its
+# ACCEPT is still live in Pangolin while no longer declared, so the rule
+# inventory audit (terraform_data.rule_inventory, rules.tf) stops every full
+# plan until a targeted apply, which leaves the audit out of the graph,
+# deletes it. Once, from tofu/pangolin_config, then a normal plan:
+#
+#   tofu apply -target='pangolin_resource_rule.path_bypass["ntfy /beszel"]'
+#
+# This paragraph can go once that apply has run.
+
+# The phone apps (Android, iOS) and the publishers (Uptime Kuma, scripts,
+# github) talk to ntfy from wherever they are and cannot pass the SSO wall:
 # none of them holds a Pangolin session. ACCEPT through local.path_bypasses
 # (rules.tf), from any country like every path ACCEPT. Every route below runs
 # ntfy's own authorization first: auth-default-access is deny-all, so nothing
@@ -59,8 +69,8 @@ locals {
 #   so that a browser without a Pangolin session is sent to the SSO login
 #   rather than served an HTML shell whose /static/* it cannot load.
 # - `/<topic>`, for each of local.ntfy_publish_topics: publishing to one
-#   topic (POST/PUT, topicPathRegex): Beszel's shoutrrr (pkg/services/push/
-#   ntfy GetAPIURL: /<topic>), curl in the scripts, and the app's own "publish"
+#   topic (POST/PUT, topicPathRegex): curl in the scripts and the
+#   workflows, and the app's own "publish"
 #   (ApiService.publish). Exact topic paths, not a `/*`: a bare `*` segment
 #   matches every path of the server. A GET there only serves the web app's
 #   HTML shell (handleTopic), or `{"unifiedpush":{"version":1}}` with ?up=1.
