@@ -5,22 +5,57 @@ homepage_title: Homelab
 
 # Liens des applications publiques : l'output homepage_links de
 # tofu/pangolin_config (un par entrée de local.websites), passé par
-# docker.yml. Clé => {name, href, group, description, icon}.
+# docker.yml. Clé => {name, href, group, description, icon, internal_url,
+# site_monitor}. internal_url (http://<conteneur>:<port>, la cible de
+# Pangolin) et site_monitor (plus le chemin de sa sonde) ne sont remplis que
+# pour les applications de la VM docker, que Homepage joint par leur nom sur
+# newt ; vides pour le Pi et flip.
 homepage_websites: {}
 
+# Adresses LAN des applications hors de la VM docker que Homepage interroge :
+# ports publiés par Docker (avant ufw), joignables depuis la VM docker.
+homepage_immich_url: "http://192.168.1.96:2283" # NOSONAR (LAN, port publié du Pi, sans TLS)
+homepage_jellyfin_url: "http://192.168.1.137:8096" # NOSONAR (LAN, port publié du NAS, sans TLS)
+# Proxmox : par l'IP, Homepage ne vérifie pas le certificat
+# (pve.sylvain.cloud ne se résout que sur le LAN, comme cette IP).
+homepage_proxmox_url: https://192.168.1.26:8006
+homepage_proxmox_node: proxmox # var.proxmox_node de tofu/proxmox (terraform.tfvars)
+# API d'intégration de Pangolin (sans /v1, que le widget ajoute). Derrière
+# l'allowlist Traefik int-api-allowlist (clé sops pangolin_api_allowed_ips) :
+# l'IP publique de la maison doit y être.
+homepage_pangolin_api_url: https://pangolin-api.sylvain.cloud
+
 # Liens qui ne sont pas une ressource publique de Pangolin, donc absents de
-# homepage_websites. Mêmes champs.
+# homepage_websites. Mêmes champs, plus key (celle de homepage_link_widgets_extra)
+# et site_monitor, facultatifs.
 homepage_extra_links:
-  - name: Jellyfin
+  - key: jellyfin
+    name: Jellyfin
     href: https://media.sylvain.cloud:8443
     group: Photos et médias
     description: Films, séries, musique, livres. LAN ou client Pangolin
     icon: jellyfin
-  - name: Pangolin
+    site_monitor: "{{ homepage_jellyfin_url }}/health"
+  - key: pangolin
+    name: Pangolin
     href: https://pangolin.sylvain.cloud
     group: Administration
     description: Tableau de bord du reverse proxy
     icon: mdi-shield-key-outline
+  - key: proxmox
+    name: Proxmox
+    href: https://pve.sylvain.cloud:8006
+    group: Administration
+    description: Hyperviseur, depuis le LAN
+    icon: proxmox
+    site_monitor: "{{ homepage_proxmox_url }}"
+
+# Pastille d'état (siteMonitor) des liens dont l'output ne donne pas
+# l'adresse : l'Immich du Pi, publié sur le LAN. Ni immich_swipe (port non
+# publié) ni les applications de flip (réseau privé de Hetzner, que la VM
+# docker ne joint pas) : pas de pastille.
+homepage_link_site_monitors:
+  immich: "{{ homepage_immich_url }}/api/server/ping"
 
 # Ordre des groupes sur la page. Chaque groupe de homepage_links doit y être :
 # tofu/pangolin_config/tests/invariants.tftest.hcl
@@ -33,6 +68,7 @@ homepage_groups:
   - Contacts
   - Flip Planning
   - Administration
+  - Hôtes
   - Divers
 
 # --- Widgets (services.yaml) ---
@@ -88,3 +124,194 @@ homepage_uptimekuma_status_pages:
     group: Administration
     description: Disponibilité du site personnel (Uptime Kuma)
     icon: uptime-kuma
+
+# Beszel, une carte par hôte (groupe homepage_hosts_group) : état, CPU,
+# mémoire et disque d'un système du hub (mode systemId du widget, qui accepte
+# le nom du système). Les systèmes sont les clés du dict sops
+# beszel_agent_tokens, celles que le rôle beszel écrit dans le config.yml du
+# hub (name = clé) : seuls les noms en sont lus, jamais les jetons. Même
+# superuser, même réseau que le widget du lien Beszel : rien sans lui.
+homepage_hosts_group: Hôtes
+homepage_beszel_systems: "{{ beszel_agent_tokens | default({}) | list | sort }}"
+homepage_beszel_host_fields: [status, cpu, memory, disk]
+# Description et icône de chaque carte d'hôte ; un système absent d'ici a
+# une carte sans description.
+homepage_hosts:
+  docker:
+    description: VM docker de Proxmox, les applications
+    icon: docker
+  flip:
+    description: Hetzner, Flip Planning et Promptoramix (sans IP publique)
+    icon: mdi-server-network
+  nas:
+    description: NAS Ugreen, Jellyfin et les sauvegardes vzdump
+    icon: mdi-nas
+  newt-lxc:
+    description: LXC de Proxmox, Newt du site proxmox-lxc et Blocky
+    icon: mdi-tunnel-outline
+  pangolin:
+    description: Hetzner, reverse proxy Pangolin
+    icon: pangolin
+  pi:
+    description: Raspberry Pi, Immich et Blocky
+    icon: raspberry-pi
+  pve:
+    description: Hôte Proxmox VE
+    icon: proxmox
+
+# Proxmox : le widget du lien proxmox (VM et LXC démarrés, CPU et mémoire du
+# nœud) et, sur les cartes d'hôte de homepage_proxmox_guests, le CPU et la
+# mémoire de l'invité (proxmox.yaml). Jeton d'API à séparation de privilèges,
+# rôle PVEAuditor sur / (lecture seule), créé à la main : clés sops
+# homepage_proxmox_token_id (« user@realm!id ») et
+# homepage_proxmox_token_secret. L'une vide, ni widget ni statistiques.
+homepage_proxmox_widget_token_id: "{{ homepage_proxmox_token_id | default('') }}"
+homepage_proxmox_widget_token_secret: "{{ homepage_proxmox_token_secret | default('') }}"
+homepage_proxmox_enabled: >-
+  {{ homepage_proxmox_widget_token_id | length > 0 and homepage_proxmox_widget_token_secret | length > 0 }}
+# vmid du job vzdump de tofu/proxmox (backup.tf) : la VM docker a reçu le 100
+# à sa création (var.docker_vm.vm_id n'est lu par aucune ressource).
+homepage_proxmox_guests:
+  docker:
+    vmid: 100
+    type: qemu
+  newt-lxc:
+    vmid: 200
+    type: lxc
+
+# Widgets en lecture seule posés sur un lien, par clé (de homepage_websites
+# ou de homepage_extra_links), en plus de homepage_link_widgets : enabled
+# faux ou url vide (output homepage_links pas encore appliqué), pas de
+# widget. Chaque clé sops vide par défaut : la page se déploie sans elles.
+#
+# - speedtest_tracker : dernier test (version 2 du widget, Speedtest Tracker
+#   >= 1.2.1), jeton d'API à la seule capacité results:read
+#   (homepage_speedtest_tracker_token).
+# - immich : utilisateurs, photos, vidéos, stockage (version 2, Immich
+#   >= 1.118 ; /api/server/statistics exige un compte admin), clé d'API d'un
+#   admin à la seule permission server.statistics (homepage_immich_api_key).
+# - pangolin : sites et ressources de l'organisation (output
+#   homepage_pangolin_org), clé d'API d'organisation limitée à List Sites et
+#   List Resources (homepage_pangolin_api_key).
+# - proxmox : voir plus haut.
+#
+# Risque accepté (Sylvain, 2026-10-29) pour les trois suivants : aucune de
+# ces applications n'offre de jeton en lecture seule, donc qui lit la
+# configuration de Homepage (VM docker, 0600) peut y écrire.
+# - jellyfin : médiathèque et lectures en cours (version 2, Jellyfin >= 10.12,
+#   ici 12.x), clé d'API d'administration (homepage_jellyfin_api_key), sans
+#   les boutons pause/lecture (enableMediaControl: false).
+# - homebox : compte dédié, invité dans le groupe de Sylvain
+#   (homepage_homebox_username, host_vars/docker, et homepage_homebox_password).
+# - karakeep : clé d'API de l'utilisateur dont on veut les compteurs
+#   (homepage_karakeep_api_key) : elle a tous ses droits.
+homepage_speedtest_widget_token: "{{ homepage_speedtest_tracker_token | default('') }}"
+homepage_immich_widget_key: "{{ homepage_immich_api_key | default('') }}"
+homepage_pangolin_widget_key: "{{ homepage_pangolin_api_key | default('') }}"
+homepage_pangolin_org: ""
+homepage_jellyfin_widget_key: "{{ homepage_jellyfin_api_key | default('') }}"
+homepage_homebox_username: ""
+homepage_homebox_widget_password: "{{ homepage_homebox_password | default('') }}"
+homepage_karakeep_widget_key: "{{ homepage_karakeep_api_key | default('') }}"
+
+homepage_link_widgets_extra:
+  speedtest_tracker:
+    enabled: "{{ homepage_speedtest_widget_token | length > 0 }}"
+    widget:
+      type: speedtest
+      url: "{{ homepage_websites.speedtest_tracker.internal_url | default('') }}"
+      version: 2
+      key: "{{ homepage_speedtest_widget_token }}"
+  immich:
+    enabled: "{{ homepage_immich_widget_key | length > 0 }}"
+    widget:
+      type: immich
+      url: "{{ homepage_immich_url }}"
+      version: 2
+      key: "{{ homepage_immich_widget_key }}"
+  pangolin:
+    enabled: "{{ homepage_pangolin_widget_key | length > 0 and homepage_pangolin_org | length > 0 }}"
+    widget:
+      type: pangolin
+      url: "{{ homepage_pangolin_api_url }}"
+      key: "{{ homepage_pangolin_widget_key }}"
+      org: "{{ homepage_pangolin_org }}"
+      fields: [sites, resources, targets]
+  proxmox:
+    enabled: "{{ homepage_proxmox_enabled }}"
+    widget:
+      type: proxmox
+      url: "{{ homepage_proxmox_url }}"
+      username: "{{ homepage_proxmox_widget_token_id }}"
+      password: "{{ homepage_proxmox_widget_token_secret }}"
+      node: "{{ homepage_proxmox_node }}"
+  jellyfin:
+    enabled: "{{ homepage_jellyfin_widget_key | length > 0 }}"
+    widget:
+      type: jellyfin
+      url: "{{ homepage_jellyfin_url }}"
+      version: 2
+      key: "{{ homepage_jellyfin_widget_key }}"
+      enableBlocks: true
+      enableNowPlaying: true
+      enableMediaControl: false
+  homebox:
+    enabled: "{{ homepage_homebox_username | length > 0 and homepage_homebox_widget_password | length > 0 }}"
+    widget:
+      type: homebox
+      url: "{{ homepage_websites.homebox.internal_url | default('') }}"
+      username: "{{ homepage_homebox_username }}"
+      password: "{{ homepage_homebox_widget_password }}"
+      fields: [items, locations, totalValue]
+  karakeep:
+    enabled: "{{ homepage_karakeep_widget_key | length > 0 }}"
+    widget:
+      type: karakeep
+      url: "{{ homepage_websites.karakeep.internal_url | default('') }}"
+      key: "{{ homepage_karakeep_widget_key }}"
+      fields: [bookmarks, favorites, lists, tags]
+
+# Agenda : une carte (groupe Vie perso) qui lit un agenda Nextcloud partagé
+# par lien public en lecture seule, au format iCal. L'URL porte le jeton du
+# partage : clé sops homepage_calendar_ics_url, vide = pas de carte.
+# Homepage la récupère côté serveur et ne l'envoie pas au navigateur.
+homepage_calendar_url: "{{ homepage_calendar_ics_url | default('') }}"
+homepage_calendar_card:
+  name: Agenda
+  group: Vie perso
+  description: Agenda partagé (Nextcloud)
+  icon: mdi-calendar-month-outline
+  widget:
+    type: calendar
+    view: agenda
+    maxEvents: 8
+    showTime: true
+    previousDays: 0
+    timezone: Europe/Paris
+    integrations:
+      - type: ical
+        name: Agenda
+        url: "{{ homepage_calendar_url }}"
+        color: blue
+
+# --- Widgets d'en-tête (widgets.yaml) : sans compte ni clé ---
+# Open-Meteo est interrogé côté serveur (api.open-meteo.com) ; la recherche
+# ouvre DuckDuckGo, sans suggestions (qui passeraient par le serveur).
+homepage_info_widgets:
+  - search:
+      provider: duckduckgo
+      target: _blank
+  - datetime:
+      locale: fr
+      text_size: xl
+      format:
+        dateStyle: full
+        timeStyle: short
+        hourCycle: h23
+  - openmeteo:
+      label: Talence
+      latitude: 44.81
+      longitude: -0.59
+      timezone: Europe/Paris
+      units: metric
+      cache: 15

@@ -371,6 +371,38 @@ joue son rôle. Mais tout ce qui joint le hub en direct peut annoncer
 (`127.0.0.1:8090`) et tout conteneur du réseau `newt`, où le hub est
 joignable. Seul le mot de passe, exigé partout, les arrête.
 
+**Les autres widgets de Homepage.** Depuis le 29/10/2026, Homepage montre
+aussi, sans aucune clé : la recherche
+(DuckDuckGo), la date et l'heure, la météo de Talence (Open-Meteo, côté
+serveur) ; une pastille d'état et de latence (`siteMonitor`, HEAD puis GET,
+« up » jusqu'à 403) sur chaque lien dont l'adresse interne est connue. Pour
+les applications de la VM docker, c'est la cible de Pangolin et le chemin de
+sa sonde (champs `internal_url` et `site_monitor` de l'output
+`homepage_links`), joints par le nom du conteneur sur newt ; l'Immich du Pi,
+Jellyfin et Proxmox par leur IP du LAN (rôle `homepage`). Pas de pastille pour
+flip (réseau privé de Hetzner, hors de portée de la VM docker), ni pour
+immich-swipe (port non publié sur le Pi), ni pour Pangolin et la page de
+statut.
+
+Avec le superuser du widget Beszel : une carte par hôte (groupe Hôtes, une
+par clé de `beszel_agent_tokens`, mode `systemId`), avec le CPU et la mémoire
+de l'invité Proxmox pour la VM docker (100) et le LXC newt (200) quand le
+jeton Proxmox existe.
+
+Avec une clé sops chacun (vide : widget absent, la page se déploie sans) :
+Proxmox, Pangolin, Speedtest Tracker et Immich, en lecture seule ; l'agenda
+(lien public iCal d'un agenda Nextcloud, servi par le chemin `/remote.php/*`
+déjà ouvert sans SSO aux clients, `website_nextcloud.tf`) ; et Jellyfin,
+Homebox, Karakeep. Création de chaque jeton, droits minimaux et `sops set` :
+[runbooks/rotation-des-secrets.md](runbooks/rotation-des-secrets.md#widgets-de-homepage).
+
+**Risque accepté** (Sylvain, 2026-10-29) : Jellyfin (clé d'API
+d'administration), Homebox (compte invité dans le groupe, qui peut écrire)
+et Karakeep (clé d'API de l'utilisateur) n'ont pas de jeton en lecture
+seule ; qui lit la configuration de Homepage (`0600`, VM docker) peut donc
+administrer Jellyfin et écrire dans Homebox et Karakeep. Le widget Jellyfin
+est rendu sans ses boutons pause/lecture (`enableMediaControl: false`).
+
 ```mermaid
 flowchart LR
   subgraph lan["LAN"]

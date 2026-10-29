@@ -1,2 +1,11 @@
 ---
-# Géré par Ansible (rôle homepage). Aucune intégration Proxmox : pas de jeton.
+# Géré par Ansible (rôle homepage). Statistiques des invités Proxmox sur les
+# cartes d'hôte (homepage_proxmox_guests) : jeton PVEAuditor en lecture seule,
+# clés sops homepage_proxmox_token_id et homepage_proxmox_token_secret. Sans
+# elles, aucune intégration.
+{% if homepage_proxmox_enabled | bool %}
+{{ homepage_proxmox_node | to_json }}:
+  url: {{ homepage_proxmox_url | to_json }}
+  token: {{ homepage_proxmox_widget_token_id | to_json }}
+  secret: {{ homepage_proxmox_widget_token_secret | to_json }}
+{% endif %}

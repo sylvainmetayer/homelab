@@ -1,0 +1,73 @@
+---
+# Ce que docker.yml lit dans l'output homepage_links de pangolin_config,
+# partagé par converge.yml et verify.yml : deux liens d'un même groupe et un
+# d'un groupe que homepage_groups ne connaît pas, qui doit venir après les
+# autres ; ceux qui portent un widget (Beszel, Speedtest Tracker, Homebox,
+# Karakeep, Immich) ; des liens de la VM docker (internal_url et
+# site_monitor remplis), un sans adresse interne (Paperless) et l'Immich du
+# Pi (vide dans l'output, pastille du rôle).
+homepage_molecule_links:
+  wiki:
+    name: BookStack
+    href: https://wiki.sylvain.cloud
+    group: Documents
+    description: Wiki
+    icon: bookstack
+    internal_url: http://bookstack:80 # NOSONAR (réseau newt, sans TLS)
+    site_monitor: http://bookstack:80/login # NOSONAR
+  paperless:
+    name: Paperless-ngx
+    href: https://papiers.sylvain.cloud
+    group: Documents
+    description: Documents numérisés, avec OCR
+    icon: ""
+    internal_url: ""
+    site_monitor: ""
+  betisier:
+    name: Betisier
+    href: https://betisier.sylvain.dev
+    group: Groupe hors liste
+    description: Bêtisier, application de TP
+    icon: mdi-emoticon-lol-outline
+    internal_url: http://betisier:80 # NOSONAR
+    site_monitor: http://betisier:80/ # NOSONAR
+  beszel:
+    name: Beszel
+    href: https://monitoring.sylvain.cloud
+    group: Administration
+    description: Supervision des hôtes
+    icon: beszel
+    internal_url: http://beszel:8090 # NOSONAR
+    site_monitor: http://beszel:8090/api/health # NOSONAR
+  speedtest_tracker:
+    name: Speedtest Tracker
+    href: https://speedtest.sylvain.cloud
+    group: Administration
+    description: Débit de la ligne Internet de la maison
+    icon: speedtest-tracker
+    internal_url: http://speedtest-tracker:80 # NOSONAR
+    site_monitor: http://speedtest-tracker:80/api/healthcheck # NOSONAR
+  homebox:
+    name: Homebox
+    href: https://homebox.sylvain.cloud
+    group: Vie perso
+    description: Inventaire de la maison
+    icon: homebox
+    internal_url: http://homebox:7745 # NOSONAR
+    site_monitor: http://homebox:7745/api/v1/status # NOSONAR
+  karakeep:
+    name: Karakeep
+    href: https://karakeep.sylvain.cloud
+    group: Lecture
+    description: Favoris et lecture différée
+    icon: karakeep
+    internal_url: http://karakeep:3000 # NOSONAR
+    site_monitor: http://karakeep:3000/api/health # NOSONAR
+  immich:
+    name: Immich
+    href: https://photos.sylvain.cloud
+    group: Photos et médias
+    description: Photothèque
+    icon: immich
+    internal_url: ""
+    site_monitor: ""
