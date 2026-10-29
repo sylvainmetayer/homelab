@@ -50,8 +50,6 @@
     # noyau se met à jour VM arrêtées, docs/runbooks/mises-a-jour-proxmox-ugos.md).
     - role: update_notify
       tags: update_notify,monitoring
-      vars:
-        update_notify_mode: apt
   tasks:
     # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
     # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar

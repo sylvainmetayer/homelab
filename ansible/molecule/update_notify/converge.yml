@@ -22,5 +22,4 @@
     - role: update_notify
       vars:
         update_notify_host_label: pve
-        update_notify_mode: apt
         update_notify_ntfy_url: http://127.0.0.1:18081 # NOSONAR
