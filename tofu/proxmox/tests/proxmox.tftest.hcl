@@ -76,6 +76,28 @@ run "docker_vm_sizing" {
   }
 }
 
+# L'image cloud Debian démarre avec console=ttyS0 : sans port série,
+# serial-getty@ttyS0 échoue en boucle. Et le provider ne doit jamais éteindre
+# la VM de lui-même pour appliquer un changement (défaut : true).
+run "docker_vm_serial_console_without_unattended_reboot" {
+  command = plan
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.docker.serial_device) == 1 && proxmox_virtual_environment_vm.docker.serial_device[0].device == "socket"
+    error_message = "La VM Docker doit avoir un port série serial0 en socket (console=ttyS0 de l'image cloud Debian)."
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.docker.reboot_after_update == false
+    error_message = "reboot_after_update doit rester false : le provider éteindrait la VM Docker (toutes les applis) pour appliquer un changement."
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.docker.vga) == 0
+    error_message = "L'écran VGA par défaut (console noVNC) reste : un vga { type = \"serial0\" } supprimerait l'écran."
+  }
+}
+
 # ansible/inventory/proxmox.py nomme l'hôte d'après `name` et prend en priorité
 # l'adresse statique du cloud-init ip_config, si elle est dans le LAN.
 run "docker_vm_matches_inventory" {
