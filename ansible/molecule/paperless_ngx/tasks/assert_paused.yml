@@ -17,6 +17,7 @@
     - "{{ docker_base_path }}/paperless/data"
     - "{{ docker_base_path }}/paperless/media"
     - "{{ borgmatic_config_dir }}/paperless.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/paperless.curl"
   register: paperless_paused_paths
 
 - name: Assert paperless is paused, not removed
@@ -29,6 +30,7 @@
       - paperless_paused_paths.results[1].stat.isdir | default(false)
       - paperless_paused_paths.results[2].stat.isdir | default(false)
       - not paperless_paused_paths.results[3].stat.exists
+      - not paperless_paused_paths.results[4].stat.exists
     fail_msg: >-
       dc@paperless {{ paperless_paused_unit.status.UnitFileState }} /
       {{ paperless_paused_unit.status.ActiveState }}, ou compose/données absents,

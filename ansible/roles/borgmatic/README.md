@@ -9,7 +9,7 @@ Wiring a new app: the `borgmatic-backup` skill.
 - Backups use Borgmatic, not Restic. There is **one** config template for every app, `ansible/roles/borgmatic/templates/app.yaml.j2`, rendered by `ansible/roles/borgmatic/tasks/app.yml`: an app role calls it with `include_role: name=borgmatic tasks_from=app.yml` (+ `apply: tags: backup`) and `borgmatic_app_*` vars (name, sources, DB dumps, excludes, target, passphrase, healthcheck URL — documented in the role's `defaults/main.yml`); it never ships its own borgmatic template or repo-create task. Non-obvious structural rules the shared template keeps (deviating from these breaks Borgmatic):
 - Retention keys (`keep_daily`/`keep_weekly`/`keep_monthly`/`keep_yearly`) are **top-level**, not nested under `retention:`.
 - `checks:` (with `name`/`frequency`) is **top-level**, not nested under `consistency:`.
-- Use `commands:` with `before/after: action` + `when: [create]` hooks, not `before_backup`/`after_backup`/`on_error`.
+- Use `commands:` with `before/after: action` + `when: [create]` hooks, not `before_backup`/`after_backup`/`on_error` (only the Uptime Kuma pushes sit at `configuration` level, see below).
 - `archive_name_format` is `'<service>-{now:%Y-%m-%dT%H:%M:%S}'` — no `{hostname}` prefix.
 - `compression: zstd,10`, not `auto,zstd`.
 - Target: `<service>_backup_borgmatic_target: "{{ backup_storage_box_url }}/<service>"` in the role defaults (`backup_storage_box_url` is a group var: `ssh://<subaccount>@<server>/.`, the host's subaccount), passphrase `<service>_backup_encryption_passphrase: "{{ backup_passphrase }}"` there too — not in `host_vars`.

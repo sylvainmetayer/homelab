@@ -158,8 +158,13 @@
   tags: backup
   become: true
   ansible.builtin.file:
-    path: "{{ borgmatic_config_dir }}/kdrive.yaml"
+    path: "{{ item }}"
     state: absent
+  # La configuration et le fichier de son URL push (rôle borgmatic,
+  # tasks/app.yml), qui garderait sinon le jeton du moniteur.
+  loop:
+    - "{{ borgmatic_config_dir }}/kdrive.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/kdrive.curl"
 
 - name: Configure borgmatic backup for the kDrive copy
   when: kdrive_sync_backup_enabled

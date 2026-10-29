@@ -1,7 +1,9 @@
 ---
 # URL push du moniteur (jeton) : lue par curl (-K), jamais sur sa ligne de
-# commande. Relue à chaque passage : rien à redémarrer.
+# commande. Relue à chaque passage : rien à redémarrer. Vide : le service ne
+# pousse rien (un « url = "" » ferait échouer l'ExecStartPre, donc le cron).
 - name: Write the push URL of the monica_v4 cron
+  when: monica_v4_cron_healthcheck_url | length > 0
   diff: false
   no_log: true
   ansible.builtin.copy:
@@ -10,6 +12,12 @@
     group: "{{ ansible_facts['user_gid'] }}"
     owner: "{{ ansible_facts['user_uid'] }}"
     mode: "0600"
+
+- name: Remove the push URL of the monica_v4 cron
+  when: monica_v4_cron_healthcheck_url | length == 0
+  ansible.builtin.file:
+    path: "{{ monica_v4_cron_push_config }}"
+    state: absent
 
 - name: Copy monica_v4 cron service
   notify: Restart monica_v4 cron

@@ -17,6 +17,7 @@
     - /opt/apps/demo_planning_kc/compose.yaml
     - /opt/apps/demo_planning_kc/.env
     - "{{ borgmatic_config_dir }}/demo_planning_kc.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/demo_planning_kc.curl"
   register: flip_planning_paused_paths
 
 - name: Assert demo_planning_kc is paused, not removed, and the others still run
@@ -36,6 +37,7 @@
       - flip_planning_paused_paths.results[0].stat.mode == '0600'
       - flip_planning_paused_paths.results[1].stat.exists
       - not flip_planning_paused_paths.results[2].stat.exists
+      - not flip_planning_paused_paths.results[3].stat.exists
     fail_msg: >-
       États : {{ flip_planning_unit_states | dict2items
                  | map(attribute='key') | zip(flip_planning_unit_states | dict2items

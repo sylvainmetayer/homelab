@@ -22,7 +22,8 @@ are written down in `ansible/roles/borgmatic/README.md`. The interface — the
 - `checks:` (with `name` / `frequency`) is **top-level** — not nested under
   `consistency:`.
 - `commands:` with `before: action` / `after: action` + `when: [create]`
-  hooks — not `before_backup:` / `after_backup:` / `on_error:`.
+  hooks — not `before_backup:` / `after_backup:` / `on_error:` (the
+  Uptime Kuma pushes alone sit at `configuration` level, see below).
 - `archive_name_format: '<prefix>-{now:%Y-%m-%dT%H:%M:%S}'` — no
   `{hostname}` prefix. The prefix defaults to the app name with `_` → `-`;
   changing it takes the existing archives out of `prune`'s reach.
