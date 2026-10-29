@@ -28,7 +28,7 @@ choix dans [../adr/](../adr/README.md).
 | Commits signés sur `main` : signature SSH du poste, clé de signature GitHub, bascule en squash (procédure, pas un incident) | [commits-signes.md](commits-signes.md) |
 | Tester la clé age `secours` hors ligne (chaque trimestre), la remplacer (procédure, pas un incident) | [test-cle-secours.md](test-cle-secours.md) |
 | Rotation planifiée des secrets : périodes par nature, procédure par secret, date à mettre à jour, alerte « Rotation des secrets » (procédure, pas un incident) | [rotation-des-secrets.md](rotation-des-secrets.md) |
-| Mises à jour de l'hôte Proxmox et d'UGOS (alerte ntfy du lundi, moniteur « Mises à jour Proxmox ») : sauvegarde, `full-upgrade`, ordre d'arrêt, `nas.yml` après UGOS (procédure, pas un incident) | [mises-a-jour-proxmox-ugos.md](mises-a-jour-proxmox-ugos.md) |
+| Mises à jour des hôtes Debian (Proxmox, VM docker, Pi, flip, Pangolin : alerte ntfy du lundi, moniteurs « Mises à jour <hôte> ») et d'UGOS : Docker à la main (tous les conteneurs redémarrent), `full-upgrade`, ordre d'arrêt de Proxmox, `nas.yml` après UGOS (procédure, pas un incident) | [mises-a-jour-hotes.md](mises-a-jour-hotes.md) |
 
 ## Avant de commencer
 

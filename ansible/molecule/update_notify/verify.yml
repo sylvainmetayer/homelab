@@ -27,13 +27,14 @@
     # Ce qu'attend chaque cas, entre guillemets : un « : » dans une
     # expression nue en ferait un dictionnaire YAML.
     update_notify_verify_titles:
-      security: "pve : 4 mise(s) à jour, dont 1 de sécurité"
+      security: "pve : 5 mise(s) à jour, dont 1 de sécurité"
     update_notify_verify_security_head: |-
       Sécurité (1) :
         libc-bin 2.41-12+deb13u4 → 2.41-12+deb13u5
-      Proxmox et noyaux (2) :
+      Docker, Proxmox et noyaux (3) :
         pve-manager 9.2.24 → 9.2.25
         proxmox-kernel-7.0.15-1-pve-signed (nouveau) → 7.0.15-1
+        docker-ce 5:29.9.0-1~debian.13~trixie → 5:29.9.2-1~debian.13~trixie
       Autres (1) :
         vim-common 2:9.1.1230-2 → 2:9.1.1230-3
       Retirés par dist-upgrade (1) :
@@ -198,9 +199,10 @@
           - update_notify_verify_msg.priority == 4
           - update_notify_verify_msg.title == update_notify_verify_titles.security
           - update_notify_verify_msg.message.splitlines()[:update_notify_verify_head_lines | length] == update_notify_verify_head_lines
+          - "'\nDocker en attente : sa mise à jour redémarre tous les conteneurs' in update_notify_verify_msg.message"
           - ('Noyau ' ~ update_notify_verify_kernel ~ ' installé') in update_notify_verify_msg.message
           - "'\npve-manager/9.2.24/' in update_notify_verify_msg.message"
-          - "'docs/runbooks/mises-a-jour-proxmox-ugos.md' in update_notify_verify_msg.message"
+          - "'docs/runbooks/mises-a-jour-hotes.md' in update_notify_verify_msg.message"
           - update_notify_case_requests[1].path is search('\?status=up&')
           - ('1 de sécurité, noyau ' ~ update_notify_verify_kernel ~ ' en attente') in (update_notify_case_requests[1].path | urldecode)
         fail_msg: "{{ update_notify_case_requests | to_json }}"

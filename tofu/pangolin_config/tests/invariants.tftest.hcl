@@ -655,8 +655,28 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.cron_pve_updates
+  target = uptimekuma_monitor_push.cron_updates["pve"]
   values = { push_token = "push-cron-pve-updates" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_updates["docker"]
+  values = { push_token = "push-cron-docker-updates" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_updates["pi"]
+  values = { push_token = "push-cron-pi-updates" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_updates["flip"]
+  values = { push_token = "push-cron-flip-updates" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_updates["pangolin"]
+  values = { push_token = "push-cron-pangolin-updates" }
 }
 
 override_resource {
@@ -1846,6 +1866,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         # pve.yml
         uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
+        # update_notify : docker.yml, pi.yml, flip.yml, pangolin.yaml
+        uptime_cron_docker_updates_url   = output.uptime_cron_docker_updates_url
+        uptime_cron_pi_updates_url       = output.uptime_cron_pi_updates_url
+        uptime_cron_flip_updates_url     = output.uptime_cron_flip_updates_url
+        uptime_cron_pangolin_updates_url = output.uptime_cron_pangolin_updates_url
         }] : alltrue([
         for name, url in urls :
         url == "https://uptime.example.test/api/push/push-${replace(trimsuffix(trimprefix(trimprefix(name, "uptime_"), "backup_"), "_url"), "_", "-")}"
@@ -2242,8 +2267,6 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_push.cron_geoip.interval > 60 * 60 * 24 * 7
       && uptimekuma_monitor_push.cron_nas_cert.parent == uptimekuma_monitor_group.self_hosted.id
       && toset(uptimekuma_monitor_push.cron_nas_cert.notification_ids) == toset(local.alert_notification_ids)
-      && uptimekuma_monitor_push.cron_pve_updates.parent == uptimekuma_monitor_group.self_hosted.id
-      && toset(uptimekuma_monitor_push.cron_pve_updates.notification_ids) == toset(local.alert_notification_ids)
       && uptimekuma_monitor_push.cron_monica.parent == uptimekuma_monitor_group.self_hosted.id
       && toset(uptimekuma_monitor_push.cron_monica.notification_ids) == toset(local.alert_notification_ids)
     )
@@ -2295,16 +2318,30 @@ run "monitors_are_filed_and_alert" {
   }
 
   # Le vérificateur de mises à jour (rôle update_notify) passe une fois par
-  # semaine : l'intervalle laisse passer une semaine manquée, pas deux, sous
-  # le plafond de 24 jours d'Uptime Kuma. pve.yml donne son moniteur au rôle.
+  # semaine sur chaque hôte Debian : l'intervalle laisse passer une semaine
+  # manquée, pas deux, sous le plafond de 24 jours d'Uptime Kuma. Chaque
+  # playbook joue le rôle et lui donne le moniteur de SON hôte.
   assert {
     condition = (
       can(regex("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/update_notify/defaults/main.yml")).update_notify_schedule))
-      && uptimekuma_monitor_push.cron_pve_updates.interval > 60 * 60 * 24 * 14
-      && uptimekuma_monitor_push.cron_pve_updates.interval < 60 * 60 * 24 * 24
-      && strcontains(file("${path.module}/../../ansible/pve.yml"), "update_notify_healthcheck_url: \"{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}\"")
+      && toset(keys(local.update_check_hosts)) == toset(["docker", "flip", "pangolin", "pi", "pve"])
+      && alltrue([
+        for host, playbook in {
+          pve      = "pve.yml"
+          docker   = "docker.yml"
+          pi       = "pi.yml"
+          flip     = "flip.yml"
+          pangolin = "pangolin.yaml"
+        } :
+        uptimekuma_monitor_push.cron_updates[host].interval > 60 * 60 * 24 * 14
+        && uptimekuma_monitor_push.cron_updates[host].interval < 60 * 60 * 24 * 24
+        && uptimekuma_monitor_push.cron_updates[host].parent == uptimekuma_monitor_group.self_hosted.id
+        && toset(uptimekuma_monitor_push.cron_updates[host].notification_ids) == toset(local.alert_notification_ids)
+        && strcontains(file("${path.module}/../../ansible/${playbook}"), "update_notify_healthcheck_url: \"{{ terraform_outputs.uptime_cron_${host}_updates_url.value | default('') }}\"")
+        && strcontains(file("${path.module}/../../ansible/${playbook}"), "- role: update_notify\n")
+      ])
     )
-    error_message = "Mises à jour Proxmox : timer hebdomadaire, intervalle de deux semaines à 24 jours, URL push donnée par pve.yml."
+    error_message = "Mises à jour (update_notify) : timer hebdomadaire ; un moniteur par hôte (pve, docker, pi, flip, pangolin), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
   }
 
   # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes

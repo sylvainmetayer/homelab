@@ -123,6 +123,15 @@ class RealPlaybooks(unittest.TestCase):
         self.assertIn("::notice::role 'vzdump_restore_test' changed, deployed by hand only (pve.yml), not by CI", stderr)
         self.assertNotIn("::warning::", stderr)
 
+    def test_role_of_pve_and_of_deployed_hosts_deploys_on_those_hosts(self):
+        # update_notify runs on pve (by hand) and on the four CI-deployed hosts:
+        # a change deploys it on those four, with no manual-only notice.
+        result, stderr = self.run_script("ansible/roles/update_notify/files/update_notify.py")
+        for playbook in DEPLOYED_PLAYBOOKS:
+            self.assertIn("update_notify", result[playbook].split(","))
+        self.assertNotIn("deployed by hand only", stderr)
+        self.assertNotIn("::warning::", stderr)
+
     def test_role_readme_deploys_nothing(self):
         result, stderr = self.run_script("ansible/roles/trek/README.md")
         self.assertEqual(set(result.values()), {""})
