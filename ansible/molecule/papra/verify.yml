@@ -1,0 +1,103 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the papra deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: papra
+        verify_app_borgmatic_config: /etc/borgmatic.d/papra.yaml
+
+    - name: Verify the papra healthcheck
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: papra
+        verify_compose_healthchecks:
+          - app
+
+    - name: Render the papra compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/papra
+      register: papra_compose_raw
+      changed_when: false
+
+    - name: Stat the papra bind mounts
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/papra/app-data
+        - /opt/apps/papra/ingestion
+      register: papra_dirs
+
+    # Le conteneur tourne avec l'uid/gid de l'hôte, sans capacité : ses deux
+    # bind mounts doivent être à cet utilisateur, sans quoi Papra ne peut ni
+    # écrire sa base ni supprimer un fichier importé.
+    - name: Assert papra runs as the owner of its bind mounts
+      vars:
+        papra_compose: "{{ papra_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - papra_compose.services.app.user == (item.stat.uid | string) ~ ':' ~ (item.stat.gid | string)
+          - papra_compose.services.app.cap_drop == ['ALL']
+          - item.stat.mode == '0700'
+        fail_msg: "{{ item.item }} : propriétaire {{ item.stat.uid }}:{{ item.stat.gid }}, conteneur {{ papra_compose.services.app.user }}"
+      loop: "{{ papra_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the papra borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/papra.yaml
+      register: papra_borgmatic_raw
+
+    # prepare.yml a posé db.sqlite : copiée par « .backup » dans le dossier de
+    # staging archivé, sa copie vivante hors de l'archive. Jamais
+    # sqlite_databases : son « .dump » en flux bloque les écritures tout le
+    # temps de l'envoi.
+    - name: Assert the papra SQLite database is copied by .backup, not dumped or copied live
+      vars:
+        papra_borgmatic: "{{ papra_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - papra_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/papra' in papra_borgmatic.source_directories"
+          - >-
+            papra_borgmatic.commands[0].run
+            | select('search', '^sqlite3 -bail .*/opt/apps/papra/app-data/db/db\\.sqlite ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/papra/opt_apps_papra_app-data_db_db\\.sqlite')
+            | list | length == 1
+          - "'/opt/apps/papra/app-data/db/db.sqlite' in papra_borgmatic.exclude_patterns"
+          - "'/opt/apps/papra/app-data/db/db.sqlite-wal' in papra_borgmatic.exclude_patterns"
+          - "'/opt/apps/papra/app-data' in papra_borgmatic.source_directories"
+        fail_msg: "Configuration borgmatic de papra inattendue : {{ papra_borgmatic }}"
+
+    - name: Stat the papra environment file
+      ansible.builtin.stat:
+        path: /opt/apps/papra/.env
+      register: papra_env
+
+    # Il porte le secret de session : jamais lisible par d'autres.
+    - name: Assert the papra environment file is private
+      ansible.builtin.assert:
+        that:
+          - papra_env.stat.exists
+          - papra_env.stat.mode == '0600'
+
+    - name: Read the papra environment file
+      ansible.builtin.slurp:
+        src: /opt/apps/papra/.env
+      register: papra_env_content
+
+    # Inscription fermée par défaut (papra_registration_enabled), et un secret
+    # de session d'au moins 32 caractères, sans quoi Papra refuse de démarrer.
+    - name: Assert papra registration is closed and the auth secret is long enough
+      vars:
+        papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
+          - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1

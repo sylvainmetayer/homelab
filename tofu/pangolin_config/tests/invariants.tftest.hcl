@@ -676,6 +676,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup["papra"]
+  values = { push_token = "push-papra" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["rss"]
   values = { push_token = "push-rss" }
 }
@@ -1830,6 +1835,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_nginx_demo_url        = output.uptime_backup_nginx_demo_url
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
         uptime_backup_paperless_url         = output.uptime_backup_paperless_url
+        uptime_backup_papra_url             = output.uptime_backup_papra_url
         # flip.yml (production, démo)
         uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url

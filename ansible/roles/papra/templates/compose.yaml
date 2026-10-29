@@ -1,0 +1,52 @@
+---
+services:
+  app:
+    # Pic mesuré à 533 Mio (memory.peak) au démarrage puis à l'OCR d'une
+    # image et d'un PDF scanné de trois pages, en local : à recaler sur le
+    # pic réel après quelques jours. L'OCR (tesseract.js, dans des worker
+    # threads du même processus Node) est un batch, d'où le plafond CPU et le
+    # poids réduit, comme le webserver de Paperless (doctrine dans AGENTS.md).
+    mem_limit: 1100m
+    cpus: 2.00
+    cpu_shares: 512
+    # Variante -rootless (les tags de version n'existent qu'avec -rootless ou
+    # -root).
+    image: ghcr.io/papra-hq/papra:26.7.1-rootless@sha256:d1f596a35332ad04d8a69d88a5e19bc82acd47f2bc2fe687dd2145b1ef5a8b19
+    container_name: papra
+    # L'uid de l'hôte, comme le recommande la documentation de Papra : les
+    # bind mounts lui appartiennent (tasks/main.yml). Contrepartie :
+    # tesseract.js met ses modèles de langue en cache dans /app, qui est à
+    # l'utilisateur de l'image (999) ; l'écriture échoue en silence, sans
+    # effet sur l'OCR, et fra/eng sont retéléchargés depuis cdn.jsdelivr.net
+    # à chaque document (vu en local). L'accès à Internet passe par newt.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - .env
+    volumes:
+      # db/db.sqlite (SQLite, libsql) et documents/<org>/originals/.
+      - ./app-data:/app/app-data
+      - ./ingestion:/app/ingestion
+    restart: unless-stopped
+    # L'image n'a ni curl ni wget : node, et la route de santé qui interroge
+    # la base (/api/health, 500 si la base ne répond pas).
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:1221/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true
