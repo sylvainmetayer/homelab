@@ -35,20 +35,23 @@ jobs:
             --cap-add=NET_ADMIN \
             --device /dev/net/tun:/dev/net/tun \
             -e PANGOLIN_ENDPOINT="$PANGOLIN_ENDPOINT" \
-            -e OLM_ID="$OLM_ID" \
-            -e OLM_SECRET="$OLM_SECRET" \
+            -e OLM_ID \
+            -e OLM_SECRET \
             -e OVERRIDE_DNS=true \
             docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
 
       - name: Wait OLM startup
         shell: bash
         run: |
-          # Même attente que deploy-docker-app.yaml (60 × 2 s).
+          # Même attente que deploy-docker-app.yaml (60 × 2 s, grep sans -q :
+          # voir là-bas).
+          started=false
           for i in {1..60}; do
             echo "Check $i/60"
 
             if docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
               echo "✓ DNS proxy started"
+              started=true
               break
             fi
 
@@ -62,7 +65,7 @@ jobs:
             sleep 2
           done
 
-          if ! docker logs olm 2>&1 | grep "DNS proxy started" >/dev/null; then
+          if [ "$started" != true ]; then
             echo "OLM startup failed"
             docker logs olm
             exit 1
