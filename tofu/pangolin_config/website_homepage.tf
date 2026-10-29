@@ -56,10 +56,12 @@ locals {
 locals {
   homepage_internal_targets = {
     for key, website in local.websites : key => (
-      lookup(website, "target", null) != null && try(website.target.site_id == pangolin_site.proxmox_docker.id, false)
+      # Read off the target itself, so the dot requests exactly what
+      # Pangolin's probe does, defaults included (websites.tf).
+      try(website.target.site_id == pangolin_site.proxmox_docker.id, false)
       ? {
-        internal_url = "http://${website.target.ip}:${website.target.port}"
-        site_monitor = "http://${website.target.ip}:${lookup(website.target, "hc_port", website.target.port)}${lookup(website.target, "hc_path", "/")}"
+        internal_url = "http://${pangolin_target.website[key].ip}:${pangolin_target.website[key].port}"
+        site_monitor = "http://${pangolin_target.website[key].hc_hostname}:${pangolin_target.website[key].hc_port}${pangolin_target.website[key].hc_path}"
       }
       : { internal_url = "", site_monitor = "" }
     )

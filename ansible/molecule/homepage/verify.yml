@@ -263,6 +263,7 @@
       register: homepage_empty_dir
 
     - name: Render the configuration without credentials
+      diff: false
       loop:
         - services.yaml
         - widgets.yaml

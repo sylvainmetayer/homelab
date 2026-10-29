@@ -214,7 +214,7 @@ valeur dans l'application une fois la carte vérifiée.
 
 | Clé | Widget | Où la créer, avec quels droits | `kind` |
 |---|---|---|---|
-| `homepage_proxmox_token_id`, `homepage_proxmox_token_secret` | Proxmox (lien Proxmox) et CPU/mémoire de la VM 100 et du LXC 200 (cartes d'hôte) | voir ci-dessous : utilisateur `homepage@pve`, jeton à séparation de privilèges, rôle `PVEAuditor` sur `/` | `provider` |
+| `homepage_proxmox_token_id`, `homepage_proxmox_token_secret` | Proxmox (lien Proxmox) et CPU/mémoire de la VM 100 et du LXC 200 (cartes d'hôte) | voir ci-dessous : utilisateur `homepage@pve`, jeton à séparation de privilèges, rôle `PVEAuditor` sur `/` | `identifier` (`_token_id`, inchangé par une rotation), `provider` (`_token_secret`) |
 | `homepage_pangolin_api_key` | Pangolin : sites et ressources | interface de Pangolin, organisation, API Keys : clé d'organisation avec **List Sites** et **List Resources** seulement | `provider` |
 | `homepage_speedtest_tracker_token` | Speedtest Tracker : dernier test | interface de Speedtest Tracker, API Tokens : capacité **results:read** seule | `application` |
 | `homepage_immich_api_key` | Immich : utilisateurs, photos, vidéos, stockage | Immich, compte **admin** (l'API `/api/server/statistics` l'exige), Account Settings → API Keys : permission **server.statistics** seule | `application` |
