@@ -4,51 +4,30 @@
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
+    - vars/links.yml
   pre_tasks:
+    # Toutes les clés homepage_* de fake_secrets.yml : chaque widget à clé
+    # est rendu (verify.yml rend aussi la configuration sans elles).
     - name: Load the fake secrets as the playbooks load secrets.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
-    # Ce que docker.yml lit dans l'output homepage_links de pangolin_config :
-    # deux liens d'un même groupe et un d'un groupe que homepage_groups ne
-    # connaît pas, qui doit venir après les autres.
     - name: Set the Homepage links as docker.yml does
       ansible.builtin.set_fact:
-        homepage_websites:
-          wiki:
-            name: BookStack
-            href: https://wiki.sylvain.cloud
-            group: Documents
-            description: Wiki
-            icon: bookstack
-          paperless:
-            name: Paperless-ngx
-            href: https://papiers.sylvain.cloud
-            group: Documents
-            description: Documents numérisés, avec OCR
-            icon: ""
-          betisier:
-            name: Betisier
-            href: https://betisier.sylvain.dev
-            group: Groupe hors liste
-            description: Bêtisier, application de TP
-            icon: mdi-emoticon-lol-outline
-          # Le lien qui porte le widget Beszel.
-          beszel:
-            name: Beszel
-            href: https://monitoring.sylvain.cloud
-            group: Administration
-            description: Supervision des hôtes
-            icon: beszel
+        homepage_websites: "{{ homepage_molecule_links }}"
 
     # Ce que docker.yml lit dans l'output homepage_uptimekuma_url.
     - name: Set the Uptime Kuma URL as docker.yml does
       ansible.builtin.set_fact:
         homepage_uptimekuma_url: https://uptime.example.invalid
 
+    # Ce que docker.yml lit dans l'output homepage_pangolin_org.
+    - name: Set the Pangolin organisation as docker.yml does
+      ansible.builtin.set_fact:
+        homepage_pangolin_org: homelab
+
   roles:
     - role: docker_service
     - role: homepage
       vars:
-        # Vide dans host_vars/docker tant que l'IP de Homepage n'est pas dans
-        # les « superuser IPs » du hub : le scénario garde le widget couvert.
+        # Le widget Beszel couvert même si host_vars/docker le coupe un jour.
         homepage_beszel_email: homepage@monitoring.sylvain.cloud

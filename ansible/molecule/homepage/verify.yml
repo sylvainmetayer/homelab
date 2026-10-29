@@ -79,30 +79,43 @@
         label: "{{ item.item }}"
 
     - name: Read the homepage services
-      ansible.builtin.slurp:
-        src: /opt/apps/homepage/config/services.yaml
-      register: homepage_services_raw
+      ansible.builtin.import_tasks: tasks/read_services.yml
+      vars:
+        homepage_services_path: /opt/apps/homepage/config/services.yaml
 
     # Groupes dans l'ordre de homepage_groups, le groupe inconnu en dernier ;
-    # liens triés par nom dans un groupe ; Jellyfin (homepage_extra_links) en
-    # plus de l'output ; pas d'icône vide.
+    # cartes triées par nom dans un groupe ; Jellyfin et Proxmox
+    # (homepage_extra_links) en plus de l'output ; pas d'icône vide.
     - name: Assert the homepage services list every link in its group
-      vars:
-        homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
-        homepage_groups_rendered: "{{ homepage_services | map('first') | list }}"
-        homepage_documents: "{{ homepage_services[0]['Documents'] }}"
-        homepage_media: "{{ (homepage_services | selectattr('Photos et médias', 'defined') | first)['Photos et médias'] }}"
       ansible.builtin.assert:
         that:
-          - homepage_groups_rendered == ['Documents', 'Photos et médias', 'Administration', 'Groupe hors liste']
-          - homepage_documents | map('first') | list == ['BookStack', 'Paperless-ngx']
-          - homepage_documents[0]['BookStack'].href == 'https://wiki.sylvain.cloud'
-          - homepage_documents[0]['BookStack'].icon == 'bookstack'
-          - homepage_documents[1]['Paperless-ngx'].icon is not defined
-          - homepage_media[0]['Jellyfin'].href == 'https://media.sylvain.cloud:8443'
-          - homepage_services[3]['Groupe hors liste'][0]['Betisier'].description == 'Bêtisier, application de TP'
-          - homepage_documents[0]['BookStack'].widget is not defined
-        fail_msg: "services.yaml inattendu : {{ homepage_services }}"
+          - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Hôtes', 'Groupe hors liste']
+          - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx']
+          - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin']
+          - homepage_card_names['Vie perso'] == ['Agenda', 'Homebox']
+          - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
+          - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
+          - homepage_cards['Documents']['BookStack'].icon == 'bookstack'
+          - homepage_cards['Documents']['BookStack'].widget is not defined
+          - homepage_cards['Documents']['Paperless-ngx'].icon is not defined
+          - homepage_cards['Photos et médias']['Jellyfin'].href == 'https://media.sylvain.cloud:8443'
+          - homepage_cards['Groupe hors liste']['Betisier'].description == 'Bêtisier, application de TP'
+        fail_msg: "services.yaml inattendu : {{ homepage_cards }}"
+
+    # Pastille d'état : la cible de Pangolin et sa sonde (output), l'adresse
+    # LAN du rôle pour l'Immich du Pi, Jellyfin et Proxmox ; aucune sans
+    # adresse (Paperless ici, flip et immich_swipe en vrai).
+    - name: Assert the site monitors
+      ansible.builtin.assert:
+        that:
+          - homepage_cards['Documents']['BookStack'].siteMonitor == 'http://bookstack:80/login' # NOSONAR
+          - homepage_cards['Documents']['Paperless-ngx'].siteMonitor is not defined
+          - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
+          - homepage_cards['Photos et médias']['Jellyfin'].siteMonitor == 'http://192.168.1.137:8096/health' # NOSONAR
+          - homepage_cards['Administration']['Proxmox'].siteMonitor == 'https://192.168.1.26:8006'
+          - homepage_cards['Administration']['Pangolin'].siteMonitor is not defined
+          - homepage_cards['Administration']['sylvain.dev'].siteMonitor is not defined
+        fail_msg: "Pastilles inattendues : {{ homepage_cards }}"
 
     # Widgets : Beszel sur son lien (superuser du rôle beszel, par l'IP du hub
     # sur le réseau du widget, pas par son nom sur newt),
@@ -111,13 +124,10 @@
     # sauvegardes : pas de page publique pour elles.
     - name: Assert the Beszel and Uptime Kuma widgets
       vars:
-        homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
-        homepage_admin_list: "{{ (homepage_services | selectattr('Administration', 'defined') | first)['Administration'] }}"
-        homepage_admin: "{{ homepage_admin_list | map('dict2items') | flatten | items2dict }}"
+        homepage_admin: "{{ homepage_cards['Administration'] }}"
         homepage_kuma_widget: "{{ homepage_admin['sylvain.dev'].widget }}"
       ansible.builtin.assert:
         that:
-          - homepage_admin_list | map('first') | list == ['Beszel', 'Pangolin', 'sylvain.dev']
           - homepage_admin['Beszel'].href == 'https://monitoring.sylvain.cloud'
           - homepage_admin['Beszel'].widget.type == 'beszel'
           - homepage_admin['Beszel'].widget.version == 2
@@ -125,20 +135,175 @@
           - homepage_admin['Beszel'].widget.username == 'homepage@monitoring.sylvain.cloud'
           - homepage_admin['Beszel'].widget.password == homepage_beszel_password
           - homepage_admin['Beszel'].widget.fields == ['systems', 'up']
-          - homepage_admin['Pangolin'].widget is not defined
           - homepage_kuma_widget.type == 'uptimekuma'
           - homepage_kuma_widget.url == 'https://uptime.example.invalid'
           - homepage_kuma_widget.slug == 'sylvain-dev'
           - homepage_kuma_widget.keys() | list | sort == ['slug', 'type', 'url']
           - homepage_admin['sylvain.dev'].href is not defined
-        fail_msg: "Widgets inattendus : {{ homepage_admin_list | map('first') | list }}"
+        fail_msg: "Widgets inattendus : {{ homepage_admin }}"
+
+    # Une carte par système du hub (clés de beszel_agent_tokens), en mode
+    # systemId, avec le CPU et la mémoire de l'invité Proxmox pour la VM docker
+    # et le LXC newt.
+    - name: Assert one Beszel card per host
+      vars:
+        homepage_hosts_cards: "{{ homepage_cards['Hôtes'] }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_card_names['Hôtes'] == beszel_agent_tokens.keys() | list | sort
+          - homepage_hosts_cards.values() | map(attribute='widget.type') | unique | list == ['beszel']
+          - homepage_hosts_cards['pi'].widget.systemId == 'pi'
+          - homepage_hosts_cards['pi'].widget.url == 'http://172.16.97.2:8090' # NOSONAR
+          - homepage_hosts_cards['pi'].widget.password == homepage_beszel_password
+          - homepage_hosts_cards['pi'].widget.fields == ['status', 'cpu', 'memory', 'disk']
+          - homepage_hosts_cards['pi'].href == 'https://monitoring.sylvain.cloud'
+          - homepage_hosts_cards['pi'].proxmoxVMID is not defined
+          - homepage_hosts_cards['docker'].proxmoxNode == 'proxmox'
+          - homepage_hosts_cards['docker'].proxmoxVMID == 100
+          - homepage_hosts_cards['docker'].proxmoxType == 'qemu'
+          - homepage_hosts_cards['newt-lxc'].proxmoxVMID == 200
+          - homepage_hosts_cards['newt-lxc'].proxmoxType == 'lxc'
+        fail_msg: "Cartes d'hôte inattendues : {{ homepage_cards['Hôtes'] }}"
+
+    # Widgets à clé : adresse interne de l'output (VM docker) ou LAN du rôle,
+    # clé de fake_secrets.yml, version 2 où le widget en a deux.
+    - name: Assert the token widgets
+      vars:
+        homepage_admin: "{{ homepage_cards['Administration'] }}"
+        homepage_media: "{{ homepage_cards['Photos et médias'] }}"
+        homepage_agenda: "{{ homepage_cards['Vie perso']['Agenda'].widget }}"
+        homepage_expected_speedtest:
+          type: speedtest
+          url: http://speedtest-tracker:80 # NOSONAR (réseau newt, sans TLS)
+          version: 2
+          key: "{{ homepage_speedtest_tracker_token }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_admin['Speedtest Tracker'].widget == homepage_expected_speedtest
+          - homepage_admin['Pangolin'].widget.type == 'pangolin'
+          - homepage_admin['Pangolin'].widget.url == 'https://pangolin-api.sylvain.cloud'
+          - homepage_admin['Pangolin'].widget.key == homepage_pangolin_api_key
+          - homepage_admin['Pangolin'].widget.org == 'homelab'
+          - homepage_admin['Proxmox'].widget.type == 'proxmox'
+          - homepage_admin['Proxmox'].widget.url == 'https://192.168.1.26:8006'
+          - homepage_admin['Proxmox'].widget.username == homepage_proxmox_token_id
+          - homepage_admin['Proxmox'].widget.password == homepage_proxmox_token_secret
+          - homepage_admin['Proxmox'].widget.node == 'proxmox'
+          - "homepage_media['Immich'].widget == {'type': 'immich', 'url': 'http://192.168.1.96:2283', 'version': 2, 'key': homepage_immich_api_key}" # NOSONAR
+          - homepage_media['Jellyfin'].widget.type == 'jellyfin'
+          - homepage_media['Jellyfin'].widget.url == 'http://192.168.1.137:8096' # NOSONAR
+          - homepage_media['Jellyfin'].widget.version == 2
+          - homepage_media['Jellyfin'].widget.key == homepage_jellyfin_api_key
+          - not homepage_media['Jellyfin'].widget.enableMediaControl
+          - homepage_cards['Vie perso']['Homebox'].widget.url == 'http://homebox:7745' # NOSONAR
+          - homepage_cards['Vie perso']['Homebox'].widget.username == 'homepage@homebox.sylvain.cloud'
+          - homepage_cards['Vie perso']['Homebox'].widget.password == homepage_homebox_password
+          - homepage_cards['Lecture']['Karakeep'].widget.url == 'http://karakeep:3000' # NOSONAR
+          - homepage_cards['Lecture']['Karakeep'].widget.key == homepage_karakeep_api_key
+          - homepage_agenda.type == 'calendar'
+          - homepage_agenda.integrations | length == 1
+          - homepage_agenda.integrations[0].type == 'ical'
+          - homepage_agenda.integrations[0].url == homepage_calendar_ics_url
+          - homepage_cards['Vie perso']['Agenda'].href is not defined
+        fail_msg: "Widgets à clé inattendus : {{ homepage_cards | dict2items | map(attribute='key') | list }}"
+
+    - name: Read the homepage proxmox configuration
+      ansible.builtin.slurp:
+        src: /opt/apps/homepage/config/proxmox.yaml
+      register: homepage_proxmox_raw
+
+    - name: Assert the Proxmox node configuration
+      vars:
+        homepage_expected_proxmox:
+          proxmox:
+            url: https://192.168.1.26:8006
+            token: "{{ homepage_proxmox_token_id }}"
+            secret: "{{ homepage_proxmox_token_secret }}"
+      ansible.builtin.assert:
+        that:
+          - (homepage_proxmox_raw.content | b64decode | from_yaml) == homepage_expected_proxmox
+        fail_msg: proxmox.yaml inattendu
 
     - name: Read the homepage widgets
       ansible.builtin.slurp:
         src: /opt/apps/homepage/config/widgets.yaml
       register: homepage_widgets_raw
 
-    - name: Assert homepage has no header widget
+    # Recherche, date et heure, météo : sans clé.
+    - name: Assert the header widgets
+      vars:
+        homepage_header: "{{ homepage_widgets_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - homepage_widgets_raw.content | b64decode | from_yaml == []
+          - homepage_header | map('first') | list == ['search', 'datetime', 'openmeteo']
+          - homepage_header[1].datetime.locale == 'fr'
+          - homepage_header[2].openmeteo.timezone == 'Europe/Paris'
+          - homepage_header[2].openmeteo.units == 'metric'
+        fail_msg: "widgets.yaml inattendu : {{ homepage_header }}"
+
+# Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :
+# la page se déploie avant que Sylvain ait créé les jetons. Ni widget, ni
+# carte d'hôte, ni agenda, ni proxmox.yaml ; les pastilles restent (aucune
+# clé). Rendu hors de /opt/apps : le déploiement convergé n'est pas touché.
+- name: Verify the configuration without any credential
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/homepage/defaults/main.yml
+    - vars/links.yml
+  tasks:
+    - name: Set the Homepage links as docker.yml does
+      ansible.builtin.set_fact:
+        homepage_websites: "{{ homepage_molecule_links }}"
+
+    - name: Create a scratch directory for the credential-less configuration
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: homepage
+      register: homepage_empty_dir
+
+    - name: Render the configuration without credentials
+      loop:
+        - services.yaml
+        - widgets.yaml
+        - proxmox.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/homepage/templates/config/{{ item }}.j2"
+        dest: "{{ homepage_empty_dir.path }}/{{ item }}"
+        mode: "0600"
+
+    - name: Read the credential-less services
+      ansible.builtin.import_tasks: tasks/read_services.yml
+      vars:
+        homepage_services_path: "{{ homepage_empty_dir.path }}/services.yaml"
+
+    - name: Read the credential-less proxmox configuration
+      ansible.builtin.slurp:
+        src: "{{ homepage_empty_dir.path }}/proxmox.yaml"
+      register: homepage_empty_proxmox_raw
+
+    - name: Read the credential-less header widgets
+      ansible.builtin.slurp:
+        src: "{{ homepage_empty_dir.path }}/widgets.yaml"
+      register: homepage_empty_widgets_raw
+
+    - name: Assert no widget needing a credential is rendered
+      vars:
+        homepage_all_cards: "{{ homepage_cards.values() | map('dict2items') | flatten | map(attribute='value') | list }}"
+      ansible.builtin.assert:
+        that:
+          - "'Hôtes' not in homepage_group_names"
+          - homepage_card_names['Vie perso'] == ['Homebox']
+          - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker']
+          - homepage_all_cards | selectattr('widget', 'defined') | list == []
+          - homepage_all_cards | selectattr('proxmoxVMID', 'defined') | list == []
+          - homepage_cards['Documents']['BookStack'].siteMonitor == 'http://bookstack:80/login' # NOSONAR
+          - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
+          - (homepage_empty_proxmox_raw.content | b64decode | from_yaml) is none
+          - (homepage_empty_widgets_raw.content | b64decode | from_yaml) | length == 3
+        fail_msg: "Configuration sans clé inattendue : {{ homepage_cards }}"
+
+    - name: Remove the scratch directory
+      ansible.builtin.file:
+        path: "{{ homepage_empty_dir.path }}"
+        state: absent

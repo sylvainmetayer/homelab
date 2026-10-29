@@ -199,6 +199,56 @@ homepage réécrit sa configuration. Rien à changer dans l'interface.
 changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
 `victoria_logs_ui_password` ne sert qu'à l'interface (vmauth seul).
 
+### Widgets de Homepage
+
+Clés `homepage_*` de `ansible/secrets.sops.yaml`, lues par le rôle
+`homepage` (`defaults/main.yml`, `homepage_link_widgets_extra`). Chacune est
+facultative : absente ou vide, son widget n'est pas rendu, le reste de la
+page si. Création et rotation suivent le même chemin : créer la valeur dans
+l'application (privilège minimal ci-dessous), `sops set` par la commande des
+règles communes (`<fichier>` = `ansible/secrets.sops.yaml`), puis
+`ansible-playbook docker.yml --tags homepage` et vérifier la carte. Une
+clé ajoutée au fichier SOPS reçoit son entrée dans `secrets-rotation.yaml`
+dans le même commit (`how` : ce paragraphe) ; une rotation révoque l'ancienne
+valeur dans l'application une fois la carte vérifiée.
+
+| Clé | Widget | Où la créer, avec quels droits | `kind` |
+|---|---|---|---|
+| `homepage_proxmox_token_id`, `homepage_proxmox_token_secret` | Proxmox (lien Proxmox) et CPU/mémoire de la VM 100 et du LXC 200 (cartes d'hôte) | voir ci-dessous : utilisateur `homepage@pve`, jeton à séparation de privilèges, rôle `PVEAuditor` sur `/` | `provider` |
+| `homepage_pangolin_api_key` | Pangolin : sites et ressources | interface de Pangolin, organisation, API Keys : clé d'organisation avec **List Sites** et **List Resources** seulement | `provider` |
+| `homepage_speedtest_tracker_token` | Speedtest Tracker : dernier test | interface de Speedtest Tracker, API Tokens : capacité **results:read** seule | `application` |
+| `homepage_immich_api_key` | Immich : utilisateurs, photos, vidéos, stockage | Immich, compte **admin** (l'API `/api/server/statistics` l'exige), Account Settings → API Keys : permission **server.statistics** seule | `application` |
+| `homepage_jellyfin_api_key` | Jellyfin : médiathèque, lectures en cours | Jellyfin, Tableau de bord → Avancé → Clés API (clé d'administration : risque accepté, `docs/architecture.md`) | `application` |
+| `homepage_homebox_password` | Homebox : objets, emplacements, valeur | Homebox : inviter le compte `homepage_homebox_username` (`host_vars/docker`) dans le groupe de Sylvain, mot de passe `openssl rand -base64 32` (le compte peut écrire : risque accepté) | `application` |
+| `homepage_karakeep_api_key` | Karakeep : favoris, listes, étiquettes | Karakeep, compte dont on veut les compteurs, User Settings → API Keys (tous ses droits : risque accepté) | `application` |
+| `homepage_calendar_ics_url` | Agenda (iCal) | Nextcloud, Agenda → l'agenda → Partager → lien public en lecture seule, puis « Copier le lien d'abonnement » : `webcal://…/remote.php/dav/public-calendars/<jeton>?export`, à enregistrer en `https://` | `application` |
+
+Proxmox (sur l'hôte, en root ; `pveum`, aucun mot de passe : l'utilisateur
+n'ouvre pas de session) :
+
+```bash
+pveum user add homepage@pve --comment "Widget Homepage, lecture seule"
+pveum acl modify / --users homepage@pve --roles PVEAuditor
+pveum user token add homepage@pve homepage --privsep 1
+pveum acl modify / --tokens 'homepage@pve!homepage' --roles PVEAuditor
+```
+
+`token add` affiche le secret une seule fois : `homepage_proxmox_token_id` =
+`homepage@pve!homepage`, `homepage_proxmox_token_secret` = la valeur
+affichée. Rotation : `pveum user token remove homepage@pve homepage`, puis
+les deux dernières commandes et `sops set` du nouveau secret (l'identifiant
+ne change pas). Pas dans `tofu/proxmox` : son state n'est pas chiffré, il y
+garderait le secret en clair, et Ansible ne lit que celui de
+`pangolin_config`.
+
+Pangolin : le widget appelle `https://pangolin-api.sylvain.cloud/v1` depuis
+la VM docker, donc depuis l'IP publique de la maison ; l'API d'intégration
+est derrière l'allowlist Traefik `int-api-allowlist` (clé sops
+`pangolin_api_allowed_ips`) : vérifier que cette IP y est
+(`sops decrypt --extract '["pangolin_api_allowed_ips"]' ansible/secrets.sops.yaml`,
+sur le poste) avant de conclure à une mauvaise clé. L'organisation vient de
+l'output `homepage_pangolin_org` de `tofu/pangolin_config` (apply requis).
+
 ### Compte d'administration d'une appli
 
 Mots de passe des comptes admin (`*_admin_password`, `*_pgadmin_password`,

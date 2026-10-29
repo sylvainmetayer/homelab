@@ -1,9 +1,9 @@
 # Resource, target and monitors: local.websites (websites.tf).
 #
 # Homepage (gethomepage.dev): a page of links to every public app, for the two
-# of us, behind the SSO. Links only: no widget, no API key, no Docker socket,
-# so nothing to back up either - the whole configuration is templated by the
-# Ansible role from this repo.
+# of us, behind the SSO. Links and read-only widgets (ansible/roles/homepage),
+# no Docker socket, nothing to back up - the whole configuration is templated
+# by the Ansible role from this repo.
 locals {
   homepage_website = {
     name      = "Homepage"
@@ -44,17 +44,50 @@ locals {
 # (default: the resource name) and path (appended to the resource URL, default
 # none: ntfy's web app lives under /app) optional. An app paused with `enabled = false`
 # (docs/runbooks/app-en-pause.md) has no link while it is paused.
+#
+# Each link also carries the app's address as Pangolin's target reaches it,
+# for the role's widgets and its up/down dot (siteMonitor): `internal_url`
+# (http://<container>:<port>) and `site_monitor` (the same plus the target's
+# probe path: what Pangolin's healthcheck requests, with the same Host). Only
+# for targets on the Docker VM's site, where Homepage sits on the same newt
+# network and resolves the container by name; empty elsewhere (the Pi, flip):
+# the role sets its own LAN address for the Pi's Immich, published there, and
+# flip's apps get no dot.
+locals {
+  homepage_internal_targets = {
+    for key, website in local.websites : key => (
+      lookup(website, "target", null) != null && try(website.target.site_id == pangolin_site.proxmox_docker.id, false)
+      ? {
+        internal_url = "http://${website.target.ip}:${website.target.port}"
+        site_monitor = "http://${website.target.ip}:${lookup(website.target, "hc_port", website.target.port)}${lookup(website.target, "hc_path", "/")}"
+      }
+      : { internal_url = "", site_monitor = "" }
+    )
+  }
+}
+
 output "homepage_links" {
   description = "HOMEPAGE - Liens du tableau de bord, un par application publique"
   value = {
     for key, website in local.websites : key => {
-      name        = lookup(website.homepage, "title", website.name)
-      href        = "https://${pangolin_resource.website[key].full_domain}${lookup(website.homepage, "path", "")}"
-      group       = website.homepage.group
-      description = website.homepage.description
-      icon        = lookup(website.homepage, "icon", "")
+      name         = lookup(website.homepage, "title", website.name)
+      href         = "https://${pangolin_resource.website[key].full_domain}${lookup(website.homepage, "path", "")}"
+      group        = website.homepage.group
+      description  = website.homepage.description
+      icon         = lookup(website.homepage, "icon", "")
+      internal_url = local.homepage_internal_targets[key].internal_url
+      site_monitor = local.homepage_internal_targets[key].site_monitor
     } if website.homepage != null && lookup(website, "enabled", true)
   }
+}
+
+# The organisation the Pangolin widget of Homepage lists (sites, resources),
+# read by docker.yml. An identifier, not a secret: kept in SOPS next to the
+# provider's credentials, and already in this state (the URLs of the
+# data.http audits carry it).
+output "homepage_pangolin_org" {
+  description = "HOMEPAGE - Organisation Pangolin du widget Pangolin"
+  value       = nonsensitive(local.pangolin_org_id)
 }
 
 output "homepage_access_token" {

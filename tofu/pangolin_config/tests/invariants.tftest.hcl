@@ -3179,6 +3179,39 @@ run "homepage_links_cover_every_public_app" {
     error_message = "Le lien de Homepage vise le full_domain de la ressource, sous le nom de la ressource ou le titre de son champ homepage."
   }
 
+  # Adresse interne (widgets, pastille siteMonitor du rôle homepage) : la
+  # cible de Pangolin et sa sonde, pour les seules cibles de la VM docker,
+  # que Homepage joint par leur nom sur newt. Vide pour le Pi et flip.
+  assert {
+    condition = (
+      output.homepage_links["trek"].internal_url == "http://trek:3000"
+      && output.homepage_links["trek"].site_monitor == "http://trek:3000/api/health"
+      && output.homepage_links["betisier"].site_monitor == "http://betisier:80/"
+      && output.homepage_links["immich"].internal_url == ""
+      && output.homepage_links["immich"].site_monitor == ""
+      && output.homepage_links["flip_planning"].site_monitor == ""
+    )
+    error_message = "internal_url/site_monitor de homepage_links : la cible de Pangolin (et sa sonde) sur la VM docker seulement, vides ailleurs."
+  }
+
+  assert {
+    condition = alltrue([
+      for key, link in output.homepage_links :
+      (link.internal_url == "") == (link.site_monitor == "")
+    ])
+    error_message = "Un lien de Homepage porte internal_url et site_monitor ensemble, ou aucun des deux."
+  }
+
+  assert {
+    condition     = output.homepage_pangolin_org == "homelab"
+    error_message = "homepage_pangolin_org doit être l'organisation du fournisseur (pangolin_org_id)."
+  }
+
+  assert {
+    condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "homepage_pangolin_org: \"{{ terraform_outputs.homepage_pangolin_org.value | default('') }}\"")
+    error_message = "docker.yml doit lire homepage_pangolin_org de l'output du même nom."
+  }
+
   # Un groupe inconnu du rôle s'afficherait quand même, après les autres : la
   # liste du rôle fixe l'ordre, une faute de frappe la contournerait.
   assert {

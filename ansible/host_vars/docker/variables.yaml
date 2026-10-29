@@ -56,6 +56,11 @@ beszel_homepage_subnet: 172.16.97.0/29
 beszel_homepage_hub_ip: 172.16.97.2
 beszel_homepage_client_ip: 172.16.97.3
 
+# Compte Homebox du widget de Homepage, invité dans le groupe de Sylvain
+# (mot de passe : clé sops homepage_homebox_password ; sans elle, pas de
+# widget). Identifiant seulement, comme beszel_homepage_email.
+homepage_homebox_username: homepage@homebox.sylvain.cloud
+
 # --- VictoriaLogs (rôle victoria_logs) ---
 # vmauth publié aussi sur le LAN, pour les agents du Pi, du NAS et du LXC
 # newt. Publié par Docker, donc avant ufw : tout le LAN l'atteint, et ses

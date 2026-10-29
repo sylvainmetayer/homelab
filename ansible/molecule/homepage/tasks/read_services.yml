@@ -1,0 +1,31 @@
+---
+# Lit un services.yaml rendu (homepage_services_path) et pose :
+# - homepage_group_names : les groupes, dans l'ordre de la page ;
+# - homepage_card_names : groupe => noms des cartes, dans l'ordre ;
+# - homepage_cards : groupe => nom => carte.
+- name: Read the rendered services
+  ansible.builtin.slurp:
+    src: "{{ homepage_services_path }}"
+  register: homepage_services_raw
+
+- name: Index the rendered services by group and name
+  vars:
+    homepage_services: "{{ homepage_services_raw.content | b64decode | from_yaml }}"
+  ansible.builtin.set_fact:
+    homepage_group_names: "{{ homepage_services | map('first') | list }}"
+    homepage_card_names: >-
+      {%- set out = {} -%}
+      {%- for group in homepage_services -%}
+      {%-   for name, items in group.items() -%}
+      {%-     set _ = out.update({name: items | map('first') | list}) -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ out }}
+    homepage_cards: >-
+      {%- set out = {} -%}
+      {%- for group in homepage_services -%}
+      {%-   for name, items in group.items() -%}
+      {%-     set _ = out.update({name: items | map('dict2items') | flatten | items2dict}) -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ out }}

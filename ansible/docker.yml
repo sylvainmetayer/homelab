@@ -55,6 +55,13 @@
       ansible.builtin.set_fact:
         homepage_uptimekuma_url: "{{ terraform_outputs.homepage_uptimekuma_url.value | default('') }}"
 
+    # L'organisation que liste le widget Pangolin de Homepage
+    # (website_homepage.tf). Vide avant l'apply : pas de widget.
+    - name: Load the Pangolin organisation of the Homepage widget from Terraform state outputs
+      tags: always
+      ansible.builtin.set_fact:
+        homepage_pangolin_org: "{{ terraform_outputs.homepage_pangolin_org.value | default('') }}"
+
   roles:
     - role: geerlingguy.docker
       become: true
