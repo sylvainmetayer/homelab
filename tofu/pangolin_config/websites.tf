@@ -16,7 +16,8 @@
 #     reading local.backup_push_urls / local.healthcheck_access_tokens below.
 #
 # The key is the former resource name (`meerkat_crm`, `demo_planning_kc`), and
-# moved.tf maps every former address onto it: nothing was recreated. A
+# moved blocks (applied, then removed) mapped every former address onto it:
+# nothing was recreated. A
 # recreated access token would have broken the monitor headers and the
 # `*_access_token` outputs; a recreated push monitor, the push URL every backup
 # job reads from this state.
