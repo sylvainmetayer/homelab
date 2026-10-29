@@ -41,7 +41,12 @@ beszel_publish_addresses:
 # utilisé par le rôle homepage (mot de passe : clé sops
 # homepage_beszel_password). Jamais une adresse qui reçoit du courrier :
 # PocketBase ne l'utilise que comme identifiant.
-beszel_homepage_email: homepage@monitoring.sylvain.cloud
+# Désactivé le 29/10 : Beszel 0.21.1 refuse la connexion par mot de passe de
+# ce superutilisateur (403 « You are not allowed to perform this request »,
+# même depuis 127.0.0.1), ce qui faisait échouer tout déploiement de la VM.
+# Vide : le rôle beszel ne crée pas le compte, Homepage omet le widget.
+# Valeur d'origine : homepage@monitoring.sylvain.cloud.
+beszel_homepage_email: ""
 
 # --- VictoriaLogs (rôle victoria_logs) ---
 # vmauth publié aussi sur le LAN, pour les agents du Pi, du NAS et du LXC
