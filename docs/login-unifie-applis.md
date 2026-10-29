@@ -26,7 +26,13 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Monica 3.7.0, Speedtest Tracker 1.15.1, ntfy v2.34.0, Uptime Kuma 2.5.8 | aucun ([ntfy #1596](https://github.com/binwiederhier/ntfy/issues/1596), [Kuma #6539](https://github.com/louislam/uptime-kuma/issues/6539)) | code aux tags | — | **reste tel quel** : le mur Pangolin, puis leur compte |
 | Flip Planning, Betisier, Promptoramix | Keycloak à soi / public | — | — | **reste tel quel** : autres utilisateurs |
 
-**Ordre** : vérifier la clé EE ; Pocket ID et passkeys ; **pilote Homebox** ;
+**Avec Authelia** : les « allowed groups » ci-dessus (Homebox, KitchenOwl)
+deviennent l'`authorization_policy` du client (`subject: group:<appli>`, en
+`two_factor`) ; une appli qui lit les groupes dans l'ID token plutôt qu'au
+userinfo a besoin d'une `claims_policy` (Authelia 4.39 ne les y met plus par
+défaut), à vérifier appli par appli au branchement.
+
+**Ordre** : vérifier la clé EE ; Authelia, passkeys et TOTP ; **pilote Homebox** ;
 mur Pangolin (comptes recréés côté IdP) ; Immich, TREK, Wishlist, Dawarich,
 Meerkat, Beszel, Nextcloud, KitchenOwl, Karakeep ; BookStack, FreshRSS, vmauth
 en dernier, si le gain vaut le login local perdu.

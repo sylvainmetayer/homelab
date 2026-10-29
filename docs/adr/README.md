@@ -60,5 +60,5 @@ au plus :
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |
-| [0016](0016-login-unifie-oidc.md) | Login unifié : Pocket ID, IdP OIDC du mur Pangolin et des applis, login local gardé en secours | proposée |
+| [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | proposée |
 | [0017](0017-pas-de-verification-complete-des-donnees.md) | Pas de vérification complète des données Borg ; test de restauration et checks des hôtes | acceptée |
