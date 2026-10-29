@@ -65,6 +65,20 @@ class CheckImmichVersionsTest(unittest.TestCase):
         self.write("compose/immich/compose.yaml", compose("v3.3.5", "v3.3.5-openvino"))
         self.assertEqual(self.errors(), [])
 
+    def test_prerelease_suffix_is_compared(self):
+        self.write("compose/immich/compose.yaml", compose("v3.4.0-rc.1", "v3.4.0"))
+        self.assertTrue(self.errors())
+
+    def test_untagged_reference_fails(self):
+        self.write("ansible/roles/immich/templates/compose.yaml", compose("v3.3.5", "v3.3.5"))
+        self.write(
+            "compose/immich/compose.yaml",
+            f"services:\n  ml:\n    image: {ML}{DIGEST}\n",
+        )
+        errors = self.errors()
+        self.assertEqual(len(errors), 1)
+        self.assertIn("compose/immich/compose.yaml", errors[0])
+
     def test_missing_image_fails(self):
         self.write(
             "ansible/roles/immich/templates/compose.yaml",

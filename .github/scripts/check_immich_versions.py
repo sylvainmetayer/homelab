@@ -32,16 +32,22 @@ ROOT = Path(__file__).resolve().parents[2]
 SEARCH_DIRS = ("ansible/roles", "compose")
 SUFFIXES = {".yaml", ".yml", ".j2"}
 IMAGES = ("immich-server", "immich-machine-learning")
+# Le tag est facultatif ici pour qu'une référence sans tag (digest seul) soit
+# signalée par check() au lieu d'échapper au contrôle.
 IMAGE_RE = re.compile(
     r"^\s*image:\s*['\"]?ghcr\.io/immich-app/"
-    r"(?P<image>immich-server|immich-machine-learning):(?P<tag>[^@\s'\"]+)",
+    r"(?P<image>" + "|".join(map(re.escape, IMAGES)) + r")"
+    r"(?::(?P<tag>[^@\s'\"]+))?",
     re.MULTILINE,
 )
+# Suffixes d'accélération matérielle d'immich-machine-learning (hwaccel.ml.yml).
+# Seuls eux sont retirés : un suffixe de pré-version (v3.4.0-rc.1) reste comparé.
+HWACCEL_RE = re.compile(r"-(?:armnn|cuda|rocm|openvino(?:-wsl)?|rknn)$")
 
 
 def version(tag):
     """La version d'un tag, sans suffixe d'accélération (v3.3.5-cuda → v3.3.5)."""
-    return tag.split("-", 1)[0]
+    return HWACCEL_RE.sub("", tag)
 
 
 def find_images(root, search_dirs=SEARCH_DIRS):
@@ -69,8 +75,15 @@ def check(found):
         if not any(entry[1] == image for entry in found):
             errors.append(
                 f"ghcr.io/immich-app/{image} n'est cité nulle part : le contrôle "
-                "ne vérifie plus rien (image renommée ? mettre à jour IMAGE_RE)."
+                "ne vérifie plus rien (image renommée ? mettre à jour IMAGES)."
             )
+    errors.extend(
+        f"{path}: {image} cité sans tag, sa version ne peut pas être comparée "
+        "(garder la forme image:vX.Y.Z@sha256:…)."
+        for path, image, tag in found
+        if not tag
+    )
+    found = [entry for entry in found if entry[2]]
     versions = {version(tag) for _, _, tag in found}
     if len(versions) > 1:
         errors.append(
