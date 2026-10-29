@@ -831,13 +831,15 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   # Filet par fichier, indépendant de local.websites : tout bloc
   # `pangolin_target` du module, généré (websites.tf) ou écrit à la main
   # (celui qui viendra), qui ne coupe pas sa sonde en dur déclare aussi
-  # hc_scheme, hc_mode, hc_port et hc_hostname.
+  # hc_scheme, hc_mode, hc_port et hc_hostname, et sa cadence (hc_interval,
+  # hc_unhealthy_interval), optionnelle+calculée elle aussi : non déclarée,
+  # elle prendrait ce que l'API renvoie sans que le plan le voie.
   assert {
     condition = alltrue(flatten([
       for f in fileset(path.module, "*.tf") : [
         for block in regexall("(?s)resource\\s+\"pangolin_target\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) :
         length(regexall("(?m)^\\s*hc_enabled\\s*=\\s*false\\s*$", block)) > 0 || alltrue([
-          for attribute in ["hc_scheme", "hc_mode", "hc_port", "hc_hostname"] :
+          for attribute in ["hc_scheme", "hc_mode", "hc_port", "hc_hostname", "hc_interval", "hc_unhealthy_interval"] :
           length(regexall("(?m)^\\s*${attribute}\\s*=", block)) > 0
         ])
       ]
@@ -845,7 +847,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       for f in fileset(path.module, "*.tf") :
       regexall("resource\\s+\"pangolin_target\"\\s+\"", file("${path.module}/${f}"))
     ])) >= 1
-    error_message = "Un bloc pangolin_target active sa sonde sans déclarer hc_scheme, hc_mode, hc_port et hc_hostname : Pangolin stockerait NULL et la sonde échouerait toujours."
+    error_message = "Un bloc pangolin_target active sa sonde sans déclarer hc_scheme, hc_mode, hc_port, hc_hostname, hc_interval et hc_unhealthy_interval : Pangolin stockerait NULL (la sonde échouerait toujours) ou sa propre cadence."
   }
 }
 
@@ -863,10 +865,12 @@ run "catch_all_target_has_lowest_priority" {
       }) :
       length(group) == 1 || (
         length([for t in group : t if t.path == "/"]) == 1
-        && alltrue([
+        # try : sans cible "/" (ou avec deux), one() échoue ; l'assertion doit
+        # échouer avec son message, pas le run sur une erreur d'évaluation.
+        && try(alltrue([
           for t in group :
           t.path == "/" || t.priority > one([for c in group : c.priority if c.path == "/"])
-        ])
+        ]), false)
         && length(distinct([for t in group : t.priority])) == length(group)
         && length(distinct([for t in group : t.path])) == length(group)
         && alltrue([for t in group : t.path_match_type == "prefix"])
@@ -1056,8 +1060,10 @@ run "bypass_rules_sit_in_their_priority_band" {
       rule.action == "PASS" && rule.match == "PATH" && rule.enabled == true
       && !strcontains(rule.value, "*")
       && rule.priority >= 2 && rule.priority < 10
-    ]) && !contains(keys(local.path_bypasses), "Beszel") && !contains(keys(local.path_bypasses), "VictoriaLogs")
-    error_message = "/mcp de TREK et les points d'entrée des agents Beszel et de journaux doivent être des PASS (pas des ACCEPT) sur un chemin exact, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
+      ]) && [
+      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert] : rule.value
+    ] == ["/mcp", "/api/beszel/agent-connect", "/insert/jsonline"] && !contains(keys(local.path_bypasses), "Beszel") && !contains(keys(local.path_bypasses), "VictoriaLogs")
+    error_message = "/mcp de TREK, /api/beszel/agent-connect et /insert/jsonline doivent être des PASS (pas des ACCEPT) sur ces chemins exacts, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
   }
 
   # L'override donne le même identifiant à toutes les instances d'une règle
@@ -1332,6 +1338,23 @@ run "tied_rules_share_their_action" {
 # inventory_hostname.
 run "access_token_outputs_follow_their_reader" {
   command = apply
+
+  # Un jeton d'accès passe le SSO de SA ressource : un bloc copié qui garde le
+  # resource_id d'une autre ouvrirait celle-ci au client. Identifiants simulés
+  # distincts (override_resource plus haut).
+  assert {
+    condition = alltrue(flatten([
+      for family in [
+        { website = "karakeep", tokens = values(pangolin_resource_access_token.karakeep_clients) },
+        { website = "trek", tokens = values(pangolin_resource_access_token.trek_mcp_clients) },
+        { website = "beszel", tokens = values(pangolin_resource_access_token.beszel_agents) },
+        { website = "victoria_logs", tokens = values(pangolin_resource_access_token.log_agents) },
+        ] : [
+        for token in family.tokens : token.resource_id == pangolin_resource.website[family.website].id
+      ]
+    ]))
+    error_message = "Un jeton d'accès client (Karakeep, MCP de TREK, agents Beszel ou de journaux) vise une autre ressource que la sienne."
+  }
 
   # `?p_token=<id>.<jeton>` : Pangolin le découpe sur le point
   # (verifySession.ts) ; un autre séparateur et le jeton ne serait jamais lu.
@@ -1698,6 +1721,18 @@ run "one_role_per_app_slug" {
     condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
     error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier et Promptoramix, sans SSO, à aucun."
   }
+
+  # Chaque entrée prend le rôle de son propre slug (sa clé en kebab-case) : un
+  # rôle emprunté ouvre l'application aux membres d'une autre (la production de
+  # Flip Planning aux testeurs de la démo). Seule dérogation, décidée : Immich
+  # Swipe, qui agit sur la photothèque d'Immich, prend le rôle d'Immich.
+  assert {
+    condition = alltrue([
+      for key, website in local.websites :
+      lookup(website, "role", null) == null || website.role == lookup({ immich_swipe = "immich" }, key, replace(key, "_", "-"))
+    ])
+    error_message = "Une entrée de local.websites emprunte le rôle d'une autre application (seul immich_swipe prend celui d'Immich)."
+  }
 }
 
 # ===========================================================================
@@ -2059,19 +2094,17 @@ run "demo_and_production_planning_share_nothing" {
     error_message = "Les sorties *_access_token doivent exposer le jeton de leur propre environnement."
   }
 
-  # Calculé sur toutes les applications : chaque liaison de rôle et chaque
-  # cible appartiennent à la ressource de leur entrée de local.websites, et
-  # les cibles de Flip Planning (production et démos) sont sur le site flip.
+  # Les cibles de Flip Planning (production et démos) sont sur le site flip.
+  # Leur rattachement à la ressource, lui, est l'expression même de
+  # websites.tf : le recalculer ici ne prouverait rien ; les rôles, distincts
+  # par environnement, sont tenus par one_role_per_app_slug.
   assert {
-    condition = alltrue(concat(
-      [for key, binding in pangolin_resource_role.website : binding.resource_id == pangolin_resource.website[key].id],
-      [
-        for key, t in pangolin_target.website :
-        t.resource_id == pangolin_resource.website[local.website_targets[key].website].id
-        && (!contains(["flip_planning", "demo_planning", "demo_planning_kc"], local.website_targets[key].website) || t.site_id == pangolin_site.flip.id)
-      ],
-    ))
-    error_message = "Une liaison de rôle ou une cible appartient à la ressource d'une autre application, ou une cible de Flip Planning n'est pas sur le site flip."
+    condition = alltrue([
+      for key, t in pangolin_target.website :
+      t.site_id == pangolin_site.flip.id
+      if contains(["flip_planning", "demo_planning", "demo_planning_kc"], local.website_targets[key].website)
+    ])
+    error_message = "Une cible de Flip Planning n'est pas sur le site flip."
   }
 
   assert {
