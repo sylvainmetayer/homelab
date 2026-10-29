@@ -1,6 +1,6 @@
 ---
 name: remove-app
-description: Cleanly decommission an app previously deployed with the new-app skill — stop its containers/service, delete its data and backups, then remove every trace from docker.yml/pi.yml, host_vars, backups list, secrets and Tofu/Pangolin. Use when the user asks to remove, decommission, uninstall or tear down a self-hosted app.
+description: Cleanly decommission an app previously deployed with the new-app skill — stop its containers/service, delete its data and backups, then remove every trace from its playbook (docker.yml, pi.yml, flip.yml or nas.yml), host_vars, backups list, secrets and Tofu/Pangolin. Use when the user asks to remove, decommission, uninstall or tear down a self-hosted app.
 ---
 
 # Remove a deployed app cleanly
@@ -111,7 +111,9 @@ If the service had entries in `ansible/secrets.sops.yaml` (DB password, admin
 password, API keys), remove them via `sops ansible/secrets.sops.yaml` — never
 hand-edit the encrypted blob — and remove each key's entry from
 `secrets-rotation.yaml` in the same commit (the Lint workflow fails on an
-entry whose key is gone).
+entry whose key is gone). Do the same for a key of the root `secrets.sops.yaml`
+that only its Tofu side read (`immich_pin`, `ntfy_uptime_kuma_token` are such
+keys today).
 
 ## 6. Remove Pangolin/Tofu routing
 

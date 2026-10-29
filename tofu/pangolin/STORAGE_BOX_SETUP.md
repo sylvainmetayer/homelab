@@ -32,8 +32,9 @@ borgmatic template); port 22 of a Storage Box is SFTP only.
   `backup/.ssh/authorized_keys` by `ansible/backup.yaml`.
 
 Adding a host: add it to `local.backup_hosts` here, to
-`backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`) and to
-the SOPS key, set `backup_storage_box_subaccount` in its `host_vars`, run its
+`backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`), to
+the `hosts:` of the first play of `ansible/backup.yaml` (which reads the keys;
+otherwise its assert refuses to upload any) and to the SOPS key, set `backup_storage_box_subaccount` in its `host_vars`, run its
 playbook with `--tags setup` (key generated, no app yet), then `backup.yaml`,
 then the full playbook.
 
@@ -62,14 +63,18 @@ Uptime Kuma monitor at 80 % or more (`docs/conventions/ci.md`).
 
 ## Verification
 
-From a backed-up host, as root:
+From a backed-up host but the NAS, as root (`rss` lives on the docker host:
+use one of the host's own configs elsewhere):
 
 ```bash
 sudo ssh backup_storage_box ls                                   # the subaccount answers
 sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/rss.yaml list
 ```
 
-Failures and restores: `docs/runbooks/sauvegarde-et-restauration.md`.
+The NAS has no `backup_storage_box` alias and runs borgmatic through its
+wrapper (`/volume1/docker/borgmatic/borgmatic`, configs under
+`/volume1/docker/borgmatic/borgmatic.d/`). Failures, restores and the NAS's
+paths: `docs/runbooks/sauvegarde-et-restauration.md`.
 
 ## References
 

@@ -1,6 +1,6 @@
 # Disque plein, ou VM docker lente
 
-La VM docker (Proxmox 300) a 3 cœurs, 12 Gio de RAM sans ballooning et un
+La VM docker (Proxmox 100) a 3 cœurs, 12 Gio de RAM sans ballooning et un
 disque de 190 Go sur le SSD M.2 SATA d'entrée de gamme de l'hôte. Son goulot est presque toujours le disque (I/O
 wait), pas le CPU : l'usage CPU cumulé tourne autour de quelques pour cent.
 
