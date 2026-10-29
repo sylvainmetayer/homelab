@@ -6,6 +6,9 @@ betisier_db_password: ""
 # de tofu/pangolin_config, lue par docker.yml) : betisier-reset.service y pousse
 # après un reset réussi. Vide, il ne pousse rien.
 betisier_reset_healthcheck_url: ""
+# Fichier de configuration curl (« url = … », 0600) qui porte cette URL : hors
+# de la ligne de commande de curl (ps, systemctl show, _CMDLINE du journal).
+betisier_reset_push_config: "{{ betisier_base_path }}/reset-push.curl"
 
 # Borgmatic backup configuration
 betisier_backup_enabled: true

@@ -30,8 +30,13 @@ are written down in `ansible/roles/borgmatic/README.md`. The interface — the
 - `ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23` (a key per host, generated on it) and
   `local_path: {{ borgmatic_borg_bin }}` (`/root/.local/bin/borg`, installed by
   the `borgmatic` role; `/usr/local/bin/borg` inside the container on the NAS).
-- `uptime_kuma:` push block with `states: [start, finish, fail]` when a
-  healthcheck URL is given.
+- **No `uptime_kuma:` block**: borgmatic logs its full push URL (token
+  included) at INFO on every run, which reached the journal and VictoriaLogs.
+  With a healthcheck URL, the template instead adds three
+  `before`/`after: configuration` hooks (start, finish, fail; `when:
+  [create, prune, compact, check]`) running `curl -K <file> ... || true`, the
+  URL living in `{{ borgmatic_config_dir }}/uptime-kuma/<name>.curl` (0600
+  root, written by `tasks/app.yml`) — never on a command line.
 - `exclude_patterns` are borg `fm:` patterns anchored at the start of the
   archived path: `'*.log'` works anywhere, but a relative `'cache/*'` matches
   nothing. App-specific excludes must be **absolute paths**.

@@ -79,6 +79,41 @@ tests:
           _SYSTEMD_USER_UNIT: dc@trek.service
           PRIORITY: "6"
 
+  # Ce que borgmatic écrivait à chaque run (hook uptime_kuma) : le jeton du
+  # moniteur ne part jamais vers VictoriaLogs.
+  - name: journald masks push and ntfy tokens
+    inputs:
+      - insert_at: journald_fields
+        type: log
+        log_fields:
+          message: >-
+            Pushing Uptime Kuma push_url https://uptime.example.invalid/api/push/moleculepushtoken?status=up&msg=start
+            then tk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          _SYSTEMD_UNIT: borgmatic.service
+          SYSLOG_IDENTIFIER: borgmatic
+          PRIORITY: "6"
+    outputs:
+      - extract_from: journald_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "Pushing Uptime Kuma push_url https://uptime.example.invalid/api/push/***?status=up&msg=start then tk_***")
+
+  - name: docker masks push tokens
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: "GET /api/push/moleculepushtoken 200"
+          container_name: trek
+          stream: stdout
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "GET /api/push/*** 200")
+
   - name: docker keeps the container and drops the labels
     inputs:
       - insert_at: docker_fields

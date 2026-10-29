@@ -4,6 +4,8 @@ monica_v4_domain: crm.sylvain.dev
 monica_v4_db_password: ""
 monica_v4_healthcheck_url: ""
 monica_v4_cron_healthcheck_url: ""
+# Fichier de configuration curl (« url = … », 0600) de ce push.
+monica_v4_cron_push_config: "{{ monica_v4_base_path }}/cron-push.curl"
 
 # Borgmatic backup configuration
 monica_v4_backup_enabled: true

@@ -6,5 +6,8 @@ Description=Monica v4 cron service
 Type=oneshot
 WorkingDirectory={{ monica_v4_base_path }}
 
-ExecStartPre=/usr/bin/curl {{ monica_v4_cron_healthcheck_url }}
+# URL push (jeton du moniteur) lue dans un fichier de configuration curl, pas
+# sur la ligne de commande : journald attache celle-ci (_CMDLINE) à chaque
+# ligne que sort curl, et ps et systemctl show la montrent.
+ExecStartPre=/usr/bin/curl -q -sS -m 30 -o /dev/null -K {{ monica_v4_cron_push_config }}
 ExecStart=/usr/bin/docker compose -f {{ monica_v4_base_path }}/compose.yaml exec -T crm sh -c 'php artisan schedule:run'

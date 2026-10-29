@@ -9,6 +9,7 @@
       vars:
         verify_app_service: monica_v4
         verify_app_borgmatic_config: /etc/borgmatic.d/monica_v4.yaml
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-monica-backup
 
     - name: Verify the supporting services of monica_v4
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -78,9 +79,28 @@
     - name: Assert the Monica v4 cron pings its Uptime Kuma monitor and runs the scheduler
       ansible.builtin.assert:
         that:
-          - "'ExecStartPre=/usr/bin/curl https://uptime.example.invalid/api/push/tofu-monica-cron' in (monica_v4_cron_unit.content | b64decode)"
+          - "'ExecStartPre=/usr/bin/curl -q -sS -m 30 -o /dev/null -K /opt/apps/monica_v4/cron-push.curl' in (monica_v4_cron_unit.content | b64decode)"
+          - "'/api/push/' not in (monica_v4_cron_unit.content | b64decode)"
           - "'/opt/apps/monica_v4/compose.yaml exec -T crm' in (monica_v4_cron_unit.content | b64decode)"
         fail_msg: "monica_v4_cron.service inattendu"
+
+    - name: Stat the push URL file of the Monica v4 cron
+      ansible.builtin.stat:
+        path: /opt/apps/monica_v4/cron-push.curl
+      register: monica_v4_cron_push_stat
+
+    - name: Read the push URL file of the Monica v4 cron
+      ansible.builtin.slurp:
+        src: /opt/apps/monica_v4/cron-push.curl
+      register: monica_v4_cron_push
+
+    - name: Assert the push URL file is private and holds the URL
+      ansible.builtin.assert:
+        that:
+          - monica_v4_cron_push_stat.stat.mode == '0600'
+          - monica_v4_cron_push_stat.stat.pw_name == 'sylvain'
+          - (monica_v4_cron_push.content | b64decode) == 'url = "https://uptime.example.invalid/api/push/tofu-monica-cron"\n'
+        fail_msg: "/opt/apps/monica_v4/cron-push.curl : 0600 sylvain, « url = … » attendu"
 
     - name: Stat the monica_v4 borgmatic configuration
       become: true
@@ -113,7 +133,6 @@
           # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
           # avertit « Deprecated program name » et disparaîtra.
           - monica_v4_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump monica_v4_db mariadb-dump'
-          - monica_v4_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-monica-backup'
         fail_msg: "Configuration borgmatic de monica_v4 inattendue : {{ monica_v4_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for monica_v4

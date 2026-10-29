@@ -1,0 +1,105 @@
+---
+# Push Uptime Kuma d'une configuration borgmatic (rôle borgmatic,
+# app.yaml.j2) : l'URL, qui porte le jeton du moniteur, n'est jamais dans la
+# configuration (le hook uptime_kuma de borgmatic l'écrit au journal à chaque
+# run, d'où elle partait vers VictoriaLogs), mais dans un fichier de
+# configuration curl 0600 root que lisent trois hooks (début, fin, échec).
+# Les hooks sont lancés pour de bon : l'hôte .invalid ne se résout pas, curl
+# échoue donc après avoir lu l'URL dans le fichier, sans l'écrire, et
+# « || true » garde la sauvegarde en vie.
+#
+# Variables :
+#   verify_borgmatic_push_config  chemin de la configuration borgmatic (obligatoire)
+#   verify_borgmatic_push_url     URL push attendue ; absente ou vide : aucun push
+- name: Read the borgmatic configuration {{ verify_borgmatic_push_config }}
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ verify_borgmatic_push_config }}"
+  register: verify_borgmatic_push_raw
+
+- name: Assert no push URL is written in {{ verify_borgmatic_push_config }}
+  vars:
+    verify_borgmatic_push_text: "{{ verify_borgmatic_push_raw.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - (verify_borgmatic_push_text | from_yaml).uptime_kuma is not defined
+      - "'/api/push/' not in verify_borgmatic_push_text"
+    fail_msg: "{{ verify_borgmatic_push_config }} contient un hook uptime_kuma ou une URL push."
+
+- name: Check the push hooks of {{ verify_borgmatic_push_config }}
+  when: verify_borgmatic_push_url | default('') | length > 0
+  vars:
+    verify_borgmatic_push_file: >-
+      {{ (verify_borgmatic_push_config | dirname) ~ '/uptime-kuma/'
+         ~ (verify_borgmatic_push_config | basename | regex_replace('\.yaml$', '')) ~ '.curl' }}
+    verify_borgmatic_push_commands: "{{ (verify_borgmatic_push_raw.content | b64decode | from_yaml).commands }}"
+    # Les hooks de niveau configuration : ceux des applications sont tous
+    # « action » (create).
+    verify_borgmatic_push_hooks: >-
+      {{ (verify_borgmatic_push_commands | selectattr('before', 'defined') | selectattr('before', 'eq', 'configuration') | list)
+         + (verify_borgmatic_push_commands | selectattr('after', 'defined') | selectattr('after', 'eq', 'configuration') | list) }}
+    verify_borgmatic_push_token: "{{ verify_borgmatic_push_url | regex_replace('^.*/api/push/', '') | regex_replace('[?#].*$', '') }}"
+  block:
+    - name: Stat the push URL file of {{ verify_borgmatic_push_config }}
+      become: true
+      ansible.builtin.stat:
+        path: "{{ verify_borgmatic_push_file }}"
+      register: verify_borgmatic_push_stat
+
+    - name: Read the push URL file of {{ verify_borgmatic_push_config }}
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ verify_borgmatic_push_file }}"
+      register: verify_borgmatic_push_file_raw
+
+    - name: Assert the push URL file is root's, private and holds the URL
+      ansible.builtin.assert:
+        that:
+          - verify_borgmatic_push_stat.stat.mode == '0600'
+          - verify_borgmatic_push_stat.stat.pw_name == 'root'
+          - (verify_borgmatic_push_file_raw.content | b64decode) == 'url = ' ~ (verify_borgmatic_push_url | to_json) ~ '\n'
+        fail_msg: "{{ verify_borgmatic_push_file }} : mode {{ verify_borgmatic_push_stat.stat.mode | default('absent') }} ou contenu inattendu."
+
+    # Mêmes moments que l'ancien hook uptime_kuma : début de la
+    # configuration, puis fin ou échec, pour create, prune, compact, check.
+    - name: Assert the configuration pushes start, finish and fail
+      vars:
+        verify_borgmatic_push_runs: "{{ verify_borgmatic_push_hooks | map(attribute='run') | flatten }}"
+      ansible.builtin.assert:
+        that:
+          - verify_borgmatic_push_hooks | length == 3
+          - verify_borgmatic_push_hooks | selectattr('before', 'defined') | map(attribute='before') | list == ['configuration']
+          - verify_borgmatic_push_hooks | selectattr('after', 'defined') | map(attribute='after') | list == ['configuration', 'configuration']
+          - verify_borgmatic_push_hooks | selectattr('states', 'defined') | map(attribute='states') | list == [['finish'], ['fail']]
+          - verify_borgmatic_push_hooks | map(attribute='when') | unique | list == [['create', 'prune', 'compact', 'check']]
+          - verify_borgmatic_push_runs | select('search', 'status=up -d msg=start') | list | length == 1
+          - verify_borgmatic_push_runs | select('search', 'status=up -d msg=finish') | list | length == 1
+          - verify_borgmatic_push_runs | select('search', 'status=down -d msg=fail') | list | length == 1
+          - verify_borgmatic_push_runs | length == 3
+          - verify_borgmatic_push_runs | reject('search', ' -K ' ~ verify_borgmatic_push_file ~ ' ') | list | length == 0
+          - verify_borgmatic_push_runs | reject('search', '\|\| true$') | list | length == 0
+        fail_msg: "Hooks de push de {{ verify_borgmatic_push_config }} : {{ verify_borgmatic_push_hooks }}"
+
+    # Par un shell, comme borgmatic (shell=True) : « || true » en dépend.
+    - name: Run the push hooks of {{ verify_borgmatic_push_config }}
+      become: true
+      ansible.builtin.shell: # noqa: command-instead-of-shell
+        cmd: "{{ item }}"
+      loop: "{{ verify_borgmatic_push_hooks | map(attribute='run') | flatten }}"
+      register: verify_borgmatic_push_run
+      changed_when: false
+      no_log: true
+
+    # « Could not resolve host » : curl a bien lu l'URL dans le fichier (sans
+    # elle, il dirait « no URL specified »).
+    - name: Assert a failed push neither fails the backup nor prints the token
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+          - item.stderr is search('Could not resolve host')
+          - verify_borgmatic_push_token not in (item.stdout ~ item.stderr)
+          - "'/api/push/' not in (item.stdout ~ item.stderr)"
+        fail_msg: "Hook de push : rc {{ item.rc }}, sortie inattendue (jeton masqué)."
+      loop: "{{ verify_borgmatic_push_run.results }}"
+      loop_control:
+        label: "{{ item.item | regex_search('msg=\\w+') }}"

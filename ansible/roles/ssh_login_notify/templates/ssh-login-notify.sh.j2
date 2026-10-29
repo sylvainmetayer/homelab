@@ -60,10 +60,12 @@ notify() {
         msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, sans clé publique (méthode : ${method:-inconnue})"
     fi
 
-    if curl -fsS -G --max-time "${PUSH_TIMEOUT:-10}" \
+    # L'URL push (jeton du moniteur) passe par l'entrée standard de curl
+    # (--config -), pas par sa ligne de commande, que ps montre.
+    if printf 'url = "%s"\n' "$PUSH_URL" | curl -q -fsS -G --max-time "${PUSH_TIMEOUT:-10}" \
+        --config - \
         --data-urlencode "status=up" \
-        --data-urlencode "msg=$msg" \
-        "$PUSH_URL" >/dev/null 2>&1; then
+        --data-urlencode "msg=$msg" >/dev/null 2>&1; then
         logger -t ssh-login-notify "notifié : $msg"
     else
         logger -t ssh-login-notify -p auth.warning "échec de la notification : $msg"

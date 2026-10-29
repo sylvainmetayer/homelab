@@ -29,6 +29,7 @@
         - "{{ docker_base_path }}"
         - "{{ borgmatic_config_dir }}"
         - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
+        - "{{ borgmatic_config_dir }}/uptime-kuma/rss.curl"
       register: decommission_paths
 
     # Données et configuration borgmatic de rss supprimées ; le dossier
@@ -41,6 +42,7 @@
           - decommission_paths.results[2].stat.isdir
           - decommission_paths.results[3].stat.isdir
           - decommission_paths.results[4].stat.exists
+          - not decommission_paths.results[5].stat.exists
         fail_msg: >-
           {{ decommission_paths.results | map(attribute='item') | zip(decommission_paths.results
              | map(attribute='stat.exists')) | list | string }}

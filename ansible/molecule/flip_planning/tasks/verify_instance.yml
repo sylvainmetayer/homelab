@@ -5,6 +5,7 @@
   vars:
     verify_app_service: "{{ flip_instance.service }}"
     verify_app_borgmatic_config: "/etc/borgmatic.d/{{ flip_instance.service }}.yaml"
+    verify_app_borgmatic_push_url: "{{ flip_instance.healthcheck_url }}"
 
 - name: Verify the supporting services of {{ flip_instance.service }}
   ansible.builtin.include_tasks: ../../_shared/tasks/verify_compose_services.yml
@@ -174,14 +175,20 @@
       - borgmatic_config.postgresql_databases[0].container == flip_instance.prefix ~ '-db'
       - borgmatic_config.postgresql_databases[0].password == flip_instance.db_password
       - borgmatic_config.archive_name_format.startswith(flip_instance.prefix ~ '-{now')
-      - borgmatic_config.uptime_kuma.push_url == flip_instance.healthcheck_url
     fail_msg: >-
       Configuration borgmatic de {{ flip_instance.service }} inattendue :
-      {{ borgmatic_config.repositories }} / {{ borgmatic_config.uptime_kuma | default('pas de uptime_kuma') }}
+      {{ borgmatic_config.repositories }}
+
+# L'URL que lisent réellement les hooks de push de l'instance.
+- name: Read the push URL file of {{ flip_instance.service }}
+  become: true
+  ansible.builtin.slurp:
+    src: "/etc/borgmatic.d/uptime-kuma/{{ flip_instance.service }}.curl"
+  register: flip_planning_push_raw
 
 - name: Record the Borg repository and push URL of {{ flip_instance.service }}
   vars:
     borgmatic_config: "{{ flip_planning_borgmatic_raw.content | b64decode | from_yaml }}"
   ansible.builtin.set_fact:
     flip_planning_repositories: "{{ flip_planning_repositories | default({}) | combine({flip_instance.service: borgmatic_config.repositories[0].path}) }}"
-    flip_planning_push_urls: "{{ flip_planning_push_urls | default({}) | combine({flip_instance.service: borgmatic_config.uptime_kuma.push_url}) }}"
+    flip_planning_push_urls: "{{ flip_planning_push_urls | default({}) | combine({flip_instance.service: flip_planning_push_raw.content | b64decode}) }}"

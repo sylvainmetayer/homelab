@@ -34,6 +34,25 @@
     scope: user
     enabled: true
 
+# URL push du moniteur « Reset Betisier » (jeton), lue par curl -K. Vide :
+# le service ne pousse rien, le fichier part.
+- name: Write the push URL of the betisier reset
+  when: betisier_reset_healthcheck_url | length > 0
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: "url = {{ betisier_reset_healthcheck_url | to_json }}\n"
+    dest: "{{ betisier_reset_push_config }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Remove the push URL of the betisier reset
+  when: betisier_reset_healthcheck_url | length == 0
+  ansible.builtin.file:
+    path: "{{ betisier_reset_push_config }}"
+    state: absent
+
 - name: Template betisier-reset service
   ansible.builtin.template:
     src: "templates/betisier-reset.service.j2"

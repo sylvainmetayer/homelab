@@ -6,11 +6,13 @@
 #     docker_service_scope: system), qui l'exécute en root ;
 #   - le compose templaté est valide pour `docker compose` ;
 #   - l'unité dc@<service> (user, ou système) est activée et démarrée ;
-#   - la configuration borgmatic, si elle existe, passe `borgmatic config validate`.
+#   - la configuration borgmatic, si elle existe, passe `borgmatic config validate`
+#     et ne contient aucune URL push Uptime Kuma (verify_borgmatic_push.yml).
 #
 # Variables :
 #   verify_app_service           nom du projet compose / suffixe de dc@ (obligatoire)
 #   verify_app_borgmatic_config  chemin de la config borgmatic ('' pour sauter)
+#   verify_app_borgmatic_push_url  URL push Uptime Kuma attendue (verify_borgmatic_push.yml)
 #   verify_app_unit_started      false pour un rôle qui laisse son unité arrêtée
 #   docker_service_scope         user (défaut) ou system, comme host_vars/<hôte>
 
@@ -62,4 +64,13 @@
   become: true
   ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config {{ verify_app_borgmatic_config }}"
   changed_when: false
+  when: verify_app_borgmatic_config | default('') | length > 0
+
+# Aucune URL push dans la configuration ; avec verify_app_borgmatic_push_url,
+# le fichier curl qui la porte et les hooks qui le lisent.
+- name: Verify the Uptime Kuma push of {{ verify_app_service }}
+  ansible.builtin.include_tasks: verify_borgmatic_push.yml
+  vars:
+    verify_borgmatic_push_config: "{{ verify_app_borgmatic_config }}"
+    verify_borgmatic_push_url: "{{ verify_app_borgmatic_push_url | default('') }}"
   when: verify_app_borgmatic_config | default('') | length > 0

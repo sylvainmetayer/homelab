@@ -9,6 +9,7 @@
       vars:
         verify_app_service: wiki
         verify_app_borgmatic_config: /etc/borgmatic.d/wiki.yaml
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-wiki-backup
 
     - name: Verify the supporting services of wiki
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -54,7 +55,6 @@
           # Défaut du rôle borgmatic : le mysqldump de l'image linuxserver
           # avertit « Deprecated program name » et disparaîtra.
           - wiki_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump bookstack_db mariadb-dump'
-          - wiki_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-wiki-backup'
         fail_msg: "Configuration borgmatic du wiki inattendue : {{ wiki_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for wiki

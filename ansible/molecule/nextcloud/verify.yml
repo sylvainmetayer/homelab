@@ -10,6 +10,7 @@
       vars:
         verify_app_service: nextcloud
         verify_app_borgmatic_config: /etc/borgmatic.d/nextcloud.yaml
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-nextcloud-backup
 
     - name: Verify the supporting services of nextcloud
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
@@ -142,7 +143,6 @@
           - nextcloud_borgmatic.mysql_databases[0].password == nextcloud_db_password
           # mariadb:lts n'a pas de mysqldump.
           - nextcloud_borgmatic.mysql_databases[0].mysql_dump_command == '/usr/local/bin/borgmatic-docker-dump nextcloud_db mariadb-dump'
-          - nextcloud_borgmatic.uptime_kuma.push_url == 'https://uptime.example.invalid/api/push/tofu-nextcloud-backup'
         fail_msg: "Configuration borgmatic de nextcloud inattendue : {{ nextcloud_borgmatic }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for nextcloud
