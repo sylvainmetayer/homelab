@@ -12,7 +12,7 @@ choix dans [../adr/](../adr/README.md).
 | flip injoignable (Flip Planning, Promptoramix) | [flip-injoignable.md](flip-injoignable.md) |
 | Plus d'Internet à la maison, un site ne charge plus, moniteur « DNS … » rouge (Blocky) ; bascule du DHCP de la Bbox | [dns-blocky.md](dns-blocky.md) |
 | Sauvegarde en échec, restauration d'une appli depuis Borg | [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md) |
-| Test de restauration vzdump en échec (VM docker, LXC newt), copie 990/991 restée sur Proxmox | [test-restauration-vm.md](test-restauration-vm.md) |
+| Test de restauration vzdump en échec (VM docker, LXC newt), copie 990 restée sur Proxmox | [test-restauration-vm.md](test-restauration-vm.md) |
 | Disque plein, VM docker lente | [disque-plein-vm-lente.md](disque-plein-vm-lente.md) |
 | Déploiement CI cassé, PR Renovate qui casse une appli | [deploiement-ci-casse.md](deploiement-ci-casse.md) |
 | Perte de la clé age, d'une clé SSH ou d'un poste | [perte-cle-ou-poste.md](perte-cle-ou-poste.md) |

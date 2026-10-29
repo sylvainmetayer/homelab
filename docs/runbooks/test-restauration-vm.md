@@ -19,12 +19,12 @@ chaque mois à 10:00, `vzdump-restore-test.timer` (rôle `vzdump_restore_test`,
 - **VM docker** : la dernière sauvegarde (moins de 26 h, au moins 10 Gio,
   journal sans erreur) est entièrement décompressée et vérifiée
   (`zstd -d -c … | vma verify -` : somme zstd de chaque trame, structure VMA
-  de chaque disque), une dizaine de minutes de lecture sur le NFS.
-  Restauration complète en option (voir plus bas), désactivée par défaut.
+  de chaque disque), une dizaine de minutes de lecture sur le NFS. Pas de
+  restauration : 190 Gio de disque virtuel (~105 Gio écrits sur le SSD des
+  invités) et une mémoire que l'hôte n'a pas (15 Gio, dont 12 à la VM docker).
 
 Le résultat part sur **ntfy** (topic `scripts`, priorité haute sur échec,
-basse sinon) avec le détail et les chiffres d'espace (`local-lvm` libre,
-taille des disques de la VM, mémoire disponible de l'hôte), et au moniteur
+basse sinon) avec le détail, et au moniteur
 push **« Test restauration vzdump »** d'Uptime Kuma
 (`tofu/pangolin_config/cron_vzdump_restore_test.tf`, 20 jours : le provider
 plafonne un push à 24 jours, d'où deux runs par mois). Le moniteur passe
@@ -32,10 +32,10 @@ aussi au rouge si plus rien n'arrive (hôte éteint à 10:00, timer mort).
 
 Garde-fous du script :
 
-- les ids cibles sont dans 900-999 (réservés à ce test : n'y créer aucun
-  invité), différents des sources, et le run échoue s'ils existent ou si
-  `local-lvm` porte un volume orphelin à leur nom ;
-- jamais de `--force` ; `pct destroy` / `qm destroy` avec
+- l'id cible est dans 900-999 (réservés à ce test : n'y créer aucun
+  invité), différent des sources, et le run échoue s'il existe ou si
+  `local-lvm` porte un volume orphelin à son nom ;
+- jamais de `--force` ; `pct destroy` avec
   `--destroy-unreferenced-disks 0`, et seulement sur un invité créé par ce
   run **et** dont la description porte `vzdump-restore-test` ;
 - aucune copie ne démarre avec une interface réseau, `onboot` actif, sans
@@ -47,7 +47,7 @@ Garde-fous du script :
   (`/var/run/vzdump.lock`), tenu pendant tout le test : pas de sauvegarde
   ni d'élagage de l'archive pendant sa lecture (un vzdump lancé à la main
   pendant le test attend) ;
-- chaque étape a son délai ; le `TimeoutStartSec` de l'unité (6 h 15) les
+- chaque étape a son délai ; le `TimeoutStartSec` de l'unité (3 h 05) les
   borne tous. Dépassé, systemd envoie SIGTERM au script seul
   (`KillMode=mixed`), qui tue la commande en cours et détruit ses copies
   avant de rapporter.
@@ -56,7 +56,7 @@ Garde-fous du script :
 
 - Notification ntfy « Test de restauration vzdump : ÉCHEC », ou moniteur
   « Test restauration vzdump » rouge.
-- Un invité 990 ou 991 visible dans l'interface de Proxmox en dehors du 2 et
+- Un invité 990 visible dans l'interface de Proxmox en dehors du 2 et
   du 16 au matin.
 
 ## Diagnostic
@@ -69,7 +69,7 @@ systemctl list-timers vzdump-restore-test.timer
 pvesm status                                                  # nas-backup actif ? place sur local-lvm ?
 pvesh get /nodes/proxmox/storage/nas-backup/content --content backup --output-format json-pretty
 ls -la /mnt/pve/nas-backup/dump/
-pct list; qm list                                             # une copie 990/991 restée ?
+pct list                                                      # une copie 990 restée ?
 ```
 
 Selon la première ligne `ÉCHEC :` du rapport :
@@ -85,9 +85,9 @@ Selon la première ligne `ÉCHEC :` du rapport :
 - **« id cible 990 déjà pris »**, **« volumes orphelins »** : une copie
   d'un run précédent (tué par SIGKILL, hôte redémarré pendant le test) ou un
   invité créé à la main dans 900-999. Voir Réparation.
-- **« systemd à l'état … »**, **« l'agent QEMU ne répond pas »** : la copie
-  ne démarre pas. Démarrer la vraie machine n'est pas en cause ; lire
-  `pct console 990` ou la console de 991 en relançant le test à la main
+- **« systemd à l'état … »** : la copie ne démarre pas. Démarrer la vraie
+  machine n'est pas en cause ; lire `pct console 990` en relançant le test à
+  la main
   (voir Vérification) avant qu'il ne détruise la copie, ou restaurer à la
   main sur un id de test pour regarder.
 - **« verrou … déjà pris »** : un autre test ou un vzdump tournait.
@@ -96,14 +96,12 @@ Selon la première ligne `ÉCHEC :` du rapport :
 
 ## Réparation
 
-Une copie restée (990 ou 991) se détruit à la main, après avoir vérifié que
-c'est bien elle :
+Une copie restée (990) se détruit à la main, après avoir vérifié que c'est
+bien elle :
 
 ```bash
 pct config 990 | grep -i description   # doit contenir vzdump-restore-test
 pct stop 990; pct destroy 990 --destroy-unreferenced-disks 0
-qm config 991 | grep -i description
-qm stop 991; qm destroy 991 --destroy-unreferenced-disks 0
 ```
 
 Jamais sur un autre id, jamais `--purge` d'un id de production. Un volume
@@ -118,34 +116,10 @@ montre la restauration du LXC puis la lecture de l'archive) :
 ```bash
 systemctl start vzdump-restore-test.service   # rend la main à la fin ; code non nul sur échec
 journalctl -u vzdump-restore-test.service -n 50 --no-pager
-pct list; qm list                              # ni 990 ni 991
+pct list                                       # pas de 990
 ```
 
 Le moniteur passe au vert, ntfy reçoit « OK ».
-
-## Restauration complète de la VM (option)
-
-`vzdump_restore_test_vm_full_restore: true` (en `vars:` de l'entrée du rôle
-dans `pve.yml`, puis `ansible-playbook pve.yml --tags vzdump_restore_test`)
-remplace la vérification de l'archive par un `qm create 991 --archive …` sur
-`local-lvm` (nom `restore-test-100`, `--onboot 0`, 1 Gio de mémoire sans
-ballooning, interfaces débranchées puis supprimées, et retirées de l'ordre de
-démarrage), un démarrage jusqu'au ping de l'agent QEMU, puis la destruction.
-Désactivée par défaut :
-
-- le disque virtuel fait 190 Gio, dont ~105 Gio écrits, sur le SSD des
-  invités : une demi-heure d'écritures soutenues pendant que la VM docker
-  sert les applis ;
-- le lvm-thin `local-lvm` (348,8 Gio) avait 241,7 Gio libres le 28/10/2026 :
-  la restauration n'est lancée que s'il reste, après la taille entière des
-  disques (190 Gio), 10 % du storage (`vzdump_restore_test_free_margin_percent`),
-  sinon le test se rabat sur la vérification et le dit ;
-- l'hôte a 15 Gio de mémoire dont 12 à la VM docker : il n'en restait que
-  2,6 Gio disponibles le 28/10/2026. Le démarrage est sauté (restauration
-  seule, le rapport le dit) si la mémoire disponible moins la mémoire de
-  démarrage passe sous `vzdump_restore_test_host_memory_reserve_mb` (1 Gio).
-  Une copie démarrée sans réseau ne parle à rien : Newt, NFS du NAS et
-  borgmatic échouent dans la copie, sans effet dehors.
 
 ## Prévention
 

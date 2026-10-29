@@ -1,13 +1,9 @@
 ---
 # Somme des délais des étapes (defaults/main.yml), plus 30 min de marge pour
-# les lectures de l'API et le nettoyage. La VM fait l'un ou l'autre (la
-# vérification seule, ou la restauration et le démarrage) : les compter tous
-# deux est voulu, la marge couvre aussi les étapes sans délai propre ici
-# (démarrages, arrêts, destructions).
+# les lectures de l'API et le nettoyage, et les étapes sans délai propre ici
+# (démarrage, arrêt et destruction du LXC).
 vzdump_restore_test_timeout_start_sec: >-
   {{ (vzdump_restore_test_lxc_restore_timeout | int)
      + (vzdump_restore_test_lxc_boot_timeout | int)
      + (vzdump_restore_test_vm_verify_timeout | int)
-     + (vzdump_restore_test_vm_restore_timeout | int)
-     + (vzdump_restore_test_vm_boot_timeout | int)
      + 1800 }}

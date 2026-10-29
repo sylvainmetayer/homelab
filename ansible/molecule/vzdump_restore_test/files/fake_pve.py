@@ -2,7 +2,8 @@
 """Faux Proxmox pour le scénario Molecule vzdump_restore_test.
 
 Installé sous /usr/local/sbin avec un lien par commande (pvesh, pvesm, pct,
-qm, vma, zstd) : le nom d'appel choisit la commande. L'état (invités,
+qm, vma, zstd) : le nom d'appel choisit la commande ; qm n'est pas simulé,
+le test ne restaure plus la VM (un appel est journalisé puis refusé). L'état (invités,
 volumes, sauvegardes, storages) est un JSON que chaque cas du verify écrit ;
 chaque appel est journalisé, une ligne JSON par appel. Une commande qui
 modifie un invité hors de 900-999 est refusée et journalisée comme
@@ -107,30 +108,27 @@ def pvesh(state, args):
                 for item in state["backups"]
                 if item["volid"].startswith(storage + ":") and str(item["vmid"]) == params.get("vmid", str(item["vmid"]))
             ]
-    elif len(parts) == 5 and parts[2] == "storage" and parts[4] == "status":
-        result = state["storage_status"][parts[3]]
     elif parts[2:] == ["vzdump", "extractconfig"]:
         result = backup(state, params["volume"])["config"]
-    elif len(parts) == 5 and parts[2] in ("lxc", "qemu") and parts[4] == "config":
+    elif len(parts) == 5 and parts[2] == "lxc" and parts[4] == "config":
         result = guest(state, parts[3], parts[2])["config"]
     else:
         fail(f"chemin non simulé : {path}", 2)
     print(json.dumps(result))
 
 
-def create(state, kind, vmid, volid, opts):
+def create(state, vmid, volid, opts):
     if str(vmid) in state["guests"]:
-        fail(f"unable to create {'CT' if kind == 'lxc' else 'VM'} {vmid} - already exists")
+        fail(f"unable to create CT {vmid} - already exists")
     if "force" in opts:
         fail("--force refusé par le faux Proxmox", 98)
     conf = parse_conf(backup(state, volid)["config"])
     for key in ("storage", "unique", "archive"):
         opts.pop(key, None)
     conf.update(opts)
-    state["guests"][str(vmid)] = {"kind": kind, "status": "stopped", "config": conf}
+    state["guests"][str(vmid)] = {"kind": "lxc", "status": "stopped", "config": conf}
     state["volumes"].append({"volid": f"local-lvm:vm-{vmid}-disk-0", "vmid": vmid})
-    if kind == "lxc":
-        shutil.copytree(FIXTURE, rootfs(vmid), symlinks=True)
+    shutil.copytree(FIXTURE, rootfs(vmid), symlinks=True)
 
 
 def delete_keys(state, entry, opts):
@@ -207,24 +205,9 @@ def print_status(kind):
     return handler
 
 
-def qm_create(state, vmid, args):
-    opts = options(args[2:])
-    create(state, "qemu", vmid, opts["archive"], opts)
-
-
-def qm_start(state, vmid, _args):
-    entry = guest(state, vmid, "qemu")
-    log({"start": vmid, "config": entry["config"]})
-    entry["status"] = "running"
-
-
-def qm_guest(state, vmid, _args):
-    sys.exit(0 if guest(state, vmid, "qemu")["status"] == "running" else 2)
-
-
 HANDLERS = {
     "pct": {
-        "restore": lambda state, vmid, args: create(state, "lxc", vmid, args[2], options(args[3:])),
+        "restore": lambda state, vmid, args: create(state, vmid, args[2], options(args[3:])),
         "set": lambda state, vmid, args: delete_keys(state, guest(state, vmid, "lxc"), options(args[2:])),
         "mount": pct_mount,
         "unmount": pct_unmount,
@@ -234,24 +217,7 @@ HANDLERS = {
         "stop": set_status("lxc", "stopped"),
         "destroy": lambda state, vmid, args: destroy(state, vmid, options(args[2:])),
     },
-    "qm": {
-        "create": qm_create,
-        "set": lambda state, vmid, args: delete_keys(state, guest(state, vmid, "qemu"), options(args[2:])),
-        "start": qm_start,
-        # qm guest cmd <vmid> ping
-        "guest": qm_guest,
-        "status": print_status("qemu"),
-        "stop": set_status("qemu", "stopped"),
-        "destroy": lambda state, vmid, args: destroy(state, vmid, options(args[2:])),
-    },
 }
-
-
-def target_of(args):
-    """L'id visé : `qm guest cmd <vmid> …` le met en troisième position."""
-    if args[:2] == ["guest", "cmd"]:
-        return args[2] if len(args) > 2 else ""
-    return args[1] if len(args) > 1 else ""
 
 
 def archive_content(state, argument):
@@ -267,7 +233,7 @@ def guest_command(state, name, args):
     handler = HANDLERS[name].get(args[0] if args else "")
     if handler is None:
         fail(f"{name} {' '.join(args[:1])} non simulé", 2)
-    target = target_of(args)
+    target = args[1] if len(args) > 1 else ""
     if not target.isdigit() or not 900 <= int(target) <= 999:
         log({"violation": [name, *args]})
         fail("le faux Proxmox refuse de toucher un invité hors de 900-999", 99)

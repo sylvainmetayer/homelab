@@ -2,7 +2,6 @@
   "backup_storage": vzdump_restore_test_backup_storage,
   "restore_storage": vzdump_restore_test_restore_storage,
   "max_age_hours": vzdump_restore_test_max_age_hours | int,
-  "free_margin_percent": vzdump_restore_test_free_margin_percent | int,
   "lxc": {
     "source": vzdump_restore_test_lxc_source | int,
     "target": vzdump_restore_test_lxc_target | int,
@@ -15,14 +14,8 @@
   },
   "vm": {
     "source": vzdump_restore_test_vm_source | int,
-    "target": vzdump_restore_test_vm_target | int,
     "min_size_mb": vzdump_restore_test_vm_min_size_mb | int,
-    "full_restore": vzdump_restore_test_vm_full_restore | bool,
-    "boot_memory_mb": vzdump_restore_test_vm_boot_memory_mb | int,
-    "host_memory_reserve_mb": vzdump_restore_test_host_memory_reserve_mb | int,
     "verify_timeout": vzdump_restore_test_vm_verify_timeout | int,
-    "restore_timeout": vzdump_restore_test_vm_restore_timeout | int,
-    "boot_timeout": vzdump_restore_test_vm_boot_timeout | int,
   },
   "ntfy": {
     "url": vzdump_restore_test_ntfy_url,

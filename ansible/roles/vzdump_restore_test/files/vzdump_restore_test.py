@@ -2,8 +2,8 @@
 """Test de restauration des sauvegardes vzdump de l'hôte Proxmox.
 
 Lancé deux fois par mois par vzdump-restore-test.timer (rôle
-vzdump_restore_test, pve.yml), en root sur l'hôte même : seuls pct, qm et vma
-savent lire une archive vzdump. Pour la dernière sauvegarde de chaque invité
+vzdump_restore_test, pve.yml), en root sur l'hôte même : seuls pct et vma savent
+lire une archive vzdump. Pour la dernière sauvegarde de chaque invité
 sur le storage du job (nas-backup) :
 
 - LXC (newt) : âge, taille et journal de la sauvegarde, puis restauration
@@ -13,11 +13,8 @@ sur le storage du job (nas-backup) :
   attendus lus hors ligne, démarrage, systemd doit atteindre running ou
   degraded sans aucune interface réseau, puis destruction ;
 - VM (docker) : âge, taille et journal, puis l'archive entière décompressée
-  et vérifiée (`zstd -d | vma verify`). La restauration complète (qm create
-  --archive, sans réseau, démarrage jusqu'au ping de l'agent QEMU, puis
-  destruction) est désactivée par défaut : 190 Go de disque et de la mémoire
-  que l'hôte n'a pas toujours ; quand elle est demandée, l'espace du storage
-  local et la mémoire disponible sont vérifiés d'abord.
+  et vérifiée (`zstd -d | vma verify`), sans restauration : 190 Go de disque
+  et de la mémoire que l'hôte n'a pas.
 
 Garde-fous : un id cible doit être dans 900-999, libre (aucun invité, aucun
 volume) et différent des sources ; rien n'est restauré avec --force ; un
@@ -65,7 +62,6 @@ NET_KEY = re.compile(r"net\d+")
 DRIVE_KEY = re.compile(r"(?:ide|sata|scsi|virtio|efidisk|tpmstate)\d+")
 MOUNT_KEY = re.compile(r"mp\d+")
 HOST_KEY = re.compile(r"hostpci\d+|usb\d+|args|dev\d+")
-SIZE_UNITS = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4}
 GIB = 1024**3
 
 
@@ -84,8 +80,8 @@ def on_sigterm(signum, _frame):
 def stop(proc):
     """SIGTERM d'abord, SIGKILL après STOP_GRACE secondes.
 
-    pct restore et qm create confient le travail à une tâche détachée
-    (fork + setsid) : leur SIGTERM lui est relayé, elle annule la
+    pct restore confie le travail à une tâche détachée (fork + setsid) :
+    son SIGTERM lui est relayé, elle annule la
     restauration et supprime l'invité à moitié créé. Un SIGKILL d'emblée ne
     tuerait que le client : la tâche finirait seule, ou serait tuée à la
     sortie de l'unité en laissant l'invité verrouillé (lock: create), sans
@@ -165,34 +161,8 @@ def option(value, name):
     return None
 
 
-def size_bytes(text):
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)([KMGT]?)", text)
-    if not match:
-        raise TestFailure(f"taille de disque illisible : {text}")
-    return int(float(match.group(1)) * SIZE_UNITS[match.group(2)])
-
-
-def disk_bytes(conf):
-    """Taille déclarée de tous les disques (lecteurs CD exclus)."""
-    total = 0
-    for key, value in conf.items():
-        if DRIVE_KEY.fullmatch(key) and "media=cdrom" not in value:
-            size = option(value, "size")
-            if size:
-                total += size_bytes(size)
-    return total
-
-
 def gib(value):
     return f"{value / GIB:.1f} Gio"
-
-
-def mem_available_mib():
-    with open("/proc/meminfo", encoding="ascii") as meminfo:
-        for line in meminfo:
-            if line.startswith("MemAvailable:"):
-                return int(line.split()[1]) // 1024
-    raise TestFailure("MemAvailable absent de /proc/meminfo")
 
 
 def rootfs_path(rootfs, relative):
@@ -283,19 +253,14 @@ class Run:
     def guest_conf(self, kind, vmid):
         return pvesh(f"/nodes/{self.node}/{kind}/{vmid}/config")
 
-    def unplugged(self, conf, lxc):
+    def unplugged(self, conf):
         """Options --netN qui remplacent celles de l'archive : câble débranché."""
         argv = []
         for key, value in sorted(conf.items()):
             if not NET_KEY.fullmatch(key):
                 continue
             bridge = option(value, "bridge")
-            if lxc:
-                first = f"name={option(value, 'name') or 'eth' + key[3:]}"
-            else:
-                # Le modèle : « virtio=MAC » ou « model=virtio,macaddr=MAC ».
-                name, _, model = value.split(",", 1)[0].partition("=")
-                first = model if name == "model" else name
+            first = f"name={option(value, 'name') or 'eth' + key[3:]}"
             argv += [f"--{key}", first + (f",bridge={bridge}" if bridge else "") + ",link_down=1"]
         return argv
 
@@ -341,7 +306,7 @@ class Run:
                 "--unprivileged", conf.get("unprivileged", "0"),
                 "--onboot", "0",
                 "--description", f"{MARKER} : copie jetable de {source}, détruite à la fin du test",
-                *self.unplugged(conf, lxc=True),
+                *self.unplugged(conf),
             ],
             timeout=settings["restore_timeout"],
         )
@@ -422,77 +387,10 @@ class Run:
     # --- VM -----------------------------------------------------------------
 
     def test_vm(self, settings):
-        source, target = settings["source"], settings["target"]
-        self.check_target("VM", source, target)
+        source = settings["source"]
         backup = self.latest_backup("VM", source, settings["min_size_mb"])
-        conf = self.archive_conf(backup["volid"])
-
-        status = pvesh(f"/nodes/{self.node}/storage/{self.restore_storage}/status")
-        total, avail = int(status["total"]), int(status["avail"])
-        needed = disk_bytes(conf)
-        margin = total * self.config["free_margin_percent"] // 100
-        space = (
-            f"{self.restore_storage} : {gib(avail)} libres sur {gib(total)}, "
-            f"disques de la VM {gib(needed)}, marge {gib(margin)}"
-        )
-        memory = mem_available_mib()
-        space += f" ; mémoire disponible {memory} Mio"
-
-        if not settings["full_restore"]:
-            self.verify_archive(backup, settings["verify_timeout"])
-            self.lines.append(f"VM {source} : {backup['summary']}, archive vérifiée (zstd + vma verify)")
-            self.lines.append(f"{space} (restauration complète désactivée)")
-            return
-        if avail - needed < margin:
-            self.verify_archive(backup, settings["verify_timeout"])
-            self.lines.append(f"VM {source} : {backup['summary']}, archive vérifiée (zstd + vma verify)")
-            self.lines.append(f"{space} : pas assez de place, restauration complète sautée")
-            return
-
-        self.created.append(("qemu", target))
-        run(
-            [
-                "qm", "create", str(target),
-                "--archive", backup["volid"],
-                "--storage", self.restore_storage,
-                "--unique", "1",
-                "--onboot", "0",
-                "--memory", str(settings["boot_memory_mb"]),
-                "--balloon", "0",
-                "--name", f"restore-test-{source}",
-                "--description", f"{MARKER} : copie jetable de {source}, détruite à la fin du test",
-                *self.unplugged(conf, lxc=False),
-            ],
-            timeout=settings["restore_timeout"],
-        )
-        restored = self.guest_conf("qemu", target)
-        nets = sorted(key for key in restored if NET_KEY.fullmatch(key))
-        if nets:
-            change = ["--delete", ",".join(nets)]
-            boot = restored.get("boot", "")
-            if boot.startswith("order="):
-                order = [device for device in boot[len("order="):].split(";") if device not in nets]
-                change += ["--boot", "order=" + ";".join(order)] if order else []
-            run(["qm", "set", str(target), *change])
-        self.assert_offline("qemu", target)
-
-        # Relue : la restauration a pu durer des heures depuis la mesure.
-        memory = mem_available_mib()
-        if memory - settings["boot_memory_mb"] < settings["host_memory_reserve_mb"]:
-            self.lines.append(f"VM {source} : {backup['summary']}, restaurée sur {target}, démarrage sauté (mémoire)")
-            self.lines.append(space)
-            return
-        run(["qm", "start", str(target)], timeout=300)
-        deadline = time.monotonic() + settings["boot_timeout"]
-        while run(["qm", "guest", "cmd", str(target), "ping"], timeout=60, check=False).returncode != 0:
-            if time.monotonic() > deadline:
-                raise TestFailure(f"VM {target} : l'agent QEMU ne répond pas après {settings['boot_timeout']} s")
-            time.sleep(10)
-        run(["qm", "stop", str(target)], timeout=300)
-        self.lines.append(
-            f"VM {source} : {backup['summary']}, restaurée sur {target} sans réseau, agent QEMU joint au démarrage"
-        )
-        self.lines.append(space)
+        self.verify_archive(backup, settings["verify_timeout"])
+        self.lines.append(f"VM {source} : {backup['summary']}, archive vérifiée (zstd + vma verify)")
 
     def verify_archive(self, backup, timeout):
         """Décompresse l'archive entière : somme zstd de chaque trame, puis la
@@ -551,12 +449,10 @@ class Run:
         conf = self.guest_conf(kind, vmid)
         if MARKER not in (conf.get("description") or ""):
             raise TestFailure(f"{vmid} existe sans la marque {MARKER} : laissé en place, à voir à la main")
-        tool = "pct" if kind == "lxc" else "qm"
-        if kind == "lxc":
-            run(["pct", "unmount", str(vmid)], check=False)
-        if "status: running" in run([tool, "status", str(vmid)]).stdout:
-            run([tool, "stop", str(vmid)], timeout=300)
-        run([tool, "destroy", str(vmid), "--purge", "0", "--destroy-unreferenced-disks", "0"], timeout=900)
+        run(["pct", "unmount", str(vmid)], check=False)
+        if "status: running" in run(["pct", "status", str(vmid)]).stdout:
+            run(["pct", "stop", str(vmid)], timeout=300)
+        run(["pct", "destroy", str(vmid), "--purge", "0", "--destroy-unreferenced-disks", "0"], timeout=900)
         if vmid in self.guests():
             raise TestFailure(f"{vmid} : toujours là après destroy")
 
