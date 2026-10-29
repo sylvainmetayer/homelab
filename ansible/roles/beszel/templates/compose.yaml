@@ -29,16 +29,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit. Plus, avec
-    # le widget de Homepage, le réseau de ce widget, à IP fixes : PocketBase
-    # n'admet un superuser que depuis les « superuser IPs » du hub, et l'IP de
-    # Homepage sur newt change à chaque recréation (docs/architecture.md,
-    # « La supervision »).
-    networks:
-      newt: {}
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
 {% if beszel_homepage_enabled | bool %}
+    # Plus le réseau du widget de Homepage, à IP fixes : PocketBase n'admet un
+    # superuser que depuis les « superuser IPs » du hub, et l'IP de Homepage
+    # sur newt change à chaque recréation (docs/architecture.md,
+    # « La supervision »).
+{% endif %}
+    networks:
+{% if beszel_homepage_enabled | bool %}
+      newt: {}
       homepage:
         ipv4_address: {{ beszel_homepage_hub_ip }}
+{% else %}
+      - newt
 {% endif %}
 
 networks:

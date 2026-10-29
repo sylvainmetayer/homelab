@@ -36,14 +36,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit. Plus, avec
-    # le widget Beszel, le réseau de ce widget (créé par dc@beszel), à une IP
-    # fixe : celle que les « superuser IPs » du hub admettent.
-    networks:
-      newt: {}
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
 {% if homepage_beszel_enabled | bool %}
+    # Plus le réseau du widget Beszel (créé par dc@beszel), à une IP fixe :
+    # celle que les « superuser IPs » du hub admettent.
+{% endif %}
+    networks:
+{% if homepage_beszel_enabled | bool %}
+      newt: {}
       beszel:
         ipv4_address: {{ beszel_homepage_client_ip }}
+{% else %}
+      - newt
 {% endif %}
 
 networks:
