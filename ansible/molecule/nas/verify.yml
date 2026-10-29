@@ -42,6 +42,9 @@
       loop:
         - "{{ nas_verify_unit_path }}"
         - /home/sylvain/.config/systemd/user/dc@.service
+        # Purge hebdomadaire des images : jamais sur le NAS (scope user seulement).
+        - /home/sylvain/.config/systemd/user/docker-image-prune.timer
+        - /etc/systemd/system/docker-image-prune.timer
       register: nas_verify_units
 
     - name: Assert dc@ is a root-owned system unit, and no user unit was written
@@ -52,6 +55,8 @@
           - nas_verify_units.results[0].stat.gr_name == 'root'
           - nas_verify_units.results[0].stat.mode == '0644'
           - not nas_verify_units.results[1].stat.exists
+          - not nas_verify_units.results[2].stat.exists
+          - not nas_verify_units.results[3].stat.exists
         fail_msg: "{{ nas_verify_units.results | map(attribute='item') | list }} : propriétaire, mode ou existence inattendus"
 
     - name: Read the system dc@ unit

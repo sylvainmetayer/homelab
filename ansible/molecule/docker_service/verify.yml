@@ -136,10 +136,12 @@
         that:
           - docker_service_prune_exec == ['ExecStart=/usr/bin/docker image prune --all --force --filter until=168h']
           - docker_service_prune_unit_lines | select('search', 'volume|system prune|builder|container prune|network prune') | list | length == 0
+          # Rattrapage au boot (Persistent) : attendre le démon, comme dc@.
+          - docker_service_prune_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
         fail_msg: "ExecStart de docker-image-prune.service : {{ docker_service_prune_exec }}"
       vars:
         docker_service_prune_unit_lines: "{{ (docker_service_prune_unit_raw.content | b64decode).splitlines() | reject('match', '^#') | list }}"
-        docker_service_prune_exec: "{{ docker_service_prune_unit_lines | select('match', '^ExecStart') | list }}"
+        docker_service_prune_exec: "{{ docker_service_prune_unit_lines | select('match', '^ExecStart=') | list }}"
 
     - name: Read the image prune timer
       ansible.builtin.systemd:
