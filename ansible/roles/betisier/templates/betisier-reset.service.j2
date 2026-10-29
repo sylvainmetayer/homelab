@@ -20,8 +20,10 @@ ExecStart=/usr/bin/docker compose down
 # Restart the betisier service
 ExecStart=/usr/bin/systemctl --user start dc@betisier
 
-# Wait for service to be ready
-ExecStart=/bin/sleep 10
+# Wait for the database: a fresh container loads the dump (--init-file)
+# before it listens, which a fixed sleep did not always cover on this disk.
+# Same probe as the compose healthcheck, bounded.
+ExecStart=/usr/bin/timeout 180 /bin/sh -c 'until /usr/bin/docker exec betisier_db mariadb-admin ping --host=127.0.0.1 --silent >/dev/null 2>&1; do sleep 2; done'
 
 # Reset the database password
 ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e "UPDATE personne set per_pwd = '\''73fd51e2fbe484ff3b05e124f253ebd1'\'';"'

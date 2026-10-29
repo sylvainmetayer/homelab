@@ -44,7 +44,11 @@ resource "uptimekuma_notification_smtp" "email" {
 # 0.4.0 fails to read it ("cannot unmarshal number into ...telegramChatID of
 # type string"), on import as on every refresh. This one is created instead,
 # same bot and chat (root secrets.sops.yaml), and the hand-made one is deleted
-# in the UI once the monitors point here.
+# in the UI once the monitors point here - after checking that no hand-made
+# monitor (the professional ones) still lists it, or that one loses its alert.
+#
+# Never edit this one in the UI: saving the form may store the chat id as a
+# number again, and every refresh of this module would then fail as above.
 resource "uptimekuma_notification_telegram" "supervision" {
   name = "Telegram"
 
