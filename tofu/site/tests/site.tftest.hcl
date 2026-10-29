@@ -232,8 +232,12 @@ run "les_plus_lus_en_production_seulement" {
 }
 
 # Sans DID, pas d'enregistrement _atproto ; avec, un TXT did=… sur le domaine.
-run "handle_bluesky_absent_par_defaut" {
+run "handle_bluesky_absent_sans_did" {
   command = plan
+
+  variables {
+    bluesky_did = null
+  }
 
   assert {
     condition     = length(ovh_domain_zone_record.atproto) == 0
