@@ -73,7 +73,7 @@ For any `tofu/pangolin_config/website_<service>.tf` (new or modified):
       this exact bug shipped once for `sparky_fitness`).
 - [ ] A renamed or removed generic resource address (a changed key of
       `local.websites`, a `sub_targets` suffix, a resource leaving the
-      `for_each`) comes with a `moved` block in `moved.tf`: otherwise its
+      `for_each`) comes with a `moved` block (removed once applied): otherwise its
       access token or push monitor is recreated and every consumer of the old
       value breaks.
 - [ ] With path-based sub-routing (`sub_targets`), the catch-all `"/"` target
