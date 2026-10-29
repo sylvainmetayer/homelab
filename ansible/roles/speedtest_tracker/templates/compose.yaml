@@ -4,9 +4,9 @@ services:
     # Mesuré en local (podman, image 1.15.1) : memory.peak à 145 Mio après
     # la migration initiale et une rafale de pages (nginx, php-fpm jusqu'à
     # 5 enfants, le worker de file d'attente). Le CLI Ookla d'un test s'y
-    # ajoute. Plafond à ~2× ce pic, à recaler sur memory.peak de la VM après
-    # quelques jours de tests.
-    mem_limit: 320m
+    # ajoute. Sur la VM, memory.peak à 285 Mio le 2026-10-29 (89 % des 320m
+    # d'alors, surtout du page cache) : plafond à ~2× ce pic.
+    mem_limit: 640m
     # L'image linuxserver, celle que la documentation de Speedtest Tracker
     # recommande (nginx, php-fpm, cron du planificateur et CLI Ookla dans un
     # seul conteneur s6) ; son init démarre en root, puis rend config/ à
