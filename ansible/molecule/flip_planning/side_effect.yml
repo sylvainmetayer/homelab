@@ -132,6 +132,7 @@
     # Le rôle retemplate les deux composes et notifie : « Restart demo_planning »
     # doit tourner, et rien ne doit relancer le banc en pause.
     - name: Alter both compose files so the role rewrites them
+      diff: false
       ansible.builtin.lineinfile:
         path: "/opt/apps/{{ item }}/compose.yaml"
         line: "# altered by side_effect"
