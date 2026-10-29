@@ -321,6 +321,10 @@ Le widget Beszel exige un superuser PocketBase : il a le sien
 `beszel superuser upsert`, distinct du compte administrateur. **Risque
 accepté** (Sylvain, 2026-10-28) : un superuser lit et écrit tout le hub, donc
 qui lit la configuration de Homepage (`0600`, VM docker) a la main sur Beszel.
+**Coupé depuis le 29/10/2026** : Beszel 0.21.1 répond 403 à la connexion par
+mot de passe de ce superuser, `beszel_homepage_email` est donc vide (pas de
+compte géré, pas de widget). Le compte créé le 29/10 reste sur le hub, à
+retirer à la main (interface PocketBase `/_/`) si le widget n'est pas rétabli.
 
 ```mermaid
 flowchart LR

@@ -207,9 +207,10 @@
       vars:
         beszel_superuser_calls: "{{ beszel_superuser_mock_files.results[0].content | b64decode | trim | split('\n') }}"
         beszel_superusers: "{{ beszel_superuser_mock_files.results[1].content | b64decode | from_json }}"
+        # L'adresse que converge.yml passe au rôle (vide dans host_vars/docker).
+        beszel_verify_homepage_email: homepage@monitoring.sylvain.cloud
       ansible.builtin.assert:
         that:
-          - beszel_superuser_calls == [beszel_homepage_email]
-          - beszel_homepage_email == 'homepage@monitoring.sylvain.cloud'
-          - beszel_superusers[beszel_homepage_email] == homepage_beszel_password
+          - beszel_superuser_calls == [beszel_verify_homepage_email]
+          - beszel_superusers[beszel_verify_homepage_email] == homepage_beszel_password
         fail_msg: "Superuser Homepage inattendu : appels {{ beszel_superuser_calls }}"
