@@ -116,7 +116,7 @@ Puis le moniteur Uptime Kuma repasse UP à sa sonde suivante (une toutes les
 ## Prévention
 
 - Toute base a un `healthcheck` et un `stop_grace_period: 60s` ; tout service
-  un `mem_limit` à environ 2× son pic mesuré (doctrine dans AGENTS.md).
+  un `mem_limit` à environ 2× son pic mesuré (doctrine dans [conventions/resource-limits.md](../conventions/resource-limits.md)).
 - Les images sont épinglées par digest : `dc@` ne télécharge qu'une image
   absente, un registre en panne n'empêche pas un redémarrage.
 - Un changement de routage passe par `tofu plan` dans `tofu/pangolin_config`
