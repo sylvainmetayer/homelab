@@ -55,6 +55,7 @@
           - log_agent_files.results[1].stat.mode == '0600'
           - log_agent_files.results[1].stat.pw_name == 'root'
           - log_agent_files.results[2].stat.mode == '0600'
+          - log_agent_files.results[3].stat.mode == '0644'
           - >-
             log_agent_secrets == {'password': victoria_logs_agent_passwords['newt-lxc']}
           - victoria_logs_agent_passwords['newt-lxc'] not in log_agent_config_text

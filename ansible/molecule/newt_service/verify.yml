@@ -39,6 +39,7 @@
           - newt_files.results[0].stat.mode == '0755'
           - newt_files.results[1].stat.mode == '0600'
           - newt_files.results[1].stat.pw_name == 'root'
+          - newt_files.results[2].stat.mode == '0644'
           - "'NEWT_ID=molecule-newt-id' in newt_env"
           - "'NEWT_SECRET=molecule-newt-secret' in newt_env"
           - "'EnvironmentFile=/etc/newt/env' in newt_unit_file"
