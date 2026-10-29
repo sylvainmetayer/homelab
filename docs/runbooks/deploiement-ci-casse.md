@@ -128,12 +128,12 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   (`relecture-chemins-publics`) : relire les chemins publics listés avant
   d'approuver.
 
-## Tests de nuit rouges
+## Tests hebdomadaires rouges
 
 Sur une PR, `test.yaml` ne lance que les scénarios Molecule et les modules
 Tofu qu'atteignent les fichiers modifiés (`.github/scripts/select_tests.py`,
 le résumé du job `Discover test suites` dit pourquoi). La matrice complète
-tourne chaque nuit à 03:30 UTC sur `main` : elle rattrape ce que la sélection
+tourne chaque lundi à 03:30 UTC sur `main` : elle rattrape ce que la sélection
 aurait manqué (une dépendance qu'elle ne sait pas lire) et ce qui casse sans
 commit (image ou collection Galaxy republiée, registre).
 
@@ -146,7 +146,7 @@ commit (image ou collection Galaxy republiée, registre).
   l'annonce dans l'onglet Actions, `gh workflow enable test.yaml` les relance.
 - **Lister** : `gh run list --workflow test.yaml --event schedule --limit 5`,
   puis `gh run view <id> --log-failed`.
-- **Une suite rouge la nuit mais verte sur sa PR** : la sélection l'a sautée.
+- **Une suite rouge au run planifié mais verte sur sa PR** : la sélection l'a sautée.
   Corriger la suite, puis apprendre la dépendance manquée à
   `select_tests.py` (et un cas à `test_select_tests.py`).
 - **Matrice complète sur une PR** : poser le label `full-tests`, ou

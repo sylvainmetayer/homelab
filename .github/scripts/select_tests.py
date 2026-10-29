@@ -20,7 +20,7 @@ What a suite depends on is read from the tree, not listed by hand:
   `${path.module}`/`${path.root}` (file(), fileset(), templatefile()), an
   interpolation standing for one path segment.
 A file nothing classifies selects everything: a missed test costs more than a
-full run. The nightly full run (schedule) catches what this misses.
+full run. The weekly full run (schedule) catches what this misses.
 """
 import functools
 import json

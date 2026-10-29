@@ -16,7 +16,7 @@ name: Trivy
 # Les CRITICAL corrigeables, et elles seules, partent aussi sur ntfy (job
 # notify, topic github, .github/scripts/trivy_critical.py) : une ligne par
 # CVE, par image, avec la version qui la corrige. Aucune : aucun message.
-# Le lundi à 05:00 UTC, après les tests de la nuit (03:30) et avant la PR
+# Le lundi à 05:00 UTC, après les tests de la semaine (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
 # ce que corrigent ses montées de version.
 on:

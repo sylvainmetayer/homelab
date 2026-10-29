@@ -2,18 +2,19 @@ name: Tests
 
 # Sur une PR, seuls les scénarios Molecule et les modules Tofu qu'atteignent
 # les fichiers modifiés tournent (.github/scripts/select_tests.py). La matrice
-# complète tourne chaque nuit sur main, à la main (workflow_dispatch), et sur
-# une PR qui porte le label full-tests. Plus de run sur push : la nuit
-# rattrape ce qu'une sélection aurait manqué.
+# complète tourne chaque semaine sur main (le lundi à 03:30 UTC, avant Trivy
+# et la PR hebdomadaire de Renovate), à la main (workflow_dispatch), et sur
+# une PR qui porte le label full-tests. Plus de run sur push : le run de la
+# semaine rattrape ce qu'une sélection aurait manqué.
 on:
   pull_request:
     # labeled : poser full-tests relance la PR en matrice complète.
     types: [opened, synchronize, reopened, labeled]
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "30 3 * * 1"
   workflow_dispatch:
 
-# Un nouveau push sur une PR annule le run qu'il rend caduc ; la nuit et les
+# Un nouveau push sur une PR annule le run qu'il rend caduc ; le run planifié et les
 # lancements à la main vont jusqu'au bout.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -110,7 +111,7 @@ jobs:
   # Actions ; chaque job Molecule la recharge de ce cache au lieu de la
   # reconstruire. La portée suit le Dockerfile (il ne copie rien du contexte) :
   # une image changée repart d'un cache neuf. Les entrées écrites depuis main
-  # (la nuit) servent à toutes les PR, celles d'une PR à elle seule.
+  # (le run planifié) servent à toutes les PR, celles d'une PR à elle seule.
   image:
     name: Molecule image
     needs: discover
@@ -140,7 +141,7 @@ jobs:
           context: ansible/molecule/_shared
           tags: homelab-molecule:debian13
           outputs: type=cacheonly
-          # La nuit repart de zéro (paquets apt non épinglés) et rafraîchit
+          # Le run planifié repart de zéro (paquets apt non épinglés) et rafraîchit
           # le cache : sinon la CI testerait pour toujours la première image
           # construite pour ce Dockerfile.
           no-cache: ${{ github.event_name == 'schedule' }}
