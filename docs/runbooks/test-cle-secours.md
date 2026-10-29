@@ -44,7 +44,9 @@ Deux contrôles :
    `ÉCHEC` : la clé publique (`age-keygen -y`) est celle de la ligne
    `# secours` de `.sops.yaml` ; chaque fichier SOPS se déchiffre avec cette
    clé seule (environnement vide, `HOME` temporaire vide, sortie jetée) ; la
-   contre-épreuve (`SOPS_AGE_KEY_FILE=/dev/null`) échoue. Tout `ok` : il
+   contre-épreuve (`SOPS_AGE_KEY_FILE=/dev/null`) échoue sur « Failed to
+   get the data key » (un autre échec ne prouve pas l'isolement). Un fichier
+   de clé à plusieurs identités est refusé. Tout `ok` : il
    met `dernier_test` (en tête de ce fichier) à la date du jour. La clé
    n'est passée que par son chemin à `age-keygen` et à `sops`, jamais
    copiée ni affichée.
