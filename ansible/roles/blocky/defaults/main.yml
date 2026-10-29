@@ -109,7 +109,7 @@ blocky_lists_refresh_period: 24h
 # Uptime Kuma (PikaPods) ne joint pas le LAN : chaque hôte interroge son
 # Blocky toutes les 5 minutes et pousse up, ou down avec la raison, au
 # moniteur « DNS <hôte> » (tofu/pangolin_config, cron_dns.tf), dont les
-# alertes partent par e-mail et ntfy. URL push : sortie uptime_cron_dns_*_url,
+# alertes partent sur Telegram et ntfy. URL push : sortie uptime_cron_dns_*_url,
 # lue par pi.yml / lxc.yml ; vide, la vérification tourne sans rien pousser.
 blocky_check_push_url: ""
 blocky_check_schedule: "*:0/5"

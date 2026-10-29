@@ -15,6 +15,12 @@
 # ntfy rides on Pangolin (ntfy.sylvain.cloud), Telegram does not, so an outage
 # of Pangolin itself still reaches the phone. Only the SSH login monitors
 # (ssh_login_monitors.tf) keep Telegram alone.
+#
+# No channel is the default any more: e-mail was (is_default = true), so a
+# monitor made by hand in the UI (the professional ones) may list it, and
+# loses its only alert when the apply deletes it. Before that apply, give each
+# hand-made monitor Telegram or ntfy in the UI; one made afterwards gets no
+# channel unless picked.
 # ---------------------------------------------------------------------------
 locals {
   alert_notification_ids = [

@@ -4,8 +4,8 @@
 #
 # Qui envoie quoi (inventaire du 2026-10-28, API OVH et dig) :
 # - sylvainmetayer.fr : la boîte Infomaniak, et tout ce que les hôtes et les
-#   applis envoient (pangolin_smtp_user : msmtp, Pangolin, Uptime Kuma,
-#   karakeep, dawarich, wishlist…). DKIM signé par Infomaniak (sélecteur
+#   applis envoient (pangolin_smtp_user : msmtp, Pangolin, karakeep,
+#   dawarich, wishlist…). DKIM signé par Infomaniak (sélecteur
 #   20230615, posé hors Tofu par Infomaniak). DMARC à p=none le temps de lire
 #   les rapports.
 # - sylvain.dev, metayer.dev : SimpleLogin (MX, DKIM dkim/dkim02/dkim03 en

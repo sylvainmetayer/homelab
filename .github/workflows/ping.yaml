@@ -34,7 +34,7 @@ jobs:
             --network host \
             --cap-add=NET_ADMIN \
             --device /dev/net/tun:/dev/net/tun \
-            -e PANGOLIN_ENDPOINT="$PANGOLIN_ENDPOINT" \
+            -e PANGOLIN_ENDPOINT \
             -e OLM_ID \
             -e OLM_SECRET \
             -e OVERRIDE_DNS=true \
