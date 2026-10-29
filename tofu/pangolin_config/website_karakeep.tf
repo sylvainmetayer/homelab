@@ -58,10 +58,8 @@ output "karakeep_client_access_tokens" {
 # SSO wall. Each path is one the
 # page /public/lists/<listId> actually requests, read off the Karakeep v0.33.2
 # sources (apps/web/app/public, components/public/lists, packages/api); a
-# Renovate bump of the image waits for an approval of the
-# relecture-chemins-publics environment (path_bypass_images.json,
-# .github/workflows/path-bypass-review.yaml), so that they are read again
-# first. Karakeep's own authorisation still applies behind
+# Renovate bump of the image is never automerged (path_bypass_images.json,
+# last rule of renovate.json): they are read again before the manual merge. Karakeep's own authorisation still applies behind
 # every one of them, so a list that is not public answers 404.
 #
 # Deliberately not opened: /api/auth/session (next-auth refetches it when the

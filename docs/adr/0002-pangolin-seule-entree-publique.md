@@ -18,8 +18,9 @@ code plutôt que cliquées.
   publique, plus un pays de voyage à date de fin (`travel_countries`).
 - **Chemins ouverts sans SSO** (priorités 2 à 9, gardés par le secret de
   l'appli), relus sur la version d'image de `path_bypass_images.json` : à
-  chaque montée, `path-bypass-review.yaml` attend une approbation humaine
-  (environnement `relecture-chemins-publics`). Priorité 1 : DROP d'antislash.
+  chaque montée, la PR de Renovate attend un merge à la main, après relecture
+  des sources listées dans `reread` (le 2026-10-29, cette note de PR remplace
+  l'environnement `relecture-chemins-publics`). Priorité 1 : DROP d'antislash.
 
 ## Alternatives écartées
 

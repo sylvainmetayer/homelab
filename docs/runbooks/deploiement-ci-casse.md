@@ -124,9 +124,9 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
   de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
   `-bookworm` sur la 8.2).
-- Une PR qui touche `path_bypass_images.json` attend une approbation
-  (`relecture-chemins-publics`) : relire les chemins publics listés avant
-  d'approuver.
+- Une PR qui touche `path_bypass_images.json` ne fusionne jamais seule :
+  relire les notes de version et les sources de `reread` de l'entrée
+  (la note de la PR le rappelle) avant de la merger à la main.
 
 ## Tests hebdomadaires rouges
 

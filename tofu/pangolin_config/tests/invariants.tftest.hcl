@@ -1775,9 +1775,9 @@ run "beszel_remote_agents_use_their_own_access_token" {
 # sous un préfixe ouvert (ou un partage déplacé) changerait en silence ce qui
 # répond au monde entier sans SSO. path_bypass_images.json note cette version.
 # Renovate l'y monte en même temps que le compose (customManagers de
-# renovate.json), et .github/workflows/path-bypass-review.yaml retient alors
-# la PR jusqu'à l'approbation de l'environnement relecture-chemins-publics :
-# la relecture se valide d'un clic, sans commit.
+# renovate.json). La PR ne fusionne jamais seule (dernière règle de
+# renovate.json) : sa note demande de relire les sources de `reread` avant le
+# merge, fait à la main, sans commit de plus.
 #
 # Ce run garantit que le fichier dit vrai. Le tag seul est comparé :
 # l'épinglage du digest ne compte pas.
@@ -1799,7 +1799,7 @@ run "path_bypasses_follow_their_image" {
         ))
       )
     ])
-    error_message = "Une image de path_bypass_images.json n'est pas à la version notée dans son compose : monter les deux ensemble (Renovate le fait), la relecture passe par l'environnement relecture-chemins-publics."
+    error_message = "Une image de path_bypass_images.json n'est pas à la version notée dans son compose : monter les deux ensemble (Renovate le fait), la relecture des sources de reread précède le merge."
   }
 
   # Toute ressource ouverte par chemin est gardée, ou écartée ici avec sa

@@ -118,8 +118,9 @@ What is specific to one app stays in its file: path rules
 path rules on a third-party image also gets an entry (keyed by its Pangolin
 name) in `tofu/pangolin_config/path_bypass_images.json`: image and version as
 written in the compose, the sources the paths were read off and the releases
-URL. Renovate keeps that version in step with the compose, and
-`path-bypass-review.yaml` holds each bump for an approval in the GitHub UI.
+URL. Renovate keeps that version in step with the compose and never
+automerges such a bump: its PR note asks the reviewer to re-read the `reread`
+sources before merging by hand.
 
 The `uptime_backup_<service>_url` output is what `ansible/docker.yml` (or
 `pangolin.yaml`/`pi.yml`) reads back to populate

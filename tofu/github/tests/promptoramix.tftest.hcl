@@ -5,20 +5,12 @@
 # `tofu test` heurterait, et terraform_data.planning_equipes_immutable_releases
 # porte un provisioner local-exec.
 
-# data.github_user.owner (environments.tf) : un id numérique, comme celui que
-# reviewers.users attend.
 # Passphrase factice du chiffrement du state (encryption.tf).
 variables {
   state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
 }
 
-mock_provider "github" {
-  mock_data "github_user" {
-    defaults = {
-      id = "8873695"
-    }
-  }
-}
+mock_provider "github" {}
 mock_provider "tls" {}
 mock_provider "local" {}
 mock_provider "external" {}
