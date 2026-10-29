@@ -308,6 +308,16 @@ publique refuse le hub.
 `pangolin_crowdsec_bouncer_key` : voir [crowdsec.md](crowdsec.md)
 (« Rotation de la clé du bouncer »).
 
+### Accès de secours WireGuard
+
+`wireguard_rescue_server_private_key` et `wireguard_rescue_peer_keys` (clé
+privée et `preshared_key` de chaque pair) : procédure dans
+[acces-de-secours.md](acces-de-secours.md#ajouter-ou-remplacer-un-pair).
+Tout régénérer d'un coup (serveur et pairs), reporter les clés publiques des
+pairs dans `host_vars/newt-lxc`, `lxc.yml --tags wireguard_rescue`, puis
+réimporter les deux configurations (`wireguard-rescue-peers.yml`) : une
+clé serveur changée invalide toutes les configurations importées.
+
 ## Mots de passe de base (sur incident)
 
 Pas d'échéance : `kind: database`, la date sert de mémoire. La procédure

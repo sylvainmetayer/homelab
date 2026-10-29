@@ -209,6 +209,12 @@ jobs:
           load: true
           cache-from: type=gha,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
 
+      # Comme pve.yml pour le LXC newt : le conteneur, sans /lib/modules de
+      # l'hôte, ne charge pas lui-même le module wireguard ni ceux du NAT.
+      - name: Load the host kernel modules of the rescue WireGuard
+        if: matrix.scenario == 'wireguard_rescue'
+        run: sudo modprobe -a wireguard nft_chain_nat nft_masq nft_ct
+
       - name: Run molecule test
         working-directory: ansible
         env:
@@ -216,6 +222,13 @@ jobs:
           ANSIBLE_FORCE_COLOR: "1"
           SCENARIO: ${{ matrix.scenario }}
         run: molecule test --scenario-name "$SCENARIO"
+
+      # Le conteneur privilégié n'est pas confiné : les profils AppArmor de
+      # l'hôte (wg-quick, nft) s'appliquent à ses binaires, et leurs refus ne
+      # se lisent que dans le noyau du runner.
+      - name: Show the AppArmor denials of the runner
+        if: failure() && matrix.scenario == 'wireguard_rescue'
+        run: sudo dmesg | grep 'apparmor="DENIED"' | tail -40 || true
 
   tofu:
     name: OpenTofu test (${{ matrix.module }})

@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le serveur WireGuard de l'accès de secours avec les variables du LXC newt,
+# comme lxc.yml, et des clés factices. Le conteneur est privilégié : le
+# module wireguard du noyau de l'hôte se charge à la demande, comme celui de
+# Proxmox pour le vrai LXC. Converge activé ; side_effect coupe l'accès,
+# vérifie qu'il ne reste rien, puis le réactive ; verify regarde l'état
+# activé.
+scenario:
+  name: wireguard_rescue

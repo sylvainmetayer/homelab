@@ -1,0 +1,218 @@
+---
+# WireGuard du noyau, pas wireguard-go ni boringtun : dans un LXC non
+# privilégié, l'espace utilisateur demanderait /dev/net/tun, un passage de
+# périphérique que seul root@pam pose sur le conteneur (pas le jeton de
+# tofu/proxmox). Le module noyau, lui, est celui de l'hôte : WireGuard
+# accepte d'être configuré depuis l'espace réseau du conteneur
+# (CAP_NET_ADMIN de son espace utilisateur suffit), il faut seulement qu'il
+# soit chargé sur Proxmox, ce que fait pve.yml (tag wireguard), comme les
+# modules nftables du NAT.
+- name: Check the rescue access settings
+  when: wireguard_rescue_enabled
+  vars:
+    wireguard_rescue_names: "{{ wireguard_rescue_peers | map(attribute='name') | list }}"
+    wireguard_rescue_addresses: "{{ wireguard_rescue_peers | map(attribute='address') | list }}"
+  ansible.builtin.assert:
+    that:
+      - wireguard_rescue_interface | length < 16
+      - wireguard_rescue_port | int != 51820
+      - wireguard_rescue_server_private_key | length == 44
+      - wireguard_rescue_peers | length > 0
+      - wireguard_rescue_names | unique | length == wireguard_rescue_names | length
+      - wireguard_rescue_addresses | unique | length == wireguard_rescue_addresses | length
+      - wireguard_rescue_peers | rejectattr('public_key', 'match', '^[A-Za-z0-9+/]{43}=$') | list | length == 0
+      - wireguard_rescue_addresses | reject('match', '^([0-9]{1,3}\\.){3}[0-9]{1,3}$') | list | length == 0
+      - wireguard_rescue_address.split('/')[0] not in wireguard_rescue_addresses
+      - wireguard_rescue_names | difference(wireguard_rescue_peer_keys.keys() | list) | length == 0
+      - wireguard_rescue_names | map('extract', wireguard_rescue_peer_keys, 'preshared_key') | map('length') | reject('eq', 44) | list | length == 0
+    fail_msg: >-
+      Accès de secours : clé privée du serveur (wireguard_rescue_server_private_key)
+      ou preshared_key d'un pair (wireguard_rescue_peer_keys) absente de
+      ansible/secrets.sops.yaml, ou pair de host_vars/newt-lxc invalide (nom ou
+      adresse en double, adresse du serveur, clé publique mal formée).
+    quiet: true
+  no_log: true
+
+# Sans recommandations : wireguard-tools tirerait aussi les en-têtes et DKMS,
+# inutiles (le module est celui de l'hôte) et impossibles à compiler ici.
+- name: Install the WireGuard tools, nftables and curl
+  become: true
+  ansible.builtin.apt:
+    name:
+      - wireguard-tools
+      - nftables
+      # sysctl, pour les PostUp/PostDown de wg-quick.
+      - procps
+      - curl
+    state: present
+    install_recommends: false
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure the rescue access
+  when: wireguard_rescue_enabled
+  block:
+    - name: Create the WireGuard configuration directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    # Contrôlé avant d'être posé : une règle refusée par nft ferait échouer
+    # wg-quick au démarrage, et l'accès de secours manquerait le jour venu.
+    # Sans secret : 0644 (dans /etc/wireguard, 0700), et son diff reste
+    # lisible dans un --check --diff.
+    - name: Write the nftables rules of the tunnel
+      become: true
+      notify: Restart wireguard_rescue
+      ansible.builtin.template:
+        src: wg-rescue.nft.j2
+        dest: "/etc/wireguard/{{ wireguard_rescue_interface }}.nft"
+        owner: root
+        group: root
+        mode: "0644"
+        validate: nft -c -f %s
+
+    - name: Write the WireGuard server configuration
+      become: true
+      diff: false
+      notify: Reload wireguard_rescue
+      ansible.builtin.template:
+        src: wg-rescue.conf.j2
+        dest: "/etc/wireguard/{{ wireguard_rescue_interface }}.conf"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Create the drop-in directory of wg-quick@{{ wireguard_rescue_interface }}
+      become: true
+      ansible.builtin.file:
+        path: "/etc/systemd/system/wg-quick@{{ wireguard_rescue_interface }}.service.d"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Tie IPv4 forwarding to the WireGuard interface
+      become: true
+      notify: Restart wireguard_rescue
+      ansible.builtin.template:
+        src: forwarding.conf.j2
+        dest: "/etc/systemd/system/wg-quick@{{ wireguard_rescue_interface }}.service.d/forwarding.conf"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Start and enable the WireGuard interface
+      block:
+        - name: Start and enable wg-quick@{{ wireguard_rescue_interface }}
+          become: true
+          ansible.builtin.systemd:
+            name: "wg-quick@{{ wireguard_rescue_interface }}"
+            state: started
+            enabled: true
+            daemon_reload: true
+      rescue:
+        - name: Read the journal of the failed wg-quick@{{ wireguard_rescue_interface }}
+          become: true
+          ansible.builtin.command: journalctl --unit wg-quick@{{ wireguard_rescue_interface }} -n 20 --no-pager --output cat
+          register: wireguard_rescue_journal
+          changed_when: false
+          failed_when: false
+
+        - name: Explain why the WireGuard interface does not start
+          ansible.builtin.fail:
+            msg: >-
+              wg-quick@{{ wireguard_rescue_interface }} ne démarre pas :
+              {{ wireguard_rescue_journal.stdout_lines | default([]) | join(' / ') }}. « RTNETLINK answers:
+              Operation not supported » : le module wireguard n'est pas chargé
+              sur l'hôte Proxmox, lancer ansible-playbook pve.yml --tags
+              wireguard. Une erreur nft : modules nftables du NAT, même
+              commande.
+
+    - name: Write the push URL of the rescue access check
+      when: wireguard_rescue_healthcheck_url | length > 0
+      become: true
+      diff: false
+      ansible.builtin.copy:
+        dest: /etc/wireguard/wireguard-rescue-check.env
+        content: |
+          WIREGUARD_RESCUE_PUSH_URL="{{ wireguard_rescue_healthcheck_url }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Install the rescue access check
+      when: wireguard_rescue_healthcheck_url | length > 0
+      become: true
+      loop:
+        - { src: wireguard-rescue-check.sh.j2, dest: /usr/local/sbin/wireguard-rescue-check, mode: "0700" }
+        - { src: wireguard-rescue-check.service.j2, dest: /etc/systemd/system/wireguard-rescue-check.service, mode: "0644" }
+        - { src: wireguard-rescue-check.timer.j2, dest: /etc/systemd/system/wireguard-rescue-check.timer, mode: "0644" }
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+
+    - name: Enable the daily rescue access check
+      when: wireguard_rescue_healthcheck_url | length > 0
+      become: true
+      ansible.builtin.systemd:
+        name: wireguard-rescue-check.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Warn that the rescue access is not monitored
+      when: wireguard_rescue_healthcheck_url | length == 0
+      ansible.builtin.debug:
+        msg: >-
+          wireguard_rescue_healthcheck_url vide (sortie
+          uptime_cron_wireguard_rescue_url de tofu/pangolin_config) : pas de
+          vérification quotidienne de l'accès de secours.
+
+# Coupé : plus d'interface, plus de règles (PostDown), plus de clé privée
+# sur le disque. Les clés restent dans SOPS, la redirection de la Bbox ne
+# mène plus à rien.
+- name: Disable the rescue access
+  when: not wireguard_rescue_enabled
+  block:
+    - name: Stop and disable wg-quick@{{ wireguard_rescue_interface }}
+      become: true
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_rescue_interface }}"
+        state: stopped
+        enabled: false
+
+    - name: Stop and disable the rescue access check
+      become: true
+      failed_when: false
+      ansible.builtin.systemd:
+        name: wireguard-rescue-check.timer
+        state: stopped
+        enabled: false
+
+    - name: Remove the configuration, the rules and the check
+      become: true
+      loop:
+        - "/etc/wireguard/{{ wireguard_rescue_interface }}.conf"
+        - "/etc/wireguard/{{ wireguard_rescue_interface }}.nft"
+        - /etc/wireguard/wireguard-rescue-check.env
+        - /usr/local/sbin/wireguard-rescue-check
+        - /etc/systemd/system/wireguard-rescue-check.service
+        - /etc/systemd/system/wireguard-rescue-check.timer
+        # Après l'arrêt : son ExecStopPost a remis ip_forward à 0.
+        - "/etc/systemd/system/wg-quick@{{ wireguard_rescue_interface }}.service.d"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+
+    - name: Forget the removed check units
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: true

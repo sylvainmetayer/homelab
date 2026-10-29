@@ -1,0 +1,38 @@
+#!/bin/sh
+# Vérification quotidienne de l'accès de secours (rôle wireguard_rescue),
+# poussée au moniteur « Accès de secours » d'Uptime Kuma. Elle ne prouve que
+# le côté LXC (interface, port, règles, forwarding) : la redirection de la
+# Bbox et l'IP publique se vérifient à la main (runbook acces-de-secours.md).
+# L'URL push (jeton du moniteur) vient de l'EnvironmentFile, 0600 root, et
+# passe à curl par stdin (-K -) : jamais sur une ligne de commande, que ps
+# montrerait.
+set -u
+
+iface={{ wireguard_rescue_interface }}
+reason=""
+if ! port=$(wg show "$iface" listen-port 2>/dev/null); then
+    reason="interface $iface absente"
+elif [ "$port" != "{{ wireguard_rescue_port }}" ]; then
+    reason="$iface écoute sur $port, pas {{ wireguard_rescue_port }}"
+elif ! nft list table inet {{ wireguard_rescue_nft_table }} >/dev/null 2>&1; then
+    reason="table nftables {{ wireguard_rescue_nft_table }} absente : forwarding sans filtre"
+elif [ "$(cat /proc/sys/net/ipv4/ip_forward)" != 1 ]; then
+    reason="net.ipv4.ip_forward à 0 : le LAN est injoignable par le tunnel"
+fi
+
+if [ -z "$reason" ]; then
+    status=up
+    msg="$iface sur $port/udp, $(wg show "$iface" peers | wc -l) pairs"
+else
+    status=down
+    msg="$reason"
+fi
+
+printf 'url = "%s"\n' "$WIREGUARD_RESCUE_PUSH_URL" |
+    curl -fsS -G --max-time 30 -o /dev/null -K - \
+        --data-urlencode "status=$status" \
+        --data-urlencode "msg=$msg" ||
+    echo "échec du push au moniteur : $status, $msg" >&2
+
+echo "$status : $msg"
+[ "$status" = up ]

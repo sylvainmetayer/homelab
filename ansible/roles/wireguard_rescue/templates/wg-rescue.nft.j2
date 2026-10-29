@@ -1,0 +1,38 @@
+#!/usr/sbin/nft -f
+# Accès de secours (rôle wireguard_rescue) : chargé par le PostUp de
+# wg-quick@{{ wireguard_rescue_interface }}, retiré par son PostDown. Table à
+# part, jamais de `flush ruleset` : rien d'autre dans ce conteneur n'en pose
+# (nftables.service reste désactivé, son /etc/nftables.conf viderait tout).
+# Déclarer puis supprimer : le rechargement remplace la table en une seule
+# transaction, qu'elle existe déjà ou non.
+# Adresse du serveur dans le tunnel : {{ wireguard_rescue_address }}. Notée
+# ici pour qu'un changement redémarre l'interface (handler Restart) : le
+# Reload du .conf (wg syncconf) ne relit ni Address ni les PostUp.
+table inet {{ wireguard_rescue_nft_table }}
+delete table inet {{ wireguard_rescue_nft_table }}
+
+table inet {{ wireguard_rescue_nft_table }} {
+	# Le LXC lui-même, depuis le tunnel : SSH et ping seulement.
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname "{{ wireguard_rescue_interface }}" ct state established,related accept
+		iifname "{{ wireguard_rescue_interface }}" tcp dport 22 accept
+		iifname "{{ wireguard_rescue_interface }}" icmp type echo-request accept
+		iifname "{{ wireguard_rescue_interface }}" drop
+	}
+
+	# Le LXC ne route rien d'autre : tout ce qui n'est pas pair -> LAN (et
+	# ses réponses) est jeté, Internet, IPv6 et pair à pair compris.
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		ct state established,related accept
+		iifname "{{ wireguard_rescue_interface }}" oifname "{{ wireguard_rescue_lan_interface }}" ip saddr {{ wireguard_rescue_tunnel_cidr }} ip daddr {{ wireguard_rescue_lan_cidr }} accept
+	}
+
+	# Les hôtes du LAN répondent à l'IP du LXC : aucune route vers le tunnel
+	# à poser sur la Bbox.
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname "{{ wireguard_rescue_lan_interface }}" ip saddr {{ wireguard_rescue_tunnel_cidr }} masquerade
+	}
+}

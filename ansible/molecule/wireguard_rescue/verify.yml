@@ -1,0 +1,213 @@
+---
+# État activé (converge, ou réactivation par side_effect.yml). Clés comparées
+# aux variables factices de fake_secrets.yml, jamais à des littéraux.
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../roles/wireguard_rescue/defaults/main.yml
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/newt-lxc/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  vars:
+    wireguard_rescue_verify_conf: "/etc/wireguard/{{ wireguard_rescue_interface }}.conf"
+    wireguard_rescue_verify_push_dir: /tmp/molecule-wireguard-rescue-push
+  tasks:
+    - name: Stat the configuration, the rules and the check
+      become: true
+      loop:
+        - { path: /etc/wireguard, mode: "0700" }
+        - { path: "{{ wireguard_rescue_verify_conf }}", mode: "0600" }
+        - { path: "/etc/wireguard/{{ wireguard_rescue_interface }}.nft", mode: "0644" }
+        - { path: /etc/wireguard/wireguard-rescue-check.env, mode: "0600" }
+        - { path: /usr/local/sbin/wireguard-rescue-check, mode: "0700" }
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      register: wireguard_rescue_verify_files
+
+    # La clé privée du serveur, les preshared_key et l'URL push : root seul.
+    - name: Assert the files are root-only with their mode
+      loop: "{{ wireguard_rescue_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.gr_name == 'root'
+          - item.stat.mode == item.item.mode
+        fail_msg: "{{ item.item.path }} : {{ item.stat.mode | default('absent') }}, attendu {{ item.item.mode }} root"
+
+    - name: Read the server configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ wireguard_rescue_verify_conf }}"
+      register: wireguard_rescue_verify_conf_content
+
+    - name: Assert the server configuration holds its key, its port and every peer
+      vars:
+        wireguard_rescue_verify_text: "{{ wireguard_rescue_verify_conf_content.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - ('PrivateKey = ' ~ wireguard_rescue_server_private_key) in wireguard_rescue_verify_text
+          - ('ListenPort = ' ~ wireguard_rescue_port) in wireguard_rescue_verify_text
+          - wireguard_rescue_verify_text | regex_findall('(?m)^\[Peer\]$') | length == wireguard_rescue_peers | length
+          - wireguard_rescue_peers | length == 2
+        quiet: true
+
+    - name: Assert each peer has its key, its pre-shared key and a single /32, never its private key
+      vars:
+        wireguard_rescue_verify_text: "{{ wireguard_rescue_verify_conf_content.content | b64decode }}"
+      loop: "{{ wireguard_rescue_peers }}"
+      loop_control:
+        label: "{{ item.name }}"
+      ansible.builtin.assert:
+        that:
+          - ('PublicKey = ' ~ item.public_key) in wireguard_rescue_verify_text
+          - ('PresharedKey = ' ~ wireguard_rescue_peer_keys[item.name].preshared_key) in wireguard_rescue_verify_text
+          - ('AllowedIPs = ' ~ item.address ~ '/32') in wireguard_rescue_verify_text
+          - wireguard_rescue_peer_keys[item.name].private_key not in wireguard_rescue_verify_text
+        quiet: true
+
+    - name: Read the state of wg-quick and of the check timer
+      loop:
+        - "wg-quick@{{ wireguard_rescue_interface }}.service"
+        - wireguard-rescue-check.timer
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: wireguard_rescue_verify_units
+
+    - name: Assert both are enabled and running
+      loop: "{{ wireguard_rescue_verify_units.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.status.UnitFileState == 'enabled'
+          - item.status.ActiveState == 'active'
+
+    - name: Read the live interface
+      become: true
+      loop:
+        - [wg, show, "{{ wireguard_rescue_interface }}", listen-port]
+        - [wg, show, "{{ wireguard_rescue_interface }}", allowed-ips]
+        - [ip, -4, -o, addr, show, dev, "{{ wireguard_rescue_interface }}"]
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      register: wireguard_rescue_verify_live
+      changed_when: false
+
+    - name: Assert the kernel interface listens on the port with the tunnel address and the peers
+      vars:
+        # « <clé publique>\t<adresse>/32 » par pair.
+        wireguard_rescue_verify_allowed: "{{ wireguard_rescue_verify_live.results[1].stdout_lines | map('split') | map('join', ' ') | list }}"
+        wireguard_rescue_verify_expected: >-
+          {{ wireguard_rescue_peers | map(attribute='public_key')
+             | zip(wireguard_rescue_peers | map(attribute='address'))
+             | map('join', ' ') | map('regex_replace', '$', '/32') | list }}
+      ansible.builtin.assert:
+        that:
+          - wireguard_rescue_verify_live.results[0].stdout | trim == wireguard_rescue_port | string
+          - ('inet ' ~ wireguard_rescue_address) in wireguard_rescue_verify_live.results[2].stdout
+          - wireguard_rescue_verify_allowed | sort == wireguard_rescue_verify_expected | sort
+        fail_msg: "{{ wireguard_rescue_verify_allowed }}"
+
+    - name: Read net.ipv4.ip_forward
+      ansible.builtin.slurp:
+        src: /proc/sys/net/ipv4/ip_forward
+      register: wireguard_rescue_verify_forward
+
+    - name: Read the loaded nftables table
+      become: true
+      ansible.builtin.command: nft list table inet {{ wireguard_rescue_nft_table }}
+      register: wireguard_rescue_verify_table
+      changed_when: false
+
+    # Ce qui est chargé dans le noyau, pas le fichier : seul le LAN est
+    # joignable depuis le tunnel, tout autre forward est jeté, et le LAN voit
+    # l'IP du LXC (masquerade).
+    - name: Assert forwarding is on and filtered to the LAN only
+      vars:
+        wireguard_rescue_verify_rules: "{{ wireguard_rescue_verify_table.stdout }}"
+        wireguard_rescue_verify_if: '"{{ wireguard_rescue_interface }}"'
+        wireguard_rescue_verify_lan_if: '"{{ wireguard_rescue_lan_interface }}"'
+      ansible.builtin.assert:
+        that:
+          - wireguard_rescue_verify_forward.content | b64decode | trim == '1'
+          - "'type filter hook forward priority filter; policy drop;' in wireguard_rescue_verify_rules"
+          - >-
+            ('iifname ' ~ wireguard_rescue_verify_if ~ ' oifname ' ~ wireguard_rescue_verify_lan_if
+            ~ ' ip saddr ' ~ wireguard_rescue_tunnel_cidr ~ ' ip daddr ' ~ wireguard_rescue_lan_cidr ~ ' accept')
+            in wireguard_rescue_verify_rules
+          - ('oifname ' ~ wireguard_rescue_verify_lan_if ~ ' ip saddr ' ~ wireguard_rescue_tunnel_cidr ~ ' masquerade') in wireguard_rescue_verify_rules
+          - ('iifname ' ~ wireguard_rescue_verify_if ~ ' drop') in wireguard_rescue_verify_rules
+        fail_msg: "{{ wireguard_rescue_verify_rules }}"
+
+    # Faux Uptime Kuma : http.server rend 200 sur le chemin du moniteur et
+    # journalise chaque requête, query string comprise.
+    - name: Create the fake Uptime Kuma push path
+      ansible.builtin.file:
+        path: "{{ wireguard_rescue_verify_push_dir }}/api/push"
+        state: directory
+        mode: "0700"
+
+    - name: Create the fake Uptime Kuma push file
+      ansible.builtin.copy:
+        dest: "{{ wireguard_rescue_verify_push_dir }}/api/push/molecule-wireguard-rescue"
+        content: "{\"ok\":true}\n"
+        mode: "0600"
+
+    - name: Start the fake Uptime Kuma
+      become: true
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-push
+          - --collect
+          - python3
+          - -I
+          - -m
+          - http.server
+          - "18080"
+          - --bind
+          - 127.0.0.1
+          - --directory
+          - "{{ wireguard_rescue_verify_push_dir }}"
+      changed_when: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18080
+        timeout: 30
+
+    # systemctl plutôt que le module : son code de retour est ce qui est vérifié.
+    - name: Run the rescue access check
+      become: true
+      ansible.builtin.command: systemctl start wireguard-rescue-check.service # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: Read what the fake Uptime Kuma received
+      become: true
+      ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-wireguard-rescue"
+      register: wireguard_rescue_verify_pushes
+      changed_when: false
+      until: wireguard_rescue_verify_pushes.stdout_lines | length > 0
+      retries: 10
+      delay: 1
+
+    - name: Stop the fake Uptime Kuma
+      become: true
+      ansible.builtin.systemd:
+        name: molecule-push.service
+        state: stopped
+
+    - name: Assert the check pushed up with the port and the peers
+      vars:
+        wireguard_rescue_verify_push: "{{ wireguard_rescue_verify_pushes.stdout_lines | last | urldecode }}"
+      ansible.builtin.assert:
+        that:
+          - "'status=up&' in wireguard_rescue_verify_push"
+          - (wireguard_rescue_interface ~ ' sur ' ~ wireguard_rescue_port ~ '/udp, 2 pairs') in (wireguard_rescue_verify_push | replace('+', ' '))
+        fail_msg: "{{ wireguard_rescue_verify_push }}"

@@ -1,0 +1,8 @@
+# Accès de secours (rôle wireguard_rescue) : le forwarding IPv4 suit
+# l'interface. Allumé après wg-quick up, donc après le chargement des règles
+# nftables (PostUp) ; éteint après l'arrêt, ou l'échec du démarrage. Ici et pas
+# dans un PostUp : le profil AppArmor wg-quick interdit à sysctl d'écrire
+# ip_forward. Le LXC ne route rien d'autre (Newt est en espace utilisateur).
+[Service]
+ExecStartPost=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=1
+ExecStopPost=/usr/sbin/sysctl -q -w net.ipv4.ip_forward=0

@@ -1,0 +1,22 @@
+# Accès de secours (rôle wireguard_rescue, docs/runbooks/acces-de-secours.md).
+# Géré par Ansible : 0600 root, il porte la clé privée du serveur.
+[Interface]
+Address = {{ wireguard_rescue_address }}
+ListenPort = {{ wireguard_rescue_port }}
+PrivateKey = {{ wireguard_rescue_server_private_key }}
+# Pare-feu ici, forwarding après, dans le drop-in forwarding.conf de l'unité
+# (ExecStartPost) : sans les règles, wg-quick échoue et démonte l'interface,
+# rien n'est jamais routé sans filtre. Le profil AppArmor wg-quick (apparmor
+# 4.1, Ubuntu, Debian) confine nft et sysctl à des sous-profils : nft ne lit
+# rien sous /etc/wireguard (d'où le tube, cat le lit), sysctl n'écrit pas
+# ip_forward (d'où le drop-in, hors de wg-quick).
+PostUp = cat /etc/wireguard/{{ wireguard_rescue_interface }}.nft | nft -f -
+PostDown = nft delete table inet {{ wireguard_rescue_nft_table }}
+{% for peer in wireguard_rescue_peers %}
+
+[Peer]
+# {{ peer.name }}
+PublicKey = {{ peer.public_key }}
+PresharedKey = {{ wireguard_rescue_peer_keys[peer.name].preshared_key }}
+AllowedIPs = {{ peer.address }}/32
+{% endfor %}

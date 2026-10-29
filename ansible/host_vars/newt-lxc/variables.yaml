@@ -23,3 +23,18 @@ security_unattended_reboot_time: "04:45"
 # Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
 # reste non lu dans /var/mail/root.
 security_mta_enabled: true
+
+# Accès de secours sans Pangolin (rôle wireguard_rescue, ADR 0015,
+# docs/runbooks/acces-de-secours.md). Clés privées et preshared_key dans
+# ansible/secrets.sops.yaml (wireguard_rescue_server_private_key,
+# wireguard_rescue_peer_keys). Révoquer un pair : retirer son entrée ici et
+# dans wireguard_rescue_peer_keys, puis lxc.yml --tags wireguard_rescue.
+# Couper vite : wireguard_rescue_enabled: false.
+wireguard_rescue_enabled: true
+wireguard_rescue_peers:
+  - name: telephone
+    address: 10.77.0.2
+    public_key: EoPK4Td1IyFXCj2Du+i+CK2jSRClkHO03H6b/P79yXE=
+  - name: portable
+    address: 10.77.0.3
+    public_key: GxBE7nzsbO+YH1fg8AoJrdngJYybtY1YENtK34dMHD8=

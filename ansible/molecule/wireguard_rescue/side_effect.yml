@@ -1,0 +1,80 @@
+---
+# « Couper vite » (wireguard_rescue_enabled: false, runbook
+# acces-de-secours.md) depuis l'accès converge, actif : plus d'interface, plus
+# de règles, plus de forwarding, plus de clé privée ni de vérification sur le
+# disque. Puis réactivation par le converge, dont verify.yml vérifie l'état.
+# Le set_fact bat le vars_files de host_vars/newt-lxc.
+- name: Disable the rescue access
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/newt-lxc/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    - name: Switch the rescue access off
+      ansible.builtin.set_fact:
+        wireguard_rescue_enabled: false
+  roles:
+    - role: wireguard_rescue
+  post_tasks:
+    - name: Look for the WireGuard interface
+      ansible.builtin.command: ip link show {{ wireguard_rescue_interface }}
+      register: wireguard_rescue_link
+      changed_when: false
+      failed_when: false
+
+    - name: Look for the nftables table
+      become: true
+      ansible.builtin.command: nft list table inet {{ wireguard_rescue_nft_table }}
+      register: wireguard_rescue_table
+      changed_when: false
+      failed_when: false
+
+    - name: Stat what the role must have removed
+      become: true
+      loop:
+        - "/etc/wireguard/{{ wireguard_rescue_interface }}.conf"
+        - "/etc/wireguard/{{ wireguard_rescue_interface }}.nft"
+        - /etc/wireguard/wireguard-rescue-check.env
+        - /usr/local/sbin/wireguard-rescue-check
+        - /etc/systemd/system/wireguard-rescue-check.service
+        - /etc/systemd/system/wireguard-rescue-check.timer
+        - "/etc/systemd/system/wg-quick@{{ wireguard_rescue_interface }}.service.d"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: wireguard_rescue_leftovers
+
+    - name: Read the state of wg-quick
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_rescue_interface }}"
+      register: wireguard_rescue_unit
+
+    - name: Assert nothing of the rescue access is left running or on disk
+      ansible.builtin.assert:
+        that:
+          - wireguard_rescue_link.rc != 0
+          - wireguard_rescue_table.rc != 0
+          - wireguard_rescue_leftovers.results | selectattr('stat.exists') | list | length == 0
+          - wireguard_rescue_unit.status.ActiveState == 'inactive'
+          - wireguard_rescue_unit.status.UnitFileState == 'disabled'
+
+    - name: Read net.ipv4.ip_forward
+      ansible.builtin.slurp:
+        src: /proc/sys/net/ipv4/ip_forward
+      register: wireguard_rescue_forward
+
+    - name: Assert forwarding is off again
+      ansible.builtin.assert:
+        that:
+          - wireguard_rescue_forward.content | b64decode | trim == '0'
+
+    # Un set_fact survit à la play : sans ceci, le converge importé ci-dessous
+    # resterait coupé.
+    - name: Switch the rescue access back on for the next play
+      ansible.builtin.set_fact:
+        wireguard_rescue_enabled: true
+
+- name: Enable the rescue access again
+  ansible.builtin.import_playbook: converge.yml

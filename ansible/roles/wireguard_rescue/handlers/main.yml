@@ -1,0 +1,17 @@
+---
+# Pairs et clés : `wg syncconf` (ExecReload de wg-quick@), sans démonter
+# l'interface, donc sans couper une session ouverte par le tunnel lui-même.
+- name: Reload wireguard_rescue
+  become: true
+  when: wireguard_rescue_enabled
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_rescue_interface }}"
+    state: reloaded
+
+# Règles nftables, adresse : seul un redémarrage relit les PostUp.
+- name: Restart wireguard_rescue
+  become: true
+  when: wireguard_rescue_enabled
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_rescue_interface }}"
+    state: restarted

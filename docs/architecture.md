@@ -28,6 +28,7 @@ flowchart LR
   gerbil == tunnel ==> newt_pi
   gerbil == tunnel ==> newt_flip
   gerbil == tunnel ==> newt_lxc
+  rescue([Téléphone, portable<br/>Pangolin en panne]) -. "WireGuard UDP 47913<br/>redirection de la Bbox" .-> wg_rescue
 
   subgraph home["Maison (réseau local)"]
     subgraph docker_vm["VM docker (Proxmox, id 300)"]
@@ -37,6 +38,7 @@ flowchart LR
       newt_pi[newt] --> immich[immich]
     end
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
+    wg_rescue["wg-rescue (même LXC)<br/>accès de secours, UDP 47913"] -. "LAN seulement,<br/>masquerade" .-> lan
     subgraph nas["NAS Ugreen (192.168.1.137)"]
       newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt, 443 et 8443" --> traefik_nas["nas-proxy (dc@nas_proxy)<br/>media. et nas.sylvain.cloud, privés"]
       relay_nas["nas-proxy-443 (dc@nas_proxy)<br/>443 de l'hôte, réseau hôte"] -- "TCP + PROXY v2, 8444" --> traefik_nas
@@ -66,7 +68,12 @@ flowchart LR
    appli : [acces-mobile.md](acces-mobile.md).
 3. **Gerbil** porte les tunnels WireGuard. Chaque hôte fait tourner un
    **Newt** qui ouvre un tunnel *sortant* vers Pangolin : aucun port entrant
-   n'est ouvert à la maison ni sur flip.
+   n'est ouvert pour les applis, ni à la maison ni sur flip. La seule
+   exception est l'**accès de secours** : un WireGuard sur le LXC newt
+   (UDP 47913, redirigé par la Bbox), qui ne mène qu'au LAN et ne sert que
+   quand Pangolin est en panne
+   ([runbooks/acces-de-secours.md](runbooks/acces-de-secours.md),
+   [ADR 0015](adr/0015-acces-de-secours-wireguard.md)).
 4. Newt joint le conteneur par son nom sur le réseau Docker `newt`. Un
    conteneur qui n'est pas sur ce réseau est injoignable, même s'il tourne.
 5. Si toutes les cibles d'une ressource sont en échec de healthcheck, Pangolin
@@ -130,7 +137,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
 | `docker` | VM Proxmox 300 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) |
-| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security`, `newt_service` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
+| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml` (rôles `security`, `newt_service`, `blocky` et `wireguard_rescue`, identifiants Newt lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) ; l'accès de secours WireGuard (`wg-quick@wg-rescue`, LAN seulement) |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet

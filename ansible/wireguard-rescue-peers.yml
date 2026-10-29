@@ -1,0 +1,133 @@
+---
+# Configurations WireGuard des pairs de l'accès de secours (rôle
+# wireguard_rescue, docs/runbooks/acces-de-secours.md), rendues sur ce poste
+# pour être importées : un fichier <pair>.conf par entrée de
+# wireguard_rescue_peers (host_vars/newt-lxc), 0600 dans un dossier 0700 sous
+# $XDG_RUNTIME_DIR (tmpfs : rien ne survit à la déconnexion). Ne touche aucun
+# hôte.
+#
+#   ansible-playbook wireguard-rescue-peers.yml [-e wireguard_rescue_peer_only=telephone]
+#   qrencode -t ansiutf8 < "$XDG_RUNTIME_DIR/wireguard-rescue/telephone.conf"
+#
+# Le point d'entrée est l'IP publique de la maison (home_ip de
+# ansible/secrets.sops.yaml) ; -e wireguard_rescue_endpoint=<nom ou IP> pour
+# une autre. Les clés publiques sont recalculées depuis les clés privées de
+# SOPS : un écart avec host_vars/newt-lxc (pair régénéré d'un côté seulement)
+# arrête le playbook avant d'écrire quoi que ce soit.
+#
+# Les fichiers sont écrits par `command` + stdin en pipelining, comme
+# pc-nas.yml : ni copy ni template, qui poseraient la clé privée dans
+# ~/.ansible/tmp, sur le disque.
+- name: Render the WireGuard rescue peer configurations on this workstation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - roles/wireguard_rescue/defaults/main.yml
+  vars:
+    ansible_pipelining: true
+    wireguard_rescue_endpoint: "{{ home_ip }}"
+    wireguard_rescue_peer_only: ""
+    wireguard_rescue_peers_dir: "{{ lookup('ansible.builtin.env', 'XDG_RUNTIME_DIR') }}/wireguard-rescue"
+  pre_tasks:
+    - name: Load secrets variable into global namespace
+      no_log: true
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        expressions: evaluate-on-load
+        return_method: vars-only
+
+    # Ce que le serveur sert (host_vars/newt-lxc par-dessus les défauts du
+    # rôle). set_fact : un vars: du play perdrait face au vars_files.
+    - name: Read the peers and the port of the newt LXC
+      ansible.builtin.set_fact:
+        wireguard_rescue_peers: "{{ hostvars['newt-lxc'].wireguard_rescue_peers }}"
+        wireguard_rescue_port: "{{ hostvars['newt-lxc'].wireguard_rescue_port | default(wireguard_rescue_port) }}"
+        wireguard_rescue_lan_cidr: "{{ hostvars['newt-lxc'].wireguard_rescue_lan_cidr | default(wireguard_rescue_lan_cidr) }}"
+  tasks:
+    - name: Refuse to write the peer keys outside a private runtime directory
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'XDG_RUNTIME_DIR') | length > 0
+          - wireguard_rescue_endpoint | length > 0
+          - wireguard_rescue_peer_only == '' or wireguard_rescue_peer_only in (wireguard_rescue_peers | map(attribute='name'))
+        fail_msg: >-
+          XDG_RUNTIME_DIR vide (session sans systemd ?), home_ip absent de
+          ansible/secrets.sops.yaml, ou wireguard_rescue_peer_only ne nomme
+          aucun pair de host_vars/newt-lxc.
+        quiet: true
+
+    # Clés privées en entrée (stdin), clés publiques en sortie : seules
+    # celles-ci sont enregistrées.
+    - name: Derive the public keys from the private keys of SOPS
+      no_log: true
+      changed_when: false
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -I
+          - -c
+          - |
+            import base64, json, sys
+            from cryptography.hazmat.primitives import serialization as s
+            from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+            def pub(private):
+                key = X25519PrivateKey.from_private_bytes(base64.b64decode(private))
+                return base64.b64encode(key.public_key().public_bytes(s.Encoding.Raw, s.PublicFormat.Raw)).decode()
+            keys = json.load(sys.stdin)
+            public = {name: pub(peer["private_key"]) for name, peer in keys["peers"].items()}
+            public["__server__"] = pub(keys["server"])
+            print(json.dumps(public))
+        stdin: "{{ {'peers': wireguard_rescue_peer_keys, 'server': wireguard_rescue_server_private_key} | to_json }}"
+      register: wireguard_rescue_public_keys
+
+    - name: Assert host_vars/newt-lxc holds the public key of every peer private key
+      vars:
+        wireguard_rescue_derived: "{{ wireguard_rescue_public_keys.stdout | from_json }}"
+      loop: "{{ wireguard_rescue_peers }}"
+      loop_control:
+        label: "{{ item.name }}"
+      ansible.builtin.assert:
+        that:
+          - wireguard_rescue_derived[item.name] is defined
+          - wireguard_rescue_derived[item.name] == item.public_key
+        fail_msg: >-
+          {{ item.name }} : sa clé publique de host_vars/newt-lxc ne correspond
+          pas à la clé privée de wireguard_rescue_peer_keys (ou celle-ci
+          manque). Régénérer les deux ensemble (runbook, « Ajouter ou
+          remplacer un pair »).
+        quiet: true
+
+    - name: Create the private folder of the peer configurations
+      ansible.builtin.file:
+        path: "{{ wireguard_rescue_peers_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write the peer configurations
+      no_log: true
+      changed_when: true
+      when: wireguard_rescue_peer_only in ['', wireguard_rescue_peer.name]
+      vars:
+        wireguard_rescue_server_public_key: "{{ (wireguard_rescue_public_keys.stdout | from_json)['__server__'] }}"
+      loop: "{{ wireguard_rescue_peers }}"
+      loop_control:
+        loop_var: wireguard_rescue_peer
+        label: "{{ wireguard_rescue_peer.name }}"
+      ansible.builtin.command:
+        argv:
+          - sh
+          - -c
+          - umask 077 && cat > "$1"
+          - sh
+          - "{{ wireguard_rescue_peers_dir }}/{{ wireguard_rescue_peer.name }}.conf"
+        stdin: "{{ lookup('ansible.builtin.template', 'roles/wireguard_rescue/templates/peer.conf.j2') }}"
+
+    - name: Show how to import them
+      ansible.builtin.debug:
+        msg:
+          - "Configurations dans {{ wireguard_rescue_peers_dir }} (0600)."
+          - "Téléphone : qrencode -t ansiutf8 < {{ wireguard_rescue_peers_dir }}/telephone.conf"
+          - "Portable : nmcli connection import type wireguard file {{ wireguard_rescue_peers_dir }}/portable.conf"
+          - "  puis : nmcli connection modify portable connection.autoconnect no"
+          - "Puis : rm -r {{ wireguard_rescue_peers_dir }}"

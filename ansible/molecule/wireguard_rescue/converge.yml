@@ -1,0 +1,17 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/newt-lxc/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # lxc.yml lit l'URL push dans le state de pangolin_config : ici le faux
+    # Uptime Kuma que lance verify.yml.
+    - name: Load the push URL as lxc.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        wireguard_rescue_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-wireguard-rescue # NOSONAR
+  roles:
+    - role: wireguard_rescue

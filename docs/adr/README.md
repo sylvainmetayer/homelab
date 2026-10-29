@@ -59,3 +59,4 @@ au plus :
 | [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | proposée |
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
+| [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin | proposée |

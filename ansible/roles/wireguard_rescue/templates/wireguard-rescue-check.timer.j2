@@ -1,0 +1,11 @@
+# Une vérification par jour ; le moniteur « Accès de secours » tolère une
+# journée manquée (LXC éteint à l'heure dite), pas deux.
+[Unit]
+Description=Daily check of the WireGuard rescue access
+
+[Timer]
+OnCalendar={{ wireguard_rescue_check_schedule }}
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

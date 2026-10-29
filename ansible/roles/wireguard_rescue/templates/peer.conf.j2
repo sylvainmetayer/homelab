@@ -1,0 +1,15 @@
+# Accès de secours au LAN, pair {{ wireguard_rescue_peer.name }}
+# (docs/runbooks/acces-de-secours.md). Rendu par wireguard-rescue-peers.yml :
+# il porte la clé privée du pair, à importer puis supprimer.
+[Interface]
+PrivateKey = {{ wireguard_rescue_peer_keys[wireguard_rescue_peer.name].private_key }}
+Address = {{ wireguard_rescue_peer.address }}/32
+# Pas de DNS : le tunnel ne mène qu'au LAN, on y vise des IP.
+
+[Peer]
+PublicKey = {{ wireguard_rescue_server_public_key }}
+PresharedKey = {{ wireguard_rescue_peer_keys[wireguard_rescue_peer.name].preshared_key }}
+Endpoint = {{ wireguard_rescue_endpoint }}:{{ wireguard_rescue_port }}
+# Le LAN seulement : Internet reste hors du tunnel (et le serveur le refuse).
+AllowedIPs = {{ wireguard_rescue_lan_cidr }}
+PersistentKeepalive = 25

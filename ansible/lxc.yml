@@ -21,6 +21,7 @@
       ansible.builtin.set_fact:
         newt_service_id: "{{ terraform_outputs.proxmox_lxc_newt_id.value | default('') }}"
         newt_service_secret: "{{ terraform_outputs.proxmox_lxc_newt_secret.value | default('') }}"
+        wireguard_rescue_healthcheck_url: "{{ terraform_outputs.uptime_cron_wireguard_rescue_url.value | default('') }}"
 
     - name: Load the push URL of the Blocky check from Terraform state outputs
       tags: always
@@ -34,6 +35,12 @@
       tags: security,setup
     - role: newt_service
       tags: newt,setup
+    # Accès de secours au LAN quand Pangolin est en panne : WireGuard noyau,
+    # seul port entrant de la maison (redirection UDP de la Bbox). Le module
+    # wireguard est celui de l'hôte : pve.yml --tags wireguard avant le
+    # premier passage. ADR 0015, docs/runbooks/acces-de-secours.md.
+    - role: wireguard_rescue
+      tags: wireguard_rescue
     # Agent de supervision en binaire (pas de Docker ici), vers le hub de la
     # VM docker par le LAN. Il suit aussi newt.service et blocky.service.
     - role: beszel_agent

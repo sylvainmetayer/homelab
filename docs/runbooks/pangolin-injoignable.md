@@ -10,6 +10,9 @@
 
 ## Diagnostic
 
+Hors de la maison, le LAN (VM docker, Pi, Proxmox, NAS) reste joignable par
+l'accès de secours WireGuard : [acces-de-secours.md](acces-de-secours.md).
+
 1. Depuis le poste : DNS et ports.
 
    ```bash

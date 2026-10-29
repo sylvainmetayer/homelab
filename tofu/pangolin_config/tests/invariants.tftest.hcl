@@ -666,6 +666,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_wireguard_rescue
+  values = { push_token = "push-cron-wireguard-rescue" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -2357,6 +2362,12 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     error_message = "uptime_cron_dns_lxc_url (lxc.yml) ne pointe pas sur le moniteur DNS LXC newt."
   }
 
+  # lxc.yml
+  assert {
+    condition     = output.uptime_cron_wireguard_rescue_url == "https://uptime.example.test/api/push/push-cron-wireguard-rescue"
+    error_message = "uptime_cron_wireguard_rescue_url (lxc.yml) ne pointe pas sur le moniteur Accès de secours."
+  }
+
   # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
   # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
   # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
@@ -2393,6 +2404,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
       output.uptime_cron_nas_updates_url,
       output.uptime_cron_dns_pi_url,
       output.uptime_cron_dns_lxc_url,
+      output.uptime_cron_wireguard_rescue_url,
       ])) == length(flatten([
       for f in fileset(path.module, "*.tf") :
       regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
@@ -2941,6 +2953,20 @@ run "monitors_are_filed_and_notify_by_email" {
       && m.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_check_schedule)[0])
     ])
     error_message = "Moniteurs DNS : rangés avec les healthchecks, e-mail et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
+  }
+
+  # L'accès de secours (wireguard-rescue-check.timer, rôle wireguard_rescue,
+  # LXC newt) : une vérification par jour, l'intervalle laisse passer une
+  # journée manquée, pas deux.
+  assert {
+    condition = (
+      can(regex("^\\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/wireguard_rescue/defaults/main.yml")).wireguard_rescue_check_schedule))
+      && uptimekuma_monitor_push.cron_wireguard_rescue.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.cron_wireguard_rescue.interval < 60 * 60 * 24 * 3
+      && uptimekuma_monitor_push.cron_wireguard_rescue.parent == uptimekuma_monitor_group.self_hosted.id
+      && contains(uptimekuma_monitor_push.cron_wireguard_rescue.notification_ids, uptimekuma_notification_smtp.email.id)
+    )
+    error_message = "Accès de secours : timer quotidien, intervalle de deux à trois jours, rangé avec les healthchecks et notifié par e-mail."
   }
 
   assert {

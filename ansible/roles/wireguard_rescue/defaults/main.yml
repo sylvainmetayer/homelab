@@ -1,0 +1,44 @@
+---
+# Accès de secours au LAN sans Pangolin (ADR 0015,
+# docs/runbooks/acces-de-secours.md) : un serveur WireGuard noyau sur le LXC
+# newt (lxc.yml), seul port entrant de la maison, redirigé par la Bbox. Les
+# pairs n'atteignent que le LAN (masqués derrière l'IP du LXC), jamais
+# Internet.
+
+# false : interface arrêtée, configuration (clé privée comprise), règles et
+# vérification quotidienne supprimées. Les clés restent dans SOPS.
+wireguard_rescue_enabled: true
+
+# Moins de 16 caractères (nom d'interface Linux) ; unité wg-quick@<nom>.
+wireguard_rescue_interface: wg-rescue
+# Port UDP non standard (pas le 51820 de Pangolin/Gerbil), le même en externe
+# sur la Bbox (redirection vers l'IP du LXC).
+wireguard_rescue_port: 47913
+# Adresse du serveur dans le tunnel, et le réseau des pairs (une /32 chacun).
+wireguard_rescue_address: 10.77.0.1/24
+wireguard_rescue_tunnel_cidr: 10.77.0.0/24
+# Seule destination permise aux pairs (forward), interface et IP du LXC dessus.
+wireguard_rescue_lan_cidr: 192.168.1.0/24
+wireguard_rescue_lan_interface: eth0
+
+# Clés, dans ansible/secrets.sops.yaml (jamais ici) :
+#   wireguard_rescue_server_private_key  clé privée du serveur
+#   wireguard_rescue_peer_keys           {<pair>: {private_key, preshared_key}}
+# Le serveur ne lit que les preshared_key ; les clés privées des pairs servent
+# au playbook wireguard-rescue-peers.yml, qui rend leurs configurations sur le
+# poste.
+wireguard_rescue_server_private_key: ""
+wireguard_rescue_peer_keys: {}
+
+# Pairs autorisés (host_vars/newt-lxc) : nom (clé de
+# wireguard_rescue_peer_keys), adresse dans le tunnel, clé publique. Retirer
+# une entrée et rejouer le rôle révoque le pair.
+wireguard_rescue_peers: []
+
+# Vérification quotidienne (interface, port, règles, forwarding) poussée au
+# moniteur « Accès de secours » (tofu/pangolin_config, cron_wireguard_rescue.tf).
+# Vide : pas de vérification, un avertissement.
+wireguard_rescue_healthcheck_url: ""
+wireguard_rescue_check_schedule: "*-*-* 07:20:00"
+
+wireguard_rescue_nft_table: wireguard_rescue

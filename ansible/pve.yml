@@ -1,8 +1,9 @@
 ---
 # Hôte Proxmox VE (#852) : l'agent Beszel, en binaire comme sur le
 # LXC newt, le test de restauration des sauvegardes vzdump, l'alerte
-# hebdomadaire des mises à jour en attente (ntfy) et le tmpdir de
-# /etc/vzdump.conf. Le reste de l'hôte appartient à
+# hebdomadaire des mises à jour en attente (ntfy), les modules noyau de
+# l'accès de secours du LXC newt et le tmpdir de /etc/vzdump.conf. Le reste
+# de l'hôte appartient à
 # Proxmox (paquets, sshd, pare-feu) et à tofu/proxmox : ni 00-setup, ni
 # security. Lancé à la main seulement (ansible-playbook pve.yml), jamais par
 # la CI : aucune clé de l'hôte dans les secrets GitHub. Connexion en root,
@@ -53,6 +54,23 @@
       vars:
         update_notify_mode: apt
   tasks:
+    # Accès de secours (rôle wireguard_rescue du LXC newt, lxc.yml) : un LXC
+    # non privilégié ne charge aucun module, il utilise ceux de l'hôte.
+    # WireGuard du noyau, le suivi de connexion de nftables (ct state) et son
+    # NAT (masquerade) qui fait répondre le LAN à l'IP du LXC. Persistant
+    # (modules-load.d) : chargés à chaque démarrage, avant le LXC.
+    - name: Load the kernel modules of the rescue WireGuard of the newt LXC
+      tags: wireguard
+      loop:
+        - wireguard
+        - nft_ct
+        - nft_chain_nat
+        - nft_masq
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+        persistent: present
+
     # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
     # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar
     # d'un LXC non privilégié (uid 100000) ne peut pas ouvrir le dossier que
