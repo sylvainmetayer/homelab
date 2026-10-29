@@ -94,7 +94,7 @@ liste, vide pour tout vérifier.
 ## Accès et secrets
 
 Environnement GitHub `restore-test`, lisible depuis `main` seulement
-(`tofu/github/restore_test_secrets.tf`), distinct de `production` pour que
+(`tofu/github/environments.tf`), distinct de `production` pour que
 ce workflow ne puisse lire ni la clé age ni la clé de déploiement :
 
 - `RESTORE_TEST_SSH_KEY`, `RESTORE_TEST_STORAGE_BOX` : sous-compte Storage

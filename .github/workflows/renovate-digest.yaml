@@ -26,8 +26,8 @@ jobs:
     name: Publish the digest
     runs-on: ubuntu-26.04
     # Le jeton ntfy seul (écriture seule sur le topic github), lisible depuis
-    # main seulement (tofu/github/renovate_digest_secrets.tf).
-    environment: renovate-digest
+    # main seulement (tofu/github/environments.tf).
+    environment: ntfy-github
     timeout-minutes: 5
     # GITHUB_TOKEN en lecture : le script (checkout), les PR (GraphQL) et
     # les runs du workflow de déploiement.
@@ -44,6 +44,6 @@ jobs:
       - name: Publish the Renovate digest
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          NTFY_TOKEN: ${{ secrets.RENOVATE_DIGEST_NTFY_TOKEN }}
+          NTFY_TOKEN: ${{ secrets.NTFY_GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: python3 -I .github/scripts/renovate_digest.py --repo "$REPOSITORY"

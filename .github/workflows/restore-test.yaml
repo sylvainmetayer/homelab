@@ -94,7 +94,7 @@ jobs:
     needs: discover
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
-    # Secrets lisibles depuis main seulement (tofu/github/restore_test_secrets.tf).
+    # Secrets lisibles depuis main seulement (tofu/github/environments.tf).
     environment: restore-test
     timeout-minutes: 60
 

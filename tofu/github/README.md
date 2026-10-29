@@ -21,9 +21,15 @@ réécrit : la précondition refuse le plan tant que le rebase est permis. La
 bascule (signature SSH du poste, clé de signature GitHub, passage au squash)
 est dans [docs/runbooks/commits-signes.md](../../docs/runbooks/commits-signes.md).
 
-L'environnement **`storage-box-quota`** (`storage_box_quota_secrets.tf`,
-workflow `storage-box-quota.yaml`) lit la clé SOPS `hcloud_readonly_token`
-d'`ansible/secrets.sops.yaml`, qui ne se crée qu'à la main, avant le premier
+Les environnements Actions du dépôt (`production`, `restore-test`,
+`storage-box-quota`, `secrets-rotation`, `ntfy-github`) et leurs secrets
+sortent tous d'une seule table, `local.environments` d'`environments.tf`
+(nom de l'environnement → nom du secret → valeur) : un environnement de plus
+est une entrée de plus, lisible depuis `main` seulement comme les autres.
+
+L'environnement **`storage-box-quota`** (workflow `storage-box-quota.yaml`)
+lit la clé SOPS `hcloud_readonly_token` d'`ansible/secrets.sops.yaml`, qui
+ne se crée qu'à la main, avant le premier
 plan qui la cite : Console Hetzner, projet de la Storage Box, Security → API
 tokens, permission **Read**, puis
 `printf '"%s"' "$jeton" | sops set --value-stdin ansible/secrets.sops.yaml '["hcloud_readonly_token"]'`.
@@ -31,23 +37,18 @@ Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture. Son URL push 
 `uptime_storage_box_quota_url` de `tofu/pangolin_config` : appliquer ce module
 avant le plan d'ici, qui échoue sinon sur un attribut absent.
 
-L'environnement **`secrets-rotation`** (`secrets_rotation_secrets.tf`,
-workflow `secrets-rotation.yaml`, échéances de `secrets-rotation.yaml`) ne
-porte que l'URL push du moniteur « Rotation des secrets », output
+L'environnement **`secrets-rotation`** (workflow `secrets-rotation.yaml`,
+échéances de `secrets-rotation.yaml`) ne porte que l'URL push du moniteur « Rotation des secrets », output
 `uptime_secrets_rotation_url` de `tofu/pangolin_config` : même ordre,
 `pangolin_config` appliqué d'abord.
 
-L'environnement **`trivy-ntfy`** (`trivy_ntfy_secrets.tf`, job `notify` de
-`trivy.yaml`) ne porte que le jeton ntfy du producteur `github`, la clé
-SOPS `ntfy_github_token` d'`ansible/secrets.sops.yaml` (écriture seule sur
-le topic `github`) : tout ce que publie la CI passe par ce producteur, jamais
-par le `scripts` des hôtes.
-
-L'environnement **`renovate-digest`** (`renovate_digest_secrets.tf`, workflow
-`renovate-digest.yaml`, le bilan Renovate du lundi sur ntfy) ne porte que le
-jeton du producteur ntfy `github`, clé SOPS `ntfy_github_token`
-d'`ansible/secrets.sops.yaml` (écriture seule sur le topic `github`, rôle
-`ntfy`) : ntfy ne l'accepte qu'une fois `docker.yml --tags ntfy` déployé.
+L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
+`renovate-digest.yaml`, le bilan Renovate du lundi) ne porte que
+`NTFY_GITHUB_TOKEN`, le jeton du producteur ntfy `github`, clé SOPS
+`ntfy_github_token` d'`ansible/secrets.sops.yaml` (écriture seule sur le
+topic `github`, rôle `ntfy`) : tout ce que publie la CI passe par ce
+producteur, jamais par le `scripts` des hôtes, et ntfy ne l'accepte qu'une
+fois `docker.yml --tags ntfy` déployé.
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt
