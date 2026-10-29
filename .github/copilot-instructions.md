@@ -1,8 +1,9 @@
 # Copilot Instructions — Homelab Infrastructure
 
-Read `AGENTS.md` at the repo root first — it's the canonical architecture and
-commands reference for this repo (mise tasks, Ansible playbook mapping, Tofu
-module layout, secrets handling, CI). Don't duplicate it from memory; if it
+Read `AGENTS.md` at the repo root first — it's the canonical index of this
+repo: commands, the rules not to break, and a map to the detail (each role's
+and Tofu module's `README.md`, `docs/conventions/*.md` for cross-cutting
+topics: playbooks, secrets, tests, CI). Don't duplicate it from memory; if it
 and this file ever disagree, `AGENTS.md` wins and this file should be fixed.
 
 ## Task-specific playbooks

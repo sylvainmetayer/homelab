@@ -28,7 +28,7 @@ Before running anything, confirm with the user:
 ## 1. Stop containers and delete local data — `decommission_app` role
 
 A reusable role already exists at `ansible/roles/decommission_app/` (added
-alongside this skill, registered in both `docker.yml` and `pi.yml` tagged
+alongside this skill, registered in `docker.yml`, `pi.yml`, `flip.yml` and `nas.yml` tagged
 `[decommission, never]` — the `never` tag means it only runs when you pass
 `--tags decommission` explicitly, so it can never fire during a normal
 `docker.yml`/`pi.yml` apply). It:
@@ -56,7 +56,7 @@ Run it, targeting whichever host the app actually lives on (`docker` or `pi`):
 
 ```bash
 cd ansible
-ansible-playbook -i inventory/hosts docker.yml --tags decommission --limit docker \
+ansible-playbook docker.yml --tags decommission --limit docker \
   -e decommission_app_confirm=true \
   -e decommission_app_service=<service> \
   -e decommission_app_base_path="{{ docker_base_path }}/<service>" \

@@ -1,0 +1,5 @@
+# Role `mem_report`
+
+Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there links here.
+
+- Weekly container memory report (`mem_report` role, docker/pi/flip, outside Beszel): `mem-report.timer` (Monday 09:00) runs `files/mem_report.py` as `sylvain` + group `docker` (system unit, read-only sandbox), which reads each running container's cgroup v2 (`memory.max`/`peak`/`current`/`events`, scope found by walking `/sys/fs/cgroup` for `docker-<id>.scope`, so a `cgroup_parent` slice works too) and publishes one JSON message per host to ntfy's `/` on topic `scripts` (token `ntfy_scripts_token`, `0600` root `EnvironmentFile`): containers at ≥ 80 % of their limit or OOM-killed, those peaking under 25 % when the suggested limit frees ≥ 64 MiB, and those without a limit, each with a suggested `mem_limit` of 2× peak rounded up. `memory.peak`/`memory.events` reset with the cgroup (container or host restart): the message says so and flags a peak measured over < 7 days. Molecule `mem_report` runs it against a fake cgroup tree, a fake `docker` and a fake ntfy, then starts the real unit.

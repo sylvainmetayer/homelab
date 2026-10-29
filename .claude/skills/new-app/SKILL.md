@@ -30,7 +30,7 @@ Create `ansible/roles/<service>/` with `defaults/`, `handlers/`, `tasks/`,
   it needs the Internet. Databases, redis/valkey and meilisearch get a
   `healthcheck` (binary present in the image), dependents wait with
   `depends_on: {<db>: {condition: service_healthy}}`, and databases get
-  `stop_grace_period: 60s` — details in `AGENTS.md`; the Molecule scenario
+  `stop_grace_period: 60s` — details in « Conventions » below; the Molecule scenario
   lists them for `_shared/tasks/verify_compose_services.yml`.
   Container names matter: they're what the Pangolin target's `ip`/`hc_hostname`
   will reference in step 6.
@@ -56,7 +56,7 @@ the generic `dc@.service` unit; your role only needs to start/enable
 `dc@<service>`.
 
 If the app's data should live on the NAS rather than the VM's disk, follow
-"App data on the NAS" in `AGENTS.md` (`nas_storage` meta dependency, absolute
+`ansible/roles/nas_storage/README.md` (`nas_storage` meta dependency, absolute
 bind mounts, DB dump only, never SQLite on NFS).
 
 ## 2. Register the role in `ansible/docker.yml`
@@ -75,7 +75,7 @@ sees its own folder). Only a new *host* needs registering: add it to
 `backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`), to
 `local.backup_hosts` (`tofu/pangolin/storage_box_subaccounts.tf`) and to the
 SOPS key `backup_storage_box_subaccounts`, set `backup_storage_box_subaccount`
-in its `host_vars`, then run `ansible-playbook -i inventory/hosts backup.yaml`
+in its `host_vars`, then run `ansible-playbook backup.yaml`
 once its borgmatic role has generated its key.
 
 Do register the app in the restore test: an entry
@@ -106,7 +106,7 @@ the encrypted blob, never commit plaintext). Remember: a variable loaded via
 `vars:`, role-entry `vars:`, a role's `vars/main.yml` and block/task `vars:`,
 and loses only to `set_fact`/registered vars, role and include params
 (`include_role` `vars:`) and extra vars. Never name a SOPS key after a
-variable a playbook or role sets (see AGENTS.md).
+variable a playbook or role sets (`docs/conventions/secrets.md`).
 
 Add every new secret key to `ansible/molecule/_shared/vars/fake_secrets.yml`
 too, with a dummy value: the Molecule scenarios load it instead of SOPS, through
@@ -138,8 +138,8 @@ tofu apply
 
 cd ../../ansible
 ansible-lint
-ansible-playbook -i inventory/hosts docker.yml --check --tags <service>,app
-ansible-playbook -i inventory/hosts docker.yml --tags <service>,app
+ansible-playbook docker.yml --check --tags <service>,app
+ansible-playbook docker.yml --tags <service>,app
 ```
 
 Homepage only reads the `homepage_links` output when its role runs, and a
@@ -169,7 +169,19 @@ Uptime Kuma.
   example.
 - Compose file is always named `compose.yaml`, never `docker-compose.yml`.
 - PUID/PGID (if the image needs them) come from `ansible_facts['user_uid']`/`user_gid'`, not hardcoded.
-- Resource limits follow the doctrine in `AGENTS.md`: `mem_limit` on every
+- Resource limits follow the doctrine in `docs/conventions/resource-limits.md`: `mem_limit` on every
   service (≈2× expected peak), `mem_reservation` on DBs, **no `cpus:`** except
   `cpus: 2.00` + `cpu_shares: 512` on batch workers. Check the image's default
   worker count fits under the cap.
+
+## Conventions (the former « Adding a new app role » section of AGENTS.md)
+
+The `homelab-reviewer` agent sanity-checks the resulting diff before `tofu apply`/`ansible-playbook`.
+
+- **Public HTTP routing is entirely OpenTofu-managed, not Docker labels.** Each exposed app gets a `tofu/pangolin_config/website_<service>.tf` declaring its entry of `local.websites` (name, domain, role, target(s), backup flag, its `homepage` link or `homepage = null`: the `homepage_links` output, read by `docker.yml`, is the Homepage role's list of links) and its outputs; `websites.tf` turns every entry into the `pangolin_resource` + `pangolin_target` (+ SSO role binding + healthcheck access token + Uptime Kuma monitors) with `for_each`, so the pins, the maintenance page and the probe settings are written once — Newt reads Docker (through its `wollomatic/socket-proxy` sidecar: ping, container list, inspect of itself, events) only to report the container list Pangolin shows in its UI; no target is validated against it (newt 1.19.0: `IsWithinHostNetwork` is never called), and no `pangolin.public-resources.*` label is used (an earlier pattern, no longer used anywhere in this repo). The container must join the external `newt` Docker network (created by the `newt` role) for Pangolin to reach it. If the app has its own DB, put the DB on a second, internal, service-named network — never on `newt` — declared `internal: true` (no Internet route through it; the app keeps its own through `newt`) unless a container attached *only* to it needs the Internet: karakeep's crawler, immich's ML, meerkat_crm's backend (SMTP) stay non-internal. Changing `internal` on an existing network: `docker compose up` recreates it only when it carries compose's config-hash label, and silently keeps a network created by an older compose as it was — run `docker compose down` once, then check `docker network inspect --format '{{.Internal}}' <network>`. A single-container app needs no private network at all. Two easy-to-miss details: every `pangolin_target` needs `hc_hostname` set explicitly (not inferred from `ip`; `websites.tf` sets it to `ip`, a hand-written target must set it), and multi-target path routing (`sub_targets`) needs the catch-all `"/"` at the *lowest* `priority` number, not the highest. Renaming an entry key or moving a resource into or out of the `for_each` needs a `moved` block, or its access token and push monitor are recreated.
+- `compose.yaml` (and `.env`) are templated `0600`: they carry secrets, and `dc@` reads them as their owner. `verify_app.yml` asserts it. Every `template`/`copy` of a `0600` file also sets `diff: false`, and every `set_fact` of a push URL or token `no_log: true`: a `--diff` or `-v` run would otherwise write the secret to `ansible/run.log` and the CI logs.
+- Databases, redis/valkey and meilisearch get a `healthcheck` whose binary exists in the image (`pg_isready`; `healthcheck.sh --connect` for the official mariadb image; `mariadb-admin ping --host=127.0.0.1` for linuxserver's, which has no `healthcheck.sh`; `redis-cli`/`valkey-cli ping`, with `-a "$$REDIS_PASSWORD"` when a password is set), and whatever needs them waits with `depends_on: {<db>: {condition: service_healthy}}`. Databases also get `stop_grace_period: 60s`: `dc@` stops with `docker compose stop`, whose 10 s default SIGKILLs them. Molecule checks all three through `_shared/tasks/verify_compose_services.yml`.
+- Resource limits: `docs/conventions/resource-limits.md` (the doctrine, with its numbers).
+- Backups: `ansible/roles/borgmatic/README.md` (shared template rules, NAS container mode, one Storage Box subaccount per host) and the `borgmatic-backup` skill.
+- Finally, add the role to the right playbook (`docker.yml` for the Proxmox host, `pangolin.yaml` for the Pangolin VM, etc.) with sensible tags (`<service>,app`), and wire its `<service>_backup_healthcheck_url` into that playbook's `pre_tasks` alongside the others.
+- Pausing, a second environment, removal: `docs/conventions/app-lifecycle.md`.

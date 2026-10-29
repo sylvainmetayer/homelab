@@ -9,7 +9,9 @@ description: Wire up or fix a Borgmatic backup for a service on the docker/pango
 by one shared template, `ansible/roles/borgmatic/templates/app.yaml.j2`,
 through `ansible/roles/borgmatic/tasks/app.yml`. An app role only declares
 *what* to back up; the structure (which deviates from Borgmatic's own
-examples in several places) lives in that one template. The interface — the
+examples in several places) lives in that one template, and its rules
+(plus the NAS's container mode and the per-host Storage Box subaccounts)
+are written down in `ansible/roles/borgmatic/README.md`. The interface — the
 `borgmatic_app_*` variables — is documented in
 `ansible/roles/borgmatic/defaults/main.yml`.
 
@@ -114,7 +116,7 @@ sees its own folder). Only a new *host* needs registering: add it to
 `backup_storage_box_hosts` (`ansible/host_vars/backups/variables.yaml`), to
 `local.backup_hosts` (`tofu/pangolin/storage_box_subaccounts.tf`) and to the
 SOPS key `backup_storage_box_subaccounts`, set `backup_storage_box_subaccount`
-in its `host_vars`, then run `ansible-playbook -i inventory/hosts backup.yaml`
+in its `host_vars`, then run `ansible-playbook backup.yaml`
 once its borgmatic role has generated its key.
 
 ## 3. Optional: healthcheck push URL
@@ -135,7 +137,7 @@ seed a SQLite database in `prepare.yml` and assert it is copied by `.backup`.
 ## Verify
 
 ```bash
-ansible-playbook -i inventory/hosts <playbook>.yml --check --tags backup
+ansible-playbook <playbook>.yml --check --tags backup
 sudo /root/.local/bin/borgmatic config validate --config /etc/borgmatic.d/<service>.yaml
 sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/<service>.yaml create --dry-run
 sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/<service>.yaml list --archive latest

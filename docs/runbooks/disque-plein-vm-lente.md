@@ -85,7 +85,7 @@ La pression I/O redescend, les moniteurs restent UP.
 
 ## Prévention
 
-La doctrine de limites (AGENTS.md, « Resource limits doctrine ») :
+La doctrine de limites ([conventions/resource-limits.md](../conventions/resource-limits.md)) :
 
 - chaque service a un `mem_limit` ≈ 2× son pic mesuré, jamais en dessous ;
 - les bases ont aussi `mem_reservation` ≈ le pic (protège leur cache) ;

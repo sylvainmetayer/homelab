@@ -1,0 +1,9 @@
+# Role `victoria_logs`
+
+Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there links here.
+
+## Logs (VictoriaLogs + Vector agents)
+
+The agent role is `log_agent`, whose README points here.
+
+- Logs are VictoriaLogs, the light version (#79, `docs/adr/0011-journaux-victorialogs.md`, « proposée » until measured; `docs/architecture.md`, « Les journaux »): role `victoria_logs` on the Docker VM (storage on an internal network only, 30 days, `-retention.maxDiskSpaceUsageBytes` 5 GiB, no backup by design) behind vmauth (`victoria-logs-auth`, the Pangolin target of `logs.sylvain.cloud` and published on `127.0.0.1`/`192.168.1.216:9428`, before ufw), which wants an account for everything but `/health`: `sylvain` (sops `victoria_logs_ui_password`) reads, each agent (sops dict `victoria_logs_agent_passwords`, key = inventory_hostname) can only write `/insert/jsonline`. One Vector agent per host, role `log_agent` (modes as `beszel_agent`: `dc@log_agent` on docker/pi/flip and, system scope, the NAS; `compose` on Pangolin, which also tails Traefik's access log, query strings stripped; `binary` on the newt LXC, journald only): journald plus every container through its own GET-only socket proxy (Vector needs inspect, unlike Beszel). LAN hosts post to the published port; pangolin and flip through the public resource, a PASS on `/insert/jsonline` with a per-agent Pangolin access token (`log_agent_access_tokens` output). Secrets reach Vector through its `file` secrets backend (`secrets.json`, 0600 root; `LoadCredential` in binary mode), never `${VAR}`: Vector 0.60 no longer interpolates the environment without `--dangerously-allow-env-var-interpolation`. Under `dc@`, `docker compose up` copies each container's output into journald (« name  | line »): the journald transform drops those copies, the docker source has them with the container name.
