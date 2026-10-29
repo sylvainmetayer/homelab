@@ -3,7 +3,9 @@
 # même hôte (production, démo, banc Keycloak), avec les paramètres de rôle du
 # playbook. Les entrées sont recopiées, mais la première tâche compare la copie
 # à flip.yml : une instance ajoutée, retirée ou modifiée là-bas fait échouer le
-# scénario au lieu de laisser tester un instantané périmé.
+# scénario au lieu de laisser tester un instantané périmé. Le banc Keycloak y
+# est en pause (flip_planning_enabled: false) : l'idempotence porte sur cet
+# état, side_effect.yml le reprend puis le remet en pause.
 - name: Converge
   hosts: all
   vars_files:
@@ -120,6 +122,7 @@
     - role: flip_planning
       when: demo_planning_kc_db_password is defined
       vars:
+        flip_planning_enabled: false
         flip_planning_service: demo_planning_kc
         flip_planning_container_prefix: demo-planning-kc
         flip_planning_domain: demo-planning-kc.sylvain.dev

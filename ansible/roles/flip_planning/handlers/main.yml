@@ -5,8 +5,13 @@
 # two applications of this role in the same play would run once, at the end of
 # the play, against whichever value of flip_planning_service happened to be in
 # scope — silently restarting one environment on behalf of the other. Tasks
-# notify "Restart {{ flip_planning_service }}" instead, which resolves at task
-# time, so each instance reaches its own unit.
+# notify "Restart {{ flip_planning_service }}" instead (through
+# flip_planning_restart_handlers), which resolves at task time, so each
+# instance reaches its own unit.
+#
+# A paused instance (flip_planning_enabled: false) notifies nothing: the tasks
+# notify flip_planning_restart_handlers, empty then (see defaults/main.yml for
+# why a `when` here would read another instance's switch).
 #
 # Adding an environment means adding its handler here.
 - name: Restart flip_planning

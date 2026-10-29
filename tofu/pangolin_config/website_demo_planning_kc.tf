@@ -1,10 +1,10 @@
-# TEMPORARY third instance of Flip Planning, demo-planning-kc.sylvain.dev: the
+# Third instance of Flip Planning, demo-planning-kc.sylvain.dev: the
 # application pull request that makes Keycloak mandatory, tested on a real
 # domain in HTTPS (passkeys need it) with its own Keycloak on the /auth
 # sub-path. Deployed by the same Ansible role (ansible/flip.yml). Same shape as
 # website_demo_planning.tf, minus what a test bench does not need: no MCP
-# bypass, no healthcheck, no backup push monitor. Torn down with the
-# remove-app skill once the pull request is merged.
+# bypass, no healthcheck, no backup push monitor. Paused since October 2026
+# (see `enabled` below).
 #
 # Resource and targets: local.websites (websites.tf). Same as the other two
 # resources, `headers` is ignored: the provider cannot round-trip an emptied
@@ -16,6 +16,12 @@ locals {
     domain_id   = local.domain_ids["sylvain.dev"]
     role        = "demo-planning-kc"
     healthcheck = false
+
+    # Paused since October 2026 (flip_planning_enabled: false on its entry of
+    # ansible/flip.yml): resource disabled, Homepage link dropped, nothing
+    # destroyed. No healthcheck nor backup monitor to pause, and no entry in
+    # .github/restore-test/apps.json. See docs/runbooks/app-en-pause.md.
+    enabled = false
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {

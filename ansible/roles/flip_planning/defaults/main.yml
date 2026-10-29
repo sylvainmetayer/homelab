@@ -21,6 +21,22 @@ flip_planning_service: flip_planning
 # with the `ip` / `hc_hostname` of tofu/pangolin_config/website_<instance>.tf.
 # kebab-case.
 flip_planning_container_prefix: flip-planning
+# false pauses the instance (docs/runbooks/app-en-pause.md): dc@<service>
+# stopped and disabled, nothing restarted, its borgmatic configuration
+# removed; compose, data, volumes and Borg repository kept, so resuming is a
+# return to true. A role parameter of the instance's `roles:` entry in
+# flip.yml, like everything per instance: in host_vars it would pause every
+# instance, and never a set_fact or a secrets.sops.yaml key of this name.
+flip_planning_enabled: true
+# What the tasks notify: the instance's own handler, or nothing while paused.
+# Derived, never overridden. The handlers run at the end of the play with the
+# role parameters of the LAST application of the role in scope (checked on
+# ansible-core 2.21), so a `when: flip_planning_enabled` on a handler would
+# read another instance's switch: a paused KC bench, applied last, would
+# silence the restarts of production and demo. The notification is withheld
+# at task time instead, when this instance's parameters are the ones in scope.
+flip_planning_restart_handlers: >-
+  {{ ['Restart ' ~ flip_planning_service] if flip_planning_enabled | bool else [] }}
 # ---------------------------------------------------------------------------
 
 flip_planning_base_path: "{{ docker_base_path }}/{{ flip_planning_service }}"

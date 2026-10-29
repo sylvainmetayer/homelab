@@ -147,7 +147,7 @@
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
-    # TEMPORARY third instance, demo-planning-kc.sylvain.dev: the pull request
+    # Third instance, demo-planning-kc.sylvain.dev: the pull request
     # that makes Keycloak mandatory (planning-equipes#72), on a real domain in
     # HTTPS — what passkeys need, and what the local stack cannot give — with
     # its own Keycloak under /auth and the application's themed account
@@ -161,12 +161,18 @@
     # created the realm and its two client secrets are in sops, the next run
     # turns OIDC on by itself (flip_planning_oidc_enabled below).
     #
-    # No backup and no Uptime Kuma push monitor: a test bench, torn down with
-    # the remove-app skill once the PR is merged.
+    # No backup and no Uptime Kuma push monitor: a test bench.
+    #
+    # PAUSED since October 2026 (docs/runbooks/app-en-pause.md): dc@ stopped
+    # and disabled, nothing restarted by a deploy, compose and data kept. Moves
+    # with `enabled = false` in tofu/pangolin_config/website_demo_planning_kc.tf
+    # (resource disabled; pinned by its invariants test). Here, a role
+    # parameter: in host_vars it would pause all three instances.
     - role: flip_planning
       tags: demo_planning_kc,app
       when: demo_planning_kc_db_password is defined
       vars:
+        flip_planning_enabled: false
         flip_planning_service: demo_planning_kc
         flip_planning_container_prefix: demo-planning-kc
         flip_planning_domain: demo-planning-kc.sylvain.dev

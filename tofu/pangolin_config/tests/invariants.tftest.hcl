@@ -1930,7 +1930,7 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["paperless"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "paperless"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
   }
 
@@ -1943,6 +1943,17 @@ run "every_resource_declares_the_pinned_attributes" {
       "paperless_enabled", true
     ) == pangolin_resource.website["paperless"].enabled
     error_message = "paperless_enabled (ansible/host_vars/docker/variables.yaml) et enabled de l'entrée paperless (website_paperless.tf) doivent être égaux."
+  }
+
+  # Même chose pour le banc Keycloak, dont l'interrupteur est un paramètre de
+  # rôle de son entrée de flip.yml (le rôle y est appliqué trois fois).
+  assert {
+    condition = [
+      for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
+      lookup(entry.vars, "flip_planning_enabled", true)
+      if entry.role == "flip_planning" && try(entry.vars.flip_planning_service, "") == "demo_planning_kc"
+    ] == [pangolin_resource.website["demo_planning_kc"].enabled]
+    error_message = "flip_planning_enabled de l'entrée demo_planning_kc d'ansible/flip.yml et enabled de l'entrée demo_planning_kc (website_demo_planning_kc.tf) doivent être égaux."
   }
 }
 
@@ -2682,9 +2693,16 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = alltrue([
       for r in [pangolin_resource.website["flip_planning"], pangolin_resource.website["demo_planning"], pangolin_resource.website["demo_planning_kc"]] :
-      r.sso == true && r.apply_rules == true && r.enabled == true
+      r.sso == true && r.apply_rules == true
     ])
     error_message = "Les trois environnements de Flip Planning restent derrière le SSO, avec les règles appliquées."
+  }
+
+  # Le banc Keycloak est en pause (liste des apps en pause, plus haut) ; la
+  # production et la démo, jamais par effet de bord.
+  assert {
+    condition     = pangolin_resource.website["flip_planning"].enabled && pangolin_resource.website["demo_planning"].enabled
+    error_message = "La production et la démo de Flip Planning restent actives."
   }
 
   assert {

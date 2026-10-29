@@ -1,0 +1,162 @@
+---
+# Converge applique flip.yml tel quel, où le banc Keycloak est en pause
+# (flip_planning_enabled: false) : l'idempotence porte sur cet état. Ici :
+# pause vérifiée, reprise du banc seul, puis nouvelle pause depuis le banc
+# démarré, appliqué APRÈS la démo comme dans flip.yml, les deux composes
+# modifiés. Les handlers tournent en fin de play avec les paramètres de la
+# dernière application du rôle : la démo doit redémarrer, le banc non. C'est
+# l'état que verify.yml vérifie ensuite.
+#
+# Les entrées des deux instances sont recopiées une fois (ancres), et comparées
+# à flip.yml par le premier play, comme le fait converge.yml.
+- name: Assert the converged Keycloak bench is paused
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  vars:
+    # Jamais lues comme variables : seulement les ancres des plays suivants,
+    # comparées en texte brut à flip.yml.
+    side_effect_demo_vars: &demo_vars
+      flip_planning_service: demo_planning
+      flip_planning_container_prefix: demo-planning
+      flip_planning_domain: demo-planning.sylvain.dev
+      flip_planning_image: "{{ flip_planning_image_main }}"
+      flip_planning_sentry_environment: demo
+      flip_planning_branding_product_name: "Flip Planning — Démo"
+      flip_planning_cloudflare_web_analytics_token: ""
+      flip_planning_horloge_simulee_autorisee: true
+      flip_planning_db_password: "{{ demo_planning_db_password }}"
+      flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
+      flip_planning_admin_password: "{{ demo_planning_admin_password }}"
+      flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
+      flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
+      flip_planning_backup_enabled: "{{ demo_planning_backup_enabled }}"
+      flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
+      flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
+      flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
+    # Seul écart avec flip.yml : l'interrupteur, false comme là-bas sauf dans
+    # le play qui reprend le banc (side_effect_kc_enabled).
+    side_effect_kc_vars: &kc_vars
+      flip_planning_enabled: "{{ side_effect_kc_enabled | default(false) }}"
+      flip_planning_service: demo_planning_kc
+      flip_planning_container_prefix: demo-planning-kc
+      flip_planning_domain: demo-planning-kc.sylvain.dev
+      flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:pr-72"
+      flip_planning_sentry_environment: demo-kc
+      flip_planning_branding_product_name: "Flip Planning — Keycloak"
+      flip_planning_cloudflare_web_analytics_token: ""
+      flip_planning_horloge_simulee_autorisee: true
+      flip_planning_keycloak_enabled: true
+      flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
+      flip_planning_image_pull_policy: always
+      flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
+      flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
+      flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"
+      flip_planning_oidc_client_secret: "{{ demo_planning_kc_oidc_client_secret | default('') }}"
+      flip_planning_oidc_provisioning_client_secret: "{{ demo_planning_kc_oidc_provisioning_client_secret | default('') }}"
+      flip_planning_admin_secours_enabled: true
+      flip_planning_db_password: "{{ demo_planning_kc_db_password }}"
+      flip_planning_pgadmin_password: "{{ demo_planning_kc_pgadmin_password }}"
+      flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
+      flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
+      flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
+      flip_planning_backup_enabled: false
+  tasks:
+    - name: Assert the copied entries are those of flip.yml
+      vars:
+        side_effect_raw_vars: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/side_effect.yml') | from_yaml)[0].vars }}"
+        side_effect_playbook_vars: >-
+          {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0].roles
+             | selectattr('role', 'equalto', 'flip_planning') | selectattr('vars', 'defined')
+             | map(attribute='vars') | selectattr('flip_planning_service', 'defined') | list }}
+        side_effect_playbook_kc_vars: >-
+          {{ side_effect_playbook_vars | selectattr('flip_planning_service', 'equalto', 'demo_planning_kc') | first }}
+      ansible.builtin.assert:
+        that:
+          - side_effect_raw_vars.side_effect_demo_vars in side_effect_playbook_vars
+          - side_effect_playbook_kc_vars.flip_planning_enabled is false
+          - (side_effect_raw_vars.side_effect_kc_vars | dict2items | rejectattr('key', 'equalto', 'flip_planning_enabled') | items2dict)
+            == (side_effect_playbook_kc_vars | dict2items | rejectattr('key', 'equalto', 'flip_planning_enabled') | items2dict)
+        fail_msg: >-
+          Les entrées demo_planning / demo_planning_kc recopiées ici divergent de
+          ansible/flip.yml : les recopier (sans les tags).
+
+    - name: Assert the paused state
+      ansible.builtin.import_tasks: tasks/assert_kc_paused.yml
+
+- name: Resume the Keycloak bench
+  hosts: all
+  vars_files: &flip_vars_files
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  vars:
+    # Lu par l'interrupteur de *kc_vars, ce play seulement.
+    side_effect_kc_enabled: true
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    - name: Load the demo healthcheck URL as flip.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        demo_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
+  roles:
+    - role: flip_planning
+      vars: *kc_vars
+  post_tasks:
+    - name: Read the state of dc@demo_planning_kc
+      ansible.builtin.systemd:
+        name: dc@demo_planning_kc
+        scope: user
+      register: flip_planning_resumed_unit
+
+    - name: Assert the resumed bench runs
+      ansible.builtin.assert:
+        that:
+          - flip_planning_resumed_unit.status.UnitFileState == 'enabled'
+          - flip_planning_resumed_unit.status.ActiveState == 'active'
+        fail_msg: >-
+          dc@demo_planning_kc après reprise :
+          {{ flip_planning_resumed_unit.status.UnitFileState }} /
+          {{ flip_planning_resumed_unit.status.ActiveState }}
+
+- name: Pause the running bench again, after a demo that must restart
+  hosts: all
+  vars_files: *flip_vars_files
+  pre_tasks:
+    - name: Read when dc@demo_planning last started
+      ansible.builtin.systemd:
+        name: dc@demo_planning
+        scope: user
+      register: flip_planning_demo_before
+
+    # Le rôle retemplate les deux composes et notifie : « Restart demo_planning »
+    # doit tourner, et rien ne doit relancer le banc en pause.
+    - name: Alter both compose files so the role rewrites them
+      ansible.builtin.lineinfile:
+        path: "/opt/apps/{{ item }}/compose.yaml"
+        line: "# altered by side_effect"
+      loop: [demo_planning, demo_planning_kc]
+  roles:
+    - role: flip_planning
+      vars: *demo_vars
+    - role: flip_planning
+      vars: *kc_vars
+  # Les handlers des rôles passent avant post_tasks.
+  post_tasks:
+    - name: Read when dc@demo_planning last started, after the handlers
+      ansible.builtin.systemd:
+        name: dc@demo_planning
+        scope: user
+      register: flip_planning_demo_after
+
+    - name: Assert the demo was restarted despite the paused bench applied after it
+      ansible.builtin.assert:
+        that:
+          - flip_planning_demo_after.status.ActiveEnterTimestampMonotonic
+            != flip_planning_demo_before.status.ActiveEnterTimestampMonotonic
+        fail_msg: >-
+          dc@demo_planning n'a pas redémarré : le handler a lu l'interrupteur du
+          banc en pause, appliqué après lui (flip_planning_restart_handlers).
+
+    - name: Assert the paused state
+      ansible.builtin.import_tasks: tasks/assert_kc_paused.yml
