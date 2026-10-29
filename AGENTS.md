@@ -21,9 +21,9 @@ Pour les humains : la carte du homelab est dans `docs/architecture.md`, les proc
 All commands run through **mise** (not make). Tool versions are pinned in `mise.toml`; run `mise install` once, then `uv sync` for the Python venv.
 
 ```bash
-mise run init | plan | apply                       # tofu/pangolin
-mise run init-proxmox | plan-proxmox | apply-proxmox
-mise run init-ref | plan-ref | apply-ref           # tofu/ref, GITHUB_TOKEN exporté avant
+mise run init           # tofu/pangolin; then plan, apply
+mise run init-proxmox   # tofu/proxmox; then plan-proxmox, apply-proxmox
+mise run init-ref       # tofu/ref (GITHUB_TOKEN exporté avant); then plan-ref, apply-ref
 mise run lint        # tofu fmt -check -recursive + init -backend=false && validate of every module
 mise run fix-lint    # tofu fmt -recursive
 mise run ansible-lint
@@ -34,7 +34,7 @@ mise run generate_password # prints the sha512 hash to store as host_user_passwo
 mise run secrets-scan      # gitleaks over the whole history
 ```
 
-`mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc), without touching any state. Other modules (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.
+`mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc), without touching any state. Modules with no plan task (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.
 
 There is no mise task running a playbook and no `site.yml`: from `ansible/`, run the playbook of the host group you change (`00-setup.yaml`, `docker.yml`, `flip.yml`, `pangolin.yaml`, `pi.yml`, `lxc.yml`, `nas.yml`, `pve.yml`, `backup.yaml`, `pc-nas.yml`), with `--check`, `--tags <role>`, `-v`. **No `-i`**: `ansible.cfg` sets `inventory = ./inventory` (`proxmox.py`, `hetzner.py` and `hosts` together); `-i inventory/hosts` alone would only know the Pi and the LXC. Every run is logged to `ansible/run.log`. Detail (inventory, flip's bastion jump, the host table): `docs/conventions/ansible.md`.
 
@@ -43,6 +43,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 - **Never commit on `main`, nor in the main checkout**: one git worktree per branch, a PR per change. Sylvain runs the applies and deploys himself unless he delegates them in the session.
 - **Merge to `main` deploys**: a push touching `ansible/roles/**` or a host playbook runs `deploy-docker-app` against the real hosts, with the tags `resolve_docker_tags.py` derives (a role's `README.md` deploys nothing). `nas.yml`, `pve.yml` and `lxc.yml` are never run by CI: by hand only. → `docs/conventions/ci.md`
 - **SOPS precedence**: keys of `ansible/secrets.sops.yaml` land in the `include_vars` layer and beat role defaults, host_vars, play and role-entry `vars:`; so a SOPS key never bears the name of a variable a playbook or role sets (prefix per instance, hand it over in the role entry's `vars:`). `check_sops_shadowing.py` fails on it. → `docs/conventions/secrets.md`
+- **Facts are read as `ansible_facts[...]`**: `inject_facts_as_vars = False` (`ansible.cfg`, and Molecule), so a bare `ansible_<fact>` is undefined. → `docs/conventions/secrets.md`
 - **Every SOPS key has a `secrets-rotation.yaml` entry** (added/removed with the key; `last_rotated` + `estimated: false` after a rotation). → `docs/conventions/secrets.md`, `docs/runbooks/rotation-des-secrets.md`
 - **Secrets in Ansible**: `compose.yaml`/`.env` templated `0600` with `diff: false`; every `set_fact` of a push URL or token `no_log: true` (else `--diff`/`-v` write them to `run.log` and the CI logs). Never a secret-looking literal in Molecule (GitGuardian). → new-app skill
 - **Pangolin / Uptime Kuma providers: declare every optional+computed attribute.** Undeclared, the plan says « No changes » whatever the live value (two outages: flip-planning's targets destroyed, targets stored with no probe scheme → 503). `pangolin_resource` takes them from `local.resource_pins` (`resource_defaults.tf`), targets get their `hc_*` from `websites.tf`. → `tofu/pangolin_config/README.md`

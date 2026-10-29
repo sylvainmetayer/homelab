@@ -523,7 +523,7 @@ flowchart LR
   `ntfy_scripts_token`) un message par hôte : à agrandir (pic à 80 % de la
   limite ou plus, ou OOM-kill), à réduire (pic sous 25 %, s'il libère
   64 Mio au moins), sans limite, chacun avec une limite suggérée de 2x le
-  pic, arrondie (doctrine des limites, `AGENTS.md`). `memory.peak` et
+  pic, arrondie (doctrine des limites, [conventions/resource-limits.md](conventions/resource-limits.md)). `memory.peak` et
   `memory.events` repartent de zéro avec le conteneur : un pic mesuré sur
   moins de 7 jours est signalé, et un redémarrage automatique après une
   mise à jour du noyau remet tout l'hôte à zéro. Un OOM-kill du processus

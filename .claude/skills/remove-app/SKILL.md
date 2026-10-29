@@ -52,7 +52,7 @@ database cluster stay orphaned on the NAS — and a later re-add of the app
 would silently reuse that old cluster:
 `-e '{"decommission_app_extra_paths": ["/mnt/nas/apps/<service>"]}'`.
 
-Run it, targeting whichever host the app actually lives on (`docker` or `pi`):
+Run it with the playbook of the host the app actually lives on (`docker.yml`, `pi.yml`, `flip.yml` or `nas.yml`):
 
 ```bash
 cd ansible
