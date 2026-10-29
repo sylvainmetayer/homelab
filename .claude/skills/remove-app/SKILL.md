@@ -126,9 +126,9 @@ lives in one file and one line, so removal is a few edits + an apply:
   `local.path_bypasses` in `rules.tf` if it had path rules, and its entry from
   `tofu/pangolin_config/path_bypass_images.json`.
 - Remove it from the inventories `tests/invariants.tftest.hcl` pins on
-  purpose (the list is in the `pangolin-route` skill): resource name map,
-  target keys, healthcheck and backup name maps, its `override_resource`
-  blocks, its `uptime_backup_<service>_url` assertions, its path keys and,
+  purpose (the list is in the `pangolin-route` skill): its `override_resource`
+  blocks, its `uptime_backup_<service>_url` line in the output map, its
+  `.github/restore-test/apps.json` entry, its path keys and,
   for an image of ours, its name in the exempt list of
   `path_bypasses_follow_their_image`.
 - Remove the service's kebab-case slug from the `apps` list in

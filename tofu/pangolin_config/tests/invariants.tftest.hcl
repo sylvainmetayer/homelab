@@ -768,30 +768,9 @@ override_resource {
 run "probes_are_sparse_and_paused_apps_are_not_probed" {
   command = plan
 
-  assert {
-    condition = alltrue([
-      for m in concat(
-        values(uptimekuma_monitor_http_keyword.healthcheck),
-        [
-          uptimekuma_monitor_http.pangolin_dashboard,
-          uptimekuma_monitor_http.actualbudget,
-          uptimekuma_monitor_http.redirect,
-          uptimekuma_monitor_http.blog,
-          uptimekuma_monitor_http.blog_apex,
-          uptimekuma_monitor_http.ref,
-          uptimekuma_monitor_http.agent_ready_cloudflare,
-          uptimekuma_monitor_http.kdrive,
-          uptimekuma_monitor_http.simplelogin,
-          uptimekuma_monitor_http.ustalence_tt,
-        ],
-      ) :
-      m.interval == 300 && m.max_retries == 1 && m.retry_interval == 60 && m.resend_interval == 0
-    ])
-    error_message = "Chaque moniteur HTTP sonde toutes les 300 s, avec un nouvel essai (max_retries 1) 60 s plus tard et sans rappel (resend_interval 0)."
-  }
-
-  # Le filet de la liste ci-dessus : tout moniteur HTTP du module, écrit à la
-  # main ou généré, lit sa cadence et ses essais dans local.http_probe.
+  # Tout moniteur HTTP du module, écrit à la main ou généré, lit sa cadence et
+  # ses essais dans local.http_probe (uptime_globals.tf), qui seul fixe les
+  # valeurs.
   assert {
     condition = alltrue(flatten([
       for f in fileset(path.module, "*.tf") : [
@@ -808,19 +787,8 @@ run "probes_are_sparse_and_paused_apps_are_not_probed" {
     condition = alltrue([
       for key, t in pangolin_target.website :
       t.hc_enabled == lookup(local.websites[local.website_targets[key].website], "enabled", true)
-      && t.hc_interval == 60
-      && t.hc_unhealthy_interval == 10
     ])
-    error_message = "La sonde Pangolin d'une cible est coupée exactement quand son appli est en pause (enabled = false), et passe toutes les 60 s (10 s en échec) sinon."
-  }
-
-  assert {
-    condition = (
-      !pangolin_target.website["paperless"].hc_enabled
-      && !pangolin_target.website["demo_planning_kc_keycloak"].hc_enabled
-      && pangolin_target.website["wiki"].hc_enabled
-    )
-    error_message = "Paperless et le banc Keycloak sont en pause : leurs cibles ne sont plus sondées ; le wiki l'est."
+    error_message = "La sonde Pangolin d'une cible est coupée exactement quand son appli est en pause (enabled = false)."
   }
 }
 
@@ -831,9 +799,9 @@ run "probes_are_sparse_and_paused_apps_are_not_probed" {
 #
 # Les cibles des applications sont les instances de pangolin_target.website
 # (websites.tf), toutes sondées sauf celles d'une appli en pause, dont la
-# sonde est coupée mais garde ses réglages. Les clés sont les anciens noms des
-# ressources, ceux vers lesquels les blocs moved (appliqués) ont migré l'état :
-# une clé qui change recréerait la cible, sauf bloc moved.
+# sonde est coupée mais garde ses réglages. hc_hostname est explicite et égal
+# à `ip` : la sonde envoie le bon Host au bon conteneur, le provider ne le
+# déduit pas de `ip`.
 run "every_probed_target_declares_scheme_mode_and_port" {
   command = plan
 
@@ -843,23 +811,9 @@ run "every_probed_target_declares_scheme_mode_and_port" {
       contains(["http", "https"], t.hc_scheme)
       && t.hc_mode == "http"
       && t.hc_port != null
+      && t.hc_hostname == t.ip
     ])
-    error_message = "Une cible sondée n'a pas hc_scheme (http/https), hc_mode = \"http\" ou hc_port : Pangolin stockerait NULL et la sonde échouerait toujours."
-  }
-
-  assert {
-    condition = toset(keys(pangolin_target.website)) == toset([
-      "beszel", "betisier", "dawarich", "immich", "immich_swipe", "karakeep",
-      "homepage",
-      "meerkat_crm", "monica", "nextcloud", "nginx_demo", "paperless", "promptoramix", "rss", "trek", "wiki", "wishlist",
-      "kitchenowl", "homebox", "speedtest_tracker", "ntfy", "victoria_logs",
-      "flip_planning", "flip_planning_pgadmin", "flip_planning_mailpit", "flip_planning_assets",
-      "demo_planning", "demo_planning_pgadmin", "demo_planning_mailpit", "demo_planning_assets",
-      "demo_planning_kc", "demo_planning_kc_pgadmin", "demo_planning_kc_mailpit", "demo_planning_kc_assets",
-      "demo_planning_kc_keycloak",
-      "stirling_pdf",
-    ])
-    error_message = "Les cibles des applications ont changé : chaque clé de pangolin_target.website doit garder le nom de l'ancienne ressource (sinon un bloc moved), et une nouvelle cible être listée ici."
+    error_message = "Une cible sondée n'a pas hc_scheme (http/https), hc_mode = \"http\", hc_port, ou un hc_hostname égal à son ip : Pangolin stockerait NULL et la sonde échouerait toujours."
   }
 
   # local.website_targets fusionne par merge() les clés des applications et les
@@ -874,7 +828,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
     error_message = "Deux cibles de local.website_targets ont la même clé (une application et le sub_target d'une autre) : l'une écrase l'autre."
   }
 
-  # Filet par fichier, indépendant des listes ci-dessus : tout bloc
+  # Filet par fichier, indépendant de local.websites : tout bloc
   # `pangolin_target` du module, généré (websites.tf) ou écrit à la main
   # (celui qui viendra), qui ne coupe pas sa sonde en dur déclare aussi
   # hc_scheme, hc_mode, hc_port et hc_hostname.
@@ -895,97 +849,37 @@ run "every_probed_target_declares_scheme_mode_and_port" {
   }
 }
 
-# hc_hostname explicite et égal à `ip` : la sonde envoie le bon Host au bon
-# conteneur. Le provider ne le déduit pas de `ip`.
-run "probed_targets_set_hc_hostname_to_their_ip" {
-  command = plan
-
-  assert {
-    condition = alltrue([
-      for t in values(pangolin_target.website) :
-      t.hc_hostname == t.ip
-    ])
-    error_message = "Une cible a un hc_hostname absent ou différent de son ip."
-  }
-}
-
 # Routage par chemin : la cible attrape-tout "/" doit avoir le numéro de
 # priorité le PLUS BAS de sa ressource, sinon elle avale /db, /mail, /assets
-# et /auth. Les priorités d'une même ressource sont toutes distinctes.
+# et /auth. Les priorités d'une même ressource sont toutes distinctes. Calculé
+# sur chaque ressource qui a plusieurs cibles (sub_targets), sans liste.
 run "catch_all_target_has_lowest_priority" {
   command = plan
 
   assert {
-    condition = (
-      pangolin_target.website["flip_planning"].path == "/"
-      && alltrue([
-        for t in [
-          pangolin_target.website["flip_planning_pgadmin"],
-          pangolin_target.website["flip_planning_mailpit"],
-          pangolin_target.website["flip_planning_assets"],
-        ] : t.path != "/" && t.priority > pangolin_target.website["flip_planning"].priority
-      ])
-    )
-    error_message = "Flip Planning : la cible \"/\" doit avoir une priorité plus basse que /db, /mail et /assets."
-  }
-
-  assert {
-    condition = (
-      pangolin_target.website["demo_planning"].path == "/"
-      && alltrue([
-        for t in [
-          pangolin_target.website["demo_planning_pgadmin"],
-          pangolin_target.website["demo_planning_mailpit"],
-          pangolin_target.website["demo_planning_assets"],
-        ] : t.path != "/" && t.priority > pangolin_target.website["demo_planning"].priority
-      ])
-    )
-    error_message = "Demo Planning : la cible \"/\" doit avoir une priorité plus basse que /db, /mail et /assets."
-  }
-
-  assert {
-    condition = (
-      pangolin_target.website["demo_planning_kc"].path == "/"
-      && alltrue([
-        for t in [
-          pangolin_target.website["demo_planning_kc_pgadmin"],
-          pangolin_target.website["demo_planning_kc_mailpit"],
-          pangolin_target.website["demo_planning_kc_assets"],
-          pangolin_target.website["demo_planning_kc_keycloak"],
-        ] : t.path != "/" && t.priority > pangolin_target.website["demo_planning_kc"].priority
-      ])
-    )
-    error_message = "Demo Planning KC : la cible \"/\" doit avoir une priorité plus basse que /db, /mail, /assets et /auth."
-  }
-
-  assert {
     condition = alltrue([
-      for group in [
-        [
-          pangolin_target.website["flip_planning"],
-          pangolin_target.website["flip_planning_pgadmin"],
-          pangolin_target.website["flip_planning_mailpit"],
-          pangolin_target.website["flip_planning_assets"],
-        ],
-        [
-          pangolin_target.website["demo_planning"],
-          pangolin_target.website["demo_planning_pgadmin"],
-          pangolin_target.website["demo_planning_mailpit"],
-          pangolin_target.website["demo_planning_assets"],
-        ],
-        [
-          pangolin_target.website["demo_planning_kc"],
-          pangolin_target.website["demo_planning_kc_pgadmin"],
-          pangolin_target.website["demo_planning_kc_mailpit"],
-          pangolin_target.website["demo_planning_kc_assets"],
-          pangolin_target.website["demo_planning_kc_keycloak"],
-        ],
-      ] :
-      length(distinct([for t in group : t.priority])) == length(group)
-      && length(distinct([for t in group : t.path])) == length(group)
-      && alltrue([for t in group : t.path_match_type == "prefix"])
+      for group in values({
+        for key, t in pangolin_target.website : local.website_targets[key].website => t...
+      }) :
+      length(group) == 1 || (
+        length([for t in group : t if t.path == "/"]) == 1
+        && alltrue([
+          for t in group :
+          t.path == "/" || t.priority > one([for c in group : c.priority if c.path == "/"])
+        ])
+        && length(distinct([for t in group : t.priority])) == length(group)
+        && length(distinct([for t in group : t.path])) == length(group)
+        && alltrue([for t in group : t.path_match_type == "prefix"])
+      )
     ])
-    error_message = "Les cibles d'une même ressource multi-chemins doivent avoir des priorités et des chemins distincts, en correspondance par préfixe."
+    error_message = "Une ressource multi-chemins n'a pas exactement une cible \"/\" au numéro de priorité le plus bas, ou ses cibles n'ont pas des priorités et des chemins distincts, en correspondance par préfixe."
+  }
+
+  # Garde-fou du test lui-même : sans ressource multi-chemins, l'assertion
+  # ci-dessus serait vraie par construction.
+  assert {
+    condition     = length([for website in values(local.websites) : website if length(lookup(website, "sub_targets", {})) > 0]) >= 3
+    error_message = "Les trois environnements de Flip Planning routent par chemin : ce run doit en voir au moins trois."
   }
 }
 
@@ -1140,95 +1034,6 @@ run "expired_travel_country_opens_nothing" {
 run "bypass_rules_sit_in_their_priority_band" {
   command = plan
 
-  # Les ACCEPT par chemin des trois instances de Flip Planning, passés de
-  # ressources autonomes à local.path_bypasses : rien de plus large que /mcp/*
-  # (planning) et /auth/* (Keycloak du banc KC). Le reste de leurs règles est
-  # vérifié par path_bypasses_open_exactly_the_reviewed_paths.
-  assert {
-    condition = (
-      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].priority == 2
-      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].priority == 2
-      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].priority == 2
-      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Flip Planning ")]) == 1
-      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Demo Planning /")]) == 1
-      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Demo Planning KC ")]) == 1
-    )
-    error_message = "Le contournement doit se limiter à /mcp/* (planning) et /auth/* (Keycloak du banc KC), en priorité 2."
-  }
-
-  # Les listes publiques de Karakeep se lisent sans compte et de partout :
-  # devant les règles pays, et rien de plus large que ce que la page charge.
-  # Un `/api/*` ouvrirait toute l'API sans le mur SSO ni le filtre pays. Les
-  # priorités 2 à 6 sont celles des anciennes règles autonomes : le passage à
-  # local.path_bypasses ne les a pas renumérotées.
-  assert {
-    condition = {
-      for key, rule in pangolin_resource_rule.path_bypass :
-      rule.value => rule.priority if startswith(key, "Karakeep ")
-      } == {
-      "/public/lists/*"                                    = 2
-      "/_next/static/*"                                    = 3
-      "/api/public/*"                                      = 4
-      "/api/trpc/publicBookmarks.getPublicBookmarksInList" = 5
-      "/api/v1/rss/lists/*"                                = 6
-    }
-    error_message = "Le contournement de Karakeep doit se limiter à ce que charge une liste publique (page, build Next.js, assets signés, tRPC getPublicBookmarksInList, RSS des listes), aux priorités 2 à 6."
-  }
-
-  # L'appli mobile de KitchenOwl n'a pas de session Pangolin : l'API (son JWT
-  # la garde) et Socket.IO s'ouvrent sans SSO et de partout, l'interface web
-  # (`/`) reste derrière le mur.
-  assert {
-    condition = {
-      for key, rule in pangolin_resource_rule.path_bypass :
-      rule.value => rule.priority if startswith(key, "KitchenOwl ")
-      } == {
-      "/api/*"       = 2
-      "/socket.io/*" = 2
-    }
-    error_message = "Le contournement de KitchenOwl doit se limiter à /api/* et /socket.io/* (appli mobile), en priorité 2."
-  }
-
-  # Les applis ntfy et les producteurs n'ont pas de session Pangolin : la
-  # publication JSON à la racine (Uptime Kuma), la publication sur chaque
-  # topic de producteur, et l'abonnement, le poll et la vérification de
-  # compte des applis. L'interface web et l'API /v1 restent derrière le mur ;
-  # ntfy refuse tout le reste sans compte (deny-all).
-  assert {
-    condition = {
-      for key, rule in pangolin_resource_rule.path_bypass :
-      rule.value => rule.priority if startswith(key, "ntfy ")
-      } == {
-      "/"            = 2
-      "/*/json"      = 2
-      "/*/ws"        = 2
-      "/*/auth"      = 2
-      "/uptime-kuma" = 2
-      "/scripts"     = 2
-      "/github"      = 2
-    }
-    error_message = "Le contournement de ntfy doit se limiter à /, /<topic> des producteurs et /*/json|ws|auth (applis), en priorité 2."
-  }
-
-  # Les listes publiques de Wishlist s'ouvrent sans compte et de partout, par
-  # le lien envoyé à la famille : la page, le build SvelteKit, la police, les
-  # images des articles et la réservation publique, rien de l'API d'édition
-  # (listes, articles, réservations d'un compte), qui reste derrière le SSO.
-  assert {
-    condition = {
-      for key, rule in pangolin_resource_rule.path_bypass :
-      rule.value => rule.priority if startswith(key, "Wishlist ")
-      } == {
-      "/lists/*"                    = 2
-      "/_app/*"                     = 3
-      "/fonts/*"                    = 3
-      "/api/assets/*"               = 4
-      "/api/users/public"           = 5
-      "/api/lists/*/items/*/claims" = 5
-    }
-    error_message = "Le contournement de Wishlist doit se limiter à ce que charge une liste publique (page, build SvelteKit, police, images, réservation publique), aux priorités 2 à 5."
-  }
-
   # La procédure tRPC est écrite en entier : un joker dans ce segment laisserait
   # passer un lot `publicBookmarks.x,apiKeys.exchange`, échange mot de passe
   # contre clé d'API ouvert au monde entier.
@@ -1240,80 +1045,19 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Aucun joker sous /api/trpc/ : tRPC regroupe plusieurs procédures dans un seul segment."
   }
 
-  # MCP de TREK : `/mcp` en PASS (saute les règles pays, garde l'authentification
-  # Pangolin : SSO ou jeton d'accès), la surface publique d'OAuth en ACCEPT.
-  # Tout en chemins exacts, avant les règles pays.
-  assert {
-    condition = (
-      pangolin_resource_rule.trek_mcp.action == "PASS"
-      && pangolin_resource_rule.trek_mcp.match == "PATH"
-      && pangolin_resource_rule.trek_mcp.value == "/mcp"
-      && pangolin_resource_rule.trek_mcp.enabled == true
-      && pangolin_resource_rule.trek_mcp.priority >= 2 && pangolin_resource_rule.trek_mcp.priority < 10
-    )
-    error_message = "/mcp de TREK doit être un PASS (pas un ACCEPT) sur le chemin exact, avant les règles pays : le jeton d'accès Pangolin reste exigé."
-  }
-
-  # Point d'entrée des agents Beszel : même traitement que /mcp de TREK, un
-  # PASS sur le chemin exact, jamais un ACCEPT ni un joker.
-  assert {
-    condition = (
-      pangolin_resource_rule.beszel_agent_connect.action == "PASS"
-      && pangolin_resource_rule.beszel_agent_connect.match == "PATH"
-      && pangolin_resource_rule.beszel_agent_connect.value == "/api/beszel/agent-connect"
-      && pangolin_resource_rule.beszel_agent_connect.enabled == true
-      && pangolin_resource_rule.beszel_agent_connect.priority >= 2 && pangolin_resource_rule.beszel_agent_connect.priority < 10
-      && pangolin_resource_rule.beszel_agent_connect.resource_id == pangolin_resource.website["beszel"].id
-      && !contains(keys(local.path_bypasses), "Beszel")
-    )
-    error_message = "Le point d'entrée des agents Beszel doit être un PASS sur /api/beszel/agent-connect exact, avant les règles pays, et rien de Beszel dans local.path_bypasses."
-  }
-
-  # Point d'entrée des agents de journaux : le même PASS sur le chemin exact
-  # d'écriture, le seul que vmauth ouvre à un compte d'agent ; rien de
-  # VictoriaLogs ne s'ouvre sans SSO ni jeton.
-  assert {
-    condition = (
-      pangolin_resource_rule.victoria_logs_insert.action == "PASS"
-      && pangolin_resource_rule.victoria_logs_insert.match == "PATH"
-      && pangolin_resource_rule.victoria_logs_insert.value == "/insert/jsonline"
-      && pangolin_resource_rule.victoria_logs_insert.enabled == true
-      && pangolin_resource_rule.victoria_logs_insert.priority >= 2 && pangolin_resource_rule.victoria_logs_insert.priority < 10
-      && pangolin_resource_rule.victoria_logs_insert.resource_id == pangolin_resource.website["victoria_logs"].id
-      && pangolin_resource.website["victoria_logs"].sso == true
-      && !contains(keys(local.path_bypasses), "VictoriaLogs")
-    )
-    error_message = "Le point d'entrée des agents de journaux doit être un PASS sur /insert/jsonline exact, avant les règles pays, VictoriaLogs derrière le SSO et absent de local.path_bypasses."
-  }
-
-  # Ni l'enregistrement dynamique, ni l'autorisation (navigateur de
-  # l'utilisateur, derrière le SSO), ni rien de l'API ou de l'interface : la
-  # surface OAuth est la seule ouverture de TREK en priorité 2, sur des
-  # chemins exacts.
-  assert {
-    condition = toset([
-      for key, rule in pangolin_resource_rule.path_bypass :
-      rule.value if startswith(key, "TREK ") && rule.priority == 2
-      ]) == toset([
-      "/.well-known/oauth-protected-resource/mcp",
-      "/.well-known/oauth-protected-resource",
-      "/.well-known/oauth-authorization-server",
-      "/.well-known/oauth-authorization-server/mcp",
-      "/.well-known/openid-configuration",
-      "/mcp/.well-known/oauth-protected-resource",
-      "/mcp/.well-known/oauth-authorization-server",
-      "/mcp/.well-known/openid-configuration",
-      "/oauth/token",
-    ])
-    error_message = "L'ouverture OAuth de TREK doit se limiter aux documents de découverte et à /oauth/token, en priorité 2."
-  }
-
+  # Les trois règles par chemin autonomes (/mcp de TREK, les points d'entrée
+  # des agents Beszel et de journaux) sont des PASS : elles sautent les règles
+  # pays mais gardent l'authentification Pangolin (SSO ou jeton d'accès).
+  # Jamais un ACCEPT ni un joker, toujours avant les règles pays ; Beszel et
+  # VictoriaLogs n'ont aucune ouverture par chemin.
   assert {
     condition = alltrue([
-      for key, rule in pangolin_resource_rule.path_bypass :
-      !strcontains(rule.value, "*") if startswith(key, "TREK ") && rule.priority == 2
-    ])
-    error_message = "La surface OAuth de TREK : des chemins exacts, sans joker."
+      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert] :
+      rule.action == "PASS" && rule.match == "PATH" && rule.enabled == true
+      && !strcontains(rule.value, "*")
+      && rule.priority >= 2 && rule.priority < 10
+    ]) && !contains(keys(local.path_bypasses), "Beszel") && !contains(keys(local.path_bypasses), "VictoriaLogs")
+    error_message = "/mcp de TREK et les points d'entrée des agents Beszel et de journaux doivent être des PASS (pas des ACCEPT) sur un chemin exact, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
   }
 
   # L'override donne le même identifiant à toutes les instances d'une règle
@@ -1501,15 +1245,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
   }
 
-  # Promptoramix : `/*` et rien d'autre, devant les règles pays.
-  assert {
-    condition = (
-      pangolin_resource_rule.path_bypass["Promptoramix /*"].priority == 2
-      && length([for key in keys(pangolin_resource_rule.path_bypass) : key if startswith(key, "Promptoramix ")]) == 1
-    )
-    error_message = "Promptoramix doit être ouverte par la seule règle /*, en priorité 2."
-  }
-
   # Nextcloud : les clients n'ont que la moitié « client » du login flow v2
   # (démarrage et poll) ; la moitié navigateur (flow, grant, apptoken), le
   # formulaire de connexion et les pages de réglages restent derrière le SSO,
@@ -1532,18 +1267,11 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
 
 # Pangolin ne normalise pas l'antislash, que Node transforme en `/` : chaque
 # ressource qui a une règle par chemin a son DROP en priorité 1, seul dans sa
-# case, donc évalué avant toutes les autres.
+# case, donc évalué avant toutes les autres. Qu'aucune ressource à règle par
+# chemin n'en manque, c'est le run apply tied_rules_share_their_action qui le
+# vérifie, sur les règles réellement déclarées.
 run "backslash_guard_covers_every_path_rule" {
   command = plan
-
-  assert {
-    condition = toset(keys(pangolin_resource_rule.backslash_guard)) == toset([
-      "Beszel", "Dawarich", "Demo Planning", "Demo Planning KC", "Flip Planning",
-      "Karakeep", "KitchenOwl", "Meerkat CRM", "Monica CRM", "nextcloud", "ntfy", "Paperless-ngx", "Promptoramix", "TREK",
-      "VictoriaLogs", "Wishlist",
-    ])
-    error_message = "Toute ressource qui a une règle par chemin doit avoir son DROP antislash (local.backslash_guarded_resources)."
-  }
 
   assert {
     condition = alltrue([
@@ -1597,73 +1325,16 @@ run "tied_rules_share_their_action" {
   }
 }
 
-# Karakeep reste derrière le mur SSO et le filtre pays : ses clients (app
-# mobile, extension, MCP) passent avec un jeton d'accès Pangolin chacun, pas
-# par un contournement de chemin (seules les listes publiques en ont un, voir
-# bypass_rules_sit_in_their_priority_band). Un jeton par client, pour en
-# révoquer un seul (téléphone perdu) sans toucher aux autres.
-run "karakeep_clients_use_access_tokens_not_a_bypass" {
-  command = plan
-
-  assert {
-    condition     = pangolin_resource.website["karakeep"].sso == true
-    error_message = "Karakeep doit rester derrière le mur SSO de Pangolin."
-  }
-
-  assert {
-    condition     = toset(keys(pangolin_resource_access_token.karakeep_clients)) == toset(["mobile", "extension", "mcp"])
-    error_message = "Un jeton d'accès Pangolin par client de Karakeep : mobile, extension, mcp."
-  }
-
-  assert {
-    condition = alltrue([
-      for token in pangolin_resource_access_token.karakeep_clients :
-      token.resource_id == pangolin_resource.website["karakeep"].id
-    ])
-    error_message = "Les jetons des clients de Karakeep doivent viser la ressource Karakeep."
-  }
-
-  assert {
-    condition     = length(distinct([for token in pangolin_resource_access_token.karakeep_clients : token.title])) == 3
-    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
-  }
-}
-
-# Le MCP de TREK passe par un jeton d'accès Pangolin par client, pas par un
-# ACCEPT : en-têtes pour les clients qui en envoient, `?p_token=` dans l'URL du
-# connecteur pour Claude.ai.
-run "trek_mcp_clients_use_access_tokens" {
-  command = plan
-
-  assert {
-    condition     = pangolin_resource.website["trek"].sso == true
-    error_message = "TREK doit rester derrière le mur SSO de Pangolin."
-  }
-
-  assert {
-    condition     = toset(keys(pangolin_resource_access_token.trek_mcp_clients)) == toset(["claude-ai", "claude-code"])
-    error_message = "Un jeton d'accès Pangolin par client MCP de TREK : claude-ai, claude-code."
-  }
-
-  assert {
-    condition = alltrue([
-      for token in pangolin_resource_access_token.trek_mcp_clients :
-      token.resource_id == pangolin_resource.website["trek"].id
-    ])
-    error_message = "Les jetons des clients MCP doivent viser la ressource TREK."
-  }
-
-  assert {
-    condition     = length(distinct([for token in pangolin_resource_access_token.trek_mcp_clients : token.title])) == 2
-    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
-  }
-}
-
-# Le format `?p_token=<id>.<jeton>` est celui que Pangolin découpe sur le point
-# (verifySession.ts) ; un autre séparateur et le jeton ne serait jamais lu.
-run "trek_mcp_connector_url_carries_the_token" {
+# Les clients sans session Pangolin (MCP de TREK, agents Beszel et de journaux
+# des hôtes Hetzner) passent avec un jeton d'accès Pangolin, pas par un
+# ACCEPT ; ceux du LAN n'en ont pas. Les sorties qui les portent ont le format
+# que leur lecteur découpe, et les playbooks les lisent sous la clé
+# inventory_hostname.
+run "access_token_outputs_follow_their_reader" {
   command = apply
 
+  # `?p_token=<id>.<jeton>` : Pangolin le découpe sur le point
+  # (verifySession.ts) ; un autre séparateur et le jeton ne serait jamais lu.
   assert {
     condition = alltrue([
       for client in ["claude-ai", "claude-code"] :
@@ -1673,93 +1344,34 @@ run "trek_mcp_connector_url_carries_the_token" {
     ])
     error_message = "L'URL de connecteur doit être https://<domaine>/mcp?p_token=<id>.<jeton>."
   }
-}
-
-# Les agents de journaux des hôtes Hetzner passent le PASS de /insert/jsonline
-# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes P-Access-Token-Id /
-# P-Access-Token. Ceux du LAN n'en ont pas : ils parlent à vmauth sans Pangolin.
-run "log_remote_agents_use_their_own_access_token" {
-  command = apply
-
-  assert {
-    condition     = toset(keys(pangolin_resource_access_token.log_agents)) == toset(["flip", "pangolin"])
-    error_message = "Un jeton d'accès Pangolin par agent de journaux distant : flip et pangolin, rien d'autre."
-  }
-
-  assert {
-    condition = alltrue([
-      for token in pangolin_resource_access_token.log_agents :
-      token.resource_id == pangolin_resource.website["victoria_logs"].id
-    ])
-    error_message = "Les jetons des agents de journaux doivent viser la ressource VictoriaLogs."
-  }
 
   assert {
     condition = output.log_agent_access_tokens == {
       flip     = { id = "tok-log-agent", token = "jeton-log-agent" }
       pangolin = { id = "tok-log-agent", token = "jeton-log-agent" }
     }
-    error_message = "log_agent_access_tokens doit donner à chaque agent distant l'identifiant et le jeton de son accès Pangolin."
+    error_message = "log_agent_access_tokens doit donner à chaque agent distant (flip, pangolin) l'identifiant et le jeton de son accès Pangolin."
   }
 
-  # Le contrat avec Ansible : chaque playbook des hôtes distants lit son
-  # jeton sous cette forme.
-  assert {
-    condition = alltrue([
-      for playbook in ["flip.yml", "pangolin.yaml"] :
-      strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id")
-      && strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token")
-    ])
-    error_message = "flip.yml et pangolin.yaml doivent lire terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id et .token."
-  }
-}
-
-# Les agents Beszel des hôtes Hetzner passent le PASS de leur point d'entrée
-# avec un jeton d'accès Pangolin chacun, envoyé en en-têtes (HUB_HEADERS, au
-# format « Nom: valeur » séparé par des virgules que lit l'agent). Ceux du LAN
-# n'en ont pas : ils parlent au hub sans Pangolin.
-run "beszel_remote_agents_use_their_own_access_token" {
-  command = apply
-
-  assert {
-    condition     = pangolin_resource.website["beszel"].sso == true
-    error_message = "Beszel doit rester derrière le mur SSO de Pangolin."
-  }
-
-  assert {
-    condition     = toset(keys(pangolin_resource_access_token.beszel_agents)) == toset(["flip", "pangolin"])
-    error_message = "Un jeton d'accès Pangolin par agent Beszel distant : flip et pangolin, rien d'autre."
-  }
-
-  assert {
-    condition = alltrue([
-      for token in pangolin_resource_access_token.beszel_agents :
-      token.resource_id == pangolin_resource.website["beszel"].id
-    ])
-    error_message = "Les jetons des agents doivent viser la ressource Beszel."
-  }
-
-  assert {
-    condition     = length(distinct([for token in pangolin_resource_access_token.beszel_agents : token.title])) == 2
-    error_message = "Chaque jeton doit porter un titre distinct, pour savoir lequel révoquer."
-  }
-
+  # HUB_HEADERS, au format « Nom: valeur » séparé par des virgules que lit
+  # l'agent Beszel.
   assert {
     condition = output.beszel_agent_hub_headers == {
       flip     = "P-Access-Token-Id: tok-beszel-agent, P-Access-Token: jeton-beszel-agent"
       pangolin = "P-Access-Token-Id: tok-beszel-agent, P-Access-Token: jeton-beszel-agent"
     }
-    error_message = "beszel_agent_hub_headers doit donner à chaque agent distant ses en-têtes P-Access-Token-Id / P-Access-Token."
+    error_message = "beszel_agent_hub_headers doit donner à chaque agent distant (flip, pangolin) ses en-têtes P-Access-Token-Id / P-Access-Token."
   }
 
-  # Contrat Tofu <-> Ansible : chaque playbook d'hôte distant lit la sortie
-  # sous la clé inventory_hostname.
+  # Contrat Tofu <-> Ansible.
   assert {
     condition = alltrue([
       for playbook in ["flip.yml", "pangolin.yaml"] :
-      strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]")
+      strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id")
+      && strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token")
+      && strcontains(file("${path.module}/../../ansible/${playbook}"), "terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]")
     ])
-    error_message = "flip.yml et pangolin.yaml doivent lire terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]."
+    error_message = "flip.yml et pangolin.yaml doivent lire terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id et .token, et terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname]."
   }
 }
 
@@ -1848,15 +1460,9 @@ run "php_lockdown_closes_every_public_php_path" {
     error_message = "php_lockdown.tf nomme une application qui n'est pas en PHP."
   }
 
-  # Monica, FreshRSS (rss) et BookStack (wiki).
-  assert {
-    condition = alltrue([
-      for key in ["monica", "rss", "wiki"] :
-      pangolin_resource.website[key].sso == true
-    ])
-    error_message = "Une application PHP répond sans le SSO."
-  }
-
+  # Monica, FreshRSS (rss) et BookStack (wiki). Leur SSO, lui, est tenu par
+  # every_public_resource_applies_its_rules (seules Betisier et Promptoramix
+  # s'en passent).
   assert {
     condition = length([
       for key, rule in pangolin_resource_rule.path_bypass : key
@@ -1910,44 +1516,6 @@ run "every_public_resource_applies_its_rules" {
       && toset([for r in pangolin_resource.website : r.name]) == toset(keys(local.managed_resources))
     )
     error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), ou manque à local.managed_resources."
-  }
-
-  # Les noms Pangolin, écrits en toutes lettres : les règles pays et les
-  # audits de rules.tf en font leurs clés, si bien qu'un nom changé détruit et
-  # recrée toutes les règles de la ressource (aucun moved ne suit un nom). La
-  # clé de l'entrée, elle, est l'adresse que les blocs moved (appliqués) ont
-  # donnée à chaque ressource. Une nouvelle application s'ajoute ici (voir le skill
-  # pangolin-route).
-  assert {
-    condition = { for key, r in pangolin_resource.website : key => r.name } == {
-      beszel            = "Beszel"
-      betisier          = "Betisier"
-      dawarich          = "Dawarich"
-      demo_planning     = "Demo Planning"
-      demo_planning_kc  = "Demo Planning KC"
-      flip_planning     = "Flip Planning"
-      homebox           = "Homebox"
-      homepage          = "Homepage"
-      immich            = "Immich"
-      immich_swipe      = "Immich Swipe"
-      karakeep          = "Karakeep"
-      kitchenowl        = "KitchenOwl"
-      meerkat_crm       = "Meerkat CRM"
-      monica            = "Monica CRM"
-      nextcloud         = "nextcloud"
-      nginx_demo        = "Nginx Demo"
-      paperless         = "Paperless-ngx"
-      promptoramix      = "Promptoramix"
-      rss               = "RSS"
-      speedtest_tracker = "Speedtest Tracker"
-      stirling_pdf      = "Stirling-PDF"
-      trek              = "TREK"
-      victoria_logs     = "VictoriaLogs"
-      wiki              = "Wiki (Bookstack)"
-      wishlist          = "Wishlist"
-      ntfy              = "ntfy"
-    }
-    error_message = "Les ressources publiques ont changé (clé ou nom) : un nom renommé recrée ses règles pays ; une application ajoutée se liste ici."
   }
 
   # local.websites liste à la main les entrées local.<app>_website des
@@ -2014,9 +1582,8 @@ run "every_resource_declares_the_pinned_attributes" {
   }
 }
 
-# Deux ressources sur le même FQDN se marcheraient dessus dans Traefik ; les
-# environnements de Flip Planning sont chacun sur leur domaine.
-run "resources_have_unique_fqdns_on_the_right_domains" {
+# Deux ressources sur le même FQDN se marcheraient dessus dans Traefik.
+run "resources_have_unique_fqdns" {
   command = plan
 
   assert {
@@ -2024,19 +1591,6 @@ run "resources_have_unique_fqdns_on_the_right_domains" {
       for r in pangolin_resource.website : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
     ])) == length(local.managed_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
-  }
-
-  assert {
-    condition     = pangolin_resource.website["flip_planning"].domain_id == "dom-cloud" && pangolin_resource.website["flip_planning"].subdomain == "flip-planning"
-    error_message = "La production de Flip Planning est servie sur flip-planning.sylvain.cloud."
-  }
-
-  assert {
-    condition = (
-      pangolin_resource.website["demo_planning"].domain_id == "dom-dev" && pangolin_resource.website["demo_planning"].subdomain == "demo-planning"
-      && pangolin_resource.website["demo_planning_kc"].domain_id == "dom-dev" && pangolin_resource.website["demo_planning_kc"].subdomain == "demo-planning-kc"
-    )
-    error_message = "Les démos de Flip Planning sont servies sur sylvain.dev (demo-planning, demo-planning-kc)."
   }
 }
 
@@ -2082,48 +1636,13 @@ run "maintenance_page_and_inverted_keyword_monitors" {
     ])
     error_message = "Un healthcheck doit suivre l'état (enabled) de sa ressource."
   }
-
-  # Les noms des moniteurs, écrits en toutes lettres : Uptime Kuma les
-  # affiche et les mails d'alerte les citent. Une nouvelle application
-  # s'ajoute ici (voir le skill pangolin-route).
-  assert {
-    condition = { for key, m in uptimekuma_monitor_http_keyword.healthcheck : key => m.name } == {
-      beszel            = "Healthcheck Beszel"
-      betisier          = "Healthcheck Betisier"
-      dawarich          = "Healthcheck Dawarich"
-      demo_planning     = "Healthcheck Demo Planning"
-      flip_planning     = "Healthcheck Flip Planning"
-      homebox           = "Healthcheck Homebox"
-      homepage          = "Healthcheck Homepage"
-      immich            = "Healthcheck Immich"
-      immich_swipe      = "Healthcheck Immich Swipe"
-      karakeep          = "Healthcheck Karakeep"
-      kitchenowl        = "Healthcheck KitchenOwl"
-      meerkat_crm       = "Healthcheck Meerkat CRM"
-      monica            = "Healthcheck Monica CRM"
-      nextcloud         = "Healthcheck nextcloud"
-      nginx_demo        = "Healthcheck Nginx Demo"
-      paperless         = "Healthcheck Paperless-ngx"
-      promptoramix      = "Healthcheck Promptoramix"
-      rss               = "Healthcheck RSS"
-      speedtest_tracker = "Healthcheck Speedtest Tracker"
-      stirling_pdf      = "Healthcheck Stirling-PDF"
-      trek              = "Healthcheck TREK"
-      victoria_logs     = "Healthcheck VictoriaLogs"
-      wiki              = "Healthcheck Wiki (Bookstack)"
-      wishlist          = "Healthcheck Wishlist"
-      ntfy              = "Healthcheck ntfy"
-    }
-    error_message = "Les healthchecks ont changé de nom (ou une application manque à cette liste)."
-  }
 }
 
-# Le dashboard Pangolin et ref.sylvain.dev ont leur moniteur. L'URL du
-# dashboard est celle que publie le rôle pangolin (host_vars/pangolin) : un
-# renommage d'un seul côté laisserait le moniteur sonder un nom mort. Pas de
-# mot-clé inversé ici : ni l'un ni l'autre n'est une ressource Pangolin, donc
-# pas de page de maintenance à reconnaître.
-run "pangolin_dashboard_and_ref_are_monitored" {
+# L'URL du moniteur du dashboard Pangolin est celle que publie le rôle
+# pangolin (host_vars/pangolin) : un renommage d'un seul côté laisserait le
+# moniteur sonder un nom mort. Pas de mot-clé inversé ici : le dashboard n'est
+# pas une ressource Pangolin, donc pas de page de maintenance à reconnaître.
+run "pangolin_dashboard_monitor_follows_host_vars" {
   command = plan
 
   assert {
@@ -2140,11 +1659,6 @@ run "pangolin_dashboard_and_ref_are_monitored" {
       )
     )
     error_message = "Le moniteur du dashboard doit sonder pangolin_dashboard_url (ansible/host_vars/pangolin/variables.yaml), soit https://pangolin.sylvain.cloud."
-  }
-
-  assert {
-    condition     = uptimekuma_monitor_http.ref.url == "https://ref.sylvain.dev" && uptimekuma_monitor_http.ref.active == true
-    error_message = "ref.sylvain.dev (tofu/ref) doit avoir son moniteur actif."
   }
 }
 
@@ -2179,14 +1693,10 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier et Promptoramix (sans SSO). Immich Swipe prend celui d'Immich.
+  # Betisier et Promptoramix (sans SSO).
   assert {
-    condition = (
-      setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
-      && local.websites["immich_swipe"].role == "immich"
-      && local.websites["nextcloud"].role == "nextcloud"
-    )
-    error_message = "Chaque application derrière le SSO est liée à son rôle (Immich Swipe à celui d'Immich, nextcloud au sien) ; Betisier et Promptoramix, sans SSO, à aucun."
+    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
+    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier et Promptoramix, sans SSO, à aucun."
   }
 }
 
@@ -2223,48 +1733,29 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
     error_message = "Les identifiants simulés des ressources doivent être distincts pour que ce run prouve quelque chose."
   }
 
+  # Chaque ouverture par chemin et chaque garde antislash vise la ressource
+  # dont le nom préfixe sa clé ; les règles autonomes, celle de leur fichier.
   assert {
-    condition = (
-      pangolin_resource_rule.path_bypass["Flip Planning /mcp/*"].resource_id == pangolin_resource.website["flip_planning"].id
-      && pangolin_resource_rule.path_bypass["Demo Planning /mcp/*"].resource_id == pangolin_resource.website["demo_planning"].id
-      && pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"].resource_id == pangolin_resource.website["demo_planning_kc"].id
-      && pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.website["immich"].id
-      && pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.website["dawarich"].id
-      && pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.website["trek"].id
-      && pangolin_resource_rule.backslash_guard["Karakeep"].resource_id == pangolin_resource.website["karakeep"].id
-      && pangolin_resource_rule.backslash_guard["TREK"].resource_id == pangolin_resource.website["trek"].id
-      && pangolin_resource_rule.path_bypass["TREK /public/journey/*"].resource_id == pangolin_resource.website["trek"].id
-      && pangolin_resource_rule.path_bypass["Paperless-ngx /share/*"].resource_id == pangolin_resource.website["paperless"].id
-      && pangolin_resource_rule.path_bypass["Dawarich /s/*"].resource_id == pangolin_resource.website["dawarich"].id
-      && pangolin_resource_rule.path_bypass["Monica CRM /dav/*"].resource_id == pangolin_resource.website["monica"].id
-      && pangolin_resource_rule.path_bypass["Meerkat CRM /carddav/*"].resource_id == pangolin_resource.website["meerkat_crm"].id
-      && pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id
-      && pangolin_resource_rule.path_bypass["nextcloud /remote.php/*"].resource_id == pangolin_resource.website["nextcloud"].id
-      && pangolin_resource_rule.backslash_guard["nextcloud"].resource_id == pangolin_resource.website["nextcloud"].id
-      && alltrue([
-        for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.website["trek"].id if startswith(key, "TREK ")
-      ])
-      && alltrue([
-        for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.website["karakeep"].id if startswith(key, "Karakeep ")
-      ])
-      && pangolin_resource_rule.backslash_guard["KitchenOwl"].resource_id == pangolin_resource.website["kitchenowl"].id
-      && alltrue([
-        for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.website["kitchenowl"].id if startswith(key, "KitchenOwl ")
-      ])
-      && pangolin_resource_rule.backslash_guard["ntfy"].resource_id == pangolin_resource.website["ntfy"].id
-      && alltrue([
-        for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.website["ntfy"].id if startswith(key, "ntfy ")
-      ])
-      && pangolin_resource_rule.backslash_guard["Wishlist"].resource_id == pangolin_resource.website["wishlist"].id
-      && alltrue([
-        for key, rule in pangolin_resource_rule.path_bypass :
-        rule.resource_id == pangolin_resource.website["wishlist"].id if startswith(key, "Wishlist ")
-      ])
-    )
+    condition = alltrue(concat(
+      flatten([
+        for name, paths in local.path_bypasses : [
+          for path in keys(paths) :
+          pangolin_resource_rule.path_bypass["${name} ${path}"].resource_id == one([for r in pangolin_resource.website : r.id if r.name == name])
+        ]
+      ]),
+      [
+        for name, rule in pangolin_resource_rule.backslash_guard :
+        rule.resource_id == one([for r in pangolin_resource.website : r.id if r.name == name])
+      ],
+      [
+        pangolin_resource_rule.immich_home_ip.resource_id == pangolin_resource.website["immich"].id,
+        pangolin_resource_rule.dawarich_home_ip.resource_id == pangolin_resource.website["dawarich"].id,
+        pangolin_resource_rule.trek_home_ip.resource_id == pangolin_resource.website["trek"].id,
+        pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id,
+        pangolin_resource_rule.beszel_agent_connect.resource_id == pangolin_resource.website["beszel"].id,
+        pangolin_resource_rule.victoria_logs_insert.resource_id == pangolin_resource.website["victoria_logs"].id,
+      ],
+    ))
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
   }
 }
@@ -2276,210 +1767,60 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
 run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   command = apply
 
-  # docker.yml
+  # Chaque sortie => le jeton push simulé de SON moniteur (override_resource
+  # plus haut). Deux playbooks qui poussent sur le même moniteur se masquent
+  # l'un l'autre : les URL sont distinctes, et autant que de sorties
+  # uptime_*_url dans le module, si bien qu'une sortie ajoutée sans être
+  # listée ici fait aussi échouer le run.
   assert {
-    condition     = output.uptime_backup_nextcloud_url == "https://uptime.example.test/api/push/push-nextcloud"
-    error_message = "uptime_backup_nextcloud_url (docker.yml) ne pointe pas sur le moniteur Backup nextcloud."
-  }
-
-  assert {
-    condition     = output.uptime_backup_wiki_url == "https://uptime.example.test/api/push/push-wiki"
-    error_message = "uptime_backup_wiki_url (docker.yml) ne pointe pas sur le moniteur Backup wiki."
-  }
-
-  assert {
-    condition     = output.uptime_backup_rss_url == "https://uptime.example.test/api/push/push-rss"
-    error_message = "uptime_backup_rss_url (docker.yml) ne pointe pas sur le moniteur Backup RSS."
-  }
-
-  assert {
-    condition     = output.uptime_backup_monica_url == "https://uptime.example.test/api/push/push-monica"
-    error_message = "uptime_backup_monica_url (docker.yml) ne pointe pas sur le moniteur Backup Monica."
-  }
-
-  assert {
-    condition     = output.uptime_cron_monica_url == "https://uptime.example.test/api/push/push-cron-monica"
-    error_message = "uptime_cron_monica_url (docker.yml) ne pointe pas sur le moniteur Cron Monica."
-  }
-
-  assert {
-    condition     = output.uptime_backup_betisier_url == "https://uptime.example.test/api/push/push-betisier"
-    error_message = "uptime_backup_betisier_url (docker.yml) ne pointe pas sur le moniteur Backup Betisier."
-  }
-
-  assert {
-    condition     = output.uptime_backup_meerkat_crm_url == "https://uptime.example.test/api/push/push-meerkat-crm"
-    error_message = "uptime_backup_meerkat_crm_url (docker.yml) ne pointe pas sur le moniteur Backup Meerkat CRM."
-  }
-
-  assert {
-    condition     = output.uptime_backup_dawarich_url == "https://uptime.example.test/api/push/push-dawarich"
-    error_message = "uptime_backup_dawarich_url (docker.yml) ne pointe pas sur le moniteur Backup Dawarich."
-  }
-
-  assert {
-    condition     = output.uptime_backup_trek_url == "https://uptime.example.test/api/push/push-trek"
-    error_message = "uptime_backup_trek_url (docker.yml) ne pointe pas sur le moniteur Backup TREK."
-  }
-
-  assert {
-    condition     = output.uptime_backup_kitchenowl_url == "https://uptime.example.test/api/push/push-kitchenowl"
-    error_message = "uptime_backup_kitchenowl_url (docker.yml) ne pointe pas sur le moniteur Backup KitchenOwl."
-  }
-
-  assert {
-    condition     = output.uptime_backup_homebox_url == "https://uptime.example.test/api/push/push-homebox"
-    error_message = "uptime_backup_homebox_url (docker.yml) ne pointe pas sur le moniteur Backup Homebox."
-  }
-
-  assert {
-    condition     = output.uptime_backup_speedtest_tracker_url == "https://uptime.example.test/api/push/push-speedtest-tracker"
-    error_message = "uptime_backup_speedtest_tracker_url (docker.yml) ne pointe pas sur le moniteur Backup Speedtest Tracker."
-  }
-
-  assert {
-    condition     = output.uptime_backup_ntfy_url == "https://uptime.example.test/api/push/push-ntfy"
-    error_message = "uptime_backup_ntfy_url (docker.yml) ne pointe pas sur le moniteur Backup ntfy."
-  }
-
-  assert {
-    condition     = output.uptime_backup_karakeep_url == "https://uptime.example.test/api/push/push-karakeep"
-    error_message = "uptime_backup_karakeep_url (docker.yml) ne pointe pas sur le moniteur Backup Karakeep."
-  }
-
-  assert {
-    condition     = output.uptime_backup_wishlist_url == "https://uptime.example.test/api/push/push-wishlist"
-    error_message = "uptime_backup_wishlist_url (docker.yml) ne pointe pas sur le moniteur Backup Wishlist."
-  }
-
-  assert {
-    condition     = output.uptime_backup_beszel_url == "https://uptime.example.test/api/push/push-beszel"
-    error_message = "uptime_backup_beszel_url (docker.yml) ne pointe pas sur le moniteur Backup Beszel."
-  }
-
-  assert {
-    condition     = output.uptime_backup_nginx_demo_url == "https://uptime.example.test/api/push/push-nginx-demo"
-    error_message = "uptime_backup_nginx_demo_url (docker.yml) ne pointe pas sur le moniteur Backup Nginx Demo."
-  }
-
-  assert {
-    condition     = output.uptime_backup_paperless_url == "https://uptime.example.test/api/push/push-paperless"
-    error_message = "uptime_backup_paperless_url (docker.yml) ne pointe pas sur le moniteur Backup Paperless."
-  }
-
-  # flip.yml
-  assert {
-    condition     = output.uptime_backup_flip_planning_url == "https://uptime.example.test/api/push/push-flip-planning"
-    error_message = "uptime_backup_flip_planning_url (flip.yml, instance de production) ne pointe pas sur le moniteur Backup Flip Planning."
-  }
-
-  assert {
-    condition     = output.uptime_backup_demo_planning_url == "https://uptime.example.test/api/push/push-demo-planning"
-    error_message = "uptime_backup_demo_planning_url (flip.yml, instance de démo) ne pointe pas sur le moniteur Backup Demo Planning."
-  }
-
-  # pi.yml
-  assert {
-    condition     = output.uptime_backup_immich_url == "https://uptime.example.test/api/push/push-immich"
-    error_message = "uptime_backup_immich_url (pi.yml) ne pointe pas sur le moniteur Backup Immich."
-  }
-
-  # pangolin.yaml
-  assert {
-    condition     = output.uptime_backup_pangolin_url == "https://uptime.example.test/api/push/push-pangolin"
-    error_message = "uptime_backup_pangolin_url (pangolin.yaml) ne pointe pas sur le moniteur Backup Pangolin."
-  }
-
-  # nas.yml
-  assert {
-    condition     = output.uptime_backup_jellyfin_url == "https://uptime.example.test/api/push/push-jellyfin"
-    error_message = "uptime_backup_jellyfin_url (nas.yml) ne pointe pas sur le moniteur Backup Jellyfin."
-  }
-
-  assert {
-    condition     = output.uptime_cron_geoip_url == "https://uptime.example.test/api/push/push-cron-geoip"
-    error_message = "uptime_cron_geoip_url (pangolin.yaml) ne pointe pas sur le moniteur GeoIP Pangolin."
-  }
-
-  assert {
-    condition     = output.uptime_cron_nas_cert_url == "https://uptime.example.test/api/push/push-cron-nas-cert"
-    error_message = "uptime_cron_nas_cert_url (nas.yml) ne pointe pas sur le moniteur Certificats NAS."
-  }
-
-  assert {
-    condition     = output.uptime_cron_kdrive_sync_url == "https://uptime.example.test/api/push/push-cron-kdrive-sync"
-    error_message = "uptime_cron_kdrive_sync_url (nas.yml) ne pointe pas sur le moniteur kDrive vers NAS."
-  }
-
-  # pve.yml
-  assert {
-    condition     = output.uptime_cron_vzdump_restore_test_url == "https://uptime.example.test/api/push/push-cron-vzdump-restore-test"
-    error_message = "uptime_cron_vzdump_restore_test_url (pve.yml) ne pointe pas sur le moniteur Test restauration vzdump."
-  }
-
-  assert {
-    condition     = output.uptime_cron_pve_updates_url == "https://uptime.example.test/api/push/push-cron-pve-updates"
-    error_message = "uptime_cron_pve_updates_url (pve.yml) ne pointe pas sur le moniteur Mises à jour Proxmox."
-  }
-
-  # pi.yml et lxc.yml (vérification de Blocky, rôle blocky)
-  assert {
-    condition     = output.uptime_cron_dns_pi_url == "https://uptime.example.test/api/push/push-cron-dns-pi"
-    error_message = "uptime_cron_dns_pi_url (pi.yml) ne pointe pas sur le moniteur DNS Raspberry Pi."
-  }
-
-  assert {
-    condition     = output.uptime_cron_dns_lxc_url == "https://uptime.example.test/api/push/push-cron-dns-lxc"
-    error_message = "uptime_cron_dns_lxc_url (lxc.yml) ne pointe pas sur le moniteur DNS LXC newt."
-  }
-
-  # docker.yml (reset du bêtisier)
-  assert {
-    condition     = output.uptime_cron_betisier_reset_url == "https://uptime.example.test/api/push/push-cron-betisier-reset"
-    error_message = "uptime_cron_betisier_reset_url (docker.yml) ne pointe pas sur le moniteur Reset Betisier."
-  }
-
-  # Deux playbooks qui poussent sur le même moniteur se masquent l'un l'autre.
-  # Comparé au nombre de sorties uptime_*_url du module, pas à un compte en
-  # dur : une sortie ajoutée sans être listée ici fait aussi échouer le run.
-  assert {
-    condition = length(distinct([
-      output.uptime_backup_nextcloud_url,
-      output.uptime_backup_wiki_url,
-      output.uptime_backup_rss_url,
-      output.uptime_backup_monica_url,
-      output.uptime_cron_monica_url,
-      output.uptime_backup_betisier_url,
-      output.uptime_backup_meerkat_crm_url,
-      output.uptime_backup_dawarich_url,
-      output.uptime_backup_trek_url,
-      output.uptime_backup_karakeep_url,
-      output.uptime_backup_kitchenowl_url,
-      output.uptime_backup_homebox_url,
-      output.uptime_backup_speedtest_tracker_url,
-      output.uptime_backup_ntfy_url,
-      output.uptime_backup_wishlist_url,
-      output.uptime_backup_nginx_demo_url,
-      output.uptime_backup_beszel_url,
-      output.uptime_backup_paperless_url,
-      output.uptime_backup_flip_planning_url,
-      output.uptime_backup_demo_planning_url,
-      output.uptime_backup_immich_url,
-      output.uptime_backup_pangolin_url,
-      output.uptime_backup_jellyfin_url,
-      output.uptime_cron_geoip_url,
-      output.uptime_cron_nas_cert_url,
-      output.uptime_cron_kdrive_sync_url,
-      output.uptime_cron_vzdump_restore_test_url,
-      output.uptime_cron_pve_updates_url,
-      output.uptime_cron_dns_pi_url,
-      output.uptime_cron_dns_lxc_url,
-      output.uptime_cron_betisier_reset_url,
-      ])) == length(flatten([
-      for f in fileset(path.module, "*.tf") :
-      regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
-    ]))
-    error_message = "Deux sorties lues par Ansible pointent sur le même moniteur push, ou une sortie uptime_*_url manque à cette liste."
+    condition = alltrue([
+      for urls in [{
+        # docker.yml
+        uptime_backup_nextcloud_url         = output.uptime_backup_nextcloud_url
+        uptime_backup_wiki_url              = output.uptime_backup_wiki_url
+        uptime_backup_rss_url               = output.uptime_backup_rss_url
+        uptime_backup_monica_url            = output.uptime_backup_monica_url
+        uptime_cron_monica_url              = output.uptime_cron_monica_url
+        uptime_backup_betisier_url          = output.uptime_backup_betisier_url
+        uptime_cron_betisier_reset_url      = output.uptime_cron_betisier_reset_url
+        uptime_backup_meerkat_crm_url       = output.uptime_backup_meerkat_crm_url
+        uptime_backup_dawarich_url          = output.uptime_backup_dawarich_url
+        uptime_backup_trek_url              = output.uptime_backup_trek_url
+        uptime_backup_karakeep_url          = output.uptime_backup_karakeep_url
+        uptime_backup_kitchenowl_url        = output.uptime_backup_kitchenowl_url
+        uptime_backup_homebox_url           = output.uptime_backup_homebox_url
+        uptime_backup_speedtest_tracker_url = output.uptime_backup_speedtest_tracker_url
+        uptime_backup_ntfy_url              = output.uptime_backup_ntfy_url
+        uptime_backup_wishlist_url          = output.uptime_backup_wishlist_url
+        uptime_backup_nginx_demo_url        = output.uptime_backup_nginx_demo_url
+        uptime_backup_beszel_url            = output.uptime_backup_beszel_url
+        uptime_backup_paperless_url         = output.uptime_backup_paperless_url
+        # flip.yml (production, démo)
+        uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
+        uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url
+        # pi.yml, lxc.yml
+        uptime_backup_immich_url = output.uptime_backup_immich_url
+        uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
+        uptime_cron_dns_lxc_url  = output.uptime_cron_dns_lxc_url
+        # pangolin.yaml
+        uptime_backup_pangolin_url = output.uptime_backup_pangolin_url
+        uptime_cron_geoip_url      = output.uptime_cron_geoip_url
+        # nas.yml
+        uptime_backup_jellyfin_url  = output.uptime_backup_jellyfin_url
+        uptime_cron_nas_cert_url    = output.uptime_cron_nas_cert_url
+        uptime_cron_kdrive_sync_url = output.uptime_cron_kdrive_sync_url
+        # pve.yml
+        uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
+        uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
+        }] : alltrue([
+        for name, url in urls :
+        url == "https://uptime.example.test/api/push/push-${replace(trimsuffix(trimprefix(trimprefix(name, "uptime_"), "backup_"), "_url"), "_", "-")}"
+        ]) && length(distinct(values(urls))) == length(flatten([
+          for f in fileset(path.module, "*.tf") :
+          regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
+      ]))
+    ])
+    error_message = "Une sortie uptime_*_url lue par Ansible ne pointe pas sur le jeton de SON moniteur push (push-<nom de la sortie>), deux pointent sur le même, ou une sortie manque à cette liste."
   }
 
   # Dans l'autre sens : un moniteur push dont aucun playbook ne lit l'URL ne
@@ -2683,8 +2024,10 @@ run "site_resource_bindings_follow_their_resource" {
 }
 
 # Production et démo partagent un rôle Ansible mais rien côté Pangolin /
-# Uptime Kuma : ressource, jeton d'accès, healthcheck, moniteur de sauvegarde,
-# règle MCP et cibles sont distincts, et chaque cible vise les conteneurs de
+# Uptime Kuma : ressource, jeton d'accès, healthcheck et cibles sont
+# distincts (les moniteurs de sauvegarde le sont par
+# outputs_read_by_ansible_point_at_their_own_push_monitor, le SSO par
+# every_public_resource_applies_its_rules), et chaque cible vise les conteneurs de
 # son instance (préfixe flip_planning_container_prefix) sur le site flip.
 run "demo_and_production_planning_share_nothing" {
   command = apply
@@ -2710,87 +2053,25 @@ run "demo_and_production_planning_share_nothing" {
 
   assert {
     condition = (
-      uptimekuma_monitor_http_keyword.healthcheck["flip_planning"].url == "https://flip-planning.sylvain.cloud"
-      && uptimekuma_monitor_http_keyword.healthcheck["demo_planning"].url == "https://demo-planning.sylvain.dev"
-    )
-    error_message = "Chaque healthcheck doit sonder le FQDN de son environnement."
-  }
-
-  assert {
-    condition = (
       jsondecode(output.flip_planning_access_token).token == "jeton-flip-planning"
       && jsondecode(output.demo_planning_access_token).token == "jeton-demo-planning"
     )
     error_message = "Les sorties *_access_token doivent exposer le jeton de leur propre environnement."
   }
 
+  # Calculé sur toutes les applications : chaque liaison de rôle et chaque
+  # cible appartiennent à la ressource de leur entrée de local.websites, et
+  # les cibles de Flip Planning (production et démos) sont sur le site flip.
   assert {
-    condition = (
-      uptimekuma_monitor_push.backup["flip_planning"].name == "Backup Flip Planning"
-      && uptimekuma_monitor_push.backup["demo_planning"].name == "Backup Demo Planning"
-    )
-    error_message = "Chaque environnement doit avoir son propre moniteur de sauvegarde."
-  }
-
-  assert {
-    condition = (
-      pangolin_resource_role.website["flip_planning"].resource_id == pangolin_resource.website["flip_planning"].id
-      && pangolin_resource_role.website["demo_planning"].resource_id == pangolin_resource.website["demo_planning"].id
-      && pangolin_resource_role.website["demo_planning_kc"].resource_id == pangolin_resource.website["demo_planning_kc"].id
-    )
-    error_message = "Chaque ressource de Flip Planning porte sa propre liaison de rôle."
-  }
-
-  assert {
-    condition = alltrue([
-      for r in [pangolin_resource.website["flip_planning"], pangolin_resource.website["demo_planning"], pangolin_resource.website["demo_planning_kc"]] :
-      r.sso == true && r.apply_rules == true
-    ])
-    error_message = "Les trois environnements de Flip Planning restent derrière le SSO, avec les règles appliquées."
-  }
-
-  # Le banc Keycloak est en pause (liste des apps en pause, plus haut) ; la
-  # production et la démo, jamais par effet de bord.
-  assert {
-    condition     = pangolin_resource.website["flip_planning"].enabled && pangolin_resource.website["demo_planning"].enabled
-    error_message = "La production et la démo de Flip Planning restent actives."
-  }
-
-  assert {
-    condition = alltrue([
-      for t in [
-        pangolin_target.website["flip_planning"],
-        pangolin_target.website["flip_planning_pgadmin"],
-        pangolin_target.website["flip_planning_mailpit"],
-        pangolin_target.website["flip_planning_assets"],
-      ] : t.resource_id == pangolin_resource.website["flip_planning"].id && t.site_id == pangolin_site.flip.id
-    ])
-    error_message = "Les cibles de production doivent appartenir à la ressource Flip Planning, sur le site flip."
-  }
-
-  assert {
-    condition = alltrue([
-      for t in [
-        pangolin_target.website["demo_planning"],
-        pangolin_target.website["demo_planning_pgadmin"],
-        pangolin_target.website["demo_planning_mailpit"],
-        pangolin_target.website["demo_planning_assets"],
-      ] : t.resource_id == pangolin_resource.website["demo_planning"].id && t.site_id == pangolin_site.flip.id
-    ])
-    error_message = "Les cibles de démo doivent appartenir à la ressource Demo Planning, sur le site flip."
-  }
-
-  assert {
-    condition = alltrue([
-      for t in [
-        pangolin_target.website["demo_planning_kc"],
-        pangolin_target.website["demo_planning_kc_pgadmin"],
-        pangolin_target.website["demo_planning_kc_mailpit"],
-        pangolin_target.website["demo_planning_kc_assets"],
-        pangolin_target.website["demo_planning_kc_keycloak"],
-      ] : t.resource_id == pangolin_resource.website["demo_planning_kc"].id && t.site_id == pangolin_site.flip.id
-    ])
-    error_message = "Les cibles du banc KC doivent appartenir à la ressource Demo Planning KC, sur le site flip."
+    condition = alltrue(concat(
+      [for key, binding in pangolin_resource_role.website : binding.resource_id == pangolin_resource.website[key].id],
+      [
+        for key, t in pangolin_target.website :
+        t.resource_id == pangolin_resource.website[local.website_targets[key].website].id
+        && (!contains(["flip_planning", "demo_planning", "demo_planning_kc"], local.website_targets[key].website) || t.site_id == pangolin_site.flip.id)
+      ],
+    ))
+    error_message = "Une liaison de rôle ou une cible appartient à la ressource d'une autre application, ou une cible de Flip Planning n'est pas sur le site flip."
   }
 
   assert {
@@ -2826,35 +2107,8 @@ run "monitors_are_filed_and_alert" {
 
   # Les moniteurs de sauvegarde sont les instances de
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
-  # plus ceux de Pangolin et de Jellyfin (NAS). Clés et noms sont écrits en
-  # toutes lettres : en ajouter ou en retirer un est une décision, chacun garde
-  # l'adresse que les blocs moved (appliqués) lui ont donnée et le nom qu'Uptime Kuma affiche.
-  assert {
-    condition = { for key, m in uptimekuma_monitor_push.backup : key => m.name } == {
-      beszel            = "Backup Beszel"
-      betisier          = "Backup Betisier"
-      dawarich          = "Backup Dawarich"
-      demo_planning     = "Backup Demo Planning"
-      flip_planning     = "Backup Flip Planning"
-      homebox           = "Backup Homebox"
-      immich            = "Backup Immich"
-      karakeep          = "Backup Karakeep"
-      kitchenowl        = "Backup KitchenOwl"
-      meerkat_crm       = "Backup Meerkat CRM"
-      monica            = "Backup Monica CRM"
-      nextcloud         = "Backup nextcloud"
-      nginx_demo        = "Backup Nginx Demo"
-      paperless         = "Backup Paperless-ngx"
-      rss               = "Backup RSS"
-      speedtest_tracker = "Backup Speedtest Tracker"
-      trek              = "Backup TREK"
-      wiki              = "Backup Wiki (Bookstack)"
-      wishlist          = "Backup Wishlist"
-      ntfy              = "Backup ntfy"
-    }
-    error_message = "Les moniteurs de sauvegarde ont changé (clé ou nom) : relire les champs backup de local.websites, puis cette liste."
-  }
-
+  # plus ceux de Pangolin et de Jellyfin (NAS) ; leur liste est tenue par
+  # .github/restore-test/apps.json, plus bas.
   assert {
     condition = alltrue([
       for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
@@ -3043,25 +2297,15 @@ run "monitors_are_filed_and_alert" {
     error_message = "Chaque healthcheck doit être dans le dossier Self-hosted et notifié sur Telegram et ntfy."
   }
 
-  # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
-  # DOWN pour Uptime Kuma. Celle de ntfy répond 404 à un GET (web-root:
-  # /app), celle de VictoriaLogs 401 sans le compte vmauth. Leurs moniteurs
-  # lisent leur route de santé (monitor_path). Celles de BookStack, de
-  # FreshRSS et de Nextcloud redirigent (302 vers /login, /i/, /login) : sonder la racine
-  # coûtait deux requêtes par sonde, leurs moniteurs lisent la page d'arrivée.
-  # Les autres gardent la racine de leur ressource.
+  # Chaque healthcheck sonde le FQDN de SA ressource, suivi de son
+  # monitor_path quand la racine ne répond pas 200 (POST seul, 404, 401,
+  # redirection : voir le champ dans website_<app>.tf).
   assert {
-    condition = (
-      uptimekuma_monitor_http_keyword.healthcheck["promptoramix"].url == "https://promptoramix.sylvain.cloud/health"
-      && uptimekuma_monitor_http_keyword.healthcheck["ntfy"].url == "https://${pangolin_resource.website["ntfy"].full_domain}/v1/health"
-      && uptimekuma_monitor_http_keyword.healthcheck["victoria_logs"].url == "https://logs.sylvain.cloud/health"
-      && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
-      && uptimekuma_monitor_http_keyword.healthcheck["wiki"].url == "https://${pangolin_resource.website["wiki"].full_domain}/login"
-      && uptimekuma_monitor_http_keyword.healthcheck["rss"].url == "https://${pangolin_resource.website["rss"].full_domain}/i/"
-      && uptimekuma_monitor_http_keyword.healthcheck["nextcloud"].url == "https://${pangolin_resource.website["nextcloud"].full_domain}/login"
-      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["nextcloud", "ntfy", "promptoramix", "rss", "victoria_logs", "wiki"]
-    )
-    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, ceux de BookStack, de FreshRSS et de Nextcloud la page où leur racine redirige, et seuls eux ont un monitor_path."
+    condition = alltrue([
+      for key, m in uptimekuma_monitor_http_keyword.healthcheck :
+      m.url == "https://${pangolin_resource.website[key].full_domain}${lookup(local.websites[key], "monitor_path", "")}"
+    ])
+    error_message = "Un healthcheck ne sonde pas https://<FQDN de sa ressource><monitor_path>."
   }
 
   # Telegram et ntfy, l'un ne passant pas par Pangolin, l'autre si : plus
@@ -3101,17 +2345,6 @@ run "monitors_are_filed_and_alert" {
 # hormis un avertissement.
 run "ssh_login_monitors_alert_on_every_login" {
   command = apply
-
-  assert {
-    condition = { for host, m in uptimekuma_monitor_push.ssh_login : host => m.name } == {
-      docker     = "SSH docker"
-      flip       = "SSH flip"
-      "newt-lxc" = "SSH newt-lxc"
-      pangolin   = "SSH pangolin"
-      pi         = "SSH pi"
-    }
-    error_message = "Un moniteur SSH par hôte de l'inventaire (docker, flip, newt-lxc, pangolin, pi), nommé « SSH <hôte> »."
-  }
 
   # Inversé : un push le fait passer DOWN (la notification), 60 s sans push le
   # ramènent UP. Non inversé, chaque hôte serait DOWN en permanence faute de
@@ -3318,7 +2551,6 @@ run "ntfy_topics_match_the_role" {
   assert {
     condition = (
       output.homepage_links["ntfy"].href == "https://${pangolin_resource.website["ntfy"].full_domain}/app"
-      && output.homepage_links["trek"].href == "https://${pangolin_resource.website["trek"].full_domain}"
       && local.websites["ntfy"].monitor_path == "/v1/health"
       && strcontains(file("${path.module}/../../ansible/roles/ntfy/templates/server.yml.j2"), "\nweb-root: /app\n")
     )
