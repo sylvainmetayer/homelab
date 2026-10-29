@@ -103,7 +103,11 @@ redémarrent que si leur compose a changé. `tofu apply` dans
 `tofu/pangolin_config` : une seule ressource change, en place. Pour
 reprendre : `flip_planning_enabled: false` retiré de `flip.yml`,
 `enabled = false` retiré de l'entrée, la liste des apps en pause mise à jour,
-`tofu apply` puis merge (le rôle redémarre l'unité). Le banc suit le tag
+et le scénario Molecule `flip_planning` dans la même PR : la copie de
+l'entrée dans `converge.yml`, `side_effect.yml` (il part d'un banc en pause et
+le vérifie) et `verify.yml` (`assert_kc_paused.yml`,
+`verify_app_unit_started: false`) supposent la pause et font échouer les tests
+sinon ; puis `tofu apply` et merge (le rôle redémarre l'unité). Le banc suit le tag
 mobile `pr-72` (`pull_policy: always`) : à la reprise, l'image doit encore
 exister sur ghcr.io.
 
