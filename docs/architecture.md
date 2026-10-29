@@ -246,10 +246,11 @@ flowchart LR
     (`uses:` ; jamais un digest seul, signe d'un tag déplacé) ;
   - « weekly digest and patch updates », tout le reste, à fusionner à la main.
 
-  Les mineures arrivent dans la même fenêtre, dans une troisième PR
-  « weekly minor updates », à la main (les groupes nommés, `beszel`,
+  Les mineures arrivent dans la même fenêtre, une PR par paquet (pas de
+  groupe : la migration de données de chaque appli se lit et se déploie à
+  part), à la main (les groupes nommés, `beszel`,
   `pangolin-role-dependencies`…, gardent leur PR, le lundi aussi).
-  Fusionnent seules aussi, sans délai ni fenêtre : les versions de
+  Fusionnent seules aussi, sans délai ni fenêtre du lundi : les versions de
   `planning-equipes` (mineures et correctifs) et de `promptoramix`. Le chemin
   rapide d'un correctif de sécurité d'image n'est pas Renovate : l'alerte
   CRITICAL du lundi de `trivy.yaml`, puis un bump à la main. Rien de ce qui touche `path_bypass_images.json`

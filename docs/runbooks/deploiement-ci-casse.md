@@ -120,8 +120,8 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   passe DOWN. Dans les deux cas, revenir au digest précédent par une PR
   (`git revert` du commit) **et**, dans la même PR, retirer l'image de la
   liste blanche : sans cela, Renovate repropose le même digest le lundi
-  suivant et le refusionne seul. Les montées majeures de bases
-  attendent une case cochée sur le Dependency Dashboard (la MariaDB officielle
+  suivant et le refusionne seul. Toute montée majeure (hors nos images)
+  attend une case cochée sur le Dependency Dashboard (la MariaDB officielle
   de Nextcloud n'en voit aucune : elle reste sur la LTS 12.3, et son Redis
   `-bookworm` sur la 8.2).
 - Une PR qui touche `path_bypass_images.json` ne fusionne jamais seule :
