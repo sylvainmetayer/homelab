@@ -12,8 +12,8 @@ papra_domain: papra.sylvain.cloud
 # le même passage sans le -e, qui la referme. Chaque compte suivant se crée de
 # la même façon : Papra n'a ni commande ni écran d'admin pour en créer, et
 # l'inscription fermée ne fait pas d'exception pour un invité. Une invitation
-# ajoute ensuite un compte existant à l'organisation (aucun e-mail ne part,
-# EMAILS_DRY_RUN).
+# ajoute ensuite un compte existant à l'organisation (l'e-mail d'invitation
+# part par le relais SMTP Infomaniak).
 papra_registration_enabled: false
 
 # Langues de l'OCR (Tesseract, tesseract.js dans l'image), codes Tesseract.
