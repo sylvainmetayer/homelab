@@ -15,6 +15,11 @@
         name: pangolin
       register: pangolin_unit
 
+    - name: Stat the unit of Pangolin
+      ansible.builtin.stat:
+        path: /etc/systemd/system/pangolin.service
+      register: pangolin_unit_file
+
     # Démarrée = son ExecStartPre (docker compose config, cf. prepare.yml) a
     # validé le compose templaté.
     - name: Assert pangolin.service is enabled and started
@@ -22,6 +27,7 @@
         that:
           - pangolin_unit.status.UnitFileState == 'enabled'
           - pangolin_unit.status.ActiveState == 'active'
+          - pangolin_unit_file.stat.mode == '0644'
         fail_msg: "pangolin : {{ pangolin_unit.status.UnitFileState }} / {{ pangolin_unit.status.ActiveState }}"
 
     - name: Stat the compose file of Pangolin
@@ -155,14 +161,16 @@
         - /etc/geoipupdate/license_key
         - /etc/geoipupdate/push.curl
 
-    - name: Stat the MaxMind license key and the push URL file
+    - name: Stat the MaxMind license key, the push URL file and the units
       become: true
       ansible.builtin.stat:
         path: "{{ item }}"
-      register: pangolin_geoip_private
+      register: pangolin_geoip_stats
       loop:
         - /etc/geoipupdate/license_key
         - /etc/geoipupdate/push.curl
+        - /etc/systemd/system/geoipupdate.service
+        - /etc/systemd/system/geoipupdate.timer
 
     - name: Assert GeoLite2 is kept up to date by the pinned geoipupdate
       vars:
@@ -181,7 +189,10 @@
           - ('GEOIPUPDATE_ACCOUNT_ID=' ~ pangolin_maxmind_account_id) in geoip_env
           - "'GEOIPUPDATE_EDITION_IDS=GeoLite2-Country' in geoip_env"
           - (pangolin_geoip_files.results[2].content | b64decode | trim) == pangolin_maxmind_license_key
-          - pangolin_geoip_private.results | map(attribute='stat.mode') | unique | list == ['0600']
+          - pangolin_geoip_stats.results[0].stat.mode == '0600'
+          - pangolin_geoip_stats.results[1].stat.mode == '0600'
+          - pangolin_geoip_stats.results[2].stat.mode == '0644'
+          - pangolin_geoip_stats.results[3].stat.mode == '0644'
 
     # --- résumé CrowdSec hebdomadaire sur ntfy ---
 

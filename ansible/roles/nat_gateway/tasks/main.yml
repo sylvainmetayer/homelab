@@ -56,9 +56,9 @@
     dest: /etc/systemd/system/nat-gateway.service
     owner: root
     group: root
-    # 0644 comme toute unité : en 0640, systemd journalise « marked
+    # 0644 comme toute unité système : en 0640, systemd journalise « marked
     # world-inaccessible » à chaque daemon-reload. Rien de secret dedans.
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 - name: Apply NAT changes now
   ansible.builtin.meta: flush_handlers

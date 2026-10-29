@@ -48,6 +48,11 @@
         - blocky.service
         - blocky-check.timer
 
+    - name: Stat the Blocky unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/blocky.service
+      register: blocky_unit_file
+
     - name: Assert Blocky runs unprivileged and the check is scheduled
       vars:
         blocky_unit: "{{ blocky_units.results[0].status }}"
@@ -60,6 +65,7 @@
           - blocky_unit.MemoryMax | int == 384 * 1024 * 1024
           - blocky_units.results[1].status.ActiveState == 'active'
           - blocky_units.results[1].status.UnitFileState == 'enabled'
+          - blocky_unit_file.stat.mode == '0644'
 
     # Les listes sont chargées en arrière-plan (strategy: fast) : attendre
     # qu'un nom bloqué le soit.
