@@ -114,12 +114,15 @@ commands:
           # jamais (Pangolin, 28/10/2026), d'où le WAL pour celles-là.
           # « .timeout » attend une écriture en cours au lieu d'échouer sur
           # « database is locked » ; -bail fait échouer la sauvegarde si la
-          # copie échoue.
+          # copie échoue. -noheader -list sur la sonde du mode : un ~/.sqliterc
+          # de root (.headers on, .mode line) ferait sinon rater « = wal » et
+          # renverrait une base en WAL vers « .backup ».
           - {{ ('find ' ~ (sqlite_staging | quote) ~ ' -mindepth 1 -delete') | to_json }}
 {% for path in borgmatic_app_sqlite_paths %}
 {% set sqlite_copy = sqlite_staging ~ '/' ~ (path | regex_replace('^/', '') | replace('/', '_')) %}
-{% set sqlite_cli = 'sqlite3 -bail -cmd ' ~ ('.timeout 60000' | quote) ~ ' ' ~ (path | quote) %}
-          - {{ ('if [ "$(' ~ sqlite_cli ~ ' ' ~ ('pragma journal_mode' | quote) ~ ')" = wal ]; then '
+{% set sqlite_args = '-cmd ' ~ ('.timeout 60000' | quote) ~ ' ' ~ (path | quote) %}
+{% set sqlite_cli = 'sqlite3 -bail ' ~ sqlite_args %}
+          - {{ ('if [ "$(sqlite3 -bail -noheader -list ' ~ sqlite_args ~ ' ' ~ ('pragma journal_mode' | quote) ~ ')" = wal ]; then '
                 ~ sqlite_cli ~ ' ' ~ (("VACUUM INTO '" ~ (sqlite_copy | replace("'", "''")) ~ "'") | quote)
                 ~ '; else ' ~ sqlite_cli ~ ' ' ~ (('.backup ' ~ (sqlite_copy | quote)) | quote) ~ '; fi') | to_json }}
 {% endfor %}

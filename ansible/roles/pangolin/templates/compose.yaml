@@ -10,6 +10,11 @@ services:
       # (« .backup », hook SQLite du gabarit borgmatic) recommençait à chaque
       # écriture jusqu'à « database is locked » (28/10/2026). En WAL, elle
       # passe par « VACUUM INTO », sans bloquer ni être bloquée par Pangolin.
+      # Le WAL reste inscrit dans la base : retirer la variable ne le défait
+      # pas (PRAGMA journal_mode = DELETE, Pangolin arrêté). La copie que
+      # Pangolin fait avant une migration (config/db/backups, copyFileSync de
+      # db.sqlite seul) ignore le -wal : pour revenir en arrière après une
+      # mise à jour, partir de l'archive borg, pas de cette copie.
       ENABLE_SQLITE_WAL_MODE: "true"
     volumes:
       - ./config:/app/config
