@@ -85,6 +85,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_age_recipients.py
 
+      # Renovate monte immich-server et immich-machine-learning dans un même
+      # groupe, mais une recherche de tags en échec le fait partir avec une
+      # seule image (#753) : la PR échoue ici au lieu de décaler les versions.
+      - name: Check that the Immich images share one version
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/check_immich_versions.py
+
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts
         # Même si ansible-lint a échoué : deux régressions dans une seule passe.

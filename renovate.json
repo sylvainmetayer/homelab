@@ -225,7 +225,7 @@
       ]
     },
     {
-      "description": "Group all Immich role dependencies together",
+      "description": "Group all Immich role dependencies together. immich-server and immich-machine-learning must move in lockstep, but a group is not atomic: when a lookup fails (ghcr.io pages immich-machine-learning's 200,000+ tags 1,000 at a time, one failed page and the Dashboard shows no-result), the group's PR carries the server alone (#753). The Lint workflow then fails it (.github/scripts/check_immich_versions.py): tick its rebase/retry box, never merge one image alone",
       "groupName": "immich-role-dependencies",
       "matchFileNames": [
         "ansible/roles/immich/**",

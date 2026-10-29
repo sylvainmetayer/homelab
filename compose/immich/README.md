@@ -38,3 +38,22 @@ fusermount -u ~/Documents/homelab/compose/immich/library
 ```
 
 If you enabled `IMMICH_WORKERS_INCLUDE=api` on the server, don't forget to revert it back to default and restart the server compose so that the server can process jobs again.
+
+## Versions alignées
+
+`immich-server` et `immich-machine-learning` sont toujours à la même version,
+ici comme dans le rôle `ansible/roles/immich` (le Pi) : le serveur et son
+machine learning sortent ensemble à chaque release. Renovate les monte dans un
+seul groupe (`immich-role-dependencies`), mais un groupe n'est pas atomique :
+quand la recherche des tags d'une image échoue (ghcr.io pagine les plus de
+200 000 tags d'`immich-machine-learning` par 1 000, une seule page en erreur et
+le Dependency Dashboard affiche `no-result`), la PR part avec le serveur seul.
+C'est arrivé avec #753 (serveur v3.3.3, machine learning resté en v3.3.1 six
+jours).
+
+Le workflow Lint l'arrête désormais : `.github/scripts/check_immich_versions.py`
+échoue si les deux tags diffèrent dans un compose qui les cite (le digest,
+propre à chaque image, et un suffixe d'accélération comme `-openvino` ne sont
+pas comparés). Sur une PR Renovate qui y échoue, cocher « rebase/retry » pour
+relancer la recherche, ne jamais merger une image seule ; une montée à la main
+change les deux images dans les deux fichiers.
