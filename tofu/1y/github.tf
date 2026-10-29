@@ -1,11 +1,6 @@
-# Le dépôt 1y existe depuis 2020 (copie du modèle nhoizey/1y) : il est importé,
-# pas créé. Les réglages sont alignés sur tofu/ref ; le premier plan montre donc
+# Le dépôt 1y existe depuis 2020 (copie du modèle nhoizey/1y) : il a été importé
+# une fois (bloc import retiré le 2026-10-29, tofu test le refuse), pas créé. Les réglages sont alignés sur tofu/ref ; le premier plan montre donc
 # des modifications en place (wiki, projets, merge commits…), pas de création.
-import {
-  to = github_repository.r
-  id = var.repository
-}
-
 resource "github_repository" "r" {
   name         = var.repository
   description  = "Gestionnaire d'URL courtes - ${local.hostname}"
