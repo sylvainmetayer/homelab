@@ -317,11 +317,13 @@ Telegram. Plus de mail depuis le 2026-10-29.
 Cadence des sondes (`local.http_probe`, `uptime_globals.tf`, depuis le
 2026-10-29) : chaque moniteur HTTP (healthchecks des applis, dashboard
 Pangolin, sites externes) sonde toutes les 5 minutes, une seule requête par
-appli (BookStack et FreshRSS sont sondés sur la page où leur racine
-redirige, `/login` et `/i/`). Un échec met le moniteur en PENDING et
-réessaie une minute plus tard ; seul le second échec d'affilée passe DOWN et
-alerte : une coupure réelle alerte en 6 minutes au pire, un raté isolé
-jamais. À une sonde par minute, les healthchecks faisaient les deux tiers du
+appli (BookStack, FreshRSS et Nextcloud sont sondés sur la page où leur
+racine redirige, `/login`, `/i/` et `/login`). Un échec met le moniteur en
+PENDING et réessaie une minute plus tard ; seul le second échec d'affilée
+passe DOWN et alerte : une coupure réelle alerte en 6 minutes au pire (un
+peu plus quand l'appli ne répond plus du tout et que chaque essai attend son
+`timeout`, 30 à 48 s), un raté isolé jamais. Le retour à UP se voit à la
+sonde suivante, jusqu'à 5 minutes plus tard. À une sonde par minute, les healthchecks faisaient les deux tiers du
 journal des requêtes de Pangolin (990k lignes sur 1,52M) et pesaient sur sa
 base SQLite. Les moniteurs push gardent leur propre intervalle. Côté
 Pangolin, Newt sonde chaque cible toutes les 60 s (10 s quand elle est en

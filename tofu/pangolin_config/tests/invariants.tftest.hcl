@@ -796,15 +796,17 @@ run "probes_are_sparse_and_paused_apps_are_not_probed" {
   }
 
   # Le filet de la liste ci-dessus : tout moniteur HTTP du module, écrit à la
-  # main ou généré, lit sa cadence dans local.http_probe.
+  # main ou généré, lit sa cadence et ses essais dans local.http_probe.
   assert {
     condition = alltrue(flatten([
       for f in fileset(path.module, "*.tf") : [
-        for block in regexall("(?s)resource\\s+\"uptimekuma_monitor_http(?:_keyword)?\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) :
-        length(regexall("(?m)^\\s*interval\\s*=\\s*local\\.http_probe\\.interval\\s*$", block)) == 1
+        for block in regexall("(?s)resource\\s+\"uptimekuma_monitor_http(?:_keyword)?\"\\s+\"\\w+\"\\s+\\{.*?\\n\\}", file("${path.module}/${f}")) : [
+          for attribute in ["interval", "max_retries", "retry_interval", "resend_interval"] :
+          length(regexall("(?m)^\\s*${attribute}\\s*=\\s*local\\.http_probe\\.${attribute}\\s*$", block)) == 1
+        ]
       ]
     ]))
-    error_message = "Un moniteur uptimekuma_monitor_http(_keyword) ne lit pas son intervalle dans local.http_probe."
+    error_message = "Un moniteur uptimekuma_monitor_http(_keyword) ne lit pas interval, max_retries, retry_interval et resend_interval dans local.http_probe."
   }
 
   assert {
@@ -3065,8 +3067,8 @@ run "monitors_are_filed_and_alert" {
   # La racine de Promptoramix ne prend que des POST : un GET y reçoit un 405,
   # DOWN pour Uptime Kuma. Celle de ntfy répond 404 à un GET (web-root:
   # /app), celle de VictoriaLogs 401 sans le compte vmauth. Leurs moniteurs
-  # lisent leur route de santé (monitor_path). Celles de BookStack et de
-  # FreshRSS redirigent (302 vers /login, vers /i/) : sonder la racine
+  # lisent leur route de santé (monitor_path). Celles de BookStack, de
+  # FreshRSS et de Nextcloud redirigent (302 vers /login, /i/, /login) : sonder la racine
   # coûtait deux requêtes par sonde, leurs moniteurs lisent la page d'arrivée.
   # Les autres gardent la racine de leur ressource.
   assert {
@@ -3077,9 +3079,10 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_http_keyword.healthcheck["trek"].url == "https://travels.sylvain.cloud"
       && uptimekuma_monitor_http_keyword.healthcheck["wiki"].url == "https://${pangolin_resource.website["wiki"].full_domain}/login"
       && uptimekuma_monitor_http_keyword.healthcheck["rss"].url == "https://${pangolin_resource.website["rss"].full_domain}/i/"
-      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["ntfy", "promptoramix", "rss", "victoria_logs", "wiki"]
+      && uptimekuma_monitor_http_keyword.healthcheck["nextcloud"].url == "https://${pangolin_resource.website["nextcloud"].full_domain}/login"
+      && keys({ for key, website in local.websites : key => website if lookup(website, "monitor_path", "") != "" }) == ["nextcloud", "ntfy", "promptoramix", "rss", "victoria_logs", "wiki"]
     )
-    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, ceux de BookStack et de FreshRSS la page où leur racine redirige, et seuls eux ont un monitor_path."
+    error_message = "Les healthchecks de Promptoramix, de ntfy et de VictoriaLogs doivent lire leur route de santé, ceux de BookStack, de FreshRSS et de Nextcloud la page où leur racine redirige, et seuls eux ont un monitor_path."
   }
 
   # Telegram et ntfy, l'un ne passant pas par Pangolin, l'autre si : plus

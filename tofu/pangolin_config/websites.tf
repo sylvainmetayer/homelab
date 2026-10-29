@@ -38,10 +38,12 @@
 #                Absent: no binding (Betisier and Promptoramix have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
-#                resource URL. Only for an app whose root answers no 2xx GET
+#                resource URL. For an app whose root answers no 2xx GET
 #                (Promptoramix only takes POSTs there, and a 405 is DOWN for
 #                Uptime Kuma; VictoriaLogs' vmauth answers 401 without its
-#                account): its own health endpoint instead.
+#                account): its own health endpoint instead. Or whose root
+#                redirects (BookStack, FreshRSS, Nextcloud): the page it lands
+#                on, one request per probe instead of two.
 #   backup       default false: a push monitor "Backup <name>".
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
@@ -188,7 +190,7 @@ resource "pangolin_target" "website" {
   # a stopped container every hc_unhealthy_interval for months, thousands of
   # failures for nothing, and a disabled resource has no route anyway. The
   # other fields stay pinned, ready for the day the app comes back.
-  hc_enabled  = lookup(local.websites[each.value.website], "enabled", local.resource_pins.enabled)
+  hc_enabled  = pangolin_resource.website[each.value.website].enabled
   hc_scheme   = "http"
   hc_mode     = "http"
   hc_port     = lookup(each.value, "hc_port", each.value.port)

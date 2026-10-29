@@ -17,9 +17,10 @@ locals {
 
     # Behind the SSO (the default), clients and share links opened by path:
     # see local.nextcloud_client_paths and local.nextcloud_share_paths below.
-    # The healthcheck monitor probes `/` with the access token, which now
-    # really is what lets it past the wall (`/` redirects to Nextcloud's
-    # /login, which no path rule opens).
+    # The healthcheck monitor probes /login with the access token, which
+    # really is what lets it past the wall (no path rule opens /login). Not
+    # `/`: it redirects there (302), two requests per probe.
+    monitor_path = "/login"
 
     target = {
       site_id = pangolin_site.proxmox_docker.id
