@@ -273,8 +273,8 @@ et les applis qui envoient des mails) : nouveau mot de passe du compte dans
 Infomaniak, `sops set`, puis les playbooks des hôtes (`--tags security`, et
 les rôles qui écrivent ces identifiants). Vérifier par un envoi de test
 (`--tags beszel_alerts_test`). Uptime Kuma n'envoie plus de mail (Telegram et
-ntfy depuis le 2026-10-29) : `smtp_pass` du fichier racine n'a plus de
-lecteur.
+ntfy depuis le 2026-10-29) : ses clés `smtp_user`, `smtp_pass` et
+`le_email` ont été retirées du fichier racine.
 
 ### Code PIN Immich
 
