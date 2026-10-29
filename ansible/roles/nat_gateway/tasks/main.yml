@@ -56,8 +56,9 @@
     dest: /etc/systemd/system/nat-gateway.service
     owner: root
     group: root
-    # Seul systemd (root) lit l'unité : pas besoin qu'elle soit lisible par tous.
-    mode: "0640"
+    # 0644 comme toute unité : en 0640, systemd journalise « marked
+    # world-inaccessible » à chaque daemon-reload. Rien de secret dedans.
+    mode: "0644"
 
 - name: Apply NAT changes now
   ansible.builtin.meta: flush_handlers

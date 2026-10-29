@@ -23,9 +23,9 @@
       register: nat_client_files
       loop:
         - { path: /usr/local/sbin/nat-client-watchdog, mode: "0750" }
-        - { path: /etc/systemd/system/nat-client-watchdog.service, mode: "0640" }
+        - { path: /etc/systemd/system/nat-client-watchdog.service, mode: "0644" }
 
-    - name: Assert the watchdog files belong to root with restricted modes
+    - name: Assert the watchdog files belong to root with the expected modes
       ansible.builtin.assert:
         that:
           - item.stat.exists

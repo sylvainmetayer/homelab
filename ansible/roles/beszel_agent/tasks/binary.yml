@@ -83,7 +83,7 @@
     dest: /etc/systemd/system/beszel-agent.service
     owner: root
     group: root
-    mode: "0640"
+    mode: "0644"
   register: beszel_agent_unit_install
 
 # Sur un premier --check, l'unité n'existe pas : le module systemd échouerait.

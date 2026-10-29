@@ -65,10 +65,10 @@
         path: /etc/systemd/system/nat-gateway.service
       register: nat_gateway_unit_file
 
-    - name: Assert the nat-gateway unit file is readable by root only
+    - name: Assert the nat-gateway unit file belongs to root, mode 0644
       ansible.builtin.assert:
         that:
-          - nat_gateway_unit_file.stat.mode == '0640'
+          - nat_gateway_unit_file.stat.mode == '0644'
           - nat_gateway_unit_file.stat.pw_name == 'root'
 
     - name: List the NAT POSTROUTING rules

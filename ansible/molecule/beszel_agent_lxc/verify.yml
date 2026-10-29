@@ -47,6 +47,7 @@
           - beszel_agent_files.results[0].stat.pw_name == 'root'
           - beszel_agent_files.results[1].stat.mode == '0600'
           - beszel_agent_files.results[1].stat.pw_name == 'root'
+          - beszel_agent_files.results[2].stat.mode == '0644'
           - ('TOKEN=' ~ beszel_agent_tokens['newt-lxc']) in beszel_agent_env
           - ('KEY=' ~ beszel_hub_public_key) in beszel_agent_env
           - "'HUB_URL=http://192.168.1.216:8090' in beszel_agent_env" # NOSONAR
