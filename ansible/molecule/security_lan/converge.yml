@@ -1,0 +1,42 @@
+---
+# Ce que le rôle security doit recevoir d'un hôte du LAN : SSH ouvert au seul
+# réseau local (la CI arrive par le LXC newt, 192.168.1.200), LAN jamais
+# banni, vfat en liste blanche (/boot/efi, /boot/firmware), reboot de
+# unattended-upgrades après Pangolin (04:00) et flip (04:30), relais msmtp.
+- name: Converge
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    security_lan_hosts:
+      docker:
+        reboot_time: "05:00"
+        sysctl: {}
+      pi:
+        reboot_time: "05:30"
+        # Noyau arm64 du Pi : vm.mmap_rnd_bits plafonne à 24.
+        sysctl:
+          vm.mmap_rnd_bits: 24
+  tasks:
+    - name: Load the host_vars of each LAN host
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../host_vars/{{ item }}/variables.yaml"
+        name: "security_lan_{{ item }}"
+      loop: "{{ security_lan_hosts.keys() | list }}"
+
+    - name: Assert each LAN host is configured as such for the security role
+      vars:
+        lan: "{{ lookup('ansible.builtin.vars', 'security_lan_' ~ item.key) }}"
+      ansible.builtin.assert:
+        that:
+          - lan.security_ufw_allowed_ports | map(attribute='from', default='any') | list == ['192.168.1.0/24']
+          - lan.security_ufw_allowed_ports | map(attribute='port') | list == ['22']
+          - "'192.168.1.0/24' in lan.security_fail2ban_ignoreip"
+          - "'vfat' in lan.security_filesystem_whitelist"
+          - lan.security_unattended_reboot_time == item.value.reboot_time
+          - lan.security_devsec_sysctl_host | default({}) == item.value.sysctl
+          - lan.security_mta_enabled | bool
+        fail_msg: host_vars/{{ item.key }} ne configure plus {{ item.key }} en hôte du LAN.
+      loop: "{{ security_lan_hosts | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
