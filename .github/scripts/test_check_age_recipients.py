@@ -66,7 +66,8 @@ class ParseRulesTest(unittest.TestCase):
         self.assertEqual(rules[1][1], {PERSO: "perso", PRO: "pro", SECOURS: "secours"})
 
     def test_quoted_regex_and_unlabelled_key(self):
-        rules = recipients.parse_rules(f'creation_rules:\n  - path_regex: "x\\.yaml$"\n    age: {PERSO}\n')
+        # Single quotes: in double quotes, YAML (and sops) reject `\.`.
+        rules = recipients.parse_rules(f"creation_rules:\n  - path_regex: 'x\\.yaml$'\n    age: {PERSO}\n")
         self.assertEqual(rules[0][0].pattern, r"x\.yaml$")
         self.assertEqual(rules[0][1], {PERSO: PERSO})
 
@@ -78,8 +79,8 @@ class ParseRulesTest(unittest.TestCase):
         rules = recipients.parse_rules(f"creation_rules:\n  - path_regex: x$\n    age: {PERSO},{PRO} # perso\n")
         self.assertEqual(rules[0][1], {PERSO: PERSO, PRO: PRO})
 
-    def test_rule_without_leading_path_regex_is_an_error(self):
-        # A catch-all rule would otherwise lend its keys to the previous one.
+    def test_rule_without_path_regex_is_an_error(self):
+        # sops would apply a catch-all rule to every file left over.
         with self.assertRaises(recipients.ConfigError):
             recipients.parse_rules(CONFIG + f"  - age: {OLD}\n")
 
@@ -94,6 +95,11 @@ class ParseRulesTest(unittest.TestCase):
     def test_key_before_any_rule_is_an_error(self):
         with self.assertRaises(recipients.ConfigError):
             recipients.parse_rules(f"keys:\n  - {PERSO}\n")
+
+    def test_invalid_yaml_or_regex_is_an_error(self):
+        for text in ("creation_rules: [\n", "creation_rules:\n  - path_regex: '('\n"):
+            with self.subTest(text=text), self.assertRaises(recipients.ConfigError):
+                recipients.parse_rules(text)
 
 
 class FileRecipientsTest(unittest.TestCase):
