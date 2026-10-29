@@ -43,8 +43,9 @@ dernier_test: 1999-01-01 hors du front matter, inchangé
 class FakeRun:
     """subprocess.run of age-keygen and sops: records each call, decides from the key file."""
 
-    def __init__(self, public=SECOURS, decrypt_with=("key",), keygen_rc=0):
+    def __init__(self, public=SECOURS, decrypt_with=("key",), keygen_rc=0, refusal=secours.NO_DATA_KEY):
         self.public, self.decrypt_with, self.keygen_rc = public, decrypt_with, keygen_rc
+        self.refusal = refusal
         self.calls = []
 
     def __call__(self, cmd, **kwargs):
@@ -53,7 +54,10 @@ class FakeRun:
             return subprocess.CompletedProcess(cmd, self.keygen_rc, stdout=self.public + "\n")
         keyfile = kwargs["env"]["SOPS_AGE_KEY_FILE"]
         name = "devnull" if keyfile == "/dev/null" else "key"
-        return subprocess.CompletedProcess(cmd, 0 if name in self.decrypt_with else 1)
+        if name in self.decrypt_with:
+            return subprocess.CompletedProcess(cmd, 0, stderr=None)
+        stderr = self.refusal if kwargs["stderr"] == subprocess.PIPE else None
+        return subprocess.CompletedProcess(cmd, 128, stderr=stderr)
 
 
 class Repo:
@@ -105,6 +109,15 @@ class SetLastTestTest(unittest.TestCase):
         text = RUNBOOK.replace("2026-07-01", "2026-07-01 # note")
         self.assertIn("dernier_test: 2026-10-29 # note", secours.set_last_test(text, TODAY))
 
+    def test_keeps_a_comment_without_space_and_fills_an_empty_value(self):
+        text = RUNBOOK.replace("2026-07-01", "2026-07-01# note")
+        self.assertIn("dernier_test: 2026-10-29# note", secours.set_last_test(text, TODAY))
+        text = RUNBOOK.replace(" 2026-07-01", "")
+        self.assertEqual(rotation.secours_test(secours.set_last_test(text, TODAY), TODAY), (TODAY, []))
+
+    def test_same_pattern_as_check_secret_rotation(self):
+        self.assertEqual(secours.LAST_TEST_RE.pattern, rotation.LAST_TEST_RE.pattern)
+
     def test_real_runbook_parses(self):
         text = (secours.ROOT / secours.RUNBOOK).read_text(encoding="utf-8")
         self.assertEqual(rotation.secours_test(secours.set_last_test(text, TODAY), TODAY), (TODAY, []))
@@ -138,11 +151,15 @@ class MainTest(unittest.TestCase):
                 self.assertEqual(env["PATH"], secours.ISOLATED_PATH)
                 self.assertFalse(Path(env["HOME"]).exists(), "HOME temporaire non supprimé")
                 self.assertEqual(kw["stdout"], subprocess.DEVNULL)
-                self.assertEqual(kw["stderr"], subprocess.DEVNULL)
             self.assertEqual(
                 [kw["env"]["SOPS_AGE_KEY_FILE"] for kw in sops_calls],
                 [str((root / "secours.key").resolve())] * 2 + ["/dev/null"] * 2,
             )
+            # Le déchiffrement avec la clé ne garde rien, même pas stderr ;
+            # seule la contre-épreuve lit stderr, pour la raison du refus.
+            self.assertEqual([kw["stderr"] for kw in sops_calls], [subprocess.DEVNULL] * 2 + [subprocess.PIPE] * 2)
+            keygen = [kw for cmd, kw in fake.calls if cmd[1] == "-y"]
+            self.assertEqual([kw["env"] for kw in keygen], [{"PATH": secours.ISOLATED_PATH}])
 
     def _fails_unchanged(self, fake, expected):
         with Repo() as root:
@@ -165,6 +182,30 @@ class MainTest(unittest.TestCase):
     def test_isolation_broken(self):
         self._fails_unchanged(FakeRun(decrypt_with=("key", "devnull")), "contre-épreuve")
 
+    def test_counter_test_refused_for_another_reason(self):
+        self._fails_unchanged(FakeRun(refusal="Error: cannot read config"), "isolement n'est pas prouvé")
+
+    def test_key_file_with_several_identities(self):
+        fake = self._fails_unchanged(FakeRun(public=f"{SECOURS}\n{PERSO}"), "identités")
+        self.assertEqual(len(fake.calls), 1, "pas de déchiffrement : perso ouvrirait à la place de secours")
+
+    def test_missing_binary(self):
+        def missing(cmd, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory", cmd[0])
+
+        with Repo() as root:
+            rc, lines = run_main(root, missing, root / "secours.key")
+            self.assertEqual(rc, 1)
+            self.assertTrue(all(line.startswith("ÉCHEC ") for line in lines), lines)
+            self.assertEqual((root / secours.RUNBOOK).read_text(encoding="utf-8"), RUNBOOK)
+
+    def test_runbook_without_the_line(self):
+        with Repo() as root:
+            (root / secours.RUNBOOK).write_text("---\nfoo: bar\n---\n", encoding="utf-8")
+            rc, lines = run_main(root, FakeRun(), root / "secours.key")
+            self.assertEqual(rc, 1)
+            self.assertIn("à la main", lines[-1])
+
     def test_missing_keyfile(self):
         with Repo() as root:
             fake = FakeRun()
@@ -182,6 +223,7 @@ class MainTest(unittest.TestCase):
                 out=lines.append,
             )
             self.assertEqual((rc, fake.calls), (1, []))
+            self.assertIn("shim", lines[-1])
 
 
 if __name__ == "__main__":
