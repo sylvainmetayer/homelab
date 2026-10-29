@@ -1,0 +1,39 @@
+---
+# Papra, à l'essai comme remplaçant léger de Paperless-ngx (en pause) : un
+# seul conteneur Node, base SQLite et fichiers sous app-data/, sur le disque
+# local de la VM. S'il ne convainc pas : skill remove-app.
+papra_base_path: "{{ docker_base_path }}/papra"
+papra_domain: papra.sylvain.cloud
+
+# Inscription libre fermée. Le premier compte (admin, AUTH_FIRST_USER_AS_ADMIN)
+# se crée en la rouvrant le temps d'un passage,
+#   ansible-playbook docker.yml --tags papra -e papra_registration_enabled=true
+# puis « S'inscrire » sur https://papra.sylvain.cloud (derrière le SSO), puis
+# le même passage sans le -e, qui la referme. Les suivants passent par une
+# invitation dans l'organisation.
+papra_registration_enabled: false
+
+# Langues de l'OCR (Tesseract, tesseract.js dans l'image), codes Tesseract.
+papra_ocr_languages:
+  - fra
+  - eng
+
+# Dossier surveillé : un fichier posé dans ingestion/<id d'organisation>/
+# (org_..., lu dans l'URL de Papra) est importé puis supprimé ; un échec le
+# range dans ingestion/<id>/ingestion-error/. Les fichiers hors d'un dossier
+# d'organisation sont ignorés.
+papra_ingestion_enabled: true
+
+# Taille maximale d'un document envoyé, en octets (défaut de Papra : 25 Mo).
+papra_max_upload_size: 26214400
+
+# Secret de session (Better Auth), au moins 32 caractères. Dérivé de
+# backup_passphrase comme les clés de TREK et Homebox : pas de clé SOPS. Le
+# changer déconnecte tout le monde.
+papra_auth_secret: "{{ (backup_passphrase ~ '-papra-auth-secret') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+papra_backup_enabled: true
+papra_backup_borgmatic_target: "{{ backup_storage_box_url }}/papra"
+papra_backup_encryption_passphrase: "{{ backup_passphrase }}"
+papra_backup_healthcheck_url: ""

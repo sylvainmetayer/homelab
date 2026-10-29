@@ -12,6 +12,7 @@ locals {
     "rss",
     "wiki",
     "paperless",
+    "papra",
     "stirling-pdf",
     "flip-planning",
     "demo-planning",

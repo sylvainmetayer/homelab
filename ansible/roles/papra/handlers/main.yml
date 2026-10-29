@@ -1,0 +1,6 @@
+---
+- name: Restart papra
+  ansible.builtin.systemd:
+    name: dc@papra
+    scope: user
+    state: restarted
