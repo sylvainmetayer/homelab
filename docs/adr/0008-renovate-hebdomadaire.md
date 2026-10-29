@@ -1,7 +1,7 @@
 # 0008. Renovate : PR hebdomadaires groupées, images à état manuelles, automerge ciblé
 
 - **Statut** : acceptée
-- **Date** : 2026-10-06 (majeures à état), 2026-10-27 (groupe hebdo), 2026-10-28 (automerge), 2026-10-29 (liste élargie, apps en pause)
+- **Date** : 2026-10-06 (majeures à état), 2026-10-27 (groupe hebdo), 2026-10-28 (automerge), 2026-10-29 (liste élargie, apps en pause ; cadence plus calme)
 
 ## Contexte
 
@@ -22,6 +22,13 @@ parfois sans retour arrière.
   des GitHub Actions, nos images (planning-equipes hors majeures, promptoramix) ; jamais si `path_bypass_images.json` change.
 - **Apps en pause** : aucune PR (`enabled: false` sur les fichiers du rôle,
   Paperless-ngx aujourd'hui), la règle part à la reprise.
+- **Cadence plus calme** (2026-10-29, 152 PR Renovate mergées en 30 jours) :
+  version tierce proposée 3 jours après sa publication (au lieu d'un) ;
+  mineures groupées le lundi dans leur propre PR, à la main ; **toute**
+  majeure attend sa case sur le Dependency Dashboard ; rebase seulement en
+  conflit (le ruleset n'exige pas de branche à jour). Nos images restent
+  hors délai, fenêtre et case. Le correctif de sécurité urgent passe par
+  l'alerte CRITICAL de Trivy du lundi, bump à la main.
 
 ## Alternatives écartées
 
