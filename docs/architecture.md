@@ -627,8 +627,9 @@ vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
   pas le stockage, dont l'image (distroless) n'a aucun binaire de
   healthcheck.
 - **Poids** : stockage plafonné à 320 Mio (`mem_limit`, caches à 60 %), vmauth
-  à 64 Mio ; chaque agent à 128 Mio (plus 32 Mio pour son proxy du socket,
-  `MemoryMax=128M` en binaire) ; pas de `cpus`. Volume attendu : quelques centaines de Mio de
+  à 64 Mio ; chaque agent conteneur à 256 Mio (relevé après un jour à
+  112 Mio de pic sur docker, 97 sur flip), plus 32 Mio pour son proxy du
+  socket (`MemoryMax=128M` en binaire) ; pas de `cpus`. Volume attendu : quelques centaines de Mio de
   journaux bruts par jour, tous hôtes compris, qu'il compresse d'un facteur
   10 environ, soit de l'ordre de 1 à 2 Gio pour 30 jours, sous le plafond.
 - **Mesure, une semaine après le déploiement** : `memory.peak` du stockage, de

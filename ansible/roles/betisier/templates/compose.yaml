@@ -1,7 +1,9 @@
 ---
 services:
   betisier:
-    mem_limit: 512m
+    # memory.peak à 25 Mio le 2026-10-29 (5 % des 512m d'alors) : 256m
+    # laissent la marge d'une rafale php-fpm, la ressource est publique.
+    mem_limit: 256m
     container_name: betisier
     networks:
       - newt

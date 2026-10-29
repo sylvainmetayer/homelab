@@ -1,6 +1,9 @@
 ---
 newt_client_id: "{{ newt_docker_client_id }}"
 newt_client_secret: "{{ newt_docker_client_secret }}"
+# newt : memory.peak à 201 Mio le 2026-10-29 (82 % des 256m par défaut),
+# relais de toutes les applis de la VM : ~2× ce pic.
+newt_mem_limit: 512m
 
 wiki_domain: "wiki.sylvain.cloud"
 # Sous-compte Storage Box de docker (sauvegardes borgmatic) : clé SOPS

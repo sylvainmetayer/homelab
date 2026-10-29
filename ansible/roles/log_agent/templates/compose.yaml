@@ -2,10 +2,11 @@
 services:
   agent:
     # Version légère (#79, ADR 0011) : Vector tient quelques dizaines de Mio
-    # (sources journald et docker, tampon en mémoire). Pas encore mesuré :
-    # memory.peak relu après une semaine (docs/architecture.md, « Les
-    # journaux »).
-    mem_limit: 128m
+    # (sources journald et docker, tampon en mémoire). memory.peak le
+    # 2026-10-29, sur ~1 jour : 112 Mio sur docker, 97 sur flip (88 et 76 %
+    # des 128m d'alors), 53 sur le Pi : plafond à ~2× le plus haut. À relire
+    # après une semaine (docs/architecture.md, « Les journaux »).
+    mem_limit: 256m
     # Variante Debian : la seule avec journalctl (systemd de trixie, celui
     # des hôtes), que lance la source journald.
     image: docker.io/timberio/vector:0.60.0-debian@sha256:3ccb4bbd36e38734394e158db1411e91a69d076ed25013f8de385046a382d36a

@@ -1,7 +1,8 @@
 ---
 services:
   backend:
-    mem_limit: 512m
+    # memory.peak à 65 Mio le 2026-10-29 (13 % des 512m d'alors) : ~2× ce pic.
+    mem_limit: 256m
     image: ghcr.io/fbuchner/meerkat-crm-backend:1.7.0@sha256:be05b8769e760ce3fbe384b3f46f180a5fc3addcd9bc01d96c1677cb0d80dbb9
     container_name: meerkat_crm_backend
     restart: unless-stopped

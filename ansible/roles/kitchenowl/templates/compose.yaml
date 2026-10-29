@@ -1,9 +1,11 @@
 ---
 services:
   app:
-    # Pas encore mesuré : uWSGI (gevent) + Flask, base SQLite, sans LLM.
-    # À recaler sur memory.peak après quelques jours.
-    mem_limit: 512m
+    # uWSGI (gevent) + Flask, base SQLite, sans LLM. memory.peak collé aux
+    # 512m le 2026-10-29 (1 831 récupérations au plafond, anon ~250 Mio au
+    # repos) : plafond doublé, réservation au pic. À relire après une semaine.
+    mem_limit: 1g
+    mem_reservation: 512m
     # Image unique : l'interface web (Flutter) servie par uWSGI devant l'API.
     image: docker.io/tombursch/kitchenowl:v0.7.10@sha256:bd821a41b8cb27fd7fcf429acd1fc67e9f889485a2cd1193d68c2d804a8e1bef
     container_name: kitchenowl
