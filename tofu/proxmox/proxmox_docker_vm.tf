@@ -68,11 +68,14 @@ resource "proxmox_virtual_environment_vm" "docker" {
   # Jamais de redémarrage par le provider : un changement qui exige un arrêt
   # (port série, type de CPU…) est écrit dans la config Proxmox, en attente,
   # avec un avertissement « Please reboot the VM manually », et s'applique au
-  # prochain arrêt complet fait à la main (`qm shutdown 100 && qm start 100` ;
-  # un reboot dans la VM ne suffit pas). Un changement qui ne peut pas attendre
-  # (redimensionner ou déplacer un disque à chaud) fait échouer l'apply au lieu
-  # d'éteindre la VM. Défaut du provider : true, qui éteint et rallume toutes
-  # les applis sans prévenir.
+  # prochain démarrage à froid de la VM (`qm shutdown 100 --timeout 300 && qm
+  # start 100`, ou le prochain reboot de l'hôte ; un reboot dans la VM ne suffit
+  # pas). Le plan suivant est vide : seul `qm pending 100` montre ce qui attend.
+  # Déplacer un disque, ou le redimensionner dans le même apply qu'un
+  # changement en attente, fait échouer l'apply au lieu d'éteindre la VM (un
+  # redimensionnement seul passe à chaud). Ne couvre pas un remplacement
+  # (ForceNew, ex. les snippets cloud-init) : lire chaque plan. Défaut du
+  # provider : true, qui éteint et rallume toutes les applis sans prévenir.
   reboot_after_update = false
 
   cpu {

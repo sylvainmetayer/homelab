@@ -6,7 +6,9 @@ terraform {
       source = "bpg/proxmox"
       # >= 0.116 (backup.tf) : proxmox_backup_job (0.99), le nom court
       # proxmox_storage_nfs (0.100), comment (0.115) et notification_mode
-      # (0.116) du job.
+      # (0.116) du job. Et reboot_after_update = false qui fait échouer un
+      # apply exigeant un arrêt au lieu d'éteindre la VM (vérifié en 0.116.0
+      # et 0.118.1) : à relire à chaque montée de version.
       version = ">= 0.116.0, < 1.0.0"
     }
     sops = {
