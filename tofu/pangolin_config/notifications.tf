@@ -23,9 +23,15 @@
 # channel unless picked.
 # ---------------------------------------------------------------------------
 locals {
+  # Sorted by id: Uptime Kuma returns notification_ids in ascending order,
+  # and the provider compares the list as is, so [telegram, ntfy] (4, 3)
+  # showed a change on every plan. sort() only takes strings, hence the
+  # zero padding.
   alert_notification_ids = [
-    uptimekuma_notification_telegram.supervision.id,
-    uptimekuma_notification_ntfy.ntfy.id,
+    for id in sort([
+      for n in [uptimekuma_notification_telegram.supervision.id, uptimekuma_notification_ntfy.ntfy.id] :
+      format("%012d", n)
+    ]) : tonumber(id)
   ]
 }
 
