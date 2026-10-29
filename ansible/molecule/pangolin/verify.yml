@@ -301,10 +301,24 @@
       changed_when: false
       failed_when: pangolin_summary_down.rc != 1
 
-    - name: Assert a quiet week is low priority, a dead cscli high
+    # Une réponse d'une autre forme qu'une liste : l'échec est publié, pas
+    # une trace Python.
+    - name: Dry-run the summary with an unexpected cscli answer
+      become: true
+      ansible.builtin.command: /usr/bin/python3 -I /usr/local/bin/crowdsec-summary --dry-run
+      environment:
+        CROWDSEC_SUMMARY_CSCLI: "/usr/bin/python3 {{ pangolin_summary_tmp.path }}/fake-cscli"
+        NTFY_TOPIC: scripts
+        FAKE_CSCLI_BAD: "1"
+      register: pangolin_summary_bad
+      changed_when: false
+      failed_when: pangolin_summary_bad.rc != 1
+
+    - name: Assert a quiet week is low priority, a dead or garbled cscli high
       vars:
         quiet: "{{ pangolin_summary_quiet.stdout | from_json }}"
         down: "{{ pangolin_summary_down.stdout | from_json }}"
+        bad: "{{ pangolin_summary_bad.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - quiet.priority == 2
@@ -312,6 +326,8 @@
           - down.priority == 4
           - "down.title == 'CrowdSec : résumé impossible'"
           - "'No such container' in down.message"
+          - bad.priority == 4
+          - "bad.title == 'CrowdSec : résumé impossible'"
 
     - name: Remove the scratch directory
       become: true
