@@ -31,7 +31,6 @@ override_data {
       github_actions_sops_age_key = "AGE-SECRET-KEY-1FAKE"
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
-      ntfy_scripts_token          = "fake-ntfy-scripts-token"
       ntfy_github_token           = "tk_fakentfygithubtoken0000000"
     }
   }

@@ -212,10 +212,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
   de restauration vzdump, mises à jour en attente),
   `ansible-playbook nas.yml --tags update_notify`, sans quoi leurs moniteurs
-  passent au rouge au passage suivant, et `tofu -chdir=tofu/github apply`
-  (secret `TRIVY_NTFY_TOKEN` de l'environnement `trivy-ntfy`). Pour
-  `ntfy_github_token`, `tofu -chdir=tofu/github apply` (secret
-  `RENOVATE_DIGEST_NTFY_TOKEN` de l'environnement `renovate-digest`) ; les autres
+  passent au rouge au passage suivant. Pour `ntfy_github_token` (tout ce que
+  publie la CI), `tofu -chdir=tofu/github apply` : secrets
+  `TRIVY_NTFY_TOKEN` de l'environnement `trivy-ntfy` et
+  `RENOVATE_DIGEST_NTFY_TOKEN` de l'environnement `renovate-digest` ; les autres
   scripts prennent le nouveau à la main. L'ancien jeton cesse de marcher au
   redémarrage de ntfy.
 - `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
