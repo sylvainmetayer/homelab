@@ -3,8 +3,9 @@
 Une appli qu'on n'utilise plus pour l'instant, sans vouloir la supprimer
 (pour la supprimer : skill `remove-app`). En pause, rien n'est détruit :
 compose, données, volumes, dépôt borg et ses archives, ressource Pangolin,
-jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Seul
-Paperless-ngx a l'interrupteur aujourd'hui (en pause depuis octobre 2026).
+jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Deux apps
+sont en pause, depuis octobre 2026 : Paperless-ngx et le banc Keycloak de
+Flip Planning (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)).
 
 ## Les quatre endroits
 
@@ -75,10 +76,42 @@ tant que la ressource est encore active ; une fois désactivée, il l'ignore
    28 h : ne pas reprendre la veille d'un 1er ou d'un 15 sans lancer
    `sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/paperless.yaml create` à la main.
 
+## Le banc Keycloak de Flip Planning
+
+`demo-planning-kc.sylvain.dev` est la troisième application du rôle
+`flip_planning` dans `ansible/flip.yml` : l'interrupteur n'est pas dans
+`host_vars/flip` (il mettrait en pause la production et la démo avec), mais
+dans les `vars:` de son entrée, `flip_planning_enabled: false` (jamais un
+`set_fact` ni une clé SOPS de ce nom, qui battraient les `vars:` de chaque
+instance). Les mêmes quatre endroits, adaptés :
+
+| Où | Pause | Effet |
+|---|---|---|
+| `ansible/flip.yml`, entrée `demo_planning_kc` | `flip_planning_enabled: false` | `dc@demo_planning_kc` arrêtée et désactivée, aucune notification de redémarrage, configuration borgmatic retirée (il n'en a pas : `flip_planning_backup_enabled: false`). Compose, `.env`, volumes gardés |
+| `tofu/pangolin_config/website_demo_planning_kc.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, lien retiré de la sortie `homepage_links` (Homepage le perd au prochain `docker.yml --tags homepage`) ; ni healthcheck ni moniteur « Backup » à mettre en pause, il n'en a pas |
+| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"demo_planning_kc"` dans la liste des apps en pause | et `flip_planning_enabled` de l'entrée de `flip.yml` doit être égal à `enabled` |
+| `.github/restore-test/apps.json` | rien | pas d'entrée : le banc n'est pas sauvegardé |
+
+Le rôle s'applique trois fois dans le même play : un `when` sur le handler
+« Restart demo_planning_kc » lirait les paramètres de la dernière application
+du rôle, pas forcément les siens. Les tâches notifient donc
+`flip_planning_restart_handlers`, vide quand l'instance est en pause.
+
+Au merge, `deploy-docker-app` rejoue le rôle (`ansible/roles/**` et
+`flip.yml` changent) : unité désactivée, la production et la démo ne
+redémarrent que si leur compose a changé. `tofu apply` dans
+`tofu/pangolin_config` : une seule ressource change, en place. Pour
+reprendre : `flip_planning_enabled: false` retiré de `flip.yml`,
+`enabled = false` retiré de l'entrée, la liste des apps en pause mise à jour,
+`tofu apply` puis merge (le rôle redémarre l'unité). Le banc suit le tag
+mobile `pr-72` (`pull_policy: always`) : à la reprise, l'image doit encore
+exister sur ghcr.io.
+
 ## Une autre appli
 
 Le même interrupteur se pose dans son rôle, sur le modèle de
 `roles/paperless_ngx` : `<app>_enabled` en défaut, état de l'unité qui en
 dépend, configuration borgmatic retirée (`file: state=absent`) quand il est
 faux, handler `when: <app>_enabled`, et un `side_effect.yml` Molecule qui
-passe par les deux états.
+passe par les deux états. Pour un rôle appliqué plusieurs fois, le modèle est
+`roles/flip_planning` (paramètre de rôle, notification retenue).

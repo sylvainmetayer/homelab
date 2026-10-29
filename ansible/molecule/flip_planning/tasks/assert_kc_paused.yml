@@ -1,0 +1,44 @@
+---
+# Banc Keycloak en pause (flip_planning_enabled: false sur son entrée de
+# flip.yml) : unité arrêtée et désactivée, compose gardé, pas de configuration
+# borgmatic ; les deux autres instances, elles, tournent toujours.
+- name: Read the state of the three dc@ units
+  ansible.builtin.systemd:
+    name: "dc@{{ item }}"
+    scope: user
+  loop: [flip_planning, demo_planning, demo_planning_kc]
+  register: flip_planning_paused_units
+
+- name: Stat what the pause of demo_planning_kc keeps and what it removes
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /opt/apps/demo_planning_kc/compose.yaml
+    - /opt/apps/demo_planning_kc/.env
+    - "{{ borgmatic_config_dir }}/demo_planning_kc.yaml"
+  register: flip_planning_paused_paths
+
+- name: Assert demo_planning_kc is paused, not removed, and the others still run
+  vars:
+    flip_planning_unit_states: >-
+      {{ dict(flip_planning_paused_units.results | map(attribute='item')
+              | zip(flip_planning_paused_units.results | map(attribute='status'))) }}
+  ansible.builtin.assert:
+    that:
+      - flip_planning_unit_states.demo_planning_kc.UnitFileState != 'enabled'
+      - flip_planning_unit_states.demo_planning_kc.ActiveState == 'inactive'
+      - flip_planning_unit_states.flip_planning.UnitFileState == 'enabled'
+      - flip_planning_unit_states.flip_planning.ActiveState == 'active'
+      - flip_planning_unit_states.demo_planning.UnitFileState == 'enabled'
+      - flip_planning_unit_states.demo_planning.ActiveState == 'active'
+      - flip_planning_paused_paths.results[0].stat.exists
+      - flip_planning_paused_paths.results[0].stat.mode == '0600'
+      - flip_planning_paused_paths.results[1].stat.exists
+      - not flip_planning_paused_paths.results[2].stat.exists
+    fail_msg: >-
+      États : {{ flip_planning_unit_states | dict2items
+                 | map(attribute='key') | zip(flip_planning_unit_states | dict2items
+                 | map(attribute='value.UnitFileState'), flip_planning_unit_states | dict2items
+                 | map(attribute='value.ActiveState')) | list }} ; ou compose/.env
+      du banc absents, ou configuration borgmatic encore là
