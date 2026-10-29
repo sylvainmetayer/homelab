@@ -1,9 +1,7 @@
 # 0015. Accès de secours au LAN par WireGuard, sans Pangolin
 
-- **Statut** : proposée
+- **Statut** : proposée (non mise en œuvre : #948 fermée le 2026-10-29, besoin à établir, un port entrant est peut-être excessif)
 - **Date** : 2026-10-28
-- **Note** : non mise en œuvre ; PR #948 écrite puis fermée le 2026-10-29,
-  le besoin réel restant à établir (un port entrant est peut-être excessif).
 
 ## Contexte
 
@@ -11,7 +9,7 @@ Tout accès distant passe par Pangolin ([0002](0002-pangolin-seule-entree-publiq
 Pangolin en panne, plus rien n'atteint la maison de dehors. Il faut une
 porte de secours, la plus petite possible, qui n'en dépende pas.
 
-## Décision envisagée
+## Décision
 
 - **WireGuard du noyau sur le LXC newt** (rôle `wireguard_rescue`), UDP 47913
   redirigé par la Bbox vers 192.168.1.200 : **seul port entrant de la maison**.
@@ -24,10 +22,11 @@ porte de secours, la plus petite possible, qui n'en dépende pas.
 
 - **wireguard-go ou boringtun** : dans un LXC non privilégié il faut
   `/dev/net/tun`, un passage de périphérique réservé à `root@pam` ; le module
-  noyau de l'hôte suffit, chargé par `pve.yml`.
+  noyau de l'hôte suffit, à charger par `pve.yml`.
 - **Sur la VM docker** : le pare-feu et les applis y sont ; le LXC n'a que Newt.
-- **Second Pangolin, Tailscale, SSH exposé** : un service ou un tiers de plus,
-  ou un port TCP connu et scanné, pour une porte qui sert rarement.
+- **Second Pangolin, Tailscale** : un service ou un tiers de plus, pour une
+  porte qui sert rarement.
+- **SSH exposé** : un port TCP connu, scanné ; WireGuard ne répond pas sans clé.
 
 ## Conséquences
 
