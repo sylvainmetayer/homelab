@@ -2,8 +2,10 @@
 
 Ce module porte trois choses sans rapport entre elles :
 
-- les **secrets Actions du dépôt `homelab`** (clé Age SOPS, clé SSH de
-  déploiement, identifiants OLM lus dans l'état de `pangolin_config`) ;
+- les **environnements Actions du dépôt `homelab`** et leurs secrets (clé
+  Age SOPS, clé SSH de déploiement, identifiants OLM lus dans l'état de
+  `pangolin_config`, accès du test de restauration, URL push, jeton ntfy de
+  la CI), voir plus bas ;
 - le **dépôt `planning-equipes`**, successeur public de `flip-planning`, et
   les réglages de son `main` — voir
   [sylvainmetayer/flip-planning#286](https://github.com/sylvainmetayer/flip-planning/issues/286) ;
@@ -38,9 +40,9 @@ Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture. Son URL push 
 avant le plan d'ici, qui échoue sinon sur un attribut absent.
 
 L'environnement **`secrets-rotation`** (workflow `secrets-rotation.yaml`,
-échéances de `secrets-rotation.yaml`) ne porte que l'URL push du moniteur « Rotation des secrets », output
-`uptime_secrets_rotation_url` de `tofu/pangolin_config` : même ordre,
-`pangolin_config` appliqué d'abord.
+échéances de `secrets-rotation.yaml`) ne porte que l'URL push du moniteur
+« Rotation des secrets », output `uptime_secrets_rotation_url` de
+`tofu/pangolin_config` : même ordre, `pangolin_config` appliqué d'abord.
 
 L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
 `renovate-digest.yaml`, le bilan Renovate du lundi) ne porte que
@@ -49,6 +51,15 @@ L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
 topic `github`, rôle `ntfy`) : tout ce que publie la CI passe par ce
 producteur, jamais par le `scripts` des hôtes, et ntfy ne l'accepte qu'une
 fois `docker.yml --tags ntfy` déployé.
+
+Renommer un environnement (clé de `local.environments`) le détruit sur
+GitHub avec ses secrets, puis en crée un neuf : fusionner la PR qui change
+l'`environment:` des workflows, **puis** appliquer aussitôt, entre deux runs
+planifiés. Un job qui cite un environnement absent le fait créer par GitHub,
+vide et sans politique de branche : avant l'apply, `ntfy-github` (adopté
+ensuite par l'apply, qui y pose politique et secret) ; après un apply fait
+avant le merge, `trivy-ntfy` ou `renovate-digest` à nouveau, à supprimer à
+la main (Settings → Environments).
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"   # jeton avec les droits admin sur le dépôt

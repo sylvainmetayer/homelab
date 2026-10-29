@@ -120,8 +120,8 @@ resource "github_actions_environment_secret" "this" {
   value       = each.value.value
 }
 
-# tofu/pangolin's state is encrypted: encryption.tf decrypts it for this
-# data source (remote_state_data_sources). Sorties du sous-compte en lecture
+# L'état de tofu/pangolin est chiffré : encryption.tf le déchiffre pour
+# cette source (remote_state_data_sources). Sorties du sous-compte en lecture
 # seule du test de restauration (storage_box.tf).
 data "terraform_remote_state" "pangolin" {
   backend = "s3"

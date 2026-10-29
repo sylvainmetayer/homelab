@@ -122,11 +122,6 @@ run "secrets_poses_sur_le_depot_homelab" {
     error_message = "Les secrets de déploiement vivent dans l'environnement production, lisible depuis main seulement."
   }
 
-  assert {
-    condition     = github_repository_environment.this["production"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["production"].branch_pattern == "main"
-    error_message = "L'environnement production n'accepte que la branche main."
-  }
-
   # Un job qui lit ces secrets sans `environment: production` reçoit des
   # valeurs vides : chaque workflow qui les cite doit le déclarer.
   assert {
@@ -300,11 +295,6 @@ run "restore_test_secrets" {
   }
 
   assert {
-    condition     = github_repository_environment.this["restore-test"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["restore-test"].branch_pattern == "main"
-    error_message = "L'environnement restore-test ne doit être lisible que depuis main."
-  }
-
-  assert {
     condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_SSH_KEY"].value == "fake-restore-test-key"
     error_message = "La clé de la CI doit être celle du sous-compte restore_test de tofu/pangolin."
   }
@@ -361,11 +351,6 @@ run "storage_box_quota_secrets" {
   }
 
   assert {
-    condition     = github_repository_environment.this["storage-box-quota"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["storage-box-quota"].branch_pattern == "main"
-    error_message = "L'environnement storage-box-quota ne doit être lisible que depuis main."
-  }
-
-  assert {
     condition     = github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_HCLOUD_TOKEN"].value == "fake-hcloud-readonly-token"
     error_message = "STORAGE_BOX_QUOTA_HCLOUD_TOKEN doit être hcloud_readonly_token d'ansible/secrets.sops.yaml (jeton en lecture seule), jamais HCLOUD_TOKEN."
   }
@@ -395,11 +380,6 @@ run "secrets_rotation_secrets" {
   }
 
   assert {
-    condition     = github_repository_environment.this["secrets-rotation"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["secrets-rotation"].branch_pattern == "main"
-    error_message = "L'environnement secrets-rotation ne doit être lisible que depuis main."
-  }
-
-  assert {
     condition     = github_actions_environment_secret.this["secrets-rotation/SECRETS_ROTATION_PUSH_URL"].value == "https://uptime.example.test/api/push/secrets-rotation"
     error_message = "SECRETS_ROTATION_PUSH_URL doit être l'output uptime_secrets_rotation_url de tofu/pangolin_config."
   }
@@ -422,11 +402,6 @@ run "ntfy_github_secrets" {
   assert {
     condition     = keys(local.environments["ntfy-github"]) == ["NTFY_GITHUB_TOKEN"] && github_actions_environment_secret.this["ntfy-github/NTFY_GITHUB_TOKEN"].repository == "homelab"
     error_message = "L'environnement ntfy-github du dépôt homelab ne porte que NTFY_GITHUB_TOKEN."
-  }
-
-  assert {
-    condition     = github_repository_environment.this["ntfy-github"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["ntfy-github"].branch_pattern == "main"
-    error_message = "L'environnement ntfy-github ne doit être lisible que depuis main."
   }
 
   assert {

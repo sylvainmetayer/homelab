@@ -278,8 +278,7 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   nouveau à la main. Pour `ntfy_github_token` (tout ce que publie la CI),
   `tofu -chdir=tofu/github apply` : secret `NTFY_GITHUB_TOKEN` de
   l'environnement `ntfy-github` (Trivy et bilan Renovate). L'ancien jeton
-  cesse de marcher au
-  redémarrage de ntfy.
+  cesse de marcher au redémarrage de ntfy.
 - `ntfy_sylvain_password` et son hash `ntfy_sylvain_password_hash` changent
   ensemble : `openssl rand`, `htpasswd -niBC 10 x` (mot de passe sur
   l'entrée standard, garder ce qui suit `x:`), `sops set` des deux, le
