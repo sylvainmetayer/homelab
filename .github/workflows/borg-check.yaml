@@ -73,7 +73,7 @@ jobs:
     name: Verify data (${{ matrix.app }})
     needs: discover
     runs-on: ubuntu-26.04
-    # Secrets lisibles depuis main seulement (tofu/github/restore_test_secrets.tf).
+    # Secrets lisibles depuis main seulement (tofu/github/environments.tf).
     environment: restore-test
     # Le plafond d'un job sur un runner hébergé (6 h) : immich télécharge
     # tout son dépôt.

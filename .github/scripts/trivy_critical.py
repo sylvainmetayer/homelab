@@ -134,7 +134,7 @@ def main(argv=None):
 
     token = os.environ.get("NTFY_TOKEN", "")
     if not token:
-        print("::error::NTFY_TOKEN vide (secret de l'environnement trivy-ntfy)")
+        print("::error::NTFY_TOKEN vide (secret de l'environnement ntfy-github)")
         return 1
     try:
         publish(token, payload)

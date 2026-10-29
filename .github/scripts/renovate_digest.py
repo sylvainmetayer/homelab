@@ -280,7 +280,7 @@ def main(argv=None):
 
     token = os.environ.get("NTFY_TOKEN", "")
     if not token:
-        print("::error::NTFY_TOKEN vide (secret de l'environnement renovate-digest) : rien n'est publié.")
+        print("::error::NTFY_TOKEN vide (secret de l'environnement ntfy-github) : rien n'est publié.")
         return 1
     try:
         publish(NTFY_URL, NTFY_TOPIC, token, report)

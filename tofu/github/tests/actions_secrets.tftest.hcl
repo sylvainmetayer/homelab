@@ -81,22 +81,22 @@ run "noms_des_secrets_lus_par_les_workflows" {
   command = plan
 
   assert {
-    condition     = github_actions_environment_secret.sops_age_key.secret_name == "SOPS_AGE_KEY"
+    condition     = github_actions_environment_secret.this["production/SOPS_AGE_KEY"].secret_name == "SOPS_AGE_KEY"
     error_message = "deploy-docker-app.yaml lit secrets.SOPS_AGE_KEY : le nom du secret de la clé Age a changé."
   }
 
   assert {
-    condition     = github_actions_environment_secret.ssh_private_key.secret_name == "SSH_PRIVATE_KEY"
+    condition     = github_actions_environment_secret.this["production/SSH_PRIVATE_KEY"].secret_name == "SSH_PRIVATE_KEY"
     error_message = "deploy-docker-app.yaml lit secrets.SSH_PRIVATE_KEY : le nom du secret de la clé de déploiement a changé."
   }
 
   assert {
-    condition     = github_actions_environment_secret.olm_id.secret_name == "OLM_ID"
+    condition     = github_actions_environment_secret.this["production/OLM_ID"].secret_name == "OLM_ID"
     error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_ID : le nom du secret a changé."
   }
 
   assert {
-    condition     = github_actions_environment_secret.olm_secret.secret_name == "OLM_SECRET"
+    condition     = github_actions_environment_secret.this["production/OLM_SECRET"].secret_name == "OLM_SECRET"
     error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_SECRET : le nom du secret a changé."
   }
 }
@@ -106,24 +106,24 @@ run "secrets_poses_sur_le_depot_homelab" {
 
   assert {
     condition = alltrue([
-      github_actions_environment_secret.sops_age_key.repository == "homelab",
-      github_actions_environment_secret.ssh_private_key.repository == "homelab",
-      github_actions_environment_secret.olm_id.repository == "homelab",
-      github_actions_environment_secret.olm_secret.repository == "homelab",
+      github_actions_environment_secret.this["production/SOPS_AGE_KEY"].repository == "homelab",
+      github_actions_environment_secret.this["production/SSH_PRIVATE_KEY"].repository == "homelab",
+      github_actions_environment_secret.this["production/OLM_ID"].repository == "homelab",
+      github_actions_environment_secret.this["production/OLM_SECRET"].repository == "homelab",
     ])
     error_message = "Les quatre secrets Actions doivent être posés sur le dépôt homelab (var.github_repository), celui dont les workflows les lisent."
   }
 
   assert {
     condition = alltrue([
-      for s in [github_actions_environment_secret.sops_age_key, github_actions_environment_secret.ssh_private_key, github_actions_environment_secret.olm_id, github_actions_environment_secret.olm_secret] :
+      for s in [github_actions_environment_secret.this["production/SOPS_AGE_KEY"], github_actions_environment_secret.this["production/SSH_PRIVATE_KEY"], github_actions_environment_secret.this["production/OLM_ID"], github_actions_environment_secret.this["production/OLM_SECRET"]] :
       s.environment == "production"
     ])
     error_message = "Les secrets de déploiement vivent dans l'environnement production, lisible depuis main seulement."
   }
 
   assert {
-    condition     = github_repository_environment.production.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.production_main.branch_pattern == "main"
+    condition     = github_repository_environment.this["production"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["production"].branch_pattern == "main"
     error_message = "L'environnement production n'accepte que la branche main."
   }
 
@@ -230,22 +230,22 @@ run "valeurs_tirees_de_la_bonne_source" {
   command = plan
 
   assert {
-    condition     = github_actions_environment_secret.sops_age_key.value == "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
+    condition     = github_actions_environment_secret.this["production/SOPS_AGE_KEY"].value == "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
     error_message = "SOPS_AGE_KEY doit être github_actions_sops_age_key d'ansible/secrets.sops.yaml."
   }
 
   assert {
-    condition     = github_actions_environment_secret.olm_id.value == "fake-olm-id"
+    condition     = github_actions_environment_secret.this["production/OLM_ID"].value == "fake-olm-id"
     error_message = "OLM_ID doit être la sortie ci_olm_id de l'état pangolin_config."
   }
 
   assert {
-    condition     = github_actions_environment_secret.olm_secret.value == "fake-olm-secret"
+    condition     = github_actions_environment_secret.this["production/OLM_SECRET"].value == "fake-olm-secret"
     error_message = "OLM_SECRET doit être la sortie ci_olm_secret de l'état pangolin_config (pas ci_olm_id : identifiant et secret inversés)."
   }
 
   assert {
-    condition     = github_actions_environment_secret.ssh_private_key.value == tls_private_key.ci_deploy.private_key_openssh
+    condition     = github_actions_environment_secret.this["production/SSH_PRIVATE_KEY"].value == tls_private_key.ci_deploy.private_key_openssh
     error_message = "SSH_PRIVATE_KEY doit être la clé privée OpenSSH de tls_private_key.ci_deploy, celle dont la publique est dans keys/github-actions.pub."
   }
 }
@@ -290,37 +290,37 @@ run "restore_test_secrets" {
   assert {
     condition = alltrue([
       for s in [
-        github_actions_environment_secret.restore_test_ssh_key,
-        github_actions_environment_secret.restore_test_storage_box,
-        github_actions_environment_secret.restore_test_borg_passphrase,
-        github_actions_environment_secret.restore_test_push_url,
+        github_actions_environment_secret.this["restore-test/RESTORE_TEST_SSH_KEY"],
+        github_actions_environment_secret.this["restore-test/RESTORE_TEST_STORAGE_BOX"],
+        github_actions_environment_secret.this["restore-test/RESTORE_TEST_BORG_PASSPHRASE"],
+        github_actions_environment_secret.this["restore-test/RESTORE_TEST_PUSH_URL"],
       ] : s.environment == "restore-test" && s.repository == "homelab"
     ])
     error_message = "Les secrets du test de restauration doivent être dans l'environnement restore-test du dépôt homelab."
   }
 
   assert {
-    condition     = github_repository_environment.restore_test.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.restore_test_main.branch_pattern == "main"
+    condition     = github_repository_environment.this["restore-test"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["restore-test"].branch_pattern == "main"
     error_message = "L'environnement restore-test ne doit être lisible que depuis main."
   }
 
   assert {
-    condition     = github_actions_environment_secret.restore_test_ssh_key.value == "fake-restore-test-key"
+    condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_SSH_KEY"].value == "fake-restore-test-key"
     error_message = "La clé de la CI doit être celle du sous-compte restore_test de tofu/pangolin."
   }
 
   assert {
-    condition     = github_actions_environment_secret.restore_test_storage_box.value == "u000000-sub1@u000000-sub1.your-storagebox.de"
+    condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_STORAGE_BOX"].value == "u000000-sub1@u000000-sub1.your-storagebox.de"
     error_message = "RESTORE_TEST_STORAGE_BOX doit valoir <utilisateur>@<serveur> du sous-compte."
   }
 
   assert {
-    condition     = github_actions_environment_secret.restore_test_borg_passphrase.value == "fake-backup-passphrase"
+    condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_BORG_PASSPHRASE"].value == "fake-backup-passphrase"
     error_message = "RESTORE_TEST_BORG_PASSPHRASE doit être backup_passphrase d'ansible/secrets.sops.yaml."
   }
 
   assert {
-    condition     = github_actions_environment_secret.restore_test_push_url.value == "https://uptime.example.test/api/push/restore-test"
+    condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_PUSH_URL"].value == "https://uptime.example.test/api/push/restore-test"
     error_message = "RESTORE_TEST_PUSH_URL doit être l'output uptime_restore_test_url de tofu/pangolin_config."
   }
 
@@ -353,25 +353,25 @@ run "storage_box_quota_secrets" {
   assert {
     condition = alltrue([
       for s in [
-        github_actions_environment_secret.storage_box_quota_hcloud_token,
-        github_actions_environment_secret.storage_box_quota_push_url,
+        github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_HCLOUD_TOKEN"],
+        github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_PUSH_URL"],
       ] : s.environment == "storage-box-quota" && s.repository == "homelab"
     ])
     error_message = "Les secrets du contrôle de la Storage Box doivent être dans l'environnement storage-box-quota du dépôt homelab."
   }
 
   assert {
-    condition     = github_repository_environment.storage_box_quota.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.storage_box_quota_main.branch_pattern == "main"
+    condition     = github_repository_environment.this["storage-box-quota"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["storage-box-quota"].branch_pattern == "main"
     error_message = "L'environnement storage-box-quota ne doit être lisible que depuis main."
   }
 
   assert {
-    condition     = github_actions_environment_secret.storage_box_quota_hcloud_token.value == "fake-hcloud-readonly-token"
+    condition     = github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_HCLOUD_TOKEN"].value == "fake-hcloud-readonly-token"
     error_message = "STORAGE_BOX_QUOTA_HCLOUD_TOKEN doit être hcloud_readonly_token d'ansible/secrets.sops.yaml (jeton en lecture seule), jamais HCLOUD_TOKEN."
   }
 
   assert {
-    condition     = github_actions_environment_secret.storage_box_quota_push_url.value == "https://uptime.example.test/api/push/storage-box-quota"
+    condition     = github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_PUSH_URL"].value == "https://uptime.example.test/api/push/storage-box-quota"
     error_message = "STORAGE_BOX_QUOTA_PUSH_URL doit être l'output uptime_storage_box_quota_url de tofu/pangolin_config."
   }
 
@@ -390,17 +390,17 @@ run "secrets_rotation_secrets" {
   command = plan
 
   assert {
-    condition     = github_actions_environment_secret.secrets_rotation_push_url.environment == "secrets-rotation" && github_actions_environment_secret.secrets_rotation_push_url.repository == "homelab"
+    condition     = github_actions_environment_secret.this["secrets-rotation/SECRETS_ROTATION_PUSH_URL"].environment == "secrets-rotation" && github_actions_environment_secret.this["secrets-rotation/SECRETS_ROTATION_PUSH_URL"].repository == "homelab"
     error_message = "Le secret du contrôle des rotations doit être dans l'environnement secrets-rotation du dépôt homelab."
   }
 
   assert {
-    condition     = github_repository_environment.secrets_rotation.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.secrets_rotation_main.branch_pattern == "main"
+    condition     = github_repository_environment.this["secrets-rotation"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["secrets-rotation"].branch_pattern == "main"
     error_message = "L'environnement secrets-rotation ne doit être lisible que depuis main."
   }
 
   assert {
-    condition     = github_actions_environment_secret.secrets_rotation_push_url.value == "https://uptime.example.test/api/push/secrets-rotation"
+    condition     = github_actions_environment_secret.this["secrets-rotation/SECRETS_ROTATION_PUSH_URL"].value == "https://uptime.example.test/api/push/secrets-rotation"
     error_message = "SECRETS_ROTATION_PUSH_URL doit être l'output uptime_secrets_rotation_url de tofu/pangolin_config."
   }
 
@@ -413,32 +413,35 @@ run "secrets_rotation_secrets" {
   }
 }
 
-# .github/workflows/trivy.yaml : le seul jeton ntfy du producteur github,
-# dans un environnement à lui, lisible depuis main seulement.
-run "trivy_ntfy_secrets" {
+# .github/workflows/trivy.yaml (job notify) et renovate-digest.yaml : le seul
+# jeton ntfy du producteur github, dans un environnement à eux deux,
+# lisible depuis main seulement.
+run "ntfy_github_secrets" {
   command = plan
 
   assert {
-    condition     = github_actions_environment_secret.trivy_ntfy_token.environment == "trivy-ntfy" && github_actions_environment_secret.trivy_ntfy_token.repository == "homelab"
-    error_message = "Le jeton ntfy de Trivy doit être dans l'environnement trivy-ntfy du dépôt homelab."
+    condition     = keys(local.environments["ntfy-github"]) == ["NTFY_GITHUB_TOKEN"] && github_actions_environment_secret.this["ntfy-github/NTFY_GITHUB_TOKEN"].repository == "homelab"
+    error_message = "L'environnement ntfy-github du dépôt homelab ne porte que NTFY_GITHUB_TOKEN."
   }
 
   assert {
-    condition     = github_repository_environment.trivy_ntfy.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.trivy_ntfy_main.branch_pattern == "main"
-    error_message = "L'environnement trivy-ntfy ne doit être lisible que depuis main."
+    condition     = github_repository_environment.this["ntfy-github"].deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.main["ntfy-github"].branch_pattern == "main"
+    error_message = "L'environnement ntfy-github ne doit être lisible que depuis main."
   }
 
   assert {
-    condition     = github_actions_environment_secret.trivy_ntfy_token.value == "tk_fakentfygithubtoken0000000"
-    error_message = "TRIVY_NTFY_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github de la CI), jamais le jeton scripts des hôtes."
+    condition     = github_actions_environment_secret.this["ntfy-github/NTFY_GITHUB_TOKEN"].value == "tk_fakentfygithubtoken0000000"
+    error_message = "NTFY_GITHUB_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github de la CI), jamais le jeton scripts des hôtes."
   }
 
   assert {
-    condition = (
-      strcontains(file("${path.module}/../../.github/workflows/trivy.yaml"), "secrets.TRIVY_NTFY_TOKEN")
-      && strcontains(file("${path.module}/../../.github/workflows/trivy.yaml"), "environment: trivy-ntfy\n")
-    )
-    error_message = "trivy.yaml doit lire son secret sous le nom déclaré par tofu/github, dans l'environnement trivy-ntfy."
+    condition = alltrue([
+      for f in ["trivy.yaml", "renovate-digest.yaml"] : (
+        strcontains(file("${path.module}/../../.github/workflows/${f}"), "secrets.NTFY_GITHUB_TOKEN")
+        && strcontains(file("${path.module}/../../.github/workflows/${f}"), "environment: ntfy-github\n")
+      )
+    ])
+    error_message = "trivy.yaml et renovate-digest.yaml doivent lire NTFY_GITHUB_TOKEN dans l'environnement ntfy-github."
   }
 
   # Le jeton du producteur github n'écrit que sur son topic : ntfy refuse
@@ -446,27 +449,6 @@ run "trivy_ntfy_secrets" {
   assert {
     condition     = strcontains(file("${path.module}/../../.github/scripts/trivy_critical.py"), "\nTOPIC = \"github\"\n")
     error_message = ".github/scripts/trivy_critical.py doit publier sur le topic github, celui du jeton ntfy_github_token."
-  }
-}
-
-# .github/workflows/renovate-digest.yaml : le seul jeton du producteur ntfy
-# github, dans un environnement à lui, lisible depuis main seulement.
-run "renovate_digest_secrets" {
-  command = plan
-
-  assert {
-    condition     = github_actions_environment_secret.renovate_digest_ntfy_token.environment == "renovate-digest" && github_actions_environment_secret.renovate_digest_ntfy_token.repository == "homelab"
-    error_message = "Le jeton ntfy du bilan Renovate doit être dans l'environnement renovate-digest du dépôt homelab."
-  }
-
-  assert {
-    condition     = github_repository_environment.renovate_digest.deployment_branch_policy[0].custom_branch_policies && github_repository_environment_deployment_policy.renovate_digest_main.branch_pattern == "main"
-    error_message = "L'environnement renovate-digest ne doit être lisible que depuis main."
-  }
-
-  assert {
-    condition     = github_actions_environment_secret.renovate_digest_ntfy_token.value == "tk_fakentfygithubtoken0000000"
-    error_message = "RENOVATE_DIGEST_NTFY_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github), jamais le jeton scripts des hôtes."
   }
 
   # Le producteur github du rôle ntfy : sans lui, ntfy refuse le jeton.
@@ -477,12 +459,33 @@ run "renovate_digest_secrets" {
     )
     error_message = "ansible/roles/ntfy/defaults/main.yml doit déclarer le producteur github (topic github, jeton ntfy_github_token)."
   }
+}
+
+# Tous les environnements : lisibles depuis main seulement, et chaque secret
+# dans celui de son entrée.
+run "environnements_depuis_main_seulement" {
+  command = plan
 
   assert {
-    condition = (
-      strcontains(file("${path.module}/../../.github/workflows/renovate-digest.yaml"), "secrets.RENOVATE_DIGEST_NTFY_TOKEN")
-      && strcontains(file("${path.module}/../../.github/workflows/renovate-digest.yaml"), "environment: renovate-digest\n")
-    )
-    error_message = "renovate-digest.yaml doit lire RENOVATE_DIGEST_NTFY_TOKEN dans l'environnement renovate-digest."
+    condition     = toset(keys(github_repository_environment.this)) == toset(["production", "restore-test", "storage-box-quota", "secrets-rotation", "ntfy-github"])
+    error_message = "Environnements attendus : production, restore-test, storage-box-quota, secrets-rotation, ntfy-github."
+  }
+
+  assert {
+    condition = alltrue([
+      for k, e in github_repository_environment.this :
+      e.environment == k && e.repository == "homelab"
+      && e.deployment_branch_policy[0].custom_branch_policies && !e.deployment_branch_policy[0].protected_branches
+      && github_repository_environment_deployment_policy.main[k].branch_pattern == "main"
+    ])
+    error_message = "Chaque environnement n'accepte que la branche main (politique personnalisée)."
+  }
+
+  assert {
+    condition = alltrue([
+      for k, s in github_actions_environment_secret.this :
+      k == "${s.environment}/${s.secret_name}" && s.repository == "homelab"
+    ])
+    error_message = "Chaque secret vit dans l'environnement de son entrée de local.environments, sur le dépôt homelab."
   }
 }

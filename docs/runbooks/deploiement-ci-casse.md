@@ -92,8 +92,8 @@ ansible-playbook docker.yml --tags <tag> --check --diff
 - **Déployer depuis le poste** (CI en panne) :
   `ansible-playbook docker.yml --tags rss`, après un `--check --diff`.
 - **Secrets de la CI à refaire** (clé age, clé SSH de déploiement,
-  identifiants OLM) : ils viennent de `tofu/github` (`actions_secrets.tf`,
-  `ssh_key.tf`, `olm_secrets.tf`) ; `tofu plan` puis `tofu apply` dans
+  identifiants OLM) : ils viennent de `tofu/github` (`environments.tf`,
+  `ssh_key.tf`) ; `tofu plan` puis `tofu apply` dans
   `tofu/github`. Une nouvelle clé SSH réécrit `keys/github-actions.pub` : la
   committer puis rejouer `00-setup.yaml` sur les hôtes.
 

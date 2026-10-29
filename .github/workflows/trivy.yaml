@@ -220,14 +220,14 @@ jobs:
   # Les CRITICAL corrigeables de toutes les images, en un message ntfy (rien
   # s'il n'y en a pas). Aussi quand une image a échoué : les autres sont
   # signalées, le run reste rouge. Depuis main seulement : l'environnement
-  # trivy-ntfy (tofu/github/trivy_ntfy_secrets.tf) ne porte que le jeton du
+  # ntfy-github (tofu/github/environments.tf) ne porte que le jeton du
   # producteur github de ntfy, et refuse toute autre branche.
   notify:
     name: Publish critical vulnerabilities to ntfy
     needs: image
     if: ${{ !cancelled() && needs.image.result != 'skipped' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-26.04
-    environment: trivy-ntfy
+    environment: ntfy-github
     timeout-minutes: 5
 
     permissions:
@@ -248,7 +248,7 @@ jobs:
 
       - name: Publish to ntfy
         env:
-          NTFY_TOKEN: ${{ secrets.TRIVY_NTFY_TOKEN }}
+          NTFY_TOKEN: ${{ secrets.NTFY_GITHUB_TOKEN }}
         run: python3 -I .github/scripts/trivy_critical.py reports
 
   # Les bases pèsent lourd dans le cache Actions (10 Go par dépôt, partagés

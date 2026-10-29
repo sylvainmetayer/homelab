@@ -24,7 +24,7 @@ jobs:
     name: Check usage
     runs-on: ubuntu-26.04
     # Jeton Hetzner en lecture seule et URL push, lisibles depuis main
-    # seulement (tofu/github/storage_box_quota_secrets.tf) : rien d'autre.
+    # seulement (tofu/github/environments.tf) : rien d'autre.
     environment: storage-box-quota
     timeout-minutes: 5
     permissions:
