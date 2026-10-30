@@ -77,3 +77,13 @@ victoria_logs_publish_addresses:
 # arrêtée et désactivée, sauvegarde retirée, données et dépôt borg gardés.
 # Reprise : true ici, `enabled` et `"paused"` retirés côté Tofu et apps.json.
 paperless_enabled: false
+
+# Relève e-mail de Papra (rôle papra, README « Mail intake ») : la boîte
+# dédiée, adresse et mot de passe d'application dans SOPS
+# (papra_intake_imap_user, papra_intake_imap_password), jamais en clair ici :
+# le From se falsifie, l'adresse reste privée. Seuls ces domaines sont
+# importés, le reste part dans Papra/Refusé.
+papra_intake_enabled: true
+papra_intake_allowed_senders:
+  - "@sylvainmetayer.fr"
+  - "@sylvain.dev"
