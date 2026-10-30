@@ -70,7 +70,8 @@ def load_config(path):
     config["port"] = int(config.get("port", 993))
     config["max_bytes"] = int(config.get("max_bytes", 26214400))
     config.setdefault("folder", "INBOX")
-    config["body_marker"] = config.get("body_marker", "[mail]").strip()
+    # null (papra_intake_body_marker: ~) comme vide : jamais.
+    config["body_marker"] = (config.get("body_marker", "[mail]") or "").strip()
     config["allowed_senders"] = [s.strip().lower() for s in config.get("allowed_senders", []) if s.strip()]
     config["extensions"] = {e.strip().lower().lstrip(".") for e in config.get("extensions", []) if e.strip()}
     return config
@@ -137,20 +138,26 @@ def marked_subject(subject, marker):
 
 class HTMLText(html.parser.HTMLParser):
     """Texte d'un corps HTML : balises retirées, entités décodées, retour à
-    la ligne pour <br>, <p>, <div>, <li>…, ni script ni style."""
+    la ligne pour <br>, <p>, <div>, <li>…, une espace entre cellules de
+    tableau, ni script, ni style, ni en-tête."""
 
-    BREAKS = {"br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"}
-    HIDDEN = {"script", "style", "head"}
+    BREAKS = frozenset({"br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"})
+    CELLS = frozenset({"td", "th"})
+    HIDDEN = frozenset({"script", "style", "head", "title"})
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts, self.hidden = [], 0
 
     def handle_starttag(self, tag, attrs):
-        if tag in self.HIDDEN:
+        if tag == "body":  # </head> est facultatif : <body> le ferme
+            self.hidden = 0
+        elif tag in self.HIDDEN:
             self.hidden += 1
         elif tag in self.BREAKS:
             self.parts.append("\n- " if tag == "li" else "\n")
+        elif tag in self.CELLS:
+            self.parts.append(" ")
 
     def handle_endtag(self, tag):
         if tag in self.HIDDEN:
@@ -163,7 +170,7 @@ class HTMLText(html.parser.HTMLParser):
             self.parts.append(re.sub(r"\s+", " ", data))
 
     def text(self):
-        lines = [line.strip() for line in "".join(self.parts).splitlines()]
+        lines = [re.sub(" {2,}", " ", line).strip() for line in "".join(self.parts).splitlines()]
         return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
@@ -186,7 +193,10 @@ def body_files(msg, raw, subject, max_bytes):
     écarté au-delà de max_bytes ; et le nombre d'écartés. Leurs extensions ne
     passent pas par la liste des pièces jointes."""
     date = getattr(msg["Date"], "datetime", None) or datetime.datetime.now()
-    base = f"{date:%Y-%m-%d} - {subject}" if subject else f"{date:%Y-%m-%d}"
+    # « / » d'un objet (« Facture 10/2026 ») : un tiret, pas un séparateur de
+    # chemin dont safe_name ne garderait que la fin (ni date ni début d'objet).
+    title = SAFE_CHARS_RE.sub("_", re.sub(r"[/\\]", "-", subject)).strip(" ._-")
+    base = f"{date:%Y-%m-%d} - {title}" if title else f"{date:%Y-%m-%d}"
     part = msg.get_body(preferencelist=("plain",))
     if part is not None:
         body = part_text(part).strip()
@@ -196,7 +206,7 @@ def body_files(msg, raw, subject, max_bytes):
     text = (
         f"De : {msg.get('From', '')}\nÀ : {msg.get('To', '')}\n"
         f"Date : {msg.get('Date', '')}\nObjet : {subject}\n\n{body}\n"
-    ).encode("utf-8")
+    ).encode()
     kept, skipped = [], 0
     for extension, payload in (("txt", text), ("eml", raw)):
         if len(payload) > max_bytes:
@@ -362,7 +372,7 @@ def handle(imap, uid, config, folders, has_move):
         log(f"Message {label} : expéditeur non autorisé (domaine {domain}), déplacé vers {rejected_label}")
         move(imap, uid, folders["rejected"], has_move)
         return "refused"
-    log(f"Message {label} ({domain}) : {len(written)} fichier(s) déposé(s) {written}, {skipped} écartée(s)")
+    log(f"Message {label} ({domain}) : {len(written)} fichier(s) déposé(s) {written}, {skipped} écarté(s)")
     move(imap, uid, folders["done"], has_move)
     return "imported"
 

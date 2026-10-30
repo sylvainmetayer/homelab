@@ -340,15 +340,16 @@
         hidden: true
       register: papra_intake_body_written
 
-    # Préfixes « TR: Fwd: » et marqueur retirés de l'objet, date de l'en-tête
-    # Date (dans son propre fuseau) ; la pièce jointe du second inchangée.
+    # Préfixes « TR: Fwd: » et marqueur retirés de l'objet, son « / » changé
+    # en « - » dans le nom, date de l'en-tête Date (dans son propre fuseau) ;
+    # la pièce jointe du second inchangée.
     - name: Assert the marked messages also drop their text and original
       vars:
         papra_intake_html: "{{ papra_intake_body_runs.results[0].stdout | from_json }}"
         papra_intake_plain: "{{ papra_intake_body_runs.results[1].stdout | from_json }}"
       ansible.builtin.assert:
         that:
-          - papra_intake_html.written == ['2026-10-29 - Quittance de loyer.txt', '2026-10-29 - Quittance de loyer.eml']
+          - papra_intake_html.written == ['2026-10-29 - Quittance de loyer 10-2026.txt', '2026-10-29 - Quittance de loyer 10-2026.eml']
           - papra_intake_html.skipped == 0
           - papra_intake_plain.written == ['releve.pdf', '2026-10-30 - Relevé été.txt', '2026-10-30 - Relevé été.eml']
           - >-
@@ -358,15 +359,16 @@
 
     - name: Read the papra intake text files
       loop:
-        - 2026-10-29 - Quittance de loyer.txt
+        - 2026-10-29 - Quittance de loyer 10-2026.txt
         - 2026-10-30 - Relevé été.txt
       ansible.builtin.slurp:
         src: "/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/{{ item }}"
       register: papra_intake_texts
 
     # En-têtes puis corps ; le HTML seul rendu en texte (ni balise, ni
-    # script, ni style, entités décodées, une ligne par <br>, <p>, <li>) ;
-    # la partie text/plain préférée au HTML.
+    # script, ni style, ni titre malgré un </head> absent, entités décodées,
+    # une ligne par <br>, <p>, <li>, une espace entre cellules) ; la partie
+    # text/plain préférée au HTML.
     - name: Assert the papra intake text files
       vars:
         papra_intake_html_lines: "{{ (papra_intake_texts.results[0].content | b64decode).splitlines() }}"
@@ -375,9 +377,10 @@
         that:
           - >-
             papra_intake_html_lines[:5] == ['De : Scanner <scanner@example.org>', 'À : papra@example.net',
-            'Date : Thu, 29 Oct 2026 23:30:00 -0100', 'Objet : Quittance de loyer', '']
+            'Date : Thu, 29 Oct 2026 23:30:00 -0100', 'Objet : Quittance de loyer 10/2026', '']
           - "'Loyer d\\'octobre : 850 €' in papra_intake_html_lines"
           - "'Charges comprises.' in papra_intake_html_lines"
+          - "'Montant 850 €' in papra_intake_html_lines"
           - "'- Échéance : 5 novembre' in papra_intake_html_lines"
           - "'Cordialement & merci' in papra_intake_html_lines"
           - "papra_intake_html_lines | select('search', '[<>]|alert|color|Titre') | list == ['De : Scanner <scanner@example.org>']"
@@ -389,7 +392,7 @@
     - name: Checksum the papra intake fixtures and their .eml copies
       loop:
         - /tmp/intake-body-html.eml
-        - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/2026-10-29 - Quittance de loyer.eml
+        - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/2026-10-29 - Quittance de loyer 10-2026.eml
         - /tmp/intake-body-plain.eml
         - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/2026-10-30 - Relevé été.eml
       ansible.builtin.stat:

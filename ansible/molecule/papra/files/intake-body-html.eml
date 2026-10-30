@@ -1,13 +1,14 @@
 From: Scanner <scanner@example.org>
 To: papra@example.net
-Subject: TR: Fwd:  [MAIL] Quittance de loyer
+Subject: TR: Fwd:  [MAIL] Quittance de loyer 10/2026
 Date: Thu, 29 Oct 2026 23:30:00 -0100
 Message-ID: <fixture-3@example.org>
 MIME-Version: 1.0
 Content-Type: text/html; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
-<html><head><title>Titre cach&eacute;</title><style>p { color: red; }</style></head>
+<html><head><title>Titre cach&eacute;</title><style>p { color: red; }</style>
 <body><p>Bonjour,</p><div>Loyer d&#39;octobre&nbsp;: 850&nbsp;&euro;<br>Charges comprises.</div>
+<table><tr><td>Montant</td><td>850&nbsp;&euro;</td></tr></table>
 <ul><li>Échéance : 5 novembre</li><li>Réf. Q-2026-10</li></ul>
 <script>alert("x")</script><p>Cordialement &amp; merci</p></body></html>
