@@ -68,9 +68,12 @@ ntfy_publishers:
 # et pousse up si un relevé y compte au moins un abonné, down sinon (zéro
 # partout, ou aucune ligne : ntfy arrêté, journal illisible). Le moniteur
 # « ntfy : abonnés » (tofu/pangolin_config, cron_ntfy_subscribers.tf) passe
-# d'abord en PENDING : l'alerte tombe au second down, 30 à 40 minutes après
-# le départ du dernier abonné, sur Telegram (ntfy, lui, ne joindrait
-# justement plus personne).
+# d'abord en PENDING : l'alerte tombe au second down, un peu plus de 8 h
+# après le départ du dernier abonné, sur Telegram (ntfy, lui, ne joindrait
+# justement plus personne). 8 h et pas 30 min (choix du 30/10) : un
+# téléphone en mode avion, éteint ou sans réseau une nuit n'alerte pas ;
+# 8 h sans aucun abonné, c'est un vrai souci (abonnement refusé, appli
+# coupée).
 #
 # URL push : sortie uptime_cron_ntfy_subscribers_url du state de
 # pangolin_config, lue par docker.yml ; vide, la vérification tourne sans rien
@@ -79,7 +82,7 @@ ntfy_subscribers_check_push_url: ""
 # Le test monitors_are_filed_and_alert de tofu/pangolin_config lit ce « *:0/N »
 # : l'intervalle du moniteur vaut trois périodes.
 ntfy_subscribers_check_schedule: "*:0/10"
-ntfy_subscribers_check_window_minutes: 20
+ntfy_subscribers_check_window_minutes: 480
 # Le compte du script (groupe docker en plus, pour docker logs), jamais root.
 ntfy_subscribers_check_user: "{{ ansible_user }}"
 

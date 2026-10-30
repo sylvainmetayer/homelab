@@ -2366,7 +2366,8 @@ run "monitors_are_filed_and_alert" {
   # Abonnés ntfy (rôle ntfy) : la VM docker pousse toutes les N minutes
   # (ntfy-subscribers-check.timer) ; l'intervalle laisse passer deux
   # vérifications manquées, pas trois, et la fenêtre relue couvre au moins
-  # deux relevés « Server stats » (un par minute) sans dépasser l'intervalle.
+  # deux relevés « Server stats » (un par minute) ; elle peut dépasser
+  # l'intervalle (8 h : un téléphone hors ligne une nuit n'alerte pas).
   # Telegram compris : ntfy, lui, ne joindrait plus les téléphones.
   assert {
     condition = (
@@ -2375,9 +2376,8 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_push.cron_ntfy_subscribers.active == true
       && uptimekuma_monitor_push.cron_ntfy_subscribers.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_schedule)[0])
       && yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_window_minutes >= 2
-      && yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_window_minutes * 60 < uptimekuma_monitor_push.cron_ntfy_subscribers.interval
     )
-    error_message = "Abonnés ntfy : rangé avec les healthchecks, Telegram et ntfy, actif, intervalle de trois périodes de ntfy_subscribers_check_schedule (*:0/N), fenêtre d'au moins 2 minutes et plus courte que l'intervalle."
+    error_message = "Abonnés ntfy : rangé avec les healthchecks, Telegram et ntfy, actif, intervalle de trois périodes de ntfy_subscribers_check_schedule (*:0/N), fenêtre d'au moins 2 minutes."
   }
 
   assert {
