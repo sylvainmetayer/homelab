@@ -3,7 +3,7 @@
 # .github/scripts/check_secret_rotation.py : le workflow Secrets rotation
 # passe le moniteur « Rotation des secrets » à « down » au-delà de 100 jours.
 # Valeur initiale : l'ajout de la clé (f7be1d86), pas un test connu.
-dernier_test: 2026-10-23
+dernier_test: 2026-10-30
 ---
 
 # Tester la clé age `secours` (chaque trimestre)
