@@ -37,18 +37,10 @@ locals {
   # The topics the producers publish to, one each (ntfy_publishers in
   # ansible/roles/ntfy/defaults/main.yml, compared by the
   # `ntfy_topics_match_the_role` test). Sylvain reads all of them.
+  # Removing one: unsubscribe it on the phones first, or the Android app
+  # gets nothing at all (ansible/roles/ntfy/README.md).
   ntfy_publish_topics = ["uptime-kuma", "scripts", "github"]
 }
-
-# The beszel topic (a producer prepared, never used) left that list: its
-# ACCEPT is still live in Pangolin while no longer declared, so the rule
-# inventory audit (terraform_data.rule_inventory, rules.tf) stops every full
-# plan until a targeted apply, which leaves the audit out of the graph,
-# deletes it. Once, from tofu/pangolin_config, then a normal plan:
-#
-#   tofu apply -target='pangolin_resource_rule.path_bypass["ntfy /beszel"]'
-#
-# This paragraph can go once that apply has run.
 
 # The phone apps (Android, iOS) and the publishers (Uptime Kuma, scripts,
 # github) talk to ntfy from wherever they are and cannot pass the SSO wall:
