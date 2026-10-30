@@ -27,7 +27,7 @@
     - name: Install its systemd unit
       ansible.builtin.copy:
         dest: /etc/systemd/system/molecule-fake-uptime-kuma.service
-        mode: "0644"
+        mode: "0644" # NOSONAR
         content: |
           [Unit]
           Description=Molecule fake Uptime Kuma
