@@ -122,7 +122,8 @@ Deux contrôles :
 ### Remplacer la clé `secours`
 
 1. Sur un poste de confiance, sans réseau si possible :
-   `age-keygen -o /run/media/sylvain/SECOURS/secours.key` (la clé publique
+   `age-keygen -pq -o /run/media/sylvain/SECOURS/secours.key` (clé
+   post-quantique `age1pq1…`, comme toutes celles de `.sops.yaml` ; la clé publique
    s'affiche). Faire la deuxième copie hors ligne (papier, seconde clé
    USB) tout de suite.
 2. Remplacer la ligne `# secours` dans les **deux** règles de `.sops.yaml`,
