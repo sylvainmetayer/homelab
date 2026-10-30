@@ -1,0 +1,69 @@
+From: Scanner <scanner@example.org>
+To: papra@example.net
+Subject: Facture
+Date: Fri, 30 Oct 2026 10:00:00 +0100
+Message-ID: <fixture-1@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============5784473115247853158=="
+
+--===============5784473115247853158==
+Content-Type: multipart/alternative;
+ boundary="===============3298502329748726390=="
+
+--===============3298502329748726390==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Document en pièce jointe.
+
+--===============3298502329748726390==
+MIME-Version: 1.0
+Content-Type: multipart/related;
+ boundary="===============3704765082334217338=="
+
+--===============3704765082334217338==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<p>Document <img src="cid:logo@example.org"></p>
+
+--===============3704765082334217338==
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="logo.png"
+Content-ID: <logo@example.org>
+MIME-Version: 1.0
+
+iVBORw0KGgpsb2dv
+
+--===============3704765082334217338==--
+
+--===============3298502329748726390==--
+
+--===============5784473115247853158==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename*=utf-8''..%2F..%2Fetc%2FFacture%20%C3%A9t%C3%A9%202026.pdf
+MIME-Version: 1.0
+
+JVBERi0xLjQKJSBmaXh0dXJlIG1vbGVjdWxlCiUlRU9GCg==
+
+--===============5784473115247853158==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename*=utf-8''Facture%20%C3%A9t%C3%A9%202026.pdf
+MIME-Version: 1.0
+
+JVBERi0xLjQKJSBmaXh0dXJlIG1vbGVjdWxlIDIKJSVFT0YK
+
+--===============5784473115247853158==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="outil.exe"
+MIME-Version: 1.0
+
+TVogZml4dHVyZQ==
+
+--===============5784473115247853158==--

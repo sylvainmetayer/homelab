@@ -1,0 +1,141 @@
+---
+# Relève par e-mail (defaults, papra_intake_*). Les identifiants IMAP sont
+# les clés SOPS papra_intake_imap_user / papra_intake_imap_password, lues
+# telles quelles : aucune variable du rôle ne porte leur nom (précédence de
+# SOPS, docs/conventions/secrets.md).
+- name: Assert the Papra intake is fully configured
+  when: papra_intake_enabled | bool
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - papra_intake_imap_user | default('') | length > 0
+      - papra_intake_imap_password | default('') | length > 0
+      - papra_intake_allowed_senders | length > 0
+      - papra_intake_organization_id is match('^org_[a-z0-9]+$')
+    fail_msg: >-
+      papra_intake_enabled sans papra_intake_imap_user /
+      papra_intake_imap_password (ansible/secrets.sops.yaml), sans
+      papra_intake_allowed_senders, ou papra_intake_organization_id mal formé
+      (org_...). Procédure : ansible/roles/papra/README.md.
+
+- name: Install the Papra intake
+  when: papra_intake_enabled | bool
+  block:
+    # Au compte du conteneur : Papra lit puis supprime ce qui y est déposé.
+    - name: Ensure the Papra intake folders exist
+      loop:
+        - "{{ papra_intake_dest_dir }}"
+        - "{{ papra_intake_tmp_dir }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0700"
+
+    # /usr/local/libexec n'existe pas partout (rôle mem_report).
+    - name: Ensure the Papra intake script folder exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ papra_intake_script | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        # Dossier système standard, traversé par le compte de l'unité.
+        mode: "0755" # NOSONAR
+
+    - name: Install the Papra intake script
+      become: true
+      ansible.builtin.copy:
+        src: papra_intake.py
+        dest: "{{ papra_intake_script }}"
+        owner: root
+        group: root
+        # Lu par le compte de l'unité ; rien de secret.
+        mode: "0644" # NOSONAR
+
+    # Le mot de passe d'application en clair : 0600 au compte de l'unité,
+    # diff: false (un --diff l'écrirait dans run.log).
+    - name: Write the Papra intake configuration
+      become: true
+      diff: false
+      ansible.builtin.copy:
+        content: "{{ papra_intake_config | to_nice_json }}\n"
+        dest: "{{ papra_intake_config_file }}"
+        owner: "{{ papra_intake_service_user }}"
+        group: root
+        mode: "0600"
+      vars:
+        papra_intake_config:
+          host: "{{ papra_intake_imap_host }}"
+          port: "{{ papra_intake_imap_port | int }}"
+          user: "{{ papra_intake_imap_user }}"
+          password: "{{ papra_intake_imap_password }}"
+          folder: "{{ papra_intake_imap_folder }}"
+          done_folder: "{{ papra_intake_done_folder }}"
+          rejected_folder: "{{ papra_intake_rejected_folder }}"
+          allowed_senders: "{{ papra_intake_allowed_senders }}"
+          extensions: "{{ papra_intake_extensions }}"
+          max_bytes: "{{ papra_max_upload_size | int }}"
+          dest_dir: "{{ papra_intake_dest_dir }}"
+          tmp_dir: "{{ papra_intake_tmp_dir }}"
+
+    # 0644 : les identifiants sont dans le fichier de configuration (0600).
+    - name: Install the Papra intake service and timer
+      become: true
+      loop:
+        - papra-intake.service
+        - papra-intake.timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644" # NOSONAR
+      notify: Restart papra-intake timer
+      register: papra_intake_units
+
+    # Le timer seul : le service, oneshot, n'est jamais lancé par Ansible.
+    - name: Enable the Papra intake
+      become: true
+      when: not (ansible_check_mode and papra_intake_units is changed)
+      ansible.builtin.systemd:
+        name: papra-intake.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+- name: Check whether a Papra intake timer is installed
+  when: not papra_intake_enabled | bool
+  ansible.builtin.stat:
+    path: /etc/systemd/system/papra-intake.timer
+  register: papra_intake_timer
+
+# Les fichiers partent même sans timer (installation interrompue avant lui) :
+# la configuration porte le mot de passe. Les dossiers restent : ingestion/
+# appartient à Papra, intake-tmp/ est vide hors d'un passage.
+- name: Remove the Papra intake
+  when: not papra_intake_enabled | bool
+  become: true
+  block:
+    - name: Stop the Papra intake
+      when: papra_intake_timer.stat.exists
+      ansible.builtin.systemd:
+        name: papra-intake.timer
+        state: stopped
+        enabled: false
+
+    - name: Delete the Papra intake files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/papra-intake.timer
+        - /etc/systemd/system/papra-intake.service
+        - "{{ papra_intake_script }}"
+        - "{{ papra_intake_config_file }}"
+
+    - name: Forget the Papra intake units
+      when: papra_intake_timer.stat.exists
+      ansible.builtin.systemd:
+        daemon_reload: true

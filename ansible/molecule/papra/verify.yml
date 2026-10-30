@@ -135,3 +135,175 @@
           - "'EMAILS_FROM_ADDRESS=Papra <' ~ pangolin_smtp_user ~ '>' in papra_env_lines"
           - "'DOCUMENT_STORAGE_USE_LEGACY_STORAGE_KEY_DEFINITION_SYSTEM=false' in papra_env_lines"
           - papra_env_lines | select('match', '^DOCUMENT_STORAGE_KEY_PATTERN=\\{\\{organization\\.id\\}\\}/\\{\\{document\\.name\\}\\}$') | list | length == 1
+
+    # --- Relève par e-mail (papra-intake.timer, activée par converge.yml) ---
+    - name: Stat the papra intake files
+      become: true
+      loop:
+        - /usr/local/libexec/papra_intake.py
+        - /etc/papra-intake.json
+        - /etc/systemd/system/papra-intake.service
+        - /etc/systemd/system/papra-intake.timer
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: papra_intake_files
+
+    # Le script et les unités à root, lisibles ; la configuration (mot de
+    # passe d'application) en 0600 au seul compte de l'unité.
+    - name: Assert the papra intake files have the expected owners and modes
+      loop: "{{ papra_intake_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == ('sylvain' if item.item.endswith('.json') else 'root')
+          - item.stat.mode == ('0600' if item.item.endswith('.json') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+
+    - name: Read the papra intake configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/papra-intake.json
+      register: papra_intake_config_raw
+
+    - name: Assert the papra intake configuration carries the SOPS credentials
+      vars:
+        papra_intake_config: "{{ papra_intake_config_raw.content | b64decode | from_json }}"
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - papra_intake_config.user == papra_intake_imap_user
+          - papra_intake_config.password == papra_intake_imap_password
+          - papra_intake_config.port | int == 993
+          - papra_intake_config.allowed_senders == ['@example.org']
+          - papra_intake_config.dest_dir == '/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i'
+          - papra_intake_config.tmp_dir == '/opt/apps/papra/intake-tmp'
+          - papra_intake_config.max_bytes | int == 26214400
+
+    - name: Verify the papra intake units
+      become: true
+      ansible.builtin.command: systemd-analyze verify papra-intake.service papra-intake.timer
+      register: papra_intake_analyze
+      changed_when: false
+      failed_when: >-
+        papra_intake_analyze.rc != 0
+        or (papra_intake_analyze.stderr_lines | select('search', 'papra-intake') | list | length > 0)
+
+    - name: Read the papra intake timer
+      ansible.builtin.systemd:
+        name: papra-intake.timer
+      register: papra_intake_timer
+
+    - name: Read the papra intake service
+      ansible.builtin.systemd:
+        name: papra-intake.service
+      register: papra_intake_unit
+
+    # Toutes les 15 minutes, sous sylvain (l'uid du conteneur), la
+    # configuration jamais sur la ligne de commande.
+    - name: Assert the papra intake runs every 15 minutes, unprivileged
+      ansible.builtin.assert:
+        that:
+          - papra_intake_timer.status.UnitFileState == 'enabled'
+          - papra_intake_timer.status.ActiveState == 'active'
+          - papra_intake_timer.status.TimersCalendar is search('OnCalendar=\*-\*-\* \*:00/15:00')
+          - papra_intake_unit.status.Type == 'oneshot'
+          - papra_intake_unit.status.User == 'sylvain'
+          - papra_intake_unit.status.ProtectSystem == 'strict'
+          - papra_intake_unit.status.NoNewPrivileges == 'yes'
+          - papra_intake_unit.status.ExecStart is search('/usr/local/libexec/papra_intake.py --config /etc/papra-intake.json ')
+
+    - name: Stat the papra intake folders
+      loop:
+        - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i
+        - /opt/apps/papra/intake-tmp
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: papra_intake_dirs
+
+    - name: Assert the papra intake folders belong to the container user
+      loop: "{{ papra_intake_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+          - item.stat.pw_name == 'sylvain'
+          - item.stat.mode == '0700'
+
+    # Le traitement d'un message, hors réseau : le script déployé, sa
+    # configuration déployée, des .eml fixes (files/). Un expéditeur autorisé
+    # (@example.org) avec deux PDF du même nom (dont un « ../../etc/… »), un
+    # .exe et un logo en ligne ; un expéditeur inconnu.
+    - name: Copy the papra intake fixtures
+      loop:
+        - intake-allowed.eml
+        - intake-refused.eml
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/tmp/{{ item }}"
+        mode: "0644"
+
+    - name: Run the papra intake on the fixtures
+      become: true
+      become_user: sylvain
+      loop:
+        - intake-allowed.eml
+        - intake-refused.eml
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -I
+          - /usr/local/libexec/papra_intake.py
+          - --config
+          - /etc/papra-intake.json
+          - --eml
+          - "/tmp/{{ item }}"
+      register: papra_intake_runs
+      changed_when: true
+
+    - name: List the papra ingestion folder
+      ansible.builtin.find:
+        paths: /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i
+        hidden: true
+      register: papra_intake_written
+
+    # Les deux PDF sous un nom sûr, le second suffixé ; ni .exe ni logo ;
+    # rien hors du dossier de l'organisation ; le sas vidé ; des fichiers
+    # 0600 au compte du conteneur, que Papra lira puis supprimera.
+    - name: Assert the papra intake drops only the allowed attachments, safely named
+      vars:
+        papra_intake_allowed: "{{ papra_intake_runs.results[0].stdout | from_json }}"
+        papra_intake_refused: "{{ papra_intake_runs.results[1].stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - papra_intake_allowed.allowed
+          - papra_intake_allowed.written == ['Facture été 2026.pdf', 'Facture été 2026-1.pdf']
+          - papra_intake_allowed.skipped == 1
+          - not papra_intake_refused.allowed
+          - papra_intake_refused.domain == 'elsewhere.example'
+          - papra_intake_refused.written == []
+          - papra_intake_written.files | map(attribute='path') | map('basename') | sort == ['Facture été 2026-1.pdf', 'Facture été 2026.pdf']
+          - papra_intake_written.files | map(attribute='pw_name') | unique == ['sylvain']
+          - papra_intake_written.files | map(attribute='mode') | unique == ['0600']
+        fail_msg: "{{ papra_intake_runs.results | map(attribute='stdout') | list }} / {{ papra_intake_written.files | map(attribute='path') | list }}"
+
+    - name: Find leftovers in the papra intake staging folder
+      ansible.builtin.find:
+        paths: /opt/apps/papra/intake-tmp
+        hidden: true
+      register: papra_intake_leftovers
+
+    - name: Assert the papra intake staging folder is empty
+      ansible.builtin.assert:
+        that:
+          - papra_intake_leftovers.matched == 0
+
+    - name: Remove the papra intake test files
+      become: true
+      loop: "{{ papra_intake_written.files | map(attribute='path') | list }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent

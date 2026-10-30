@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Periodic fetch of the Papra intake mailbox
+
+[Timer]
+OnCalendar={{ papra_intake_schedule }}
+RandomizedDelaySec=60s
+
+[Install]
+WantedBy=timers.target

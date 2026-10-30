@@ -71,3 +71,7 @@
     name: dc@papra
     scope: user
     enabled: true
+
+# Relève par e-mail (defaults, papra_intake_*) : installée ou retirée.
+- name: Configure the Papra mail intake
+  ansible.builtin.import_tasks: intake.yml

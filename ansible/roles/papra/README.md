@@ -35,3 +35,89 @@ loses the trial is removed with the `remove-app` skill. App description:
   `P-Access-Token`, `tofu output -json papra_client_access_tokens` in
   `tofu/pangolin_config`); no path is opened. → `docs/acces-mobile.md`.
   Removing Papra also removes this token (`remove-app` skill, step 6).
+
+## Mail intake (`papra_intake_*`, off by default)
+
+A mail sent to a dedicated Infomaniak address ends up in Papra, with no
+third-party relay: `papra-intake.timer` (every 15 min, `papra_intake_schedule`)
+runs `files/papra_intake.py` (Python stdlib) as the container's user. It reads
+`papra_intake_imap_folder` (`INBOX`) of `mail.infomaniak.com:993` over IMAPS
+(certificate verified) and, per message:
+
+- **sender allowed** (`papra_intake_allowed_senders`: exact address, or a
+  domain written `@example.fr`): every attachment whose extension is in
+  `papra_intake_extensions` (PDF, images, office documents, text) and whose
+  size is at most `papra_max_upload_size` (25 MB) is written to
+  `ingestion/<papra_intake_organization_id>/`, which Papra imports then empties.
+  The message then moves to `papra_intake_done_folder` (`Papra/Importé`).
+  Names are made safe (base name only, no leading dot, `[\w.- ]`), never
+  overwrite (`-1`, `-2`… suffix): each file is written to `intake-tmp/` first
+  then hard-linked into the watched folder, so Papra never sees a partial
+  file. A small inline image referenced by `Content-ID` (signature logo) is
+  dropped.
+- **any other sender**: the message moves, untouched, to
+  `papra_intake_rejected_folder` (`Papra/Refusé`); the journal keeps its UID
+  and the sender's domain only. So does a message over 4× the size cap.
+
+Nothing is ever deleted from the mailbox (IMAP `MOVE`, or `COPY` + `\Deleted`
++ `UID EXPUNGE` of that UID alone); both folders are created when missing. A
+write error leaves the message in place for the next run (attachments already
+written by that run would then be imported twice).
+
+The `From` header can be forged: the allow-list stops strays and spam, not a
+targeted sender. Keep the intake address to yourself.
+
+Credentials: the SOPS keys `papra_intake_imap_user` (the address, an
+identifier) and `papra_intake_imap_password` (an Infomaniak *application
+password*, not the account password). They land in `/etc/papra-intake.json`
+(`0600`, owned by the unit's user, `diff: false`), never on a command line.
+Logs: `journalctl -u papra-intake`.
+
+### Enabling it
+
+1. In the Infomaniak Manager, create the intake address and an application
+   password for it (Service Mail > the address > Application passwords).
+   Prefer a dedicated address: the password opens the whole mailbox. A
+   sub-address (`sylvain+papra@…`) works too, with the main mailbox's login
+   and `papra_intake_imap_folder` set to the folder a filter files those
+   mails in, but the host then holds a key to all of that mailbox.
+2. Store both, without echo, from the repo root of a branch:
+
+   ```bash
+   read -r valeur   # the IMAP login (the address)
+   printf '%s' "$valeur" | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
+     | sops set --value-stdin ansible/secrets.sops.yaml '["papra_intake_imap_user"]'
+   read -rs valeur  # the application password (no echo)
+   printf '%s' "$valeur" | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
+     | sops set --value-stdin ansible/secrets.sops.yaml '["papra_intake_imap_password"]'
+   unset valeur
+   ```
+
+   and add their two entries to `secrets-rotation.yaml` in the same commit
+   (`papra_intake_imap_user`: `kind: identifier`; `papra_intake_imap_password`:
+   `kind: application`, `last_rotated` the day, `estimated: false`,
+   `how: docs/runbooks/rotation-des-secrets.md#relève-e-mail-de-papra`): the
+   Lint fails on a SOPS key without its entry.
+3. In `ansible/host_vars/docker/variables.yaml`:
+
+   ```yaml
+   papra_intake_enabled: true
+   papra_intake_allowed_senders:
+     - sylvain@example.fr
+     - "@scanner-domain.example"
+   ```
+
+   (`papra_intake_organization_id` if the target organization is not
+   `org_z9tq7wl3o5airawxel6f3e5i`.)
+4. Merge (the CI deploys `--tags papra`), or run
+   `ansible-playbook docker.yml --tags papra` from `ansible/`. Test at once:
+   `sudo systemctl start papra-intake.service && journalctl -u papra-intake -n 20`.
+
+With `papra_intake_enabled: false` again, the role stops the timer and deletes
+the units, the script and the configuration (the folders stay). If Papra loses
+its trial, run that once before `remove-app`: the decommission knows nothing of
+`/etc/papra-intake.json` and the units.
+
+Follow-up, not wired: an Uptime Kuma push monitor (like
+`ntfy-subscribers-check`) to be told when the run keeps failing (expired app
+password, IMAP down).

@@ -1,0 +1,22 @@
+From: Inconnu <someone@elsewhere.example>
+To: papra@example.net
+Subject: Spam
+Message-ID: <fixture-2@elsewhere.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============1604448588194960503=="
+
+--===============1604448588194960503==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+x
+
+--===============1604448588194960503==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="spam.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKJSVFT0YK
+
+--===============1604448588194960503==--
