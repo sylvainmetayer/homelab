@@ -59,7 +59,15 @@ vérifié et il est déchiffré. Les hôtes font déjà le `repository` (toutes 
   y efface `last_segment_checked` ; avec `--bypass-lock`, borg ignore le
   refus d'écriture, « expected when working on read-only repositories »).
   `--repair` n'apparaît nulle part, et le sous-compte refuserait toute
-  écriture de toute façon.
+  écriture de toute façon. Une écriture reste tentée : après la
+  vérification des données, `rebuild_refcounts` rechiffre en mémoire les
+  métadonnées de chaque archive, et une clé AES-CTR (`repokey-blake2`)
+  réserve alors des nonces, aussi dans le fichier `nonce` du dépôt
+  (`Repository.commit_nonce_reservation`, côté `borg serve`). Sous
+  `--bypass-lock`, borg n'y pardonne qu'une `PermissionError` : un autre
+  refus (`EROFS`, « Read-only file system ») ferait sortir le check en 2
+  après un résumé sans bloc corrompu, ce qu'a fait le premier run
+  (2026-10-29, homebox et betisier) ; la sortie filtrée le dira.
 - **Un dépôt à la fois** (`max-parallel: 1`) : `--verify-data` lit tout le
   dépôt sur la Storage Box. Groupe de concurrence à part (`borg-check`) : un
   groupe ne garde qu'un run en attente, et un check lancé à la main y
@@ -81,8 +89,14 @@ vérifié et il est déchiffré. Les hôtes font déjà le `repository` (toutes 
   prune) a changé entre le début et la fin, l'échec est déclaré « non
   concluant », à relancer hors de la nuit.
 - **Journaux.** Mêmes règles que le restore test : ni les arguments de
-  `borg check` ni sa sortie (elle nomme les fichiers touchés), seulement le
-  nombre de blocs vérifiés et d'erreurs.
+  `borg check` ni sa sortie brute (elle nomme les fichiers touchés), le
+  nombre de blocs vérifiés et d'erreurs. En échec, les 30 dernières lignes
+  d'une liste blanche (`verify_diagnostic`) : messages connus de
+  `borg check`, lignes d'exception, cadres de traceback réduits au nom du
+  fichier source, version de borg (client et serveur). Tout chemin devient
+  « … », sauf le nom d'un fichier que borg tient dans le dépôt (`nonce`,
+  `config`, `index.N`…) ; tout `user@hôte` aussi. Les lignes qui nomment
+  un fichier archivé, `sys.argv`, `CWD` ne passent jamais.
 - **Notification.** Pas de moniteur Uptime Kuma : un push ne peut pas
   attendre plus de 24 jours, et pousser sur « Restore test » serait effacé
   par le restore test suivant. Un run planifié en échec envoie la
