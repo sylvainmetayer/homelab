@@ -1,7 +1,7 @@
 # 0001. Sauvegardes : Borgmatic et Borg vers la Storage Box, restaurées en CI
 
 - **Statut** : acceptée
-- **Date** : 2026-01-16 (Borgmatic), complétée jusqu'au 2026-10-27
+- **Date** : 2026-01-16 (Borgmatic), complétée jusqu'au 2026-10-30
 
 ## Contexte
 
