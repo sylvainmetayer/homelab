@@ -35,7 +35,8 @@ are written down in `ansible/roles/borgmatic/README.md`. The interface — the
   included) at INFO on every run, which reached the journal and VictoriaLogs.
   With a healthcheck URL, the template instead adds three
   `before`/`after: configuration` hooks (start, finish, fail; `when:
-  [create, prune, compact, check]`) running `curl -K <file> ... || true`, the
+  [create, prune, compact, check]`) running `uptime-push --agent borgmatic <file> up|down <msg> || true`
+  (role `uptime_push`, 21 s worst case per push), the
   URL living in `{{ borgmatic_config_dir }}/uptime-kuma/<name>.curl` (0600
   root, written by `tasks/app.yml`) — never on a command line.
 - `exclude_patterns` are borg `fm:` patterns anchored at the start of the

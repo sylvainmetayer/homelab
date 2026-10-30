@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: uptime_push
+
+# Prepare propre : ni Docker ni borgmatic, seulement un faux Uptime Kuma local
+# (cf. prepare.yml).
+ansible:
+  playbooks:
+    prepare: prepare.yml

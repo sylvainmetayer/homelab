@@ -2,6 +2,5 @@
 # Lu (source) par {{ ssh_login_notify_script }}. 0600 root : l'URL porte le
 # jeton du moniteur push.
 PUSH_URL={{ ssh_login_notify_push_url | quote }}
-PUSH_TIMEOUT={{ ssh_login_notify_timeout | int }}
 # Une empreinte SHA256 par ligne.
 IGNORED_FINGERPRINTS={{ ssh_login_notify_ignored_fingerprints | join('\n') | quote }}

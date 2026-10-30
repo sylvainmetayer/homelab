@@ -1,0 +1,8 @@
+---
+# Script de push Uptime Kuma partagé (rôle uptime_push), posé avant ce rôle
+# et sous ses tags ; resolve_docker_tags.py et select_tests.py suivent cette
+# dépendance.
+#
+# No galaxy_info block: this role is not published (cf. flip_planning).
+dependencies:
+  - role: uptime_push

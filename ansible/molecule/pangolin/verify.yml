@@ -182,7 +182,7 @@
           - pangolin_geoip_timer.status.UnitFileState == 'enabled'
           - geoip_unit is search('ghcr\\.io/maxmind/geoipupdate:v[0-9.]+@sha256:[a-f0-9]{64}')
           # URL push dans un fichier curl, jamais sur la ligne de commande.
-          - "'-K /etc/geoipupdate/push.curl' in geoip_unit"
+          - "'ExecStartPost=/usr/local/bin/uptime-push --strict --agent geoipupdate /etc/geoipupdate/push.curl up' in geoip_unit"
           - "'/api/push/' not in geoip_unit"
           - (pangolin_geoip_files.results[3].content | b64decode) == 'url = "https://uptime.example.invalid/api/push/pangolin_geoip"\n'
           - "'docker restart pangolin' in geoip_unit"

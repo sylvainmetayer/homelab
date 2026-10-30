@@ -9,9 +9,10 @@ WorkingDirectory={{ monica_v4_base_path }}
 {% if monica_v4_cron_healthcheck_url %}
 # URL push (jeton du moniteur) lue dans un fichier de configuration curl, pas
 # sur la ligne de commande : journald attache celle-ci (_CMDLINE) à chaque
-# ligne que sort curl, et ps et systemctl show la montrent. Nouvel essai
-# sur connexion refusée, lancé dans les 5 s : schedule:run part à l'heure.
-# « - » : un push raté (Uptime Kuma injoignable) n'empêche pas schedule:run.
-ExecStartPre=-/usr/bin/curl -q -sS -m 30 --retry 2 --retry-connrefused --retry-max-time 5 -o /dev/null -K {{ monica_v4_cron_push_config }}
+# ligne que sort curl, et ps et systemctl show la montrent. uptime-push
+# (rôle uptime_push) sort en 0 sur un push raté et tient en 21 s au pire :
+# schedule:run part quand même, en retard d'autant au plus. « - » couvre en
+# plus un script absent.
+ExecStartPre=-{{ uptime_push_bin }} --agent monica-cron {{ monica_v4_cron_push_config }} up
 {% endif %}
 ExecStart=/usr/bin/docker compose -f {{ monica_v4_base_path }}/compose.yaml exec -T crm sh -c 'php artisan schedule:run'

@@ -1,0 +1,124 @@
+---
+# uptime-push contre le faux Uptime Kuma de prepare.yml : ce qui part
+# (statut, message encodé, User-Agent), d'où vient l'URL (fichier ou entrée
+# standard), le code de sortie avec et sans --strict, le pire cas d'un
+# Uptime Kuma qui pend, et une URL jamais écrite sur la sortie.
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars:
+    uptime_push_test_bin: /usr/local/bin/uptime-push
+    uptime_push_test_log: /var/lib/molecule-push/requests.jsonl
+    uptime_push_test_config: /home/sylvain/uptime-push-test.curl
+    # Faux Uptime Kuma local (prepare.yml) : aucun jeton réel.
+    uptime_push_test_url: http://127.0.0.1:18080/api/push/molecule-uptime-push # NOSONAR
+  tasks:
+    - name: Stat the helper
+      ansible.builtin.stat:
+        path: "{{ uptime_push_test_bin }}"
+      register: uptime_push_test_stat
+
+    # 0755 : betisier et monica_v4 poussent depuis des unités de sylvain.
+    - name: Assert the helper is root's and executable by everyone
+      ansible.builtin.assert:
+        that:
+          - uptime_push_test_stat.stat.exists
+          - uptime_push_test_stat.stat.pw_name == 'root'
+          - uptime_push_test_stat.stat.mode == '0755'
+
+    # Comme betisier et monica_v4 : un fichier de configuration curl 0600 de
+    # l'utilisateur qui pousse.
+    - name: Write a curl config file holding the push URL
+      ansible.builtin.copy:
+        content: "url = {{ uptime_push_test_url | to_json }}\n"
+        dest: "{{ uptime_push_test_config }}"
+        mode: "0600"
+
+    - name: Reset the push log
+      become: true
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ uptime_push_test_log }}"
+        mode: "0600"
+
+    - name: Push up with a message from the config file
+      ansible.builtin.command:
+        argv: ["{{ uptime_push_test_bin }}", --agent, molecule, "{{ uptime_push_test_config }}", up, "à jour & 100 % ?"]
+      register: uptime_push_test_file
+      changed_when: true
+
+    # Comme blocky-check, ntfy-subscribers-check et ssh_login_notify : la
+    # configuration sur l'entrée standard (« - »), sans message.
+    - name: Push down with the config on stdin and no message
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          printf 'url = "%s"\n' "$PUSH_URL" | {{ uptime_push_test_bin }} --strict - down
+        executable: /bin/bash
+      environment:
+        PUSH_URL: "{{ uptime_push_test_url }}"
+      register: uptime_push_test_stdin
+      changed_when: true
+
+    - name: Read what the fake Uptime Kuma received
+      become: true
+      ansible.builtin.command: cat {{ uptime_push_test_log }}
+      register: uptime_push_test_pushes
+      changed_when: false
+
+    - name: Assert both pushes reached the monitor, message decoded
+      vars:
+        first: "{{ uptime_push_test_pushes.stdout_lines[0] | from_json }}"
+        second: "{{ uptime_push_test_pushes.stdout_lines[1] | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - uptime_push_test_pushes.stdout_lines | length == 2
+          - uptime_push_test_file.rc == 0
+          - uptime_push_test_stdin.rc == 0
+          - first.path == '/api/push/molecule-uptime-push'
+          - first.status == 'up'
+          - first.msg == 'à jour & 100 % ?'
+          - first.agent == 'molecule'
+          - second.status == 'down'
+          - second.msg == 'OK'
+          - second.agent == 'uptime-push'
+        fail_msg: "{{ uptime_push_test_pushes.stdout_lines }}"
+
+    # --- échecs : connexion refusée, Uptime Kuma qui pend, usage invalide ---
+
+    - name: Push to a closed port, then to a server that never answers
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -u -o pipefail
+          start=$(date +%s)
+          printf 'url = "http://127.0.0.1:9/api/push/molecule-uptime-push"\n' | {{ uptime_push_test_bin }} - up; echo "refused=$?"
+          printf 'url = "http://127.0.0.1:9/api/push/molecule-uptime-push"\n' | {{ uptime_push_test_bin }} --strict - up; echo "refused_strict=$?"
+          hang=$(date +%s)
+          printf 'url = "http://127.0.0.1:18081/api/push/molecule-uptime-push"\n' | {{ uptime_push_test_bin }} - down; echo "hang=$?"
+          echo "hang_seconds=$(( $(date +%s) - hang ))"
+          echo "refused_seconds=$(( hang - start ))"
+          {{ uptime_push_test_bin }} - sideways </dev/null; echo "bad_status=$?"
+          {{ uptime_push_test_bin }} </dev/null; echo "no_args=$?"
+      register: uptime_push_test_failures
+      changed_when: false
+
+    - name: Assert failures exit 0 unless --strict, bounded, without the URL
+      vars:
+        results: >-
+          {{ dict(uptime_push_test_failures.stdout_lines | select('search', '=') | map('split', '=') | list) }}
+      ansible.builtin.assert:
+        that:
+          - results.refused == '0'
+          - results.refused_strict == '7'
+          - results.hang == '0'
+          # Deux essais de 10 s et 1 s d'attente : 21 s, jamais un troisième.
+          - results.hang_seconds | int >= 20
+          - results.hang_seconds | int <= 25
+          # Connexion refusée : trois essais, 1 s puis 2 s d'attente.
+          - results.refused_seconds | int <= 10
+          - results.bad_status == '2'
+          - results.no_args == '2'
+          - "'/api/push/' not in uptime_push_test_failures.stdout ~ uptime_push_test_failures.stderr"
+          - "'molecule-uptime-push' not in uptime_push_test_failures.stdout ~ uptime_push_test_failures.stderr"
+        fail_msg: "{{ uptime_push_test_failures.stdout_lines }} / {{ uptime_push_test_failures.stderr_lines }}"

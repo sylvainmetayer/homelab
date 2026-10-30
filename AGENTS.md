@@ -91,6 +91,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Borgmatic template rules, NAS container mode, Storage Box subaccounts | `ansible/roles/borgmatic/README.md` |
 | Host hardening (ufw, fail2ban, devsec, ssh-audit), LAN hosts' SSH | `ansible/roles/security/README.md` |
 | Newt and its socket proxy | `ansible/roles/newt/README.md` |
+| Uptime Kuma pushes from scripts and units (`uptime-push`, options, worst case) | `ansible/roles/uptime_push/README.md` |
 | Homepage widgets | `ansible/roles/homepage/README.md` |
 | Monitoring (Beszel hub + agents) | `ansible/roles/beszel/README.md` |
 | Logs (VictoriaLogs + Vector) | `ansible/roles/victoria_logs/README.md` |

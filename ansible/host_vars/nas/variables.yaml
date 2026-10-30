@@ -47,6 +47,10 @@ borgmatic_timer_schedule: "*-*-* 02:30:00"
 # Sous-compte Storage Box du NAS : clé SOPS backup_storage_box_subaccounts,
 # recopiée de l'output storage_box_subaccounts de tofu/pangolin.
 backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.nas }}"
+# Script de push Uptime Kuma des hooks borgmatic (rôle uptime_push) : sur le
+# disque, pas dans /usr/local/bin (overlay sur l'eMMC), et vu au même chemin
+# dans le conteneur borgmatic (docker_base_path y est monté entier).
+uptime_push_bin: "{{ docker_base_path }}/uptime-push"
 
 # --- Agent Beszel (rôle beszel_agent, nas.yml) ---
 # Sous dc@beszel_agent, unité système comme toutes les applis du NAS

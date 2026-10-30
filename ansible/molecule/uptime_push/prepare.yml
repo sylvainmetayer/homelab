@@ -1,0 +1,49 @@
+---
+# Pas d'import de _shared/prepare.yml : le rôle ne touche ni Docker ni
+# borgmatic. L'image fournit déjà systemd, curl et python3.
+- name: Prepare a fake Uptime Kuma
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Wait for systemd to finish booting
+      ansible.builtin.command: systemctl is-system-running --wait  # noqa: command-instead-of-module
+      register: uptime_push_systemd_state
+      changed_when: false
+      failed_when: uptime_push_systemd_state.stdout not in ['running', 'degraded']
+
+    - name: Create the push log directory
+      ansible.builtin.file:
+        path: /var/lib/molecule-push
+        state: directory
+        mode: "0700"
+
+    - name: Install the fake Uptime Kuma
+      ansible.builtin.copy:
+        src: fake-uptime-kuma.py
+        dest: /usr/local/bin/molecule-fake-uptime-kuma
+        mode: "0700"
+
+    - name: Install its systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/molecule-fake-uptime-kuma.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Molecule fake Uptime Kuma
+
+          [Service]
+          ExecStart=/usr/local/bin/molecule-fake-uptime-kuma
+
+    - name: Start the fake Uptime Kuma
+      ansible.builtin.systemd:
+        name: molecule-fake-uptime-kuma
+        state: started
+        daemon_reload: true
+
+    - name: Wait for the fake Uptime Kuma to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ item }}"
+        timeout: 30
+      loop: [18080, 18081]

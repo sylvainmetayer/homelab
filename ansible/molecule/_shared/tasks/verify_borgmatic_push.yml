@@ -3,14 +3,16 @@
 # app.yaml.j2) : l'URL, qui porte le jeton du moniteur, n'est jamais dans la
 # configuration (le hook uptime_kuma de borgmatic l'écrit au journal à chaque
 # run, d'où elle partait vers VictoriaLogs), mais dans un fichier de
-# configuration curl 0600 root que lisent trois hooks (début, fin, échec).
-# Les hooks sont lancés pour de bon : l'hôte .invalid ne se résout pas, curl
-# échoue donc après avoir lu l'URL dans le fichier, sans l'écrire, et
-# « || true » garde la sauvegarde en vie.
+# configuration curl 0600 root que passent trois hooks (début, fin, échec) à
+# uptime-push (rôle uptime_push). Les hooks sont lancés pour de bon : l'hôte
+# .invalid ne se résout pas, curl échoue donc après avoir lu l'URL dans le
+# fichier, sans l'écrire, et uptime-push sort quand même en 0.
 #
 # Variables :
 #   verify_borgmatic_push_config  chemin de la configuration borgmatic (obligatoire)
 #   verify_borgmatic_push_url     URL push attendue ; absente ou vide : aucun push
+#   verify_borgmatic_push_helper  chemin de uptime-push (uptime_push_bin du
+#                                 scénario, sinon celui du rôle)
 - name: Read the borgmatic configuration {{ verify_borgmatic_push_config }}
   become: true
   ansible.builtin.slurp:
@@ -29,6 +31,9 @@
 - name: Check the push hooks of {{ verify_borgmatic_push_config }}
   when: verify_borgmatic_push_url | default('') | length > 0
   vars:
+    verify_borgmatic_push_helper: "{{ uptime_push_bin | default('/usr/local/bin/uptime-push') }}"
+    # Début attendu de chaque hook : le script partagé, puis le fichier.
+    verify_borgmatic_push_prefix: "{{ verify_borgmatic_push_helper }} --agent borgmatic {{ verify_borgmatic_push_file }} "
     verify_borgmatic_push_file: >-
       {{ (verify_borgmatic_push_config | dirname) ~ '/uptime-kuma/'
          ~ (verify_borgmatic_push_config | basename | regex_replace('\.yaml$', '')) ~ '.curl' }}
@@ -72,11 +77,11 @@
           - verify_borgmatic_push_hooks | selectattr('after', 'defined') | map(attribute='after') | list == ['configuration', 'configuration']
           - verify_borgmatic_push_hooks | selectattr('states', 'defined') | map(attribute='states') | list == [['finish'], ['fail']]
           - verify_borgmatic_push_hooks | map(attribute='when') | unique | list == [['create', 'prune', 'compact', 'check']]
-          - verify_borgmatic_push_runs | select('search', 'status=up -d msg=start') | list | length == 1
-          - verify_borgmatic_push_runs | select('search', 'status=up -d msg=finish') | list | length == 1
-          - verify_borgmatic_push_runs | select('search', 'status=down -d msg=fail') | list | length == 1
+          - verify_borgmatic_push_runs | select('search', ' up start ') | list | length == 1
+          - verify_borgmatic_push_runs | select('search', ' up finish ') | list | length == 1
+          - verify_borgmatic_push_runs | select('search', ' down fail ') | list | length == 1
           - verify_borgmatic_push_runs | length == 3
-          - verify_borgmatic_push_runs | reject('search', ' -K ' ~ verify_borgmatic_push_file ~ ' ') | list | length == 0
+          - verify_borgmatic_push_runs | reject('search', '^' ~ (verify_borgmatic_push_prefix | regex_escape)) | list | length == 0
           - verify_borgmatic_push_runs | reject('search', '\|\| true$') | list | length == 0
         fail_msg: "Hooks de push de {{ verify_borgmatic_push_config }} : {{ verify_borgmatic_push_hooks }}"
 
@@ -102,4 +107,4 @@
         fail_msg: "Hook de push : rc {{ item.rc }}, sortie inattendue (jeton masqué)."
       loop: "{{ verify_borgmatic_push_run.results }}"
       loop_control:
-        label: "{{ item.item | regex_search('msg=\\w+') }}"
+        label: "{{ item.item | regex_search('(up|down) \\w+') }}"

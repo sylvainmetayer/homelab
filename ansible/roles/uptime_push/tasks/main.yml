@@ -1,0 +1,12 @@
+---
+# Exécutable par tous : betisier et monica_v4 poussent depuis des unités
+# systemd de l'utilisateur sylvain. Le script ne porte aucun secret (l'URL
+# est dans le fichier de configuration curl de chaque appelant).
+- name: Install the Uptime Kuma push helper
+  become: true
+  ansible.builtin.copy:
+    src: uptime-push
+    dest: "{{ uptime_push_bin }}"
+    owner: root
+    group: root
+    mode: "0755"

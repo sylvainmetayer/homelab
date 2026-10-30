@@ -35,8 +35,9 @@ ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MY
 # Signal the "Reset Betisier" Uptime Kuma monitor: only reached when every
 # ExecStart above succeeded. The URL (the monitor's token) is read from a
 # curl config file, never put on the command line (ps, systemctl show, and
-# the _CMDLINE journald attaches to every line curl prints).
-ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 --retry-connrefused -o /dev/null -K {{ betisier_reset_push_config }}
+# the _CMDLINE journald attaches to every line curl prints). --strict: a
+# failed push fails the unit, so systemctl --failed shows it too.
+ExecStartPost={{ uptime_push_bin }} --strict --agent betisier-reset {{ betisier_reset_push_config }} up
 
 {% endif %}
 # Restart policy
