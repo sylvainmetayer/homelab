@@ -3,6 +3,14 @@
 [extend]
 useDefault = true
 
+# La règle par défaut age-secret-key ne connaît que AGE-SECRET-KEY-1… :
+# une clé post-quantique (age-keygen -pq, AGE-SECRET-KEY-PQ-1…) passerait.
+[[rules]]
+id = "age-secret-key-pq"
+description = "Clé secrète age post-quantique (ML-KEM-768 + X25519)"
+regex = '''AGE-SECRET-KEY-PQ-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}'''
+keywords = ["age-secret-key-pq-1"]
+
 [[allowlists]]
 description = "Fichiers chiffrés par SOPS et valeurs factices des tests"
 paths = [
