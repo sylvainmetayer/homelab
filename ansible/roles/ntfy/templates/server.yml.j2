@@ -22,10 +22,14 @@ auth-users:
   - {{ (publisher.name ~ ':' ~ ntfy_publisher_password_hash ~ ':user') | to_json }}
 {% endfor %}
 auth-access:
-  # Tous les topics, pas un droit par topic : l'appli Android ouvre une seule
-  # connexion pour tous ses topics, refusée en entier (403) dès qu'un seul
-  # n'est plus lisible (README).
-  - {{ (ntfy_admin_user ~ ':*:rw') | to_json }}
+  # Lecture sur tous les topics : l'appli Android ouvre une seule connexion
+  # pour tous ses topics, refusée en entier (403) dès qu'un seul n'est plus
+  # lisible (README). Écriture sur les seuls topics des producteurs (le droit
+  # le plus précis l'emporte sur le joker).
+  - {{ (ntfy_admin_user ~ ':*:ro') | to_json }}
+{% for publisher in ntfy_publishers %}
+  - {{ (ntfy_admin_user ~ ':' ~ publisher.topic ~ ':rw') | to_json }}
+{% endfor %}
 {% for publisher in ntfy_active_publishers %}
   - {{ (publisher.name ~ ':' ~ publisher.topic ~ ':wo') | to_json }}
 {% endfor %}

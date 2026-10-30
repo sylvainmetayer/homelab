@@ -6,7 +6,7 @@ Serveur de notifications push du homelab (`ntfy.sylvain.cloud`, VM docker). Les 
 
 L'appli Android ouvre **une seule connexion pour tous ses topics** du serveur (`/uptime-kuma,scripts,github/ws`, ou `/…/json` en flux JSON) : si `sylvain` ne peut plus lire un seul de ces topics, ntfy refuse la connexion entière (403) et **plus aucune notification n'arrive sur ce téléphone**, sans erreur visible ni alerte côté serveur (l'appli iOS interroge chaque topic à part : seul le topic retiré y échoue). C'est arrivé le 29/10/2026 : le retrait du topic `beszel` (#978), encore abonné dans l'appli, a coupé les notifications de 18:24 au lendemain 07:27 ; Telegram les recevait toujours.
 
-Depuis, `sylvain` a un seul droit, `sylvain:*:rw` (`templates/server.yml.j2`), au lieu d'un droit par topic : un topic retiré reste lisible (vide), la connexion n'est plus refusée. **Ne pas revenir à un droit par topic.**
+Depuis, `sylvain` lit tous les topics (`sylvain:*:ro`, `templates/server.yml.j2`) et n'écrit que sur ceux des producteurs : un topic retiré reste lisible (vide), la connexion n'est plus refusée. **Ne pas retirer le joker en lecture.**
 
 Ordre à suivre :
 
