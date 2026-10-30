@@ -90,7 +90,7 @@
               'github:' ~ ntfy_publisher_password_hash ~ ':user',
             ] | sort)
           - ntfy_server['auth-access'] | sort == ([
-              'sylvain:uptime-kuma:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
+              'sylvain:*:rw',
               'uptime-kuma:uptime-kuma:wo', 'scripts:scripts:wo', 'github:github:wo',
             ] | sort)
           - ntfy_server['auth-tokens'] | sort == ([
@@ -274,9 +274,9 @@
               - ntfy_verify_lines | select('match', '^user sylvain [(]role:[ ]user,') | list | length == 1
               - ntfy_verify_lines | select('match', '^user (uptime-kuma|scripts|github) [(]role:[ ]user,') | list | length == 3
               - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 4
-              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|scripts|github)\\b') | list | length == 3
+              - ntfy_verify_lines | select('match', '^- read-write access to topic ') | list | length == 0
               - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|scripts|github)\\b') | list | length == 3
-              - ntfy_verify_lines | select('match', '^- read-write access to all') | list | length == 0
+              - ntfy_verify_lines | select('match', '^- read-write access to all topics') | list | length == 1
               - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
             fail_msg: "{{ ntfy_verify_access.stdout }}"
       always:
