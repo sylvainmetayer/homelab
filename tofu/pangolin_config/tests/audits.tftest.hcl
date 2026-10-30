@@ -208,6 +208,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.papra_clients
+  values = { id = "tok-papra", token = "jeton-papra" }
+}
+
+override_resource {
   target = pangolin_role.apps
   values = { id = 3001 }
 }
@@ -246,6 +251,7 @@ override_data {
         {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
         {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
+        {"accessTokenId": "tok-papra", "title": "Papra mobile", "resourceName": "Papra", "expiresAt": null},
         {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
         {"accessTokenId": "tok-log-agent", "title": "Log agent", "resourceName": "VictoriaLogs", "expiresAt": null}
       ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
@@ -427,10 +433,10 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 5 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
+  # 6 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
   assert {
-    condition     = terraform_data.access_inventory.output == 9 && length(local.stale_inventory_exceptions) == 0
-    error_message = "access_inventory doit lire les 5 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
+    condition     = terraform_data.access_inventory.output == 10 && length(local.stale_inventory_exceptions) == 0
+    error_message = "access_inventory doit lire les 6 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
   }
 
   assert {

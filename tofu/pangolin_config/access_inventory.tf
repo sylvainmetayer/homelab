@@ -75,6 +75,7 @@ locals {
     [for token in pangolin_resource_access_token.healthcheck : tostring(token.id)],
     [for token in pangolin_resource_access_token.beszel_agents : tostring(token.id)],
     [for token in pangolin_resource_access_token.karakeep_clients : tostring(token.id)],
+    [for token in pangolin_resource_access_token.papra_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.trek_mcp_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.log_agents : tostring(token.id)],
   ))
