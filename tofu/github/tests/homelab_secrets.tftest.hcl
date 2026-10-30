@@ -63,6 +63,16 @@ override_data {
   }
 }
 
+# Valeurs propres à cette paire : le mock tls donnerait la même à
+# tls_private_key.ci_deploy, et l'assert du câblage ne verrait pas l'échange.
+override_resource {
+  target = tls_private_key.homelab_secrets_deploy
+  values = {
+    private_key_openssh = "fake-homelab-secrets-deploy-private-key"
+    public_key_openssh  = "ssh-ed25519 FAKEHOMELABSECRETSDEPLOY\n"
+  }
+}
+
 run "depot_prive_vide" {
   command = plan
 
@@ -100,5 +110,16 @@ run "cle_de_deploiement_en_lecture_seule" {
       && github_actions_secret.homelab_secrets_ssh_key.secret_name == "HOMELAB_SECRETS_SSH_KEY"
     )
     error_message = "HOMELAB_SECRETS_SSH_KEY doit être un secret du dépôt homelab, au nom que lisent ses workflows."
+  }
+
+  # Le secret et la clé de déploiement viennent de la même paire : une autre
+  # clé (ci_deploy, copiée-collée) ferait échouer le clone de la CI.
+  assert {
+    condition = (
+      tls_private_key.homelab_secrets_deploy.algorithm == "ED25519"
+      && github_actions_secret.homelab_secrets_ssh_key.value == tls_private_key.homelab_secrets_deploy.private_key_openssh
+      && github_repository_deploy_key.homelab_secrets_ci.key == trimspace(tls_private_key.homelab_secrets_deploy.public_key_openssh)
+    )
+    error_message = "HOMELAB_SECRETS_SSH_KEY doit être la clé privée de tls_private_key.homelab_secrets_deploy (ED25519), dont la publique est la clé de déploiement de homelab-secrets."
   }
 }

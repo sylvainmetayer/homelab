@@ -1,6 +1,6 @@
 # 0009. Secrets : SOPS + age, deux fichiers, clés nommées contre le masquage
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; emplacement des fichiers remplacé par [0018](0018-secrets-depot-prive.md)
 - **Date** : 2026-10-17 (règle de nommage et garde-fou)
 
 ## Contexte

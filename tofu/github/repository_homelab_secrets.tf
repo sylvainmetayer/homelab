@@ -59,11 +59,12 @@ resource "github_repository_deploy_key" "homelab_secrets_ci" {
   read_only  = true
 }
 
-# Secret du dépôt `homelab`, pas d'un environnement : les environnements ne
-# sont lisibles que depuis main, or le Lint des PR doit lire les fichiers.
+# Secret du dépôt `homelab`, pas d'un environnement : ceux d'environments.tf
+# ne sont lisibles que depuis main, or le Lint des PR doit lire les fichiers.
 # Seules les branches du dépôt même le reçoivent (pas une PR de fork, ni
-# Dependabot, absent ici) ; il n'ouvre que du chiffré, ce que le dépôt public
-# publiait jusqu'ici.
+# Dependabot, absent ici) ; il n'ouvre que ce que le dépôt public publiait
+# jusqu'ici : les valeurs chiffrées, les noms des clés SOPS et l'inventaire
+# de rotation, en clair.
 resource "github_actions_secret" "homelab_secrets_ssh_key" {
   repository  = var.github_repository
   secret_name = "HOMELAB_SECRETS_SSH_KEY"

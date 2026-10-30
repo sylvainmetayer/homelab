@@ -53,7 +53,7 @@ au plus :
 | [0006](0006-objets-faits-main-audites.md) | Objets faits main dans Pangolin et Uptime Kuma audités au plan | acceptée |
 | [0007](0007-donnees-sur-le-nas.md) | Données d'applis sur le NAS en NFSv3, Jellyfin sur le NAS, relais du 443 | acceptée |
 | [0008](0008-renovate-hebdomadaire.md) | Renovate : PR hebdomadaires, images à état manuelles, automerge ciblé | acceptée |
-| [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée |
+| [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée (emplacement des fichiers remplacé par 0018) |
 | [0010](0010-supervision-beszel-uptime-kuma.md) | Supervision : Beszel et Uptime Kuma (PikaPods) | acceptée |
 | [0011](0011-journaux-victorialogs.md) | Journaux centralisés dans VictoriaLogs | proposée |
 | [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | proposée |
