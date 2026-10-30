@@ -1,6 +1,6 @@
 # tofu/github
 
-Ce module porte trois choses sans rapport entre elles :
+Ce module porte quatre choses sans rapport entre elles :
 
 - les **environnements Actions du dépôt `homelab`** et leurs secrets (clé
   Age SOPS, clé SSH de déploiement, identifiants OLM lus dans l'état de
@@ -11,7 +11,11 @@ Ce module porte trois choses sans rapport entre elles :
   [sylvainmetayer/flip-planning#286](https://github.com/sylvainmetayer/flip-planning/issues/286) ;
 - le **dépôt `promptoramix`**, l'IA (Rust) du tournoi Linkx de Marmelab, dont
   l'image `ghcr.io/sylvainmetayer/promptoramix:main` est déployée sur flip par
-  `ansible/roles/promptoramix` — voir [plus bas](#dépôt-promptoramix).
+  `ansible/roles/promptoramix` — voir [plus bas](#dépôt-promptoramix) ;
+- le **dépôt privé `homelab-secrets`** (fichiers SOPS et inventaire de
+  rotation, [ADR 0018](../../docs/adr/0018-secrets-depot-prive.md)), sa clé
+  de déploiement en lecture seule et le secret `HOMELAB_SECRETS_SSH_KEY` de
+  `homelab` — voir [plus bas](#dépôt-homelab-secrets).
 
 La branche `main` du dépôt `homelab` porte deux rulesets
 (`ruleset_homelab.tf`) : `main` (PR obligatoire, checks requis, ni
@@ -187,6 +191,33 @@ dépôt n'en publie pas) ni check requis.
 - [ ] **Installer Renovate** sur le dépôt (<https://github.com/apps/renovate>),
   qui porte son `renovate.json`.
 - [ ] **Installer GitGuardian** sur le dépôt, comme sur les autres.
+
+## Dépôt `homelab-secrets`
+
+`repository_homelab_secrets.tf` crée le dépôt **privé** qui porte
+`secrets.sops.yaml`, `ansible.sops.yaml` et `secrets-rotation.yaml`, monté
+en sous-module à `secrets/` dans `homelab`
+([ADR 0018](../../docs/adr/0018-secrets-depot-prive.md)). Le compte est en
+GitHub Free : ni ruleset ni protection de branche sur un dépôt privé (403).
+Il tient par : aucun collaborateur, Actions désactivées
+(`github_actions_repository_permissions`), une seule clé de déploiement,
+**en lecture seule** (`github_repository_deploy_key.homelab_secrets_ci`),
+dont la clé privée devient le secret **du dépôt** `homelab`
+`HOMELAB_SECRETS_SSH_KEY` : pas d'un environnement, lisibles depuis `main`
+seulement, car le Lint des PR doit lire les fichiers. Une branche du dépôt
+`homelab` le reçoit (Renovate compris), une PR de fork non.
+
+Rotation de la clé : `tofu apply -replace=tls_private_key.homelab_secrets_deploy`
+(clé publique et secret suivent dans le même apply).
+
+### Ordre des opérations
+
+1. `tofu apply` ici : dépôt vide, clé de déploiement, secret Actions. Rien ne
+   les lit encore.
+2. Pousser les trois fichiers dans le dépôt neuf (renommés, voir la PR de
+   bascule et `docs/conventions/secrets.md`).
+3. Fusionner la PR de bascule de `homelab` (sous-module `secrets/`, chemins,
+   workflows), puis `git submodule update --init` sur chaque poste.
 
 
 ## Summary (moved from `AGENTS.md`)

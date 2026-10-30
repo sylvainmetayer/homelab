@@ -51,6 +51,14 @@ variable "promptoramix_repository" {
   default     = "promptoramix"
 }
 
+# Dépôt privé des secrets SOPS et de l'inventaire de rotation (ADR 0018),
+# monté en sous-module à secrets/ dans ce dépôt (.gitmodules).
+variable "homelab_secrets_repository" {
+  description = "Name of the private repository holding the SOPS files and the rotation inventory"
+  type        = string
+  default     = "homelab-secrets"
+}
+
 # Ruleset « commits signés » de main (ruleset_homelab.tf). À false tant que les
 # PR du dépôt fusionnent en rebase : GitHub ne signe pas les commits qu'il
 # rebase. Passer à true une fois le squash en place (docs/runbooks/commits-signes.md).
