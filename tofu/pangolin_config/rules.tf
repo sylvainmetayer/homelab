@@ -233,7 +233,6 @@ locals {
     "Flip Planning"    = local.flip_planning_mcp_paths
     "Karakeep"         = local.karakeep_public_paths
     "KitchenOwl"       = local.kitchenowl_mobile_paths
-    "Meerkat CRM"      = local.meerkat_crm_dav_paths
     "Monica CRM"       = local.monica_dav_paths
     "nextcloud"        = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
     "ntfy"             = local.ntfy_client_paths

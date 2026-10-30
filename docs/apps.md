@@ -8,7 +8,6 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [FreshRSS](https://freshrss.org/) | `rss` | Docker VM | RSS reader |
 | Betisier | `betisier` | Docker VM | Small web app with a MariaDB database ([docker-betisier-tp](https://github.com/sylvainmetayer/docker-betisier-tp)), public without SSO |
 | [Monica](https://www.monicahq.com/) | `monica_v4` | Docker VM | Personal CRM |
-| [Meerkat CRM](https://github.com/fbuchner/meerkat-crm) | `meerkat_crm` | Docker VM | Personal CRM |
 | [BookStack](https://www.bookstackapp.com/) | `wiki` | Docker VM | Wiki |
 | [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, behind the SSO; sync clients (app passwords only, `token_auth_enforced`) and public share links pass by path (`tofu/pangolin_config/website_nextcloud.tf`) |
 | [Paperless-ngx](https://docs.paperless-ngx.com/) | `paperless_ngx` | Docker VM | Scanned documents with OCR. **Paused** since October 2026 (`paperless_enabled: false`): stopped, not backed up, Pangolin resource disabled, data and borg repository kept; see [runbooks/app-en-pause.md](runbooks/app-en-pause.md) to resume |
