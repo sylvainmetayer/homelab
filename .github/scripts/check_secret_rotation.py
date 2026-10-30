@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inventaire de rotation des secrets SOPS (secrets-rotation.yaml).
+"""Inventaire de rotation des secrets SOPS (secrets/secrets-rotation.yaml).
 
 Deux usages :
 
@@ -7,7 +7,7 @@ Deux usages :
   manque à l'inventaire, quand une entrée de l'inventaire ne correspond plus
   à aucune clé, ou quand une entrée est invalide (nature inconnue, date
   absente ou dans le futur, lien vers un fichier ou une ancre qui n'existe
-  pas), ou quand un `secrets.sops.yaml` du dépôt n'est pas dans SOPS_FILES ;
+  pas), ou quand un `*.sops.yaml` du dépôt n'est pas dans SOPS_FILES ;
 - `--due` (workflow Secrets rotation, chaque lundi) : en plus, liste les
   secrets dont l'échéance tombe dans les `--window` jours (30 par défaut) ou
   est dépassée, et pousse « down » avec leurs noms au moniteur Uptime Kuma
@@ -37,8 +37,10 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-INVENTORY = "secrets-rotation.yaml"
-SOPS_FILES = ("secrets.sops.yaml", "ansible/secrets.sops.yaml")
+# Sous-module secrets/, dépôt privé homelab-secrets (ADR 0018) ; les liens
+# `how` restent relatifs à la racine de homelab (docs/runbooks/…).
+INVENTORY = "secrets/secrets-rotation.yaml"
+SOPS_FILES = ("secrets/secrets.sops.yaml", "secrets/ansible.sops.yaml")
 # Test de la clé secours : date en tête du runbook, échéance en jours
 # (un trimestre et une semaine de marge).
 SECOURS_TEST = "docs/runbooks/test-cle-secours.md"
@@ -62,8 +64,8 @@ DATED_FIELDS = ("last_rotated", "estimated", "how")
 TOP_KEY_RE = re.compile(r"""^(?:"([^"]+)"|'([^']+)'|([^\s#'"-][^:]*?)):(?:\s|$)""")
 HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
 FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
-# Le seul nom que chiffrent les creation_rules de .sops.yaml.
-SOPS_NAME = "secrets.sops.yaml"
+# Le suffixe des fichiers que chiffrent les creation_rules de .sops.yaml.
+SOPS_SUFFIX = ".sops.yaml"  # pas `.sops.yaml` lui-même, la configuration
 SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 ENTRY_RE = re.compile(r"^  - ([a-z_]+):(?: (.*))?$")
 FIELD_RE = re.compile(r"^    ([a-z_]+):(?: (.*))?$")
@@ -91,8 +93,8 @@ def stray_sops_files(root=ROOT):
     errors = []
     for directory, subdirs, files in os.walk(root):
         subdirs[:] = [d for d in subdirs if not d.startswith(".") and d not in SKIP_DIRS]
-        if SOPS_NAME in files:
-            path = Path(directory, SOPS_NAME).relative_to(root).as_posix()
+        for name in sorted(f for f in files if f.endswith(SOPS_SUFFIX) and f != SOPS_SUFFIX):
+            path = Path(directory, name).relative_to(root).as_posix()
             if path not in SOPS_FILES:
                 errors.append(f"{path} : fichier SOPS hors de SOPS_FILES ({Path(__file__).name}), ses clés ne sont pas inventoriées")
     return errors

@@ -103,10 +103,10 @@ Logs: `journalctl -u papra-intake`.
    ```bash
    read -r valeur   # the IMAP login (the address)
    printf '%s' "$valeur" | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
-     | sops set --value-stdin ansible/secrets.sops.yaml '["papra_intake_imap_user"]'
+     | sops set --value-stdin secrets/ansible.sops.yaml '["papra_intake_imap_user"]'
    read -rs valeur  # the application password (no echo)
    printf '%s' "$valeur" | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
-     | sops set --value-stdin ansible/secrets.sops.yaml '["papra_intake_imap_password"]'
+     | sops set --value-stdin secrets/ansible.sops.yaml '["papra_intake_imap_password"]'
    unset valeur
    ```
 

@@ -21,7 +21,7 @@
 locals {
   environments = {
     # deploy-docker-app.yaml et ping.yaml : la clé age de la CI (tout
-    # ansible/secrets.sops.yaml), la clé SSH de déploiement (ssh_key.tf) et
+    # secrets/ansible.sops.yaml), la clé SSH de déploiement (ssh_key.tf) et
     # les identifiants du client OLM de la CI (pangolin_client.ci_runner de
     # tofu/pangolin_config). Sans relecteur : le déploiement au merge reste
     # automatique.
@@ -50,7 +50,7 @@ locals {
     # storage-box-quota.yaml :
     #   - un jeton d'API Hetzner Console du projet, permission **Read**
     #     seulement, créé à la main (Console → Security → API tokens : le
-    #     provider ne sait pas en créer) et rangé dans ansible/secrets.sops.yaml
+    #     provider ne sait pas en créer) et rangé dans secrets/ansible.sops.yaml
     #     sous `hcloud_readonly_token`. Jamais le HCLOUD_TOKEN de tofu/pangolin,
     #     en lecture-écriture : dans un job de CI, il pourrait supprimer la
     #     Storage Box et Pangolin ;
@@ -69,7 +69,7 @@ locals {
 
     # Le job `notify` de trivy.yaml et renovate-digest.yaml : le seul jeton
     # du producteur ntfy `github` (clé ntfy_github_token
-    # d'ansible/secrets.sops.yaml, écriture seule sur le topic github, rôle
+    # de secrets/ansible.sops.yaml, écriture seule sur le topic github, rôle
     # ntfy), celui de tout ce que publie la CI, jamais le `scripts` des
     # hôtes : un jeton fuité d'ici ne peut publier que sur ce topic, et sa
     # rotation ne touche ni docker, ni pi, ni flip. renovate-digest.yaml lit

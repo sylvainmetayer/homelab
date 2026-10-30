@@ -65,7 +65,7 @@ class Repo:
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         (root / "docs/runbooks").mkdir(parents=True)
-        (root / "ansible").mkdir()
+        (root / "secrets").mkdir()
         (root / ".sops.yaml").write_text(CONFIG, encoding="utf-8")
         (root / secours.RUNBOOK).write_text(RUNBOOK, encoding="utf-8")
         self.key = root / "secours.key"

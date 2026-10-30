@@ -44,13 +44,13 @@ part dans `versions/`.
    dans SOPS et dans le compose 0600 du NAS.
 3. **Id du kDrive** : le nombre de l'URL de l'appli web,
    `kdrive.infomaniak.com/app/drive/<id>/…`.
-4. **SOPS** (`ansible/secrets.sops.yaml`), depuis `ansible/` ; rien ne passe
+4. **SOPS** (`secrets/ansible.sops.yaml`), depuis `ansible/` ; rien ne passe
    sur une ligne de commande ni dans l'historique du shell :
 
    ```sh
-   read -r KDRIVE_ID && printf '%s' "$KDRIVE_ID" | jq -Rs . | sops set --value-stdin secrets.sops.yaml '["kdrive_drive_id"]'
-   read -r KDRIVE_USER && printf '%s' "$KDRIVE_USER" | jq -Rs . | sops set --value-stdin secrets.sops.yaml '["kdrive_webdav_user"]'
-   read -rs KDRIVE_PW && printf '%s' "$KDRIVE_PW" | jq -Rs . | sops set --value-stdin secrets.sops.yaml '["kdrive_webdav_app_password"]'
+   read -r KDRIVE_ID && printf '%s' "$KDRIVE_ID" | jq -Rs . | sops set --value-stdin ../secrets/ansible.sops.yaml '["kdrive_drive_id"]'
+   read -r KDRIVE_USER && printf '%s' "$KDRIVE_USER" | jq -Rs . | sops set --value-stdin ../secrets/ansible.sops.yaml '["kdrive_webdav_user"]'
+   read -rs KDRIVE_PW && printf '%s' "$KDRIVE_PW" | jq -Rs . | sops set --value-stdin ../secrets/ansible.sops.yaml '["kdrive_webdav_app_password"]'
    unset KDRIVE_ID KDRIVE_USER KDRIVE_PW
    ```
 

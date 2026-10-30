@@ -10,7 +10,7 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 
 ## GeoLite2
 
-- GeoLite2 (the geo filter of every public resource) is refreshed weekly on Pangolin by `geoipupdate.timer` (pangolin role: the official MaxMind image, pinned; free account, `pangolin_maxmind_*` in `ansible/secrets.sops.yaml`), which restarts the `pangolin` container only when the database changed and pushes to the `GeoIP Pangolin` monitor (`uptime_cron_geoip_url`).
+- GeoLite2 (the geo filter of every public resource) is refreshed weekly on Pangolin by `geoipupdate.timer` (pangolin role: the official MaxMind image, pinned; free account, `pangolin_maxmind_*` in `secrets/ansible.sops.yaml`), which restarts the `pangolin` container only when the database changed and pushes to the `GeoIP Pangolin` monitor (`uptime_cron_geoip_url`).
 
 ## Rebuild / restore
 

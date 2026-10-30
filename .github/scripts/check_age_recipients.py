@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Destinataires age des fichiers SOPS, comparés à .sops.yaml.
 
-Chaque `secrets.sops.yaml` du dépôt doit être chiffré pour exactement les
+Chaque `*.sops.yaml` du dépôt (sous-module secrets/, ADR 0018) doit être chiffré pour exactement les
 destinataires de la première `creation_rules` de `.sops.yaml` qui le
 désigne (sops prend la première qui correspond), et chaque règle doit
 compter la clé `secours` : un fichier rechiffré sans elle (un `sops
@@ -31,8 +31,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SOPS_CONFIG = ".sops.yaml"
-# Le seul nom que chiffrent les creation_rules de .sops.yaml.
-SOPS_NAME = "secrets.sops.yaml"
+# Le suffixe des fichiers que chiffrent les creation_rules de .sops.yaml.
+SOPS_SUFFIX = ".sops.yaml"  # pas `.sops.yaml` lui-même, la configuration
 SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 # Nom (commentaire de .sops.yaml) d'une clé que chaque règle doit compter.
 REQUIRED_LABELS = ("secours",)
@@ -124,12 +124,11 @@ def file_recipients(text):
 
 
 def sops_files(root=ROOT):
-    """Chemins relatifs (posix) de chaque secrets.sops.yaml du dépôt."""
+    """Chemins relatifs (posix) de chaque *.sops.yaml du dépôt."""
     found = []
     for directory, subdirs, files in os.walk(root):
         subdirs[:] = sorted(d for d in subdirs if not d.startswith(".") and d not in SKIP_DIRS)
-        if SOPS_NAME in files:
-            found.append(Path(directory, SOPS_NAME).relative_to(root).as_posix())
+        found += [Path(directory, name).relative_to(root).as_posix() for name in files if name.endswith(SOPS_SUFFIX) and name != SOPS_SUFFIX]
     return sorted(found)
 
 
@@ -184,7 +183,7 @@ def main(root=ROOT):
     except (ConfigError, OSError) as error:
         files, errors = {}, [str(error)]
     if not files and not errors:
-        errors = [f"aucun {SOPS_NAME} trouvé sous {root}"]
+        errors = [f"aucun *{SOPS_SUFFIX} trouvé sous {root} (sous-module secrets/ initialisé ?)"]
     for error in errors:
         print(f"::error::{error}")
     if errors:

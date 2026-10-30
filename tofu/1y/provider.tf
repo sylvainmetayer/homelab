@@ -30,7 +30,7 @@ provider "cloudflare" {
   api_token = local.cloudflare_api_token
 }
 
-# OVH_APPLICATION_KEY/SECRET, OVH_CONSUMER_KEY : chargés par mise depuis secrets.sops.yaml
+# OVH_APPLICATION_KEY/SECRET, OVH_CONSUMER_KEY : chargés par mise depuis secrets/secrets.sops.yaml
 provider "ovh" {
   endpoint = "ovh-eu"
 }

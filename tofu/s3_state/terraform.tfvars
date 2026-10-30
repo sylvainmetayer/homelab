@@ -1,4 +1,4 @@
-# ID du projet Public Cloud OVH : voir OVH_CLOUD_PROJECT_ID dans secrets.sops.yaml
+# ID du projet Public Cloud OVH : voir OVH_CLOUD_PROJECT_ID dans secrets/secrets.sops.yaml
 # (visible dans l'URL du Manager OVH sur la page du projet Public Cloud, ex:
 # https://www.ovh.com/manager/#/public-cloud/pci/projects/<id>)
 

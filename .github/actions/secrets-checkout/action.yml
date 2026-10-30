@@ -1,0 +1,45 @@
+name: Secrets checkout
+description: >-
+  Clone le dépôt privé homelab-secrets dans secrets/, au commit qu'épingle le
+  sous-module dans le commit testé (ADR 0018), avec sa clé de déploiement en
+  lecture seule (secret du dépôt HOMELAB_SECRETS_SSH_KEY, tofu/github). À
+  appeler après le checkout de homelab. Partagé par lint.yaml,
+  deploy-docker-app.yaml et secrets-rotation.yaml.
+
+inputs:
+  ssh-key:
+    description: Clé de déploiement de homelab-secrets (secret HOMELAB_SECRETS_SSH_KEY)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Le commit du sous-module, pas la pointe de main de homelab-secrets : la
+    # CI lit ce que le commit testé épingle, comme un poste après
+    # `git submodule update`.
+    - name: Read the pinned commit of secrets/
+      id: pin
+      shell: bash
+      env:
+        SSH_KEY_SET: ${{ inputs.ssh-key != '' }}
+      run: |
+        if [ "$SSH_KEY_SET" != "true" ]; then
+          # Une PR de fork ne reçoit aucun secret du dépôt.
+          echo "::error::HOMELAB_SECRETS_SSH_KEY vide : secrets/ (dépôt privé homelab-secrets) ne peut pas être cloné (PR de fork ?)"
+          exit 1
+        fi
+        sha="$(git ls-tree HEAD secrets | awk '$2 == "commit" { print $3 }')"
+        if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "::error::secrets/ n'est pas un sous-module dans ce commit (git ls-tree HEAD secrets)"
+          exit 1
+        fi
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout homelab-secrets
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: ${{ github.repository_owner }}/homelab-secrets
+        ref: ${{ steps.pin.outputs.sha }}
+        path: secrets
+        ssh-key: ${{ inputs.ssh-key }}
+        persist-credentials: false

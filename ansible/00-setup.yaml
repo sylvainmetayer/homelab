@@ -34,7 +34,7 @@
 
 
   pre_tasks:
-    # Charge secrets.sops.yaml et pose `terraform_outputs` (state de
+    # Charge secrets/ansible.sops.yaml et pose `terraform_outputs` (state de
     # tofu/pangolin_config, {} s'il est illisible), pour l'URL push de
     # ssh_login_notify.
     - name: Load secrets and the pangolin_config state outputs

@@ -76,7 +76,6 @@ PATH_ONLY = [
     "ansible/ansible.cfg",
     "ansible/inventory/**",
     "ansible/known_hosts",
-    "ansible/secrets.sops.yaml",
     "ansible/tasks/**",
     "keys/**",
 ]
@@ -95,8 +94,10 @@ NO_TEST = [
     ".sops.yaml",
     ".sopsrc",
     "renovate.json",
-    "secrets.sops.yaml",
-    "secrets-rotation.yaml",
+    # Sous-module du dépôt privé homelab-secrets (ADR 0018) : la CI de Tests
+    # ne le clone pas, Molecule tourne sur les faux secrets.
+    "secrets",
+    ".gitmodules",
 ]
 
 ROLE_INCLUDE_KEYS = {

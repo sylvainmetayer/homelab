@@ -99,10 +99,12 @@ override them):
 ## 5. Secrets
 
 If the service needs its own secret (DB password, admin password, API key),
-add it to `ansible/secrets.sops.yaml` via `sops ansible/secrets.sops.yaml` (never hand-edit
+add it to `secrets/ansible.sops.yaml` via `sops secrets/ansible.sops.yaml` (never hand-edit
 the encrypted blob, never commit plaintext), and give the key its entry in
-`secrets-rotation.yaml` (kind, `last_rotated`, procedure: the Lint workflow
-fails on a SOPS key without one, `docs/conventions/secrets.md`). Remember: a variable loaded via
+`secrets/secrets-rotation.yaml` (kind, `last_rotated`, procedure: the Lint workflow
+fails on a SOPS key without one). Both live in the `secrets/` submodule: commit
+there, push to `homelab-secrets`, then commit the submodule bump with the role
+(`docs/conventions/secrets.md`). Remember: a variable loaded via
 `community.sops.load_vars` (`return_method: vars-only`) lands in the
 `include_vars` layer — it beats role defaults, `group_vars`/`host_vars`, play
 `vars:`, role-entry `vars:`, a role's `vars/main.yml` and block/task `vars:`,

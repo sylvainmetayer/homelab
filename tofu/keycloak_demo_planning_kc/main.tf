@@ -6,7 +6,7 @@
 # aucun tag, la source git ne s'initialisait plus. Ce dossier ne fait que
 # l'instancier avec un état distant. Le module porte son propre bloc
 # provider : il se connecte avec le bootstrap admin du conteneur Keycloak, dont
-# le mot de passe est lu dans ansible/secrets.sops.yaml (secrets.tf). Aucune
+# le mot de passe est lu dans secrets/ansible.sops.yaml (secrets.tf). Aucune
 # variable d'environnement à exporter.
 #
 # Les trois secrets de client sont tirés ici, et vivent donc dans l'état (le

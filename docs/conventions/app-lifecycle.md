@@ -31,7 +31,7 @@ broken:
   of the same name, nor a SOPS key of the same name.** `vars:` on a `roles:`
   entry wins over the role defaults and `host_vars`, but it **loses to a
   `set_fact`, to `include_vars` and to the keys loaded from
-  `ansible/secrets.sops.yaml`** (`load_vars` registers them in the
+  `secrets/ansible.sops.yaml`** (`load_vars` registers them in the
   `include_vars` layer since ansible-core 2.21): checked, not assumed. Hence
   `prod_planning_*` / `demo_planning_*` in SOPS, each handed to its instance,
   and never a `flip_planning_*` key for a variable an instance overrides — the
@@ -63,7 +63,7 @@ entry is listed in `local.websites` (`websites.tf`: its resource, access token
 and Uptime Kuma monitors come from there, and `rules.tf`'s `managed_resources`
 is derived from it), a second slug in `roles.tf`'s `apps` and, for a standalone
 rule, an entry in `declared_extra_rules`. Secrets are per-environment too (`demo_planning_*` in
-`secrets.sops.yaml`), so a leaked demo password cannot open the real planning.
+`secrets/ansible.sops.yaml`), so a leaked demo password cannot open the real planning.
 
 ## Pausing an app
 
@@ -100,4 +100,4 @@ entries, delete its `tofu/pangolin_config/website_<service>.tf`, its line in
 (then `tofu apply`), and finally grep the whole
 repo for the service name to confirm nothing was missed. That last step
 matters: the `photoprism` removal (commit `7e848ed`) skipped it and left
-orphaned `host_vars`/`secrets.sops.yaml` entries behind for months.
+orphaned `host_vars`/SOPS entries behind for months.

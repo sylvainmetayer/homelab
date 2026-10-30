@@ -1,10 +1,13 @@
 # Rotation planifiée des secrets
 
 Procédure, pas un incident. Chaque clé des deux fichiers SOPS
-(`secrets.sops.yaml` pour Tofu et mise, `ansible/secrets.sops.yaml` pour les
-playbooks) a son entrée dans [`secrets-rotation.yaml`](../../secrets-rotation.yaml),
-à la racine : sa nature (`kind`), la date de sa dernière rotation
-(`last_rotated`) et le lien vers ses étapes ci-dessous (`how`).
+(`secrets/secrets.sops.yaml` pour Tofu et mise, `secrets/ansible.sops.yaml`
+pour les playbooks) a son entrée dans `secrets/secrets-rotation.yaml` : les
+trois vivent dans le dépôt privé `homelab-secrets`, monté en sous-module à
+`secrets/` ([ADR 0018](../adr/0018-secrets-depot-prive.md)). Sa nature
+(`kind`), la date de sa dernière rotation (`last_rotated`) et le lien vers
+ses étapes ci-dessous (`how`). Plus bas, « fichier racine » désigne
+`secrets/secrets.sops.yaml` (à la racine du dépôt jusqu'au 30/10/2026).
 
 | Nature (`kind`) | Quoi | Rotation |
 |---|---|---|
@@ -60,18 +63,32 @@ depuis son ajout porte donc la date de son ajout.
   `printf '"%s"'` laisserait passer (refus de sops, ou pire, un `\t` lu
   comme une tabulation et une valeur stockée fausse).
 
-  `<fichier>` est celui de l'entrée (`file`). `sops set` ne re-chiffre que
-  cette clé : le diff git ne montre qu'elle, plus `mac` et `lastmodified`.
+  `<fichier>` est celui de l'entrée (`file`), commande lancée depuis la
+  racine de `homelab` (qui porte `.sops.yaml`). `sops set` ne re-chiffre que
+  cette clé : `git -C secrets diff` ne montre qu'elle, plus `mac` et
+  `lastmodified`.
 - **Créer le nouveau, basculer, vérifier, révoquer l'ancien.** Un jeton
   révoqué avant que la bascule soit vérifiée coupe Tofu, la CI ou une appli.
 - **Sylvain applique lui-même** (`tofu apply`, `ansible-playbook` sans
   `--check`). Merger sur `main` un changement d'`ansible/roles/**` ou d'un
   playbook déploie ; un changement du seul fichier SOPS ne déploie rien :
   le playbook se lance à la main.
-- **Puis la date.** Dans `secrets-rotation.yaml`, l'entrée de chaque clé
-  tournée : `last_rotated` à la date du jour, `estimated: false`, dans le
-  même commit que le fichier SOPS (`chore(secrets): rotation de …`). Le
-  lundi suivant, le moniteur repasse « up » si plus rien n'est dû.
+- **Puis la date.** Dans `secrets/secrets-rotation.yaml`, l'entrée de chaque
+  clé tournée : `last_rotated` à la date du jour, `estimated: false`, dans le
+  même commit que le fichier SOPS (`chore(secrets): rotation de …`), commit
+  **dans le sous-module**, poussé sur le `main` de `homelab-secrets`, puis
+  le bump du sous-module dans `homelab`, par une PR :
+
+  ```bash
+  git -C secrets switch main && git -C secrets pull --ff-only   # avant sops set
+  git -C secrets commit -am "chore(secrets): rotation de …" && git -C secrets push
+  git add secrets && git commit -m "chore(secrets): rotation de …"   # branche de PR
+  ```
+
+  La CI (Lint, déploiement, échéances) lit le commit qu'épingle `homelab` :
+  avant le merge du bump, le moniteur reste « down » et le déploiement lit
+  l'ancienne valeur. Le lundi suivant le merge, il repasse « up » si plus
+  rien n'est dû.
 
 ## Jetons de fournisseurs (chaque année)
 
@@ -201,14 +218,14 @@ changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
 
 ### Widgets de Homepage
 
-Clés `homepage_*` de `ansible/secrets.sops.yaml`, lues par le rôle
+Clés `homepage_*` de `secrets/ansible.sops.yaml`, lues par le rôle
 `homepage` (`defaults/main.yml`, `homepage_link_widgets_extra`). Chacune est
 facultative : absente ou vide, son widget n'est pas rendu, le reste de la
 page si. Création et rotation suivent le même chemin : créer la valeur dans
 l'application (privilège minimal ci-dessous), `sops set` par la commande des
-règles communes (`<fichier>` = `ansible/secrets.sops.yaml`), puis
+règles communes (`<fichier>` = `secrets/ansible.sops.yaml`), puis
 `ansible-playbook docker.yml --tags homepage` et vérifier la carte. Une
-clé ajoutée au fichier SOPS reçoit son entrée dans `secrets-rotation.yaml`
+clé ajoutée au fichier SOPS reçoit son entrée dans `secrets/secrets-rotation.yaml`
 dans le même commit (`how` : ce paragraphe) ; une rotation révoque l'ancienne
 valeur dans l'application une fois la carte vérifiée.
 
@@ -245,7 +262,7 @@ Pangolin : le widget appelle `https://pangolin-api.sylvain.cloud/v1` depuis
 la VM docker, donc depuis l'IP publique de la maison ; l'API d'intégration
 est derrière l'allowlist Traefik `int-api-allowlist` (clé sops
 `pangolin_api_allowed_ips`) : vérifier que cette IP y est
-(`sops decrypt --extract '["pangolin_api_allowed_ips"]' ansible/secrets.sops.yaml`,
+(`sops decrypt --extract '["pangolin_api_allowed_ips"]' secrets/ansible.sops.yaml`,
 sur le poste) avant de conclure à une mauvaise clé. L'organisation vient de
 l'output `homepage_pangolin_org` de `tofu/pangolin_config` (apply requis).
 
@@ -266,7 +283,7 @@ Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
 - Jeton d'un producteur (`ntfy_scripts_token`,
-  `ntfy_github_token` dans `ansible/secrets.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+  `ntfy_github_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
@@ -332,7 +349,7 @@ ntfy depuis le 2026-10-29) : ses clés `smtp_user`, `smtp_pass` et
 l'adresse, est un identifiant) : mot de passe d'application de l'adresse de
 relève (Infomaniak, Manager > Service Mail > l'adresse > Mots de passe
 d'application). En créer un nouveau, le poser par `sops set --value-stdin`
-comme dans les règles communes (fichier `ansible/secrets.sops.yaml`, clé
+comme dans les règles communes (fichier `secrets/ansible.sops.yaml`, clé
 `papra_intake_imap_password`), puis `ansible-playbook docker.yml --tags
 papra`, et révoquer l'ancien. Vérifier :
 `sudo systemctl start papra-intake.service` puis
@@ -433,5 +450,5 @@ déconnexion, et n'apporte rien sans fuite.
 
 - Le workflow *Secrets rotation*, lancé à la main (`workflow_dispatch`),
   passe au vert et le moniteur « Rotation des secrets » est « up ».
-- `git log -p secrets-rotation.yaml` : chaque rotation a son commit, avec la
+- `git -C secrets log -p secrets-rotation.yaml` : chaque rotation a son commit, avec la
   date et `estimated: false`.

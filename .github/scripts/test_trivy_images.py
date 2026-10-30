@@ -129,7 +129,7 @@ class Names(unittest.TestCase):
                 '        a_image: "ghcr.io/org/a:pr-1"\n'
                 '        a_image_main: "{{ a_image_main }}"\n'
             ),
-            "ansible/secrets.sops.yaml": 'a_image: "ghcr.io/org/secret:1"\n',
+            "secrets/ansible.sops.yaml": 'a_image: "ghcr.io/org/secret:1"\n',
         })
         self.assertEqual(entries, [{"ref": "ghcr.io/org/a:pr-1", "name": "org-a"}])
 

@@ -13,7 +13,7 @@
 
 Ce qui déchiffre quoi (`.sops.yaml`) :
 
-| Destinataire age | `secrets.sops.yaml` (racine) | `ansible/secrets.sops.yaml` |
+| Destinataire age | `secrets/secrets.sops.yaml` | `secrets/ansible.sops.yaml` |
 |---|---|---|
 | `perso` | oui | oui |
 | `pro` | oui | oui |
@@ -41,7 +41,7 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
 1. Déchiffrer avec une autre clé, `pro` ou `secours` :
 
    ```bash
-   SOPS_AGE_KEY_FILE=/chemin/vers/secours.key sops decrypt secrets.sops.yaml > /dev/null && echo ok
+   SOPS_AGE_KEY_FILE=/chemin/vers/secours.key sops decrypt secrets/secrets.sops.yaml > /dev/null && echo ok
    ```
 
    `SOPS_AGE_KEY_FILE` ne remplace pas les autres clés : sops les additionne
@@ -57,18 +57,23 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
    renouveler (consigne en tête de `.sops.yaml`) :
 
    ```bash
-   sops updatekeys secrets.sops.yaml
-   sops updatekeys ansible/secrets.sops.yaml
-   sops rotate -i secrets.sops.yaml
-   sops rotate -i ansible/secrets.sops.yaml
+   sops updatekeys secrets/secrets.sops.yaml
+   sops updatekeys secrets/ansible.sops.yaml
+   sops rotate -i secrets/secrets.sops.yaml
+   sops rotate -i secrets/ansible.sops.yaml
    ```
 
-5. PR, merge. Vérifier : `sops decrypt secrets.sops.yaml > /dev/null`.
+5. Commit des deux fichiers dans le sous-module, poussé sur le `main` de
+   `homelab-secrets` ; `.sops.yaml` et le bump du sous-module (`git add
+   secrets`) dans une PR de `homelab`, merge. Vérifier : `sops decrypt
+   secrets/secrets.sops.yaml > /dev/null`.
 
 ### Clé age volée, ou poste volé
 
 Tout ce qui précède, **plus** : l'historique git garde les anciennes versions
-chiffrées, que la clé volée ouvre toujours. `sops rotate` ne protège que
+chiffrées, que la clé volée ouvre toujours (celui de `homelab-secrets`, et
+celui, public, de `homelab` jusqu'au 30/10/2026,
+[ADR 0018](../adr/0018-secrets-depot-prive.md)). `sops rotate` ne protège que
 l'avenir. Il faut donc **changer les secrets eux-mêmes** : jetons cloud
 (Hetzner, OVH, Cloudflare, Proxmox, S3, Uptime Kuma), mots de passe des
 applis, `TF_VAR_state_encryption_passphrase`, identifiants Newt. Commencer
@@ -115,19 +120,20 @@ du poste (`gh auth status`, paramètres GitHub), le client Pangolin du poste
 ### Clé age de la CI (`github-actions`) à changer
 
 Sur fuite, ou pour la tourner (entrée `github_actions_sops_age_key` de
-`secrets-rotation.yaml`, refaite le 30/10/2026). La clé reste en mémoire :
+`secrets/secrets-rotation.yaml`, refaite le 30/10/2026). La clé reste en mémoire :
 
 ```bash
 KEY=$(age-keygen -pq 2>/dev/null | grep '^AGE-SECRET-KEY-PQ-1')
-printf '"%s"' "$KEY" | sops set --value-stdin ansible/secrets.sops.yaml '["github_actions_sops_age_key"]'
+printf '"%s"' "$KEY" | sops set --value-stdin secrets/ansible.sops.yaml '["github_actions_sops_age_key"]'
 printf '%s\n' "$KEY" | age-keygen -y   # clé publique, pour la ligne `# github-actions`
 unset KEY
 ```
 
 Puis remplacer la ligne `# github-actions` de la règle d'Ansible dans
 `.sops.yaml`, `sops updatekeys` et `sops rotate -i` sur
-`ansible/secrets.sops.yaml`, mettre à jour l'entrée de
-`secrets-rotation.yaml`, PR. **Juste après le merge** :
+`secrets/ansible.sops.yaml`, mettre à jour l'entrée de
+`secrets/secrets-rotation.yaml`, commit dans le sous-module (poussé), puis
+`.sops.yaml` et le bump du sous-module en PR. **Juste après le merge** :
 `tofu -chdir=tofu/github apply` avec
 `-replace='github_actions_environment_secret.this["production/SOPS_AGE_KEY"]'`
 (le plan ne montre pas le changement de valeur sans lui). Entre le merge et
@@ -135,10 +141,20 @@ l'apply, un déploiement CI ne déchiffre plus ; le run suivant rattrape. Pas
 d'apply avant le merge : `main`, chiffré pour l'ancienne clé, casserait à
 son tour.
 
+### Clé de déploiement de `homelab-secrets` à changer
+
+La CI clone le sous-module `secrets/` avec `HOMELAB_SECRETS_SSH_KEY`, clé de
+déploiement en lecture seule (`tofu/github/repository_homelab_secrets.tf`).
+Elle n'ouvre que du chiffré ; sur fuite quand même :
+`tofu -chdir=tofu/github apply -replace=tls_private_key.homelab_secrets_deploy`
+(clé publique et secret Actions suivent dans le même apply). Un poste volé
+clone `homelab-secrets` avec sa propre clé SSH : la retirer du compte GitHub
+(« Clé SSH perso perdue ou volée », étape 6).
+
 ## Vérification
 
 ```bash
-sops decrypt ansible/secrets.sops.yaml > /dev/null && echo sops ok
+sops decrypt secrets/ansible.sops.yaml > /dev/null && echo sops ok
 cd ansible && mise run ssh      # puis mise run ssh_flip, ssh sylvain@pangolin.sylvain.cloud
 ```
 

@@ -22,7 +22,7 @@ variable "noncurrent_days" {
   default     = 120
 }
 
-# TF_VAR_state_encryption_passphrase : clé du secrets.sops.yaml racine, que
+# TF_VAR_state_encryption_passphrase : clé de secrets/secrets.sops.yaml, que
 # mise charge dans l'environnement. Les tests en donnent une factice.
 variable "state_encryption_passphrase" {
   description = "Passphrase PBKDF2 du chiffrement du state (la même que tofu/pangolin, tofu/github et tofu/s3_state)"

@@ -21,7 +21,7 @@
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
 
     # Identifiants Newt du site nas, lus dans le state plutôt que copiés dans
-    # secrets.sops.yaml : le site est créé par tofu/pangolin_config, qui les
+    # secrets/ansible.sops.yaml : le site est créé par tofu/pangolin_config, qui les
     # détient déjà. no_log : newt_client_secret, qu'un -v écrirait dans run.log.
     - name: Load the newt credentials from Terraform state outputs
       tags: always

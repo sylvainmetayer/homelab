@@ -50,26 +50,29 @@
 
     # community.sops.load_vars (ansible-core 2.21+) range les secrets dans la
     # couche include_vars, au-dessus des `vars:` du play et des entrées roles: :
-    # une clé de secrets.sops.yaml nommée comme une variable qu'une instance
+    # une clé de secrets/ansible.sops.yaml nommée comme une variable qu'une instance
     # surcharge l'emporterait sur la surcharge, et la démo recevrait le secret
     # de la production. Les noms des clés SOPS sont en clair : on lit les deux
-    # fichiers, le vrai et celui des faux secrets. Le workflow Lint
+    # fichiers, le vrai (secrets/ansible.sops.yaml, sous-module du dépôt privé
+    # homelab-secrets : présent sur un poste, absent de la CI de Tests, qui ne
+    # le clone pas) et celui des faux secrets. Le workflow Lint
     # (.github/scripts/check_sops_shadowing.py) fait la même vérification sur
-    # tous les playbooks, tasks/ et rôles ; celle-ci garde flip.yml couvert
-    # quand on ne lance que ce scénario.
-    - name: Assert no secrets.sops.yaml key is overridden by flip.yml
+    # tous les playbooks, tasks/ et rôles, sur le vrai fichier ; celle-ci garde
+    # flip.yml couvert quand on ne lance que ce scénario.
+    - name: Assert no SOPS key is overridden by flip.yml
       ansible.builtin.assert:
         that:
           - flip_overridden_secrets | length == 0
         fail_msg: >-
-          Ces clés de secrets.sops.yaml sont aussi posées par les `vars:` de
+          Ces clés de secrets/ansible.sops.yaml sont aussi posées par les `vars:` de
           flip.yml, qui perdraient face à elles : {{ flip_overridden_secrets }}.
           Les renommer dans sops (prod_planning_*, demo_planning_*) et les passer
           à l'instance par ses `vars:`.
       vars:
+        flip_real_sops: "{{ playbook_dir ~ '/../../../secrets/ansible.sops.yaml' }}"
         flip_sops_keys: >-
-          {{ ((lookup('ansible.builtin.file', playbook_dir ~ '/../../secrets.sops.yaml') | from_yaml).keys()
-              | list | difference(['sops']))
+          {{ (((lookup('ansible.builtin.file', flip_real_sops) | from_yaml).keys()
+               | list | difference(['sops'])) if flip_real_sops is file else [])
              + (lookup('ansible.builtin.file', playbook_dir ~ '/../_shared/vars/fake_secrets.yml') | from_yaml).keys() | list }}
         flip_play: "{{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0] }}"
         flip_overridden_vars: >-

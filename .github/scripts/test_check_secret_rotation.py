@@ -47,25 +47,25 @@ RUNBOOK = """\
 INVENTORY = """\
 # commentaire
 secrets:
-  # --- secrets.sops.yaml ---
+  # --- secrets/secrets.sops.yaml ---
   - key: HCLOUD_TOKEN
-    file: secrets.sops.yaml
+    file: secrets/secrets.sops.yaml
     kind: provider
     last_rotated: 2026-01-09
     estimated: true
     how: docs/rb.md#hetzner
   - key: home_ip
-    file: secrets.sops.yaml
+    file: secrets/secrets.sops.yaml
     kind: identifier
 
   - key: wiki_db_password
-    file: ansible/secrets.sops.yaml
+    file: secrets/ansible.sops.yaml
     kind: database
     last_rotated: 2026-01-14
     estimated: true
     how: docs/rb.md
   - key: beszel_agent_tokens
-    file: ansible/secrets.sops.yaml
+    file: secrets/ansible.sops.yaml
     kind: application
     last_rotated: "2026-10-26"
     estimated: false
@@ -87,10 +87,10 @@ class Repo:
     def __init__(self, inventory=INVENTORY, root_sops=ROOT_SOPS, ansible_sops=ANSIBLE_SOPS):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        (self.root / "ansible").mkdir()
+        (self.root / "secrets").mkdir()
         (self.root / "docs").mkdir()
-        (self.root / "secrets.sops.yaml").write_text(root_sops, encoding="utf-8")
-        (self.root / "ansible/secrets.sops.yaml").write_text(ansible_sops, encoding="utf-8")
+        (self.root / "secrets/secrets.sops.yaml").write_text(root_sops, encoding="utf-8")
+        (self.root / "secrets/ansible.sops.yaml").write_text(ansible_sops, encoding="utf-8")
         (self.root / "docs/rb.md").write_text(RUNBOOK, encoding="utf-8")
         (self.root / rotation.INVENTORY).write_text(inventory, encoding="utf-8")
         (self.root / rotation.SECOURS_TEST).parent.mkdir(parents=True)
@@ -173,25 +173,25 @@ class ValidateTest(unittest.TestCase):
 
     def test_key_missing_from_inventory(self):
         errors = self.make(root_sops=ROOT_SOPS.replace("sops:", "NEW_TOKEN: ENC[x]\nsops:")).errors()
-        self.assertEqual(errors, ["secrets.sops.yaml : la clé NEW_TOKEN manque à secrets-rotation.yaml"])
+        self.assertEqual(errors, ["secrets/secrets.sops.yaml : la clé NEW_TOKEN manque à secrets/secrets-rotation.yaml"])
 
     def test_entry_without_key(self):
         errors = self.make(root_sops=ROOT_SOPS.replace("HCLOUD_TOKEN", "OTHER")).errors()
-        self.assertTrue(any("HCLOUD_TOKEN (secrets.sops.yaml) : la clé n'existe plus" in e for e in errors), errors)
+        self.assertTrue(any("HCLOUD_TOKEN (secrets/secrets.sops.yaml) : la clé n'existe plus" in e for e in errors), errors)
 
     def test_same_key_in_the_other_file_does_not_count(self):
-        inventory = INVENTORY.replace("  - key: home_ip\n    file: secrets.sops.yaml", "  - key: home_ip\n    file: ansible/secrets.sops.yaml")
+        inventory = INVENTORY.replace("  - key: home_ip\n    file: secrets/secrets.sops.yaml", "  - key: home_ip\n    file: secrets/ansible.sops.yaml")
         errors = self.make(inventory=inventory).errors()
-        self.assertIn("secrets.sops.yaml : la clé home_ip manque à secrets-rotation.yaml", errors)
+        self.assertIn("secrets/secrets.sops.yaml : la clé home_ip manque à secrets/secrets-rotation.yaml", errors)
 
     def test_duplicate_entry(self):
-        extra = "  - key: home_ip\n    file: secrets.sops.yaml\n    kind: identifier\n"
+        extra = "  - key: home_ip\n    file: secrets/secrets.sops.yaml\n    kind: identifier\n"
         errors = self.make(inventory=INVENTORY + extra).errors()
         self.assertTrue(any("entrée en double" in e for e in errors), errors)
 
     def test_unknown_kind_and_file(self):
         inventory = INVENTORY.replace("kind: database", "kind: yearly").replace(
-            "  - key: home_ip\n    file: secrets.sops.yaml", "  - key: home_ip\n    file: other.sops.yaml"
+            "  - key: home_ip\n    file: secrets/secrets.sops.yaml", "  - key: home_ip\n    file: other.sops.yaml"
         )
         errors = self.make(inventory=inventory).errors()
         self.assertTrue(any("nature 'yearly' inconnue" in e for e in errors), errors)
@@ -306,10 +306,10 @@ class MainTest(unittest.TestCase):
 
     def test_check_mode_ok_and_failing(self):
         self.assertEqual(self.run_main(["--today", "2026-10-28"])[0], 0)
-        (self.repo.root / "secrets.sops.yaml").write_text(ROOT_SOPS.replace("sops:", "NEW: x\nsops:"), encoding="utf-8")
+        (self.repo.root / "secrets/secrets.sops.yaml").write_text(ROOT_SOPS.replace("sops:", "NEW: x\nsops:"), encoding="utf-8")
         code, out = self.run_main(["--today", "2026-10-28"])
         self.assertEqual(code, 1)
-        self.assertIn("::error::secrets.sops.yaml : la clé NEW manque", out)
+        self.assertIn("::error::secrets/secrets.sops.yaml : la clé NEW manque", out)
 
     def test_stray_sops_file(self):
         (self.repo.root / "tofu/x").mkdir(parents=True)
@@ -333,7 +333,7 @@ class MainTest(unittest.TestCase):
             code, out = self.run_main(["--due", "--today", "2026-12-15"], {"PUSH_URL": "https://kuma.test/x", "GITHUB_STEP_SUMMARY": str(summary)})
         self.assertEqual(code, 1)
         self.assertEqual(push.call_args.args[1:], ("down", "1 secret(s) à faire tourner, 0 en retard : HCLOUD_TOKEN"))
-        self.assertIn("HCLOUD_TOKEN (secrets.sops.yaml, provider) : échéance 2027-01-09 proche", out)
+        self.assertIn("HCLOUD_TOKEN (secrets/secrets.sops.yaml, provider) : échéance 2027-01-09 proche", out)
         self.assertIn("HCLOUD_TOKEN", summary.read_text(encoding="utf-8"))
 
     def test_invalid_inventory_pushes_down(self):
@@ -352,7 +352,7 @@ class MainTest(unittest.TestCase):
 
     def test_missing_secours_runbook_fails_lint_with_the_other_errors(self):
         (self.repo.root / rotation.SECOURS_TEST).unlink()
-        (self.repo.root / "secrets.sops.yaml").write_text(ROOT_SOPS.replace("sops:", "NEW: x\nsops:"), encoding="utf-8")
+        (self.repo.root / "secrets/secrets.sops.yaml").write_text(ROOT_SOPS.replace("sops:", "NEW: x\nsops:"), encoding="utf-8")
         code, out = self.run_main(["--today", "2026-10-28"])
         self.assertEqual(code, 1)
         self.assertIn(f"::error::{rotation.SECOURS_TEST} illisible", out)

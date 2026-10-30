@@ -6,10 +6,10 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 |---|---|
 | `data.github_repository.site` | Dépôt existant, lu seulement (pas géré ici) |
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
-| `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets.sops.yaml`) |
-| `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets.sops.yaml`) |
+| `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets/secrets.sops.yaml`) |
+| `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets/secrets.sops.yaml`) |
 | `check.daily_build_deploy_hook` | Avertit au plan si `SITE_PAGES_DEPLOY_HOOK` manque (Daily Build en échec) |
-| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
+| `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets/secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
 | `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée : en valeur par défaut dans `variables.tf`, un DID est public ; passée en `-var`, l'apply suivant sans elle supprime l'enregistrement) |
@@ -31,7 +31,7 @@ Le certificat de l'apex est obtenu par Let's Encrypt (défi HTTP) : il faut que 
 
 Les mêmes que [`tofu/ref`](../ref/README.md#prérequis) :
 
-1. `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` dans `secrets.sops.yaml` (le jeton de `ref` convient : *Cloudflare Pages Edit* et *Web Analytics Edit*).
+1. `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` dans `secrets/secrets.sops.yaml` (le jeton de `ref` convient : *Cloudflare Pages Edit* et *Web Analytics Edit*).
 2. L'app GitHub « Cloudflare Workers and Pages » avec accès au dépôt `site` : rien à faire en mode « All repositories », sinon `export TF_VAR_cloudflare_github_installation_id=<id>` et un PAT classique (scope `repo`) dans `GITHUB_TOKEN` pour cet apply.
 
 ## Utilisation
@@ -42,7 +42,7 @@ mise exec -- tofu -chdir=tofu/site init
 mise exec -- tofu -chdir=tofu/site plan
 ```
 
-`mise exec` charge `secrets.sops.yaml` (identifiants S3 du backend et OVH).
+`mise exec` charge `secrets/secrets.sops.yaml` (identifiants S3 du backend et OVH).
 
 ## Ordre de la bascule
 
@@ -60,7 +60,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 3. **Build quotidien** : créer un deploy hook sur la branche `main` (*Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks*). Le workflow du dépôt `site` déclenche Netlify et Pages tant que les deux secrets existent.
 
    ```bash
-   sops set secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"<url du hook>"'
+   sops set secrets/secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"<url du hook>"'
    mise exec -- tofu -chdir=tofu/site apply
    ```
 
@@ -77,7 +77,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
 ## Secrets du dépôt site
 
-Quatre clés de `secrets.sops.yaml` (racine du dépôt), toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
+Quatre clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
 
 | Clé sops | Ce que l'apply en fait | Utilisée par |
 |---|---|---|
@@ -98,21 +98,21 @@ Quatre clés de `secrets.sops.yaml` (racine du dépôt), toutes optionnelles : s
 Depuis la racine du dépôt homelab (la clé age perso ou pro doit être disponible, comme pour `tofu plan`). `sops set` chiffre la valeur en place, sans fichier en clair sur le disque ; la valeur est une chaîne JSON, d'où les guillemets doubles à l'intérieur des simples :
 
 ```bash
-sops set secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/<id>"'
-sops set secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
-sops set secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
-sops set secrets.sops.yaml '["SITE_CF_ANALYTICS_TOKEN"]' '"<jeton Account Analytics: Read>"'
+sops set secrets/secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/<id>"'
+sops set secrets/secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
+sops set secrets/secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
+sops set secrets/secrets.sops.yaml '["SITE_CF_ANALYTICS_TOKEN"]' '"<jeton Account Analytics: Read>"'
 ```
 
-Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets.sops.yaml` et ajouter les lignes `CLE: valeur` dans l'éditeur.
+Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets/secrets.sops.yaml` et ajouter les lignes `CLE: valeur` dans l'éditeur.
 
 Vérifier (noms seulement, sans afficher les valeurs) :
 
 ```bash
-sops -d secrets.sops.yaml | grep -oE '^SITE_[A-Z_]+'
+sops -d secrets/secrets.sops.yaml | grep -oE '^SITE_[A-Z_]+'
 ```
 
-Puis commiter `secrets.sops.yaml` (il reste chiffré).
+Puis commiter `secrets/secrets.sops.yaml` (il reste chiffré).
 
 ### 3. Appliquer
 

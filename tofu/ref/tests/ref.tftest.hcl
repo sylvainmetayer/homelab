@@ -7,7 +7,7 @@ mock_provider "cloudflare" {}
 mock_provider "ovh" {}
 mock_provider "sops" {}
 
-# secrets.sops.yaml de la racine : jeton et compte Cloudflare (secrets.tf).
+# secrets/secrets.sops.yaml : jeton et compte Cloudflare (secrets.tf).
 override_data {
   target = data.sops_file.secrets
   values = {
@@ -151,7 +151,7 @@ run "projet_cloudflare_pages" {
 
   assert {
     condition     = cloudflare_pages_project.ref.account_id == "0123456789abcdef0123456789abcdef"
-    error_message = "Le projet Pages doit être créé dans le compte CLOUDFLARE_ACCOUNT_ID de secrets.sops.yaml."
+    error_message = "Le projet Pages doit être créé dans le compte CLOUDFLARE_ACCOUNT_ID de secrets/secrets.sops.yaml."
   }
 
   assert {

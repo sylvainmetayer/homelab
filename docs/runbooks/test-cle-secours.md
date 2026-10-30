@@ -18,7 +18,7 @@ Deux contrôles :
 
 - **automatique** (workflow Lint, chaque PR) :
   `.github/scripts/check_age_recipients.py` compare les destinataires age
-  inscrits en clair dans chaque `secrets.sops.yaml` à la règle de
+  inscrits en clair dans chaque fichier SOPS (`secrets/*.sops.yaml`) à la règle de
   `.sops.yaml` qui le désigne, et exige `secours` dans chaque règle. Un
   fichier rechiffré sans elle, ou pour une clé de trop, fait échouer le
   Lint. Il ne prouve pas que la clé privée existe encore ni qu'elle ouvre
@@ -33,7 +33,9 @@ Deux contrôles :
 1. Sortir la clé de sa cachette hors ligne et la monter sur le poste, par
    exemple une clé USB en `/run/media/sylvain/SECOURS/secours-pq.key`. Ne
    jamais la copier sur le disque du poste.
-2. Depuis la racine du dépôt (à jour de `main`, sur une branche) :
+2. Depuis la racine du dépôt (à jour de `main`, sur une branche, sous-module
+   `secrets/` à jour : `git submodule update --init`, fichiers SOPS du dépôt
+   privé `homelab-secrets`, [ADR 0018](../adr/0018-secrets-depot-prive.md)) :
 
    ```bash
    mise run test-cle-secours /run/media/sylvain/SECOURS/secours-pq.key
@@ -51,7 +53,7 @@ Deux contrôles :
    n'est passée que par son chemin à `age-keygen` et à `sops`, jamais
    copiée ni affichée.
 
-   `mise run` déchiffre d'abord `secrets.sops.yaml` pour son environnement
+   `mise run` déchiffre d'abord `secrets/secrets.sops.yaml` pour son environnement
    (`_.file` de `mise.toml`) : si les autres clés sont perdues, il échoue
    avant le script. Le lancer alors sans mise, avec les binaires installés
    par mise (les vrais, pas les shims ; versions de `mise.toml`) :
@@ -92,7 +94,7 @@ Deux contrôles :
    ```bash
    SOPS=$(mise which sops)
    EMPTY=$(mktemp -d)
-   for f in secrets.sops.yaml ansible/secrets.sops.yaml; do
+   for f in secrets/secrets.sops.yaml secrets/ansible.sops.yaml; do
      env -i PATH=/usr/bin:/bin HOME="$EMPTY" SOPS_AGE_KEY_FILE="$KEY" \
        "$SOPS" decrypt "$f" > /dev/null && echo "ok $f" || echo "ÉCHEC $f"
    done
@@ -131,15 +133,18 @@ Deux contrôles :
    puis, consigne en tête de `.sops.yaml` :
 
    ```bash
-   sops updatekeys secrets.sops.yaml
-   sops updatekeys ansible/secrets.sops.yaml
-   sops rotate -i secrets.sops.yaml
-   sops rotate -i ansible/secrets.sops.yaml
+   sops updatekeys secrets/secrets.sops.yaml
+   sops updatekeys secrets/ansible.sops.yaml
+   sops rotate -i secrets/secrets.sops.yaml
+   sops rotate -i secrets/ansible.sops.yaml
    ```
 
-3. PR, merge, puis le test ci-dessus avec la nouvelle clé, et
-   `dernier_test` à la date du jour.
+3. Commit des deux fichiers dans le sous-module, poussé sur le `main` de
+   `homelab-secrets` ; dans `homelab`, `.sops.yaml` et le bump du
+   sous-module (`git add secrets`) dans une PR, merge, puis le test
+   ci-dessus avec la nouvelle clé, et `dernier_test` à la date du jour.
 
-L'ancienne clé ouvre toujours les versions de l'historique git : si elle a
+L'ancienne clé ouvre toujours les versions des historiques git (celui de
+`homelab-secrets`, et celui de `homelab` jusqu'au 30/10/2026) : si elle a
 pu être lue par un tiers (et pas seulement perdue), c'est le cas « clé
 volée » de [perte-cle-ou-poste.md](perte-cle-ou-poste.md).

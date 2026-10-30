@@ -27,8 +27,8 @@ Les bindings Pages (dataset Analytics Engine `ref_events`) sont déclarés dans 
 2. Le stocker avec l'ID de compte (visible dans l'URL du dashboard) :
 
    ```bash
-   sops set secrets.sops.yaml '["CLOUDFLARE_API_TOKEN"]' '"<jeton>"'
-   sops set secrets.sops.yaml '["CLOUDFLARE_ACCOUNT_ID"]' '"<id>"'
+   sops set secrets/secrets.sops.yaml '["CLOUDFLARE_API_TOKEN"]' '"<jeton>"'
+   sops set secrets/secrets.sops.yaml '["CLOUDFLARE_ACCOUNT_ID"]' '"<id>"'
    ```
 
 3. **Application GitHub Cloudflare** (« Cloudflare Workers and Pages ») :
@@ -53,7 +53,7 @@ mise run plan-ref    # init puis plan
 mise run apply-ref
 ```
 
-mise charge `secrets.sops.yaml` dans l'environnement (identifiants S3 du backend, OVH) ; `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` sont lus directement par le provider `sops` (`secrets.tf`), comme dans `tofu/site`.
+mise charge `secrets/secrets.sops.yaml` dans l'environnement (identifiants S3 du backend, OVH) ; `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID` sont lus directement par le provider `sops` (`secrets.tf`), comme dans `tofu/site`.
 
 ## Ordre des opérations
 

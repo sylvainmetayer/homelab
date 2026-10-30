@@ -103,7 +103,7 @@ locals {
 # to Telegram (local.alert_notification_ids, notifications.tf). Not the
 # default: a monitor made by hand in the UI gets no channel unless picked.
 #
-# The token is the key ntfy_uptime_kuma_token of the root secrets.sops.yaml:
+# The token is the key ntfy_uptime_kuma_token of the root secrets/secrets.sops.yaml:
 # docker.yml reads it back from this state (output ntfy_uptime_kuma_token)
 # and declares it in ntfy, so it is written in one place only.
 resource "uptimekuma_notification_ntfy" "ntfy" {

@@ -8,7 +8,7 @@ simplement le renouveler. Rare, donc documentée plutôt que scriptée.
 Postgres (`POSTGRES_PASSWORD`) et MariaDB (`MYSQL_PASSWORD`,
 `MYSQL_ROOT_PASSWORD`) ne lisent leur variable d'environnement qu'à
 l'**initialisation** d'un datadir vide. Changer la valeur dans
-`ansible/secrets.sops.yaml` puis redéployer ne change donc rien en base :
+`secrets/ansible.sops.yaml` puis redéployer ne change donc rien en base :
 l'appli se connecte avec le nouveau mot de passe, la base attend l'ancien,
 l'appli tombe.
 
@@ -88,10 +88,10 @@ appli=monica_v4                 # rôle, cf. tableau
 cle=monica_v4_db_password       # clé SOPS, cf. tableau
 umask 077
 r=/dev/shm/rotation-$appli; mkdir -p "$r"
-sops decrypt --extract "[\"$cle\"]" secrets.sops.yaml > "$r/ancien"   # pour le retour arrière
+sops decrypt --extract "[\"$cle\"]" ../secrets/ansible.sops.yaml > "$r/ancien"   # pour le retour arrière
 # Dawarich n'a pas de clé SOPS (mot de passe dérivé, cf. tableau) : la ligne
 # ci-dessus échoue, l'ancien se recalcule comme le fait le rôle.
-# printf '%s-dawarich-db' "$(sops decrypt --extract '["backup_passphrase"]' secrets.sops.yaml)" | sha256sum | cut -d' ' -f1 > "$r/ancien"
+# printf '%s-dawarich-db' "$(sops decrypt --extract '["backup_passphrase"]' ../secrets/ansible.sops.yaml)" | sha256sum | cut -d' ' -f1 > "$r/ancien"
 test -s "$r/ancien" || echo "ancien vide : pas de retour arrière possible, s'arrêter"
 openssl rand -hex 24 > "$r/nouveau"
 ```
@@ -181,8 +181,8 @@ JSON »), ce qui ne laisse rien à moitié écrit. `printf` est une commande
 interne du shell, la valeur ne passe dans aucun `ps` :
 
 ```bash
-printf '"%s"' "$(cat "$r/nouveau")" | sops set --value-stdin secrets.sops.yaml "[\"$cle\"]"
-git diff --stat secrets.sops.yaml   # une seule clé change (plus les métadonnées sops)
+printf '"%s"' "$(cat "$r/nouveau")" | sops set --value-stdin ../secrets/ansible.sops.yaml "[\"$cle\"]"
+git -C ../secrets diff --stat ansible.sops.yaml   # une seule clé change (plus les métadonnées sops)
 ```
 
 **Dawarich** n'a pas de clé SOPS : son mot de passe est dérivé de
@@ -207,7 +207,9 @@ l'environnement a changé.
 
 ### 4. Pousser le changement de SOPS
 
-Branche, commit de `ansible/secrets.sops.yaml` (et `fake_secrets.yml` pour
+Commit de `ansible.sops.yaml` dans le sous-module `secrets/`, poussé sur le
+`main` de `homelab-secrets`, puis branche de `homelab` avec le bump du
+sous-module (`git add secrets`, et `fake_secrets.yml` pour
 Dawarich), PR, merge sans attendre : tant que `main` porte l'ancien mot de
 passe, le prochain déploiement CI de ce rôle le remettrait. Puis effacer les
 fichiers de travail : `rm -r "$r"`.
@@ -246,8 +248,9 @@ mot de passe, par le même chemin.
    nextcloud_db mariadb -u root -p`, en collant `$r/nouveau`. Betisier n'a
    rien à refaire en base : son `betisier-reset.service`, relancé après le
    redéploiement, la recrée avec le mot de passe remis.
-2. SOPS : `git checkout -- secrets.sops.yaml` si le changement n'est pas
-   encore commité, sinon `git revert` du commit, et les fichiers à la main de
+2. SOPS : `git -C ../secrets checkout -- ansible.sops.yaml` si le changement n'est pas
+   encore commité, sinon `git revert` du commit (dans `secrets/`, puis bump
+   du sous-module), et les fichiers à la main de
    l'étape 2 remis à l'ancienne valeur.
 3. Redéployer (étape 3), vérifier (ci-dessus).
 
