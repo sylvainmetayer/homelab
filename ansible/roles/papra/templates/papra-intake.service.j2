@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# Relève de la boîte Infomaniak dédiée à Papra (rôle papra, tasks/intake.yml).
+# Identifiants dans {{ papra_intake_config_file }} (0600, au compte de
+# l'unité), jamais sur la ligne de commande : ni ps ni systemctl show ne les
+# montrent.
+[Unit]
+Description=Fetch the Papra intake mailbox into the ingestion folder
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ papra_intake_service_user }}
+ExecStart=/usr/bin/python3 -I {{ papra_intake_script }} --config {{ papra_intake_config_file }}
+TimeoutStartSec=10min
+# Lecture seule partout sauf le dossier de Papra : le sas intake-tmp/ et
+# ingestion/<organisation>/ doivent être sous un même montage, le dépôt est
+# un lien dur (os.link, EXDEV entre deux ReadWritePaths).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ papra_base_path }}
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077

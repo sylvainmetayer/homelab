@@ -1,0 +1,10 @@
+---
+# Dérivé, pas un réglage.
+papra_intake_script: /usr/local/libexec/papra_intake.py
+# Identifiants IMAP en clair : 0600, au compte de l'unité qui le lit.
+papra_intake_config_file: /etc/papra-intake.json
+# Dossier de l'organisation, surveillé par Papra, et sas d'écriture hors de
+# tout dossier d'organisation (même système de fichiers : le dépôt est un
+# lien dur, jamais un fichier à moitié écrit).
+papra_intake_dest_dir: "{{ papra_base_path }}/ingestion/{{ papra_intake_organization_id }}"
+papra_intake_tmp_dir: "{{ papra_base_path }}/intake-tmp"

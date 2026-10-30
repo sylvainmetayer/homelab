@@ -40,6 +40,59 @@ papra_deleted_documents_retention_days: 90
 # changer déconnecte tout le monde.
 papra_auth_secret: "{{ (backup_passphrase ~ '-papra-auth-secret') | hash('sha256') }}"
 
+# Relève par e-mail (tasks/intake.yml, files/papra_intake.py) : toutes les
+# 15 minutes, un script lit en IMAPS une adresse Infomaniak dédiée et dépose
+# les pièces jointes des expéditeurs autorisés dans ingestion/<organisation>/.
+# Aucun relais tiers. Désactivée tant que l'identifiant et le mot de passe
+# d'application (clés SOPS papra_intake_imap_user et
+# papra_intake_imap_password, lues telles quelles, sans variable du rôle du
+# même nom) et la liste des expéditeurs ne sont pas posés : à false, le timer
+# et la configuration sont retirés. Procédure : README.md du rôle.
+papra_intake_enabled: false
+papra_intake_imap_host: mail.infomaniak.com
+papra_intake_imap_port: 993
+# Dossier relevé, et ceux où partent les messages traités et refusés (créés
+# au besoin ; « / » sépare les niveaux, quel que soit le séparateur du
+# serveur). Rien n'est jamais supprimé de la boîte.
+papra_intake_imap_folder: INBOX
+papra_intake_done_folder: Papra/Importé
+papra_intake_rejected_folder: Papra/Refusé
+# Expéditeurs (From) acceptés : adresse exacte, ou domaine (« @exemple.fr »).
+# Les autres messages vont, intacts, dans papra_intake_rejected_folder. Le
+# From se falsifie : l'adresse de relève elle-même reste à garder pour soi.
+papra_intake_allowed_senders: []
+# Organisation Papra destinataire (org_..., lu dans l'URL de Papra).
+papra_intake_organization_id: org_z9tq7wl3o5airawxel6f3e5i
+# Extensions retenues (PDF, images, bureautique, texte) ; les autres pièces
+# jointes sont ignorées. Taille maximale : papra_max_upload_size.
+papra_intake_extensions:
+  - pdf
+  - png
+  - jpg
+  - jpeg
+  - webp
+  - gif
+  - tif
+  - tiff
+  - heic
+  - txt
+  - md
+  - csv
+  - rtf
+  - doc
+  - docx
+  - odt
+  - xls
+  - xlsx
+  - ods
+  - ppt
+  - pptx
+  - odp
+papra_intake_schedule: "*:0/15"
+# Compte de l'unité : celui du conteneur (user: du compose), pour que Papra
+# puisse lire puis supprimer les fichiers déposés.
+papra_intake_service_user: "{{ ansible_user }}"
+
 # Borgmatic backup configuration
 papra_backup_enabled: true
 papra_backup_borgmatic_target: "{{ backup_storage_box_url }}/papra"

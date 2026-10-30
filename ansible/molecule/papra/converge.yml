@@ -10,4 +10,13 @@
 
   roles:
     - role: docker_service
+    # Relève par e-mail active (désactivée par défaut) : unités, script et
+    # configuration posés, timer démarré. verify.yml lance le script hors
+    # réseau, sur des .eml (files/).
     - role: papra
+      vars:
+        papra_intake_enabled: true
+        # Si le timer se déclenche pendant le test : pas de connexion réelle.
+        papra_intake_imap_host: imap.example.invalid
+        papra_intake_allowed_senders:
+          - "@example.org"

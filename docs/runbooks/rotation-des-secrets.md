@@ -326,6 +326,19 @@ cette clé). Uptime Kuma n'envoie plus de mail (Telegram et
 ntfy depuis le 2026-10-29) : ses clés `smtp_user`, `smtp_pass` et
 `le_email` ont été retirées du fichier racine.
 
+### Relève e-mail de Papra
+
+`papra_intake_imap_password` (fichier Ansible ; `papra_intake_imap_user`,
+l'adresse, est un identifiant) : mot de passe d'application de l'adresse de
+relève (Infomaniak, Manager > Service Mail > l'adresse > Mots de passe
+d'application). En créer un nouveau, le poser par `sops set --value-stdin`
+comme dans les règles communes (fichier `ansible/secrets.sops.yaml`, clé
+`papra_intake_imap_password`), puis `ansible-playbook docker.yml --tags
+papra`, et révoquer l'ancien. Vérifier :
+`sudo systemctl start papra-intake.service` puis
+`journalctl -u papra-intake -n 20` (« Relève terminée », pas d'échec de
+LOGIN). Détail : `ansible/roles/papra/README.md`.
+
 ### Code PIN Immich
 
 `immich_pin` du fichier racine est le PIN de la ressource Pangolin d'Immich
