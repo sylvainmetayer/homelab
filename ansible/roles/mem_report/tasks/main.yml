@@ -1,6 +1,8 @@
 ---
 # /usr/local/libexec n'existe pas partout (absent du Pi, 28/10) : le créer
-# plutôt que de supposer l'arborescence de l'hôte.
+# plutôt que de supposer l'arborescence de l'hôte. Dossier système FHS partagé
+# (0755 standard, root:root) : le restreindre gênerait les autres outils qui y
+# vivent, et il ne contient aucun secret (le jeton est dans le fichier d'env).
 - name: Ensure the memory report script folder exists
   become: true
   ansible.builtin.file:
@@ -8,7 +10,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0755" # NOSONAR
 
 - name: Install the memory report script
   become: true
