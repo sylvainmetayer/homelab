@@ -29,7 +29,8 @@ services:
     env_file:
       - .env
     volumes:
-      # db/db.sqlite (SQLite, libsql) et documents/<org>/<nom du document>.
+      # db/db.sqlite et db/tasks.sqlite (SQLite, libsql), et
+      # documents/<org>/<nom du document>.
       - ./app-data:/app/app-data
       - ./ingestion:/app/ingestion
     restart: unless-stopped
