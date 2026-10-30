@@ -43,4 +43,4 @@ verrou de lecture de `db.sqlite` le temps de tout l'envoi.
 ## Liens
 
 PR #702 (config unique), #715 (SQLite par `.backup`), #817 (sous-comptes),
-#760 (test de restauration), #884 (`borg check`) ; [runbooks/sauvegarde-et-restauration.md](../runbooks/sauvegarde-et-restauration.md).
+#760 (test de restauration), #884 (`borg check`), #1010 (son retrait) ; [runbooks/sauvegarde-et-restauration.md](../runbooks/sauvegarde-et-restauration.md).
