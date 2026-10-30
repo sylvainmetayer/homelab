@@ -23,7 +23,7 @@ chemins de l'archive (`borg list`, `borg extract`) ou des lignes d'un dump
 (`pg_restore`, `mariadb`) n'y montrent pas leurs arguments, et aucune commande
 n'y montre sa sortie d'erreur (seule exception : la dernière ligne de
 `borg list --json`, le message de borg quand le dépôt ne s'ouvre pas). Cette
-ligne et les commandes affichées passent par `redact()` : URL `ssh://`,
+ligne et les commandes borg affichées passent par `redact()` : URL `ssh://`,
 `compte@hôte`, hôte de la Storage Box et chemins (absolus, entre guillemets ou
 à plusieurs segments) sont masqués, le message de borg et le nom de
 l'exception restent. Ni

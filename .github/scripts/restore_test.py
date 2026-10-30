@@ -62,7 +62,9 @@ IMAGE_RE = {
 # paths. Borg's message and exception class names stay: they diagnose.
 REDACTIONS = [
     (re.compile(r"ssh://[^\s'\"]+"), "ssh://…"),
-    (re.compile(r"""(['"])[^'"]*[/\\][^'"]*\1"""), r"\1…\1"),
+    # Not from the closing quote of one string to the opening one of the
+    # next: "'list' and/or 'extract'" keeps its words.
+    (re.compile(r"""(?<!\w)(['"])[^'"]*[/\\][^'"]*\1(?!\w)"""), r"\1…\1"),
     (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*(?::\d+)?"), "<compte>@<hôte>"),
     (re.compile(r"\b[\w-]+\.your-storagebox\.de\b"), "<hôte>"),
     (re.compile(r"(?<![\w/:])~?/\S*|\b[\w.-]+(?:/[\w.-]+){2,}/?"), "<chemin>"),
@@ -84,10 +86,12 @@ def run(*args, stdin=None, check=True, cwd=None, quiet=False, show_error=False):
     # paths in its arguments) does not show its arguments, and no command
     # shows its stderr (rows of a dump, names of files), except the last line
     # of one that asks for it (show_error: borg's own message when the
-    # repository cannot be opened), redacted like the command line (the
+    # repository cannot be opened), redacted like borg's command line (the
     # repository URL is an argument). Reproduce a failure from a workstation.
-    shown = args[:2] if quiet else args
-    print("+", redact(" ".join(shown)), "…" if quiet else "", flush=True)
+    shown = " ".join(args[:2] if quiet else args)
+    # Borg's only: a docker line carries no secret, and redacting it would
+    # turn an image digest (name@sha256:…) into "<compte>@<hôte>".
+    print("+", redact(shown) if args[0] == "borg" else shown, "…" if quiet else "", flush=True)
     # surrogateescape: an archive path that is not UTF-8 round-trips to borg
     # extract unchanged instead of raising UnicodeDecodeError.
     result = subprocess.run(args, stdin=stdin, capture_output=True, text=True,
