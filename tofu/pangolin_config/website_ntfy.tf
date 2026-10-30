@@ -37,8 +37,8 @@ locals {
   # The topics the producers publish to, one each (ntfy_publishers in
   # ansible/roles/ntfy/defaults/main.yml, compared by the
   # `ntfy_topics_match_the_role` test). Sylvain reads all of them.
-  # Removing one: unsubscribe it on the phones first, or the Android app
-  # gets nothing at all (ansible/roles/ntfy/README.md).
+  # Removing one: the files to touch and the targeted apply are listed in
+  # ansible/roles/ntfy/README.md.
   ntfy_publish_topics = ["uptime-kuma", "scripts", "github"]
 }
 

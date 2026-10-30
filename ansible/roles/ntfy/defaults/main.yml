@@ -19,8 +19,8 @@ ntfy_upstream_base_url: https://ntfy.sh
 # ceux qui ne sont plus listés. Rien n'est ouvert à l'anonyme
 # (auth-default-access: deny-all).
 #
-# Sylvain (appli Android/iOS, interface web) : lecture-écriture sur chaque
-# topic de ntfy_publishers. Son mot de passe est la clé SOPS
+# Sylvain (appli Android/iOS, interface web) : lecture-écriture sur tous les
+# topics (sylvain:*:rw), pour qu'un topic retiré ne coupe jamais l'appli. Son mot de passe est la clé SOPS
 # ntfy_sylvain_password (lue par personne : c'est celui qu'il saisit dans
 # l'appli), son hash bcrypt ntfy_sylvain_password_hash.
 ntfy_admin_user: sylvain
@@ -35,8 +35,8 @@ ntfy_admin_user: sylvain
 # publication (local.ntfy_publish_topics, website_ntfy.tf) : le test
 # ntfy_topics_match_the_role de tofu/pangolin_config les compare à cette liste.
 #
-# Retirer un topic : d'abord le désabonner des téléphones, sinon l'appli
-# Android ne reçoit plus rien (README.md, « Retirer un topic »).
+# Retirer un topic : fichiers à toucher et apply ciblé dans README.md
+# (« Retirer un topic »).
 ntfy_publishers:
   # Notification « ntfy » d'Uptime Kuma (website_ntfy.tf). Jeton : clé
   # ntfy_uptime_kuma_token du secrets.sops.yaml racine, que docker.yml lit
