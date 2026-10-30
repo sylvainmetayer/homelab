@@ -27,8 +27,8 @@ borgmatic template); port 22 of a Storage Box is SFTP only.
   creates `backup/<host>/.ssh` and uploads that key as the subaccount's
   `authorized_keys`.
 - **`restore-test`**, read-only, home `backup/`: the GitHub Actions restore
-  test and quarterly `borg check` (`.github/restore-test/README.md`). Its key
-  is the `storage_box_restore_test_ssh_public_key` output, uploaded into
+  test (`.github/restore-test/README.md`). Its key is the
+  `storage_box_restore_test_ssh_public_key` output, uploaded into
   `backup/.ssh/authorized_keys` by `ansible/backup.yaml`.
 
 Adding a host: add it to `local.backup_hosts` here, to

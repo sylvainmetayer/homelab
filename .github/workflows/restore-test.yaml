@@ -132,7 +132,7 @@ jobs:
         env:
           RESTORE_TEST_SSH_KEY: ${{ secrets.RESTORE_TEST_SSH_KEY }}
           RESTORE_TEST_STORAGE_BOX: ${{ secrets.RESTORE_TEST_STORAGE_BOX }}
-        run: | # zizmor: ignore[github-env]
+        run: |
           host_key=$(sed -n 's/^backup_storage_box_host_key: "\(.*\)"$/\1/p' ansible/group_vars/all/variables.yml)
           test -n "$host_key"
           install -m 700 -d ~/.ssh
