@@ -169,7 +169,7 @@
       ansible.builtin.shell:
         cmd: |
           set -eu
-          {{ borgmatic_sqlite_hook.commands[0].run | join('\n') }}
+          {{ borgmatic_sqlite_hook.commands[0].run | join(' ; ') }}
           cd {{ borgmatic_sqlite_staging_dir }}/sqlite_hook_test
           for db in root_sqlite-hook-test_journal.db root_sqlite-hook-test_wal.db; do
             printf '%s %s %s %s\n' "$db" "$(sqlite3 "$db" 'PRAGMA integrity_check;')" \
