@@ -62,3 +62,4 @@ au plus :
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |
 | [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey + mot de passe, ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | proposée |
 | [0017](0017-pas-de-verification-complete-des-donnees.md) | Pas de vérification complète des données Borg ; test de restauration et checks des hôtes | acceptée |
+| [0018](0018-secrets-depot-prive.md) | Secrets SOPS et inventaire de rotation dans un dépôt privé, sous-module `secrets/` | acceptée |
