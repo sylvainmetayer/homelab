@@ -421,6 +421,13 @@ déconnexion, et n'apporte rien sans fuite.
   AES-256). Puis `docker.yml --tags speedtest_tracker`. Les sessions tombent
   et ce que l'appli a chiffré en base devient illisible : se reconnecter,
   revoir les canaux de notification (Settings > Notifications).
+- `monica_v4_app_key`, `monica_v4_hash_salt` : l'`APP_KEY` de Laravel et le
+  sel des identifiants hachés de Monica, copiés le 2026-10-31 de l'ancien
+  `.env` écrit à la main (date estimée : l'installation). Ne pas les tourner
+  sans incident : une nouvelle `APP_KEY` rend illisible ce que Monica a
+  chiffré en base et déconnecte tout le monde ; un nouveau sel change les
+  identifiants publics. Sur fuite : `sops set` (32 caractères pour
+  l'`APP_KEY`), `docker.yml --tags monica`, se reconnecter.
 
 ## Vérification
 

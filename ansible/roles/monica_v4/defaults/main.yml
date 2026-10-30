@@ -2,10 +2,21 @@
 monica_v4_base_path: "{{ docker_base_path }}/monica_v4"
 monica_v4_domain: crm.sylvain.dev
 monica_v4_db_password: ""
+# Clés SOPS. APP_KEY chiffre ce que Laravel chiffre en base (et les
+# sessions), HASH_SALT sale les identifiants publics hachés : copiées de
+# l'ancien .env écrit à la main, les changer casse les données chiffrées.
+monica_v4_app_key: ""
+monica_v4_hash_salt: ""
 monica_v4_healthcheck_url: ""
 monica_v4_cron_healthcheck_url: ""
 # Fichier de configuration curl (« url = … », 0600) de ce push.
 monica_v4_cron_push_config: "{{ monica_v4_base_path }}/cron-push.curl"
+
+# Proxys dont Monica croit les en-têtes X-Forwarded-* (APP_TRUST_PROXIES) :
+# vide, les sous-réseaux du réseau docker newt, lus à chaque passage comme
+# pour nextcloud. Sans eux, toutes les requêtes semblent venir de newt.
+monica_v4_trusted_proxies: []
+monica_v4_newt_network: "newt"
 
 # Borgmatic backup configuration
 monica_v4_backup_enabled: true

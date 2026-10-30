@@ -29,8 +29,8 @@ locals {
 # (AuthenticateWithTokenOnBasicAuth), not the account password. The two
 # `.well-known` paths answer a 301 to `/dav/` (routes/web.php).
 #
-# Monica only serves `/dav` when DAV_ENABLED=true in its .env, which this repo
-# does not template (env_file: .env, written by hand on the host).
+# Monica only serves `/dav` when DAV_ENABLED=true in its .env, templated by
+# the monica_v4 role (false today: php_lockdown.tf also disables these paths).
 locals {
   monica_dav_paths = {
     "/dav/*"               = 4
