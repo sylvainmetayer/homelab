@@ -55,6 +55,21 @@ runs `files/papra_intake.py` (Python stdlib) as the container's user. It reads
   then hard-linked into the watched folder, so Papra never sees a partial
   file. A small inline image referenced by `Content-ID` (signature logo) is
   dropped.
+- **the mail itself, on demand**: forward the mail (or write one) to the
+  intake address and type `[mail]` at the start of the subject
+  (`papra_intake_body_marker`, case-insensitive; the `Fwd:`, `Fw:`, `TR:`,
+  `RE:` a forward or reply puts before it are skipped, so `TR: [mail] Avis`
+  matches but `TR: Avis [mail]` does not). On top of its attachments
+  (unchanged), the run then writes `<YYYY-MM-DD> - <subject>.txt` (the
+  `Date` header's day, subject without prefixes nor marker): `De :`, `À :`,
+  `Date :`, `Objet :` lines then the body as text (the `text/plain` part, else
+  the HTML one stripped of its tags), for Papra's search and tagging rules;
+  and `<same name>.eml`, the original message byte for byte, as proof. Both
+  bypass `papra_intake_extensions`, take the same safe names and `-1`
+  suffixes, and are each dropped over `papra_max_upload_size` (an `.eml`
+  carrying large attachments then goes, the `.txt` stays; the journal says
+  so). A forwarded mail's `De :` is the forwarder: the original sender is in
+  the body. An empty marker turns this off.
 - **any other sender**: the message moves, untouched, to
   `papra_intake_rejected_folder` (`Papra/Refusé`); the journal keeps its UID
   and the sender's domain only. So does a message over 4× the size cap.

@@ -1,0 +1,35 @@
+From: Scanner <scanner@example.org>
+To: papra@example.net
+Subject: =?utf-8?q?=5Bmail=5D_Relev=C3=A9_=C3=A9t=C3=A9?=
+Date: Fri, 30 Oct 2026 10:00:00 +0100
+Message-ID: <fixture-4@example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============0000000000000000004=="
+
+--===============0000000000000000004==
+Content-Type: multipart/alternative;
+ boundary="===============0000000000000000005=="
+
+--===============0000000000000000005==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Relevé de l'été en texte brut.
+
+--===============0000000000000000005==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<p>Version HTML</p>
+
+--===============0000000000000000005==--
+
+--===============0000000000000000004==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="releve.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKJSVFT0YK
+
+--===============0000000000000000004==--

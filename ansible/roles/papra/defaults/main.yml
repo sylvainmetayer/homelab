@@ -88,6 +88,13 @@ papra_intake_extensions:
   - ppt
   - pptx
   - odp
+# Import du mail lui-même, à la demande : un message autorisé dont l'objet
+# commence par ce marqueur (casse ignorée, après d'éventuels « Fwd: »,
+# « TR: », « RE: ») dépose aussi « <date> - <objet>.txt » (en-têtes et corps
+# en texte, pour la recherche et les règles de Papra) et l'original en .eml
+# (la preuve), hors de papra_intake_extensions, chacun sous
+# papra_max_upload_size. Vide : jamais.
+papra_intake_body_marker: "[mail]"
 papra_intake_schedule: "*:0/15"
 # Compte de l'unité : celui du conteneur (user: du compose), pour que Papra
 # puisse lire puis supprimer les fichiers déposés.

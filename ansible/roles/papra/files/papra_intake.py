@@ -9,7 +9,10 @@ message :
   - expéditeur autorisé : chaque pièce jointe d'une extension acceptée et de
     25 Mo au plus est écrite dans le dossier d'ingestion de l'organisation
     Papra (ingestion/<id d'organisation>/), que Papra importe puis vide ;
-    le message part ensuite dans le dossier « importé ».
+    le message part ensuite dans le dossier « importé ». Si l'objet commence
+    par le marqueur config["body_marker"] (« [mail] », après d'éventuels
+    « Fwd: », « TR: »…), le mail lui-même est aussi déposé : son texte
+    (« <date> - <objet>.txt », en-têtes puis corps) et l'original (.eml).
 Aucun message n'est jamais supprimé : il est déplacé (MOVE, ou COPY puis
 \\Deleted et EXPUNGE de ce seul UID si le serveur n'a pas MOVE). Une erreur
 d'écriture laisse le message en place, retenté au passage suivant.
@@ -31,9 +34,11 @@ Usage :
 
 import argparse
 import base64
+import datetime
 import email
 import email.policy
 import email.utils
+import html.parser
 import imaplib
 import json
 import os
@@ -50,6 +55,8 @@ MAX_MESSAGE_FACTOR = 4
 # signature, pas un document.
 INLINE_LOGO_MAX_BYTES = 50 * 1024
 SAFE_CHARS_RE = re.compile(r"[^\w.\- ]+")
+# Préfixes qu'un transfert ou une réponse ajoute devant l'objet tapé.
+FORWARD_PREFIX_RE = re.compile(r"^\s*(?:(?:fwd?|tr|re)\s*:\s*)*", re.IGNORECASE)
 
 
 def log(message):
@@ -63,6 +70,7 @@ def load_config(path):
     config["port"] = int(config.get("port", 993))
     config["max_bytes"] = int(config.get("max_bytes", 26214400))
     config.setdefault("folder", "INBOX")
+    config["body_marker"] = config.get("body_marker", "[mail]").strip()
     config["allowed_senders"] = [s.strip().lower() for s in config.get("allowed_senders", []) if s.strip()]
     config["extensions"] = {e.strip().lower().lstrip(".") for e in config.get("extensions", []) if e.strip()}
     return config
@@ -115,6 +123,88 @@ def attachments(msg, extensions, max_bytes):
             skipped += 1
             continue
         kept.append((safe_name(filename, extension), payload))
+    return kept, skipped
+
+
+def marked_subject(subject, marker):
+    """Objet sans préfixes de transfert ni marqueur, si le marqueur (casse
+    ignorée) l'ouvre ; None sinon, ou sans marqueur configuré."""
+    rest = FORWARD_PREFIX_RE.sub("", subject, count=1)
+    if not marker or not rest.lower().startswith(marker.lower()):
+        return None
+    return rest[len(marker) :].strip()
+
+
+class HTMLText(html.parser.HTMLParser):
+    """Texte d'un corps HTML : balises retirées, entités décodées, retour à
+    la ligne pour <br>, <p>, <div>, <li>…, ni script ni style."""
+
+    BREAKS = {"br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"}
+    HIDDEN = {"script", "style", "head"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.HIDDEN:
+            self.hidden += 1
+        elif tag in self.BREAKS:
+            self.parts.append("\n- " if tag == "li" else "\n")
+
+    def handle_endtag(self, tag):
+        if tag in self.HIDDEN:
+            self.hidden = max(0, self.hidden - 1)
+        elif tag in self.BREAKS - {"br", "li"}:  # <br/> passe aussi ici
+            self.parts.append("\n")
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(re.sub(r"\s+", " ", data))
+
+    def text(self):
+        lines = [line.strip() for line in "".join(self.parts).splitlines()]
+        return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
+def html_to_text(markup):
+    parser = HTMLText()
+    parser.feed(markup)
+    parser.close()
+    return parser.text()
+
+
+def part_text(part):
+    try:
+        return part.get_content()
+    except (LookupError, UnicodeError):  # charset inconnu ou faux
+        return (part.get_payload(decode=True) or b"").decode("utf-8", "replace")
+
+
+def body_files(msg, raw, subject, max_bytes):
+    """(nom sûr, contenu) du texte du mail et de l'original .eml, chacun
+    écarté au-delà de max_bytes ; et le nombre d'écartés. Leurs extensions ne
+    passent pas par la liste des pièces jointes."""
+    date = getattr(msg["Date"], "datetime", None) or datetime.datetime.now()
+    base = f"{date:%Y-%m-%d} - {subject}" if subject else f"{date:%Y-%m-%d}"
+    part = msg.get_body(preferencelist=("plain",))
+    if part is not None:
+        body = part_text(part).strip()
+    else:
+        part = msg.get_body(preferencelist=("html",))
+        body = html_to_text(part_text(part)) if part is not None else ""
+    text = (
+        f"De : {msg.get('From', '')}\nÀ : {msg.get('To', '')}\n"
+        f"Date : {msg.get('Date', '')}\nObjet : {subject}\n\n{body}\n"
+    ).encode("utf-8")
+    kept, skipped = [], 0
+    for extension, payload in (("txt", text), ("eml", raw)):
+        if len(payload) > max_bytes:
+            # stderr : --eml écrit son résultat JSON sur stdout.
+            print(f".{extension} du mail écarté : {len(payload)} octets, trop gros", file=sys.stderr, flush=True)
+            skipped += 1
+            continue
+        kept.append((safe_name(f"{base}.{extension}", extension), payload))
     return kept, skipped
 
 
@@ -173,6 +263,11 @@ def process(raw, config):
     if not allowed:
         return False, domain, [], 0
     items, skipped = attachments(msg, config["extensions"], config["max_bytes"])
+    subject = marked_subject(str(msg.get("Subject", "")), config["body_marker"])
+    if subject is not None:
+        extra, extra_skipped = body_files(msg, raw, subject, config["max_bytes"])
+        items += extra
+        skipped += extra_skipped
     written = deliver(items, config["dest_dir"], config["tmp_dir"])
     return True, domain, written, skipped
 
@@ -267,7 +362,7 @@ def handle(imap, uid, config, folders, has_move):
         log(f"Message {label} : expéditeur non autorisé (domaine {domain}), déplacé vers {rejected_label}")
         move(imap, uid, folders["rejected"], has_move)
         return "refused"
-    log(f"Message {label} ({domain}) : {len(written)} pièce(s) jointe(s) déposée(s) {written}, {skipped} écartée(s)")
+    log(f"Message {label} ({domain}) : {len(written)} fichier(s) déposé(s) {written}, {skipped} écartée(s)")
     move(imap, uid, folders["done"], has_move)
     return "imported"
 
