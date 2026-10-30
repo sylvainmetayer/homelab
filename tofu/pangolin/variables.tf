@@ -43,23 +43,6 @@ variable "pangolin_config" {
   })
 }
 
-variable "s3_bucket_name" {
-  description = "Nom du bucket S3 Hetzner"
-  type        = string
-}
-
-variable "s3_versioning_enabled" {
-  description = "Activer le versioning sur le bucket S3"
-  type        = bool
-  default     = false
-}
-
-variable "s3_endpoint" {
-  description = "Endpoint S3 Hetzner"
-  type        = string
-  default     = "https://s3.eu-west-par.io.cloud.ovh.net"
-}
-
 variable "flip_server" {
   description = "Serveur Flip Planning, sans IP publique (réseau privé uniquement)"
   type = object({

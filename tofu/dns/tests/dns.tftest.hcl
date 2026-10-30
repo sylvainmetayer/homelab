@@ -1,9 +1,8 @@
 # Tests du module tofu/dns : enregistrements OVH qui pointent les domaines vers
 # Pangolin, challenges GitHub Pages et redirection betisier.
 #
-# Aucun backend, aucun credential, aucune clé SOPS : tous les providers sont
-# mockés (y compris hcloud et aws, déclarés par provider.tf sans ressource), et
-# les data sources SOPS et remote state sont surchargées.
+# Aucun backend, aucun credential : le provider OVH est mocké et la data
+# source remote state est surchargée.
 
 # Passphrase factice du chiffrement du state (encryption.tf).
 variables {
@@ -11,20 +10,6 @@ variables {
 }
 
 mock_provider "ovh" {}
-mock_provider "sops" {}
-mock_provider "hcloud" {}
-mock_provider "aws" {}
-
-# Toutes les clés lues par secrets.tf.
-override_data {
-  target = data.sops_file.secrets
-  values = {
-    data = {
-      AWS_ACCESS_KEY_ID     = "fake-access-key"
-      AWS_SECRET_ACCESS_KEY = "fake-secret-key"
-    }
-  }
-}
 
 # State de tofu/pangolin : seul l'output pangolin_ip est lu.
 override_data {

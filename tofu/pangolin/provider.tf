@@ -14,10 +14,6 @@ terraform {
       source  = "ovh/ovh"
       version = "< 3.0.0"
     }
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.0"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.7"
@@ -32,20 +28,4 @@ terraform {
 provider "hcloud" {}
 provider "ovh" {
   endpoint = "ovh-eu"
-}
-
-# Provider AWS configuré pour l'endpoint S3 compatible Hetzner
-provider "aws" {
-  region     = "eu-west-par"
-  access_key = local.s3_access_key
-  secret_key = local.s3_secret_key
-
-  skip_credentials_validation = true
-  skip_metadata_api_check     = true
-  skip_requesting_account_id  = true
-  skip_region_validation      = true
-
-  endpoints {
-    s3 = var.s3_endpoint
-  }
 }

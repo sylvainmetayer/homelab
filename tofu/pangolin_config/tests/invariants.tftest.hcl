@@ -17,7 +17,6 @@ mock_provider "pangolin" {}
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
-mock_provider "aws" {}
 
 # Les pays de voyage dépendent de l'horloge du plan (plantimestamp) : sans cette
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
@@ -35,8 +34,6 @@ override_data {
       pangolin_org_id        = "homelab"
       pangolin_url           = "https://api.pangolin.example.test"
       pangolin_api_key       = "fake-pangolin-api-key"
-      AWS_ACCESS_KEY_ID      = "fake-access-key"
-      AWS_SECRET_ACCESS_KEY  = "fake-secret-key"
       UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
       UPTIMEKUMA_USERNAME    = "admin"
       UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
