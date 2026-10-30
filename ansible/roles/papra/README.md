@@ -126,8 +126,10 @@ Logs: `journalctl -u papra-intake`.
 
    (`papra_intake_organization_id` if the target organization is not
    `org_z9tq7wl3o5airawxel6f3e5i`.)
-4. Merge (the CI deploys `--tags papra`), or run
-   `ansible-playbook docker.yml --tags papra` from `ansible/`. Test at once:
+4. After the merge, run `ansible-playbook docker.yml --tags papra` from
+   `ansible/`: a change to `host_vars/` or `secrets.sops.yaml` alone deploys
+   nothing (`deploy-docker-app` only watches `ansible/roles/**` and the host
+   playbooks). Test at once:
    `sudo systemctl start papra-intake.service && journalctl -u papra-intake -n 20`.
 
 With `papra_intake_enabled: false` again, the role stops the timer and deletes
