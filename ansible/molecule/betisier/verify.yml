@@ -94,7 +94,7 @@
       ansible.builtin.assert:
         that:
           - >-
-            'ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 -o /dev/null -K /opt/apps/betisier/reset-push.curl'
+            'ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 --retry-connrefused -o /dev/null -K /opt/apps/betisier/reset-push.curl'
             in (betisier_reset_unit.content | b64decode)
           - "'/api/push/' not in (betisier_reset_unit.content | b64decode)"
         fail_msg: "betisier-reset.service ne pousse pas vers le moniteur Reset Betisier"

@@ -62,7 +62,7 @@ notify() {
 
     # L'URL push (jeton du moniteur) passe par l'entrée standard de curl
     # (--config -), pas par sa ligne de commande, que ps montre.
-    if printf 'url = "%s"\n' "$PUSH_URL" | curl -q -fsS -G --max-time "${PUSH_TIMEOUT:-10}" \
+    if printf 'url = "%s"\n' "$PUSH_URL" | curl -q -fsS -G --max-time "${PUSH_TIMEOUT:-10}" --retry 2 --retry-connrefused \
         --config - \
         --data-urlencode "status=up" \
         --data-urlencode "msg=$msg" >/dev/null 2>&1; then

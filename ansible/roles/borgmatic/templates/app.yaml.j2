@@ -142,7 +142,7 @@ commands:
           - {{ command | to_json }}
 {% endfor %}
 {% if borgmatic_app_healthcheck_url %}
-{% set push = 'curl -q -fsS -m 10 --retry 2 -o /dev/null -A borgmatic -K ' ~ (borgmatic_app_push_config | quote) ~ ' -G' %}
+{% set push = 'curl -q -fsS -m 10 --retry 2 --retry-connrefused -o /dev/null -A borgmatic -K ' ~ (borgmatic_app_push_config | quote) ~ ' -G' %}
     # Moniteur push Uptime Kuma, aux mêmes moments que le hook uptime_kuma de
     # borgmatic : début, fin ou échec de la configuration, pour create,
     # prune, compact ou check. Pas ce hook-là : il écrit l'URL push, jeton
