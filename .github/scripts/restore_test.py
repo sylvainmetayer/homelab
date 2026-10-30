@@ -79,7 +79,8 @@ VERIFY_DIAG_MESSAGES = re.compile(
     r"|Analyzing archive "
     r"|Orphaned objects check skipped"
     r"|Repository contains no apparent data"
-    r"|Repository manifest "
+    r"|Repository "
+    r"|Data integrity error"
     r"|Repo/Chunks index"
     r"|Found defect chunks"
     r"|chunk [0-9a-f]{64}[:,]"
@@ -100,16 +101,20 @@ VERIFY_DIAG_MESSAGES = re.compile(
 VERIFY_DIAG_FRAME = re.compile(r'^\s*File "(?:[^"]*/)?([^"/]+\.py)", line (\d+), in ([\w<>.]+)\s*$')
 # The last line of a traceback, or borg's own one-line error.
 VERIFY_DIAG_EXCEPTION = re.compile(
-    r"^[A-Za-z_][\w.]*(?:Error|Exception|Warning|NotFound|Needed|Exists|Denied|Interrupt|Outdated|Closed)(?::|$)")
+    r"^(?=[A-Za-z_])[\w.]*(?:Error|Exception|Warning|NotFound|Needed|Exists|Denied|Interrupt|Outdated|Closed)(?::|$)")
 # A path keeps its last component only when borg itself names it so in
 # the repository (the nonce, the config, an index, a segment, the temporary
 # file SaveFile writes next to one of them); anything else becomes "…".
-# Whole tokens only, and not the "(1/14)" of "Analyzing archive".
-VERIFY_DIAG_PATH = re.compile(r"""(?<![^\s'"(])(['"]?)(?!\d+/\d+\))([^\s'"()]*/[^\s'"()]*)\1""")
+# A quoted path whole (spaces included), else whole tokens, and not the
+# "(1/14)" of "Analyzing archive".
+VERIFY_DIAG_PATH = re.compile(
+    r"""(['"])([^'"]*/[^'"]*)\1|(?<![^\s'"(])(?!\d+/\d+\))([^\s'"()]*/[^\s'"()]*)""")
 VERIFY_DIAG_REPO_FILE = re.compile(
     r"(?:config|nonce|README|lock(?:\.exclusive|\.roster)?|(?:index|hints|integrity)\.\d+|\d+)"
     r"(?:\.old|-[\w]+\.tmp)?")
 VERIFY_DIAG_ACCOUNT = re.compile(r"\S+@\S+")
+# The prefixes of what borg serve sent, shown as where the line comes from.
+VERIFY_DIAG_ORIGINS = {"Borg server: ": "serveur : ", "Remote: ": "distant : "}
 
 # Database names end up in SQL: nothing but identifiers.
 SAFE_NAME = re.compile(r"[A-Za-z0-9_-]+")
@@ -273,9 +278,10 @@ def last_modified(repo):
 
 
 def _redact_path(match):
-    name = match.group(2).rstrip("/").rsplit("/", 1)[-1]
+    quote = match.group(1) or ""
+    name = (match.group(2) if quote else match.group(3)).rstrip("/").rsplit("/", 1)[-1]
     shown = f"…/{name}" if VERIFY_DIAG_REPO_FILE.fullmatch(name) else "…"
-    return f"{match.group(1)}{shown}{match.group(1)}"
+    return f"{quote}{shown}{quote}"
 
 
 def verify_diagnostic(stderr):
@@ -291,13 +297,11 @@ def verify_diagnostic(stderr):
     kept = []
     for raw in stderr.splitlines():
         line = raw.strip()
-        for prefix in ("Borg server: ", "Remote: "):
+        origin = ""
+        for prefix, label in VERIFY_DIAG_ORIGINS.items():
             if line.startswith(prefix):
-                line = line[len(prefix):].strip()
-                origin = "serveur : " if prefix == "Borg server: " else "distant : "
+                line, origin = line[len(prefix):].strip(), label
                 break
-        else:
-            origin = ""
         frame = VERIFY_DIAG_FRAME.match(line)
         if frame:
             line = f'File "{frame.group(1)}", line {frame.group(2)}, in {frame.group(3)}'

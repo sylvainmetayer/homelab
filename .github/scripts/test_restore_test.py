@@ -178,6 +178,22 @@ class VerifyDiagnostic(unittest.TestCase):
             "Repository manifest is corrupted: bad index.12 at …",
         ])
 
+    def test_quoted_path_with_spaces_is_cut_whole(self):
+        lines = rt.verify_diagnostic(
+            "OSError: [Errno 2] No such file or directory: '/srv/data/impots 2025/secret file.pdf'\n")
+        self.assertEqual(lines, ["OSError: [Errno 2] No such file or directory: '…'"])
+
+    def test_bare_exception_and_borg_errors_are_kept(self):
+        lines = rt.verify_diagnostic(
+            "Exception: nonce space reservation with mismatched previous state\n"
+            "Data integrity error: Segment entry checksum mismatch [segment 12, offset 3]\n"
+            "Repository has no manifest.\n")
+        self.assertEqual(lines, [
+            "Exception: nonce space reservation with mismatched previous state",
+            "Data integrity error: Segment entry checksum mismatch [segment 12, offset 3]",
+            "Repository has no manifest.",
+        ])
+
     def test_read_only_warning_is_kept(self):
         lines = rt.verify_diagnostic(
             "Permission denied: Failed writing to '/home/docker/wiki/nonce'. This is expected when "
