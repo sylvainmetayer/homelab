@@ -96,7 +96,8 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    # Dossier système standard, traversé par le compte de l'unité.
+    mode: "0755" # NOSONAR
 
 - name: Install the ntfy subscribers check script
   become: true
