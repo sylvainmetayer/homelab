@@ -161,6 +161,15 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("github-actions", errors[0])
 
+    def test_first_matching_rule_wins(self):
+        # A catch-all rule after the ansible one also matches the ansible
+        # file: like sops, the first rule decides, so the CI key stays required.
+        catch_all = "  - path_regex: \\.sops\\.yaml$\n    key_groups:\n      - age:\n" f"          - {PERSO} # perso\n          - {SECOURS} # secours\n"
+        rules = recipients.parse_rules(CONFIG + catch_all)
+        self.assertEqual(recipients.check(rules, {"secrets/ansible.sops.yaml": ANSIBLE_OK}), [])
+        errors = recipients.check(rules, {"secrets/ansible.sops.yaml": encrypted(PERSO, SECOURS)})
+        self.assertTrue(any("github-actions" in e for e in errors), errors)
+
     def test_extra_recipient_is_caught(self):
         errors = recipients.check(self.rules, {"secrets/secrets.sops.yaml": encrypted(PERSO, PRO, SECOURS, CI)})
         self.assertEqual(len(errors), 1)
@@ -234,6 +243,10 @@ class MainTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):
             self.assertEqual(recipients.main(Path(directory)), 1)
 
+    @unittest.skipUnless(
+        (recipients.ROOT / "secrets" / "ansible.sops.yaml").is_file(),
+        "sous-module secrets/ non initialisé (git submodule update --init) : la CI le clone avant ce test",
+    )
     def test_this_repository_passes(self):
         out = io.StringIO()
         with redirect_stdout(out):

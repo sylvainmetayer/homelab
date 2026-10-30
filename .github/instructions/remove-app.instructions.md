@@ -1,5 +1,5 @@
 ---
-applyTo: "ansible/roles/**,ansible/docker.yml,ansible/pi.yml,ansible/host_vars/**,tofu/pangolin_config/**,secrets/**"
+applyTo: "ansible/roles/**,ansible/docker.yml,ansible/pi.yml,ansible/host_vars/**,tofu/pangolin_config/**,secrets,secrets/**"
 description: Checklist for cleanly decommissioning a self-hosted app previously deployed via the new-app checklist — stopping containers/data and removing every trace of it.
 ---
 
