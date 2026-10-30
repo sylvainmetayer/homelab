@@ -9,7 +9,7 @@ dernier_test: 2026-10-23
 # Tester la clé age `secours` (chaque trimestre)
 
 Procédure, pas un incident. La clé `secours` est la clé age hors ligne qui
-ouvre les deux fichiers SOPS quand `perso` (et `pro`, une fois ajoutée)
+ouvre les deux fichiers SOPS quand `perso` et `pro`
 sont perdues ([perte-cle-ou-poste.md](perte-cle-ou-poste.md)). Elle ne sert jamais
 autrement : rien ne dirait qu'elle est abîmée, illisible, ou que les
 fichiers ne sont plus chiffrés pour elle, avant le jour où on en a besoin.
@@ -113,7 +113,7 @@ Deux contrôles :
 - **`age-keygen -y` échoue, ou affiche une autre clé** : la clé est
   abîmée, ou ce n'est pas la bonne. Chercher l'autre copie, s'il y en a
   une. Sinon, en faire une nouvelle (ci-dessous) : tant qu'elle n'est pas
-  posée, `perso` est la seule clé (`pro` n'est pas encore ajoutée).
+  posée, `perso` et `pro` sont les seules clés.
 - **la clé publique est la bonne, mais `ÉCHEC`** : un fichier n'est plus
   chiffré pour elle. Le Lint (`check_age_recipients.py`) aurait dû
   l'attraper : regarder `python -I .github/scripts/check_age_recipients.py`.
