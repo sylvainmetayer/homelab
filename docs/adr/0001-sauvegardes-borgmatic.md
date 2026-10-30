@@ -19,7 +19,8 @@ verrou de lecture de `db.sqlite` le temps de tout l'envoi.
 - **Jamais de dossier de base vivant** : Postgres et MariaDB par dump dans
   leur conteneur, SQLite par le `sqlite3 ".backup"` de l'hôte.
 - **Restauration testée en CI** le 1er et le 15 (`restore-test.yaml`),
-  `borg check --verify-data` chaque trimestre, en lecture seule.
+  `borg check --verify-data` chaque trimestre, en lecture seule (retiré le
+  2026-10-30, voir Conséquences).
 
 ## Alternatives écartées
 
@@ -33,6 +34,11 @@ verrou de lecture de `db.sqlite` le temps de tout l'envoi.
 - Restauration prouvée deux fois par mois ; un nouvel hôte demande un
   sous-compte Tofu puis `backup.yaml`.
 - La Storage Box ne parle pas S3 ([0013](0013-kubernetes-pas-maintenant.md)).
+- 2026-10-30 : le `borg check --verify-data` trimestriel en CI est retiré.
+  Par le sous-compte en lecture seule, borg 1.4.5 échoue toujours après avoir
+  vérifié les blocs (`EROFS` en écrivant le fichier `nonce` du dépôt). Restent
+  le test de restauration et les checks `repository` et `archives` de
+  borgmatic sur les hôtes.
 
 ## Liens
 

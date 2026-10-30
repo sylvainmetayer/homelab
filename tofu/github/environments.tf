@@ -32,8 +32,8 @@ locals {
       OLM_SECRET      = data.terraform_remote_state.pangolin_config.outputs.ci_olm_secret
     }
 
-    # restore-test.yaml et borg-check.yaml (issue #444) : pas `production`,
-    # ils ne doivent lire ni la clé age ni la clé de déploiement.
+    # restore-test.yaml (issue #444) : pas `production`, il ne doit lire ni
+    # la clé age ni la clé de déploiement.
     #   - la clé du sous-compte Storage Box en lecture seule de tofu/pangolin
     #     (storage_box.tf), jamais celle du compte principal, qui peut tout
     #     supprimer, ni celle d'un hôte ;
