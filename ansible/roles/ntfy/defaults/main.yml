@@ -34,6 +34,9 @@ ntfy_admin_user: sylvain
 # Les topics sont aussi ceux que tofu/pangolin_config ouvre sans SSO pour la
 # publication (local.ntfy_publish_topics, website_ntfy.tf) : le test
 # ntfy_topics_match_the_role de tofu/pangolin_config les compare à cette liste.
+#
+# Retirer un topic : d'abord le désabonner des téléphones, sinon l'appli
+# Android ne reçoit plus rien (README.md, « Retirer un topic »).
 ntfy_publishers:
   # Notification « ntfy » d'Uptime Kuma (website_ntfy.tf). Jeton : clé
   # ntfy_uptime_kuma_token du secrets.sops.yaml racine, que docker.yml lit
