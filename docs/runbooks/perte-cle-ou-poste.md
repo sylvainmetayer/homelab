@@ -16,12 +16,11 @@ Ce qui déchiffre quoi (`.sops.yaml`) :
 | Destinataire age | `secrets.sops.yaml` (racine) | `ansible/secrets.sops.yaml` |
 |---|---|---|
 | `perso` | oui | oui |
-| `pro` | pas encore (à ajouter, `sops updatekeys`) | pas encore |
+| `pro` | oui | oui |
 | `secours` | oui | oui |
 | `github-actions` (CI) | non | oui |
 
-Tous post-quantiques (`age1pq1…`) depuis le 30/10/2026. Tant que `pro`
-n'est pas ajoutée, `secours` est la seule autre clé que `perso`. Où sont
+Tous post-quantiques (`age1pq1…`) depuis le 30/10/2026. Où sont
 rangées la clé `pro` et la clé de `secours` : à vérifier (à noter ici une
 fois tranché, hors du dépôt pour la clé elle-même).
 
@@ -39,7 +38,7 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
 
 ### Clé age perso perdue (pas volée)
 
-1. Déchiffrer avec une autre clé, `secours` (ou `pro` une fois ajoutée) :
+1. Déchiffrer avec une autre clé, `pro` ou `secours` :
 
    ```bash
    SOPS_AGE_KEY_FILE=/chemin/vers/secours.key sops decrypt secrets.sops.yaml > /dev/null && echo ok
