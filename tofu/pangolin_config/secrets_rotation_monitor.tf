@@ -1,5 +1,5 @@
 # Échéances de rotation des secrets SOPS, chaque lundi
-# (.github/workflows/secrets-rotation.yaml, inventaire secrets-rotation.yaml) :
+# (.github/workflows/secrets-rotation.yaml, inventaire secrets/secrets-rotation.yaml) :
 # « up » si aucun secret n'est dû dans les 30 jours, « down » avec les noms
 # des clés dues ou en retard, ou si l'inventaire est invalide. Huit jours : un
 # run hebdomadaire et un jour de marge pour un run en retard ou relancé.
