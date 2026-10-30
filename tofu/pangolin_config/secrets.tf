@@ -7,10 +7,6 @@ locals {
   pangolin_url     = data.sops_file.secrets.data["pangolin_url"]
   pangolin_api_key = data.sops_file.secrets.data["pangolin_api_key"]
 
-  # Credentials S3 Hetzner
-  s3_access_key = data.sops_file.secrets.data["AWS_ACCESS_KEY_ID"]
-  s3_secret_key = data.sops_file.secrets.data["AWS_SECRET_ACCESS_KEY"]
-
   # Bot and chat of the Telegram notification (notifications.tf).
   telegram_bot_token = data.sops_file.secrets.data["uptimekuma_telegram_bot_token"]
   telegram_chat_id   = data.sops_file.secrets.data["uptimekuma_telegram_chat_id"]
