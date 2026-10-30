@@ -45,7 +45,7 @@ au plus :
 
 | N° | Décision | Statut |
 |---|---|---|
-| [0001](0001-sauvegardes-borgmatic.md) | Sauvegardes Borgmatic + Borg, un sous-compte par hôte, restauration testée en CI | acceptée |
+| [0001](0001-sauvegardes-borgmatic.md) | Sauvegardes Borgmatic + Borg, un sous-compte par hôte, restauration testée en CI | acceptée (check trimestriel remplacé par 0017) |
 | [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée |
 | [0003](0003-crowdsec-sur-pangolin.md) | CrowdSec sur Pangolin, plugin Traefik, AppSec en détection seule | acceptée |
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
@@ -60,3 +60,4 @@ au plus :
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |
+| [0017](0017-pas-de-verification-complete-des-donnees.md) | Pas de vérification complète des données Borg ; test de restauration et checks des hôtes | acceptée |
