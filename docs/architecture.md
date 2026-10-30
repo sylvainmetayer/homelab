@@ -323,7 +323,12 @@ WebSocket vers le hub : aucun n'écoute de port.
 Chaque moniteur Uptime Kuma de `tofu/pangolin_config` alerte sur Telegram et
 ntfy (`local.alert_notification_ids`, `notifications.tf`) : Telegram ne passe
 pas par Pangolin, ntfy si. Les moniteurs de connexion SSH n'alertent que sur
-Telegram. Plus de mail depuis le 2026-10-29.
+Telegram. Plus de mail depuis le 2026-10-29. ntfy qui ne joint plus les
+téléphones (abonnement refusé, le 2026-10-29) ne se voit pas à son
+healthcheck : toutes les 10 minutes, la VM docker relit les relevés « Server
+stats » de ntfy (`ntfy-subscribers-check.timer`, rôle `ntfy`) et pousse au
+moniteur « ntfy : abonnés » (`cron_ntfy_subscribers.tf`), down quand aucun
+abonné n'y figure sur 20 minutes.
 
 Cadence des sondes (`local.http_probe`, `uptime_globals.tf`, depuis le
 2026-10-29) : chaque moniteur HTTP (healthchecks des applis, dashboard
