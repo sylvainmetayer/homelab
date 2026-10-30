@@ -15,6 +15,10 @@ python = "3.14.8"
 'pipx:ssh-audit' = '3.9.0'
 
 [settings]
+# _.file passe par le binaire sops (mise.toml l'installe) plutôt que par rops,
+# la bibliothèque intégrée de mise : rops ne lit pas les destinataires age
+# post-quantiques (age1pq1…, ML-KEM-768 + X25519), sops >= 3.12 si.
+sops.rops = false
 #python.uv_venv_auto = true
 
 [env]

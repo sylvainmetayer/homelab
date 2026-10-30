@@ -48,7 +48,8 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
    `.sopsrc` n'est lu que par l'extension d'éditeur). Ici, peu importe
    laquelle ouvre ; pour prouver qu'une clé précise ouvre, l'isoler :
    [test-cle-secours.md](test-cle-secours.md).
-2. Créer la nouvelle clé : `age-keygen -o ~/.age.key` (chmod 600). Noter la
+2. Créer la nouvelle clé : `age-keygen -pq -o ~/.age.key` (chmod 600 ;
+   post-quantique, `age1pq1…`, comme toutes celles de `.sops.yaml`). Noter la
    clé publique affichée.
 3. Remplacer la ligne `# perso` dans les **deux** règles de `.sops.yaml`.
 4. Rechiffrer la clé de données pour les nouveaux destinataires, puis la
