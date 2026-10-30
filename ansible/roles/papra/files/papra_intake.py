@@ -158,7 +158,9 @@ def deliver(items, dest_dir, tmp_dir):
 def remove_stale_tmp(tmp_dir):
     """Restes d'un passage tué en pleine écriture (TimeoutStartSec) : un seul
     passage à la fois (unité oneshot), tout .intake-* du sas est orphelin."""
-    for entry in os.scandir(tmp_dir):
+    # tmp_dir vient de /etc/papra-intake.json, écrit par Ansible (0600), jamais
+    # d'un message : seuls les .intake-* créés par deliver() y sont supprimés.
+    for entry in os.scandir(tmp_dir):  # NOSONAR
         if entry.name.startswith(".intake-") and entry.is_file(follow_symlinks=False):
             os.unlink(entry.path)
 
