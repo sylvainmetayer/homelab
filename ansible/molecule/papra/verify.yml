@@ -110,6 +110,8 @@
         that:
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
           - "'DOCUMENTS_DELETED_DOCUMENTS_RETENTION_DAYS=90' in papra_env_lines"
+          - "'TASKS_PERSISTENCE_DRIVER=libsql' in papra_env_lines"
+          - "'TASKS_PERSISTENCE_DRIVERS_LIBSQL_URL=file:/app/app-data/db/tasks.sqlite' in papra_env_lines"
           - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
     # Molecule ne démarre pas Papra : une valeur que son schéma refuse
