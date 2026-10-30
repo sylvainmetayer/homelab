@@ -1,8 +1,7 @@
 """Restore test of one borg repository (.github/workflows/restore-test.yaml).
 
-Usage: restore_test.py <app>, or restore_test.py --verify-data <app> for the
-quarterly full data check (.github/workflows/borg-check.yaml), from the
-repository root, with in the environment:
+Usage: restore_test.py <app>, from the repository root, with in the
+environment:
 
   BORG_REPO_BASE   ssh://<user>@<host>:23/.  (the read-only sub-account,
                    whose home is backup/: repositories are <host>/<repo>)
@@ -21,18 +20,6 @@ Steps, on the latest archive:
   3. run PRAGMA integrity_check on every SQLite copy.
 Exits non-zero on any failure; the workflow's last job pushes the overall
 result to the "Restore test" monitor.
-
---verify-data runs `borg check --archives-only --verify-data` instead, what
-`borgmatic check --only data` runs: every object of the repository is
-downloaded, its MAC checked and decrypted. Without --repair, ArchiveChecker
-puts, deletes and commits nothing (all under `if self.repair`), and
---archives-only skips Repository.check, which rewrites the repository
-config. One write remains: after the data verification, rebuild_refcounts
-re-encrypts each archive's metadata in memory, and with an AES-CTR key
-(repokey-blake2) that reserves nonce space, in the repository's `nonce`
-file too (Repository.commit_nonce_reservation). borg serve forgives a
-PermissionError there under --bypass-lock, not any other OSError. A failed
-check prints the filtered stderr (verify_diagnostic) to tell.
 """
 
 import datetime
@@ -60,62 +47,6 @@ MAX_ARCHIVE_AGE = datetime.timedelta(hours=28)
 # Dumps written by borgmatic: <...>/postgresql_databases/<host>/<name>.
 DUMP_RE = re.compile(r"(?:^|/)(postgresql|mysql)_databases/[^/]+/([^/]+)$")
 SQLITE_STAGING = "var/lib/borgmatic-sqlite/"
-# The one line of `borg check --info` shown in the log: its other lines name
-# files of the archives (missing chunks are reported with the item path).
-VERIFY_SUMMARY_RE = re.compile(
-    r"Finished cryptographic data integrity verification, verified (\d+) chunks with (\d+) integrity errors")
-
-# What a failed `borg check` may show (public log): an allowlist of lines,
-# never borg's whole stderr. Lines borg writes with an item path in them
-# ("<archive>: <path>: New missing file chunk detected …", size
-# inconsistencies) start with the archive name and match none of these.
-VERIFY_DIAG_LINES = 30
-VERIFY_DIAG_WIDTH = 300
-VERIFY_DIAG_MESSAGES = re.compile(
-    r"(?:Starting archive consistency check"
-    r"|Starting cryptographic data integrity verification"
-    r"|Finished cryptographic data integrity verification"
-    r"|Archive consistency check complete"
-    r"|Analyzing archive "
-    r"|Orphaned objects check skipped"
-    r"|Repository contains no apparent data"
-    r"|Repository "
-    r"|Data integrity error"
-    r"|Repo/Chunks index"
-    r"|Found defect chunks"
-    r"|chunk [0-9a-f]{64}[:,]"
-    r"|Skipping corrupted chunk"
-    r"|Archive metadata block "
-    r"|Archive TAM authentication issue"
-    r"|This archive would be"
-    r"|\d+ orphaned objects found"
-    r"|The rebuilt manifest"
-    r"|Old config file not securely erased"
-    r"|(?:[\w ]+: )?Failed writing to "
-    r"|Please upgrade to borg"
-    r"|Connection closed by remote host"
-    r"|Local Exception|Remote Exception"
-    r"|Traceback \(most recent call last\)"
-    r"|Borg: \S+\s+Python: )")
-# A traceback frame: only the source file's name, never its directory.
-VERIFY_DIAG_FRAME = re.compile(r'^\s*File "(?:[^"]*/)?([^"/]+\.py)", line (\d+), in ([\w<>.]+)\s*$')
-# The last line of a traceback, or borg's own one-line error.
-VERIFY_DIAG_EXCEPTION = re.compile(
-    r"^(?=[A-Za-z_])[\w.]*(?:Error|Exception|Warning|NotFound|Needed|Exists|Denied|Interrupt|Outdated|Closed)(?::|$)")
-# A path keeps its last component only when borg itself names it so in
-# the repository (the nonce, the config, an index, a segment, the temporary
-# file SaveFile writes next to one of them); anything else becomes "…".
-# A quoted path whole (spaces included), else whole tokens, and not the
-# "(1/14)" of "Analyzing archive".
-VERIFY_DIAG_PATH = re.compile(
-    r"""(['"])([^'"]*/[^'"]*)\1|(?<![^\s'"(])(?!\d+/\d+\))([^\s'"()]*/[^\s'"()]*)""")
-VERIFY_DIAG_REPO_FILE = re.compile(
-    r"(?:config|nonce|README|lock(?:\.exclusive|\.roster)?|(?:index|hints|integrity)\.\d+|\d+)"
-    r"(?:\.old|-[\w]+\.tmp)?")
-VERIFY_DIAG_ACCOUNT = re.compile(r"\S+@\S+")
-# The prefixes of what borg serve sent, shown as where the line comes from.
-VERIFY_DIAG_ORIGINS = {"Borg server: ": "serveur : ", "Remote: ": "distant : "}
-
 # Database names end up in SQL: nothing but identifiers.
 SAFE_NAME = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -258,105 +189,13 @@ def repository(entry):
     return f"{os.environ['BORG_REPO_BASE']}/{entry['host']}/{entry['repo']}"
 
 
-def last_listing(repo):
+def latest_archive(repo):
     # borg >= 1.2 leaves *.checkpoint archives (interrupted runs) out of a
     # listing unless --consider-checkpoints: this is the last complete one.
-    listing = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)
-    if not listing["archives"]:
+    archives = json.loads(borg("list", "--last", "1", "--json", repo, show_error=True).stdout)["archives"]
+    if not archives:
         raise RestoreError("aucune archive")
-    return listing
-
-
-def latest_archive(repo):
-    return last_listing(repo)["archives"][0]
-
-
-def last_modified(repo):
-    # The manifest's timestamp: create (checkpoints included) and prune
-    # rewrite it, the latest archive's name only changes with a new archive.
-    return last_listing(repo)["repository"]["last_modified"]
-
-
-def _redact_path(match):
-    quote = match.group(1) or ""
-    name = (match.group(2) if quote else match.group(3)).rstrip("/").rsplit("/", 1)[-1]
-    shown = f"…/{name}" if VERIFY_DIAG_REPO_FILE.fullmatch(name) else "…"
-    return f"{quote}{shown}{quote}"
-
-
-def verify_diagnostic(stderr):
-    """The lines of a failed `borg check` that may go to a public log.
-
-    Allowlist: known borg check messages, traceback frames reduced to the
-    source file name, exception lines and borg's version line (the server's
-    one too, "Borg server: " prefix). Every path is cut to "…" unless it is
-    a file borg keeps in the repository, every user@host to "…". sys.argv,
-    CWD and SSH_ORIGINAL_COMMAND (sysinfo) never match. Last
-    VERIFY_DIAG_LINES lines, repeats folded.
-    """
-    kept = []
-    for raw in stderr.splitlines():
-        line = raw.strip()
-        origin = ""
-        for prefix, label in VERIFY_DIAG_ORIGINS.items():
-            if line.startswith(prefix):
-                line, origin = line[len(prefix):].strip(), label
-                break
-        frame = VERIFY_DIAG_FRAME.match(line)
-        if frame:
-            line = f'File "{frame.group(1)}", line {frame.group(2)}, in {frame.group(3)}'
-        elif not (VERIFY_DIAG_MESSAGES.match(line) or VERIFY_DIAG_EXCEPTION.match(line)):
-            continue
-        line = VERIFY_DIAG_ACCOUNT.sub("…", line)
-        line = VERIFY_DIAG_PATH.sub(_redact_path, line)
-        line = (origin + line)[:VERIFY_DIAG_WIDTH]
-        if kept and kept[-1][0] == line:
-            kept[-1][1] += 1
-        else:
-            kept.append([line, 1])
-    return [line if count == 1 else f"{line} (×{count})" for line, count in kept[-VERIFY_DIAG_LINES:]]
-
-
-def verify_data(entry):
-    repo = repository(entry)
-    before = last_modified(repo)
-    started = time.monotonic()
-    # Neither its arguments (nothing secret, but kept uniform) nor its
-    # raw stderr: the summary line, parsed below, and on failure the lines
-    # verify_diagnostic lets through.
-    result = borg("check", "--info", "--archives-only", "--verify-data", repo, check=False, quiet=True)
-    elapsed = datetime.timedelta(seconds=round(time.monotonic() - started))
-    summary = VERIFY_SUMMARY_RE.search(result.stderr)
-    if result.returncode != 0:
-        # What borg said, filtered (verify_diagnostic): the only way to tell
-        # from the log why the check failed.
-        diagnostic = verify_diagnostic(result.stderr)
-        print(f"borg check, sortie filtrée ({len(diagnostic)} lignes) :", flush=True)
-        for line in diagnostic:
-            print(f"  {line}", flush=True)
-        # Lock-free: a backup (create, prune) running meanwhile makes chunks
-        # vanish or appear unreferenced. Say so instead of crying wolf. A
-        # listing that fails now must not hide the failure of the check.
-        try:
-            changed = last_modified(repo) != before
-        except RestoreError:
-            changed = False
-        if changed:
-            raise RestoreError(f"une sauvegarde a écrit dans le dépôt pendant la vérification ({elapsed}) : "
-                               "résultat non concluant, relancer hors de la fenêtre nocturne")
-        if not summary:
-            found = "pas de résumé, sortie filtrée ci-dessus"
-        elif int(summary.group(2)):
-            found = f"{summary.group(2)} blocs corrompus sur {summary.group(1)}"
-        else:
-            found = f"aucun des {summary.group(1)} blocs corrompu, erreur hors des blocs, sortie filtrée ci-dessus"
-        raise RestoreError(f"borg check a échoué ({result.returncode}, {found}) en {elapsed}")
-    if not summary:
-        raise RestoreError("borg check n'a pas donné le résumé de --verify-data")
-    # Defensive: borg already exits 1 on an integrity error.
-    if int(summary.group(2)):
-        raise RestoreError(f"{summary.group(2)} blocs corrompus sur {summary.group(1)}")
-    return f"{summary.group(1)} blocs vérifiés en {elapsed}, aucune erreur"
+    return archives[0]
 
 
 def check_age(entry, archive, age):
@@ -421,15 +260,14 @@ def restore(entry, workdir):
 
 
 def main(argv):
-    verify = argv[:1] == ["--verify-data"]
-    if len(argv) != 1 + verify:
-        print("usage: restore_test.py [--verify-data] <app>", file=sys.stderr)
+    if len(argv) != 1:
+        print("usage: restore_test.py <app>", file=sys.stderr)
         return 2
-    app = argv[-1]
+    app = argv[0]
     entry = json.loads(MANIFEST.read_text())[app]
     with tempfile.TemporaryDirectory(prefix=f"restore-{app}-") as tmp:
         try:
-            message = verify_data(entry) if verify else restore(entry, pathlib.Path(tmp))
+            message = restore(entry, pathlib.Path(tmp))
         except RestoreError as error:
             print(f"::error::{app}: {error}", flush=True)
             return 1

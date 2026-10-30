@@ -71,7 +71,7 @@
       "automerge": true
     },
     {
-      "description": "GitHub Actions (uses: of the workflows and composite actions, pinned by digest with their version in a comment): patch updates join the stateless automerged PR. Not digest updates: under an unchanged version tag, a new digest means the tag was moved, the very attack the SHA pin guards against (tj-actions/changed-files, March 2025), and an automerged action runs in deploy-docker-app's production job, next to SOPS_AGE_KEY and the deploy SSH key; those stay in the manual weekly PR. The PR's own Lint and Tests run them, except the steps only deploy-docker-app, restore-test, borg-check and storage-box-quota run: those break on their next run after the merge, which fails visibly. Container images and runner labels of the workflows are not actions (depType docker, container, service, github-runner) and stay manual",
+      "description": "GitHub Actions (uses: of the workflows and composite actions, pinned by digest with their version in a comment): patch updates join the stateless automerged PR. Not digest updates: under an unchanged version tag, a new digest means the tag was moved, the very attack the SHA pin guards against (tj-actions/changed-files, March 2025), and an automerged action runs in deploy-docker-app's production job, next to SOPS_AGE_KEY and the deploy SSH key; those stay in the manual weekly PR. The PR's own Lint and Tests run them, except the steps only deploy-docker-app, restore-test and storage-box-quota run: those break on their next run after the merge, which fails visibly. Container images and runner labels of the workflows are not actions (depType docker, container, service, github-runner) and stay manual",
       "matchManagers": [
         "github-actions"
       ],
