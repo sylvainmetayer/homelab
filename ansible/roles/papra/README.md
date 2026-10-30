@@ -18,8 +18,16 @@ loses the trial is removed with the `remove-app` skill. App description:
 - Task queue (OCR, tagging rules, reprocessing) persisted in
   `app-data/db/tasks.sqlite` (`TASKS_PERSISTENCE_DRIVER=libsql`): with Papra's
   default in-memory queue, a restart (any deploy that changes `.env` or the
-  compose) dropped every pending task. The file sits next to `db.sqlite`, so
-  the backup's `*.sqlite` glob copies it consistently.
+  compose) dropped every pending task. Only `pending` jobs survive a restart:
+  the job running at that moment stays `processing` for good (the
+  `@cadence-mq/driver-libsql` worker only picks `pending` ones and recovers
+  none), so its document is left with no text: reprocess it. Finished jobs
+  are never deleted (Papra 26.7 does not set `deleteJobOnCompletion`), so the
+  file only grows, by a small row per job. The driver puts it in WAL mode; it
+  sits next to `db.sqlite`, so the backup's `*.sqlite` glob copies it consistently
+  — from the deploy *after* the one that created it: the glob is resolved
+  before Papra's restart handler. After the deploy that turns it on, run
+  `ansible-playbook docker.yml --tags backup` once.
 - Sign-up is closed (`papra_registration_enabled: false`): each account is
   made by reopening it for one run (`-e papra_registration_enabled=true`).
 - Mobile app: it reaches Papra through the Pangolin SSO wall with a Pangolin

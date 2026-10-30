@@ -36,9 +36,10 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
-# SQLite (app-data/db/db.sqlite, créée au premier démarrage : présente dans la
-# configuration à partir du passage suivant) est copiée par « .backup » ; les
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). Les bases
+# SQLite (app-data/db/db.sqlite et la file des tâches tasks.sqlite, créées au
+# premier démarrage : présentes dans la configuration à partir du passage
+# suivant) sont copiées par le hook du rôle borgmatic ; les
 # originaux (app-data/documents/<org>/<nom>, ou <org>/originals/<id> pour
 # ceux d'avant le nommage par nom, templates/env.j2) partent tels quels.
 # ingestion/ n'est qu'un sas, vidé à chaque import.

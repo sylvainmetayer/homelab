@@ -110,9 +110,17 @@
         that:
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
           - "'DOCUMENTS_DELETED_DOCUMENTS_RETENTION_DAYS=90' in papra_env_lines"
+          - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
+
+    # File des tâches dans une base du volume, à côté de db.sqlite (glob de
+    # la sauvegarde) : en mémoire, un redémarrage la perdrait.
+    - name: Assert papra persists its task queue on the volume
+      vars:
+        papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
           - "'TASKS_PERSISTENCE_DRIVER=libsql' in papra_env_lines"
           - "'TASKS_PERSISTENCE_DRIVERS_LIBSQL_URL=file:/app/app-data/db/tasks.sqlite' in papra_env_lines"
-          - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
     # Molecule ne démarre pas Papra : une valeur que son schéma refuse
     # (EMAILS_DRIVER hors de logger/resend/smtp, motif de stockage mal
