@@ -328,7 +328,8 @@ téléphones (abonnement refusé, le 2026-10-29) ne se voit pas à son
 healthcheck : toutes les 10 minutes, la VM docker relit les relevés « Server
 stats » de ntfy (`ntfy-subscribers-check.timer`, rôle `ntfy`) et pousse au
 moniteur « ntfy : abonnés » (`cron_ntfy_subscribers.tf`), down quand aucun
-abonné n'y figure sur 20 minutes.
+abonné n'y figure sur 8 heures (un téléphone hors ligne une nuit
+n'alerte pas).
 
 Cadence des sondes (`local.http_probe`, `uptime_globals.tf`, depuis le
 2026-10-29) : chaque moniteur HTTP (healthchecks des applis, dashboard

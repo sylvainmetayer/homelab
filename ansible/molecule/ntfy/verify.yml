@@ -372,7 +372,7 @@
           - ntfy_check_unit.status.ProtectSystem == 'strict'
           - ntfy_check_unit.status.NoNewPrivileges == 'yes'
           - ntfy_check_unit.status.EnvironmentFiles is search('/etc/ntfy-subscribers-check.env')
-          - ntfy_check_unit.status.ExecStart is search('/usr/local/libexec/ntfy-subscribers-check.sh ntfy 20 ')
+          - ntfy_check_unit.status.ExecStart is search('/usr/local/libexec/ntfy-subscribers-check.sh ntfy 480 ')
           - "'/api/push/' not in ntfy_check_unit.status.ExecStart"
         fail_msg: "{{ ntfy_check_unit.status.ExecStart }}"
 
