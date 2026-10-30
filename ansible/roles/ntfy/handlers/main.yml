@@ -4,3 +4,11 @@
     name: dc@ntfy
     scope: user
     state: restarted
+
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer.
+- name: Restart ntfy-subscribers-check timer
+  become: true
+  ansible.builtin.systemd:
+    name: ntfy-subscribers-check.timer
+    state: restarted
+    daemon_reload: true

@@ -57,6 +57,32 @@ ntfy_publishers:
     topic: github
     token: "{{ ntfy_github_token | default('') }}"
 
+# --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ------------------
+# Le 2026-10-29 à 18:24, le retrait d'un topic a fait refuser (403)
+# l'abonnement multi-topics de l'appli : plus aucune notification sur les
+# téléphones jusqu'au lendemain 07:27, sans la moindre alerte. ntfy écrit
+# chaque minute une ligne « INFO Server stats (…, subscribers=N, …) »
+# (server/server_manager.go, log-level info de server.yml) ; toutes les
+# ntfy_subscribers_check_schedule, l'hôte relit les
+# ntfy_subscribers_check_window_minutes dernières minutes de `docker logs ntfy`
+# et pousse up si un relevé y compte au moins un abonné, down sinon (zéro
+# partout, ou aucune ligne : ntfy arrêté, journal illisible). Le moniteur
+# « ntfy : abonnés » (tofu/pangolin_config, cron_ntfy_subscribers.tf) passe
+# d'abord en PENDING : l'alerte tombe au second down, 30 à 40 minutes après
+# le départ du dernier abonné, sur Telegram (ntfy, lui, ne joindrait
+# justement plus personne).
+#
+# URL push : sortie uptime_cron_ntfy_subscribers_url du state de
+# pangolin_config, lue par docker.yml ; vide, la vérification tourne sans rien
+# pousser (journalctl -u ntfy-subscribers-check).
+ntfy_subscribers_check_push_url: ""
+# Le test monitors_are_filed_and_alert de tofu/pangolin_config lit ce « *:0/N »
+# : l'intervalle du moniteur vaut trois périodes.
+ntfy_subscribers_check_schedule: "*:0/10"
+ntfy_subscribers_check_window_minutes: 20
+# Le compte du script (groupe docker en plus, pour docker logs), jamais root.
+ntfy_subscribers_check_user: "{{ ansible_user }}"
+
 # Pas encore mesuré : un binaire Go, deux bases SQLite, quelques connexions
 # ouvertes (téléphone). À recaler sur memory.peak après quelques jours.
 ntfy_mem_limit: 128m

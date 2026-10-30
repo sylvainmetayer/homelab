@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# OnCalendar={{ ntfy_subscribers_check_schedule }} ; le moniteur « ntfy :
+# abonnés » tolère deux vérifications manquées (trois périodes, cron_ntfy_subscribers.tf)
+# et un down isolé (ntfy recréé il y a moins d'une minute, sans relevé encore)
+# ne l'alerte pas : il en faut deux de suite.
+[Unit]
+Description=Periodic check of the ntfy subscribers
+
+[Timer]
+OnCalendar={{ ntfy_subscribers_check_schedule }}
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

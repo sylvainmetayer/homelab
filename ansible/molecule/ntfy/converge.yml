@@ -16,6 +16,13 @@
       ansible.builtin.set_fact:
         ntfy_uptime_kuma_token: "tk_{{ ('molecule-ntfy-uptime-kuma' | hash('sha1'))[:29] }}"
 
+    # docker.yml lit l'URL push de l'alerte « aucun abonné » dans le state de
+    # pangolin_config : ici le faux Uptime Kuma du verify.
+    - name: Load the subscribers check push URL as docker.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        ntfy_subscribers_check_push_url: http://127.0.0.1:18082/api/push/molecule-ntfy-subscribers # NOSONAR
+
   roles:
     - role: docker_service
     - role: ntfy

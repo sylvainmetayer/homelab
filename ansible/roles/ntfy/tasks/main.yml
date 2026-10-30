@@ -87,6 +87,73 @@
     timeout: 180
   when: not ansible_check_mode
 
+# Alerte « aucun abonné » (defaults, ntfy_subscribers_check_*). Comme
+# mem_report : script dans /usr/local/libexec, à créer s'il manque.
+- name: Ensure the ntfy subscribers check script folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ ntfy_subscribers_check_script | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the ntfy subscribers check script
+  become: true
+  ansible.builtin.copy:
+    src: ntfy-subscribers-check.sh
+    dest: "{{ ntfy_subscribers_check_script }}"
+    owner: root
+    group: root
+    # Lu par le compte de l'unité ; rien de secret (l'URL push est dans
+    # l'EnvironmentFile, 0600).
+    mode: "0644" # NOSONAR
+
+# L'URL push porte le jeton du moniteur : 0600 root et diff: false.
+- name: Write the push URL of the ntfy subscribers check
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: "NTFY_SUBSCRIBERS_CHECK_PUSH_URL={{ ntfy_subscribers_check_push_url }}\n"
+    dest: "{{ ntfy_subscribers_check_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Warn that the ntfy subscribers check will not push
+  when: ntfy_subscribers_check_push_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      ntfy_subscribers_check_push_url vide : la vérification des abonnés ntfy
+      ne va qu'au journal (journalctl -u ntfy-subscribers-check). Appliquer
+      tofu/pangolin_config (sortie uptime_cron_ntfy_subscribers_url) avant
+      docker.yml.
+
+# 0644 : l'URL push est dans l'EnvironmentFile (0600).
+- name: Install the ntfy subscribers check service and timer
+  become: true
+  loop:
+    - ntfy-subscribers-check.service
+    - ntfy-subscribers-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart ntfy-subscribers-check timer
+  register: ntfy_subscribers_check_units
+
+# Le timer seul : le service, oneshot, n'est jamais lancé par Ansible.
+- name: Enable the ntfy subscribers check
+  become: true
+  when: not (ansible_check_mode and ntfy_subscribers_check_units is changed)
+  ansible.builtin.systemd:
+    name: ntfy-subscribers-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). user.db
 # copiée par « .backup » : les comptes et jetons déclarés se recréent seuls
 # depuis server.yml, mais pas les réglages et abonnements de l'interface web
