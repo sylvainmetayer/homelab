@@ -181,6 +181,7 @@
           - papra_intake_config.dest_dir == '/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i'
           - papra_intake_config.tmp_dir == '/opt/apps/papra/intake-tmp'
           - papra_intake_config.max_bytes | int == 26214400
+          - papra_intake_config.body_marker == '[mail]'
 
     - name: Verify the papra intake units
       become: true
@@ -236,12 +237,15 @@
     # Le traitement d'un message, hors réseau : le script déployé, sa
     # configuration déployée, des .eml fixes (files/). Un expéditeur autorisé
     # (@example.org) avec deux PDF du même nom (dont un « ../../etc/… »), un
-    # .exe et un logo en ligne ; un expéditeur inconnu.
+    # .exe et un logo en ligne, objet sans marqueur ; un expéditeur inconnu ;
+    # puis deux messages marqués « [mail] » (HTML seul, texte + HTML).
     - name: Copy the papra intake fixtures
       become: true
       loop:
         - intake-allowed.eml
         - intake-refused.eml
+        - intake-body-html.eml
+        - intake-body-plain.eml
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: "/tmp/{{ item }}"
@@ -307,6 +311,104 @@
     - name: Remove the papra intake test files
       become: true
       loop: "{{ papra_intake_written.files | map(attribute='path') | list }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+
+    # --- Import du mail lui-même (objet marqué « [mail] ») ---
+    - name: Run the papra intake on the marked fixtures
+      become: true
+      become_user: sylvain
+      loop:
+        - intake-body-html.eml
+        - intake-body-plain.eml
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -I
+          - /usr/local/libexec/papra_intake.py
+          - --config
+          - /etc/papra-intake.json
+          - --eml
+          - "/tmp/{{ item }}"
+      register: papra_intake_body_runs
+      changed_when: true
+
+    - name: List the papra ingestion folder after the marked fixtures
+      ansible.builtin.find:
+        paths: /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i
+        hidden: true
+      register: papra_intake_body_written
+
+    # Préfixes « TR: Fwd: » et marqueur retirés de l'objet, date de l'en-tête
+    # Date (dans son propre fuseau) ; la pièce jointe du second inchangée.
+    - name: Assert the marked messages also drop their text and original
+      vars:
+        papra_intake_html: "{{ papra_intake_body_runs.results[0].stdout | from_json }}"
+        papra_intake_plain: "{{ papra_intake_body_runs.results[1].stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - papra_intake_html.written == ['2026-10-29 - Quittance de loyer.txt', '2026-10-29 - Quittance de loyer.eml']
+          - papra_intake_html.skipped == 0
+          - papra_intake_plain.written == ['releve.pdf', '2026-10-30 - Relevé été.txt', '2026-10-30 - Relevé été.eml']
+          - >-
+            papra_intake_body_written.files | map(attribute='path') | map('basename') | sort
+            == (papra_intake_html.written + papra_intake_plain.written) | sort
+        fail_msg: "{{ papra_intake_body_runs.results | map(attribute='stdout') | list }}"
+
+    - name: Read the papra intake text files
+      loop:
+        - 2026-10-29 - Quittance de loyer.txt
+        - 2026-10-30 - Relevé été.txt
+      ansible.builtin.slurp:
+        src: "/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/{{ item }}"
+      register: papra_intake_texts
+
+    # En-têtes puis corps ; le HTML seul rendu en texte (ni balise, ni
+    # script, ni style, entités décodées, une ligne par <br>, <p>, <li>) ;
+    # la partie text/plain préférée au HTML.
+    - name: Assert the papra intake text files
+      vars:
+        papra_intake_html_lines: "{{ (papra_intake_texts.results[0].content | b64decode).splitlines() }}"
+        papra_intake_plain_lines: "{{ (papra_intake_texts.results[1].content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - >-
+            papra_intake_html_lines[:5] == ['De : Scanner <scanner@example.org>', 'À : papra@example.net',
+            'Date : Thu, 29 Oct 2026 23:30:00 -0100', 'Objet : Quittance de loyer', '']
+          - "'Loyer d\\'octobre : 850 €' in papra_intake_html_lines"
+          - "'Charges comprises.' in papra_intake_html_lines"
+          - "'- Échéance : 5 novembre' in papra_intake_html_lines"
+          - "'Cordialement & merci' in papra_intake_html_lines"
+          - "papra_intake_html_lines | select('search', '[<>]|alert|color|Titre') | list == ['De : Scanner <scanner@example.org>']"
+          - "papra_intake_plain_lines[3] == 'Objet : Relevé été'"
+          - "'Relevé de l\\'été en texte brut.' in papra_intake_plain_lines"
+          - papra_intake_plain_lines | select('search', 'Version HTML') | list == []
+        fail_msg: "{{ papra_intake_texts.results | map(attribute='content') | map('b64decode') | list }}"
+
+    - name: Checksum the papra intake fixtures and their .eml copies
+      loop:
+        - /tmp/intake-body-html.eml
+        - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/2026-10-29 - Quittance de loyer.eml
+        - /tmp/intake-body-plain.eml
+        - /opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/2026-10-30 - Relevé été.eml
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        checksum_algorithm: sha256
+      register: papra_intake_originals
+
+    # Le .eml est l'original octet pour octet (la preuve).
+    - name: Assert the papra intake .eml files are the original messages
+      vars:
+        papra_intake_sums: "{{ papra_intake_originals.results | map(attribute='stat.checksum') | list }}"
+      ansible.builtin.assert:
+        that:
+          - papra_intake_sums[0] == papra_intake_sums[1]
+          - papra_intake_sums[2] == papra_intake_sums[3]
+
+    - name: Remove the papra intake marked test files
+      become: true
+      loop: "{{ papra_intake_body_written.files | map(attribute='path') | list }}"
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent

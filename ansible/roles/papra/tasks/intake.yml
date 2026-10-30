@@ -80,6 +80,7 @@
           rejected_folder: "{{ papra_intake_rejected_folder }}"
           allowed_senders: "{{ papra_intake_allowed_senders }}"
           extensions: "{{ papra_intake_extensions }}"
+          body_marker: "{{ papra_intake_body_marker }}"
           max_bytes: "{{ papra_max_upload_size | int }}"
           dest_dir: "{{ papra_intake_dest_dir }}"
           tmp_dir: "{{ papra_intake_tmp_dir }}"
