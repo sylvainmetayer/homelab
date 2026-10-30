@@ -57,6 +57,24 @@ IMAGE_RE = {
 }
 
 
+# What a printed borg/ssh line must not show in a public log: the repository
+# URL, the sub-account (user@host, the Storage Box host name) and archived
+# paths. Borg's message and exception class names stay: they diagnose.
+REDACTIONS = [
+    (re.compile(r"ssh://[^\s'\"]+"), "ssh://…"),
+    (re.compile(r"""(['"])[^'"]*[/\\][^'"]*\1"""), r"\1…\1"),
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*(?::\d+)?"), "<compte>@<hôte>"),
+    (re.compile(r"\b[\w-]+\.your-storagebox\.de\b"), "<hôte>"),
+    (re.compile(r"(?<![\w/:])~?/\S*|\b[\w.-]+(?:/[\w.-]+){2,}/?"), "<chemin>"),
+]
+
+
+def redact(text):
+    for pattern, replacement in REDACTIONS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 class RestoreError(Exception):
     pass
 
@@ -66,16 +84,18 @@ def run(*args, stdin=None, check=True, cwd=None, quiet=False, show_error=False):
     # paths in its arguments) does not show its arguments, and no command
     # shows its stderr (rows of a dump, names of files), except the last line
     # of one that asks for it (show_error: borg's own message when the
-    # repository cannot be opened). Reproduce a failure from a workstation.
+    # repository cannot be opened), redacted like the command line (the
+    # repository URL is an argument). Reproduce a failure from a workstation.
     shown = args[:2] if quiet else args
-    print("+", " ".join(shown), "…" if quiet else "", flush=True)
+    print("+", redact(" ".join(shown)), "…" if quiet else "", flush=True)
     # surrogateescape: an archive path that is not UTF-8 round-trips to borg
     # extract unchanged instead of raising UnicodeDecodeError.
     result = subprocess.run(args, stdin=stdin, capture_output=True, text=True,
                             errors="surrogateescape", cwd=cwd)
     if check and result.returncode != 0:
         lines = result.stderr.strip().splitlines()
-        detail = lines[-1][:200] if show_error and lines else "(sortie masquée)"
+        # Redacted before cut: a cut must not leave half a URL unmatched.
+        detail = redact(lines[-1])[:200] if show_error and lines else "(sortie masquée)"
         raise RestoreError(f"{' '.join(args[:2])} a échoué ({result.returncode}): {detail}")
     return result
 

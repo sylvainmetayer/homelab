@@ -22,7 +22,11 @@ Les journaux d'un dépôt public sont publics : les commandes qui portent des
 chemins de l'archive (`borg list`, `borg extract`) ou des lignes d'un dump
 (`pg_restore`, `mariadb`) n'y montrent pas leurs arguments, et aucune commande
 n'y montre sa sortie d'erreur (seule exception : la dernière ligne de
-`borg list --json`, le message de borg quand le dépôt ne s'ouvre pas). Ni
+`borg list --json`, le message de borg quand le dépôt ne s'ouvre pas). Cette
+ligne et les commandes affichées passent par `redact()` : URL `ssh://`,
+`compte@hôte`, hôte de la Storage Box et chemins (absolus, entre guillemets ou
+à plusieurs segments) sont masqués, le message de borg et le nom de
+l'exception restent. Ni
 journaux des conteneurs de base, ni détail d'`integrity_check`, ni traceback
 Python (seulement le type de l'exception). Pour le détail d'un échec, rejouer
 la commande depuis un poste.
