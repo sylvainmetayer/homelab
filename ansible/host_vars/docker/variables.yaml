@@ -84,6 +84,11 @@ paperless_enabled: false
 # le From se falsifie, l'adresse reste privée. Seuls ces domaines sont
 # importés, le reste part dans Papra/Refusé.
 papra_intake_enabled: true
+# sylvainmetayer.fr : deux adresses exactes seulement (DMARC en p=none, un
+# expéditeur forgé du domaine ne serait ni rejeté ni mis en spam) ;
+# sylvain.dev (alias SimpleLogin) : tout le domaine, son DMARC met les forgés
+# en quarantaine, hors de la boîte relevée.
 papra_intake_allowed_senders:
-  - "@sylvainmetayer.fr"
+  - contact@sylvainmetayer.fr
+  - factures@sylvainmetayer.fr
   - "@sylvain.dev"
