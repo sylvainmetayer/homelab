@@ -23,14 +23,6 @@
     "reread": "backend/app/api/register_controller.py (everything under /api, /mcp), routes without @jwt_required (or with optional=True) in backend/app/controller and backend/app/config.py, backend/app/models/file.py (checkAuthorized), backend/app/sockets, backend/wsgi.ini (uWSGI routing), kitchenowl/lib/services/api/api_service.dart (paths the app calls, Socket.IO)",
     "releases": "https://github.com/TomBursch/kitchenowl/releases"
   },
-  "Meerkat CRM": {
-    "image": "ghcr.io/fbuchner/meerkat-crm-backend",
-    "version": "1.7.0",
-    "compose": "ansible/roles/meerkat_crm/templates/compose.yaml",
-    "paths": "tofu/pangolin_config/website_meerkat_crm.tf (meerkat_crm_dav_paths)",
-    "reread": "backend/routes/routes.go, backend/carddav/auth.go",
-    "releases": "https://github.com/fbuchner/meerkat-crm/releases"
-  },
   "Monica CRM": {
     "image": "monica",
     "version": "3.7.0-apache",

@@ -9,7 +9,7 @@ wishlist_token_time: 72
 wishlist_database: "{{ wishlist_base_path }}/data/prod.db"
 
 # SMTP (invitations, mot de passe oublié) : même compte Infomaniak que
-# karakeep / dawarich / meerkat_crm. Écrit dans la base par tasks/smtp.yml.
+# karakeep / dawarich. Écrit dans la base par tasks/smtp.yml.
 wishlist_smtp_enabled: true
 wishlist_smtp_host: mail.infomaniak.com
 # 587 en STARTTLS : useTls (TLS implicite, 465) reste à false, nodemailer

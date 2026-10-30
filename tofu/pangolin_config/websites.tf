@@ -15,7 +15,7 @@
 #     `<app>_access_token`. An output cannot be generated, hence one block each,
 #     reading local.backup_push_urls / local.healthcheck_access_tokens below.
 #
-# The key is the former resource name (`meerkat_crm`, `demo_planning_kc`), and
+# The key is the former resource name (e.g. `demo_planning_kc`), and
 # moved blocks (applied, then removed) mapped every former address onto it:
 # nothing was recreated. A
 # recreated access token would have broken the monitor headers and the
@@ -69,7 +69,6 @@ locals {
     immich_swipe      = local.immich_swipe_website
     karakeep          = local.karakeep_website
     kitchenowl        = local.kitchenowl_website
-    meerkat_crm       = local.meerkat_crm_website
     monica            = local.monica_website
     nextcloud         = local.nextcloud_website
     ntfy              = local.ntfy_website

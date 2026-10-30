@@ -410,7 +410,7 @@ déconnexion, et n'apporte rien sans fuite.
   protège que les versions futures du fichier, l'historique git reste
   lisible par l'ancienne : tourner aussi ce qu'elle ouvrait.
 - Clés de session (`*_session_encryption_key`), secrets serveur
-  (`pangolin_secret`, `pangolin_server_secret`), `meerkat_crm_jwt_secret`,
+  (`pangolin_secret`, `pangolin_server_secret`),
   `paperless_secret_key` : `sops set` d'une valeur `openssl rand`, puis le
   playbook du rôle. Tous les utilisateurs sont déconnectés ; pour Pangolin,
   lire d'abord ce que chiffre son secret serveur dans sa documentation.

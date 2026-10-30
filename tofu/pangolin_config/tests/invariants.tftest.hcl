@@ -250,7 +250,6 @@ override_data {
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 30, "niceId": "meerkat-crm", "name": "Meerkat CRM", "fullDomain": "crm.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
@@ -260,7 +259,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 19, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 18, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -472,11 +471,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["meerkat_crm"]
-  values = { id = 30 }
-}
-
-override_resource {
   target = pangolin_resource.website["monica"]
   values = { id = 31 }
 }
@@ -603,11 +597,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["immich"]
   values = { push_token = "push-immich" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["meerkat_crm"]
-  values = { push_token = "push-meerkat-crm" }
 }
 
 override_resource {
@@ -1152,8 +1141,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Karakeep /api/v1/rss/lists/*",
       "KitchenOwl /api/*",
       "KitchenOwl /socket.io/*",
-      "Meerkat CRM /carddav/*",
-      "Meerkat CRM /.well-known/carddav",
       "Monica CRM /dav/*",
       "Monica CRM /.well-known/carddav",
       "Monica CRM /.well-known/caldav",
@@ -1849,7 +1836,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_monica_url              = output.uptime_cron_monica_url
         uptime_backup_betisier_url          = output.uptime_backup_betisier_url
         uptime_cron_betisier_reset_url      = output.uptime_cron_betisier_reset_url
-        uptime_backup_meerkat_crm_url       = output.uptime_backup_meerkat_crm_url
         uptime_backup_dawarich_url          = output.uptime_backup_dawarich_url
         uptime_backup_trek_url              = output.uptime_backup_trek_url
         uptime_backup_karakeep_url          = output.uptime_backup_karakeep_url

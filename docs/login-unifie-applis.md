@@ -11,7 +11,6 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Nextcloud 35.0.2 | `user_oidc` 8.11.0, groupes | [README](https://github.com/nextcloud/user_oidc/blob/v8.11.0/README.md) | moyen (uid à aligner) | oui (`/login?direct=1`) ; clients par login flow v2 non confirmé |
 | TREK 5.0.0 | natif, admin par claim | [oidc.service.ts](https://github.com/liketrek/TREK/blob/v5.0.0/server/src/nest/oidc/oidc.service.ts) | faible | oui sauf `OIDC_ONLY` |
 | Wishlist v0.69.0 | natif, réglé dans l'UI (secret client saisi à la main, hors Ansible) | [config.ts](https://github.com/cmintey/wishlist/blob/v0.69.0/src/lib/server/config.ts) | faible | oui |
-| Meerkat CRM 1.7.0 | natif | [oidc_service.go](https://github.com/fbuchner/meerkat-crm/blob/v1.7.0/backend/services/oidc_service.go) | faible | **obligatoire** : CardDAV en Basic sur le mot de passe local |
 | Dawarich 1.19.0 | natif, liaison par défi | [oidc_config.rb](https://github.com/Freika/dawarich/blob/1.19.0/lib/oidc_config.rb) | faible | oui ; traceurs par clé d'API |
 | KitchenOwl v0.7.10 | natif, appli mobile OK | [doc](https://docs.kitchenowl.org/latest/self-hosting/oidc/) | moyen | oui ; tout login OIDC crée un compte : allowed groups obligatoires |
 | Karakeep 0.34.1 | natif ; appli et extension : mot de passe ou clé d'API | [auth.ts](https://github.com/karakeep-app/karakeep/blob/v0.34.1/apps/web/server/auth.ts) | faible | **obligatoire** pour les clients |
@@ -35,5 +34,5 @@ défaut), à vérifier appli par appli au branchement.
 
 **Ordre** : vérifier la clé EE ; Authelia, passkeys et TOTP ; **pilote Homebox** ;
 mur Pangolin (comptes recréés côté IdP) ; Immich, TREK, Wishlist, Dawarich,
-Meerkat, Beszel, Nextcloud, KitchenOwl, Karakeep ; BookStack, FreshRSS, vmauth
+Beszel, Nextcloud, KitchenOwl, Karakeep ; BookStack, FreshRSS, vmauth
 en dernier, si le gain vaut le login local perdu.
