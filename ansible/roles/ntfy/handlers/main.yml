@@ -5,9 +5,11 @@
     scope: user
     state: restarted
 
-# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer.
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer. Pas en
+# --check si l'unité vient d'être posée : elle n'existe pas encore.
 - name: Restart ntfy-subscribers-check timer
   become: true
+  when: not (ansible_check_mode and ntfy_subscribers_check_units is changed)
   ansible.builtin.systemd:
     name: ntfy-subscribers-check.timer
     state: restarted
