@@ -64,7 +64,8 @@ ntfy_subscribers_check_push_url: ""
 # Le test monitors_are_filed_and_alert de tofu/pangolin_config lit ce « *:0/N »
 # : l'intervalle du moniteur vaut trois périodes.
 ntfy_subscribers_check_schedule: "*:0/10"
-# 8 h : un téléphone hors ligne une nuit n'alerte pas, un vrai souci si.
+# 8 h : un téléphone hors ligne une nuit n'alerte pas ; 8 h sans aucun abonné
+# est un vrai souci. Les relevés sont au niveau INFO (log-level de server.yml).
 ntfy_subscribers_check_window_minutes: 480
 # Le compte du script (groupe docker en plus, pour docker logs), jamais root.
 ntfy_subscribers_check_user: "{{ ansible_user }}"
