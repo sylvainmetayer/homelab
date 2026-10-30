@@ -302,3 +302,205 @@
             scope: user
             state: stopped
           failed_when: false
+
+    # --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ---------------
+    - name: Stat the ntfy subscribers check files
+      become: true
+      loop:
+        - /usr/local/libexec/ntfy-subscribers-check.sh
+        - /etc/ntfy-subscribers-check.env
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: ntfy_check_files
+
+    # Le script lisible par le compte de l'unité, l'URL push (jeton du
+    # moniteur) en 0600 root seulement.
+    - name: Assert the ntfy subscribers check files are root-owned
+      loop: "{{ ntfy_check_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0600' if item.item.endswith('.env') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+
+    - name: Read the push URL file of the ntfy subscribers check
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/ntfy-subscribers-check.env
+      register: ntfy_check_env
+
+    - name: Assert the push URL file holds the URL given by docker.yml
+      ansible.builtin.assert:
+        that:
+          - (ntfy_check_env.content | b64decode) == 'NTFY_SUBSCRIBERS_CHECK_PUSH_URL=http://127.0.0.1:18082/api/push/molecule-ntfy-subscribers\n'
+        fail_msg: "{{ ntfy_check_env.content | b64decode }}"
+
+    - name: Verify the ntfy subscribers check units
+      become: true
+      ansible.builtin.command: systemd-analyze verify ntfy-subscribers-check.service ntfy-subscribers-check.timer
+      register: ntfy_check_analyze
+      changed_when: false
+      failed_when: >-
+        ntfy_check_analyze.rc != 0
+        or (ntfy_check_analyze.stderr_lines | select('search', 'ntfy-subscribers-check') | list | length > 0)
+
+    - name: Read the ntfy subscribers check timer
+      ansible.builtin.systemd:
+        name: ntfy-subscribers-check.timer
+      register: ntfy_check_timer
+
+    - name: Read the ntfy subscribers check service
+      ansible.builtin.systemd:
+        name: ntfy-subscribers-check.service
+      register: ntfy_check_unit
+
+    # Toutes les 10 minutes, sous sylvain (jamais root) avec le groupe docker,
+    # l'URL push par le fichier d'environnement seul.
+    - name: Assert the subscribers check runs every 10 minutes, unprivileged
+      ansible.builtin.assert:
+        that:
+          - ntfy_check_timer.status.UnitFileState == 'enabled'
+          - ntfy_check_timer.status.ActiveState == 'active'
+          - ntfy_check_timer.status.TimersCalendar is search('OnCalendar=\*-\*-\* \*:00/10:00')
+          - ntfy_check_unit.status.Type == 'oneshot'
+          - ntfy_check_unit.status.User == 'sylvain'
+          - ntfy_check_unit.status.SupplementaryGroups == 'docker'
+          - ntfy_check_unit.status.ProtectSystem == 'strict'
+          - ntfy_check_unit.status.NoNewPrivileges == 'yes'
+          - ntfy_check_unit.status.EnvironmentFiles is search('/etc/ntfy-subscribers-check.env')
+          - ntfy_check_unit.status.ExecStart is search('/usr/local/libexec/ntfy-subscribers-check.sh ntfy 20 ')
+          - "'/api/push/' not in ntfy_check_unit.status.ExecStart"
+        fail_msg: "{{ ntfy_check_unit.status.ExecStart }}"
+
+    # Le vrai script, poussé à un faux Uptime Kuma (http.server rend 200 sur le
+    # chemin du moniteur et journalise chaque requête, query string comprise) :
+    # par l'unité d'abord (pas de conteneur ntfy dans le scénario : docker
+    # logs échoue, down), puis à la main sur des relevés « Server stats »
+    # d'un faux docker (un abonné : up ; zéro partout : down).
+    - name: Check the subscribers check pushes
+      become: true
+      vars:
+        ntfy_check_dir: /root/molecule-ntfy-check
+        ntfy_check_push: http://127.0.0.1:18082/api/push/molecule-ntfy-subscribers # NOSONAR
+      block:
+        - name: Create the fake Uptime Kuma push path
+          ansible.builtin.file:
+            path: "{{ ntfy_check_dir }}/api/push"
+            state: directory
+            mode: "0700"
+
+        - name: Create the fake Uptime Kuma push file and the fake docker
+          loop:
+            - dest: api/push/molecule-ntfy-subscribers
+              mode: "0600"
+              content: "{\"ok\":true}\n"
+            # Relevés au format de ntfy 2.34 (log/event.go : champs triés),
+            # dans le fichier que nomme FAKE_DOCKER_LOGS ; ntfy écrit sur stderr.
+            - dest: fake-docker.sh
+              mode: "0700"
+              content: |
+                #!/bin/sh
+                [ "$1" = logs ] || exit 1
+                cat "$FAKE_DOCKER_LOGS" >&2
+            - dest: one-subscriber.log
+              mode: "0600"
+              content: |
+                2026/10/29 18:22:00 INFO Server stats (messages_published=12, subscribers=1, tag=manager, topics_active=3, users=4)
+                2026/10/29 18:25:00 INFO Server stats (messages_published=12, subscribers=0, tag=manager, topics_active=1, users=4)
+            - dest: no-subscriber.log
+              mode: "0600"
+              content: |
+                2026/10/29 18:25:00 INFO Server stats (messages_published=12, subscribers=0, tag=manager, topics_active=1, users=4)
+                2026/10/29 18:26:00 INFO Server stats (messages_published=12, subscribers=0, tag=manager, topics_active=1, users=4)
+          ansible.builtin.copy:
+            dest: "{{ ntfy_check_dir }}/{{ item.dest }}"
+            content: "{{ item.content }}"
+            mode: "{{ item.mode }}"
+
+        # Le timer ne doit pas pousser pendant le test : les lignes lues
+        # ensuite sont celles des vérifications lancées ici.
+        - name: Pause the subscribers check timer during the push test
+          ansible.builtin.systemd:
+            name: ntfy-subscribers-check.timer
+            state: stopped
+
+        - name: Start the fake Uptime Kuma
+          ansible.builtin.command:
+            argv:
+              - systemd-run
+              - --unit=molecule-ntfy-push
+              - --collect
+              - python3
+              - -I
+              - -m
+              - http.server
+              - "18082"
+              - --bind
+              - 127.0.0.1
+              - --directory
+              - "{{ ntfy_check_dir }}"
+          changed_when: true
+
+        - name: Wait for the fake Uptime Kuma to listen
+          ansible.builtin.wait_for:
+            host: 127.0.0.1
+            port: 18082
+            timeout: 30
+
+        # systemctl plutôt que le module : son code de retour est ce qui est
+        # vérifié (down : l'unité échoue).
+        - name: Run the subscribers check unit
+          ansible.builtin.command: systemctl start ntfy-subscribers-check.service # noqa: command-instead-of-module
+          register: ntfy_check_unit_run
+          changed_when: true
+          failed_when: ntfy_check_unit_run.rc == 0
+
+        - name: Run the check on fake stats lines
+          loop:
+            - { log: one-subscriber.log, rc: 0 }
+            - { log: no-subscriber.log, rc: 1 }
+          ansible.builtin.command:
+            argv: [/bin/sh, /usr/local/libexec/ntfy-subscribers-check.sh, ntfy, "20"]
+          environment:
+            NTFY_SUBSCRIBERS_CHECK_DOCKER: "{{ ntfy_check_dir }}/fake-docker.sh"
+            NTFY_SUBSCRIBERS_CHECK_PUSH_URL: "{{ ntfy_check_push }}"
+            FAKE_DOCKER_LOGS: "{{ ntfy_check_dir }}/{{ item.log }}"
+          register: ntfy_check_runs
+          changed_when: true
+          failed_when: ntfy_check_runs.rc != item.rc
+
+        - name: Read what the fake Uptime Kuma received
+          ansible.builtin.command: journalctl --unit molecule-ntfy-push -I --output cat --no-pager --grep "GET /api/push/molecule-ntfy-subscribers"
+          register: ntfy_check_pushes
+          changed_when: false
+          until: ntfy_check_pushes.stdout_lines | length == 3
+          retries: 10
+          delay: 1
+
+        - name: Assert the check pushed down, up, then down with the reason
+          vars:
+            ntfy_check_lines: "{{ ntfy_check_pushes.stdout_lines | map('urldecode') | list }}"
+          ansible.builtin.assert:
+            that:
+              - "'status=down&' in ntfy_check_lines[0]"
+              - "'docker logs ntfy' in ntfy_check_lines[0]"
+              - "'status=up&' in ntfy_check_lines[1]"
+              - "'1 abonné' in ntfy_check_lines[1]"
+              - "'status=down&' in ntfy_check_lines[2]"
+              - "'aucun abonné sur 20 min' in ntfy_check_lines[2]"
+            fail_msg: "{{ ntfy_check_lines | join(' | ') }}"
+      always:
+        - name: Stop the fake Uptime Kuma
+          ansible.builtin.systemd:
+            name: molecule-ntfy-push.service
+            state: stopped
+          failed_when: false
+
+        - name: Resume the subscribers check timer
+          ansible.builtin.systemd:
+            name: ntfy-subscribers-check.timer
+            state: started

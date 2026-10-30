@@ -1,3 +1,8 @@
 ---
 # Les producteurs qui ont un jeton : les seuls écrits dans server.yml.
 ntfy_active_publishers: "{{ ntfy_publishers | rejectattr('token', 'equalto', '') | list }}"
+
+# Dérivés, pas des réglages. L'URL push, lue par systemd (root) avant de
+# passer au compte du script.
+ntfy_subscribers_check_script: /usr/local/libexec/ntfy-subscribers-check.sh
+ntfy_subscribers_check_env_file: /etc/ntfy-subscribers-check.env

@@ -690,6 +690,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_ntfy_subscribers
+  values = { push_token = "push-cron-ntfy-subscribers" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -1849,6 +1854,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
         uptime_backup_paperless_url         = output.uptime_backup_paperless_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url
+        uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         # flip.yml (production, démo)
         uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url
@@ -2355,6 +2361,23 @@ run "monitors_are_filed_and_alert" {
       && m.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_check_schedule)[0])
     ])
     error_message = "Moniteurs DNS : rangés avec les healthchecks, Telegram et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
+  }
+
+  # Abonnés ntfy (rôle ntfy) : la VM docker pousse toutes les N minutes
+  # (ntfy-subscribers-check.timer) ; l'intervalle laisse passer deux
+  # vérifications manquées, pas trois, et la fenêtre relue couvre au moins
+  # deux relevés « Server stats » (un par minute) sans dépasser l'intervalle.
+  # Telegram compris : ntfy, lui, ne joindrait plus les téléphones.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_ntfy_subscribers.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_ntfy_subscribers.notification_ids) == toset(local.alert_notification_ids)
+      && uptimekuma_monitor_push.cron_ntfy_subscribers.active == true
+      && uptimekuma_monitor_push.cron_ntfy_subscribers.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_schedule)[0])
+      && yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_window_minutes >= 2
+      && yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_subscribers_check_window_minutes * 60 < uptimekuma_monitor_push.cron_ntfy_subscribers.interval
+    )
+    error_message = "Abonnés ntfy : rangé avec les healthchecks, Telegram et ntfy, actif, intervalle de trois périodes de ntfy_subscribers_check_schedule (*:0/N), fenêtre d'au moins 2 minutes et plus courte que l'intervalle."
   }
 
   assert {
