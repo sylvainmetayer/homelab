@@ -12,6 +12,8 @@ After=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile={{ blocky_config_dir }}/check.env
+# Script de push (rôle uptime_push), au chemin de uptime_push_bin.
+Environment=UPTIME_PUSH={{ uptime_push_bin }}
 ExecStart=/bin/sh {{ blocky_config_dir }}/blocky-check.sh {{ blocky_check_address }} {{ blocky_check_resolved_name }} {{ blocky_check_blocked_name }}
 DynamicUser=yes
 CapabilityBoundingSet=

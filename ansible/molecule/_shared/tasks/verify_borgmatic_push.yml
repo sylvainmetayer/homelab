@@ -11,8 +11,8 @@
 # Variables :
 #   verify_borgmatic_push_config  chemin de la configuration borgmatic (obligatoire)
 #   verify_borgmatic_push_url     URL push attendue ; absente ou vide : aucun push
-#   verify_borgmatic_push_helper  chemin de uptime-push (uptime_push_bin du
-#                                 scénario, sinon celui du rôle)
+# Le chemin de uptime-push attendu dans les hooks est uptime_push_bin s'il est
+# défini (host_vars chargés par le verify), sinon le défaut du rôle.
 - name: Read the borgmatic configuration {{ verify_borgmatic_push_config }}
   become: true
   ansible.builtin.slurp:

@@ -14,6 +14,8 @@ User={{ ntfy_subscribers_check_user }}
 # docker logs.
 SupplementaryGroups=docker
 EnvironmentFile={{ ntfy_subscribers_check_env_file }}
+# Script de push (rôle uptime_push), au chemin de uptime_push_bin.
+Environment=UPTIME_PUSH={{ uptime_push_bin }}
 ExecStart=/bin/sh {{ ntfy_subscribers_check_script }} ntfy {{ ntfy_subscribers_check_window_minutes | int }}
 TimeoutStartSec=2min
 # Lecture seule partout : le script ne fait que lire le journal par le socket

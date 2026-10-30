@@ -47,9 +47,10 @@ if [ -n "${NTFY_SUBSCRIBERS_CHECK_PUSH_URL:-}" ]; then
   # L'URL (jeton du moniteur) par la configuration curl lue sur stdin (« - »),
   # pas en argument : /proc/<pid>/cmdline la montrerait. uptime-push (rôle
   # uptime_push) écrit l'échec d'un push sur stderr et sort en 0 : le code de
-  # sortie reste celui de la vérification.
+  # sortie reste celui de la vérification. UPTIME_PUSH : uptime_push_bin,
+  # posé par l'unité.
   printf 'url = "%s"\n' "$NTFY_SUBSCRIBERS_CHECK_PUSH_URL" \
-    | uptime-push --agent ntfy-subscribers-check - "$status" "$msg"
+    | "${UPTIME_PUSH:-uptime-push}" --agent ntfy-subscribers-check - "$status" "$msg"
 fi
 
 [ "$status" = up ]
