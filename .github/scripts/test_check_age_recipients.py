@@ -15,6 +15,8 @@ PRO = "age16rspnzt6j2qxa2587t6umh9qykrqu2amrr0hx9xt2z7elyky3a3q4p5s7l"
 CI = "age140shtqa48n26q833upzj0yuentupxy8wcz0w0l3w3jhc7975t5as4umhx9"
 SECOURS = "age1uskgue38aysxxcp6p6l47xxxsjfnpm93wsgt3m7wj6qrr73zh3esy8d2qa"
 OLD = "age1" + "q" * 58
+# A post-quantum recipient (age-keygen -pq): same length as a real one.
+PQ = "age1pq1" + "q" * 1952
 
 CONFIG = f"""\
 # Une règle par fichier, la plus précise en premier.
@@ -74,6 +76,11 @@ class ParseRulesTest(unittest.TestCase):
     def test_commented_out_key_is_not_a_recipient(self):
         rules = recipients.parse_rules(CONFIG.replace(f"- {PRO} # pro", f"# - {PRO} # pro", 1))
         self.assertNotIn(PRO, rules[0][1])
+
+    def test_post_quantum_key_is_read(self):
+        rules = recipients.parse_rules(CONFIG.replace(f"{SECOURS} # secours", f"{PQ} # secours"))
+        self.assertEqual(rules[0][1][PQ], "secours")
+        self.assertEqual(recipients.check(rules, {"secrets.sops.yaml": encrypted(PERSO, PRO, PQ)}), [])
 
     def test_several_keys_on_one_line(self):
         rules = recipients.parse_rules(f"creation_rules:\n  - path_regex: x$\n    age: {PERSO},{PRO} # perso\n")

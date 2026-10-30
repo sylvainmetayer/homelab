@@ -71,13 +71,14 @@ Deux contrôles :
 
 ### À la main (si le script ne tourne pas)
 
-1. Vérifier que c'est bien la clé `secours` : la clé publique affichée doit
-   être celle de la ligne `# secours` de `.sops.yaml`.
+1. Vérifier que c'est bien la clé `secours` : sa clé publique doit être
+   celle de la ligne `# secours` de `.sops.yaml` (comparée par `grep`, une
+   clé post-quantique fait ~2 000 caractères) :
 
    ```bash
    KEY=/run/media/sylvain/SECOURS/secours.key
-   mise exec -- age-keygen -y "$KEY"
-   grep '# secours' .sops.yaml
+   PUB=$(mise exec -- age-keygen -y "$KEY")
+   [ -n "$PUB" ] && grep -F -- "$PUB" .sops.yaml | grep -q '# secours' && echo ok || echo ÉCHEC
    ```
 
 2. Déchiffrer les deux fichiers avec **cette clé seule**. sops additionne
@@ -123,9 +124,9 @@ Deux contrôles :
 
 1. Sur un poste de confiance, sans réseau si possible :
    `age-keygen -pq -o /run/media/sylvain/SECOURS/secours.key` (clé
-   post-quantique `age1pq1…`, comme toutes celles de `.sops.yaml` ; la clé publique
-   s'affiche). Faire la deuxième copie hors ligne (papier, seconde clé
-   USB) tout de suite.
+   post-quantique `age1pq1…` ; sa clé publique, ~2 000 caractères :
+   `age-keygen -y` sur le fichier). Faire la deuxième copie hors ligne
+   (papier, seconde clé USB) tout de suite.
 2. Remplacer la ligne `# secours` dans les **deux** règles de `.sops.yaml`,
    puis, consigne en tête de `.sops.yaml` :
 

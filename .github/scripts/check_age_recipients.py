@@ -35,7 +35,9 @@ SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
 # Nom (commentaire de .sops.yaml) d'une clé que chaque règle doit compter.
 REQUIRED_LABELS = ("secours",)
 
-AGE_KEY_RE = re.compile(r"\bage1[02-9ac-hj-np-z]{58}\b")
+# X25519 (age1 + 58) ou post-quantique ML-KEM-768 + X25519 (age1pq1 +
+# 1952, `age-keygen -pq`) : longueurs fixes du bech32 de chaque type.
+AGE_KEY_RE = re.compile(r"\bage1(?:pq1[02-9ac-hj-np-z]{1952}|[02-9ac-hj-np-z]{58})\b")
 LABEL_RE = re.compile(r"#\s*(\S+)")
 
 
