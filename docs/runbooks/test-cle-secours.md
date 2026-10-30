@@ -2,7 +2,7 @@
 # Date du dernier test réussi (AAAA-MM-JJ), lue par
 # .github/scripts/check_secret_rotation.py : le workflow Secrets rotation
 # passe le moniteur « Rotation des secrets » à « down » au-delà de 100 jours.
-# Valeur initiale : l'ajout de la clé (f7be1d86), pas un test connu.
+# Mise par `mise run test-cle-secours` quand le test passe.
 dernier_test: 2026-10-30
 ---
 
@@ -31,12 +31,12 @@ Deux contrôles :
 ## Le test
 
 1. Sortir la clé de sa cachette hors ligne et la monter sur le poste, par
-   exemple une clé USB en `/run/media/sylvain/SECOURS/secours.key`. Ne
+   exemple une clé USB en `/run/media/sylvain/SECOURS/secours-pq.key`. Ne
    jamais la copier sur le disque du poste.
 2. Depuis la racine du dépôt (à jour de `main`, sur une branche) :
 
    ```bash
-   mise run test-cle-secours /run/media/sylvain/SECOURS/secours.key
+   mise run test-cle-secours /run/media/sylvain/SECOURS/secours-pq.key
    ```
 
    Le script (`.github/scripts/secours_key_check.py`) fait les étapes
@@ -60,7 +60,7 @@ Deux contrôles :
    I=~/.local/share/mise/installs
    python3 -I .github/scripts/secours_key_check.py \
      --sops "$I/sops/<version>/sops" --age-keygen "$I/age/<version>/age/age-keygen" \
-     /run/media/sylvain/SECOURS/secours.key
+     /run/media/sylvain/SECOURS/secours-pq.key
    ```
 
 3. Démonter et ranger la clé.
@@ -76,7 +76,7 @@ Deux contrôles :
    clé post-quantique fait ~2 000 caractères) :
 
    ```bash
-   KEY=/run/media/sylvain/SECOURS/secours.key
+   KEY=/run/media/sylvain/SECOURS/secours-pq.key
    PUB=$(mise exec -- age-keygen -y "$KEY")
    [ -n "$PUB" ] && grep -F -- "$PUB" .sops.yaml | grep -q '# secours' && echo ok || echo ÉCHEC
    ```
