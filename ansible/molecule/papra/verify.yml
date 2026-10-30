@@ -100,15 +100,15 @@
         src: /opt/apps/papra/.env
       register: papra_env_content
 
-    # Inscription fermée par défaut (papra_registration_enabled), et un secret
-    # de session d'au moins 32 caractères, sans quoi Papra refuse de démarrer.
-    - name: Assert papra registration is closed and the auth secret is long enough
+    # Inscription fermée par défaut (papra_registration_enabled), corbeille
+    # gardée 90 jours, et un secret de session d'au moins 32 caractères, sans
+    # quoi Papra refuse de démarrer.
+    - name: Assert papra registration is closed, trash retention and auth secret
       vars:
         papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
-          # Corbeille : 90 jours avant la purge (défaut de Papra : 30).
           - "'DOCUMENTS_DELETED_DOCUMENTS_RETENTION_DAYS=90' in papra_env_lines"
           - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
