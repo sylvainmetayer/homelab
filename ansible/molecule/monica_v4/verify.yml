@@ -148,3 +148,22 @@
         that:
           - monica_v4_repo_marker.stat.exists
         fail_msg: "Le rôle n'a pas lancé borgmatic repo-create pour monica_v4"
+
+    # Le .env porte APP_KEY, base et SMTP : privé, comme le compose.
+    - name: Stat the Monica v4 environment file
+      ansible.builtin.stat:
+        path: /opt/apps/monica_v4/.env
+      register: monica_v4_env_stat
+
+    - name: Read the trusted proxies line of the Monica v4 environment
+      ansible.builtin.command:
+        cmd: grep -E '^APP_TRUST_PROXIES=.+' /opt/apps/monica_v4/.env
+      changed_when: false
+      register: monica_v4_env_proxies
+
+    - name: Assert the Monica v4 environment is private and trusts newt
+      ansible.builtin.assert:
+        that:
+          - monica_v4_env_stat.stat.exists
+          - monica_v4_env_stat.stat.mode == '0600'
+          - monica_v4_env_proxies.stdout is search('/[0-9]+')
