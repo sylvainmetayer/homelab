@@ -22,14 +22,14 @@ OLD = "age1" + "q" * 58
 CONFIG = f"""\
 # Une règle par fichier, la plus précise en premier.
 creation_rules:
-  - path_regex: (^|/)ansible/secrets\\.sops\\.yaml$
+  - path_regex: (^|/)secrets/ansible\\.sops\\.yaml$
     key_groups:
       - age:
           - {PERSO} # perso
           - {PRO} # pro
           - {CI} # github-actions
           - {SECOURS} # secours
-  - path_regex: (^|/)secrets\\.sops\\.yaml$
+  - path_regex: (^|/)secrets/secrets\\.sops\\.yaml$
     key_groups:
       - age:
           - {PERSO} # perso
@@ -64,7 +64,7 @@ ANSIBLE_OK = encrypted(PERSO, PRO, CI, SECOURS)
 class ParseRulesTest(unittest.TestCase):
     def test_reads_each_rule_in_order_with_its_labels(self):
         rules = recipients.parse_rules(CONFIG)
-        self.assertEqual([p.pattern for p, _ in rules], [r"(^|/)ansible/secrets\.sops\.yaml$", r"(^|/)secrets\.sops\.yaml$"])
+        self.assertEqual([p.pattern for p, _ in rules], [r"(^|/)secrets/ansible\.sops\.yaml$", r"(^|/)secrets/secrets\.sops\.yaml$"])
         self.assertEqual(rules[0][1], {PERSO: "perso", PRO: "pro", CI: "github-actions", SECOURS: "secours"})
         self.assertEqual(rules[1][1], {PERSO: "perso", PRO: "pro", SECOURS: "secours"})
 
@@ -81,7 +81,7 @@ class ParseRulesTest(unittest.TestCase):
     def test_post_quantum_key_is_read(self):
         rules = recipients.parse_rules(CONFIG.replace(f"{SECOURS} # secours", f"{PQ} # secours"))
         self.assertEqual(rules[0][1][PQ], "secours")
-        self.assertEqual(recipients.check(rules, {"secrets.sops.yaml": encrypted(PERSO, PRO, PQ)}), [])
+        self.assertEqual(recipients.check(rules, {"secrets/secrets.sops.yaml": encrypted(PERSO, PRO, PQ)}), [])
 
     def test_x25519_key_is_still_read(self):
         rules = recipients.parse_rules(CONFIG.replace(f"{PRO} # pro", f"{OLD} # pro"))
@@ -132,7 +132,7 @@ class FileRecipientsTest(unittest.TestCase):
         self.assertEqual(recipients.file_recipients(text), [PERSO, SECOURS])
 
     def test_invalid_yaml_is_reported_as_such(self):
-        errors = recipients.check(recipients.parse_rules(CONFIG), {"secrets.sops.yaml": "<<<<<<< HEAD\na: [\n"})
+        errors = recipients.check(recipients.parse_rules(CONFIG), {"secrets/secrets.sops.yaml": "<<<<<<< HEAD\na: [\n"})
         self.assertEqual(len(errors), 1)
         self.assertIn("YAML invalide", errors[0])
 
@@ -142,41 +142,41 @@ class CheckTest(unittest.TestCase):
         self.rules = recipients.parse_rules(CONFIG)
 
     def test_matching_files_pass(self):
-        files = {"secrets.sops.yaml": ROOT_OK, "ansible/secrets.sops.yaml": ANSIBLE_OK}
+        files = {"secrets/secrets.sops.yaml": ROOT_OK, "secrets/ansible.sops.yaml": ANSIBLE_OK}
         self.assertEqual(recipients.check(self.rules, files), [])
 
     def test_order_of_stanzas_does_not_matter(self):
-        self.assertEqual(recipients.check(self.rules, {"secrets.sops.yaml": encrypted(SECOURS, PERSO, PRO)}), [])
+        self.assertEqual(recipients.check(self.rules, {"secrets/secrets.sops.yaml": encrypted(SECOURS, PERSO, PRO)}), [])
 
     def test_file_reencrypted_without_secours_is_caught(self):
-        errors = recipients.check(self.rules, {"ansible/secrets.sops.yaml": encrypted(PERSO, PRO, CI)})
+        errors = recipients.check(self.rules, {"secrets/ansible.sops.yaml": encrypted(PERSO, PRO, CI)})
         self.assertEqual(len(errors), 1)
         self.assertIn("n'est pas chiffré pour secours", errors[0])
-        self.assertIn("sops updatekeys ansible/secrets.sops.yaml", errors[0])
+        self.assertIn("sops updatekeys secrets/ansible.sops.yaml", errors[0])
 
-    def test_first_matching_rule_wins(self):
-        # The root rule also matches ansible/secrets.sops.yaml: without the CI
-        # key, the ansible file must still fail on the first (ansible) rule.
-        errors = recipients.check(self.rules, {"ansible/secrets.sops.yaml": ROOT_OK})
+    def test_ansible_file_needs_the_ci_key(self):
+        # Without the CI key, the ansible file fails on its own (first) rule,
+        # whose recipients are not the root file's.
+        errors = recipients.check(self.rules, {"secrets/ansible.sops.yaml": ROOT_OK})
         self.assertEqual(len(errors), 1)
         self.assertIn("github-actions", errors[0])
 
     def test_extra_recipient_is_caught(self):
-        errors = recipients.check(self.rules, {"secrets.sops.yaml": encrypted(PERSO, PRO, SECOURS, CI)})
+        errors = recipients.check(self.rules, {"secrets/secrets.sops.yaml": encrypted(PERSO, PRO, SECOURS, CI)})
         self.assertEqual(len(errors), 1)
         self.assertIn(f"chiffré pour {CI}", errors[0])
-        self.assertIn("sops rotate -i secrets.sops.yaml", errors[0])
+        self.assertIn("sops rotate -i secrets/secrets.sops.yaml", errors[0])
 
     def test_duplicate_recipient_is_caught(self):
-        errors = recipients.check(self.rules, {"secrets.sops.yaml": encrypted(PERSO, PRO, SECOURS, SECOURS)})
-        self.assertEqual(errors, [f"secrets.sops.yaml : destinataire(s) en double : {SECOURS}"])
+        errors = recipients.check(self.rules, {"secrets/secrets.sops.yaml": encrypted(PERSO, PRO, SECOURS, SECOURS)})
+        self.assertEqual(errors, [f"secrets/secrets.sops.yaml : destinataire(s) en double : {SECOURS}"])
 
     def test_unencrypted_file_is_caught(self):
-        errors = recipients.check(self.rules, {"secrets.sops.yaml": "a: b\n"})
+        errors = recipients.check(self.rules, {"secrets/secrets.sops.yaml": "a: b\n"})
         self.assertIn("aucun destinataire age", errors[0])
 
     def test_file_no_rule_designates(self):
-        rules = recipients.parse_rules(CONFIG.replace(r"(^|/)secrets\.sops\.yaml$", r"^secrets\.sops\.yaml$"))
+        rules = recipients.parse_rules(CONFIG.replace(r"(^|/)secrets/secrets\.sops\.yaml$", r"^secrets/secrets\.sops\.yaml$"))
         errors = recipients.check(rules, {"compose/secrets.sops.yaml": ROOT_OK})
         self.assertEqual(errors, [f"compose/secrets.sops.yaml : aucune règle de {recipients.SOPS_CONFIG} ne le désigne"])
 
@@ -184,7 +184,7 @@ class CheckTest(unittest.TestCase):
         # secours removed from .sops.yaml, then sops updatekeys: the files
         # match their rule, the rule itself fails.
         rules = recipients.parse_rules(CONFIG.replace(f"          - {SECOURS} # secours\n", "", 1))
-        errors = recipients.check(rules, {"ansible/secrets.sops.yaml": encrypted(PERSO, PRO, CI)})
+        errors = recipients.check(rules, {"secrets/ansible.sops.yaml": encrypted(PERSO, PRO, CI)})
         self.assertEqual(len(errors), 1)
         self.assertIn("ne compte pas la clé secours", errors[0])
 
@@ -192,7 +192,7 @@ class CheckTest(unittest.TestCase):
     def test_x25519_recipient_in_a_rule_is_caught(self):
         # One X25519 recipient is enough to expose the data key.
         rules = recipients.parse_rules(CONFIG.replace(f"{PRO} # pro", f"{OLD} # pro", 1))
-        errors = recipients.check(rules, {"ansible/secrets.sops.yaml": encrypted(PERSO, OLD, CI, SECOURS)})
+        errors = recipients.check(rules, {"secrets/ansible.sops.yaml": encrypted(PERSO, OLD, CI, SECOURS)})
         self.assertEqual(len(errors), 1)
         self.assertIn("compte pro, clé X25519", errors[0])
 
@@ -211,24 +211,24 @@ class MainTest(unittest.TestCase):
             return code, out.getvalue()
 
     def test_repository_layout_passes(self):
-        code, out = self.run_main({"secrets.sops.yaml": ROOT_OK, "ansible/secrets.sops.yaml": ANSIBLE_OK})
+        code, out = self.run_main({"secrets/secrets.sops.yaml": ROOT_OK, "secrets/ansible.sops.yaml": ANSIBLE_OK})
         self.assertEqual(code, 0, out)
         self.assertIn("2 fichier(s)", out)
 
     def test_failure_is_annotated(self):
-        code, out = self.run_main({"secrets.sops.yaml": encrypted(PERSO, PRO)})
+        code, out = self.run_main({"secrets/secrets.sops.yaml": encrypted(PERSO, PRO)})
         self.assertEqual(code, 1)
-        self.assertIn("::error::secrets.sops.yaml : n'est pas chiffré pour secours", out)
+        self.assertIn("::error::secrets/secrets.sops.yaml : n'est pas chiffré pour secours", out)
 
     def test_dot_dirs_are_skipped(self):
         # .claude/worktrees/… holds other checkouts: never theirs to check.
-        code, out = self.run_main({"secrets.sops.yaml": ROOT_OK, ".claude/worktrees/x/secrets.sops.yaml": "a: b\n"})
+        code, out = self.run_main({"secrets/secrets.sops.yaml": ROOT_OK, ".claude/worktrees/x/secrets.sops.yaml": "a: b\n"})
         self.assertEqual(code, 0, out)
 
     def test_no_sops_file_fails(self):
         code, out = self.run_main({})
         self.assertEqual(code, 1)
-        self.assertIn("aucun secrets.sops.yaml", out)
+        self.assertIn("aucun *.sops.yaml", out)
 
     def test_missing_config_fails(self):
         with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):

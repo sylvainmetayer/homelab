@@ -19,7 +19,7 @@ mock_provider "local" {}
 mock_provider "external" {}
 mock_provider "sops" {}
 
-# ansible/secrets.sops.yaml : seule la clé Age du destinataire github-actions
+# secrets/ansible.sops.yaml : seule la clé Age du destinataire github-actions
 # est lue ici (secrets.tf).
 override_data {
   target = data.sops_file.secrets
@@ -226,7 +226,7 @@ run "valeurs_tirees_de_la_bonne_source" {
 
   assert {
     condition     = github_actions_environment_secret.this["production/SOPS_AGE_KEY"].value == "AGE-SECRET-KEY-1FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"
-    error_message = "SOPS_AGE_KEY doit être github_actions_sops_age_key d'ansible/secrets.sops.yaml."
+    error_message = "SOPS_AGE_KEY doit être github_actions_sops_age_key de secrets/ansible.sops.yaml."
   }
 
   assert {
@@ -306,7 +306,7 @@ run "restore_test_secrets" {
 
   assert {
     condition     = github_actions_environment_secret.this["restore-test/RESTORE_TEST_BORG_PASSPHRASE"].value == "fake-backup-passphrase"
-    error_message = "RESTORE_TEST_BORG_PASSPHRASE doit être backup_passphrase d'ansible/secrets.sops.yaml."
+    error_message = "RESTORE_TEST_BORG_PASSPHRASE doit être backup_passphrase de secrets/ansible.sops.yaml."
   }
 
   assert {
@@ -352,7 +352,7 @@ run "storage_box_quota_secrets" {
 
   assert {
     condition     = github_actions_environment_secret.this["storage-box-quota/STORAGE_BOX_QUOTA_HCLOUD_TOKEN"].value == "fake-hcloud-readonly-token"
-    error_message = "STORAGE_BOX_QUOTA_HCLOUD_TOKEN doit être hcloud_readonly_token d'ansible/secrets.sops.yaml (jeton en lecture seule), jamais HCLOUD_TOKEN."
+    error_message = "STORAGE_BOX_QUOTA_HCLOUD_TOKEN doit être hcloud_readonly_token de secrets/ansible.sops.yaml (jeton en lecture seule), jamais HCLOUD_TOKEN."
   }
 
   assert {
@@ -406,7 +406,7 @@ run "ntfy_github_secrets" {
 
   assert {
     condition     = github_actions_environment_secret.this["ntfy-github/NTFY_GITHUB_TOKEN"].value == "tk_fakentfygithubtoken0000000"
-    error_message = "NTFY_GITHUB_TOKEN doit être ntfy_github_token d'ansible/secrets.sops.yaml (producteur github de la CI), jamais le jeton scripts des hôtes."
+    error_message = "NTFY_GITHUB_TOKEN doit être ntfy_github_token de secrets/ansible.sops.yaml (producteur github de la CI), jamais le jeton scripts des hôtes."
   }
 
   assert {

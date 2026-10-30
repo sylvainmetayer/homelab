@@ -1,7 +1,7 @@
 # Utilisateur S3 d'Ansible : lit le seul state de tofu/pangolin_config
 # (ansible/tasks/pangolin_config_outputs.yml, URL push et identifiants Newt),
 # sans pouvoir écrire ni lire les autres states. Ses clés vont dans
-# state_s3_access_key / state_s3_secret_key de ansible/secrets.sops.yaml, que
+# state_s3_access_key / state_s3_secret_key de secrets/ansible.sops.yaml, que
 # la CI de déploiement déchiffre : une fuite ne donne plus que ce state-là.
 resource "ovh_cloud_project_user" "ansible_state_reader" {
   service_name = local.ovh_service_name

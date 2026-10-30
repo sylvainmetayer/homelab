@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail when a key of ansible/secrets.sops.yaml bears the name of a variable
+"""Fail when a key of secrets/ansible.sops.yaml bears the name of a variable
 that a playbook, a shared task file or a role sets in a layer it outranks.
 
 community.sops.load_vars (return_method: vars-only, ansible-core 2.21+) puts
@@ -22,7 +22,8 @@ import sys
 import yaml
 
 SOPS_FILES = [
-    "ansible/secrets.sops.yaml",
+    # Submodule secrets/, the private homelab-secrets repository (ADR 0018).
+    "secrets/ansible.sops.yaml",
     "ansible/molecule/_shared/vars/fake_secrets.yml",
 ]
 # Playbooks, shared task files, role tasks/handlers: every `vars:` mapping in
@@ -86,8 +87,6 @@ def main():
     found = []
     for pattern in VARS_KEYWORD_FILES:
         for path in sorted(glob.glob(pattern, recursive=True)):
-            if path.endswith("secrets.sops.yaml"):
-                continue
             walk(load(path), path, found)
     for pattern in VARS_FILES:
         for path in sorted(glob.glob(pattern, recursive=True)):

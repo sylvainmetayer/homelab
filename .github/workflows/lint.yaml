@@ -13,8 +13,10 @@ on:
       - tofu/**
       - pyproject.toml
       - mise.toml
-      - secrets.sops.yaml
-      - secrets-rotation.yaml
+      # Sous-module du dépôt privé homelab-secrets (ADR 0018) : un bump du
+      # commit épinglé relance les contrôles des fichiers SOPS.
+      - secrets
+      - .gitmodules
       - .sops.yaml
       - docs/runbooks/test-cle-secours.md
   workflow_dispatch:
@@ -65,15 +67,25 @@ jobs:
         working-directory: ansible
         run: ansible-lint
 
-      # Une clé de secrets.sops.yaml (couche include_vars) l'emporte sur les
+      # Fichiers SOPS et inventaire de rotation : sous-module secrets/, dépôt
+      # privé homelab-secrets (ADR 0018). Les contrôles qui suivent les lisent ;
+      # sans le secret (PR de fork), ce pas échoue et eux avec. Même après un
+      # échec d'ansible-lint : les contrôles en !cancelled() en ont besoin.
+      - name: Checkout the secrets submodule
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/secrets-checkout # zizmor: ignore[self-repository]
+        with:
+          ssh-key: ${{ secrets.HOMELAB_SECRETS_SSH_KEY }}
+
+      # Une clé de secrets/ansible.sops.yaml (couche include_vars) l'emporte sur les
       # vars: de play, d'entrée roles:, de bloc, de tâche et sur vars/ d'un
       # rôle : une surcharge du même nom perdrait sans un mot (AGENTS.md).
       - name: Check that no SOPS key shadows a vars entry
         run: python -I .github/scripts/check_sops_shadowing.py
 
       # Chaque clé des deux fichiers SOPS a son entrée dans
-      # secrets-rotation.yaml (nature, dernière rotation, procédure), et
-      # chaque entrée sa clé. Les échéances : secrets-rotation.yaml (workflow).
+      # secrets/secrets-rotation.yaml (nature, dernière rotation, procédure),
+      # et chaque entrée sa clé. Les échéances : workflow secrets-rotation.yaml.
       - name: Check the secret rotation inventory
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_secret_rotation.py

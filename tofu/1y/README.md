@@ -20,7 +20,7 @@ Pas de Web Analytics : les redirections de `_redirects` sont servies en bordure,
 
 ## Prérequis
 
-Les mêmes que [`tofu/ref`](../ref/README.md#prérequis) : `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` dans `secrets.sops.yaml`, et l'app GitHub « Cloudflare Workers and Pages » installée sur le compte. En mode « Only select repositories » :
+Les mêmes que [`tofu/ref`](../ref/README.md#prérequis) : `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` dans `secrets/secrets.sops.yaml`, et l'app GitHub « Cloudflare Workers and Pages » installée sur le compte. En mode « Only select repositories » :
 
 ```bash
 export TF_VAR_cloudflare_github_installation_id=<id>   # même ID que pour tofu/ref

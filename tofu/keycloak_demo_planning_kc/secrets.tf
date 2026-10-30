@@ -1,7 +1,7 @@
 # Le secret que le rôle Ansible pose en KC_BOOTSTRAP_ADMIN_PASSWORD : lu au
 # même endroit, il ne peut pas diverger de celui du conteneur.
 data "sops_file" "ansible" {
-  source_file = "${path.root}/../../ansible/secrets.sops.yaml"
+  source_file = "${path.root}/../../secrets/ansible.sops.yaml"
 }
 
 locals {

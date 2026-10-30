@@ -7,7 +7,7 @@ mock_provider "cloudflare" {}
 mock_provider "ovh" {}
 mock_provider "sops" {}
 
-# secrets.sops.yaml de la racine : jeton et compte Cloudflare, deploy hook du
+# secrets/secrets.sops.yaml : jeton et compte Cloudflare, deploy hook du
 # build quotidien (sans lui, le check daily_build_deploy_hook avertit). Ni
 # jeton webmention.io ni jeton SonarCloud par défaut.
 override_data {
@@ -139,7 +139,7 @@ run "projet_cloudflare_pages" {
 
   assert {
     condition     = cloudflare_pages_project.site.account_id == "0123456789abcdef0123456789abcdef"
-    error_message = "Le projet Pages doit être créé dans le compte CLOUDFLARE_ACCOUNT_ID de secrets.sops.yaml."
+    error_message = "Le projet Pages doit être créé dans le compte CLOUDFLARE_ACCOUNT_ID de secrets/secrets.sops.yaml."
   }
 
   assert {

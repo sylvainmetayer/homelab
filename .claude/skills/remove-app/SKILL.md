@@ -9,7 +9,7 @@ This is the reverse of the **new-app** skill: same ~7 touchpoints, but deleting
 instead of adding. **The `photoprism` removal (commit `7e848ed`) got this
 wrong** — it deleted the role directory but left `photoprism` behind in
 `host_vars/backups/variables.yaml`, `host_vars/pi/variables.yaml`, and
-`secrets.sops.yaml` for months, until a later clean-up. Don't repeat that: grep the whole
+the SOPS file for months, until a later clean-up. Don't repeat that: grep the whole
 repo for the service name at the end (step 6) before calling this done.
 
 Pick up the service's slug the same way `new-app` assigns it: `snake_case`
@@ -107,11 +107,12 @@ Delete, don't comment out.)
 
 ## 5. Remove secrets
 
-If the service had entries in `ansible/secrets.sops.yaml` (DB password, admin
-password, API keys), remove them via `sops ansible/secrets.sops.yaml` — never
+If the service had entries in `secrets/ansible.sops.yaml` (DB password, admin
+password, API keys), remove them via `sops secrets/ansible.sops.yaml` — never
 hand-edit the encrypted blob — and remove each key's entry from
-`secrets-rotation.yaml` in the same commit (the Lint workflow fails on an
-entry whose key is gone). Do the same for a key of the root `secrets.sops.yaml`
+`secrets/secrets-rotation.yaml` in the same commit of the `secrets/` submodule
+(pushed to `homelab-secrets`, then bumped here; the Lint workflow fails on an
+entry whose key is gone). Do the same for a key of `secrets/secrets.sops.yaml`
 that only its Tofu side read (`immich_pin`, `ntfy_uptime_kuma_token` are such
 keys today).
 
@@ -194,7 +195,7 @@ grep -rln "<service>" --include="*.yml" --include="*.yaml" --include="*.tf" . \
 ```
 
 Anything left should only be incidental (e.g. a changelog, an unrelated
-comment). If `host_vars`, `secrets.sops.yaml`, or a
+comment). If `host_vars`, a `secrets/*.sops.yaml` key, or a
 commented-out (not deleted) playbook role entry show up, go back and finish
 steps 3–5.
 

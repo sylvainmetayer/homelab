@@ -2,7 +2,7 @@
 - name: Test
   hosts: localhost
   # Les facts de localhost, mis en cache dans facts/, contiendraient
-  # l'environnement de mise : jetons du secrets.sops.yaml racine compris.
+  # l'environnement de mise : jetons de secrets/secrets.sops.yaml compris.
   gather_facts: false
   pre_tasks:
     # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).

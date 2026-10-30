@@ -33,7 +33,7 @@ choix dans [../adr/](../adr/README.md).
 ## Avant de commencer
 
 Toutes les commandes `mise run …` et `ansible-playbook …` se lancent depuis
-`ansible/`, avec mise actif (il charge `secrets.sops.yaml` dans
+`ansible/`, avec mise actif (il charge `secrets/secrets.sops.yaml` dans
 l'environnement : l'inventaire dynamique en a besoin pour lire les states
 Tofu).
 

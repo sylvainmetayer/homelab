@@ -43,7 +43,7 @@ def compose_files(root):
 
 def vars_files(root):
     yield from sorted(root.glob("ansible/roles/*/defaults/main.yml"))
-    yield from sorted(p for p in root.glob("ansible/*.y*ml") if p.name != "secrets.sops.yaml")
+    yield from sorted(root.glob("ansible/*.y*ml"))
 
 
 def owner(root, path):

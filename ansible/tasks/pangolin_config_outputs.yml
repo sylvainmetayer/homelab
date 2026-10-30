@@ -2,7 +2,8 @@
 # Pré-tâches communes (import_tasks) à 00-setup.yaml, docker.yml, flip.yml,
 # lxc.yml, nas.yml, pangolin.yaml, pi.yml, pve.yml et au playbook d'essai
 # test.yaml :
-#   - charge secrets.sops.yaml dans l'espace global ;
+#   - charge secrets/ansible.sops.yaml (sous-module secrets/, ADR 0018) dans
+#     l'espace global ;
 #   - lit le state OpenTofu de tofu/pangolin_config dans le bucket S3 et en
 #     pose les sorties dans le fact `terraform_outputs`.
 #
@@ -27,13 +28,13 @@
     # (return_method: vars-only, ansible-core 2.21+, qui échoue franchement en
     # dessous au lieu de les renvoyer comme faits) : ils l'emportent sur les
     # vars: du play et des entrées roles:, perdent face à un set_fact. Une clé
-    # de secrets.sops.yaml ne doit donc jamais porter le nom d'une variable
+    # de secrets/ansible.sops.yaml ne doit donc jamais porter le nom d'une variable
     # qu'un playbook surcharge (cf. flip.yml, AGENTS.md).
     # Export your age key in environment
     # https://github.com/mozilla/sops/issues/933#issuecomment-1081228720
     - name: Load secrets variable into global namespace
       community.sops.load_vars:
-        file: "{{ playbook_dir }}/secrets.sops.yaml"
+        file: "{{ playbook_dir }}/../secrets/ansible.sops.yaml"
         expressions: evaluate-on-load
         return_method: vars-only
 

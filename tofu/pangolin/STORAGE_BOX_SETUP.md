@@ -21,7 +21,7 @@ borgmatic template); port 22 of a Storage Box is SFTP only.
   `local.backup_hosts`: docker, pi, pangolin, flip, nas). Root on one host can
   neither read nor delete another host's repositories. Copy the
   `storage_box_subaccounts` output into the SOPS key
-  `backup_storage_box_subaccounts` (`ansible/secrets.sops.yaml`). The borgmatic
+  `backup_storage_box_subaccounts` (`secrets/ansible.sops.yaml`). The borgmatic
   role generates root's key on each host (`/root/.ssh/borgmatic_storage_box_ed25519`;
   on the NAS under `/volume1/docker/borgmatic/ssh/`), then `ansible/backup.yaml`
   creates `backup/<host>/.ssh` and uploads that key as the subaccount's

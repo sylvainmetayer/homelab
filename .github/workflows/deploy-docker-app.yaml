@@ -247,6 +247,15 @@ jobs:
           echo "any_tags=$any_tags" >> "$GITHUB_OUTPUT"
         shell: bash
 
+      # ansible/tasks/pangolin_config_outputs.yml charge
+      # secrets/ansible.sops.yaml : sous-module du dépôt privé homelab-secrets
+      # (ADR 0018), cloné au commit qu'épingle ce push.
+      - name: Checkout the secrets submodule
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        uses: ./.github/actions/secrets-checkout # zizmor: ignore[self-repository]
+        with:
+          ssh-key: ${{ secrets.HOMELAB_SECRETS_SSH_KEY }}
+
       - name: Install sops
         if: steps.resolve-tags.outputs.any_tags == 'true'
         # Épinglé et vérifié : ce binaire déchiffre avec la clé Age de prod.

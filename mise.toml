@@ -25,7 +25,7 @@ sops.rops = false
 _.path = [".venv/bin"]
 
 # Variable are available in the tasks
-_.file = { path = "secrets.sops.yaml", redact = true}
+_.file = { path = "secrets/secrets.sops.yaml", redact = true}
 # Use the project name derived from the current directory
 PROJECT_NAME = "{{ config_root | basename }}"
 

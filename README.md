@@ -42,10 +42,12 @@ flowchart LR
 You need:
 
 - [mise](https://mise.jdx.dev/), which installs the pinned tools (OpenTofu, SOPS, Age, uv, Python);
-- an Age private key listed in `.sops.yaml`, at the path set in `.sopsrc`, to decrypt `secrets.sops.yaml`;
-- read access to the S3 bucket that stores the OpenTofu state. Its credentials are in `secrets.sops.yaml`, and mise loads that file into the environment of every task.
+- read access to the private repository `homelab-secrets`, mounted as the `secrets/` submodule (the SOPS files are not published, [ADR 0018](docs/adr/0018-secrets-depot-prive.md));
+- an Age private key listed in `.sops.yaml`, at the path set in `.sopsrc`, to decrypt `secrets/secrets.sops.yaml`;
+- read access to the S3 bucket that stores the OpenTofu state. Its credentials are in `secrets/secrets.sops.yaml`, and mise loads that file into the environment of every task.
 
 ```bash
+git submodule update --init    # secrets/
 mise install
 uv sync
 mise run init && mise run plan    # tofu/pangolin

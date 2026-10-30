@@ -34,24 +34,24 @@ sortent tous d'une seule table, `local.environments` d'`environments.tf`
 est une entrée de plus, lisible depuis `main` seulement comme les autres.
 
 L'environnement **`storage-box-quota`** (workflow `storage-box-quota.yaml`)
-lit la clé SOPS `hcloud_readonly_token` d'`ansible/secrets.sops.yaml`, qui
+lit la clé SOPS `hcloud_readonly_token` de `secrets/ansible.sops.yaml`, qui
 ne se crée qu'à la main, avant le premier
 plan qui la cite : Console Hetzner, projet de la Storage Box, Security → API
 tokens, permission **Read**, puis
-`printf '"%s"' "$jeton" | sops set --value-stdin ansible/secrets.sops.yaml '["hcloud_readonly_token"]'`.
+`printf '"%s"' "$jeton" | sops set --value-stdin secrets/ansible.sops.yaml '["hcloud_readonly_token"]'`.
 Jamais le `HCLOUD_TOKEN` de `tofu/pangolin`, en lecture-écriture. Son URL push est l'output
 `uptime_storage_box_quota_url` de `tofu/pangolin_config` : appliquer ce module
 avant le plan d'ici, qui échoue sinon sur un attribut absent.
 
 L'environnement **`secrets-rotation`** (workflow `secrets-rotation.yaml`,
-échéances de `secrets-rotation.yaml`) ne porte que l'URL push du moniteur
+échéances de `secrets/secrets-rotation.yaml`) ne porte que l'URL push du moniteur
 « Rotation des secrets », output `uptime_secrets_rotation_url` de
 `tofu/pangolin_config` : même ordre, `pangolin_config` appliqué d'abord.
 
 L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
 `renovate-digest.yaml`, le bilan Renovate du lundi) ne porte que
 `NTFY_GITHUB_TOKEN`, le jeton du producteur ntfy `github`, clé SOPS
-`ntfy_github_token` d'`ansible/secrets.sops.yaml` (écriture seule sur le
+`ntfy_github_token` de `secrets/ansible.sops.yaml` (écriture seule sur le
 topic `github`, rôle `ntfy`) : tout ce que publie la CI passe par ce
 producteur, jamais par le `scripts` des hôtes, et ntfy ne l'accepte qu'une
 fois `docker.yml --tags ntfy` déployé.
@@ -161,7 +161,7 @@ reste ouverte - mais elle est tenue par `gh` depuis le terraform, pas à la main
 - [x] **Repointer le rôle Ansible** `ansible/roles/flip_planning` de ce dépôt :
   il déploie désormais `ghcr.io/sylvainmetayer/planning-equipes`. Le paquet étant
   public, le `docker login` du rôle a disparu avec lui — reste à retirer
-  `flip_planning_ghcr_token` de `ansible/secrets.sops.yaml`, qui demande `sops`.
+  `flip_planning_ghcr_token` de `secrets/ansible.sops.yaml`, qui demande `sops`.
 - [ ] **Transférer les issues** de `planning-equipes-private`, puis supprimer
   ce dépôt de dépannage.
 

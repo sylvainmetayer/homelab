@@ -34,7 +34,7 @@ resource "cloudflare_pages_project" "site" {
   }
 
   # Variables de production seulement (les previews n'ont aucun jeton). Sans
-  # aucun jeton dans secrets.sops.yaml, deployment_configs reste non déclaré.
+  # aucun jeton dans secrets/secrets.sops.yaml, deployment_configs reste non déclaré.
   deployment_configs = length(local.production_env_vars) == 0 ? null : {
     production = { env_vars = local.production_env_vars }
     preview    = {}

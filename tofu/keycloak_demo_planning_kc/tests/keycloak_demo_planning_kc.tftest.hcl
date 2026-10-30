@@ -25,7 +25,7 @@ mock_provider "random" {
   }
 }
 
-# ansible/secrets.sops.yaml : mot de passe du bootstrap admin du conteneur
+# secrets/ansible.sops.yaml : mot de passe du bootstrap admin du conteneur
 # Keycloak (KC_BOOTSTRAP_ADMIN_PASSWORD), lu au même endroit que le rôle.
 override_data {
   target = data.sops_file.ansible
@@ -65,7 +65,7 @@ run "trois_secrets_de_client" {
   }
 }
 
-# flip.yml attend ces deux valeurs dans ansible/secrets.sops.yaml
+# flip.yml attend ces deux valeurs dans secrets/ansible.sops.yaml
 # (demo_planning_kc_oidc_client_secret et
 # demo_planning_kc_oidc_provisioning_client_secret), recopiées par
 # `tofu output -raw` : une sortie inversée pose le mauvais secret.

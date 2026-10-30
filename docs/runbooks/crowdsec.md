@@ -195,7 +195,7 @@ bannies qu'il garde en mémoire jusqu'à l'expiration de leur décision.
   du réseau Docker, de confiance : plus rien n'est bloqué. Vérifier
   `/etc/docker/daemon.json` et les ports publiés par gerbil.
 - **Rotation de la clé du bouncer** : `sops set --value-stdin` de
-  `pangolin_crowdsec_bouncer_key` dans `ansible/secrets.sops.yaml`, puis le
+  `pangolin_crowdsec_bouncer_key` dans `secrets/ansible.sops.yaml`, puis le
   rôle (compose et configuration dynamique changent ensemble, la pile
   redémarre et le bouncer est réenregistré).
 - Passer AppSec **en blocage** : dans

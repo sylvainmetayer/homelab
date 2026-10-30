@@ -37,7 +37,7 @@ resource "pangolin_resource_pincode" "immich" {
 # What that trusts, deliberately: every device behind the home connection
 # (guest Wi-Fi included) gets Immich, Dawarich and TREK without SSO, and
 # without Immich's pincode. And the address, not the house: if the ISP hands
-# home_ip (secrets.sops.yaml) to someone else - a new lease, CGNAT - they get
+# home_ip (secrets/secrets.sops.yaml) to someone else - a new lease, CGNAT - they get
 # the same, until home_ip is updated AND pangolin_config applied (nothing
 # applies it on a schedule). Change home_ip as soon as the line's IP changes.
 resource "pangolin_resource_rule" "immich_home_ip" {

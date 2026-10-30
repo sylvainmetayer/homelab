@@ -188,8 +188,8 @@ basculent sur l'autre.
 ```mermaid
 flowchart LR
   agekey["Clé age perso<br/>~/.age.key (.sopsrc)"]
-  root["secrets.sops.yaml (racine)<br/>jetons Hetzner, OVH, Cloudflare,<br/>Proxmox, S3, Uptime Kuma,<br/>passphrase des states"]
-  ans["ansible/secrets.sops.yaml<br/>mots de passe des applis,<br/>passphrase Borg, sous-comptes,<br/>clés S3 de lecture du state"]
+  root["secrets/secrets.sops.yaml<br/>jetons Hetzner, OVH, Cloudflare,<br/>Proxmox, S3, Uptime Kuma,<br/>passphrase des states"]
+  ans["secrets/ansible.sops.yaml<br/>mots de passe des applis,<br/>passphrase Borg, sous-comptes,<br/>clés S3 de lecture du state"]
   agekey --> root
   agekey --> ans
   root -- "mise (_.file) + data sops_file" --> tofu[OpenTofu]
@@ -201,13 +201,17 @@ flowchart LR
   s3 -- "state pangolin_config (en clair) :<br/>URL push, identifiants Newt de flip" --> ansible
 ```
 
+- **Où** : les deux fichiers SOPS et l'inventaire de rotation vivent dans le
+  dépôt privé `homelab-secrets`, monté en sous-module à `secrets/`
+  ([ADR 0018](adr/0018-secrets-depot-prive.md)) ; la CI le clone avec une
+  clé de déploiement en lecture seule (`HOMELAB_SECRETS_SSH_KEY`).
 - **Destinataires age** (`.sops.yaml`, post-quantiques `age1pq1…`) : `perso`
-  `pro` et `secours` pour les deux fichiers ; `github-actions` pour `ansible/secrets.sops.yaml` seulement
+  `pro` et `secours` pour les deux fichiers ; `github-actions` pour `secrets/ansible.sops.yaml` seulement
   (la CI n'a pas les jetons cloud).
 - **States OpenTofu** : tous dans le bucket S3 `homelab-tf-state-sylvain`
   (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Ceux de `pangolin`, `github`,
   `s3_state` et `keepass_backup` sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
-  `TF_VAR_state_encryption_passphrase` du SOPS racine, sans repli en clair).
+  `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`, sans repli en clair).
   Celui de `pangolin_config` reste en clair parce qu'Ansible le lit : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
   lire cet objet.

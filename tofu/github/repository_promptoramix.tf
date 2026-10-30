@@ -3,7 +3,7 @@
 # which ansible/roles/promptoramix deploys on flip (Renovate bumps the digest).
 #
 # Public from the start: nothing in its history is secret (the HMAC secret
-# lives in ansible/secrets.sops.yaml only). Same protections as
+# lives in secrets/ansible.sops.yaml only). Same protections as
 # repository_planning_equipes.tf; the settings the provider cannot reach
 # (GHCR package visibility, Renovate) are manual steps in README.md.
 resource "github_repository" "promptoramix" {

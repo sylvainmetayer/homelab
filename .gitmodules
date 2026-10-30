@@ -1,0 +1,4 @@
+[submodule "secrets"]
+	path = secrets
+	url = git@github.com:sylvainmetayer/homelab-secrets.git
+	branch = main

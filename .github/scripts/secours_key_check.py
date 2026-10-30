@@ -35,7 +35,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOPS_CONFIG = ".sops.yaml"
-SOPS_FILES = ("secrets.sops.yaml", "ansible/secrets.sops.yaml")
+# Sous-module secrets/, dépôt privé homelab-secrets (ADR 0018).
+SOPS_FILES = ("secrets/secrets.sops.yaml", "secrets/ansible.sops.yaml")
 RUNBOOK = "docs/runbooks/test-cle-secours.md"
 ISOLATED_PATH = "/usr/bin:/bin"
 SECOURS_RE = re.compile(r"^\s*-\s*(age1[0-9a-z]+)\s+#\s*secours\s*$")
