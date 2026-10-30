@@ -14,16 +14,11 @@ ntfy_cache_duration: 12h
 # message, topic haché), le téléphone vient lire le message ici.
 ntfy_upstream_base_url: https://ntfy.sh
 
-# Comptes, droits et jetons, déclarés dans server.yml (auth-users,
-# auth-access, auth-tokens) : ntfy les recrée à chaque démarrage et retire
-# ceux qui ne sont plus listés. Rien n'est ouvert à l'anonyme
-# (auth-default-access: deny-all).
-#
-# Sylvain (appli Android/iOS, interface web) : lecture sur tous les topics
-# (sylvain:*:ro), pour qu'un topic retiré ne coupe jamais l'appli
-# (README.md), lecture-écriture sur chaque topic de ntfy_publishers. Son mot de passe est la clé SOPS ntfy_sylvain_password (lue
-# par personne : c'est celui qu'il saisit dans l'appli), son hash bcrypt
-# ntfy_sylvain_password_hash.
+# Comptes, droits et jetons : server.yml (auth-users, auth-access,
+# auth-tokens), recréés à chaque démarrage ; détail dans README.md (« Droits »).
+# Sylvain : sylvain:*:ro plus rw sur les topics de ntfy_publishers ; ne pas
+# retirer le joker en lecture. Mot de passe : clé SOPS ntfy_sylvain_password,
+# hash ntfy_sylvain_password_hash.
 ntfy_admin_user: sylvain
 
 # Un compte par producteur, en écriture seule sur son topic, avec un seul
@@ -58,30 +53,18 @@ ntfy_publishers:
     token: "{{ ntfy_github_token | default('') }}"
 
 # --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ------------------
-# Le 2026-10-29 à 18:24, le retrait d'un topic a fait refuser (403)
-# l'abonnement multi-topics de l'appli : plus aucune notification sur les
-# téléphones jusqu'au lendemain 07:27, sans la moindre alerte. ntfy écrit
-# chaque minute une ligne « INFO Server stats (…, subscribers=N, …) »
-# (server/server_manager.go, log-level info de server.yml) ; toutes les
-# ntfy_subscribers_check_schedule, l'hôte relit les
-# ntfy_subscribers_check_window_minutes dernières minutes de `docker logs ntfy`
-# et pousse up si un relevé y compte au moins un abonné, down sinon (zéro
-# partout, ou aucune ligne : ntfy arrêté, journal illisible). Le moniteur
-# « ntfy : abonnés » (tofu/pangolin_config, cron_ntfy_subscribers.tf) passe
-# d'abord en PENDING : l'alerte tombe au second down, un peu plus de 8 h
-# après le départ du dernier abonné, sur Telegram (ntfy, lui, ne joindrait
-# justement plus personne). 8 h et pas 30 min (choix du 30/10) : un
-# téléphone en mode avion, éteint ou sans réseau une nuit n'alerte pas ;
-# 8 h sans aucun abonné, c'est un vrai souci (abonnement refusé, appli
-# coupée).
+# Détail dans README.md (« Alerte : aucun abonné »). Toutes les
+# ntfy_subscribers_check_schedule, relit ntfy_subscribers_check_window_minutes
+# de « Server stats » dans docker logs ntfy : up si au moins un abonné, down
+# sinon, au moniteur « ntfy : abonnés » (cron_ntfy_subscribers.tf).
 #
-# URL push : sortie uptime_cron_ntfy_subscribers_url du state de
-# pangolin_config, lue par docker.yml ; vide, la vérification tourne sans rien
-# pousser (journalctl -u ntfy-subscribers-check).
+# URL push : sortie uptime_cron_ntfy_subscribers_url de pangolin_config, lue
+# par docker.yml ; vide, la vérification tourne sans rien pousser.
 ntfy_subscribers_check_push_url: ""
 # Le test monitors_are_filed_and_alert de tofu/pangolin_config lit ce « *:0/N »
 # : l'intervalle du moniteur vaut trois périodes.
 ntfy_subscribers_check_schedule: "*:0/10"
+# 8 h : un téléphone hors ligne une nuit n'alerte pas, un vrai souci si.
 ntfy_subscribers_check_window_minutes: 480
 # Le compte du script (groupe docker en plus, pour docker logs), jamais root.
 ntfy_subscribers_check_user: "{{ ansible_user }}"
