@@ -56,6 +56,18 @@ class Redact(unittest.TestCase):
                      "Error: PassphraseWrong"):
             self.assertEqual(rt.redact(line), line)
 
+    def test_keeps_words_between_quoted_strings(self):
+        line = "Error in 'list' and/or 'extract' step"
+        self.assertEqual(rt.redact(line), line)
+
+    def test_docker_command_line_unredacted(self):
+        image = "lscr.io/linuxserver/mariadb:11.8.9@sha256:" + "0" * 64
+        done = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        with mock.patch("subprocess.run", return_value=done), \
+                mock.patch("builtins.print") as printed:
+            rt.run("docker", "run", "-d", image)
+        self.assertIn(image, printed.call_args.args[1])
+
     def test_run_error_and_command_line(self):
         repo = f"ssh://{self.ACCOUNT}@{self.HOST}:23/./docker/wiki"
         stderr = ("noise\n" f"Remote: {self.ACCOUNT}@{self.HOST}: Permission denied "
