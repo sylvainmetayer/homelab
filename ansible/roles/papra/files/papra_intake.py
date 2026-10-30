@@ -57,7 +57,8 @@ def log(message):
 
 
 def load_config(path):
-    with open(path, encoding="utf-8") as f:
+    # Chemin donné par l'unité systemd (ou le test), jamais par un message.
+    with open(path, encoding="utf-8") as f:  # NOSONAR
         config = json.load(f)
     config["port"] = int(config.get("port", 993))
     config["max_bytes"] = int(config.get("max_bytes", 26214400))
@@ -117,6 +118,16 @@ def attachments(msg, extensions, max_bytes):
     return kept, skipped
 
 
+def inside(directory, name):
+    """Chemin de name directement dans directory ; refuse tout autre
+    (séparateur, « .. », lien) : défense en plus de safe_name."""
+    base = os.path.realpath(directory)
+    target = os.path.realpath(os.path.join(base, name))
+    if os.path.dirname(target) != base or os.path.basename(target) != name:
+        raise ValueError(f"nom de fichier refusé : {name!r}")
+    return target
+
+
 def deliver(items, dest_dir, tmp_dir):
     """Écrit chaque pièce jointe dans tmp_dir puis la lie dans dest_dir sans
     jamais écraser. Renvoie les noms finaux."""
@@ -131,8 +142,9 @@ def deliver(items, dest_dir, tmp_dir):
             stem, dot, ext = name.rpartition(".")
             candidate, n = name, 0
             while True:
+                target = inside(dest_dir, candidate)
                 try:
-                    os.link(tmp_path, os.path.join(dest_dir, candidate))
+                    os.link(tmp_path, target)  # NOSONAR - nom assaini (safe_name) et borné (inside)
                     break
                 except FileExistsError:
                     n += 1
@@ -211,6 +223,38 @@ def move(imap, uid, mailbox, has_move):
     check(imap.uid("EXPUNGE", uid), "UID EXPUNGE")
 
 
+def handle(imap, uid, config, folders, has_move):
+    """Traite un message ; renvoie "imported", "refused" ou "left"."""
+    label = uid.decode()
+    rejected_label = config["rejected_folder"]
+    size_data = check(imap.uid("FETCH", uid, "(RFC822.SIZE)"), "FETCH SIZE")
+    size = re.search(rb"RFC822\.SIZE (\d+)", size_data[0] or b"")
+    if size and int(size.group(1)) > config["max_bytes"] * MAX_MESSAGE_FACTOR:
+        log(f"Message {label} : {int(size.group(1))} octets, trop gros, déplacé vers {rejected_label}")
+        move(imap, uid, folders["rejected"], has_move)
+        return "refused"
+    data = check(imap.uid("FETCH", uid, "(BODY.PEEK[])"), "FETCH")
+    raw = next((item[1] for item in data if isinstance(item, tuple)), None)
+    if raw is None:
+        log(f"Message {label} : corps introuvable, laissé en place")
+        return "left"
+    try:
+        allowed, domain, written, skipped = process(raw, config)
+    except OSError:
+        raise
+    except Exception as e:  # noqa: BLE001 - un message illisible ne doit pas bloquer les suivants
+        log(f"Message {label} : illisible ({type(e).__name__}), déplacé vers {rejected_label}")
+        move(imap, uid, folders["rejected"], has_move)
+        return "refused"
+    if not allowed:
+        log(f"Message {label} : expéditeur non autorisé (domaine {domain}), déplacé vers {rejected_label}")
+        move(imap, uid, folders["rejected"], has_move)
+        return "refused"
+    log(f"Message {label} ({domain}) : {len(written)} pièce(s) jointe(s) déposée(s) {written}, {skipped} écartée(s)")
+    move(imap, uid, folders["done"], has_move)
+    return "imported"
+
+
 def run(config):
     context = ssl.create_default_context()
     imap = imaplib.IMAP4_SSL(config["host"], config["port"], ssl_context=context, timeout=60)
@@ -221,46 +265,19 @@ def run(config):
         has_move = "MOVE" in capabilities
         if not has_move and "UIDPLUS" not in capabilities:
             raise RuntimeError("le serveur n'a ni MOVE ni UIDPLUS : pas de déplacement sûr")
-        done = server_mailbox(imap, config["done_folder"])
-        rejected = server_mailbox(imap, config["rejected_folder"])
-        ensure_mailbox(imap, done)
-        ensure_mailbox(imap, rejected)
+        folders = {
+            "done": server_mailbox(imap, config["done_folder"]),
+            "rejected": server_mailbox(imap, config["rejected_folder"]),
+        }
+        for mailbox in folders.values():
+            ensure_mailbox(imap, mailbox)
         check(imap.select(quote(server_mailbox(imap, config["folder"]))), "SELECT")
         uids = check(imap.uid("SEARCH", "UNDELETED"), "SEARCH")[0].split()
-        limit = config["max_bytes"] * MAX_MESSAGE_FACTOR
-        imported = refused = 0
-        for uid in uids:
-            label = uid.decode()
-            size_data = check(imap.uid("FETCH", uid, "(RFC822.SIZE)"), "FETCH SIZE")
-            size = re.search(rb"RFC822\.SIZE (\d+)", size_data[0] or b"")
-            if size and int(size.group(1)) > limit:
-                log(f"Message {label} : {int(size.group(1))} octets, trop gros, déplacé vers {config['rejected_folder']}")
-                move(imap, uid, rejected, has_move)
-                refused += 1
-                continue
-            data = check(imap.uid("FETCH", uid, "(BODY.PEEK[])"), "FETCH")
-            raw = next((item[1] for item in data if isinstance(item, tuple)), None)
-            if raw is None:
-                log(f"Message {label} : corps introuvable, laissé en place")
-                continue
-            try:
-                allowed, domain, written, skipped = process(raw, config)
-            except OSError:
-                raise
-            except Exception as e:  # noqa: BLE001 - un message illisible ne doit pas bloquer les suivants
-                log(f"Message {label} : illisible ({type(e).__name__}), déplacé vers {config['rejected_folder']}")
-                move(imap, uid, rejected, has_move)
-                refused += 1
-                continue
-            if not allowed:
-                log(f"Message {label} : expéditeur non autorisé (domaine {domain}), déplacé vers {config['rejected_folder']}")
-                move(imap, uid, rejected, has_move)
-                refused += 1
-                continue
-            log(f"Message {label} ({domain}) : {len(written)} pièce(s) jointe(s) déposée(s) {written}, {skipped} écartée(s)")
-            move(imap, uid, done, has_move)
-            imported += 1
-        log(f"Relève terminée : {imported} message(s) traité(s), {refused} refusé(s), {len(uids) - imported - refused} laissé(s)")
+        outcomes = [handle(imap, uid, config, folders, has_move) for uid in uids]
+        log(
+            f"Relève terminée : {outcomes.count('imported')} message(s) traité(s), "
+            f"{outcomes.count('refused')} refusé(s), {outcomes.count('left')} laissé(s)"
+        )
     finally:
         try:
             imap.logout()
@@ -276,13 +293,14 @@ def main():
     os.umask(0o077)
     config = load_config(args.config)
     if args.eml:
-        with open(args.eml, "rb") as f:
+        # Fichier de test donné par l'opérateur.
+        with open(args.eml, "rb") as f:  # NOSONAR
             allowed, domain, written, skipped = process(f.read(), config)
         print(json.dumps({"allowed": allowed, "domain": domain, "written": written, "skipped": skipped}))
         return 0
     try:
         run(config)
-    except (OSError, ssl.SSLError, imaplib.IMAP4.error, RuntimeError) as e:
+    except (OSError, imaplib.IMAP4.error, RuntimeError) as e:
         log(f"Échec de la relève : {type(e).__name__}: {e}")
         return 1
     return 0

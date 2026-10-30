@@ -238,13 +238,16 @@
     # (@example.org) avec deux PDF du même nom (dont un « ../../etc/… »), un
     # .exe et un logo en ligne ; un expéditeur inconnu.
     - name: Copy the papra intake fixtures
+      become: true
       loop:
         - intake-allowed.eml
         - intake-refused.eml
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: "/tmp/{{ item }}"
-        mode: "0644"
+        owner: sylvain
+        group: sylvain
+        mode: "0600"
 
     - name: Run the papra intake on the fixtures
       become: true
