@@ -54,6 +54,3 @@ resource "uptimekuma_monitor_group" "self_hosted" {
   active = true
   tags   = [local.tofu_tag]
 }
-
-# TODO
-# https://registry.terraform.io/providers/breml/uptimekuma/latest/docs/resources/monitor_dns

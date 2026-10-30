@@ -2,8 +2,9 @@ resource "pangolin_site_resource" "app_proxy" {
   site_id = pangolin_site.proxmox_lxc.id
   name    = "BBOX"
   mode    = "http"
-  # TODO How to handle TLS ?
-  # ssl = true
+  # `ssl` n'est que calculé par le provider (1.6.1) : HTTPS est activé dans
+  # l'UI (ssl = true au state), et un changement fait là-bas ne se voit pas
+  # au plan.
   domain_id        = local.domain_ids["sylvain.cloud"]
   subdomain        = "bbox-internal"
   destination      = "192.168.1.254"
