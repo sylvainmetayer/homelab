@@ -12,6 +12,9 @@ loses the trial is removed with the `remove-app` skill. App description:
   outbound Internet through `newt` (its only network). If the CDN cannot be
   reached, the document is imported with no text: reprocess it
   (`DOCUMENT_REPROCESSING_ENABLED`, on by default).
+- Trash: a deleted document stays 90 days before the nightly purge
+  (`papra_deleted_documents_retention_days`, Papra's default is 30); the web
+  interface reads the value from the server.
 - Sign-up is closed (`papra_registration_enabled: false`): each account is
   made by reopening it for one run (`-e papra_registration_enabled=true`).
 - Mobile app: it reaches Papra through the Pangolin SSO wall with a Pangolin
