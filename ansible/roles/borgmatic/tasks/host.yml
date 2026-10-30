@@ -9,7 +9,7 @@
       # Client SSH : borg joint la Storage Box par ssh, ssh-keygen crée la clé
       # de root (openssh_keypair).
       - openssh-client
-      # Pushs Uptime Kuma des hooks de chaque configuration (app.yaml.j2).
+      # Pushs Uptime Kuma des hooks de chaque configuration (uptime-push).
       - curl
     state: present
     update_cache: true

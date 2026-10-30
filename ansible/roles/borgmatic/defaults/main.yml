@@ -103,7 +103,7 @@ borgmatic_app_label: "{{ borgmatic_app_archive_prefix }}-backup"
 borgmatic_app_target: "{{ backup_storage_box_url }}/{{ borgmatic_app_name }}"
 borgmatic_app_passphrase: "{{ backup_passphrase }}"
 borgmatic_app_encryption_mode: "{{ borgmatic_encryption_mode }}"
-# URL push Uptime Kuma ; vide : pas de push. Poussée par curl depuis les
+# URL push Uptime Kuma ; vide : pas de push. Poussée par uptime-push depuis les
 # hooks de la configuration (app.yaml.j2), pas par le hook uptime_kuma de
 # borgmatic, qui écrit l'URL et son jeton au journal à chaque run.
 borgmatic_app_healthcheck_url: ""

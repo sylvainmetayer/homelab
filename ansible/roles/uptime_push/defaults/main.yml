@@ -1,0 +1,7 @@
+---
+# Chemin du script de push Uptime Kuma (files/uptime-push), celui qu'appellent
+# les rôles qui en dépendent (leur meta/main.yml : blocky, ntfy, betisier,
+# monica_v4, pangolin, ssh_login_notify, borgmatic). Le NAS le pose sous
+# docker_base_path (host_vars/nas) : la racine d'UGOS est un overlay sur
+# l'eMMC, et le conteneur borgmatic voit ce dossier au même chemin.
+uptime_push_bin: /usr/local/bin/uptime-push

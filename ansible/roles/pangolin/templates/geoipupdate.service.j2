@@ -24,5 +24,6 @@ ExecStart=/bin/sh -c '\
 {% if pangolin_geoip_healthcheck_url %}
 # URL push (jeton du moniteur) lue dans un fichier de configuration curl,
 # jamais sur la ligne de commande (ps, systemctl show, _CMDLINE du journal).
-ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 --retry-connrefused -o /dev/null -K {{ pangolin_geoipupdate_config_dir }}/push.curl
+# --strict : un push raté fait échouer l'unité (systemctl --failed).
+ExecStartPost={{ uptime_push_bin }} --strict --agent geoipupdate {{ pangolin_geoipupdate_config_dir }}/push.curl up
 {% endif %}

@@ -142,30 +142,31 @@ commands:
           - {{ command | to_json }}
 {% endfor %}
 {% if borgmatic_app_healthcheck_url %}
-{% set push = 'curl -q -fsS -m 10 --retry 2 --retry-connrefused -o /dev/null -A borgmatic -K ' ~ (borgmatic_app_push_config | quote) ~ ' -G' %}
+{% set push = (uptime_push_bin | quote) ~ ' --agent borgmatic ' ~ (borgmatic_app_push_config | quote) %}
     # Moniteur push Uptime Kuma, aux mêmes moments que le hook uptime_kuma de
     # borgmatic : début, fin ou échec de la configuration, pour create,
     # prune, compact ou check. Pas ce hook-là : il écrit l'URL push, jeton
     # compris, au journal à chaque run (« Pushing Uptime Kuma push_url … »,
-    # niveau INFO), d'où elle partait vers VictoriaLogs. L'URL est dans un
-    # fichier de configuration curl (0600 root, tasks/app.yml), jamais sur la
-    # ligne de commande, et curl n'écrit pas le chemin dans ses erreurs.
-    # « || true » : comme avec le hook natif, un push raté avertit sans faire
-    # échouer la sauvegarde.
+    # niveau INFO), d'où elle partait vers VictoriaLogs. Le push passe par
+    # uptime-push (rôle uptime_push, 21 s au pire par push) : l'URL est dans
+    # un fichier de configuration curl (0600 root, tasks/app.yml), jamais sur
+    # la ligne de commande. uptime-push sort en 0 sur un push raté ;
+    # « || true » couvre en plus un script absent : comme avec le hook natif,
+    # un push raté n'avertit qu'au journal, sans faire échouer la sauvegarde.
     - before: configuration
       when: {{ borgmatic_push_actions | to_json }}
       run:
-          - {{ (push ~ ' -d status=up -d msg=start || true') | to_json }}
+          - {{ (push ~ ' up start || true') | to_json }}
     - after: configuration
       when: {{ borgmatic_push_actions | to_json }}
       states:
           - finish
       run:
-          - {{ (push ~ ' -d status=up -d msg=finish || true') | to_json }}
+          - {{ (push ~ ' up finish || true') | to_json }}
     - after: configuration
       when: {{ borgmatic_push_actions | to_json }}
       states:
           - fail
       run:
-          - {{ (push ~ ' -d status=down -d msg=fail || true') | to_json }}
+          - {{ (push ~ ' down fail || true') | to_json }}
 {% endif %}

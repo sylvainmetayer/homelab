@@ -1,0 +1,51 @@
+#!/bin/sh
+# Push vers un moniteur push d'Uptime Kuma (rôle uptime_push). Seul endroit
+# du dépôt qui fixe les options curl de ces pushs.
+#
+# Usage : uptime-push [--strict] [--agent NOM] <config curl|-> <up|down> [message]
+#
+# L'URL push porte le jeton du moniteur : elle est lue dans un fichier de
+# configuration curl (« url = "…" », 0600), ou sur l'entrée standard avec
+# « - », jamais sur une ligne de commande (ps, systemctl show, _CMDLINE du
+# journal). curl n'écrit ni l'URL ni le chemin dans ses erreurs.
+#
+# Pire cas : 10 s par essai, un nouvel essai seulement si moins de 15 s se
+# sont écoulées depuis le premier (après 1 s puis 2 s d'attente) : deux essais
+# qui pendent, 10 + 1 + 10 = 21 s ; un refus de connexion, trois essais en
+# ~3 s.
+#
+# Code de sortie : 0 même si le push échoue (curl l'écrit sur stderr), pour
+# qu'un Uptime Kuma injoignable ne fasse pas échouer l'appelant ; avec
+# --strict, celui de curl. 2 sur un usage invalide.
+set -u
+
+strict=false
+agent=uptime-push
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --strict) strict=true; shift ;;
+    --agent) [ $# -ge 2 ] || break; agent="$2"; shift 2 ;;
+    *) break ;;
+  esac
+done
+
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+  echo "usage : uptime-push [--strict] [--agent NOM] <config curl|-> <up|down> [message]" >&2
+  exit 2
+fi
+case "$2" in
+  up | down) ;;
+  *) echo "uptime-push : statut « $2 » invalide (up ou down)" >&2; exit 2 ;;
+esac
+
+# -q en tête : pas de ~/.curlrc.
+curl -q -fsS -o /dev/null --max-time 10 --retry 2 --retry-connrefused --retry-max-time 15 \
+  -A "$agent" -G -K "$1" \
+  --data-urlencode "status=$2" \
+  --data-urlencode "msg=${3:-OK}"
+rc=$?
+
+if [ "$strict" = true ]; then
+  exit "$rc"
+fi
+exit 0

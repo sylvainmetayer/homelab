@@ -1,0 +1,7 @@
+---
+# Comme les rôles qui en dépendent (meta/main.yml) : le rôle seul, avec become.
+- name: Converge
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: uptime_push
