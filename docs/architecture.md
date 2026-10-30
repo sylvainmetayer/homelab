@@ -201,8 +201,8 @@ flowchart LR
   s3 -- "state pangolin_config (en clair) :<br/>URL push, identifiants Newt de flip" --> ansible
 ```
 
-- **Destinataires age** (`.sops.yaml`) : `perso`, `pro` et `secours` pour les
-  deux fichiers ; `github-actions` pour `ansible/secrets.sops.yaml` seulement
+- **Destinataires age** (`.sops.yaml`, post-quantiques `age1pq1…`) : `perso`
+  et `secours` pour les deux fichiers (`pro` à ajouter) ; `github-actions` pour `ansible/secrets.sops.yaml` seulement
   (la CI n'a pas les jetons cloud).
 - **States OpenTofu** : tous dans le bucket S3 `homelab-tf-state-sylvain`
   (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Ceux de `pangolin`, `github`,

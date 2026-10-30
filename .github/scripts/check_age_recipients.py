@@ -8,7 +8,9 @@ compter la clé `secours` : un fichier rechiffré sans elle (un `sops
 updatekeys` lancé avec un `.sops.yaml` d'une autre branche, un `sops
 --age …` à la main) ne s'ouvrirait plus avec la clé hors ligne, et rien
 ne le dirait avant le jour où elle sert. Un destinataire en trop (une
-ancienne clé que `sops updatekeys` n'a pas retirée) échoue aussi.
+ancienne clé que `sops updatekeys` n'a pas retirée) échoue aussi, comme
+un destinataire X25519 (`age1…` sans `pq1`) dans une règle : un seul
+suffirait à exposer la clé de données à un futur calculateur quantique.
 
 Les destinataires sont en clair dans les métadonnées `sops:` du fichier
 chiffré : rien n'est déchiffré, aucune clé age n'est lue. Le test de
@@ -38,6 +40,7 @@ REQUIRED_LABELS = ("secours",)
 # X25519 (age1 + 58) ou post-quantique ML-KEM-768 + X25519 (age1pq1 +
 # 1952, `age-keygen -pq`) : longueurs fixes du bech32 de chaque type.
 AGE_KEY_RE = re.compile(r"\bage1(?:pq1[02-9ac-hj-np-z]{1952}|[02-9ac-hj-np-z]{58})\b")
+PQ_PREFIX = "age1pq1"
 LABEL_RE = re.compile(r"#\s*(\S+)")
 
 
@@ -137,6 +140,12 @@ def check(rules, files):
         for label in REQUIRED_LABELS:
             if label not in keys.values():
                 errors.append(f"{SOPS_CONFIG} : la règle {pattern.pattern} ne compte pas la clé {label}")
+        for key, label in keys.items():
+            if not key.startswith(PQ_PREFIX):
+                errors.append(
+                    f"{SOPS_CONFIG} : la règle {pattern.pattern} compte {label}, clé X25519 :"
+                    " destinataires post-quantiques seulement (age-keygen -pq)"
+                )
     for path, text in sorted(files.items()):
         rule = next(((p, k) for p, k in rules if p.search(path)), None)
         if rule is None:

@@ -16,12 +16,14 @@ Ce qui déchiffre quoi (`.sops.yaml`) :
 | Destinataire age | `secrets.sops.yaml` (racine) | `ansible/secrets.sops.yaml` |
 |---|---|---|
 | `perso` | oui | oui |
-| `pro` | oui | oui |
+| `pro` | pas encore (à ajouter, `sops updatekeys`) | pas encore |
 | `secours` | oui | oui |
 | `github-actions` (CI) | non | oui |
 
-Où sont rangées la clé `pro` et la clé de `secours` : à vérifier (à noter
-ici une fois tranché, hors du dépôt pour la clé elle-même).
+Tous post-quantiques (`age1pq1…`) depuis le 30/10/2026. Tant que `pro`
+n'est pas ajoutée, `secours` est la seule autre clé que `perso`. Où sont
+rangées la clé `pro` et la clé de `secours` : à vérifier (à noter ici une
+fois tranché, hors du dépôt pour la clé elle-même).
 
 Clés SSH autorisées sur les hôtes : tous les `keys/*.pub` (`perso`, `pro`,
 `android`, `github-actions`), posés en **exclusif** par `00-setup.yaml` :
@@ -37,7 +39,7 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
 
 ### Clé age perso perdue (pas volée)
 
-1. Déchiffrer avec une autre clé, `pro` ou `secours` :
+1. Déchiffrer avec une autre clé, `secours` (ou `pro` une fois ajoutée) :
 
    ```bash
    SOPS_AGE_KEY_FILE=/chemin/vers/secours.key sops decrypt secrets.sops.yaml > /dev/null && echo ok
@@ -110,6 +112,29 @@ principal Hetzner, lui, le peut : changer son mot de passe en priorité.
 Les deux sections précédentes, plus : révoquer les sessions et jetons GitHub
 du poste (`gh auth status`, paramètres GitHub), le client Pangolin du poste
 (tableau de bord, Clients), les mots de passe enregistrés.
+
+### Clé age de la CI (`github-actions`) à changer
+
+Sur fuite, ou pour la tourner (entrée `github_actions_sops_age_key` de
+`secrets-rotation.yaml`, refaite le 30/10/2026). La clé reste en mémoire :
+
+```bash
+KEY=$(age-keygen -pq 2>/dev/null | grep '^AGE-SECRET-KEY-PQ-1')
+printf '"%s"' "$KEY" | sops set --value-stdin ansible/secrets.sops.yaml '["github_actions_sops_age_key"]'
+printf '%s\n' "$KEY" | age-keygen -y   # clé publique, pour la ligne `# github-actions`
+unset KEY
+```
+
+Puis remplacer la ligne `# github-actions` de la règle d'Ansible dans
+`.sops.yaml`, `sops updatekeys` et `sops rotate -i` sur
+`ansible/secrets.sops.yaml`, mettre à jour l'entrée de
+`secrets-rotation.yaml`, PR. **Juste après le merge** :
+`tofu -chdir=tofu/github apply` avec
+`-replace='github_actions_environment_secret.this["production/SOPS_AGE_KEY"]'`
+(le plan ne montre pas le changement de valeur sans lui). Entre le merge et
+l'apply, un déploiement CI ne déchiffre plus ; le run suivant rattrape. Pas
+d'apply avant le merge : `main`, chiffré pour l'ancienne clé, casserait à
+son tour.
 
 ## Vérification
 
