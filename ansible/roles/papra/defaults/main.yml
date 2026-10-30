@@ -30,6 +30,11 @@ papra_ingestion_enabled: true
 # Taille maximale d'un document envoyé, en octets (défaut de Papra : 25 Mo).
 papra_max_upload_size: 26214400
 
+# Jours de conservation d'un document supprimé dans la corbeille avant la
+# purge nocturne (défaut de Papra : 30) : trois mois pour rattraper une
+# suppression par erreur.
+papra_deleted_documents_retention_days: 90
+
 # Secret de session (Better Auth), au moins 32 caractères. Dérivé de
 # backup_passphrase comme les clés de TREK et Homebox : pas de clé SOPS. Le
 # changer déconnecte tout le monde.

@@ -108,6 +108,8 @@
       ansible.builtin.assert:
         that:
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
+          # Corbeille : 90 jours avant la purge (défaut de Papra : 30).
+          - "'DOCUMENTS_DELETED_DOCUMENTS_RETENTION_DAYS=90' in papra_env_lines"
           - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
     # Molecule ne démarre pas Papra : une valeur que son schéma refuse
