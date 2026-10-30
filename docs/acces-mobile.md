@@ -78,6 +78,12 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   chacun (`tofu output -json karakeep_client_access_tokens`), puis la clé
   d'API de Karakeep. Toute l'API, tRPC compris, reste derrière le SSO et le
   filtre pays : en voyage hors de ces pays, l'appli mobile est refusée.
+- Papra : appli mobile officielle, un jeton (`mobile`, lu avec
+  `tofu output -json papra_client_access_tokens` dans `tofu/pangolin_config`).
+  Dans l'appli, écran du serveur : serveur `https://papra.sylvain.cloud`, puis
+  « Custom headers » `P-Access-Token-Id` et `P-Access-Token` avec les valeurs
+  de la sortie ; ensuite le compte Papra. Aucun chemin ouvert : toute l'API
+  reste derrière le SSO et le filtre pays.
 - Les sondes Uptime Kuma (`Healthcheck <appli>`) : un jeton par appli
   surveillée (`pangolin_resource_access_token.healthcheck`, `websites.tf`).
 

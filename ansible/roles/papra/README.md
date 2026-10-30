@@ -14,3 +14,4 @@ loses the trial is removed with the `remove-app` skill. App description:
   (`DOCUMENT_REPROCESSING_ENABLED`, on by default).
 - Sign-up is closed (`papra_registration_enabled: false`): each account is
   made by reopening it for one run (`-e papra_registration_enabled=true`).
+- Mobile app: it reaches Papra through the Pangolin SSO wall with a Pangolin access token sent as custom headers (`P-Access-Token-Id` / `P-Access-Token`, `tofu output -json papra_client_access_tokens` in `tofu/pangolin_config`); no path is opened. → `docs/acces-mobile.md`
