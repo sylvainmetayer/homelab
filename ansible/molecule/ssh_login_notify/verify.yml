@@ -186,7 +186,7 @@
           changed_when: false
 
         # Uptime Kuma qui accepte la connexion et ne répond jamais : curl
-        # attend son --max-time (10 s), le login non.
+        # attend son --max-time (10 s) à chacun de ses trois essais, le login non.
         - name: Point the hook at a server that never answers
           ansible.builtin.replace:
             path: /etc/ssh-login-notify.conf

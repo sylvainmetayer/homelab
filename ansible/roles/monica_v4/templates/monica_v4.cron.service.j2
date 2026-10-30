@@ -11,6 +11,7 @@ WorkingDirectory={{ monica_v4_base_path }}
 # sur la ligne de commande : journald attache celle-ci (_CMDLINE) à chaque
 # ligne que sort curl, et ps et systemctl show la montrent. Nouvel essai
 # sur connexion refusée, lancé dans les 5 s : schedule:run part à l'heure.
-ExecStartPre=/usr/bin/curl -q -sS -m 30 --retry 2 --retry-connrefused --retry-max-time 5 -o /dev/null -K {{ monica_v4_cron_push_config }}
+# « - » : un push raté (Uptime Kuma injoignable) n'empêche pas schedule:run.
+ExecStartPre=-/usr/bin/curl -q -sS -m 30 --retry 2 --retry-connrefused --retry-max-time 5 -o /dev/null -K {{ monica_v4_cron_push_config }}
 {% endif %}
 ExecStart=/usr/bin/docker compose -f {{ monica_v4_base_path }}/compose.yaml exec -T crm sh -c 'php artisan schedule:run'
