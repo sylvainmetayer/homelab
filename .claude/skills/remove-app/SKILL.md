@@ -135,6 +135,14 @@ lives in one file and one line, so removal is a few edits + an apply:
   `.github/restore-test/apps.json` entry, its path keys and,
   for an image of ours, its name in the exempt list of
   `path_bypasses_follow_their_image`.
+- If `website_<service>.tf` declared client access tokens of its own
+  (`pangolin_resource_access_token.<service>_clients`, as Karakeep and Papra
+  do for their mobile apps), remove its line from
+  `local.declared_access_token_ids` in `access_inventory.tf` (left there, it
+  is a reference to an undeclared resource), its `override_resource` blocks
+  and simulated token in both test files, its family in
+  `access_token_outputs_follow_their_reader`, and add each token to the
+  targeted apply below (`-target='pangolin_resource_access_token.<service>_clients'`).
 - Remove the service's kebab-case slug from the `apps` list in
   `tofu/pangolin_config/roles.tf`'s `locals` block (this destroys its
   `pangolin_role`, which also revokes any SSO/user access to it — nothing
@@ -151,9 +159,9 @@ lives in one file and one line, so removal is a few edits + an apply:
   A full plan fails first: the inventory audits (`access_inventory`,
   `access_inventory.tf`) read Pangolin's org-wide token and role lists at
   plan time, where the app's healthcheck token and role are still live but
-  no longer declared. Destroy those two (and the role's binding) with a
-  targeted apply, which leaves the audits out of the graph, then run the
-  normal plan:
+  no longer declared. Destroy those two (and the role's binding, and its
+  client tokens if any) with a targeted apply, which leaves the audits out of
+  the graph, then run the normal plan:
 
 ```bash
 cd tofu/pangolin_config
