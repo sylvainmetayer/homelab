@@ -52,6 +52,11 @@ def secours_keys(config_text):
     return {m.group(1) for m in map(SECOURS_RE.match, config_text.splitlines()) if m}
 
 
+def short(key):
+    """Le début d'une clé publique : une post-quantique fait ~2 000 caractères."""
+    return key if len(key) <= 24 else f"{key[:16]}…{key[-6:]}"
+
+
 def public_keys(age_keygen, keyfile, run=subprocess.run):
     """Clés publiques des identités du fichier (age-keygen -y), None si age-keygen échoue."""
     result = run(
@@ -116,9 +121,9 @@ def check(keyfile, sops, age_keygen, root=ROOT, run=subprocess.run, out=print):
         return False
     actual = actuals[0]
     if actual not in expected:
-        out(f"ÉCHEC clé publique : {actual} n'est pas la clé `# secours` de {SOPS_CONFIG}")
+        out(f"ÉCHEC clé publique : {short(actual)} n'est pas la clé `# secours` de {SOPS_CONFIG}")
         return False
-    out(f"ok clé publique {actual} (# secours)")
+    out(f"ok clé publique {short(actual)} (# secours)")
 
     ok = True
     for name in SOPS_FILES:

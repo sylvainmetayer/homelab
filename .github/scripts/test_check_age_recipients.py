@@ -10,13 +10,14 @@ from pathlib import Path
 
 import check_age_recipients as recipients
 
-PERSO = "age1pvr43f8dnpsq7swgc0r3cy799yvyk2y4wj8z3n57sckq3z6dx5yq4rntuu"
-PRO = "age16rspnzt6j2qxa2587t6umh9qykrqu2amrr0hx9xt2z7elyky3a3q4p5s7l"
-CI = "age140shtqa48n26q833upzj0yuentupxy8wcz0w0l3w3jhc7975t5as4umhx9"
-SECOURS = "age1uskgue38aysxxcp6p6l47xxxsjfnpm93wsgt3m7wj6qrr73zh3esy8d2qa"
-OLD = "age1" + "q" * 58
-# A post-quantum recipient (age-keygen -pq): same length as a real one.
+# Post-quantum recipients (age-keygen -pq): same length as real ones.
+PERSO = "age1pq1" + "p" * 1952
+PRO = "age1pq1" + "r" * 1952
+CI = "age1pq1" + "c" * 1952
+SECOURS = "age1pq1" + "s" * 1952
 PQ = "age1pq1" + "q" * 1952
+# An X25519 recipient (plain age-keygen), refused in a rule.
+OLD = "age1" + "q" * 58
 
 CONFIG = f"""\
 # Une règle par fichier, la plus précise en premier.
@@ -81,6 +82,10 @@ class ParseRulesTest(unittest.TestCase):
         rules = recipients.parse_rules(CONFIG.replace(f"{SECOURS} # secours", f"{PQ} # secours"))
         self.assertEqual(rules[0][1][PQ], "secours")
         self.assertEqual(recipients.check(rules, {"secrets.sops.yaml": encrypted(PERSO, PRO, PQ)}), [])
+
+    def test_x25519_key_is_still_read(self):
+        rules = recipients.parse_rules(CONFIG.replace(f"{PRO} # pro", f"{OLD} # pro"))
+        self.assertEqual(rules[0][1][OLD], "pro")
 
     def test_several_keys_on_one_line(self):
         rules = recipients.parse_rules(f"creation_rules:\n  - path_regex: x$\n    age: {PERSO},{PRO} # perso\n")
@@ -182,6 +187,14 @@ class CheckTest(unittest.TestCase):
         errors = recipients.check(rules, {"ansible/secrets.sops.yaml": encrypted(PERSO, PRO, CI)})
         self.assertEqual(len(errors), 1)
         self.assertIn("ne compte pas la clé secours", errors[0])
+
+
+    def test_x25519_recipient_in_a_rule_is_caught(self):
+        # One X25519 recipient is enough to expose the data key.
+        rules = recipients.parse_rules(CONFIG.replace(f"{PRO} # pro", f"{OLD} # pro", 1))
+        errors = recipients.check(rules, {"ansible/secrets.sops.yaml": encrypted(PERSO, OLD, CI, SECOURS)})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("compte pro, clé X25519", errors[0])
 
 
 class MainTest(unittest.TestCase):
