@@ -60,9 +60,11 @@ runs `files/papra_intake.py` (Python stdlib) as the container's user. It reads
   and the sender's domain only. So does a message over 4× the size cap.
 
 Nothing is ever deleted from the mailbox (IMAP `MOVE`, or `COPY` + `\Deleted`
-+ `UID EXPUNGE` of that UID alone); both folders are created when missing. A
-write error leaves the message in place for the next run (attachments already
-written by that run would then be imported twice).
++ `UID EXPUNGE` of that UID alone); both folders are created when missing,
+and a folder that can be neither created nor found stops the run before any
+attachment is written. A write error, or a move that fails after the
+attachments were written, leaves the message in place for the next run
+(attachments already written by that run would then be imported twice).
 
 The `From` header can be forged: the allow-list stops strays and spam, not a
 targeted sender. Keep the intake address to yourself.

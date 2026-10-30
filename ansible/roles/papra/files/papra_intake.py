@@ -155,6 +155,14 @@ def deliver(items, dest_dir, tmp_dir):
     return written
 
 
+def remove_stale_tmp(tmp_dir):
+    """Restes d'un passage tué en pleine écriture (TimeoutStartSec) : un seul
+    passage à la fois (unité oneshot), tout .intake-* du sas est orphelin."""
+    for entry in os.scandir(tmp_dir):
+        if entry.name.startswith(".intake-") and entry.is_file(follow_symlinks=False):
+            os.unlink(entry.path)
+
+
 def process(raw, config):
     """Décide du sort d'un message brut. Renvoie (autorisé, domaine, écrits, écartées)."""
     msg = email.message_from_bytes(raw, policy=email.policy.default)
@@ -198,20 +206,27 @@ def check(result, what):
     return data
 
 
-def server_mailbox(imap, logical):
-    """Nom serveur d'un dossier écrit avec « / » : séparateur du serveur, UTF-7."""
+def server_delimiter(imap):
+    """Séparateur de niveaux du serveur (« / » s'il n'en annonce pas)."""
     data = check(imap.list('""', '""'), "LIST")
     match = re.search(rb'\) "(.)"', data[0] or b"")
-    delimiter = match.group(1).decode() if match else "/"
+    return match.group(1).decode() if match else "/"
+
+
+def server_mailbox(logical, delimiter):
+    """Nom serveur d'un dossier écrit avec « / » : séparateur du serveur, UTF-7."""
     return imap_utf7(logical.replace("/", delimiter))
 
 
 def ensure_mailbox(imap, mailbox):
     typ, _ = imap.create(quote(mailbox))
-    # Déjà là : NO [ALREADYEXISTS], sans conséquence. Une autre erreur se
-    # verra au MOVE.
     if typ == "OK":
         log(f"Dossier IMAP créé : {mailbox}")
+        return
+    # Déjà là : NO [ALREADYEXISTS], sans conséquence. Toute autre erreur
+    # arrête la relève ici, avant le premier dépôt : découverte au MOVE, elle
+    # redéposerait les pièces jointes du même message à chaque passage.
+    check(imap.status(quote(mailbox), "(MESSAGES)"), f"STATUS {mailbox}")
 
 
 def move(imap, uid, mailbox, has_move):
@@ -265,13 +280,14 @@ def run(config):
         has_move = "MOVE" in capabilities
         if not has_move and "UIDPLUS" not in capabilities:
             raise RuntimeError("le serveur n'a ni MOVE ni UIDPLUS : pas de déplacement sûr")
+        delimiter = server_delimiter(imap)
         folders = {
-            "done": server_mailbox(imap, config["done_folder"]),
-            "rejected": server_mailbox(imap, config["rejected_folder"]),
+            "done": server_mailbox(config["done_folder"], delimiter),
+            "rejected": server_mailbox(config["rejected_folder"], delimiter),
         }
         for mailbox in folders.values():
             ensure_mailbox(imap, mailbox)
-        check(imap.select(quote(server_mailbox(imap, config["folder"]))), "SELECT")
+        check(imap.select(quote(server_mailbox(config["folder"], delimiter))), "SELECT")
         uids = check(imap.uid("SEARCH", "UNDELETED"), "SEARCH")[0].split()
         outcomes = [handle(imap, uid, config, folders, has_move) for uid in uids]
         log(
@@ -299,6 +315,7 @@ def main():
         print(json.dumps({"allowed": allowed, "domain": domain, "written": written, "skipped": skipped}))
         return 0
     try:
+        remove_stale_tmp(config["tmp_dir"])
         run(config)
     except (OSError, imaplib.IMAP4.error, RuntimeError) as e:
         log(f"Échec de la relève : {type(e).__name__}: {e}")
