@@ -80,7 +80,7 @@
       ansible.builtin.assert:
         that:
           - >-
-            'ExecStartPre=/usr/bin/curl -q -sS -m 30 --retry 2 --retry-connrefused --retry-max-time 5 -o /dev/null -K /opt/apps/monica_v4/cron-push.curl'
+            'ExecStartPre=-/usr/bin/curl -q -sS -m 30 --retry 2 --retry-connrefused --retry-max-time 5 -o /dev/null -K /opt/apps/monica_v4/cron-push.curl'
             in (monica_v4_cron_unit.content | b64decode)
           - "'/api/push/' not in (monica_v4_cron_unit.content | b64decode)"
           - "'/opt/apps/monica_v4/compose.yaml exec -T crm' in (monica_v4_cron_unit.content | b64decode)"

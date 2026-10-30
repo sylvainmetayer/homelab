@@ -186,6 +186,6 @@ jobs:
           else
             status=down msg="échec ($RESTORE) : $RUN_URL"
           fi
-          curl --proto '=https' --tlsv1.2 -fsS -o /dev/null -G "$PUSH_URL" \
+          curl --proto '=https' --tlsv1.2 -fsS -o /dev/null --retry 2 --retry-connrefused -G "$PUSH_URL" \
             --data-urlencode "status=$status" --data-urlencode "msg=$msg" --data-urlencode "ping="
           echo "Restore test: $status"
