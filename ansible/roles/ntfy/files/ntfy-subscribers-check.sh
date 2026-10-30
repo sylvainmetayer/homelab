@@ -47,7 +47,7 @@ if [ -n "${NTFY_SUBSCRIBERS_CHECK_PUSH_URL:-}" ]; then
   # L'URL (jeton du moniteur) par la configuration lue sur stdin, pas en
   # argument : /proc/<pid>/cmdline la montrerait.
   printf 'url = "%s"\n' "$NTFY_SUBSCRIBERS_CHECK_PUSH_URL" \
-    | curl -fsS -o /dev/null --max-time 10 --retry 3 --get --config - \
+    | curl -fsS -o /dev/null --max-time 10 --retry 3 --retry-connrefused --get --config - \
       --data-urlencode "status=$status" \
       --data-urlencode "msg=$msg" \
     || echo "push vers Uptime Kuma en échec" >&2

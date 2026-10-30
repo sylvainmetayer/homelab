@@ -36,7 +36,7 @@ ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MY
 # ExecStart above succeeded. The URL (the monitor's token) is read from a
 # curl config file, never put on the command line (ps, systemctl show, and
 # the _CMDLINE journald attaches to every line curl prints).
-ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 -o /dev/null -K {{ betisier_reset_push_config }}
+ExecStartPost=/usr/bin/curl -q -fsS -m 30 --retry 3 --retry-connrefused -o /dev/null -K {{ betisier_reset_push_config }}
 
 {% endif %}
 # Restart policy
