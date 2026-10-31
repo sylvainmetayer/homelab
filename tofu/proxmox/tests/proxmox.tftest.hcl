@@ -253,6 +253,11 @@ run "vzdump_on_nas" {
   }
 
   assert {
+    condition     = proxmox_backup_job.nightly.fleecing.enabled == true && proxmox_backup_job.nightly.fleecing.storage == var.docker_vm.storage && proxmox_backup_job.nightly.fleecing.storage != proxmox_storage_nfs.nas_backup.id
+    error_message = "Le fleecing du job doit rester activé, sur le storage local du disque de la VM docker, jamais sur le NFS du NAS."
+  }
+
+  assert {
     condition = proxmox_backup_job.nightly.tmpdir == null && anytrue([
       for t in yamldecode(file("${path.module}/../../ansible/pve.yml"))[0].tasks :
       try(t["ansible.builtin.lineinfile"].path == "/etc/vzdump.conf" && t["ansible.builtin.lineinfile"].line == "tmpdir: /var/tmp", false)

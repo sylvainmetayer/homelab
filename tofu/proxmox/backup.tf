@@ -61,12 +61,14 @@ resource "proxmox_backup_job" "nightly" {
   }
 
   # Fleecing (01/11/2026) : pendant la sauvegarde vers le NAS (NFS, lent),
-  # les blocs que la VM réécrit sont copiés dans une image temporaire sur
-  # local-lvm au lieu d'attendre le NAS : les applis ne se figent plus à
-  # 21:00. L'image ne grossit que des écritures faites pendant le job et
-  # disparaît à la fin. Sans effet sur le LXC (sauvegarde par tar).
+  # les blocs que la VM réécrit sont copiés dans une image temporaire sur le
+  # lvm-thin de son disque (local-lvm) au lieu d'attendre le NAS : les applis
+  # ne se figent plus à 21:00. L'image ne grossit que des écritures faites
+  # pendant le job et disparaît à la fin. Elle partage le pool du disque de la
+  # VM : un pool plein pendant le job touche aussi ce disque (lvs, data% du
+  # pool). Sans effet sur le LXC (sauvegarde par tar).
   fleecing = {
     enabled = true
-    storage = "local-lvm"
+    storage = var.docker_vm.storage
   }
 }
