@@ -20,7 +20,7 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 | `borgmatic` | `commands:` hooks of every config (`app.yaml.j2`), `<file> up start` / `up finish` / `down fail` | `\|\| true` (a missing helper never fails a backup) |
 | `betisier` | `ExecStartPost` of `betisier-reset.service` | `--strict` (the unit fails) |
 | `pangolin` | `ExecStartPost` of `geoipupdate.service` | `--strict` |
-| `monica_v4` | `ExecStartPre=-` of `monica_v4_cron.service` | default, `-` prefix |
+| `monica_v4` | `ExecStartPost` of `monica_v4_cron.service` | `--strict` |
 | `blocky` | `blocky-check.sh`, config on stdin | default (the check's own exit code) |
 | `ntfy` | `ntfy-subscribers-check.sh`, config on stdin | default |
 | `ssh_login_notify` | the PAM hook, config on stdin, in the background | `--strict` (logs success or failure) |

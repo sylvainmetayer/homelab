@@ -80,10 +80,13 @@
       ansible.builtin.assert:
         that:
           - >-
-            'ExecStartPre=-/usr/local/bin/uptime-push --agent monica-cron /opt/apps/monica_v4/cron-push.curl up'
+            'ExecStartPost=/usr/local/bin/uptime-push --strict --agent monica-cron /opt/apps/monica_v4/cron-push.curl up'
             in (monica_v4_cron_unit.content | b64decode)
           - "'/api/push/' not in (monica_v4_cron_unit.content | b64decode)"
           - "'/opt/apps/monica_v4/compose.yaml exec -T crm' in (monica_v4_cron_unit.content | b64decode)"
+          # Push après le cron, jamais avant : un schedule:run en échec ne
+          # doit pas garder le moniteur au vert.
+          - "'ExecStartPre=' not in (monica_v4_cron_unit.content | b64decode)"
         fail_msg: "monica_v4_cron.service inattendu"
 
     - name: Stat the push URL file of the Monica v4 cron
