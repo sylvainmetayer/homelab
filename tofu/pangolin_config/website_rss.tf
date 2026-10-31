@@ -48,12 +48,6 @@ locals {
 #
 # This paragraph can go once that apply has run.
 
-output "rss_access_token" {
-  description = "RSS - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["rss"]
-  sensitive   = true
-}
-
 output "uptime_backup_rss_url" {
   description = "RSS - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["rss"]

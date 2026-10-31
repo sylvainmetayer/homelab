@@ -25,12 +25,6 @@ locals {
   }
 }
 
-output "betisier_access_token" {
-  description = "BETISIER - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["betisier"]
-  sensitive   = true
-}
-
 output "uptime_backup_betisier_url" {
   description = "BETISIER - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["betisier"]

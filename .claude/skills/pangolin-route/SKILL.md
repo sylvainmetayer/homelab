@@ -64,12 +64,6 @@ locals {
   }
 }
 
-output "<service>_access_token" {
-  description = "<SERVICE> - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["<service>"]
-  sensitive   = true
-}
-
 output "uptime_backup_<service>_url" {
   description = "<SERVICE> - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["<service>"]

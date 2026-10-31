@@ -57,12 +57,6 @@ output "papra_client_access_tokens" {
   sensitive = true
 }
 
-output "papra_access_token" {
-  description = "PAPRA - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["papra"]
-  sensitive   = true
-}
-
 output "uptime_backup_papra_url" {
   description = "PAPRA - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["papra"]

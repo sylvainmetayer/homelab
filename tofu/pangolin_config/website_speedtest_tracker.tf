@@ -30,12 +30,6 @@ locals {
   }
 }
 
-output "speedtest_tracker_access_token" {
-  description = "SPEEDTEST TRACKER - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["speedtest_tracker"]
-  sensitive   = true
-}
-
 output "uptime_backup_speedtest_tracker_url" {
   description = "SPEEDTEST TRACKER - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["speedtest_tracker"]

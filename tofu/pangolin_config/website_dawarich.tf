@@ -83,12 +83,6 @@ locals {
   }
 }
 
-output "dawarich_access_token" {
-  description = "DAWARICH - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["dawarich"]
-  sensitive   = true
-}
-
 output "uptime_backup_dawarich_url" {
   description = "DAWARICH - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["dawarich"]

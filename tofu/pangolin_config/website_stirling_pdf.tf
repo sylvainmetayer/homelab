@@ -26,9 +26,3 @@ locals {
     }
   }
 }
-
-output "stirling_pdf_access_token" {
-  description = "STIRLING_PDF - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["stirling_pdf"]
-  sensitive   = true
-}

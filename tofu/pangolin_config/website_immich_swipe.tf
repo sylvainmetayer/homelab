@@ -23,9 +23,3 @@ locals {
     }
   }
 }
-
-output "immich_swipe_access_token" {
-  description = "IMMICH_SWIPE - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["immich_swipe"]
-  sensitive   = true
-}

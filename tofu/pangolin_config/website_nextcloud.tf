@@ -163,12 +163,6 @@ locals {
   }
 }
 
-output "nextcloud_access_token" {
-  description = "NEXTCLOUD - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["nextcloud"]
-  sensitive   = true
-}
-
 output "uptime_backup_nextcloud_url" {
   description = "NEXTCLOUD - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["nextcloud"]
