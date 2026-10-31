@@ -69,9 +69,10 @@
         src: /opt/apps/ntfy/config/server.yml
       register: ntfy_server_raw
 
-    # Rien sans compte, pas d'inscription. Comptes, droits et jetons : vérifiés
-    # plus bas par le vrai ntfy sur cette configuration.
-    - name: Assert the ntfy server configuration denies anonymous access
+    # Rien sans compte, pas d'inscription. Les jetons sont éprouvés plus bas
+    # par le vrai ntfy ; pas le hachage de chaque compte ni à QUI va chaque
+    # droit (`ntfy access` n'est lu que par motifs de lignes).
+    - name: Assert the ntfy server configuration denies anonymous access and binds each grant to its account
       no_log: true
       vars:
         ntfy_server: "{{ ntfy_server_raw.content | b64decode | from_yaml }}"
@@ -82,6 +83,17 @@
           - ntfy_server['enable-login'] == true
           - ntfy_server['require-login'] == true
           - ntfy_server['attachment-cache-dir'] is not defined
+          - ntfy_server['auth-users'] | sort == ([
+              'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
+              'uptime-kuma:' ~ ntfy_publisher_password_hash ~ ':user',
+              'scripts:' ~ ntfy_publisher_password_hash ~ ':user',
+              'github:' ~ ntfy_publisher_password_hash ~ ':user',
+            ] | sort)
+          - ntfy_server['auth-access'] | sort == ([
+              'sylvain:*:ro',
+              'sylvain:uptime-kuma:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
+              'uptime-kuma:uptime-kuma:wo', 'scripts:scripts:wo', 'github:github:wo',
+            ] | sort)
         fail_msg: Configuration ntfy inattendue (contenu masqué, il porte les jetons).
 
     - name: Read the ntfy borgmatic configuration

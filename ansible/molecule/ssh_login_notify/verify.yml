@@ -322,3 +322,31 @@
         that:
           - ssh_login_notify_pam_again.stat.checksum == ssh_login_notify_pam_after.stat.checksum
           - ssh_login_notify_pam_again.stat.mtime == ssh_login_notify_pam_after.stat.mtime
+
+    # Après la désinstallation, sshd accepte toujours la connexion (pile PAM
+    # intacte) et plus rien ne notifie.
+    - name: Count the pushes before a login without the hook
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes_before
+      changed_when: false
+
+    - name: Log in over SSH without the hook
+      ansible.builtin.command: >-
+        {{ ssh_login_notify_test_ssh }} -i /home/sylvain/.ssh/molecule-login sylvain@127.0.0.1 true
+      changed_when: false
+
+    - name: Leave time for a push that must not come
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Count the pushes after a login without the hook
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_log }}
+      register: ssh_login_notify_pushes_after
+      changed_when: false
+
+    - name: Assert a login without the hook does not notify
+      ansible.builtin.assert:
+        that:
+          - ssh_login_notify_pushes_after.stdout_lines | length == ssh_login_notify_pushes_before.stdout_lines | length

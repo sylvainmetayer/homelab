@@ -321,7 +321,7 @@
         - borgmatic.timer
 
     # L'enrobage, après le démon Docker d'UGOS sans le tirer.
-    - name: Assert the borgmatic units run the container on the NAS schedule
+    - name: Assert the borgmatic units run the container after the UGOS Docker daemon
       vars:
         nas_verify_borgmatic_service: "{{ (nas_verify_borgmatic_units.results[0].content | b64decode).splitlines() }}"
         nas_verify_borgmatic_timer: "{{ (nas_verify_borgmatic_units.results[1].content | b64decode).splitlines() }}"

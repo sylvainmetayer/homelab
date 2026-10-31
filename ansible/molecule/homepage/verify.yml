@@ -140,7 +140,8 @@
           - homepage_admin['sylvain.dev'].href is not defined
         fail_msg: "Widgets inattendus : {{ homepage_admin }}"
 
-    # Une carte Beszel par système du hub (clés de beszel_agent_tokens).
+    # Une carte Beszel par système du hub (clés de beszel_agent_tokens), sur
+    # SON système, par l'IP fixe du hub comme le widget Beszel (24fab015).
     - name: Assert one Beszel card per host
       vars:
         homepage_hosts_cards: "{{ homepage_cards['Hôtes'] }}"
@@ -148,6 +149,8 @@
         that:
           - homepage_card_names['Hôtes'] == beszel_agent_tokens.keys() | list | sort
           - homepage_hosts_cards.values() | map(attribute='widget.type') | unique | list == ['beszel']
+          - homepage_hosts_cards.values() | map(attribute='widget.systemId') | list == homepage_hosts_cards.keys() | list
+          - homepage_hosts_cards.values() | map(attribute='widget.url') | unique | list == [homepage_cards['Administration']['Beszel'].widget.url]
         fail_msg: "Cartes d'hôte inattendues : {{ homepage_cards['Hôtes'] }}"
 
 # Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :

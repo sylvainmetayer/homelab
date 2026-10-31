@@ -61,6 +61,8 @@
           - blocky_unit.ActiveState == 'active'
           - blocky_unit.UnitFileState == 'enabled'
           - blocky_unit.DynamicUser == 'yes'
+          # Plafonné (doctrine des limites) ; la valeur suit blocky_mem_limit.
+          - blocky_unit.MemoryMax != 'infinity'
           - blocky_unit.CapabilityBoundingSet == 'cap_net_bind_service'
           - blocky_units.results[1].status.ActiveState == 'active'
           - blocky_units.results[1].status.UnitFileState == 'enabled'

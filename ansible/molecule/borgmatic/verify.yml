@@ -287,3 +287,17 @@
           - "'Port 23' in borgmatic_ssh_config"
           - ('IdentityFile ' ~ backup_storage_box_ssh_key_path) in borgmatic_ssh_config
           - ('[' ~ backup_storage_box_subaccounts.flip.server ~ ']:23 ' ~ backup_storage_box_host_key) in borgmatic_known_hosts
+
+    # Les configs de /etc/borgmatic.d portent des hooks que borgmatic lance en
+    # root : le dossier reste à root.
+    - name: Stat the borgmatic configuration directory
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}"
+      register: borgmatic_config_dir_stat
+
+    - name: Assert the borgmatic configuration directory belongs to root
+      ansible.builtin.assert:
+        that:
+          - borgmatic_config_dir_stat.stat.isdir | default(false)
+          - borgmatic_config_dir_stat.stat.pw_name == 'root'

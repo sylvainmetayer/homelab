@@ -210,14 +210,13 @@
         - /usr/local/bin/crowdsec-summary
         - /var/lib/crowdsec-summary
 
-    - name: Read the CrowdSec summary unit, timer and credentials
+    - name: Read the CrowdSec summary unit and credentials
       become: true
       ansible.builtin.slurp:
         src: "{{ item }}"
       register: pangolin_summary_files
       loop:
         - /etc/systemd/system/crowdsec-summary.service
-        - /etc/systemd/system/crowdsec-summary.timer
         - /etc/crowdsec-summary/env
 
     - name: Check the CrowdSec summary units
@@ -231,8 +230,7 @@
     - name: Assert the summary is stateless, its token in a private file only
       vars:
         summary_unit: "{{ pangolin_summary_files.results[0].content | b64decode }}"
-        summary_timer: "{{ pangolin_summary_files.results[1].content | b64decode }}"
-        summary_env: "{{ (pangolin_summary_files.results[2].content | b64decode).splitlines() }}"
+        summary_env: "{{ (pangolin_summary_files.results[1].content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
           - pangolin_summary_timer.status.ActiveState == 'active'
@@ -288,6 +286,10 @@
           - run.body.topic == 'scripts'
           - run.stdout | trim == run.body.title
           - run.body.priority == 4
+          # Les comptes tirés de la sortie de fake-cscli.
+          - "run.body.title == 'CrowdSec 7 j : 13 alertes, 3 décisions actives, AppSec 2'"
+          - "'crowdsecurity/http-probing 12' in run.body.message"
+          - "'Pays : US 12, FR 1' in run.body.message"
         fail_msg: "rc {{ run.rc }}, corps reçu : {{ run.body | default('aucun') }}"
 
     - name: Dry-run the summary without AppSec hits

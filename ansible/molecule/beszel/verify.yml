@@ -87,6 +87,8 @@
         beszel_config: "{{ beszel_contents.results[0].content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
+          # Le nom est le systemId des cartes d'hôte de Homepage.
+          - beszel_config.systems | map(attribute='name') | list == beszel_agent_tokens.keys() | sort
           - beszel_config.systems | map(attribute='token') | list == (beszel_agent_tokens | dict2items | sort(attribute='key') | map(attribute='value') | list)
           - beszel_config.systems | map(attribute='users') | unique == [[pangolin_le_email]]
         fail_msg: "config.yml inattendu : {{ beszel_config }}"
@@ -140,7 +142,6 @@
       vars:
         beszel_mock: "{{ beszel_mock_state.json }}"
         beszel_mock_writes: "{{ beszel_mock_writes_raw.content | b64decode | trim | split('\n') | map('from_json') | list }}"
-        beszel_mock_cpu_docker: "{{ beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000') | selectattr('name', 'eq', 'CPU') | first }}"
         beszel_mock_status_write: "{{ beszel_mock_writes | selectattr('body.name', 'defined') | selectattr('body.name', 'eq', 'Status') | first }}"
         beszel_mock_settings: "{{ beszel_mock.user_settings[0].settings }}"
         beszel_mock_telegram_url: "telegram://{{ beszel_telegram_bot_token }}@telegram?chats={{ beszel_telegram_chat_id }}"
