@@ -385,6 +385,8 @@ Pour le rétablir après une coupure :
    depuis la maison : seule l'IP déjà listée y ouvre une session superuser),
    Settings → Application, volet « Superuser IPs » : ajouter `172.16.97.3`
    après l'IP existante (liste séparée par des virgules), sans la retirer.
+   Puis Settings → Rate limits : ajouter `172.16.97.3` aux « Excluded IPs »
+   (voir plus bas, « Limite de connexion »).
 2. `beszel_homepage_email: homepage@monitoring.sylvain.cloud` dans
    `host_vars/docker`, puis `ansible-playbook docker.yml --tags beszel,homepage`
    (les deux : `dc@beszel` crée le réseau que Homepage rejoint).
@@ -394,8 +396,26 @@ Pour le rétablir après une coupure :
 Pour le couper : `beszel_homepage_email` vide, le même `--tags`, puis
 `docker network rm beszel_homepage` sur la VM (`docker compose up` ne
 supprime pas un réseau retiré du compose) et `172.16.97.3` retiré des
-« Superuser IPs ». Le compte du widget reste sur le hub : le retirer à la main
+« Superuser IPs » et des « Excluded IPs » des limites de débit. Le compte du widget reste sur le hub : le retirer à la main
 (interface PocketBase `/_/`) si la coupure dure.
+
+**Limite de connexion** (constat du 01/11/2026). Les limites de débit de
+PocketBase sont actives sur le hub (Settings → Rate limits), dont la règle
+`*:auth` : 2 connexions par IP toutes les 3 s. Homepage 2.7.0 garde un jeton
+par carte (`src/widgets/beszel/proxy.js`, clé de cache suffixée du nom du
+service) : ses huit cartes Beszel (le lien et sept hôtes) se connectent donc
+chacune, en même temps, quand le cache est vide, soit à chaque redémarrage de
+Homepage (tout déploiement qui touche sa configuration) et à l'expiration des
+jetons superuser (24 h, tous à la fois). Deux passent, six reçoivent 429
+« Too Many Requests. », affiché « Erreur API » ; chaque rechargement n'en
+rattrape que deux, d'où des hôtes différents en erreur à chaque fois. Les
+jetons obtenus restent en cache, d'où le retour à la normale ensuite.
+Correctif : `172.16.97.3` (`beszel_homepage_client_ip`) dans les « Excluded
+IPs » des limites de débit, posé dans l'interface comme les « Superuser IPs »
+(seul un superuser lit ou écrit ces réglages, que le rôle n'a pas depuis
+l'hôte). La règle reste entière pour toute autre adresse ; seule l'adresse de
+Homepage sur le réseau interne du widget y échappe, et elle ne joint que le
+hub.
 
 **Risque accepté** (Sylvain, 2026-10-29) : la liste d'IP ne protège que ce
 qui passe par Traefik. Le réglage `trustedProxy` du hub (`X-Forwarded-For`,
