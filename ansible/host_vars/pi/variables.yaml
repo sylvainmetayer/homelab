@@ -38,13 +38,14 @@ backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pi }}"
 # --- Durcissement (rôle security, lot 5 du plan) ---
 # Hôte du LAN, derrière la box : SSH n'est ouvert qu'au réseau local (ton
 # poste, le LXC newt par où passe la CI). Les ports publiés par Docker
-# contournent ufw (leurs règles passent avant) : Immich (2283) et le timelapse
-# (5000) restent joignables depuis le LAN ; Postgres (5432) et Valkey (6379)
-# sont sur 127.0.0.1, sauf le temps d'un worker distant (immich_remote_worker,
-# rôle immich). De même Blocky (53/udp et 53/tcp, rôle blocky) : publié sur
-# l'IP LAN du Pi seule, sans règle ufw (elle ne servirait à rien) ; la Bbox
-# ne redirige aucun port vers le Pi, seuls le LAN et le client Pangolin (par
-# le Newt du LXC, une IP du LAN) l'atteignent.
+# contournent ufw (leurs règles passent avant) : Immich (2283) reste joignable
+# depuis le LAN ; le timelapse ne publie aucun port (Pangolin seul, derrière le
+# SSO) ; Postgres (5432) et Valkey (6379) sont sur 127.0.0.1, sauf le temps
+# d'un worker distant (immich_remote_worker, rôle immich). De même Blocky
+# (53/udp et 53/tcp, rôle blocky) : publié sur l'IP LAN du Pi seule, sans
+# règle ufw (elle ne servirait à rien) ; la Bbox ne redirige aucun port vers
+# le Pi, seuls le LAN et le client Pangolin (par le Newt du LXC, une IP du
+# LAN) l'atteignent.
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp, from: 192.168.1.0/24 }
 # Tout le LAN ne doit jamais être banni : la CI arrive par le LXC newt, et un

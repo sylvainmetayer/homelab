@@ -433,6 +433,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["immich_selfie_timelapse"]
+  values = { id = 24 }
+}
+
+override_resource {
   target = pangolin_resource.website["kitchenowl"]
   values = { id = 67 }
 }
