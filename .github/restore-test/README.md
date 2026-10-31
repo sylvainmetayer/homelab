@@ -10,8 +10,10 @@ dépôt (`.github/scripts/restore_test.py`) :
   nuit, comme celui de Nextcloud en octobre 2026) laisse une vieille archive
   qui, elle, se restaure ;
 - l'archive doit contenir un dump ou une copie SQLite de chaque type listé
-  dans `databases` (`apps.json`), et d'aucun autre : un dump ou une copie qui
-  ne s'écrit plus fait échouer l'app au lieu de passer sur les seuls fichiers ;
+  dans `databases` (`apps.json`), et d'aucun autre : un type dont plus aucun
+  dump ni copie ne s'écrit fait échouer l'app au lieu de passer sur les seuls
+  fichiers (par type, pas par base : une seconde base du même type qui
+  disparaît, comme celle de Keycloak de flip_planning, passe inaperçue) ;
 - un échantillon de 20 fichiers (≤ 5 Mio) est extrait : borg vérifie chaque
   bloc qu'il déchiffre ;
 - les dumps PostgreSQL (`pg_restore`) et MariaDB (`mariadb`) sont rejoués
