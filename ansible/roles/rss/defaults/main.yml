@@ -1,7 +1,6 @@
 ---
 rss_base_path: "{{ docker_base_path }}/rss"
 rss_domain: rss.sylvain.cloud
-rss_healthcheck_url: ""
 
 # Extension « Karakeep Button » (bouton « envoyer à Karakeep » sur chaque
 # article) : code tiers (github.com/veverkap/xExtension-karakeep-button), ni
