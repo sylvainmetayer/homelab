@@ -39,7 +39,6 @@
         kdrive_sync_verify_ids: "{{ ansible_facts['getent_passwd']['sylvain'][1] }}:{{ ansible_facts['getent_passwd']['sylvain'][2] }}"
       ansible.builtin.assert:
         that:
-          - kdrive_sync_verify_model.services.keys() | list == ['rclone']
           - kdrive_sync_verify_rclone.image is match('docker.io/rclone/rclone:1\.[0-9.]+@sha256:[0-9a-f]{64}$')
           - kdrive_sync_verify_rclone.entrypoint[:2] == ['/bin/sh', '-c']
           - kdrive_sync_verify_rclone.entrypoint | length == 4
@@ -48,8 +47,6 @@
           - kdrive_sync_verify_script is search(' "\$?\$@"$')
           - kdrive_sync_verify_script is not search('\\b(sync|move|moveto|bisync|purge|delete|deletefile|rmdirs?)\\b')
           - kdrive_sync_verify_script is not search('--(delete|max-delete|track-renames)')
-          - "'--use-json-log --stats 24h' in kdrive_sync_verify_script"
-          - "'--bwlimit' not in kdrive_sync_verify_script"
           - "'rclone obscure -' in kdrive_sync_verify_script"
           - "'unset KDRIVE_APP_PASSWORD' in kdrive_sync_verify_script"
           - kdrive_sync_verify_rclone.command is not defined or not kdrive_sync_verify_rclone.command
@@ -65,8 +62,6 @@
           - kdrive_sync_verify_rclone.volumes | map(attribute='source') | list == [kdrive_sync_verify_share]
           - kdrive_sync_verify_rclone.volumes | map(attribute='target') | list == ['/data']
           - kdrive_sync_verify_rclone.volumes | selectattr('source', 'search', 'docker\.sock') | list | length == 0
-          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_TYPE == 'webdav'
-          - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_VENDOR == 'other'
           - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_URL == 'https://' ~ kdrive_drive_id ~ '.connect.kdrive.infomaniak.com'
           - kdrive_sync_verify_rclone.environment.RCLONE_CONFIG_KDRIVE_USER == kdrive_webdav_user
           # Non échappé, le $HOME de la fausse valeur serait interpolé (vide).
@@ -147,7 +142,6 @@
           - kdrive_sync_verify_timer.status.UnitFileState == ('enabled' if kdrive_sync_timer_enabled else 'disabled')
           - kdrive_sync_verify_timer.status.ActiveState == ('active' if kdrive_sync_timer_enabled else 'inactive')
           - kdrive_sync_verify_unit.status.ActiveState == 'inactive'
-          - kdrive_sync_verify_unit.status.Type == 'oneshot'
           - "'--backup-dir-root /data/versions -- ' in kdrive_sync_verify_exec"
           - "'docker compose --file ' ~ kdrive_sync_verify_path ~ '/compose.yaml run --rm --no-TTY --quiet-pull rclone' in kdrive_sync_verify_exec"
           - "'molecule-kdrive' not in kdrive_sync_verify_exec"

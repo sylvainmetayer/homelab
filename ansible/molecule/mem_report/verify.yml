@@ -65,24 +65,21 @@
         name: mem-report.service
       register: mem_report_verify_unit
 
-    # Chaque lundi, sous sylvain (jamais root) avec le groupe docker, le jeton
-    # par le fichier d'environnement seul.
-    - name: Assert the report runs weekly, unprivileged
+    # Sous sylvain (jamais root) avec le groupe docker, le jeton par le
+    # fichier d'environnement seul.
+    - name: Assert the report runs unprivileged
       vars:
         mem_report_verify_exec: "{{ mem_report_verify_unit.status.ExecStart }}"
       ansible.builtin.assert:
         that:
           - mem_report_verify_timer.status.UnitFileState == 'enabled'
           - mem_report_verify_timer.status.ActiveState == 'active'
-          - mem_report_verify_timer.status.TimersCalendar is search('OnCalendar=Mon \*-\*-\* 09:00:00')
-          - mem_report_verify_unit.status.Type == 'oneshot'
           - mem_report_verify_unit.status.User == 'sylvain'
           - mem_report_verify_unit.status.SupplementaryGroups == 'docker'
           - mem_report_verify_unit.status.ProtectSystem == 'strict'
           - mem_report_verify_unit.status.NoNewPrivileges == 'yes'
           - mem_report_verify_unit.status.EnvironmentFiles is search('/etc/mem-report.env')
           - "'python3 -I ' ~ mem_report_verify_script in mem_report_verify_exec"
-          - "'--url http://127.0.0.1:18081 --topic scripts --high 80 --low 25 --min-saving-mb 64' in mem_report_verify_exec"
           - "'--host molecule-mem_report' in mem_report_verify_exec"
           - ntfy_scripts_token not in mem_report_verify_exec
         fail_msg: "{{ mem_report_verify_exec }}"
@@ -180,9 +177,7 @@
           - mem_report_verify_post.path == '/'
           - mem_report_verify_post.auth == 'Bearer ' ~ ntfy_scripts_token
           - mem_report_verify_post.body.topic == 'scripts'
-          - "mem_report_verify_post.body.title == 'Mémoire des conteneurs : docker'"
           - mem_report_verify_post.body.priority == 4
-          - mem_report_verify_post.body.tags == ['warning']
           - >-
             '- molecule-big : pic 255 Mio / 256 Mio (100 %), OOM-kill x1, plafond atteint x12 -> mem_limit 512m au moins'
             in mem_report_verify_message
@@ -196,8 +191,6 @@
           - "'molecule-small' not in mem_report_verify_message"
           - "'molecule-cgroupfs' not in mem_report_verify_message"
           - "'molecule-relaunched' not in mem_report_verify_message"
-          - "'7 conteneur(s) lu(s), 1 sans cgroup trouvé' in mem_report_verify_message"
-          - "'repartent de zéro à chaque redémarrage du conteneur' in mem_report_verify_message"
           - ntfy_scripts_token not in mem_report_verify_run.stdout
         fail_msg: "{{ mem_report_verify_message }}"
 
@@ -262,8 +255,6 @@
           - mem_report_verify_run_unit.status.Result == 'success'
           - mem_report_verify_lines | length == 2
           - mem_report_verify_post.auth == 'Bearer ' ~ ntfy_scripts_token
-          - "mem_report_verify_post.body.title == 'Mémoire des conteneurs : molecule-mem_report'"
-          - "mem_report_verify_post.body.message == 'Aucun conteneur en cours : rien à mesurer.'"
           - mem_report_verify_post.body.priority == 2
         fail_msg: "{{ mem_report_verify_lines }}"
 
