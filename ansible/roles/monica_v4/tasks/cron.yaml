@@ -1,7 +1,7 @@
 ---
 # URL push du moniteur (jeton) : lue par curl (-K), jamais sur sa ligne de
 # commande. Relue à chaque passage : rien à redémarrer. Vide : le service ne
-# pousse rien (un « url = "" » ferait échouer l'ExecStartPre, donc le cron).
+# pousse rien (un « url = "" » ferait échouer l'ExecStartPost, donc l'unité).
 - name: Write the push URL of the monica_v4 cron
   when: monica_v4_cron_healthcheck_url | length > 0
   diff: false
