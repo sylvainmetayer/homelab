@@ -72,7 +72,6 @@ locals {
     immich_swipe            = local.immich_swipe_website
     immich_selfie_timelapse = local.immich_selfie_timelapse_website
     karakeep                = local.karakeep_website
-    kitchenowl              = local.kitchenowl_website
     monica                  = local.monica_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
