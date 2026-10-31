@@ -128,6 +128,8 @@ nav:
       - adr/0016-login-unifie-oidc.md
       - adr/0017-pas-de-verification-complete-des-donnees.md
       - adr/0018-secrets-depot-prive.md
+      - adr/0019-flip-sans-ipv4-publique.md
+      - adr/0020-garder-le-raspberry-pi-pour-immich.md
   - Conventions:
       - conventions/ansible.md
       - conventions/app-lifecycle.md

@@ -63,3 +63,5 @@ au plus :
 | [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey + mot de passe, ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | proposée |
 | [0017](0017-pas-de-verification-complete-des-donnees.md) | Pas de vérification complète des données Borg ; test de restauration et checks des hôtes | acceptée |
 | [0018](0018-secrets-depot-prive.md) | Secrets SOPS et inventaire de rotation dans un dépôt privé, sous-module `secrets/` | acceptée |
+| [0019](0019-flip-sans-ipv4-publique.md) | flip sans IPv4 publique : NAT et rebond SSH par Pangolin, point unique accepté | acceptée |
+| [0020](0020-garder-le-raspberry-pi-pour-immich.md) | Garder le Raspberry Pi pour Immich, isolé de Proxmox et de la VM docker | acceptée |
