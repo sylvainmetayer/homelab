@@ -1,0 +1,6 @@
+---
+- name: Restart grocy
+  ansible.builtin.systemd:
+    name: dc@grocy
+    scope: user
+    state: restarted

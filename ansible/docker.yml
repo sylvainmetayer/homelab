@@ -21,6 +21,7 @@
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
         homebox_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homebox_url.value | default('') }}"
         papra_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_papra_url.value | default('') }}"
+        grocy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_grocy_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
@@ -105,6 +106,8 @@
       tags: homebox,app
     - role: papra
       tags: papra,app
+    - role: grocy
+      tags: grocy,app
     - role: speedtest_tracker
       tags: speedtest_tracker,app
     - role: ntfy

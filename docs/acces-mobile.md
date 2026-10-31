@@ -83,6 +83,18 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   (« Custom headers » en anglais) `P-Access-Token-Id` et `P-Access-Token`
   avec les valeurs de la sortie ; ensuite le compte Papra. Aucun chemin ouvert : toute l'API
   reste derrière le SSO et le filtre pays.
+- Grocy : l'appli Android (patzly/grocy-android) n'envoie pas d'en-tête
+  personnalisé, donc pas de jeton d'accès. Elle passe par
+  l'**authentification par en-tête** de Pangolin
+  (`pangolin_resource_header_auth.grocy_mobile`, `website_grocy.tf`) :
+  identifiants HTTP Basic écrits dans l'URL du serveur, que l'appli
+  transforme en en-tête `Authorization: Basic`. URL lue avec
+  `tofu output -raw grocy_mobile_server_url` dans `tofu/pangolin_config`
+  (`https://mobile:<mot de passe>@grocy.sylvain.cloud`), à saisir comme
+  serveur dans l'appli, puis une clé d'API de Grocy (Paramètres > Gérer les
+  clés d'API). Aucun chemin ouvert : toute la ressource reste derrière le
+  filtre pays, et les navigateurs gardent la page de connexion du SSO
+  (`extended_compatibility = false`).
 - Les sondes Uptime Kuma (`Healthcheck <appli>`) : un jeton par appli
   surveillée (`pangolin_resource_access_token.healthcheck`, `websites.tf`).
 
