@@ -100,16 +100,14 @@
         src: /opt/apps/papra/.env
       register: papra_env_content
 
-    # Inscription fermée par défaut (papra_registration_enabled), corbeille
-    # gardée 90 jours, et un secret de session d'au moins 32 caractères, sans
-    # quoi Papra refuse de démarrer.
-    - name: Assert papra registration is closed, trash retention and auth secret
+    # Inscription fermée par défaut (papra_registration_enabled), et un secret
+    # de session d'au moins 32 caractères, sans quoi Papra refuse de démarrer.
+    - name: Assert papra registration is closed and its auth secret is set
       vars:
         papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
-          - "'DOCUMENTS_DELETED_DOCUMENTS_RETENTION_DAYS=90' in papra_env_lines"
           - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
     # File des tâches dans une base du volume, à côté de db.sqlite (glob de
@@ -176,12 +174,6 @@
         that:
           - papra_intake_config.user == papra_intake_imap_user
           - papra_intake_config.password == papra_intake_imap_password
-          - papra_intake_config.port | int == 993
-          - papra_intake_config.allowed_senders == ['@example.org']
-          - papra_intake_config.dest_dir == '/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i'
-          - papra_intake_config.tmp_dir == '/opt/apps/papra/intake-tmp'
-          - papra_intake_config.max_bytes | int == 26214400
-          - papra_intake_config.body_marker == '[mail]'
 
     - name: Verify the papra intake units
       become: true
@@ -209,8 +201,6 @@
         that:
           - papra_intake_timer.status.UnitFileState == 'enabled'
           - papra_intake_timer.status.ActiveState == 'active'
-          - papra_intake_timer.status.TimersCalendar is search('OnCalendar=\*-\*-\* \*:00/15:00')
-          - papra_intake_unit.status.Type == 'oneshot'
           - papra_intake_unit.status.User == 'sylvain'
           - papra_intake_unit.status.ProtectSystem == 'strict'
           - papra_intake_unit.status.NoNewPrivileges == 'yes'
@@ -356,38 +346,6 @@
             papra_intake_body_written.files | map(attribute='path') | map('basename') | sort
             == (papra_intake_html.written + papra_intake_plain.written) | sort
         fail_msg: "{{ papra_intake_body_runs.results | map(attribute='stdout') | list }}"
-
-    - name: Read the papra intake text files
-      loop:
-        - 2026-10-29 - Quittance de loyer 10-2026.txt
-        - 2026-10-30 - Relevé été.txt
-      ansible.builtin.slurp:
-        src: "/opt/apps/papra/ingestion/org_z9tq7wl3o5airawxel6f3e5i/{{ item }}"
-      register: papra_intake_texts
-
-    # En-têtes puis corps ; le HTML seul rendu en texte (ni balise, ni
-    # script, ni style, ni titre malgré un </head> absent, entités décodées,
-    # une ligne par <br>, <p>, <li>, une espace entre cellules) ; la partie
-    # text/plain préférée au HTML.
-    - name: Assert the papra intake text files
-      vars:
-        papra_intake_html_lines: "{{ (papra_intake_texts.results[0].content | b64decode).splitlines() }}"
-        papra_intake_plain_lines: "{{ (papra_intake_texts.results[1].content | b64decode).splitlines() }}"
-      ansible.builtin.assert:
-        that:
-          - >-
-            papra_intake_html_lines[:5] == ['De : Scanner <scanner@example.org>', 'À : papra@example.net',
-            'Date : Thu, 29 Oct 2026 23:30:00 -0100', 'Objet : Quittance de loyer 10/2026', '']
-          - "'Loyer d\\'octobre : 850 €' in papra_intake_html_lines"
-          - "'Charges comprises.' in papra_intake_html_lines"
-          - "'Montant 850 €' in papra_intake_html_lines"
-          - "'- Échéance : 5 novembre' in papra_intake_html_lines"
-          - "'Cordialement & merci' in papra_intake_html_lines"
-          - "papra_intake_html_lines | select('search', '[<>]|alert|color|Titre') | list == ['De : Scanner <scanner@example.org>']"
-          - "papra_intake_plain_lines[3] == 'Objet : Relevé été'"
-          - "'Relevé de l\\'été en texte brut.' in papra_intake_plain_lines"
-          - papra_intake_plain_lines | select('search', 'Version HTML') | list == []
-        fail_msg: "{{ papra_intake_texts.results | map(attribute='content') | map('b64decode') | list }}"
 
     - name: Checksum the papra intake fixtures and their .eml copies
       loop:

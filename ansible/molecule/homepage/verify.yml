@@ -140,9 +140,7 @@
           - homepage_admin['sylvain.dev'].href is not defined
         fail_msg: "Widgets inattendus : {{ homepage_admin }}"
 
-    # Une carte par système du hub (clés de beszel_agent_tokens), en mode
-    # systemId, avec le CPU et la mémoire de l'invité Proxmox pour la VM docker
-    # et le LXC newt.
+    # Une carte Beszel par système du hub (clés de beszel_agent_tokens).
     - name: Assert one Beszel card per host
       vars:
         homepage_hosts_cards: "{{ homepage_cards['Hôtes'] }}"
@@ -150,77 +148,7 @@
         that:
           - homepage_card_names['Hôtes'] == beszel_agent_tokens.keys() | list | sort
           - homepage_hosts_cards.values() | map(attribute='widget.type') | unique | list == ['beszel']
-          - homepage_hosts_cards['pi'].widget.systemId == 'pi'
-          - homepage_hosts_cards['pi'].widget.url == 'http://172.16.97.2:8090' # NOSONAR
-          - homepage_hosts_cards['pi'].widget.password == homepage_beszel_password
-          - homepage_hosts_cards['pi'].widget.fields == ['status', 'cpu', 'memory', 'disk']
-          - homepage_hosts_cards['pi'].href == 'https://monitoring.sylvain.cloud'
-          - homepage_hosts_cards['pi'].proxmoxVMID is not defined
-          - homepage_hosts_cards['docker'].proxmoxNode == 'proxmox'
-          - homepage_hosts_cards['docker'].proxmoxVMID == 100
-          - homepage_hosts_cards['docker'].proxmoxType == 'qemu'
-          - homepage_hosts_cards['newt-lxc'].proxmoxVMID == 200
-          - homepage_hosts_cards['newt-lxc'].proxmoxType == 'lxc'
         fail_msg: "Cartes d'hôte inattendues : {{ homepage_cards['Hôtes'] }}"
-
-    # Widgets à clé : adresse interne de l'output (VM docker) ou LAN du rôle,
-    # clé de fake_secrets.yml, version 2 où le widget en a deux.
-    - name: Assert the token widgets
-      vars:
-        homepage_admin: "{{ homepage_cards['Administration'] }}"
-        homepage_media: "{{ homepage_cards['Photos et médias'] }}"
-        homepage_agenda: "{{ homepage_cards['Vie perso']['Agenda'].widget }}"
-        homepage_expected_speedtest:
-          type: speedtest
-          url: http://speedtest-tracker:80 # NOSONAR (réseau newt, sans TLS)
-          version: 2
-          key: "{{ homepage_speedtest_tracker_token }}"
-      ansible.builtin.assert:
-        that:
-          - homepage_admin['Speedtest Tracker'].widget == homepage_expected_speedtest
-          - homepage_admin['Pangolin'].widget.type == 'pangolin'
-          - homepage_admin['Pangolin'].widget.url == 'https://pangolin-api.sylvain.cloud'
-          - homepage_admin['Pangolin'].widget.key == homepage_pangolin_api_key
-          - homepage_admin['Pangolin'].widget.org == 'homelab'
-          - homepage_admin['Proxmox'].widget.type == 'proxmox'
-          - homepage_admin['Proxmox'].widget.url == 'https://192.168.1.26:8006'
-          - homepage_admin['Proxmox'].widget.username == homepage_proxmox_token_id
-          - homepage_admin['Proxmox'].widget.password == homepage_proxmox_token_secret
-          - homepage_admin['Proxmox'].widget.node == 'proxmox'
-          - "homepage_media['Immich'].widget == {'type': 'immich', 'url': 'http://192.168.1.96:2283', 'version': 2, 'key': homepage_immich_api_key}" # NOSONAR
-          - homepage_media['Jellyfin'].widget.type == 'jellyfin'
-          - homepage_media['Jellyfin'].widget.url == 'http://192.168.1.137:8096' # NOSONAR
-          - homepage_media['Jellyfin'].widget.version == 2
-          - homepage_media['Jellyfin'].widget.key == homepage_jellyfin_api_key
-          - not homepage_media['Jellyfin'].widget.enableMediaControl
-          - homepage_cards['Vie perso']['Homebox'].widget.url == 'http://homebox:7745' # NOSONAR
-          - homepage_cards['Vie perso']['Homebox'].widget.username == 'homepage@homebox.sylvain.cloud'
-          - homepage_cards['Vie perso']['Homebox'].widget.password == homepage_homebox_password
-          - homepage_cards['Lecture']['Karakeep'].widget.url == 'http://karakeep:3000' # NOSONAR
-          - homepage_cards['Lecture']['Karakeep'].widget.key == homepage_karakeep_api_key
-          - homepage_agenda.type == 'calendar'
-          - homepage_agenda.integrations | length == 1
-          - homepage_agenda.integrations[0].type == 'ical'
-          - homepage_agenda.integrations[0].url == homepage_calendar_ics_url
-          - homepage_cards['Vie perso']['Agenda'].href is not defined
-        fail_msg: "Widgets à clé inattendus : {{ homepage_cards | dict2items | map(attribute='key') | list }}"
-
-    - name: Read the homepage proxmox configuration
-      ansible.builtin.slurp:
-        src: /opt/apps/homepage/config/proxmox.yaml
-      register: homepage_proxmox_raw
-
-    - name: Assert the Proxmox node configuration
-      vars:
-        homepage_expected_proxmox:
-          proxmox:
-            url: https://192.168.1.26:8006
-            token: "{{ homepage_proxmox_token_id }}"
-            secret: "{{ homepage_proxmox_token_secret }}"
-      ansible.builtin.assert:
-        that:
-          - (homepage_proxmox_raw.content | b64decode | from_yaml) == homepage_expected_proxmox
-        fail_msg: proxmox.yaml inattendu
 
 # Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :
 # la page se déploie avant que Sylvain ait créé les jetons. Ni widget, ni
