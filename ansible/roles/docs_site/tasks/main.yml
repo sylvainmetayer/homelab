@@ -58,8 +58,10 @@
       register: docs_site_build_dir
 
     # --strict : un lien cassé arrête le déploiement, comme il fait échouer le
-    # Lint de la PR. SOURCE_DATE_EPOCH fige la date du sitemap : sans lui,
-    # chaque construction donnerait une archive neuve et un redépôt.
+    # Lint de la PR. Pas de --quiet : il masquerait les avertissements, et
+    # l'échec ne dirait plus quel lien casse. SOURCE_DATE_EPOCH fige la date
+    # du sitemap : sans lui, chaque construction donnerait une archive neuve
+    # et un redépôt.
     - name: Build the site with mkdocs on the controller
       delegate_to: localhost
       run_once: true
@@ -76,7 +78,6 @@
           - mkdocs
           - build
           - --strict
-          - --quiet
           - --config-file
           - "{{ docs_site_mkdocs_config }}"
           - --site-dir

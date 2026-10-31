@@ -13,6 +13,9 @@ from pathlib import Path
 # [texte](cible) ou [texte](cible "titre") ; la cible s'arrête au premier
 # blanc ou à la parenthèse fermante.
 LINK_RE = re.compile(r"(\]\()([^)\s]+)")
+# Définition d'un lien par référence, [id]: cible "titre" : MkDocs la valide
+# comme un lien en ligne.
+REF_RE = re.compile(r"^( {0,3}\[[^\]]+\]:[ \t]*)(\S+)", re.MULTILINE)
 SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
@@ -35,11 +38,11 @@ def rewrite(markdown, src_uri, docs_prefix, repo_blob_url):
             return match.group(0)
         return f"{match.group(1)}{repo_blob_url}/{in_repo}{sep}{anchor}"
 
-    return LINK_RE.sub(replace, markdown)
+    return REF_RE.sub(replace, LINK_RE.sub(replace, markdown))
 
 
 def on_page_markdown(markdown, page, config, files, **kwargs):
     root = Path(config.config_file_path).resolve().parent
     docs_prefix = Path(config.docs_dir).resolve().relative_to(root).as_posix()
-    blob_url = f"{config.repo_url.rstrip('/')}/blob/main"
+    blob_url = config.extra["repo_blob_url"].rstrip("/")
     return rewrite(markdown, page.file.src_uri, docs_prefix, blob_url)
