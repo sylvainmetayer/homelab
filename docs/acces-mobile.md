@@ -165,6 +165,28 @@ et les accès d'administration (`pi.internal`, `docker-apps.internal`,
 `pve.internal`, `flip.internal`).
 Rien de tout ça n'est public. Voir [architecture.md](architecture.md).
 
+## SSH depuis le téléphone (ConnectBot)
+
+ConnectBot (Android) a sa propre clé, `keys/android.pub` (ED25519,
+`SHA256:H6gtq2yQ…zow`), posée en exclusif par `00-setup.yaml` sur les hôtes
+qu'il cible. Une fiche par hôte, utilisateur `sylvain`, port 22 :
+
+| Fiche | Adresse | Dehors |
+|---|---|---|
+| pangolin | `pangolin.sylvain.cloud` | direct (IP publique) : le premier à ouvrir si le reste ne répond plus |
+| docker | `docker-apps.internal` | client Pangolin (à la maison : `192.168.1.216`) |
+| pi | `pi.internal` | client Pangolin (à la maison : `192.168.1.96`) |
+| newt-lxc | `192.168.1.200` | à la maison seulement : pas de ressource privée pour son SSH |
+| flip | `flip.internal` | client Pangolin |
+
+- `flip.internal` passe par le Newt de flip : depuis cette session, ne jamais
+  redémarrer `newt` ni Docker, la connexion tomberait avec. Dernier recours :
+  la console Hetzner.
+- Le NAS (`nas.sylvain.cloud`, port 22) et Proxmox (`pve.internal`) n'ont pas
+  la clé ConnectBot : `00-setup.yaml` ne les vise pas.
+- Le sshd durci accepte ConnectBot (tableau des clients dans
+  [runbooks/ssh-refuse-apres-durcissement.md](runbooks/ssh-refuse-apres-durcissement.md)).
+
 ## Ajouter une ouverture
 
 Toujours la plus étroite possible : un chemin exact plutôt qu'un préfixe,

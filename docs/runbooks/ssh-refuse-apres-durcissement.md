@@ -96,7 +96,8 @@ et les MAC etm dès qu'ils ont sntrup ou mlkem.
 | libssh (Remmina, KDE, `ansible-pylibssh`) | 0.11 (sntrup) | 0.10 et avant |
 | JSch (Java, IDE JetBrains anciens, Jenkins) | fork `com.github.mwiede` récent, avec Bouncy Castle (à vérifier) | JSch d'origine 0.1.55 : refusé |
 | Go `x/crypto/ssh` | version avec `mlkem768x25519-sha256` (2025) | plus ancienne |
-| Termius, Blink, ConnectBot, JuiceSSH, clients SFTP mobiles | à vérifier par ssh-audit `-c` | JuiceSSH : refusé |
+| Termius, Blink, JuiceSSH, clients SFTP mobiles | à vérifier par ssh-audit `-c` | JuiceSSH : refusé |
+| ConnectBot (Android) | version testée le 27/10/2026 sur newt-lxc (#897) : acceptée | — |
 
 Consoles de secours : la console Hetzner et la console Proxmox ne passent pas
 par SSH, le durcissement ne les touche pas.
