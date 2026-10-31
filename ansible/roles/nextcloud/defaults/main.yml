@@ -1,6 +1,5 @@
 ---
 nextcloud_base_path: "{{ docker_base_path }}/nextcloud"
-nextcloud_domain: sylvain.cloud
 # Sensitive: must be set in secrets.sops.yaml
 nextcloud_db_password: ""
 # Sensitive: must be set in secrets.sops.yaml

@@ -1,6 +1,5 @@
 ---
 betisier_base_path: "{{ docker_base_path }}/betisier"
-betisier_domain: betisier.sylvain.cloud
 betisier_db_password: ""
 # URL push du moniteur « Reset Betisier » (sortie uptime_cron_betisier_reset_url
 # de tofu/pangolin_config, lue par docker.yml) : betisier-reset.service y pousse

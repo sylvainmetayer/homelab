@@ -1,6 +1,5 @@
 ---
 promptoramix_base_path: "{{ docker_base_path }}/promptoramix"
-promptoramix_domain: promptoramix.sylvain.cloud
 
 # Secret HMAC partagé avec la plateforme Linkx : l'application rejette toute
 # requête dont la signature ne correspond pas. C'est sa seule protection, la

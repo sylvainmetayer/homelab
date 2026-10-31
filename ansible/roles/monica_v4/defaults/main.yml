@@ -1,6 +1,5 @@
 ---
 monica_v4_base_path: "{{ docker_base_path }}/monica_v4"
-monica_v4_domain: crm.sylvain.dev
 monica_v4_db_password: ""
 # Clés SOPS. APP_KEY chiffre ce que Laravel chiffre en base (et les
 # sessions), HASH_SALT sale les identifiants publics hachés : copiées de
