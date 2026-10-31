@@ -13,11 +13,14 @@ Steps, on the latest archive:
      failing every night) leaves an old archive that restores fine. Not for
      an entry marked "paused": its app is stopped on purpose and writes no
      archive (the scheduled run skips it, a manual run still restores it);
-  1. extract a sample of regular files (borg checks every chunk it decrypts);
-  2. replay every PostgreSQL / MySQL dump in a throwaway container of the
+  1. check that the archive holds a dump or a SQLite copy of every kind
+     listed in the entry's "databases" (and none of another kind): a dump or
+     a copy that stopped being written must fail, not pass on the files;
+  2. extract a sample of regular files (borg checks every chunk it decrypts);
+  3. replay every PostgreSQL / MySQL dump in a throwaway container of the
      role's database image, and check that a table came back (unless the
      database is listed in the entry's allow_empty_databases);
-  3. run PRAGMA integrity_check on every SQLite copy.
+  4. run PRAGMA integrity_check on every SQLite copy.
 Exits non-zero on any failure; the workflow's last job pushes the overall
 result to the "Restore test" monitor.
 """
@@ -49,6 +52,9 @@ DUMP_RE = re.compile(r"(?:^|/)(postgresql|mysql)_databases/[^/]+/([^/]+)$")
 SQLITE_STAGING = "var/lib/borgmatic-sqlite/"
 # Database names end up in SQL: nothing but identifiers.
 SAFE_NAME = re.compile(r"[A-Za-z0-9_-]+")
+# Kinds an entry's "databases" may list: the engines of DUMP_RE and the
+# SQLite copies of the borgmatic role's staging directory.
+DATABASE_KINDS = {"postgresql", "mysql", "sqlite"}
 
 # Database image of the role, picked from its compose template.
 IMAGE_RE = {
@@ -227,6 +233,22 @@ def check_age(entry, archive, age):
         raise RestoreError(f"dernière archive {archive} vieille de {age} : la sauvegarde ne tourne plus")
 
 
+def check_databases(entry, dumps, sqlite):
+    # Required, and exactly what the archive holds: a missing key or a typo
+    # must not turn the check off, and a dump the manifest does not know of
+    # means the manifest no longer describes the role's borgmatic config.
+    expected = entry.get("databases")
+    if not isinstance(expected, list) or not set(expected) <= DATABASE_KINDS:
+        raise RestoreError(f"databases doit être une liste parmi {sorted(DATABASE_KINDS)} : {expected!r}")
+    found = {engine for engine, _, _ in dumps} | ({"sqlite"} if sqlite else set())
+    missing = sorted(set(expected) - found)
+    if missing:
+        raise RestoreError(f"aucun dump ni copie {', '.join(missing)} dans l'archive")
+    unexpected = sorted(found - set(expected))
+    if unexpected:
+        raise RestoreError(f"{', '.join(unexpected)} présent dans l'archive mais absent de databases (apps.json)")
+
+
 def restore(entry, workdir):
     repo = repository(entry)
     latest = latest_archive(repo)
@@ -245,6 +267,7 @@ def restore(entry, workdir):
 
     dumps = [(m.group(1), m.group(2), path) for _, path in files if (m := DUMP_RE.search(path))]
     sqlite = [path for _, path in files if path.startswith(SQLITE_STAGING + entry["repo"] + "/")]
+    check_databases(entry, dumps, sqlite)
     candidates = [path for size, path in files
                   if 0 < size <= SAMPLE_MAX_BYTES and not DUMP_RE.search(path)
                   and not path.startswith(SQLITE_STAGING)]

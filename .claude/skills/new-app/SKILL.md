@@ -79,9 +79,11 @@ in its `host_vars`, then run `ansible-playbook backup.yaml`
 once its borgmatic role has generated its key.
 
 Do register the app in the restore test: an entry
-`"<service>": {"host": "<host>", "repo": "<borgmatic_app_name>", "role": "<role>"}`
+`"<service>": {"host": "<host>", "repo": "<borgmatic_app_name>", "role": "<role>", "databases": ["<postgresql|mysql|sqlite>"]}`
 in `.github/restore-test/apps.json` (`pangolin_config`'s `tofu test` fails
-on any `backup = true` website missing from it). Until its first nightly
+on any `backup = true` website missing from it; `databases` lists the kinds
+of the role's `borgmatic_app_*_databases`, `[]` for none, checked by
+`test_restore_test_databases.py`). Until its first nightly
 archive exists, the next restore-test run fails on it with « aucune archive ».
 
 ## 4. Backup vars
