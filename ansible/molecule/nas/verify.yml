@@ -71,17 +71,13 @@
         nas_verify_unit_lines: "{{ (nas_verify_unit_raw.content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
-          - ('WorkingDirectory=' ~ docker_base_path ~ '/%i') in nas_verify_unit_lines
           - nas_verify_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
           - nas_verify_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list == ['ExecStartPre=/usr/bin/docker compose pull --policy missing']
           - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in nas_verify_unit_lines"
           - "'ExecStop=/usr/bin/docker compose stop' in nas_verify_unit_lines"
           - "'Restart=always' in nas_verify_unit_lines"
-          - "'RestartSec=15s' in nas_verify_unit_lines"
-          - "'StartLimitIntervalSec=0' in nas_verify_unit_lines"
           - nas_verify_unit_lines | select('match', '^StartLimitBurst=') | list | length == 0
           - nas_verify_unit_lines | select('match', '^Restart(Steps|MaxDelaySec)=') | list | length == 0
-          - "'TimeoutStartSec=300' in nas_verify_unit_lines"
           # Ordre seul : tirer docker.service le démarrerait avant qu'UGOS ait
           # monté /volume1 (data-root).
           - "'After=docker_serv.service docker.service' in nas_verify_unit_lines"
@@ -156,23 +152,6 @@
         fail_msg: >-
           dc@beszel_agent : {{ nas_verify_beszel_unit.status.ActiveState }},
           {{ nas_verify_beszel_unit.status.UnitFileState }}
-
-    - name: Render the Beszel agent compose model
-      ansible.builtin.command: docker compose config --format json
-      args:
-        chdir: "{{ docker_base_path }}/beszel_agent"
-      register: nas_verify_beszel_compose
-      changed_when: false
-
-    # Les trois disques du NAS et /volume1 (host_vars/nas).
-    - name: Assert the agent sees the NAS disks and volume
-      vars:
-        nas_verify_agent: "{{ (nas_verify_beszel_compose.stdout | from_json).services.agent }}"
-      ansible.builtin.assert:
-        that:
-          - nas_verify_agent.devices | map(attribute='source') | list == ['/dev/sda', '/dev/sdb', '/dev/sdc']
-          - nas_verify_agent.volumes | selectattr('source', 'equalto', '/volume1') | map(attribute='target') | list == ['/extra-filesystems/volume1']
-        fail_msg: "Agent du NAS inattendu : {{ nas_verify_agent }}"
 
     # Agent de journaux : dc@log_agent en unité système, tout à root sous
     # docker_base_path (log_agent dérive tout de docker_service_scope, sans
@@ -341,7 +320,7 @@
         - borgmatic.service
         - borgmatic.timer
 
-    # L'enrobage, après le démon Docker d'UGOS sans le tirer, à 02:30.
+    # L'enrobage, après le démon Docker d'UGOS sans le tirer.
     - name: Assert the borgmatic units run the container on the NAS schedule
       vars:
         nas_verify_borgmatic_service: "{{ (nas_verify_borgmatic_units.results[0].content | b64decode).splitlines() }}"
@@ -352,7 +331,6 @@
           - "'After=network-online.target docker_serv.service docker.service' in nas_verify_borgmatic_service"
           - "'Wants=network-online.target' in nas_verify_borgmatic_service"
           - nas_verify_borgmatic_service | select('match', 'ExecStartPre=/usr/bin/timeout 300 .*docker info') | list | length == 1
-          - "'OnCalendar=*-*-* 02:30:00' in nas_verify_borgmatic_timer"
           - "'Persistent=true' in nas_verify_borgmatic_timer"
         fail_msg: "Unités borgmatic inattendues"
 

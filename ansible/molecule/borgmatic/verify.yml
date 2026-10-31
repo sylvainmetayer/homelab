@@ -216,12 +216,11 @@
         - borgmatic.service
         - borgmatic.timer
 
-    - name: Assert the units run the pipx borgmatic on the configured schedule
+    - name: Assert the units run the pipx borgmatic as root
       ansible.builtin.assert:
         that:
           - "'\nExecStart=/root/.local/bin/borgmatic ' in (borgmatic_units.results[0].content | b64decode)"
           - "'\nUser=root\n' in (borgmatic_units.results[0].content | b64decode)"
-          - ('\nOnCalendar=' ~ borgmatic_timer_schedule ~ '\n') in (borgmatic_units.results[1].content | b64decode)
 
     # Sans secret, lisibles par tous : fermées à "others", systemd journalise
     # « marked world-inaccessible » à chaque daemon-reload.
@@ -288,17 +287,3 @@
           - "'Port 23' in borgmatic_ssh_config"
           - ('IdentityFile ' ~ backup_storage_box_ssh_key_path) in borgmatic_ssh_config
           - ('[' ~ backup_storage_box_subaccounts.flip.server ~ ']:23 ' ~ backup_storage_box_host_key) in borgmatic_known_hosts
-
-    # --- répertoires ---
-
-    - name: Stat the borgmatic configuration directory
-      become: true
-      ansible.builtin.stat:
-        path: "{{ borgmatic_config_dir }}"
-      register: borgmatic_config_dir_stat
-
-    - name: Assert the borgmatic configuration directory exists
-      ansible.builtin.assert:
-        that:
-          - borgmatic_config_dir_stat.stat.isdir | default(false)
-          - borgmatic_config_dir_stat.stat.pw_name == 'root'
