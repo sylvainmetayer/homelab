@@ -14,7 +14,9 @@ with the playbook at --base (comments and layout deploy nothing); any other
 change to it (pre_tasks, tasks, play keys), or no readable --base, deploys the
 whole playbook. A change under host_vars/<host>/, <host> being the play's
 `hosts:`, deploys the whole playbook too: which role reads which variable is
-not known here.
+not known here. A change to a file every playbook reads (SHARED_PATHS:
+group_vars/all, the shared tasks/, requirements.yml) deploys every playbook
+given, whole.
 """
 import argparse
 import json
@@ -40,6 +42,15 @@ MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml"]
 # ansible-playbook --tags all: every task except those tagged never.
 WHOLE_PLAYBOOK = "all"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+# Read by every playbook, hence by every role: a change runs each playbook
+# given whole. group_vars/all: variables of every host; tasks/: pre_tasks
+# imported by the playbooks (pangolin_config_outputs.yml); requirements.yml:
+# the versions of the galaxy roles and collections (geerlingguy.docker,
+# devsec.hardening...) the roles run. Left out, deliberately: secrets.sops.yaml
+# (a rotation is applied by hand, in order, docs/runbooks/rotation-des-secrets.md),
+# and what changes no host (ansible.cfg, known_hosts, inventory/: the CI writes
+# its own, mise.toml, molecule/).
+SHARED_PATH_RE = re.compile(r"^ansible/(group_vars/all/|tasks/|requirements\.yml$)")
 
 
 def safe_playbook_path(playbook_path):
@@ -169,6 +180,11 @@ def playbook_change_tags(playbook_path, changed_files, base):
     return tags
 
 
+def shared_changes(changed_files):
+    """Changed files every playbook reads (SHARED_PATH_RE), sorted."""
+    return sorted(p for p in changed_files if SHARED_PATH_RE.match(p))
+
+
 def changed_roles(changed_files):
     roles = set()
     for path in changed_files:
@@ -260,6 +276,9 @@ def main():
     playbook_paths = args.playbooks
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
     roles, pulled_by = add_dependents(changed_roles(changed_files))
+    shared = shared_changes(changed_files)
+    if shared:
+        print(f"::notice::{', '.join(shared)} changed -> every playbook whole", file=sys.stderr)
 
     result = {}
     referenced = set()
@@ -279,7 +298,7 @@ def main():
             print(f"::notice::role '{role}' {what} -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
 
         resolved = set(resolved) | playbook_change_tags(playbook_path, changed_files, args.base)
-        if WHOLE_PLAYBOOK in resolved:
+        if shared or WHOLE_PLAYBOOK in resolved:
             resolved = {WHOLE_PLAYBOOK}
         result[playbook_path] = ",".join(sorted(resolved))
 
