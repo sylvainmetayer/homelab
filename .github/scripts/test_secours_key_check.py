@@ -16,12 +16,12 @@ TODAY = datetime.date(2026, 10, 29)
 
 CONFIG = f"""\
 creation_rules:
-  - path_regex: (^|/)ansible/secrets\\.sops\\.yaml$
+  - path_regex: (^|/)secrets/ansible\\.sops\\.yaml$
     key_groups:
       - age:
           - {PERSO} # perso
           - {SECOURS} # secours
-  - path_regex: (^|/)secrets\\.sops\\.yaml$
+  - path_regex: (^|/)secrets/secrets\\.sops\\.yaml$
     key_groups:
       - age:
           - {PERSO} # perso
