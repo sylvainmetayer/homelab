@@ -226,7 +226,6 @@ flowchart LR
 | `test.yaml` | chaque PR (sélection), le lundi et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
 | `codeql.yaml` | le lundi, à la main, PR et push sur `main` touchant `.github/scripts/**` | analyse CodeQL (`actions`, `python`) vers l'onglet Security ; la configuration par défaut de GitHub reste désactivée |
 | `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
-| `ping.yaml` | à la main | teste le tunnel OLM de la CI |
 
 - **Merger = déployer.** Le ruleset `main` (`tofu/github/ruleset_homelab.tf`)
   exige une PR et les checks `Ansible lint`, `OpenTofu lint`, `Tests` et

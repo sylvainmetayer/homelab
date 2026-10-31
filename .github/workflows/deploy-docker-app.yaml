@@ -301,7 +301,7 @@ jobs:
           sudo apt-get install -y dnsutils
 
       # Conteneur, attente du proxy DNS et image épinglée :
-      # .github/actions/olm-tunnel, partagé avec ping.yaml.
+      # .github/actions/olm-tunnel.
       - name: Start the OLM tunnel
         if: steps.resolve-tags.outputs.any_tags == 'true'
         uses: ./.github/actions/olm-tunnel # zizmor: ignore[self-repository]
@@ -310,8 +310,13 @@ jobs:
           olm-id: ${{ secrets.OLM_ID }}
           olm-secret: ${{ secrets.OLM_SECRET }}
 
-      # See .github/workflows/ping.yaml for why the runner's own resolver
-      # needs to be pointed at the OLM DNS proxy directly.
+      # OLM runs in a container (--network host): it shares the runner's
+      # network namespace but NOT its mount namespace, so its
+      # OVERRIDE_DNS=true only rewrites /etc/resolv.conf *inside the
+      # container*, which the runner's own resolver never sees (`dig
+      # @100.96.128.1` works from the runner, plain `dig` does not). Point the
+      # runner's resolver at the OLM DNS proxy directly, as a local OLM client
+      # reconfigures the host's DNS; the Cleanup step restores it.
       - name: Point host DNS at OLM tunnel
         if: steps.resolve-tags.outputs.any_tags == 'true'
         run: |

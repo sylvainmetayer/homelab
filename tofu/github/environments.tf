@@ -20,7 +20,7 @@
 # quoi relire avant le merge à la main.
 locals {
   environments = {
-    # deploy-docker-app.yaml et ping.yaml : la clé age de la CI (tout
+    # deploy-docker-app.yaml : la clé age de la CI (tout
     # secrets/ansible.sops.yaml), la clé SSH de déploiement (ssh_key.tf) et
     # les identifiants du client OLM de la CI (pangolin_client.ci_runner de
     # tofu/pangolin_config). Sans relecteur : le déploiement au merge reste
