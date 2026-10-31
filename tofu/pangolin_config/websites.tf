@@ -262,7 +262,7 @@ resource "uptimekuma_monitor_push" "backup" {
   # Grouped under the Backup folder. See uptime_globals.tf.
   parent = uptimekuma_monitor_group.backups.id
 
-  interval = 60 * 60 * 24
+  interval = local.backup_push_interval
 
   retry_interval = 20
   # A paused app (enabled = false) runs no backup: nothing to wait for.

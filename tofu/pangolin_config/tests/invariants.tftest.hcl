@@ -2151,7 +2151,8 @@ run "demo_and_production_planning_share_nothing" {
 }
 
 # Rangement et alerting des moniteurs : chaque sauvegarde dans le dossier
-# Backup avec un battement quotidien, chaque healthcheck dans Self-hosted, et
+# Backup avec une fenêtre de 25 h (sauvegarde quotidienne, plus l'heure
+# du changement d'heure d'octobre), chaque healthcheck dans Self-hosted, et
 # tous reliés à Telegram et ntfy (un moniteur sans notification ne prévient
 # personne, comme gramps et scanopy en 503 pendant des heures). Tout moniteur
 # de sauvegarde est actif.
@@ -2166,10 +2167,10 @@ run "monitors_are_filed_and_alert" {
     condition = alltrue([
       for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
-      && m.interval == 86400
+      && m.interval == 25 * 3600
       && toset(m.notification_ids) == toset(local.alert_notification_ids)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, quotidien et notifié sur Telegram et ntfy."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, à 25 h (le changement d'heure d'octobre espace deux sauvegardes de 25 h) et notifié sur Telegram et ntfy."
   }
 
   # Actif tant que l'app tourne : une app en pause (enabled = false) n'a plus
