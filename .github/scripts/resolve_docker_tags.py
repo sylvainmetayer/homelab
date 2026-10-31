@@ -47,7 +47,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 # given whole. group_vars/all: variables of every host; tasks/: pre_tasks
 # imported by the playbooks (pangolin_config_outputs.yml); requirements.yml:
 # the versions of the galaxy roles and collections (geerlingguy.docker,
-# devsec.hardening...) the roles run. Left out, deliberately: secrets.sops.yaml
+# devsec.hardening...) the roles run. Left out, deliberately: the secrets/ bump
 # (a rotation is applied by hand, in order, docs/runbooks/rotation-des-secrets.md),
 # and what changes no host (ansible.cfg, known_hosts, inventory/: the CI writes
 # its own, mise.toml, molecule/).

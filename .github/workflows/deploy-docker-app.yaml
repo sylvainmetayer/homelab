@@ -17,7 +17,7 @@ on:
       - ansible/host_vars/pangolin/**
       - ansible/host_vars/flip/**
       # Lus par tous les playbooks : chacun des quatre est redéployé entier.
-      # secrets.sops.yaml n'y est pas : une rotation s'applique à la main.
+      # Le sous-module secrets/ n'y est pas : une rotation s'applique à la main.
       - ansible/group_vars/all/**
       - ansible/tasks/**
       - ansible/requirements.yml

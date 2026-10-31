@@ -163,7 +163,7 @@ class SharedChanges(unittest.TestCase):
              "ansible/tasks/pangolin_config_outputs.yml"])
 
     def test_nothing_shared(self):
-        self.assertEqual(rdt.shared_changes(["ansible/roles/trek/tasks/main.yml", "ansible/secrets.sops.yaml"]), [])
+        self.assertEqual(rdt.shared_changes(["ansible/roles/trek/tasks/main.yml", "secrets"]), [])
 
 
 class PlaybookAt(unittest.TestCase):
@@ -300,7 +300,7 @@ class RealPlaybooks(unittest.TestCase):
 
     def test_files_left_out_of_the_shared_rule_deploy_nothing(self):
         # Applied by hand (secrets rotation) or changing no host.
-        for path in ("ansible/secrets.sops.yaml", "ansible/ansible.cfg", "ansible/known_hosts",
+        for path in ("secrets", "ansible/ansible.cfg", "ansible/known_hosts",
                      "ansible/inventory/hosts", "ansible/inventory/hetzner.py", "ansible/mise.toml",
                      "ansible/molecule/_shared/vars/fake_secrets.yml", "ansible/00-setup.yaml",
                      "ansible/group_vars/allx.yml", "ansible/requirements.yml.bak"):
