@@ -68,9 +68,9 @@ services:
     restart: always
     # Valkey sans mot de passe : publié sur la boucle locale seule. Le worker
     # distant du poste (compose/immich) l'atteint par le LAN le temps d'un
-    # rattrapage, immich_remote_worker_bind_address passé à l'IP LAN du Pi.
+    # rattrapage (immich_remote_worker, defaults/main.yml).
     ports:
-      - "{{ immich_remote_worker_bind_address }}:6379:6379"
+      - "{{ immich_db_bind_address }}:6379:6379"
     networks:
       - immich
 
@@ -108,10 +108,10 @@ services:
       start_period: 5m
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
-    # Même règle que Valkey (immich_remote_worker_bind_address) ; borgmatic
+    # Même règle que Valkey (immich_remote_worker) ; borgmatic
     # passe par docker exec, pas par ce port.
     ports:
-      - "{{ immich_remote_worker_bind_address }}:5432:5432"
+      - "{{ immich_db_bind_address }}:5432:5432"
     restart: always
     networks:
       - immich

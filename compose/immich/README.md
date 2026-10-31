@@ -7,7 +7,7 @@ Source <https://github.com/immich-app/immich/discussions/15085#discussioncomment
 - On immich server :
   - publish DB, redis ports on the LAN: they are on `127.0.0.1` only by
     default (Valkey has no password). From `ansible/`:
-    `ansible-playbook pi.yml --tags immich -e immich_remote_worker_bind_address=192.168.1.96`,
+    `ansible-playbook pi.yml --tags immich -e immich_remote_worker=true`,
     and the same run without `-e` once the worker is done, to close them again
     (a merge that redeploys `immich` closes them too)
   - (optional) disable worker with `IMMICH_WORKERS_INCLUDE=api` to only run API
@@ -40,6 +40,9 @@ Let your remote worker run until all jobs are processed, then unmount the sshfs 
 ```shell
 fusermount -u ~/Documents/homelab/compose/immich/library
 ```
+
+Then close the Pi's DB and redis ports again (Valkey has no password), from
+`ansible/`: `ansible-playbook pi.yml --tags immich`, without `-e`.
 
 If you enabled `IMMICH_WORKERS_INCLUDE=api` on the server, don't forget to revert it back to default and restart the server compose so that the server can process jobs again.
 
