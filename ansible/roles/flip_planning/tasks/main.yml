@@ -192,7 +192,10 @@
 
 # Nightly reset to a reference database — see flip_planning_reset_dump in
 # defaults/main.yml. Placed after the unit is started: the first restore needs
-# the postgres container up.
+# the postgres container up. While the instance is paused the timer is stopped
+# and disabled and nothing notifies the reset: reset.service Requires= dc@ and
+# its script runs `docker compose up`, so either would start the paused
+# instance again (the same reason flip_planning_restart_handlers is empty then).
 - name: Configure the nightly reset of {{ flip_planning_service }}
   when: flip_planning_reset_dump | length > 0
   block:
@@ -217,7 +220,7 @@
         group: "{{ ansible_facts['user_gid'] }}"
 
     - name: Copy the reference dump of {{ flip_planning_service }}
-      notify: "Reset {{ flip_planning_service }}"
+      notify: "{{ ['Reset ' ~ flip_planning_service] if flip_planning_enabled | bool else [] }}"
       ansible.builtin.copy:
         src: "{{ flip_planning_reset_dump }}"
         dest: "{{ flip_planning_base_path }}/seed/{{ flip_planning_reset_dump | basename }}"
@@ -226,7 +229,7 @@
         mode: "0600"
 
     - name: Template the reset script of {{ flip_planning_service }}
-      notify: "Reset {{ flip_planning_service }}"
+      notify: "{{ ['Reset ' ~ flip_planning_service] if flip_planning_enabled | bool else [] }}"
       ansible.builtin.template:
         src: "templates/reset.sh.j2"
         dest: "{{ flip_planning_base_path }}/reset.sh"
@@ -257,17 +260,17 @@
       loop: [service, timer]
       ansible.builtin.template:
         src: "templates/reset.{{ item }}.j2"
-        dest: "~/.config/systemd/user/{{ flip_planning_service }}-reset.{{ item }}"
+        dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/{{ flip_planning_service }}-reset.{{ item }}"
         owner: "{{ ansible_facts['user_id'] }}"
         group: "{{ ansible_facts['user_gid'] }}"
         mode: "0644"
 
-    - name: Enable the nightly reset timer of {{ flip_planning_service }}
+    - name: Set the nightly reset timer state, stopped while paused, for {{ flip_planning_service }}
       ansible.builtin.systemd:
         name: "{{ flip_planning_service }}-reset.timer"
         scope: user
-        state: started
-        enabled: true
+        state: "{{ 'started' if flip_planning_enabled | bool else 'stopped' }}"
+        enabled: "{{ flip_planning_enabled | bool }}"
         daemon_reload: true
 
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)

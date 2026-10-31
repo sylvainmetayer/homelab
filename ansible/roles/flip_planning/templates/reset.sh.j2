@@ -33,6 +33,15 @@ psql_admin() {
 # AFTER the `stop` below, mid-swap. Wait until the app has been started,
 # whoever starts it, so that step is behind us; an app that never gets healthy
 # (the very reason to reset it) only costs the timeout.
+#
+# On a first deploy the restart handler has just launched dc@'s `up`, which may
+# still be creating the containers: a second `up` creating them at the same
+# time collides on their names. Let it create them first (bounded: a unit that
+# never does leaves the `up` below to do it).
+for _ in $(seq 150); do
+  [ "$(docker compose ps -a -q app postgres | wc -l)" -ge 2 ] && break
+  sleep 2
+done
 docker compose up -d --wait --wait-timeout 300 app || true
 docker compose up -d --wait --wait-timeout 300 postgres
 
@@ -44,7 +53,11 @@ docker compose exec -T postgres pg_restore --no-owner --no-acl --exit-on-error \
 
 # `up`, not `start`: on a first deploy the containers may not exist yet.
 # Flyway migrates the restored schema to the image's version on boot.
-trap 'docker compose up -d --no-deps mailpit app' EXIT
+# --wait: the script, hence the unit and its Uptime Kuma push, only succeeds
+# once the application is healthy on the restored database (under set -e a
+# failed trap command becomes the script's exit status): a dump the image
+# cannot migrate fails the reset instead of reporting it done.
+trap 'docker compose up -d --no-deps --wait --wait-timeout 300 mailpit app' EXIT
 docker compose stop app mailpit
 # The dump carries the schema and the Flyway history; whatever a visitor
 # created goes with the old database. WITH (FORCE) closes what is still
