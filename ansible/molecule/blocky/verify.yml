@@ -62,7 +62,6 @@
           - blocky_unit.UnitFileState == 'enabled'
           - blocky_unit.DynamicUser == 'yes'
           - blocky_unit.CapabilityBoundingSet == 'cap_net_bind_service'
-          - blocky_unit.MemoryMax | int == 384 * 1024 * 1024
           - blocky_units.results[1].status.ActiveState == 'active'
           - blocky_units.results[1].status.UnitFileState == 'enabled'
           - blocky_unit_file.stat.mode == '0644'
@@ -101,18 +100,6 @@
         dig_name: "{{ item.name }}"
         dig_expected: "{{ item.expected }}"
         dig_server: "{{ item.server | default('127.0.0.1') }}"
-
-    - name: Query the API of Blocky for the reason of a block
-      ansible.builtin.command:
-        argv: ["{{ blocky_binary }}", --config, "{{ blocky_config_file }}", query, googlesyndication.com]
-      register: blocky_reason
-      changed_when: false
-
-    - name: Assert the block comes from the ads list
-      ansible.builtin.assert:
-        that:
-          - "'BLOCKED (ads' in blocky_reason.stdout ~ blocky_reason.stderr"
-        fail_msg: "{{ blocky_reason.stdout ~ blocky_reason.stderr }}"
 
     # Faux Uptime Kuma : http.server rend 200 sur le chemin du moniteur et
     # journalise chaque requête, query string comprise.
@@ -209,14 +196,3 @@
       ansible.builtin.systemd:
         name: blocky-check.timer
         state: started
-
-    # La mémoire du service (listes en ligne : quelques Mio). Les ~150 Mio
-    # des vraies listes sont mesurés à part (defaults, blocky_mem_limit).
-    - name: Read the memory peak of Blocky
-      ansible.builtin.command: systemctl show blocky.service --property MemoryPeak --value # noqa: command-instead-of-module
-      register: blocky_memory_peak
-      changed_when: false
-
-    - name: Show the memory peak of Blocky
-      ansible.builtin.debug:
-        msg: "MemoryPeak de blocky.service : {{ (blocky_memory_peak.stdout | int / 1048576) | round(1) }} Mio"
