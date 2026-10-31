@@ -66,7 +66,7 @@ mention.
 | Ansible depuis le poste et la CI | OpenSSH système (`[ssh_connection]` d'`ansible.cfg`, pas paramiko) | passe |
 | Runner GitHub `ubuntu-26.04` (`deploy-docker-app.yaml`) et son `ProxyJump` par Pangolin vers flip | OpenSSH d'Ubuntu 26.04 (≥ 9.9) | passe ; les deux sauts sont négociés par l'OpenSSH du runner, Pangolin ne fait que relayer le TCP (`-W`) |
 | Rebond Pangolin → flip depuis le poste (`hetzner.py`, `mise run ssh_flip`) | OpenSSH 10.2p1 | passe, idem |
-| Clé `android` (`keys/android.pub`) | application **inconnue du dépôt** | **à vérifier avant le déploiement** (ssh-audit `-c`, ci-dessus) : Termux (OpenSSH récent) passe ; JuiceSSH (abandonnée) est refusée |
+| ConnectBot (Android), clé `android` (`keys/android.pub`) | appli à jour au 2026-10-27 | passe, testé sur newt-lxc lui-même (#897) |
 | borgmatic → Storage Box, `backup.yaml`, `restore-test.yaml` | client sortant | non concerné (durcissement serveur seulement ; `ssh_client_hardening: false` laisse `/etc/ssh/ssh_config` tel quel) |
 | Beszel (agent ↔ hub) | son propre protocole sur WebSocket | non concerné (pas de sshd) |
 | `ssh_login_notify` | `pam_exec` de sshd, après l'authentification | non concerné : un client refusé à la négociation ne notifie rien |
@@ -97,7 +97,6 @@ et les MAC etm dès qu'ils ont sntrup ou mlkem.
 | JSch (Java, IDE JetBrains anciens, Jenkins) | fork `com.github.mwiede` récent, avec Bouncy Castle (à vérifier) | JSch d'origine 0.1.55 : refusé |
 | Go `x/crypto/ssh` | version avec `mlkem768x25519-sha256` (2025) | plus ancienne |
 | Termius, Blink, JuiceSSH, clients SFTP mobiles | à vérifier par ssh-audit `-c` | JuiceSSH : refusé |
-| ConnectBot (Android) | version testée le 27/10/2026 sur newt-lxc (#897) : acceptée | — |
 
 Consoles de secours : la console Hetzner et la console Proxmox ne passent pas
 par SSH, le durcissement ne les touche pas.

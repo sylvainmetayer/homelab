@@ -176,12 +176,13 @@ qu'il cible. Une fiche par hôte, utilisateur `sylvain`, port 22 :
 | pangolin | `pangolin.sylvain.cloud` | direct (IP publique) : le premier à ouvrir si le reste ne répond plus |
 | docker | `docker-apps.internal` | client Pangolin (à la maison : `192.168.1.216`) |
 | pi | `pi.internal` | client Pangolin (à la maison : `192.168.1.96`) |
-| newt-lxc | `192.168.1.200` | à la maison seulement : pas de ressource privée pour son SSH |
+| newt-lxc | `192.168.1.200` | à la maison seulement, client Pangolin coupé : sa ressource `dns.internal` route `192.168.1.200` par le tunnel en TCP 53 seul |
 | flip | `flip.internal` | client Pangolin |
 
 - `flip.internal` passe par le Newt de flip : depuis cette session, ne jamais
-  redémarrer `newt` ni Docker, la connexion tomberait avec. Dernier recours :
-  la console Hetzner.
+  redémarrer `newt` ni Docker, la connexion tomberait avec. Newt de flip en
+  panne : le rebond par Pangolin depuis le poste (`mise run ssh_flip`), puis
+  la console Hetzner ([runbooks/flip-injoignable.md](runbooks/flip-injoignable.md)).
 - Le NAS (`nas.sylvain.cloud`, port 22) et Proxmox (`pve.internal`) n'ont pas
   la clé ConnectBot : `00-setup.yaml` ne les vise pas.
 - Le sshd durci accepte ConnectBot (tableau des clients dans
