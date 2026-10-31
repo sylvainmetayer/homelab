@@ -170,3 +170,108 @@
         fail_msg: >-
           pull_policy du banc Keycloak :
           {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.pull_policy', default='-') | list }}
+
+    # Quatrième instance de flip.yml : la vitrine publique, sans SSO, remise à
+    # zéro chaque nuit. Ce qui la distingue des autres est ce qui la protège :
+    # pas de pgAdmin, webhooks coupés, plafonds et quota du solveur, poids CPU
+    # bas, pas de sauvegarde ; et le reset (script, dump, timer) est en place.
+    - name: Verify the public showcase deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: exemple_planning
+        verify_app_borgmatic_config: ""
+
+    - name: Read the effective compose model of exemple_planning
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/exemple_planning
+      register: flip_planning_showcase_compose_raw
+      changed_when: false
+
+    - name: Read the .env files of the showcase and of production
+      ansible.builtin.slurp:
+        src: "/opt/apps/{{ item }}/.env"
+      loop: [exemple_planning, flip_planning]
+      register: flip_planning_env_files
+      no_log: true
+
+    - name: Stat the reset files of exemple_planning
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/exemple_planning/reset.sh
+        - /opt/apps/exemple_planning/seed/exemple-planning.dump
+        - /opt/apps/flip_planning/reset.sh
+        - /etc/borgmatic.d/exemple_planning.yaml
+        - /home/sylvain/.config/systemd/user/flip_planning-reset.timer
+        - /home/sylvain/.config/systemd/user/demo_planning-reset.timer
+        - /home/sylvain/.config/systemd/user/demo_planning_kc-reset.timer
+      register: flip_planning_reset_files
+      become: true
+
+    - name: Stat the reset push URL of exemple_planning
+      ansible.builtin.stat:
+        path: /opt/apps/exemple_planning/reset-push.curl
+      register: flip_planning_reset_push
+
+    - name: Read the reset unit of exemple_planning
+      ansible.builtin.slurp:
+        src: /home/sylvain/.config/systemd/user/exemple_planning-reset.service
+      register: flip_planning_reset_unit
+
+    - name: Check the syntax of the showcase reset script
+      ansible.builtin.command: bash -n /opt/apps/exemple_planning/reset.sh
+      changed_when: false
+
+    - name: Read the reset timer of exemple_planning
+      ansible.builtin.systemd:
+        name: exemple_planning-reset.timer
+        scope: user
+      register: flip_planning_reset_timer
+
+    - name: Assert the showcase is locked down and reset, production untouched
+      vars:
+        showcase_compose: "{{ flip_planning_showcase_compose_raw.stdout | from_json }}"
+        showcase_env: "{{ (flip_planning_env_files.results[0].content | b64decode).splitlines() }}"
+        prod_env: "{{ (flip_planning_env_files.results[1].content | b64decode).splitlines() }}"
+        reset_unit: "{{ (flip_planning_reset_unit.content | b64decode).splitlines() }}"
+        reset_push_line: >-
+          ExecStartPost=/usr/local/bin/uptime-push --strict --agent exemple_planning-reset
+          /opt/apps/exemple_planning/reset-push.curl up
+        showcase_containers: "{{ showcase_compose.services | dict2items | map(attribute='value.container_name') | list }}"
+      ansible.builtin.assert:
+        that:
+          - "'pgadmin' not in showcase_compose.services"
+          - showcase_compose.services.app.cpu_shares == 256
+          - "'WEBHOOKS_ENABLED=false' in showcase_env"
+          - "'SOLVER_MAX_SOLVES_PER_HOUR=12' in showcase_env"
+          - "'SOLVER_MAX_QUEUED_JOBS=2' in showcase_env"
+          - "'SOLVER_SECONDS_LIMIT_MAX=60' in showcase_env"
+          - "'LEGAL_DEMO_INSTANCE=true' in showcase_env"
+          - "'BRANDING_ORGANISATION=Association fictive' in showcase_env"
+          - showcase_env | select('match', '^BRANDING_(ACCENT_COLOR|PDF_(HEADLINE|MUTED|ACCENT|HIGHLIGHT|PILL))=') | list | length == 0
+          - prod_env | select('match', '^BRANDING_PDF_ACCENT=') | list | length == 1
+          - "'WEBHOOKS_ENABLED=true' in prod_env"
+          - prod_env | select('match', '^SOLVER_MAX_') | list | length == 0
+          - "'LEGAL_DEMO_INSTANCE=false' in prod_env"
+          - flip_planning_reset_files.results[0].stat.exists
+          - flip_planning_reset_files.results[0].stat.mode == '0700'
+          - flip_planning_reset_files.results[1].stat.exists
+          - flip_planning_reset_files.results[1].stat.mode == '0600'
+          - not flip_planning_reset_files.results[2].stat.exists
+          - flip_planning_reset_files.results[3:] | selectattr('stat.exists') | list | length == 0
+          - flip_planning_reset_push.stat.exists
+          - flip_planning_reset_push.stat.mode == '0600'
+          - reset_push_line in reset_unit
+          - "'Requires=dc@exemple_planning.service' in reset_unit"
+          - "'After=dc@exemple_planning.service' in reset_unit"
+          - "'Restart=on-failure' in reset_unit"
+          - reset_unit | select('match', '^TimeoutStartSec=') | list | length == 1
+          - flip_planning_reset_timer.status.UnitFileState == 'enabled'
+          - flip_planning_reset_timer.status.ActiveState == 'active'
+          - "'03:30:00 Europe/Paris' in flip_planning_reset_timer.status.TimersCalendar"
+          - showcase_containers | select('match', '^exemple-planning') | list | length == showcase_containers | length
+          - showcase_containers | intersect(flip_planning_containers['flip_planning'] + flip_planning_containers['demo_planning']) | length == 0
+        fail_msg: >-
+          Vitrine : compose, .env, reset ou timer inattendus
+          (timer : {{ flip_planning_reset_timer.status.TimersCalendar | default('absent') }}).
