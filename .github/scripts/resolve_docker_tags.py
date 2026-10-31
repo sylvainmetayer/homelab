@@ -50,7 +50,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 # (a rotation is applied by hand, in order, docs/runbooks/rotation-des-secrets.md),
 # and what changes no host (ansible.cfg, known_hosts, inventory/: the CI writes
 # its own, mise.toml, molecule/).
-SHARED_PATH_RE = re.compile(r"^ansible/(group_vars/all/|tasks/|requirements\.yml$)")
+SHARED_PATH_RE = re.compile(r"^ansible/(?:(?:group_vars/all|tasks)/.+|requirements\.yml)$")
 
 
 def safe_playbook_path(playbook_path):
@@ -185,6 +185,15 @@ def shared_changes(changed_files):
     return sorted(p for p in changed_files if SHARED_PATH_RE.match(p))
 
 
+def shared_change_tags(changed_files):
+    """{WHOLE_PLAYBOOK} for every playbook when a shared file changed, else empty."""
+    shared = shared_changes(changed_files)
+    if not shared:
+        return set()
+    print(f"::notice::{', '.join(shared)} changed -> every playbook whole", file=sys.stderr)
+    return {WHOLE_PLAYBOOK}
+
+
 def changed_roles(changed_files):
     roles = set()
     for path in changed_files:
@@ -276,9 +285,7 @@ def main():
     playbook_paths = args.playbooks
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
     roles, pulled_by = add_dependents(changed_roles(changed_files))
-    shared = shared_changes(changed_files)
-    if shared:
-        print(f"::notice::{', '.join(shared)} changed -> every playbook whole", file=sys.stderr)
+    shared = shared_change_tags(changed_files)
 
     result = {}
     referenced = set()
@@ -297,8 +304,8 @@ def main():
             deployed.add(role)
             print(f"::notice::role '{role}' {what} -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
 
-        resolved = set(resolved) | playbook_change_tags(playbook_path, changed_files, args.base)
-        if shared or WHOLE_PLAYBOOK in resolved:
+        resolved = set(resolved) | shared | playbook_change_tags(playbook_path, changed_files, args.base)
+        if WHOLE_PLAYBOOK in resolved:
             resolved = {WHOLE_PLAYBOOK}
         result[playbook_path] = ",".join(sorted(resolved))
 
