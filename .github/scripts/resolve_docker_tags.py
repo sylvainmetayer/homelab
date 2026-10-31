@@ -36,9 +36,10 @@ ROLE_README_RE = re.compile(r"^ansible/roles/[^/]+/README\.md$")
 # ouvert vient de cette liste, jamais de l'argument (pas de traversée de chemin).
 ANSIBLE_DIR = Path(__file__).resolve().parents[2] / "ansible"
 PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
-# Playbooks never run by the deploy workflow (no key of the NAS nor of the
-# Proxmox host in the GitHub secrets).
-MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml"]
+# Playbooks never run by the deploy workflow: nas.yml and pve.yml (no key of
+# the NAS nor of the Proxmox host in the GitHub secrets), lxc.yml (the Newt LXC
+# carries the CI's own way into the LAN) and 00-setup.yaml (every host at once).
+MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml", "lxc.yml", "00-setup.yaml"]
 # ansible-playbook --tags all: every task except those tagged never.
 WHOLE_PLAYBOOK = "all"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")

@@ -225,6 +225,20 @@ class RealPlaybooks(unittest.TestCase):
         self.assertIn("::notice::role 'vzdump_restore_test' changed, deployed by hand only (pve.yml), not by CI", stderr)
         self.assertNotIn("::warning::", stderr)
 
+    def test_role_of_the_newt_lxc_gets_a_notice(self):
+        # newt_service has an entry in lxc.yml only, which CI never runs.
+        result, stderr = self.run_script("ansible/roles/newt_service/tasks/main.yml")
+        self.assertEqual(set(result.values()), {""})
+        self.assertIn("::notice::role 'newt_service' changed, deployed by hand only (lxc.yml), not by CI", stderr)
+        self.assertNotIn("::warning::", stderr)
+
+    def test_role_of_the_setup_playbook_gets_a_notice(self):
+        # ssh_login_notify has an entry in 00-setup.yaml only, run by hand.
+        result, stderr = self.run_script("ansible/roles/ssh_login_notify/tasks/main.yml")
+        self.assertEqual(set(result.values()), {""})
+        self.assertIn("::notice::role 'ssh_login_notify' changed, deployed by hand only (00-setup.yaml), not by CI", stderr)
+        self.assertNotIn("::warning::", stderr)
+
     def test_role_of_pve_and_of_deployed_hosts_deploys_on_those_hosts(self):
         # update_notify runs on pve (by hand) and on the four CI-deployed hosts:
         # a change deploys it on those four, with no manual-only notice.
