@@ -6,10 +6,13 @@ Source <https://github.com/immich-app/immich/discussions/15085#discussioncomment
 
 - On immich server :
   - publish DB, redis ports on the LAN: they are on `127.0.0.1` only by
-    default (Valkey has no password). From `ansible/`:
-    `ansible-playbook pi.yml --tags immich -e immich_remote_worker=true`,
+    default. From `ansible/`:
+    `ansible-playbook pi.yml --tags immich -e immich_remote_worker=true -e immich_remote_worker_ip=<IP LAN du poste>`,
     and the same run without `-e` once the worker is done, to close them again
-    (a merge that redeploys `immich` closes them too)
+    (a merge that redeploys `immich` closes them too). Only that IP gets
+    through (`DOCKER-USER`, `ansible/roles/immich/tasks/remote_worker.yml`);
+    the rule is not persisted: after a Pi reboot, run it again with the same
+    `-e`
   - (optional) disable worker with `IMMICH_WORKERS_INCLUDE=api` to only run API
 
 - On remote host
@@ -28,7 +31,9 @@ sshfs sylvain@192.168.1.96:/opt/apps/immich/library ~/Documents/homelab/compose/
 ls ~/Documents/homelab/compose/immich/library
 # check files are there
 cat ~/Documents/homelab/compose/immich/.env
-# edit DB_HOSTNAME and REDIS_HOSTNAME to point to homelab IP, update passwords if needed
+# edit DB_HOSTNAME and REDIS_HOSTNAME to point to homelab IP; DB_PASSWORD and
+# REDIS_PASSWORD (Valkey requires it) are those of the Pi's .env:
+ssh sylvain@192.168.1.96 grep -E '^(DB|REDIS)_PASSWORD=' /opt/apps/immich/.env
 docker compose -f compose/immich/compose.yaml up -d
 docker logs -f immich_server_remote
 ```
@@ -41,7 +46,7 @@ Let your remote worker run until all jobs are processed, then unmount the sshfs 
 fusermount -u ~/Documents/homelab/compose/immich/library
 ```
 
-Then close the Pi's DB and redis ports again (Valkey has no password), from
+Then close the Pi's DB and redis ports again, from
 `ansible/`: `ansible-playbook pi.yml --tags immich`, without `-e`.
 
 If you enabled `IMMICH_WORKERS_INCLUDE=api` on the server, don't forget to revert it back to default and restart the server compose so that the server can process jobs again.

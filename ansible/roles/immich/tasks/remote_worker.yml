@@ -1,0 +1,55 @@
+---
+# Worker distant (immich_remote_worker) : Postgres et Valkey sont publiés sur
+# l'IP LAN du Pi, et les ports publiés par Docker contournent ufw. Seule l'IP
+# du poste (immich_remote_worker_ip) passe : chaîne IMMICH-REMOTE-WORKER, vidée
+# puis remplie à chaque run, appelée en tête de DOCKER-USER.
+#
+# Rien n'est retiré au run qui referme les ports : liés de nouveau à
+# 127.0.0.1, ils ne sont plus joignables du LAN, la règle ne filtre plus
+# rien. Non persistée : un redémarrage du Pi (unattended-upgrades, 05:30)
+# l'efface pendant que les ports restent sur le LAN, protégés par les seuls
+# mots de passe ; relancer le playbook avec les mêmes -e après un redémarrage.
+- name: Check the remote worker's IP
+  ansible.builtin.assert:
+    that:
+      - immich_remote_worker_ip is match('^(\d{1,3}\.){3}\d{1,3}$')
+      - immich_remote_worker_ip != ansible_facts['default_ipv4']['address']
+    fail_msg: >-
+      immich_remote_worker=true exige immich_remote_worker_ip, l'IP LAN du
+      poste qui fait tourner le worker (-e immich_remote_worker_ip=…).
+    quiet: true
+
+- name: Ensure the IMMICH-REMOTE-WORKER chain exists
+  become: true
+  ansible.builtin.iptables:
+    chain: IMMICH-REMOTE-WORKER
+    chain_management: true
+    state: present
+
+# Vidée d'abord : une IP de poste différente d'un rattrapage précédent ne
+# reste pas autorisée.
+- name: Flush the IMMICH-REMOTE-WORKER chain
+  become: true
+  ansible.builtin.iptables:
+    chain: IMMICH-REMOTE-WORKER
+    flush: true
+
+- name: Drop LAN traffic to Postgres and Valkey from anything but the worker
+  become: true
+  ansible.builtin.iptables:
+    chain: IMMICH-REMOTE-WORKER
+    in_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
+    protocol: tcp
+    destination_ports:
+      - "5432"
+      - "6379"
+    source: "!{{ immich_remote_worker_ip }}"
+    jump: DROP
+    comment: immich remote worker only
+
+- name: Jump to IMMICH-REMOTE-WORKER from DOCKER-USER
+  become: true
+  ansible.builtin.iptables:
+    chain: DOCKER-USER
+    action: insert
+    jump: IMMICH-REMOTE-WORKER

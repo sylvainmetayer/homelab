@@ -20,6 +20,11 @@
     group: "root"
     mode: "0700"
 
+# Avant le compose : la règle est en place avant que les ports s'ouvrent.
+- name: Restrict the LAN ports to the remote worker
+  when: immich_remote_worker | bool
+  ansible.builtin.import_tasks: remote_worker.yml
+
 - name: Template compose configuration
   diff: false
   ansible.builtin.template:

@@ -4,13 +4,23 @@ immich_base_path: "{{ docker_base_path }}/immich"
 immich_domain: ""
 # Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
-# Postgres (5432) et Valkey (6379, sans mot de passe) sont publiés sur la boucle
-# locale : rien hors du Pi ne les lit d'ordinaire (borgmatic passe par docker
-# exec). Le worker distant du poste (compose/immich/README.md) les veut sur le
-# LAN : -e immich_remote_worker=true le temps du rattrapage, puis un run sans
-# pour les refermer. Un booléen plutôt qu'une adresse : une IP mal tapée
-# empêcherait la base de démarrer, et Immich avec.
+# Mot de passe de Valkey (requirepass), dérivé du mot de passe de la base :
+# pas de clé SOPS de plus. Hex SHA-256, sans caractère à échapper dans le .env
+# ni dans la commande du conteneur. Change avec immich_db_password (sa rotation
+# redémarre la pile, qui relit les deux).
+immich_redis_password: "{{ (immich_db_password ~ ':immich-valkey') | hash('sha256') }}"
+# Postgres (5432) et Valkey (6379) sont publiés sur la boucle locale : rien
+# hors du Pi ne les lit d'ordinaire (borgmatic passe par docker exec). Le
+# worker distant du poste (compose/immich/README.md) les veut sur le LAN :
+# -e immich_remote_worker=true -e immich_remote_worker_ip=<IP du poste> le
+# temps du rattrapage, puis un run sans pour les refermer. Un booléen plutôt
+# qu'une adresse d'écoute : une IP mal tapée empêcherait la base de démarrer,
+# et Immich avec.
 immich_remote_worker: false
+# IP LAN du poste qui fait tourner le worker distant : la seule source que la
+# chaîne DOCKER-USER laisse passer vers 5432 et 6379 tant que
+# immich_remote_worker est vrai (les ports publiés par Docker contournent ufw).
+immich_remote_worker_ip: ""
 # Dérivée, ne pas la définir : l'IP LAN du Pi (comme blocky_lan_ip) ou 127.0.0.1.
 immich_db_bind_address: "{{ ansible_facts['default_ipv4']['address'] if immich_remote_worker | bool else '127.0.0.1' }}"
 
