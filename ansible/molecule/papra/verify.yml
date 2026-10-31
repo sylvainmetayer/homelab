@@ -194,9 +194,9 @@
         name: papra-intake.service
       register: papra_intake_unit
 
-    # Toutes les 15 minutes, sous sylvain (l'uid du conteneur), la
+    # Sous sylvain (l'uid du conteneur), la
     # configuration jamais sur la ligne de commande.
-    - name: Assert the papra intake runs every 15 minutes, unprivileged
+    - name: Assert the papra intake runs unprivileged
       ansible.builtin.assert:
         that:
           - papra_intake_timer.status.UnitFileState == 'enabled'

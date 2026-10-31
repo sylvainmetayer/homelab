@@ -116,7 +116,13 @@
           - ntfy_scripts_token not in vzdump_verify_unit
           - "'molecule-vzdump' not in vzdump_verify_unit"
           - vzdump_verify_config.lxc.target == 990
+          # La VM n'est que vérifiée (vma verify), jamais restaurée : 190 Gio
+          # de disque et une mémoire que l'hôte n'a pas.
+          - "'target' not in vzdump_verify_config.vm"
           - vzdump_verify_service.KillMode == 'mixed'
+          # Somme des délais des étapes + 30 min (vars/main.yml) : plus court,
+          # systemd tue la restauration et laisse le LXC 990 derrière lui.
+          - vzdump_verify_service.TimeoutStartUSec == '3h 5min'
           - vzdump_verify_service.ActiveState == 'inactive'
           - vzdump_verify_timer.UnitFileState == 'enabled'
           - vzdump_verify_timer.ActiveState == 'active'
