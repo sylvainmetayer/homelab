@@ -83,9 +83,11 @@ def changed_entry_tags(old, new):
     Only the `roles:` entries may differ: each entry of `new` with no equal
     entry in `old` (added or changed; a removed one deploys nothing) brings its
     specific tags, its generic ones when it has no other (geerlingguy.docker:
-    setup), nothing when tagged never. Returns None (whole playbook) when
-    anything else differs, or for a changed entry with no tag (it runs under
-    `all` only)."""
+    setup), nothing when tagged never. A specific tag that other entries of the
+    play also carry (monitoring) is dropped when the entry has one of its own
+    (beszel_agent): it would deploy those entries too. Returns None (whole
+    playbook) when anything else differs, or for a changed entry with no tag
+    (it runs under `all` only)."""
     if not isinstance(old, list) or not isinstance(new, list) or len(old) != len(new):
         return None
     tags = set()
@@ -94,9 +96,16 @@ def changed_entry_tags(old, new):
             return None
         if {k: v for k, v in old_play.items() if k != "roles"} != {k: v for k, v in new_play.items() if k != "roles"}:
             return None
-        old_entries = old_play.get("roles") or []
-        for entry in new_play.get("roles") or []:
-            if entry in old_entries:
+        new_entries = new_play.get("roles") or []
+        tag_count = {}
+        for entry in new_entries:
+            for tag in set(entry_tags(entry) if isinstance(entry, dict) else []):
+                tag_count[tag] = tag_count.get(tag, 0) + 1
+        # Matched as a multiset: a second copy of an entry is an added one.
+        unmatched_old = list(old_play.get("roles") or [])
+        for entry in new_entries:
+            if entry in unmatched_old:
+                unmatched_old.remove(entry)
                 continue
             entry_tag_list = entry_tags(entry) if isinstance(entry, dict) else []
             if not entry_tag_list:
@@ -104,7 +113,8 @@ def changed_entry_tags(old, new):
             if "never" in entry_tag_list:
                 continue
             specific = set(entry_tag_list) - GENERIC_TAGS
-            tags |= specific or set(entry_tag_list)
+            own = {t for t in specific if tag_count[t] == 1}
+            tags |= own or specific or set(entry_tag_list)
     return tags
 
 
@@ -128,6 +138,10 @@ def playbook_change_tags(playbook_path, changed_files, base):
     """Tags a change to the playbook itself or to its host's host_vars deploys:
     a set, {WHOLE_PLAYBOOK} for the whole playbook, empty when neither changed."""
     playbook = safe_playbook_path(playbook_path)
+    # Most merges touch only roles: no need to parse the playbook again.
+    if f"ansible/{playbook.name}" not in changed_files and not any(
+            p.startswith("ansible/host_vars/") for p in changed_files):
+        return set()
     with open(playbook) as f:
         new = yaml.safe_load(f)
     # `hosts:` is a pattern string ("flip") or a list of them.
