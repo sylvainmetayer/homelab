@@ -41,7 +41,7 @@ Où ça casse :
 
 | Étape | Cause probable |
 |---|---|
-| `Start the OLM tunnel` (action `.github/actions/olm-tunnel`, sous-étape `Wait OLM startup`) | Pangolin injoignable, identifiants OLM invalides ([pangolin-injoignable.md](pangolin-injoignable.md)) ; relancer le job (`gh run rerun <id> --failed`) une fois Pangolin revenu, les journaux du conteneur `olm` sont dans l'étape `Start the OLM tunnel` |
+| `Start the OLM tunnel` (action `.github/actions/olm-tunnel`, sous-étape `Wait OLM startup`) | Pangolin injoignable, identifiants OLM invalides ([pangolin-injoignable.md](pangolin-injoignable.md)) ; relancer le job (`gh run rerun <id> --failed`) une fois Pangolin revenu, l'étape `Start the OLM tunnel` montre les 5 dernières lignes du journal du conteneur `olm` à chaque essai (un conteneur sorti n'a plus de journal : `--rm`) |
 | `Deploy …` : `Host key verification failed` | clé d'hôte changée ([cle-hote-ssh-changee.md](cle-hote-ssh-changee.md)) |
 | `Deploy …` : `Permission denied (publickey)` | `keys/github-actions.pub` absente d'`authorized_keys` de l'hôte |
 | `Load secrets …` | `SOPS_AGE_KEY` ne déchiffre plus (`.sops.yaml` ou destinataire `github-actions` modifié) |
