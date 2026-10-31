@@ -27,8 +27,8 @@
 #
 # Entry fields - only name, subdomain, domain_id and homepage are required:
 #
-#   sso          default true. false only for Betisier and Promptoramix,
-#                pinned by the
+#   sso          default true. false only for Betisier, Exemple Planning and
+#                Promptoramix, pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false pauses the app
@@ -66,6 +66,7 @@ locals {
     demo_planning           = local.demo_planning_website
     demo_planning_kc        = local.demo_planning_kc_website
     docs                    = local.docs_website
+    exemple_planning        = local.exemple_planning_website
     flip_planning           = local.flip_planning_website
     grocy                   = local.grocy_website
     homebox                 = local.homebox_website

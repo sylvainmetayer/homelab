@@ -7,9 +7,12 @@ Adding an app: the `new-app` skill (`.claude/skills/new-app/SKILL.md`), which ho
 
 ## Running a second environment of an app
 
-`flip_planning` is applied three times by `flip.yml`: production
-(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`) and
-the Keycloak demo (`demo-planning-kc.sylvain.dev`, `demo_planning_kc`). There is one role, not two — duplicating a role
+`flip_planning` is applied four times by `flip.yml`: production
+(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`), the
+Keycloak demo (`demo-planning-kc.sylvain.dev`, `demo_planning_kc`) and the
+public showcase (`exemple-planning.sylvain.dev`, `exemple_planning`: no SSO,
+its database reset every night from a reference dump,
+`flip_planning_reset_dump`). There is one role, not two — duplicating a role
 per environment is what leaves the copy behind on the next change.
 
 What makes a role instantiable is that everything two instances cannot share on

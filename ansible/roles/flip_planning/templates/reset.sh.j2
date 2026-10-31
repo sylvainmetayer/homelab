@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Puts {{ flip_planning_service }} back in its reference state: the database is
+# recreated from {{ flip_planning_reset_dump | basename }} and the application
+# restarted on it. Run nightly by {{ flip_planning_service }}-reset.timer, and by
+# the role whenever the dump changes. See flip_planning_reset_dump in
+# defaults/main.yml.
+#
+# Mailpit is restarted with the application: it keeps what it caught in a
+# temporary database deleted on exit, so the mails of the day go with the data.
+#
+# The dump is restored into a side database first, while the application keeps
+# running on the old one; only the swap (a drop and a rename) happens with the
+# application stopped. A failed restore therefore leaves the instance as it
+# was, and whatever happens after the stop, the trap starts the application
+# and Mailpit again: the instance is never left stopped.
+set -euo pipefail
+
+cd {{ flip_planning_base_path }}
+
+db={{ flip_planning_db_name }}
+side={{ flip_planning_db_name }}_reset
+
+psql_admin() {
+  docker compose exec -T postgres psql -v ON_ERROR_STOP=1 \
+    -U {{ flip_planning_db_user }} -d postgres "$@"
+}
+
+# The role restores right after a deploy, possibly while the unit is still
+# bringing the stack up. Its attached `docker compose up` waits for a healthy
+# database before starting the application, so it could start the app again
+# AFTER the `stop` below, mid-swap. Wait until the app has been started,
+# whoever starts it, so that step is behind us; an app that never gets healthy
+# (the very reason to reset it) only costs the timeout.
+docker compose up -d --wait --wait-timeout 300 app || true
+docker compose up -d --wait --wait-timeout 300 postgres
+
+psql_admin -c "DROP DATABASE IF EXISTS \"$side\" WITH (FORCE)" \
+  -c "CREATE DATABASE \"$side\" OWNER \"{{ flip_planning_db_user }}\""
+docker compose exec -T postgres pg_restore --no-owner --no-acl --exit-on-error \
+  -U {{ flip_planning_db_user }} -d "$side" \
+  < seed/{{ flip_planning_reset_dump | basename }}
+
+# `up`, not `start`: on a first deploy the containers may not exist yet.
+# Flyway migrates the restored schema to the image's version on boot.
+trap 'docker compose up -d --no-deps mailpit app' EXIT
+docker compose stop app mailpit
+# The dump carries the schema and the Flyway history; whatever a visitor
+# created goes with the old database. WITH (FORCE) closes what is still
+# connected (a stuck session). IF EXISTS: a run that dropped it and then failed
+# on the rename is retried (Restart=on-failure) with no database left to drop.
+psql_admin -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" \
+  -c "ALTER DATABASE \"$side\" RENAME TO \"$db\""

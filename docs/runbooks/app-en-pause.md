@@ -99,7 +99,7 @@ instance). Les mêmes quatre endroits, adaptés :
 | `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"demo_planning_kc"` dans la liste des apps en pause | et `flip_planning_enabled` de l'entrée de `flip.yml` doit être égal à `enabled` |
 | `.github/restore-test/apps.json` | rien | pas d'entrée : le banc n'est pas sauvegardé |
 
-Le rôle s'applique trois fois dans le même play : un `when` sur le handler
+Le rôle s'applique quatre fois dans le même play : un `when` sur le handler
 « Restart demo_planning_kc » lirait les paramètres de la dernière application
 du rôle, pas forcément les siens. Les tâches notifient donc
 `flip_planning_restart_handlers`, vide quand l'instance est en pause.

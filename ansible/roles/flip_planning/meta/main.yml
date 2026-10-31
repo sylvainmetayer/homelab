@@ -9,3 +9,9 @@
 # schema then demands an author, a licence and a platform list that would
 # describe nothing.
 allow_duplicates: true
+
+# Script de push Uptime Kuma partagé (rôle uptime_push), pour le reset
+# nocturne d'une instance qui en a un ; resolve_docker_tags.py et
+# select_tests.py suivent cette dépendance.
+dependencies:
+  - role: uptime_push

@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Reset {{ flip_planning_service }} to its reference database
+# The compose project must be up: the script talks to its postgres container.
+Requires=dc@{{ flip_planning_service }}.service
+After=dc@{{ flip_planning_service }}.service
+
+[Service]
+Type=oneshot
+ExecStart={{ flip_planning_base_path }}/reset.sh
+{% if flip_planning_reset_healthcheck_url %}
+# Signal the "Reset …" Uptime Kuma monitor, only after a successful reset. The
+# URL (the monitor's token) is read from a curl config file, never put on the
+# command line. --strict: a failed push fails the unit (and retries it).
+ExecStartPost={{ uptime_push_bin }} --strict --agent {{ flip_planning_service }}-reset {{ flip_planning_reset_push_config }} up
+{% endif %}
+# A oneshot has no start timeout by default: a hung `docker compose exec` would
+# block every later night. Two 300 s waits and a restore of a few hundred KiB
+# fit well within it.
+TimeoutStartSec=20min
+# A failed night (registry, daemon restart) is retried rather than left until
+# the next one; the script leaves the old database in place when it fails.
+Restart=on-failure
+RestartSec=10min
