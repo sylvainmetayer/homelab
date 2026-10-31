@@ -1,6 +1,6 @@
 # Role `uptime_push`
 
-Installs `uptime-push` (`files/uptime-push`, POSIX sh), the one place that sets the curl options of every Uptime Kuma push made from a shell script or a systemd unit. Installed at `uptime_push_bin` (`/usr/local/bin/uptime-push`; on the NAS `{{ docker_base_path }}/uptime-push`, `host_vars/nas`, since UGOS's root is an overlay on the eMMC and the borgmatic container sees `docker_base_path` at the same path), `0755 root`: user units (betisier, monica_v4) run it too.
+Installs `uptime-push` (`files/uptime-push`, POSIX sh), the one place that sets the curl options of every Uptime Kuma push made from a shell script or a systemd unit. Installed at `uptime_push_bin` (`/usr/local/bin/uptime-push`; on the NAS `{{ docker_base_path }}/uptime-push`, `host_vars/nas`, since UGOS's root is an overlay on the eMMC and the borgmatic container sees `docker_base_path` at the same path), `0755 root`: user units (betisier, monica_v4, flip_planning) run it too.
 
 ```
 uptime-push [--strict] [--agent NAME] <curl-config-file|-> <up|down> [message]
@@ -19,6 +19,7 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 |---|---|---|
 | `borgmatic` | `commands:` hooks of every config (`app.yaml.j2`), `<file> up start` / `up finish` / `down fail` | `\|\| true` (a missing helper never fails a backup) |
 | `betisier` | `ExecStartPost` of `betisier-reset.service` | `--strict` (the unit fails) |
+| `flip_planning` | `ExecStartPost` of `<service>-reset.service` (instances with `flip_planning_reset_dump`: `exemple_planning`) | `--strict` |
 | `pangolin` | `ExecStartPost` of `geoipupdate.service` | `--strict` |
 | `monica_v4` | `ExecStartPost` of `monica_v4_cron.service` | `--strict` |
 | `blocky` | `blocky-check.sh`, config on stdin | default (the check's own exit code) |
