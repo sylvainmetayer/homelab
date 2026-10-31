@@ -80,10 +80,14 @@ resource "pangolin_site_resource" "proxmox" {
 # http://192.168.1.137:9999 (the name carries HSTS, so
 # http://nas.sylvain.cloud:9999 is upgraded). SMB (445) too, for the
 # workstation's ad hoc mounts (ansible/pc-nas.yml): with the Pangolin client
-# connected, 192.168.1.137 is routed here. SSH (22) and NFS (2049) as well,
-# to administer the NAS and mount its exports from outside (2026-10-31): the
-# NAS sees the newt LXC as source, already allowed by UGOS's firewall.
-# No binding: Admin only.
+# connected, 192.168.1.137 is routed here. SSH (22) as well, to administer
+# the NAS from outside (2026-10-31). The NAS sees every client as the newt
+# LXC (192.168.1.200): its auth logs lose the client IP, and a UGOS IP block
+# on failed logins would cut every client's access (UI, SMB, SSH) until
+# unblocked from the LAN. No NFS: UGOS serves NFSv3 only (rpcbind 111 and a
+# dynamic mountd port), and its exports only accept the docker VM and the
+# Proxmox host; opening them to the LXC would give root on them to every
+# client. No binding: Admin only.
 resource "pangolin_site_resource" "nas" {
   site_id        = pangolin_site.proxmox_lxc.id
   name           = "NAS"
@@ -91,7 +95,7 @@ resource "pangolin_site_resource" "nas" {
   alias          = "nas.sylvain.cloud"
   destination    = "192.168.1.137"
   disable_icmp   = true
-  tcp_port_range = "22,443,445,2049,8443,9999"
+  tcp_port_range = "22,443,445,8443,9999"
   udp_port_range = "*"
 }
 

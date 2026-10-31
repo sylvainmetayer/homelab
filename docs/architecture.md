@@ -87,7 +87,7 @@ Encrypt obtenu par DNS-01 OVH, puis passe à Jellyfin. Il sert de même
 l'interface d'UGOS : `https://nas.sylvain.cloud` (A public vers l'IP LAN
 du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 (ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
-du NAS en TCP 22, 443, 445, 2049, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
+du NAS en TCP 22, 443, 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
 L'Uptime Kuma de PikaPods ne joint pas ces deux noms : le NAS vérifie
 lui-même chaque matin l'échéance de leurs certificats
 (`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur
