@@ -150,6 +150,22 @@ class ChangedEntryTags(unittest.TestCase):
         self.assertIsNone(rdt.changed_entry_tags(flip_playbook(), new))
 
 
+class SharedChanges(unittest.TestCase):
+    def test_only_shared_paths_are_kept(self):
+        self.assertEqual(rdt.shared_changes([
+            "ansible/roles/trek/tasks/main.yml",
+            "ansible/tasks/pangolin_config_outputs.yml",
+            "ansible/group_vars/all/variables.yml",
+            "ansible/host_vars/flip/variables.yaml",
+            "ansible/requirements.yml",
+            "ansible/roles/trek/tasks/requirements.yml",
+        ]), ["ansible/group_vars/all/variables.yml", "ansible/requirements.yml",
+             "ansible/tasks/pangolin_config_outputs.yml"])
+
+    def test_nothing_shared(self):
+        self.assertEqual(rdt.shared_changes(["ansible/roles/trek/tasks/main.yml", "ansible/secrets.sops.yaml"]), [])
+
+
 class PlaybookAt(unittest.TestCase):
     def test_bad_base_reads_nothing(self):
         flip = rdt.ANSIBLE_DIR / "flip.yml"
@@ -254,6 +270,28 @@ class RealPlaybooks(unittest.TestCase):
         for host in ("nas", "pve", "newt-lxc"):
             result, _ = self.run_script(f"ansible/host_vars/{host}/variables.yaml")
             self.assertEqual(set(result.values()), {""}, host)
+
+    def test_shared_files_deploy_every_playbook_whole(self):
+        for path in ("ansible/group_vars/all/variables.yml",
+                     "ansible/group_vars/all/geerlingguy.docker.yml",
+                     "ansible/tasks/pangolin_config_outputs.yml",
+                     "ansible/requirements.yml"):
+            result, stderr = self.run_script(path)
+            self.assertEqual(result, {p: "all" for p in DEPLOYED_PLAYBOOKS}, path)
+            self.assertIn(f"::notice::{path} changed -> every playbook whole", stderr)
+
+    def test_shared_file_wins_over_role_tags(self):
+        result, _ = self.run_script("ansible/group_vars/all/variables.yml", "ansible/roles/trek/tasks/main.yml")
+        self.assertEqual(set(result.values()), {"all"})
+
+    def test_files_left_out_of_the_shared_rule_deploy_nothing(self):
+        # Applied by hand (secrets rotation) or changing no host.
+        for path in ("ansible/secrets.sops.yaml", "ansible/ansible.cfg", "ansible/known_hosts",
+                     "ansible/inventory/hosts", "ansible/inventory/hetzner.py", "ansible/mise.toml",
+                     "ansible/molecule/_shared/vars/fake_secrets.yml", "ansible/00-setup.yaml",
+                     "ansible/group_vars/allx.yml", "ansible/requirements.yml.bak"):
+            result, _ = self.run_script(path)
+            self.assertEqual(set(result.values()), {""}, path)
 
     def test_playbook_without_base_is_deployed_whole(self):
         result, stderr = self.run_script("ansible/flip.yml")

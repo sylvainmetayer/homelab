@@ -16,6 +16,11 @@ on:
       - ansible/host_vars/pi/**
       - ansible/host_vars/pangolin/**
       - ansible/host_vars/flip/**
+      # Lus par tous les playbooks : chacun des quatre est redéployé entier.
+      # secrets.sops.yaml n'y est pas : une rotation s'applique à la main.
+      - ansible/group_vars/all/**
+      - ansible/tasks/**
+      - ansible/requirements.yml
   workflow_dispatch:
     inputs:
       playbook:
@@ -412,7 +417,7 @@ jobs:
 
       - name: No matching role changed
         if: steps.resolve-tags.outputs.any_tags != 'true'
-        run: echo "No change to a role, playbook or host_vars mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
+        run: echo "No change to a role, playbook, host_vars or shared file mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
 
       - name: Cleanup
         if: always()
