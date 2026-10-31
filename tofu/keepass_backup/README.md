@@ -1,8 +1,9 @@
 # tofu/keepass_backup
 
 Bucket S3 OVH du dépôt restic des bases KeePass, utilisé par le rôle Ansible `keepass_backup` des dotfiles
-(`sylvainmetayer/dotfiles`, procédures du poste : [docs/runbooks/sauvegarde-keepass.md](../../docs/runbooks/sauvegarde-keepass.md)). Aucune app du homelab ne s'en sert : la règle « Backups use
-Borgmatic, not Restic » vise les apps du homelab, pas ce poste.
+(`sylvainmetayer/dotfiles`, procédures du poste : [docs/runbooks/sauvegarde-keepass.md](../../docs/runbooks/sauvegarde-keepass.md)).
+Aucune app du homelab ne s'en sert : la règle « Backups use Borgmatic, not Restic » vise les apps du homelab, pas ce
+poste.
 
 | Ressource | Rôle |
 |---|---|
@@ -46,17 +47,26 @@ mise exec -- tofu output -raw writer_secret_key      # secret_access_key
 ```
 
 Le mot de passe du dépôt (`password`) est généré par KeePassXC. Il vit dans le sops des dotfiles **et sur papier** :
-pas seulement dans KeePassXC, qui est justement ce que ce bucket sauvegarde. Puis, sur le poste : `ansible-playbook
-playbook/setup-home.yaml --tags keepass_backup`, `keepass-backup init`, `keepass-backup run`, `keepass-backup check`.
+pas seulement dans KeePassXC, qui est justement ce que ce bucket sauvegarde. Puis, sur le poste : [première
+exécution](../../docs/runbooks/sauvegarde-keepass.md#première-exécution).
 
 Ranger `mise exec -- tofu output -raw admin_access_key` et `admin_secret_key` dans KeePassXC (entrée « Sauvegarde KeePass / restic
 OVH admin »). Si la base est perdue, la restauration reste possible avec la clé writer (lecture), qui est dans le sops.
 
 ## Rétention, une fois par an, avec la clé admin
 
+Dans un sous-shell lancé depuis `/` : `restic` est un shim mise, et depuis ce dépôt il chargerait les `AWS_*` de
+`secrets/secrets.sops.yaml` par-dessus la clé admin. Les valeurs sont collées à l'invite (`read -rs`), jamais tapées
+sur la ligne de commande : l'historique du shell les écrirait sur le poste.
+
 ```bash
-export AWS_ACCESS_KEY_ID=<admin> AWS_SECRET_ACCESS_KEY=<admin> RESTIC_REPOSITORY=<repository> RESTIC_PASSWORD_FILE=<fichier>
-restic forget --tag keepass --keep-within 1y --keep-monthly 24 --keep-yearly unlimited --prune
+(
+  cd / && set -a && . ~/.config/keepass-backup/env && set +a    # RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE
+  read -rsp 'AWS_ACCESS_KEY_ID admin : ' AWS_ACCESS_KEY_ID; echo
+  read -rsp 'AWS_SECRET_ACCESS_KEY admin : ' AWS_SECRET_ACCESS_KEY; echo
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  restic forget --tag keepass --keep-within 1y --keep-monthly 24 --keep-yearly unlimited --prune
+)
 ```
 
 Les objets supprimés deviennent des versions non courantes, détruites par le cycle de vie 120 jours plus tard (jamais

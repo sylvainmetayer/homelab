@@ -9,7 +9,7 @@ base) :
 | Couche | Quoi | Où |
 |---|---|---|
 | 0 | KeePassXC copie la base avant chaque enregistrement (`BackupBeforeSave`) | `~/.local/share/keepass-backup/keepassxc/*.old.kdbx` |
-| 1 | copie horodatée de chaque base modifiée (signature KDBX vérifiée), à chaque changement et chaque heure, gardée 365 jours (les deux dernières toujours) | `~/.local/share/keepass-backup/history/<base>/<base>.<AAAAMMJJTHHMMSS.ns>.kdbx` |
+| 1 | copie horodatée de chaque base modifiée (signature KDBX vérifiée), à chaque changement et chaque heure ; supprimée quand la date de modification **de la source**, qu'elle garde, a plus de 365 jours, sauf les deux plus récentes : une base intouchée depuis un an perd sa copie dès que deux copies plus récentes existent | `~/.local/share/keepass-backup/history/<base>/<base>.<AAAAMMJJTHHMMSS.ns>.kdbx` |
 | 2 | snapshot restic horaire, tag `keepass`, clé writer sans droit de suppression | bucket OVH `keepass-backup-sylvain`, Object Lock 30 jours ([tofu/keepass_backup](../../tofu/keepass_backup/README.md)) |
 
 Unités systemd **utilisateur** : `keepass-backup.path` déclenche
@@ -27,10 +27,11 @@ Le script `~/.local/bin/keepass-backup` accepte `local`, `remote`, `run`
 n'importe où. `restic` lancé à la main, lui, est un shim mise : depuis un
 projet mise (ce dépôt par exemple), il chargerait l'environnement du projet
 (clés `AWS_*` d'un autre bucket) par-dessus celui de la sauvegarde. Toujours
-le lancer depuis `~`, dans un sous-shell qui charge le fichier env :
+le lancer depuis `/` comme le script (seule la config mise globale
+s'applique), dans un sous-shell qui charge le fichier env :
 
 ```bash
-( cd ~ && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots )
+( cd / && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots )
 ```
 
 Le sous-shell garde les clés S3 hors du shell courant.
@@ -48,7 +49,7 @@ systemctl --user status keepass-backup.path keepass-backup-remote.service --no-p
 keepass-backup init     # une fois : crée le dépôt restic (« already initialised » ensuite)
 keepass-backup run      # premières copies locales et premier snapshot
 keepass-backup check    # test de restauration : « check: restore test OK (N database(s) identical) »
-( cd ~ && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots )
+( cd / && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots )
 ```
 
 Puis **redémarrer KeePassXC** une fois : il ne lit `BackupBeforeSave` qu'au
@@ -112,7 +113,7 @@ l'heure suivante.
   clé writer peut supprimer les seuls `locks/*` :
 
   ```bash
-  ( cd ~ && set -a && . ~/.config/keepass-backup/env && set +a && restic unlock )
+  ( cd / && set -a && . ~/.config/keepass-backup/env && set +a && restic unlock )
   ```
 
 - **403** : comparer la clé du sops avec `mise exec -- tofu output -raw
@@ -124,8 +125,14 @@ l'heure suivante.
   plus haut), garder les couches 0 et 1 telles quelles, ouvrir la base source
   et la base restaurée dans KeePassXC pour voir laquelle est saine.
 
-Après la réparation, relancer le service en échec pour effacer l'état
-`failed` : `systemctl --user restart keepass-backup-remote.service`.
+Après la réparation, relancer l'unité nommée par la notification
+(`keepass-backup-local.service`, sans `Restart=`, reste en `failed` jusqu'au
+prochain changement de la source), puis effacer l'état `failed` :
+
+```bash
+systemctl --user restart <unité>
+systemctl --user reset-failed 'keepass-backup*'
+```
 
 ## Restaurer une base
 
@@ -153,17 +160,18 @@ le temps de vérifier.
 
    ```bash
    (
-     cd ~ && set -a && . ~/.config/keepass-backup/env && set +a
+     cd / && set -a && . ~/.config/keepass-backup/env && set +a
      dest=$(mktemp -d ~/.local/share/keepass-backup/restore.XXXXXX)
-     restic snapshots --tag "$KEEPASS_BACKUP_RESTIC_TAG"     # choisir un snapshot, ou latest
      restic restore latest --host "$KEEPASS_BACKUP_RESTIC_HOST" --tag "$KEEPASS_BACKUP_RESTIC_TAG" --target "$dest"
+     echo "restauré dans : $dest$KEEPASS_BACKUP_SOURCE_DIR"
      ls -l "$dest$KEEPASS_BACKUP_SOURCE_DIR"
    )
    ```
 
    Les fichiers sont restaurés sous leur chemin d'origine
-   (`<dossier>/home/<utilisateur>/kDrive/keepass/`). Remplacer `latest` par
-   l'id d'un snapshot pour remonter plus loin. Ouvrir la base restaurée dans
+   (`<dossier>/home/<utilisateur>/kDrive/keepass/`). Pour remonter plus loin,
+   lister les snapshots (`restic snapshots --tag keepass`, sous-shell plus
+   haut) et remplacer `latest` par l'id choisi. Ouvrir la base restaurée dans
    KeePassXC, la recopier dans `~/kDrive/keepass/`, puis supprimer le dossier
    `restore.*`.
 
@@ -177,7 +185,7 @@ le temps de vérifier.
 ```bash
 keepass-backup run
 keepass-backup check      # « check: restore test OK (N database(s) identical) »
-( cd ~ && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots --latest 1 )
+( cd / && set -a && . ~/.config/keepass-backup/env && set +a && restic snapshots --latest 1 )
 systemctl --user list-timers 'keepass-backup*'
 ```
 
@@ -190,14 +198,15 @@ son mot de passe maître et contient les entrées attendues.
 
 Le test mensuel automatique compare des octets : il ne prouve ni que le
 mot de passe papier ouvre le dépôt, ni que la base restaurée s'ouvre. Chaque
-trimestre (le même jour que le [test de la clé `secours`](test-cle-secours.md),
-rien ne le rappelle) :
+trimestre, le même jour que le [test de la clé `secours`](test-cle-secours.md),
+dont le moniteur « Rotation des secrets » rappelle l'échéance et qui renvoie
+ici :
 
 1. Ouvrir le dépôt avec le **mot de passe papier** : sans fichier de mot de
    passe, restic le demande.
 
    ```bash
-   ( cd ~ && set -a && . ~/.config/keepass-backup/env && set +a && unset RESTIC_PASSWORD_FILE && restic snapshots --latest 1 )
+   ( cd / && set -a && . ~/.config/keepass-backup/env && set +a && unset RESTIC_PASSWORD_FILE && restic snapshots --latest 1 )
    ```
 
 2. Restaurer le dernier snapshot comme en [couche 2](#restaurer-une-base),
