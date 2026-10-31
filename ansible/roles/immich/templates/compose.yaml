@@ -10,6 +10,11 @@ name: immich
 services:
   immich-server:
     container_name: immich_server
+    # mem_limit ≈ 2× le pic mesuré (memory.peak du cgroup, docs/conventions/
+    # resource-limits.md) : 1,4 Gio pour le serveur, 1,1 Gio pour Postgres
+    # (surtout du cache de pages), 130 Mio pour Valkey, 311 Mio pour le
+    # timelapse, 15 Mio pour swipe (pi, 31/10/2026, 26 h après le démarrage).
+    mem_limit: 3g
     image: ghcr.io/immich-app/immich-server:v3.3.5@sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6
     # extends:
     #   file: hwaccel.transcoding.yml
@@ -38,6 +43,11 @@ services:
 
   immich-machine-learning:
     container_name: immich_machine_learning
+    # Pic mesuré 1,4 Gio, mais sur 26 h seulement : un gros import charge en
+    # même temps les modèles CLIP, visages et OCR, d'où une marge au-delà du
+    # 2× (2,9 Gio). Au-dessus de la RAM du Pi, ce plafond ne fait que borner
+    # une fuite avant qu'elle ne vide le swap.
+    mem_limit: 4g
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
     image: ghcr.io/immich-app/immich-machine-learning:v3.3.5@sha256:5b28c9352c8374b8a1ed96fbdd8d6755fea6e43510ec43fdf6538aa02ea40f56
@@ -56,6 +66,8 @@ services:
 
   redis:
     container_name: immich_redis
+    mem_limit: 256m
+    mem_reservation: 128m
     image: docker.io/valkey/valkey:9@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
     # interval / start_period : sans eux, la première sonde attend le défaut
     # de 30 s, et immich-server, qui attend redis en service_healthy, autant.
@@ -73,6 +85,8 @@ services:
 
   database:
     container_name: immich_postgres
+    mem_limit: 2560m
+    mem_reservation: 1152m
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -116,6 +130,7 @@ services:
   immich-swipe:
     image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
+    mem_limit: 64m
     networks:
       - newt
       - immich
@@ -123,6 +138,7 @@ services:
   immich-selfie-timelapse:
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse
+    mem_limit: 768m
     #user: 1000:1000
     ports:
       - "5000:5000"
