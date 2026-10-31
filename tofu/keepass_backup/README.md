@@ -1,7 +1,7 @@
 # tofu/keepass_backup
 
 Bucket S3 OVH du dépôt restic des bases KeePass, utilisé par le rôle Ansible `keepass_backup` des dotfiles
-(`sylvainmetayer/dotfiles`, branche `feat/keepass-backup`). Aucune app du homelab ne s'en sert : la règle « Backups use
+(`sylvainmetayer/dotfiles`, procédures du poste : [docs/runbooks/sauvegarde-keepass.md](../../docs/runbooks/sauvegarde-keepass.md)). Aucune app du homelab ne s'en sert : la règle « Backups use
 Borgmatic, not Restic » vise les apps du homelab, pas ce poste.
 
 | Ressource | Rôle |
