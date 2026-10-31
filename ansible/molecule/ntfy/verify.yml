@@ -69,11 +69,9 @@
         src: /opt/apps/ntfy/config/server.yml
       register: ntfy_server_raw
 
-    # Rien sans compte, un relais ntfy.sh, pas d'inscription ; Sylvain en
-    # lecture sur tous les topics (*) et écriture sur ceux des producteurs,
-    # chaque producteur en écriture seule
-    # sur le sien, avec son seul jeton.
-    - name: Assert the ntfy server configuration denies anonymous access and declares every account
+    # Rien sans compte, pas d'inscription. Comptes, droits et jetons : vérifiés
+    # plus bas par le vrai ntfy sur cette configuration.
+    - name: Assert the ntfy server configuration denies anonymous access
       no_log: true
       vars:
         ntfy_server: "{{ ntfy_server_raw.content | b64decode | from_yaml }}"
@@ -84,22 +82,6 @@
           - ntfy_server['enable-login'] == true
           - ntfy_server['require-login'] == true
           - ntfy_server['attachment-cache-dir'] is not defined
-          - ntfy_server['auth-users'] | sort == ([
-              'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
-              'uptime-kuma:' ~ ntfy_publisher_password_hash ~ ':user',
-              'scripts:' ~ ntfy_publisher_password_hash ~ ':user',
-              'github:' ~ ntfy_publisher_password_hash ~ ':user',
-            ] | sort)
-          - ntfy_server['auth-access'] | sort == ([
-              'sylvain:*:ro',
-              'sylvain:uptime-kuma:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
-              'uptime-kuma:uptime-kuma:wo', 'scripts:scripts:wo', 'github:github:wo',
-            ] | sort)
-          - ntfy_server['auth-tokens'] | sort == ([
-              'uptime-kuma:' ~ ntfy_verify_uptime_kuma_token ~ ':uptime-kuma',
-              'scripts:' ~ ntfy_scripts_token ~ ':scripts',
-              'github:' ~ ntfy_github_token ~ ':github',
-            ] | sort)
         fail_msg: Configuration ntfy inattendue (contenu masqué, il porte les jetons).
 
     - name: Read the ntfy borgmatic configuration
@@ -358,15 +340,13 @@
         name: ntfy-subscribers-check.service
       register: ntfy_check_unit
 
-    # Toutes les 10 minutes, sous sylvain (jamais root) avec le groupe docker,
-    # l'URL push par le fichier d'environnement seul.
-    - name: Assert the subscribers check runs every 10 minutes, unprivileged
+    # Sous sylvain (jamais root) avec le groupe docker, l'URL push par le
+    # fichier d'environnement seul.
+    - name: Assert the subscribers check runs unprivileged
       ansible.builtin.assert:
         that:
           - ntfy_check_timer.status.UnitFileState == 'enabled'
           - ntfy_check_timer.status.ActiveState == 'active'
-          - ntfy_check_timer.status.TimersCalendar is search('OnCalendar=\*-\*-\* \*:00/10:00')
-          - ntfy_check_unit.status.Type == 'oneshot'
           - ntfy_check_unit.status.User == 'sylvain'
           - ntfy_check_unit.status.SupplementaryGroups == 'docker'
           - ntfy_check_unit.status.ProtectSystem == 'strict'

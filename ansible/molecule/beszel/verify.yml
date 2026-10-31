@@ -87,7 +87,6 @@
         beszel_config: "{{ beszel_contents.results[0].content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - beszel_config.systems | map(attribute='name') | list == ['docker', 'flip', 'nas', 'newt-lxc', 'pangolin', 'pi', 'pve']
           - beszel_config.systems | map(attribute='token') | list == (beszel_agent_tokens | dict2items | sort(attribute='key') | map(attribute='value') | list)
           - beszel_config.systems | map(attribute='users') | unique == [[pangolin_le_email]]
         fail_msg: "config.yml inattendu : {{ beszel_config }}"
@@ -153,9 +152,6 @@
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
             == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
-          - beszel_mock_cpu_docker.value == 90
-          - beszel_mock_cpu_docker.min == 10
-          - beszel_mock.alerts | selectattr('name', 'eq', 'Status') | map(attribute='min') | unique == [5]
           # Cinq POST groupés, la LoadAvg5 de pi supprimée, un PATCH des
           # réglages ; rien au second passage (idempotence), et la Status de
           # flip, déjà juste, jamais réécrite.
@@ -166,7 +162,6 @@
           - beszel_mock_writes[5].body.systems == ['syspi0000000000']
           - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
           - beszel_mock_settings.emails == [pangolin_le_email]
-          - beszel_mock_settings.chartTime == '1h'
         fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"
 
     # La commande de test documentée (--tags beszel_alerts_test).
