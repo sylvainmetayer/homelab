@@ -129,7 +129,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
-| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) |
+| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, borgmatic en conteneur ; stockage des sauvegardes vzdump |
 | `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour |
@@ -141,7 +141,8 @@ Compose dans `/opt/apps/<service>`, lancé par l'unité systemd **utilisateur**
 lui-même est `dc@newt`. Sur le NAS, le même modèle tourne en unité
 **système**, root, sous `/volume1/docker/<service>`.
 
-**flip** n'a pas d'IP publique :
+**flip** n'a pas d'IP publique (choix assumé, Pangolin en point unique :
+[ADR 0019](adr/0019-flip-sans-ipv4-publique.md)) :
 
 - il sort sur Internet par Pangolin : route `0.0.0.0/0` du réseau privé vers
   Pangolin (`hcloud_network_route.nat`, `tofu/pangolin/nat.tf`), MASQUERADE
