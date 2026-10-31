@@ -18,8 +18,13 @@ domains:
 
 server:
   secret: {{ pangolin_secret }}
-  # 7 jours (336 h jusqu'en octobre 2026, 720 h avant) : une session volée
-  # sert une semaine au plus.
+  # 7 jours (336 h jusqu'en octobre 2026, 720 h avant). Expiration glissante,
+  # pas un plafond : Pangolin la repousse de 7 jours dès que la session sert
+  # passé la moitié (sessions/app.ts et resource.ts, 1.25.3) ; une session
+  # inutilisée 7 jours meurt, une session volée et rejouée ne meurt pas. Une
+  # session de ressource garde la durée de sa création (`sessionLength` en
+  # base) : celles ouvertes avant le changement restent à 14 jours glissants.
+  # Le plafond absolu est `max_session_length_hours` de l'organisation (clé EE).
   dashboard_session_length_hours: 168
   resource_session_length_hours: 168
   cors:
