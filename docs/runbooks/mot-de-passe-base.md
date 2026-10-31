@@ -173,7 +173,9 @@ n'est pas à `sylvain`), en collant le contenu de `$r/nouveau` :
   `sudo grep -rl "'dbpassword'" /opt/apps/nextcloud/config --include=config.php`
   (`www/nextcloud/config/config.php` chez linuxserver) ;
 - Immich : `DB_PASSWORD=` de `compose/immich/.env` sur le poste, si le worker
-  distant sert encore.
+  distant sert encore, et `REDIS_PASSWORD=`, dérivé du mot de passe de la
+  base (`immich_redis_password`) : le relire dans `/opt/apps/immich/.env` du Pi
+  après le run du playbook.
 
 Puis SOPS, sur le poste. `--value-stdin` attend une **chaîne JSON** (entre
 guillemets) : un mot de passe nu est refusé (« Value for --set is not valid
