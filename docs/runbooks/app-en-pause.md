@@ -48,14 +48,11 @@ indéfiniment ses archives.
 1. Arrêter l'appli sur l'hôte si on n'attend pas le déploiement :
    `systemctl --user disable --now dc@paperless` (VM docker).
 2. PR avec les quatre changements ci-dessus. Au merge, `deploy-docker-app`
-   ne rejoue le rôle (`--tags paperless`) que si la PR touche aussi
-   `ansible/roles/**` : un changement de `host_vars` seul ne déclenche aucun
-   déploiement (filtre `paths` du workflow, `resolve_docker_tags.py` ne lit
-   que les rôles). Sinon, après le merge, à la main :
-   `ansible-playbook docker.yml --tags paperless --check --diff`, puis sans
-   `--check` (ou `workflow_dispatch` de `deploy-docker-app`, playbook
-   `docker`, tags `paperless`) : unité arrêtée, configuration borgmatic
-   retirée.
+   rejoue `docker.yml` en entier (`--tags all`) : un changement de
+   `host_vars/docker` redéploie tout le playbook de l'hôte
+   (`resolve_docker_tags.py`). Unité arrêtée, configuration borgmatic
+   retirée. Pour le vérifier avant le merge :
+   `ansible-playbook docker.yml --tags paperless --check --diff`.
 3. `tofu plan` puis `tofu apply` dans `tofu/pangolin_config` (pas
    `mise run plan`/`apply`, qui visent `tofu/pangolin`) :
    ressource désactivée, deux moniteurs en pause, sonde de la cible coupée
@@ -76,11 +73,10 @@ tant que la ressource est encore active ; une fois désactivée, il l'ignore
 2. `tofu apply` dans `tofu/pangolin_config` **avant** le merge :
    ressource réactivée, moniteurs repris, sonde de la cible rallumée. L'URL
    de push n'a pas changé.
-3. Merge, puis `ansible-playbook docker.yml --tags paperless` (ou
-   `workflow_dispatch` de `deploy-docker-app`, tags `paperless`) : une PR qui
-   ne touche que `host_vars` ne déclenche aucun déploiement. Le rôle
-   redémarre `dc@paperless` et repose la configuration borgmatic
-   (`repo-create` trouve le dépôt existant et passe).
+3. Merge : `deploy-docker-app` rejoue `docker.yml` en entier (changement
+   de `host_vars/docker`). Le rôle redémarre `dc@paperless` et repose la
+   configuration borgmatic (`repo-create` trouve le dépôt existant et
+   passe).
 4. Vérifier : `systemctl --user status dc@paperless`, la page
    `papiers.sylvain.cloud`, puis le moniteur « Backup Paperless-ngx » le
    lendemain. Le test de restauration suivant exige une archive de moins de

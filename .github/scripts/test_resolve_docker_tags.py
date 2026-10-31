@@ -103,6 +103,18 @@ class ChangedEntryTags(unittest.TestCase):
         new[0]["roles"].append({"role": "newapp", "tags": "newapp,app"})
         self.assertEqual(rdt.changed_entry_tags(flip_playbook(), new), {"newapp"})
 
+    def test_tag_shared_with_other_entries_is_dropped(self):
+        # beszel_agent,monitoring: monitoring would deploy log_agent,
+        # mem_report and update_notify too.
+        new = flip_playbook()
+        entry_of(new, "beszel_agent")["vars"]["beszel_agent_hub_url"] = "https://x"
+        self.assertEqual(rdt.changed_entry_tags(flip_playbook(), new), {"beszel_agent"})
+
+    def test_duplicated_entry_deploys_its_tags(self):
+        new = flip_playbook()
+        new[0]["roles"].append(copy.deepcopy(entry_of(new, "promptoramix")))
+        self.assertEqual(rdt.changed_entry_tags(flip_playbook(), new), {"promptoramix"})
+
     def test_removed_entry_deploys_nothing(self):
         new = flip_playbook()
         new[0]["roles"].remove(entry_of(new, "promptoramix"))
