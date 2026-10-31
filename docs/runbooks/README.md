@@ -24,6 +24,7 @@ choix dans [../adr/](../adr/README.md).
 | Quelqu'un reçoit un 403 vide : CrowdSec (débannir, tester un bannissement, retour arrière) | [crowdsec.md](crowdsec.md) |
 | DMARC : lire les rapports, monter d'un cran (none → quarantine → reject), ajouter un service qui envoie en notre nom ; CAA : autoriser une autorité de certification (procédure, pas un incident) | [dmarc.md](dmarc.md) |
 | Copie de kDrive vers le NAS : mise en place, premier passage, moniteur « kDrive vers NAS » rouge, retrouver un fichier supprimé ou chiffré dans kDrive | [kdrive-nas.md](kdrive-nas.md) |
+| Sauvegarde des bases KeePass du poste (notification « Sauvegarde KeePass en échec », première exécution, restaurer une base, test trimestriel, rétention annuelle) | [sauvegarde-keepass.md](sauvegarde-keepass.md) |
 | Clients Nextcloud : qui est encore sur le mot de passe de connexion, créer un mot de passe d'application (procédure, pas un incident) | [nextcloud-mots-de-passe-application.md](nextcloud-mots-de-passe-application.md) |
 | Commits signés sur `main` : signature SSH du poste, clé de signature GitHub, bascule en squash (procédure, pas un incident) | [commits-signes.md](commits-signes.md) |
 | Tester la clé age `secours` hors ligne (chaque trimestre), la remplacer (procédure, pas un incident) | [test-cle-secours.md](test-cle-secours.md) |

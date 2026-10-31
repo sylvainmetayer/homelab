@@ -97,6 +97,7 @@ nav:
       - runbooks/mot-de-passe-base.md
       - runbooks/dmarc.md
       - runbooks/kdrive-nas.md
+      - runbooks/sauvegarde-keepass.md
       - runbooks/nextcloud-mots-de-passe-application.md
       - runbooks/commits-signes.md
       - runbooks/test-cle-secours.md
