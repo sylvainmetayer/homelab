@@ -447,7 +447,7 @@
     },
     {
       "customType": "regex",
-      "description": "OLM image started by `docker run` in the composite action olm-tunnel (used by deploy-docker-app and ping), pinned by tag and digest; the github-actions manager only reads `uses:`",
+      "description": "OLM image started by `docker run` in the composite action olm-tunnel (used by deploy-docker-app), pinned by tag and digest; the github-actions manager only reads `uses:`",
       "managerFilePatterns": [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/",
         "/^\\.github/actions/[^/]+/action\\.ya?ml$/"
