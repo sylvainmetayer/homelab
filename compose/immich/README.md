@@ -33,7 +33,7 @@ ls ~/Documents/homelab/compose/immich/library
 cat ~/Documents/homelab/compose/immich/.env
 # edit DB_HOSTNAME and REDIS_HOSTNAME to point to homelab IP; DB_PASSWORD and
 # REDIS_PASSWORD (Valkey requires it) are those of the Pi's .env:
-ssh sylvain@192.168.1.96 grep -E '^(DB|REDIS)_PASSWORD=' /opt/apps/immich/.env
+ssh sylvain@192.168.1.96 "grep -E '^(DB|REDIS)_PASSWORD=' /opt/apps/immich/.env"
 docker compose -f compose/immich/compose.yaml up -d
 docker logs -f immich_server_remote
 ```
