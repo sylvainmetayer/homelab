@@ -168,7 +168,10 @@ Diagnostic d'un échec : le journal de la tâche (interface, ou
 `tar: …/vzdump-lxc-200-….tmp: Cannot open: Permission denied` (dossier
 temporaire sur le NFS, que le tar du LXC non privilégié ne peut pas ouvrir : le
 `tmpdir: /var/tmp` de `/etc/vzdump.conf` manque : `ansible-playbook pve.yml
---tags vzdump`), et
+--tags vzdump`), un échec d'allocation de l'image de fleecing (`lvs` : `data%`
+du pool de `local-lvm` ; une image `vm-100-fleece-*` restée après un job
+interrompu se retire par `pvesm free local-lvm:vm-100-fleece-0`, après avoir
+relu son nom, hors job), et
 la taille de la VM : `df -h /` et `docker system df` dans la VM. Les images
 Docker remplacées par Renovate grossissent chaque archive tant qu'elles restent
 sur le disque : `docker-image-prune.timer` (rôle `docker_service`) les retire
