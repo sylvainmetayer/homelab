@@ -21,6 +21,11 @@ on:
       - ansible/group_vars/all/**
       - ansible/tasks/**
       - ansible/requirements.yml
+      # Construits par le rôle docs_site (docs.sylvain.cloud) : son tag sur
+      # docker (resolve_docker_tags.py, ROLE_SOURCES).
+      - docs/**
+      - mkdocs.yml
+      - .github/scripts/mkdocs_external_links.py
   workflow_dispatch:
     inputs:
       playbook:
@@ -175,7 +180,8 @@ jobs:
         with:
           python-version: "3.14"
 
-      # ansible-core, boto3, passlib et pyyaml (lu par resolve_docker_tags.py)
+      # ansible-core, boto3, passlib, pyyaml (lu par resolve_docker_tags.py) et
+      # mkdocs + Material (le rôle docs_site construit le site sur le runner)
       # aux versions d'uv.lock, comme test.yaml et lint.yaml : Renovate ne
       # bumpe que le lock. 2.21+ est requis par community.sops.load_vars
       # `return_method: vars-only`. Le vieux crash "argument -o: expected one
@@ -426,7 +432,7 @@ jobs:
 
       - name: No matching role changed
         if: steps.resolve-tags.outputs.any_tags != 'true'
-        run: echo "No change to a role, playbook, host_vars or shared file mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
+        run: echo "No change to a role, playbook, host_vars, shared file or docs mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
 
       - name: Cleanup
         if: always()

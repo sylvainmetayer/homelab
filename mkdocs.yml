@@ -1,0 +1,137 @@
+---
+# Le dossier docs/ publié en site statique privé sur docs.sylvain.cloud,
+# derrière le SSO Pangolin : lire un runbook depuis un téléphone pendant une
+# panne. Construit sur le contrôleur Ansible par le rôle docs_site (VM docker),
+# vérifié par `mkdocs build --strict` dans le workflow Lint.
+#
+# En local : `uv run mkdocs serve` (http://127.0.0.1:8000).
+#
+# Une nouvelle page s'ajoute à `nav:` ci-dessous : une page absente de la
+# navigation fait échouer le build strict (validation.nav.omitted_files).
+site_name: Homelab
+site_description: Documentation du homelab (architecture, runbooks, ADR)
+site_url: https://docs.sylvain.cloud/
+# Dépôt public : un lien vers un fichier hors de docs/ (README d'un rôle,
+# AGENTS.md...) y est réécrit par le hook ci-dessous.
+repo_url: https://github.com/sylvainmetayer/homelab
+# Pas de lien « modifier » : on modifie dans un worktree, par PR.
+edit_uri: ""
+docs_dir: docs
+strict: true
+
+hooks:
+  - .github/scripts/mkdocs_external_links.py
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+theme:
+  name: material
+  language: fr
+  # Pas de Google Fonts : polices du système, rien de tiers au chargement
+  # (le site est derrière le SSO, il doit marcher sans autre domaine).
+  font: false
+  features:
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Thème sombre
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Thème clair
+
+plugins:
+  - search:
+      lang:
+        - fr
+        - en
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+
+nav:
+  - Accueil: index.md
+  - Runbooks:
+      - runbooks/README.md
+      - runbooks/appli-en-panne.md
+      - runbooks/pangolin-injoignable.md
+      - runbooks/flip-injoignable.md
+      - runbooks/dns-blocky.md
+      - runbooks/sauvegarde-et-restauration.md
+      - runbooks/test-restauration-vm.md
+      - runbooks/disque-plein-vm-lente.md
+      - runbooks/deploiement-ci-casse.md
+      - runbooks/perte-cle-ou-poste.md
+      - runbooks/reconstruction-pangolin.md
+      - runbooks/cle-hote-ssh-changee.md
+      - runbooks/ssh-refuse-apres-durcissement.md
+      - runbooks/crowdsec.md
+      - runbooks/app-en-pause.md
+      - runbooks/mot-de-passe-base.md
+      - runbooks/dmarc.md
+      - runbooks/kdrive-nas.md
+      - runbooks/nextcloud-mots-de-passe-application.md
+      - runbooks/commits-signes.md
+      - runbooks/test-cle-secours.md
+      - runbooks/rotation-des-secrets.md
+      - runbooks/mises-a-jour-hotes.md
+  - Architecture: architecture.md
+  - Applications: apps.md
+  - Sauvegardes: backup-restore.md
+  - Accès mobile: acces-mobile.md
+  - Login unifié: login-unifie-applis.md
+  - Médiathèque: media.md
+  - ADR:
+      - adr/README.md
+      - adr/0001-sauvegardes-borgmatic.md
+      - adr/0002-pangolin-seule-entree-publique.md
+      - adr/0003-crowdsec-sur-pangolin.md
+      - adr/0004-nextcloud-derriere-le-sso.md
+      - adr/0005-retention-journaux-pangolin.md
+      - adr/0006-objets-faits-main-audites.md
+      - adr/0007-donnees-sur-le-nas.md
+      - adr/0008-renovate-hebdomadaire.md
+      - adr/0009-sops-age-deux-fichiers.md
+      - adr/0010-supervision-beszel-uptime-kuma.md
+      - adr/0011-journaux-victorialogs.md
+      - adr/0012-filtrage-dns-blocky.md
+      - adr/0013-kubernetes-pas-maintenant.md
+      - adr/0014-homebox.md
+      - adr/0015-acces-de-secours-wireguard.md
+      - adr/0016-login-unifie-oidc.md
+      - adr/0017-pas-de-verification-complete-des-donnees.md
+      - adr/0018-secrets-depot-prive.md
+  - Conventions:
+      - conventions/ansible.md
+      - conventions/app-lifecycle.md
+      - conventions/ci.md
+      - conventions/opentofu.md
+      - conventions/resource-limits.md
+      - conventions/secrets.md
+      - conventions/tests.md

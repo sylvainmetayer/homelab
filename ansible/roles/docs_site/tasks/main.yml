@@ -1,0 +1,194 @@
+---
+# Le site est construit sur le contrôleur (mkdocs du venv d'uv.lock, celui qui
+# lance Ansible), empaqueté en une archive reproductible, puis déposé sur
+# l'hôte sous releases/<sha256 de l'archive>/ ; releases/current pointe sur la
+# version servie. Une archive inchangée ne redépose rien (idempotent), une
+# nouvelle bascule le lien d'un coup, sans redémarrer nginx.
+# Rien à sauvegarder : tout se reconstruit depuis le dépôt.
+- name: Ensure docs_site app folders exist
+  loop:
+    # compose.yaml (0600) et nginx.conf : seul dc@ (l'utilisateur) y entre.
+    - path: "{{ docs_site_base_path }}"
+      mode: "0700"
+    # Monté en lecture seule dans nginx (uid 101) : lisible par tous.
+    - path: "{{ docs_site_base_path }}/releases"
+      mode: "0755"
+  loop_control:
+    label: "{{ item.path }}"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ item.mode }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart docs_site
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ docs_site_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Lu par nginx (uid 101) : 0644, il ne porte aucun secret.
+- name: Template nginx configuration
+  notify: Restart docs_site
+  ansible.builtin.template:
+    src: "templates/nginx.conf"
+    dest: "{{ docs_site_base_path }}/nginx.conf"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
+- name: Build and publish the documentation site
+  block:
+    # Construction locale : check_mode false et changed_when false, rien ne
+    # change sur l'hôte avant le dépôt de l'archive.
+    - name: Create a build folder on the controller
+      delegate_to: localhost
+      run_once: true
+      become: false
+      check_mode: false
+      changed_when: false
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: .docs_site
+      register: docs_site_build_dir
+
+    # --strict : un lien cassé arrête le déploiement, comme il fait échouer le
+    # Lint de la PR. SOURCE_DATE_EPOCH fige la date du sitemap : sans lui,
+    # chaque construction donnerait une archive neuve et un redépôt.
+    - name: Build the site with mkdocs on the controller
+      delegate_to: localhost
+      run_once: true
+      become: false
+      check_mode: false
+      changed_when: false
+      environment:
+        SOURCE_DATE_EPOCH: "0"
+        NO_MKDOCS_2_WARNING: "1"
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -m
+          - mkdocs
+          - build
+          - --strict
+          - --quiet
+          - --config-file
+          - "{{ docs_site_mkdocs_config }}"
+          - --site-dir
+          - "{{ docs_site_build_dir.path }}/site"
+
+    # Archive reproductible (ordre, dates, propriétaires et droits fixés) :
+    # son sha256 ne bouge qu'avec le contenu. Droits u=rwX,go=rX pour nginx.
+    - name: Pack the site on the controller
+      delegate_to: localhost
+      run_once: true
+      become: false
+      check_mode: false
+      changed_when: false
+      ansible.builtin.command:
+        argv:
+          - tar
+          - --sort=name
+          - --mtime=@0
+          - --owner=0
+          - --group=0
+          - --numeric-owner
+          - --mode=u=rwX,go=rX
+          - -C
+          - "{{ docs_site_build_dir.path }}/site"
+          - -cf
+          - "{{ docs_site_build_dir.path }}/site.tar"
+          - .
+
+    - name: Checksum the site archive
+      delegate_to: localhost
+      run_once: true
+      become: false
+      check_mode: false
+      ansible.builtin.stat:
+        path: "{{ docs_site_build_dir.path }}/site.tar"
+        checksum_algorithm: sha256
+      register: docs_site_archive
+
+    - name: Check whether this release is already on the host
+      ansible.builtin.stat:
+        path: "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}"
+      register: docs_site_release
+
+    # Extraite à côté puis renommée : un dossier releases/<sha> n'existe
+    # qu'une fois complet, un run interrompu est repris au suivant.
+    - name: Unpack the new release
+      when: not docs_site_release.stat.exists and not ansible_check_mode
+      block:
+        - name: Remove a leftover partial release
+          ansible.builtin.file:
+            path: "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}.tmp"
+            state: absent
+
+        - name: Create the partial release folder
+          ansible.builtin.file:
+            path: "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}.tmp"
+            state: directory
+            mode: "0755"
+
+        - name: Unpack the site archive on the host
+          ansible.builtin.unarchive:
+            src: "{{ docs_site_build_dir.path }}/site.tar"
+            dest: "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}.tmp"
+
+        - name: Mark the release complete
+          ansible.builtin.command:
+            argv:
+              - mv
+              - --no-target-directory
+              - "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}.tmp"
+              - "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}"
+          changed_when: true
+
+    # Lien relatif : nginx le suit dans son propre montage (/srv/docs).
+    - name: Point current at the release
+      ansible.builtin.file:
+        path: "{{ docs_site_base_path }}/releases/current"
+        src: "{{ docs_site_archive.stat.checksum }}"
+        state: link
+        force: true
+
+    - name: Find the previous releases
+      ansible.builtin.find:
+        paths: "{{ docs_site_base_path }}/releases"
+        file_type: any
+        excludes:
+          - current
+          - "{{ docs_site_archive.stat.checksum }}"
+      register: docs_site_old_releases
+
+    - name: Remove the previous releases
+      loop: "{{ docs_site_old_releases.files | map(attribute='path') | list }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+
+  always:
+    - name: Remove the build folder on the controller
+      when: docs_site_build_dir.path is defined
+      delegate_to: localhost
+      run_once: true
+      become: false
+      check_mode: false
+      changed_when: false
+      ansible.builtin.file:
+        path: "{{ docs_site_build_dir.path }}"
+        state: absent
+
+- name: Make sure docs_site service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@docs_site
+    scope: user
+    enabled: true

@@ -18,7 +18,9 @@ on:
       - secrets
       - .gitmodules
       - .sops.yaml
-      - docs/runbooks/test-cle-secours.md
+      # docs/runbooks/test-cle-secours.md (dernier_test) et le site MkDocs.
+      - docs/**
+      - mkdocs.yml
   workflow_dispatch:
 
 # Pas de paths-ignore pour la documentation : Ansible lint, OpenTofu lint et
@@ -103,6 +105,14 @@ jobs:
       - name: Check that the Immich images share one version
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_immich_versions.py
+
+      # Le site docs.sylvain.cloud (rôle docs_site) : un lien cassé ou une
+      # page absente de nav: échoue ici, pas au déploiement après le merge.
+      - name: Build the documentation site
+        if: ${{ !cancelled() }}
+        env:
+          NO_MKDOCS_2_WARNING: "1"
+        run: mkdocs build --strict --site-dir "$RUNNER_TEMP/site"
 
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts

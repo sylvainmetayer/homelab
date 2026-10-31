@@ -220,6 +220,8 @@ class Tofu(unittest.TestCase):
 class Fallbacks(unittest.TestCase):
     def test_docs_select_nothing(self):
         self.assertEqual(selected(["docs/architecture.md", "AGENTS.md", "ansible/roles/trek/README.md"]), ([], []))
+        # Le site MkDocs : construit par le Lint, aucune suite à relancer.
+        self.assertEqual(selected(["mkdocs.yml", "docs/index.md"]), ([], []))
 
     def test_doc_read_by_a_test_still_selects_it(self):
         tmp, tree = fake_tree({"tofu/m/tests/m.tftest.hcl": 'x = file("${path.module}/../../docs/apps.md")\n'})

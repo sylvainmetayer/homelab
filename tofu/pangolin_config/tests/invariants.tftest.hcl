@@ -398,6 +398,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["docs"]
+  values = { id = 84 }
+}
+
+override_resource {
   target = pangolin_resource.website["dawarich"]
   values = { id = 60 }
 }

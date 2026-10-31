@@ -1,0 +1,5 @@
+---
+docs_site_base_path: "{{ docker_base_path }}/docs_site"
+# mkdocs.yml à la racine du dépôt, vu depuis ce rôle (ansible/roles/docs_site) :
+# le même chemin pour un playbook lancé depuis ansible/ et pour Molecule.
+docs_site_mkdocs_config: "{{ role_path }}/../../../mkdocs.yml"

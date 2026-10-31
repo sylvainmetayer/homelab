@@ -64,6 +64,7 @@ locals {
     betisier                = local.betisier_website
     dawarich                = local.dawarich_website
     demo_planning           = local.demo_planning_website
+    docs                    = local.docs_website
     demo_planning_kc        = local.demo_planning_kc_website
     flip_planning           = local.flip_planning_website
     grocy                   = local.grocy_website

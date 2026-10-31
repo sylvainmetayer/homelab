@@ -1,0 +1,96 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Sans état : aucune configuration borgmatic.
+    - name: Verify the docs_site deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: docs_site
+        verify_app_borgmatic_config: ""
+
+    - name: Stat the docs_site borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/docs_site.yaml"
+      register: docs_site_borgmatic
+
+    - name: Assert docs_site is not backed up
+      ansible.builtin.assert:
+        that:
+          - not docs_site_borgmatic.stat.exists
+
+    - name: Render the docs_site compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ docker_base_path }}/docs_site"
+      register: docs_site_compose_raw
+      changed_when: false
+
+    - name: Assert docs_site only joins the newt network, read-only
+      vars:
+        docs_site_compose: "{{ docs_site_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - docs_site_compose.services.nginx.networks.keys() | list == ['newt']
+          - docs_site_compose.services.nginx.read_only
+          - docs_site_compose.services.nginx.cap_drop == ['ALL']
+          - docs_site_compose.services.nginx.mem_limit is defined
+        fail_msg: "Service nginx de docs_site : {{ docs_site_compose.services.nginx }}"
+
+    - name: Stat the served release
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/docs_site/releases/current"
+      register: docs_site_current
+
+    - name: Find the releases on the host
+      ansible.builtin.find:
+        paths: "{{ docker_base_path }}/docs_site/releases"
+        file_type: any
+      register: docs_site_releases
+
+    # Une seule version gardée, et current, lien relatif vers elle.
+    - name: Assert current is a relative link to the only release
+      ansible.builtin.assert:
+        that:
+          - docs_site_current.stat.islnk
+          - docs_site_current.stat.lnk_source | basename is match('^[0-9a-f]{64}$')
+          - >-
+            docs_site_releases.files | map(attribute='path') | map('basename') | sort
+            == ['current', docs_site_current.stat.lnk_source | basename] | sort
+        fail_msg: "releases/ : {{ docs_site_releases.files | map(attribute='path') | list }}"
+
+    # nginx tourne en uid 101 : chaque page doit être lisible par tous.
+    - name: Stat a few pages of the site
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/docs_site/releases/current/{{ item }}"
+      loop:
+        - index.html
+        - runbooks/index.html
+        - runbooks/appli-en-panne/index.html
+        - adr/index.html
+        - 404.html
+        - search/search_index.json
+      register: docs_site_pages
+
+    - name: Assert the pages exist and are world-readable
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.roth
+        fail_msg: "{{ item.item }} absent ou illisible par nginx"
+      loop: "{{ docs_site_pages.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Stat the nginx configuration
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/docs_site/nginx.conf"
+      register: docs_site_nginx_conf
+
+    - name: Assert nginx can read its configuration
+      ansible.builtin.assert:
+        that:
+          - docs_site_nginx_conf.stat.mode == '0644'

@@ -1,0 +1,39 @@
+---
+services:
+  nginx:
+    # Fichiers statiques seulement : ~8 Mio mesurés en local (podman, au
+    # repos après quelques pages). Plafond large, à recaler sur memory.peak.
+    mem_limit: 64m
+    image: docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
+    container_name: docs-site
+    # nginx en uid 101, port 8080 : aucune capacité requise.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      # Les scripts de /docker-entrypoint.d ne peuvent rien réécrire
+      # (read_only) : ils le disent et passent, sans bruit dans les journaux.
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    tmpfs:
+      # PID et fichiers temporaires de l'image unprivileged.
+      - /tmp:noexec,nosuid,size=16m
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # releases/current : lien relatif vers la version servie (tasks/main.yml).
+      - ./releases:/srv/docs:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

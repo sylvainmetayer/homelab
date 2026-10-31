@@ -27,7 +27,8 @@ locals {
     "wishlist",
     "grocy",
     "beszel",
-    "victoria-logs"
+    "victoria-logs",
+    "docs"
   ]
 }
 

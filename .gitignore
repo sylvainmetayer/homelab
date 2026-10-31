@@ -48,3 +48,6 @@ issue.md
 # Python bytecode (Ansible parses every file in inventory/ as a source)
 __pycache__/
 *.py[cod]
+
+# mkdocs build (mkdocs.yml, rôle docs_site)
+/site/
