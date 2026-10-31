@@ -1,7 +1,7 @@
 # Architecture du homelab
 
 La carte à garder en tête quand quelque chose casse. Le détail des conventions
-est indexé par [AGENTS.md](../AGENTS.md) (rôles : leur README.md, transverses : [conventions/](conventions/)) ; les procédures d'incident dans
+est indexé par [AGENTS.md](../AGENTS.md) (rôles : leur README.md, transverses : [conventions/](https://github.com/sylvainmetayer/homelab/tree/main/docs/conventions)) ; les procédures d'incident dans
 [runbooks/](runbooks/README.md) ; le pourquoi des choix structurants dans
 [adr/](adr/README.md).
 

@@ -143,3 +143,8 @@
         log_agent_url: "http://127.0.0.1:9428"
     - role: homepage
       tags: homepage,app
+    # Le dossier docs/ en site statique (docs.sylvain.cloud), construit sur le
+    # contrôleur. Un merge qui touche docs/ ou mkdocs.yml redéploie ce tag
+    # (resolve_docker_tags.py).
+    - role: docs_site
+      tags: docs_site,app

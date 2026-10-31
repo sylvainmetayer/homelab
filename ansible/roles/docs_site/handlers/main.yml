@@ -1,0 +1,6 @@
+---
+- name: Restart docs_site
+  ansible.builtin.systemd:
+    name: dc@docs_site
+    scope: user
+    state: restarted

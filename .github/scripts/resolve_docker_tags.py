@@ -16,7 +16,8 @@ whole playbook. A change under host_vars/<host>/, <host> being the play's
 `hosts:`, deploys the whole playbook too: which role reads which variable is
 not known here. A change to a file every playbook reads (SHARED_PATHS:
 group_vars/all, the shared tasks/, requirements.yml) deploys every playbook
-given, whole.
+given, whole. A file of ROLE_SOURCES (docs/, mkdocs.yml) deploys the role
+that reads it.
 """
 import argparse
 import json
@@ -52,6 +53,14 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 # and what changes no host (ansible.cfg, known_hosts, inventory/: the CI writes
 # its own, mise.toml, molecule/).
 SHARED_PATH_RE = re.compile(r"^ansible/(?:(?:group_vars/all|tasks)/.+|requirements\.yml)$")
+# Files outside ansible/roles/ that a role reads, mapped to that role: a
+# change deploys it as a change to its own files would. docs_site builds the
+# docs/ folder with mkdocs.yml and its hook into docs.sylvain.cloud. A
+# mkdocs or Material bump (uv.lock) is left out, like every uv.lock change:
+# the next docs change rebuilds with it.
+ROLE_SOURCES = [
+    (re.compile(r"^(?:docs/.+|mkdocs\.yml|\.github/scripts/mkdocs_external_links\.py)$"), "docs_site"),
+]
 
 
 def safe_playbook_path(playbook_path):
@@ -198,6 +207,7 @@ def shared_change_tags(changed_files):
 def changed_roles(changed_files):
     roles = set()
     for path in changed_files:
+        roles.update(role for source_re, role in ROLE_SOURCES if source_re.match(path))
         if ROLE_README_RE.match(path):
             continue
         match = ROLE_PATH_RE.match(path)

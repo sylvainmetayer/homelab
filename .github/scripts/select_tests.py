@@ -83,6 +83,9 @@ PATH_ONLY = [
 # No test reads them, unless a suite reaches one by path.
 NO_TEST = [
     "docs/**",
+    # Construit par le Lint (mkdocs build --strict) ; le scénario docs_site
+    # construit le vrai docs/ quand son rôle change.
+    "mkdocs.yml",
     "**/*.md",
     ".github/**",
     ".claude/**",

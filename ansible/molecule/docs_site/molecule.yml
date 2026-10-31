@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le site se construit sur le contrôleur (mkdocs du venv d'uv.lock) : le
+# converge construit le vrai docs/ du dépôt.
+scenario:
+  name: docs_site

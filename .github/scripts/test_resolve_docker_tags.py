@@ -257,6 +257,27 @@ class RealPlaybooks(unittest.TestCase):
         result, _ = self.run_script("ansible/roles/trek/README.md", "ansible/roles/trek/tasks/main.yml")
         self.assertIn("trek", result["ansible/docker.yml"].split(","))
 
+    def test_docs_deploy_the_docs_site_role_only(self):
+        # docs_site builds docs/ with mkdocs.yml and its hook: any of them
+        # deploys its tag on docker, a README under docs/ included.
+        for path in ("docs/runbooks/appli-en-panne.md", "docs/runbooks/README.md",
+                     "docs/runbooks/nextcloud-app-passwords.sh", "mkdocs.yml",
+                     ".github/scripts/mkdocs_external_links.py"):
+            result, stderr = self.run_script(path)
+            self.assertEqual(result, {p: ("docs_site" if p == "ansible/docker.yml" else "")
+                                      for p in DEPLOYED_PLAYBOOKS}, path)
+            self.assertNotIn("::warning::", stderr)
+
+    def test_files_beside_the_docs_deploy_nothing(self):
+        for path in ("docs", "mkdocs.yml.bak", "AGENTS.md", "uv.lock",
+                     ".github/scripts/test_mkdocs_external_links.py"):
+            result, _ = self.run_script(path)
+            self.assertEqual(set(result.values()), {""}, path)
+
+    def test_docs_and_a_role_change_add_up(self):
+        result, _ = self.run_script("docs/architecture.md", "ansible/roles/trek/tasks/main.yml")
+        self.assertEqual(result["ansible/docker.yml"], "docs_site,trek")
+
     def test_nas_storage_without_dependent_is_reported(self):
         # Pulled in only through meta dependencies, none today: a change
         # deploys nothing and says so (AddDependents covers the dependents).
