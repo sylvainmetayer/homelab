@@ -1,0 +1,87 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the grocy deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: grocy
+        verify_app_borgmatic_config: /etc/borgmatic.d/grocy.yaml
+
+    - name: Verify the grocy healthcheck
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: grocy
+        verify_compose_healthchecks:
+          - app
+
+    - name: Render the grocy compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/grocy
+      register: grocy_compose_raw
+      changed_when: false
+
+    # Un seul conteneur : rien à isoler sur un réseau privé, newt suffit. Son
+    # nom est la cible de Pangolin (website_grocy.tf).
+    - name: Assert grocy only joins newt and publishes no port
+      vars:
+        grocy_compose: "{{ grocy_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - grocy_compose.services.app.container_name == 'grocy'
+          - grocy_compose.services.app.networks.keys() | list == ['newt']
+          - grocy_compose.networks.keys() | list == ['newt']
+          - grocy_compose.services.app.ports is not defined
+        fail_msg: "Service grocy inattendu : {{ grocy_compose.services.app }}"
+
+    - name: Read the grocy borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/borgmatic.d/grocy.yaml
+      register: grocy_borgmatic_raw
+
+    # prepare.yml a posé grocy.db : copiée par « .backup » dans le dossier de
+    # staging archivé, sa copie vivante hors de l'archive. Jamais
+    # sqlite_databases : son « .dump » en flux bloque les écritures tout le
+    # temps de l'envoi.
+    - name: Assert the grocy SQLite database is copied by .backup, not dumped or copied live
+      vars:
+        grocy_borgmatic: "{{ grocy_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - grocy_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/grocy' in grocy_borgmatic.source_directories"
+          - >-
+            grocy_borgmatic.commands[0].run
+            | select('search', 'sqlite3 -bail .*/opt/apps/grocy/config/data/grocy\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/grocy/opt_apps_grocy_config_data_grocy\\.db')
+            | list | length == 1
+          - "'/opt/apps/grocy/config/data/grocy.db' in grocy_borgmatic.exclude_patterns"
+          - "'/opt/apps/grocy/config/data/grocy.db-wal' in grocy_borgmatic.exclude_patterns"
+          - "'/opt/apps/grocy/config/log' in grocy_borgmatic.exclude_patterns"
+          - "'/opt/apps/grocy/config/data/viewcache' in grocy_borgmatic.exclude_patterns"
+          - "'/opt/apps/grocy/config' in grocy_borgmatic.source_directories"
+        fail_msg: "Configuration borgmatic de grocy inattendue : {{ grocy_borgmatic }}"
+
+    - name: Read the grocy environment file
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/apps/grocy/.env
+      register: grocy_env_content
+
+    # Les réglages passent par l'environnement (Setting() de Grocy lit
+    # GROCY_<RÉGLAGE>), les booléens en « true »/« false ».
+    - name: Assert the grocy settings reach the environment
+      vars:
+        grocy_env_lines: "{{ (grocy_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'GROCY_DEFAULT_LOCALE=fr' in grocy_env_lines"
+          - "'GROCY_CURRENCY=EUR' in grocy_env_lines"
+          - "'GROCY_STOCK_BARCODE_LOOKUP_PLUGIN=OpenFoodFactsBarcodeLookupPlugin' in grocy_env_lines"
+          - "'GROCY_FEATURE_FLAG_TASKS=false' in grocy_env_lines"
+          - "'GROCY_FEATURE_FLAG_RECIPES_MEALPLAN=true' in grocy_env_lines"
+        fail_msg: "Environnement de grocy inattendu : {{ grocy_env_lines }}"

@@ -1,0 +1,69 @@
+---
+# config/ : data/ (grocy.db, config.php, images), logs, réglages nginx et php
+# générés par l'image linuxserver, qui le rend à PUID/PGID au démarrage.
+- name: Ensure Grocy app folders exist
+  loop:
+    - "{{ grocy_base_path }}"
+    - "{{ grocy_base_path }}/config"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart grocy
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ grocy_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart grocy
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ grocy_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
+# SQLite (config/data/grocy.db, créée au premier appel de Grocy, donc prise
+# au déploiement suivant) est copiée par « .backup » ; le reste de config/
+# part tel quel, sauf les logs et le cache des vues.
+- name: Configure borgmatic backup for Grocy
+  when: grocy_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: grocy
+    borgmatic_app_title: Grocy
+    borgmatic_app_target: "{{ grocy_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ grocy_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ grocy_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ grocy_base_path }}/config"
+      - "{{ grocy_base_path }}/compose.yaml"
+      - "{{ grocy_base_path }}/.env"
+    borgmatic_app_exclude_patterns:
+      - "{{ grocy_base_path }}/config/log"
+      - "{{ grocy_base_path }}/config/data/viewcache"
+    borgmatic_app_sqlite_databases:
+      - "{{ grocy_base_path }}/config/data/*.db"
+
+- name: Make sure grocy service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@grocy
+    scope: user
+    enabled: true

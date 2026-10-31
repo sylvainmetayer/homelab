@@ -453,6 +453,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["grocy"]
+  values = { id = 74 }
+}
+
+override_resource {
   target = pangolin_resource.website["ntfy"]
   values = { id = 71 }
 }
@@ -719,6 +724,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["speedtest_tracker"]
   values = { push_token = "push-speedtest-tracker" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup["grocy"]
+  values = { push_token = "push-grocy" }
 }
 
 override_resource {
@@ -1334,6 +1344,32 @@ run "tied_rules_share_their_action" {
   }
 }
 
+run "grocy_mobile_header_auth_stays_narrow" {
+  command = apply
+
+  # Les identifiants Basic de l'appli Android passent le SSO de Grocy, et de
+  # Grocy seulement ; extended_compatibility ferait répondre aux navigateurs
+  # un défi Basic au lieu de la page de connexion (website_grocy.tf).
+  assert {
+    condition = (
+      pangolin_resource_header_auth.grocy_mobile.resource_id == pangolin_resource.website["grocy"].id
+      && pangolin_resource_header_auth.grocy_mobile.extended_compatibility == false
+    )
+    error_message = "L'authentification Basic de l'appli Grocy vise une autre ressource, ou remplace la page de connexion des navigateurs."
+  }
+
+  # L'appli lit `user:password@` dans l'URL du serveur et l'encode en
+  # Base64.DEFAULT d'Android, qui coupe la ligne à 76 caractères : un mot de
+  # passe alphanumérique, `user:password` sous 58 octets.
+  assert {
+    condition = (
+      can(regex("^[A-Za-z0-9]+$", random_password.grocy_mobile.result))
+      && length("${pangolin_resource_header_auth.grocy_mobile.user}:${random_password.grocy_mobile.result}") <= 57
+    )
+    error_message = "Les identifiants Basic de l'appli Grocy casseraient l'URL du serveur ou son en-tête Authorization."
+  }
+}
+
 # Les clients sans session Pangolin (MCP de TREK, agents Beszel et de journaux
 # des hôtes Hetzner) passent avec un jeton d'accès Pangolin, pas par un
 # ACCEPT ; ceux du LAN n'en ont pas. Les sorties qui les portent ont le format
@@ -1832,6 +1868,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
         uptime_backup_paperless_url         = output.uptime_backup_paperless_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url
+        uptime_backup_grocy_url             = output.uptime_backup_grocy_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         # flip.yml (production, démo)
         uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url

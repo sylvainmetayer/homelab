@@ -4,6 +4,7 @@
   "dawarich": { "host": "docker", "repo": "dawarich", "role": "dawarich" },
   "demo_planning": { "host": "flip", "repo": "demo_planning", "role": "flip_planning" },
   "flip_planning": { "host": "flip", "repo": "flip_planning", "role": "flip_planning" },
+  "grocy": { "host": "docker", "repo": "grocy", "role": "grocy" },
   "homebox": { "host": "docker", "repo": "homebox", "role": "homebox" },
   "immich": { "host": "pi", "repo": "immich", "role": "immich" },
   "jellyfin": { "host": "nas", "repo": "jellyfin", "role": "jellyfin" },

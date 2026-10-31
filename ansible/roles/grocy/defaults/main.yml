@@ -1,0 +1,38 @@
+---
+grocy_base_path: "{{ docker_base_path }}/grocy"
+
+# Réglages de config.php passés en GROCY_<RÉGLAGE> (Setting(),
+# helpers/extensions.php de Grocy : un fichier
+# data/settingoverrides/<RÉGLAGE>.txt passerait devant, l'environnement
+# ensuite, config.php en dernier ; l'image linuxserver laisse l'environnement
+# à php-fpm, clear_env = no). « true » et « false » deviennent des booléens.
+# Les unités de quantité ne sont pas un réglage mais des données (Données de
+# base > Unités de quantité), à créer dans l'interface.
+grocy_settings:
+  # Langue par défaut : celle du navigateur, puis celle du compte, passent
+  # devant.
+  DEFAULT_LOCALE: fr
+  CURRENCY: EUR
+  ENERGY_UNIT: kcal
+  # Recherche des codes-barres sur Open Food Facts, extension livrée avec
+  # Grocy (plugins/OpenFoodFactsBarcodeLookupPlugin.php, le défaut de la 4.x,
+  # écrit pour qu'il ne change pas sans se voir) : sort vers
+  # world.openfoodfacts.org par newt.
+  STOCK_BARCODE_LOOKUP_PLUGIN: OpenFoodFactsBarcodeLookupPlugin
+  FEATURE_FLAG_STOCK: true
+  FEATURE_FLAG_SHOPPINGLIST: true
+  FEATURE_FLAG_RECIPES: true
+  FEATURE_FLAG_RECIPES_MEALPLAN: true
+  FEATURE_FLAG_CHORES: true
+  FEATURE_FLAG_BATTERIES: true
+  FEATURE_FLAG_EQUIPMENT: true
+  FEATURE_FLAG_TASKS: false
+  # Dates de péremption et produits entamés.
+  FEATURE_FLAG_STOCK_BEST_BEFORE_DATE_TRACKING: true
+  FEATURE_FLAG_STOCK_PRODUCT_OPENED_TRACKING: true
+
+# Borgmatic backup configuration
+grocy_backup_enabled: true
+grocy_backup_borgmatic_target: "{{ backup_storage_box_url }}/grocy"
+grocy_backup_encryption_passphrase: "{{ backup_passphrase }}"
+grocy_backup_healthcheck_url: ""

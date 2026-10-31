@@ -25,6 +25,7 @@ locals {
     "speedtest-tracker",
     "ntfy",
     "wishlist",
+    "grocy",
     "beszel",
     "victoria-logs"
   ]
