@@ -1701,7 +1701,7 @@ run "every_resource_declares_the_pinned_attributes" {
   }
 
   # Même chose pour le banc Keycloak, dont l'interrupteur est un paramètre de
-  # rôle de son entrée de flip.yml (le rôle y est appliqué trois fois).
+  # rôle de son entrée de flip.yml (le rôle y est appliqué quatre fois).
   assert {
     condition = [
       for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
