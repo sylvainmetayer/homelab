@@ -56,6 +56,9 @@
       ansible.builtin.assert:
         that:
           - docs_site_current.stat.islnk
+          # lnk_target, la cible telle qu'écrite : un lien absolu (chemin de
+          # l'hôte) n'existerait pas dans le montage /srv/docs de nginx.
+          - docs_site_current.stat.lnk_target is match('^[0-9a-f]{64}$')
           - docs_site_current.stat.lnk_source | basename is match('^[0-9a-f]{64}$')
           - >-
             docs_site_releases.files | map(attribute='path') | map('basename') | sort

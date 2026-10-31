@@ -42,6 +42,12 @@ class Rewrite(unittest.TestCase):
         link = "[x](../../../ailleurs.md)"
         self.assertEqual(run(link), link)
 
+    def test_reference_definition_out_of_docs(self):
+        self.assertEqual(
+            run('Voir [le rôle][r].\n\n[r]: ../../AGENTS.md#rules "Règles"\n[s]: ../architecture.md\n'),
+            f'Voir [le rôle][r].\n\n[r]: {BLOB}/AGENTS.md#rules "Règles"\n[s]: ../architecture.md\n',
+        )
+
     def test_several_links_on_one_line(self):
         self.assertEqual(
             run("[a](../../AGENTS.md) et [b](../architecture.md)"),

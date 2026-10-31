@@ -20,7 +20,8 @@ En local : `uv run mkdocs serve`, puis http://127.0.0.1:8000.
 
 ## Déploiement
 
-Un merge sur `main` qui touche `docs/**` ou `mkdocs.yml` déploie le tag
+Un merge sur `main` qui touche `docs/**`, `mkdocs.yml` ou son hook
+`.github/scripts/mkdocs_external_links.py` déploie le tag
 `docs_site` sur la VM docker (`deploy-docker-app.yaml`,
 `resolve_docker_tags.py`), comme un changement de ce rôle. À la main :
 
