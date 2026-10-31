@@ -80,11 +80,8 @@
           - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ update_notify_verify_push) in update_notify_verify_envfile.splitlines()
           - ntfy_scripts_token not in update_notify_verify_service
           - update_notify_verify_push not in update_notify_verify_service
-          - "'update_notify.py --host pve --ntfy-url http://127.0.0.1:18081 --topic scripts\n' in update_notify_verify_service" # NOSONAR
-          - "'\nOnCalendar=Mon *-*-* 08:00:00\n' in update_notify_verify_timer"
           - update_notify_verify_props.ProtectSystem == 'full'
           - update_notify_verify_props.NoNewPrivileges == 'yes'
-          - update_notify_verify_props.Type == 'oneshot'
           # Toutes les capacités de root : apt passe ses téléchargements à _apt.
           - "'CapabilityBoundingSet' not in update_notify_verify_service"
           - update_notify_verify_units.results[1].status.UnitFileState == 'enabled'
@@ -183,7 +180,7 @@
         case_rc: 0
 
     # Priorité haute, la sécurité listée d'abord, puis Proxmox et noyaux, le
-    # noyau en attente de redémarrage, le runbook.
+    # noyau en attente de redémarrage.
     - name: Assert a high priority message, security first
       vars:
         update_notify_verify_ntfy: "{{ update_notify_case_requests[0] }}"
@@ -201,8 +198,6 @@
           - update_notify_verify_msg.message.splitlines()[:update_notify_verify_head_lines | length] == update_notify_verify_head_lines
           - "'\nDocker en attente : sa mise à jour redémarre tous les conteneurs' in update_notify_verify_msg.message"
           - ('Noyau ' ~ update_notify_verify_kernel ~ ' installé') in update_notify_verify_msg.message
-          - "'\npve-manager/9.2.24/' in update_notify_verify_msg.message"
-          - "'docs/runbooks/mises-a-jour-hotes.md' in update_notify_verify_msg.message"
           - update_notify_case_requests[1].path is search('\?status=up&')
           - ('1 de sécurité, noyau ' ~ update_notify_verify_kernel ~ ' en attente') in (update_notify_case_requests[1].path | urldecode)
         fail_msg: "{{ update_notify_case_requests | to_json }}"

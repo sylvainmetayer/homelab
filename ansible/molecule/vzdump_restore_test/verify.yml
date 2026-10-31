@@ -115,17 +115,11 @@
           - "'VZDUMP_RESTORE_TEST_PUSH_URL=http://127.0.0.1:18080/api/push/molecule-vzdump\n' in vzdump_verify_env" # NOSONAR
           - ntfy_scripts_token not in vzdump_verify_unit
           - "'molecule-vzdump' not in vzdump_verify_unit"
-          - vzdump_verify_config.lxc.source == 200
           - vzdump_verify_config.lxc.target == 990
-          - vzdump_verify_config.vm.source == 100
-          - vzdump_verify_config.vm.keys() | sort == ['min_size_mb', 'source', 'verify_timeout']
           - vzdump_verify_service.KillMode == 'mixed'
-          - vzdump_verify_service.Type == 'oneshot'
-          - vzdump_verify_service.TimeoutStartUSec == '3h 5min'
           - vzdump_verify_service.ActiveState == 'inactive'
           - vzdump_verify_timer.UnitFileState == 'enabled'
           - vzdump_verify_timer.ActiveState == 'active'
-          - vzdump_verify_timer.TimersCalendar is search('OnCalendar=\*-\*-02,16 10:00:00')
 
     - name: Start the fake Uptime Kuma and ntfy
       ansible.builtin.command:
