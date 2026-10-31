@@ -7,12 +7,12 @@
 # Rien à sauvegarder : tout se reconstruit depuis le dépôt.
 - name: Ensure docs_site app folders exist
   loop:
-    # compose.yaml (0600) et nginx.conf : seul dc@ (l'utilisateur) y entre.
+    # nginx tourne sous l'uid de l'utilisateur (compose.yaml, user:) : rien
+    # n'a besoin d'être lisible par les autres.
     - path: "{{ docs_site_base_path }}"
       mode: "0700"
-    # Monté en lecture seule dans nginx (uid 101) : lisible par tous.
     - path: "{{ docs_site_base_path }}/releases"
-      mode: "0755"
+      mode: "0700"
   loop_control:
     label: "{{ item.path }}"
   ansible.builtin.file:
@@ -32,7 +32,7 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Lu par nginx (uid 101) : 0644, il ne porte aucun secret.
+# Lu par nginx, qui tourne sous l'uid de l'utilisateur.
 - name: Template nginx configuration
   notify: Restart docs_site
   ansible.builtin.template:
@@ -40,7 +40,7 @@
     dest: "{{ docs_site_base_path }}/nginx.conf"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: Build and publish the documentation site
   block:
@@ -84,7 +84,7 @@
           - "{{ docs_site_build_dir.path }}/site"
 
     # Archive reproductible (ordre, dates, propriétaires et droits fixés) :
-    # son sha256 ne bouge qu'avec le contenu. Droits u=rwX,go=rX pour nginx.
+    # son sha256 ne bouge qu'avec le contenu.
     - name: Pack the site on the controller
       delegate_to: localhost
       run_once: true
@@ -99,7 +99,7 @@
           - --owner=0
           - --group=0
           - --numeric-owner
-          - --mode=u=rwX,go=rX
+          - --mode=u=rwX,go=
           - -C
           - "{{ docs_site_build_dir.path }}/site"
           - -cf
@@ -135,7 +135,7 @@
           ansible.builtin.file:
             path: "{{ docs_site_base_path }}/releases/{{ docs_site_archive.stat.checksum }}.tmp"
             state: directory
-            mode: "0755"
+            mode: "0700"
 
         - name: Unpack the site archive on the host
           ansible.builtin.unarchive:
