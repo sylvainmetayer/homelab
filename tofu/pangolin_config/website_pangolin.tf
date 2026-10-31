@@ -36,7 +36,7 @@ resource "uptimekuma_monitor_push" "backup_pangolin" {
   # Grouped under the Backup folder. See uptime_globals.tf.
   parent = uptimekuma_monitor_group.backups.id
 
-  interval = 60 * 60 * 24
+  interval = local.backup_push_interval
 
   retry_interval = 20
   active         = true
