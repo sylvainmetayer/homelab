@@ -539,8 +539,8 @@ flowchart LR
   sans canal Telegram). Si la VM docker tombe,
   Beszel se tait : Uptime Kuma (hors VM) le voit par le moniteur
   `Healthcheck Beszel`.
-- **Limites connues** : sur le Pi, la mémoire par conteneur reste vide tant
-  que le contrôleur cgroup mémoire est coupé (issue #846) ; son S.M.A.R.T.
+- **Limites connues** : sur le Pi, le contrôleur cgroup mémoire, coupé par
+  le firmware, est réactivé par `cgroup_enable=memory` (#846) ; son S.M.A.R.T.
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
   déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
   capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.

@@ -29,8 +29,7 @@ charge ou une maintenance de Proxmox ne coupe pas les photos, et l'inverse.
 - Un hôte physique de plus : mises à jour, redémarrage de 05:30, S.M.A.R.T.
   par un pont USB RTL9210 non vérifié, pas de vzdump (borgmatic seul).
 - CPU faible : les gros travaux (vignettes, ML) passent par un worker distant
-  à la main (`compose/immich/README.md`) ; mémoire par conteneur absente tant
-  que le cgroup mémoire est coupé (#846).
+  à la main (`compose/immich/README.md`).
 - Le déploiement CI atteint le Pi par le LXC newt (`pi.internal`) : il dépend
   de Proxmox, Immich non.
 
