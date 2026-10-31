@@ -25,7 +25,7 @@ règles passent **avant** le SSO (`rules.tf`) :
 | Priorité | Règle | Effet |
 |---|---|---|
 | 1 | `DROP` des chemins qui contiennent un `\` (`backslash_guard`), sur toute ressource qui a une règle de chemin | Pangolin ne normalise pas `\`, que Node change en `/` : `/shared/..\..\api/trips` passerait pour `/shared/*` |
-| 2 à 9 | `ACCEPT` de chemin (`local.path_bypasses`, 2 à 6 aujourd'hui), les trois `PASS` de chemin (TREK `/mcp`, Beszel, VictoriaLogs, à 3) | `ACCEPT` : servi tout de suite, **sans SSO et sans filtre pays**. `PASS` : saute les règles pays, garde l'authentification Pangolin |
+| 2 à 9 | `ACCEPT` de chemin (`local.path_bypasses`, 2 à 6 aujourd'hui), les trois `PASS` de chemin (TREK `/mcp`, Beszel, VictoriaLogs, à 3), les `DROP` de chemin de la vitrine Exemple Planning (2 à 7) | `ACCEPT` : servi tout de suite, **sans SSO et sans filtre pays**. `PASS` : saute les règles pays, garde l'authentification Pangolin |
 | 9 | `ACCEPT` de l'IP de la maison (`home_ip`, Immich, Dawarich, TREK) | toute la ressource, sans SSO, depuis la connexion de la maison |
 | 10, 11 | `PASS` pays FR, DE | vers l'authentification (SSO) |
 | 20 | `PASS` pays de voyage (`var.travel_countries`) | idem, jusqu'à la date de fin |

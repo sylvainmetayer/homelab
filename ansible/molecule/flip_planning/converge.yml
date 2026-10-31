@@ -1,11 +1,12 @@
 ---
-# Reproduit flip.yml pour Flip Planning : le rôle appliqué trois fois sur le
-# même hôte (production, démo, banc Keycloak), avec les paramètres de rôle du
-# playbook. Les entrées sont recopiées, mais la première tâche compare la copie
-# à flip.yml : une instance ajoutée, retirée ou modifiée là-bas fait échouer le
-# scénario au lieu de laisser tester un instantané périmé. Le banc Keycloak y
-# est en pause (flip_planning_enabled: false) : l'idempotence porte sur cet
-# état, side_effect.yml le reprend puis le remet en pause.
+# Reproduit flip.yml pour Flip Planning : le rôle appliqué quatre fois sur le
+# même hôte (production, démo, banc Keycloak, vitrine publique), avec les
+# paramètres de rôle du playbook. Les entrées sont recopiées, mais la première
+# tâche compare la copie à flip.yml : une instance ajoutée, retirée ou modifiée
+# là-bas fait échouer le scénario au lieu de laisser tester un instantané
+# périmé. Le banc Keycloak y est en pause (flip_planning_enabled: false) :
+# l'idempotence porte sur cet état, side_effect.yml le reprend puis le remet en
+# pause.
 - name: Converge
   hosts: all
   vars_files:
@@ -19,6 +20,11 @@
       ansible.builtin.assert:
         that:
           - converge_flip_instances == playbook_flip_instances
+          # Un `when:` sur une entrée s'applique aussi à ses handlers, et le
+          # dernier handler chargé d'un nom gagne : une dernière instance
+          # sautée sauterait le redémarrage de toutes. La dernière entrée n'a
+          # donc pas de `when:` (flip_planning_deploy à la place).
+          - (playbook_flip_play.roles | selectattr('role', 'equalto', 'flip_planning') | list | last).when is not defined
           # Régression documentée (flip.yml, AGENTS.md) : un set_fact d'une
           # variable du rôle l'emporte sur les `vars:` de chaque instance.
           - playbook_flip_facts | select('match', '^flip_planning_') | list | length == 0
@@ -88,6 +94,7 @@
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
         demo_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
+        exemple_planning_reset_healthcheck_url: "https://uptime.example.invalid/api/push/exemple_planning_reset"
   roles:
     - role: docker_service
     - role: flip_planning
@@ -103,6 +110,7 @@
         flip_planning_session_encryption_key: "{{ prod_planning_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
+        flip_planning_mem_reservation: 1g
     - role: flip_planning
       vars:
         flip_planning_service: demo_planning
@@ -149,3 +157,35 @@
         flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
         flip_planning_backup_enabled: false
+    - role: flip_planning
+      vars:
+        flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
+        flip_planning_service: exemple_planning
+        flip_planning_container_prefix: exemple-planning
+        flip_planning_domain: exemple-planning.sylvain.dev
+        flip_planning_image: "{{ flip_planning_image_release }}"
+        flip_planning_sentry_environment: exemple
+        flip_planning_branding_product_name: "Planning Équipes — Exemple"
+        flip_planning_branding_organisation: "Association fictive"
+        flip_planning_branding_client_palette: false
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_legal_demo_instance: true
+        flip_planning_pgadmin_enabled: false
+        flip_planning_admin_password: "demo"
+        flip_planning_db_password: "{{ exemple_planning_db_password }}"
+        flip_planning_session_encryption_key: "{{ exemple_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: ""
+        flip_planning_mcp_pangolin_access_token_id: ""
+        flip_planning_mcp_pangolin_access_token: ""
+        flip_planning_webhooks_enabled: false
+        flip_planning_solver_seconds_limit: 60
+        flip_planning_solver_unimproved_seconds_limit: 20
+        flip_planning_solver_seconds_limit_max: 60
+        flip_planning_reset_dump: exemple/exemple-planning.dump
+        flip_planning_reset_healthcheck_url: "{{ exemple_planning_reset_healthcheck_url }}"
+        flip_planning_backup_enabled: false
+        flip_planning_cpu_shares: 256
+        flip_planning_mem_limit: 1536m
+        flip_planning_solver_max_solves_per_hour: 12
+        flip_planning_solver_max_queued_jobs: 2

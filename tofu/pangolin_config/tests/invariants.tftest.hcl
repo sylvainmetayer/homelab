@@ -642,6 +642,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_exemple_planning_reset
+  values = { push_token = "push-cron-exemple-planning-reset" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_nas_cert
   values = { push_token = "push-cron-nas-cert" }
 }
@@ -1310,10 +1315,64 @@ run "backslash_guard_covers_every_path_rule" {
     condition = alltrue([
       for rule in concat(
         [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
+        values(pangolin_resource_rule.exemple_planning_drop),
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
     error_message = "La priorité 1 est réservée au DROP antislash : une règle par chemin à égalité avec lui serait évaluée dans un ordre arbitraire."
+  }
+}
+
+# La vitrine publique (website_exemple_planning.tf) n'a ni SSO ni mot de passe
+# admin secret : ses DROP sont tout ce qui sépare un visiteur du MCP, de
+# l'import SQL (utilisateur Postgres superutilisateur), du calcul synchrone et
+# de l'envoi de Mailpit. Liste fermée, toutes devant les règles pays (une DROP
+# derrière un PASS ne serait jamais lue) et derrière le garde antislash, et
+# aucun ACCEPT de chemin sur la ressource qui passerait avant elles.
+run "public_showcase_drops_what_its_shared_admin_must_not_reach" {
+  command = plan
+
+  assert {
+    condition     = pangolin_resource.website["exemple_planning"].sso == false
+    error_message = "La vitrine est sans SSO par conception : c'est ce qui rend ses DROP nécessaires."
+  }
+
+  assert {
+    condition = { for key, rule in pangolin_resource_rule.exemple_planning_drop : key => rule.value } == {
+      mcp          = "/mcp*/*"
+      database     = "/api*/database*/*"
+      solve_sync   = "/api*/solve*"
+      mailpit_send = "/mail/api/v1/send"
+      debug        = "/api*/debug*/*"
+      link_check   = "/mail/api/v1/message/*/link-check"
+    }
+    error_message = "Les DROP de la vitrine ont changé : MCP, import/export SQL, calcul synchrone, Débogage, envoi et vérification de liens de Mailpit, ni plus ni moins (les webhooks sont coupés dans l'application)."
+  }
+
+  # Les cibles visent les conteneurs par nom sur le réseau newt : le préfixe
+  # que flip.yml donne à la vitrine.
+  assert {
+    condition = (
+      length(regexall("flip_planning_container_prefix: exemple-planning\\n", file("${path.module}/../../ansible/flip.yml"))) == 1
+      && pangolin_target.website["exemple_planning"].ip == "exemple-planning"
+      && pangolin_target.website["exemple_planning_mailpit"].ip == "exemple-planning-mailpit"
+      && pangolin_target.website["exemple_planning_assets"].ip == "exemple-planning-assets"
+    )
+    error_message = "Les cibles de la vitrine doivent suivre flip_planning_container_prefix de son entrée dans ansible/flip.yml (exemple-planning)."
+  }
+
+  assert {
+    condition = alltrue([
+      for rule in pangolin_resource_rule.exemple_planning_drop :
+      rule.action == "DROP" && rule.match == "PATH" && rule.enabled == true
+      && rule.priority > 1 && rule.priority < 10
+    ])
+    error_message = "Les règles de la vitrine sont des DROP PATH actives, entre le garde antislash (1) et les règles pays (10)."
+  }
+
+  assert {
+    condition     = !contains(keys(local.path_bypasses), "Exemple Planning")
+    error_message = "La vitrine ne doit avoir aucun ACCEPT de chemin : il passerait avant ses DROP ou à côté d'eux."
   }
 }
 
@@ -1546,10 +1605,10 @@ run "php_lockdown_closes_every_public_php_path" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier et Promptoramix se passent du
-# SSO. Nextcloud l'a rejoint : ses clients et ses liens de partage passent par
-# des chemins ouverts (website_nextcloud.tf), plus par une ressource entière
-# sans SSO.
+# applique donc les siennes, et seules Betisier, Promptoramix et la vitrine
+# Exemple Planning se passent du SSO. Nextcloud l'a rejoint : ses clients et
+# ses liens de partage passent par des chemins ouverts (website_nextcloud.tf),
+# plus par une ressource entière sans SSO.
 run "every_public_resource_applies_its_rules" {
   command = plan
 
@@ -1563,13 +1622,16 @@ run "every_public_resource_applies_its_rules" {
   # est entrée par une décision explicite, validée par l'utilisateur : appelée
   # par les serveurs du tournoi Linkx (fonctions Supabase), pas par un
   # navigateur, elle ne peut pas passer de SSO et vérifie la signature HMAC de
-  # chaque requête (website_promptoramix.tf).
+  # chaque requête (website_promptoramix.tf). Exemple Planning aussi : la
+  # vitrine publique de Planning Équipes, dont la page produit affiche le mot
+  # de passe ; ce que cet admin partagé ne doit pas atteindre est coupé par ses
+  # DROP (website_exemple_planning.tf, pinned plus bas).
   assert {
     condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
-      toset(["Betisier", "Promptoramix"]),
+      toset(["Betisier", "Exemple Planning", "Promptoramix"]),
       [for key in local.php_lockdown_sso : local.websites[key].name],
     )
-    error_message = "Les ressources sans SSO doivent être exactement Betisier et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
+    error_message = "Les ressources sans SSO doivent être exactement Betisier, Exemple Planning et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -1761,10 +1823,10 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier et Promptoramix (sans SSO).
+  # Betisier, Exemple Planning et Promptoramix (sans SSO).
   assert {
-    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
-    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier et Promptoramix, sans SSO, à aucun."
+    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "exemple_planning", "promptoramix"])
+    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier, Exemple Planning et Promptoramix, sans SSO, à aucun."
   }
 
   # Chaque entrée prend le rôle de son propre slug (sa clé en kebab-case) : un
@@ -1875,9 +1937,10 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_papra_url             = output.uptime_backup_papra_url
         uptime_backup_grocy_url             = output.uptime_backup_grocy_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
-        # flip.yml (production, démo)
-        uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
-        uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url
+        # flip.yml (production, démo, vitrine)
+        uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
+        uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
+        uptime_cron_exemple_planning_reset_url = output.uptime_cron_exemple_planning_reset_url
         # pi.yml, lxc.yml
         uptime_backup_immich_url = output.uptime_backup_immich_url
         uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
@@ -2311,6 +2374,19 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_push.cron_betisier_reset.interval < 60 * 60 * 24 * 3
     )
     error_message = "Reset Betisier : rangé avec les healthchecks, notifié sur Telegram et ntfy, timer quotidien et intervalle de deux à trois jours."
+  }
+
+  # Le reset de la vitrine aussi (exemple_planning-reset.timer, rôle
+  # flip_planning) : même règle.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_exemple_planning_reset.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_exemple_planning_reset.notification_ids) == toset(local.alert_notification_ids)
+      && length(regexall("flip_planning_reset_on_calendar: \"\\*-\\*-\\* [0-9:]+ Europe/Paris\"", file("${path.module}/../../ansible/roles/flip_planning/defaults/main.yml"))) == 1
+      && uptimekuma_monitor_push.cron_exemple_planning_reset.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.cron_exemple_planning_reset.interval < 60 * 60 * 24 * 3
+    )
+    error_message = "Reset Exemple Planning : rangé avec les healthchecks, notifié sur Telegram et ntfy, timer quotidien et intervalle de deux à trois jours."
   }
 
   # Le NAS pousse une fois par jour (nas-proxy-cert-check.timer, rôle

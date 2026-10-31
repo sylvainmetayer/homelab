@@ -93,7 +93,7 @@ Repérer l'hôte et le nom du service : `docs/apps.md` (colonne Rôle) et
 
   Les tags de chaque rôle sont dans le playbook (`tags: rss,app`). Pour
   flip : `flip.yml --tags flip_planning` (prod), `demo_planning`,
-  `demo_planning_kc`, `promptoramix`.
+  `demo_planning_kc`, `exemple_planning`, `promptoramix`.
 - **Newt en panne** : `systemctl --user restart dc@newt`. Sur flip, faire ce
   redémarrage depuis une session ouverte par `mise run ssh_flip` (rebond par
   Pangolin), jamais par `flip.internal` qui passe par ce même Newt.
