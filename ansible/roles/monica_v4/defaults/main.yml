@@ -1,5 +1,8 @@
 ---
 monica_v4_base_path: "{{ docker_base_path }}/monica_v4"
+# APP_URL du .env (templates/env.j2) ; doit suivre la ressource Pangolin
+# crm.sylvain.dev (tofu/pangolin_config/website_monica.tf).
+monica_v4_domain: crm.sylvain.dev
 monica_v4_db_password: ""
 # Clés SOPS. APP_KEY chiffre ce que Laravel chiffre en base (et les
 # sessions), HASH_SALT sale les identifiants publics hachés : copiées de
