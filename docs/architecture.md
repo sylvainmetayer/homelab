@@ -396,8 +396,9 @@ Pour le rétablir après une coupure :
 Pour le couper : `beszel_homepage_email` vide, le même `--tags`, puis
 `docker network rm beszel_homepage` sur la VM (`docker compose up` ne
 supprime pas un réseau retiré du compose) et `172.16.97.3` retiré des
-« Superuser IPs » et des « Excluded IPs » des limites de débit. Le compte du widget reste sur le hub : le retirer à la main
-(interface PocketBase `/_/`) si la coupure dure.
+« Superuser IPs » et des « Excluded IPs » des limites de débit. Le compte du
+widget reste sur le hub : le retirer à la main (interface PocketBase `/_/`) si
+la coupure dure.
 
 **Limite de connexion** (constat du 01/11/2026). Les limites de débit de
 PocketBase sont actives sur le hub (Settings → Rate limits), dont la règle
@@ -413,9 +414,13 @@ jetons obtenus restent en cache, d'où le retour à la normale ensuite.
 Correctif : `172.16.97.3` (`beszel_homepage_client_ip`) dans les « Excluded
 IPs » des limites de débit, posé dans l'interface comme les « Superuser IPs »
 (seul un superuser lit ou écrit ces réglages, que le rôle n'a pas depuis
-l'hôte). La règle reste entière pour toute autre adresse ; seule l'adresse de
-Homepage sur le réseau interne du widget y échappe, et elle ne joint que le
-hub.
+l'hôte). La règle reste entière pour toute autre adresse vue par PocketBase.
+Mais l'adresse vue est celle de `X-Forwarded-For` (`trustedProxy`, voir le
+risque accepté ci-dessous) : tout ce qui joint le hub en direct (le LAN sur
+`192.168.1.216:8090`, la VM, tout conteneur de `newt`) peut annoncer
+`172.16.97.3` et échapper aussi à `*:auth`, donc essayer des mots de passe
+superuser sans limite de débit. Ce risque s'ajoute à celui ci-dessous et
+reste à trancher avant de poser le réglage.
 
 **Risque accepté** (Sylvain, 2026-10-29) : la liste d'IP ne protège que ce
 qui passe par Traefik. Le réglage `trustedProxy` du hub (`X-Forwarded-For`,
