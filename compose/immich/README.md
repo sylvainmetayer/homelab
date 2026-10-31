@@ -5,7 +5,11 @@ Source <https://github.com/immich-app/immich/discussions/15085#discussioncomment
 ## Prérequis
 
 - On immich server :
-  - publish DB, redis ports
+  - publish DB, redis ports on the LAN: they are on `127.0.0.1` only by
+    default (Valkey has no password). From `ansible/`:
+    `ansible-playbook pi.yml --tags immich -e immich_remote_worker_bind_address=192.168.1.96`,
+    and the same run without `-e` once the worker is done, to close them again
+    (a merge that redeploys `immich` closes them too)
   - (optional) disable worker with `IMMICH_WORKERS_INCLUDE=api` to only run API
 
 - On remote host

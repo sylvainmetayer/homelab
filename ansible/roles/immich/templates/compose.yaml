@@ -66,8 +66,11 @@ services:
       retries: 5
       start_period: 10s
     restart: always
+    # Valkey sans mot de passe : publié sur la boucle locale seule. Le worker
+    # distant du poste (compose/immich) l'atteint par le LAN le temps d'un
+    # rattrapage, immich_remote_worker_bind_address passé à l'IP LAN du Pi.
     ports:
-      - 6379:6379
+      - "{{ immich_remote_worker_bind_address }}:6379:6379"
     networks:
       - immich
 
@@ -105,8 +108,10 @@ services:
       start_period: 5m
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
+    # Même règle que Valkey (immich_remote_worker_bind_address) ; borgmatic
+    # passe par docker exec, pas par ce port.
     ports:
-      - 5432:5432
+      - "{{ immich_remote_worker_bind_address }}:5432:5432"
     restart: always
     networks:
       - immich
@@ -124,6 +129,8 @@ services:
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse
     #user: 1000:1000
+    # Sans login et avec la clé d'API Immich, mais sans route Pangolin : ce
+    # port publié sur le LAN (http://192.168.1.96:5000) est son seul accès.
     ports:
       - "5000:5000"
     environment:
