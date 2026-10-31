@@ -123,12 +123,6 @@ resource "uptimekuma_notification_ntfy" "ntfy" {
   apply_existing = false
 }
 
-output "ntfy_access_token" {
-  description = "NTFY - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["ntfy"]
-  sensitive   = true
-}
-
 output "uptime_backup_ntfy_url" {
   description = "NTFY - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["ntfy"]

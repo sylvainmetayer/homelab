@@ -97,12 +97,6 @@ locals {
 # pangolin_resource_rule.backslash_guard in rules.tf, which covers every
 # resource with a path rule.
 
-output "karakeep_access_token" {
-  description = "KARAKEEP - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["karakeep"]
-  sensitive   = true
-}
-
 output "uptime_backup_karakeep_url" {
   description = "KARAKEEP - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["karakeep"]

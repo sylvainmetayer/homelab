@@ -77,12 +77,6 @@ output "beszel_agent_hub_headers" {
   sensitive = true
 }
 
-output "beszel_access_token" {
-  description = "BESZEL - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["beszel"]
-  sensitive   = true
-}
-
 output "uptime_backup_beszel_url" {
   description = "BESZEL - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["beszel"]

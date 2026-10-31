@@ -91,9 +91,3 @@ output "homepage_pangolin_org" {
   description = "HOMEPAGE - Organisation Pangolin du widget Pangolin"
   value       = nonsensitive(local.pangolin_org_id)
 }
-
-output "homepage_access_token" {
-  description = "HOMEPAGE - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["homepage"]
-  sensitive   = true
-}

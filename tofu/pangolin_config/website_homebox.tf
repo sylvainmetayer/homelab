@@ -30,12 +30,6 @@ locals {
   }
 }
 
-output "homebox_access_token" {
-  description = "HOMEBOX - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["homebox"]
-  sensitive   = true
-}
-
 output "uptime_backup_homebox_url" {
   description = "HOMEBOX - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["homebox"]

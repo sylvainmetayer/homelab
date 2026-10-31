@@ -44,9 +44,3 @@ locals {
     "/*" = 2
   }
 }
-
-output "promptoramix_access_token" {
-  description = "PROMPTORAMIX - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["promptoramix"]
-  sensitive   = true
-}

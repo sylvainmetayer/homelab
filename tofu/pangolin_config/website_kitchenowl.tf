@@ -71,12 +71,6 @@ locals {
   }
 }
 
-output "kitchenowl_access_token" {
-  description = "KITCHENOWL - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["kitchenowl"]
-  sensitive   = true
-}
-
 output "uptime_backup_kitchenowl_url" {
   description = "KITCHENOWL - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["kitchenowl"]

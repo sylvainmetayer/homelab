@@ -11,9 +11,12 @@
 #   - `local.<app>_website`, its entry in local.websites (fields below);
 #   - its path rules (`local.<app>_*_paths`, turned into rules by
 #     local.path_bypasses in rules.tf), its other rules and extra tokens;
-#   - its outputs: `uptime_backup_<app>_url`, read by Ansible, and
-#     `<app>_access_token`. An output cannot be generated, hence one block each,
-#     reading local.backup_push_urls / local.healthcheck_access_tokens below.
+#   - its outputs: `uptime_backup_<app>_url`, read by Ansible. An output
+#     cannot be generated, hence one block each, reading local.backup_push_urls
+#     below. No `<app>_access_token` output (a key past the SSO within
+#     `tofu output`, for no reader), except flip_planning's and
+#     demo_planning's, which a test reads; when debugging, `tofu console`
+#     then `local.healthcheck_access_tokens["<app>"]`.
 #
 # The key is the former resource name (e.g. `demo_planning_kc`), and
 # moved blocks (applied, then removed) mapped every former address onto it:

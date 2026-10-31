@@ -49,12 +49,6 @@ resource "pangolin_resource_rule" "immich_home_ip" {
   enabled     = true
 }
 
-output "immich_access_token" {
-  description = "IMMICH - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["immich"]
-  sensitive   = true
-}
-
 output "uptime_backup_immich_url" {
   description = "IMMICH - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["immich"]

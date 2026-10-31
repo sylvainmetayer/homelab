@@ -30,12 +30,6 @@ locals {
   }
 }
 
-output "wiki_access_token" {
-  description = "WIKI - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["wiki"]
-  sensitive   = true
-}
-
 output "uptime_backup_wiki_url" {
   description = "WIKI - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["wiki"]

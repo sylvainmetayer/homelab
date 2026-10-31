@@ -28,9 +28,3 @@ locals {
     }
   }
 }
-
-output "immich_selfie_timelapse_access_token" {
-  description = "IMMICH_SELFIE_TIMELAPSE - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["immich_selfie_timelapse"]
-  sensitive   = true
-}

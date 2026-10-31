@@ -43,12 +43,6 @@ locals {
   }
 }
 
-output "paperless_access_token" {
-  description = "PAPERLESS - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["paperless"]
-  sensitive   = true
-}
-
 output "uptime_backup_paperless_url" {
   description = "PAPERLESS - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["paperless"]

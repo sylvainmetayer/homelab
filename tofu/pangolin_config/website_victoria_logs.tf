@@ -83,9 +83,3 @@ output "log_agent_access_tokens" {
   }
   sensitive = true
 }
-
-output "victoria_logs_access_token" {
-  description = "VICTORIA LOGS - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["victoria_logs"]
-  sensitive   = true
-}

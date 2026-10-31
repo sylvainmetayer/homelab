@@ -54,12 +54,6 @@ resource "uptimekuma_monitor_push" "cron_monica" {
   notification_ids = local.alert_notification_ids
 }
 
-output "monica_access_token" {
-  description = "MONICA - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["monica"]
-  sensitive   = true
-}
-
 output "uptime_backup_monica_url" {
   description = "MONICA - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["monica"]

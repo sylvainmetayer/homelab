@@ -204,12 +204,6 @@ output "trek_mcp_client_access_tokens" {
   sensitive = true
 }
 
-output "trek_access_token" {
-  description = "TREK - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["trek"]
-  sensitive   = true
-}
-
 output "uptime_backup_trek_url" {
   description = "TREK - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["trek"]

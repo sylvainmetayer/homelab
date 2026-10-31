@@ -88,12 +88,6 @@ locals {
 # pangolin_resource_rule.backslash_guard in rules.tf, which covers every
 # resource with a path rule.
 
-output "wishlist_access_token" {
-  description = "WISHLIST - Token d'accès pour les healthchecks"
-  value       = local.healthcheck_access_tokens["wishlist"]
-  sensitive   = true
-}
-
 output "uptime_backup_wishlist_url" {
   description = "WISHLIST - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["wishlist"]
