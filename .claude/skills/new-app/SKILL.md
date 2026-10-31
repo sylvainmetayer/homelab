@@ -84,7 +84,10 @@ in `.github/restore-test/apps.json` (`pangolin_config`'s `tofu test` fails
 on any `backup = true` website missing from it; `databases` lists the kinds
 of the role's `borgmatic_app_*_databases`, `[]` for none, checked by
 `test_restore_test_databases.py`). Until its first nightly
-archive exists, the next restore-test run fails on it with « aucune archive ».
+archive exists, the next restore-test run fails on it with « aucune archive »;
+an app whose SQLite file did not exist yet at deploy time (first start after
+the deploy) gets no staged copy until the next deploy, and fails it with
+« aucun dump ni copie sqlite »: redeploy once the app has started.
 
 ## 4. Backup vars
 

@@ -14,8 +14,10 @@ Steps, on the latest archive:
      an entry marked "paused": its app is stopped on purpose and writes no
      archive (the scheduled run skips it, a manual run still restores it);
   1. check that the archive holds a dump or a SQLite copy of every kind
-     listed in the entry's "databases" (and none of another kind): a dump or
-     a copy that stopped being written must fail, not pass on the files;
+     listed in the entry's "databases" (and none of another kind): a kind
+     whose dumps or copies all stopped being written must fail, not pass on
+     the files (per kind, not per database: a second dump or copy of a kind
+     still present goes unnoticed);
   2. extract a sample of regular files (borg checks every chunk it decrypts);
   3. replay every PostgreSQL / MySQL dump in a throwaway container of the
      role's database image, and check that a table came back (unless the
@@ -238,7 +240,10 @@ def check_databases(entry, dumps, sqlite):
     # must not turn the check off, and a dump the manifest does not know of
     # means the manifest no longer describes the role's borgmatic config.
     expected = entry.get("databases")
-    if not isinstance(expected, list) or not set(expected) <= DATABASE_KINDS:
+    # isinstance first: an unhashable item ({} or []) must not raise a
+    # TypeError, reported as an unexpected error.
+    if not isinstance(expected, list) or not all(isinstance(kind, str) and kind in DATABASE_KINDS
+                                                  for kind in expected):
         raise RestoreError(f"databases doit être une liste parmi {sorted(DATABASE_KINDS)} : {expected!r}")
     found = {engine for engine, _, _ in dumps} | ({"sqlite"} if sqlite else set())
     missing = sorted(set(expected) - found)

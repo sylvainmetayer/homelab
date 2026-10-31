@@ -46,7 +46,7 @@ class CheckDatabases(unittest.TestCase):
             rt.check_databases({}, [PG], [])
 
     def test_unknown_kind_fails(self):
-        for value in (["postgres"], "postgresql", None):
+        for value in (["postgres"], "postgresql", None, [{}], [["sqlite"]]):
             with self.subTest(value=value), self.assertRaises(rt.RestoreError):
                 rt.check_databases({"databases": value}, [PG], [])
 
@@ -54,7 +54,9 @@ class CheckDatabases(unittest.TestCase):
 class Manifest(unittest.TestCase):
     # The role's borgmatic config (borgmatic_app_<kind>_databases in its
     # tasks) is what the archive holds: the manifest must say the same.
-    KIND_RE = re.compile(r"^\s*borgmatic_app_(postgresql|mysql|sqlite)_databases:", re.MULTILINE)
+    # Not an explicit empty list: it backs up nothing of that kind.
+    KIND_RE = re.compile(r"^\s*borgmatic_app_(postgresql|mysql|sqlite)_databases:(?!\s*\[\]\s*$)",
+                         re.MULTILINE)
 
     def test_databases_match_the_role(self):
         for app, entry in MANIFEST.items():
@@ -62,7 +64,7 @@ class Manifest(unittest.TestCase):
                 self.assertIsInstance(entry.get("databases"), list)
                 self.assertLessEqual(set(entry["databases"]), rt.DATABASE_KINDS)
                 tasks = "\n".join(path.read_text() for path in
-                                  (ROOT / "ansible" / "roles" / entry["role"] / "tasks").glob("*.yml"))
+                                  (ROOT / "ansible" / "roles" / entry["role"] / "tasks").glob("*.y*ml"))
                 self.assertEqual(sorted(set(entry["databases"])), sorted(set(self.KIND_RE.findall(tasks))))
 
 
