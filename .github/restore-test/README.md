@@ -9,6 +9,9 @@ dépôt (`.github/scripts/restore_test.py`) :
   suffit) : une sauvegarde qui ne tourne plus (un dump qui échoue chaque
   nuit, comme celui de Nextcloud en octobre 2026) laisse une vieille archive
   qui, elle, se restaure ;
+- l'archive doit contenir un dump ou une copie SQLite de chaque type listé
+  dans `databases` (`apps.json`), et d'aucun autre : un dump ou une copie qui
+  ne s'écrit plus fait échouer l'app au lieu de passer sur les seuls fichiers ;
 - un échantillon de 20 fichiers (≤ 5 Mio) est extrait : borg vérifie chaque
   bloc qu'il déchiffre ;
 - les dumps PostgreSQL (`pg_restore`) et MariaDB (`mariadb`) sont rejoués
@@ -72,6 +75,12 @@ manque ou si une app retirée y reste.
 - `repo` : dossier du dépôt sous celui de l'hôte, et `borgmatic_app_name`
   (dossier de staging SQLite) ;
 - `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base ;
+- `databases` (obligatoire, liste parmi `postgresql`, `mysql`, `sqlite`) :
+  ce que l'archive doit contenir, ni plus ni moins, d'après la configuration
+  borgmatic du rôle (`borgmatic_app_postgresql_databases`,
+  `_mysql_databases`, `_sqlite_databases`) ; `[]` pour une app sans base.
+  `test_restore_test_databases.py` (job Lint) vérifie l'accord avec les
+  tâches du rôle ;
 - `allow_empty_databases` (facultatif, liste de noms de bases) : le dump
   PostgreSQL ou MariaDB d'une base listée peut être rejoué sans aucune table
   sans faire échouer l'app ; les autres bases de l'app restent tenues d'en

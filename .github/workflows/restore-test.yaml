@@ -84,6 +84,8 @@ jobs:
             || { echo "::error::allow_empty_databases doit être une liste de noms de bases"; exit 1; }
           jq -e 'all(.[]; (.paused // false) | type == "boolean")' .github/restore-test/apps.json \
             || { echo "::error::paused doit être un booléen"; exit 1; }
+          jq -e 'all(.[]; .databases | type == "array" and all(IN("postgresql", "mysql", "sqlite")))' .github/restore-test/apps.json \
+            || { echo "::error::databases doit être une liste parmi postgresql, mysql, sqlite"; exit 1; }
           for role in $(jq -r '.[].role' .github/restore-test/apps.json); do
             test -d "ansible/roles/$role" || { echo "::error::rôle $role absent"; exit 1; }
           done
