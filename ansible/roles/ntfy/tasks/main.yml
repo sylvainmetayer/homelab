@@ -28,7 +28,7 @@
       {{ ntfy_publishers | selectattr('token', 'equalto', '') | map(attribute='name') | join(', ') }}.
       uptime-kuma : appliquer tofu/pangolin_config (sortie
       ntfy_uptime_kuma_token) avant docker.yml ; les autres : leur clé
-      ntfy_<nom>_token dans ansible/secrets.sops.yaml.
+      ntfy_<nom>_token dans secrets/ansible.sops.yaml.
   when: ntfy_active_publishers | length < ntfy_publishers | length
 
 - name: Ensure ntfy folders exist

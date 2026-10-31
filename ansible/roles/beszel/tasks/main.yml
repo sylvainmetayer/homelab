@@ -7,7 +7,7 @@
       - beszel_agent_tokens | default({}) | length > 0
     fail_msg: >-
       Clés sops manquantes : beszel_admin_password, beszel_hub_private_key,
-      beszel_agent_tokens (ansible/secrets.sops.yaml).
+      beszel_agent_tokens (secrets/ansible.sops.yaml).
     quiet: true
 
 - name: Ensure Beszel app folder exists

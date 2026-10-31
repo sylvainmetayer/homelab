@@ -39,7 +39,7 @@
       - monica_v4_db_password | length > 0
     fail_msg: >-
       monica_v4_app_key, monica_v4_hash_salt ou monica_v4_db_password vide :
-      clé absente de ansible/secrets.sops.yaml ?
+      clé absente de secrets/ansible.sops.yaml ?
 
 # Lu dans docker plutôt qu'épinglé, comme nextcloud et flip_planning : docker
 # choisit le sous-réseau à la création du réseau.

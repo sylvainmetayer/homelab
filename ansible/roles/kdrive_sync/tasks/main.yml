@@ -37,7 +37,7 @@
       - kdrive_sync_app_password | length > 0
     fail_msg: >-
       kdrive_drive_id (numérique), kdrive_webdav_user ou
-      kdrive_webdav_app_password absents d'ansible/secrets.sops.yaml
+      kdrive_webdav_app_password absents de secrets/ansible.sops.yaml
       (docs/runbooks/kdrive-nas.md).
     quiet: true
 

@@ -11,7 +11,7 @@
   pre_tasks:
     # Sous-compte de la Storage Box (backup_storage_box_subaccounts) comparé
     # au dépôt de la configuration borgmatic.
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   tasks:
     # Compose à root en 0600, valide, sous dc@jellyfin en unité système.

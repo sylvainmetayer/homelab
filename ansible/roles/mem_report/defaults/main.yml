@@ -25,7 +25,7 @@ mem_report_low_percent: 25
 mem_report_min_saving_mb: 64
 
 # Producteur « scripts » du rôle ntfy (écriture seule sur son topic), jeton
-# ntfy_scripts_token d'ansible/secrets.sops.yaml. Publication JSON sur « / »,
+# ntfy_scripts_token de secrets/ansible.sops.yaml. Publication JSON sur « / »,
 # ouvert sans SSO (local.ntfy_client_paths, website_ntfy.tf). Jeton vide : le
 # rapport ne va qu'au journal (journalctl -u mem-report).
 mem_report_ntfy_url: https://ntfy.sylvain.cloud

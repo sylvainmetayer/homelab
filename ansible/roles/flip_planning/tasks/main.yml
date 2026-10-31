@@ -139,7 +139,7 @@
       PUBLIC url and a client secret of at least 32 characters — shorter,
       Quarkus draws the key that encrypts the PKCE verifier at random on every
       start — and, with provisioning, its server url and service-account
-      secret. The secrets belong in secrets.sops.yaml; terraform/keycloak of
+      secret. The secrets belong in secrets/ansible.sops.yaml; terraform/keycloak of
       the application repo prints the two client secrets.
 
 - name: Template compose configuration for {{ flip_planning_service }}

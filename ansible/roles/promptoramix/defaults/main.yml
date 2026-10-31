@@ -4,7 +4,7 @@ promptoramix_base_path: "{{ docker_base_path }}/promptoramix"
 # Secret HMAC partagé avec la plateforme Linkx : l'application rejette toute
 # requête dont la signature ne correspond pas. C'est sa seule protection, la
 # ressource Pangolin étant ouverte à tous (tofu/pangolin_config/website_promptoramix.tf).
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 promptoramix_linkx_secret: ""
 
 # Fils de recherche par requête. Deux requêtes au plus en parallèle sur les

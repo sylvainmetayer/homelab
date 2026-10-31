@@ -11,7 +11,7 @@
     # borgmatic, qui tirerait l'image (repo-create de tasks/app.yml).
     borgmatic_bin: /root/.local/bin/borgmatic
   pre_tasks:
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   roles:
     - role: docker_service

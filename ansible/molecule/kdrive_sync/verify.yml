@@ -12,7 +12,7 @@
     kdrive_sync_verify_tmp: /root/molecule-kdrive
   pre_tasks:
     # Identifiants kDrive comparés aux fausses valeurs.
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   tasks:
     - name: Read the account rclone runs as
