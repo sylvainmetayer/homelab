@@ -19,7 +19,6 @@
         betisier_reset_healthcheck_url: "{{ terraform_outputs.uptime_cron_betisier_reset_url.value | default('') }}"
         dawarich_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_dawarich_url.value | default('') }}"
         trek_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_trek_url.value | default('') }}"
-        kitchenowl_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_kitchenowl_url.value | default('') }}"
         homebox_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homebox_url.value | default('') }}"
         papra_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_papra_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
@@ -102,8 +101,6 @@
       tags: stirling_pdf,app
     - role: wishlist
       tags: wishlist,app
-    - role: kitchenowl
-      tags: kitchenowl,app
     - role: homebox
       tags: homebox,app
     - role: papra

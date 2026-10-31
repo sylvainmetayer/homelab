@@ -12,7 +12,6 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | TREK 5.0.0 | natif, admin par claim | [oidc.service.ts](https://github.com/liketrek/TREK/blob/v5.0.0/server/src/nest/oidc/oidc.service.ts) | faible | oui sauf `OIDC_ONLY` |
 | Wishlist v0.69.0 | natif, réglé dans l'UI (secret client saisi à la main, hors Ansible) | [config.ts](https://github.com/cmintey/wishlist/blob/v0.69.0/src/lib/server/config.ts) | faible | oui |
 | Dawarich 1.19.0 | natif, liaison par défi | [oidc_config.rb](https://github.com/Freika/dawarich/blob/1.19.0/lib/oidc_config.rb) | faible | oui ; traceurs par clé d'API |
-| KitchenOwl v0.7.10 | natif, appli mobile OK | [doc](https://docs.kitchenowl.org/latest/self-hosting/oidc/) | moyen | oui ; tout login OIDC crée un compte : allowed groups obligatoires |
 | Karakeep 0.34.1 | natif ; appli et extension : mot de passe ou clé d'API | [auth.ts](https://github.com/karakeep-app/karakeep/blob/v0.34.1/apps/web/server/auth.ts) | faible | **obligatoire** pour les clients |
 | Beszel 0.21.1 | OAuth2 PocketBase, liaison par e-mail | [doc](https://beszel.dev/guide/oauth) (latest) | faible | oui ; secret client saisi dans l'UI du hub, hors Ansible ; superuser Homepage à part |
 | Immich Swipe (`sha-a9644ff`) | aucun : clé d'API Immich saisie dans le navigateur (à confirmer) | — | — | **reste tel quel** : le mur Pangolin, puis la clé d'API |
@@ -26,7 +25,7 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Monica 3.7.0, Speedtest Tracker 1.15.1, ntfy v2.34.0, Uptime Kuma 2.5.8 | aucun ([ntfy #1596](https://github.com/binwiederhier/ntfy/issues/1596), [Kuma #6539](https://github.com/louislam/uptime-kuma/issues/6539)) | code aux tags | — | **reste tel quel** : le mur Pangolin, puis leur compte |
 | Flip Planning, Betisier, Promptoramix | Keycloak à soi / public | — | — | **reste tel quel** : autres utilisateurs |
 
-**Avec Authelia** : les « allowed groups » ci-dessus (Homebox, KitchenOwl)
+**Avec Authelia** : les « allowed groups » ci-dessus (Homebox)
 deviennent l'`authorization_policy` du client (`subject: group:<appli>`, en
 `two_factor`) ; une appli qui lit les groupes dans l'ID token plutôt qu'au
 userinfo a besoin d'une `claims_policy` (Authelia 4.39 ne les y met plus par
@@ -34,5 +33,5 @@ défaut), à vérifier appli par appli au branchement.
 
 **Ordre** : vérifier la clé EE ; Authelia, passkeys et TOTP ; **pilote Homebox** ;
 mur Pangolin (comptes recréés côté IdP) ; Immich, TREK, Wishlist, Dawarich,
-Beszel, Nextcloud, KitchenOwl, Karakeep ; BookStack, FreshRSS, vmauth
+Beszel, Nextcloud, Karakeep ; BookStack, FreshRSS, vmauth
 en dernier, si le gain vaut le login local perdu.

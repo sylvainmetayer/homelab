@@ -438,11 +438,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["kitchenowl"]
-  values = { id = 67 }
-}
-
-override_resource {
   target = pangolin_resource.website["homebox"]
   values = { id = 69 }
 }
@@ -714,11 +709,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["karakeep"]
   values = { push_token = "push-karakeep" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["kitchenowl"]
-  values = { push_token = "push-kitchenowl" }
 }
 
 override_resource {
@@ -1141,8 +1131,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Karakeep /api/public/*",
       "Karakeep /api/trpc/publicBookmarks.getPublicBookmarksInList",
       "Karakeep /api/v1/rss/lists/*",
-      "KitchenOwl /api/*",
-      "KitchenOwl /socket.io/*",
       "Monica CRM /dav/*",
       "Monica CRM /.well-known/carddav",
       "Monica CRM /.well-known/caldav",
@@ -1257,15 +1245,11 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
   # décidée et validée par l'utilisateur : Promptoramix, ouverte en entier
   # (`/*`) aux fonctions Supabase du tournoi Linkx, de n'importe quel pays,
   # sans interface ni compte, et dont chaque requête est signée en HMAC
-  # (website_promptoramix.tf). Et KitchenOwl, dont l'appli mobile demandée par
-  # l'utilisateur appelle toute l'API (`/api/*`) sans pouvoir passer le SSO :
-  # chaque route y exige le JWT de KitchenOwl, sauf la connexion et les routes
-  # listées dans website_kitchenowl.tf ; l'interface web (`/`) reste derrière
-  # le mur.
+  # (website_promptoramix.tf).
   assert {
     condition = alltrue([
       for key, rule in pangolin_resource_rule.path_bypass :
-      contains(["Promptoramix /*", "KitchenOwl /api/*"], key) || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
+      key == "Promptoramix /*" || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
     ])
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
   }
@@ -1841,7 +1825,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_dawarich_url          = output.uptime_backup_dawarich_url
         uptime_backup_trek_url              = output.uptime_backup_trek_url
         uptime_backup_karakeep_url          = output.uptime_backup_karakeep_url
-        uptime_backup_kitchenowl_url        = output.uptime_backup_kitchenowl_url
         uptime_backup_homebox_url           = output.uptime_backup_homebox_url
         uptime_backup_speedtest_tracker_url = output.uptime_backup_speedtest_tracker_url
         uptime_backup_ntfy_url              = output.uptime_backup_ntfy_url

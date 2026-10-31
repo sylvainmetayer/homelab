@@ -1,6 +1,0 @@
----
-- name: Restart kitchenowl
-  ansible.builtin.systemd:
-    name: dc@kitchenowl
-    scope: user
-    state: restarted

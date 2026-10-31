@@ -21,7 +21,6 @@ locals {
     "dawarich",
     "trek",
     "karakeep",
-    "kitchenowl",
     "homebox",
     "speedtest-tracker",
     "ntfy",

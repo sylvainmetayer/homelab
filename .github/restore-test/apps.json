@@ -8,7 +8,6 @@
   "immich": { "host": "pi", "repo": "immich", "role": "immich" },
   "jellyfin": { "host": "nas", "repo": "jellyfin", "role": "jellyfin" },
   "karakeep": { "host": "docker", "repo": "karakeep", "role": "karakeep" },
-  "kitchenowl": { "host": "docker", "repo": "kitchenowl", "role": "kitchenowl" },
   "monica": { "host": "docker", "repo": "monica_v4", "role": "monica_v4" },
   "nextcloud": { "host": "docker", "repo": "nextcloud", "role": "nextcloud" },
   "ntfy": { "host": "docker", "repo": "ntfy", "role": "ntfy" },
