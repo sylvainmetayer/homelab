@@ -65,6 +65,12 @@
         immich_compose: "{{ immich_files.results[1].content | b64decode | from_yaml }}"
         immich_borgmatic: "{{ immich_files.results[2].content | b64decode | from_yaml }}"
 
+    - name: Assert every immich service has a memory cap
+      ansible.builtin.assert:
+        that:
+          - immich_compose.services.values() | rejectattr('mem_limit', 'defined') | list | length == 0
+          - immich_compose.services.database.mem_reservation is defined
+
     # Le dump borgmatic doit viser la base du compose avec les identifiants du .env.
     - name: Assert borgmatic dumps the immich database
       ansible.builtin.assert:

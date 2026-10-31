@@ -3,6 +3,13 @@ services:
   pangolin:
     image: docker.io/fosrl/pangolin:ee-1.25.3@sha256:f2c0fc54e1b59efcd23b8685e8df84350f363e14ebe1c13ce88a681f181ca49e
     container_name: pangolin
+    # Tout le trafic public passe par ce compose : un OOM ici coupe tout le
+    # homelab, d'où des plafonds larges (pics mesurés le 31/10/2026, 30 h
+    # après le démarrage : pangolin 846 Mio, traefik 291, gerbil 22).
+    # Pangolin, ~3× : Node 24 dimensionne son tas sur le plafond du cgroup
+    # (2,5 Gio : ~1,4 Gio de tas, contre 2,1 sans plafond sur les 3,7 Gio de
+    # la VM) ; un plafond serré ferait planter le tas avant le cgroup.
+    mem_limit: 2560m
     restart: unless-stopped
     environment:
       # Base en WAL (et synchronous = NORMAL, posé avec) : les journaux de
@@ -27,6 +34,7 @@ services:
   gerbil:
     image: docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f
     container_name: gerbil
+    mem_limit: 128m
     restart: unless-stopped
     depends_on:
       pangolin:
@@ -48,6 +56,7 @@ services:
   traefik:
     image: docker.io/traefik:v3.7.16@sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65
     container_name: traefik
+    mem_limit: 768m
     restart: unless-stopped
     network_mode: service:gerbil
     depends_on:

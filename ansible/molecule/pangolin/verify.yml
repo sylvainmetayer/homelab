@@ -63,6 +63,8 @@
           - pangolin_compose.services.traefik.network_mode == 'service:gerbil'
           # Un CrowdSec en panne ne doit pas empêcher Traefik de démarrer.
           - "'crowdsec' not in (pangolin_compose.services.traefik.depends_on | default({}))"
+          # Plafond mémoire sur chaque service (docs/conventions/resource-limits.md).
+          - pangolin_compose.services.values() | rejectattr('mem_limit', 'defined') | list | length == 0
 
     # Contenu du fichier lui-même : le drop-in de prepare.yml remplace
     # ExecStart*, ExecStop, ExecReload et Restart à l'exécution.
