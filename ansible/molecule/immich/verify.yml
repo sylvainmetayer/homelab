@@ -92,13 +92,41 @@
           - "'newt' not in immich_compose.services.redis.networks"
           - "'newt' not in immich_compose.services['immich-machine-learning'].networks"
 
-    # Valkey n'a pas de mot de passe : hors worker distant, ni lui ni Postgres
-    # ne sont publiés sur le LAN.
+    # Hors worker distant, ni Valkey ni Postgres ne sont publiés sur le LAN.
     - name: Assert the database and redis ports stay on the loopback
       ansible.builtin.assert:
         that:
           - immich_compose.services.database.ports == ['127.0.0.1:5432:5432']
           - immich_compose.services.redis.ports == ['127.0.0.1:6379:6379']
+
+    # Valkey exige le mot de passe du .env, que lit immich-server ; dérivé,
+    # jamais vide ni égal à celui de la base.
+    - name: Assert Valkey requires the password immich-server reads
+      ansible.builtin.assert:
+        that:
+          - immich_env.REDIS_PASSWORD | length == 64
+          - immich_env.REDIS_PASSWORD != immich_env.DB_PASSWORD
+          - immich_compose.services.redis.command == 'valkey-server --requirepass "${REDIS_PASSWORD}"'
+          - immich_compose.services.redis.environment.REDISCLI_AUTH == '${REDIS_PASSWORD}'
+
+    # Interpolé par compose depuis le .env : la commande rendue porte bien le
+    # mot de passe que lit immich-server.
+    - name: Render the immich compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ immich_path }}"
+      register: immich_compose_rendered
+      changed_when: false
+      no_log: true
+
+    - name: Assert the rendered Valkey command carries the .env password
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - redis.command == ['valkey-server', '--requirepass', immich_env.REDIS_PASSWORD]
+          - redis.environment.REDISCLI_AUTH == immich_env.REDIS_PASSWORD
+      vars:
+        redis: "{{ (immich_compose_rendered.stdout | from_json).services.redis }}"
 
     # Sans login, avec la clé d'API Immich : joint par Pangolin seul (newt,
     # derrière le SSO), jamais publié sur le LAN.

@@ -69,18 +69,27 @@ services:
     mem_limit: 256m
     mem_reservation: 128m
     image: docker.io/valkey/valkey:9@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    # Mot de passe du .env (REDIS_PASSWORD, que lit aussi immich-server).
+    # Interpolé par compose dans la commande : valkey réécrit le titre de son
+    # processus, `ps` sur le Pi ne le montre pas.
+    command: valkey-server --requirepass "${REDIS_PASSWORD}"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     # interval / start_period : sans eux, la première sonde attend le défaut
     # de 30 s, et immich-server, qui attend redis en service_healthy, autant.
+    # PONG exigé : sans mot de passe, redis-cli affiche NOAUTH et peut sortir
+    # en 0. Il lit le mot de passe dans REDISCLI_AUTH, pas sur sa ligne de
+    # commande.
     healthcheck:
-      test: redis-cli ping || exit 1
+      test: redis-cli ping | grep -q PONG || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: always
-    # Valkey sans mot de passe : publié sur la boucle locale seule. Le worker
-    # distant du poste (compose/immich) l'atteint par le LAN le temps d'un
-    # rattrapage (immich_remote_worker, defaults/main.yml).
+    # Publié sur la boucle locale seule. Le worker distant du poste
+    # (compose/immich) l'atteint par le LAN le temps d'un rattrapage, son IP
+    # seule (immich_remote_worker, DOCKER-USER : tasks/remote_worker.yml).
     ports:
       - "{{ immich_db_bind_address }}:6379:6379"
     networks:
