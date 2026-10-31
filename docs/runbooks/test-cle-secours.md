@@ -70,6 +70,9 @@ Deux contrôles :
    « up » au prochain lundi (ou relancer le workflow Secrets rotation à la
    main). Un `ÉCHEC` : `dernier_test` n'est pas touché, voir « En cas
    d'échec ».
+5. Le même jour, le [test trimestriel de la sauvegarde
+   KeePass](sauvegarde-keepass.md#test-trimestriel) (mot de passe papier du
+   dépôt restic) : rien d'autre ne le rappelle.
 
 ### À la main (si le script ne tourne pas)
 
