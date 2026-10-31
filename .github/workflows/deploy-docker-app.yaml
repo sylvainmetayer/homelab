@@ -10,6 +10,12 @@ on:
       - ansible/pangolin.yaml
       - ansible/flip.yml
       - ansible/roles/**
+      # Une variable d'hôte redéploie le playbook entier de cet hôte
+      # (resolve_docker_tags.py) ; nas, pve et newt-lxc restent à la main.
+      - ansible/host_vars/docker/**
+      - ansible/host_vars/pi/**
+      - ansible/host_vars/pangolin/**
+      - ansible/host_vars/flip/**
   workflow_dispatch:
     inputs:
       playbook:
@@ -93,6 +99,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "files=" >> "$GITHUB_OUTPUT"
+            echo "base=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -112,6 +119,7 @@ jobs:
               # newer code, redeploying this commit would roll it back.
               echo "::notice::$AFTER_SHA is older than $last_ok, already deployed by a later successful run: nothing to deploy"
               echo "files=" >> "$GITHUB_OUTPUT"
+              echo "base=" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             if git merge-base --is-ancestor "$last_ok" "$AFTER_SHA"; then
@@ -138,9 +146,16 @@ jobs:
           elif [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
             # New branch or force-push with an unknown base: fall back to the last commit only.
             files="$(git show --name-only --pretty=format: "$AFTER_SHA")"
+            # Empty for a root commit: a changed playbook is then deployed whole.
+            base="$(git rev-parse --verify --quiet "$AFTER_SHA^" || true)"
           else
             files="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+            base="$BEFORE_SHA"
           fi
+
+          # The commit a changed playbook is compared with, to deploy only the
+          # role entries it touched (resolve_docker_tags.py --base).
+          echo "base=$base" >> "$GITHUB_OUTPUT"
 
           echo "$files"
           delimiter="EOF_$(date +%s%N)"
@@ -175,6 +190,7 @@ jobs:
           INPUT_PLAYBOOK: ${{ inputs.playbook }}
           INPUT_TAGS: ${{ inputs.tags }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+          DIFF_BASE: ${{ steps.changed-files.outputs.base }}
         run: |
           if [ -n "$INPUT_TAGS" ]; then
             # A manually forced tag list defaults to all playbooks; pick
@@ -206,7 +222,7 @@ jobs:
             exit 0
           fi
 
-          result="$(printf '%s\n' "$CHANGED_FILES" | python3 .github/scripts/resolve_docker_tags.py ansible/docker.yml ansible/pi.yml ansible/pangolin.yaml ansible/flip.yml)"
+          result="$(printf '%s\n' "$CHANGED_FILES" | python3 .github/scripts/resolve_docker_tags.py --base "$DIFF_BASE" ansible/docker.yml ansible/pi.yml ansible/pangolin.yaml ansible/flip.yml)"
           echo "Resolved: $result"
 
           docker_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/docker.yml"])' "$result")"
@@ -396,7 +412,7 @@ jobs:
 
       - name: No matching role changed
         if: steps.resolve-tags.outputs.any_tags != 'true'
-        run: echo "No ansible/roles/** change mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
+        run: echo "No change to a role, playbook or host_vars mapped to a docker.yml, pi.yml, pangolin.yaml, or flip.yml tag, nothing to deploy."
 
       - name: Cleanup
         if: always()

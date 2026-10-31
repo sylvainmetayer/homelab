@@ -2,13 +2,24 @@
 """Map changed files to the ansible-playbook --tags needed to redeploy the
 affected role(s), for one or more playbooks.
 
-Usage: resolve_docker_tags.py <playbook.yml> [<playbook.yml> ...] < changed-files.txt
+Usage: resolve_docker_tags.py [--base SHA] <playbook.yml> [<playbook.yml> ...] < changed-files.txt
 Changed file paths are read one per line from stdin.
 Prints a JSON object {playbook_path: "tag1,tag2"} to stdout, one entry per
-playbook argument (value is "" when nothing changed for that playbook).
+playbook argument (value is "" when nothing changed for that playbook, "all"
+for the whole playbook).
+
+Besides the roles, a change to a playbook itself deploys the tags of the
+`roles:` entries it touched (their `vars:`, their tags...), compared as YAML
+with the playbook at --base (comments and layout deploy nothing); any other
+change to it (pre_tasks, tasks, play keys), or no readable --base, deploys the
+whole playbook. A change under host_vars/<host>/, <host> being the play's
+`hosts:`, deploys the whole playbook too: which role reads which variable is
+not known here.
 """
+import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,6 +37,9 @@ PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
 # Playbooks never run by the deploy workflow (no key of the NAS nor of the
 # Proxmox host in the GitHub secrets).
 MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml"]
+# ansible-playbook --tags all: every task except those tagged never.
+WHOLE_PLAYBOOK = "all"
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def safe_playbook_path(playbook_path):
@@ -34,6 +48,14 @@ def safe_playbook_path(playbook_path):
     if known is None or known.resolve() != path:
         sys.exit(f"::error::{playbook_path} is not a playbook of {ANSIBLE_DIR}, refusing to read it")
     return known
+
+
+def entry_tags(entry):
+    # `tags` is either "a,b" or a YAML list ([decommission, never]).
+    tags = entry.get("tags", "")
+    if isinstance(tags, str):
+        tags = tags.split(",")
+    return [t for t in (str(t).strip() for t in tags) if t]
 
 
 def load_role_tags(playbook_path):
@@ -50,13 +72,83 @@ def load_role_tags(playbook_path):
         if isinstance(entry, str):
             continue
         role_name = entry.get("role", entry.get("name"))
-        # `tags` is either "a,b" or a YAML list ([decommission, never]).
-        tags = entry.get("tags", "")
-        if isinstance(tags, str):
-            tags = tags.split(",")
         known = role_tags.setdefault(role_name, [])
-        known.extend(t for t in (str(t).strip() for t in tags) if t and t not in known)
+        known.extend(t for t in entry_tags(entry) if t not in known)
     return role_tags
+
+
+def changed_entry_tags(old, new):
+    """Tags to deploy for a playbook going from `old` to `new` (parsed YAML).
+
+    Only the `roles:` entries may differ: each entry of `new` with no equal
+    entry in `old` (added or changed; a removed one deploys nothing) brings its
+    specific tags, its generic ones when it has no other (geerlingguy.docker:
+    setup), nothing when tagged never. Returns None (whole playbook) when
+    anything else differs, or for a changed entry with no tag (it runs under
+    `all` only)."""
+    if not isinstance(old, list) or not isinstance(new, list) or len(old) != len(new):
+        return None
+    tags = set()
+    for old_play, new_play in zip(old, new):
+        if not isinstance(old_play, dict) or not isinstance(new_play, dict):
+            return None
+        if {k: v for k, v in old_play.items() if k != "roles"} != {k: v for k, v in new_play.items() if k != "roles"}:
+            return None
+        old_entries = old_play.get("roles") or []
+        for entry in new_play.get("roles") or []:
+            if entry in old_entries:
+                continue
+            entry_tag_list = entry_tags(entry) if isinstance(entry, dict) else []
+            if not entry_tag_list:
+                return None
+            if "never" in entry_tag_list:
+                continue
+            specific = set(entry_tag_list) - GENERIC_TAGS
+            tags |= specific or set(entry_tag_list)
+    return tags
+
+
+def playbook_at(base, playbook):
+    """The playbook's parsed YAML at commit `base`, or None if unreadable."""
+    if not base or not SHA_RE.match(base):
+        return None
+    out = subprocess.run(
+        ["git", "show", f"{base}:ansible/{playbook.name}"],
+        cwd=ANSIBLE_DIR.parent, capture_output=True, text=True, check=False,
+    )
+    if out.returncode != 0:
+        return None
+    try:
+        return yaml.safe_load(out.stdout)
+    except yaml.YAMLError:
+        return None
+
+
+def playbook_change_tags(playbook_path, changed_files, base):
+    """Tags a change to the playbook itself or to its host's host_vars deploys:
+    a set, {WHOLE_PLAYBOOK} for the whole playbook, empty when neither changed."""
+    playbook = safe_playbook_path(playbook_path)
+    with open(playbook) as f:
+        new = yaml.safe_load(f)
+    hosts = {play.get("hosts") for play in new if isinstance(play, dict)}
+    for path in changed_files:
+        parts = path.split("/")
+        if len(parts) > 3 and parts[:2] == ["ansible", "host_vars"] and parts[2] in hosts:
+            print(f"::notice::{path} changed -> whole {playbook_path}", file=sys.stderr)
+            return {WHOLE_PLAYBOOK}
+    if f"ansible/{playbook.name}" not in changed_files:
+        return set()
+    old = playbook_at(base, playbook)
+    tags = None if old is None else changed_entry_tags(old, new)
+    if tags is None:
+        reason = "no readable base to compare with" if old is None else "not only role entries changed"
+        print(f"::notice::{playbook_path} changed ({reason}) -> whole playbook", file=sys.stderr)
+        return {WHOLE_PLAYBOOK}
+    if tags:
+        print(f"::notice::{playbook_path} role entries changed -> tags [{', '.join(sorted(tags))}]", file=sys.stderr)
+    else:
+        print(f"::notice::{playbook_path} changed, no role entry to deploy (comments, layout, removed entry)", file=sys.stderr)
+    return tags
 
 
 def changed_roles(changed_files):
@@ -143,7 +235,11 @@ def manual_playbooks_by_role():
 
 
 def main():
-    playbook_paths = sys.argv[1:]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base", default="", help="commit to compare changed playbooks with")
+    parser.add_argument("playbooks", nargs="+")
+    args = parser.parse_args()
+    playbook_paths = args.playbooks
     changed_files = [line.strip() for line in sys.stdin if line.strip()]
     roles, pulled_by = add_dependents(changed_roles(changed_files))
 
@@ -164,6 +260,9 @@ def main():
             deployed.add(role)
             print(f"::notice::role '{role}' {what} -> {playbook_path} tags [{', '.join(tags)}]", file=sys.stderr)
 
+        resolved = set(resolved) | playbook_change_tags(playbook_path, changed_files, args.base)
+        if WHOLE_PLAYBOOK in resolved:
+            resolved = {WHOLE_PLAYBOOK}
         result[playbook_path] = ",".join(sorted(resolved))
 
     unreferenced = sorted(unreferenced_roles(pulled_by, referenced, deployed))
