@@ -18,9 +18,10 @@ domains:
 
 server:
   secret: {{ pangolin_secret }}
-  # 14 jours (720 h avant) : une session volée sert deux semaines au plus.
-  dashboard_session_length_hours: 336
-  resource_session_length_hours: 336
+  # 7 jours (336 h jusqu'en octobre 2026, 720 h avant) : une session volée
+  # sert une semaine au plus.
+  dashboard_session_length_hours: 168
+  resource_session_length_hours: 168
   cors:
       origins: ["https://{{ pangolin_dashboard_url }}"]
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]

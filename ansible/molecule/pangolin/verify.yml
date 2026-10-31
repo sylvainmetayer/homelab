@@ -122,8 +122,8 @@
           - pangolin_config.email.smtp_pass == pangolin_smtp_pass
           - pangolin_config.server.maxmind_db_path == './config/GeoLite2-Country.mmdb'
           - pangolin_config.flags.disable_signup_without_invite
-          - pangolin_config.server.dashboard_session_length_hours == 336
-          - pangolin_config.server.resource_session_length_hours == 336
+          - pangolin_config.server.dashboard_session_length_hours == 168
+          - pangolin_config.server.resource_session_length_hours == 168
 
     # --- WireGuard : chargé par l'hôte, plus par gerbil ---
 
