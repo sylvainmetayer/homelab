@@ -152,7 +152,8 @@ appris :
   inventaire à elle (`-i /chemin/inventory.ini`, une ligne `[hetzner]` puis
   `pangolin ansible_host=<IP de la VM> ansible_user=sylvain` : le nom
   `pangolin` garde ses `host_vars`) et son propre fichier de clés d'hôte
-  (`ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o
+  (`ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=600s -o
+  ServerAliveInterval=30 -o ServerAliveCountMax=3 -o
   UserKnownHostsFile=/chemin/known_hosts -o StrictHostKeyChecking=yes"`),
   sans toucher à `ansible/known_hosts`. Chaque commande ad hoc sur la VM
   (`systemctl …`) passe par ce même inventaire ou par `ssh` vers son IP.

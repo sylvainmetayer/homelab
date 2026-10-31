@@ -52,8 +52,11 @@ ansible:
   # provisioner.env). Comme ansible/ansible.cfg, que Molecule ne lit pas : pas
   # d'injection des faits en variables ansible_*, dépréciée (retirée en
   # ansible-core 2.24) ; un fait lu sans ansible_facts[...] échoue ici.
+  # Pipelining comme sur les vrais hôtes : module passé par stdin, sans
+  # fichier dans ~/.ansible/tmp, become compris.
   env:
     ANSIBLE_INJECT_FACTS_AS_VARS: "False"
+    ANSIBLE_PIPELINING: "True"
   playbooks:
     prepare: ../_shared/prepare.yml
 
