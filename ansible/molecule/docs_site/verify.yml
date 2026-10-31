@@ -65,7 +65,8 @@
             == ['current', docs_site_current.stat.lnk_source | basename] | sort
         fail_msg: "releases/ : {{ docs_site_releases.files | map(attribute='path') | list }}"
 
-    # nginx tourne en uid 101 : chaque page doit être lisible par tous.
+    # nginx tourne sous l'uid de l'utilisateur : pages à lui, illisibles des
+    # autres.
     - name: Stat a few pages of the site
       ansible.builtin.stat:
         path: "{{ docker_base_path }}/docs_site/releases/current/{{ item }}"
@@ -82,8 +83,10 @@
       ansible.builtin.assert:
         that:
           - item.stat.exists
-          - item.stat.roth
-        fail_msg: "{{ item.item }} absent ou illisible par nginx"
+          - item.stat.pw_name == ansible_facts['user_id']
+          - item.stat.rusr
+          - not item.stat.roth
+        fail_msg: "{{ item.item }} absent, pas à l'utilisateur ou lisible des autres"
       loop: "{{ docs_site_pages.results }}"
       loop_control:
         label: "{{ item.item }}"
@@ -93,7 +96,10 @@
         path: "{{ docker_base_path }}/docs_site/nginx.conf"
       register: docs_site_nginx_conf
 
-    - name: Assert nginx can read its configuration
+    - name: Assert the nginx configuration is private
       ansible.builtin.assert:
         that:
-          - docs_site_nginx_conf.stat.mode == '0644'
+          - docs_site_nginx_conf.stat.mode == '0600'
+          - docs_site_compose.services.nginx.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
+      vars:
+        docs_site_compose: "{{ docs_site_compose_raw.stdout | from_json }}"

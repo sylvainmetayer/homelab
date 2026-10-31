@@ -6,7 +6,10 @@ services:
     mem_limit: 64m
     image: docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
     container_name: docs-site
-    # nginx en uid 101, port 8080 : aucune capacité requise.
+    # Sous l'uid de l'utilisateur plutôt que le 101 de l'image : le site et la
+    # configuration restent en 0600/0700, lisibles de lui seul. Port 8080,
+    # écritures dans /tmp seulement : aucune capacité requise.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
     read_only: true
     security_opt:
       - no-new-privileges:true

@@ -4,7 +4,7 @@ Le dossier `docs/` du dépôt (architecture, runbooks, ADR, conventions,
 applis) publié en site statique sur **https://docs.sylvain.cloud**, derrière
 le SSO Pangolin : lire un runbook depuis un téléphone pendant une panne. VM
 docker, `dc@docs_site`, un conteneur `docs-site` (nginx unprivileged, en
-lecture seule) sur le réseau `newt`.
+lecture seule, sous l'uid de l'utilisateur : site et configuration en 0600) sur le réseau `newt`.
 
 ## Construction
 
