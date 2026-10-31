@@ -1,9 +1,13 @@
 name: OLM tunnel
 description: >-
   Démarre le client OLM de Pangolin (conteneur `olm`, --network host) et
-  attend son proxy DNS. Partagé par deploy-docker-app.yaml et ping.yaml ;
-  le résolveur du runner reste à pointer sur 100.96.128.1 par l'appelant
-  (voir ping.yaml), et à restaurer dans son nettoyage.
+  attend son proxy DNS. Utilisé par deploy-docker-app.yaml. Le résolveur
+  du runner reste à pointer sur 100.96.128.1 par l'appelant, et à restaurer
+  dans son nettoyage : le conteneur partage l'espace de noms réseau du
+  runner mais pas son espace de noms de montage, si bien que
+  OVERRIDE_DNS=true ne réécrit que le /etc/resolv.conf du conteneur, que le
+  résolveur du runner ne voit jamais (`dig @100.96.128.1` répond, un `dig`
+  nu non).
 
 inputs:
   pangolin-endpoint:

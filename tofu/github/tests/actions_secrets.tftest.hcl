@@ -1,5 +1,5 @@
 # Secrets Actions du dépôt homelab : ce que les workflows de .github/ lisent
-# (deploy-docker-app.yaml, ping.yaml) doit sortir de la bonne source, sous le
+# (deploy-docker-app.yaml) doit sortir de la bonne source, sous le
 # bon nom. Un nom de secret faux ne casse rien au plan : c'est le déploiement
 # suivant qui échoue, sur un `secrets.X` vide.
 #
@@ -92,12 +92,12 @@ run "noms_des_secrets_lus_par_les_workflows" {
 
   assert {
     condition     = github_actions_environment_secret.this["production/OLM_ID"].secret_name == "OLM_ID"
-    error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_ID : le nom du secret a changé."
+    error_message = "deploy-docker-app.yaml lit secrets.OLM_ID : le nom du secret a changé."
   }
 
   assert {
     condition     = github_actions_environment_secret.this["production/OLM_SECRET"].secret_name == "OLM_SECRET"
-    error_message = "deploy-docker-app.yaml et ping.yaml lisent secrets.OLM_SECRET : le nom du secret a changé."
+    error_message = "deploy-docker-app.yaml lit secrets.OLM_SECRET : le nom du secret a changé."
   }
 }
 
@@ -123,13 +123,10 @@ run "secrets_poses_sur_le_depot_homelab" {
   }
 
   # Un job qui lit ces secrets sans `environment: production` reçoit des
-  # valeurs vides : chaque workflow qui les cite doit le déclarer.
+  # valeurs vides : le workflow qui les cite doit le déclarer.
   assert {
-    condition = alltrue([
-      for f in ["deploy-docker-app.yaml", "ping.yaml"] :
-      strcontains(file("${path.module}/../../.github/workflows/${f}"), "environment: production")
-    ])
-    error_message = "deploy-docker-app.yaml et ping.yaml doivent déclarer environment: production."
+    condition     = strcontains(file("${path.module}/../../.github/workflows/deploy-docker-app.yaml"), "environment: production")
+    error_message = "deploy-docker-app.yaml doit déclarer environment: production."
   }
 }
 

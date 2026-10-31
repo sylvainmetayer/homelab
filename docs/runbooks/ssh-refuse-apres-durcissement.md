@@ -67,7 +67,6 @@ mention.
 | Runner GitHub `ubuntu-26.04` (`deploy-docker-app.yaml`) et son `ProxyJump` par Pangolin vers flip | OpenSSH d'Ubuntu 26.04 (≥ 9.9) | passe ; les deux sauts sont négociés par l'OpenSSH du runner, Pangolin ne fait que relayer le TCP (`-W`) |
 | Rebond Pangolin → flip depuis le poste (`hetzner.py`, `mise run ssh_flip`) | OpenSSH 10.2p1 | passe, idem |
 | Clé `android` (`keys/android.pub`) | application **inconnue du dépôt** | **à vérifier avant le déploiement** (ssh-audit `-c`, ci-dessus) : Termux (OpenSSH récent) passe ; JuiceSSH (abandonnée) est refusée |
-| `ping.yaml` (bannière SSH de `docker-apps.internal`) | `/dev/tcp` de bash, lit la bannière sans négocier | non concerné |
 | borgmatic → Storage Box, `backup.yaml`, `restore-test.yaml` | client sortant | non concerné (durcissement serveur seulement ; `ssh_client_hardening: false` laisse `/etc/ssh/ssh_config` tel quel) |
 | Beszel (agent ↔ hub) | son propre protocole sur WebSocket | non concerné (pas de sshd) |
 | `ssh_login_notify` | `pam_exec` de sshd, après l'authentification | non concerné : un client refusé à la négociation ne notifie rien |
