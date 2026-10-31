@@ -414,8 +414,8 @@ sa sonde (champs `internal_url` et `site_monitor` de l'output
 `homepage_links`), joints par le nom du conteneur sur newt ; l'Immich du Pi,
 Jellyfin et Proxmox par leur IP du LAN (rôle `homepage`). Pas de pastille pour
 flip (réseau privé de Hetzner, hors de portée de la VM docker), ni pour
-immich-swipe (port non publié sur le Pi), ni pour Pangolin et la page de
-statut.
+immich-swipe et immich-selfie-timelapse (ports non publiés sur le Pi), ni
+pour Pangolin et la page de statut.
 
 Avec le superuser du widget Beszel : une carte par hôte (groupe Hôtes, une
 par clé de `beszel_agent_tokens`, mode `systemId`), avec le CPU et la mémoire

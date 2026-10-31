@@ -6,6 +6,7 @@
 locals {
   apps = [
     "immich",
+    "immich-selfie-timelapse",
     "nextcloud",
     "monica",
     "homepage",

@@ -129,10 +129,9 @@ services:
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse
     #user: 1000:1000
-    # Sans login et avec la clé d'API Immich, mais sans route Pangolin : ce
-    # port publié sur le LAN (http://192.168.1.96:5000) est son seul accès.
-    ports:
-      - "5000:5000"
+    # Sans login et avec la clé d'API Immich : aucun port publié, son seul
+    # accès est la route Pangolin derrière le SSO (Newt du Pi, par le réseau
+    # newt ; tofu/pangolin_config/website_immich_selfie_timelapse.tf).
     environment:
       - IMMICH_API_KEY={{ immich_timelapse_api_key }}
       - IMMICH_BASE_URL=https://{{ immich_domain }}

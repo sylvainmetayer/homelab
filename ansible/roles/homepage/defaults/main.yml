@@ -51,9 +51,9 @@ homepage_extra_links:
     site_monitor: "{{ homepage_proxmox_url }}"
 
 # Pastille d'état (siteMonitor) des liens dont l'output ne donne pas
-# l'adresse : l'Immich du Pi, publié sur le LAN. Ni immich_swipe (port non
-# publié) ni les applications de flip (réseau privé de Hetzner, que la VM
-# docker ne joint pas) : pas de pastille.
+# l'adresse : l'Immich du Pi, publié sur le LAN. Ni immich_swipe ni
+# immich_selfie_timelapse (ports non publiés) ni les applications de flip
+# (réseau privé de Hetzner, que la VM docker ne joint pas) : pas de pastille.
 homepage_link_site_monitors:
   immich: "{{ homepage_immich_url }}/api/server/ping"
 

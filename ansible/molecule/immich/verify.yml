@@ -93,3 +93,11 @@
         that:
           - immich_compose.services.database.ports == ['127.0.0.1:5432:5432']
           - immich_compose.services.redis.ports == ['127.0.0.1:6379:6379']
+
+    # Sans login, avec la clé d'API Immich : joint par Pangolin seul (newt,
+    # derrière le SSO), jamais publié sur le LAN.
+    - name: Assert the timelapse publishes no port and sits on newt
+      ansible.builtin.assert:
+        that:
+          - "'ports' not in immich_compose.services['immich-selfie-timelapse']"
+          - "'newt' in immich_compose.services['immich-selfie-timelapse'].networks"
