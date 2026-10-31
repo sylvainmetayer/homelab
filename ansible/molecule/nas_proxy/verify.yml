@@ -11,7 +11,7 @@
     nas_proxy_verify_tls_dir: /root/molecule-tls
   pre_tasks:
     # Identifiants OVH et e-mail ACME comparés aux fausses valeurs.
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   tasks:
     # Compose à root en 0600, valide, sous dc@nas_proxy en unité système.

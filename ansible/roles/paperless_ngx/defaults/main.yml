@@ -9,18 +9,18 @@ paperless_domain: papiers.sylvain.cloud
 # .github/restore-test/apps.json.
 paperless_enabled: true
 
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 paperless_secret_key: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 paperless_admin_user: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 paperless_admin_password: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 paperless_admin_email: ""
 
 paperless_db_user: "paperless"
 paperless_db_name: "paperless"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 paperless_db_password: ""
 
 paperless_ocr_language: "fra+eng"

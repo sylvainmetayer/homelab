@@ -10,7 +10,7 @@
     # Le même que converge.yml.
     ntfy_verify_uptime_kuma_token: "tk_{{ ('molecule-ntfy-uptime-kuma' | hash('sha1'))[:29] }}"
   pre_tasks:
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
   tasks:

@@ -26,7 +26,7 @@ flip_planning_container_prefix: flip-planning
 # removed; compose, data, volumes and Borg repository kept, so resuming is a
 # return to true. A role parameter of the instance's `roles:` entry in
 # flip.yml, like everything per instance: in host_vars it would pause every
-# instance, and never a set_fact or a secrets.sops.yaml key of this name.
+# instance, and never a set_fact or a secrets/ansible.sops.yaml key of this name.
 flip_planning_enabled: true
 # What the tasks notify: the instance's own handler, or nothing while paused.
 # Derived, never overridden. The handlers run at the end of the play with the
@@ -91,13 +91,13 @@ flip_planning_java_options: "-XX:MaxRAMPercentage=75 -XX:+UseParallelGC"
 flip_planning_db_user: "festival"
 flip_planning_db_name: "festival"
 # Sensitive: passed per instance by flip.yml (prod_planning_db_password /
-# demo_planning_db_password); never a flip_planning_* key in secrets.sops.yaml,
+# demo_planning_db_password); never a flip_planning_* key in secrets/ansible.sops.yaml,
 # which would beat that override.
 flip_planning_db_password: ""
 
 # App secrets
 # Sensitive: passed per instance by flip.yml (prod_planning_mcp_api_key /
-# demo_planning_mcp_api_key); never a flip_planning_* key in secrets.sops.yaml,
+# demo_planning_mcp_api_key); never a flip_planning_* key in secrets/ansible.sops.yaml,
 # which would beat that override.
 flip_planning_mcp_api_key: ""
 # Sensitive. No instance has one any more: the demos dropped theirs (#763),
@@ -126,18 +126,18 @@ flip_planning_mcp_rate_window: PT1M
 # not — can be used, this bounds how cheaply one can be guessed at. 120 requests
 # a minute leave thousands of tries an hour; five failures then ten minutes of
 # silence make a run cost time. Neither is what makes the key hard to guess:
-# that is its length, and both instances draw theirs from secrets.sops.yaml.
+# that is its length, and both instances draw theirs from secrets/ansible.sops.yaml.
 #
 # It cannot lock out a client being set up: a request carrying no key counts for
 # nothing, and one that authenticates clears the run. 0 or less switches it off.
 flip_planning_mcp_max_failures: 5
 flip_planning_mcp_lockout_duration: PT10M
 # Sensitive: passed per instance by flip.yml (prod_planning_admin_password /
-# demo_planning_admin_password); never a flip_planning_* key in secrets.sops.yaml,
+# demo_planning_admin_password); never a flip_planning_* key in secrets/ansible.sops.yaml,
 # which would beat that override.
 flip_planning_admin_password: ""
 # Sensitive: passed per instance by flip.yml (prod_planning_session_encryption_key /
-# demo_planning_session_encryption_key); never a flip_planning_* key in secrets.sops.yaml,
+# demo_planning_session_encryption_key); never a flip_planning_* key in secrets/ansible.sops.yaml,
 # which would beat that override.
 flip_planning_session_encryption_key: ""
 
@@ -145,22 +145,22 @@ flip_planning_session_encryption_key: ""
 # ORGANISER (the employer of the people being scheduled and the data
 # controller), not of the hoster. Left empty, the page announces itself as
 # incomplete. Names and addresses of real people: kept out of this public repo.
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_editeur: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_directeur_publication: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_hebergeur: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_contact: ""
 # Data controller (RGPD), when it differs from the LCEN publisher above.
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_responsable_traitement: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_base_legale: ""
 # DISPLAYED to users and enforced by nobody: the purge is a yearly manual
 # operation (docs/exploitation.md in the app repo). Only announce what is kept.
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 flip_planning_legal_conservation: ""
 
 # Tags the Bugsink/Sentry issues with the environment they came from, so a
@@ -230,7 +230,7 @@ flip_planning_cloudflare_web_analytics_token: ""
 # identity provider. The order to bring one up is in the application repository
 # (docs/keycloak.md § Mise en production): this flag, then the realm with the
 # app repo's terraform/keycloak against https://<domain>/auth, then the two
-# client secrets in secrets.sops.yaml, then flip_planning_oidc_enabled.
+# client secrets in secrets/ansible.sops.yaml, then flip_planning_oidc_enabled.
 flip_planning_keycloak_enabled: false
 
 # The application repository's Keycloak image — the official one plus the
@@ -244,7 +244,7 @@ flip_planning_keycloak_image: ""
 flip_planning_keycloak_db_name: "keycloak"
 flip_planning_keycloak_db_user: "keycloak"
 # Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_db_password);
-# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
+# never a flip_planning_* key in secrets/ansible.sops.yaml, which would beat that override.
 flip_planning_keycloak_db_password: ""
 
 # Bootstrap administrator of the MASTER realm — the one terraform/keycloak
@@ -252,7 +252,7 @@ flip_planning_keycloak_db_password: ""
 # asks for it to be replaced by a permanent account from the console.
 flip_planning_keycloak_admin_user: "admin"
 # Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_keycloak_admin_password);
-# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
+# never a flip_planning_* key in secrets/ansible.sops.yaml, which would beat that override.
 flip_planning_keycloak_admin_password: ""
 
 # Accent colour of the Keycloak login page and e-mails (the account console
@@ -290,7 +290,7 @@ flip_planning_oidc_auth_server_url: >-
 # at every start. terraform/keycloak prints it (`terraform output`).
 flip_planning_oidc_client_id: "planning-app"
 # Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_client_secret);
-# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
+# never a flip_planning_* key in secrets/ansible.sops.yaml, which would beat that override.
 flip_planning_oidc_client_secret: ""
 
 # Provisioning: creating an animateur's fiche creates the Keycloak account that
@@ -305,7 +305,7 @@ flip_planning_oidc_provisioning_server_url: >-
 flip_planning_oidc_provisioning_realm: "planning"
 flip_planning_oidc_provisioning_client_id: "planning-provisioning"
 # Sensitive: passed per instance by flip.yml (e.g. demo_planning_kc_oidc_provisioning_client_secret);
-# never a flip_planning_* key in secrets.sops.yaml, which would beat that override.
+# never a flip_planning_* key in secrets/ansible.sops.yaml, which would beat that override.
 flip_planning_oidc_provisioning_client_secret: ""
 
 # Repairs the Flyway schema history at startup. Flip to true TEMPORARILY when a
@@ -358,7 +358,7 @@ flip_planning_pgadmin_enabled: true
 flip_planning_pgadmin_path: "/db"
 flip_planning_pgadmin_email: "admin@sylvain.cloud"
 # Sensitive: passed per instance by flip.yml (prod_planning_pgadmin_password /
-# demo_planning_pgadmin_password); never a flip_planning_* key in secrets.sops.yaml,
+# demo_planning_pgadmin_password); never a flip_planning_* key in secrets/ansible.sops.yaml,
 # which would beat that override.
 flip_planning_pgadmin_password: ""
 

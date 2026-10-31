@@ -34,7 +34,7 @@ pangolin_backup_healthcheck_url: ""
 
 # Mise à jour hebdomadaire de GeoLite2 (géofiltre) : image officielle de
 # MaxMind, compte gratuit (pangolin_maxmind_account_id et
-# pangolin_maxmind_license_key dans secrets.sops.yaml). L'URL push vient de
+# pangolin_maxmind_license_key dans secrets/ansible.sops.yaml). L'URL push vient de
 # l'output uptime_cron_geoip_url de tofu/pangolin_config (pangolin.yaml).
 pangolin_geoipupdate_image: "ghcr.io/maxmind/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d"
 pangolin_geoipupdate_config_dir: /etc/geoipupdate
@@ -51,7 +51,7 @@ pangolin_backup_encryption_passphrase: "{{ backup_passphrase }}"
 # Retour arrière : false puis `ansible-playbook pangolin.yaml --tags pangolin`
 # (middleware et plugin retirés, conteneur supprimé, données gardées sous
 # pangolin_crowdsec_dir). La clé du bouncer est la clé SOPS
-# pangolin_crowdsec_bouncer_key d'ansible/secrets.sops.yaml.
+# pangolin_crowdsec_bouncer_key de secrets/ansible.sops.yaml.
 pangolin_crowdsec_enabled: true
 # WAF (AppSec) en détection seule : règles chargées hors bande, jamais de 403
 # (templates/crowdsec/appsec-config.yaml.j2). false : le bouncer n'interroge
@@ -73,7 +73,7 @@ pangolin_crowdsec_collections:
 pangolin_crowdsec_parsers:
   - crowdsecurity/whitelists
   - crowdsecurity/nextcloud-whitelist
-# Jamais détectées ni bloquées, en plus de home_ip (secrets.sops.yaml), de
+# Jamais détectées ni bloquées, en plus de home_ip (secrets/ansible.sops.yaml), de
 # l'IP publique de Pangolin et des plages privées : IP ou CIDR.
 pangolin_crowdsec_whitelist_extra: []
 # Plafond à ~2x le pic attendu (150-250 MiB avec la liste communautaire et

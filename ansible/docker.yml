@@ -31,8 +31,8 @@
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_docker_updates_url.value | default('') }}"
         ntfy_subscribers_check_push_url: "{{ terraform_outputs.uptime_cron_ntfy_subscribers_url.value | default('') }}"
 
-    # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token du
-    # secrets.sops.yaml racine, que tofu/pangolin_config donne à sa
+    # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token de
+    # secrets/secrets.sops.yaml, que tofu/pangolin_config donne à sa
     # notification Uptime Kuma et rend en sortie. Vide avant le premier apply :
     # le rôle ntfy retire alors ce producteur (avertissement).
     - name: Load the ntfy Uptime Kuma token from Terraform state outputs

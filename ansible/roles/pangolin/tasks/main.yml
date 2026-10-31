@@ -149,7 +149,7 @@
     - "{{ pangolin_crowdsec_dir }}/data"
     - "{{ pangolin_crowdsec_dir }}/local"
 
-# La liste blanche porte home_ip (secrets.sops.yaml) : diff: false.
+# La liste blanche porte home_ip (secrets/ansible.sops.yaml) : diff: false.
 - name: Create the CrowdSec acquisition, whitelist and AppSec files
   when: pangolin_crowdsec_enabled
   become: true

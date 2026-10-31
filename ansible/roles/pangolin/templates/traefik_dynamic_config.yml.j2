@@ -65,7 +65,7 @@ http:
 {% endif %}
     # API d'intégration (admin complet de Pangolin, int-api-router) : maison
     # et Pangolin lui-même (sortie de la passerelle vpn-flip, NAT de flip),
-    # clé pangolin_api_allowed_ips de secrets.sops.yaml (plages séparées par
+    # clé pangolin_api_allowed_ips de secrets/ansible.sops.yaml (plages séparées par
     # des virgules : sops set n'écrit pas de liste). tofu apply de
     # pangolin_config depuis la maison ou par une passerelle VPN.
     int-api-allowlist:

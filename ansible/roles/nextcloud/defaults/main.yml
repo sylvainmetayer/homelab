@@ -1,8 +1,8 @@
 ---
 nextcloud_base_path: "{{ docker_base_path }}/nextcloud"
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 nextcloud_db_password: ""
-# Sensitive: must be set in secrets.sops.yaml
+# Sensitive: must be set in secrets/ansible.sops.yaml
 nextcloud_redis_password: ""
 
 # Configuration Nextcloud posée par ce rôle, à côté du config.php que gère

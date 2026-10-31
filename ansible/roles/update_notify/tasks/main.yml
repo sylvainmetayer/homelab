@@ -4,7 +4,7 @@
   ansible.builtin.assert:
     that:
       - update_notify_ntfy_token | length > 0
-    fail_msg: ntfy_scripts_token (ansible/secrets.sops.yaml) ne doit pas être vide.
+    fail_msg: ntfy_scripts_token (secrets/ansible.sops.yaml) ne doit pas être vide.
     quiet: true
 
 - name: Ensure the update check folder exists

@@ -35,7 +35,7 @@ ntfy_admin_user: sylvain
 # (« Retirer un topic »).
 ntfy_publishers:
   # Notification « ntfy » d'Uptime Kuma (website_ntfy.tf). Jeton : clé
-  # ntfy_uptime_kuma_token du secrets.sops.yaml racine, que docker.yml lit
+  # ntfy_uptime_kuma_token de secrets/secrets.sops.yaml, que docker.yml lit
   # dans le state de pangolin_config (sortie ntfy_uptime_kuma_token).
   - name: uptime-kuma
     topic: uptime-kuma

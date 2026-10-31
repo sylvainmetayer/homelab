@@ -13,7 +13,7 @@
     # borgmatic.service, lui, garde l'enrobage (vérifié par verify.yml).
     borgmatic_bin: /root/.local/bin/borgmatic
   pre_tasks:
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
     # nas.yml les lit dans le state de pangolin_config (nas_newt_*) ; ici,

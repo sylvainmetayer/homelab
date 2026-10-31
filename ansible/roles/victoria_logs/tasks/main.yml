@@ -8,7 +8,7 @@
     fail_msg: >-
       Clés sops manquantes ou trop courtes (32 caractères au moins) :
       victoria_logs_ui_password, victoria_logs_agent_passwords
-      (ansible/secrets.sops.yaml).
+      (secrets/ansible.sops.yaml).
     quiet: true
 
 - name: Ensure VictoriaLogs app folder exists

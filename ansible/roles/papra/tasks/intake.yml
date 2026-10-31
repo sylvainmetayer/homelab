@@ -17,7 +17,7 @@
       - papra_ingestion_enabled | bool
     fail_msg: >-
       papra_intake_enabled sans papra_intake_imap_user /
-      papra_intake_imap_password (ansible/secrets.sops.yaml), sans
+      papra_intake_imap_password (secrets/ansible.sops.yaml), sans
       papra_intake_allowed_senders, avec papra_ingestion_enabled à false, ou
       papra_intake_organization_id mal formé (org_...). Procédure :
       ansible/roles/papra/README.md.

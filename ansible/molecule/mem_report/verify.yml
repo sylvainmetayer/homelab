@@ -9,7 +9,7 @@
     mem_report_verify_script: /usr/local/libexec/mem_report.py
   pre_tasks:
     # Le jeton ntfy comparé à la fausse valeur.
-    - name: Load the fake secrets as the playbooks load secrets.sops.yaml
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   tasks:
     - name: Stat the memory report files

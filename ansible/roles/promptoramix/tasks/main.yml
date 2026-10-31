@@ -5,7 +5,7 @@
   ansible.builtin.assert:
     that:
       - promptoramix_linkx_secret | length > 0
-    fail_msg: "promptoramix_linkx_secret est vide : l'ajouter à ansible/secrets.sops.yaml."
+    fail_msg: "promptoramix_linkx_secret est vide : l'ajouter à secrets/ansible.sops.yaml."
     quiet: true
 
 - name: Ensure promptoramix app folder exists
