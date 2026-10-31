@@ -130,7 +130,11 @@ def playbook_change_tags(playbook_path, changed_files, base):
     playbook = safe_playbook_path(playbook_path)
     with open(playbook) as f:
         new = yaml.safe_load(f)
-    hosts = {play.get("hosts") for play in new if isinstance(play, dict)}
+    # `hosts:` is a pattern string ("flip") or a list of them.
+    hosts = set()
+    for play in new:
+        play_hosts = play.get("hosts", []) if isinstance(play, dict) else []
+        hosts.update([play_hosts] if isinstance(play_hosts, str) else play_hosts)
     for path in changed_files:
         parts = path.split("/")
         if len(parts) > 3 and parts[:2] == ["ansible", "host_vars"] and parts[2] in hosts:
