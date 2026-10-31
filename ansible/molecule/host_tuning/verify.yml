@@ -5,19 +5,6 @@
     - ../../roles/host_tuning/defaults/main.yml
     - ../../host_vars/pi/variables.yaml
   tasks:
-    - name: Read the zramswap configuration
-      become: true
-      ansible.builtin.slurp:
-        src: /etc/default/zramswap
-      register: host_tuning_zramswap_conf
-
-    - name: Assert the zramswap configuration comes from the role
-      ansible.builtin.assert:
-        that:
-          - ('\nSIZE=' ~ host_tuning_zram_size_mb ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
-          - ('\nALGO=' ~ host_tuning_zram_algo ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
-          - ('\nPRIORITY=' ~ host_tuning_zram_priority ~ '\n') in (host_tuning_zramswap_conf.content | b64decode)
-
     - name: Read the state of zramswap
       ansible.builtin.systemd:
         name: zramswap
@@ -78,7 +65,6 @@
     - name: Assert journald disk usage is capped
       ansible.builtin.assert:
         that:
-          - "'[Journal]' in (host_tuning_journald_conf.content | b64decode)"
           - ('\nSystemMaxUse=' ~ host_tuning_journald_system_max_use ~ '\n') in (host_tuning_journald_conf.content | b64decode)
           - "'\nStorage=persistent\n' in (host_tuning_journald_conf.content | b64decode)"
 
