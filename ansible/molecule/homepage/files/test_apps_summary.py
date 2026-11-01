@@ -215,6 +215,13 @@ class SourceTest(unittest.TestCase):
             source.summary()
 
 
+    def test_unexpected_shape_at_summary_is_a_fetch_error(self):
+        source = apps_summary.Source("test", lambda: {"yearlyStats": "pas une liste"},
+                                     lambda raw, now: raw["absent"], 60)
+        with self.assertRaises(apps_summary.FetchError):
+            source.summary()
+
+
 class BuildSourcesTest(unittest.TestCase):
     def test_only_sources_with_their_key(self):
         sources = apps_summary.build_sources({
