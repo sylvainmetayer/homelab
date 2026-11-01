@@ -28,11 +28,10 @@ resource "pangolin_resource_pincode" "immich" {
 }
 
 # Priority 9: the last slot before the `PASS COUNTRY` rules generated in
-# rules.tf (FR at 10, DE at 11). It used to sit at 12, just behind them, where
-# it was never reached: the home connection is French, so the FR PASS matched
-# first and sent it to the SSO wall like anybody else. Ahead of the country
-# rules it does what it says - the home connection gets in by IP, without
-# SSO. Only the backslash DROP of rules.tf (priority 1) comes before it.
+# rules.tf (FR at 10, DE at 11). Behind them it would never be reached: the
+# home connection is French, so the FR PASS would match first and send it to
+# the SSO wall like anybody else. Only the backslash DROP of rules.tf
+# (priority 1) comes before it.
 #
 # What that trusts, deliberately: every device behind the home connection
 # (guest Wi-Fi included) gets Immich, Dawarich and TREK without SSO, and

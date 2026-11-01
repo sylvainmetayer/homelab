@@ -40,8 +40,7 @@ locals {
   #
   # A failed probe turns the monitor PENDING and retries once a minute later;
   # only the second failure in a row is a DOWN and pages (Telegram, ntfy). So
-  # a blip shorter than a minute never pages (the external monitors used to
-  # page on the first failure, max_retries 0), and a real outage pages within
+  # a blip shorter than a minute never pages, and a real outage pages within
   # interval + retry_interval, six minutes at worst (plus each attempt's
   # timeout when the app hangs rather than refuses). resend_interval 0: one
   # alert per outage, no reminder.

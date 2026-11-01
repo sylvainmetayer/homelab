@@ -10,8 +10,7 @@ locals {
 # Le Newt du LXC de Proxmox (ansible/lxc.yml, rôle newt_service) : par lui
 # passent la CI (docker-apps.internal, pi.internal) et les ressources privées
 # du LAN. Ses identifiants sont lus dans ce state par lxc.yml (outputs
-# ci-dessous). Site recréé le 23/10/2026 : l'ancien, importé, n'avait pas ses
-# identifiants dans le state.
+# ci-dessous).
 # docker_socket_enabled : Pangolin le met à true à la création quoi qu'on
 # demande (le provider signale alors un résultat incohérent et marque le site
 # à remplacer, constaté le 23/10/2026). Sans effet ici : le LXC n'expose aucun

@@ -12,12 +12,6 @@
 # l'environnement et ses secrets sur GitHub (l'API les désigne par leur nom) :
 # l'ajouter, oui ; la renommer, seulement en le voulant, avec les workflows
 # qui la citent.
-#
-# L'environnement relecture-chemins-publics (relecteur obligatoire, attendu
-# par path-bypass-review.yaml) a été retiré le 2026-10-29 : une montée d'image
-# de tofu/pangolin_config/path_bypass_images.json ne fusionne jamais seule, et
-# la note que Renovate pose dans sa PR (dernière règle de renovate.json) dit
-# quoi relire avant le merge à la main.
 locals {
   environments = {
     # deploy-docker-app.yaml : la clé age de la CI (tout

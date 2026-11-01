@@ -1,11 +1,10 @@
 # ---------------------------------------------------------------------------
 # Public apps: Pangolin resources, their targets and their monitoring.
 #
-# Every public app used to repeat the same hundred lines in its
-# website_<app>.tf: the resource with its pins and its maintenance page, the
-# SSO role binding, the target and its probe, the healthcheck access token, the
-# inverted-keyword monitor, the backup push monitor and their outputs. That is
-# written once here, for_each over local.websites, and each website_<app>.tf
+# What every public app needs is written once here, for_each over
+# local.websites: the resource with its pins and its maintenance page, the SSO
+# role binding, the target and its probe, the healthcheck access token, the
+# inverted-keyword monitor and the backup push monitor. Each website_<app>.tf
 # keeps only what is its own:
 #
 #   - `local.<app>_website`, its entry in local.websites (fields below);

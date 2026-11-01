@@ -32,10 +32,9 @@
     # already holds them.
     #
     # Never set_fact a name the flip_planning role reads: a set_fact outranks the
-    # `vars:` of a `roles:` entry, so every instance would get its value. The
-    # production URL used to be set_fact'd as flip_planning_backup_healthcheck_url
-    # itself, and the demo's override lost to it: the demo's backups pushed to
-    # the production monitor. Each URL is now handed to its instance below.
+    # `vars:` of a `roles:` entry, so every instance would get its value (the
+    # demo's backups would push to the production monitor). Each URL is handed
+    # to its instance below.
     # no_log: newt_client_secret, which -v would write to run.log.
     - name: Load healthcheck URLs and newt credentials from Terraform state outputs
       tags: always
@@ -192,7 +191,7 @@
         flip_planning_keycloak_enabled: true
         flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
         # pr-72 moves with every push to the PR: pull it at each start, the
-        # dc@ unit no longer does it for every application.
+        # dc@ unit does not.
         flip_planning_image_pull_policy: always
         flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
         flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
