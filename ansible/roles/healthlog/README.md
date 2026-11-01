@@ -74,7 +74,11 @@ d'accès Pangolin (`tofu/pangolin_config/website_healthlog.tf`).
   une notification à chaque mesure ; HealthLog va alors chercher les
   mesures dans l'API Withings avec son jeton, le corps ne fait que dire
   quoi chercher. La synchronisation horaire reste en filet (mesures à :00,
-  sommeil à :15). Version relue : `path_bypass_images.json` (Renovate ne
+  sommeil à :15) ; l'ECG, sans notification (HealthLog n'abonne pas sa
+  catégorie), n'arrive que par la sienne, à :41. Le secret est en clair dans
+  le journal d'accès de Traefik sur Pangolin ; `log_agent` le masque avant
+  VictoriaLogs (`log_agent_redactions`). Version relue :
+  `path_bypass_images.json` (Renovate ne
   fusionne jamais une montée de HealthLog, les sources de `reread` sont
   relues avant).
 - **Téléphone (PWA)** : le navigateur du téléphone passe le SSO comme le
@@ -105,10 +109,13 @@ Withings n'est simplement pas connecté.
    (`user.metrics`, `user.activity`). Retour sur la page des intégrations,
    « Connecté » ; les 30 derniers jours sont importés.
 
-Vérifier l'abonnement : Paramètres → Intégrations → Withings, « Test de
-connexion » ; une pesée doit apparaître en quelques secondes. Un `curl -I`
-de l'URL du webhook depuis dehors répond 200 avec le bon secret, 401 sinon
-(ne jamais coller le secret dans un ticket).
+Vérifier l'abonnement : se peser hors des minutes :00 à :05 ; la pesée doit
+apparaître en quelques secondes, sans attendre la synchronisation horaire
+(« Tester la connexion », dans le menu de la carte, ne vérifie que le jeton
+OAuth, pas l'abonnement). Vérifier que le chemin passe le SSO, sans le vrai
+secret (jamais sur une ligne de commande ni dans un ticket) :
+`curl -sI https://sante.sylvain.cloud/api/withings/webhook/0` répond 401
+(HealthLog), pas une redirection vers le SSO.
 
 Rotation du secret client (fuite) : en régénérer un dans le Partner Hub,
 le recoller dans HealthLog, reconnecter. Voir
@@ -132,9 +139,12 @@ prime sur le défaut du rôle), ou passer par la rotation de HealthLog
 de l'amont). Même chose pour `healthlog_db_password` (mot de passe de la
 base, `docs/runbooks/mot-de-passe-base.md`) et `healthlog_api_token_hmac_key`
 (la changer déconnecte tout le monde et invalide les jetons d'API). Le
-secret du webhook (`healthlog_withings_webhook_secret`) peut, lui, changer :
-reconnecter Withings ensuite (Déconnecter, Connecter), l'abonnement porte
-l'URL.
+secret du webhook (`healthlog_withings_webhook_secret`) peut, lui, changer,
+mais **Déconnecter Withings avant** de déployer le nouveau secret, puis
+Connecter après : la déconnexion désabonne l'URL bâtie sur le secret en
+cours ; faite après le déploiement, elle viserait la nouvelle URL et
+l'ancien abonnement resterait chez Withings, qui y enverrait chaque mesure
+en 401.
 
 Le `.env` est dans l'archive borg avec le dump : une restauration retrouve
 la clé qui ouvre ce dump.
