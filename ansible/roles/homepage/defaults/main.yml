@@ -36,6 +36,13 @@ homepage_extra_links:
     description: Films, séries, musique, livres. LAN ou client Pangolin
     icon: jellyfin
     site_monitor: "{{ homepage_jellyfin_url }}/health"
+  - key: mediamanager
+    name: MediaManager
+    href: https://mediamanager.sylvain.cloud
+    group: Photos et médias
+    description: Films et séries à télécharger (essai). LAN ou client Pangolin
+    icon: mdi-download-box-outline
+    site_monitor: https://mediamanager.sylvain.cloud/api/v1/health
   - key: pangolin
     name: Pangolin
     href: https://pangolin.sylvain.cloud

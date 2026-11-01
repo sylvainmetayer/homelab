@@ -250,7 +250,7 @@
         homepage_services_path: /opt/apps/homepage/config/services.yaml
 
     # Groupes dans l'ordre de homepage_groups, le groupe inconnu en dernier ;
-    # cartes triées par nom dans un groupe ; Jellyfin et Proxmox
+    # cartes triées par nom dans un groupe ; Jellyfin, MediaManager et Proxmox
     # (homepage_extra_links) en plus de l'output ; pas d'icône vide.
     - name: Assert the homepage services list every link in its group
       ansible.builtin.assert:
@@ -258,7 +258,7 @@
           - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Supervision', 'Hôtes', 'Groupe hors liste']
           - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx', 'Papra']
           - homepage_card_names['Lecture'] == ['FreshRSS', 'Karakeep']
-          - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin']
+          - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin', 'MediaManager']
           - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
           - homepage_card_names['Administration'] == ['Beszel', 'Coûts', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
           - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
