@@ -154,7 +154,7 @@ class HostVarsAndPlaybooks(unittest.TestCase):
         self.assertIn("flip_planning", selected(["ansible/flip.yml"])[0])
 
     def test_hostless_playbook_selects_the_scenarios_of_its_roles(self):
-        self.assertEqual(selected(["ansible/00-setup.yaml"])[0], ["ssh_login_notify"])
+        self.assertEqual(selected(["ansible/00-setup.yaml"])[0], ["canary", "ssh_login_notify"])
 
     def test_unknown_playbook_selects_everything(self):
         scenarios, modules = selected(["ansible/new-host.yml"])

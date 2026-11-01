@@ -1,0 +1,162 @@
+---
+# Jetons pièges (canary) : README.md du rôle. Deux familles :
+# - jetons Canarytokens.org (clés AWS factices), alertés par Thinkst ;
+# - pièges maison : un fichier leurre dont l'ouverture alerte, et un compte
+#   SSH fictif dont toute tentative de connexion alerte, guettés par
+#   canary-watch.service, qui publie sur ntfy (topic scripts).
+
+- name: Remove the canary watcher
+  when: not (canary_enabled | bool)
+  block:
+    - name: Stop and disable the canary watcher
+      ansible.builtin.systemd:
+        name: canary-watch.service
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove the canary watcher files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/canary-watch.service
+        - "{{ canary_dir }}"
+      notify: Forget the removed canary-watch unit
+
+- name: Deploy the canary traps
+  when: canary_enabled | bool
+  block:
+    - name: Warn when there is no ntfy token
+      when: canary_ntfy_token | length == 0
+      ansible.builtin.debug:
+        msg: >-
+          ntfy_scripts_token vide : les pièges de {{ inventory_hostname }}
+          n'alerteront que dans le journal (journalctl -t canary).
+
+    - name: Install the watcher dependencies
+      ansible.builtin.apt:
+        name:
+          - inotify-tools
+          - curl
+          - jq
+        state: present
+
+    # --- Jetons Canarytokens.org -------------------------------------------
+    # Ansible relit ces fichiers à chaque passage (somme de contrôle) : sans
+    # effet, une clé Canarytokens ne sonne qu'à son usage contre l'API AWS.
+    - name: Create the .aws directory
+      when: canary_cloud_tokens.aws is defined
+      ansible.builtin.file:
+        path: "{{ canary_aws_credentials_path | dirname }}"
+        state: directory
+        owner: "{{ canary_user }}"
+        group: "{{ canary_user }}"
+        mode: "0700"
+
+    # diff: false : les clés sont des secrets du dépôt privé.
+    - name: Write the Canarytokens AWS credentials
+      when: canary_cloud_tokens.aws is defined
+      diff: false
+      ansible.builtin.template:
+        src: aws-credentials.j2
+        dest: "{{ canary_aws_credentials_path }}"
+        owner: "{{ canary_user }}"
+        group: "{{ canary_user }}"
+        mode: "0600"
+
+    - name: Create the directory of the decoy .env
+      when: canary_cloud_tokens.env is defined
+      ansible.builtin.file:
+        path: "{{ canary_env_path | dirname }}"
+        state: directory
+        owner: "{{ canary_user }}"
+        group: "{{ canary_user }}"
+        mode: "0750"
+
+    - name: Write the Canarytokens decoy .env
+      when: canary_cloud_tokens.env is defined
+      diff: false
+      ansible.builtin.template:
+        src: decoy.env.j2
+        dest: "{{ canary_env_path }}"
+        owner: "{{ canary_user }}"
+        group: "{{ canary_user }}"
+        mode: "0600"
+
+    # --- Fichier piège ---------------------------------------------------------
+    # Le guetteur alerte à toute ouverture du fichier : Ansible ne doit jamais
+    # l'ouvrir. Un stat ordinaire l'ouvre (file pour le type MIME, lsattr pour
+    # les attributs, la somme de contrôle), un template aussi, même en
+    # force: false (son stat). D'où ce stat aveugle, puis un template posé
+    # seulement si le fichier manque : jamais réécrit, jamais relu.
+    - name: Look for the trap file without opening it
+      ansible.builtin.stat:
+        path: "{{ canary_trap_file }}"
+        get_checksum: false
+        get_mime: false
+        get_attributes: false
+      register: canary_trap_stat
+
+    - name: Create the trap file, once
+      when: not canary_trap_stat.stat.exists
+      ansible.builtin.template:
+        src: acces-secours.txt.j2
+        dest: "{{ canary_trap_file }}"
+        owner: "{{ canary_user }}"
+        group: "{{ canary_user }}"
+        mode: "0600"
+
+    # --- Guetteur ----------------------------------------------------------------
+    - name: Ensure the watcher folder exists
+      ansible.builtin.file:
+        path: "{{ canary_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Install the watcher script
+      ansible.builtin.template:
+        src: canary-watch.sh.j2
+        dest: "{{ canary_dir }}/canary-watch"
+        owner: root
+        group: root
+        mode: "0700"
+      notify: Restart canary-watch
+
+    # Le jeton ntfy : 0600, diff: false, jamais sur une ligne de commande
+    # (ps, systemctl show) ; curl le lit sur son entrée standard.
+    - name: Write the ntfy token of the watcher
+      diff: false
+      no_log: true
+      ansible.builtin.copy:
+        content: |
+          NTFY_URL={{ canary_ntfy_url }}
+          NTFY_TOPIC={{ canary_ntfy_topic }}
+          NTFY_TOKEN={{ canary_ntfy_token }}
+        dest: "{{ canary_dir }}/canary.env"
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart canary-watch
+
+    - name: Install the watcher service
+      ansible.builtin.template:
+        src: canary-watch.service.j2
+        dest: /etc/systemd/system/canary-watch.service
+        owner: root
+        group: root
+        mode: "0644" # NOSONAR
+      notify: Restart canary-watch
+      register: canary_watch_unit
+
+    # En --check, une unité qui vient d'être « posée » n'existe pas encore :
+    # le module systemd échouerait (enabled sur une unité introuvable).
+    - name: Start the watcher
+      when: not (ansible_check_mode and canary_watch_unit is changed)
+      ansible.builtin.systemd:
+        name: canary-watch.service
+        state: started
+        enabled: true
+        daemon_reload: true

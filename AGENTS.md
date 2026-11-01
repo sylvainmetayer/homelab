@@ -102,6 +102,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | CrowdSec, GeoLite2 on Pangolin | `ansible/roles/pangolin/README.md` |
 | Flip Planning instances | `ansible/roles/flip_planning/README.md` |
 | NAS: TLS proxy, Jellyfin network, kDrive mirror | `ansible/roles/nas_proxy/README.md`, `ansible/roles/jellyfin/README.md`, `ansible/roles/kdrive_sync/README.md` |
+| Canary traps (Canarytokens AWS keys, trap file, fake SSH account) | `ansible/roles/canary/README.md`, `docs/runbooks/jeton-piege.md` |
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md` |
 | Papra trial | `ansible/roles/papra/README.md` |
 | Docs site (docs.sylvain.cloud, MkDocs): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |

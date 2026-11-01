@@ -1,0 +1,56 @@
+---
+# Jetons pièges (canary) : README.md du rôle, et docs/runbooks/jeton-piege.md
+# quand l'un sonne.
+#
+# false : arrête et retire le guetteur (service, script, configuration). Les
+# leurres déjà posés (fichier piège, ~/.aws/credentials, .env) restent : à
+# effacer à la main (README.md).
+canary_enabled: true
+
+# Compte dont le répertoire personnel reçoit les leurres (celui de
+# 00-setup.yaml).
+canary_user: sylvain
+canary_home: "/home/{{ canary_user }}"
+
+# --- Jetons Canarytokens.org (alerte par Thinkst : courriel + webhook ntfy) --
+# Clé SOPS facultative `canarytokens` de secrets/ansible.sops.yaml, un
+# dictionnaire par inventory_hostname, chaque partie facultative :
+#
+#   canarytokens:
+#     docker:
+#       aws: {access_key_id: ..., secret_access_key: ...}   # ~/.aws/credentials
+#       env: {access_key_id: ..., secret_access_key: ...}   # canary_env_path
+#
+# Un hôte absent, ou une partie absente : rien n'est posé, rien n'est retiré.
+# Nom distinct de la clé SOPS : elle l'emporterait sur une variable du même
+# nom (docs/conventions/secrets.md).
+canary_cloud_tokens: "{{ (canarytokens | default({}, true))[inventory_hostname] | default({}, true) }}"
+canary_aws_credentials_path: "{{ canary_home }}/.aws/credentials"
+# Le .env « visible » : hors de docker_base_path et des dossiers sauvegardés.
+canary_env_path: /opt/s3-backup/.env
+# Région écrite à côté des clés, pour la vraisemblance (une clé Canarytokens
+# sonne quelle que soit la région utilisée).
+canary_aws_region: eu-west-3
+
+# --- Pièges maison (sans tiers) ------------------------------------------------
+# Fichier piège : toute ouverture (lecture), suppression ou renommage alerte.
+# Posé une seule fois, jamais relu par Ansible (tasks/main.yml).
+canary_trap_file: "{{ canary_home }}/acces-secours.txt"
+
+# Compte SSH fictif : cité dans le fichier piège, il n'existe pas sur l'hôte.
+# Toute tentative de connexion sous ce nom (sshd : « Invalid user … from »)
+# alerte. Un nom absent des dictionnaires des robots : Pangolin a son 22
+# ouvert à Internet.
+canary_honey_user: borg-restore
+
+# Alerte : topic scripts de ntfy (rôle ntfy, ntfy_publishers), publication
+# JSON sur la racine comme update_notify. Jeton vide : l'alerte ne va qu'au
+# journal (logger -t canary), avec un avertissement au déploiement.
+canary_ntfy_url: https://ntfy.sylvain.cloud
+canary_ntfy_topic: scripts
+canary_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+# Secondes minimum entre deux alertes du même piège : un grep -r qui ouvre le
+# fichier, une rafale de tentatives SSH ne font qu'un message.
+canary_alert_interval: 60
+
+canary_dir: /usr/local/lib/canary

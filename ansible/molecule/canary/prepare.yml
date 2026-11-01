@@ -1,0 +1,46 @@
+---
+# Pas d'import de _shared/prepare.yml : le rôle ne touche ni Docker ni
+# borgmatic. L'image fournit déjà systemd et l'utilisateur sylvain.
+- name: Prepare what the canary role expects
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    # Présent sur tous les vrais hôtes : ses lignes « Invalid user » sont
+    # celles que guette canary-watch.
+    - name: Install the SSH server
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+        update_cache: true
+
+    - name: Start the SSH server
+      ansible.builtin.systemd:
+        name: ssh
+        state: started
+        enabled: true
+
+    # Celui du scénario update_notify (un enregistreur générique, sur
+    # 127.0.0.1:18081) : pas de copie qui doublerait le code.
+    - name: Install the fake ntfy
+      ansible.builtin.copy:
+        src: ../update_notify/files/fake_server.py
+        dest: /usr/local/bin/molecule-fake-ntfy
+        mode: "0700"
+
+    - name: Install its systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/molecule-fake-ntfy.service
+        mode: "0600"
+        content: |
+          [Unit]
+          Description=Molecule fake ntfy
+
+          [Service]
+          ExecStart=/usr/bin/python3 /usr/local/bin/molecule-fake-ntfy /root/molecule-ntfy.jsonl
+
+    - name: Start the fake ntfy
+      ansible.builtin.systemd:
+        name: molecule-fake-ntfy
+        state: started
+        daemon_reload: true

@@ -1,0 +1,79 @@
+#!/bin/bash
+# {{ ansible_managed }}
+#
+# Guetteur des pièges maison (rôle canary), lancé par canary-watch.service en
+# root. Deux veilles en parallèle :
+# - le dossier du fichier piège (inotify) : ouverture, suppression ou
+#   renommage du fichier ;
+# - le journal de sshd : toute tentative de connexion sous le compte fictif.
+# Chaque alerte part au journal (logger -t canary, priorité alert, donc
+# jusqu'à VictoriaLogs) puis sur ntfy (topic scripts), au plus une par piège
+# et par CANARY_INTERVAL secondes. Si l'une des veilles s'arrête, le script
+# sort en échec et systemd le relance.
+set -u
+
+TRAP_FILE={{ canary_trap_file | quote }}
+HONEY_USER={{ canary_honey_user | quote }}
+CANARY_INTERVAL={{ canary_alert_interval | int }}
+HOST_LABEL={{ inventory_hostname | quote }}
+
+# $1 : piège, $2 : message. Anti-rafale : last_alert, la variable locale de
+# la veille appelante (une par piège).
+alert() {
+    local kind=$1 message=$2 now title
+    logger -t canary -p auth.alert -- "$kind : $message"
+    now=$(date +%s)
+    if (( now - last_alert < CANARY_INTERVAL )); then
+        return 0
+    fi
+    last_alert=$now
+    [ -n "${NTFY_TOKEN:-}" ] || return 0
+    title="Jeton piège sur $HOST_LABEL"
+    # Le jeton passe par un descripteur (--config <(...), printf intégré à
+    # bash), jamais par la ligne de commande de curl, que ps montre.
+    if ! jq -n --arg topic "$NTFY_TOPIC" --arg title "$title" --arg message "$message" \
+            '{topic: $topic, title: $title, message: $message, priority: 5, tags: ["rotating_light"]}' \
+        | curl --silent --show-error --fail --output /dev/null --max-time 20 \
+            --retry 3 --retry-all-errors --retry-delay 5 \
+            --header 'Content-Type: application/json' --data-binary @- \
+            --config <(printf 'header = "Authorization: Bearer %s"\n' "$NTFY_TOKEN") \
+            "${NTFY_URL%/}/"; then
+        logger -t canary -p auth.warning -- "échec de l'envoi à ntfy : $message"
+    fi
+}
+
+watch_file() {
+    local dir name events file last_alert=0
+    dir=$(dirname -- "$TRAP_FILE")
+    name=$(basename -- "$TRAP_FILE")
+    # Le dossier, pas le fichier : la veille survit à la suppression et à la
+    # recréation du fichier. Seuls ses événements comptent.
+    inotifywait --monitor --quiet --event open --event delete --event moved_from \
+            --format '%e|%f' -- "$dir" \
+        | while IFS='|' read -r events file; do
+            [ "$file" = "$name" ] || continue
+            alert fichier "fichier piège $TRAP_FILE ($events). Voir docs/runbooks/jeton-piege.md."
+        done
+}
+
+watch_ssh() {
+    local line last_alert=0
+    # Les processus de sshd (sshd-session, sshd-auth compris) vivent dans le
+    # groupe de contrôle de ssh.service : filtrer par unité, pas par nom de
+    # programme, qui change d'une version d'OpenSSH à l'autre.
+    journalctl --follow --lines=0 --quiet --output=cat \
+            --unit=ssh.service --unit='ssh@*.service' \
+        | while IFS= read -r line; do
+            case "$line" in
+                *"Invalid user $HONEY_USER from "*)
+                    alert ssh "tentative SSH avec le compte fictif : $line. Voir docs/runbooks/jeton-piege.md."
+                    ;;
+            esac
+        done
+}
+
+watch_file &
+watch_ssh &
+wait -n
+logger -t canary -p auth.warning -- "une veille s'est arrêtée, relance du guetteur"
+exit 1

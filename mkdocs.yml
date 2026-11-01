@@ -103,6 +103,7 @@ nav:
       - runbooks/test-cle-secours.md
       - runbooks/rotation-des-secrets.md
       - runbooks/mises-a-jour-hotes.md
+      - runbooks/jeton-piege.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
