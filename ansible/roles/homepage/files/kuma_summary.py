@@ -54,7 +54,7 @@ BACKUP_LABELS = {
 }
 
 SAMPLE = re.compile(r"^monitor_status\{(?P<labels>.*)\}\s+(?P<value>\S+)(?:\s+\d+)?$")
-LABEL = re.compile(r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)="(?P<value>(?:[^"\\]|\\.)*)"\s*,?\s*')
+LABEL = re.compile(r'(?P<name>[A-Za-z_]\w*)="(?P<value>(?:[^"\\]|\\.)*)"\s*,?\s*')
 ESCAPES = {"\\\\": "\\", '\\"': '"', "\\n": "\n"}
 
 
@@ -144,7 +144,8 @@ def fetch(url: str, key: str) -> str:
             data = response.read(MAX_BYTES + 1)
     except urllib.error.HTTPError as err:
         raise FetchError(f"HTTP {err.code}") from None
-    except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as err:
+    # URLError dérive d'OSError.
+    except (OSError, http.client.HTTPException, ValueError) as err:
         raise FetchError(type(err).__name__) from None
     if len(data) > MAX_BYTES:
         raise FetchError("réponse trop grosse")
@@ -231,23 +232,22 @@ def make_handler(cache: Cache, prefix: str):
     return Handler
 
 
-def main() -> int:
+def main() -> None:
     prefix = os.environ.get("KUMA_BACKUP_PREFIX", "Backup ")
     if sys.argv[1:] == ["--parse"]:
         monitors = parse_monitors(sys.stdin.read())
         print(json.dumps({"down": summarize_down(monitors), "backups": summarize_backups(monitors, prefix)},
                          ensure_ascii=False, indent=2))
-        return 0
+        return
     url = os.environ.get("KUMA_METRICS_URL", "")
     key = os.environ.get("KUMA_API_KEY", "")
     port = int(os.environ.get("KUMA_SUMMARY_PORT", "8080"))
     ttl = float(os.environ.get("KUMA_SUMMARY_CACHE_SECONDS", "60"))
     cache = Cache(url, key, ttl)
-    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix))
+    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix))  # NOSONAR (réseau privé du projet, sans TLS)
     log(f"kuma-summary sur le port {port}")
     server.serve_forever()
-    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
