@@ -91,10 +91,6 @@ locals {
   # Derived rather than listed, so a new app cannot be left out of it; every
   # one of them gets the country rules, and the coverage precondition below
   # still fails the plan on a live, enabled resource that no entry declares.
-  # There used to be a second map, `unmanaged_resources`, pinning by id the
-  # resources made by hand in the Pangolin UI; its last entry, `SSH PI`,
-  # duplicated the private `pi.internal` site resource and was deleted, so the
-  # map and its audit went with it.
   managed_resources = {
     for key, website in local.websites : website.name => pangolin_resource.website[key].id
   }

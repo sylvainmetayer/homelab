@@ -222,8 +222,7 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
 
 # Pushed by something outside this repository (Ansible never touches this
 # token), so the heartbeat source stays as it is; only the definition moves
-# here. Reparented from the legacy "Backups" folder to the managed one, which
-# leaves that folder empty and deletable.
+# here.
 #
 # Alerts on Telegram and ntfy, like every monitor of this module.
 resource "uptimekuma_monitor_push" "foldersync" {
