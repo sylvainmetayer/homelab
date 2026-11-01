@@ -7,6 +7,19 @@ http:
     redirect-to-https:
       redirectScheme:
         scheme: https
+    # En-têtes de toutes les réponses HTTPS (entrypoint websecure,
+    # traefik_config.yml). HSTS sans includeSubDomains ni preload : nas.,
+    # media. et mediamanager.sylvain.cloud sont servis par le Traefik du NAS,
+    # hors de ce proxy, et une entrée preload ne se retire pas. Server et
+    # X-Powered-By vidés : Betisier y annonçait nginx et PHP à la version
+    # près, Immich et le tableau de bord leur framework. Les applis qui posent
+    # leur propre HSTS le voient remplacé par celui-ci.
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
 {% if pangolin_crowdsec_enabled %}
     # Bouncer CrowdSec, sur tout l'entrypoint websecure (traefik_config.yml).
     # Mode stream : la liste des décisions est tirée de la LAPI toutes les

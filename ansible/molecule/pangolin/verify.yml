@@ -379,6 +379,13 @@
           - dynamic_config.http.middlewares['redirect-sylvain-dev-apex'].redirectRegex.replacement == 'https://www.sylvain.dev${1}'
           - dynamic_config.http.middlewares['redirect-sylvain-dev-apex'].redirectRegex.permanent
           - dynamic_config.http.routers['redirect-memoire-epsi'].rule == 'Host(`memoire.epsi.sylvainmetayer.fr`)'
+          # HSTS sur toutes les réponses HTTPS, sans includeSubDomains (le NAS
+          # sert nas., media. et mediamanager. hors de ce proxy) ; bannières
+          # Server et X-Powered-By retirées.
+          - dynamic_config.http.middlewares['security-headers'].headers.stsSeconds == 31536000
+          - "'stsIncludeSubdomains' not in dynamic_config.http.middlewares['security-headers'].headers"
+          - "'stsPreload' not in dynamic_config.http.middlewares['security-headers'].headers"
+          - "dynamic_config.http.middlewares['security-headers'].headers.customResponseHeaders == {'Server': '', 'X-Powered-By': ''}"
 
     # --- CrowdSec (agent + LAPI + AppSec, bouncer en plugin Traefik) ---
 
@@ -475,7 +482,7 @@
         that:
           - traefik_config.experimental.plugins.crowdsec.moduleName == 'github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin'
           - traefik_config.experimental.plugins.crowdsec.version is match('^v[0-9]+\\.[0-9]+\\.[0-9]+$')
-          - traefik_config.entryPoints.websecure.http.middlewares == ['crowdsec@file']
+          - traefik_config.entryPoints.websecure.http.middlewares == ['security-headers@file', 'crowdsec@file']
           # Défi ACME et redirections HTTP sans bouncer.
           - "'http' not in traefik_config.entryPoints.web"
           # IP du client = celle de la connexion, X-Forwarded-For jamais cru.
