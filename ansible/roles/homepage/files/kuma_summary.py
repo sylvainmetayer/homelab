@@ -140,7 +140,8 @@ def fetch(url: str, key: str) -> str:
         url, headers={"User-Agent": "homepage-kuma-summary", "Authorization": f"Basic {token}"}
     )
     try:
-        with _OPENER.open(request, timeout=FETCH_TIMEOUT) as response:  # noqa: S310 (https vérifié, sans redirection)
+        # https vérifié plus haut, aucune redirection suivie (_NoRedirect).
+        with _OPENER.open(request, timeout=FETCH_TIMEOUT) as response:  # noqa: S310
             data = response.read(MAX_BYTES + 1)
     except urllib.error.HTTPError as err:
         raise FetchError(f"HTTP {err.code}") from None
@@ -244,9 +245,10 @@ def main() -> None:
     port = int(os.environ.get("KUMA_SUMMARY_PORT", "8080"))
     ttl = float(os.environ.get("KUMA_SUMMARY_CACHE_SECONDS", "60"))
     cache = Cache(url, key, ttl)
-    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix))  # NOSONAR (réseau privé du projet, sans TLS)
+    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix))
     log(f"kuma-summary sur le port {port}")
-    server.serve_forever()
+    # HTTP sans TLS : sur le seul réseau privé du projet, sans port publié.
+    server.serve_forever()  # NOSONAR
 
 
 if __name__ == "__main__":
