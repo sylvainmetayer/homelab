@@ -106,8 +106,10 @@ networks:
   media:
     name: {{ nas_proxy_media_network }}
     external: true
-  # Créé par dc@mediamanager (réseau proxy de son compose, interne) : externe
-  # ici, d'où nas_proxy après mediamanager dans nas.yml.
+  # Créé ici, sous un nom fixe, et rejoint en externe par dc@mediamanager
+  # (réseau proxy de son compose) : l'essai dépend du Traefik du NAS, jamais
+  # l'inverse (media et nas.sylvain.cloud ne tombent pas avec MediaManager).
+  # Interne : aucune sortie, Traefik garde newt pour Internet.
   mediamanager:
     name: {{ nas_proxy_mediamanager_network }}
-    external: true
+    internal: true

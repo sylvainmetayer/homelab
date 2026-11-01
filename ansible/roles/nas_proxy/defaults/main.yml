@@ -96,8 +96,9 @@ nas_proxy_ugos_source_ranges:
 # (README).
 nas_proxy_mediamanager_domain: mediamanager.sylvain.cloud
 nas_proxy_mediamanager_url: http://mediamanager:8000
-# Créé par dc@mediamanager sous ce nom (mediamanager_network), rejoint ici en
-# externe : d'où nas_proxy après mediamanager dans nas.yml.
+# Créé par dc@nas_proxy sous ce nom, interne, rejoint en externe par
+# dc@mediamanager (mediamanager_network) : d'où mediamanager après nas_proxy
+# dans nas.yml. Retirer l'essai ne touche pas nas_proxy.
 nas_proxy_mediamanager_network: mediamanager_proxy
 
 # --- Échéance des certificats (nas-proxy-cert-check.timer) ---

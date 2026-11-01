@@ -32,9 +32,10 @@
     # Docker (tenu par le relais, ci-dessous), configuration en fichiers, aucun socket Docker, identifiants
     # OVH du DNS-01 tirés des clés SOPS nas_ovh_*. Le réseau media est celui
     # de jellyfin (jellyfin_media pour Docker), où Traefik garde l'IP fixe des
-    # « Proxys connus » de Jellyfin. Le réseau mediamanager est celui que crée
-    # dc@mediamanager sous un nom fixe (mediamanager_network, vérifié par le
-    # scénario mediamanager).
+    # « Proxys connus » de Jellyfin. Le réseau mediamanager est créé ici, sous
+    # un nom fixe, interne, et rejoint en externe par dc@mediamanager (vérifié
+    # par le scénario mediamanager) : l'essai dépend de nas_proxy, pas
+    # l'inverse.
     - name: Assert Traefik runs hardened, without the Docker socket
       vars:
         nas_proxy_verify_model: "{{ nas_proxy_verify_compose.results[0].stdout | from_json }}"
@@ -66,7 +67,8 @@
           - nas_proxy_verify_model.networks.newt.external
           - nas_proxy_verify_model.networks.media.external
           - nas_proxy_verify_model.networks.media.name == 'jellyfin_media'
-          - nas_proxy_verify_model.networks.mediamanager.external
+          - not (nas_proxy_verify_model.networks.mediamanager.external | default(false))
+          - nas_proxy_verify_model.networks.mediamanager.internal
           - nas_proxy_verify_model.networks.mediamanager.name == 'mediamanager_proxy'
           # Créé par le projet jellyfin, dont Compose préfixe le nom.
           - nas_proxy_verify_jellyfin.name ~ '_media' == nas_proxy_verify_model.networks.media.name
