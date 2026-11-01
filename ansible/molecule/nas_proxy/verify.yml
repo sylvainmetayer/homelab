@@ -121,24 +121,6 @@
       loop_control:
         label: "{{ item.item }}"
 
-    # Migration : l'acme.json de l'ancien Traefik (prepare) repris tel quel,
-    # son dossier supprimé.
-    - name: Read the taken over ACME storage
-      ansible.builtin.slurp:
-        path: "{{ nas_proxy_verify_path }}/acme/acme.json"
-      register: nas_proxy_verify_acme
-
-    - name: Stat the folder of the old jellyfin Traefik
-      ansible.builtin.stat:
-        path: "{{ docker_base_path }}/jellyfin/traefik"
-      register: nas_proxy_verify_legacy
-
-    - name: Assert the certificates of the old Traefik were taken over
-      ansible.builtin.assert:
-        that:
-          - (nas_proxy_verify_acme.content | b64decode | from_json).letsencrypt.Certificates[0].domain.main == 'media.sylvain.cloud'
-          - not nas_proxy_verify_legacy.stat.exists
-
     - name: Read the Traefik configuration
       ansible.builtin.slurp:
         path: "{{ nas_proxy_verify_path }}/config/{{ item }}"

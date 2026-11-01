@@ -114,9 +114,7 @@
     daemon_reload: true
 
 # Le redémarrage tout de suite, pas en fin de play : le rôle nas_proxy, après
-# celui-ci dans nas.yml, rejoint le réseau media de ce projet et, au
-# basculement, attend que ce redémarrage retire l'ancien Traefik de ce compose
-# (qui tient le 8443 et l'IP fixe du proxy).
+# celui-ci dans nas.yml, rejoint le réseau media de ce projet.
 - name: Restart Jellyfin now if its configuration changed
   ansible.builtin.meta: flush_handlers
 

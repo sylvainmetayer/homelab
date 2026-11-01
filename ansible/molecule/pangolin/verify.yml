@@ -208,7 +208,6 @@
       loop:
         - /etc/crowdsec-summary/env
         - /usr/local/bin/crowdsec-summary
-        - /var/lib/crowdsec-summary
 
     - name: Read the CrowdSec summary unit and credentials
       become: true
@@ -242,7 +241,6 @@
           - pangolin_summary_stats.results[0].stat.mode == '0600'
           - pangolin_summary_stats.results[0].stat.pw_name == 'root'
           - pangolin_summary_stats.results[1].stat.mode == '0755'
-          - not pangolin_summary_stats.results[2].stat.exists
 
     - name: Create a scratch directory for the summary runs
       become: true

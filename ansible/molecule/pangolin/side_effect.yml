@@ -50,7 +50,6 @@
         - /etc/systemd/system/crowdsec-summary.service
         - /usr/local/bin/crowdsec-summary
         - /etc/crowdsec-summary
-        - /var/lib/crowdsec-summary
 
     - name: Assert CrowdSec is out of the stack and of Traefik, its data kept
       vars:

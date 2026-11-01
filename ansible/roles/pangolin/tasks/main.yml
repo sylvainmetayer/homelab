@@ -173,14 +173,6 @@
   ansible.builtin.debug:
     msg: "ntfy_scripts_token vide : pas de résumé CrowdSec hebdomadaire sur ntfy."
 
-# Historique du résumé quotidien d'avant (pics, règles AppSec vues), que le
-# résumé soit actif ou retiré : le résumé hebdomadaire est sans état.
-- name: Remove the former CrowdSec summary history
-  become: true
-  ansible.builtin.file:
-    path: /var/lib/crowdsec-summary
-    state: absent
-
 - name: Install the CrowdSec summary
   when: pangolin_crowdsec_summary_active | bool
   become: true
