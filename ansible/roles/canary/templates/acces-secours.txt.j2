@@ -1,0 +1,9 @@
+Accès de secours pour la restauration Borg ({{ inventory_hostname }})
+À ranger dans KeePass, puis supprimer ce fichier.
+
+Compte : {{ canary_honey_user }}
+Mot de passe : {{ lookup('ansible.builtin.password', '/dev/null', length=24, chars=['ascii_letters', 'digits']) }}
+Connexion : ssh {{ canary_honey_user }}@{{ inventory_hostname }}
+
+Phrase de passe du dépôt Borg :
+{{ lookup('ansible.builtin.password', '/dev/null', length=40, chars=['ascii_letters', 'digits']) }}

@@ -1,0 +1,10 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: canary
+
+# Prepare propre : sshd en marche (le compte fictif se guette dans son
+# journal) et un faux ntfy local qui enregistre chaque publication.
+ansible:
+  playbooks:
+    prepare: prepare.yml

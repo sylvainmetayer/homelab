@@ -1,0 +1,17 @@
+---
+# Comme 00-setup.yaml : rôle appliqué avec become, le jeton ntfy venant de
+# secrets/ansible.sops.yaml (ici fake_secrets.yml, dont la clé canarytokens
+# a une entrée pour molecule-canary), ntfy remplacé par le faux de
+# prepare.yml.
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  roles:
+    - role: canary
+      become: true
+      vars:
+        canary_ntfy_url: http://127.0.0.1:18082 # NOSONAR

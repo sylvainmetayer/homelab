@@ -51,6 +51,13 @@ ntfy_publishers:
   - name: github
     topic: github
     token: "{{ ntfy_github_token | default('') }}"
+  # Webhook des jetons Canarytokens.org (rôle canary) : son propre jeton,
+  # confié à un tiers (Thinkst), jamais celui des hôtes. Clé SOPS facultative
+  # ntfy_canary_token ; l'URL à donner à Canarytokens est dans
+  # ansible/roles/canary/README.md.
+  - name: canary
+    topic: canary
+    token: "{{ ntfy_canary_token | default('') }}"
 
 # --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ------------------
 # Détail dans README.md (« Alerte : aucun abonné »). Toutes les

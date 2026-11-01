@@ -1219,6 +1219,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /uptime-kuma",
       "ntfy /scripts",
       "ntfy /github",
+      "ntfy /canary",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
       "TREK /.well-known/oauth-protected-resource/mcp",
