@@ -69,11 +69,12 @@ printf %s "$JETON" | ssh -i ~/.ssh/keepassxc.pub -o UserKnownHostsFile=known_hos
   -o StrictHostKeyChecking=yes "sylvain@$ip" enclosed-share
 ```
 
-Il lit le secret sur l'entrée standard (un seul saut de ligne final retiré,
+Il lit le secret sur l'entrée standard, tube ou redirection (refusé au
+clavier : il s'afficherait à l'écran ; un seul saut de ligne final retiré,
 celui d'un `echo`) et n'écrit sur la sortie standard que le lien
 `https://pwpush.sylvain.cloud/<id>#dar:<clé>`, à transmettre tel quel. Code
 de sortie 1 si la note n'a pas été créée (entrée vide, conteneur arrêté,
-refus du serveur), 2 pour une option invalide.
+refus du serveur), 2 pour une option invalide ou une entrée au clavier.
 
 Fonctionnement (`templates/enclosed-share.j2`) :
 

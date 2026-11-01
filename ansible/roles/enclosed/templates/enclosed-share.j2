@@ -37,8 +37,17 @@ while (($#)); do
   esac
 done
 
-if ! [[ $ttl =~ ^[0-9]+$ ]] || ((ttl < 600 || ttl > 2592000)); then
+# Sans zéro initial (bash lirait 0700 en octal, et 0800 passerait le test sur
+# une erreur arithmétique) et sur 7 chiffres au plus (pas de dépassement).
+if ! [[ $ttl =~ ^[1-9][0-9]{0,6}$ ]] || ((ttl < 600 || ttl > 2592000)); then
   echo "enclosed-share : --ttl entre 600 et 2592000 secondes" >&2
+  exit 2
+fi
+
+# Sur un terminal, le secret tapé ou collé s'afficherait à l'écran (docker run
+# -i sans -t n'éteint pas l'écho) : un tube ou une redirection seulement.
+if [[ -t 0 ]]; then
+  echo "enclosed-share : le secret se lit sur l'entrée standard (tube ou redirection), pas au clavier" >&2
   exit 2
 fi
 
