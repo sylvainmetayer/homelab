@@ -62,20 +62,3 @@
         group: root
         mode: "0600"
         force: false
-
-    # Historique de l'ancien résumé quotidien : le rôle doit le retirer.
-    - name: Create the former CrowdSec summary state directory
-      ansible.builtin.file:
-        path: /var/lib/crowdsec-summary
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: Leave a history of the former daily CrowdSec summary
-      ansible.builtin.copy:
-        dest: /var/lib/crowdsec-summary/state.json
-        content: '{"history": [], "rules": []}'
-        owner: root
-        group: root
-        mode: "0600"

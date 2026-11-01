@@ -104,11 +104,3 @@ nas_proxy_cert_check_names:
 # semaines, et il reste deux semaines pour réparer.
 nas_proxy_cert_check_min_days: 14
 nas_proxy_cert_check_schedule: "*-*-* 07:00:00"
-
-# --- Migration depuis le Traefik du compose de jellyfin (27/10/2026) ---
-# Son acme.json est repris tel quel (même résolveur, letsencrypt) : pas de
-# nouveau certificat pour media.sylvain.cloud, ni de minute en certificat
-# autosigné au basculement. Le dossier est supprimé une fois repris. À retirer
-# avec les tâches de migration une fois nas.yml passé sur le NAS.
-nas_proxy_legacy_path: "{{ docker_base_path }}/jellyfin/traefik"
-nas_proxy_legacy_container: jellyfin-traefik
