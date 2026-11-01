@@ -31,23 +31,17 @@
         that:
           - not enclosed_borgmatic.stat.exists
 
-    - name: Render the enclosed compose model
-      ansible.builtin.command: docker compose config --format json
-      args:
-        chdir: /opt/apps/enclosed
-      register: enclosed_compose_raw
-      changed_when: false
-
-    # newt pour Pangolin ; enclosed-cli, interne et nommé en dur, pour le
-    # conteneur jetable d'enclosed-share, qui le vise par ce nom.
+    # newt pour Pangolin ; enclosed-cli, nommé en dur (son caractère interne :
+    # verify_compose_internal_networks ci-dessus), pour le conteneur jetable
+    # d'enclosed-share, qui le vise par ce nom. Le modèle compose est celui
+    # que verify_compose_services.yml vient de rendre (verify_compose_raw).
     - name: Assert enclosed joins newt and the internal enclosed-cli network
       vars:
-        enclosed_compose: "{{ enclosed_compose_raw.stdout | from_json }}"
+        enclosed_compose: "{{ verify_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - enclosed_compose.services.app.networks.keys() | sort == ['cli', 'newt']
           - enclosed_compose.networks.cli.name == 'enclosed-cli'
-          - enclosed_compose.networks.cli.internal
           - enclosed_compose.services.app.container_name == 'enclosed'
           - enclosed_compose.services.app.read_only
           - enclosed_compose.services.app.stop_signal == 'SIGINT'
@@ -56,7 +50,7 @@
 
     - name: Stat the enclosed environment file
       ansible.builtin.stat:
-        path: /opt/apps/enclosed/.env
+        path: "{{ docker_base_path }}/enclosed/.env"
       register: enclosed_env
 
     - name: Assert the enclosed environment file is private
@@ -81,18 +75,20 @@
       ansible.builtin.command: bash -n /usr/local/bin/enclosed-share
       changed_when: false
 
-    # Refusé avant tout appel à Docker : aucune note créée.
-    - name: Run enclosed-share with an out-of-range TTL
-      ansible.builtin.command: /usr/local/bin/enclosed-share --ttl 10
-      args:
+    # Refusé avant tout appel à Docker : aucune note créée. 0800 : un zéro
+    # initial ferait lire l'octal à bash.
+    - name: Run enclosed-share with an invalid TTL
+      ansible.builtin.command:
+        argv: [/usr/local/bin/enclosed-share, --ttl, "{{ item }}"]
         stdin: "pas un secret"
+      loop: ["10", "0800"]
       register: enclosed_share_bad_ttl
       changed_when: false
       failed_when: enclosed_share_bad_ttl.rc != 2
 
     - name: Stat the enclosed-share note script and its lockfile
       ansible.builtin.stat:
-        path: "/opt/apps/enclosed/cli/{{ item }}"
+        path: "{{ docker_base_path }}/enclosed/cli/{{ item }}"
       loop:
         - package.json
         - package-lock.json
@@ -108,3 +104,20 @@
       loop: "{{ enclosed_cli_files.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+    # Un lien d'enclosed-share se lit dans la page web du serveur : la
+    # bibliothèque qui le chiffre suit la version de l'image (groupe Renovate
+    # enclosed), une montée de l'une sans l'autre échoue ici.
+    - name: Read the enclosed-share package manifest
+      ansible.builtin.slurp:
+        src: "{{ docker_base_path }}/enclosed/cli/package.json"
+      register: enclosed_cli_package
+
+    - name: Assert @enclosed/lib is at the server image version
+      vars:
+        enclosed_lib_version: "{{ (enclosed_cli_package.content | b64decode | from_json).dependencies['@enclosed/lib'] }}"
+        enclosed_image: "{{ (verify_compose_raw.stdout | from_json).services.app.image }}"
+      ansible.builtin.assert:
+        that:
+          - enclosed_image is search(':' ~ (enclosed_lib_version | regex_escape) ~ '-rootless@')
+        fail_msg: "@enclosed/lib {{ enclosed_lib_version }} contre l'image {{ enclosed_image }}"
