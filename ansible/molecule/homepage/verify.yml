@@ -504,7 +504,7 @@
         homepage_agenda: "{{ homepage_cards['Vie perso']['Agenda'] }}"
       ansible.builtin.assert:
         that:
-          - homepage_card_names['Vie perso'] == ['Agenda', 'Homebox']
+          - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
           - homepage_agenda.description == 'Top nous (Nextcloud)'
           - homepage_agenda.widget.integrations | map(attribute='name') | list == ['Top nous']
           - homepage_agenda.widget.integrations | map(attribute='url') | list == ['http://ical-filter:8080/top-nous.ics'] # NOSONAR
