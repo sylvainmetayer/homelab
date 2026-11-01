@@ -150,7 +150,7 @@
 
     # Molecule ne lance aucun conteneur (_shared/prepare.yml) : les scripts
     # sont testés avec le python3 de l'hôte de test. ical-filter : filtre
-    # (VTODO, VJOURNAL, lignes repliées, CRLF) ; kuma-summary : lecture de
+    # (tâches et journaux iCal, lignes repliées, CRLF) ; kuma-summary : lecture de
     # /metrics, résumés ; pour les deux, cache et serveur HTTP (/healthz,
     # 404, 502).
     - name: Run the script tests
