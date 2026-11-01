@@ -43,6 +43,14 @@ class ParseTest(unittest.TestCase):
         ])
         self.assertEqual(monitors[0], {"name": "Backup", "type": "group", "status": 0})
 
+    def test_non_finite_value_is_skipped(self):
+        text = (
+            'monitor_status{monitor_name="Inf",monitor_type="http"} +Inf\n'
+            'monitor_status{monitor_name="NaN",monitor_type="http"} NaN\n'
+            'monitor_status{monitor_name="Ok",monitor_type="http"} 1\n'
+        )
+        self.assertEqual([monitor["name"] for monitor in kuma_summary.parse_monitors(text)], ["Ok"])
+
     def test_malformed_labels(self):
         with self.assertRaises(ValueError):
             kuma_summary.parse_labels('a="1",b')
@@ -81,6 +89,13 @@ class SummaryTest(unittest.TestCase):
         with self.assertRaises(kuma_summary.FetchError):
             kuma_summary.fetch("http://a.invalid/metrics", "k")
 
+    def test_fetch_follows_no_redirect(self):
+        # La clé (Authorization) partirait vers la cible : la redirection est
+        # une erreur, sans nouvelle requête.
+        handler = kuma_summary._NoRedirect()
+        request = urllib.request.Request("https://a.invalid/metrics", headers={"Authorization": "Basic x"})
+        self.assertIsNone(handler.redirect_request(request, None, 302, "Found", {}, "http://b.invalid/"))
+
 
 class CacheTest(unittest.TestCase):
     def setUp(self):
@@ -113,6 +128,11 @@ class CacheTest(unittest.TestCase):
         self.fail = True
         with self.assertRaises(kuma_summary.FetchError):
             self.cache.monitors()
+
+    def test_no_readable_sample_is_an_error(self):
+        cache = kuma_summary.Cache("u", "k", 60, lambda url, key: "# HELP monitor_status x\n")
+        with self.assertRaises(kuma_summary.FetchError):
+            cache.monitors()
 
 
 class ServerTest(unittest.TestCase):

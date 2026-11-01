@@ -85,7 +85,7 @@ def parse_monitors(text: str) -> list:
         try:
             labels = parse_labels(match.group("labels"))
             status = int(float(match.group("value")))
-        except ValueError:
+        except (ValueError, OverflowError):  # NaN, +Inf
             continue
         name = labels.get("monitor_name", "")
         if name:
@@ -95,7 +95,7 @@ def parse_monitors(text: str) -> list:
 
 def summarize_down(monitors: list) -> dict:
     probes = [monitor for monitor in monitors if monitor["type"] != "group"]
-    down = sorted(monitor["name"] for monitor in probes if monitor["status"] == STATUS_DOWN)
+    down = sorted((monitor["name"] for monitor in probes if monitor["status"] == STATUS_DOWN), key=str.casefold)
     items = [{"name": name, "status": "En panne"} for name in down]
     if not items:
         items = [{"name": "Toutes les sondes", "status": f"en ligne ({len(probes)})"}]
@@ -120,6 +120,17 @@ class FetchError(Exception):
     """/metrics injoignable ou refusé ; le message ne cite ni l'URL ni la clé."""
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib renverrait l'en-tête Authorization (la clé) à la cible d'une
+    redirection, http:// ou autre hôte compris : aucune n'est suivie (HTTP 3xx)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def fetch(url: str, key: str) -> str:
     if not url.startswith("https://"):
         raise FetchError("URL d'Uptime Kuma pas en https")
@@ -129,10 +140,7 @@ def fetch(url: str, key: str) -> str:
         url, headers={"User-Agent": "homepage-kuma-summary", "Authorization": f"Basic {token}"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response:  # noqa: S310 (https vérifié)
-            # urllib suit une redirection vers http:// : refusée aussi.
-            if not response.url.startswith("https://"):
-                raise FetchError("redirection hors de https")
+        with _OPENER.open(request, timeout=FETCH_TIMEOUT) as response:  # noqa: S310 (https vérifié, sans redirection)
             data = response.read(MAX_BYTES + 1)
     except urllib.error.HTTPError as err:
         raise FetchError(f"HTTP {err.code}") from None
@@ -166,6 +174,9 @@ class Cache:
                 return self.entry[1]
             try:
                 monitors = parse_monitors(self.fetcher(self.url, self.key))
+                if not monitors:
+                    # Rien de lisible : une erreur, pas « toutes en ligne (0) ».
+                    raise FetchError("aucune sonde lue")
             except FetchError as err:
                 if self.entry:
                     log(f"/metrics : {err}, copie de {int(now - self.entry[0])} s servie")
