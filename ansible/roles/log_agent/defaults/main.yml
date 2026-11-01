@@ -37,14 +37,19 @@ log_agent_pangolin_token: ""
 log_agent_traefik_log_dir: ""
 
 # Jetons masqués dans le message de chaque ligne du journal systemd et des
-# conteneurs, avant l'envoi : filet de sécurité derrière la règle « jamais de
-# jeton au journal » (borgmatic écrivait ses URL push Uptime Kuma, jeton
-# compris, à chaque run). Expressions régulières de VRL (crate regex de
-# Rust), écrites dans des chaînes brutes r'…' : jamais d'apostrophe dedans.
+# conteneurs, et dans le chemin du journal d'accès de Traefik, avant l'envoi :
+# filet de sécurité derrière la règle « jamais de jeton au journal »
+# (borgmatic écrivait ses URL push Uptime Kuma, jeton compris, à chaque run).
+# Expressions régulières de VRL (crate regex de Rust), écrites dans des
+# chaînes brutes r'…' : jamais d'apostrophe dedans.
 log_agent_redactions:
   # Jeton d'un moniteur push Uptime Kuma, dans son URL.
   - pattern: '/api/push/[^/?&#\s"]+'
     replacement: /api/push/***
+  # Secret du webhook Withings de HealthLog, dans le chemin ouvert sans SSO
+  # (website_healthlog.tf) : une ligne de Traefik par notification.
+  - pattern: '/api/withings/webhook/[^/?&#\s"]+'
+    replacement: /api/withings/webhook/***
   # Jeton d'accès ntfy (tk_ + 29 caractères, rôle ntfy).
   - pattern: '\btk_[A-Za-z0-9]{29}\b'
     replacement: tk_***

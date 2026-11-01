@@ -159,6 +159,10 @@ transforms:
       # partage) : jamais envoyée.
       path_parts = split(string(access.RequestPath) ?? "", "?", limit: 2)
       path = string(path_parts[0]) ?? ""
+      # Jetons portés par le chemin lui-même (log_agent_redactions).
+{% for redaction in log_agent_redactions %}
+      path = replace(path, r'{{ redaction.pattern }}', {{ redaction.replacement | to_json }})
+{% endfor %}
       request_host = string(access.RequestHost) ?? ""
       if includes({{ log_agent_traefik_drop_hosts | to_json }}, request_host) && starts_with(path, "/insert/") {
         abort

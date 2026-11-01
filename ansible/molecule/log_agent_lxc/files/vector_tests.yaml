@@ -234,6 +234,33 @@ tests:
               assert_eq!(.timestamp, t'2026-10-28T10:00:00.123456789Z')
               assert!(!contains(encode_json(.), "p_token"))
 
+  # Le secret du webhook Withings de HealthLog est un segment du chemin :
+  # masqué dans path et message.
+  - name: traefik masks path tokens
+    inputs:
+      - insert_at: traefik_fields
+        type: log
+        log_fields:
+          message: >-
+            {"StartUTC":"2026-10-28T10:00:00.123456789Z",
+            "ClientHost":"198.51.100.7",
+            "RequestMethod":"POST",
+            "RequestHost":"sante.sylvain.cloud",
+            "RequestPath":"/api/withings/webhook/moleculewebhooksecret",
+            "DownstreamStatus":200,
+            "Duration":1500000,
+            "RouterName":"r@file",
+            "ServiceName":"s@file",
+            "request_User-Agent":"curl/8"}
+    outputs:
+      - extract_from: traefik_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.path, "/api/withings/webhook/***")
+              assert_eq!(.message, "POST sante.sylvain.cloud/api/withings/webhook/*** 200")
+              assert!(!contains(encode_json(.), "moleculewebhooksecret"))
+
   # Les envois des agents eux-mêmes : une ligne par lot, qui en ferait un de
   # plus.
   - name: traefik drops the agents' own uploads
