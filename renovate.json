@@ -139,6 +139,16 @@
       "allowedVersions": "/^8\\.[0-2]\\./"
     },
     {
+      "description": "BookStack (linuxserver): besides the X.Y.Z tags of each BookStack release, linuxserver tags every rebuild of a release without patch number (vX.Y-lsNNN) X.Y.YYYYMMDD, which semver ranks above any X.Y.Z patch. Renovate then stayed on 26.09.20260929 (v26.09-ls286) and never offered 26.09.1 nor the 26.09.2 security release, a month of a critical PHP CVE in the image. Date tags excluded: a new X.Y release arrives with its first X.Y.1, the rebuilds of the pinned tag come as digest updates",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^((docker\\.io|lscr\\.io|ghcr\\.io)/)?linuxserver/bookstack$/"
+      ],
+      "allowedVersions": "!/^v?\\d+\\.\\d+\\.\\d{8}$/"
+    },
+    {
       "description": "Beszel: the hub, the agent image (plain and -alpine) and the agent binary of the newt LXC (beszel_agent defaults) move together, an agent newer or older than its hub is not supported",
       "groupName": "beszel",
       "matchPackageNames": [

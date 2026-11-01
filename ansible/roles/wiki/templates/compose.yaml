@@ -6,7 +6,7 @@ services:
     networks:
       - newt    # Réseau externe pour accès Pangolin/Traefik
       - wiki    # Réseau interne pour communication avec la DB
-    image: lscr.io/linuxserver/bookstack:26.09.20260929@sha256:7a6779d345d4d678614aa1a0a8a4d8456aeb98de10dfae700b839c3140c89f39
+    image: lscr.io/linuxserver/bookstack:26.09.2@sha256:da6324232770050b7d5f6222e8f4e223f1c688363b02ebb3c15a7546dd7133d5
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
