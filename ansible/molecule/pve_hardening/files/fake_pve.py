@@ -32,52 +32,69 @@ def fail(message):
     sys.exit(255)
 
 
+def pvesh_get(path, state):
+    if path == "/cluster/sdn/zones":
+        return [{"zone": z, "type": "simple"} for z in state["zones"]]
+    if path == "/cluster/sdn/vnets":
+        return [{"vnet": v, "zone": z} for v, z in state["vnets"].items()]
+    match = re.fullmatch(r"/cluster/sdn/vnets/([^/]+)/subnets", path)
+    if not match:
+        fail(f"unsupported get {path}")
+    vnet = match.group(1)
+    if vnet not in state["vnets"]:
+        fail(f"vnet {vnet} does not exist")
+    return [{"subnet": s, "vnet": v} for s, v in state["subnets"].items() if v == vnet]
+
+
+def delete_subnet(state, vnet, subnet):
+    if state["subnets"].get(subnet) != vnet:
+        fail(f"subnet {subnet} does not exist")
+    del state["subnets"][subnet]
+
+
+def delete_vnet(state, vnet):
+    if vnet not in state["vnets"]:
+        fail(f"vnet {vnet} does not exist")
+    if vnet in state["subnets"].values():
+        fail(f"vnet {vnet} still has subnets")
+    del state["vnets"][vnet]
+
+
+def delete_zone(state, zone):
+    if zone not in state["zones"]:
+        fail(f"zone {zone} does not exist")
+    if zone in state["vnets"].values():
+        fail(f"zone {zone} still has vnets")
+    state["zones"].remove(zone)
+
+
+DELETES = [
+    (r"/cluster/sdn/vnets/([^/]+)/subnets/([^/]+)", delete_subnet),
+    (r"/cluster/sdn/vnets/([^/]+)", delete_vnet),
+    (r"/cluster/sdn/zones/([^/]+)", delete_zone),
+]
+
+
 def pvesh(args):
+    # Les options (--output-format, --running) ne changent rien ici.
     method, path = args[0], args[1]
     state = load()
     if method == "get":
-        if path == "/cluster/sdn/zones":
-            print(json.dumps([{"zone": z, "type": "simple"} for z in state["zones"]]))
-            return
-        if path == "/cluster/sdn/vnets":
-            print(json.dumps([{"vnet": v, "zone": z} for v, z in state["vnets"].items()]))
-            return
-        match = re.fullmatch(r"/cluster/sdn/vnets/([^/]+)/subnets", path)
-        if match:
-            vnet = match.group(1)
-            if vnet not in state["vnets"]:
-                fail(f"vnet {vnet} does not exist")
-            print(json.dumps([{"subnet": s, "vnet": v} for s, v in state["subnets"].items() if v == vnet]))
-            return
-        fail(f"unsupported get {path}")
+        print(json.dumps(pvesh_get(path, state)))
+        return
     with open(LOG, "a", encoding="utf-8") as log:
         log.write(f"{method} {path}\n")
     if method == "set" and path == "/cluster/sdn":
         return
     if method != "delete":
         fail(f"unsupported {method} {path}")
-    match = re.fullmatch(r"/cluster/sdn/vnets/([^/]+)/subnets/([^/]+)", path)
-    if match:
-        if state["subnets"].get(match.group(2)) != match.group(1):
-            fail(f"subnet {match.group(2)} does not exist")
-        del state["subnets"][match.group(2)]
-    elif match := re.fullmatch(r"/cluster/sdn/vnets/([^/]+)", path):
-        vnet = match.group(1)
-        if vnet not in state["vnets"]:
-            fail(f"vnet {vnet} does not exist")
-        if vnet in state["subnets"].values():
-            fail(f"vnet {vnet} still has subnets")
-        del state["vnets"][vnet]
-    elif match := re.fullmatch(r"/cluster/sdn/zones/([^/]+)", path):
-        zone = match.group(1)
-        if zone not in state["zones"]:
-            fail(f"zone {zone} does not exist")
-        if zone in state["vnets"].values():
-            fail(f"zone {zone} still has vnets")
-        state["zones"].remove(zone)
-    else:
-        fail(f"unsupported delete {path}")
-    save(state)
+    for pattern, handler in DELETES:
+        match = re.fullmatch(pattern, path)
+        if match:
+            handler(state, *match.groups())
+            save(state)
+            return
+    fail(f"unsupported delete {path}")
 
 
 def pve_firewall(args):

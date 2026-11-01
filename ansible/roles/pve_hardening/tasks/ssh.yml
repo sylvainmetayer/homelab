@@ -30,7 +30,8 @@
     dest: /etc/ssh/sshd_config.d/10-hardening.conf
     owner: root
     group: root
-    mode: "0644"
+    # Comme le sshd_config de Debian : rien de secret, lisible par tous.
+    mode: "0644" # NOSONAR
     validate: /usr/sbin/sshd -t -f %s
   notify: pve_hardening reload sshd
 
