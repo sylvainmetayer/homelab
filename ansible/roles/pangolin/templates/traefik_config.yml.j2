@@ -68,12 +68,14 @@ entryPoints:
     http:
       tls:
         certResolver: "letsencrypt"
-{% if pangolin_crowdsec_enabled %}
       # Avant les middlewares de chaque routeur (Badger compris) : toutes les
       # routes HTTPS, celles de Pangolin (tableau de bord, API, websocket des
       # Newt et clients) comme celles des ressources. Le port 80 (défi ACME,
-      # redirections) n'a pas de bouncer.
+      # redirections) n'a ni en-têtes ni bouncer. security-headers en premier :
+      # il marque aussi les 401 de Badger et les 403 du bouncer.
       middlewares:
+        - security-headers@file
+{% if pangolin_crowdsec_enabled %}
         - crowdsec@file
 {% endif %}
       encodedCharacters:
