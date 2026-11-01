@@ -40,6 +40,22 @@
         argv: ["{{ blocky_binary }}", validate, --config, "{{ blocky_config_file }}"]
       changed_when: false
 
+    - name: Read the deployed configuration
+      ansible.builtin.slurp:
+        src: "{{ blocky_config_file }}"
+      register: blocky_config_raw
+
+    # Le port HTTP sert l'API sans authentification avec les métriques :
+    # la boucle locale seule, pas l'IP LAN.
+    - name: Assert the HTTP port listens on the loopback only, metrics on
+      vars:
+        blocky_config: "{{ blocky_config_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - blocky_config.ports.http == '127.0.0.1:4000'
+          - blocky_config.prometheus.enable
+          - blocky_config.prometheus.path == '/metrics'
+
     - name: Read the state of blocky.service and of the check timer
       ansible.builtin.systemd:
         name: "{{ item }}"
@@ -186,6 +202,73 @@
           - "'status=down&' in blocky_push_down"
           - "'example.com n' in blocky_push_down"
         fail_msg: "{{ blocky_pushes.stdout_lines | join(' | ') }}"
+
+    # Compteurs pour Homepage (blocky_stats.py) : la même unité les a lus
+    # avant la vérification. Une requête bloquée de plus, un passage de plus :
+    # la dernière ligne compte au moins elle (delta depuis le passage
+    # précédent, gardé dans le StateDirectory de l'unité).
+    - name: Query a blocked name between two counter readings
+      ansible.builtin.command: dig +short +time=1 +tries=1 @127.0.0.1 counted.blocked.molecule-homelab.net A
+      changed_when: false
+
+    - name: Run the check again, counters first
+      become: true
+      ansible.builtin.command: systemctl start blocky-check.service # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: Read the counter lines of the check unit
+      become: true
+      ansible.builtin.command: journalctl --unit blocky-check -I --output cat --no-pager --grep "^event=blocky_stats "
+      register: blocky_stats_lines
+      changed_when: false
+      until: blocky_stats_lines.stdout_lines | length >= 2
+      retries: 10
+      delay: 1
+
+    - name: Stat the state of the counters
+      become: true
+      ansible.builtin.stat:
+        path: /var/lib/private/blocky-check/counters.json
+      register: blocky_stats_state
+
+    - name: Assert the last line counts the queries and blocks since the previous run
+      vars:
+        blocky_stats_last: "{{ blocky_stats_lines.stdout_lines[-1] }}"
+      ansible.builtin.assert:
+        that:
+          - blocky_stats_last is match('^event=blocky_stats queries=[1-9][0-9]* blocked=[1-9][0-9]* queries_total=[1-9][0-9]* blocked_total=[1-9][0-9]*$')
+          - blocky_stats_state.stat.exists
+        fail_msg: "{{ blocky_stats_lines.stdout_lines | join(' | ') }}"
+
+    - name: Create a scratch directory for the counter script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: blocky-stats
+      register: blocky_stats_test_dir
+
+    - name: Copy the counter script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/blocky/files/blocky_stats.py"
+          dest: blocky_stats.py
+        - src: "{{ playbook_dir }}/files/test_blocky_stats.py"
+          dest: test_blocky_stats.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ blocky_stats_test_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Lecture des métriques (labels à espaces, notation e+06), deltas et
+    # redémarrages, état illisible, Blocky injoignable.
+    - name: Run the counter script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ blocky_stats_test_dir.path }}"
+      changed_when: false
+
+    - name: Remove the counter script tests
+      ansible.builtin.file:
+        path: "{{ blocky_stats_test_dir.path }}"
+        state: absent
 
     - name: Stop the fake Uptime Kuma
       become: true

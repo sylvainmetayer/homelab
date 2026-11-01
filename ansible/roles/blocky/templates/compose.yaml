@@ -15,9 +15,14 @@ services:
     # capacité. Publié sur l'IP LAN seule. Ces ports passent avant ufw
     # (host_vars/pi) : la Bbox ne redirige rien vers le Pi, seul le LAN (et le
     # client Pangolin, par le Newt du LXC) l'atteint.
+    # Le port HTTP (API sans authentification et métriques) sur la boucle
+    # locale du Pi seulement, pour blocky_stats.py (blocky-check.service) :
+    # ni le LAN (Docker 28+ refuse aussi les paquets d'un autre hôte vers un
+    # port publié sur 127.0.0.1), ni les autres conteneurs.
     ports:
       - "{{ blocky_lan_ip }}:53:53/udp"
       - "{{ blocky_lan_ip }}:53:53/tcp"
+      - "127.0.0.1:{{ blocky_http_port }}:{{ blocky_http_port }}/tcp"
     read_only: true
     security_opt:
       - no-new-privileges:true

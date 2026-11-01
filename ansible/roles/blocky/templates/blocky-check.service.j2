@@ -14,8 +14,14 @@ Type=oneshot
 EnvironmentFile={{ blocky_config_dir }}/check.env
 # Script de push (rôle uptime_push), au chemin de uptime_push_bin.
 Environment=UPTIME_PUSH={{ uptime_push_bin }}
+# D'abord les compteurs pour Homepage (blocky_stats.py, defaults) : « - »,
+# leur échec ne fait jamais échouer la vérification, qui suit.
+ExecStart=-/usr/bin/python3 -I {{ blocky_config_dir }}/blocky_stats.py {{ blocky_metrics_url }}
 ExecStart=/bin/sh {{ blocky_config_dir }}/blocky-check.sh {{ blocky_check_address }} {{ blocky_check_resolved_name }} {{ blocky_check_blocked_name }}
 DynamicUser=yes
+# Les totaux du passage précédent (blocky_stats.py), dans
+# /var/lib/private/blocky-check.
+StateDirectory=blocky-check
 CapabilityBoundingSet=
 NoNewPrivileges=yes
 ProtectSystem=strict

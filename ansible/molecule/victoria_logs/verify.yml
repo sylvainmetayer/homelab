@@ -102,9 +102,11 @@
             == victoria_logs_agent_passwords
         fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_accounts.users | map(attribute='username') | list }}"
 
-    # Carte CrowdSec de Homepage (clé de fake_secrets.yml) : la seule route
-    # des comptes LogsQL, et le flux de CrowdSec imposé par vmauth.
-    - name: Assert the Homepage account can only count in the CrowdSec stream
+    # Cartes CrowdSec et Blocky de Homepage (clé de fake_secrets.yml) : la
+    # seule route des comptes LogsQL, et les flux imposés par vmauth (CrowdSec
+    # de Pangolin, blocky-check.service du Pi et du LXC newt), écrits en
+    # entier : un flux de plus ici doit être un choix.
+    - name: Assert the Homepage account can only count in the CrowdSec and Blocky streams
       vars:
         victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
         victoria_logs_homepage: "{{ victoria_logs_accounts.users | selectattr('username', 'eq', 'homepage') | list }}"
@@ -117,7 +119,10 @@
           - victoria_logs_homepage[0].url_map[0].src_paths == ['/select/logsql/stats_query']
           - >-
             victoria_logs_homepage[0].url_map[0].url_prefix
-            == 'http://victoria-logs:9428/?extra_stream_filters=%7Bhost%3D%22pangolin%22%2Ccontainer%3D%22crowdsec%22%7D'
+            == 'http://victoria-logs:9428/?extra_stream_filters='
+            ~ '%7Bhost%3D%22pangolin%22%2Ccontainer%3D%22crowdsec%22'
+            ~ '%20or%20host%3D%22pi%22%2Cunit%3D%22blocky-check.service%22'
+            ~ '%20or%20host%3D%22newt-lxc%22%2Cunit%3D%22blocky-check.service%22%7D'
         fail_msg: "Compte vmauth de Homepage inattendu : {{ victoria_logs_homepage | map(attribute='url_map') | list }}"
 
 # Sans la clé homepage_victoria_logs_password (aucune dans ce jeu : ni

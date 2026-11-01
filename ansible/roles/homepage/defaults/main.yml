@@ -259,6 +259,53 @@ homepage_crowdsec_card:
         label: IP bannies (4 h)
         format: number
 
+# Blocky (Pi et LXC newt) d'après ses journaux, pas par son port HTTP : il
+# sert les métriques avec une API sans authentification
+# (/api/blocking/disable), qui ne quitte jamais 127.0.0.1 (rôle blocky). La
+# vérification locale de chaque hôte (blocky-check.service) écrit toutes les
+# 5 minutes une ligne « event=blocky_stats queries=… blocked=… », les
+# requêtes et blocages depuis la ligne précédente (blocky_stats.py, qui
+# compte un redémarrage de Blocky depuis zéro) ; leur somme sur 24 h est le
+# total de la journée, sans différence de compteurs à faire ici. Même compte
+# vmauth que CrowdSec, dont le filtre de flux imposé admet aussi
+# blocky-check.service sur ces deux hôtes (rôle victoria_logs). Quatre
+# nombres, une paire par hôte : « NaN » quand un hôte n'a écrit aucune ligne
+# en 24 h (Blocky arrêté, vérification ou agent de journaux en panne).
+homepage_blocky_query: >-
+  _time:24h unit:="blocky-check.service" "event=blocky_stats"
+  | unpack_logfmt fields (queries, blocked)
+  | stats sum(queries) if (host:=pi) as pi_queries,
+  sum(blocked) if (host:=pi) as pi_blocked,
+  sum(queries) if (host:="newt-lxc") as lxc_queries,
+  sum(blocked) if (host:="newt-lxc") as lxc_blocked
+homepage_blocky_card:
+  name: Blocky
+  group: "{{ homepage_supervision_group }}"
+  description: Filtrage DNS du LAN sur 24 h, d'après blocky-check (VictoriaLogs)
+  icon: blocky
+  href: "{{ homepage_websites.victoria_logs.href | default('') }}"
+  widget:
+    type: customapi
+    # Requête entièrement encodée : Homepage remplace tout {…} de l'URL.
+    url: "{{ homepage_victoria_logs_url }}/select/logsql/stats_query?query={{ homepage_blocky_query | urlencode }}"
+    username: "{{ homepage_victoria_logs_user }}"
+    password: "{{ homepage_victoria_logs_widget_password }}"
+    refreshInterval: 300000
+    # Une valeur par stats, dans l'ordre de la requête.
+    mappings:
+      - field: data.result.0.value.1
+        label: Requêtes Pi
+        format: number
+      - field: data.result.1.value.1
+        label: Bloquées Pi
+        format: number
+      - field: data.result.2.value.1
+        label: Requêtes LXC
+        format: number
+      - field: data.result.3.value.1
+        label: Bloquées LXC
+        format: number
+
 # Beszel, une carte par hôte (groupe homepage_hosts_group) : état, CPU,
 # mémoire et disque d'un système du hub (mode systemId du widget, qui accepte
 # le nom du système). Les systèmes sont les clés du dict sops

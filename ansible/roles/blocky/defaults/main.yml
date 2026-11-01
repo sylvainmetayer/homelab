@@ -117,3 +117,15 @@ blocky_check_schedule: "*:0/5"
 # bloque (les listes téléchargées sont chargées, pas seulement le DNS).
 blocky_check_resolved_name: example.com
 blocky_check_blocked_name: googlesyndication.com
+
+# --- Compteurs pour Homepage (blocky_stats.py) ---------------------------------
+# À chaque vérification, blocky-check.service lit d'abord les compteurs
+# Prometheus de Blocky (requêtes, réponses BLOCKED) sur 127.0.0.1 et écrit au
+# journal une ligne « event=blocky_stats queries=… blocked=… » : les deltas
+# depuis le passage précédent (état dans le StateDirectory de l'unité, un
+# redémarrage de Blocky compté depuis zéro). Le Vector de l'hôte (rôle
+# log_agent) l'envoie à VictoriaLogs, où la carte Blocky de Homepage en fait
+# la somme sur 24 h (compte homepage de vmauth, rôle victoria_logs). Port
+# HTTP de Blocky : sur la boucle locale seulement, il sert aussi l'API sans
+# authentification (/api/blocking/disable).
+blocky_http_port: 4000

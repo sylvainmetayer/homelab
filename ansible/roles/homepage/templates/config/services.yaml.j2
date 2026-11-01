@@ -5,8 +5,8 @@
 # d'état quand son adresse interne est connue (site_monitor), et les widgets :
 # ceux de homepage_link_widgets et homepage_link_widgets_extra sur leur lien,
 # une carte par hôte de Beszel, une par page de statut d'Uptime Kuma, celles
-# de la supervision (sondes en panne, sauvegardes, maintenance, CrowdSec),
-# l'agenda et les passages du bus (defaults/main.yml).
+# de la supervision (sondes en panne, sauvegardes, maintenance, CrowdSec,
+# Blocky), l'agenda et les passages du bus (defaults/main.yml).
 {% set widgets = {} %}
 {% for key, candidate in homepage_link_widgets_extra.items() if candidate.enabled | bool and candidate.widget.url | default('') | length > 0 %}
 {%   set _ = widgets.update({key: candidate.widget}) %}
@@ -33,6 +33,7 @@
 {% endif %}
 {% if homepage_victoria_logs_widget_password | length > 0 %}
 {%   set _ = cards.append(homepage_crowdsec_card) %}
+{%   set _ = cards.append(homepage_blocky_card) %}
 {% endif %}
 {% if homepage_beszel_enabled | bool %}
 {%   for system in homepage_beszel_systems %}
