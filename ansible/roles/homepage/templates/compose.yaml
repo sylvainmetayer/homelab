@@ -37,8 +37,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    # newt (Pangolin et les applications des widgets) ; ical, le réseau privé
-    # du projet, pour joindre ical-filter.
+    # newt (Pangolin, les applications des widgets, vmauth de VictoriaLogs) ;
+    # ical et kuma, les réseaux privés du projet, pour joindre ical-filter et
+    # kuma-summary.
 {% if homepage_beszel_enabled | bool %}
     # Plus le réseau du widget Beszel (créé par dc@beszel), à une IP fixe :
     # celle que les « superuser IPs » du hub admettent.
@@ -47,6 +48,9 @@ services:
       newt: {}
 {% if homepage_calendars_enabled | length > 0 %}
       ical: {}
+{% endif %}
+{% if homepage_kuma_summary_enabled | bool %}
+      kuma: {}
 {% endif %}
 {% if homepage_beszel_enabled | bool %}
       beszel:
@@ -91,12 +95,52 @@ services:
     networks:
       - ical
 {% endif %}
+{% if homepage_kuma_summary_enabled | bool %}
+
+  # Cartes Sondes en panne et Sauvegardes : lit /metrics d'Uptime Kuma avec la
+  # clé d'API (ici seulement), n'en garde que le nom et l'état des sondes et
+  # les sert en JSON. Même confinement qu'ical-filter : réseau privé du
+  # projet (sortie vers Uptime Kuma), sans port publié.
+  kuma-summary:
+    # Pas encore mesuré : une liste de sondes en mémoire. À recaler sur
+    # memory.peak après quelques jours (rapport mem_report du lundi).
+    mem_limit: 64m
+    image: python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+    container_name: homepage-kuma-summary
+    command: ["python", "/app/kuma_summary.py"]
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      KUMA_SUMMARY_PORT: "{{ homepage_kuma_summary_port }}"
+      KUMA_SUMMARY_CACHE_SECONDS: "{{ homepage_kuma_summary_cache_seconds }}"
+      KUMA_METRICS_URL: {{ (homepage_uptimekuma_url | regex_replace('/+$', '') ~ '/metrics') | replace('$', '$$') | to_json }}
+      KUMA_API_KEY: {{ homepage_uptimekuma_widget_key | replace('$', '$$') | to_json }}
+    volumes:
+      - ./kuma_summary.py:/app/kuma_summary.py:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ homepage_kuma_summary_port }}/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - kuma
+{% endif %}
 
 networks:
   newt:
     external: true
 {% if homepage_calendars_enabled | length > 0 %}
   ical: {}
+{% endif %}
+{% if homepage_kuma_summary_enabled | bool %}
+  kuma: {}
 {% endif %}
 {% if homepage_beszel_enabled | bool %}
   beszel:

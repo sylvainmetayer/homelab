@@ -5,10 +5,14 @@
       - victoria_logs_ui_password | default('') | length >= 32
       - victoria_logs_agents | length > 0
       - victoria_logs_agents | map(attribute='value') | map('string') | map('length') | min >= 32
+      - victoria_logs_homepage_password | length == 0 or victoria_logs_homepage_password | length >= 32
+      - victoria_logs_homepage_user not in (victoria_logs_agents | map(attribute='key'))
     fail_msg: >-
       Clés sops manquantes ou trop courtes (32 caractères au moins) :
-      victoria_logs_ui_password, victoria_logs_agent_passwords
-      (secrets/ansible.sops.yaml).
+      victoria_logs_ui_password, victoria_logs_agent_passwords,
+      homepage_victoria_logs_password si elle est posée
+      (secrets/ansible.sops.yaml) ; aucun agent ne s'appelle comme le compte
+      de Homepage.
     quiet: true
 
 - name: Ensure VictoriaLogs app folder exists

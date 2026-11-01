@@ -355,7 +355,18 @@ Homepage (`home.sylvain.cloud`) en montre le résumé, groupe Administration :
 sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; une carte
 Uptime Kuma, la page de statut publique `sylvain-dev`. Homepage les interroge
 côté serveur. Les sauvegardes n'ont pas de page de statut publique (leurs
-noms et leur état restent dans Uptime Kuma), donc pas de carte.
+noms et leur état restent dans Uptime Kuma).
+
+Le groupe Supervision, sous Administration, ajoute trois cartes en lecture
+seule, chacune à sa clé sops facultative (`docs/runbooks/rotation-des-secrets.md`,
+« Widgets de Homepage ») : les sondes en panne et l'état de chaque sauvegarde,
+lus dans `/metrics` d'Uptime Kuma avec une clé d'API qui n'ouvre que cette
+route, par le petit conteneur `kuma-summary` (aucune page de statut, la clé
+reste dans `compose.yaml`) ; CrowdSec (alertes des 24 dernières heures, IP
+bannies depuis 4 h) compté dans VictoriaLogs, où le Vector de Pangolin envoie
+déjà ses lignes, par un compte vmauth qui ne voit que le flux de CrowdSec : la
+LAPI reste fermée sur Pangolin. Les cartes d'hôte passent le disque en rouge
+à 80 % ; celui du NAS est `/volume1`. Détail : `ansible/roles/homepage/README.md`.
 
 Le widget Beszel exige un superuser PocketBase : il a le sien
 (`beszel_homepage_email`, `host_vars/docker` ; clé sops

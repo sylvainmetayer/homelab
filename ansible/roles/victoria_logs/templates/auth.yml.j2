@@ -14,3 +14,12 @@ users:
       - src_paths: {{ victoria_logs_agent_paths | to_json }}
         url_prefix: "http://victoria-logs:9428"
 {% endfor %}
+{% if victoria_logs_homepage_password | length > 0 %}
+  # Carte CrowdSec de Homepage : des comptes sur le seul flux de CrowdSec
+  # (extra_stream_filters, imposé par vmauth au client).
+  - username: {{ victoria_logs_homepage_user | to_json }}
+    password: {{ victoria_logs_homepage_password | to_json }}
+    url_map:
+      - src_paths: {{ victoria_logs_homepage_paths | to_json }}
+        url_prefix: {{ ('http://victoria-logs:9428/?extra_stream_filters=' ~ (victoria_logs_homepage_stream_filter | urlencode)) | to_json }}
+{% endif %}

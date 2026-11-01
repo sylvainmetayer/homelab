@@ -88,7 +88,7 @@
     - name: Assert the agents can only write and the interface has its own account
       vars:
         victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
-        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | rejectattr('username', 'eq', 'sylvain') | list }}"
+        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | rejectattr('username', 'in', ['sylvain', 'homepage']) | list }}"
       ansible.builtin.assert:
         that:
           - victoria_logs_accounts.keys() | list == ['users']
@@ -101,3 +101,64 @@
             victoria_logs_agent_users | items2dict(key_name='username', value_name='password')
             == victoria_logs_agent_passwords
         fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_accounts.users | map(attribute='username') | list }}"
+
+    # Carte CrowdSec de Homepage (clé de fake_secrets.yml) : la seule route
+    # des comptes LogsQL, et le flux de CrowdSec imposé par vmauth.
+    - name: Assert the Homepage account can only count in the CrowdSec stream
+      vars:
+        victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
+        victoria_logs_homepage: "{{ victoria_logs_accounts.users | selectattr('username', 'eq', 'homepage') | list }}"
+      ansible.builtin.assert:
+        that:
+          - victoria_logs_homepage | length == 1
+          - victoria_logs_homepage[0].password == homepage_victoria_logs_password
+          - victoria_logs_homepage[0].url_prefix is not defined
+          - victoria_logs_homepage[0].url_map | length == 1
+          - victoria_logs_homepage[0].url_map[0].src_paths == ['/select/logsql/stats_query']
+          - >-
+            victoria_logs_homepage[0].url_map[0].url_prefix
+            == 'http://victoria-logs:9428/?extra_stream_filters=%7Bhost%3D%22pangolin%22%2Ccontainer%3D%22crowdsec%22%7D'
+        fail_msg: "Compte vmauth de Homepage inattendu : {{ victoria_logs_homepage | map(attribute='url_map') | list }}"
+
+# Sans la clé homepage_victoria_logs_password (aucune dans ce jeu : ni
+# fake_secrets.yml ni sops), pas de compte de Homepage. Rendu hors de
+# /opt/apps : le déploiement convergé n'est pas touché.
+- name: Verify the vmauth accounts without the Homepage key
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/victoria_logs/defaults/main.yml
+  vars:
+    victoria_logs_ui_password: molecule-victoria-logs-ui-password-0000
+    victoria_logs_agent_passwords:
+      docker: molecule-victoria-logs-agent-docker-000
+  tasks:
+    - name: Create a scratch directory for the vmauth accounts
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: vmauth
+      register: victoria_logs_scratch
+
+    - name: Render the vmauth accounts without the Homepage key
+      diff: false
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/victoria_logs/templates/auth.yml.j2"
+        dest: "{{ victoria_logs_scratch.path }}/auth.yml"
+        mode: "0600"
+
+    - name: Read the vmauth accounts without the Homepage key
+      ansible.builtin.slurp:
+        src: "{{ victoria_logs_scratch.path }}/auth.yml"
+      register: victoria_logs_auth_without_homepage_raw
+
+    - name: Assert there is no Homepage account without its key
+      ansible.builtin.assert:
+        that:
+          - >-
+            (victoria_logs_auth_without_homepage_raw.content | b64decode | from_yaml).users
+            | map(attribute='username') | sort == ['docker', 'sylvain']
+
+    - name: Remove the scratch directory
+      ansible.builtin.file:
+        path: "{{ victoria_logs_scratch.path }}"
+        state: absent
