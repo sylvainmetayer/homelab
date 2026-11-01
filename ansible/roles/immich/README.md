@@ -53,7 +53,10 @@ permissions `user.read`, `asset.read`, `asset.view`, `asset.download`,
 `docs/runbooks/rotation-des-secrets.md` (« Secret d'appli lu par Ansible »).
 
 Sans la clé (absente ou vide) : l'image telle quelle, URL et clé saisies
-dans l'écran de connexion de l'appli.
+dans l'écran de connexion de l'appli, et le rôle supprime `immich-swipe.conf`.
+Un navigateur déjà passé par le mode préconfiguré garde la configuration
+injectée (serveur = `swipe-photos`, clé = le leurre) et n'affiche plus que
+des erreurs : s'y déconnecter dans l'appli pour retrouver l'écran de connexion.
 
 Le mode aléatoire appelle `GET /api/assets/random`, qu'Immich v3 n'a plus :
 utiliser l'ordre chronologique.

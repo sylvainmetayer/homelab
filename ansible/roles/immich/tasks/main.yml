@@ -43,7 +43,7 @@
 # Porte la clé d'API d'Immich Swipe ; monté seulement si elle est définie
 # (compose.yaml).
 - name: Template the Immich Swipe nginx configuration
-  when: immich_swipe_api_key | default('') | length > 0
+  when: immich_swipe_preconfigured | bool
   diff: false
   ansible.builtin.template:
     src: immich-swipe.conf.j2
@@ -52,6 +52,13 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
   notify: Restart immich service
+
+# Clé retirée : le compose ne monte plus le fichier, qui la porterait encore.
+- name: Remove the Immich Swipe nginx configuration without its key
+  when: not immich_swipe_preconfigured | bool
+  ansible.builtin.file:
+    path: "{{ immich_base_path }}/immich-swipe.conf"
+    state: absent
 
 - name: Ensure immich service is running (user systemd)
   ansible.builtin.systemd:

@@ -2,6 +2,9 @@
 # Default variables for immich role
 immich_base_path: "{{ docker_base_path }}/immich"
 immich_domain: ""
+# Dérivée, ne pas la définir : vrai quand la clé SOPS immich_swipe_api_key
+# existe ; Immich Swipe est alors préconfiguré (README du rôle).
+immich_swipe_preconfigured: "{{ immich_swipe_api_key | default('') | length > 0 }}"
 # Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
 # Mot de passe de Valkey (requirepass), dérivé du mot de passe de la base :

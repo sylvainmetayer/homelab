@@ -38,7 +38,6 @@ server {
     # l'appli ne la lise. Les VITE_* de l'amont ne se lisent qu'à la
     # construction de l'image.
     location = /index.html {
-        expires -1;
         add_header Cache-Control "no-store, no-cache, must-revalidate";
         sub_filter_once on;
         sub_filter "<head>" "<head><script>try{localStorage.setItem('immich-swipe-config',JSON.stringify({serverUrl:location.origin,apiKey:'server-side'}))}catch(e){}</script>";
