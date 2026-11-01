@@ -114,7 +114,8 @@ application key / application secret / consumer key :
 
 - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
   (fichier racine) : le provider ovh de `tofu/dns`, `tofu/s3_state`,
-  `tofu/keepass_backup`, `tofu/ref`, `tofu/site` et `tofu/1y`.
+  `tofu/keepass_backup`, `tofu/ref`, `tofu/site`, `tofu/1y` et
+  `tofu/planning`.
 - `nas_ovh_application_key`, `nas_ovh_application_secret`,
   `nas_ovh_consumer_key` (fichier Ansible) : le défi DNS-01 de Let's Encrypt
   du Traefik du NAS (`nas_proxy`).
@@ -154,10 +155,10 @@ que l'ancien. `sops set` (format `utilisateur@realm!id=secret`),
 
 ### Cloudflare
 
-`CLOUDFLARE_API_TOKEN` (fichier racine, `tofu/ref`, `tofu/site`, `tofu/1y`) :
-tableau de bord Cloudflare, My Profile → API Tokens, **Roll** du jeton
-existant (mêmes permissions, nouvelle valeur), `sops set`, puis un `plan`
-vide dans les trois modules (avec `GITHUB_TOKEN` exporté, voir leurs
+`CLOUDFLARE_API_TOKEN` (fichier racine, `tofu/ref`, `tofu/site`, `tofu/1y`,
+`tofu/planning`) : tableau de bord Cloudflare, My Profile → API Tokens,
+**Roll** du jeton existant (mêmes permissions, nouvelle valeur), `sops set`,
+puis un `plan` vide dans les quatre modules (avec `GITHUB_TOKEN` exporté, voir leurs
 README).
 
 `SITE_CF_ANALYTICS_TOKEN` (fichier racine, `tofu/site` : secret Pages
