@@ -18,7 +18,10 @@ Chaque source répond en un objet plat, que la carte lit sans calcul :
   /api/v1/stats (statistiques mensuelles que Dawarich recalcule lui-même) ;
 - /tbm.json : {"items": [{"name", "status"}]}, les prochains passages d'une
   ligne à des arrêts, par le flux SIRI-lite ouvert de Bordeaux Métropole
-  (stop-monitoring), arrêt par arrêt dans l'ordre de la configuration.
+  (stop-monitoring), arrêt par arrêt dans l'ordre de la configuration ;
+- /costs.json : {"previous_total", "current_total", "missing", "updated"},
+  lus dans le costs.json qu'écrit chaque jour le rapport des coûts (rôle
+  cost_report), monté en lecture seule : aucun appel réseau.
 
 Configuration, par variables d'environnement ; une source sans URL (ou sans
 clé) n'est pas servie (404) :
@@ -26,7 +29,7 @@ APPS_SUMMARY_PORT (8080), APPS_SUMMARY_CACHE_SECONDS (300),
 GROCY_URL, GROCY_API_KEY, GROCY_DUE_SOON_DAYS (5),
 PAPRA_URL, PAPRA_API_KEY, DAWARICH_URL, DAWARICH_HOST, DAWARICH_API_KEY,
 TBM_URL (https:// seulement), TBM_ACCOUNT_KEY, TBM_LINE, TBM_STOPS (arrêts
-séparés par des virgules), TBM_DEPARTURES (3), TBM_CACHE_SECONDS (60).
+séparés par des virgules), TBM_DEPARTURES (3), TBM_CACHE_SECONDS (60), COSTS_FILE.
 L'heure locale est celle de TZ.
 
 Chaque réponse amont est gardée en cache ; périmée, elle est encore servie
@@ -238,6 +241,32 @@ def fetch_tbm(env: dict) -> dict:
     return {"stops": stops}
 
 
+# --- Coûts ---------------------------------------------------------------
+
+
+def summarize_costs(raw: dict, now: float) -> dict:
+    return {
+        "previous_total": str(raw["previous_total"]),
+        "current_total": str(raw["current_total"]),
+        "missing": int(raw.get("missing") or 0),
+        "updated": str(raw.get("updated") or ""),
+    }
+
+
+def fetch_costs(env: dict) -> dict:
+    try:
+        with open(env["COSTS_FILE"], "rb") as handle:
+            data = handle.read(MAX_BYTES + 1)
+    except OSError as err:
+        raise FetchError(type(err).__name__) from None
+    if len(data) > MAX_BYTES:
+        raise FetchError("fichier trop gros")
+    try:
+        return json.loads(data)
+    except ValueError:
+        raise FetchError("fichier illisible") from None
+
+
 # --- Serveur -------------------------------------------------------------
 
 
@@ -285,6 +314,8 @@ def build_sources(env: dict) -> dict:
             "tbm", lambda: fetch_tbm(env), lambda raw, now: summarize_tbm(raw, now, per_stop),
             float(env.get("TBM_CACHE_SECONDS") or 60),
         )
+    if env.get("COSTS_FILE"):
+        sources["/costs.json"] = Source("costs", lambda: fetch_costs(env), summarize_costs, ttl)
     return sources
 
 
@@ -332,6 +363,7 @@ SUMMARIZERS = {
     "papra": summarize_papra,
     "dawarich": summarize_dawarich,
     "tbm": lambda payload, now: summarize_tbm({"stops": [parse_departures(payload)]}, now),
+    "costs": summarize_costs,
 }
 
 

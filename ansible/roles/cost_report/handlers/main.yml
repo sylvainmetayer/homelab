@@ -1,0 +1,8 @@
+---
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer.
+- name: Restart cost-report timer
+  become: true
+  ansible.builtin.systemd:
+    name: cost-report.timer
+    state: restarted
+    daemon_reload: true
