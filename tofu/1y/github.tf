@@ -1,7 +1,7 @@
 # Le dépôt 1y existe depuis 2020 (copie du modèle nhoizey/1y) : il a été importé
-# une fois, pas créé, sans bloc import (tofu test le refuse) ; état perdu :
-# `tofu import`, voir README.md. Les réglages sont
-# alignés sur tofu/ref (wiki, projets, merge commits…).
+# une fois, pas créé. Pas de bloc import ici (tofu test le refuse) ; état
+# perdu : `tofu import`, voir README.md. Les réglages sont alignés sur
+# tofu/ref (wiki, projets, merge commits…).
 resource "github_repository" "r" {
   name         = var.repository
   description  = "Gestionnaire d'URL courtes - ${local.hostname}"

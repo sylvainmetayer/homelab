@@ -27,6 +27,7 @@ resource "pangolin_resource_pincode" "immich" {
   pincode     = tostring(local.immich_pin)
 }
 
+# The home connection gets in by IP, without SSO, regardless of the geo rules.
 # Priority 9: the last slot before the `PASS COUNTRY` rules generated in
 # rules.tf (FR at 10, DE at 11). Behind them it would never be reached: the
 # home connection is French, so the FR PASS would match first and send it to

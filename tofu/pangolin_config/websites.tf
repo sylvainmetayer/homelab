@@ -17,12 +17,10 @@
 #     demo_planning's, which a test reads; when debugging, `tofu console`
 #     then `local.healthcheck_access_tokens["<app>"]`.
 #
-# The key is the former resource name (e.g. `demo_planning_kc`), and
-# moved blocks (applied, then removed) mapped every former address onto it:
-# nothing was recreated. A
-# recreated access token would have broken the monitor headers and the
-# `*_access_token` outputs; a recreated push monitor, the push URL every backup
-# job reads from this state.
+# The key is the former resource name (e.g. `demo_planning_kc`). Renaming
+# one without a moved block recreates its access token, which breaks the
+# monitor headers and the `*_access_token` outputs, and its push monitor,
+# whose push URL every backup job reads from this state.
 #
 # Entry fields - only name, subdomain, domain_id and homepage are required:
 #
