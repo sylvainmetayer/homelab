@@ -29,7 +29,8 @@ locals {
     "beszel",
     "victoria-logs",
     "docs",
-    "enclosed"
+    "enclosed",
+    "healthlog"
   ]
 }
 

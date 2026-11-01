@@ -36,6 +36,7 @@ session quand son mot de passe change), seules les nouvelles échouent.
 |---|---|---|---|---|---|
 | Immich (`immich`) | pi, `pi.yml`, `immich` | `immich_postgres` (`ghcr.io/immich-app/postgres:14-…`) | `postgres` (superutilisateur), base `immich` | SOPS `immich_db_password` | `.env` (`DB_PASSWORD`, templaté) ; le worker distant du poste, `compose/immich/.env` (à la main, hors dépôt) : Postgres n'est publié en 5432 sur le LAN que le temps du worker (`immich_remote_worker`, rôle `immich`) |
 | Dawarich (`dawarich`) | docker, `docker.yml`, `dawarich` | `dawarich-db` (`postgis/postgis:17-3.5-alpine`) | `dawarich`, base `dawarich` | **dérivé** : `sha256(backup_passphrase ~ '-dawarich-db')` (`defaults/main.yml`) | `.env` (`DATABASE_PASSWORD`, templaté) |
+| HealthLog (`healthlog`) | docker, `docker.yml`, `healthlog` | `healthlog-db` (`postgres:18.6-alpine`) | `healthlog`, base `healthlog` | **dérivé** : `sha256(backup_passphrase ~ '-healthlog-db')` (`defaults/main.yml`) | `.env` (`DATABASE_URL`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
 | Paperless-ngx (`paperless_ngx`) | docker, `docker.yml`, `paperless` | `paperless_db` (`postgres:18`) | `paperless`, base `paperless` | SOPS `paperless_db_password` | compose (`PAPERLESS_DBPASS`). **En pause** : voir plus bas |
 | Flip Planning, production (`flip_planning`) | flip, `flip.yml`, `flip_planning` | `flip-planning-db` (`postgres:18.6`) | `festival`, base `festival` | SOPS `prod_planning_db_password` (`vars:` de l'entrée de `flip.yml`) | `.env` (`DB_PASSWORD`, templaté) |
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
@@ -115,7 +116,7 @@ ssh_hote() {  # ssh_hote <docker|pi|flip> '<commande distante>'
 
 ### 1. Postgres : `ALTER ROLE` dans le conteneur
 
-Immich, Dawarich, Paperless-ngx, Flip Planning (chaque instance, et la base
+Immich, Dawarich, HealthLog, Paperless-ngx, Flip Planning (chaque instance, et la base
 Keycloak de la démo Keycloak). Exemple Immich :
 
 ```bash
@@ -192,7 +193,8 @@ git -C ../secrets diff --stat ansible.sops.yaml   # une seule clé change (plus 
 `dawarich_db_password` (même commande, elle prime sur le défaut du rôle :
 SOPS est dans la couche `include_vars`) et ajouter une valeur factice
 `dawarich_db_password` à `ansible/molecule/_shared/vars/fake_secrets.yml`,
-comme pour toute nouvelle clé lue par un rôle.
+comme pour toute nouvelle clé lue par un rôle. **HealthLog** de même, avec
+la clé `healthlog_db_password` (sel `-healthlog-db`).
 
 ### 3. Redéployer l'appli
 

@@ -68,6 +68,7 @@ locals {
     flip_planning           = local.flip_planning_website
     grocy                   = local.grocy_website
     homebox                 = local.homebox_website
+    healthlog               = local.healthlog_website
     homepage                = local.homepage_website
     immich                  = local.immich_website
     immich_swipe            = local.immich_swipe_website

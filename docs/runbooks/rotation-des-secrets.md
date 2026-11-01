@@ -413,6 +413,16 @@ papra`, et révoquer l'ancien. Vérifier :
 `journalctl -u papra-intake -n 20` (« Relève terminée », pas d'échec de
 LOGIN). Détail : `ansible/roles/papra/README.md`.
 
+### Appli développeur Withings (HealthLog)
+
+Hors SOPS et hors inventaire de rotation : le Client ID et le Client Secret
+de l'appli Withings (Partner Hub, callback
+`https://sante.sylvain.cloud/api/withings/callback`) sont saisis dans
+HealthLog (Paramètres → Intégrations → Withings), chiffrés en base, copie
+dans KeePassXC. Sur fuite seulement : régénérer le secret dans le Partner
+Hub, le recoller dans HealthLog, puis **Déconnecter** et **Connecter
+Withings** (nouveaux jetons). Détail : `ansible/roles/healthlog/README.md`.
+
 ### Code PIN Immich
 
 `immich_pin` du fichier racine est le PIN de la ressource Pangolin d'Immich
@@ -473,7 +483,10 @@ déconnexion, et n'apporte rien sans fuite.
   `borg key change-passphrase` sur chaque dépôt, puis la nouvelle valeur
   partout où elle est lue (Ansible, environnement `restore-test` par
   `tofu/github`, et les mots de passe dérivés d'elle, voir
-  [mot-de-passe-base.md](mot-de-passe-base.md)).
+  [mot-de-passe-base.md](mot-de-passe-base.md)). Avant de la changer,
+  figer la clé de chiffrement de HealthLog, dérivée d'elle : sans quoi
+  HealthLog ne démarre plus (`ansible/roles/healthlog/README.md`,
+  « Clé de chiffrement »).
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de
   `tofu/pangolin`, `tofu/github`, `tofu/s3_state` et `tofu/keepass_backup`.
   Changer de passphrase passe par une méthode `fallback` du bloc

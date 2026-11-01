@@ -1,0 +1,65 @@
+---
+- name: Ensure HealthLog app folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ healthlog_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart healthlog
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ healthlog_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart healthlog
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ healthlog_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for HealthLog
+  when: healthlog_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: healthlog
+    borgmatic_app_title: HealthLog
+    borgmatic_app_target: "{{ healthlog_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ healthlog_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ healthlog_backup_healthcheck_url }}"
+    # Tout l'état est dans la base (l'appli est sans état) : son dump, plus
+    # le compose et le .env, qui portent la clé de chiffrement sans laquelle
+    # les colonnes chiffrées du dump sont illisibles. Ni le volume de la base
+    # (copié à chaud, incohérent) ni celui des dumps d'avant migration de
+    # HealthLog (README du rôle).
+    borgmatic_app_source_directories:
+      - "{{ healthlog_base_path }}/compose.yaml"
+      - "{{ healthlog_base_path }}/.env"
+    borgmatic_app_postgresql_databases:
+      - container: healthlog-db
+        name: "{{ healthlog_db_name }}"
+        username: "{{ healthlog_db_user }}"
+        password: "{{ healthlog_db_password }}"
+
+- name: Make sure healthlog service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@healthlog
+    scope: user
+    enabled: true

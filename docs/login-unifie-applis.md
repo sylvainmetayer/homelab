@@ -10,6 +10,7 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Immich v3.3.5 | natif, rôle et quota par claim, appli mobile OK | [doc](https://docs.immich.app/administration/oauth) | faible | oui (`passwordLogin`) |
 | Nextcloud 35.0.2 | `user_oidc` 8.11.0, groupes | [README](https://github.com/nextcloud/user_oidc/blob/v8.11.0/README.md) | moyen (uid à aligner) | oui (`/login?direct=1`) ; clients par login flow v2 non confirmé |
 | TREK 5.0.0 | natif, admin par claim | [oidc.service.ts](https://github.com/liketrek/TREK/blob/v5.0.0/server/src/nest/oidc/oidc.service.ts) | faible | oui sauf `OIDC_ONLY` |
+| HealthLog 1.46.5 | natif (`OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`) | [sso.md](https://github.com/MBombeck/HealthLog/blob/v1.46.5/docs/self-hosting/sso.md) | faible | oui sauf `OIDC_ONLY` |
 | Wishlist v0.69.0 | natif, réglé dans l'UI (secret client saisi à la main, hors Ansible) | [config.ts](https://github.com/cmintey/wishlist/blob/v0.69.0/src/lib/server/config.ts) | faible | oui |
 | Dawarich 1.19.0 | natif, liaison par défi | [oidc_config.rb](https://github.com/Freika/dawarich/blob/1.19.0/lib/oidc_config.rb) | faible | oui ; traceurs par clé d'API |
 | Karakeep 0.34.1 | natif ; appli et extension : mot de passe ou clé d'API | [auth.ts](https://github.com/karakeep-app/karakeep/blob/v0.34.1/apps/web/server/auth.ts) | faible | **obligatoire** pour les clients |

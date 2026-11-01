@@ -102,6 +102,14 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   clés d'API). Aucun chemin ouvert : toute la ressource reste derrière le
   filtre pays, et les navigateurs gardent la page de connexion du SSO
   (`extended_compatibility = false`).
+- HealthLog (`sante.sylvain.cloud`) : **aucun** jeton ni chemin ouvert. La
+  PWA du téléphone passe le SSO dans le navigateur, comme le poste, puis le
+  login de HealthLog : un navigateur n'envoie pas les en-têtes
+  `P-Access-Token-*`, et `?p_token=` ne poserait que le même cookie de
+  session. Le callback OAuth de Withings passe le SSO (navigation du
+  navigateur, cookie `SameSite=Lax`) ; ses notifications serveur à serveur
+  ne passent pas, HealthLog se rabat sur sa synchronisation horaire
+  (`ansible/roles/healthlog/README.md`, « Accès »).
 - Les sondes Uptime Kuma (`Healthcheck <appli>`) : un jeton par appli
   surveillée (`pangolin_resource_access_token.healthcheck`, `websites.tf`).
 
