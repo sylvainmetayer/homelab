@@ -84,6 +84,7 @@ locals {
   declared_role_ids = toset(concat(
     [for role in pangolin_role.apps : tostring(role.id)],
     [tostring(pangolin_role.jellyfin.id)],
+    [tostring(pangolin_role.mediamanager.id)],
   ))
 
   # null when the response does not decode: reported below, never read as an

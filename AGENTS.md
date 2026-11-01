@@ -72,6 +72,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 
 - Papra (role `papra`, `papra.sylvain.cloud`) is on trial as Paperless-ngx's replacement (Paperless is paused): whichever loses is removed with `remove-app`. Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
+- MediaManager (role `mediamanager`, NAS, `mediamanager.internal` private) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun only once `mediamanager_wireguard_private_key` is set; its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
 
 ## Map: topic → file to read
 
@@ -106,6 +107,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Canary traps (Canarytokens AWS keys, trap file, fake SSH account) | `ansible/roles/canary/README.md`, `docs/runbooks/jeton-piege.md` |
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin); hardening (sshd, PVE firewall, repos, SDN) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md`, `ansible/roles/pve_hardening/README.md` |
 | Papra trial | `ansible/roles/papra/README.md` |
+| MediaManager trial (NAS, VPN, sandbox) | `ansible/roles/mediamanager/README.md` |
 | Docs site (docs.sylvain.cloud, MkDocs): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |
 | Proxmox VM, LXC, vzdump job | `tofu/proxmox/README.md` |
 | Hetzner VMs, NAT, Storage Box; Pangolin server rebuild | `tofu/pangolin/README.md` (+ `STORAGE_BOX_SETUP.md`) |

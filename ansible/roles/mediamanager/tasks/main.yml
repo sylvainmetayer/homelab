@@ -1,0 +1,217 @@
+---
+# Le NAS seul : dc@ système, dossier partagé media d'UGOS.
+- name: Refuse to run outside a system-scope dc@ host
+  ansible.builtin.assert:
+    that:
+      - docker_service_scope | default('user') == 'system'
+    fail_msg: "mediamanager ne tourne que sur le NAS (docker_service_scope: system, host_vars/nas)."
+    quiet: true
+
+# Avant toute écriture : le dossier partagé des médias se crée dans
+# l'interface d'UGOS, jamais ici (rôle jellyfin). Sans lui, rien n'est déployé.
+- name: Check the media share
+  become: true
+  ansible.builtin.stat:
+    path: "{{ mediamanager_media_path }}"
+  register: mediamanager_media_stat
+
+- name: Assert the media share exists
+  ansible.builtin.assert:
+    that:
+      - mediamanager_media_stat.stat.isdir | default(false)
+    fail_msg: >-
+      {{ mediamanager_media_path }} absent ou pas un dossier. Créer dans UGOS
+      (Fichiers, Dossier partagé, Créer) le dossier partagé
+      « {{ mediamanager_media_path | basename }} » sur le volume 1 (rôle
+      jellyfin), puis relancer nas.yml --tags mediamanager.
+    quiet: true
+
+# Le bac à sable reste dans media (même sous-volume btrfs, liens physiques
+# possibles) sans jamais être une bibliothèque de Jellyfin, ni media lui-même.
+- name: Assert the sandbox is a hidden folder of the media share
+  ansible.builtin.assert:
+    that:
+      - mediamanager_sandbox_path | dirname == mediamanager_media_path
+      - (mediamanager_sandbox_path | basename) is match('^\.')
+    fail_msg: >-
+      mediamanager_sandbox_path ({{ mediamanager_sandbox_path }}) doit être un
+      dossier caché directement sous {{ mediamanager_media_path }}.
+    quiet: true
+
+# nas.yml ne collecte pas de faits : uid et gid sont lus ici (getent échoue
+# si le compte n'existe pas).
+- name: Read the account MediaManager runs as
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ mediamanager_user }}"
+
+- name: Remember the ids MediaManager runs with
+  ansible.builtin.set_fact:
+    mediamanager_uid: "{{ ansible_facts['getent_passwd'][mediamanager_user][1] }}"
+    mediamanager_gid: "{{ ansible_facts['getent_passwd'][mediamanager_user][2] }}"
+
+- name: Refuse to run MediaManager as root
+  ansible.builtin.assert:
+    that:
+      - mediamanager_uid | int != 0
+      - mediamanager_gid | int != 0
+    fail_msg: >-
+      MediaManager, qBittorrent et Prowlarr tournent sous le compte
+      propriétaire des médias, jamais root : mediamanager_user
+      {{ mediamanager_user }} ({{ mediamanager_uid }}:{{ mediamanager_gid }}).
+    quiet: true
+
+- name: Ensure the MediaManager folder exists
+  become: "{{ mediamanager_as_root }}"
+  ansible.builtin.file:
+    path: "{{ mediamanager_base_path }}"
+    state: directory
+    owner: "{{ omit if mediamanager_as_root else mediamanager_uid }}"
+    group: "{{ omit if mediamanager_as_root else mediamanager_gid }}"
+    mode: "0700"
+
+# Au compte des conteneurs (MediaManager, qBittorrent, Prowlarr).
+- name: Ensure the application folders belong to their account
+  become: true
+  loop:
+    - "{{ mediamanager_base_path }}/config"
+    - "{{ mediamanager_base_path }}/images"
+    - "{{ mediamanager_base_path }}/qbittorrent"
+    - "{{ mediamanager_base_path }}/qbittorrent/qBittorrent"
+    - "{{ mediamanager_base_path }}/prowlarr"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mediamanager_uid }}"
+    group: "{{ mediamanager_gid }}"
+    mode: "0700"
+
+# Données de PostgreSQL : l'image les donne à son compte postgres au premier
+# démarrage. Ni owner ni group ici, sinon chaque passage les rendrait à root
+# et la base ne redémarrerait plus.
+- name: Ensure the PostgreSQL data folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ mediamanager_base_path }}/postgres"
+    state: directory
+    mode: "0700"
+
+- name: Ensure the gluetun folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ mediamanager_base_path }}/gluetun"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Ensure the sandbox folders exist
+  become: true
+  loop: "{{ [mediamanager_sandbox_path] + mediamanager_sandbox_folders | map('regex_replace', '^', mediamanager_sandbox_path ~ '/') | list }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mediamanager_uid }}"
+    group: "{{ mediamanager_gid }}"
+    mode: "0750"
+
+- name: Template the MediaManager configuration
+  become: true
+  diff: false
+  notify: Restart mediamanager
+  ansible.builtin.template:
+    src: templates/config.toml.j2
+    dest: "{{ mediamanager_base_path }}/config/config.toml"
+    owner: "{{ mediamanager_uid }}"
+    group: "{{ mediamanager_gid }}"
+    mode: "0600"
+
+# Empreinte PBKDF2 du mot de passe de l'interface web de qBittorrent, au
+# format de son qBittorrent.conf (PBKDF2-HMAC-SHA512, 100 000 tours, sel de
+# 16 octets) : sel dérivé du mot de passe, donc la même à chaque passage. Le
+# mot de passe passe par l'entrée standard, jamais par la ligne de commande.
+- name: Hash the qBittorrent web UI password
+  when: mediamanager_vpn_enabled | bool
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_python_interpreter | default('python3') }}"
+      - -c
+      - |
+        import base64, hashlib, sys
+        password = sys.stdin.read().encode()
+        salt = hashlib.sha256(password + b":qbittorrent-salt").digest()[:16]
+        key = hashlib.pbkdf2_hmac("sha512", password, salt, 100000)
+        print("@ByteArray(%s:%s)" % (base64.b64encode(salt).decode(), base64.b64encode(key).decode()))
+    stdin: "{{ mediamanager_qbittorrent_password }}"
+    stdin_add_newline: false
+  register: mediamanager_qbittorrent_hash
+  changed_when: false
+  check_mode: false
+
+# Posé une seule fois (force: false) : qBittorrent réécrit ce fichier en
+# s'arrêtant, et un réglage changé dans son interface doit survivre au
+# passage suivant. Pour repartir de ce modèle : arrêter dc@mediamanager,
+# supprimer le fichier, relancer le rôle (README).
+- name: Seed the qBittorrent configuration
+  when: mediamanager_vpn_enabled | bool
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.template:
+    src: templates/qBittorrent.conf.j2
+    dest: "{{ mediamanager_base_path }}/qbittorrent/qBittorrent/qBittorrent.conf"
+    owner: "{{ mediamanager_uid }}"
+    group: "{{ mediamanager_gid }}"
+    mode: "0600"
+    force: false
+
+- name: Template the MediaManager compose configuration
+  become: "{{ mediamanager_as_root }}"
+  diff: false
+  notify: Restart mediamanager
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ mediamanager_base_path }}/compose.yaml"
+    owner: "{{ omit if mediamanager_as_root else mediamanager_uid }}"
+    group: "{{ omit if mediamanager_as_root else mediamanager_gid }}"
+    mode: "0600"
+
+- name: Make sure the MediaManager service is running
+  become: "{{ mediamanager_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ mediamanager_service }}"
+    scope: "{{ mediamanager_dc_scope }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Restart MediaManager now if its configuration changed
+  ansible.builtin.meta: flush_handlers
+
+# Fichiers seulement : la base PostgreSQL n'est pas dumpée (README,
+# « Sauvegarde »). Bases SQLite de Prowlarr copiées par sqlite3.
+- name: Configure borgmatic backup for MediaManager
+  when: mediamanager_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: mediamanager
+    borgmatic_app_title: MediaManager
+    borgmatic_app_target: "{{ mediamanager_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ mediamanager_backup_encryption_passphrase }}"
+    borgmatic_app_source_directories:
+      - "{{ mediamanager_base_path }}/config"
+      - "{{ mediamanager_base_path }}/qbittorrent"
+      - "{{ mediamanager_base_path }}/prowlarr"
+      - "{{ mediamanager_base_path }}/compose.yaml"
+    borgmatic_app_exclude_patterns:
+      - "{{ mediamanager_base_path }}/prowlarr/logs"
+      - "{{ mediamanager_base_path }}/prowlarr/Backups"
+      - "{{ mediamanager_base_path }}/qbittorrent/qBittorrent/logs"
+    borgmatic_app_sqlite_databases:
+      - "{{ mediamanager_base_path }}/prowlarr/*.db"

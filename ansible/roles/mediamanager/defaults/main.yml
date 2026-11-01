@@ -1,0 +1,117 @@
+---
+# MediaManager à l'essai sur le NAS (nas.yml, à la main seulement) : films et
+# séries demandés dans MediaManager, cherchés par Prowlarr, téléchargés par
+# qBittorrent, rangés par MediaManager. Un projet sous dc@mediamanager (unité
+# système, docker_service_scope: system, host_vars/nas). README du rôle :
+# procédure d'essai, contrôle de fuite du VPN, retrait.
+mediamanager_service: mediamanager
+mediamanager_base_path: "{{ docker_base_path }}/{{ mediamanager_service }}"
+
+# Compte de l'hôte sous lequel tournent MediaManager, qBittorrent et Prowlarr
+# (uid et gid lus au déploiement) : les fichiers du bac à sable lui
+# appartiennent. Sur le NAS, sylvain (1000), l'uid du compte de l'image de
+# MediaManager (uv y lit son cache sous /home/mediamanager).
+mediamanager_user: "{{ ansible_user }}"
+
+# --- Bac à sable des médias ---------------------------------------------------
+# Dans le dossier partagé media (rôle jellyfin), donc le même sous-volume btrfs
+# que les bibliothèques : un import par lien physique y marche, ce qu'un
+# dossier hors de media (autre sous-volume) empêcherait, MediaManager
+# retombant alors sans rien dire sur une copie. Caché (point) et hors des
+# dossiers des bibliothèques : Jellyfin, qui garde media en lecture seule, ne
+# le voit pas. Jamais media/films ni media/series : l'import d'une
+# bibliothèque existante renomme ses dossiers avec un point devant.
+mediamanager_media_path: /volume1/media
+mediamanager_sandbox_path: "{{ mediamanager_media_path }}/.mediamanager-test"
+# Monté une seule fois, en /data, dans MediaManager comme dans qBittorrent :
+# un lien physique entre deux montages distincts échoue (EXDEV), même sur le
+# même système de fichiers.
+mediamanager_sandbox_folders:
+  - films
+  - series
+  - torrents
+
+# --- MediaManager ------------------------------------------------------------
+# Joint par la ressource privée Pangolin mediamanager.internal (site nas,
+# tofu/pangolin_config/private_resources.tf), par le Newt du NAS sur le
+# réseau Docker newt. Aucun port publié : ni LAN ni Internet.
+mediamanager_port: 8000
+mediamanager_frontend_url: "http://mediamanager.internal:{{ mediamanager_port }}"
+# Premier compte : créé au premier démarrage avec cette adresse et le mot de
+# passe « admin », à changer aussitôt (README).
+mediamanager_admin_email: "{{ pangolin_le_email }}"
+# Métadonnées par le relais du développeur (défaut de MediaManager) ; en
+# français pour une œuvre originale française, en anglais sinon.
+mediamanager_tmdb_primary_languages: ["fr"]
+mediamanager_tmdb_default_language: en
+
+# Secrets dérivés de backup_passphrase, comme ceux de Dawarich ou HealthLog :
+# aucune clé SOPS à poser. Jamais le nom d'une clé SOPS.
+mediamanager_db_password: "{{ (backup_passphrase ~ '-mediamanager-db') | hash('sha256') }}"
+mediamanager_token_secret: "{{ (backup_passphrase ~ '-mediamanager-token') | hash('sha256') }}"
+mediamanager_qbittorrent_username: mediamanager
+mediamanager_qbittorrent_password: "{{ (backup_passphrase ~ '-mediamanager-qbittorrent') | hash('sha256') }}"
+# 32 caractères hexadécimaux, le format des clés d'API de Prowlarr.
+mediamanager_prowlarr_api_key: "{{ ((backup_passphrase ~ '-mediamanager-prowlarr') | hash('sha256'))[:32] }}"
+
+# --- VPN (gluetun) -------------------------------------------------------------
+# qBittorrent et Prowlarr n'ont pas de réseau à eux : ils partagent celui de
+# gluetun (network_mode: service:gluetun), dont le pare-feu coupe tout ce qui
+# ne passe pas par le tunnel (kill switch). Sans clé WireGuard, ni gluetun,
+# ni qBittorrent, ni Prowlarr ne sont rendus dans le compose : rien ne part
+# par la connexion de la maison ; MediaManager démarre quand même.
+#
+# Clés SOPS facultatives, préfixées mediamanager_wireguard_* (jamais le nom
+# d'une variable du rôle), posées par Sylvain : la clé privée, et pour un
+# fournisseur qui les demande (AirVPN) les adresses et la clé pré-partagée.
+mediamanager_vpn_private_key: "{{ mediamanager_wireguard_private_key | default('') }}"
+mediamanager_vpn_addresses: "{{ mediamanager_wireguard_addresses | default('') }}"
+mediamanager_vpn_preshared_key: "{{ mediamanager_wireguard_preshared_key | default('') }}"
+# Fournisseur au sens de gluetun (VPN_SERVICE_PROVIDER). ProtonVPN : clé
+# WireGuard générée avec « NAT-PMP (Port Forwarding) » coché, offre payante
+# (serveurs P2P). AirVPN : voir le README (port fixe).
+mediamanager_vpn_provider: protonvpn
+# SERVER_COUNTRIES de gluetun, noms anglais séparés par des virgules
+# (« Switzerland,Netherlands ») ; vide : tous les pays.
+mediamanager_vpn_server_countries: ""
+# Port entrant attribué par le fournisseur à chaque connexion (NAT-PMP chez
+# ProtonVPN), que gluetun donne à qBittorrent par son API
+# (VPN_PORT_FORWARDING_UP_COMMAND).
+mediamanager_vpn_port_forwarding: true
+# Port entrant fixe (AirVPN : réservé dans son espace client), ouvert dans le
+# pare-feu de gluetun et posé dans qBittorrent ; avec
+# mediamanager_vpn_port_forwarding: false. Vide : aucun.
+mediamanager_vpn_static_port: ""
+# Interface du tunnel dans gluetun, donnée aussi à qBittorrent (il n'écoute
+# et n'émet que par elle) : nommée ici pour que les deux s'accordent.
+mediamanager_vpn_interface: tun0
+
+# Interfaces web de qBittorrent et Prowlarr : publiées sur le 127.0.0.1 du NAS
+# seulement, à joindre par un tunnel SSH (README). Jamais par Pangolin.
+mediamanager_qbittorrent_webui_port: 8080
+mediamanager_prowlarr_port: 9696
+
+# Réseau du projet, à sous-réseau fixe, hors de ceux déjà pris sur le NAS
+# (bridge 172.17, newt 172.18, jellyfin_media 172.30.96, virbr 192.100).
+mediamanager_subnet: 172.30.97.0/24
+
+# --- Limites (docs/conventions/resource-limits.md) -----------------------------
+# Provisoires, tirées de l'évaluation : à recaler à ~2x memory.peak après une
+# semaine d'essai (README).
+mediamanager_mem_limit: 512m
+mediamanager_db_mem_limit: 256m
+mediamanager_db_mem_reservation: 128m
+mediamanager_qbittorrent_mem_limit: 1g
+mediamanager_prowlarr_mem_limit: 256m
+mediamanager_gluetun_mem_limit: 128m
+
+# --- Sauvegarde (rôle borgmatic, tasks/app.yml ; borgmatic en conteneur sur
+# le NAS) : configuration de MediaManager, celles de qBittorrent et Prowlarr
+# (bases SQLite de Prowlarr copiées par sqlite3), compose. Ni les médias du
+# bac à sable, ni les affiches (images/, retéléchargées), ni le dossier de
+# PostgreSQL : une base vivante ne se copie pas. La base de MediaManager
+# n'est PAS sauvegardée : le borgmatic en conteneur du NAS ne sait pas faire
+# de docker exec (README, « Sauvegarde »).
+mediamanager_backup_enabled: true
+mediamanager_backup_borgmatic_target: "{{ backup_storage_box_url }}/mediamanager"
+mediamanager_backup_encryption_passphrase: "{{ backup_passphrase }}"

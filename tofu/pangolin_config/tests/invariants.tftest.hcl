@@ -394,6 +394,16 @@ override_resource {
   values = { id = 91 }
 }
 
+override_resource {
+  target = pangolin_role.mediamanager
+  values = { id = 92 }
+}
+
+override_resource {
+  target = pangolin_site_resource.mediamanager
+  values = { id = 93 }
+}
+
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
 # (une surcharge peut viser une seule instance d'un for_each, vérifié sur
 # OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite.
@@ -2144,6 +2154,29 @@ run "nas_newt_credentials_and_media" {
       && !contains(keys(local.websites), "jellyfin")
     )
     error_message = "media.sylvain.cloud doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
+  }
+
+  # MediaManager (essai, rôle mediamanager) : le Newt du NAS joint le
+  # conteneur par son nom (container_name du compose) sur le réseau newt, en
+  # TCP 8000 seul ; ouvert au seul rôle mediamanager, sans ressource publique.
+  assert {
+    condition = (
+      pangolin_site_resource.mediamanager.site_id == pangolin_site.nas.id
+      && pangolin_site_resource.mediamanager.mode == "host"
+      && pangolin_site_resource.mediamanager.alias == "mediamanager.internal"
+      && pangolin_site_resource.mediamanager.destination == "mediamanager"
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/templates/compose.yaml"), "\n    container_name: mediamanager\n")
+      && pangolin_site_resource.mediamanager.tcp_port_range == "8000"
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_port: 8000\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_frontend_url: \"http://mediamanager.internal:{{ mediamanager_port }}\"\n")
+      && pangolin_site_resource.mediamanager.udp_port_range == "*"
+      && pangolin_site_resource.mediamanager.disable_icmp == true
+      && pangolin_site_resource_role.mediamanager.site_resource_id == pangolin_site_resource.mediamanager.id
+      && pangolin_site_resource_role.mediamanager.role_id == pangolin_role.mediamanager.id
+      && pangolin_role.mediamanager.name == "mediamanager"
+      && !contains(keys(local.websites), "mediamanager")
+    )
+    error_message = "mediamanager.internal doit viser le conteneur mediamanager sur le site nas, en TCP 8000 seul, ouverte au seul rôle mediamanager, sans ressource publique."
   }
 
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de

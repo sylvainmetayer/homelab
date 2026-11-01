@@ -1,0 +1,18 @@
+[BitTorrent]
+Session\DefaultSavePath=/data/torrents
+Session\TempPathEnabled=false
+Session\Interface={{ mediamanager_vpn_interface }}
+Session\InterfaceName={{ mediamanager_vpn_interface }}
+{% if mediamanager_vpn_static_port | string | length > 0 %}
+Session\Port={{ mediamanager_vpn_static_port }}
+{% endif %}
+
+[LegalNotice]
+Accepted=true
+
+[Preferences]
+Connection\UPnP=false
+WebUI\Port={{ mediamanager_qbittorrent_webui_port }}
+WebUI\Username={{ mediamanager_qbittorrent_username }}
+WebUI\Password_PBKDF2="{{ mediamanager_qbittorrent_hash.stdout }}"
+WebUI\LocalHostAuth=false

@@ -200,6 +200,44 @@ resource "pangolin_site_resource_role" "jellyfin" {
   }
 }
 
+# MediaManager à l'essai (ansible/roles/mediamanager, sur le NAS), joint par
+# un client Pangolin seulement, à la maison comme dehors :
+# http://mediamanager.internal:8000. Servi par le Newt du NAS, qui joint le
+# conteneur mediamanager par son nom sur le réseau Docker newt qu'ils
+# partagent (sa base n'y est pas). Aucun port publié sur le NAS, aucune
+# ressource publique. Ni qBittorrent ni Prowlarr : leurs interfaces restent
+# sur le 127.0.0.1 du NAS (tunnel SSH, README du rôle). UDP à "*" comme
+# ailleurs (le provider ne sait pas envoyer une plage vide).
+resource "pangolin_site_resource" "mediamanager" {
+  site_id        = pangolin_site.nas.id
+  name           = "MediaManager"
+  mode           = "host"
+  alias          = "mediamanager.internal"
+  destination    = "mediamanager"
+  disable_icmp   = true
+  tcp_port_range = "8000"
+  udp_port_range = "*"
+}
+
+# Qui l'atteint : les membres de ce rôle, Sylvain seul (ajouté dans l'UI de
+# Pangolin : les utilisateurs ne sont pas gérés ici). Hors de local.apps
+# (roles.tf), comme jellyfin.
+resource "pangolin_role" "mediamanager" {
+  name        = "mediamanager"
+  description = "Role for mediamanager.internal (MediaManager trial on the NAS, private)"
+}
+
+# Recréée à chaque mise à jour de la ressource, qui l'efface : voir
+# pangolin_site_resource_role.jellyfin.
+resource "pangolin_site_resource_role" "mediamanager" {
+  role_id          = pangolin_role.mediamanager.id
+  site_resource_id = pangolin_site_resource.mediamanager.id
+
+  lifecycle {
+    replace_triggered_by = [pangolin_site_resource.mediamanager]
+  }
+}
+
 resource "pangolin_client" "ci_runner" {
   name = "ci-runner"
 }
