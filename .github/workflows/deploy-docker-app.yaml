@@ -26,6 +26,7 @@ on:
       - docs/**
       - mkdocs.yml
       - .github/scripts/mkdocs_external_links.py
+      - .github/scripts/mkdocs_mermaid.py
   workflow_dispatch:
     inputs:
       playbook:
