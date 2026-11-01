@@ -350,10 +350,11 @@
       vars:
         homepage_supervision: "{{ homepage_cards['Supervision'] }}"
         homepage_crowdsec: "{{ homepage_supervision['CrowdSec'].widget }}"
+        homepage_blocky: "{{ homepage_supervision['Blocky'].widget }}"
         homepage_services_text: "{{ homepage_services_raw.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - homepage_card_names['Supervision'] == ['CrowdSec', 'Maintenance', 'Sauvegardes', 'Sondes en panne']
+          - homepage_card_names['Supervision'] == ['Blocky', 'CrowdSec', 'Maintenance', 'Sauvegardes', 'Sondes en panne']
           - homepage_supervision['Maintenance'].widget.url == 'http://kuma-summary:8080/maintenance.json' # NOSONAR
           - homepage_supervision['Maintenance'].widget.display == 'dynamic-list'
           - homepage_supervision['Sondes en panne'].widget.type == 'customapi'
@@ -373,6 +374,24 @@
           - homepage_crowdsec.password == homepage_victoria_logs_password
           - homepage_crowdsec.mappings | map(attribute='field') | list == ['data.result.0.value.1', 'data.result.1.value.1']
           - homepage_crowdsec.refreshInterval == 300000
+          # Blocky : même compte, lignes de blocky-check (blocky_stats.py),
+          # une paire requêtes / bloquées par hôte.
+          - homepage_blocky.type == 'customapi'
+          - >- # NOSONAR (réseau newt, sans TLS)
+            homepage_blocky.url.startswith('http://victoria-logs-auth:8427/select/logsql/stats_query?query='
+            ~ '_time%3A24h%20unit%3A%3D%22blocky-check.service%22')
+          - "'{' not in homepage_blocky.url"
+          - "'}' not in homepage_blocky.url"
+          - homepage_blocky.url.count('?') == 1
+          - "'host%3A%3Dpi%29' in homepage_blocky.url"
+          - "'host%3A%3D%22newt-lxc%22%29' in homepage_blocky.url"
+          - homepage_blocky.username == 'homepage'
+          - homepage_blocky.password == homepage_victoria_logs_password
+          - >-
+            homepage_blocky.mappings | map(attribute='field') | list
+            == ['data.result.0.value.1', 'data.result.1.value.1', 'data.result.2.value.1', 'data.result.3.value.1']
+          - homepage_blocky.mappings | map(attribute='label') | list == ['Requêtes Pi', 'Bloquées Pi', 'Requêtes LXC', 'Bloquées LXC']
+          - homepage_blocky.refreshInterval == 300000
         fail_msg: "Cartes de supervision inattendues : {{ homepage_cards['Supervision'] }}"
 
     # Grocy, Papra et Dawarich lus chez apps-summary (aucune clé dans
@@ -511,8 +530,8 @@
         fail_msg: "Agenda à une clé inattendu : {{ homepage_cards['Vie perso'] }}"
 
     # Clé d'Uptime Kuma sans l'URL (output pas encore appliqué) : ni cartes
-    # Uptime Kuma ni kuma-summary ; le mot de passe de vmauth seul : la carte
-    # CrowdSec seule. Bus coupé : plus aucun apps-summary.
+    # Uptime Kuma ni kuma-summary ; le mot de passe de vmauth seul : les
+    # cartes CrowdSec et Blocky seules. Bus coupé : plus aucun apps-summary.
     - name: Render the services and compose with the Kuma key but no Kuma URL
       diff: false
       vars:
@@ -539,10 +558,10 @@
         src: "{{ homepage_empty_dir.path }}/compose-crowdsec.yaml"
       register: homepage_crowdsec_compose_raw
 
-    - name: Assert only the CrowdSec card is rendered
+    - name: Assert only the CrowdSec and Blocky cards are rendered
       ansible.builtin.assert:
         that:
-          - homepage_card_names['Supervision'] == ['CrowdSec']
+          - homepage_card_names['Supervision'] == ['Blocky', 'CrowdSec']
           - homepage_card_names['Vie perso'] == ['Dawarich', 'Grocy', 'Homebox']
           - (homepage_crowdsec_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
         fail_msg: "Supervision sans URL d'Uptime Kuma inattendue : {{ homepage_cards['Supervision'] | default({}) }}"

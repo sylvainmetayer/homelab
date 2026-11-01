@@ -68,8 +68,17 @@ queryLog:
 
 ports:
   dns: {{ blocky_dns_listen | to_json }}
-  # API (blocky query, blocky lists refresh) : locale seulement.
-  http: 127.0.0.1:4000
+  # API (blocky query, blocky lists refresh, mais aussi
+  # /api/blocking/disable, sans authentification) et métriques : jamais hors
+  # de la boucle locale de l'hôte. En conteneur, toutes ses interfaces, que
+  # Docker ne publie que sur 127.0.0.1 (compose.yaml).
+  http: {{ blocky_http_listen | to_json }}
+
+# Compteurs Prometheus sur le port HTTP, lus par blocky_stats.py
+# (blocky-check.service) pour la carte Blocky de Homepage.
+prometheus:
+  enable: true
+  path: /metrics
 
 log:
   level: info

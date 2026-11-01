@@ -56,7 +56,8 @@ revient, sans filtrage. Un seul poste : lui donner `192.168.1.254` comme DNS
    # LXC
    systemctl status blocky
    journalctl -u blocky -n 50 --no-pager
-   # les deux : la dernière vérification et sa raison
+   # les deux : la dernière vérification et sa raison (les lignes
+   # event=blocky_stats sont les compteurs de la carte Blocky de Homepage)
    journalctl -u blocky-check -n 5 --no-pager
    ```
 

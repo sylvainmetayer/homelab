@@ -180,6 +180,10 @@ basculent sur l'autre.
   résout, un nom bloqué) et pousse aux moniteurs « DNS Raspberry Pi » et
   « DNS LXC newt » (`tofu/pangolin_config/cron_dns.tf`), alertes sur
   Telegram et ntfy.
+  La même unité écrit aussi les requêtes et blocages depuis son passage
+  précédent (`blocky_stats.py`, lu sur le port HTTP local de Blocky, qui ne
+  quitte jamais 127.0.0.1) : VictoriaLogs les reçoit par l'agent de
+  journaux, la carte « Blocky » de Homepage en fait la somme sur 24 h.
 - **Dehors** : le client Pangolin d'un téléphone peut envoyer son DNS dans le
   tunnel vers 192.168.1.200 (ressource privée `dns`), réglage à faire dans
   l'appli ([runbook](runbooks/dns-blocky.md)).

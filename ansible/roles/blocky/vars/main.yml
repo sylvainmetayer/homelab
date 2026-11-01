@@ -8,6 +8,12 @@ blocky_binary: "{{ blocky_binary_dir }}/{{ blocky_binary_version }}/blocky"
 # interfaces (Docker ne publie que blocky_lan_ip) ; en binaire, l'IP LAN et la
 # boucle locale, rien d'autre.
 blocky_dns_listen: "{{ ['53'] if blocky_mode == 'dc' else [blocky_lan_ip ~ ':53', '127.0.0.1:53'] }}"
+# Port HTTP de Blocky (API et métriques), vu de son processus : dans le
+# conteneur, toutes ses interfaces (Docker ne le publie que sur 127.0.0.1 du
+# Pi) ; en binaire, la boucle locale seule. Lu sur 127.0.0.1 dans les deux
+# modes (blocky_metrics_url).
+blocky_http_listen: "{{ (blocky_http_port | string) if blocky_mode == 'dc' else '127.0.0.1:' ~ blocky_http_port }}"
+blocky_metrics_url: "http://127.0.0.1:{{ blocky_http_port }}/metrics" # NOSONAR (boucle locale)
 # Copie des listes téléchargées : volume du conteneur (/app/cache, à
 # l'utilisateur 100 de l'image) ou StateDirectory du service.
 blocky_lists_cache_path: "{{ '/app/cache/lists' if blocky_mode == 'dc' else '/var/lib/blocky/lists' }}"

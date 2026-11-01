@@ -12,6 +12,18 @@
     # (l'URL push est dans check.env, 0600).
     mode: "0755" # NOSONAR
 
+# Compteurs de Blocky pour la carte de Homepage (defaults, « Compteurs pour
+# Homepage »), lancés par la même unité.
+- name: Install the Blocky counters script
+  become: true
+  ansible.builtin.copy:
+    src: blocky_stats.py
+    dest: "{{ blocky_config_dir }}/blocky_stats.py"
+    owner: root
+    group: root
+    # Lu par l'utilisateur dynamique de blocky-check.service ; rien de secret.
+    mode: "0644" # NOSONAR
+
 # L'URL push porte le jeton du moniteur : 0600 et diff: false.
 - name: Write the push URL of the Blocky check
   become: true
