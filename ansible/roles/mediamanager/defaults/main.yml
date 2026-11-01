@@ -34,9 +34,10 @@ mediamanager_sandbox_folders:
 # --- MediaManager ------------------------------------------------------------
 # Joint par la ressource privée Pangolin mediamanager.internal (site nas,
 # tofu/pangolin_config/private_resources.tf), par le Newt du NAS sur le
-# réseau Docker newt. Aucun port publié : ni LAN ni Internet.
+# réseau Docker newt. Aucun port publié : ni LAN ni Internet. HTTP simple :
+# le trafic voyage chiffré dans le tunnel WireGuard du client Pangolin.
 mediamanager_port: 8000
-mediamanager_frontend_url: "http://mediamanager.internal:{{ mediamanager_port }}"
+mediamanager_frontend_url: "http://mediamanager.internal:{{ mediamanager_port }}" # NOSONAR
 # Premier compte : créé au premier démarrage avec cette adresse et le mot de
 # passe « admin », à changer aussitôt (README).
 mediamanager_admin_email: "{{ pangolin_le_email }}"

@@ -55,8 +55,11 @@ qBittorrent et Prowlarr n'ont **pas de réseau à eux** (`network_mode:
 service:gluetun`) : tout ce qu'ils envoient passe par l'espace réseau de
 gluetun, dont le pare-feu ne laisse sortir que par le tunnel (et vers le
 réseau du projet). Tunnel tombé : plus rien ne sort. qBittorrent est en plus
-lié à l'interface du tunnel (`Session\Interface=tun0`). Ils attendent que
-gluetun soit sain (`depends_on: service_healthy`, `restart: true`).
+lié à l'interface du tunnel (`Session\Interface=tun0`). Ils démarrent après
+gluetun (`depends_on: service_started`, `restart: true`), sans attendre qu'il
+soit sain : un VPN injoignable ferait sinon échouer le `compose up` de `dc@`,
+qui arrêterait tout le projet en boucle. Rien ne fuit pour autant : le
+pare-feu de gluetun bloque tout dès son démarrage, tunnel monté ou non.
 
 **Redirection de port (défaut, ProtonVPN)** : `VPN_PORT_FORWARDING=on`, et
 `PORT_FORWARD_ONLY=on` pour ne choisir que des serveurs P2P. ProtonVPN donne
@@ -116,6 +119,13 @@ Dérivés de `backup_passphrase` (aucune clé SOPS) : mot de passe de la base,
 Prowlarr (`PROWLARR__AUTH__APIKEY`, la même dans `config.toml`). Pour les
 lire, sur le NAS : `sudo grep -E 'password|api_key'
 /volume1/docker/mediamanager/config/config.toml`.
+
+**Rotation de `backup_passphrase`** : `config.toml` et Prowlarr suivent au
+déploiement suivant, pas la base ni qBittorrent. PostgreSQL ne lit
+`POSTGRES_PASSWORD` qu'à l'initdb : `ALTER USER` d'abord
+(`docs/runbooks/mot-de-passe-base.md`). `qBittorrent.conf` n'est posé
+qu'une fois : en repartir (« Repartir du modèle de qBittorrent », plus bas),
+sinon MediaManager ne se connecte plus à qBittorrent.
 
 Clés SOPS **facultatives**, posées par Sylvain (préfixe `mediamanager_wireguard_*`,
 jamais le nom d'une variable du rôle ; chacune avec son entrée dans
