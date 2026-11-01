@@ -139,7 +139,7 @@
       "allowedVersions": "/^8\\.[0-2]\\./"
     },
     {
-      "description": "BookStack (linuxserver): besides the X.Y.Z tags of each BookStack release, linuxserver tags every rebuild of a release without patch number (vX.Y-lsNNN) X.Y.YYYYMMDD, which semver ranks above any X.Y.Z patch. Renovate then stayed on 26.09.20260929 (v26.09-ls286) and never offered 26.09.1 nor the 26.09.2 security release, a month of a critical PHP CVE in the image. Date tags excluded: a new X.Y release arrives with its first X.Y.1, the rebuilds of the pinned tag come as digest updates",
+      "description": "BookStack (linuxserver): besides the X.Y.Z tags of each BookStack release, linuxserver tags the builds of a release without patch number (vX.Y-lsNNN) X.Y.YYYYMMDD, which Renovate's docker versioning ranks above any X.Y.Z patch (20260929 > 2). Renovate then stayed on 26.09.20260929 (v26.09-ls286) and never offered 26.09.1 nor the 26.09.2 security release, a month of a critical PHP CVE in the image. Date tags excluded: a new X.Y release arrives with its first X.Y.1, the rebuilds of the pinned tag come as digest updates. Cost: linuxserver stops rebuilding the pinned X.Y.Z as soon as the next X.Y ships, so from that release to its X.Y.1 (26 days for 26.09, 33 for 24.10) the image gets no base fix (PHP, Alpine) at all; that window is covered by trivy.yaml's weekly CRITICAL notice only. A hand bump to a date tag in that window must also be moved to the X.Y.1 by hand: Renovate ranks the date tag above it and never offers it",
       "matchDatasources": [
         "docker"
       ],
