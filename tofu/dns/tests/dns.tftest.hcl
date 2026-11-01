@@ -259,6 +259,23 @@ run "nas_vers_le_nas" {
   }
 }
 
+# mediamanager.sylvain.cloud (MediaManager, Traefik du NAS) de même : l'IP LAN
+# du NAS de l'inventaire, jamais Pangolin.
+run "mediamanager_vers_le_nas" {
+  command = plan
+
+  assert {
+    condition = (
+      ovh_domain_zone_record.mediamanager.zone == "sylvain.cloud"
+      && ovh_domain_zone_record.mediamanager.subdomain == "mediamanager"
+      && ovh_domain_zone_record.mediamanager.fieldtype == "A"
+      && ovh_domain_zone_record.mediamanager.target == ovh_domain_zone_record.media.target
+      && can(regex("(?m)^\\s*nas\\s+ansible_host=${replace(ovh_domain_zone_record.mediamanager.target, ".", "\\.")}(\\s|$)", file("${path.module}/../../ansible/inventory/hosts")))
+    )
+    error_message = "mediamanager.sylvain.cloud doit être un A vers l'IP LAN du NAS (ansible/inventory/hosts), comme media.sylvain.cloud, jamais vers Pangolin."
+  }
+}
+
 # Authentification des e-mails (mail.tf, docs/runbooks/dmarc.md).
 run "dmarc_sur_chaque_zone" {
   command = plan

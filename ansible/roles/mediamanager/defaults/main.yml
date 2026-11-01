@@ -32,12 +32,20 @@ mediamanager_sandbox_folders:
   - torrents
 
 # --- MediaManager ------------------------------------------------------------
-# Joint par la ressource privée Pangolin mediamanager.internal (site nas,
-# tofu/pangolin_config/private_resources.tf), par le Newt du NAS sur le
-# réseau Docker newt. Aucun port publié : ni LAN ni Internet. HTTP simple :
-# le trafic voyage chiffré dans le tunnel WireGuard du client Pangolin.
+# Servi en HTTPS par le Traefik du NAS (rôle nas_proxy, routeur
+# mediamanager) : https://mediamanager.sylvain.cloud, avec ou sans :8443, à la
+# maison comme dehors par la ressource privée Pangolin du même nom (site nas,
+# tofu/pangolin_config/private_resources.tf). Traefik le joint sur ce port
+# par le réseau Docker mediamanager_network ; aucun port publié sur le NAS.
 mediamanager_port: 8000
-mediamanager_frontend_url: "http://mediamanager.internal:{{ mediamanager_port }}" # NOSONAR
+# L'adresse que MediaManager donne de lui-même (frontend_url, cors_urls de
+# config.toml) : le nom de nas_proxy_mediamanager_domain, sans port.
+mediamanager_frontend_url: https://mediamanager.sylvain.cloud
+# Réseau entre MediaManager et le Traefik du NAS, créé par ce projet sous ce
+# nom fixe, rejoint en externe par nas_proxy (nas_proxy_mediamanager_network) :
+# d'où mediamanager avant nas_proxy dans nas.yml. Interne : aucune sortie,
+# MediaManager garde default pour Internet.
+mediamanager_network: mediamanager_proxy
 # Premier compte : créé au premier démarrage avec cette adresse et le mot de
 # passe « admin », à changer aussitôt (README).
 mediamanager_admin_email: "{{ pangolin_le_email }}"

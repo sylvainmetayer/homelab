@@ -2,7 +2,7 @@
 # Un passage de nas-proxy-cert-check.service contre un faux Traefik : un
 # openssl s_server sur le 8443 (rien d'autre ne l'écoute ici, dc@ ne lance
 # aucun conteneur) qui sert un certificat de l'AC de test, valable
-# cert_check_case_days jours, pour les deux noms du NAS.
+# cert_check_case_days jours, pour les trois noms du NAS.
 #
 # Variables :
 #   cert_check_case_days    validité du certificat servi, en jours
@@ -34,7 +34,7 @@
       - -CAkey
       - "{{ nas_proxy_verify_tls_dir }}/ca.key"
       - -addext
-      - subjectAltName=DNS:media.sylvain.cloud,DNS:nas.sylvain.cloud
+      - subjectAltName=DNS:media.sylvain.cloud,DNS:nas.sylvain.cloud,DNS:mediamanager.sylvain.cloud
       - -addext
       - basicConstraints=critical,CA:FALSE
       - -addext
@@ -98,5 +98,6 @@
       - ('status=' ~ cert_check_case_status ~ '&') in nas_proxy_verify_push
       - "'media.sylvain.cloud: ' in nas_proxy_verify_push"
       - "'nas.sylvain.cloud: ' in nas_proxy_verify_push"
+      - "'mediamanager.sylvain.cloud: ' in nas_proxy_verify_push"
       - cert_check_case_status == 'up' or 'seuil 14 j' in nas_proxy_verify_push
     fail_msg: "{{ nas_proxy_verify_push }}"

@@ -1,6 +1,6 @@
 ---
-# Configuration statique du Traefik du NAS (dc@nas_proxy) : Jellyfin et
-# l'interface d'UGOS. Fournisseur fichier seul : ni labels, ni socket Docker
+# Configuration statique du Traefik du NAS (dc@nas_proxy) : Jellyfin,
+# l'interface d'UGOS et MediaManager. Fournisseur fichier seul : ni labels, ni socket Docker
 # monté.
 global:
   checkNewVersion: false
@@ -84,8 +84,9 @@ certificatesResolvers:
       # Repris de l'ancien Traefik du compose de jellyfin (même résolveur).
       storage: /letsencrypt/acme.json
       # DNS-01 par l'API OVH (identifiants OVH_* du compose) : les A de
-      # {{ nas_proxy_media_domain }} et {{ nas_proxy_ugos_domain }} visent une
-      # IP privée, aucun HTTP-01 possible.
+      # {{ nas_proxy_media_domain }}, {{ nas_proxy_ugos_domain }} et
+      # {{ nas_proxy_mediamanager_domain }} visent une IP privée, aucun HTTP-01
+      # possible.
       # Résolveurs publics pour la vérification de propagation : pas de cache
       # de la Bbox entre l'ajout du TXT et la vérification.
       dnsChallenge:

@@ -50,16 +50,22 @@
           - mm_verify_app.volumes | selectattr('target', 'equalto', '/data') | map(attribute='source') | list == [mm_verify_sandbox]
           - mm_verify_app.volumes | map(attribute='source') | select('equalto', '/volume1/media') | list | length == 0
           - mm_verify_app.ports is not defined
-          - mm_verify_app.networks.keys() | sort == ['db', 'default', 'newt']
+          # proxy : le Traefik du NAS (nas_proxy) seul, sous le nom fixe
+          # qu'il rejoint en externe ; plus de newt (Pangolin passe par
+          # nas-proxy).
+          - mm_verify_app.networks.keys() | sort == ['db', 'default', 'proxy']
           - mm_verify_app.mem_limit | int == 536870912
-          # La base : jamais sur newt ni sur un réseau qui sort.
+          # La base : jamais sur proxy ni sur un réseau qui sort.
           - mm_verify_db.networks.keys() | list == ['db']
           - mm_verify_db.ports is not defined
           - mm_verify_db.mem_limit | int == 268435456
           - mm_verify_db.mem_reservation | int == 134217728
           - mm_verify_db.image is match('docker.io/library/postgres:17\.')
           - mm_verify_model.networks.db.internal
-          - mm_verify_model.networks.newt.external
+          - mm_verify_model.networks.proxy.name == 'mediamanager_proxy'
+          - mm_verify_model.networks.proxy.internal
+          - not (mm_verify_model.networks.proxy.external | default(false))
+          - mm_verify_model.networks.newt is not defined
           - mm_verify_model.networks.default.ipam.config | map(attribute='subnet') | list == ['172.30.97.0/24']
         fail_msg: "Compose de MediaManager inattendu : {{ mm_verify_model.services }}"
 
@@ -83,7 +89,8 @@
           - mm_verify_config is search('(?m)^movie_directory = "/data/films"$')
           - mm_verify_config is search('(?m)^torrent_directory = "/data/torrents"$')
           - mm_verify_config is search('(?m)^category_save_path = "/data/torrents"$')
-          - mm_verify_config is search('(?m)^frontend_url = "http://mediamanager.internal:8000"$') # NOSONAR
+          - mm_verify_config is search('(?m)^frontend_url = "https://mediamanager.sylvain.cloud"$')
+          - mm_verify_config is search('(?m)^cors_urls = \\["https://mediamanager.sylvain.cloud"\\]$')
           - mm_verify_config | regex_findall('(?m)^enabled = false$') | length == 3
           - mm_verify_config is search('password = "' ~ ((backup_passphrase ~ '-mediamanager-db') | hash('sha256')) ~ '"')
         fail_msg: "config.toml inattendu ({{ mm_verify_config_stat.stat.mode | default('absent') }})"

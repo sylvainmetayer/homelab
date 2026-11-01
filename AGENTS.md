@@ -72,7 +72,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 
 - Papra (role `papra`, `papra.sylvain.cloud`) is on trial as Paperless-ngx's replacement (Paperless is paused): whichever loses is removed with `remove-app`. Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
-- MediaManager (role `mediamanager`, NAS, `mediamanager.internal` private) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun only once `mediamanager_wireguard_private_key` is set; its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
+- MediaManager (role `mediamanager`, NAS, `https://mediamanager.sylvain.cloud` private, via `nas_proxy` like Jellyfin) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun only once `mediamanager_wireguard_private_key` is set; its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
 
 ## Map: topic → file to read
 

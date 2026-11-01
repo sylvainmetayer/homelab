@@ -88,7 +88,12 @@ l'interface d'UGOS : `https://nas.sylvain.cloud` (A public vers l'IP LAN
 du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 (ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
 du NAS en TCP 22, 443, 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
-L'Uptime Kuma de PikaPods ne joint pas ces deux noms : le NAS vérifie
+Et MediaManager, à l'essai, exactement comme Jellyfin :
+`https://mediamanager.sylvain.cloud` (A public vers l'IP LAN du NAS,
+`tofu/dns/mediamanager.tf`), ressource privée du même nom sur le site `nas`
+(rôle `mediamanager`), qui vise `nas-proxy` en TCP 443 et 8443 ; Traefik
+joint MediaManager par le réseau Docker `mediamanager_proxy`.
+L'Uptime Kuma de PikaPods ne joint pas ces trois noms : le NAS vérifie
 lui-même chaque matin l'échéance de leurs certificats
 (`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur
 « Certificats NAS », rouge sous 14 jours restants ou sans nouvelles depuis
@@ -173,7 +178,8 @@ basculent sur l'autre.
   `data.lan`…) et la zone inverse du LAN renvoyés à la Bbox ; `pve.lan`,
   `docker.lan`, `nas.lan`, `newt-lxc.lan` déclarés dans le rôle.
 - **Rebinding** : une réponse publique qui pointe dans le LAN est vidée, sauf
-  `media.sylvain.cloud` et `nas.sylvain.cloud` (A de `tofu/dns` vers le NAS).
+  `media.sylvain.cloud`, `nas.sylvain.cloud` et `mediamanager.sylvain.cloud`
+  (A de `tofu/dns` vers le NAS).
 - **Aucun journal des requêtes.**
 - **Supervision** : Uptime Kuma (PikaPods) ne joint pas le LAN ; chaque hôte
   vérifie son Blocky toutes les 5 minutes (`blocky-check.timer` : un nom qui

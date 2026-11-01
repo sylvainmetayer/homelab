@@ -74,11 +74,12 @@ blocky_custom_dns:
 # --- Protection contre le DNS rebinding ---------------------------------------
 # Une réponse des résolveurs amont qui pointe dans le LAN est vidée. Sauf les
 # noms publics qui pointent volontairement sur une IP du LAN : les A de
-# tofu/dns (media.tf, nas.tf), vers le NAS. Un nouveau A privé dans tofu/dns
+# tofu/dns (media.tf, nas.tf, mediamanager.tf), vers le NAS. Un nouveau A privé dans tofu/dns
 # s'ajoute ici, sinon il ne résout plus à la maison (runbook dns-blocky).
 blocky_rebinding_allowed_domains:
   - media.sylvain.cloud
   - nas.sylvain.cloud
+  - mediamanager.sylvain.cloud
 
 # --- Filtrage -----------------------------------------------------------------
 # Groupes de listes de blocage (nom => sources). HaGeZi Pro (publicités,

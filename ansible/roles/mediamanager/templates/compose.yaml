@@ -36,11 +36,12 @@ services:
       retries: 3
       start_period: 60s
     # default : Internet (relais des métadonnées) et gluetun ; db : la base ;
-    # newt : le Newt du NAS, pour la ressource privée mediamanager.internal.
+    # proxy : le Traefik du NAS (rôle nas_proxy), qui sert
+    # {{ mediamanager_frontend_url }}.
     networks:
       - default
       - db
-      - newt
+      - proxy
 
   db:
     mem_limit: {{ mediamanager_db_mem_limit }}
@@ -62,7 +63,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # Jamais sur newt ni sur un réseau qui sort.
+    # Jamais sur proxy ni sur un réseau qui sort.
     networks:
       - db
 {% if mediamanager_vpn_enabled | bool %}
@@ -207,5 +208,8 @@ networks:
   # La base et MediaManager seuls, sans sortie.
   db:
     internal: true
-  newt:
-    external: true
+  # MediaManager et le Traefik du NAS seuls (nas-proxy le rejoint en externe,
+  # sous ce nom) : aucune sortie, ni la base ni gluetun.
+  proxy:
+    name: {{ mediamanager_network }}
+    internal: true

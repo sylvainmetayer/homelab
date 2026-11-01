@@ -5,9 +5,10 @@
 # Qui délivre quoi (inventaire du 2026-10-28, openssl s_client et dig ; aucun
 # CAA n'existait encore, rien à importer) :
 # - Let's Encrypt : Traefik de Pangolin (HTTP-01, un certificat par nom, aucun
-#   joker), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), et PikaPods
-#   pour budget.sylvain.cloud (CNAME posé hors Tofu vers *.pikapod.net, qui ne
-#   publie aucun CAA : c'est donc celui de sylvain.cloud qui s'applique ;
+#   joker), Traefik du NAS (DNS-01, media, nas et mediamanager.sylvain.cloud),
+#   et PikaPods pour budget.sylvain.cloud (CNAME posé hors Tofu vers
+#   *.pikapod.net, qui ne publie aucun CAA : c'est donc celui de sylvain.cloud
+#   qui s'applique ;
 #   Let's Encrypt YE1 au 2026-10-28, à revoir si PikaPods change d'autorité).
 # - GitHub Pages (*.talks.sylvain.dev) n'est pas concerné : ces noms sont des
 #   CNAME vers sylvainmetayer.github.io, dont le CAA (digicert, letsencrypt,
