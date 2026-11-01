@@ -391,7 +391,8 @@ Pour le rétablir après une coupure :
    `host_vars/docker`, puis `ansible-playbook docker.yml --tags beszel,homepage`
    (les deux : `dc@beszel` crée le réseau que Homepage rejoint).
 3. Le lien Beszel de Homepage montre les compteurs ; sinon, « API Error » du
-   widget = adresse toujours refusée.
+   widget = adresse toujours refusée (403), ou, sur des cartes différentes à
+   chaque rechargement, règle `_superusers:auth` absente (429).
 
 Pour le couper : `beszel_homepage_email` vide, le même `--tags`, puis
 `docker network rm beszel_homepage` sur la VM (`docker compose up` ne
@@ -414,15 +415,18 @@ jetons obtenus restent en cache, d'où le retour à la normale ensuite.
 Correctif (décidé le 01/11/2026) : une règle `_superusers:auth` à 10
 requêtes par 3 s, posée dans l'interface comme les « Superuser IPs » (seul un
 superuser lit ou écrit ces réglages, que le rôle n'a pas depuis l'hôte). Elle
-prime sur `*:auth` pour les seuls superusers : les huit connexions passent,
-`*:auth` reste à 2 par 3 s pour les comptes Beszel, et aucune IP n'est
-exclue. Écartée : l'exclusion de `172.16.97.3` (« Excluded IPs »). L'adresse
-que voit PocketBase est celle de `X-Forwarded-For` (`trustedProxy`, voir le
-risque accepté ci-dessous) : tout ce qui joint le hub en direct (le LAN sur
-`192.168.1.216:8090`, la VM, tout conteneur de `newt`) pourrait annoncer
-`172.16.97.3` et essayer des mots de passe superuser sans aucune limite. La
-règle choisie assouplit la limite des superusers (environ 3 essais par
-seconde et par IP au lieu de 0,7), sans la lever.
+prime sur `*:auth` pour les seuls superusers : les huit connexions passent
+(dix au plus : une carte par clé de `beszel_agent_tokens`, plus le lien ;
+au-delà, relever la règle), `*:auth` reste à 2 par 3 s pour les comptes
+Beszel, et aucune IP n'est exclue. Écartée : l'exclusion de `172.16.97.3`
+(« Excluded IPs »), qui lèverait toute limite pour une adresse que tout
+client direct peut annoncer. Ni l'une ni l'autre ne borne d'ailleurs un
+client direct (le LAN sur `192.168.1.216:8090`, la VM, tout conteneur de
+`newt`) : PocketBase compte par l'adresse de `X-Forwarded-For`
+(`trustedProxy`, voir le risque accepté ci-dessous), que ce client change à
+chaque essai. La limite par IP ne vaut que par Traefik, où la règle choisie
+assouplit celle des superusers (environ 3 essais par seconde et par IP au
+lieu de 0,7, quand l'exclusion l'aurait laissée à 0,7), sans la lever.
 
 **Risque accepté** (Sylvain, 2026-10-29) : la liste d'IP ne protège que ce
 qui passe par Traefik. Le réglage `trustedProxy` du hub (`X-Forwarded-For`,
