@@ -12,7 +12,10 @@ durcie qui n'écrit que dans son `StateDirectory` (`/var/lib/cost-report`).
   cours à date. Il part au premier lancement d'un mois dont le rapport n'est
   pas encore parti : le 1er, ou plus tard si la VM était éteinte
   (`state.json`). Une publication en échec fait échouer l'unité et sera
-  retentée le lendemain. Priorité 4 si une source est en erreur, 3 sinon.
+  retentée le lendemain. Une source en erreur jusqu'au 3 du mois reporte
+  le rapport au lancement suivant (API passagèrement indisponible, réseau
+  pas prêt juste après un redémarrage) ; ensuite il part, partiel, en
+  priorité 4 (3 sinon).
 - **Homepage** : chaque lancement réécrit `costs.json` (par renommage),
   que `apps-summary` lit dans le dossier monté en lecture seule
   (`homepage_costs_dir`, donné par `docker.yml`) et sert en

@@ -344,7 +344,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   seulement.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
-  `ansible-playbook pangolin.yaml --tags pangolin`.
+  `ansible-playbook pangolin.yaml --tags pangolin`. Et au rapport des coûts
+  (`/etc/cost-report.env`, rôle `cost_report`) :
+  `ansible-playbook docker.yml --tags cost_report`, sans quoi le rapport du
+  1er échoue (HTTP 401, `journalctl -u cost-report`).
 
 ### Identifiants Newt
 

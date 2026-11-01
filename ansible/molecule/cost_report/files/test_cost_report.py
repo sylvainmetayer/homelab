@@ -320,6 +320,21 @@ class MainTest(unittest.TestCase):
         self.assertNotIn("tk", err.replace("ntfy", ""))
         self.assertFalse((self.path / "state.json").exists())
 
+    def test_a_failed_source_defers_the_report_a_few_days(self):
+        env = {cr.NTFY_TOKEN: "tk", cr.HCLOUD_TOKEN: "t"}
+        with mock.patch.object(cr, "publish") as publish, \
+                mock.patch.object(cr, "fetch_json", side_effect=cr.SourceError("HTTP 503")):
+            code, _, err = self.run_main("2026-11-01T07:00", env)
+            self.assertEqual(code, 0)
+            self.assertIn("rapport reporté", err)
+            publish.assert_not_called()
+            self.assertFalse((self.path / "state.json").exists())
+            # Passé le jour de grâce, le rapport part quand même, partiel.
+            self.run_main("2026-11-04T07:00", env)
+        self.assertEqual(publish.call_count, 1)
+        self.assertEqual(publish.call_args.args[5], 4)
+        self.assertEqual(json.loads((self.path / "state.json").read_text()), {"published": "2026-10"})
+
     def test_invalid_subscription_is_refused(self):
         config = json.loads((self.path / "config.json").read_text())
         config["subscriptions"] = [{"name": "x", "amount": 1, "currency": "EUR", "period": "weekly"}]

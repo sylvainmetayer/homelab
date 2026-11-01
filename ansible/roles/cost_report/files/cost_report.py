@@ -55,6 +55,10 @@ MAX_MESSAGE = 3800
 MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
           "août", "septembre", "octobre", "novembre", "décembre")
 PERIODS = {"monthly": 1, "yearly": 12}
+# Une source en erreur (API passagèrement indisponible, réseau pas encore
+# prêt au démarrage) reporte le rapport mensuel au lancement suivant
+# jusqu'à ce jour du mois ; au-delà, il part, partiel.
+RETRY_UNTIL_DAY = 3
 
 OK = "ok"
 UNCONFIGURED = "non configurée"
@@ -259,15 +263,15 @@ def fetch_ovh(client, project, since, now):
 
 
 def ovh_result(data, previous_key, current_key, vat_percent):
-    previous, current, lines = {}, {}, []
+    previous, current, lines, count = {}, {}, [], 0
     for bill in data["bills"]:
         price = bill["priceWithTax"]
         key = str(bill["date"])[:7]
         if key == previous_key:
             add(previous, price["currencyCode"], float(price["value"]))
+            count += 1
         elif key == current_key:
             add(current, price["currencyCode"], float(price["value"]))
-    count = sum(1 for bill in data["bills"] if str(bill["date"])[:7] == previous_key)
     lines.append(f"{count} facture(s) le mois dernier : {money_total(previous)}")
     usage = data.get("usage")
     if usage:
@@ -431,7 +435,8 @@ def publish(url, topic, token, title, message, priority):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 # NOSONAR
+    # _OPENER : aucune redirection suivie, le jeton ne part pas ailleurs.
+    with _OPENER.open(request, timeout=TIMEOUT) as response:  # noqa: S310 # NOSONAR
         response.read()
 
 
@@ -468,6 +473,10 @@ def main(argv=None):
     state_path = state_dir / "state.json"
     state = read_state(state_path)
     if args.publish == "never" or (args.publish == "auto" and not due(state, now)):
+        return 0
+    failed = [entry["name"] for entry in results if entry["status"] == FAILED]
+    if args.publish == "auto" and failed and now.day <= RETRY_UNTIL_DAY:
+        print(f"{', '.join(failed)} en erreur : rapport reporté au prochain lancement.", file=sys.stderr)
         return 0
     token = os.environ.get(NTFY_TOKEN, "")
     if not token:

@@ -6,6 +6,7 @@
     that:
       - item.name | default('') | length > 0
       - item.amount is number
+      - item.amount is not boolean
       - item.amount >= 0
       - item.currency | default('') is match('^[A-Z]{3}$')
       - item.period | default('') in ['monthly', 'yearly']
