@@ -63,7 +63,7 @@
         homepage_filter: "{{ homepage_compose.services['ical-filter'] }}"
       ansible.builtin.assert:
         that:
-          - homepage_compose.services.keys() | list | sort == ['app', 'ical-filter', 'kuma-summary']
+          - homepage_compose.services.keys() | list | sort == ['app', 'apps-summary', 'ical-filter', 'kuma-summary']
           - homepage_filter.networks.keys() | list == ['ical']
           - homepage_filter.ports | default([]) == []
           - homepage_filter.read_only
@@ -105,14 +105,57 @@
           - homepage_kuma.volumes[0].read_only | default(false)
           - homepage_kuma.environment.KUMA_METRICS_URL == 'https://uptime.example.invalid/metrics'
           - homepage_kuma.environment.KUMA_API_KEY == homepage_uptimekuma_api_key
+          # Carte Maintenance : les noms exacts des sondes, accents compris.
+          - (homepage_kuma.environment.KUMA_MAINTENANCE_MONITORS | from_json)[0] == 'Mises à jour Proxmox'
+          - (homepage_kuma.environment.KUMA_MAINTENANCE_MONITORS | from_json) | length == 9
           - homepage_compose.services.app.environment.keys() | select('match', 'KUMA_') | list == []
           - homepage_compose.services['ical-filter'].environment.keys() | select('match', 'KUMA_') | list == []
         fail_msg: "Service kuma-summary inattendu : {{ homepage_kuma }}"
 
-    - name: Stat the scripts of ical-filter and kuma-summary
+    # apps-summary : sur newt (il joint Grocy, Papra et Dawarich par leur
+    # nom), sans port publié, même confinement ; les clés des applications
+    # dans son environnement et nulle part ailleurs.
+    - name: Assert apps-summary is confined and holds the application keys
+      vars:
+        homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
+        homepage_apps: "{{ homepage_compose.services['apps-summary'] }}"
+        homepage_app_key_pattern: '(GROCY|PAPRA|DAWARICH|TBM)_'
+      ansible.builtin.assert:
+        that:
+          - homepage_apps.networks.keys() | list == ['newt']
+          - homepage_apps.ports | default([]) == []
+          - homepage_apps.read_only
+          - homepage_apps.user == '65534:65534'
+          - homepage_apps.cap_drop == ['ALL']
+          - homepage_apps.cap_add | default([]) == []
+          - homepage_apps.security_opt == ['no-new-privileges:true']
+          - homepage_apps.mem_limit | int == 64 * 1024 * 1024
+          - homepage_apps.cpus is not defined
+          - homepage_apps.healthcheck.test is defined
+          - homepage_apps.container_name == 'homepage-apps-summary'
+          - homepage_apps.volumes | length == 1
+          - homepage_apps.volumes[0].target == '/app/apps_summary.py'
+          - homepage_apps.volumes[0].read_only | default(false)
+          - homepage_apps.environment.GROCY_URL == 'http://grocy:80' # NOSONAR
+          - homepage_apps.environment.GROCY_API_KEY == homepage_grocy_api_key
+          - homepage_apps.environment.PAPRA_URL == 'http://papra:1221' # NOSONAR
+          - homepage_apps.environment.PAPRA_API_KEY == homepage_papra_api_key
+          - homepage_apps.environment.DAWARICH_URL == 'http://dawarich-app:3000' # NOSONAR
+          - homepage_apps.environment.DAWARICH_HOST == 'tracks.sylvain.cloud'
+          - homepage_apps.environment.DAWARICH_API_KEY == homepage_dawarich_api_key
+          - homepage_apps.environment.TBM_URL.startswith('https://')
+          - homepage_apps.environment.TBM_STOPS == 'bordeaux:StopPoint:BP:451:LOC,bordeaux:StopPoint:BP:562:LOC'
+          - homepage_apps.environment.TBM_LINE == 'bordeaux:Line:31:LOC'
+          - homepage_compose.services.app.environment.keys() | select('match', homepage_app_key_pattern) | list == []
+          - homepage_compose.services['kuma-summary'].environment.keys() | select('match', homepage_app_key_pattern) | list == []
+          - homepage_compose.services['ical-filter'].environment.keys() | select('match', homepage_app_key_pattern) | list == []
+        fail_msg: "Service apps-summary inattendu : {{ homepage_apps }}"
+
+    - name: Stat the scripts of ical-filter, kuma-summary and apps-summary
       loop:
         - ical_filter.py
         - kuma_summary.py
+        - apps_summary.py
       ansible.builtin.stat:
         path: "/opt/apps/homepage/{{ item }}"
       register: homepage_scripts
@@ -143,6 +186,10 @@
           dest: kuma_summary.py
         - src: "{{ playbook_dir }}/files/test_kuma_summary.py"
           dest: test_kuma_summary.py
+        - src: "{{ playbook_dir }}/../../roles/homepage/files/apps_summary.py"
+          dest: apps_summary.py
+        - src: "{{ playbook_dir }}/files/test_apps_summary.py"
+          dest: test_apps_summary.py
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ homepage_filter_test_dir.path }}/{{ item.dest }}"
@@ -151,7 +198,8 @@
     # Molecule ne lance aucun conteneur (_shared/prepare.yml) : les scripts
     # sont testés avec le python3 de l'hôte de test. ical-filter : filtre
     # (tâches et journaux iCal, lignes repliées, CRLF) ; kuma-summary : lecture de
-    # /metrics, résumés ; pour les deux, cache et serveur HTTP (/healthz,
+    # /metrics, résumés ; apps-summary : résumés de Grocy, Papra, Dawarich et
+    # TBM, requêtes amont ; pour les trois, cache et serveur HTTP (/healthz,
     # 404, 502).
     - name: Run the script tests
       ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
@@ -202,9 +250,10 @@
       ansible.builtin.assert:
         that:
           - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Supervision', 'Hôtes', 'Groupe hors liste']
-          - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx']
+          - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx', 'Papra']
+          - homepage_card_names['Lecture'] == ['FreshRSS', 'Karakeep']
           - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin']
-          - homepage_card_names['Vie perso'] == ['Agenda', 'Homebox']
+          - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
           - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
           - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
           - homepage_cards['Documents']['BookStack'].icon == 'bookstack'
@@ -304,7 +353,9 @@
         homepage_services_text: "{{ homepage_services_raw.content | b64decode }}"
       ansible.builtin.assert:
         that:
-          - homepage_card_names['Supervision'] == ['CrowdSec', 'Sauvegardes', 'Sondes en panne']
+          - homepage_card_names['Supervision'] == ['CrowdSec', 'Maintenance', 'Sauvegardes', 'Sondes en panne']
+          - homepage_supervision['Maintenance'].widget.url == 'http://kuma-summary:8080/maintenance.json' # NOSONAR
+          - homepage_supervision['Maintenance'].widget.display == 'dynamic-list'
           - homepage_supervision['Sondes en panne'].widget.type == 'customapi'
           - homepage_supervision['Sondes en panne'].widget.url == 'http://kuma-summary:8080/down.json' # NOSONAR
           - homepage_supervision['Sondes en panne'].widget.display == 'dynamic-list'
@@ -323,6 +374,35 @@
           - homepage_crowdsec.mappings | map(attribute='field') | list == ['data.result.0.value.1', 'data.result.1.value.1']
           - homepage_crowdsec.refreshInterval == 300000
         fail_msg: "Cartes de supervision inattendues : {{ homepage_cards['Supervision'] }}"
+
+    # Grocy, Papra et Dawarich lus chez apps-summary (aucune clé dans
+    # services.yaml), FreshRSS par son widget natif sur newt, le bus TBM en
+    # liste.
+    - name: Assert the application cards
+      vars:
+        homepage_services_text: "{{ homepage_services_raw.content | b64decode }}"
+        homepage_freshrss: "{{ homepage_cards['Lecture']['FreshRSS'].widget }}"
+        homepage_bus: "{{ homepage_cards['Vie perso']['Bus 31 à CREPS'] }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_cards['Vie perso']['Grocy'].widget.url == 'http://homepage-apps-summary:8080/grocy.json' # NOSONAR
+          - homepage_cards['Vie perso']['Grocy'].widget.mappings | map(attribute='field') | list == ['due_soon', 'overdue', 'missing', 'chores_overdue']
+          - homepage_cards['Documents']['Papra'].widget.url == 'http://homepage-apps-summary:8080/papra.json' # NOSONAR
+          - homepage_cards['Documents']['Papra'].widget.mappings | map(attribute='field') | list == ['documents', 'recent', 'untagged']
+          - homepage_cards['Vie perso']['Dawarich'].widget.url == 'http://homepage-apps-summary:8080/dawarich.json' # NOSONAR
+          - homepage_cards['Vie perso']['Dawarich'].widget.mappings | map(attribute='field') | list == ['month_km', 'year_km', 'year_countries']
+          - homepage_freshrss.type == 'freshrss'
+          - homepage_freshrss.url == 'http://rss:80' # NOSONAR
+          - homepage_freshrss.username == 'molecule'
+          - homepage_freshrss.password == homepage_freshrss_api_password
+          - homepage_bus.widget.url == 'http://homepage-apps-summary:8080/tbm.json' # NOSONAR
+          - homepage_bus.widget.display == 'dynamic-list'
+          - homepage_bus.href is not defined
+          - homepage_grocy_api_key not in homepage_services_text
+          - homepage_papra_api_key not in homepage_services_text
+          - homepage_dawarich_api_key not in homepage_services_text
+          - "'mecatran' not in homepage_services_text"
+        fail_msg: "Cartes des applications inattendues : {{ homepage_cards }}"
 
 # Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :
 # la page se déploie avant que Sylvain ait créé les jetons. Ni widget, ni
@@ -383,17 +463,24 @@
       ansible.builtin.assert:
         that:
           - "'Hôtes' not in homepage_group_names"
-          - homepage_card_names['Vie perso'] == ['Homebox']
+          # Le bus TBM, sans clé, reste ; aucun autre widget.
+          - homepage_card_names['Vie perso'] == ['Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
           - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker']
-          - homepage_all_cards | selectattr('widget', 'defined') | list == []
+          - >-
+            homepage_all_cards | selectattr('widget', 'defined') | map(attribute='widget.url') | list
+            == [homepage_apps_summary_url ~ '/tbm.json']
           - homepage_all_cards | selectattr('proxmoxVMID', 'defined') | list == []
           - homepage_cards['Documents']['BookStack'].siteMonitor == 'http://bookstack:80/login' # NOSONAR
           - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
           - (homepage_empty_proxmox_raw.content | b64decode | from_yaml) is none
           - (homepage_empty_widgets_raw.content | b64decode | from_yaml) | length == 3
           - "'Supervision' not in homepage_group_names"
-          # Sans agenda ni clé d'Uptime Kuma, ni ical-filter, ni kuma-summary, ni leurs réseaux.
-          - (homepage_empty_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
+          # Sans agenda ni clé d'Uptime Kuma, ni ical-filter, ni kuma-summary, ni leurs réseaux ;
+          # apps-summary pour le seul bus.
+          - (homepage_empty_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app', 'apps-summary']
+          - >-
+            (homepage_empty_compose_raw.content | b64decode | from_yaml).services['apps-summary'].environment.keys()
+            | select('match', '(GROCY|PAPRA|DAWARICH)_') | list == []
           - (homepage_empty_compose_raw.content | b64decode | from_yaml).networks.keys() | list == ['newt']
         fail_msg: "Configuration sans clé inattendue : {{ homepage_cards }}"
 
@@ -425,12 +512,13 @@
 
     # Clé d'Uptime Kuma sans l'URL (output pas encore appliqué) : ni cartes
     # Uptime Kuma ni kuma-summary ; le mot de passe de vmauth seul : la carte
-    # CrowdSec seule.
+    # CrowdSec seule. Bus coupé : plus aucun apps-summary.
     - name: Render the services and compose with the Kuma key but no Kuma URL
       diff: false
       vars:
         homepage_uptimekuma_api_key: molecule-homepage-uptimekuma-api-key
         homepage_victoria_logs_password: molecule-homepage-victoria-logs-0000
+        homepage_tbm_enabled: false
       loop:
         - src: config/services.yaml.j2
           dest: services-crowdsec.yaml
@@ -455,8 +543,47 @@
       ansible.builtin.assert:
         that:
           - homepage_card_names['Supervision'] == ['CrowdSec']
+          - homepage_card_names['Vie perso'] == ['Dawarich', 'Grocy', 'Homebox']
           - (homepage_crowdsec_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
         fail_msg: "Supervision sans URL d'Uptime Kuma inattendue : {{ homepage_cards['Supervision'] | default({}) }}"
+
+    # La clé de Papra seule : apps-summary pour Papra (et le bus), sans les
+    # variables de Grocy ni de Dawarich ; la carte Papra seule a un widget.
+    - name: Render the services and compose with only the Papra key
+      diff: false
+      vars:
+        homepage_papra_api_key: molecule-homepage-papra-api-key
+      loop:
+        - src: config/services.yaml.j2
+          dest: services-papra.yaml
+        - src: compose.yaml
+          dest: compose-papra.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/homepage/templates/{{ item.src }}"
+        dest: "{{ homepage_empty_dir.path }}/{{ item.dest }}"
+        mode: "0600"
+
+    - name: Read the Papra-only services
+      ansible.builtin.import_tasks: tasks/read_services.yml
+      vars:
+        homepage_services_path: "{{ homepage_empty_dir.path }}/services-papra.yaml"
+
+    - name: Read the Papra-only compose
+      ansible.builtin.slurp:
+        src: "{{ homepage_empty_dir.path }}/compose-papra.yaml"
+      register: homepage_papra_compose_raw
+
+    - name: Assert only the Papra source is served
+      vars:
+        homepage_papra_env: "{{ (homepage_papra_compose_raw.content | b64decode | from_yaml).services['apps-summary'].environment }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_cards['Documents']['Papra'].widget.url == 'http://homepage-apps-summary:8080/papra.json' # NOSONAR
+          - homepage_cards['Vie perso']['Grocy'].widget is not defined
+          - homepage_cards['Vie perso']['Dawarich'].widget is not defined
+          - homepage_papra_env.PAPRA_API_KEY == 'molecule-homepage-papra-api-key'
+          - homepage_papra_env.keys() | select('match', '(GROCY|DAWARICH)_') | list == []
+        fail_msg: "Rendu à la seule clé de Papra inattendu : {{ homepage_papra_env }}"
 
     - name: Remove the scratch directory
       ansible.builtin.file:

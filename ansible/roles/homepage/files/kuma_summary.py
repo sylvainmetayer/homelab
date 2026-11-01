@@ -16,16 +16,23 @@ type de chaque sonde, et sert :
 - /backups.json : {"items": [{"name", "status"}], "late"}, une ligne par
   sonde push dont le nom commence par le préfixe des sauvegardes
   (« Backup ») : « OK » tant que la sauvegarde a poussé dans sa fenêtre,
-  les autres en premier.
+  les autres en premier ;
+- /maintenance.json : {"items": [{"name", "status"}], "failing"}, les sondes
+  nommées dans KUMA_MAINTENANCE_MONITORS (liste JSON de noms exacts :
+  vérificateurs apt, quota de la Storage Box, tests de restauration,
+  rotation des secrets), celles qui ne sont pas « OK » d'abord, puis dans
+  l'ordre de la liste ; une sonde absente de /metrics (renommée, supprimée
+  ou en pause) est « Absente ».
 
 Configuration, par variables d'environnement : KUMA_METRICS_URL (https://…
 /metrics), KUMA_API_KEY, KUMA_SUMMARY_PORT (8080),
-KUMA_SUMMARY_CACHE_SECONDS (60), KUMA_BACKUP_PREFIX (« Backup »).
+KUMA_SUMMARY_CACHE_SECONDS (60), KUMA_BACKUP_PREFIX (« Backup »),
+KUMA_MAINTENANCE_MONITORS ([]).
 
 /healthz répond 200 sans toucher à Uptime Kuma. Sans dépendance hors de la
 bibliothèque standard.
 
-`kuma_summary.py --parse < metrics.txt` imprime les deux résumés (tests).
+`kuma_summary.py --parse < metrics.txt` imprime les trois résumés (tests).
 """
 
 import base64
@@ -116,6 +123,37 @@ def summarize_backups(monitors: list, prefix: str) -> dict:
     return {"items": items, "late": sum(1 for ok, *_ in backups if not ok)}
 
 
+MAINTENANCE_LABELS = {
+    STATUS_UP: "OK",
+    STATUS_DOWN: "En défaut",
+    STATUS_PENDING: "En attente",
+    STATUS_MAINTENANCE: "Maintenance",
+}
+
+
+def summarize_maintenance(monitors: list, names: list) -> dict:
+    status = {monitor["name"]: monitor["status"] for monitor in monitors}
+    rows = []
+    for position, name in enumerate(names):
+        label = MAINTENANCE_LABELS.get(status[name], "Inconnu") if name in status else "Absente"
+        rows.append((label != "OK", position, name, label))
+    # Les sondes qui ne sont pas « OK » d'abord (True trie après False).
+    rows.sort(key=lambda row: (not row[0], row[1]))
+    return {
+        "items": [{"name": name, "status": label} for _, _, name, label in rows],
+        "failing": sum(1 for failing, *_ in rows if failing),
+    }
+
+
+def parse_names(value: str) -> list:
+    """Liste JSON de noms ; illisible ou d'un autre type, liste vide."""
+    try:
+        names = json.loads(value or "[]")
+    except ValueError:
+        return []
+    return [name for name in names if isinstance(name, str)] if isinstance(names, list) else []
+
+
 class FetchError(Exception):
     """/metrics injoignable ou refusé ; le message ne cite ni l'URL ni la clé."""
 
@@ -192,10 +230,11 @@ def log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def make_handler(cache: Cache, prefix: str):
+def make_handler(cache: Cache, prefix: str, maintenance: list | None = None):
     routes = {
         "/down.json": summarize_down,
         "/backups.json": lambda monitors: summarize_backups(monitors, prefix),
+        "/maintenance.json": lambda monitors: summarize_maintenance(monitors, maintenance or []),
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -235,9 +274,11 @@ def make_handler(cache: Cache, prefix: str):
 
 def main() -> None:
     prefix = os.environ.get("KUMA_BACKUP_PREFIX", "Backup ")
+    maintenance = parse_names(os.environ.get("KUMA_MAINTENANCE_MONITORS", ""))
     if sys.argv[1:] == ["--parse"]:
         monitors = parse_monitors(sys.stdin.read())
-        print(json.dumps({"down": summarize_down(monitors), "backups": summarize_backups(monitors, prefix)},
+        print(json.dumps({"down": summarize_down(monitors), "backups": summarize_backups(monitors, prefix),
+                          "maintenance": summarize_maintenance(monitors, maintenance)},
                          ensure_ascii=False, indent=2))
         return
     url = os.environ.get("KUMA_METRICS_URL", "")
@@ -245,7 +286,7 @@ def main() -> None:
     port = int(os.environ.get("KUMA_SUMMARY_PORT", "8080"))
     ttl = float(os.environ.get("KUMA_SUMMARY_CACHE_SECONDS", "60"))
     cache = Cache(url, key, ttl)
-    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix))
+    server = ThreadingHTTPServer(("", port), make_handler(cache, prefix, maintenance))
     log(f"kuma-summary sur le port {port}")
     # HTTP sans TLS : sur le seul réseau privé du projet, sans port publié.
     server.serve_forever()  # NOSONAR

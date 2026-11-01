@@ -357,10 +357,12 @@ Uptime Kuma, la page de statut publique `sylvain-dev`. Homepage les interroge
 côté serveur. Les sauvegardes n'ont pas de page de statut publique (leurs
 noms et leur état restent dans Uptime Kuma).
 
-Le groupe Supervision, sous Administration, ajoute trois cartes en lecture
+Le groupe Supervision, sous Administration, ajoute quatre cartes en lecture
 seule, chacune à sa clé sops facultative (`docs/runbooks/rotation-des-secrets.md`,
-« Widgets de Homepage ») : les sondes en panne et l'état de chaque sauvegarde,
-lus dans `/metrics` d'Uptime Kuma avec une clé d'API qui n'ouvre que cette
+« Widgets de Homepage ») : les sondes en panne, l'état de chaque sauvegarde et
+celui des contrôles périodiques (carte Maintenance : vérificateurs apt du
+lundi, quota de la Storage Box, tests de restauration, rotation des secrets
+et test de la clé `secours`), lus dans `/metrics` d'Uptime Kuma avec une clé d'API qui n'ouvre que cette
 route, par le petit conteneur `kuma-summary` (aucune page de statut, la clé
 reste dans `compose.yaml`) ; CrowdSec (alertes des 24 dernières heures, IP
 bannies depuis 4 h) compté dans VictoriaLogs, où le Vector de Pangolin envoie
@@ -447,14 +449,23 @@ retire les tâches et journaux, VTODO et VJOURNAL, que le widget afficherait
 comme des événements datés de l'instant présent, et les lui sert sur le
 réseau privé du projet, cache de 5 minutes ; détail dans le
 [README du rôle](../ansible/roles/homepage/README.md)) ; et Jellyfin,
-Homebox, Karakeep. Création de chaque jeton, droits minimaux et `sops set` :
+Homebox, Karakeep, FreshRSS, Grocy, Papra et Dawarich. Les trois derniers,
+comme les prochains passages du bus 31 à l'arrêt CREPS (flux temps réel
+ouvert de Bordeaux Métropole, sans compte), passent par le conteneur
+`apps-summary` du projet, sur newt, qui ramène leurs réponses à quelques
+nombres. Création de chaque jeton, droits minimaux et `sops set` :
 [runbooks/rotation-des-secrets.md](runbooks/rotation-des-secrets.md#widgets-de-homepage).
 
 **Risque accepté** (Sylvain, 2026-10-29) : Jellyfin (clé d'API
 d'administration), Homebox (compte invité dans le groupe, qui peut écrire)
 et Karakeep (clé d'API de l'utilisateur) n'ont pas de jeton en lecture
 seule ; qui lit la configuration de Homepage (`0600`, VM docker) peut donc
-administrer Jellyfin et écrire dans Homebox et Karakeep. Le widget Jellyfin
+administrer Jellyfin et écrire dans Homebox et Karakeep. Même chose, à
+accepter avec les cartes de la deuxième série, pour FreshRSS (le mot de
+passe d'API marque lu et abonne ; l'API, coupée sinon, n'est ouverte qu'avec
+la clé, et seulement sur newt : Pangolin n'ouvre aucun chemin autour du
+SSO), Grocy (utilisateur dédié sans permission, mais l'API lit tout) et
+Dawarich (une seule clé par compte, qui écrit aussi des points). Le widget Jellyfin
 est rendu sans ses boutons pause/lecture (`enableMediaControl: false`).
 
 ```mermaid

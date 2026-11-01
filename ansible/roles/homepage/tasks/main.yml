@@ -45,14 +45,15 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Lus par ical-filter et kuma-summary (utilisateur nobody) : lisibles par
-# tous, ils ne portent aucun secret (URL de partage et clé d'Uptime Kuma sont
+# Lus par ical-filter, kuma-summary et apps-summary (utilisateur nobody) :
+# lisibles par tous, ils ne portent aucun secret (URL de partage et clés sont
 # dans compose.yaml). Copiés même sans leur service : quelques Kio.
-- name: Copy the scripts of ical-filter and kuma-summary
+- name: Copy the scripts of ical-filter, kuma-summary and apps-summary
   notify: Restart homepage
   loop:
     - ical_filter.py
     - kuma_summary.py
+    - apps_summary.py
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ homepage_base_path }}/{{ item }}"

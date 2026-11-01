@@ -32,7 +32,9 @@ locals {
 # Read in the browser only, mobile included: no client API, so no path is
 # opened around the SSO wall. The Google Reader and Fever APIs are also turned
 # off in FreshRSS itself (api_enabled, ansible/roles/rss): reached through the
-# SSO, they answer 503.
+# SSO, they answer 503. The one exception is Homepage's FreshRSS widget, over
+# the newt network (rss_api_enabled, set when its SOPS key exists): still no
+# path rule here, nothing outside newt reaches the API without the SSO.
 #
 # Deleting their two ACCEPTs (and the backslash guard that went with them) has
 # to go through a targeted apply first: until it runs, the three rules are
