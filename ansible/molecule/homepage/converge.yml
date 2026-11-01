@@ -33,3 +33,5 @@
         homepage_beszel_email: homepage@monitoring.sylvain.cloud
         # Ce que host_vars/docker pose pour le widget FreshRSS.
         homepage_freshrss_username: molecule
+        # Ce que docker.yml donne : le StateDirectory de cost_report.
+        homepage_costs_dir: /var/lib/cost-report

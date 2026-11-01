@@ -105,11 +105,14 @@ depuis son ajout porte donc la date de son ajout.
   même écran, permission **Read** seulement, puis `sops set` et
   `tofu -chdir=tofu/github apply` (voir [tofu/github/README.md](../../tofu/github/README.md)).
   Vérifier par un lancement manuel du workflow *Storage Box quota*, puis
-  supprimer l'ancien jeton.
+  supprimer l'ancien jeton. Le même jeton nourrit le rapport des coûts
+  (rôle `cost_report`) : `ansible-playbook docker.yml --tags cost_report`,
+  puis `sudo systemctl start cost-report` sur la VM docker, et Hetzner ne
+  doit pas être « en erreur » dans `journalctl -u cost-report`.
 
 ### OVH
 
-Deux applications d'API distinctes, chacune un triplet
+Trois applications d'API distinctes, chacune un triplet
 application key / application secret / consumer key :
 
 - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
@@ -118,14 +121,27 @@ application key / application secret / consumer key :
 - `nas_ovh_application_key`, `nas_ovh_application_secret`,
   `nas_ovh_consumer_key` (fichier Ansible) : le défi DNS-01 de Let's Encrypt
   du Traefik du NAS (`nas_proxy`).
+- `costs_ovh_application_key`, `costs_ovh_application_secret`,
+  `costs_ovh_consumer_key` (fichier Ansible, optionnelles) : le rapport des
+  coûts (rôle `cost_report`, VM docker), en lecture seule des factures et
+  de la consommation Public Cloud : `GET /me/bill`, `GET /me/bill/*`,
+  `GET /cloud/project/<projet>/usage/current`, rien d'autre. Création (lien
+  `createToken` prérempli) et vérification :
+  [ansible/roles/cost_report/README.md](../../ansible/roles/cost_report/README.md),
+  section « OVH ».
+  Avec `costs_ovh_cloud_project_id` (`identifier`, jamais tournée :
+  l'identifiant du projet, le même que `OVH_CLOUD_PROJECT_ID`).
 
 Créer une nouvelle application avec les **mêmes droits** que l'ancienne
 (les relire avant : console OVH, ou `GET /me/api/credential` dans la
 console d'API), basculer les trois clés ensemble par `sops set`, puis :
 pour la première, un `plan` vide dans chacun des modules cités ; pour la
 seconde, `ansible-playbook nas.yml --tags nas_proxy` et un renouvellement
-de certificat réussi dans les logs de `nas-proxy`. Révoquer ensuite
-l'ancienne application (`DELETE /me/api/application/{id}`).
+de certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
+`ansible-playbook docker.yml --tags cost_report`, puis
+`sudo systemctl start cost-report` sur la VM docker : OVH ne doit être ni
+« en erreur » ni « non configurée » dans `journalctl -u cost-report`.
+Révoquer ensuite l'ancienne application (`DELETE /me/api/application/{id}`).
 
 ### Clés S3 des states
 
@@ -328,8 +344,11 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   seulement.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
-  `ansible-playbook pangolin.yaml --tags pangolin`, et aux pièges maison
-  (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`.
+  `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison
+  (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`, et au
+  rapport des coûts (`/etc/cost-report.env`, rôle `cost_report`) :
+  `ansible-playbook docker.yml --tags cost_report`, sans quoi le rapport du
+  1er échoue (HTTP 401, `journalctl -u cost-report`).
 - `ntfy_canary_token` est dans l'URL du webhook de chaque jeton
   Canarytokens.org : après sa rotation, refaire l'URL
   (`ansible/roles/canary/README.md`, « Webhook vers ntfy ») et la coller

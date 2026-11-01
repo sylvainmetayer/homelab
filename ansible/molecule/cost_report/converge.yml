@@ -1,0 +1,23 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    # hcloud_readonly_token, costs_ovh_* et ntfy_scripts_token : toutes les
+    # sources configurées.
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  roles:
+    # Les fausses API du verify (files/fake_api.py), une seule adresse locale.
+    # Pas de lancement peu après le déploiement : le verify lance l'unité
+    # lui-même, sans course avec le timer. Les abonnements du dépôt, tels
+    # quels : l'assert du rôle les valide.
+    - role: cost_report
+      vars:
+        cost_report_ntfy_url: http://127.0.0.1:18082 # NOSONAR
+        cost_report_hetzner_cloud_api: http://127.0.0.1:18082/cloud # NOSONAR
+        cost_report_hetzner_api: http://127.0.0.1:18082/api # NOSONAR
+        cost_report_ovh_endpoint: http://127.0.0.1:18082/ovh # NOSONAR
+        cost_report_first_run_delay: 1d

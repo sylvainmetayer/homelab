@@ -97,6 +97,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Monitoring (Beszel hub + agents) | `ansible/roles/beszel/README.md` |
 | Logs (VictoriaLogs + Vector) | `ansible/roles/victoria_logs/README.md` |
 | Weekly memory report | `ansible/roles/mem_report/README.md` |
+| Monthly cost report (Hetzner, OVH, subscriptions; ntfy + Homepage card) | `ansible/roles/cost_report/README.md` |
 | ntfy: topics, grants, removing one, « no subscriber » alert | `ansible/roles/ntfy/README.md` |
 | CrowdSec, GeoLite2 on Pangolin | `ansible/roles/pangolin/README.md` |
 | Flip Planning instances | `ansible/roles/flip_planning/README.md` |
