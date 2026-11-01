@@ -20,7 +20,8 @@ place du `default.conf` de l'image. Ce nginx :
   l'écran de connexion aurait saisie (`localStorage` `immich-swipe-config`) :
   serveur = l'origine de la page (`https://swipe-photos.sylvain.cloud`), clé =
   un leurre (`server-side`) que nginx remplace ;
-- renvoie `/photos/<id>` (« Ouvrir dans Immich ») vers l'Immich public (`immich_domain`).
+- renvoie `/photos/<id>` (« Ouvrir dans Immich ») vers l'Immich public (`immich_domain`) ;
+- traduit le mode aléatoire pour Immich v3 (ci-dessous).
 
 Pourquoi ce mode et pas les autres :
 
@@ -39,11 +40,14 @@ Pourquoi ce mode et pas les autres :
 Ainsi : même origine (pas de CORS, le cookie du SSO de `swipe-photos` suffit),
 clé jamais envoyée au navigateur, rien à changer sur Immich ni dans Pangolin.
 
-**Qui l'utilise agit avec la clé de Sylvain.** La route `swipe-photos` est
-liée au rôle Pangolin `immich` (`tofu/pangolin_config/website_immich_swipe.tf`) :
-tout membre de ce rôle trierait (et mettrait à la corbeille) la photothèque de
-Sylvain. Le jour où quelqu'un d'autre a ce rôle, donner à Swipe un rôle à lui,
-sans membre, comme `immich-selfie-timelapse`.
+**Qui l'utilise agit avec la clé de Sylvain.** La route `swipe-photos` a donc
+son propre rôle Pangolin, `immich-swipe`
+(`tofu/pangolin_config/website_immich_swipe.tf`), et non celui d'Immich : un
+membre du rôle `immich` n'y entre pas d'office, il trierait (et mettrait à la
+corbeille) la photothèque de Sylvain. Comme `immich-selfie-timelapse`, Tofu
+crée le rôle sans membre : Sylvain s'y ajoute dans l'interface de Pangolin
+(rôles de son utilisateur dans l'organisation). Un test d'invariant de
+`pangolin_config` garde Swipe lié à ce seul rôle.
 
 Clé : compte de Sylvain, Account Settings → API Keys, nom `immich-swipe`,
 permissions `user.read`, `asset.read`, `asset.view`, `asset.download`,
@@ -58,5 +62,14 @@ Un navigateur déjà passé par le mode préconfiguré garde la configuration
 injectée (serveur = `swipe-photos`, clé = le leurre) et n'affiche plus que
 des erreurs : s'y déconnecter dans l'appli pour retrouver l'écran de connexion.
 
-Le mode aléatoire appelle `GET /api/assets/random`, qu'Immich v3 n'a plus :
-utiliser l'ordre chronologique.
+**Mode aléatoire.** L'appli (`useImmich.ts`, `fetchRandomAsset`) appelle
+`GET /api/assets/random?count=N` (N = 5, ou 10 quand elle saute les vidéos),
+qu'Immich v3 n'a plus : 400 « Validation failed ». Le nginx le réécrit en
+`POST /api/search/random` avec le corps `{"size": N}`, qui renvoie le même
+tableau d'assets (images et vidéos : l'appli écarte elle-même les vidéos et
+les photos déjà vues, aucun autre paramètre n'est envoyé). N passe par une
+`map` : `count` de 1 à 100 tel quel, plafonné à 100 au-delà, 20 sinon ; seul
+un nombre entre dans le JSON. Même clé et mêmes en-têtes retirés que `/api/`.
+Seulement en mode préconfiguré (sans la clé, l'image d'origine garde l'appel
+cassé). Le vrai correctif irait dans l'appli : appeler `/search/random` dans
+le fork `sylvainmetayer/immich-swipe`, puis retirer ce `location`.

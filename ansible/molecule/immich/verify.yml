@@ -164,3 +164,28 @@
           - "'ports' not in immich_compose.services['immich-swipe']"
       vars:
         conf: "{{ immich_swipe_conf.content | b64decode }}"
+
+    # Mode aléatoire : GET /api/assets/random (retiré d'Immich v3) réécrit en
+    # POST /api/search/random {"size": N}, N tiré de `count` par une map qui
+    # n'y laisse passer qu'un nombre.
+    - name: Assert Immich Swipe rewrites the random mode to Immich v3's search
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - "'map $immich_swipe_count $immich_swipe_random_size {' in conf"
+          - >-
+            '"~^([1-9][0-9]?|100)$"   $immich_swipe_count;' in conf
+          - "'\"~^[0-9]{3,}$\"           100;' in conf"
+          - "'set $immich_swipe_count $arg_count;' in random_location"
+          - "'rewrite ^ /api/search/random? break;' in random_location"
+          - "'proxy_method POST;' in random_location"
+          - "'proxy_set_header Content-Type application/json;' in random_location"
+          - >-
+            "proxy_set_body '{\"size\":$immich_swipe_random_size}';" in random_location
+          - "'proxy_set_header x-api-key \"molecule-immich-swipe-api-key\";' in random_location"
+          - "'proxy_set_header Cookie \"\";' in random_location"
+          - "'proxy_set_header Authorization \"\";' in random_location"
+      vars:
+        conf: "{{ immich_swipe_conf.content | b64decode }}"
+        # Du `location =` du mode aléatoire au `location ^~ /api/` qui le suit.
+        random_location: "{{ conf.split('location = /api/assets/random {')[1].split('location ^~ /api/')[0] }}"

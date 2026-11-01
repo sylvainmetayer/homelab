@@ -6,6 +6,17 @@
 # la même origine (cookie du SSO de Pangolin compris, pas de CORS) et ce
 # serveur les passe à immich-server par le réseau immich, en y posant la
 # vraie clé d'API : le navigateur n'en voit jamais qu'un leurre.
+
+# Taille du lot du mode aléatoire (location = /api/assets/random plus bas) :
+# `count` de la requête de 1 à 100, plafonné à 100 au-delà, sinon (absent,
+# 0, non numérique) 20. Seule valeur de la requête recopiée dans le corps
+# JSON : rien d'autre qu'un nombre n'y entre.
+map $immich_swipe_count $immich_swipe_random_size {
+    default                  20;
+    "~^([1-9][0-9]?|100)$"   $immich_swipe_count;
+    "~^[0-9]{3,}$"           100;
+}
+
 server {
     listen 80;
     server_name _;
@@ -15,6 +26,28 @@ server {
     # DNS de Docker, résolu à la requête : nginx démarre même si
     # immich-server n'est pas encore là.
     resolver 127.0.0.11 valid=30s ipv6=off;
+
+    # Mode aléatoire : l'appli appelle GET /api/assets/random?count=N, retiré
+    # d'Immich v3 (400 « Validation failed »). Immich v3 répond au même
+    # besoin par POST /api/search/random {"size": N}, qui renvoie le même
+    # tableau d'assets (images et vidéos : l'appli écarte elle-même les
+    # vidéos). Même clé, mêmes en-têtes retirés que /api/ ci-dessous.
+    location = /api/assets/random {
+        set $immich http://immich-server:2283;
+        # Lu avant le rewrite, qui vide la query string (`?` final) : la map
+        # n'est évaluée qu'à proxy_set_body, où $arg_count serait déjà vide.
+        set $immich_swipe_count $arg_count;
+        rewrite ^ /api/search/random? break;
+        proxy_pass $immich;
+        proxy_http_version 1.1;
+        proxy_method POST;
+        proxy_set_header Content-Type application/json;
+        proxy_set_body '{"size":$immich_swipe_random_size}';
+        proxy_set_header x-api-key "{{ immich_swipe_api_key }}";
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_buffering off;
+    }
 
     location ^~ /api/ {
         set $immich http://immich-server:2283;
