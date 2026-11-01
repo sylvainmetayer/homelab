@@ -4,7 +4,7 @@ scenario:
   name: nas_proxy
 
 # Prepare du scénario nas (dc@ système, dossiers partagés d'UGOS, périphérique
-# de rendu pour jellyfin).
+# de rendu pour jellyfin), plus un acme.json déjà là.
 ansible:
   playbooks:
     prepare: prepare.yml

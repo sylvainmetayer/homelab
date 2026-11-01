@@ -1,3 +1,29 @@
 ---
 - name: NAS prepare
   ansible.builtin.import_playbook: ../nas/prepare.yml
+
+# Un acme.json déjà là (certificats d'un passage précédent) : le touch du rôle
+# doit le garder tel quel.
+- name: Leave an existing ACME storage
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create the nas_proxy ACME folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - /volume1/docker/nas_proxy
+        - /volume1/docker/nas_proxy/acme
+
+    - name: Write an existing ACME storage
+      ansible.builtin.copy:
+        dest: /volume1/docker/nas_proxy/acme/acme.json
+        content: '{"letsencrypt": {"Account": null, "Certificates": [{"domain": {"main": "media.sylvain.cloud"}}]}}'
+        owner: root
+        group: root
+        mode: "0600"
