@@ -258,11 +258,12 @@ class RealPlaybooks(unittest.TestCase):
         self.assertIn("trek", result["ansible/docker.yml"].split(","))
 
     def test_docs_deploy_the_docs_site_role_only(self):
-        # docs_site builds docs/ with mkdocs.yml and its hook: any of them
+        # docs_site builds docs/ with mkdocs.yml and its hooks: any of them
         # deploys its tag on docker, a README under docs/ included.
         for path in ("docs/runbooks/appli-en-panne.md", "docs/runbooks/README.md",
                      "docs/runbooks/nextcloud-app-passwords.sh", "mkdocs.yml",
-                     ".github/scripts/mkdocs_external_links.py"):
+                     ".github/scripts/mkdocs_external_links.py",
+                     ".github/scripts/mkdocs_mermaid.py"):
             result, stderr = self.run_script(path)
             self.assertEqual(result, {p: ("docs_site" if p == "ansible/docker.yml" else "")
                                       for p in DEPLOYED_PLAYBOOKS}, path)

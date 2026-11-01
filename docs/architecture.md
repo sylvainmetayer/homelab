@@ -10,6 +10,7 @@ est indexé par [AGENTS.md](../AGENTS.md) (rôles : leur README.md, transverses 
 ```mermaid
 flowchart LR
   user([Navigateur]) -- "HTTPS 443<br/>DNS OVH *.sylvain.cloud / *.sylvain.dev" --> traefik
+  user -. "planning.sylvain.dev, ref.…<br/>(CNAME, hors Pangolin)" .-> cfpages["Cloudflare Pages<br/>sites statiques"]
 
   subgraph pangolin_vm["VM Pangolin (Hetzner, IP publique)"]
     direction TB
@@ -34,7 +35,7 @@ flowchart LR
       newt_docker["newt (dc@newt)"] -- "réseau docker newt" --> app1["rss, nextcloud, …<br/>(dc@service)"]
     end
     subgraph pi["Raspberry Pi"]
-      newt_pi[newt] --> immich[immich]
+      newt_pi[newt] --> immich["immich,<br/>immich-swipe (clé d'API côté serveur)"]
     end
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
     subgraph nas["NAS Ugreen (192.168.1.137)"]
@@ -42,12 +43,13 @@ flowchart LR
       relay_nas["nas-proxy-443 (dc@nas_proxy)<br/>443 de l'hôte, réseau hôte"] -- "TCP + PROXY v2, 8444" --> traefik_nas
       traefik_nas -- "réseau privé media" --> jellyfin[jellyfin]
       traefik_nas -- "IP LAN, 9999" --> ugos[interface d'UGOS]
+      traefik_nas -- "réseau mediamanager_proxy" --> mediamanager["mediamanager (à l'essai)<br/>qBittorrent, Prowlarr derrière gluetun"]
     end
   end
 
   subgraph hetzner_priv["Hetzner, réseau privé 10.0.0.0/16"]
     subgraph flip["flip (10.0.1.10, sans IP publique)"]
-      newt_flip[newt] --> fp["flip_planning, demo_planning,<br/>demo_planning_kc, exemple_planning,<br/>promptoramix"]
+      newt_flip[newt] --> fp["flip_planning, demo_planning,<br/>demo_planning_kc, exemple_planning (vitrine publique),<br/>promptoramix"]
     end
   end
 ```
@@ -78,6 +80,30 @@ Tout ce routage (ressources, cibles, règles, rôles SSO, moniteurs Uptime
 Kuma) est déclaré dans `tofu/pangolin_config/`, une entrée de
 `local.websites` par appli (`website_<app>.tf`). Aucun label Docker.
 
+Quelques ressources s'écartent du modèle « SSO partout », chacune relue dans
+son `website_<app>.tf` :
+
+- **`exemple-planning.sylvain.dev`** (flip) : la vitrine publique de Planning
+  Équipes, sans SSO (règles pays maintenues, DROP sur ce que le mot de passe
+  administrateur affiché ne doit pas ouvrir), données fictives restaurées
+  chaque nuit depuis `ansible/roles/flip_planning/files/exemple/` ; pas de
+  sauvegarde Borg.
+- **`pwpush.sylvain.cloud`** (Enclosed, VM docker) : notes chiffrées à
+  usage unique pour remettre un jeton renouvelé ; la lecture d'une note
+  (`local.enclosed_read_paths`) est ouverte sans SSO de tout pays, la
+  création reste derrière le SSO. La clé ne quitte jamais le fragment du lien.
+- **`sante.sylvain.cloud`** (HealthLog, VM docker) : seules les
+  notifications Withings (`/api/withings/webhook/<secret>`, un segment, sans
+  filtre pays : Withings appelle de ses serveurs) passent sans SSO.
+- **`swipe-photos.sylvain.cloud`** (Immich Swipe, Pi) : son nginx passe
+  `/api/` à Immich en y posant la clé d'API de Sylvain, jamais envoyée au
+  navigateur ; d'où un rôle Pangolin à lui, `immich-swipe`, distinct de celui
+  d'Immich ([README d'immich](../ansible/roles/immich/README.md)).
+
+Hors Pangolin : `planning.sylvain.dev` (la page produit de Planning Équipes,
+`tofu/planning`), comme `tofu/ref`, `tofu/site` et `tofu/1y`, est servi par
+Cloudflare Pages ; son CNAME prime sur le joker `*.sylvain.dev`.
+
 Une exception, Jellyfin sur le NAS, qui n'est pas public : une seule adresse,
 `https://media.sylvain.cloud`, sans rien exposer sur Internet. Le A public
 `media.sylvain.cloud` (`tofu/dns/media.tf`) vise l'IP **LAN** du NAS et prime
@@ -88,7 +114,10 @@ l'interface d'UGOS : `https://nas.sylvain.cloud` (A public vers l'IP LAN
 du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 (ressource privée `nas.sylvain.cloud` du site `proxmox-lxc`, qui vise l'IP LAN
 du NAS en TCP 22, 443, 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
-Et MediaManager, à l'essai, exactement comme Jellyfin :
+Et MediaManager, à l'essai (on demande un film, Prowlarr cherche, qBittorrent
+télécharge, tous deux dans le réseau de `gluetun`, tunnel WireGuard avec
+coupe-circuit, dans un bac à sable que Jellyfin ne voit pas :
+[README du rôle](../ansible/roles/mediamanager/README.md)), exactement comme Jellyfin :
 `https://mediamanager.sylvain.cloud` (A public vers l'IP LAN du NAS,
 `tofu/dns/mediamanager.tf`), ressource privée du même nom sur le site `nas`
 (rôle `mediamanager`), qui vise `nas-proxy` en TCP 443 et 8443 ; Traefik
@@ -132,13 +161,14 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
-| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak), Promptoramix |
+| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak, vitrine publique `exemple-planning` remise à zéro chaque nuit), Promptoramix |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
-| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
+| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, MediaManager (à l'essai), borgmatic en conteneur ; stockage des sauvegardes vzdump |
-| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour, durcissement (SSH par clé, pare-feu PVE de l'hôte) |
+| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour, durcissement (rôle `pve_hardening` : SSH par clé seule, pare-feu PVE de l'hôte en DROP sauf le LAN sur 22 et 8006, dépôt sans abonnement, zone SDN inutile retirée ; secours : [runbook](runbooks/proxmox-injoignable-apres-durcissement.md)) |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
+| Cloudflare Pages | Cloudflare | `tofu/planning`, `tofu/ref`, `tofu/site`, `tofu/1y` | le dépôt de chaque site | sites statiques (`planning.sylvain.dev`…), hors Pangolin |
 
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet
 Compose dans `/opt/apps/<service>`, lancé par l'unité systemd **utilisateur**
@@ -236,7 +266,7 @@ flowchart LR
 | `lint.yaml` | chaque PR | jobs `Ansible lint` (+ `check_sops_shadowing.py`), `OpenTofu lint`, `CI lint` (zizmor, actionlint, hadolint) |
 | `test.yaml` | chaque PR (sélection), le lundi et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
 | `codeql.yaml` | le lundi, à la main, PR et push sur `main` touchant `.github/scripts/**` | analyse CodeQL (`actions`, `python`) vers l'onglet Security ; la configuration par défaut de GitHub reste désactivée |
-| `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**` ou un playbook d'hôte ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
+| `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**`, un playbook d'hôte, ou `docs/**` et `mkdocs.yml` (site `docs.sylvain.cloud`, rôle `docs_site`) ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
 
 - **Merger = déployer.** Le ruleset `main` (`tofu/github/ruleset_homelab.tf`)
   exige une PR et les checks `Ansible lint`, `OpenTofu lint`, `Tests` et
@@ -371,7 +401,10 @@ Pangolin, Newt sonde chaque cible toutes les 60 s (10 s quand elle est en
 échec), pour la page de maintenance et le `check "target_health"` du plan ;
 la cible d'une appli en pause n'est plus sondée du tout.
 
-Homepage (`home.sylvain.cloud`) en montre le résumé, groupe Administration :
+Homepage (`home.sylvain.cloud`, rôle `homepage`) tourne avec trois conteneurs
+d'appoint dans son projet, tous décrits plus bas : `kuma-summary` (état des
+sondes et sauvegardes), `ical-filter` (agendas) et `apps-summary` (cartes de
+quelques applis et du bus). Il en montre le résumé, groupe Administration :
 sur le lien Beszel, le nombre de systèmes et combien sont en ligne ; une carte
 Uptime Kuma, la page de statut publique `sylvain-dev`. Homepage les interroge
 côté serveur. Les sauvegardes n'ont pas de page de statut publique (leurs
@@ -553,8 +586,8 @@ flowchart LR
   main) et sur l'hôte Proxmox (`pve.yml`, à la main, en root sans become :
   pas de sudo sur l'hôte), qui lit aussi le S.M.A.R.T. de `sda`, le SSD M.2
   SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
-  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent et le vérificateur des mises à
-  jour (ci-dessous) : ni `00-setup`, ni `security`.
+  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent, le vérificateur des mises à
+  jour (ci-dessous) et son propre durcissement (`pve_hardening`) : ni `00-setup`, ni `security`.
 - **Mises à jour** : ni l'hôte Proxmox ni UGOS ne se mettent à jour seuls ;
   la VM docker, le Pi, flip et Pangolin n'installent seuls que
   Debian-Security (`unattended-upgrades`), Docker restant à la main exprès

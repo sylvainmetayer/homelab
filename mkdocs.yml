@@ -22,6 +22,14 @@ strict: true
 
 hooks:
   - .github/scripts/mkdocs_external_links.py
+  # Dépose mermaid.min.js (version épinglée) dans le site : les diagrammes
+  # ne vont pas chercher Mermaid sur unpkg.com.
+  - .github/scripts/mkdocs_mermaid.py
+
+# Déposé par le hook mkdocs_mermaid.py : Material utilise ce `mermaid` global
+# au lieu de son CDN.
+extra_javascript:
+  - javascripts/mermaid.min.js
 
 validation:
   nav:
@@ -71,7 +79,13 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.details
-  - pymdownx.superfences
+  # Un bloc ```mermaid devient un <pre class="mermaid"> que Material dessine ;
+  # sans ce fence, il reste un bloc de code.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite

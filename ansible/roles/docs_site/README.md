@@ -20,8 +20,8 @@ En local : `uv run mkdocs serve`, puis http://127.0.0.1:8000.
 
 ## Déploiement
 
-Un merge sur `main` qui touche `docs/**`, `mkdocs.yml` ou son hook
-`.github/scripts/mkdocs_external_links.py` déploie le tag
+Un merge sur `main` qui touche `docs/**`, `mkdocs.yml` ou ses hooks
+(`.github/scripts/mkdocs_external_links.py`, `mkdocs_mermaid.py`) déploie le tag
 `docs_site` sur la VM docker (`deploy-docker-app.yaml`,
 `resolve_docker_tags.py`), comme un changement de ce rôle. À la main :
 
@@ -39,6 +39,17 @@ Un lien relatif vers un fichier hors de `docs/` (README d'un rôle,
 GitHub ; le hook `.github/scripts/mkdocs_external_links.py` le réécrit en URL
 GitHub (`blob/main`) pour le site. Un lien vers un dossier de `docs/` (sans
 fichier) n'a pas de page : viser un fichier, ou l'URL GitHub du dossier.
+
+## Diagrammes Mermaid
+
+Un bloc ` ```mermaid ` devient un diagramme grâce au `custom_fences` de
+`pymdownx.superfences` (`mkdocs.yml`) ; sans lui, il reste un bloc de code.
+Material chargerait Mermaid depuis `unpkg.com` dans le navigateur : le hook
+`.github/scripts/mkdocs_mermaid.py` dépose à la place une version épinglée
+(version + sha256, téléchargée à la construction, en cache sous
+`~/.cache/homelab-mkdocs/`) en `javascripts/mermaid.min.js`, chargé par
+`extra_javascript`. Le site ne charge rien d'un autre domaine. Montée de
+version à la main, dans la majeure qu'attend Material (11 pour Material 9.x).
 
 ## Sans état
 
