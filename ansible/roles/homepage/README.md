@@ -16,7 +16,7 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 Second helper service of the compose project, same pattern as `ical-filter` (`files/kuma_summary.py`, standard library only, same pinned `python:*-alpine` image): reads `<homepage_uptimekuma_url>/metrics` with the API key (Basic auth, the key as password), at most once per `homepage_kuma_summary_cache_seconds` (60; a stale copy is served while Uptime Kuma fails, 502 without any), keeps only each monitor's name, type and `monitor_status`, and serves `/down.json` and `/backups.json` at `http://kuma-summary:8080`; `/healthz` answers without touching Uptime Kuma.
 
 - The key (`KUMA_API_KEY`) lives in `compose.yaml` (0600, `diff: false`) only, never in `services.yaml`; error replies name neither the URL nor the key.
-- Network: `kuma`, the project's own network, joined by Homepage; no published port; egress to PikaPods (https only, redirects to http refused).
+- Network: `kuma`, the project's own network, joined by Homepage; no published port; egress to PikaPods (https only, no redirect followed: urllib would resend the key to the target).
 - Hardening and memory as `ical-filter` (`nobody`, `read_only`, `cap_drop: ALL`, `mem_limit: 64m`, not measured yet). `/metrics` above 8 MiB is refused.
 - No key or no URL: no service, no `kuma` network, no cards.
 - Tests: `ansible/molecule/homepage/files/test_kuma_summary.py`, run by `verify.yml` with `test_ical_filter.py`. Debug: `python3 kuma_summary.py --parse < metrics.txt`.
