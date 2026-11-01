@@ -101,3 +101,12 @@
     # (docs/runbooks/kdrive-nas.md).
     - role: kdrive_sync
       tags: kdrive_sync
+    # MediaManager à l'essai sous dc@mediamanager (unité système) : bac à
+    # sable caché dans media (/volume1/media/.mediamanager-test), PostgreSQL,
+    # et, une fois la clé SOPS mediamanager_wireguard_private_key posée,
+    # qBittorrent et Prowlarr derrière gluetun (WireGuard, kill switch). Joint
+    # par la ressource privée Pangolin mediamanager.internal (site nas), par le
+    # réseau Docker newt : après newt. Retrait : skill remove-app
+    # (ansible/roles/mediamanager/README.md).
+    - role: mediamanager
+      tags: mediamanager,app

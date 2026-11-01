@@ -1,0 +1,7 @@
+---
+- name: Restart mediamanager
+  become: "{{ mediamanager_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ mediamanager_service }}"
+    scope: "{{ mediamanager_dc_scope }}"
+    state: restarted

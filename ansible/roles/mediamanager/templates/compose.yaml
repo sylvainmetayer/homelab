@@ -1,0 +1,206 @@
+---
+# MediaManager à l'essai (rôle mediamanager, README) : MediaManager et sa
+# base, plus, une fois la clé WireGuard posée, gluetun avec qBittorrent et
+# Prowlarr dans son réseau. Limites provisoires (defaults) : à recaler à ~2x
+# memory.peak après une semaine.
+services:
+  mediamanager:
+    mem_limit: {{ mediamanager_mem_limit }}
+    image: quay.io/maxdorninger/mediamanager:1.12.3@sha256:83b80dce26f8cdbbf8afec06784a85e7eedcba05ad4be57d2f70b006304d7a8c
+    container_name: mediamanager
+    # Non root : le script de démarrage de l'image, lancé en root, ferait un
+    # chown -R de /data, c'est-à-dire du bac à sable entier.
+    user: "{{ mediamanager_uid }}:{{ mediamanager_gid }}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      TZ: Europe/Paris
+      CONFIG_DIR: /app/config
+      MEDIAMANAGER_NO_STARTUP_ART: "1"
+    volumes:
+      - ./config:/app/config
+      - ./images:/images
+      # Le bac à sable seul, en un montage : jamais media entier (l'import
+      # d'une bibliothèque existante en renomme les dossiers).
+      - {{ mediamanager_sandbox_path }}:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:{{ mediamanager_port }}/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # default : Internet (relais des métadonnées) et gluetun ; db : la base ;
+    # newt : le Newt du NAS, pour la ressource privée mediamanager.internal.
+    networks:
+      - default
+      - db
+      - newt
+
+  db:
+    mem_limit: {{ mediamanager_db_mem_limit }}
+    mem_reservation: {{ mediamanager_db_mem_reservation }}
+    # PostgreSQL 17, la version que demande MediaManager.
+    image: docker.io/library/postgres:17.11@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+    container_name: mediamanager-db
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: mediamanager
+      POSTGRES_DB: mediamanager
+      POSTGRES_PASSWORD: {{ mediamanager_db_password | to_json }}
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "mediamanager", "-d", "mediamanager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Jamais sur newt ni sur un réseau qui sort.
+    networks:
+      - db
+{% if mediamanager_vpn_enabled | bool %}
+
+  # Tunnel WireGuard et kill switch : son pare-feu ne laisse sortir que par
+  # le tunnel (et vers le réseau du projet). qBittorrent et Prowlarr n'ont pas
+  # d'autre réseau que le sien.
+  gluetun:
+    mem_limit: {{ mediamanager_gluetun_mem_limit }}
+    image: docker.io/qmcgaw/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+    container_name: mediamanager-gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Paris
+      VPN_SERVICE_PROVIDER: {{ mediamanager_vpn_provider | to_json }}
+      VPN_TYPE: wireguard
+      VPN_INTERFACE: {{ mediamanager_vpn_interface | to_json }}
+      WIREGUARD_PRIVATE_KEY: {{ mediamanager_vpn_private_key | to_json }}
+{% if mediamanager_vpn_addresses | length > 0 %}
+      WIREGUARD_ADDRESSES: {{ mediamanager_vpn_addresses | to_json }}
+{% endif %}
+{% if mediamanager_vpn_preshared_key | length > 0 %}
+      WIREGUARD_PRESHARED_KEY: {{ mediamanager_vpn_preshared_key | to_json }}
+{% endif %}
+{% if mediamanager_vpn_server_countries | length > 0 %}
+      SERVER_COUNTRIES: {{ mediamanager_vpn_server_countries | to_json }}
+{% endif %}
+{% if mediamanager_vpn_port_forwarding | bool %}
+      # Port entrant du fournisseur (NAT-PMP chez ProtonVPN), renouvelé à
+      # chaque connexion : gluetun le donne à qBittorrent par son API, sur le
+      # 127.0.0.1 qu'ils partagent (WebUI\LocalHostAuth=false dans
+      # qBittorrent.conf), et le retire quand le tunnel tombe. Commandes de la
+      # doc de gluetun (setup/advanced/vpn-port-forwarding.md).
+      VPN_PORT_FORWARDING: "on"
+{% if mediamanager_vpn_provider == 'protonvpn' %}
+      # Serveurs P2P seuls : les autres refusent la redirection de port.
+      PORT_FORWARD_ONLY: "on"
+{% endif %}
+      VPN_PORT_FORWARDING_UP_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":{{ '{{PORT}}' }},\"current_network_interface\":\"{{ '{{VPN_INTERFACE}}' }}\",\"random_port\":false,\"upnp\":false}" http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/setPreferences'
+      VPN_PORT_FORWARDING_DOWN_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}" http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/setPreferences'
+{% endif %}
+{% if mediamanager_vpn_static_port | string | length > 0 %}
+      # Port fixe réservé chez le fournisseur (AirVPN), posé dans qBittorrent.
+      FIREWALL_VPN_INPUT_PORTS: "{{ mediamanager_vpn_static_port }}"
+{% endif %}
+      # Serveur de contrôle sur la boucle locale de l'espace réseau partagé
+      # seulement : ni MediaManager ni le LAN ne le joignent.
+      HTTP_CONTROL_SERVER_ADDRESS: "127.0.0.1:8000"
+    volumes:
+      - ./gluetun:/gluetun
+    # Interfaces web de qBittorrent et Prowlarr, sur le 127.0.0.1 du NAS
+    # seulement : tunnel SSH (README), jamais le LAN ni Pangolin.
+    ports:
+      - "127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}:{{ mediamanager_qbittorrent_webui_port }}"
+      - "127.0.0.1:{{ mediamanager_prowlarr_port }}:{{ mediamanager_prowlarr_port }}"
+    restart: unless-stopped
+    networks:
+      - default
+
+  qbittorrent:
+    mem_limit: {{ mediamanager_qbittorrent_mem_limit }}
+    # Job par lots (hachage, vérification) : un cœur reste aux autres, et il
+    # perd face à eux sous contention.
+    cpus: 2.00
+    cpu_shares: 512
+    image: lscr.io/linuxserver/qbittorrent:5.3.0@sha256:05c1454f9a32967affc1f34f67f8cc0cc57dd805dca45489fe797095a6286556
+    container_name: mediamanager-qbittorrent
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "{{ mediamanager_uid }}"
+      PGID: "{{ mediamanager_gid }}"
+      UMASK: "022"
+      TZ: Europe/Paris
+      WEBUI_PORT: "{{ mediamanager_qbittorrent_webui_port }}"
+    volumes:
+      - ./qbittorrent:/config
+      # Même montage que MediaManager : /data/torrents des deux côtés.
+      - {{ mediamanager_sandbox_path }}:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  prowlarr:
+    mem_limit: {{ mediamanager_prowlarr_mem_limit }}
+    image: lscr.io/linuxserver/prowlarr:2.7.0@sha256:04be30163fbaf48d6aeee7b5893c9f6614ffbad6d853971df0d6dcdf01c7f104
+    container_name: mediamanager-prowlarr
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "{{ mediamanager_uid }}"
+      PGID: "{{ mediamanager_gid }}"
+      TZ: Europe/Paris
+      # Clé d'API dérivée (defaults), la même que dans config.toml ; compte de
+      # l'interface créé à la première visite (README).
+      PROWLARR__AUTH__APIKEY: {{ mediamanager_prowlarr_api_key | to_json }}
+      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__REQUIRED: Enabled
+    volumes:
+      - ./prowlarr:/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:{{ mediamanager_prowlarr_port }}/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+{% endif %}
+
+networks:
+  # Réseau du projet, à sous-réseau fixe : MediaManager et gluetun.
+  default:
+    ipam:
+      config:
+        - subnet: {{ mediamanager_subnet }}
+  # La base et MediaManager seuls, sans sortie.
+  db:
+    internal: true
+  newt:
+    external: true

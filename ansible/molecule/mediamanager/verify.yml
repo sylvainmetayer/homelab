@@ -1,0 +1,227 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    mm_verify_path: "{{ docker_base_path }}/mediamanager"
+    mm_verify_vpn_path: "{{ docker_base_path }}/mediamanager_vpn"
+    mm_verify_sandbox: /volume1/media/.mediamanager-test
+    mm_verify_borgmatic_path: "{{ docker_base_path }}/borgmatic/borgmatic.d/mediamanager.yaml"
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    # Compose à root en 0600, valide, sous dc@mediamanager en unité système.
+    - name: Verify the MediaManager deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: mediamanager
+        verify_app_borgmatic_config: "{{ mm_verify_borgmatic_path }}"
+
+    - name: Read the account of the host
+      ansible.builtin.getent:
+        database: passwd
+        key: sylvain
+
+    - name: Render the MediaManager compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ mm_verify_path }}"
+      register: mm_verify_compose
+      changed_when: false
+
+    # Sans clé WireGuard : MediaManager et sa base seuls, rien qui télécharge.
+    - name: Assert MediaManager runs alone, as sylvain, on the sandbox only
+      vars:
+        mm_verify_model: "{{ mm_verify_compose.stdout | from_json }}"
+        mm_verify_app: "{{ mm_verify_model.services.mediamanager }}"
+        mm_verify_db: "{{ mm_verify_model.services.db }}"
+        mm_verify_ids: "{{ ansible_facts['getent_passwd']['sylvain'][1] }}:{{ ansible_facts['getent_passwd']['sylvain'][2] }}"
+      ansible.builtin.assert:
+        that:
+          - mm_verify_model.services.keys() | sort == ['db', 'mediamanager']
+          - mm_verify_app.user == mm_verify_ids
+          - ansible_facts['getent_passwd']['sylvain'][1] != '0'
+          # Un seul montage du bac à sable, en /data : jamais media entier.
+          - mm_verify_app.volumes | selectattr('target', 'equalto', '/data') | map(attribute='source') | list == [mm_verify_sandbox]
+          - mm_verify_app.volumes | map(attribute='source') | select('equalto', '/volume1/media') | list | length == 0
+          - mm_verify_app.ports is not defined
+          - mm_verify_app.networks.keys() | sort == ['db', 'default', 'newt']
+          - mm_verify_app.mem_limit | int == 536870912
+          # La base : jamais sur newt ni sur un réseau qui sort.
+          - mm_verify_db.networks.keys() | list == ['db']
+          - mm_verify_db.ports is not defined
+          - mm_verify_db.mem_limit | int == 268435456
+          - mm_verify_db.mem_reservation | int == 134217728
+          - mm_verify_db.image is match('docker.io/library/postgres:17\.')
+          - mm_verify_model.networks.db.internal
+          - mm_verify_model.networks.newt.external
+          - mm_verify_model.networks.default.ipam.config | map(attribute='subnet') | list == ['172.30.97.0/24']
+        fail_msg: "Compose de MediaManager inattendu : {{ mm_verify_model.services }}"
+
+    - name: Read the MediaManager configuration
+      ansible.builtin.slurp:
+        src: "{{ mm_verify_path }}/config/config.toml"
+      register: mm_verify_config_raw
+
+    - name: Stat the MediaManager configuration
+      ansible.builtin.stat:
+        path: "{{ mm_verify_path }}/config/config.toml"
+      register: mm_verify_config_stat
+
+    - name: Assert the configuration is private and leaves the downloads off
+      vars:
+        mm_verify_config: "{{ mm_verify_config_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - mm_verify_config_stat.stat.pw_name == 'sylvain'
+          - mm_verify_config_stat.stat.mode == '0600'
+          - mm_verify_config is search('(?m)^movie_directory = "/data/films"$')
+          - mm_verify_config is search('(?m)^torrent_directory = "/data/torrents"$')
+          - mm_verify_config is search('(?m)^category_save_path = "/data/torrents"$')
+          - mm_verify_config is search('(?m)^frontend_url = "http://mediamanager.internal:8000"$')
+          - mm_verify_config | regex_findall('(?m)^enabled = false$') | length == 3
+          - mm_verify_config is search('password = "' ~ ((backup_passphrase ~ '-mediamanager-db') | hash('sha256')) ~ '"')
+        fail_msg: "config.toml inattendu ({{ mm_verify_config_stat.stat.mode | default('absent') }})"
+
+    - name: Stat the sandbox folders
+      ansible.builtin.stat:
+        path: "{{ mm_verify_sandbox }}{{ item }}"
+      loop: ["", /films, /series, /torrents]
+      register: mm_verify_sandbox_dirs
+
+    - name: Assert the sandbox belongs to sylvain
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+          - item.stat.pw_name == 'sylvain'
+          - item.stat.mode == '0750'
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ mm_verify_sandbox_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Stat the qBittorrent seed without VPN
+      ansible.builtin.stat:
+        path: "{{ mm_verify_path }}/qbittorrent/qBittorrent/qBittorrent.conf"
+      register: mm_verify_no_seed
+
+    - name: Assert nothing of qBittorrent is configured without VPN
+      ansible.builtin.assert:
+        that:
+          - not mm_verify_no_seed.stat.exists
+
+    - name: Read the MediaManager borgmatic configuration
+      ansible.builtin.slurp:
+        src: "{{ mm_verify_borgmatic_path }}"
+      register: mm_verify_borgmatic_raw
+
+    # Fichiers seuls (pas de dump PostgreSQL : borgmatic en conteneur), la
+    # base de Prowlarr copiée par sqlite3, la copie vivante exclue.
+    - name: Assert the MediaManager backup
+      vars:
+        mm_verify_borgmatic: "{{ mm_verify_borgmatic_raw.content | b64decode | from_yaml }}"
+        mm_verify_live_db: "{{ mm_verify_path }}/prowlarr/prowlarr.db"
+      ansible.builtin.assert:
+        that:
+          - mm_verify_borgmatic.postgresql_databases is not defined
+          - mm_verify_borgmatic.source_directories == [
+              mm_verify_path ~ '/config', mm_verify_path ~ '/qbittorrent',
+              mm_verify_path ~ '/prowlarr', mm_verify_path ~ '/compose.yaml',
+              '/var/lib/borgmatic-sqlite/mediamanager']
+          - mm_verify_live_db in mm_verify_borgmatic.exclude_patterns
+          - (mm_verify_path ~ '/prowlarr/logs') in mm_verify_borgmatic.exclude_patterns
+          - mm_verify_borgmatic.repositories[0].path
+            == 'ssh://' ~ backup_storage_box_subaccounts.nas.username ~ '@' ~ backup_storage_box_subaccounts.nas.server ~ '/./mediamanager'
+        fail_msg: "Configuration borgmatic de MediaManager inattendue : {{ mm_verify_borgmatic }}"
+
+    # La variante avec VPN, dans un autre projet (son compose seul est
+    # vérifié, l'unité de test ne lance aucun conteneur).
+    - name: Render MediaManager with a WireGuard key
+      ansible.builtin.include_role:
+        name: mediamanager
+      vars:
+        mediamanager_service: mediamanager_vpn
+        mediamanager_backup_enabled: false
+        mediamanager_wireguard_private_key: molecule-wireguard-key
+        mediamanager_vpn_server_countries: Switzerland
+
+    - name: Render the compose model with VPN
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ mm_verify_vpn_path }}"
+      register: mm_verify_vpn_compose
+      changed_when: false
+
+    - name: Assert qBittorrent and Prowlarr only have gluetun's network
+      vars:
+        mm_verify_model: "{{ mm_verify_vpn_compose.stdout | from_json }}"
+        mm_verify_gluetun: "{{ mm_verify_model.services.gluetun }}"
+        mm_verify_qbt: "{{ mm_verify_model.services.qbittorrent }}"
+        mm_verify_prowlarr: "{{ mm_verify_model.services.prowlarr }}"
+        mm_verify_up: "{{ mm_verify_gluetun.environment.VPN_PORT_FORWARDING_UP_COMMAND }}"
+      ansible.builtin.assert:
+        that:
+          - mm_verify_model.services.keys() | sort == ['db', 'gluetun', 'mediamanager', 'prowlarr', 'qbittorrent']
+          - mm_verify_qbt.network_mode == 'service:gluetun'
+          - mm_verify_prowlarr.network_mode == 'service:gluetun'
+          - mm_verify_qbt.networks is not defined
+          - mm_verify_prowlarr.networks is not defined
+          - mm_verify_qbt.ports is not defined
+          - mm_verify_qbt.depends_on.gluetun.condition == 'service_healthy'
+          - mm_verify_prowlarr.depends_on.gluetun.condition == 'service_healthy'
+          # Même montage /data que MediaManager : liens physiques possibles.
+          - mm_verify_qbt.volumes | selectattr('target', 'equalto', '/data') | map(attribute='source') | list == [mm_verify_sandbox]
+          - mm_verify_qbt.cpus | float == 2.0
+          - mm_verify_qbt.cpu_shares == 512
+          - mm_verify_gluetun.environment.VPN_SERVICE_PROVIDER == 'protonvpn'
+          - mm_verify_gluetun.environment.VPN_TYPE == 'wireguard'
+          - mm_verify_gluetun.environment.VPN_PORT_FORWARDING == 'on'
+          - mm_verify_gluetun.environment.PORT_FORWARD_ONLY == 'on'
+          - mm_verify_gluetun.environment.SERVER_COUNTRIES == 'Switzerland'
+          - mm_verify_gluetun.environment.WIREGUARD_ADDRESSES is not defined
+          - mm_verify_gluetun.environment.FIREWALL_VPN_INPUT_PORTS is not defined
+          # Les jetons de gluetun restent pour gluetun (ni Jinja ni Compose).
+          - mm_verify_up is search('listen_port.{1,3}\{\{PORT\}\},')
+          - mm_verify_up is search('\{\{VPN_INTERFACE\}\}')
+          - mm_verify_up is search('http://127\.0\.0\.1:8080/api/v2/app/setPreferences')
+          - mm_verify_gluetun.cap_add == ['NET_ADMIN']
+          # Interfaces web sur la boucle locale du NAS seulement.
+          - mm_verify_gluetun.ports | map(attribute='host_ip') | unique | list == ['127.0.0.1']
+          - mm_verify_gluetun.ports | map(attribute='published') | map('string') | sort == ['8080', '9696']
+          - mm_verify_prowlarr.environment.PROWLARR__AUTH__APIKEY | length == 32
+        fail_msg: "Compose avec VPN inattendu : {{ mm_verify_model.services }}"
+
+    - name: Read the qBittorrent seed
+      ansible.builtin.slurp:
+        src: "{{ mm_verify_vpn_path }}/qbittorrent/qBittorrent/qBittorrent.conf"
+      register: mm_verify_seed_raw
+
+    - name: Read the configuration with VPN
+      ansible.builtin.slurp:
+        src: "{{ mm_verify_vpn_path }}/config/config.toml"
+      register: mm_verify_vpn_config_raw
+
+    # Le tunnel pour seule interface, la boucle locale sans mot de passe (pour
+    # la commande de gluetun), le mot de passe en PBKDF2 ; qBittorrent et
+    # Prowlarr branchés dans MediaManager.
+    - name: Assert qBittorrent is seeded and MediaManager uses it
+      vars:
+        mm_verify_seed: "{{ mm_verify_seed_raw.content | b64decode }}"
+        mm_verify_vpn_config: "{{ mm_verify_vpn_config_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - mm_verify_seed is search('(?m)^Session\\\\Interface=tun0$')
+          - mm_verify_seed is search('(?m)^Session\\\\DefaultSavePath=/data/torrents$')
+          - mm_verify_seed is search('(?m)^WebUI\\\\LocalHostAuth=false$')
+          - mm_verify_seed is search('(?m)^WebUI\\\\Password_PBKDF2="@ByteArray\([A-Za-z0-9+/=]{24}:[A-Za-z0-9+/=]{88}\)"$')
+          - mm_verify_seed is not search((backup_passphrase ~ '-mediamanager-qbittorrent') | hash('sha256'))
+          - mm_verify_vpn_config | regex_findall('(?m)^enabled = true$') | length == 2
+          - mm_verify_vpn_config is search('(?m)^url = "http://gluetun:9696"$')
+          - mm_verify_vpn_config is search('(?m)^host = "http://gluetun"$')
+        fail_msg: "{{ mm_verify_seed }}"

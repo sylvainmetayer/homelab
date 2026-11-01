@@ -1,0 +1,7 @@
+---
+# Dérivé, pas un réglage : sous un dc@ système (NAS), le dossier du projet et
+# le compose sont à root, qui lance l'unité (comme le rôle jellyfin).
+mediamanager_dc_scope: "{{ docker_service_scope | default('user') }}"
+mediamanager_as_root: "{{ mediamanager_dc_scope == 'system' }}"
+# gluetun, qBittorrent et Prowlarr ne sont rendus qu'avec une clé WireGuard.
+mediamanager_vpn_enabled: "{{ mediamanager_vpn_private_key | length > 0 }}"
