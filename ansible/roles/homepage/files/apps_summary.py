@@ -263,7 +263,11 @@ class Source:
                     if not self.entry:
                         raise FetchError(type(err).__name__ if not isinstance(err, FetchError) else str(err)) from None
                     log(f"{self.name} : {err}, copie de {int(now - self.entry[0])} s servie")
-            return self.summarize(self.entry[1], now)
+            try:
+                return self.summarize(self.entry[1], now)
+            except (KeyError, TypeError, AttributeError, ValueError, IndexError) as err:
+                # Réponse amont d'une forme inattendue : 502, pas une connexion coupée.
+                raise FetchError(type(err).__name__) from None
 
 
 def build_sources(env: dict) -> dict:
