@@ -15,6 +15,14 @@
     "reread": "packages/app-server/src/index.node.ts, modules/app/server.ts, modules/notes/notes.routes.ts (no new route under /api/notes/<id> but GETs, POST /api/notes unchanged), shared/utils/random.ts (note ids still ULIDs starting with 0), packages/app-client/src/routes.tsx, modules/notes/notes.services.ts, the Vite build output dir (assets/); @enclosed/lib in ansible/roles/enclosed/files/cli/package.json moves with it",
     "releases": "https://github.com/CorentinTh/enclosed/releases"
   },
+  "HealthLog": {
+    "image": "ghcr.io/mbombeck/healthlog",
+    "version": "1.46.5",
+    "compose": "ansible/roles/healthlog/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_healthlog.tf (healthlog_withings_webhook_paths)",
+    "reread": "src/app/api/withings/webhook (all of it: [token]/route.ts, the legacy route.ts and any new route under it: still the secret compared on every verb, 401 otherwise), src/lib/withings/webhook-handler.ts (rate limit, the body only names what to fetch), src/lib/withings/sync.ts (getWithingsWebhookCallbackUrl: the secret still one path segment)",
+    "releases": "https://github.com/MBombeck/HealthLog/releases"
+  },
   "Karakeep": {
     "image": "ghcr.io/karakeep-app/karakeep",
     "version": "0.34.1",

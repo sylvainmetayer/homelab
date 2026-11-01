@@ -1170,6 +1170,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Enclosed /api/notes/0*",
       "Enclosed /api/notes/0*/exists",
       "Flip Planning /mcp/*",
+      "HealthLog /api/withings/webhook/**",
       "Karakeep /public/lists/*",
       "Karakeep /_next/static/*",
       "Karakeep /api/public/*",
