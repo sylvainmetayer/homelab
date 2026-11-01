@@ -101,7 +101,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Weekly memory report | `ansible/roles/mem_report/README.md` |
 | Monthly cost report (Hetzner, OVH, subscriptions; ntfy + Homepage card) | `ansible/roles/cost_report/README.md` |
 | ntfy: topics, grants, removing one, « no subscriber » alert | `ansible/roles/ntfy/README.md` |
-| CrowdSec, GeoLite2 on Pangolin | `ansible/roles/pangolin/README.md` |
+| CrowdSec, GeoLite2, response headers (HSTS) on Pangolin | `ansible/roles/pangolin/README.md` |
 | Flip Planning instances | `ansible/roles/flip_planning/README.md` |
 | NAS: TLS proxy, Jellyfin network, kDrive mirror | `ansible/roles/nas_proxy/README.md`, `ansible/roles/jellyfin/README.md`, `ansible/roles/kdrive_sync/README.md` |
 | Canary traps (Canarytokens AWS keys, trap file, fake SSH account) | `ansible/roles/canary/README.md`, `docs/runbooks/jeton-piege.md` |
