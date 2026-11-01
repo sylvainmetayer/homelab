@@ -192,7 +192,7 @@ basculent sur l'autre.
 
 ```mermaid
 flowchart LR
-  agekey["Clé age perso<br/>~/.age.key (.sopsrc)"]
+  agekey["Clé age perso<br/>~/.config/sops/age/keys.txt"]
   root["secrets/secrets.sops.yaml<br/>jetons Hetzner, OVH, Cloudflare,<br/>Proxmox, S3, Uptime Kuma,<br/>passphrase des states"]
   ans["secrets/ansible.sops.yaml<br/>mots de passe des applis,<br/>passphrase Borg, sous-comptes,<br/>clés S3 de lecture du state"]
   agekey --> root
