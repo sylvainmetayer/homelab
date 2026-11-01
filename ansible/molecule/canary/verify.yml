@@ -1,0 +1,168 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../roles/canary/defaults/main.yml
+  vars:
+    canary_verify_log: /root/molecule-ntfy.jsonl
+    canary_verify_aws: "{{ canarytokens['molecule-canary'].aws }}"
+    canary_verify_env: "{{ canarytokens['molecule-canary'].env }}"
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    # Avant tout le reste : le converge et le passage d'idempotence ont tourné
+    # guetteur en marche, sans jamais ouvrir le fichier piège.
+    - name: Stat the fake ntfy log
+      ansible.builtin.stat:
+        path: "{{ canary_verify_log }}"
+      register: canary_verify_log_before
+
+    - name: Assert that no Ansible run tripped a trap
+      ansible.builtin.assert:
+        that:
+          - not canary_verify_log_before.stat.exists or canary_verify_log_before.stat.size == 0
+        fail_msg: Le converge ou l'idempotence a fait sonner un piège (le rôle ouvre le fichier piège ?).
+
+    # Stat aveugle, comme le rôle : un stat ordinaire ouvrirait le fichier.
+    - name: Stat the trap file without opening it
+      ansible.builtin.stat:
+        path: "{{ canary_trap_file }}"
+        get_checksum: false
+        get_mime: false
+        get_attributes: false
+      register: canary_verify_trap
+
+    - name: Assert the trap file is in place, private to sylvain
+      ansible.builtin.assert:
+        that:
+          - canary_verify_trap.stat.exists
+          - canary_verify_trap.stat.pw_name == 'sylvain'
+          - canary_verify_trap.stat.mode == '0600'
+
+    - name: Read the Canarytokens files and the watcher configuration
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: canary_verify_files
+      loop:
+        - "{{ canary_aws_credentials_path }}"
+        - "{{ canary_env_path }}"
+        - "{{ canary_dir }}/canary.env"
+        - /etc/systemd/system/canary-watch.service
+
+    - name: Stat the Canarytokens files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: canary_verify_stats
+      loop:
+        - "{{ canary_aws_credentials_path }}"
+        - "{{ canary_env_path }}"
+        - "{{ canary_dir }}/canary.env"
+
+    - name: Assert the Canarytokens keys and the ntfy token are deployed privately
+      vars:
+        aws_ini: "{{ canary_verify_files.results[0].content | b64decode }}"
+        env_lines: "{{ (canary_verify_files.results[1].content | b64decode).splitlines() }}"
+        watcher_env: "{{ (canary_verify_files.results[2].content | b64decode).splitlines() }}"
+        unit: "{{ canary_verify_files.results[3].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - ('aws_access_key_id = ' ~ canary_verify_aws.access_key_id) in aws_ini.splitlines()
+          - ('aws_secret_access_key = ' ~ canary_verify_aws.secret_access_key) in aws_ini.splitlines()
+          - ('AWS_ACCESS_KEY_ID=' ~ canary_verify_env.access_key_id) in env_lines
+          - ('AWS_SECRET_ACCESS_KEY=' ~ canary_verify_env.secret_access_key) in env_lines
+          - ('NTFY_TOKEN=' ~ ntfy_scripts_token) in watcher_env
+          - ntfy_scripts_token not in unit
+          - canary_verify_stats.results | map(attribute='stat.mode') | list == ['0600', '0600', '0600']
+          - canary_verify_stats.results[:2] | map(attribute='stat.pw_name') | list == ['sylvain', 'sylvain']
+          - canary_verify_stats.results[2].stat.pw_name == 'root'
+
+    # systemd-analyze verify échoue sur une directive inconnue ou mal écrite,
+    # que systemd ne ferait qu'ignorer au chargement.
+    - name: Verify the unit as systemd parses it
+      ansible.builtin.command: systemd-analyze verify /etc/systemd/system/canary-watch.service
+      changed_when: false
+
+    - name: Read the watcher state
+      ansible.builtin.systemd_service:
+        name: canary-watch.service
+      register: canary_verify_service
+
+    - name: Assert the watcher is running and enabled
+      ansible.builtin.assert:
+        that:
+          - canary_verify_service.status.ActiveState == 'active'
+          - canary_verify_service.status.UnitFileState == 'enabled'
+
+    # --- Le fichier piège sonne --------------------------------------------
+    - name: Open the trap file as sylvain would
+      become: true
+      become_user: sylvain
+      ansible.builtin.command: cat {{ canary_trap_file }}
+      changed_when: false
+      no_log: true
+
+    - name: Wait for the trap file alert
+      ansible.builtin.wait_for:
+        path: "{{ canary_verify_log }}"
+        search_regex: fichier pi
+        timeout: 30
+
+    # Anti-rafale : une seconde ouverture dans la minute va au journal
+    # seulement.
+    - name: Open the trap file again
+      become: true
+      become_user: sylvain
+      ansible.builtin.command: cat {{ canary_trap_file }}
+      changed_when: false
+      no_log: true
+
+    # --- Le compte SSH fictif sonne -----------------------------------------
+    - name: Try to log in with the fake SSH account
+      become: true
+      become_user: sylvain
+      ansible.builtin.command: >-
+        ssh -o BatchMode=yes -o StrictHostKeyChecking=no
+        -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10
+        {{ canary_honey_user }}@127.0.0.1 true
+      register: canary_verify_ssh
+      changed_when: false
+      failed_when: canary_verify_ssh.rc == 0
+
+    - name: Wait for the fake SSH account alert
+      ansible.builtin.wait_for:
+        path: "{{ canary_verify_log }}"
+        search_regex: compte fictif
+        timeout: 30
+
+    - name: Read what the fake ntfy received
+      ansible.builtin.slurp:
+        src: "{{ canary_verify_log }}"
+      register: canary_verify_requests
+
+    - name: Read the canary journal
+      ansible.builtin.command: journalctl --quiet --output=cat -t canary
+      register: canary_verify_journal
+      changed_when: false
+
+    - name: Assert one ntfy message per trap, on topic scripts with the scripts token
+      vars:
+        requests: "{{ (canary_verify_requests.content | b64decode).splitlines() | map('from_json') | list }}"
+        bodies: "{{ requests | map(attribute='body') | map('from_json') | list }}"
+        messages: "{{ bodies | map(attribute='message') | list }}"
+      ansible.builtin.assert:
+        that:
+          - requests | length == 2
+          - requests | map(attribute='method') | unique == ['POST']
+          - requests | map(attribute='path') | unique == ['/']
+          - requests | map(attribute='authorization') | unique == ['Bearer ' ~ ntfy_scripts_token]
+          - bodies | map(attribute='topic') | unique == ['scripts']
+          - bodies | map(attribute='priority') | unique == [5]
+          - bodies | map(attribute='title') | unique == ['Jeton piège sur molecule-canary']
+          - messages | select('search', 'fichier piège ' ~ canary_trap_file ~ ' \\(OPEN\\)') | list | length == 1
+          - messages | select('search', 'Invalid user ' ~ canary_honey_user ~ ' from 127\\.0\\.0\\.1') | list | length == 1
+          # Les deux ouvertures sont au journal, une seule est partie sur ntfy.
+          - "canary_verify_journal.stdout_lines | select('search', '^fichier : ') | list | length == 2"
+        fail_msg: "{{ messages }}"

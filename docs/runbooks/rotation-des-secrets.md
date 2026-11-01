@@ -306,7 +306,7 @@ Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
 - Jeton d'un producteur (`ntfy_scripts_token`,
-  `ntfy_github_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+  `ntfy_github_token`, `ntfy_canary_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
@@ -328,7 +328,21 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   seulement.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
-  `ansible-playbook pangolin.yaml --tags pangolin`.
+  `ansible-playbook pangolin.yaml --tags pangolin`, et aux pièges maison
+  (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`.
+- `ntfy_canary_token` est dans l'URL du webhook de chaque jeton
+  Canarytokens.org : après sa rotation, refaire l'URL
+  (`ansible/roles/canary/README.md`, « Webhook vers ntfy ») et la coller
+  dans la page de gestion de chaque jeton.
+
+### Jetons pièges
+
+`canarytokens` (`secrets/ansible.sops.yaml`, rôle `canary`) : des clés AWS
+factices de canarytokens.org, une ou deux par hôte. Rien à protéger en
+elles-mêmes ; une clé qui a sonné, ou trop vieille, se remplace : nouveau
+jeton sur canarytokens.org (type AWS keys, même mémo, même webhook),
+désactiver l'ancien depuis sa page de gestion, `sops set`, puis
+`ansible-playbook 00-setup.yaml --tags canary --limit <hôte>`.
 
 ### Identifiants Newt
 

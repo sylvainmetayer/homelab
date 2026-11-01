@@ -125,3 +125,9 @@
     - role: ssh_login_notify
       become: true
       tags: ssh_login_notify,security
+    # Jetons pièges : clés AWS Canarytokens (clé SOPS facultative
+    # canarytokens), fichier piège et compte SSH fictif guettés par
+    # canary-watch.service, alerte sur ntfy (topic scripts).
+    - role: canary
+      become: true
+      tags: canary,security

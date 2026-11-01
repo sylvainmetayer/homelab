@@ -194,6 +194,7 @@
             - { topic: uptime-kuma, token: "{{ ntfy_verify_uptime_kuma_token }}" }
             - { topic: scripts, token: "{{ ntfy_scripts_token }}" }
             - { topic: github, token: "{{ ntfy_github_token }}" }
+            - { topic: canary, token: "{{ ntfy_canary_token }}" }
           ansible.builtin.uri:
             url: "{{ ntfy_verify_url }}/{{ item.topic }}"
             method: POST

@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+# Guetteur des pièges maison (rôle canary) : fichier piège
+# {{ canary_trap_file }} et compte SSH fictif {{ canary_honey_user }}.
+# Le jeton ntfy est dans l'EnvironmentFile, 0600 root : ni la ligne de
+# commande ni systemctl show ne le montrent.
+[Unit]
+Description=Canary traps watcher (trap file, fake SSH account)
+After=network-online.target
+Wants=network-online.target
+# Relancé sans fin : un guetteur arrêté, c'est un piège qui ne sonne plus.
+StartLimitIntervalSec=0
+
+[Service]
+EnvironmentFile={{ canary_dir }}/canary.env
+ExecStart={{ canary_dir }}/canary-watch
+Restart=always
+RestartSec=10
+# Root : lire le journal de sshd et poser une veille inotify sur un dossier
+# personnel. Sans écriture nulle part.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

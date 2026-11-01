@@ -1,0 +1,8 @@
+---
+# Pas en --check si l'unité vient d'être posée : elle n'existe pas encore.
+- name: Restart canary-watch
+  when: not ansible_check_mode
+  ansible.builtin.systemd:
+    name: canary-watch.service
+    state: restarted
+    daemon_reload: true

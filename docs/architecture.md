@@ -335,6 +335,16 @@ moniteur « ntfy : abonnés » (`cron_ntfy_subscribers.tf`), down quand aucun
 abonné n'y figure sur 8 heures (un téléphone hors ligne une nuit
 n'alerte pas).
 
+Jetons pièges (rôle `canary`, `00-setup.yaml`) : de faux identifiants sur
+docker, pi, pangolin, flip et newt-lxc, que personne n'a de raison de
+toucher. Des clés AWS de canarytokens.org (`~/.aws/credentials`,
+`/opt/s3-backup/.env`) alertent par courriel et sur le topic ntfy `canary`
+dès qu'on s'en sert, même hors de l'hôte ; un fichier leurre
+(`~/acces-secours.txt`) dont l'ouverture alerte et un compte SSH fictif
+(`borg-restore`, inexistant) dont toute tentative alerte, guettés sur l'hôte
+par `canary-watch.service`, alertent sur le topic `scripts`. Quand l'un
+sonne : [runbooks/jeton-piege.md](runbooks/jeton-piege.md).
+
 Cadence des sondes (`local.http_probe`, `uptime_globals.tf`, depuis le
 2026-10-29) : chaque moniteur HTTP (healthchecks des applis, dashboard
 Pangolin, sites externes) sonde toutes les 5 minutes, une seule requête par
