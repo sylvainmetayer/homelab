@@ -9,12 +9,12 @@
 
 # Taille du lot du mode aléatoire (location = /api/assets/random plus bas) :
 # `count` de la requête de 1 à 100, plafonné à 100 au-delà, sinon (absent,
-# 0, non numérique) 20. Seule valeur de la requête recopiée dans le corps
-# JSON : rien d'autre qu'un nombre n'y entre.
+# zéro ou zéros en tête, non numérique) 20. Seule valeur de la requête
+# recopiée dans le corps JSON : rien d'autre qu'un nombre n'y entre.
 map $immich_swipe_count $immich_swipe_random_size {
     default                  20;
     "~^([1-9][0-9]?|100)$"   $immich_swipe_count;
-    "~^[0-9]{3,}$"           100;
+    "~^[1-9][0-9]{2,}$"      100;
 }
 
 server {
@@ -29,9 +29,12 @@ server {
 
     # Mode aléatoire : l'appli appelle GET /api/assets/random?count=N, retiré
     # d'Immich v3 (400 « Validation failed »). Immich v3 répond au même
-    # besoin par POST /api/search/random {"size": N}, qui renvoie le même
-    # tableau d'assets (images et vidéos : l'appli écarte elle-même les
-    # vidéos). Même clé, mêmes en-têtes retirés que /api/ ci-dessous.
+    # besoin par POST /api/search/random ; le corps reprend le filtre de
+    # l'ancien endpoint (exif inclus, visibilité archive ou timeline, hors
+    # corbeille) : sans lui, {"size": N} seul renverrait sans exif, et avec
+    # la vidéo cachée (`hidden`) des photos animées, que l'appli montrerait
+    # seule et pourrait mettre à la corbeille. Même clé, mêmes en-têtes
+    # retirés que /api/ ci-dessous.
     location = /api/assets/random {
         set $immich http://immich-server:2283;
         # Lu avant le rewrite, qui vide la query string (`?` final) : la map
@@ -42,7 +45,7 @@ server {
         proxy_http_version 1.1;
         proxy_method POST;
         proxy_set_header Content-Type application/json;
-        proxy_set_body '{"size":$immich_swipe_random_size}';
+        proxy_set_body '{"size":$immich_swipe_random_size,"withExif":true,"filter":{"visibility":{"in":["archive","timeline"]},"trashedAt":{"eq":null}}}';
         proxy_set_header x-api-key "{{ immich_swipe_api_key }}";
         proxy_set_header Cookie "";
         proxy_set_header Authorization "";
