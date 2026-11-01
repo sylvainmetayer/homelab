@@ -12,7 +12,8 @@
 # - GitHub Pages (*.talks.sylvain.dev) n'est pas concerné : ces noms sont des
 #   CNAME vers sylvainmetayer.github.io, dont le CAA (digicert, letsencrypt,
 #   sectigo) s'applique à leur place (RFC 8659 §3, le CNAME est suivi).
-# - Cloudflare Pages (ref, www et r.sylvain.dev : tofu/ref, tofu/site, tofu/1y) :
+# - Cloudflare Pages (ref, www, r et planning.sylvain.dev : tofu/ref, tofu/site,
+#   tofu/1y, tofu/planning) :
 #   Google Trust Services aujourd'hui (WE1), mais Cloudflare choisit seul entre
 #   Let's Encrypt, Google Trust Services et SSL.com et peut changer au
 #   renouvellement. Ces noms sont des CNAME vers *.pages.dev, qui ne publie
