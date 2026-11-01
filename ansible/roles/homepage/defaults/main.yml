@@ -179,6 +179,43 @@ homepage_kuma_cards:
         items: items
         name: name
         label: status
+  - name: Maintenance
+    group: "{{ homepage_supervision_group }}"
+    description: Contrôles périodiques (apt, Storage Box, restaurations, secrets), en défaut d'abord
+    icon: mdi-wrench-clock
+    widget:
+      type: customapi
+      url: "{{ homepage_kuma_summary_url }}/maintenance.json"
+      refreshInterval: 60000
+      display: dynamic-list
+      mappings:
+        items: items
+        name: name
+        label: status
+
+# Sondes de la carte Maintenance, par leur nom exact dans Uptime Kuma
+# (tofu/pangolin_config) : une sonde renommée, supprimée ou en pause s'y
+# affiche « Absente ». Toutes des sondes push, donc « OK » veut dire que le
+# contrôle a tourné et passé dans sa fenêtre, pas qu'il n'y a rien à faire :
+# - Mises à jour <hôte> (cron_updates.tf, rôle update_notify) : le
+#   vérificateur apt du lundi a tourné ; la liste des paquets en attente part
+#   sur ntfy (topic scripts) et dans le message du battement, que /metrics
+#   ne donne pas : pas de nombre par hôte ici ;
+# - Storage Box (storage_box_quota_monitor.tf) : occupation sous 80 % ;
+# - Restore test (restore_test_monitor.tf) et Test restauration vzdump
+#   (cron_vzdump_restore_test.tf) : derniers tests de restauration ;
+# - Rotation des secrets (secrets_rotation_monitor.tf) : aucun secret dû sous
+#   30 jours et dernier test de la clé age secours de moins de 100 jours.
+homepage_kuma_maintenance_monitors:
+  - Mises à jour Proxmox
+  - Mises à jour VM docker
+  - Mises à jour Raspberry Pi
+  - Mises à jour flip
+  - Mises à jour Pangolin
+  - Storage Box
+  - Restore test
+  - Test restauration vzdump
+  - Rotation des secrets
 
 # CrowdSec (Pangolin) d'après ses journaux, pas par sa LAPI : la LAPI est sur
 # Pangolin, que la VM docker ne joint que par Internet (il faudrait l'y
@@ -322,6 +359,104 @@ homepage_homebox_username: ""
 homepage_homebox_widget_password: "{{ homepage_homebox_password | default('') }}"
 homepage_karakeep_widget_key: "{{ homepage_karakeep_api_key | default('') }}"
 
+# --- apps-summary (files/apps_summary.py) ---
+# Ce que les widgets natifs de Homepage ne lisent pas (pas de widget Grocy ;
+# Papra et Dawarich demandent une date calculée, « depuis 7 jours », « ce
+# mois-ci », que l'URL d'un customapi ne sait pas écrire ; le flux TBM est un
+# SIRI imbriqué) : un conteneur du projet, même modèle que kuma-summary, les
+# interroge et sert un JSON plat par source sur newt
+# (http://homepage-apps-summary:8080/<source>.json). Il est sur newt parce
+# qu'il joint Grocy, Papra et Dawarich par leur nom, comme Pangolin ; tout
+# conteneur de newt peut lire ses compteurs (aucun secret, aucun nom de
+# document). Clés seulement dans compose.yaml (0600). Une source sans clé
+# n'est pas servie ; sans aucune source, pas de conteneur.
+homepage_apps_summary_port: 8080
+homepage_apps_summary_cache_seconds: 300
+homepage_apps_summary_url: "http://homepage-apps-summary:{{ homepage_apps_summary_port }}" # NOSONAR (réseau newt, sans TLS)
+
+# Grocy (sur son lien) : produits à consommer bientôt, dates dépassées,
+# manquants, tâches en retard. Clé d'API d'un utilisateur Grocy dédié,
+# sans aucune permission (la lecture n'en demande pas) :
+# clé sops homepage_grocy_api_key.
+homepage_grocy_widget_key: "{{ homepage_grocy_api_key | default('') }}"
+homepage_grocy_due_soon_days: 5
+
+# Papra (sur son lien) : documents, ajoutés depuis 7 jours, sans étiquette,
+# sur toutes les organisations du compte. Clé d'API aux seules permissions
+# organizations:read et documents:read : clé sops homepage_papra_api_key.
+homepage_papra_widget_key: "{{ homepage_papra_api_key | default('') }}"
+
+# Dawarich (sur son lien) : km du mois, km et pays de l'année. Clé d'API du
+# compte (Dawarich n'en a qu'une, qui peut aussi écrire des points : risque
+# accepté comme Karakeep) : clé sops homepage_dawarich_api_key. Rails
+# n'accepte que le Host public (APPLICATION_HOSTS) : la requête vise le
+# conteneur sous ce Host, celui du lien.
+homepage_dawarich_widget_key: "{{ homepage_dawarich_api_key | default('') }}"
+homepage_dawarich_host: "{{ homepage_websites.dawarich.href | default('') | urlsplit('hostname') }}"
+
+# TBM : prochains passages de la ligne 31 à l'arrêt CREPS (Talence), dans les
+# deux sens, par le flux SIRI-lite ouvert de Bordeaux Métropole (Mecatran,
+# stop-monitoring), sans compte : la clé d'accès est publique, la même pour
+# tous, donnée par le portail open data (« Flux temps réel TBM »).
+# Identifiants relevés le 2026-11-01 (stoppoints-discovery.json) : l'arrêt
+# CREPS a deux quais, BP:451 (sens 1, vers Gare Saint-Jean, Cenon,
+# Ambarès) puis BP:562 (sens 0, vers Gradignan Beausoleil).
+# homepage_tbm_enabled: false retire la carte.
+homepage_tbm_enabled: true
+homepage_tbm_url: https://bdx.mecatran.com/utw/ws/siri/2.0/bordeaux/stop-monitoring.json
+homepage_tbm_account_key: opendata-bordeaux-metropole-flux-gtfs-rt
+homepage_tbm_line: "bordeaux:Line:31:LOC"
+homepage_tbm_stops:
+  - "bordeaux:StopPoint:BP:451:LOC"
+  - "bordeaux:StopPoint:BP:562:LOC"
+homepage_tbm_departures: 3
+homepage_tbm_card:
+  name: Bus 31 à CREPS
+  group: Vie perso
+  description: Vers Gare Saint-Jean / Cenon puis vers Gradignan (TBM, temps réel)
+  icon: mdi-bus-clock
+  widget:
+    type: customapi
+    url: "{{ homepage_apps_summary_url }}/tbm.json"
+    refreshInterval: 60000
+    display: dynamic-list
+    mappings:
+      items: items
+      name: name
+      label: status
+
+# Sources servies par apps-summary : nom => variables d'environnement.
+homepage_apps_summary_sources: >-
+  {%- set out = {} -%}
+  {%- if homepage_grocy_widget_key | length > 0 and homepage_websites.grocy.internal_url | default('') | length > 0 -%}
+  {%-   set _ = out.update({'grocy': {'GROCY_URL': homepage_websites.grocy.internal_url, 'GROCY_API_KEY': homepage_grocy_widget_key,
+                                      'GROCY_DUE_SOON_DAYS': homepage_grocy_due_soon_days | string}}) -%}
+  {%- endif -%}
+  {%- if homepage_papra_widget_key | length > 0 and homepage_websites.papra.internal_url | default('') | length > 0 -%}
+  {%-   set _ = out.update({'papra': {'PAPRA_URL': homepage_websites.papra.internal_url, 'PAPRA_API_KEY': homepage_papra_widget_key}}) -%}
+  {%- endif -%}
+  {%- if homepage_dawarich_widget_key | length > 0 and homepage_websites.dawarich.internal_url | default('') | length > 0 -%}
+  {%-   set _ = out.update({'dawarich': {'DAWARICH_URL': homepage_websites.dawarich.internal_url, 'DAWARICH_HOST': homepage_dawarich_host,
+                                         'DAWARICH_API_KEY': homepage_dawarich_widget_key}}) -%}
+  {%- endif -%}
+  {%- if homepage_tbm_enabled | bool and homepage_tbm_stops | length > 0 -%}
+  {%-   set _ = out.update({'tbm': {'TBM_URL': homepage_tbm_url, 'TBM_ACCOUNT_KEY': homepage_tbm_account_key, 'TBM_LINE': homepage_tbm_line,
+                                    'TBM_STOPS': homepage_tbm_stops | join(','), 'TBM_DEPARTURES': homepage_tbm_departures | string}}) -%}
+  {%- endif -%}
+  {{ out }}
+
+# FreshRSS (sur le lien rss) : widget natif freshrss (non lus, abonnements),
+# par l'API Google Reader de FreshRSS, avec le mot de passe d'API du compte
+# (Profil → Mot de passe de l'API, distinct du mot de passe de connexion) :
+# clé sops homepage_freshrss_api_password, et son nom d'utilisateur,
+# homepage_freshrss_username (host_vars/docker). L'API est coupée par le rôle
+# rss, sauf quand cette clé existe (rss_api_enabled) ; Pangolin n'ouvre
+# toujours aucun chemin autour du SSO : seul ce qui est sur newt la joint
+# sans lui. Le mot de passe d'API ouvre aussi l'écriture (marquer lu,
+# s'abonner) : risque accepté, comme Karakeep.
+homepage_freshrss_username: ""
+homepage_freshrss_widget_password: "{{ homepage_freshrss_api_password | default('') }}"
+
 homepage_link_widgets_extra:
   speedtest_tracker:
     enabled: "{{ homepage_speedtest_widget_token | length > 0 }}"
@@ -378,6 +513,66 @@ homepage_link_widgets_extra:
       url: "{{ homepage_websites.karakeep.internal_url | default('') }}"
       key: "{{ homepage_karakeep_widget_key }}"
       fields: [bookmarks, favorites, lists, tags]
+  rss:
+    enabled: "{{ homepage_freshrss_username | length > 0 and homepage_freshrss_widget_password | length > 0 }}"
+    widget:
+      type: freshrss
+      url: "{{ homepage_websites.rss.internal_url | default('') }}"
+      username: "{{ homepage_freshrss_username }}"
+      password: "{{ homepage_freshrss_widget_password }}"
+  grocy:
+    enabled: "{{ 'grocy' in homepage_apps_summary_sources }}"
+    widget:
+      type: customapi
+      url: "{{ homepage_apps_summary_url }}/grocy.json"
+      refreshInterval: 300000
+      mappings:
+        - field: due_soon
+          label: À consommer
+          format: number
+        - field: overdue
+          label: Dates passées
+          format: number
+        - field: missing
+          label: Manquants
+          format: number
+        - field: chores_overdue
+          label: Tâches en retard
+          format: number
+  papra:
+    enabled: "{{ 'papra' in homepage_apps_summary_sources }}"
+    widget:
+      type: customapi
+      url: "{{ homepage_apps_summary_url }}/papra.json"
+      refreshInterval: 300000
+      mappings:
+        - field: documents
+          label: Documents
+          format: number
+        - field: recent
+          label: Ajoutés (7 j)
+          format: number
+        - field: untagged
+          label: Sans étiquette
+          format: number
+  dawarich:
+    enabled: "{{ 'dawarich' in homepage_apps_summary_sources }}"
+    widget:
+      type: customapi
+      url: "{{ homepage_apps_summary_url }}/dawarich.json"
+      refreshInterval: 600000
+      mappings:
+        - field: month_km
+          label: Ce mois-ci
+          format: number
+          suffix: km
+        - field: year_km
+          label: Cette année
+          format: number
+          suffix: km
+        - field: year_countries
+          label: Pays (année)
+          format: number
 
 # Agenda : une carte (groupe Vie perso) qui lit des agendas Nextcloud partagés
 # par lien public en lecture seule, au format iCal. Chaque URL porte le jeton

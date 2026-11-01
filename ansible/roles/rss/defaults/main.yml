@@ -18,6 +18,15 @@ rss_karakeep_button_commit: "8ccdace7266aa94a4795a97d311a8b494d779785"
 rss_karakeep_button_sha256: "2667121cb25154aa718200f12547410683061c4fde9760381acf2acc7303ee3d"
 rss_karakeep_button_path: "{{ rss_base_path }}/freshrss_extensions/xExtension-KarakeepButton"
 
+# API Google Reader / Fever de FreshRSS : coupée (tâche « Keep the FreshRSS
+# API disabled »), sauf pour le widget de Homepage, quand sa clé sops
+# homepage_freshrss_api_password existe. Le rôle cesse alors seulement de la
+# couper : on l'active une fois dans l'interface (Administration →
+# Authentification → « Autoriser l'accès par API »). Pangolin n'ouvre aucun
+# chemin autour du SSO (tofu/pangolin_config/website_rss.tf) : seul ce qui
+# est sur newt (Homepage) la joint sans lui.
+rss_api_enabled: "{{ homepage_freshrss_api_password | default('') | length > 0 }}"
+
 # Borgmatic backup configuration
 rss_backup_enabled: true
 rss_backup_borgmatic_target: "{{ backup_storage_box_url }}/rss"

@@ -85,6 +85,24 @@ class SummaryTest(unittest.TestCase):
             "late": 2,
         })
 
+    def test_maintenance_failing_first_then_listed_order(self):
+        names = ["Backup BookStack", "Cron DNS", "Sonde renommée", "Backup Pangolin"]
+        self.assertEqual(kuma_summary.summarize_maintenance(self.monitors, names), {
+            "items": [
+                {"name": "Cron DNS", "status": "En défaut"},
+                {"name": "Sonde renommée", "status": "Absente"},
+                {"name": "Backup Pangolin", "status": "En attente"},
+                {"name": "Backup BookStack", "status": "OK"},
+            ],
+            "failing": 3,
+        })
+
+    def test_maintenance_names_from_json(self):
+        self.assertEqual(kuma_summary.parse_names('["Mises à jour Proxmox", 3]'), ["Mises à jour Proxmox"])
+        self.assertEqual(kuma_summary.parse_names("pas du json"), [])
+        self.assertEqual(kuma_summary.parse_names('{"a": 1}'), [])
+        self.assertEqual(kuma_summary.parse_names(""), [])
+
     def test_fetch_refuses_plain_http(self):
         with self.assertRaises(kuma_summary.FetchError):
             kuma_summary.fetch("http://a.invalid/metrics", "k")
@@ -138,7 +156,8 @@ class CacheTest(unittest.TestCase):
 class ServerTest(unittest.TestCase):
     def start(self, fetcher):
         cache = kuma_summary.Cache("https://kuma.example.invalid/metrics", "secret-key", 60, fetcher)
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), kuma_summary.make_handler(cache, "Backup "))
+        handler = kuma_summary.make_handler(cache, "Backup ", ["Cron DNS"])
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.silence = contextlib.redirect_stderr(io.StringIO())
@@ -164,6 +183,8 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(json.loads(body)["late"], 2)
         status, body = self.get("/down.json")
         self.assertEqual((status, json.loads(body)["down"]), (200, 2))
+        status, body = self.get("/maintenance.json")
+        self.assertEqual((status, json.loads(body)["items"]), (200, [{"name": "Cron DNS", "status": "En défaut"}]))
         self.assertEqual(self.get("/healthz")[0], 200)
         self.assertEqual(self.get("/metrics")[0], 404)
 

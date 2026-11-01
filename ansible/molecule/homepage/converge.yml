@@ -31,3 +31,5 @@
       vars:
         # Le widget Beszel couvert même si host_vars/docker le coupe un jour.
         homepage_beszel_email: homepage@monitoring.sylvain.cloud
+        # Ce que host_vars/docker pose pour le widget FreshRSS.
+        homepage_freshrss_username: molecule

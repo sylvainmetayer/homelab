@@ -240,7 +240,28 @@ valeur dans l'application une fois la carte vérifiée.
 | `homepage_karakeep_api_key` | Karakeep : favoris, listes, étiquettes | Karakeep, compte dont on veut les compteurs, User Settings → API Keys (tous ses droits : risque accepté) | `application` |
 | `homepage_calendar_ics_url`, `homepage_calendar_top_nous_ics_url` | Agenda (iCal) : Perso, Top nous | Nextcloud, Agenda → l'agenda → Partager → lien public en lecture seule, puis « Copier le lien d'abonnement » : `webcal://…/remote.php/dav/public-calendars/<jeton>?export`, à enregistrer en `https://` | `application` |
 | `homepage_uptimekuma_api_key` | Supervision : Sondes en panne, Sauvegardes (lues par `kuma-summary` dans `/metrics`) | Uptime Kuma, Paramètres → Clés d'API → Ajouter : nom `homepage`, sans expiration ; la clé (`uk<id>_…`) n'est affichée qu'une fois. Une clé d'Uptime Kuma n'ouvre que `/metrics`, en lecture ; tant qu'il en existe une active, `/metrics` refuse le compte administrateur. Rotation : nouvelle clé, `sops set`, déploiement, puis désactiver et supprimer l'ancienne | `application` |
+| `homepage_grocy_api_key` | Grocy : à consommer, dates passées, manquants, tâches en retard (lus par `apps-summary`) | Grocy, en admin : Gérer les utilisateurs → Ajouter `homepage` (mot de passe `openssl rand -base64 32`, jamais utilisé), **toutes les permissions décochées** (la lecture de l'API n'en demande aucune) ; se connecter avec ce compte, menu ⚙ → Gérer les clés d'API → Ajouter, type `default`. La clé lit toute la base de Grocy, n'écrit rien | `application` |
+| `homepage_papra_api_key` | Papra : documents, ajoutés depuis 7 jours, sans étiquette (lus par `apps-summary`) | Papra, compte de Sylvain, Paramètres → Clés d'API → Créer : permissions **organizations:read** et **documents:read** seules, sans expiration ; la clé (`ppapi_…`) n'est affichée qu'une fois | `application` |
+| `homepage_dawarich_api_key` | Dawarich : km du mois, km et pays de l'année (lus par `apps-summary`) | Dawarich, compte de Sylvain, Paramètres → Compte → clé d'API (une seule par compte, qui écrit aussi des points : risque accepté) ; rotation : « Générer une nouvelle clé », puis reconfigurer l'appli mobile qui l'utilise | `application` |
+| `homepage_freshrss_api_password` | FreshRSS (lien FreshRSS) : non lus, abonnements | voir ci-dessous : mot de passe d'API du compte `homepage_freshrss_username` (`host_vars/docker`), puis l'API activée dans l'administration, dans cet ordre | `application` |
 | `homepage_victoria_logs_password` | Supervision : CrowdSec (alertes 24 h, IP bannies), compté dans VictoriaLogs | aucune interface : `openssl rand -base64 32` (32 caractères au moins). Le rôle `victoria_logs` en fait le compte vmauth `homepage` (route `/select/logsql/stats_query` seule, flux du conteneur `crowdsec` de Pangolin imposé) : déployer `ansible-playbook docker.yml --tags victoria_logs,homepage`, le compte avant la carte | `application` |
+
+FreshRSS : le rôle `rss` coupe l'API à chaque passage tant que la clé
+`homepage_freshrss_api_password` n'existe pas (`rss_api_enabled`). Ordre :
+
+1. FreshRSS, compte de Sylvain, Profil → « Mot de passe de l'API » :
+   `openssl rand -base64 32`, enregistrer ; `sops set` de la même valeur.
+2. `homepage_freshrss_username: <nom du compte FreshRSS>` dans
+   `ansible/host_vars/docker/variables.yaml` (PR).
+3. `ansible-playbook docker.yml --tags rss,homepage` : `rss` cesse de couper
+   l'API, `homepage` rend le widget.
+4. FreshRSS, Administration → Authentification → cocher « Autoriser l'accès
+   par API », enregistrer. Avant l'étape 3, le prochain passage de `rss` la
+   recouperait.
+
+Pangolin n'ouvre aucun chemin vers `/api/greader.php` : seul ce qui est sur
+newt (Homepage) l'atteint sans le SSO. Retrait : supprimer la clé, puis
+`--tags rss,homepage` recoupe l'API.
 
 Proxmox (sur l'hôte, en root ; `pveum`, aucun mot de passe : l'utilisateur
 n'ouvre pas de session) :

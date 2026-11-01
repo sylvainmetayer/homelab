@@ -37,7 +37,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    # newt (Pangolin, les applications des widgets, vmauth de VictoriaLogs) ;
+    # newt (Pangolin, les applications des widgets, vmauth de VictoriaLogs,
+    # apps-summary) ;
     # ical et kuma, les réseaux privés du projet, pour joindre ical-filter et
     # kuma-summary.
 {% if homepage_beszel_enabled | bool %}
@@ -120,6 +121,7 @@ services:
       KUMA_SUMMARY_CACHE_SECONDS: "{{ homepage_kuma_summary_cache_seconds }}"
       KUMA_METRICS_URL: {{ (homepage_uptimekuma_url | regex_replace('/+$', '') ~ '/metrics') | replace('$', '$$') | to_json }}
       KUMA_API_KEY: {{ homepage_uptimekuma_widget_key | replace('$', '$$') | to_json }}
+      KUMA_MAINTENANCE_MONITORS: {{ homepage_kuma_maintenance_monitors | to_json(ensure_ascii=False) | replace('$', '$$') | to_json(ensure_ascii=False) }}
     volumes:
       - ./kuma_summary.py:/app/kuma_summary.py:ro
     restart: unless-stopped
@@ -131,6 +133,49 @@ services:
       start_period: 10s
     networks:
       - kuma
+{% endif %}
+{% if homepage_apps_summary_sources | length > 0 %}
+
+  # Cartes Grocy, Papra, Dawarich et bus TBM : interroge chaque source dont
+  # la clé existe (ici seulement) et sert un JSON plat par source. Sur newt,
+  # pour joindre Grocy, Papra et Dawarich par leur nom (et sortir vers le
+  # flux TBM) ; sans port publié. Même confinement que kuma-summary.
+  apps-summary:
+    # Pas encore mesuré : quelques réponses JSON en mémoire. À recaler sur
+    # memory.peak après quelques jours (rapport mem_report du lundi).
+    mem_limit: 64m
+    image: python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+    container_name: homepage-apps-summary
+    command: ["python", "/app/apps_summary.py"]
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      # Heure de Paris sans tzdata (absent de l'image alpine) : règle POSIX.
+      # Celle de Grocy (TZ=Europe/Paris), qui date ses échéances en local.
+      TZ: "CET-1CEST,M3.5.0,M10.5.0/3"
+      APPS_SUMMARY_PORT: "{{ homepage_apps_summary_port }}"
+      APPS_SUMMARY_CACHE_SECONDS: "{{ homepage_apps_summary_cache_seconds }}"
+{% for source in homepage_apps_summary_sources.values() %}
+{%   for name, value in source.items() %}
+      {{ name }}: {{ value | string | replace('$', '$$') | to_json }}
+{%   endfor %}
+{% endfor %}
+    volumes:
+      - ./apps_summary.py:/app/apps_summary.py:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ homepage_apps_summary_port }}/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - newt
 {% endif %}
 
 networks:

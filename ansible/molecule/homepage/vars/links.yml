@@ -3,7 +3,7 @@
 # partagé par converge.yml et verify.yml : deux liens d'un même groupe et un
 # d'un groupe que homepage_groups ne connaît pas, qui doit venir après les
 # autres ; ceux qui portent un widget (Beszel, Speedtest Tracker, Homebox,
-# Karakeep, Immich) ; des liens de la VM docker (internal_url et
+# Karakeep, Immich, FreshRSS, Grocy, Papra, Dawarich) ; des liens de la VM docker (internal_url et
 # site_monitor remplis), un sans adresse interne (Paperless) et l'Immich du
 # Pi (vide dans l'output, pastille du rôle).
 homepage_molecule_links:
@@ -71,3 +71,35 @@ homepage_molecule_links:
     icon: immich
     internal_url: ""
     site_monitor: ""
+  rss:
+    name: FreshRSS
+    href: https://rss.sylvain.cloud
+    group: Lecture
+    description: Lecteur de flux RSS
+    icon: freshrss
+    internal_url: http://rss:80 # NOSONAR
+    site_monitor: http://rss:80/i/ # NOSONAR
+  grocy:
+    name: Grocy
+    href: https://grocy.sylvain.cloud
+    group: Vie perso
+    description: Stocks, courses, recettes et menus, tâches de la maison
+    icon: grocy
+    internal_url: http://grocy:80 # NOSONAR
+    site_monitor: http://grocy:80/login # NOSONAR
+  papra:
+    name: Papra
+    href: https://papra.sylvain.cloud
+    group: Documents
+    description: Documents numérisés, avec OCR (à l'essai)
+    icon: papra
+    internal_url: http://papra:1221 # NOSONAR
+    site_monitor: http://papra:1221/api/health # NOSONAR
+  dawarich:
+    name: Dawarich
+    href: https://tracks.sylvain.cloud
+    group: Vie perso
+    description: Historique de localisation
+    icon: mdi-map-marker-path
+    internal_url: http://dawarich-app:3000 # NOSONAR
+    site_monitor: http://dawarich-app:3000/api/v1/health # NOSONAR

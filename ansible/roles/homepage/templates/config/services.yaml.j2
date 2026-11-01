@@ -5,8 +5,8 @@
 # d'état quand son adresse interne est connue (site_monitor), et les widgets :
 # ceux de homepage_link_widgets et homepage_link_widgets_extra sur leur lien,
 # une carte par hôte de Beszel, une par page de statut d'Uptime Kuma, celles
-# de la supervision (sondes en panne, sauvegardes, CrowdSec) et l'agenda
-# (defaults/main.yml).
+# de la supervision (sondes en panne, sauvegardes, maintenance, CrowdSec),
+# l'agenda et les passages du bus (defaults/main.yml).
 {% set widgets = {} %}
 {% for key, candidate in homepage_link_widgets_extra.items() if candidate.enabled | bool and candidate.widget.url | default('') | length > 0 %}
 {%   set _ = widgets.update({key: candidate.widget}) %}
@@ -53,6 +53,9 @@
 {% endif %}
 {% if homepage_calendar_integrations | length > 0 %}
 {%   set _ = cards.append(homepage_calendar_card) %}
+{% endif %}
+{% if 'tbm' in homepage_apps_summary_sources %}
+{%   set _ = cards.append(homepage_tbm_card) %}
 {% endif %}
 {% set groups = homepage_groups + (cards | map(attribute='group') | reject('in', homepage_groups) | unique | sort | list) %}
 {% for group in groups if cards | selectattr('group', 'equalto', group) | list | length > 0 %}

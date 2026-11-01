@@ -30,7 +30,9 @@
 
 # FreshRSS se lit dans le navigateur seulement, mobile compris : pas d'API
 # cliente (Google Reader, Fever), et aucun chemin ouvert autour du SSO
-# (tofu/pangolin_config/website_rss.tf). L'image n'a pas de variable
+# (tofu/pangolin_config/website_rss.tf). Exception : le widget de Homepage,
+# par newt, quand rss_api_enabled (defaults) ; la tâche ne coupe alors plus
+# l'API, activée une fois dans l'interface. L'image n'a pas de variable
 # d'environnement pour api_enabled et config.custom.php ne sert qu'à
 # l'installation : la clé est tenue dans la configuration système, qu'un
 # réglage dans l'interface d'administration réécrit (var_export). Absente,
@@ -43,7 +45,7 @@
   register: rss_system_config
 
 - name: Keep the FreshRSS API disabled
-  when: rss_system_config.stat.exists
+  when: rss_system_config.stat.exists and not (rss_api_enabled | bool)
   become: true
   # Le fichier porte le sel et le mot de passe SMTP.
   diff: false
