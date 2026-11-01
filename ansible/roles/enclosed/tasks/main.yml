@@ -1,0 +1,67 @@
+---
+# Pas de sauvegarde borgmatic, exprès : des secrets éphémères (README.md).
+# Les notes vivent dans le volume nommé enclosed_data (compose.yaml).
+- name: Ensure Enclosed folders exist
+  loop:
+    - "{{ enclosed_base_path }}"
+    - "{{ enclosed_cli_path }}"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart enclosed
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ enclosed_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart enclosed
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ enclosed_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Le script de enclosed-share et ses dépendances verrouillées : npm ci les
+# installe au premier appel (enclosed-share.j2), pas ici, faute d'accès au
+# registre npm dans Molecule.
+- name: Install the enclosed-share note script and its lockfile
+  loop:
+    - package.json
+    - package-lock.json
+    - share.mjs
+  ansible.builtin.copy:
+    src: "cli/{{ item }}"
+    dest: "{{ enclosed_cli_path }}/{{ item }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Exécutable par tous, mais ne sert qu'à un membre du groupe docker. Il ne
+# porte aucun secret.
+- name: Install the enclosed-share helper
+  become: true
+  ansible.builtin.template:
+    src: "templates/enclosed-share.j2"
+    dest: "{{ enclosed_share_bin }}"
+    owner: root
+    group: root
+    mode: "0755" # NOSONAR
+
+- name: Make sure enclosed service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@enclosed
+    scope: user
+    enabled: true

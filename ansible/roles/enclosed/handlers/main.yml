@@ -1,0 +1,6 @@
+---
+- name: Restart enclosed
+  ansible.builtin.systemd:
+    name: dc@enclosed
+    scope: user
+    state: restarted

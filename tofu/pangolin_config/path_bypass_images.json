@@ -7,6 +7,14 @@
     "reread": "config/routes.rb, app/controllers/shared/*, app/controllers/api/v1/shared/*",
     "releases": "https://github.com/Freika/dawarich/releases"
   },
+  "Enclosed": {
+    "image": "docker.io/corentinth/enclosed",
+    "version": "1.16.1-rootless",
+    "compose": "ansible/roles/enclosed/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_enclosed.tf (enclosed_read_paths)",
+    "reread": "packages/app-server/src/index.node.ts, modules/app/server.ts, modules/notes/notes.routes.ts (no new route under /api/notes/<id> but GETs, POST /api/notes unchanged), shared/utils/random.ts (note ids still ULIDs starting with 0), packages/app-client/src/routes.tsx, modules/notes/notes.services.ts, the Vite build output dir (assets/); @enclosed/lib in ansible/roles/enclosed/files/cli/package.json moves with it",
+    "releases": "https://github.com/CorentinTh/enclosed/releases"
+  },
   "Karakeep": {
     "image": "ghcr.io/karakeep-app/karakeep",
     "version": "0.34.1",

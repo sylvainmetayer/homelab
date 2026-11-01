@@ -232,6 +232,7 @@ locals {
     "Dawarich"         = local.dawarich_share_paths
     "Demo Planning"    = local.demo_planning_mcp_paths
     "Demo Planning KC" = local.demo_planning_kc_keycloak_paths
+    "Enclosed"         = local.enclosed_read_paths
     "Flip Planning"    = local.flip_planning_mcp_paths
     "Karakeep"         = local.karakeep_public_paths
     "Monica CRM"       = local.monica_dav_paths

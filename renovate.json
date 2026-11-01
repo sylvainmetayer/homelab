@@ -16,7 +16,7 @@
       "pinDigests": true
     },
     {
-      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor updates get their own weekly PR (next rule), major updates no PR until approved on the Dependency Dashboard (rule below). Our own images are left out: their rules below take every build as soon as it is published and automerge it. The stateless images and the GitHub Actions of the next two rules leave this PR for their own weekly one, which automerges. The rules below that set a groupName (beszel, vector, blocky, pangolin-role-dependencies, socket-proxy, borgmatic, immich-role-dependencies) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, which carries the re-read note of the last rule and is merged by hand. rebaseWhen is conflicted for every branch (top level): the main ruleset does not require an up-to-date branch (strict_required_status_checks_policy = false, tofu/github/ruleset_homelab.tf), so a PR is rebased only when it conflicts. The default (auto) already gives that to the manual PRs, but behind-base-branch to every automerged one: set at the top level, it also covers our own images' automerge rules (planning-equipes, promptoramix), which would otherwise be rebased, hence retested, on each push to main. minimumReleaseAge is 3 days for every third-party dependency (top level; images, GitHub Actions, mise tools, binaries; the Karakeep Button git ref, which has no release timestamp, resets it to null below): a release pulled or re-tagged within days of its publication (a broken build, a compromised maintainer) never reaches a PR. Together with this Monday window, a release waits 3 to 10 days. Our own images (planning-equipes, promptoramix) reset it to null below. The fast path for a security fix is not Renovate: trivy.yaml sends every fixable CRITICAL of a pinned image to ntfy each Monday, and the fix is bumped by hand (or forced from the Dependency Dashboard), without waiting for this rule",
+      "description": "Digest and patch updates land in a single weekly PR (Monday before 9am, Europe/Paris) instead of one PR, hence one Tests run, each; minor updates get their own weekly PR (next rule), major updates no PR until approved on the Dependency Dashboard (rule below). Our own images are left out: their rules below take every build as soon as it is published and automerge it. The stateless images and the GitHub Actions of the next two rules leave this PR for their own weekly one, which automerges. The rules below that set a groupName (beszel, vector, blocky, pangolin-role-dependencies, socket-proxy, borgmatic, immich-role-dependencies, enclosed) come later and win, so those groups keep their own PR, on this weekly schedule for their digest and patch updates. A path_bypass_images.json version shares its compose image's depName and update type, so both stay in this PR, which carries the re-read note of the last rule and is merged by hand. rebaseWhen is conflicted for every branch (top level): the main ruleset does not require an up-to-date branch (strict_required_status_checks_policy = false, tofu/github/ruleset_homelab.tf), so a PR is rebased only when it conflicts. The default (auto) already gives that to the manual PRs, but behind-base-branch to every automerged one: set at the top level, it also covers our own images' automerge rules (planning-equipes, promptoramix), which would otherwise be rebased, hence retested, on each push to main. minimumReleaseAge is 3 days for every third-party dependency (top level; images, GitHub Actions, mise tools, binaries; the Karakeep Button git ref, which has no release timestamp, resets it to null below): a release pulled or re-tagged within days of its publication (a broken build, a compromised maintainer) never reaches a PR. Together with this Monday window, a release waits 3 to 10 days. Our own images (planning-equipes, promptoramix) reset it to null below. The fast path for a security fix is not Renovate: trivy.yaml sends every fixable CRITICAL of a pinned image to ntfy each Monday, and the fix is bumped by hand (or forced from the Dependency Dashboard), without waiting for this rule",
       "matchUpdateTypes": [
         "digest",
         "patch"
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "description": "Minor updates open on Monday only (before 9am, Europe/Paris), one PR per package (not grouped: a minor brings features and sometimes a data migration, each app's is read and deployed on its own, and a failing minor holds nothing else back). Nothing in it automerges (the stateless allowlist and the GitHub Actions rule only match digest and patch). Our own images are left out: planning-equipes minors keep automerging as soon as they are published. The later groupName rules (beszel, vector, blocky, pangolin-role-dependencies, socket-proxy, borgmatic, immich-role-dependencies) keep their group PR, on Monday too.",
+      "description": "Minor updates open on Monday only (before 9am, Europe/Paris), one PR per package (not grouped: a minor brings features and sometimes a data migration, each app's is read and deployed on its own, and a failing minor holds nothing else back). Nothing in it automerges (the stateless allowlist and the GitHub Actions rule only match digest and patch). Our own images are left out: planning-equipes minors keep automerging as soon as they are published. The later groupName rules (beszel, vector, blocky, pangolin-role-dependencies, socket-proxy, borgmatic, immich-role-dependencies, enclosed) keep their group PR, on Monday too.",
       "matchUpdateTypes": [
         "minor"
       ],
@@ -231,6 +231,14 @@
       "matchFileNames": [
         "ansible/roles/immich/**",
         "compose/immich/**"
+      ]
+    },
+    {
+      "description": "Enclosed (role enclosed): the server image and @enclosed/lib, the library enclosed-share encrypts with (ansible/roles/enclosed/files/cli/package.json, lockfile next to it), move together: a note made by one version is read by the other's web page. The image is in path_bypass_images.json, so this PR is merged by hand after the re-read the last rule asks for, the lib included (never in the stateless allowlist)",
+      "groupName": "enclosed",
+      "matchPackageNames": [
+        "docker.io/corentinth/enclosed",
+        "@enclosed/lib"
       ]
     },
     {

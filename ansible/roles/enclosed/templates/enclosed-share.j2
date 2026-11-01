@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Géré par Ansible (rôle enclosed), ne pas modifier sur l'hôte.
+#
+# Partage un secret par une note Enclosed et n'écrit que son lien public :
+#
+#   enclosed-share [--ttl SECONDES] [--keep] < fichier
+#   printf %s "$SECRET" | enclosed-share
+#
+# Le secret est lu sur l'entrée standard, jamais en argument (ps, historique).
+# Par défaut : supprimé à la première lecture, expiré au bout de
+# {{ enclosed_share_ttl_seconds }} s. --ttl entre 600 (10 min) et 2592000
+# (30 jours, plafond du serveur) ; --keep garde la note lisible jusqu'à
+# l'expiration. Rôle enclosed, README.md.
+set -euo pipefail
+
+ttl={{ enclosed_share_ttl_seconds }}
+delete_after_reading=true
+
+usage() {
+  sed -n '4,13p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
+
+while (($#)); do
+  case $1 in
+    --ttl)
+      [[ $# -ge 2 ]] || usage
+      ttl=$2
+      shift 2
+      ;;
+    --keep)
+      delete_after_reading=false
+      shift
+      ;;
+    -h | --help) usage ;;
+    *) usage ;;
+  esac
+done
+
+if ! [[ $ttl =~ ^[0-9]+$ ]] || ((ttl < 600 || ttl > 2592000)); then
+  echo "enclosed-share : --ttl entre 600 et 2592000 secondes" >&2
+  exit 2
+fi
+
+cli_dir={{ enclosed_cli_path }}
+# L'image du conteneur qui tourne : la même version que le serveur, déjà
+# tirée et épinglée par compose.yaml, sans la recopier ici.
+if ! image=$(docker inspect --format '{{ '{{' }} .Config.Image {{ '}}' }}' {{ enclosed_container_name }} 2>/dev/null); then
+  echo "enclosed-share : pas de conteneur {{ enclosed_container_name }} (systemctl --user status dc@enclosed)" >&2
+  exit 1
+fi
+
+# Dépendances de share.mjs, installées au premier appel puis à chaque
+# changement de package-lock.json (empreinte gardée dans node_modules) : par
+# npm ci, sur le pont Docker par défaut (le registre npm), sans aucun secret
+# dans ce conteneur. Ni scripts d'installation ni binaires optionnels :
+# cbor-x et msgpackr retombent sur leur version JavaScript.
+lock_sum=$(sha256sum "$cli_dir/package-lock.json" | cut -d' ' -f1)
+if [[ "$(cat "$cli_dir/node_modules/.package-lock.sha256" 2>/dev/null)" != "$lock_sum" ]]; then
+  docker run --rm --log-driver none \
+    --user "$(id -u):$(id -g)" \
+    --cap-drop ALL --security-opt no-new-privileges \
+    --env HOME=/tmp --env npm_config_cache=/tmp/npm-cache \
+    --env npm_config_update_notifier=false \
+    --volume "$cli_dir:/cli" --workdir /cli \
+    "$image" \
+    npm ci --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund >&2
+  printf '%s\n' "$lock_sum" > "$cli_dir/node_modules/.package-lock.sha256"
+fi
+
+# Le conteneur qui voit le clair : seul réseau enclosed-cli (interne, sans
+# route vers Internet, où seul le serveur répond), système de fichiers en
+# lecture seule, aucun journal (--log-driver none : le lien, clé comprise,
+# n'arrive ni dans json-file ni chez Vector ; docker run -i le rend quand même
+# sur la sortie standard).
+docker run --rm -i --log-driver none \
+  --network {{ enclosed_cli_network }} \
+  --user "$(id -u):$(id -g)" \
+  --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --memory 256m \
+  --volume "$cli_dir:/cli:ro" --workdir /cli \
+  --env ENCLOSED_API_URL=http://{{ enclosed_container_name }}:{{ enclosed_port }} \
+  --env ENCLOSED_PUBLIC_URL=https://{{ enclosed_domain }} \
+  --env ENCLOSED_TTL_SECONDS="$ttl" \
+  --env ENCLOSED_DELETE_AFTER_READING="$delete_after_reading" \
+  "$image" \
+  node /cli/share.mjs

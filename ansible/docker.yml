@@ -112,6 +112,10 @@
       tags: speedtest_tracker,app
     - role: ntfy
       tags: ntfy,app
+    # Notes chiffrées à usage unique (pwpush.sylvain.cloud). Pas de
+    # sauvegarde, exprès : des secrets éphémères (rôle enclosed, README.md).
+    - role: enclosed
+      tags: enclosed,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).

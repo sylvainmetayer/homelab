@@ -1,0 +1,31 @@
+---
+enclosed_base_path: "{{ docker_base_path }}/enclosed"
+enclosed_domain: pwpush.sylvain.cloud
+enclosed_container_name: enclosed
+enclosed_port: 8787
+
+# Réseau interne (sans route vers Internet) entre le serveur et le conteneur
+# jetable d'enclosed-share, nommé en dur : le script le vise par ce nom.
+enclosed_cli_network: enclosed-cli
+# package.json, package-lock.json et share.mjs, plus le node_modules que le
+# premier appel d'enclosed-share y installe.
+enclosed_cli_path: "{{ enclosed_base_path }}/cli"
+enclosed_share_bin: /usr/local/bin/enclosed-share
+
+# Durée de vie par défaut d'une note créée par enclosed-share : 3 jours.
+enclosed_share_ttl_seconds: 259200
+
+# Formulaire web (derrière le SSO) : valeurs proposées par défaut. Enclosed
+# n'accepte que 3600, 86400, 604800 ou 2592000 ici : 1 jour, au plus près
+# des 3 jours du script. Le plafond (30 jours) est codé en dur dans le
+# serveur, et l'absence d'expiration est refusée (.env).
+enclosed_default_ttl_seconds: 86400
+
+# Taille maximale d'une note chiffrée (base64), 50 Mio par défaut dans
+# Enclosed : des jetons et des clés tiennent dans quelques Kio, 5 Mio
+# laissent un petit fichier joint depuis le formulaire.
+enclosed_max_payload_bytes: 5242880
+
+# Pas de sauvegarde, exprès : des secrets éphémères (lus une fois, expirés en
+# quelques jours) n'ont rien à faire dans une archive borg gardée des mois.
+# Pas de variable enclosed_backup_* : il n'y a rien à activer.
