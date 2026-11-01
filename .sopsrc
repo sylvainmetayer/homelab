@@ -1,2 +1,2 @@
 ---
-ageKeyFile: /home/sylvain/.age.key
+ageKeyFile: /home/sylvain/.config/sops/age/keys.txt

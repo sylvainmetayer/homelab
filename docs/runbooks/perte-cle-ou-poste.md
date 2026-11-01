@@ -3,7 +3,7 @@
 ## Symptôme
 
 - `sops` refuse de déchiffrer (`no key could decrypt the data key`) :
-  `~/.age.key` (chemin de `.sopsrc`) perdue ou abîmée.
+  `~/.config/sops/age/keys.txt` (chemin lu par défaut par sops et par `.sopsrc`) perdue ou abîmée.
 - La clé SSH perso (agent KeePassXC, `~/.ssh/keepassxc.pub` côté client)
   n'ouvre plus les hôtes.
 - Un poste perdu ou volé : c'est les deux à la fois, avec en plus le risque
@@ -49,9 +49,9 @@ Proxmox (exclus de `00-setup.yaml`). Rien ne rejoue `00-setup.yaml` en CI :
    `.sopsrc` n'est lu que par l'extension d'éditeur). Ici, peu importe
    laquelle ouvre ; pour prouver qu'une clé précise ouvre, l'isoler :
    [test-cle-secours.md](test-cle-secours.md).
-2. Créer la nouvelle clé : `age-keygen -pq -o ~/.age.key` (chmod 600 ;
+2. Créer la nouvelle clé : `age-keygen -pq -o ~/.config/sops/age/keys.txt` (chmod 600 ;
    post-quantique, `age1pq1…`, ~2 000 caractères). Sa clé publique :
-   `age-keygen -y ~/.age.key`.
+   `age-keygen -y ~/.config/sops/age/keys.txt`.
 3. Remplacer la ligne `# perso` dans les **deux** règles de `.sops.yaml`.
 4. Rechiffrer la clé de données pour les nouveaux destinataires, puis la
    renouveler (consigne en tête de `.sops.yaml`) :
