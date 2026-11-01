@@ -36,7 +36,7 @@ Aucune clé SOPS : mot de passe de la base, `ENCRYPTION_KEY`,
 
 1. `tofu apply` dans `tofu/pangolin_config` (ressource, rôle SSO
    `healthlog`, moniteurs), puis le déploiement
-   (`ansible-playbook docker.yml --tags healthlog,app`), puis
+   (`ansible-playbook docker.yml --tags healthlog`), puis
    `--tags homepage` pour le lien.
 2. La première migration passe avant l'écoute (`start_period` de 10 min) :
    `docker logs -f healthlog` jusqu'à la bannière Next.js.
@@ -111,7 +111,7 @@ HealthLog refuse alors de démarrer (contrôle de clé au démarrage) ou ne lit
 plus ces colonnes. Avant une telle rotation, figer l'ancienne valeur :
 
 ```bash
-printf '%s-healthlog-encryption' "$(sops decrypt --extract '["backup_passphrase"]' secrets/ansible.sops.yaml)" | sha256sum
+printf '%s-healthlog-encryption' "$(sops decrypt --extract '["backup_passphrase"]' secrets/ansible.sops.yaml)" | sha256sum | cut -d' ' -f1
 ```
 
 puis créer la clé SOPS `healthlog_encryption_key` avec ce condensat (elle
