@@ -45,6 +45,21 @@ victoria_logs_agents: "{{ victoria_logs_agent_passwords | default({}) | dict2ite
 victoria_logs_agent_paths:
   - /insert/jsonline
 
+# Compte de la carte CrowdSec de Homepage (rôle homepage), facultatif : clé
+# sops homepage_victoria_logs_password (32 caractères au moins), absente ou
+# vide, pas de compte. Il ne peut appeler que /select/logsql/stats_query
+# (des comptes, pas de lignes à lire en bloc), et vmauth ajoute à chaque
+# requête extra_stream_filters, que le client ne peut ni retirer ni
+# remplacer : le flux du conteneur crowdsec de Pangolin, rien d'autre. Au
+# pire, qui lit la configuration de Homepage lit les journaux de CrowdSec
+# (IP et scénarios des attaquants). Même nom que homepage_victoria_logs_user
+# (rôle homepage).
+victoria_logs_homepage_user: homepage
+victoria_logs_homepage_password: "{{ homepage_victoria_logs_password | default('') }}"
+victoria_logs_homepage_paths:
+  - /select/logsql/stats_query
+victoria_logs_homepage_stream_filter: '{host="pangolin",container="crowdsec"}'
+
 # Routes internes de vmauth (/metrics, /flags, /debug/pprof/*, /-/reload) :
 # la bibliothèque HTTP de VictoriaMetrics les sert sans compte tant que
 # -metricsAuthKey, -flagsAuthKey, -pprofAuthKey et -reloadAuthKey sont vides

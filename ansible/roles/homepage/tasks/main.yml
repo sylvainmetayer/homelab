@@ -45,13 +45,17 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
-# Lu par le conteneur ical-filter (utilisateur nobody) : lisible par tous,
-# il ne porte aucun secret (les URL de partage sont dans compose.yaml).
-- name: Copy the calendar filter of ical-filter
+# Lus par ical-filter et kuma-summary (utilisateur nobody) : lisibles par
+# tous, ils ne portent aucun secret (URL de partage et clé d'Uptime Kuma sont
+# dans compose.yaml). Copiés même sans leur service : quelques Kio.
+- name: Copy the scripts of ical-filter and kuma-summary
   notify: Restart homepage
+  loop:
+    - ical_filter.py
+    - kuma_summary.py
   ansible.builtin.copy:
-    src: ical_filter.py
-    dest: "{{ homepage_base_path }}/ical_filter.py"
+    src: "{{ item }}"
+    dest: "{{ homepage_base_path }}/{{ item }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0644"

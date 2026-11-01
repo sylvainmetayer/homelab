@@ -31,8 +31,9 @@
       changed_when: false
 
     # Liens seulement : ni socket Docker ni autre montage que la configuration,
-    # en lecture seule ; le réseau newt, plus celui du widget Beszel (externe,
-    # créé par dc@beszel) à l'IP fixe que les « superuser IPs » du hub admettent.
+    # en lecture seule ; le réseau newt, ceux du projet (ical, kuma), plus
+    # celui du widget Beszel (externe, créé par dc@beszel) à l'IP fixe que les
+    # « superuser IPs » du hub admettent.
     - name: Assert homepage only mounts its read-only configuration and joins newt
       vars:
         homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
@@ -42,10 +43,11 @@
           - homepage_service.volumes | length == 1
           - homepage_service.volumes[0].target == '/app/config'
           - homepage_service.volumes[0].read_only | default(false)
-          - homepage_service.networks.keys() | list | sort == ['beszel', 'ical', 'newt']
+          - homepage_service.networks.keys() | list | sort == ['beszel', 'ical', 'kuma', 'newt']
           - homepage_service.networks.beszel.ipv4_address == '172.16.97.3'
-          - homepage_compose.networks.keys() | list | sort == ['beszel', 'ical', 'newt']
+          - homepage_compose.networks.keys() | list | sort == ['beszel', 'ical', 'kuma', 'newt']
           - not (homepage_compose.networks.ical.external | default(false))
+          - not (homepage_compose.networks.kuma.external | default(false))
           - homepage_compose.networks.beszel.name == 'beszel_homepage'
           - homepage_compose.networks.beszel.external
           - homepage_service.environment.HOMEPAGE_ALLOWED_HOSTS.split(',') == ['home.sylvain.cloud', 'homepage:3000', 'homepage']
@@ -61,7 +63,7 @@
         homepage_filter: "{{ homepage_compose.services['ical-filter'] }}"
       ansible.builtin.assert:
         that:
-          - homepage_compose.services.keys() | list | sort == ['app', 'ical-filter']
+          - homepage_compose.services.keys() | list | sort == ['app', 'ical-filter', 'kuma-summary']
           - homepage_filter.networks.keys() | list == ['ical']
           - homepage_filter.ports | default([]) == []
           - homepage_filter.read_only
@@ -80,45 +82,84 @@
           - homepage_compose.services.app.environment.keys() | select('match', 'ICAL_') | list == []
         fail_msg: "Service ical-filter inattendu : {{ homepage_filter }}"
 
-    - name: Stat the calendar filter script
-      ansible.builtin.stat:
-        path: /opt/apps/homepage/ical_filter.py
-      register: homepage_filter_script
-
-    # Lu par nobody dans le conteneur.
-    - name: Assert the calendar filter script is world-readable
+    # kuma-summary : même confinement qu'ical-filter, sur son propre réseau
+    # privé ; la clé d'API d'Uptime Kuma dans son environnement seulement.
+    - name: Assert kuma-summary is confined to the project network
+      vars:
+        homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
+        homepage_kuma: "{{ homepage_compose.services['kuma-summary'] }}"
       ansible.builtin.assert:
         that:
-          - homepage_filter_script.stat.exists
-          - homepage_filter_script.stat.mode == '0644'
+          - homepage_kuma.networks.keys() | list == ['kuma']
+          - homepage_kuma.ports | default([]) == []
+          - homepage_kuma.read_only
+          - homepage_kuma.user == '65534:65534'
+          - homepage_kuma.cap_drop == ['ALL']
+          - homepage_kuma.cap_add | default([]) == []
+          - homepage_kuma.security_opt == ['no-new-privileges:true']
+          - homepage_kuma.mem_limit | int == 64 * 1024 * 1024
+          - homepage_kuma.cpus is not defined
+          - homepage_kuma.healthcheck.test is defined
+          - homepage_kuma.volumes | length == 1
+          - homepage_kuma.volumes[0].target == '/app/kuma_summary.py'
+          - homepage_kuma.volumes[0].read_only | default(false)
+          - homepage_kuma.environment.KUMA_METRICS_URL == 'https://uptime.example.invalid/metrics'
+          - homepage_kuma.environment.KUMA_API_KEY == homepage_uptimekuma_api_key
+          - homepage_compose.services.app.environment.keys() | select('match', 'KUMA_') | list == []
+          - homepage_compose.services['ical-filter'].environment.keys() | select('match', 'KUMA_') | list == []
+        fail_msg: "Service kuma-summary inattendu : {{ homepage_kuma }}"
 
-    - name: Create a scratch directory for the calendar filter tests
+    - name: Stat the scripts of ical-filter and kuma-summary
+      loop:
+        - ical_filter.py
+        - kuma_summary.py
+      ansible.builtin.stat:
+        path: "/opt/apps/homepage/{{ item }}"
+      register: homepage_scripts
+
+    # Lus par nobody dans les conteneurs.
+    - name: Assert the scripts are world-readable
+      loop: "{{ homepage_scripts.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == '0644'
+
+    - name: Create a scratch directory for the script tests
       ansible.builtin.tempfile:
         state: directory
         suffix: ical
       register: homepage_filter_test_dir
 
-    - name: Copy the calendar filter and its tests
+    - name: Copy the scripts and their tests
       loop:
         - src: "{{ playbook_dir }}/../../roles/homepage/files/ical_filter.py"
           dest: ical_filter.py
         - src: "{{ playbook_dir }}/files/test_ical_filter.py"
           dest: test_ical_filter.py
+        - src: "{{ playbook_dir }}/../../roles/homepage/files/kuma_summary.py"
+          dest: kuma_summary.py
+        - src: "{{ playbook_dir }}/files/test_kuma_summary.py"
+          dest: test_kuma_summary.py
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ homepage_filter_test_dir.path }}/{{ item.dest }}"
         mode: "0644"
 
-    # Molecule ne lance aucun conteneur (_shared/prepare.yml) : le script est
-    # testé avec le python3 de l'hôte de test. Filtre (VTODO, VJOURNAL,
-    # lignes repliées, CRLF), cache et serveur HTTP (/healthz, 404, 502).
-    - name: Run the calendar filter tests
+    # Molecule ne lance aucun conteneur (_shared/prepare.yml) : les scripts
+    # sont testés avec le python3 de l'hôte de test. ical-filter : filtre
+    # (VTODO, VJOURNAL, lignes repliées, CRLF) ; kuma-summary : lecture de
+    # /metrics, résumés ; pour les deux, cache et serveur HTTP (/healthz,
+    # 404, 502).
+    - name: Run the script tests
       ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
       args:
         chdir: "{{ homepage_filter_test_dir.path }}"
       changed_when: false
 
-    - name: Remove the calendar filter tests
+    - name: Remove the script tests
       ansible.builtin.file:
         path: "{{ homepage_filter_test_dir.path }}"
         state: absent
@@ -160,7 +201,7 @@
     - name: Assert the homepage services list every link in its group
       ansible.builtin.assert:
         that:
-          - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Hôtes', 'Groupe hors liste']
+          - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Supervision', 'Hôtes', 'Groupe hors liste']
           - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx']
           - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin']
           - homepage_card_names['Vie perso'] == ['Agenda', 'Homebox']
@@ -245,7 +286,43 @@
           - homepage_hosts_cards.values() | map(attribute='widget.type') | unique | list == ['beszel']
           - homepage_hosts_cards.values() | map(attribute='widget.systemId') | list == homepage_hosts_cards.keys() | list
           - homepage_hosts_cards.values() | map(attribute='widget.url') | unique | list == [homepage_cards['Administration']['Beszel'].widget.url]
+          # Disque en rouge à 80 % (highlight), sans toucher au reste du widget.
+          - >-
+            homepage_hosts_cards.values() | map(attribute='widget.highlight') | unique | list
+            == [{'disk': {'numeric': [{'level': 'danger', 'when': 'gte', 'value': 80}]}}]
+          - homepage_hosts_cards.values() | map(attribute='widget.fields') | unique | list == [['status', 'cpu', 'memory', 'disk']]
         fail_msg: "Cartes d'hôte inattendues : {{ homepage_cards['Hôtes'] }}"
+
+    # Supervision : sondes en panne et sauvegardes lues chez kuma-summary
+    # (aucune page de statut, aucune clé dans services.yaml), CrowdSec par le
+    # compte de Homepage sur vmauth, requête encodée (Homepage remplacerait
+    # tout {…} de l'URL).
+    - name: Assert the supervision cards
+      vars:
+        homepage_supervision: "{{ homepage_cards['Supervision'] }}"
+        homepage_crowdsec: "{{ homepage_supervision['CrowdSec'].widget }}"
+        homepage_services_text: "{{ homepage_services_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_card_names['Supervision'] == ['CrowdSec', 'Sauvegardes', 'Sondes en panne']
+          - homepage_supervision['Sondes en panne'].widget.type == 'customapi'
+          - homepage_supervision['Sondes en panne'].widget.url == 'http://kuma-summary:8080/down.json' # NOSONAR
+          - homepage_supervision['Sondes en panne'].widget.display == 'dynamic-list'
+          - "homepage_supervision['Sondes en panne'].widget.mappings == {'items': 'items', 'name': 'name', 'label': 'status'}"
+          - homepage_supervision['Sauvegardes'].widget.url == 'http://kuma-summary:8080/backups.json' # NOSONAR
+          - homepage_supervision['Sauvegardes'].href is not defined
+          - homepage_uptimekuma_api_key not in homepage_services_text
+          - "'/metrics' not in homepage_services_text"
+          - homepage_crowdsec.type == 'customapi'
+          - homepage_crowdsec.url.startswith('http://victoria-logs-auth:8427/select/logsql/stats_query?query=_time%3A24h') # NOSONAR
+          - "'{' not in homepage_crowdsec.url"
+          - "'}' not in homepage_crowdsec.url"
+          - homepage_crowdsec.url.count('?') == 1
+          - homepage_crowdsec.username == 'homepage'
+          - homepage_crowdsec.password == homepage_victoria_logs_password
+          - homepage_crowdsec.mappings | map(attribute='field') | list == ['data.result.0.value.1', 'data.result.1.value.1']
+          - homepage_crowdsec.refreshInterval == 300000
+        fail_msg: "Cartes de supervision inattendues : {{ homepage_cards['Supervision'] }}"
 
 # Même gabarit sans aucune clé sops ni output d'Uptime Kuma ou de Pangolin :
 # la page se déploie avant que Sylvain ait créé les jetons. Ni widget, ni
@@ -314,7 +391,8 @@
           - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
           - (homepage_empty_proxmox_raw.content | b64decode | from_yaml) is none
           - (homepage_empty_widgets_raw.content | b64decode | from_yaml) | length == 3
-          # Sans agenda, ni ical-filter ni son réseau.
+          - "'Supervision' not in homepage_group_names"
+          # Sans agenda ni clé d'Uptime Kuma, ni ical-filter, ni kuma-summary, ni leurs réseaux.
           - (homepage_empty_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
           - (homepage_empty_compose_raw.content | b64decode | from_yaml).networks.keys() | list == ['newt']
         fail_msg: "Configuration sans clé inattendue : {{ homepage_cards }}"
@@ -344,6 +422,41 @@
           - homepage_agenda.widget.integrations | map(attribute='name') | list == ['Top nous']
           - homepage_agenda.widget.integrations | map(attribute='url') | list == ['http://ical-filter:8080/top-nous.ics'] # NOSONAR
         fail_msg: "Agenda à une clé inattendu : {{ homepage_cards['Vie perso'] }}"
+
+    # Clé d'Uptime Kuma sans l'URL (output pas encore appliqué) : ni cartes
+    # Uptime Kuma ni kuma-summary ; le mot de passe de vmauth seul : la carte
+    # CrowdSec seule.
+    - name: Render the services and compose with the Kuma key but no Kuma URL
+      diff: false
+      vars:
+        homepage_uptimekuma_api_key: molecule-homepage-uptimekuma-api-key
+        homepage_victoria_logs_password: molecule-homepage-victoria-logs-0000
+      loop:
+        - src: config/services.yaml.j2
+          dest: services-crowdsec.yaml
+        - src: compose.yaml
+          dest: compose-crowdsec.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/homepage/templates/{{ item.src }}"
+        dest: "{{ homepage_empty_dir.path }}/{{ item.dest }}"
+        mode: "0600"
+
+    - name: Read the CrowdSec-only services
+      ansible.builtin.import_tasks: tasks/read_services.yml
+      vars:
+        homepage_services_path: "{{ homepage_empty_dir.path }}/services-crowdsec.yaml"
+
+    - name: Read the CrowdSec-only compose
+      ansible.builtin.slurp:
+        src: "{{ homepage_empty_dir.path }}/compose-crowdsec.yaml"
+      register: homepage_crowdsec_compose_raw
+
+    - name: Assert only the CrowdSec card is rendered
+      ansible.builtin.assert:
+        that:
+          - homepage_card_names['Supervision'] == ['CrowdSec']
+          - (homepage_crowdsec_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
+        fail_msg: "Supervision sans URL d'Uptime Kuma inattendue : {{ homepage_cards['Supervision'] | default({}) }}"
 
     - name: Remove the scratch directory
       ansible.builtin.file:

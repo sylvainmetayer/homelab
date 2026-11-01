@@ -68,6 +68,7 @@ homepage_groups:
   - Contacts
   - Flip Planning
   - Administration
+  - Supervision
   - Hôtes
   - Divers
 
@@ -125,6 +126,102 @@ homepage_uptimekuma_status_pages:
     description: Disponibilité du site personnel (Uptime Kuma)
     icon: uptime-kuma
 
+# --- Supervision (groupe homepage_supervision_group) ---
+# Trois cartes de lecture seule, chacune rendue seulement avec sa clé sops.
+homepage_supervision_group: Supervision
+
+# Uptime Kuma sans page de statut : les sondes en panne et l'état de chaque
+# sauvegarde (moniteurs push « Backup <app> », dossier Backup de
+# tofu/pangolin_config). Une page de statut est publique par nature, et les
+# sauvegardes n'en ont pas, par décision ; Uptime Kuma n'a ni compte en
+# lecture seule ni API REST (socket.io, compte administrateur). Reste
+# /metrics (Prometheus), derrière une clé d'API qui n'ouvre que cette route :
+# clé sops homepage_uptimekuma_api_key. Homepage ne lit pas ce format : le
+# conteneur kuma-summary du même projet (files/kuma_summary.py) interroge
+# /metrics au plus une fois par homepage_kuma_summary_cache_seconds (Uptime
+# Kuma limite les clés à 60 requêtes par minute), n'en garde que l'état et le
+# nom des sondes et les sert en JSON (/down.json, /backups.json) sur le réseau
+# privé du projet ; la clé n'est que dans compose.yaml (0600).
+# /metrics ne donne pas l'heure du dernier envoi : une sauvegarde est « OK »
+# tant qu'elle a poussé dans sa fenêtre (25 h, backup_push_interval),
+# « En retard » sinon. Sans la clé ou sans l'URL (output
+# homepage_uptimekuma_url), ni cartes ni conteneur.
+homepage_uptimekuma_widget_key: "{{ homepage_uptimekuma_api_key | default('') }}"
+homepage_kuma_summary_enabled: >-
+  {{ homepage_uptimekuma_url | length > 0 and homepage_uptimekuma_widget_key | length > 0 }}
+homepage_kuma_summary_port: 8080
+homepage_kuma_summary_cache_seconds: 60
+homepage_kuma_summary_url: "http://kuma-summary:{{ homepage_kuma_summary_port }}" # NOSONAR (réseau privé du projet)
+homepage_kuma_cards:
+  - name: Sondes en panne
+    group: "{{ homepage_supervision_group }}"
+    description: Uptime Kuma, hors sondes en pause et dossiers
+    icon: uptime-kuma
+    widget:
+      type: customapi
+      url: "{{ homepage_kuma_summary_url }}/down.json"
+      refreshInterval: 60000
+      display: dynamic-list
+      mappings:
+        items: items
+        name: name
+        label: status
+  - name: Sauvegardes
+    group: "{{ homepage_supervision_group }}"
+    description: Borgmatic, envoi à Uptime Kuma dans les 25 h (en retard d'abord)
+    icon: mdi-backup-restore
+    widget:
+      type: customapi
+      url: "{{ homepage_kuma_summary_url }}/backups.json"
+      refreshInterval: 60000
+      display: dynamic-list
+      mappings:
+        items: items
+        name: name
+        label: status
+
+# CrowdSec (Pangolin) d'après ses journaux, pas par sa LAPI : la LAPI est sur
+# Pangolin, que la VM docker ne joint que par Internet (il faudrait l'y
+# publier), et le widget crowdsec de Homepage se connecte en machine
+# (watcher), un compte qui peut écrire des alertes et supprimer des
+# décisions. Le Vector de Pangolin envoie déjà les lignes de CrowdSec à
+# VictoriaLogs, sur cette VM, champs crowdsec (alert, decision), decision et
+# client_ip compris (rôle log_agent). Homepage interroge vmauth sur newt avec
+# un compte à lui (victoria_logs_homepage_user, rôle victoria_logs) qui ne
+# peut que compter dans le flux du conteneur crowdsec de Pangolin : clé sops
+# homepage_victoria_logs_password. Deux nombres : les alertes des dernières
+# 24 h et les IP bannies depuis 4 h (durée d'un ban du profil par défaut de
+# CrowdSec : les bans en cours) ; ni la liste communautaire (CAPI) ni les
+# AppSec en alerte seule qui ne bannissent pas.
+homepage_victoria_logs_user: homepage
+homepage_victoria_logs_widget_password: "{{ homepage_victoria_logs_password | default('') }}"
+homepage_victoria_logs_url: "http://victoria-logs-auth:8427" # NOSONAR (réseau newt, sans TLS)
+homepage_crowdsec_query: >-
+  _time:24h
+  | stats count() if (crowdsec:=alert) as alerts,
+  count_uniq(client_ip) if (_time:4h crowdsec:=decision decision:=ban) as bans
+homepage_crowdsec_card:
+  name: CrowdSec
+  group: "{{ homepage_supervision_group }}"
+  description: Pangolin, d'après ses journaux (VictoriaLogs)
+  icon: crowdsec
+  href: "{{ homepage_websites.victoria_logs.href | default('') }}"
+  widget:
+    type: customapi
+    # Requête entièrement encodée : Homepage remplace tout {…} de l'URL.
+    url: "{{ homepage_victoria_logs_url }}/select/logsql/stats_query?query={{ homepage_crowdsec_query | urlencode }}"
+    username: "{{ homepage_victoria_logs_user }}"
+    password: "{{ homepage_victoria_logs_widget_password }}"
+    refreshInterval: 300000
+    # Une valeur par stats, dans l'ordre de la requête.
+    mappings:
+      - field: data.result.0.value.1
+        label: Alertes (24 h)
+        format: number
+      - field: data.result.1.value.1
+        label: IP bannies (4 h)
+        format: number
+
 # Beszel, une carte par hôte (groupe homepage_hosts_group) : état, CPU,
 # mémoire et disque d'un système du hub (mode systemId du widget, qui accepte
 # le nom du système). Les systèmes sont les clés du dict sops
@@ -134,6 +231,17 @@ homepage_uptimekuma_status_pages:
 homepage_hosts_group: Hôtes
 homepage_beszel_systems: "{{ beszel_agent_tokens | default({}) | list | sort }}"
 homepage_beszel_host_fields: [status, cpu, memory, disk]
+# Disque en rouge à partir de 80 % (highlight de Homepage, sur le champ
+# disk de chaque carte d'hôte). Pour le NAS, ce disque est /volume1 : l'agent
+# tourne en conteneur, et la racine qu'il mesure est celle de Docker,
+# /volume1/@docker (relevé du 2026-11-01 : 24 % pour / dans le conteneur
+# comme pour /volume1 sur l'hôte). Aucune connexion de plus au hub.
+homepage_beszel_host_highlight:
+  disk:
+    numeric:
+      - level: danger
+        when: gte
+        value: 80
 # Description et icône de chaque carte d'hôte ; un système absent d'ici a
 # une carte sans description.
 homepage_hosts:

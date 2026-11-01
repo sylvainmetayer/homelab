@@ -4,8 +4,9 @@
 # tofu/pangolin_config) plus homepage_extra_links, chacun avec sa pastille
 # d'état quand son adresse interne est connue (site_monitor), et les widgets :
 # ceux de homepage_link_widgets et homepage_link_widgets_extra sur leur lien,
-# une carte par hôte de Beszel, une par page de statut d'Uptime Kuma, et
-# l'agenda (defaults/main.yml).
+# une carte par hôte de Beszel, une par page de statut d'Uptime Kuma, celles
+# de la supervision (sondes en panne, sauvegardes, CrowdSec) et l'agenda
+# (defaults/main.yml).
 {% set widgets = {} %}
 {% for key, candidate in homepage_link_widgets_extra.items() if candidate.enabled | bool and candidate.widget.url | default('') | length > 0 %}
 {%   set _ = widgets.update({key: candidate.widget}) %}
@@ -27,6 +28,12 @@
 {%     set _ = cards.append(page | combine({'widget': {'type': 'uptimekuma', 'url': homepage_uptimekuma_url, 'slug': page.slug}})) %}
 {%   endfor %}
 {% endif %}
+{% if homepage_kuma_summary_enabled | bool %}
+{%   set _ = cards.extend(homepage_kuma_cards) %}
+{% endif %}
+{% if homepage_victoria_logs_widget_password | length > 0 %}
+{%   set _ = cards.append(homepage_crowdsec_card) %}
+{% endif %}
 {% if homepage_beszel_enabled | bool %}
 {%   for system in homepage_beszel_systems %}
 {%     set host = homepage_hosts[system] | default({}) %}
@@ -35,6 +42,9 @@
                    'widget': {'type': 'beszel', 'url': homepage_beszel_url, 'username': homepage_beszel_email,
                               'password': homepage_beszel_widget_password, 'version': 2, 'systemId': system,
                               'fields': homepage_beszel_host_fields}} %}
+{%     if homepage_beszel_host_highlight | length > 0 %}
+{%       set card = card | combine({'widget': {'highlight': homepage_beszel_host_highlight}}, recursive=true) %}
+{%     endif %}
 {%     if homepage_proxmox_enabled | bool and system in homepage_proxmox_guests %}
 {%       set card = card | combine({'proxmox': homepage_proxmox_guests[system]}) %}
 {%     endif %}
