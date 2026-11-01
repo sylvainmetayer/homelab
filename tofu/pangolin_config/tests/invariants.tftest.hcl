@@ -2168,7 +2168,7 @@ run "nas_newt_credentials_and_media" {
       && strcontains(file("${path.module}/../../ansible/roles/mediamanager/templates/compose.yaml"), "\n    container_name: mediamanager\n")
       && pangolin_site_resource.mediamanager.tcp_port_range == "8000"
       && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_port: 8000\n")
-      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_frontend_url: \"http://mediamanager.internal:{{ mediamanager_port }}\"\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_frontend_url: \"http://mediamanager.internal:{{ mediamanager_port }}\"")
       && pangolin_site_resource.mediamanager.udp_port_range == "*"
       && pangolin_site_resource.mediamanager.disable_icmp == true
       && pangolin_site_resource_role.mediamanager.site_resource_id == pangolin_site_resource.mediamanager.id

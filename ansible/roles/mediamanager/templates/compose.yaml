@@ -138,9 +138,14 @@ services:
     image: lscr.io/linuxserver/qbittorrent:5.3.0@sha256:05c1454f9a32967affc1f34f67f8cc0cc57dd805dca45489fe797095a6286556
     container_name: mediamanager-qbittorrent
     network_mode: service:gluetun
+    # Démarré, pas sain : un VPN injoignable ferait sinon échouer le
+    # `compose up` de dc@, qui arrêterait tout le projet, MediaManager et sa
+    # base compris, en boucle. Le kill switch ne dépend pas de cette attente :
+    # le pare-feu de gluetun bloque tout dès son démarrage, tunnel monté ou
+    # non. restart : relancé avec gluetun (son espace réseau change).
     depends_on:
       gluetun:
-        condition: service_healthy
+        condition: service_started
         restart: true
     security_opt:
       - no-new-privileges:true
@@ -169,7 +174,7 @@ services:
     network_mode: service:gluetun
     depends_on:
       gluetun:
-        condition: service_healthy
+        condition: service_started
         restart: true
     security_opt:
       - no-new-privileges:true

@@ -126,12 +126,22 @@
     group: "{{ mediamanager_gid }}"
     mode: "0600"
 
+# Posé une seule fois (plus bas) : déjà là, ni empreinte ni modèle.
+- name: Check the qBittorrent configuration
+  when: mediamanager_vpn_enabled | bool
+  become: true
+  ansible.builtin.stat:
+    path: "{{ mediamanager_base_path }}/qbittorrent/qBittorrent/qBittorrent.conf"
+  register: mediamanager_qbittorrent_conf
+
 # Empreinte PBKDF2 du mot de passe de l'interface web de qBittorrent, au
 # format de son qBittorrent.conf (PBKDF2-HMAC-SHA512, 100 000 tours, sel de
 # 16 octets) : sel dérivé du mot de passe, donc la même à chaque passage. Le
 # mot de passe passe par l'entrée standard, jamais par la ligne de commande.
 - name: Hash the qBittorrent web UI password
-  when: mediamanager_vpn_enabled | bool
+  when:
+    - mediamanager_vpn_enabled | bool
+    - not (mediamanager_qbittorrent_conf.stat.exists | default(false))
   no_log: true
   ansible.builtin.command:
     argv:
@@ -152,9 +162,13 @@
 # Posé une seule fois (force: false) : qBittorrent réécrit ce fichier en
 # s'arrêtant, et un réglage changé dans son interface doit survivre au
 # passage suivant. Pour repartir de ce modèle : arrêter dc@mediamanager,
-# supprimer le fichier, relancer le rôle (README).
+# supprimer le fichier, relancer le rôle (README). Le mot de passe n'y est
+# donc jamais remis : après une rotation de backup_passphrase, repartir du
+# modèle (README, « Secrets »).
 - name: Seed the qBittorrent configuration
-  when: mediamanager_vpn_enabled | bool
+  when:
+    - mediamanager_vpn_enabled | bool
+    - not (mediamanager_qbittorrent_conf.stat.exists | default(false))
   become: true
   diff: false
   no_log: true
