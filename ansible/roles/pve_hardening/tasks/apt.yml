@@ -15,4 +15,5 @@
     dest: /etc/apt/sources.list.d/proxmox.sources
     owner: root
     group: root
-    mode: "0644"
+    # Lu par apt sans root aussi (apt list, apt policy), comme les autres sources.
+    mode: "0644" # NOSONAR

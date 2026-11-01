@@ -61,7 +61,8 @@
           Components: pve-enterprise
           Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
         dest: /etc/apt/sources.list.d/pve-enterprise.sources
-        mode: "0644"
+        # Les droits du fichier sur l'hôte.
+        mode: "0644" # NOSONAR
 
     - name: Install the fake Proxmox commands
       ansible.builtin.copy:
@@ -127,7 +128,8 @@
           [Install]
           WantedBy=multi-user.target
         dest: /etc/systemd/system/dnsmasq@.service
-        mode: "0644"
+        # Les droits habituels d'une unité systemd.
+        mode: "0644" # NOSONAR
 
     - name: Start the dnsmasq of the homelab zone
       ansible.builtin.systemd_service:
