@@ -1,0 +1,93 @@
+---
+# Garde-fou : la machine qui lance le play doit être dans le réseau
+# autorisé, sinon le pare-feu fermerait SSH au lanceur lui-même. Absent hors
+# SSH (Molecule) : rien à vérifier.
+- name: Check that this run comes from the admin network
+  when: ansible_facts['env']['SSH_CLIENT'] is defined
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - import ipaddress, sys; sys.exit(ipaddress.ip_address(sys.argv[1]) not in ipaddress.ip_network(sys.argv[2]))
+      - "{{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}"
+      - "{{ pve_hardening_lan_cidr }}"
+  register: pve_hardening_ssh_source
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert this run comes from the admin network
+  when: pve_hardening_ssh_source is not skipped
+  ansible.builtin.assert:
+    that:
+      - pve_hardening_ssh_source.rc == 0
+    fail_msg: >-
+      Connexion depuis {{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}, hors de
+      {{ pve_hardening_lan_cidr }} : le pare-feu couperait ce lanceur. Rien n'est écrit.
+    quiet: true
+
+- name: Create the working copy directory
+  ansible.builtin.file:
+    path: "{{ pve_hardening_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Rendu une fois : la copie de travail (hors de pmxcfs, c'est elle qui
+# porte le --diff) et la comparaison lisent la même chaîne.
+- name: Render the datacenter firewall configuration
+  ansible.builtin.set_fact:
+    pve_hardening_cluster_fw_expected: "{{ lookup('ansible.builtin.template', 'cluster.fw.j2') }}"
+
+- name: Write the working copy of the firewall configuration
+  ansible.builtin.copy:
+    content: "{{ pve_hardening_cluster_fw_expected }}"
+    dest: "{{ pve_hardening_state_dir }}/cluster.fw"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Read the live datacenter firewall configuration
+  ansible.builtin.slurp:
+    src: /etc/pve/firewall/cluster.fw
+  register: pve_hardening_cluster_fw
+  failed_when: false
+  check_mode: false
+
+# Comparé au rendu attendu, pas à la copie de travail : une modification
+# faite dans l'interface web est écrasée aussi.
+- name: Compare the live configuration with the expected one
+  ansible.builtin.set_fact:
+    pve_hardening_cluster_fw_drift: >-
+      {{ (pve_hardening_cluster_fw.content | default('') | b64decode)
+         != pve_hardening_cluster_fw_expected }}
+
+# Une simple écriture (cat >), sans chmod : pmxcfs n'accepte que 0640, et
+# pve-firewall relit le fichier dans les 10 s. Un fichier lu à moitié
+# écrit (vide) vaut pare-feu désactivé, jamais tout fermé.
+- name: Write the datacenter firewall configuration
+  when: pve_hardening_cluster_fw_drift | bool
+  ansible.builtin.shell:
+    cmd: cat {{ pve_hardening_state_dir }}/cluster.fw > /etc/pve/firewall/cluster.fw
+  changed_when: true
+
+- name: Report what check mode skipped
+  when: ansible_check_mode and pve_hardening_cluster_fw_drift | bool
+  ansible.builtin.debug:
+    msg: /etc/pve/firewall/cluster.fw serait réécrit avec le rendu ci-dessus (pare-feu activé).
+
+- name: Read the firewall status
+  when: not ansible_check_mode
+  ansible.builtin.command:
+    argv: [pve-firewall, status]
+  register: pve_hardening_fw_status
+  changed_when: false
+
+- name: Assert the firewall is enabled
+  when: not ansible_check_mode
+  ansible.builtin.assert:
+    that:
+      - "'enabled/running' in pve_hardening_fw_status.stdout"
+    fail_msg: "pve-firewall : {{ pve_hardening_fw_status.stdout }}"
+    quiet: true

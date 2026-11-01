@@ -1,0 +1,19 @@
+# Ansible managed: role pve_hardening (pve.yml); edits made in the web UI are overwritten.
+# Host firewall only: no guest NIC has firewall=1, so no guest rule applies.
+# Rescue: docs/runbooks/proxmox-injoignable-apres-durcissement.md
+
+[OPTIONS]
+
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[RULES]
+
+{% for port in pve_hardening_admin_ports %}
+IN ACCEPT -source {{ pve_hardening_lan_cidr }} -p tcp -dport {{ port }} # admin from the LAN
+{% endfor %}
+IN ACCEPT -source {{ pve_hardening_lan_cidr }} -p icmp # ping from the LAN
+{% for server in pve_hardening_nfs_servers %}
+IN ACCEPT -source {{ server }} # NFS server: NLM and statd callbacks
+{% endfor %}

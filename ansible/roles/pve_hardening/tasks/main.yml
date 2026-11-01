@@ -1,0 +1,18 @@
+---
+# L'ordre compte : sshd et pare-feu en dernier, chacun sous son tag pour les
+# appliquer un par un, une session de secours ouverte (README du rôle).
+- name: Remove the enterprise repository
+  ansible.builtin.import_tasks: apt.yml
+  tags: pve_apt
+
+- name: Remove the unused SDN zones
+  ansible.builtin.import_tasks: sdn.yml
+  tags: pve_sdn
+
+- name: Restrict sshd to keys
+  ansible.builtin.import_tasks: ssh.yml
+  tags: pve_ssh
+
+- name: Enable the host firewall
+  ansible.builtin.import_tasks: firewall.yml
+  tags: pve_firewall

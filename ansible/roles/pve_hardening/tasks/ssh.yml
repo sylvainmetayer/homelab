@@ -1,0 +1,58 @@
+---
+# Ansible, tofu/proxmox (provider bpg : SSH root par l'agent, pour les
+# snippets) et Sylvain se connectent en root par clé : sans clé, couper les
+# mots de passe fermerait l'hôte à tout sauf la console physique.
+- name: Count the root authorized keys
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -cE
+      - "(^|[ ,])(ssh-(ed25519|rsa)|ecdsa-sha2-|sk-ssh-|sk-ecdsa-)"
+      - /root/.ssh/authorized_keys
+  register: pve_hardening_root_keys
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert root has an authorized key
+  ansible.builtin.assert:
+    that:
+      - pve_hardening_root_keys.rc == 0
+      - pve_hardening_root_keys.stdout | int > 0
+    fail_msg: /root/.ssh/authorized_keys (lien vers /etc/pve/priv/authorized_keys) n'a aucune clé.
+    quiet: true
+
+# Le Include de /etc/ssh/sshd_config est en tête : pour sshd, la première
+# valeur lue gagne, ce fichier l'emporte sur les « yes » plus bas.
+- name: Write the sshd hardening drop-in
+  ansible.builtin.template:
+    src: sshd-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: pve_hardening reload sshd
+
+- name: Reload sshd now
+  ansible.builtin.meta: flush_handlers
+
+- name: Read the effective sshd configuration
+  when: not ansible_check_mode
+  ansible.builtin.command:
+    argv: [/usr/sbin/sshd, -T]
+  register: pve_hardening_sshd_effective
+  changed_when: false
+
+- name: Assert sshd took the hardening
+  when: not ansible_check_mode
+  ansible.builtin.assert:
+    that:
+      # sshd -T écrit prohibit-password sous son ancien nom.
+      - >-
+        pve_hardening_sshd_effective.stdout_lines
+        | select('match', '^permitrootlogin (without-password|prohibit-password)$') | list | length == 1
+      - "'passwordauthentication no' in pve_hardening_sshd_effective.stdout_lines"
+      - "'x11forwarding no' in pve_hardening_sshd_effective.stdout_lines"
+      - "'pubkeyauthentication yes' in pve_hardening_sshd_effective.stdout_lines"
+    quiet: true

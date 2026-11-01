@@ -25,9 +25,9 @@ newt-lxc ansible_host=192.168.1.200 ansible_user=sylvain
 [ugreen]
 nas ansible_host=192.168.1.137 ansible_user=sylvain
 
-# Hôte Proxmox VE : pve.yml uniquement (agent Beszel), lancé à la main. Exclu
-# de 00-setup.yaml : le système appartient à Proxmox, géré par tofu/proxmox
-# (API et SSH root). Connexion en root sans become : host_vars/pve. Groupe
+# Hôte Proxmox VE : pve.yml uniquement (agent Beszel, durcissement…), lancé à
+# la main. Exclu de 00-setup.yaml : le système appartient à Proxmox, géré par
+# tofu/proxmox (API et SSH root). Connexion en root sans become : host_vars/pve. Groupe
 # proxmox_ve, pas pve : un groupe du nom de l'hôte fait avertir Ansible.
 [proxmox_ve]
 pve ansible_host=192.168.1.26

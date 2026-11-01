@@ -1,0 +1,26 @@
+---
+# Durcissement de l'hôte Proxmox VE (pve.yml, à la main seulement) : sshd
+# par clé seulement, dépôt pve-enterprise retiré, zones SDN inutilisées
+# supprimées, pare-feu PVE limité à l'hôte. Procédure de secours :
+# docs/runbooks/proxmox-injoignable-apres-durcissement.md.
+
+# Réseau d'administration : SSH (22) et interface web/API (8006) n'acceptent
+# que lui. Tout ce qui joint l'hôte depuis ailleurs passe par un Newt du LAN
+# (pve.internal par le LXC newt 192.168.1.200, homepage depuis la VM docker
+# 192.168.1.216) et arrive donc avec une source du LAN.
+pve_hardening_lan_cidr: 192.168.1.0/24
+pve_hardening_admin_ports: [22, 8006]
+
+# Serveurs NFS que l'hôte monte (storage nas-backup de tofu/proxmox, NFS v3) :
+# les rappels NLM (verrous) et statd (redémarrage du serveur) entrent depuis
+# eux sur des ports dynamiques, tout est donc ouvert à leur IP.
+pve_hardening_nfs_servers: [192.168.1.137]
+
+# Zones SDN à supprimer avec leurs vnets et sous-réseaux. Le rôle échoue
+# avant toute suppression si un invité est branché sur l'un de ces vnets.
+pve_hardening_sdn_removed_zones: [homelab]
+
+# Copie de travail du cluster.fw rendu (le --diff se lit dessus) : /etc/pve
+# est pmxcfs, où les écritures atomiques d'Ansible (chmod 0644 du fichier
+# créé) échouent.
+pve_hardening_state_dir: /var/lib/pve-hardening
