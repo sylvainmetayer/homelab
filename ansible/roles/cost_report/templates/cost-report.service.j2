@@ -1,0 +1,30 @@
+# Rapport des coûts du homelab (rôle cost_report) : costs.json pour la carte
+# Coûts de Homepage chaque jour, le rapport du mois dernier sur ntfy une fois
+# par mois. Les jetons sont dans l'EnvironmentFile, 0600 root, jamais sur la
+# ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=Cost report of the homelab, to ntfy and Homepage
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ cost_report_user }}
+EnvironmentFile={{ cost_report_env_file }}
+# /var/lib/cost-report, au compte du script, lisible par tous : la carte de
+# Homepage (apps-summary, nobody) le monte en lecture seule.
+StateDirectory={{ cost_report_state_dir | basename }}
+StateDirectoryMode=0755
+ExecStart=/usr/bin/python3 -I {{ cost_report_script }} --config {{ cost_report_config_file }} --state-dir {{ cost_report_state_dir }}
+TimeoutStartSec=5min
+# N'écrit que dans son StateDirectory ; parle aux API et à ntfy.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+# AF_UNIX : la résolution DNS par systemd-resolved (nss).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

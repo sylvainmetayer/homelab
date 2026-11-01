@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le verify lance les tests unitaires du script, puis la vraie unité contre
+# de fausses API Hetzner, OVH et ntfy locales.
+scenario:
+  name: cost_report

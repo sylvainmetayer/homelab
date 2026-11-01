@@ -1,0 +1,10 @@
+---
+# Dérivé, pas un réglage.
+cost_report_script: /usr/local/libexec/cost_report.py
+# Configuration sans secret (URL, abonnements), lisible par le compte du script.
+cost_report_config_file: /etc/cost-report.json
+# Les jetons, lus par systemd (root) avant de passer au compte du script.
+cost_report_env_file: /etc/cost-report.env
+# StateDirectory de l'unité : costs.json (carte Coûts de Homepage, monté en
+# lecture seule dans apps-summary) et state.json (dernier rapport publié).
+cost_report_state_dir: /var/lib/cost-report

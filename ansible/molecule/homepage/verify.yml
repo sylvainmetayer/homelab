@@ -133,9 +133,15 @@
           - homepage_apps.cpus is not defined
           - homepage_apps.healthcheck.test is defined
           - homepage_apps.container_name == 'homepage-apps-summary'
-          - homepage_apps.volumes | length == 1
+          # Le script, puis le dossier de cost_report (carte Coûts), tous
+          # deux en lecture seule.
+          - homepage_apps.volumes | length == 2
           - homepage_apps.volumes[0].target == '/app/apps_summary.py'
-          - homepage_apps.volumes[0].read_only | default(false)
+          - homepage_apps.volumes | rejectattr('read_only', 'defined') | list == []
+          - homepage_apps.volumes | selectattr('read_only', 'equalto', false) | list == []
+          - homepage_apps.volumes[1].source == '/var/lib/cost-report'
+          - homepage_apps.volumes[1].target == '/data/costs'
+          - homepage_apps.environment.COSTS_FILE == '/data/costs/costs.json'
           - homepage_apps.environment.GROCY_URL == 'http://grocy:80' # NOSONAR
           - homepage_apps.environment.GROCY_API_KEY == homepage_grocy_api_key
           - homepage_apps.environment.PAPRA_URL == 'http://papra:1221' # NOSONAR
@@ -254,7 +260,7 @@
           - homepage_card_names['Lecture'] == ['FreshRSS', 'Karakeep']
           - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin']
           - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
-          - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
+          - homepage_card_names['Administration'] == ['Beszel', 'Coûts', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
           - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
           - homepage_cards['Documents']['BookStack'].icon == 'bookstack'
           - homepage_cards['Documents']['BookStack'].widget is not defined
@@ -396,6 +402,10 @@
           - homepage_freshrss.username == 'molecule'
           - homepage_freshrss.password == homepage_freshrss_api_password
           - homepage_bus.widget.url == 'http://homepage-apps-summary:8080/tbm.json' # NOSONAR
+          - homepage_cards['Administration']['Coûts'].widget.url == 'http://homepage-apps-summary:8080/costs.json' # NOSONAR
+          - >-
+            homepage_cards['Administration']['Coûts'].widget.mappings | map(attribute='field') | list
+            == ['previous_total', 'current_total', 'missing', 'updated']
           - homepage_bus.widget.display == 'dynamic-list'
           - homepage_bus.href is not defined
           - homepage_grocy_api_key not in homepage_services_text

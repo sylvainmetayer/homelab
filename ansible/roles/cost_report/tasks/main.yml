@@ -1,0 +1,125 @@
+---
+# Un abonnement mal écrit casserait le script à chaque lancement : refusé
+# au déploiement.
+- name: Check the fixed subscriptions of the cost report
+  ansible.builtin.assert:
+    that:
+      - item.name | default('') | length > 0
+      - item.amount is number
+      - item.amount >= 0
+      - item.currency | default('') is match('^[A-Z]{3}$')
+      - item.period | default('') in ['monthly', 'yearly']
+    fail_msg: "Abonnement invalide dans abonnements.yml : {{ item }}"
+    quiet: true
+  loop: "{{ cost_report_subscriptions }}"
+  loop_control:
+    label: "{{ item.name | default('?') }}"
+
+# /usr/local/libexec n'existe pas partout (absent du Pi, 28/10) : le créer
+# plutôt que de supposer l'arborescence de l'hôte.
+- name: Ensure the cost report script folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ cost_report_script | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    # Dossier système standard, traversé par le compte de l'unité ; sans
+    # secret (les jetons sont dans /etc/cost-report.env, 0600).
+    mode: "0755" # NOSONAR
+
+- name: Install the cost report script
+  become: true
+  ansible.builtin.copy:
+    src: cost_report.py
+    dest: "{{ cost_report_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Sans secret : URL des API et de ntfy, abonnements.
+- name: Write the cost report configuration
+  become: true
+  ansible.builtin.copy:
+    content: >-
+      {{ {
+        'ntfy_url': cost_report_ntfy_url,
+        'ntfy_topic': cost_report_ntfy_topic,
+        'hetzner_cloud_api': cost_report_hetzner_cloud_api,
+        'hetzner_api': cost_report_hetzner_api,
+        'ovh_endpoint': cost_report_ovh_endpoint,
+        'ovh_vat_percent': cost_report_ovh_vat_percent,
+        'subscriptions': cost_report_subscriptions,
+      } | to_nice_json(ensure_ascii=False) }}
+    dest: "{{ cost_report_config_file }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Les jetons : 0600 root, diff: false. L'identifiant du projet OVH avec eux,
+# comme OVH_CLOUD_PROJECT_ID, rangé en clé sops dans le dépôt.
+- name: Write the tokens of the cost report
+  become: true
+  diff: false
+  ansible.builtin.copy:
+    content: |
+      COST_REPORT_NTFY_TOKEN={{ cost_report_ntfy_token }}
+      COST_REPORT_HCLOUD_TOKEN={{ cost_report_hcloud_token }}
+      COST_REPORT_OVH_APPLICATION_KEY={{ cost_report_ovh_application_key }}
+      COST_REPORT_OVH_APPLICATION_SECRET={{ cost_report_ovh_application_secret }}
+      COST_REPORT_OVH_CONSUMER_KEY={{ cost_report_ovh_consumer_key }}
+      COST_REPORT_OVH_CLOUD_PROJECT={{ cost_report_ovh_cloud_project }}
+    dest: "{{ cost_report_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Warn about the sources the cost report will not read
+  vars:
+    cost_report_ovh_keys:
+      - "{{ cost_report_ovh_application_key }}"
+      - "{{ cost_report_ovh_application_secret }}"
+      - "{{ cost_report_ovh_consumer_key }}"
+    cost_report_gaps: >-
+      {{ (['Hetzner non configurée (hcloud_readonly_token vide)'] if cost_report_hcloud_token | length == 0 else [])
+         + (['OVH non configurée (clés costs_ovh_* vides)'] if '' in cost_report_ovh_keys else [])
+         + (['rien publié sur ntfy (ntfy_scripts_token vide)'] if cost_report_ntfy_token | length == 0 else []) }}
+  when: cost_report_gaps | length > 0
+  ansible.builtin.debug:
+    msg: "Rapport des coûts partiel : {{ cost_report_gaps | join(' ; ') }}."
+
+# Le StateDirectory de l'unité, créé ici aussi : Homepage (apps-summary) le
+# monte dès son déploiement, avant le premier lancement ; Docker le créerait
+# sinon au nom de root.
+- name: Create the cost report state folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ cost_report_state_dir }}"
+    state: directory
+    owner: "{{ cost_report_user }}"
+    group: "{{ cost_report_user }}"
+    # costs.json est lu par apps-summary (nobody) : des totaux, aucun secret.
+    mode: "0755" # NOSONAR
+
+- name: Install the cost report service and timer
+  become: true
+  loop:
+    - cost-report.service
+    - cost-report.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart cost-report timer
+
+# Le timer seul : le service, oneshot, n'est jamais lancé par Ansible
+# (OnActiveSec le lance peu après).
+- name: Enable the daily cost report
+  become: true
+  ansible.builtin.systemd:
+    name: cost-report.timer
+    state: started
+    enabled: true
+    daemon_reload: true

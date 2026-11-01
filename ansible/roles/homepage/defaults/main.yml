@@ -425,6 +425,34 @@ homepage_tbm_card:
       name: name
       label: status
 
+# Coûts (groupe Administration) : total du mois dernier et du mois en cours
+# à date, sources à compléter, date du relevé, depuis le costs.json qu'écrit
+# chaque jour le rôle cost_report (même hôte). apps-summary monte ce dossier
+# en lecture seule et ne fait aucun appel : les clés Hetzner et OVH restent
+# à cost_report. Vide (défaut) : pas de carte ; docker.yml le donne. Tout
+# conteneur de newt peut lire ces totaux (des montants, aucun secret).
+homepage_costs_dir: ""
+homepage_costs_mount: /data/costs
+homepage_costs_card:
+  name: Coûts
+  group: Administration
+  description: Hetzner, OVH et abonnements (rapport mensuel sur ntfy)
+  icon: mdi-cash-multiple
+  widget:
+    type: customapi
+    url: "{{ homepage_apps_summary_url }}/costs.json"
+    refreshInterval: 3600000
+    mappings:
+      - field: previous_total
+        label: Mois dernier
+      - field: current_total
+        label: Ce mois-ci
+      - field: missing
+        label: À compléter
+        format: number
+      - field: updated
+        label: Relevé
+
 # Sources servies par apps-summary : nom => variables d'environnement.
 homepage_apps_summary_sources: >-
   {%- set out = {} -%}
@@ -442,6 +470,9 @@ homepage_apps_summary_sources: >-
   {%- if homepage_tbm_enabled | bool and homepage_tbm_stops | length > 0 -%}
   {%-   set _ = out.update({'tbm': {'TBM_URL': homepage_tbm_url, 'TBM_ACCOUNT_KEY': homepage_tbm_account_key, 'TBM_LINE': homepage_tbm_line,
                                     'TBM_STOPS': homepage_tbm_stops | join(','), 'TBM_DEPARTURES': homepage_tbm_departures | string}}) -%}
+  {%- endif -%}
+  {%- if homepage_costs_dir | length > 0 -%}
+  {%-   set _ = out.update({'costs': {'COSTS_FILE': homepage_costs_mount ~ '/costs.json'}}) -%}
   {%- endif -%}
   {{ out }}
 

@@ -1,0 +1,52 @@
+---
+# Rapport mensuel des coûts du homelab (docker.yml), sur ntfy le 1er du mois
+# et sur la carte Coûts de Homepage. files/cost_report.py, lancé chaque jour,
+# interroge Hetzner et OVH quand leurs clés existent, ajoute les abonnements
+# fixes (abonnements.yml, à côté), écrit costs.json pour Homepage et publie
+# le rapport du mois dernier une fois par mois. Une source sans clé est
+# « non configurée » : le rapport sort quand même, partiel. Création des
+# clés : README.md du rôle et docs/runbooks/rotation-des-secrets.md.
+
+# Chaque matin : la carte de Homepage suit le mois en cours ; le rapport du
+# mois dernier part au premier lancement d'un nouveau mois (le 1er, ou au
+# démarrage suivant si l'hôte était éteint : Persistent). Heure locale de
+# l'hôte, loin des redémarrages automatiques (04:30-05:30).
+cost_report_schedule: "*-*-* 07:00:00"
+# Un premier lancement après chaque (re)démarrage du timer : déploiement,
+# redémarrage de l'hôte. La carte n'attend pas le lendemain ; un rapport déjà
+# parti ce mois-ci ne repart pas (state.json).
+cost_report_first_run_delay: 2min
+
+# Producteur « scripts » du rôle ntfy (écriture seule sur son topic), comme
+# mem_report. Jeton vide : le rapport ne va qu'au journal
+# (journalctl -u cost-report).
+cost_report_ntfy_url: https://ntfy.sylvain.cloud
+cost_report_ntfy_topic: scripts
+cost_report_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+
+# Hetzner : le jeton de projet en lecture seule (Console, Security → API
+# tokens, permission Read), le même que le contrôle de remplissage de la
+# Storage Box (clé sops hcloud_readonly_token). Il lit serveurs, IP, volumes,
+# tarifs et Storage Box (même projet), rien d'autre. Vide : Hetzner « non
+# configurée ».
+cost_report_hcloud_token: "{{ hcloud_readonly_token | default('') }}"
+cost_report_hetzner_cloud_api: https://api.hetzner.cloud/v1
+cost_report_hetzner_api: https://api.hetzner.com/v1
+
+# OVH : une application d'API dédiée, restreinte à GET /me/bill, GET
+# /me/bill/* et GET /cloud/project/<id>/usage/current (README.md). Clés
+# sops costs_ovh_application_key, costs_ovh_application_secret,
+# costs_ovh_consumer_key ; costs_ovh_cloud_project_id, l'identifiant du
+# projet Public Cloud (le même que OVH_CLOUD_PROJECT_ID du fichier racine),
+# ajoute la consommation en cours. Une des trois clés vide : OVH « non
+# configurée » ; sans projet, les factures seules.
+cost_report_ovh_endpoint: https://eu.api.ovh.com/1.0
+cost_report_ovh_application_key: "{{ costs_ovh_application_key | default('') }}"
+cost_report_ovh_application_secret: "{{ costs_ovh_application_secret | default('') }}"
+cost_report_ovh_consumer_key: "{{ costs_ovh_consumer_key | default('') }}"
+cost_report_ovh_cloud_project: "{{ costs_ovh_cloud_project_id | default('') }}"
+# La consommation Public Cloud pas encore facturée est HT dans l'API.
+cost_report_ovh_vat_percent: 20
+
+# Le script tourne sous ce compte, jamais root.
+cost_report_user: "{{ ansible_user }}"

@@ -1,0 +1,237 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    cost_report_verify_tmp: /root/molecule-cost-report
+    cost_report_verify_log: /root/molecule-cost-report/api.jsonl
+    cost_report_verify_script: /usr/local/libexec/cost_report.py
+  pre_tasks:
+    # Les jetons comparés aux fausses valeurs.
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    - name: Stat the cost report files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ cost_report_verify_script }}"
+        - /etc/cost-report.json
+        - /etc/cost-report.env
+      register: cost_report_verify_files
+
+    # Script et configuration lisibles par le compte de l'unité ; les jetons
+    # pour root seul.
+    - name: Assert the cost report files are root-owned
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0600' if item.item.endswith('.env') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ cost_report_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the token file
+      ansible.builtin.slurp:
+        path: /etc/cost-report.env
+      register: cost_report_verify_env_file
+
+    - name: Read the configuration
+      ansible.builtin.slurp:
+        path: /etc/cost-report.json
+      register: cost_report_verify_config_file
+
+    # Les jetons dans le fichier d'environnement, aucun dans la configuration
+    # lisible ; les abonnements du dépôt, tels quels.
+    - name: Assert the tokens are in the environment file only
+      vars:
+        cost_report_verify_env: "{{ cost_report_verify_env_file.content | b64decode }}"
+        cost_report_verify_config_text: "{{ cost_report_verify_config_file.content | b64decode }}"
+        cost_report_verify_config: "{{ cost_report_verify_config_text | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - "('COST_REPORT_NTFY_TOKEN=' ~ ntfy_scripts_token) in cost_report_verify_env.splitlines()"
+          - "('COST_REPORT_HCLOUD_TOKEN=' ~ hcloud_readonly_token) in cost_report_verify_env.splitlines()"
+          - "('COST_REPORT_OVH_APPLICATION_SECRET=' ~ costs_ovh_application_secret) in cost_report_verify_env.splitlines()"
+          - "('COST_REPORT_OVH_CLOUD_PROJECT=' ~ costs_ovh_cloud_project_id) in cost_report_verify_env.splitlines()"
+          - ntfy_scripts_token not in cost_report_verify_config_text
+          - hcloud_readonly_token not in cost_report_verify_config_text
+          - costs_ovh_application_secret not in cost_report_verify_config_text
+          - cost_report_verify_config.subscriptions | map(attribute='name') | list == ['PikaPods', 'kDrive', 'Abonnement IA']
+          - cost_report_verify_config.ntfy_topic == 'scripts'
+        quiet: true
+
+    - name: Verify the cost report units
+      ansible.builtin.command: systemd-analyze verify cost-report.service cost-report.timer
+      register: cost_report_verify_analyze
+      changed_when: false
+      failed_when: >-
+        cost_report_verify_analyze.rc != 0
+        or (cost_report_verify_analyze.stderr_lines | select('search', 'cost-report') | list | length > 0)
+
+    - name: Read the cost report timer
+      ansible.builtin.systemd:
+        name: cost-report.timer
+      register: cost_report_verify_timer
+
+    - name: Read the cost report service
+      ansible.builtin.systemd:
+        name: cost-report.service
+      register: cost_report_verify_unit
+
+    # Sous sylvain (jamais root), les jetons par le fichier d'environnement
+    # seul, l'écriture dans son StateDirectory seul.
+    - name: Assert the report runs unprivileged
+      vars:
+        cost_report_verify_exec: "{{ cost_report_verify_unit.status.ExecStart }}"
+      ansible.builtin.assert:
+        that:
+          - cost_report_verify_timer.status.UnitFileState == 'enabled'
+          - cost_report_verify_timer.status.ActiveState == 'active'
+          - cost_report_verify_unit.status.User == 'sylvain'
+          - cost_report_verify_unit.status.ProtectSystem == 'strict'
+          - cost_report_verify_unit.status.NoNewPrivileges == 'yes'
+          - cost_report_verify_unit.status.StateDirectory == 'cost-report'
+          - cost_report_verify_unit.status.EnvironmentFiles is search('/etc/cost-report.env')
+          - "'python3 -I ' ~ cost_report_verify_script in cost_report_verify_exec"
+          - ntfy_scripts_token not in cost_report_verify_exec
+          - hcloud_readonly_token not in cost_report_verify_exec
+        fail_msg: "{{ cost_report_verify_exec }}"
+
+    - name: Create the fixtures folder
+      ansible.builtin.file:
+        path: "{{ cost_report_verify_tmp }}"
+        state: directory
+        mode: "0700"
+
+    # Tests unitaires : réponses d'API enregistrées, aucun appel réel.
+    - name: Copy the script and its unit tests
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ cost_report_verify_tmp }}/{{ item.dest }}"
+        mode: "0600"
+        remote_src: "{{ item.remote | default(false) }}"
+      loop:
+        - src: "{{ cost_report_verify_script }}"
+          dest: cost_report.py
+          remote: true
+        - src: files/test_cost_report.py
+          dest: test_cost_report.py
+        - src: files/fake_api.py
+          dest: fake_api.py
+      loop_control:
+        label: "{{ item.dest }}"
+
+    - name: Run the unit tests of the cost report
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ cost_report_verify_tmp }}"
+      changed_when: false
+
+    # Un `molecule verify` relancé repart de zéro : ni journal, ni rapport
+    # déjà publié.
+    - name: Remove what an earlier verify left
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ cost_report_verify_log }}"
+        - /var/lib/cost-report/state.json
+        - /var/lib/cost-report/costs.json
+
+    - name: Start the fake APIs
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-cost-api
+          - --collect
+          - python3
+          - -I
+          - "{{ cost_report_verify_tmp }}/fake_api.py"
+          - "18082"
+          - "{{ cost_report_verify_log }}"
+      changed_when: true
+
+    - name: Wait for the fake APIs to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18082
+        timeout: 30
+
+    # La vraie unité, durcie, sous sylvain, deux fois : un seul rapport.
+    - name: Run the cost report service twice
+      ansible.builtin.systemd:
+        name: cost-report.service
+        state: started
+      loop: [1, 2]
+
+    - name: Read the cost report service result
+      ansible.builtin.systemd:
+        name: cost-report.service
+      register: cost_report_verify_run
+
+    - name: Read what the fake APIs received
+      ansible.builtin.slurp:
+        path: "{{ cost_report_verify_log }}"
+      register: cost_report_verify_received
+
+    - name: Read the Homepage summary and the state
+      ansible.builtin.slurp:
+        path: "/var/lib/cost-report/{{ item }}"
+      loop:
+        - costs.json
+        - state.json
+      register: cost_report_verify_outputs
+
+    - name: Stat the state directory
+      ansible.builtin.stat:
+        path: /var/lib/cost-report/costs.json
+      register: cost_report_verify_costs_file
+
+    # Hetzner lu avec le jeton en lecture seule, OVH signé, une seule
+    # publication sur ntfy (le second lancement voit state.json) ; le mois
+    # dernier : Hetzner 18,33 € (serveurs, sauvegardes, IPv4, volume, Storage
+    # Box) + la facture OVH, 11,99 € ; les abonnements à 0, à renseigner.
+    - name: Assert the report read every source and was published once
+      vars:
+        cost_report_verify_requests: "{{ (cost_report_verify_received.content | b64decode).splitlines() | map('from_json') | list }}"
+        cost_report_verify_posts: "{{ cost_report_verify_requests | selectattr('method', 'equalto', 'POST') | list }}"
+        cost_report_verify_hetzner: "{{ cost_report_verify_requests | selectattr('path', 'match', '/(cloud|api)/') | list }}"
+        cost_report_verify_ovh: "{{ cost_report_verify_requests | selectattr('path', 'match', '/ovh/') | list }}"
+        cost_report_verify_costs: "{{ cost_report_verify_outputs.results[0].content | b64decode | from_json }}"
+        cost_report_verify_state: "{{ cost_report_verify_outputs.results[1].content | b64decode | from_json }}"
+        cost_report_verify_message: "{{ cost_report_verify_posts[0].body.message }}"
+      ansible.builtin.assert:
+        that:
+          - cost_report_verify_run.status.Result == 'success'
+          - cost_report_verify_posts | length == 1
+          - cost_report_verify_posts[0].path == '/'
+          - cost_report_verify_posts[0].headers.Authorization == 'Bearer ' ~ ntfy_scripts_token
+          - cost_report_verify_posts[0].body.topic == 'scripts'
+          - "cost_report_verify_posts[0].body.title is match('Coûts du homelab : ')"
+          - "cost_report_verify_message.startswith('Total : 30,32 €')"
+          - "'- PikaPods : à renseigner' in cost_report_verify_message"
+          - "'Public Cloud du mois en cours : 0,25 € HT, pas encore facturé' in cost_report_verify_message"
+          - cost_report_verify_hetzner | map(attribute='headers.Authorization') | unique | list == ['Bearer ' ~ hcloud_readonly_token]
+          - cost_report_verify_ovh | map(attribute='headers.X-Ovh-Application') | unique | list == [costs_ovh_application_key]
+          - >-
+            cost_report_verify_ovh | map(attribute='headers.X-Ovh-Signature') | select('match', '^\$1\$[0-9a-f]{40}$') | list | length
+            == cost_report_verify_ovh | length
+          - "'/ovh/cloud/project/molecule-project/usage/current' in cost_report_verify_ovh | map(attribute='path') | list"
+          - cost_report_verify_costs.previous_total == '30,32 €'
+          - cost_report_verify_costs.missing == 3
+          - cost_report_verify_costs.incomplete == 'PikaPods (à renseigner), kDrive (à renseigner), Abonnement IA (à renseigner)'
+          - cost_report_verify_state.published is match('^[0-9]{4}-[0-9]{2}$')
+          # Lisible par apps-summary (nobody), qui le monte en lecture seule.
+          - cost_report_verify_costs_file.stat.mode == '0644'
+          - cost_report_verify_costs_file.stat.pw_name == 'sylvain'
+        fail_msg: "{{ cost_report_verify_requests }}"
+
+    - name: Stop the fake APIs
+      ansible.builtin.systemd:
+        name: molecule-cost-api.service
+        state: stopped
