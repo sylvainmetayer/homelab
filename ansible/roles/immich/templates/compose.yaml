@@ -139,12 +139,17 @@ services:
     networks:
       - immich
 
-  # https://github.com/fosrl/pangolin/issues/2369
-  # CORS setup needed
+  # Avec immich_swipe_api_key, son nginx passe /api/ à immich-server et pose
+  # la clé côté serveur : pas de CORS ni d'écran de connexion (README du
+  # rôle). Sans, l'image telle quelle : URL et clé saisies dans le navigateur.
   immich-swipe:
     image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
     mem_limit: 64m
+{% if immich_swipe_api_key | default('') | length > 0 %}
+    volumes:
+      - ./immich-swipe.conf:/etc/nginx/conf.d/default.conf:ro
+{% endif %}
     networks:
       - newt
       - immich

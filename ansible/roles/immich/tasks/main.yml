@@ -40,6 +40,19 @@
       dest: ".env"
   notify: Restart immich service
 
+# Porte la clé d'API d'Immich Swipe ; monté seulement si elle est définie
+# (compose.yaml).
+- name: Template the Immich Swipe nginx configuration
+  when: immich_swipe_api_key | default('') | length > 0
+  diff: false
+  ansible.builtin.template:
+    src: immich-swipe.conf.j2
+    dest: "{{ immich_base_path }}/immich-swipe.conf"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+  notify: Restart immich service
+
 - name: Ensure immich service is running (user systemd)
   ansible.builtin.systemd:
     name: dc@immich

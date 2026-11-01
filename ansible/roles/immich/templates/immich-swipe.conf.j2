@@ -1,0 +1,58 @@
+# Remplace le default.conf de l'image d'Immich Swipe (monté par compose.yaml
+# quand immich_swipe_api_key est défini). README du rôle : pourquoi.
+#
+# L'appli (sha-a9644ff) appelle <URL du serveur>/api/... depuis le
+# navigateur. Avec l'URL de swipe-photos comme serveur, ces appels restent sur
+# la même origine (cookie du SSO de Pangolin compris, pas de CORS) et ce
+# serveur les passe à immich-server par le réseau immich, en y posant la
+# vraie clé d'API : le navigateur n'en voit jamais qu'un leurre.
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # DNS de Docker, résolu à la requête : nginx démarre même si
+    # immich-server n'est pas encore là.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    location ^~ /api/ {
+        set $immich http://immich-server:2283;
+        proxy_pass $immich;
+        proxy_http_version 1.1;
+        proxy_set_header x-api-key "{{ immich_swipe_api_key }}";
+        # Ni le cookie de session de Pangolin ni un jeton d'Immich ne
+        # passent : seule la clé ci-dessus authentifie.
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_buffering off;
+    }
+
+    # « Ouvrir dans Immich » vise <serveur>/photos/<id> : l'Immich public.
+    location ^~ /photos/ {
+        return 302 https://{{ immich_domain }}$request_uri;
+    }
+
+    # Préconfiguration : la configuration que l'écran de connexion
+    # enregistrerait (localStorage immich-swipe-config), posée avant que
+    # l'appli ne la lise. Les VITE_* de l'amont ne se lisent qu'à la
+    # construction de l'image.
+    location = /index.html {
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        sub_filter_once on;
+        sub_filter "<head>" "<head><script>try{localStorage.setItem('immich-swipe-config',JSON.stringify({serverUrl:location.origin,apiKey:'server-side'}))}catch(e){}</script>";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+}

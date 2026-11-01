@@ -15,7 +15,7 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Dawarich 1.19.0 | natif, liaison par défi | [oidc_config.rb](https://github.com/Freika/dawarich/blob/1.19.0/lib/oidc_config.rb) | faible | oui ; traceurs par clé d'API |
 | Karakeep 0.34.1 | natif ; appli et extension : mot de passe ou clé d'API | [auth.ts](https://github.com/karakeep-app/karakeep/blob/v0.34.1/apps/web/server/auth.ts) | faible | **obligatoire** pour les clients |
 | Beszel 0.21.1 | OAuth2 PocketBase, liaison par e-mail | [doc](https://beszel.dev/guide/oauth) (latest) | faible | oui ; secret client saisi dans l'UI du hub, hors Ansible ; superuser Homepage à part |
-| Immich Swipe (`sha-a9644ff`) | aucun : clé d'API Immich saisie dans le navigateur (à confirmer) | — | — | **reste tel quel** : le mur Pangolin, puis la clé d'API |
+| Immich Swipe (`sha-a9644ff`) | aucun : clé d'API Immich posée côté serveur par son nginx (`ansible/roles/immich/README.md`) | — | — | **reste tel quel** : le mur Pangolin suffit |
 | Stirling-PDF 3.2.2 | gratuit depuis 3.0 | [v3.0.0](https://github.com/Stirling-Tools/Stirling-PDF/releases/tag/v3.0.0) | — | rien à faire : pas de login, le mur suffit |
 | Homepage v2.7.0 | porte OIDC sans rôles | [doc](https://github.com/gethomepage/homepage/blob/v2.7.0/docs/installation/index.md) | — | rien à faire : le mur suffit |
 | BookStack 26.09 | `AUTH_METHOD=oidc`, **exclusif**, liaison par `external_auth_id` | [doc](https://www.bookstackapp.com/docs/admin/oidc-auth/) | moyen | **non** : en dernier |

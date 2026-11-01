@@ -135,3 +135,32 @@
         that:
           - "'ports' not in immich_compose.services['immich-selfie-timelapse']"
           - "'newt' in immich_compose.services['immich-selfie-timelapse'].networks"
+
+    # Avec la clé (fake_secrets) : le nginx d'Immich Swipe passe /api/ à
+    # immich-server en posant la clé côté serveur, et préconfigure l'appli
+    # (README du rôle). Fichier 0600 : il porte la clé.
+    - name: Stat the Immich Swipe nginx configuration
+      ansible.builtin.stat:
+        path: "{{ immich_path }}/immich-swipe.conf"
+      register: immich_swipe_conf_stat
+
+    - name: Read the Immich Swipe nginx configuration
+      ansible.builtin.slurp:
+        src: "{{ immich_path }}/immich-swipe.conf"
+      register: immich_swipe_conf
+      no_log: true
+
+    - name: Assert Immich Swipe proxies the API with the server-side key
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - immich_swipe_conf_stat.stat.mode == '0600'
+          - immich_swipe_conf_stat.stat.pw_name == ansible_facts['user_id']
+          - "'./immich-swipe.conf:/etc/nginx/conf.d/default.conf:ro' in immich_compose.services['immich-swipe'].volumes"
+          - "'immich' in immich_compose.services['immich-swipe'].networks"
+          - "'set $immich http://immich-server:2283;' in conf"
+          - "'proxy_set_header x-api-key \"molecule-immich-swipe-api-key\";' in conf"
+          - "\"localStorage.setItem('immich-swipe-config'\" in conf"
+          - "'ports' not in immich_compose.services['immich-swipe']"
+      vars:
+        conf: "{{ immich_swipe_conf.content | b64decode }}"
