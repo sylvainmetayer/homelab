@@ -25,6 +25,9 @@ locals {
     domain_id = local.domain_ids["sylvain.cloud"]
     role      = "healthlog"
     backup    = true
+    # `/` redirects to the login page (src/proxy.ts): the page it lands on,
+    # one request per probe instead of two.
+    monitor_path = "/auth/login"
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
