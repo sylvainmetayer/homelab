@@ -62,6 +62,13 @@ class ComputeTest(unittest.TestCase):
         line, _ = blocky_stats.compute((70.0, 6.0, 20.0), {"queries": 50.0, "blocked": 5.0, "start": 10.0})
         self.assertIn("queries=70 blocked=6 ", line)
 
+    def test_start_time_jitter_is_not_a_restart(self):
+        # btime de /proc/stat recalculé après un ajustement NTP : une
+        # seconde de plus ou de moins, même processus.
+        for start in (11.0, 9.0):
+            line, _ = blocky_stats.compute((80.0, 9.0, start), {"queries": 50.0, "blocked": 5.0, "start": 10.0})
+            self.assertIn("queries=30 blocked=4 ", line)
+
     def test_restart_by_lower_counter(self):
         line, _ = blocky_stats.compute((12.0, 1.0, None), {"queries": 50.0, "blocked": 5.0, "start": None})
         self.assertIn("queries=12 blocked=1 ", line)
@@ -133,6 +140,13 @@ class MainTest(unittest.TestCase):
             handle.write("{not json")
         _, out, _ = self.run_main()
         self.assertIn("queries=0 blocked=0 ", out)
+
+    def test_unwritable_state_logs_no_line(self):
+        # Sans état écrit, le passage suivant recompterait ce delta.
+        os.environ["STATE_DIRECTORY"] = os.path.join(self.dir.name, "absent")
+        code, out, err = self.run_main()
+        self.assertEqual((code, out), (0, ""))
+        self.assertIn("état non écrit", err)
 
     def test_missing_state_directory(self):
         os.environ.pop("STATE_DIRECTORY")

@@ -229,12 +229,13 @@ homepage_kuma_maintenance_monitors:
 # homepage_victoria_logs_password. Deux nombres : les alertes des dernières
 # 24 h et les IP bannies depuis 4 h (durée d'un ban du profil par défaut de
 # CrowdSec : les bans en cours) ; ni la liste communautaire (CAPI) ni les
-# AppSec en alerte seule qui ne bannissent pas.
+# AppSec en alerte seule qui ne bannissent pas. Le filtre container:=crowdsec :
+# le compte lit aussi les flux de blocky-check (carte Blocky).
 homepage_victoria_logs_user: homepage
 homepage_victoria_logs_widget_password: "{{ homepage_victoria_logs_password | default('') }}"
 homepage_victoria_logs_url: "http://victoria-logs-auth:8427" # NOSONAR (réseau newt, sans TLS)
 homepage_crowdsec_query: >-
-  _time:24h
+  _time:24h container:=crowdsec
   | stats count() if (crowdsec:=alert) as alerts,
   count_uniq(client_ip) if (_time:4h crowdsec:=decision decision:=ban) as bans
 homepage_crowdsec_card:
@@ -271,6 +272,9 @@ homepage_crowdsec_card:
 # blocky-check.service sur ces deux hôtes (rôle victoria_logs). Quatre
 # nombres, une paire par hôte : « NaN » quand un hôte n'a écrit aucune ligne
 # en 24 h (Blocky arrêté, vérification ou agent de journaux en panne).
+# La vérification elle-même y est comptée : 2 requêtes et 1 blocage par
+# passage, environ 576 et 288 par jour et par hôte (blocky_response_total
+# n'a pas de label client pour les exclure).
 homepage_blocky_query: >-
   _time:24h unit:="blocky-check.service" "event=blocky_stats"
   | unpack_logfmt fields (queries, blocked)
