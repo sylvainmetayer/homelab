@@ -159,6 +159,14 @@
           ansible.builtin.set_fact:
             verify_busy_refused: false
       rescue:
+        # Le refus attendu, pas n'importe quel échec (rôle introuvable,
+        # pvesh cassé…) : sinon le test passerait sans rien vérifier.
+        - name: Assert the guest check refused
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Assert no guest uses them'
+            fail_msg: "Échec inattendu : {{ ansible_failed_task.name }} / {{ ansible_failed_result.msg | default('') }}"
+
         - name: Record the refusal
           ansible.builtin.set_fact:
             verify_busy_refused: true
