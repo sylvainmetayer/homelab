@@ -41,7 +41,7 @@
 {%     set _ = cards.append(card) %}
 {%   endfor %}
 {% endif %}
-{% if homepage_calendar_url | length > 0 %}
+{% if homepage_calendar_integrations | length > 0 %}
 {%   set _ = cards.append(homepage_calendar_card) %}
 {% endif %}
 {% set groups = homepage_groups + (cards | map(attribute='group') | reject('in', homepage_groups) | unique | sort | list) %}

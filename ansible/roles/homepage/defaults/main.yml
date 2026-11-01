@@ -278,19 +278,19 @@ homepage_link_widgets_extra:
 # absente ou vide retire son agenda ; aucune = pas de carte.
 # Homepage les récupère côté serveur et ne les envoie pas au navigateur.
 homepage_calendars:
-  - name: Perso
+  - type: ical
+    name: Perso
     url: "{{ homepage_calendar_ics_url | default('') }}"
     color: blue
-  - name: Top nous
+  - type: ical
+    name: Top nous
     url: "{{ homepage_calendar_top_nous_ics_url | default('') }}"
     color: pink
-homepage_calendar_integrations: >-
-  {{ homepage_calendars | selectattr('url') | map('combine', {'type': 'ical'}) | list }}
-homepage_calendar_url: "{{ homepage_calendar_integrations | map(attribute='url') | join(' ') }}"
+homepage_calendar_integrations: "{{ homepage_calendars | selectattr('url') | list }}"
 homepage_calendar_card:
   name: Agenda
   group: Vie perso
-  description: Agendas Perso et Top nous (Nextcloud)
+  description: "{{ homepage_calendar_integrations | map(attribute='name') | join(' et ') }} (Nextcloud)"
   icon: mdi-calendar-month-outline
   widget:
     type: calendar
