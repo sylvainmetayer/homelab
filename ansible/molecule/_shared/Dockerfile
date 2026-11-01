@@ -4,7 +4,7 @@
 #
 # Construite une fois par job CI (`mise run molecule-image`), puis réutilisée
 # par tous les scénarios (`pre_build_image: true` dans .config/molecule/config.yml).
-ARG BASE_IMAGE=debian:trixie@sha256:4c25275446ca371766b8b093c696782eabce06263fccacb8d5d813b3dc44b308
+ARG BASE_IMAGE=debian:trixie@sha256:2dc419c6d7fe3dad0a2f9fd469c34cc90b0f9ba642d8fde837fe3d7d34a0e7f1
 FROM ${BASE_IMAGE}
 
 ENV container=docker \
