@@ -5,6 +5,7 @@
   "demo_planning": { "host": "flip", "repo": "demo_planning", "role": "flip_planning", "databases": ["postgresql"] },
   "flip_planning": { "host": "flip", "repo": "flip_planning", "role": "flip_planning", "databases": ["postgresql"] },
   "grocy": { "host": "docker", "repo": "grocy", "role": "grocy", "databases": ["sqlite"] },
+  "healthlog": { "host": "docker", "repo": "healthlog", "role": "healthlog", "databases": ["postgresql"] },
   "homebox": { "host": "docker", "repo": "homebox", "role": "homebox", "databases": ["sqlite"] },
   "immich": { "host": "pi", "repo": "immich", "role": "immich", "databases": ["postgresql"] },
   "jellyfin": { "host": "nas", "repo": "jellyfin", "role": "jellyfin", "databases": ["sqlite"] },

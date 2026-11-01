@@ -1,0 +1,33 @@
+---
+healthlog_base_path: "{{ docker_base_path }}/healthlog"
+healthlog_domain: sante.sylvain.cloud
+
+healthlog_db_name: healthlog
+healthlog_db_user: healthlog
+
+# Secrets dérivés de backup_passphrase, comme ceux de Dawarich et TREK : pas
+# de clé SOPS, un sel distinct par secret.
+healthlog_db_password: "{{ (backup_passphrase ~ '-healthlog-db') | hash('sha256') }}"
+
+# Clé AES-256-GCM des colonnes chiffrées (jetons Withings, identifiants des
+# intégrations, coffre de documents) : 64 caractères hexadécimaux, ce que
+# donne un sha256. La perdre ou la changer rend ces colonnes illisibles :
+# avant de tourner backup_passphrase, figer l'ancienne valeur (README du rôle,
+# « Clé de chiffrement »).
+healthlog_encryption_key: "{{ (backup_passphrase ~ '-healthlog-encryption') | hash('sha256') }}"
+
+# Clé HMAC des jetons d'API de HealthLog (hlk_…) : la changer invalide tous
+# les jetons émis.
+healthlog_api_token_hmac_key: "{{ (backup_passphrase ~ '-healthlog-api-token-hmac') | hash('sha256') }}"
+
+# Segment secret de l'URL du webhook Withings
+# (/api/withings/webhook/<secret>). Posé même si le chemin n'est pas ouvert
+# sans SSO (README, « Withings ») : l'abonnement échoue alors et HealthLog se
+# rabat sur sa synchronisation horaire.
+healthlog_withings_webhook_secret: "{{ (backup_passphrase ~ '-healthlog-withings-webhook') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+healthlog_backup_enabled: true
+healthlog_backup_borgmatic_target: "{{ backup_storage_box_url }}/healthlog"
+healthlog_backup_encryption_passphrase: "{{ backup_passphrase }}"
+healthlog_backup_healthcheck_url: ""

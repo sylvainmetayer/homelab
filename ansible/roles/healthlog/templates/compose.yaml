@@ -1,0 +1,93 @@
+---
+# D'après le docker-compose.yml de HealthLog v1.46.5, sans son service
+# db-upgrade (passage d'une base Postgres 16 à 18, sans objet sur une
+# installation neuve) ni db-restore (profil « restore », à lancer à la main).
+services:
+  healthlog-db:
+    # Pas encore mesuré. Le compose amont ne borne pas la base ; la doctrine
+    # (docs/conventions/resource-limits.md) veut un plafond partout et une
+    # réservation sur les bases. Une seule personne, quelques années de
+    # mesures : à relire après une semaine.
+    mem_limit: 1g
+    mem_reservation: 256m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
+    image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    container_name: healthlog-db
+    restart: unless-stopped
+    # Comme l'amont : pg_stat_statements pour les requêtes lentes, et un
+    # /dev/shm plus grand que les 64 Mo par défaut (requêtes parallèles).
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=top
+    shm_size: 256mb
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: {{ healthlog_db_name }}
+      POSTGRES_USER: {{ healthlog_db_user }}
+      POSTGRES_PASSWORD: {{ healthlog_db_password }}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ healthlog_db_user }} -d {{ healthlog_db_name }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    # Postgres 18 range ses données sous /var/lib/postgresql/18/docker et
+    # attend le volume un cran au-dessus.
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - healthlog
+
+  app:
+    # Plancher supporté par l'amont : 1536m donne un tas Node de 792 Mo
+    # (HEALTHLOG_PROCESS_TYPE=all, web et worker dans le même processus ; en
+    # dessous, le ramasse-miettes bloque les requêtes). Pas encore mesuré :
+    # pas de quota CPU, service interactif.
+    mem_limit: 1536m
+    image: ghcr.io/mbombeck/healthlog:1.46.5@sha256:9ded21507dea742c3b5062dc69b90e6dd4026fe2237366dde0de2036d45cc0d5
+    container_name: healthlog
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - .env
+    # Dumps que HealthLog prend avant chaque migration (le nocturne est coupé,
+    # DB_BACKUP_ENABLED=false : borgmatic s'en charge). Volume nommé : il
+    # reprend le propriétaire du dossier de l'image (nextjs, uid 1001).
+    volumes:
+      - backups:/var/lib/healthlog/backups
+    # Au `compose stop`, laisse finir les requêtes et 30 s aux jobs en cours.
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --timeout=4 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      # Les migrations passent avant l'écoute et peuvent attendre un verrou
+      # jusqu'à ~8 min (docs/ops/deploy.md de l'amont).
+      start_period: 10m
+    depends_on:
+      healthlog-db:
+        condition: service_healthy
+    networks:
+      - healthlog
+      - newt
+
+volumes:
+  postgres_data:
+  backups:
+
+networks:
+  # Interne : la base n'a pas besoin d'Internet, l'appli garde le sien par
+  # newt (API Withings).
+  healthlog:
+    internal: true
+  newt:
+    external: true

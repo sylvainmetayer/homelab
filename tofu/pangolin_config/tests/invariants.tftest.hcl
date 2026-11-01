@@ -537,6 +537,11 @@ override_resource {
   values = { id = 63 }
 }
 
+override_resource {
+  target = pangolin_resource.website["healthlog"]
+  values = { id = 92 }
+}
+
 # Jetons d'accès : ceux des clients MCP de TREK, et ceux des healthchecks de
 # Flip Planning, un par environnement.
 override_resource {
@@ -769,6 +774,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["wishlist"]
   values = { push_token = "push-wishlist" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup["healthlog"]
+  values = { push_token = "push-healthlog" }
 }
 
 override_resource {
@@ -1943,6 +1953,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_betisier_reset_url      = output.uptime_cron_betisier_reset_url
         uptime_backup_dawarich_url          = output.uptime_backup_dawarich_url
         uptime_backup_trek_url              = output.uptime_backup_trek_url
+        uptime_backup_healthlog_url         = output.uptime_backup_healthlog_url
         uptime_backup_karakeep_url          = output.uptime_backup_karakeep_url
         uptime_backup_homebox_url           = output.uptime_backup_homebox_url
         uptime_backup_speedtest_tracker_url = output.uptime_backup_speedtest_tracker_url

@@ -1,0 +1,137 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    healthlog_path: "{{ docker_base_path }}/healthlog"
+  tasks:
+    - name: Verify the healthlog deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: healthlog
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/healthlog.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/molecule-healthlog
+
+    - name: Verify the supporting services of healthlog
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: healthlog
+        verify_compose_databases:
+          - healthlog-db
+        verify_compose_healthchecks:
+          - app
+        verify_compose_healthy_dependencies:
+          - { service: app, dependency: healthlog-db }
+        verify_compose_internal_networks:
+          - healthlog
+
+    - name: Stat the healthlog environment file
+      ansible.builtin.stat:
+        path: "{{ healthlog_path }}/.env"
+      register: healthlog_env_stat
+
+    # Il porte la clé de chiffrement, le mot de passe de la base et du SMTP.
+    - name: Assert the healthlog environment file is private
+      ansible.builtin.assert:
+        that:
+          - healthlog_env_stat.stat.exists
+          - healthlog_env_stat.stat.mode == '0600'
+          - healthlog_env_stat.stat.pw_name == ansible_facts['user_id']
+
+    - name: Read the healthlog files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ healthlog_path }}/.env"
+        - "{{ borgmatic_config_dir }}/healthlog.yaml"
+      register: healthlog_files
+
+    - name: Render the healthlog compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ healthlog_path }}"
+      register: healthlog_compose_raw
+      changed_when: false
+
+    - name: Parse the healthlog files
+      ansible.builtin.set_fact:
+        healthlog_env: >-
+          {{ dict((healthlog_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        healthlog_borgmatic: "{{ healthlog_files.results[1].content | b64decode | from_yaml }}"
+        healthlog_compose: "{{ healthlog_compose_raw.stdout | from_json }}"
+
+    # Dérivés de backup_passphrase : 64 caractères hexadécimaux (ce qu'exigent
+    # ENCRYPTION_KEY et API_TOKEN_HMAC_KEY), jamais vides et tous distincts.
+    - name: Assert the healthlog secrets are derived and distinct
+      ansible.builtin.assert:
+        that:
+          - healthlog_secrets | select('match', '^[0-9a-f]{64}$') | list | length == 4
+          - healthlog_secrets | unique | length == 4
+        fail_msg: Secrets healthlog vides, mal dérivés ou identiques
+      vars:
+        healthlog_secrets:
+          - "{{ healthlog_compose.services['healthlog-db'].environment.POSTGRES_PASSWORD }}"
+          - "{{ healthlog_env.ENCRYPTION_KEY }}"
+          - "{{ healthlog_env.API_TOKEN_HMAC_KEY }}"
+          - "{{ healthlog_env.WITHINGS_WEBHOOK_SECRET }}"
+
+    # L'appli joint la base du compose, avec son mot de passe, et sert
+    # l'URL publique (callback OAuth de Withings).
+    - name: Assert healthlog reaches its database and serves its public URL
+      ansible.builtin.assert:
+        that:
+          - >-
+            healthlog_env.DATABASE_URL is search(
+              '^postgresql://healthlog:' ~ healthlog_db.environment.POSTGRES_PASSWORD
+              ~ '@' ~ healthlog_db.container_name ~ ':5432/healthlog\?')
+          - healthlog_env.NEXT_PUBLIC_APP_URL == 'https://sante.sylvain.cloud'
+          - healthlog_env.APP_URL == healthlog_env.NEXT_PUBLIC_APP_URL
+      vars:
+        healthlog_db: "{{ healthlog_compose.services['healthlog-db'] }}"
+
+    # Pas de copie S3 ni de dump nocturne de HealthLog : borgmatic sauvegarde.
+    # Pas d'appel sortant de géolocalisation ni de vérification de version.
+    - name: Assert healthlog keeps its backups and lookups off
+      ansible.builtin.assert:
+        that:
+          - healthlog_env.DB_BACKUP_ENABLED == 'false'
+          - healthlog_env.IP_GEO_LOOKUP_DISABLED == '1'
+          - healthlog_env.UPDATE_CHECK_DISABLED == '1'
+          - healthlog_env.keys() | select('match', '^BACKUP_S3_') | list | length == 0
+
+    # Nom du conteneur = cible de Pangolin (website_healthlog.tf) ; la base
+    # reste sur le réseau interne.
+    - name: Assert only the app joins the newt network
+      ansible.builtin.assert:
+        that:
+          - healthlog_compose.networks.newt.external
+          - healthlog_compose.services.app.container_name == 'healthlog'
+          - healthlog_newt_services == ['app']
+          - healthlog_compose.services['healthlog-db'].networks.keys() | list == ['healthlog']
+        fail_msg: "Services sur newt : {{ healthlog_newt_services }}"
+      vars:
+        healthlog_newt_services: >-
+          {{ healthlog_compose.services | dict2items
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    # Le dump borgmatic doit viser la base du compose avec ses identifiants ;
+    # le compose et le .env (clé de chiffrement) sont archivés avec lui.
+    - name: Assert borgmatic dumps the healthlog database
+      ansible.builtin.assert:
+        that:
+          - healthlog_dump.container == healthlog_db.container_name
+          - healthlog_dump.name == healthlog_db.environment.POSTGRES_DB
+          - healthlog_dump.username == healthlog_db.environment.POSTGRES_USER
+          - healthlog_dump.password == healthlog_db.environment.POSTGRES_PASSWORD
+          - healthlog_path ~ '/.env' in healthlog_borgmatic.source_directories
+          - healthlog_path ~ '/compose.yaml' in healthlog_borgmatic.source_directories
+          - healthlog_borgmatic.sqlite_databases is not defined
+        fail_msg: "Configuration borgmatic de healthlog inattendue : {{ healthlog_borgmatic }}"
+      vars:
+        healthlog_db: "{{ healthlog_compose.services['healthlog-db'] }}"
+        healthlog_dump: "{{ healthlog_borgmatic.postgresql_databases[0] }}"
