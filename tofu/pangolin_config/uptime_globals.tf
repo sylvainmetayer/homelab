@@ -18,9 +18,10 @@ resource "uptimekuma_tag" "managed_by" {
 }
 
 # No local of pins for the monitors, unlike local.resource_pins
-# (resource_defaults.tf): in breml/uptimekuma 0.4.0, every optional+computed
-# attribute of uptimekuma_monitor_push, _group, _http and _http_keyword
-# (upside_down, active, max_retries, accepted_status_codes, ignore_tls...)
+# (resource_defaults.tf): in breml/uptimekuma 0.5.0, as in 0.4.0 (re-checked
+# on the upgrade, 2026-11-01: ip_family, new, defaults to "auto"), every
+# optional+computed attribute of uptimekuma_monitor_push, _group, _http and
+# _http_keyword (upside_down, active, max_retries, accepted_status_codes, ignore_tls...)
 # carries a static provider default (resource_monitor_base.go,
 # resource_monitor_http_base.go) and is read back from the server on refresh.
 # Left out, it is pinned to that default: a box ticked in the UI (upside_down
@@ -60,6 +61,17 @@ locals {
   # still pages the morning after a missed night. Uptime Kuma caps a push
   # monitor at 24 days, far above.
   backup_push_interval = 60 * 60 * 25
+
+  # Retries of the weekly and fortnightly push monitors whose job pushes
+  # `status=down` with its reason (update_notify, vzdump and borg restore
+  # tests, secrets rotation, Storage Box quota): none, so that push pages at
+  # once. Left to the provider default (3), a pushed down only turned the
+  # monitor PENDING (Uptime Kuma 2.5.9, determineStatus in api-router.js),
+  # and nothing re-checks a push monitor before its window ends
+  # (monitor.js): the down paged one window after the last success, a
+  # failed restore test 20 days later, a failed update check up to 15. A
+  # missing push still pages at the end of the window, as before.
+  push_down_max_retries = 0
 }
 
 resource "uptimekuma_monitor_group" "backups" {

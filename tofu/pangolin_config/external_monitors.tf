@@ -257,7 +257,7 @@ resource "uptimekuma_monitor_push" "foldersync" {
   active          = true
 
   notification_ids = local.alert_notification_ids
-  tags             = [local.tofu_tag]
+  tags             = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
 }
 
 # --- Professional: folders only, children stay manual ----------------------

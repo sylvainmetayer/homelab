@@ -2610,6 +2610,40 @@ run "monitors_are_filed_and_alert" {
   }
 }
 
+# Un « down » poussé par un contrôle hebdomadaire ou bimensuel alerte tout de
+# suite (uptime_globals.tf, push_down_max_retries) : avec des retries, il ne
+# rend le moniteur que PENDING, et rien ne le revérifie avant la fin de sa
+# fenêtre (jusqu'à 20 jours). Chaque contrôle nommé ici pousse bien un
+# « down » ; s'il cessait, la règle serait à revoir.
+run "pushed_down_pages_at_once" {
+  command = apply
+
+  assert {
+    condition = alltrue([
+      for m in concat(values(uptimekuma_monitor_push.cron_updates), [
+        uptimekuma_monitor_push.cron_vzdump_restore_test,
+        uptimekuma_monitor_push.restore_test,
+        uptimekuma_monitor_push.secrets_rotation,
+        uptimekuma_monitor_push.storage_box_quota,
+      ]) : m.max_retries == 0 && m.interval >= 7 * 86400
+    ])
+    error_message = "Les moniteurs des contrôles hebdomadaires et bimensuels qui poussent « down » (mises à jour, tests de restauration, rotation des secrets, Storage Box) doivent avoir max_retries = 0."
+  }
+
+  assert {
+    condition = alltrue([
+      for f, marker in {
+        "ansible/roles/update_notify/files/update_notify.py"             = "\"down\""
+        "ansible/roles/vzdump_restore_test/files/vzdump_restore_test.py" = "\"down\""
+        ".github/scripts/check_secret_rotation.py"                       = "\"down\""
+        ".github/scripts/storage_box_quota.py"                           = "\"down\""
+        ".github/workflows/restore-test.yaml"                            = "status=down"
+      } : strcontains(file("${path.module}/../../${f}"), marker)
+    ])
+    error_message = "Un des contrôles ne pousse plus « down » : revoir push_down_max_retries (uptime_globals.tf)."
+  }
+}
+
 # Alerte de connexion SSH (issue #451, ssh_login_monitors.tf) : un moniteur
 # push inversé par hôte, notifié sur Telegram, et une URL par hôte lue par
 # 00-setup.yaml sous la clé inventory_hostname. Un hôte renommé d'un côté et

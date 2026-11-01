@@ -34,6 +34,8 @@ resource "uptimekuma_monitor_push" "cron_updates" {
 
   interval = local.update_check_push_interval
 
+  # A pushed down pages at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
   retry_interval = 20
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]

@@ -11,9 +11,11 @@ resource "uptimekuma_monitor_push" "secrets_rotation" {
 
   interval = 60 * 60 * 24 * 8
 
+  # A pushed down pages at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
   retry_interval = 20
   active         = true
-  tags           = [local.tofu_tag]
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
   notification_ids = local.alert_notification_ids
 }
