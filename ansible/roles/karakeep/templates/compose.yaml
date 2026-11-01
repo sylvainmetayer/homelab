@@ -57,6 +57,10 @@ services:
       # démarrage, chaque montée Renovate laissait la recherche en panne.
       # Les majeures restent soumises à approbation (renovate.json).
       MEILI_UPGRADE_DB: "true"
+      # En INFO, Meilisearch écrit une ligne par requête HTTP, soit surtout son
+      # propre healthcheck (6 Mo/jour de json-file, recopiés dans journald et
+      # VictoriaLogs). Les avertissements et erreurs restent.
+      MEILI_LOG_LEVEL: WARN
     volumes:
       - ./meilisearch:/meili_data
     networks:
@@ -64,7 +68,11 @@ services:
     # L'image installe curl ; /health répond sans la clé maître.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:7700/health"]
-      interval: 10s
+      # Toutes les 30 s en régime établi, toutes les 5 s pendant le
+      # start_period (start_interval) : karakeep, qui l'attend
+      # (service_healthy), démarre aussi vite qu'avant.
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
       retries: 5
       start_period: 30s

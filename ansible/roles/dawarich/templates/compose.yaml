@@ -4,10 +4,16 @@ services:
     mem_limit: 256m
     image: redis:7.4-alpine@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
     container_name: dawarich-redis
+    # Un instantané par heure au plus, au lieu de toutes les 5 min : le
+    # dump.rdb fait ~5,6 Mio et la file Sidekiq change en continu, soit 788
+    # réécritures et 4,3 Gio écrits en 68 h (io.stat du conteneur,
+    # 2026-11-01), ~60 Mio/h sur le SSD SATA de l'hôte. L'arrêt propre
+    # (`compose stop` de dc@) enregistre toujours la base ; seul un crash
+    # perd jusqu'à une heure de file, que les jobs cron de Dawarich
+    # replanifient.
     command: >
       redis-server
-      --save 900 1
-      --save 300 10
+      --save 3600 1
       --appendonly no
     restart: unless-stopped
     healthcheck:
