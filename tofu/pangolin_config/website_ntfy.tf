@@ -106,6 +106,13 @@ locals {
 # The token is the key ntfy_uptime_kuma_token of the root secrets/secrets.sops.yaml:
 # docker.yml reads it back from this state (output ntfy_uptime_kuma_token)
 # and declares it in ntfy, so it is written in one place only.
+#
+# Provider 0.5.0 at least: 0.4.0 sent neither access_token nor any credential
+# (breml/terraform-provider-uptimekuma#389, fixed by #390) and did not read it
+# back, so the channel was created without its token and the plan stayed
+# empty; with ntfy's deny-all, every Uptime Kuma message to this topic was
+# refused, Telegram alone paging. 0.5.0 reads the token back: its first plan
+# (2026-11-01) showed `+ access_token`, the proof the live channel had none.
 resource "uptimekuma_notification_ntfy" "ntfy" {
   name = "ntfy"
 

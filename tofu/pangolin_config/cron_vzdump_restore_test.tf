@@ -15,6 +15,8 @@ resource "uptimekuma_monitor_push" "cron_vzdump_restore_test" {
 
   interval = 60 * 60 * 24 * 20
 
+  # A pushed down pages at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
   retry_interval = 20
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
