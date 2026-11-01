@@ -21,9 +21,9 @@ healthlog_encryption_key: "{{ (backup_passphrase ~ '-healthlog-encryption') | ha
 healthlog_api_token_hmac_key: "{{ (backup_passphrase ~ '-healthlog-api-token-hmac') | hash('sha256') }}"
 
 # Segment secret de l'URL du webhook Withings
-# (/api/withings/webhook/<secret>). Posé même si le chemin n'est pas ouvert
-# sans SSO (README, « Withings ») : l'abonnement échoue alors et HealthLog se
-# rabat sur sa synchronisation horaire.
+# (/api/withings/webhook/<secret>), seul contrôle de ce chemin ouvert sans
+# SSO (README, « Accès ») : 64 caractères hexadécimaux. Le changer oblige à
+# reconnecter Withings (l'abonnement porte l'ancienne URL).
 healthlog_withings_webhook_secret: "{{ (backup_passphrase ~ '-healthlog-withings-webhook') | hash('sha256') }}"
 
 # Borgmatic backup configuration

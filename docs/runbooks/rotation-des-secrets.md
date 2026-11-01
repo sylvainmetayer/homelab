@@ -486,7 +486,8 @@ déconnexion, et n'apporte rien sans fuite.
   [mot-de-passe-base.md](mot-de-passe-base.md)). Avant de la changer,
   figer la clé de chiffrement de HealthLog, dérivée d'elle : sans quoi
   HealthLog ne démarre plus (`ansible/roles/healthlog/README.md`,
-  « Clé de chiffrement »).
+  « Clé de chiffrement »). Le secret du webhook Withings, dérivé aussi,
+  change avec elle : reconnecter Withings dans HealthLog ensuite.
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de
   `tofu/pangolin`, `tofu/github`, `tofu/s3_state` et `tofu/keepass_backup`.
   Changer de passphrase passe par une méthode `fallback` du bloc

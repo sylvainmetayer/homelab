@@ -49,8 +49,8 @@ Aucune clé SOPS : mot de passe de la base, `ENCRYPTION_KEY`,
 ## Accès
 
 Derrière le SSO Pangolin, les règles pays (FR, DE) et le login de HealthLog.
-Aucun chemin ouvert sans SSO, aucun jeton d'accès Pangolin
-(`tofu/pangolin_config/website_healthlog.tf`).
+Un seul chemin ouvert sans SSO, les notifications de Withings ; aucun jeton
+d'accès Pangolin (`tofu/pangolin_config/website_healthlog.tf`).
 
 - **Callback OAuth Withings** (`/api/withings/callback`) : une redirection
   de withings.com vers sante.sylvain.cloud, dans le navigateur de
@@ -60,16 +60,23 @@ Aucun chemin ouvert sans SSO, aucun jeton d'accès Pangolin
   page. Session Pangolin expirée pendant le consentement : la page de
   connexion Pangolin, puis retour sur l'URL du callback (code encore valide).
 - **Notifications Withings** (`/api/withings/webhook/<secret>`) : serveur à
-  serveur, **non ouvertes**. À la connexion, HealthLog s'abonne
-  (`Notify.subscribe`) ; Withings vérifie l'URL par HEAD/GET, reçoit la
-  redirection du SSO, l'abonnement échoue (classé transitoire) et HealthLog
-  le retente avec un recul plafonné à 24 h. Les mesures arrivent quand même
-  par la synchronisation horaire (mesures à :00, sommeil à :15, ECG à :41) :
-  jusqu'à une heure de retard au lieu de quelques secondes. Ouvrir le
-  webhook serait un `ACCEPT` mondial (Withings appelle depuis ses serveurs)
-  du seul préfixe `/api/withings/webhook/*`, protégé par le secret de 64
-  caractères hexadécimaux dans le chemin (401 sinon, débit limité) : à
-  décider, pas fait.
+  serveur, **ouvertes sans SSO et sans filtre pays** (Withings appelle depuis
+  ses serveurs, sans session) : `ACCEPT` de `/api/withings/webhook/**`, un
+  seul segment après `webhook/` (glob de segment de Pangolin), donc ni
+  `/api/withings/webhook` lui-même, ni plus profond, ni le reste de
+  `/api/withings/` (callback, connect, credentials, disconnect, status,
+  sync), qui restent derrière le SSO. Ce qui protège : le secret dans le
+  chemin (`WITHINGS_WEBHOOK_SECRET`, 64 caractères hexadécimaux dérivés de
+  `backup_passphrase`), comparé en temps constant à chaque verbe, 401 sinon,
+  débit limité. Withings ne signe rien et n'envoie aucun en-tête : ce
+  secret est le seul contrôle. À la connexion, HealthLog s'abonne
+  (`Notify.subscribe`), Withings vérifie l'URL en HEAD/GET (200), puis POSTe
+  une notification à chaque mesure ; HealthLog va alors chercher les
+  mesures dans l'API Withings avec son jeton, le corps ne fait que dire
+  quoi chercher. La synchronisation horaire reste en filet (mesures à :00,
+  sommeil à :15). Version relue : `path_bypass_images.json` (Renovate ne
+  fusionne jamais une montée de HealthLog, les sources de `reread` sont
+  relues avant).
 - **Téléphone (PWA)** : le navigateur du téléphone passe le SSO comme le
   poste, puis le login HealthLog ; la PWA installée garde les cookies du
   navigateur. Un jeton d'accès Pangolin n'apporterait rien : le navigateur
@@ -98,6 +105,11 @@ Withings n'est simplement pas connecté.
    (`user.metrics`, `user.activity`). Retour sur la page des intégrations,
    « Connecté » ; les 30 derniers jours sont importés.
 
+Vérifier l'abonnement : Paramètres → Intégrations → Withings, « Test de
+connexion » ; une pesée doit apparaître en quelques secondes. Un `curl -I`
+de l'URL du webhook depuis dehors répond 200 avec le bon secret, 401 sinon
+(ne jamais coller le secret dans un ticket).
+
 Rotation du secret client (fuite) : en régénérer un dans le Partner Hub,
 le recoller dans HealthLog, reconnecter. Voir
 `docs/runbooks/rotation-des-secrets.md`.
@@ -119,7 +131,10 @@ prime sur le défaut du rôle), ou passer par la rotation de HealthLog
 (`ENCRYPTION_KEYS` + `ENCRYPTION_ACTIVE_KEY_ID`, `docs/ops/encryption-key-rotation.md`
 de l'amont). Même chose pour `healthlog_db_password` (mot de passe de la
 base, `docs/runbooks/mot-de-passe-base.md`) et `healthlog_api_token_hmac_key`
-(la changer déconnecte tout le monde et invalide les jetons d'API).
+(la changer déconnecte tout le monde et invalide les jetons d'API). Le
+secret du webhook (`healthlog_withings_webhook_secret`) peut, lui, changer :
+reconnecter Withings ensuite (Déconnecter, Connecter), l'abonnement porte
+l'URL.
 
 Le `.env` est dans l'archive borg avec le dump : une restauration retrouve
 la clé qui ouvre ce dump.
@@ -144,11 +159,38 @@ Postgres attendent le Dependency Dashboard.
 
 ## Import des pas (Health Connect)
 
-HealthLog importe nativement l'export de Health Connect (zip contenant
-`health_connect_export.db`) : Paramètres → Export & Import → carte « Health
-Connect export », ou `POST /api/import/health-connect-export`
-(multipart, champ `file`). Pas, calories, distance, sommeil, fréquence
-cardiaque, poids ; les enregistrements de Withings dans l'export sont
-ignorés quand l'intégration Withings est connectée (pas de doublons), et
-réimporter le même fichier n'écrit rien. L'automatisation (quel poste, quel
-jeton) reste à décider : voir la PR qui a ajouté ce rôle.
+Décision : export planifié de Health Connect vers kDrive, **import manuel**
+par glisser-déposer. Rien d'automatisé, aucun jeton d'API HealthLog créé
+(la route d'import n'accepte qu'un jeton complet, `*`). Le zip contient la
+base Health Connect **en clair** : accepté sur kDrive.
+
+Sur le téléphone (Pixel 7, une fois) :
+
+1. Paramètres → Applications → Santé Connect (Health Connect) → Gérer les
+   données → Exporter et importer (« Sauvegarde et restauration » selon la
+   version) → **Export planifié**.
+2. Destination : l'appli kDrive (fournisseur de stockage ; Health Connect
+   refuse le stockage du téléphone lui-même), un dossier dédié, fréquence
+   **hebdomadaire**.
+3. Le premier export sort vide (bug connu) : vérifier que le second contient
+   bien `health_connect_export.db` dans `Health Connect.zip`.
+
+À chaque import (hebdomadaire, ou quand on veut) :
+
+1. Télécharger `Health Connect.zip` depuis kDrive (web, appli de bureau ou
+   téléphone).
+2. HealthLog → Paramètres → Export & Import → carte **Health Connect
+   export** : y déposer le zip. L'import tourne en tâche de fond, la carte
+   suit son état (`GET /api/import/health-connect-export/status`) ; trois
+   envois par minute au plus, 1 Gio maximum.
+3. Supprimer la copie téléchargée sur le poste. HealthLog efface le zip et la
+   base extraite à la fin de la tâche.
+
+Ce que fait l'import : pas, calories actives et distance en un total par
+jour (une seule appli par jour, la première de la liste de priorité de
+Health Connect, sinon la plus grosse : pas de double comptage téléphone et
+montre), sommeil, fréquence cardiaque, poids. Les enregistrements de
+Withings présents dans l'export sont ignorés quand l'intégration Withings
+est connectée. Réimporter le même fichier n'écrit rien (empreinte SHA-256) ;
+un export plus récent n'ajoute que le neuf. Détail :
+`docs/integrations/health-connect.md` de l'amont.

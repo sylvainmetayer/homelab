@@ -45,6 +45,7 @@ partage, mot de passe, clé d'API, signature), jamais Pangolin.
 | Flip Planning (`flip-planning.sylvain.cloud`) | `/mcp/*` | assistants hébergés (Claude, ChatGPT, Le Chat, Gemini) | clé partagée `PLANNING_MCP_API_KEY` (en-tête `X-Api-Key`), 401 sans elle |
 | Demo Planning (`demo-planning.sylvain.dev`) | `/mcp/*` | idem | sa propre `PLANNING_MCP_API_KEY`, distincte de la production |
 | Demo Planning KC (`demo-planning-kc.sylvain.dev`) | `/auth/*` | l'appli elle-même au démarrage (découverte du realm, clés), navigateurs | la connexion de Keycloak. La console d'admin (`/auth/admin`) est joignable du monde entier, derrière ce seul login : accepté pour un banc de test. En pause depuis octobre 2026 : ressource désactivée, plus rien n'y répond |
+| HealthLog (`sante.sylvain.cloud`) | `/api/withings/webhook/**` (un seul segment après `webhook/` : ni `/api/withings/webhook`, ni plus profond, ni le reste de `/api/withings/`) | serveurs de Withings : vérification de l'URL (HEAD/GET) puis une notification (POST) par mesure | secret de 64 caractères hexadécimaux dans le chemin (`WITHINGS_WEBHOOK_SECRET`), comparé à chaque verbe, 401 sinon, débit limité ; le corps ne fait que dire quoi aller chercher dans l'API Withings. Le callback OAuth et toute l'appli restent derrière le SSO |
 | Karakeep (`keep.sylvain.cloud`) | `/public/lists/*`, `/_next/static/*`, `/api/public/*`, `/api/trpc/publicBookmarks.getPublicBookmarksInList`, `/api/v1/rss/lists/*` | lien d'une liste publique, son flux RSS | liste marquée publique ; images et fichiers signés par le serveur, avec expiration ; RSS d'une liste privée seulement avec son `rssToken`. La procédure tRPC est écrite en entier : `publicBookmarks.*` laissait passer un lot tRPC avec `apiKeys.exchange` |
 | Monica (`crm.sylvain.dev`) | `/dav/*`, `/.well-known/carddav`, `/.well-known/caldav` | contacts et agenda du téléphone (CardDAV, CalDAV) | HTTP Basic avec un jeton d'accès personnel de Monica (pas le mot de passe du compte). **Désactivés** aujourd'hui, voir « Verrouillage PHP » |
 | Nextcloud (`sylvain.cloud`, l'apex), clients | `/status.php`, `/index.php/204`, `/remote.php/*`, `/ocs/v1.php/*`, `/ocs/v2.php/*`, `/index.php/login/v2` (exact), `/login/v2/poll`, `/index.php/login/v2/poll`, `/index.php/core/wipe/*`, `/index.php/core/preview`, `/index.php/core/preview.png`, `/index.php/apps/files_trashbin/preview`, `/index.php/apps/files_versions/preview`, `/index.php/apps/files/api/v1/thumbnail/*`, `/.well-known/caldav`, `/.well-known/carddav` (`local.nextcloud_client_paths`) | clients de synchronisation (bureau, Android, iOS), DAVx5, Thunderbird | mot de passe d'application seulement sur DAV et OCS (`token_auth_enforced`, rôle `nextcloud`) ; la moitié navigateur du login flow v2, le formulaire de connexion et les réglages restent derrière le SSO. Tout OCS est ouvert : un mot de passe d'application administrateur y atteint aussi l'API de provisioning |
@@ -102,14 +103,14 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   clés d'API). Aucun chemin ouvert : toute la ressource reste derrière le
   filtre pays, et les navigateurs gardent la page de connexion du SSO
   (`extended_compatibility = false`).
-- HealthLog (`sante.sylvain.cloud`) : **aucun** jeton ni chemin ouvert. La
-  PWA du téléphone passe le SSO dans le navigateur, comme le poste, puis le
-  login de HealthLog : un navigateur n'envoie pas les en-têtes
-  `P-Access-Token-*`, et `?p_token=` ne poserait que le même cookie de
-  session. Le callback OAuth de Withings passe le SSO (navigation du
-  navigateur, cookie `SameSite=Lax`) ; ses notifications serveur à serveur
-  ne passent pas, HealthLog se rabat sur sa synchronisation horaire
-  (`ansible/roles/healthlog/README.md`, « Accès »).
+- HealthLog (`sante.sylvain.cloud`) : **aucun** jeton. La PWA du téléphone
+  passe le SSO dans le navigateur, comme le poste, puis le login de
+  HealthLog : un navigateur n'envoie pas les en-têtes `P-Access-Token-*`, et
+  `?p_token=` ne poserait que le même cookie de session. Le callback OAuth
+  de Withings passe le SSO (navigation du navigateur, cookie
+  `SameSite=Lax`) ; seules ses notifications serveur à serveur ont un chemin
+  ouvert (tableau plus haut ; `ansible/roles/healthlog/README.md`,
+  « Accès »).
 - Les sondes Uptime Kuma (`Healthcheck <appli>`) : un jeton par appli
   surveillée (`pangolin_resource_access_token.healthcheck`, `websites.tf`).
 

@@ -230,6 +230,7 @@ locals {
     "Demo Planning KC" = local.demo_planning_kc_keycloak_paths
     "Enclosed"         = local.enclosed_read_paths
     "Flip Planning"    = local.flip_planning_mcp_paths
+    "HealthLog"        = local.healthlog_withings_webhook_paths
     "Karakeep"         = local.karakeep_public_paths
     "Monica CRM"       = local.monica_dav_paths
     "nextcloud"        = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
