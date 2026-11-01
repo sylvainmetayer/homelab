@@ -22,6 +22,7 @@
       loop:
         - /etc/systemd/system/canary-watch.service
         - "{{ canary_dir }}"
+      notify: Forget the removed canary-watch unit
 
 - name: Deploy the canary traps
   when: canary_enabled | bool
@@ -148,8 +149,12 @@
         group: root
         mode: "0644" # NOSONAR
       notify: Restart canary-watch
+      register: canary_watch_unit
 
+    # En --check, une unité qui vient d'être « posée » n'existe pas encore :
+    # le module systemd échouerait (enabled sur une unité introuvable).
     - name: Start the watcher
+      when: not (ansible_check_mode and canary_watch_unit is changed)
       ansible.builtin.systemd:
         name: canary-watch.service
         state: started

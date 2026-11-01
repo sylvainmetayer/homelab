@@ -6,3 +6,9 @@
     name: canary-watch.service
     state: restarted
     daemon_reload: true
+
+# canary_enabled: false. Sans cela, systemd garde l'unité effacée chargée
+# (not-found) jusqu'au prochain daemon-reload.
+- name: Forget the removed canary-watch unit
+  ansible.builtin.systemd:
+    daemon_reload: true

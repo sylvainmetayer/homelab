@@ -20,9 +20,11 @@
         state: started
         enabled: true
 
+    # Celui du scénario update_notify (un enregistreur générique, sur
+    # 127.0.0.1:18081) : pas de copie qui doublerait le code.
     - name: Install the fake ntfy
       ansible.builtin.copy:
-        src: fake_ntfy.py
+        src: ../update_notify/files/fake_server.py
         dest: /usr/local/bin/molecule-fake-ntfy
         mode: "0700"
 

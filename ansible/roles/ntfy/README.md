@@ -1,6 +1,6 @@
 # ntfy
 
-Serveur de notifications push du homelab (`ntfy.sylvain.cloud`, VM docker). Les producteurs (Uptime Kuma, scripts des hôtes, workflows GitHub) publient chacun dans leur topic avec leur jeton (`ntfy_publishers`, `defaults/main.yml`) ; l'utilisateur `sylvain` lit tous les topics depuis l'appli des téléphones. `auth-default-access` est `deny-all`. Les routes ouvertes sans SSO dans Pangolin (`local.ntfy_publish_topics`, `tofu/pangolin_config/website_ntfy.tf`) suivent la même liste de topics (test `ntfy_topics_match_the_role`).
+Serveur de notifications push du homelab (`ntfy.sylvain.cloud`, VM docker). Les producteurs (Uptime Kuma, scripts des hôtes, workflows GitHub, webhook Canarytokens.org du rôle `canary`) publient chacun dans leur topic avec leur jeton (`ntfy_publishers`, `defaults/main.yml`) ; l'utilisateur `sylvain` lit tous les topics depuis l'appli des téléphones. `auth-default-access` est `deny-all`. Les routes ouvertes sans SSO dans Pangolin (`local.ntfy_publish_topics`, `tofu/pangolin_config/website_ntfy.tf`) suivent la même liste de topics (test `ntfy_topics_match_the_role`).
 
 ## Droits
 
