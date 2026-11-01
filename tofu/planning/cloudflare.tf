@@ -87,11 +87,13 @@ data "github_repository_file" "beacon_pages" {
   branch     = "main"
 }
 
+# La paire "token": "<jeton>" du data-cf-beacon, pas le jeton seul : un jeton
+# resté dans un commentaire ne doit pas suffire.
 check "beacon_token" {
   assert {
     condition = alltrue([
       for page in data.github_repository_file.beacon_pages :
-      strcontains(try(page.content, ""), cloudflare_web_analytics_site.planning.site_token)
+      strcontains(try(page.content, ""), "\"token\": \"${cloudflare_web_analytics_site.planning.site_token}\"")
     ])
     error_message = "Le beacon de site/index.html ou site/en/index.html (dépôt planning-equipes, main) ne porte pas `tofu output -raw web_analytics_token`."
   }

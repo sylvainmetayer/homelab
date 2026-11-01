@@ -150,6 +150,36 @@ run "jeton_beacon_absent_signale" {
   expect_failures = [check.beacon_token]
 }
 
+# Une seule page à jour (la française), l'anglaise encore au jeton factice :
+# le check doit exiger les deux.
+run "jeton_beacon_sur_une_seule_page_signale" {
+  command = plan
+
+  override_data {
+    target = data.github_repository_file.beacon_pages["en/index.html"]
+    values = {
+      content = "<script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"A_REMPLACER_PAR_LE_JETON\"}'></script>"
+    }
+  }
+
+  expect_failures = [check.beacon_token]
+}
+
+# Le jeton présent ailleurs que dans data-cf-beacon (un commentaire) ne
+# suffit pas.
+run "jeton_hors_du_beacon_signale" {
+  command = plan
+
+  override_data {
+    target = data.github_repository_file.beacon_pages
+    values = {
+      content = "<!-- fake-beacon-token --><script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"A_REMPLACER_PAR_LE_JETON\"}'></script>"
+    }
+  }
+
+  expect_failures = [check.beacon_token]
+}
+
 run "cname_ovh_court_circuite_le_joker" {
   command = plan
 

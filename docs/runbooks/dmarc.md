@@ -183,7 +183,7 @@ laquelle pouvait.
 | Zone | `issue` | Pourquoi |
 |---|---|---|
 | sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (HTTP-01), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), PikaPods (budget.sylvain.cloud, CNAME hors Tofu vers `*.pikapod.net`, sans CAA) |
-| sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin et Cloudflare Pages (ref, www, r) |
+| sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin et Cloudflare Pages (ref, www, r, planning) |
 
 Les `*.talks.sylvain.dev` (GitHub Pages) n'en dépendent pas : CNAME vers
 `sylvainmetayer.github.io`, dont le CAA s'applique à leur place.
