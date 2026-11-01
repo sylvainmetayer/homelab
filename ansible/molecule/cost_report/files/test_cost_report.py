@@ -287,8 +287,9 @@ class MainTest(unittest.TestCase):
 
     def run_main(self, now, env, *extra):
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.dict(os.environ, env, clear=True), redirect_stdout(out), redirect_stderr(err):
-            code = cr.main(["--config", str(self.path / "config.json"), "--state-dir", str(self.path), "--now", now, *extra])
+        with mock.patch.dict(os.environ, env, clear=True), redirect_stdout(out), redirect_stderr(err), \
+                mock.patch.object(cr, "CONFIG_FILE", self.path / "config.json"), mock.patch.object(cr, "STATE_DIR", self.path):
+            code = cr.main(["--now", now, *extra])
         return code, out.getvalue(), err.getvalue()
 
     def test_publishes_once_a_month(self):
