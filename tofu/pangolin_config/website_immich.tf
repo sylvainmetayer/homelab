@@ -49,6 +49,33 @@ resource "pangolin_resource_rule" "immich_home_ip" {
   enabled     = true
 }
 
+# Outside home, the Immich mobile app cannot go through the Pangolin SSO wall
+# (nor type the resource's pincode). It sends a Pangolin access token in its
+# custom proxy headers instead (Settings > Advanced > Custom proxy headers:
+# P-Access-Token-Id / P-Access-Token), on top of the user's Immich login:
+# the whole resource stays behind the SSO wall, the geo-filter and the
+# pincode for everything else, and no path is opened to the world.
+#
+# One token per device, so a lost phone is revoked without touching the
+# others. Read them with `tofu output -json immich_client_access_tokens`.
+resource "pangolin_resource_access_token" "immich_clients" {
+  for_each = toset(["mobile"])
+
+  resource_id = pangolin_resource.website["immich"].id
+  title       = "${pangolin_resource.website["immich"].name} ${each.key}"
+}
+
+output "immich_client_access_tokens" {
+  description = "IMMICH - En-têtes Pangolin des clients (appli mobile)"
+  value = {
+    for client, token in pangolin_resource_access_token.immich_clients : client => {
+      "P-Access-Token-Id" = tostring(token.id)
+      "P-Access-Token"    = token.token
+    }
+  }
+  sensitive = true
+}
+
 output "uptime_backup_immich_url" {
   description = "IMMICH - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["immich"]
