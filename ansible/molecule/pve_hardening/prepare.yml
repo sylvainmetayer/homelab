@@ -1,0 +1,137 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+# L'hôte du 27/10/2026, réduit à ce que touche le rôle : sshd ouvert aux mots
+# de passe, le dépôt pve-enterprise, la zone SDN homelab inutilisée et son
+# dnsmasq, deux invités sur vmbr0, pas de cluster.fw.
+- name: Prepare pve_hardening
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    fake_pve_dir: /var/lib/fake-pve
+  tasks:
+    - name: Install sshd
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+
+    - name: Open sshd to root passwords as Proxmox ships it
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: PermitRootLogin yes }
+        - { regexp: '^#?PasswordAuthentication', line: PasswordAuthentication yes }
+        - { regexp: '^#?X11Forwarding', line: X11Forwarding yes }
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+
+    - name: Start sshd
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: restarted
+        enabled: true
+
+    - name: Create the root SSH directory
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        mode: "0700"
+
+    # Une vraie clé publique, générée ici : aucun littéral dans le dépôt.
+    - name: Generate a root key
+      ansible.builtin.command:
+        argv: [ssh-keygen, -q, -t, ed25519, -N, "", -C, molecule, -f, /root/.ssh/molecule]
+        creates: /root/.ssh/molecule
+
+    - name: Authorize it for root
+      ansible.builtin.copy:
+        src: /root/.ssh/molecule.pub
+        dest: /root/.ssh/authorized_keys
+        remote_src: true
+        mode: "0600"
+
+    - name: Write the enterprise repository
+      ansible.builtin.copy:
+        content: |
+          Types: deb
+          URIs: https://enterprise.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-enterprise
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        dest: /etc/apt/sources.list.d/pve-enterprise.sources
+        mode: "0644"
+
+    - name: Install the fake Proxmox commands
+      ansible.builtin.copy:
+        src: files/fake_pve.py
+        dest: /usr/local/sbin/fake-pve
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Link every simulated command to it
+      loop: [pvesh, pve-firewall]
+      ansible.builtin.file:
+        src: /usr/local/sbin/fake-pve
+        dest: "/usr/local/sbin/{{ item }}"
+        state: link
+
+    - name: Create the fake Proxmox directories
+      loop:
+        - "{{ fake_pve_dir }}"
+        - /etc/pve/firewall
+        - /etc/pve/nodes/proxmox/qemu-server
+        - /etc/pve/nodes/proxmox/lxc
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+
+    - name: Write the SDN state of the host
+      ansible.builtin.copy:
+        content: |
+          {"zones": ["homelab"], "vnets": {"homelab": "homelab"},
+           "subnets": {"homelab-192.168.10.0-24": "homelab"}}
+        dest: "{{ fake_pve_dir }}/sdn.json"
+        mode: "0600"
+
+    # Les deux invités, sur vmbr0 ; « homelab » n'est qu'un de leurs tags.
+    - name: Write the guest configurations
+      loop:
+        - path: qemu-server/100.conf
+          content: |
+            name: docker
+            net0: virtio=BC:24:11:80:F6:42,bridge=vmbr0,firewall=0
+            tags: apps;homelab;tofu
+        - path: lxc/200.conf
+          content: |
+            hostname: newt
+            net0: name=eth0,bridge=vmbr0,gw=192.168.1.254,hwaddr=BC:24:11:4E:A0:5D,ip=192.168.1.200/24,type=veth
+            tags: homelab;managed-by-opentofu;newt
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "/etc/pve/nodes/proxmox/{{ item.path }}"
+        mode: "0600"
+
+    - name: Install a stand-in dnsmasq@ unit
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Stand-in dnsmasq (%i)
+
+          [Service]
+          ExecStart=/bin/sleep infinity
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/dnsmasq@.service
+        mode: "0644"
+
+    - name: Start the dnsmasq of the homelab zone
+      ansible.builtin.systemd_service:
+        name: dnsmasq@homelab
+        state: started
+        enabled: true
+        daemon_reload: true

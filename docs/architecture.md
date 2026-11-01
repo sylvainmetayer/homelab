@@ -132,7 +132,7 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich, Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, borgmatic en conteneur ; stockage des sauvegardes vzdump |
-| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour |
+| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour, durcissement (SSH par clé, pare-feu PVE de l'hôte) |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 
 Sur les hôtes à applis (`docker`, `pi`, `flip`), chaque appli est un projet

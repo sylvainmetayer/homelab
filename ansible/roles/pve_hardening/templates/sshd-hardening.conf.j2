@@ -1,0 +1,7 @@
+# {{ ansible_managed }} (rôle pve_hardening)
+# root par clé seulement : Ansible (pve.yml), le provider de tofu/proxmox et
+# Sylvain. La console web de Proxmox (Shell) ne passe pas par sshd.
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+X11Forwarding no

@@ -1,0 +1,104 @@
+---
+- name: Read the SDN zones and vnets
+  loop: [zones, vnets]
+  ansible.builtin.command:
+    argv: [pvesh, get, "/cluster/sdn/{{ item }}", --output-format, json]
+  register: pve_hardening_sdn_read
+  changed_when: false
+  check_mode: false
+
+- name: Select the SDN objects to remove
+  ansible.builtin.set_fact:
+    pve_hardening_sdn_zones: >-
+      {{ pve_hardening_sdn_read.results[0].stdout | from_json | map(attribute='zone')
+         | select('in', pve_hardening_sdn_removed_zones) | list }}
+    pve_hardening_sdn_vnets: >-
+      {{ pve_hardening_sdn_read.results[1].stdout | from_json
+         | selectattr('zone', 'in', pve_hardening_sdn_removed_zones) | map(attribute='vnet') | list }}
+
+- name: Remove the SDN objects nothing uses
+  when: pve_hardening_sdn_zones | length > 0 or pve_hardening_sdn_vnets | length > 0
+  block:
+    # Configs des VM et LXC de tous les nœuds, sections de snapshot et
+    # pending comprises : un bridge=<vnet> n'importe où arrête tout.
+    - name: Find the guests attached to those vnets
+      when: pve_hardening_sdn_vnets | length > 0
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -rlE
+          - --include=*.conf
+          - "bridge=({{ pve_hardening_sdn_vnets | join('|') }})(,|$)"
+          - /etc/pve/nodes
+      register: pve_hardening_sdn_guests
+      changed_when: false
+      failed_when: pve_hardening_sdn_guests.rc > 1
+      check_mode: false
+
+    - name: Assert no guest uses them
+      ansible.builtin.assert:
+        that:
+          - pve_hardening_sdn_guests.stdout_lines | default([]) | length == 0
+        fail_msg: >-
+          Invités branchés sur {{ pve_hardening_sdn_vnets | join(', ') }} :
+          {{ pve_hardening_sdn_guests.stdout_lines | join(', ') }}. Rien n'est supprimé.
+        quiet: true
+
+    - name: Read the subnets of those vnets
+      loop: "{{ pve_hardening_sdn_vnets }}"
+      ansible.builtin.command:
+        argv: [pvesh, get, "/cluster/sdn/vnets/{{ item }}/subnets", --output-format, json]
+      register: pve_hardening_sdn_subnets
+      changed_when: false
+      check_mode: false
+
+    # Sous-réseaux, puis vnets, puis zones : l'API refuse de supprimer un
+    # objet qui en contient encore un autre.
+    - name: Delete the subnets
+      loop: "{{ pve_hardening_sdn_subnets.results | map(attribute='stdout') | map('from_json') | flatten }}"
+      loop_control:
+        label: "{{ item.subnet }}"
+      ansible.builtin.command:
+        argv: [pvesh, delete, "/cluster/sdn/vnets/{{ item.vnet }}/subnets/{{ item.subnet }}"]
+      changed_when: true
+
+    - name: Delete the vnets
+      loop: "{{ pve_hardening_sdn_vnets }}"
+      ansible.builtin.command:
+        argv: [pvesh, delete, "/cluster/sdn/vnets/{{ item }}"]
+      changed_when: true
+
+    - name: Delete the zones
+      loop: "{{ pve_hardening_sdn_zones }}"
+      ansible.builtin.command:
+        argv: [pvesh, delete, "/cluster/sdn/zones/{{ item }}"]
+      changed_when: true
+
+    # Applique la configuration SDN : réécrit /etc/network/interfaces.d/sdn
+    # et lance ifreload -a (le pont homelab et sa règle SNAT disparaissent,
+    # vmbr0 n'est pas touché).
+    - name: Apply the SDN configuration
+      ansible.builtin.command:
+        argv: [pvesh, set, /cluster/sdn]
+      changed_when: true
+
+    - name: Report what check mode skipped
+      when: ansible_check_mode
+      ansible.builtin.debug:
+        msg: >-
+          Seraient supprimés : zones {{ pve_hardening_sdn_zones }}, vnets
+          {{ pve_hardening_sdn_vnets }} (et leurs sous-réseaux), puis la
+          configuration SDN appliquée.
+
+- name: Read the services
+  ansible.builtin.service_facts:
+
+# Le DHCP/DNS dnsmasq d'une zone simple : l'application SDN ne l'arrête pas
+# toujours.
+- name: Stop the dnsmasq of the removed zones
+  loop: "{{ pve_hardening_sdn_removed_zones }}"
+  when: ('dnsmasq@' ~ item ~ '.service') in ansible_facts['services']
+  ansible.builtin.systemd_service:
+    name: "dnsmasq@{{ item }}"
+    state: stopped
+    enabled: false

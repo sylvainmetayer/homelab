@@ -92,6 +92,7 @@ nav:
       - runbooks/reconstruction-pangolin.md
       - runbooks/cle-hote-ssh-changee.md
       - runbooks/ssh-refuse-apres-durcissement.md
+      - runbooks/proxmox-injoignable-apres-durcissement.md
       - runbooks/crowdsec.md
       - runbooks/app-en-pause.md
       - runbooks/mot-de-passe-base.md

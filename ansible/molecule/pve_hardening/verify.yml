@@ -1,0 +1,175 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    fake_pve_dir: /var/lib/fake-pve
+  tasks:
+    - name: Read the effective sshd configuration
+      ansible.builtin.command:
+        argv: [/usr/sbin/sshd, -T]
+      register: verify_sshd
+      changed_when: false
+
+    - name: Assert root logs in by key only
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in verify_sshd.stdout_lines"
+          - "'x11forwarding no' in verify_sshd.stdout_lines"
+          - "'kbdinteractiveauthentication no' in verify_sshd.stdout_lines"
+          - "verify_sshd.stdout_lines | select('match', '^permitrootlogin (without-password|prohibit-password)$') | list | length == 1"
+
+    # La clé de root ouvre toujours une session : c'est ce dont Ansible et le
+    # provider de tofu/proxmox ont besoin.
+    - name: Log in as root with the key
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -i
+          - /root/.ssh/molecule
+          - -o
+          - BatchMode=yes
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - UserKnownHostsFile=/dev/null
+          - root@127.0.0.1
+          - "true"
+      changed_when: false
+
+    - name: Try a root password login
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - -o
+          - PubkeyAuthentication=no
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - UserKnownHostsFile=/dev/null
+          - root@127.0.0.1
+          - "true"
+      register: verify_password_login
+      changed_when: false
+      failed_when: false
+
+    - name: Assert sshd offers no password method
+      ansible.builtin.assert:
+        that:
+          - verify_password_login.rc == 255
+          - "'(publickey)' in verify_password_login.stderr"
+
+    - name: Read the apt sources
+      loop: [pve-enterprise.sources, proxmox.sources]
+      ansible.builtin.stat:
+        path: "/etc/apt/sources.list.d/{{ item }}"
+      register: verify_sources
+
+    - name: Read the no-subscription repository
+      ansible.builtin.slurp:
+        src: /etc/apt/sources.list.d/proxmox.sources
+      register: verify_proxmox_sources
+
+    - name: Assert only the no-subscription repository is left
+      ansible.builtin.assert:
+        that:
+          - not verify_sources.results[0].stat.exists
+          - verify_sources.results[1].stat.exists
+          - "'Components: pve-no-subscription' in (verify_proxmox_sources.content | b64decode)"
+          - "'Suites: trixie' in (verify_proxmox_sources.content | b64decode)"
+
+    - name: Read the fake Proxmox calls and SDN state
+      loop: [calls.log, sdn.json]
+      ansible.builtin.slurp:
+        src: "{{ fake_pve_dir }}/{{ item }}"
+      register: verify_fake_pve
+
+    - name: Assert the SDN zone went away in order, then was applied
+      ansible.builtin.assert:
+        that:
+          - (verify_fake_pve.results[0].content | b64decode).splitlines() == verify_expected_calls
+          - "(verify_fake_pve.results[1].content | b64decode | from_json) == {'zones': [], 'vnets': {}, 'subnets': {}}"
+      vars:
+        verify_expected_calls:
+          - delete /cluster/sdn/vnets/homelab/subnets/homelab-192.168.10.0-24
+          - delete /cluster/sdn/vnets/homelab
+          - delete /cluster/sdn/zones/homelab
+          - set /cluster/sdn
+
+    - name: Read the dnsmasq of the removed zone
+      ansible.builtin.command:
+        argv: [systemctl, is-enabled, dnsmasq@homelab]
+      register: verify_dnsmasq
+      changed_when: false
+      failed_when: false
+
+    - name: Assert it is stopped and disabled
+      ansible.builtin.assert:
+        that:
+          - verify_dnsmasq.stdout == 'disabled'
+
+    - name: Read the datacenter firewall configuration
+      ansible.builtin.slurp:
+        src: /etc/pve/firewall/cluster.fw
+      register: verify_cluster_fw
+
+    - name: Assert the firewall is on and opens admin ports to the LAN only
+      vars:
+        verify_fw: "{{ verify_cluster_fw.content | b64decode }}"
+        verify_rules: "{{ verify_fw.splitlines() | select('match', '^IN ') | list }}"
+        verify_expected_rules:
+          - "IN ACCEPT -source 192.168.1.0/24 -p tcp -dport 22 # admin from the LAN"
+          - "IN ACCEPT -source 192.168.1.0/24 -p tcp -dport 8006 # admin from the LAN"
+          - "IN ACCEPT -source 192.168.1.0/24 -p icmp # ping from the LAN"
+          - "IN ACCEPT -source 192.168.1.137 # NFS server: NLM and statd callbacks"
+      ansible.builtin.assert:
+        that:
+          - "'enable: 1' in verify_fw.splitlines()"
+          - "'policy_in: DROP' in verify_fw.splitlines()"
+          - verify_rules == verify_expected_rules
+
+    # Un vnet encore utilisé par un invité : le rôle s'arrête avant toute
+    # suppression.
+    - name: Add a zone whose vnet a guest uses
+      ansible.builtin.copy:
+        content: |
+          {"zones": ["busy"], "vnets": {"busy": "busy"}, "subnets": {"busy-10.9.0.0-24": "busy"}}
+        dest: "{{ fake_pve_dir }}/sdn.json"
+        mode: "0600"
+
+    - name: Attach a guest to it
+      ansible.builtin.copy:
+        content: "net0: virtio=BC:24:11:00:00:01,bridge=busy\n"
+        dest: /etc/pve/nodes/proxmox/qemu-server/300.conf
+        mode: "0600"
+
+    - name: Run the SDN cleanup against it
+      block:
+        - name: Remove the busy zone
+          ansible.builtin.include_role:
+            name: pve_hardening
+            tasks_from: sdn.yml
+          vars:
+            pve_hardening_sdn_removed_zones: [busy]
+
+        - name: Fail when the cleanup went through
+          ansible.builtin.set_fact:
+            verify_busy_refused: false
+      rescue:
+        - name: Record the refusal
+          ansible.builtin.set_fact:
+            verify_busy_refused: true
+
+    - name: Read the fake Proxmox calls again
+      ansible.builtin.slurp:
+        src: "{{ fake_pve_dir }}/calls.log"
+      register: verify_calls_after
+
+    - name: Assert the busy zone was left alone
+      ansible.builtin.assert:
+        that:
+          - verify_busy_refused
+          - "'busy' not in (verify_calls_after.content | b64decode)"

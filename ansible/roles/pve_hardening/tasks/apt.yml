@@ -1,0 +1,18 @@
+---
+# Pas d'abonnement : pve-enterprise ne répond que 401. Fichier de conffile de
+# pve-manager : supprimé, dpkg ne le remet pas aux mises à jour.
+- name: Remove the pve-enterprise repository
+  loop:
+    - /etc/apt/sources.list.d/pve-enterprise.sources
+    - /etc/apt/sources.list.d/pve-enterprise.list
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+
+- name: Keep the pve-no-subscription repository
+  ansible.builtin.template:
+    src: proxmox.sources.j2
+    dest: /etc/apt/sources.list.d/proxmox.sources
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,10 +1,12 @@
 ---
 # Hôte Proxmox VE (#852) : l'agent Beszel, en binaire comme sur le
 # LXC newt, le test de restauration des sauvegardes vzdump, l'alerte
-# hebdomadaire des mises à jour en attente (ntfy) et le tmpdir de
-# /etc/vzdump.conf. Le reste de l'hôte appartient à
-# Proxmox (paquets, sshd, pare-feu) et à tofu/proxmox : ni 00-setup, ni
-# security. Lancé à la main seulement (ansible-playbook pve.yml), jamais par
+# hebdomadaire des mises à jour en attente (ntfy), le durcissement
+# (pve_hardening : sshd par clé, pare-feu PVE de l'hôte, dépôt
+# pve-enterprise et SDN inutilisé retirés) et le tmpdir de
+# /etc/vzdump.conf. Le reste de l'hôte appartient à Proxmox (paquets) et à
+# tofu/proxmox : ni 00-setup, ni security (devsec et ufw se battraient avec
+# pve-firewall). Lancé à la main seulement (ansible-playbook pve.yml), jamais par
 # la CI : aucune clé de l'hôte dans les secrets GitHub. Connexion en root,
 # sans become (inventory/hosts).
 #
@@ -50,6 +52,14 @@
     # noyau se met à jour VM arrêtées, docs/runbooks/mises-a-jour-hotes.md).
     - role: update_notify
       tags: update_notify,monitoring
+    # En dernier : sshd par clé, dépôt pve-enterprise retiré, zone SDN
+    # homelab supprimée, pare-feu PVE limité à l'hôte (22 et 8006 depuis le
+    # LAN). Un tag par volet (pve_ssh, pve_firewall, pve_apt, pve_sdn), à
+    # appliquer une session root de secours ouverte :
+    # ansible/roles/pve_hardening/README.md,
+    # docs/runbooks/proxmox-injoignable-apres-durcissement.md.
+    - role: pve_hardening
+      tags: pve_hardening
   tasks:
     # Dossier temporaire de vzdump sur la racine de l'hôte, pas à côté de
     # l'archive : sur le NFS du NAS (storage nas-backup, tofu/proxmox), le tar

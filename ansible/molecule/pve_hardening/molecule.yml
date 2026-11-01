@@ -1,0 +1,11 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le durcissement de pve.yml (en root sans become) contre un faux Proxmox
+# (files/fake_pve.py : pvesh pour le SDN, pve-firewall status), un vrai
+# sshd et un dnsmasq@homelab factice.
+scenario:
+  name: pve_hardening
+
+ansible:
+  playbooks:
+    prepare: prepare.yml
