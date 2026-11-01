@@ -84,12 +84,23 @@
     # tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     - role: jellyfin
       tags: jellyfin,app
+    # MediaManager à l'essai sous dc@mediamanager (unité système) : bac à
+    # sable caché dans media (/volume1/media/.mediamanager-test), PostgreSQL,
+    # et, une fois la clé SOPS mediamanager_wireguard_private_key posée,
+    # qBittorrent et Prowlarr derrière gluetun (WireGuard, kill switch).
+    # Derrière le Traefik du NAS (nas_proxy) : https://mediamanager.sylvain.cloud
+    # (avec ou sans :8443, en LAN comme par le client Pangolin). Retrait :
+    # skill remove-app (ansible/roles/mediamanager/README.md).
+    - role: mediamanager
+      tags: mediamanager,app
     # Traefik du NAS sous dc@nas_proxy (unité système) : TLS (Let's Encrypt,
-    # DNS-01 OVH) de media.sylvain.cloud et nas.sylvain.cloud (interface
-    # d'UGOS), sur le 443 de l'hôte (relais nas-proxy-443) et le 8443. Après
-    # jellyfin : il rejoint en externe le réseau media que crée dc@jellyfin,
-    # et newt, créé par dc@newt. Sur un NAS neuf, --tags newt,jellyfin avant
-    # un --tags nas_proxy seul, sinon dc@nas_proxy réessaie toutes les 15 s.
+    # DNS-01 OVH) de media.sylvain.cloud, nas.sylvain.cloud (interface
+    # d'UGOS) et mediamanager.sylvain.cloud, sur le 443 de l'hôte (relais
+    # nas-proxy-443) et le 8443. Après jellyfin et mediamanager : il rejoint
+    # en externe le réseau media que crée dc@jellyfin, mediamanager_proxy que
+    # crée dc@mediamanager, et newt, créé par dc@newt. Sur un NAS neuf,
+    # --tags newt,jellyfin,mediamanager avant un --tags nas_proxy seul, sinon
+    # dc@nas_proxy réessaie toutes les 15 s.
     # Vérifie aussi chaque jour l'échéance des certificats servis (moniteur
     # « Certificats NAS »).
     - role: nas_proxy
@@ -101,12 +112,3 @@
     # (docs/runbooks/kdrive-nas.md).
     - role: kdrive_sync
       tags: kdrive_sync
-    # MediaManager à l'essai sous dc@mediamanager (unité système) : bac à
-    # sable caché dans media (/volume1/media/.mediamanager-test), PostgreSQL,
-    # et, une fois la clé SOPS mediamanager_wireguard_private_key posée,
-    # qBittorrent et Prowlarr derrière gluetun (WireGuard, kill switch). Joint
-    # par la ressource privée Pangolin mediamanager.internal (site nas), par le
-    # réseau Docker newt : après newt. Retrait : skill remove-app
-    # (ansible/roles/mediamanager/README.md).
-    - role: mediamanager
-      tags: mediamanager,app

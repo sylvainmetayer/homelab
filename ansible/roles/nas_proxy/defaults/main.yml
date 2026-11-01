@@ -1,17 +1,19 @@
 ---
 # Traefik du NAS (nas.yml), sous dc@nas_proxy en unité système
 # (docker_service_scope: system, host_vars/nas) : le TLS des noms du NAS,
-# https://media.sylvain.cloud (Jellyfin) et https://nas.sylvain.cloud
-# (interface d'UGOS). Chaque nom a un A public vers l'IP LAN du NAS
-# (tofu/dns/media.tf, nas.tf) et un certificat Let's Encrypt par DNS-01 OVH :
-# rien n'a besoin d'être joignable depuis Internet.
+# https://media.sylvain.cloud (Jellyfin), https://nas.sylvain.cloud
+# (interface d'UGOS) et https://mediamanager.sylvain.cloud (MediaManager).
+# Chaque nom a un A public vers l'IP LAN du NAS (tofu/dns/media.tf, nas.tf,
+# mediamanager.tf) et un certificat Let's Encrypt par DNS-01 OVH : rien n'a
+# besoin d'être joignable depuis Internet.
 nas_proxy_service: nas_proxy
 nas_proxy_base_path: "{{ docker_base_path }}/{{ nas_proxy_service }}"
-# Ce que vise la ressource privée Pangolin media.sylvain.cloud sur le réseau
-# newt (tofu/pangolin_config/private_resources.tf, vérifié par ses tests).
+# Ce que visent les ressources privées Pangolin media.sylvain.cloud et
+# mediamanager.sylvain.cloud sur le réseau newt
+# (tofu/pangolin_config/private_resources.tf, vérifié par ses tests).
 nas_proxy_container_name: nas-proxy
 # Port publié par Docker, le même dans le conteneur : https://<nom>:8443 en
-# LAN comme par Pangolin (ressources media.sylvain.cloud et nas.sylvain.cloud,
+# LAN comme par Pangolin (ressources media, nas et mediamanager.sylvain.cloud,
 # tcp_port_range, que tofu/pangolin_config/tests vérifie contre cette ligne).
 # Il ne dépend que de Docker : c'est le secours quand le 443 de l'hôte est
 # repris par le nginx d'UGOS.
@@ -80,12 +82,23 @@ nas_proxy_ugos_url: "http://{{ ansible_host }}:9999" # NOSONAR
 # navigateurs de la maison et le Newt LXC (ressource privée nas, Admin seul),
 # leur IP conservée par le DNAT de Docker sur le 8443 publié, et par le PROXY
 # protocol du relais sur le 443 de l'hôte. Le Newt du site
-# nas, lui, joint le 8443 du conteneur par le réseau newt (172.x) pour la
-# ressource media.sylvain.cloud, ouverte au rôle jellyfin : sans ce filtre, un
-# membre de ce rôle atteindrait l'interface d'UGOS en y envoyant
-# Host: nas.sylvain.cloud.
+# nas, lui, joint le 8443 du conteneur par le réseau newt (172.x) pour les
+# ressources media.sylvain.cloud (rôle jellyfin) et mediamanager.sylvain.cloud
+# (rôle mediamanager) : sans ce filtre, un membre de l'un de ces rôles
+# atteindrait l'interface d'UGOS en y envoyant Host: nas.sylvain.cloud.
 nas_proxy_ugos_source_ranges:
   - 192.168.1.0/24
+
+# --- MediaManager (essai) : https://mediamanager.sylvain.cloud ---
+# Comme Jellyfin, sur les trois entrées, sans filtre de source : la ressource
+# privée Pangolin du même nom (site nas, rôle mediamanager) passe par le Newt
+# du NAS comme celle de Jellyfin. Le compte de MediaManager est la barrière
+# (README).
+nas_proxy_mediamanager_domain: mediamanager.sylvain.cloud
+nas_proxy_mediamanager_url: http://mediamanager:8000
+# Créé par dc@mediamanager sous ce nom (mediamanager_network), rejoint ici en
+# externe : d'où nas_proxy après mediamanager dans nas.yml.
+nas_proxy_mediamanager_network: mediamanager_proxy
 
 # --- Échéance des certificats (nas-proxy-cert-check.timer) ---
 # Le NAS n'est joignable que du LAN et par le client Pangolin : l'Uptime Kuma
@@ -99,6 +112,7 @@ nas_proxy_cert_check_host: 127.0.0.1
 nas_proxy_cert_check_names:
   - "{{ nas_proxy_media_domain }}"
   - "{{ nas_proxy_ugos_domain }}"
+  - "{{ nas_proxy_mediamanager_domain }}"
 # Traefik renouvelle 30 jours avant l'échéance (certificats Let's Encrypt de
 # 90 jours) : sous 14 jours, le renouvellement échoue depuis plus de deux
 # semaines, et il reste deux semaines pour réparer.

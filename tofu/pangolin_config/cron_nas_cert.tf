@@ -1,11 +1,11 @@
 # Échéance des certificats du Traefik du NAS (media.sylvain.cloud,
-# nas.sylvain.cloud), servis sur le LAN et par le client Pangolin seulement :
-# un moniteur HTTP de cet Uptime Kuma (PikaPods) ne les joint pas. Le NAS
-# vérifie lui-même chaque jour (nas-proxy-cert-check.timer, rôle nas_proxy,
-# nas.yml) et pousse up, ou down avec la raison (moins de
-# nas_proxy_cert_check_min_days jours, chaîne ou nom invalide, Traefik
-# injoignable). Deux jours et une heure : une journée manquée (NAS éteint à
-# 07:00) passe, pas deux.
+# nas.sylvain.cloud, mediamanager.sylvain.cloud), servis sur le LAN et par le
+# client Pangolin seulement : un moniteur HTTP de cet Uptime Kuma (PikaPods)
+# ne les joint pas. Le NAS vérifie lui-même chaque jour
+# (nas-proxy-cert-check.timer, rôle nas_proxy, nas.yml) et pousse up, ou down
+# avec la raison (moins de nas_proxy_cert_check_min_days jours, chaîne ou nom
+# invalide, Traefik injoignable). Deux jours et une heure : une journée
+# manquée (NAS éteint à 07:00) passe, pas deux.
 resource "uptimekuma_monitor_push" "cron_nas_cert" {
   name = "Certificats NAS"
 

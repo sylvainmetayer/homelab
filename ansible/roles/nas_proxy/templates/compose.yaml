@@ -37,7 +37,7 @@ services:
     # LAN : https://<nom>:{{ nas_proxy_https_port }}, même port dans le
     # conteneur. Pangolin vise ce port et le 443 de l'hôte par l'IP LAN
     # (nas.sylvain.cloud, site proxmox-lxc), ou ce port et le 443 du conteneur
-    # sur le réseau newt (media.sylvain.cloud, site nas). Le 443 de l'hôte
+    # sur le réseau newt (media et mediamanager.sylvain.cloud, site nas). Le 443 de l'hôte
     # n'est pas publié ici mais tenu par le service forward : pris par le nginx
     # d'UGOS, il ferait échouer la création de ce conteneur, 8443 compris.
     ports:
@@ -49,14 +49,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # newt : joint par le Newt du NAS (ressource privée media.sylvain.cloud) et
-    # route vers Internet (Let's Encrypt, API OVH). media : vers Jellyfin, à IP
-    # fixe pour les « Proxys connus » de Jellyfin. L'interface d'UGOS est jointe
+    # newt : joint par le Newt du NAS (ressources privées media et
+    # mediamanager.sylvain.cloud) et route vers Internet (Let's Encrypt, API
+    # OVH). media : vers Jellyfin, à IP fixe pour les « Proxys connus » de
+    # Jellyfin. mediamanager : vers MediaManager. L'interface d'UGOS est jointe
     # par l'IP LAN de l'hôte, sans réseau dédié.
     networks:
       newt: {}
       media:
         ipv4_address: {{ nas_proxy_media_ip }}
+      mediamanager: {}
 
   # Relais du 443 de l'hôte vers nas-proxy (nas_proxy_host_https_port, dans
   # defaults/main.yml) : TCP brut, TLS terminé par nas-proxy, en PROXY
@@ -103,4 +105,9 @@ networks:
   # d'un redémarrage à l'autre : l'ordre ne compte qu'au premier déploiement.
   media:
     name: {{ nas_proxy_media_network }}
+    external: true
+  # Créé par dc@mediamanager (réseau proxy de son compose, interne) : externe
+  # ici, d'où nas_proxy après mediamanager dans nas.yml.
+  mediamanager:
+    name: {{ nas_proxy_mediamanager_network }}
     external: true

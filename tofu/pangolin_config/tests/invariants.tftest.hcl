@@ -2167,19 +2167,21 @@ run "nas_newt_credentials_and_media" {
     error_message = "media.sylvain.cloud doit être ouverte au rôle jellyfin, et Jellyfin n'avoir aucune ressource publique."
   }
 
-  # MediaManager (essai, rôle mediamanager) : le Newt du NAS joint le
-  # conteneur par son nom (container_name du compose) sur le réseau newt, en
-  # TCP 8000 seul ; ouvert au seul rôle mediamanager, sans ressource publique.
+  # MediaManager (essai, rôle mediamanager) comme Jellyfin : le Newt du NAS
+  # joint le Traefik du NAS (nas-proxy) en TCP 443 et 8443 seuls, sous un
+  # alias qui est le nom public de tofu/dns (mediamanager.tf), le même que
+  # sert le routeur mediamanager de Traefik et que MediaManager donne comme
+  # frontend_url ; ouvert au seul rôle mediamanager, sans ressource publique.
   assert {
     condition = (
       pangolin_site_resource.mediamanager.site_id == pangolin_site.nas.id
       && pangolin_site_resource.mediamanager.mode == "host"
-      && pangolin_site_resource.mediamanager.alias == "mediamanager.internal"
-      && pangolin_site_resource.mediamanager.destination == "mediamanager"
-      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/templates/compose.yaml"), "\n    container_name: mediamanager\n")
-      && pangolin_site_resource.mediamanager.tcp_port_range == "8000"
-      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_port: 8000\n")
-      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_frontend_url: \"http://mediamanager.internal:{{ mediamanager_port }}\"")
+      && pangolin_site_resource.mediamanager.alias == "mediamanager.sylvain.cloud"
+      && strcontains(file("${path.module}/../dns/mediamanager.tf"), "subdomain = \"mediamanager\"")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_mediamanager_domain: mediamanager.sylvain.cloud\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_frontend_url: https://mediamanager.sylvain.cloud\n")
+      && pangolin_site_resource.mediamanager.destination == pangolin_site_resource.jellyfin.destination
+      && pangolin_site_resource.mediamanager.tcp_port_range == pangolin_site_resource.jellyfin.tcp_port_range
       && pangolin_site_resource.mediamanager.udp_port_range == "*"
       && pangolin_site_resource.mediamanager.disable_icmp == true
       && pangolin_site_resource_role.mediamanager.site_resource_id == pangolin_site_resource.mediamanager.id
@@ -2187,7 +2189,7 @@ run "nas_newt_credentials_and_media" {
       && pangolin_role.mediamanager.name == "mediamanager"
       && !contains(keys(local.websites), "mediamanager")
     )
-    error_message = "mediamanager.internal doit viser le conteneur mediamanager sur le site nas, en TCP 8000 seul, ouverte au seul rôle mediamanager, sans ressource publique."
+    error_message = "mediamanager.sylvain.cloud (tofu/dns/mediamanager.tf, nas_proxy_mediamanager_domain, mediamanager_frontend_url) doit viser nas-proxy sur le site nas, en TCP 443 et 8443 comme media.sylvain.cloud, ouverte au seul rôle mediamanager, sans ressource publique."
   }
 
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de

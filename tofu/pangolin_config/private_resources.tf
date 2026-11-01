@@ -200,22 +200,30 @@ resource "pangolin_site_resource_role" "jellyfin" {
   }
 }
 
-# MediaManager à l'essai (ansible/roles/mediamanager, sur le NAS), joint par
-# un client Pangolin seulement, à la maison comme dehors :
-# http://mediamanager.internal:8000. Servi par le Newt du NAS, qui joint le
-# conteneur mediamanager par son nom sur le réseau Docker newt qu'ils
-# partagent (sa base n'y est pas). Aucun port publié sur le NAS, aucune
-# ressource publique. Ni qBittorrent ni Prowlarr : leurs interfaces restent
-# sur le 127.0.0.1 du NAS (tunnel SSH, README du rôle). UDP à "*" comme
-# ailleurs (le provider ne sait pas envoyer une plage vide).
+# MediaManager à l'essai (ansible/roles/mediamanager, sur le NAS), comme
+# Jellyfin : https://mediamanager.sylvain.cloud, à la maison (443 de l'hôte,
+# relais de nas_proxy, ou 8443) comme dehors par un client Pangolin. L'alias
+# est le nom public dont le A (tofu/dns, mediamanager.tf) vise l'IP LAN du
+# NAS ; le Traefik du NAS (rôle nas_proxy) sert le certificat Let's Encrypt
+# sur les deux chemins et joint MediaManager par un réseau Docker dédié
+# (mediamanager_proxy). Servi par le Newt du NAS, qui joint ce Traefik par son
+# nom de conteneur sur le réseau newt : même destination et mêmes ports que
+# pangolin_site_resource.jellyfin. MediaManager lui-même (8000) n'est plus sur
+# newt ni joignable par Pangolin. Traefik choisit l'appli au nom (SNI, Host) :
+# un membre du rôle jellyfin qui viserait l'alias media.sylvain.cloud avec ce
+# nom atteindrait la page de connexion de MediaManager, comme n'importe quel
+# appareil du LAN ; le compte de MediaManager reste la barrière. Ni
+# qBittorrent ni Prowlarr : leurs interfaces restent sur le 127.0.0.1 du NAS
+# (tunnel SSH, README du rôle). UDP à "*" comme ailleurs (le provider ne sait
+# pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "mediamanager" {
   site_id        = pangolin_site.nas.id
   name           = "MediaManager"
   mode           = "host"
-  alias          = "mediamanager.internal"
-  destination    = "mediamanager"
+  alias          = "mediamanager.sylvain.cloud"
+  destination    = "nas-proxy"
   disable_icmp   = true
-  tcp_port_range = "8000"
+  tcp_port_range = "443,8443"
   udp_port_range = "*"
 }
 
@@ -224,7 +232,7 @@ resource "pangolin_site_resource" "mediamanager" {
 # (roles.tf), comme jellyfin.
 resource "pangolin_role" "mediamanager" {
   name        = "mediamanager"
-  description = "Role for mediamanager.internal (MediaManager trial on the NAS, private)"
+  description = "Role for mediamanager.sylvain.cloud (MediaManager trial on the NAS, private)"
 }
 
 # Recréée à chaque mise à jour de la ressource, qui l'efface : voir

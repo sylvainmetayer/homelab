@@ -174,7 +174,8 @@ puis `tofu apply`.
 
 Hors de ces règles publiques, le client Pangolin (appli mobile ou de bureau)
 ouvre les ressources **privées** (`private_resources.tf`), à qui y a droit :
-Jellyfin (`https://media.sylvain.cloud`, rôle `jellyfin`), l'interface du NAS
+Jellyfin (`https://media.sylvain.cloud`, rôle `jellyfin`), MediaManager à
+l'essai (`https://mediamanager.sylvain.cloud`, rôle `mediamanager`), l'interface du NAS
 (`https://nas.sylvain.cloud:8443`), l'interface de la box
 (`bbox-internal.sylvain.cloud`), celle de l'imprimante (`print.sylvain.cloud`)
 et les accès d'administration (`pi.internal`, `docker-apps.internal`,

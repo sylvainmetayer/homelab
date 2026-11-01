@@ -16,7 +16,7 @@ toutes les applis du NAS : `ansible/roles/docker_service/README.md`), dans
 
 | Service | Conteneur | Réseau | Rôle |
 |---|---|---|---|
-| `mediamanager` | `mediamanager` | `default`, `db`, `newt` | l'appli, en `sylvain` (jamais root : lancé en root, son script ferait un `chown -R` de `/data`) |
+| `mediamanager` | `mediamanager` | `default`, `db`, `proxy` | l'appli, en `sylvain` (jamais root : lancé en root, son script ferait un `chown -R` de `/data`) |
 | `db` | `mediamanager-db` | `db` (interne, sans sortie) | PostgreSQL 17 |
 | `gluetun` | `mediamanager-gluetun` | `default` | tunnel WireGuard, kill switch |
 | `qbittorrent` | `mediamanager-qbittorrent` | celui de gluetun | téléchargements |
@@ -94,12 +94,23 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
 
 ### Accès
 
-- **MediaManager** : `http://mediamanager.internal:8000`, par le client
-  Pangolin seulement (à la maison aussi) : ressource privée `mediamanager`,
-  site `nas`, `tofu/pangolin_config/private_resources.tf`, ouverte au rôle
-  Pangolin `mediamanager` (y ajouter Sylvain seul, dans l'UI). Le Newt du NAS
-  joint le conteneur par son nom sur le réseau Docker `newt` ; aucun port
-  publié sur le NAS, la base n'est pas sur `newt`.
+- **MediaManager** : `https://mediamanager.sylvain.cloud` (ou `:8443`),
+  exactement comme Jellyfin (`docs/architecture.md`) : servi par le Traefik
+  du NAS (rôle `nas_proxy`, routeur `mediamanager`, certificat Let's Encrypt
+  par DNS-01 OVH), qui joint le conteneur sur `mediamanager:8000` par le
+  réseau Docker `proxy` du projet (`mediamanager_proxy`, interne, créé ici et
+  rejoint en externe par `nas-proxy` : `mediamanager` avant `nas_proxy` dans
+  `nas.yml`). À la maison, le A public `tofu/dns/mediamanager.tf` vise l'IP
+  LAN du NAS (laissé passer par Blocky, `blocky_rebinding_allowed_domains`) ;
+  dehors, le client Pangolin résout le même nom vers la ressource privée
+  `mediamanager` (site `nas`, `tofu/pangolin_config/private_resources.tf`,
+  `nas-proxy` en TCP 443 et 8443), ouverte au rôle Pangolin `mediamanager`
+  (y ajouter Sylvain seul, dans l'UI). Aucun port publié pour MediaManager,
+  qui n'est plus sur `newt` ; la base n'est que sur `db`. **Pas une
+  barrière** : le Traefik choisit l'appli au nom demandé, donc tout appareil
+  du LAN et tout membre du rôle `jellyfin` (par l'alias
+  `media.sylvain.cloud`) peut atteindre la page de connexion ; le compte de
+  MediaManager est le seul verrou.
 - **qBittorrent et Prowlarr** : publiés sur le `127.0.0.1` du NAS seulement
   (ports 8080 et 9696, sur gluetun), jamais sur le LAN ni par Pangolin. Depuis
   le PC, à la maison (ou dehors, client Pangolin connecté, ressource `nas`) :
@@ -171,10 +182,13 @@ restauration pour un essai.
 
 ## Premier démarrage
 
-1. `tofu/pangolin_config` appliqué (ressource `mediamanager`, rôle,
-   liaison), puis Sylvain ajouté au rôle `mediamanager` dans l'UI de Pangolin.
-2. `ansible-playbook nas.yml --tags mediamanager` (depuis `ansible/`).
-3. Client Pangolin connecté, `http://mediamanager.internal:8000` : le compte
+1. `tofu/dns` et `tofu/pangolin_config` appliqués (A, ressource
+   `mediamanager`, rôle, liaison), puis Sylvain ajouté au rôle `mediamanager`
+   dans l'UI de Pangolin.
+2. `ansible-playbook nas.yml --tags mediamanager,nas_proxy` (depuis
+   `ansible/`, dans cet ordre : `nas_proxy` rejoint le réseau que crée
+   `dc@mediamanager`).
+3. `https://mediamanager.sylvain.cloud` (client Pangolin connecté, dehors) : le compte
    à l'adresse de `pangolin_le_email` (`mediamanager_admin_email`), mot de
    passe **`admin`**, créé au premier démarrage : **le changer aussitôt**.
 4. Avec la clé WireGuard posée et le rôle relancé : tunnel SSH (plus haut),
@@ -248,7 +262,12 @@ ansible-playbook nas.yml --tags mediamanager
 
 ## Retirer l'essai
 
-Skill `remove-app`, avec `nas.yml` :
+Skill `remove-app`, avec `nas.yml`. **D'abord** sortir MediaManager de
+`nas_proxy` (routeur, réseau, nom du contrôle de certificats : liste plus bas)
+et lancer `--tags nas_proxy` : tant que `nas-proxy` est branché sur
+`mediamanager_proxy`, Docker refuse de supprimer ce réseau, et sans lui
+`dc@nas_proxy` ne redémarre plus (`media.sylvain.cloud` et
+`nas.sylvain.cloud` tombent avec). Puis :
 
 ```bash
 cd ansible
@@ -266,7 +285,12 @@ garde le fichier, le lien du dossier des torrents disparaît avec le reste),
 puis `sudo rm -rf /volume1/media/.mediamanager-test`.
 
 Puis, dans le dépôt : ce rôle, `ansible/molecule/mediamanager/`, l'entrée de
-`nas.yml`, la ressource, le rôle et la liaison `mediamanager` de
+`nas.yml`, dans `nas_proxy` le routeur, le service et les en-têtes
+`mediamanager` (`templates/dynamic.yml`), le réseau `mediamanager` du compose,
+les `nas_proxy_mediamanager_*` et le nom de `nas_proxy_cert_check_names` (déjà
+faits, plus haut), le A `tofu/dns/mediamanager.tf` et son test,
+`mediamanager.sylvain.cloud` de `blocky_rebinding_allowed_domains`, la
+ressource, le rôle et la liaison `mediamanager` de
 `tofu/pangolin_config/private_resources.tf` (et `pangolin_role.mediamanager`
 dans `access_inventory.tf`, son test dans `tests/invariants.tftest.hcl`),
 les clés SOPS `mediamanager_wireguard_*` et leurs entrées de rotation,

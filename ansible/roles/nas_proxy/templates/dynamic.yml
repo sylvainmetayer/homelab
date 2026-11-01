@@ -20,12 +20,28 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # MediaManager (essai), sur le réseau mediamanager_proxy que crée
+    # dc@mediamanager. Ouvert comme Jellyfin : la ressource privée Pangolin
+    # mediamanager.sylvain.cloud passe par le Newt du NAS (443, 8443).
+    mediamanager:
+      rule: "Host(`{{ nas_proxy_mediamanager_domain }}`)"
+      entryPoints:
+        - websecure
+        - websecure-lan
+        - websecure-forwarded
+      service: mediamanager
+      middlewares:
+        - mediamanager-headers
+      tls:
+        certResolver: letsencrypt
+
     # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
     # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443 et
     # le 443 de l'hôte (relais, websecure-forwarded) ; le 443 du conteneur
-    # n'est joint que par le Newt du site nas (media.sylvain.cloud). Ce Newt
-    # joint pourtant aussi le 8443 (ressource media.sylvain.cloud, rôle
-    # jellyfin) : ugos-lan n'admet que le LAN (nas_proxy_ugos_source_ranges).
+    # n'est joint que par le Newt du site nas (media et
+    # mediamanager.sylvain.cloud). Ce Newt joint pourtant aussi le 8443
+    # (ressources media et mediamanager.sylvain.cloud, rôles jellyfin et
+    # mediamanager) : ugos-lan n'admet que le LAN (nas_proxy_ugos_source_ranges).
     # L'interface suit l'origine de la page (redirections relatives, API sur
     # location.origin) : ni réécriture ni Host forcé.
     ugos:
@@ -45,6 +61,13 @@ http:
       headers:
         # HTTPS seul sur ce nom, à tous les ports ; sans includeSubdomains : les
         # autres *.sylvain.cloud sont servis par Pangolin.
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        customFrameOptionsValue: SAMEORIGIN
+        referrerPolicy: same-origin
+    # Comme Jellyfin : HSTS sur ce nom seul, pas d'iframe d'une autre origine.
+    mediamanager-headers:
+      headers:
         stsSeconds: 31536000
         contentTypeNosniff: true
         customFrameOptionsValue: SAMEORIGIN
@@ -70,3 +93,7 @@ http:
       loadBalancer:
         servers:
           - url: "{{ nas_proxy_ugos_url }}"
+    mediamanager:
+      loadBalancer:
+        servers:
+          - url: "{{ nas_proxy_mediamanager_url }}"
