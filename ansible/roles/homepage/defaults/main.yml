@@ -276,17 +276,33 @@ homepage_link_widgets_extra:
 # de son partage : clés sops homepage_calendar_ics_url (Perso) et
 # homepage_calendar_top_nous_ics_url (Top nous, partagé à deux). Une clé
 # absente ou vide retire son agenda ; aucune = pas de carte.
-# Homepage les récupère côté serveur et ne les envoie pas au navigateur.
+#
+# Homepage ne lit pas ces URL : le widget affiche chaque tâche (VTODO) comme
+# un événement daté de l'instant présent, et Top nous en a des dizaines. Le
+# conteneur ical-filter du même projet (files/ical_filter.py) récupère chaque
+# agenda, en retire tâches et journaux (VTODO, VJOURNAL), le garde
+# homepage_ical_filter_cache_seconds et le sert en
+# http://ical-filter:<port>/<slug>.ics sur le réseau privé du projet. Les URL
+# de partage ne sont que dans compose.yaml (0600), jamais dans services.yaml.
 homepage_calendars:
-  - type: ical
-    name: Perso
+  - name: Perso
+    slug: perso
     url: "{{ homepage_calendar_ics_url | default('') }}"
     color: blue
-  - type: ical
-    name: Top nous
+  - name: Top nous
+    slug: top-nous
     url: "{{ homepage_calendar_top_nous_ics_url | default('') }}"
     color: pink
-homepage_calendar_integrations: "{{ homepage_calendars | selectattr('url') | list }}"
+homepage_calendars_enabled: "{{ homepage_calendars | selectattr('url') | list }}"
+homepage_ical_filter_port: 8080
+homepage_ical_filter_cache_seconds: 300
+homepage_calendar_integrations: >-
+  {%- set out = [] -%}
+  {%- for calendar in homepage_calendars_enabled -%}
+  {%-   set _ = out.append({'type': 'ical', 'name': calendar.name, 'color': calendar.color,
+                            'url': 'http://ical-filter:' ~ homepage_ical_filter_port ~ '/' ~ calendar.slug ~ '.ics'}) -%}
+  {%- endfor -%}
+  {{ out }}
 homepage_calendar_card:
   name: Agenda
   group: Vie perso

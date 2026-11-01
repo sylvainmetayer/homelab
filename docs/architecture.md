@@ -430,7 +430,12 @@ Avec une clé sops chacun (vide : widget absent, la page se déploie sans) :
 Proxmox, Pangolin, Speedtest Tracker et Immich, en lecture seule ; l'agenda
 (liens publics iCal des agendas Nextcloud Perso et Top nous, une clé
 chacun, servis par le chemin `/remote.php/*`
-déjà ouvert sans SSO aux clients, `website_nextcloud.tf`) ; et Jellyfin,
+déjà ouvert sans SSO aux clients, `website_nextcloud.tf` ; Homepage ne les
+lit pas lui-même : le conteneur `ical-filter` de son projet les récupère, en
+retire les tâches et journaux, VTODO et VJOURNAL, que le widget afficherait
+comme des événements datés de l'instant présent, et les lui sert sur le
+réseau privé du projet, cache de 5 minutes ; détail dans le
+[README du rôle](../ansible/roles/homepage/README.md)) ; et Jellyfin,
 Homebox, Karakeep. Création de chaque jeton, droits minimaux et `sops set` :
 [runbooks/rotation-des-secrets.md](runbooks/rotation-des-secrets.md#widgets-de-homepage).
 

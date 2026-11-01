@@ -45,6 +45,17 @@
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
 
+# Lu par le conteneur ical-filter (utilisateur nobody) : lisible par tous,
+# il ne porte aucun secret (les URL de partage sont dans compose.yaml).
+- name: Copy the calendar filter of ical-filter
+  notify: Restart homepage
+  ansible.builtin.copy:
+    src: ical_filter.py
+    dest: "{{ homepage_base_path }}/ical_filter.py"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
 - name: Template compose configuration
   diff: false
   notify: Restart homepage

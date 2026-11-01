@@ -37,23 +37,67 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    # newt (Pangolin et les applications des widgets) ; ical, le réseau privé
+    # du projet, pour joindre ical-filter.
 {% if homepage_beszel_enabled | bool %}
     # Plus le réseau du widget Beszel (créé par dc@beszel), à une IP fixe :
     # celle que les « superuser IPs » du hub admettent.
 {% endif %}
     networks:
-{% if homepage_beszel_enabled | bool %}
       newt: {}
+{% if homepage_calendars_enabled | length > 0 %}
+      ical: {}
+{% endif %}
+{% if homepage_beszel_enabled | bool %}
       beszel:
         ipv4_address: {{ beszel_homepage_client_ip }}
-{% else %}
-      - newt
+{% endif %}
+{% if homepage_calendars_enabled | length > 0 %}
+
+  # Agendas de la carte Agenda, sans leurs tâches ni journaux (VTODO,
+  # VJOURNAL, que le widget daterait de l'instant présent) : récupère chaque
+  # URL de partage, filtre, garde la copie homepage_ical_filter_cache_seconds.
+  # Sur le seul réseau privé du projet (pas newt : Pangolin n'a pas à le
+  # joindre), sans port publié. Bibliothèque standard de Python seulement.
+  ical-filter:
+    # Pas encore mesuré : deux agendas en mémoire. À recaler sur memory.peak
+    # après quelques jours (rapport mem_report du lundi).
+    mem_limit: 64m
+    image: python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+    container_name: homepage-ical-filter
+    command: ["python", "/app/ical_filter.py"]
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      ICAL_FILTER_PORT: "{{ homepage_ical_filter_port }}"
+      ICAL_FILTER_CACHE_SECONDS: "{{ homepage_ical_filter_cache_seconds }}"
+{% for calendar in homepage_calendars_enabled %}
+      ICAL_FEED_{{ calendar.slug | upper | replace('-', '_') }}: {{ calendar.url | replace('$', '$$') | to_json }}
+{% endfor %}
+    volumes:
+      - ./ical_filter.py:/app/ical_filter.py:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ homepage_ical_filter_port }}/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ical
 {% endif %}
 
 networks:
   newt:
     external: true
+{% if homepage_calendars_enabled | length > 0 %}
+  ical: {}
+{% endif %}
 {% if homepage_beszel_enabled | bool %}
   beszel:
     name: {{ beszel_homepage_network }}

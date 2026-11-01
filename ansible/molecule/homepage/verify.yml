@@ -42,13 +42,86 @@
           - homepage_service.volumes | length == 1
           - homepage_service.volumes[0].target == '/app/config'
           - homepage_service.volumes[0].read_only | default(false)
-          - homepage_service.networks.keys() | list | sort == ['beszel', 'newt']
+          - homepage_service.networks.keys() | list | sort == ['beszel', 'ical', 'newt']
           - homepage_service.networks.beszel.ipv4_address == '172.16.97.3'
-          - homepage_compose.networks.keys() | list | sort == ['beszel', 'newt']
+          - homepage_compose.networks.keys() | list | sort == ['beszel', 'ical', 'newt']
+          - not (homepage_compose.networks.ical.external | default(false))
           - homepage_compose.networks.beszel.name == 'beszel_homepage'
           - homepage_compose.networks.beszel.external
           - homepage_service.environment.HOMEPAGE_ALLOWED_HOSTS.split(',') == ['home.sylvain.cloud', 'homepage:3000', 'homepage']
         fail_msg: "Service homepage inattendu : {{ homepage_service }}"
+
+    # ical-filter : sur le seul réseau privé du projet (ni newt ni port
+    # publié), sans privilège, système de fichiers en lecture seule, son
+    # script pour seul montage ; une URL de partage par agenda, dans son
+    # environnement et nulle part ailleurs.
+    - name: Assert ical-filter is confined to the project network
+      vars:
+        homepage_compose: "{{ homepage_compose_raw.stdout | from_json }}"
+        homepage_filter: "{{ homepage_compose.services['ical-filter'] }}"
+      ansible.builtin.assert:
+        that:
+          - homepage_compose.services.keys() | list | sort == ['app', 'ical-filter']
+          - homepage_filter.networks.keys() | list == ['ical']
+          - homepage_filter.ports | default([]) == []
+          - homepage_filter.read_only
+          - homepage_filter.user == '65534:65534'
+          - homepage_filter.cap_drop == ['ALL']
+          - homepage_filter.cap_add | default([]) == []
+          - homepage_filter.security_opt == ['no-new-privileges:true']
+          - homepage_filter.mem_limit | int == 64 * 1024 * 1024
+          - homepage_filter.cpus is not defined
+          - homepage_filter.healthcheck.test is defined
+          - homepage_filter.volumes | length == 1
+          - homepage_filter.volumes[0].target == '/app/ical_filter.py'
+          - homepage_filter.volumes[0].read_only | default(false)
+          - homepage_filter.environment.ICAL_FEED_PERSO == homepage_calendar_ics_url
+          - homepage_filter.environment.ICAL_FEED_TOP_NOUS == homepage_calendar_top_nous_ics_url
+          - homepage_compose.services.app.environment.keys() | select('match', 'ICAL_') | list == []
+        fail_msg: "Service ical-filter inattendu : {{ homepage_filter }}"
+
+    - name: Stat the calendar filter script
+      ansible.builtin.stat:
+        path: /opt/apps/homepage/ical_filter.py
+      register: homepage_filter_script
+
+    # Lu par nobody dans le conteneur.
+    - name: Assert the calendar filter script is world-readable
+      ansible.builtin.assert:
+        that:
+          - homepage_filter_script.stat.exists
+          - homepage_filter_script.stat.mode == '0644'
+
+    - name: Create a scratch directory for the calendar filter tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: ical
+      register: homepage_filter_test_dir
+
+    - name: Copy the calendar filter and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/homepage/files/ical_filter.py"
+          dest: ical_filter.py
+        - src: "{{ playbook_dir }}/files/test_ical_filter.py"
+          dest: test_ical_filter.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ homepage_filter_test_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Molecule ne lance aucun conteneur (_shared/prepare.yml) : le script est
+    # testé avec le python3 de l'hôte de test. Filtre (VTODO, VJOURNAL,
+    # lignes repliées, CRLF), cache et serveur HTTP (/healthz, 404, 502).
+    - name: Run the calendar filter tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ homepage_filter_test_dir.path }}"
+      changed_when: false
+
+    - name: Remove the calendar filter tests
+      ansible.builtin.file:
+        path: "{{ homepage_filter_test_dir.path }}"
+        state: absent
 
     # Homepage recopie son squelette pour tout fichier absent et s'arrête
     # s'il ne peut pas l'écrire (config/ en lecture seule).
@@ -116,7 +189,9 @@
         fail_msg: "Pastilles inattendues : {{ homepage_cards }}"
 
     # Agenda : une intégration iCal par clé non vide, dans l'ordre de
-    # homepage_calendars ; ici les deux clés de fake_secrets.yml.
+    # homepage_calendars ; ici les deux clés de fake_secrets.yml. Homepage lit
+    # chaque agenda filtré chez ical-filter : aucune URL de partage dans
+    # services.yaml.
     - name: Assert the calendar card lists both calendars
       vars:
         homepage_agenda: "{{ homepage_cards['Vie perso']['Agenda'] }}"
@@ -126,7 +201,12 @@
           - homepage_agenda.widget.type == 'calendar'
           - homepage_agenda.widget.integrations | map(attribute='name') | list == ['Perso', 'Top nous']
           - homepage_agenda.widget.integrations | map(attribute='type') | unique | list == ['ical']
-          - homepage_agenda.widget.integrations | map(attribute='url') | list == [homepage_calendar_ics_url, homepage_calendar_top_nous_ics_url]
+          - homepage_agenda.widget.integrations | map(attribute='url') | list
+            == ['http://ical-filter:8080/perso.ics', 'http://ical-filter:8080/top-nous.ics'] # NOSONAR (réseau privé du projet)
+          - homepage_agenda.widget.integrations | map(attribute='color') | list == ['blue', 'pink']
+          - homepage_calendar_ics_url not in (homepage_services_raw.content | b64decode)
+          - homepage_calendar_top_nous_ics_url not in (homepage_services_raw.content | b64decode)
+          - "'public-calendars' not in (homepage_services_raw.content | b64decode)"
         fail_msg: "Agenda inattendu : {{ homepage_agenda }}"
 
     # Widgets : Beszel sur son lien (superuser du rôle beszel, par l'IP du hub
@@ -191,12 +271,13 @@
     - name: Render the configuration without credentials
       diff: false
       loop:
-        - services.yaml
-        - widgets.yaml
-        - proxmox.yaml
+        - config/services.yaml.j2
+        - config/widgets.yaml.j2
+        - config/proxmox.yaml.j2
+        - compose.yaml
       ansible.builtin.template:
-        src: "{{ playbook_dir }}/../../roles/homepage/templates/config/{{ item }}.j2"
-        dest: "{{ homepage_empty_dir.path }}/{{ item }}"
+        src: "{{ playbook_dir }}/../../roles/homepage/templates/{{ item }}"
+        dest: "{{ homepage_empty_dir.path }}/{{ item | basename | regex_replace('\\.j2$', '') }}"
         mode: "0600"
 
     - name: Read the credential-less services
@@ -208,6 +289,11 @@
       ansible.builtin.slurp:
         src: "{{ homepage_empty_dir.path }}/proxmox.yaml"
       register: homepage_empty_proxmox_raw
+
+    - name: Read the credential-less compose
+      ansible.builtin.slurp:
+        src: "{{ homepage_empty_dir.path }}/compose.yaml"
+      register: homepage_empty_compose_raw
 
     - name: Read the credential-less header widgets
       ansible.builtin.slurp:
@@ -228,6 +314,9 @@
           - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
           - (homepage_empty_proxmox_raw.content | b64decode | from_yaml) is none
           - (homepage_empty_widgets_raw.content | b64decode | from_yaml) | length == 3
+          # Sans agenda, ni ical-filter ni son réseau.
+          - (homepage_empty_compose_raw.content | b64decode | from_yaml).services.keys() | list == ['app']
+          - (homepage_empty_compose_raw.content | b64decode | from_yaml).networks.keys() | list == ['newt']
         fail_msg: "Configuration sans clé inattendue : {{ homepage_cards }}"
 
     # Une seule clé (Top nous) : la carte reste, avec ce seul agenda.
@@ -253,6 +342,7 @@
           - homepage_card_names['Vie perso'] == ['Agenda', 'Homebox']
           - homepage_agenda.description == 'Top nous (Nextcloud)'
           - homepage_agenda.widget.integrations | map(attribute='name') | list == ['Top nous']
+          - homepage_agenda.widget.integrations | map(attribute='url') | list == ['http://ical-filter:8080/top-nous.ics'] # NOSONAR
         fail_msg: "Agenda à une clé inattendu : {{ homepage_cards['Vie perso'] }}"
 
     - name: Remove the scratch directory
