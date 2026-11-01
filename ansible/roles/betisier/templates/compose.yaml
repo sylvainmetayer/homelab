@@ -25,7 +25,7 @@ services:
     stop_grace_period: 60s
     networks:
       - betisier
-    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:dfd0f601cedf95381781c1b9b27424c608a78ddd97faa484da678873240f65e6
+    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:d0f9ffd4d00878b8892888e70cb8ea12f4d2dfa63ac940ceb9fd1b36a1b449e3
     container_name: betisier_db
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
