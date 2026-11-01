@@ -8,7 +8,7 @@ appli, ce qui passe **sans** le SSO, quel client s'en sert et ce qui protège
 le contenu derrière. C'est le « mode mixte » : navigateur derrière le SSO,
 clients non interactifs par des ouvertures étroites.
 
-Il décrit `tofu/pangolin_config` au 2026-10-30. Le code fait foi : chaque
+Il décrit `tofu/pangolin_config` au 2026-11-01. Le code fait foi : chaque
 liste de chemins est la `local.<app>_*_paths` de `website_<app>.tf`, avec en
 commentaire la vérification faite par l'appli pour chaque chemin, et la
 liste complète des ouvertures est écrite en toutes lettres dans le test
@@ -83,6 +83,13 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   (« Custom headers » en anglais) `P-Access-Token-Id` et `P-Access-Token`
   avec les valeurs de la sortie ; ensuite le compte Papra. Aucun chemin ouvert : toute l'API
   reste derrière le SSO et le filtre pays.
+- Immich : appli mobile, un jeton par appareil (`mobile`, lu avec
+  `tofu output -json immich_client_access_tokens` dans `tofu/pangolin_config`),
+  saisi dans Paramètres → Avancé → En-têtes de proxy personnalisés
+  (`P-Access-Token-Id` et `P-Access-Token`), puis la connexion Immich. Le
+  jeton passe aussi le code PIN Pangolin de la ressource. Aucun chemin ouvert :
+  hors de la maison, toute la ressource reste derrière le SSO et le filtre
+  pays (en voyage hors de ces pays, l'appli est refusée).
 - Grocy : l'appli Android (patzly/grocy-android) n'envoie pas d'en-tête
   personnalisé, donc pas de jeton d'accès. Elle passe par
   l'**authentification par en-tête** de Pangolin
@@ -117,12 +124,8 @@ ressource répond sans SSO, et sans le code PIN Pangolin d'Immich
 (`pangolin_resource_pincode.immich`). C'est ce qui fait marcher l'appli
 mobile d'Immich sur le Wi-Fi de la maison, et l'envoi de positions de
 Dawarich (Overland, OwnTracks…), qui n'ouvre aucun chemin au monde. Dehors,
-l'appli mobile d'Immich passe par un jeton d'accès Pangolin
-(`pangolin_resource_access_token.immich_clients`, un par appareil, sortie
-`immich_client_access_tokens`) qu'elle envoie dans ses en-têtes de proxy
-personnalisés (Paramètres → Avancé → En-têtes de proxy personnalisés :
-`P-Access-Token-Id` et `P-Access-Token`), en plus de la connexion Immich.
-Aucun chemin n'est ouvert au monde.
+l'appli mobile d'Immich passe par son jeton d'accès (voir plus haut, « Chemins
+qui gardent l'authentification Pangolin »).
 
 Ce que ça fait confiance : tout appareil derrière la box (Wi-Fi invité
 compris), et l'adresse plutôt que la maison. Si l'opérateur réattribue l'IP,
