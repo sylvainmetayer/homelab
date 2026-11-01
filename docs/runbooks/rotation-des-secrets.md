@@ -238,7 +238,7 @@ valeur dans l'application une fois la carte vérifiée.
 | `homepage_jellyfin_api_key` | Jellyfin : médiathèque, lectures en cours | Jellyfin, Tableau de bord → Avancé → Clés API (clé d'administration : risque accepté, `docs/architecture.md`) | `application` |
 | `homepage_homebox_password` | Homebox : objets, emplacements, valeur | Homebox : inviter le compte `homepage_homebox_username` (`host_vars/docker`) dans le groupe de Sylvain, mot de passe `openssl rand -base64 32` (le compte peut écrire : risque accepté) | `application` |
 | `homepage_karakeep_api_key` | Karakeep : favoris, listes, étiquettes | Karakeep, compte dont on veut les compteurs, User Settings → API Keys (tous ses droits : risque accepté) | `application` |
-| `homepage_calendar_ics_url` | Agenda (iCal) | Nextcloud, Agenda → l'agenda → Partager → lien public en lecture seule, puis « Copier le lien d'abonnement » : `webcal://…/remote.php/dav/public-calendars/<jeton>?export`, à enregistrer en `https://` | `application` |
+| `homepage_calendar_ics_url`, `homepage_calendar_top_nous_ics_url` | Agenda (iCal) : Perso, Top nous | Nextcloud, Agenda → l'agenda → Partager → lien public en lecture seule, puis « Copier le lien d'abonnement » : `webcal://…/remote.php/dav/public-calendars/<jeton>?export`, à enregistrer en `https://` | `application` |
 
 Proxmox (sur l'hôte, en root ; `pveum`, aucun mot de passe : l'utilisateur
 n'ouvre pas de session) :

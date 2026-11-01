@@ -271,15 +271,26 @@ homepage_link_widgets_extra:
       key: "{{ homepage_karakeep_widget_key }}"
       fields: [bookmarks, favorites, lists, tags]
 
-# Agenda : une carte (groupe Vie perso) qui lit un agenda Nextcloud partagé
-# par lien public en lecture seule, au format iCal. L'URL porte le jeton du
-# partage : clé sops homepage_calendar_ics_url, vide = pas de carte.
-# Homepage la récupère côté serveur et ne l'envoie pas au navigateur.
-homepage_calendar_url: "{{ homepage_calendar_ics_url | default('') }}"
+# Agenda : une carte (groupe Vie perso) qui lit des agendas Nextcloud partagés
+# par lien public en lecture seule, au format iCal. Chaque URL porte le jeton
+# de son partage : clés sops homepage_calendar_ics_url (Perso) et
+# homepage_calendar_top_nous_ics_url (Top nous, partagé à deux). Une clé
+# absente ou vide retire son agenda ; aucune = pas de carte.
+# Homepage les récupère côté serveur et ne les envoie pas au navigateur.
+homepage_calendars:
+  - name: Perso
+    url: "{{ homepage_calendar_ics_url | default('') }}"
+    color: blue
+  - name: Top nous
+    url: "{{ homepage_calendar_top_nous_ics_url | default('') }}"
+    color: pink
+homepage_calendar_integrations: >-
+  {{ homepage_calendars | selectattr('url') | map('combine', {'type': 'ical'}) | list }}
+homepage_calendar_url: "{{ homepage_calendar_integrations | map(attribute='url') | join(' ') }}"
 homepage_calendar_card:
   name: Agenda
   group: Vie perso
-  description: Agenda partagé (Nextcloud)
+  description: Agendas Perso et Top nous (Nextcloud)
   icon: mdi-calendar-month-outline
   widget:
     type: calendar
@@ -288,11 +299,7 @@ homepage_calendar_card:
     showTime: true
     previousDays: 0
     timezone: Europe/Paris
-    integrations:
-      - type: ical
-        name: Agenda
-        url: "{{ homepage_calendar_url }}"
-        color: blue
+    integrations: "{{ homepage_calendar_integrations }}"
 
 # --- Widgets d'en-tête (widgets.yaml) : sans compte ni clé ---
 # Open-Meteo est interrogé côté serveur (api.open-meteo.com) ; la recherche
