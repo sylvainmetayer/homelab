@@ -136,10 +136,11 @@ services:
 {% endif %}
 {% if homepage_apps_summary_sources | length > 0 %}
 
-  # Cartes Grocy, Papra, Dawarich et bus TBM : interroge chaque source dont
-  # la clé existe (ici seulement) et sert un JSON plat par source. Sur newt,
-  # pour joindre Grocy, Papra et Dawarich par leur nom (et sortir vers le
-  # flux TBM) ; sans port publié. Même confinement que kuma-summary.
+  # Cartes Grocy, Papra, Dawarich, bus TBM et Coûts : interroge chaque source
+  # dont la clé existe (ici seulement), lit le costs.json de cost_report, et
+  # sert un JSON plat par source. Sur newt, pour joindre Grocy, Papra et
+  # Dawarich par leur nom (et sortir vers le flux TBM) ; sans port publié.
+  # Même confinement que kuma-summary.
   apps-summary:
     # Pas encore mesuré : quelques réponses JSON en mémoire. À recaler sur
     # memory.peak après quelques jours (rapport mem_report du lundi).
@@ -167,6 +168,11 @@ services:
 {% endfor %}
     volumes:
       - ./apps_summary.py:/app/apps_summary.py:ro
+{% if 'costs' in homepage_apps_summary_sources %}
+      # Le dossier, pas le fichier : cost_report remplace costs.json par un
+      # renommage, qu'un montage du seul fichier ne verrait pas.
+      - {{ homepage_costs_dir }}:{{ homepage_costs_mount }}:ro
+{% endif %}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ homepage_apps_summary_port }}/healthz', timeout=5)"]

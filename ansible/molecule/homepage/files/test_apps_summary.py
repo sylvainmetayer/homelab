@@ -8,6 +8,7 @@ import contextlib
 import io
 import json
 import os
+import tempfile
 import threading
 import time
 import unittest
@@ -222,14 +223,34 @@ class SourceTest(unittest.TestCase):
             source.summary()
 
 
+class CostsTest(unittest.TestCase):
+    """Le costs.json du rôle cost_report, lu sur le disque."""
+
+    def test_reads_the_file_and_keeps_the_card_fields(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "costs.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump({"previous_label": "octobre 2026", "previous_total": "30,32 €", "current_total": "0,70 €",
+                           "missing": 2, "incomplete": "PikaPods (à renseigner)", "updated": "01/11 07:00"}, handle)
+            raw = apps_summary.fetch_costs({"COSTS_FILE": path})
+        self.assertEqual(apps_summary.summarize_costs(raw, 0), {
+            "previous_total": "30,32 €", "current_total": "0,70 €", "missing": 2, "updated": "01/11 07:00",
+        })
+
+    def test_missing_file_is_a_fetch_error(self):
+        with self.assertRaises(apps_summary.FetchError):
+            apps_summary.fetch_costs({"COSTS_FILE": "/nonexistent/costs.json"})
+
+
 class BuildSourcesTest(unittest.TestCase):
     def test_only_sources_with_their_key(self):
         sources = apps_summary.build_sources({
             "GROCY_URL": "http://grocy:80", "GROCY_API_KEY": "",
             "PAPRA_URL": "http://papra:1221", "PAPRA_API_KEY": "k",
             "TBM_URL": "https://tbm.invalid/sm.json", "TBM_STOPS": "a,b",
+            "COSTS_FILE": "/data/costs/costs.json",
         })
-        self.assertEqual(sorted(sources), ["/papra.json", "/tbm.json"])
+        self.assertEqual(sorted(sources), ["/costs.json", "/papra.json", "/tbm.json"])
 
 
 class ServerTest(unittest.TestCase):

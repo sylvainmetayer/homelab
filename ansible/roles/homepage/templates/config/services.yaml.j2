@@ -6,7 +6,7 @@
 # ceux de homepage_link_widgets et homepage_link_widgets_extra sur leur lien,
 # une carte par hôte de Beszel, une par page de statut d'Uptime Kuma, celles
 # de la supervision (sondes en panne, sauvegardes, maintenance, CrowdSec,
-# Blocky), l'agenda et les passages du bus (defaults/main.yml).
+# Blocky), l'agenda, les passages du bus et les coûts (defaults/main.yml).
 {% set widgets = {} %}
 {% for key, candidate in homepage_link_widgets_extra.items() if candidate.enabled | bool and candidate.widget.url | default('') | length > 0 %}
 {%   set _ = widgets.update({key: candidate.widget}) %}
@@ -57,6 +57,9 @@
 {% endif %}
 {% if 'tbm' in homepage_apps_summary_sources %}
 {%   set _ = cards.append(homepage_tbm_card) %}
+{% endif %}
+{% if 'costs' in homepage_apps_summary_sources %}
+{%   set _ = cards.append(homepage_costs_card) %}
 {% endif %}
 {% set groups = homepage_groups + (cards | map(attribute='group') | reject('in', homepage_groups) | unique | sort | list) %}
 {% for group in groups if cards | selectattr('group', 'equalto', group) | list | length > 0 %}

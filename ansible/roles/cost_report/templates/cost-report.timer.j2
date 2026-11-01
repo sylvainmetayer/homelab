@@ -1,0 +1,13 @@
+# Chaque jour, plus un lancement peu après le démarrage du timer
+# (déploiement, redémarrage) ; Persistent rattrape un jour manqué.
+[Unit]
+Description=Daily cost report of the homelab
+
+[Timer]
+OnCalendar={{ cost_report_schedule }}
+OnActiveSec={{ cost_report_first_run_delay }}
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

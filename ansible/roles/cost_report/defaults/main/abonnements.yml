@@ -1,0 +1,27 @@
+---
+# Abonnements fixes du rapport des coûts, ceux qu'aucune API ne donne. Une
+# ligne par abonnement :
+#   name     : son nom dans le rapport ;
+#   amount   : le montant TTC payé par période ; 0 = « à renseigner » (le
+#              rapport le dit et ne le compte pas) ;
+#   currency : code ISO (EUR, USD) ; les totaux ne convertissent pas, ils
+#              s'additionnent par devise ;
+#   period   : monthly ou yearly (ramené au mois : montant / 12).
+# Modifier ce fichier redéploie le seul tag cost_report au merge.
+cost_report_subscriptions:
+  # Uptime Kuma hébergé chez PikaPods : pas d'API publique, le montant de la
+  # facture mensuelle. PikaPods facture en dollars : vérifier la devise sur
+  # la facture.
+  - name: PikaPods
+    amount: 0
+    currency: USD
+    period: monthly
+  # Infomaniak kDrive : vérifier la période (mensuelle ou annuelle).
+  - name: kDrive
+    amount: 0
+    currency: EUR
+    period: monthly
+  - name: Abonnement IA
+    amount: 0
+    currency: EUR
+    period: monthly

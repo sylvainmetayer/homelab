@@ -593,6 +593,18 @@ flowchart LR
   main : `sudo systemctl start mem-report`, le texte complet (lignes coupées
   du message ntfy comprises) dans
   `journalctl -u mem-report`.
+- **Rapport mensuel des coûts** (rôle `cost_report`, VM docker) : chaque
+  matin, `cost-report.timer` relit Hetzner (jeton de projet en lecture
+  seule : serveurs, sauvegardes, IP, volumes et Storage Box au tarif
+  courant, l'API n'ayant pas de facture), OVH (application restreinte à la
+  lecture des factures et de la consommation Public Cloud) et les
+  abonnements fixes déclarés dans le dépôt (PikaPods, kDrive…,
+  `defaults/main/abonnements.yml` du rôle). Le 1er du mois, il publie sur
+  ntfy (topic `scripts`) le total du mois dernier et son détail par source ;
+  chaque jour, la carte Coûts de Homepage (groupe Administration) montre le
+  mois dernier et le mois en cours à date. Une source sans clé est « non
+  configurée » et le rapport sort quand même. Détail, création des clés :
+  [README du rôle](../ansible/roles/cost_report/README.md).
 
 ## Les journaux (VictoriaLogs)
 
