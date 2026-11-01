@@ -55,11 +55,12 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SHARED_PATH_RE = re.compile(r"^ansible/(?:(?:group_vars/all|tasks)/.+|requirements\.yml)$")
 # Files outside ansible/roles/ that a role reads, mapped to that role: a
 # change deploys it as a change to its own files would. docs_site builds the
-# docs/ folder with mkdocs.yml and its hooks into docs.sylvain.cloud. A
+# docs/ folder with mkdocs.yml and its hooks (.github/scripts/mkdocs_*.py,
+# the same glob as deploy-docker-app.yaml's paths) into docs.sylvain.cloud. A
 # mkdocs or Material bump (uv.lock) is left out, like every uv.lock change:
 # the next docs change rebuilds with it.
 ROLE_SOURCES = [
-    (re.compile(r"^(?:docs/.+|mkdocs\.yml|\.github/scripts/mkdocs_(?:external_links|mermaid)\.py)$"), "docs_site"),
+    (re.compile(r"^(?:docs/.+|mkdocs\.yml|\.github/scripts/mkdocs_[a-z_]+\.py)$"), "docs_site"),
 ]
 
 
