@@ -2616,7 +2616,7 @@ run "monitors_are_filed_and_alert" {
 # fenêtre (jusqu'à 20 jours). Chaque contrôle nommé ici pousse bien un
 # « down » ; s'il cessait, la règle serait à revoir.
 run "pushed_down_pages_at_once" {
-  command = apply
+  command = plan
 
   assert {
     condition = alltrue([
@@ -2627,18 +2627,19 @@ run "pushed_down_pages_at_once" {
         uptimekuma_monitor_push.storage_box_quota,
       ]) : m.max_retries == 0 && m.interval >= 7 * 86400
     ])
-    error_message = "Les moniteurs des contrôles hebdomadaires et bimensuels qui poussent « down » (mises à jour, tests de restauration, rotation des secrets, Storage Box) doivent avoir max_retries = 0."
+    error_message = "Les moniteurs des contrôles hebdomadaires et bimensuels qui poussent « down » (mises à jour, tests de restauration, rotation des secrets, Storage Box) doivent avoir max_retries = 0 et une fenêtre d'au moins 7 jours (sinon, revoir la règle)."
   }
 
+  # Chemins écrits en entier, pas `${f}` : select_tests.py ne relie un fichier
+  # à ce module que par un chemin littéral, et une modification d'un de ces
+  # contrôles doit relancer ce test dans sa PR.
   assert {
     condition = alltrue([
-      for f, marker in {
-        "ansible/roles/update_notify/files/update_notify.py"             = "\"down\""
-        "ansible/roles/vzdump_restore_test/files/vzdump_restore_test.py" = "\"down\""
-        ".github/scripts/check_secret_rotation.py"                       = "\"down\""
-        ".github/scripts/storage_box_quota.py"                           = "\"down\""
-        ".github/workflows/restore-test.yaml"                            = "status=down"
-      } : strcontains(file("${path.module}/../../${f}"), marker)
+      strcontains(file("${path.module}/../../ansible/roles/update_notify/files/update_notify.py"), "\"down\""),
+      strcontains(file("${path.module}/../../ansible/roles/vzdump_restore_test/files/vzdump_restore_test.py"), "\"down\""),
+      strcontains(file("${path.module}/../../.github/scripts/check_secret_rotation.py"), "\"down\""),
+      strcontains(file("${path.module}/../../.github/scripts/storage_box_quota.py"), "\"down\""),
+      strcontains(file("${path.module}/../../.github/workflows/restore-test.yaml"), "status=down"),
     ])
     error_message = "Un des contrôles ne pousse plus « down » : revoir push_down_max_retries (uptime_globals.tf)."
   }
