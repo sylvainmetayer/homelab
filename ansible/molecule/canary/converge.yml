@@ -14,4 +14,4 @@
     - role: canary
       become: true
       vars:
-        canary_ntfy_url: http://127.0.0.1:18082 # NOSONAR
+        canary_ntfy_url: http://127.0.0.1:18081 # NOSONAR

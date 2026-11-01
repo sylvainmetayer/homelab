@@ -38,7 +38,7 @@ journalctl -u ssh --since "<heure - 1 h>" # qui était connecté, depuis où, av
 journalctl -t ssh-login-notify --since -1d
 journalctl _COMM=sudo --since "<heure - 1 h>"
 loginctl list-sessions; ps -ef --forest   # sessions et processus en cours
-sudo fail2ban-client status sshd          # l'IP du compte fictif doit y être bannie
+sudo fail2ban-client status sshd          # l'IP du compte fictif, bannie après plusieurs essais seulement (jamais celle du bastion sur flip)
 ```
 
 Les mêmes journaux sont dans VictoriaLogs (`logs.sylvain.cloud`) : y

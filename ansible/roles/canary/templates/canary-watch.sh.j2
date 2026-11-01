@@ -17,15 +17,16 @@ HONEY_USER={{ canary_honey_user | quote }}
 CANARY_INTERVAL={{ canary_alert_interval | int }}
 HOST_LABEL={{ inventory_hostname | quote }}
 
-# $1 : piège (clé de l'anti-rafale), $2 : message.
+# $1 : piège, $2 : message. Anti-rafale : last_alert, la variable locale de
+# la veille appelante (une par piège).
 alert() {
     local kind=$1 message=$2 now title
     logger -t canary -p auth.alert -- "$kind : $message"
     now=$(date +%s)
-    if (( now - ${last_alert[$kind]:-0} < CANARY_INTERVAL )); then
+    if (( now - last_alert < CANARY_INTERVAL )); then
         return 0
     fi
-    last_alert[$kind]=$now
+    last_alert=$now
     [ -n "${NTFY_TOKEN:-}" ] || return 0
     title="Jeton piège sur $HOST_LABEL"
     # Le jeton passe par un descripteur (--config <(...), printf intégré à
@@ -42,8 +43,7 @@ alert() {
 }
 
 watch_file() {
-    local dir name events file
-    declare -A last_alert=()
+    local dir name events file last_alert=0
     dir=$(dirname -- "$TRAP_FILE")
     name=$(basename -- "$TRAP_FILE")
     # Le dossier, pas le fichier : la veille survit à la suppression et à la
@@ -57,8 +57,7 @@ watch_file() {
 }
 
 watch_ssh() {
-    local line
-    declare -A last_alert=()
+    local line last_alert=0
     # Les processus de sshd (sshd-session, sshd-auth compris) vivent dans le
     # groupe de contrôle de ssh.service : filtrer par unité, pas par nom de
     # programme, qui change d'une version d'OpenSSH à l'autre.
