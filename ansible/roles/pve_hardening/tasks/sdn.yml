@@ -7,6 +7,18 @@
   changed_when: false
   check_mode: false
 
+# Les lectures ci-dessus donnent la configuration en attente (/etc/pve/sdn) :
+# un run coupé entre les suppressions et `pvesh set /cluster/sdn` (ou une
+# zone supprimée dans l'interface sans appliquer) n'y laisse plus rien, alors
+# que le pont et son dnsmasq tournent encore. Une zone encore appliquée
+# relance donc l'application.
+- name: Read the applied SDN zones
+  ansible.builtin.command:
+    argv: [pvesh, get, /cluster/sdn/zones, --running, "1", --output-format, json]
+  register: pve_hardening_sdn_running
+  changed_when: false
+  check_mode: false
+
 - name: Select the SDN objects to remove
   ansible.builtin.set_fact:
     pve_hardening_sdn_zones: >-
@@ -15,9 +27,14 @@
     pve_hardening_sdn_vnets: >-
       {{ pve_hardening_sdn_read.results[1].stdout | from_json
          | selectattr('zone', 'in', pve_hardening_sdn_removed_zones) | map(attribute='vnet') | list }}
+    pve_hardening_sdn_applied_zones: >-
+      {{ pve_hardening_sdn_running.stdout | from_json | map(attribute='zone')
+         | select('in', pve_hardening_sdn_removed_zones) | list }}
 
 - name: Remove the SDN objects nothing uses
-  when: pve_hardening_sdn_zones | length > 0 or pve_hardening_sdn_vnets | length > 0
+  when: >-
+    pve_hardening_sdn_zones | length > 0 or pve_hardening_sdn_vnets | length > 0
+    or pve_hardening_sdn_applied_zones | length > 0
   block:
     # Configs des VM et LXC de tous les nœuds, sections de snapshot et
     # pending comprises : un bridge=<vnet> n'importe où arrête tout.

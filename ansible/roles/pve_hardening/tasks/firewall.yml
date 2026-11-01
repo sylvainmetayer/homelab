@@ -1,15 +1,19 @@
 ---
 # Garde-fou : la machine qui lance le play doit être dans le réseau
-# autorisé, sinon le pare-feu fermerait SSH au lanceur lui-même. Absent hors
-# SSH (Molecule) : rien à vérifier.
+# autorisé, sinon le pare-feu fermerait SSH au lanceur lui-même. Lu dans la
+# session de ce run, pas dans ansible_facts['env'] : gathering = smart et le
+# cache de faits (30 min) rendraient la source d'un run précédent. Absent
+# hors SSH (Molecule) : rien à vérifier.
 - name: Check that this run comes from the admin network
-  when: ansible_facts['env']['SSH_CLIENT'] is defined
   ansible.builtin.command:
     argv:
       - python3
       - -c
-      - import ipaddress, sys; sys.exit(ipaddress.ip_address(sys.argv[1]) not in ipaddress.ip_network(sys.argv[2]))
-      - "{{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}"
+      - >-
+        import ipaddress, os, sys;
+        source = os.environ.get('SSH_CLIENT', '').split()[:1];
+        print(*source);
+        sys.exit(bool(source) and ipaddress.ip_address(source[0]) not in ipaddress.ip_network(sys.argv[1]))
       - "{{ pve_hardening_lan_cidr }}"
   register: pve_hardening_ssh_source
   changed_when: false
@@ -17,12 +21,11 @@
   check_mode: false
 
 - name: Assert this run comes from the admin network
-  when: pve_hardening_ssh_source is not skipped
   ansible.builtin.assert:
     that:
       - pve_hardening_ssh_source.rc == 0
     fail_msg: >-
-      Connexion depuis {{ ansible_facts['env']['SSH_CLIENT'].split()[0] }}, hors de
+      Connexion depuis {{ pve_hardening_ssh_source.stdout }}, hors de
       {{ pve_hardening_lan_cidr }} : le pare-feu couperait ce lanceur. Rien n'est écrit.
     quiet: true
 

@@ -53,6 +53,7 @@
         pve_hardening_sshd_effective.stdout_lines
         | select('match', '^permitrootlogin (without-password|prohibit-password)$') | list | length == 1
       - "'passwordauthentication no' in pve_hardening_sshd_effective.stdout_lines"
+      - "'kbdinteractiveauthentication no' in pve_hardening_sshd_effective.stdout_lines"
       - "'x11forwarding no' in pve_hardening_sshd_effective.stdout_lines"
       - "'pubkeyauthentication yes' in pve_hardening_sshd_effective.stdout_lines"
     quiet: true
