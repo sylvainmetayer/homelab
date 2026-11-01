@@ -181,7 +181,9 @@
           - "'proxy_method POST;' in random_location"
           - "'proxy_set_header Content-Type application/json;' in random_location"
           - >-
-            "proxy_set_body '{\"size\":$immich_swipe_random_size,\"withExif\":true,\"filter\":{\"visibility\":{\"in\":[\"archive\",\"timeline\"]},\"trashedAt\":{\"eq\":null}}}';" in random_location
+            "proxy_set_body '{\"size\":$immich_swipe_random_size,\"withExif\":true," in random_location
+          - >-
+            '"filter":{"visibility":{"in":["archive","timeline"]},"trashedAt":{"eq":null}}}\';' in random_location
           - "'proxy_set_header x-api-key \"molecule-immich-swipe-api-key\";' in random_location"
           - "'proxy_set_header Cookie \"\";' in random_location"
           - "'proxy_set_header Authorization \"\";' in random_location"
