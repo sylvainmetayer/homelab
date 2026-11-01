@@ -98,9 +98,9 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   exactement comme Jellyfin (`docs/architecture.md`) : servi par le Traefik
   du NAS (rôle `nas_proxy`, routeur `mediamanager`, certificat Let's Encrypt
   par DNS-01 OVH), qui joint le conteneur sur `mediamanager:8000` par le
-  réseau Docker `proxy` du projet (`mediamanager_proxy`, interne, créé ici et
-  rejoint en externe par `nas-proxy` : `mediamanager` avant `nas_proxy` dans
-  `nas.yml`). À la maison, le A public `tofu/dns/mediamanager.tf` vise l'IP
+  réseau Docker `proxy` du projet (`mediamanager_proxy`, interne, créé par
+  `dc@nas_proxy` et rejoint ici en externe : `mediamanager` après `nas_proxy`
+  dans `nas.yml` ; l'essai dépend du Traefik du NAS, jamais l'inverse). À la maison, le A public `tofu/dns/mediamanager.tf` vise l'IP
   LAN du NAS (laissé passer par Blocky, `blocky_rebinding_allowed_domains`) ;
   dehors, le client Pangolin résout le même nom vers la ressource privée
   `mediamanager` (site `nas`, `tofu/pangolin_config/private_resources.tf`,
@@ -185,9 +185,11 @@ restauration pour un essai.
 1. `tofu/dns` et `tofu/pangolin_config` appliqués (A, ressource
    `mediamanager`, rôle, liaison), puis Sylvain ajouté au rôle `mediamanager`
    dans l'UI de Pangolin.
-2. `ansible-playbook nas.yml --tags mediamanager,nas_proxy` (depuis
-   `ansible/`, dans cet ordre : `nas_proxy` rejoint le réseau que crée
-   `dc@mediamanager`).
+2. `ansible-playbook nas.yml --tags nas_proxy,mediamanager` (depuis
+   `ansible/` ; `nas.yml` passe `nas_proxy`, qui crée le réseau
+   `mediamanager_proxy`, avant `mediamanager`, qui le rejoint. Lancé seul
+   avant `nas_proxy`, `dc@mediamanager` réessaierait toutes les 15 s sans
+   rien casser d'autre).
 3. `https://mediamanager.sylvain.cloud` (client Pangolin connecté, dehors) : le compte
    à l'adresse de `pangolin_le_email` (`mediamanager_admin_email`), mot de
    passe **`admin`**, créé au premier démarrage : **le changer aussitôt**.
@@ -262,12 +264,7 @@ ansible-playbook nas.yml --tags mediamanager
 
 ## Retirer l'essai
 
-Skill `remove-app`, avec `nas.yml`. **D'abord** sortir MediaManager de
-`nas_proxy` (routeur, réseau, nom du contrôle de certificats : liste plus bas)
-et lancer `--tags nas_proxy` : tant que `nas-proxy` est branché sur
-`mediamanager_proxy`, Docker refuse de supprimer ce réseau, et sans lui
-`dc@nas_proxy` ne redémarre plus (`media.sylvain.cloud` et
-`nas.sylvain.cloud` tombent avec). Puis :
+Skill `remove-app`, avec `nas.yml` :
 
 ```bash
 cd ansible
@@ -287,8 +284,9 @@ puis `sudo rm -rf /volume1/media/.mediamanager-test`.
 Puis, dans le dépôt : ce rôle, `ansible/molecule/mediamanager/`, l'entrée de
 `nas.yml`, dans `nas_proxy` le routeur, le service et les en-têtes
 `mediamanager` (`templates/dynamic.yml`), le réseau `mediamanager` du compose,
-les `nas_proxy_mediamanager_*` et le nom de `nas_proxy_cert_check_names` (déjà
-faits, plus haut), le A `tofu/dns/mediamanager.tf` et son test,
+les `nas_proxy_mediamanager_*` et le nom de `nas_proxy_cert_check_names` (puis
+`--tags nas_proxy` ; le réseau `mediamanager_proxy`, vide, reste dans Docker :
+`docker network rm mediamanager_proxy`), le A `tofu/dns/mediamanager.tf` et son test,
 `mediamanager.sylvain.cloud` de `blocky_rebinding_allowed_domains`, la
 ressource, le rôle et la liaison `mediamanager` de
 `tofu/pangolin_config/private_resources.tf` (et `pangolin_role.mediamanager`

@@ -4,7 +4,7 @@
 
 [misc]
 frontend_url = {{ mediamanager_frontend_url | to_json }}
-cors_urls = [{{ mediamanager_frontend_url | to_json }}]
+cors_urls = {{ mediamanager_cors_urls | to_json }}
 # Bac à sable monté en /data (un seul montage, liens physiques possibles),
 # affiches hors des médias.
 image_directory = "/images"

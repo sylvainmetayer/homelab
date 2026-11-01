@@ -208,8 +208,8 @@ networks:
   # La base et MediaManager seuls, sans sortie.
   db:
     internal: true
-  # MediaManager et le Traefik du NAS seuls (nas-proxy le rejoint en externe,
-  # sous ce nom) : aucune sortie, ni la base ni gluetun.
+  # MediaManager et le Traefik du NAS seuls, sans sortie : créé par
+  # dc@nas_proxy sous ce nom (interne), d'où mediamanager après nas_proxy.
   proxy:
     name: {{ mediamanager_network }}
-    internal: true
+    external: true
