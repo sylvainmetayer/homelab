@@ -1,0 +1,110 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Secrets éphémères : aucune configuration borgmatic, exprès.
+    - name: Verify the enclosed deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: enclosed
+        verify_app_borgmatic_config: ""
+
+    - name: Verify the enclosed compose services
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: enclosed
+        verify_compose_healthchecks:
+          - app
+        verify_compose_internal_networks:
+          - cli
+
+    - name: Stat the enclosed borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/enclosed.yaml"
+      register: enclosed_borgmatic
+
+    - name: Assert enclosed is not backed up
+      ansible.builtin.assert:
+        that:
+          - not enclosed_borgmatic.stat.exists
+
+    - name: Render the enclosed compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/apps/enclosed
+      register: enclosed_compose_raw
+      changed_when: false
+
+    # newt pour Pangolin ; enclosed-cli, interne et nommé en dur, pour le
+    # conteneur jetable d'enclosed-share, qui le vise par ce nom.
+    - name: Assert enclosed joins newt and the internal enclosed-cli network
+      vars:
+        enclosed_compose: "{{ enclosed_compose_raw.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - enclosed_compose.services.app.networks.keys() | sort == ['cli', 'newt']
+          - enclosed_compose.networks.cli.name == 'enclosed-cli'
+          - enclosed_compose.networks.cli.internal
+          - enclosed_compose.services.app.container_name == 'enclosed'
+          - enclosed_compose.services.app.read_only
+          - enclosed_compose.services.app.stop_signal == 'SIGINT'
+          - enclosed_compose.services.app.mem_limit is defined
+        fail_msg: "Compose d'enclosed inattendu : {{ enclosed_compose.services.app }}"
+
+    - name: Stat the enclosed environment file
+      ansible.builtin.stat:
+        path: /opt/apps/enclosed/.env
+      register: enclosed_env
+
+    - name: Assert the enclosed environment file is private
+      ansible.builtin.assert:
+        that:
+          - enclosed_env.stat.exists
+          - enclosed_env.stat.mode == '0600'
+
+    - name: Stat the enclosed-share helper
+      ansible.builtin.stat:
+        path: /usr/local/bin/enclosed-share
+      register: enclosed_share
+
+    - name: Assert the enclosed-share helper is installed
+      ansible.builtin.assert:
+        that:
+          - enclosed_share.stat.exists
+          - enclosed_share.stat.pw_name == 'root'
+          - enclosed_share.stat.mode == '0755'
+
+    - name: Check the enclosed-share helper syntax
+      ansible.builtin.command: bash -n /usr/local/bin/enclosed-share
+      changed_when: false
+
+    # Refusé avant tout appel à Docker : aucune note créée.
+    - name: Run enclosed-share with an out-of-range TTL
+      ansible.builtin.command: /usr/local/bin/enclosed-share --ttl 10
+      args:
+        stdin: "pas un secret"
+      register: enclosed_share_bad_ttl
+      changed_when: false
+      failed_when: enclosed_share_bad_ttl.rc != 2
+
+    - name: Stat the enclosed-share note script and its lockfile
+      ansible.builtin.stat:
+        path: "/opt/apps/enclosed/cli/{{ item }}"
+      loop:
+        - package.json
+        - package-lock.json
+        - share.mjs
+      register: enclosed_cli_files
+
+    - name: Assert the enclosed-share note script and its lockfile are present
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == '0600'
+        fail_msg: "{{ item.item }} absent ou pas en 0600"
+      loop: "{{ enclosed_cli_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"

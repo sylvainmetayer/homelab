@@ -1,0 +1,8 @@
+{
+  "name": "enclosed-share",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@enclosed/lib": "1.16.1"
+  }
+}

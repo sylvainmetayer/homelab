@@ -66,6 +66,7 @@ locals {
     demo_planning           = local.demo_planning_website
     demo_planning_kc        = local.demo_planning_kc_website
     docs                    = local.docs_website
+    enclosed                = local.enclosed_website
     exemple_planning        = local.exemple_planning_website
     flip_planning           = local.flip_planning_website
     grocy                   = local.grocy_website

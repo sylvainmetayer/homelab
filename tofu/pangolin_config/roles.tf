@@ -28,7 +28,8 @@ locals {
     "grocy",
     "beszel",
     "victoria-logs",
-    "docs"
+    "docs",
+    "enclosed"
   ]
 }
 

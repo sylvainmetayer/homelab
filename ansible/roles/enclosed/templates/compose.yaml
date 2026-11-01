@@ -1,0 +1,51 @@
+---
+services:
+  app:
+    # Pas encore mesuré : un serveur Node (Hono) qui ne garde rien en mémoire,
+    # les notes vont sur le volume. Une note chiffrée tient au plus
+    # enclosed_max_payload_bytes (5 Mio). À recaler sur memory.peak (rapport
+    # mem_report) après quelques semaines.
+    mem_limit: 256m
+    # Variante -rootless : l'image tourne sous l'utilisateur nonroot de
+    # l'image, propriétaire de /app/.data.
+    image: docker.io/corentinth/enclosed:1.16.1-rootless@sha256:26cfc00ba76f20b9ed7c5f867d241eddb02379c39090e9ad88c08c671d31d5e9
+    container_name: {{ enclosed_container_name }}
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    env_file:
+      - .env
+    volumes:
+      # Les notes chiffrées (un fichier par note, stockage fs-lite), jusqu'à
+      # leur lecture ou leur expiration. Volume nommé : Docker l'initialise
+      # aux droits de /app/.data dans l'image. Jamais sauvegardé (README).
+      - data:/app/.data
+    restart: unless-stopped
+    # Node en PID 1 ignore SIGTERM : sans ce signal, `docker compose stop`
+    # (dc@) attend 10 s puis tue. Le serveur ferme son stockage sur SIGINT.
+    stop_signal: SIGINT
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:{{ enclosed_port }}/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - newt
+      - cli
+
+networks:
+  newt:
+    external: true
+  # Le seul réseau du conteneur jetable d'enclosed-share : interne, donc sans
+  # route vers Internet. Nommé en dur, le script le vise par ce nom.
+  cli:
+    name: {{ enclosed_cli_network }}
+    internal: true
+
+volumes:
+  data:

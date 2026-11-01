@@ -503,6 +503,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["enclosed"]
+  values = { id = 67 }
+}
+
+override_resource {
   target = pangolin_resource.website["paperless"]
   values = { id = 40 }
 }
@@ -1150,6 +1155,10 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Dawarich /favicon.ico",
       "Demo Planning /mcp/*",
       "Demo Planning KC /auth/*",
+      "Enclosed /0*",
+      "Enclosed /assets/*",
+      "Enclosed /api/notes/0*",
+      "Enclosed /api/notes/0*/exists",
       "Flip Planning /mcp/*",
       "Karakeep /public/lists/*",
       "Karakeep /_next/static/*",
