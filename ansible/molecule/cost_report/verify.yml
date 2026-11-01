@@ -229,7 +229,10 @@
           # Lisible par apps-summary (nobody), qui le monte en lecture seule.
           - cost_report_verify_costs_file.stat.mode == '0644'
           - cost_report_verify_costs_file.stat.pw_name == 'sylvain'
-        fail_msg: "{{ cost_report_verify_requests }}"
+        # Une chaîne : assert refuse une liste de dictionnaires en fail_msg.
+        fail_msg: >-
+          {{ cost_report_verify_requests | to_json(ensure_ascii=False) }}
+          {{ cost_report_verify_outputs.results | map(attribute='content') | map('b64decode') | list | to_json(ensure_ascii=False) }}
 
     - name: Stop the fake APIs
       ansible.builtin.systemd:
