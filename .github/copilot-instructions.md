@@ -21,16 +21,7 @@ knowledge, it will be wrong in specific ways for this repo.
 | Add/fix a Borgmatic backup for a service | `.claude/skills/borgmatic-backup/SKILL.md` | `/borgmatic-backup` |
 | Review a homelab diff before `tofu apply` / `ansible-playbook` | switch to the **homelab-reviewer** chat mode | — |
 
-The procedures live once, in `.claude/skills/*/SKILL.md`. The path-scoped
-`.github/instructions/*.instructions.md` files and the `.github/prompts/*.prompt.md`
-slash commands only point there: update the skill, never a copy.
-
-## Two mistakes already shipped once in this repo — don't repeat them
-
-- Every `pangolin_target` in `tofu/pangolin_config/*.tf` needs `hc_hostname`
-  set explicitly — it is **not** inferred from `ip`, and omitting it silently
-  breaks the healthcheck (this happened for real, for `sparky_fitness`).
-- For path-based multi-target routing on one Pangolin resource, the catch-all
-  `"/"` target needs the **lowest** `priority` number and more specific paths
-  need **higher** numbers — the opposite of what you'd guess (this shipped
-  backwards once for `flip_planning` and had to be fixed).
+The procedures live once, in `.claude/skills/*/SKILL.md` (the reviewer in
+`.claude/agents/homelab-reviewer.md`). The `.github/prompts/*.prompt.md` slash
+commands and the homelab-reviewer chat mode only point there: update the
+skill or the agent, never a copy.
