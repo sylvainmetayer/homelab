@@ -121,6 +121,18 @@
       loop_control:
         label: "{{ item.item }}"
 
+    # L'acme.json du prepare gardé tel quel : touch ne réécrit jamais les
+    # certificats.
+    - name: Read the existing ACME storage
+      ansible.builtin.slurp:
+        path: "{{ nas_proxy_verify_path }}/acme/acme.json"
+      register: nas_proxy_verify_acme
+
+    - name: Assert the existing certificates were kept
+      ansible.builtin.assert:
+        that:
+          - (nas_proxy_verify_acme.content | b64decode | from_json).letsencrypt.Certificates[0].domain.main == 'media.sylvain.cloud'
+
     - name: Read the Traefik configuration
       ansible.builtin.slurp:
         path: "{{ nas_proxy_verify_path }}/config/{{ item }}"
