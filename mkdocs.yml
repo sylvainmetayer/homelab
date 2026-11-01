@@ -115,6 +115,12 @@ nav:
       - runbooks/rotation-des-secrets.md
       - runbooks/mises-a-jour-hotes.md
       - runbooks/jeton-piege.md
+      - runbooks/healthlog.md
+      - runbooks/enclosed.md
+      - runbooks/mediamanager-nas.md
+      - runbooks/planning-vitrine.md
+      - runbooks/immich-swipe.md
+      - runbooks/homepage-cartes.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md

@@ -32,6 +32,12 @@ choix dans [../adr/](../adr/README.md).
 | Rotation planifiée des secrets : périodes par nature, procédure par secret, date à mettre à jour, alerte « Rotation des secrets » (procédure, pas un incident) | [rotation-des-secrets.md](rotation-des-secrets.md) |
 | Un jeton piège a sonné (alerte ntfy urgente « Jeton piège » : clé AWS factice utilisée, fichier leurre ouvert, compte SSH fictif essayé) | [jeton-piege.md](jeton-piege.md) |
 | Mises à jour des hôtes Debian (Proxmox, VM docker, Pi, flip, Pangolin : alerte ntfy du lundi, moniteurs « Mises à jour <hôte> ») et d'UGOS : Docker à la main (tous les conteneurs redémarrent), `full-upgrade`, ordre d'arrêt de Proxmox, `nas.yml` après UGOS (procédure, pas un incident) | [mises-a-jour-hotes.md](mises-a-jour-hotes.md) |
+| HealthLog (sante.sylvain.cloud) : appli ou base en panne, Withings ne synchronise plus (webhook, synchronisation horaire, reconnexion), clé de chiffrement dérivée de `backup_passphrase`, restauration depuis Borg | [healthlog.md](healthlog.md) |
+| Enclosed (pwpush.sylvain.cloud) : lien qui n'ouvre rien ou note déjà lue, création refusée, `enclosed-share` en échec | [enclosed.md](enclosed.md) |
+| MediaManager sur le NAS : appli injoignable (Traefik du NAS, certificat), VPN gluetun tombé ou qui fuit, port redirigé de qBittorrent, liens physiques | [mediamanager-nas.md](mediamanager-nas.md) |
+| planning.sylvain.dev (Cloudflare Pages) : déploiement en échec, domaine en attente, jeton du beacon, dérive du plan de `tofu/planning` | [planning-vitrine.md](planning-vitrine.md) |
+| Immich Swipe (swipe-photos.sylvain.cloud) : erreur de connexion, mode aléatoire, rotation de la clé d'API, rôle Pangolin `immich-swipe` | [immich-swipe.md](immich-swipe.md) |
+| Homepage : carte en erreur ou absente (agenda `ical-filter`, Supervision `kuma-summary`, cartes d'applis `apps-summary`) | [homepage-cartes.md](homepage-cartes.md) |
 
 ## Avant de commencer
 
