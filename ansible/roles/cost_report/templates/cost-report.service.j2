@@ -15,7 +15,9 @@ EnvironmentFile={{ cost_report_env_file }}
 # Homepage (apps-summary, nobody) le monte en lecture seule.
 StateDirectory={{ cost_report_state_dir | basename }}
 StateDirectoryMode=0755
-ExecStart=/usr/bin/python3 -I {{ cost_report_script }} --config {{ cost_report_config_file }} --state-dir {{ cost_report_state_dir }}
+# Configuration et dossier d'état aux chemins fixes du script
+# (CONFIG_FILE, STATE_DIR), ceux de vars/main.yml.
+ExecStart=/usr/bin/python3 -I {{ cost_report_script }}
 TimeoutStartSec=5min
 # N'écrit que dans son StateDirectory ; parle aux API et à ntfy.
 NoNewPrivileges=yes

@@ -16,12 +16,12 @@ Lancé chaque jour par cost-report.timer. Interroge chaque source configurée :
 Une source sans clé est « non configurée », un abonnement à 0 « à
 renseigner » : le rapport sort quand même, partiel, et le dit.
 
-Écrit chaque jour <state-dir>/costs.json (lu par la carte Coûts de Homepage,
+Écrit chaque jour /var/lib/cost-report/costs.json (lu par la carte Coûts de Homepage,
 apps-summary) : le total du mois dernier et celui du mois en cours à date
 (prorata du mois écoulé pour Hetzner et les abonnements). Publie sur ntfy
 le rapport du mois dernier une fois par mois : au premier lancement d'un
 mois dont le rapport n'est pas encore parti (le 1er, ou plus tard si
-l'hôte était éteint), mémorisé dans <state-dir>/state.json.
+l'hôte était éteint), mémorisé dans state.json.
 
 Bibliothèque standard seule. Les jetons arrivent par l'environnement
 (EnvironmentFile de l'unité, 0600 root), jamais par la ligne de commande,
@@ -55,6 +55,10 @@ MAX_MESSAGE = 3800
 MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
           "août", "septembre", "octobre", "novembre", "décembre")
 PERIODS = {"monthly": 1, "yearly": 12}
+# Chemins fixes, jamais lus de la ligne de commande : ceux du rôle
+# (vars/main.yml, StateDirectory de l'unité). Les tests les remplacent.
+CONFIG_FILE = Path("/etc/cost-report.json")
+STATE_DIR = Path("/var/lib/cost-report")
 # Une source en erreur (API passagèrement indisponible, réseau pas encore
 # prêt au démarrage) reporte le rapport mensuel au lancement suivant
 # jusqu'à ce jour du mois ; au-delà, il part, partiel.
@@ -266,11 +270,11 @@ def ovh_result(data, previous_key, current_key, vat_percent):
     previous, current, lines, count = {}, {}, [], 0
     for bill in data["bills"]:
         price = bill["priceWithTax"]
-        key = str(bill["date"])[:7]
-        if key == previous_key:
+        date = str(bill["date"])
+        if date.startswith(previous_key):
             add(previous, price["currencyCode"], float(price["value"]))
             count += 1
-        elif key == current_key:
+        elif date.startswith(current_key):
             add(current, price["currencyCode"], float(price["value"]))
     lines.append(f"{count} facture(s) le mois dernier : {money_total(previous)}")
     usage = data.get("usage")
@@ -441,7 +445,7 @@ def publish(url, topic, token, title, message, priority):
 
 
 def load_config(path):
-    config = json.loads(Path(path).read_text(encoding="utf-8"))
+    config = json.loads(path.read_text(encoding="utf-8"))
     for entry in config.get("subscriptions") or []:
         if entry.get("period") not in PERIODS or not entry.get("name") or not entry.get("currency"):
             raise ValueError(f"abonnement invalide : {entry.get('name')!r}")
@@ -451,16 +455,14 @@ def load_config(path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--config", required=True, help="configuration JSON (rendue par Ansible)")
-    parser.add_argument("--state-dir", required=True, help="dossier de costs.json et state.json")
     parser.add_argument("--publish", choices=("auto", "always", "never"), default="auto",
                         help="auto : une fois par mois ; always : maintenant ; never : jamais")
     parser.add_argument("--now", help="date et heure locales ISO (tests)")
     args = parser.parse_args(argv)
 
     now = datetime.datetime.fromisoformat(args.now) if args.now else datetime.datetime.now()
-    config = load_config(args.config)
-    state_dir = Path(args.state_dir)
+    config = load_config(CONFIG_FILE)
+    state_dir = STATE_DIR
     results = collect(config, os.environ, now)
 
     write_json(state_dir / "costs.json", homepage_summary(results, now))
