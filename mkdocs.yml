@@ -22,14 +22,10 @@ strict: true
 
 hooks:
   - .github/scripts/mkdocs_external_links.py
-  # Dépose mermaid.min.js (version épinglée) dans le site : les diagrammes
-  # ne vont pas chercher Mermaid sur unpkg.com.
+  # Dépose mermaid.min.js (version épinglée) dans le site et le charge sur
+  # les seules pages à diagramme : Material utilise ce `mermaid` global au
+  # lieu d'aller le chercher sur unpkg.com.
   - .github/scripts/mkdocs_mermaid.py
-
-# Déposé par le hook mkdocs_mermaid.py : Material utilise ce `mermaid` global
-# au lieu de son CDN.
-extra_javascript:
-  - javascripts/mermaid.min.js
 
 validation:
   nav:

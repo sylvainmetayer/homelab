@@ -25,8 +25,7 @@ on:
       # docker (resolve_docker_tags.py, ROLE_SOURCES).
       - docs/**
       - mkdocs.yml
-      - .github/scripts/mkdocs_external_links.py
-      - .github/scripts/mkdocs_mermaid.py
+      - .github/scripts/mkdocs_*.py
   workflow_dispatch:
     inputs:
       playbook:

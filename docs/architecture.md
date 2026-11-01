@@ -266,7 +266,7 @@ flowchart LR
 | `lint.yaml` | chaque PR | jobs `Ansible lint` (+ `check_sops_shadowing.py`), `OpenTofu lint`, `CI lint` (zizmor, actionlint, hadolint) |
 | `test.yaml` | chaque PR (sélection), le lundi et à la main (tout) | un job par scénario Molecule et par module Tofu atteint par la PR (`select_tests.py` ; label `full-tests` : tout), récapitulés dans `Tests` |
 | `codeql.yaml` | le lundi, à la main, PR et push sur `main` touchant `.github/scripts/**` | analyse CodeQL (`actions`, `python`) vers l'onglet Security ; la configuration par défaut de GitHub reste désactivée |
-| `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**`, un playbook d'hôte, ou `docs/**` et `mkdocs.yml` (site `docs.sylvain.cloud`, rôle `docs_site`) ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
+| `deploy-docker-app.yaml` | **push sur `main`** touchant `ansible/roles/**`, un playbook d'hôte, ou `docs/**`, `mkdocs.yml` et ses hooks (site `docs.sylvain.cloud`, rôle `docs_site`) ; ou à la main | déduit les tags des rôles modifiés (`resolve_docker_tags.py`), monte le tunnel OLM, lance le(s) playbook(s) sur les vrais hôtes |
 
 - **Merger = déployer.** Le ruleset `main` (`tofu/github/ruleset_homelab.tf`)
   exige une PR et les checks `Ansible lint`, `OpenTofu lint`, `Tests` et

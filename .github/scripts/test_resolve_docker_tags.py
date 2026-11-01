@@ -271,7 +271,8 @@ class RealPlaybooks(unittest.TestCase):
 
     def test_files_beside_the_docs_deploy_nothing(self):
         for path in ("docs", "mkdocs.yml.bak", "AGENTS.md", "uv.lock",
-                     ".github/scripts/test_mkdocs_external_links.py"):
+                     ".github/scripts/test_mkdocs_external_links.py",
+                     ".github/scripts/test_mkdocs_mermaid.py"):
             result, _ = self.run_script(path)
             self.assertEqual(set(result.values()), {""}, path)
 
