@@ -216,12 +216,14 @@
       ansible.builtin.command: systemctl start blocky-check.service # noqa: command-instead-of-module
       changed_when: true
 
-    - name: Read the counter lines of the check unit
+    # -I : le dernier passage seulement (le premier, plus haut, a écrit
+    # l'état contre lequel celui-ci compte).
+    - name: Read the counter line of the last check run
       become: true
       ansible.builtin.command: journalctl --unit blocky-check -I --output cat --no-pager --grep "^event=blocky_stats "
       register: blocky_stats_lines
       changed_when: false
-      until: blocky_stats_lines.stdout_lines | length >= 2
+      until: blocky_stats_lines.stdout_lines | length == 1
       retries: 10
       delay: 1
 
