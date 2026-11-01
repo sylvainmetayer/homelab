@@ -65,11 +65,15 @@ des erreurs : s'y déconnecter dans l'appli pour retrouver l'écran de connexion
 **Mode aléatoire.** L'appli (`useImmich.ts`, `fetchRandomAsset`) appelle
 `GET /api/assets/random?count=N` (N = 5, ou 10 quand elle saute les vidéos),
 qu'Immich v3 n'a plus : 400 « Validation failed ». Le nginx le réécrit en
-`POST /api/search/random` avec le corps `{"size": N}`, qui renvoie le même
-tableau d'assets (images et vidéos : l'appli écarte elle-même les vidéos et
-les photos déjà vues, aucun autre paramètre n'est envoyé). N passe par une
-`map` : `count` de 1 à 100 tel quel, plafonné à 100 au-delà, 20 sinon ; seul
-un nombre entre dans le JSON. Même clé et mêmes en-têtes retirés que `/api/`.
+`POST /api/search/random` avec le corps `{"size": N}` plus le filtre de
+l'ancien endpoint (`withExif`, visibilité `archive` ou `timeline`, hors
+corbeille) : `{"size": N}` seul renverrait les assets sans exif, et la vidéo
+cachée (`hidden`) des photos animées, que l'appli montrerait seule et
+pourrait mettre à la corbeille. L'appli écarte elle-même les vidéos et les
+photos déjà vues. N passe par une `map` : `count` de 1 à 100 tel quel,
+plafonné à 100 au-delà, 20 sinon ; seul un nombre entre dans le JSON. Même
+clé et mêmes en-têtes retirés que `/api/`. Forme `filter` (Immich ≥ 3.2,
+`search.dto.ts`) : à revoir si une montée d'Immich la change.
 Seulement en mode préconfiguré (sans la clé, l'image d'origine garde l'appel
 cassé). Le vrai correctif irait dans l'appli : appeler `/search/random` dans
 le fork `sylvainmetayer/immich-swipe`, puis retirer ce `location`.
