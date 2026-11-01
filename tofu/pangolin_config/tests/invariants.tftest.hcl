@@ -2441,6 +2441,7 @@ run "monitors_are_filed_and_alert" {
         uptimekuma_monitor_http.blog,
         uptimekuma_monitor_http.blog_apex,
         uptimekuma_monitor_http.ref,
+        uptimekuma_monitor_http.planning_site,
         uptimekuma_monitor_http.agent_ready_cloudflare,
         uptimekuma_monitor_http.kdrive,
         uptimekuma_monitor_http.simplelogin,

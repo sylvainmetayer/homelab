@@ -24,6 +24,7 @@ All commands run through **mise** (not make). Tool versions are pinned in `mise.
 mise run init           # tofu/pangolin; then plan, apply
 mise run init-proxmox   # tofu/proxmox; then plan-proxmox, apply-proxmox
 mise run init-ref       # tofu/ref (GITHUB_TOKEN exporté avant); then plan-ref, apply-ref
+mise run init-planning  # tofu/planning (GITHUB_TOKEN exporté avant); then plan-planning, apply-planning
 mise run lint        # tofu fmt -check -recursive + init -backend=false && validate of every module
 mise run fix-lint    # tofu fmt -recursive
 mise run ansible-lint
@@ -35,7 +36,7 @@ mise run secrets-scan      # gitleaks over the whole history
 mise run test-cle-secours <keyfile>  # quarterly secours age key test, sets dernier_test (docs/runbooks/test-cle-secours.md)
 ```
 
-`mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc), without touching any state. Modules with no plan task (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.
+`mise run lint` validates the same modules as the `OpenTofu lint` job (pangolin, proxmox, pangolin_config, dns, github, ref, s3_state, keepass_backup, site, 1y, keycloak_demo_planning_kc, planning), without touching any state. Modules with no plan task (`pangolin_config`, `dns`, `github`…): `mise exec -- tofu -chdir=tofu/<module> plan`. CI script tests: `python -I -m unittest discover -s .github/scripts -p 'test_*.py'`.
 
 There is no mise task running a playbook and no `site.yml`: from `ansible/`, run the playbook of the host group you change (`00-setup.yaml`, `docker.yml`, `flip.yml`, `pangolin.yaml`, `pi.yml`, `lxc.yml`, `nas.yml`, `pve.yml`, `backup.yaml`, `pc-nas.yml`), with `--check`, `--tags <role>`, `-v`. **No `-i`**: `ansible.cfg` sets `inventory = ./inventory` (`proxmox.py`, `hetzner.py` and `hosts` together); `-i inventory/hosts` alone would only know the static hosts (Pi, LXC, NAS, Proxmox host). Every run is logged to `ansible/run.log`. Detail (inventory, flip's bastion jump, the host table): `docs/conventions/ansible.md`.
 
@@ -109,6 +110,6 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Pangolin config: resources, rules, path bypasses, private resources, bindings | `tofu/pangolin_config/README.md` |
 | DNS, mail authentication, CAA | `tofu/dns/README.md`, `docs/runbooks/dmarc.md` |
 | GitHub repos, rulesets, Actions environments | `tofu/github/README.md` |
-| Pages sites | `tofu/site/README.md`, `tofu/ref/README.md`, `tofu/1y/README.md` |
+| Pages sites | `tofu/site/README.md`, `tofu/ref/README.md`, `tofu/1y/README.md`, `tofu/planning/README.md` |
 | KeePass restic bucket | `tofu/keepass_backup/README.md` |
 | Restore test | `.github/restore-test/README.md` |

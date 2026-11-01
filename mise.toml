@@ -90,6 +90,25 @@ raw = true
 dir = "tofu/ref"
 depends = ["init-ref"]
 
+# GITHUB_TOKEN à exporter avant (voir tofu/planning/README.md)
+[tasks.init-planning]
+description = "Tofu Init (planning.sylvain.dev)"
+run = "tofu init"
+dir = "tofu/planning"
+
+[tasks.plan-planning]
+description = "Tofu Plan (planning.sylvain.dev)"
+run = "tofu plan"
+dir = "tofu/planning"
+depends = ["init-planning"]
+
+[tasks.apply-planning]
+description = "Tofu Apply (planning.sylvain.dev)"
+run = "tofu apply"
+raw = true
+dir = "tofu/planning"
+depends = ["init-planning"]
+
 # Mêmes modules que le job « OpenTofu lint » (lint.yaml), sans accès au
 # state (-backend=false). TF_DATA_DIR jetable : un init -backend=false dans le
 # .terraform du module le désinitialiserait, et tofu show (inventaire
@@ -101,7 +120,7 @@ set -e
 tofu fmt -check -recursive
 data_dir=$(mktemp -d)
 trap 'rm -rf "$data_dir"' EXIT
-for module in pangolin proxmox pangolin_config dns github ref s3_state keepass_backup site 1y keycloak_demo_planning_kc; do
+for module in pangolin proxmox pangolin_config dns github ref s3_state keepass_backup site 1y keycloak_demo_planning_kc planning; do
   echo "== $module"
   TF_DATA_DIR="$data_dir/$module" tofu -chdir="$module" init -backend=false -input=false -lockfile=readonly > /dev/null
   TF_DATA_DIR="$data_dir/$module" tofu -chdir="$module" validate

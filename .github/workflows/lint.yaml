@@ -152,6 +152,7 @@ jobs:
             tofu/site
             tofu/1y
             tofu/keycloak_demo_planning_kc
+            tofu/planning
           )
 
           for module in "${modules[@]}"; do
