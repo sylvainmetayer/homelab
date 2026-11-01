@@ -64,8 +64,8 @@ sudo docker logs --tail 100 mediamanager
 
 ```bash
 sudo docker logs mediamanager-gluetun 2>&1 | grep -i -E "public ip|port forward|error" | tail -20
-sudo docker exec mediamanager-qbittorrent curl -s https://ifconfig.io   # IP du VPN
-curl -s https://ifconfig.io                                             # IP de la maison, différente
+sudo docker exec mediamanager-qbittorrent curl -s --max-time 15 https://ifconfig.io   # IP du VPN
+curl -s --max-time 15 https://ifconfig.io                                             # IP de la maison, différente
 ```
 
 - Le `curl` dans qBittorrent **expire** : tunnel tombé, le kill switch fait

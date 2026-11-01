@@ -97,8 +97,11 @@ printf '%s-healthlog-encryption' "$(sops decrypt --extract '["backup_passphrase"
 puis la clé SOPS `healthlog_encryption_key` avec ce condensat (elle prime sur
 le défaut du rôle), avec son entrée dans `secrets/secrets-rotation.yaml`.
 Même chose avec les sels `-healthlog-db` (`healthlog_db_password`, sinon
-[mot-de-passe-base.md](mot-de-passe-base.md)) et `-healthlog-api-token-hmac`
-(`healthlog_api_token_hmac_key`, sinon tous les jetons d'API tombent).
+[mot-de-passe-base.md](mot-de-passe-base.md)), `-healthlog-api-token-hmac`
+(`healthlog_api_token_hmac_key`, sinon tous les jetons d'API tombent) et
+`-healthlog-withings-webhook` (`healthlog_withings_webhook_secret`, sinon
+Withings garde l'abonnement à l'ancienne URL et le webhook se tait : sans
+le figer, Déconnecter Withings avant le déploiement, Connecter après).
 
 **Rotation déjà déployée, HealthLog ne démarre plus** : l'ancienne
 `ENCRYPTION_KEY` est dans le `.env` de la dernière archive borg d'avant le
@@ -111,9 +114,12 @@ config=/etc/borgmatic.d/healthlog.yaml
 $borgmatic list --config $config
 mkdir -p /root/restore/healthlog
 $borgmatic extract --config $config --archive <archive d'avant> --destination /root/restore/healthlog
-grep -E '^(ENCRYPTION_KEY|API_TOKEN_HMAC_KEY)=' /root/restore/healthlog/opt/apps/healthlog/.env
+grep -E '^(ENCRYPTION_KEY|API_TOKEN_HMAC_KEY|WITHINGS_WEBHOOK_SECRET|DATABASE_URL)=' /root/restore/healthlog/opt/apps/healthlog/.env
 ```
 
+Le mot de passe de la base est celui de `DATABASE_URL` (entre `healthlog:`
+et `@`) : la base garde l'ancien (`POSTGRES_PASSWORD` n'est lu qu'à
+l'initdb), donc sans lui HealthLog ne s'y connecte plus, clé ou pas.
 Recopier ces valeurs dans les clés SOPS ci-dessus (depuis le poste,
 `sops set --value-stdin`, jamais en argument), puis
 `ansible-playbook docker.yml --tags healthlog`. Supprimer
@@ -160,7 +166,7 @@ rejouent avec le service `db-restore` du compose amont
 
 - Jamais de rotation de `backup_passphrase` sans figer d'abord les clés
   HealthLog (et celles des autres rôles qui en dérivent : Dawarich, TREK,
-  MediaManager).
+  MediaManager, Karakeep, Papra, Homebox).
 - Renovate ne fusionne jamais une montée de HealthLog : relire les notes de
   version et, si le chemin du webhook change, les sources listées dans
   `tofu/pangolin_config/path_bypass_images.json`.
