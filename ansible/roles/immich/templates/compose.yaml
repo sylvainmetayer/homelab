@@ -68,7 +68,7 @@ services:
     container_name: immich_redis
     mem_limit: 256m
     mem_reservation: 128m
-    image: docker.io/valkey/valkey:9@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    image: docker.io/valkey/valkey:9@sha256:3add1a336a920ea54770a001ab6feb3da5fceea96a40373a3a2cd469b815f0b7
     # Mot de passe du .env (REDIS_PASSWORD, que lit aussi immich-server).
     # Interpolé par compose dans la commande : valkey réécrit le titre de son
     # processus, `ps` sur le Pi ne le montre pas.
