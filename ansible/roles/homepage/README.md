@@ -12,6 +12,6 @@ Homepage's `calendar` widget shows every VTODO as an event dated « now »: the 
 
 - The share URLs (`ICAL_FEED_<SLUG>`, `https://` only, never logged) live in `compose.yaml` (0600, `diff: false`) only, not in `services.yaml`.
 - Network: `ical`, the project's own network (not `external`), which Homepage joins too; not `newt` (Pangolin has nothing to reach there), no published port. It needs egress: the share URLs go through Pangolin like any public client.
-- Hardening: `nobody` (65534), `read_only`, `cap_drop: ALL`, `no-new-privileges`, the script its only (read-only) mount, hence 0644 on the host. `mem_limit: 64m`, not measured yet: re-check `memory.peak` in the Monday `mem_report`. An upstream calendar larger than 8 MiB is refused.
+- Hardening: `nobody` (65534), `read_only`, `cap_drop: ALL`, `no-new-privileges`, the script its only (read-only) mount, hence 0644 on the host. `mem_limit: 64m`, not measured yet: re-check `memory.peak` in the Monday `mem_report`. An upstream calendar larger than 2 MiB is refused (two at the cap stay well under 64m).
 - No calendar key: no `ical-filter` service, no `ical` network.
 - Tests: `ansible/molecule/homepage/files/test_ical_filter.py` (filter, cache, HTTP server), run by the scenario's `verify.yml` with the test host's `python3` (Molecule starts no container); by hand, copy it next to `ical_filter.py` and run `python3 -I -m unittest discover -s . -p 'test_*.py'`. Debug on the host: `python3 ical_filter.py --filter < calendar.ics`.

@@ -19,7 +19,9 @@ bibliothèque standard.
 `ical_filter.py --filter < agenda.ics` filtre l'entrée standard (tests).
 """
 
+import http.client
 import os
+import re
 import sys
 import threading
 import time
@@ -29,42 +31,64 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DROPPED = {b"VTODO", b"VJOURNAL"}
 FEED_PREFIX = "ICAL_FEED_"
-# Plafond d'un agenda en amont : au-delà, refus plutôt qu'un conteneur à
+# Une ligne physique et sa fin de ligne, comme bytes.splitlines(keepends=True).
+LINE = re.compile(rb"[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+")
+# Plafond d'un agenda en amont (un agenda réel pèse quelques dizaines de
+# Kio) : au-delà, refus plutôt qu'un conteneur à
 # 64 Mio poussé au bout de sa mémoire.
-MAX_BYTES = 8 * 1024 * 1024
+MAX_BYTES = 2 * 1024 * 1024
 FETCH_TIMEOUT = 20
+
+
+def _logical_lines(data: bytes):
+    """(début, fin, contenu déplié) de chaque ligne logique de data.
+
+    Une ligne logique : une ligne et ses continuations, qui commencent par
+    une espace ou une tabulation. Fins de ligne de bytes.splitlines (CRLF,
+    LF, CR). Parcours paresseux : pas de liste de toutes les lignes en mémoire.
+    """
+    start = end = None
+    parts = []
+    for match in LINE.finditer(data):
+        line = match.group()
+        if start is not None and line[:1] in (b" ", b"\t"):
+            parts.append(line.rstrip(b"\r\n"))
+            end = match.end()
+            continue
+        if start is not None:
+            yield start, end, b"".join(parts)
+        start, end, parts = match.start(), match.end(), [line.rstrip(b"\r\n")]
+    if start is not None:
+        yield start, end, b"".join(parts)
 
 
 def filter_calendar(data: bytes) -> bytes:
     """Retire de data les composants VTODO et VJOURNAL (et ce qu'ils contiennent).
 
-    Travaille sur les lignes logiques (une ligne et ses continuations, qui
-    commencent par une espace ou une tabulation) sans les déplier : ce qui
-    reste est recopié octet pour octet.
+    Lit les lignes logiques sans les déplier dans le résultat : ce qui reste
+    est recopié octet pour octet, par tranches de data (pas ligne à ligne :
+    un agenda au plafond MAX_BYTES tient dans les 64 Mio du conteneur).
     """
-    out = []
+    view = memoryview(data)
+    kept = []
     depth = 0  # imbrication dans le composant retiré (VALARM d'un VTODO…)
-    lines = data.splitlines(keepends=True)
-    i = 0
-    while i < len(lines):
-        j = i + 1
-        while j < len(lines) and lines[j][:1] in (b" ", b"\t"):
-            j += 1
-        logical = b"".join(line.rstrip(b"\r\n") for line in lines[i:j])
+    keep_from = 0  # début de la tranche gardée en cours
+    for start, end, logical in _logical_lines(data):
         name, _, value = logical.partition(b":")
         name = name.strip().upper()
-        value = value.strip().upper()
         if depth:
             if name == b"BEGIN":
                 depth += 1
             elif name == b"END":
                 depth -= 1
-        elif name == b"BEGIN" and value in DROPPED:
+                if not depth:
+                    keep_from = end
+        elif name == b"BEGIN" and value.strip().upper() in DROPPED:
+            kept.append(view[keep_from:start])
             depth = 1
-        else:
-            out.extend(lines[i:j])
-        i = j
-    return b"".join(out)
+    if not depth:
+        kept.append(view[keep_from:])
+    return b"".join(kept)
 
 
 def feeds_from_env(environ) -> dict:
@@ -87,10 +111,15 @@ def fetch(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "homepage-ical-filter"})
     try:
         with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response:  # noqa: S310 (https vérifié)
+            # urllib suit une redirection vers http:// : refusée aussi.
+            if not response.url.startswith("https://"):
+                raise FeedError("redirection hors de https")
             data = response.read(MAX_BYTES + 1)
     except urllib.error.HTTPError as err:
         raise FeedError(f"HTTP {err.code}") from None
-    except (urllib.error.URLError, OSError) as err:
+    except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as err:
+        # HTTPException : réponse tronquée (IncompleteRead), en-têtes invalides ;
+        # ValueError : URL mal formée. Sans elles, ni copie périmée ni 502.
         raise FeedError(type(err).__name__) from None
     if len(data) > MAX_BYTES:
         raise FeedError("agenda trop gros")
@@ -109,11 +138,12 @@ class Cache:
         self.fetcher = fetcher
         self.clock = clock
         self.entries = {}
-        self.lock = threading.Lock()
+        # Un verrou par agenda : un seul téléchargement à la fois de chacun,
+        # sans qu'un amont lent (FETCH_TIMEOUT) bloque la copie de l'autre.
+        self.locks = {slug: threading.Lock() for slug in feeds}
 
     def get(self, slug: str) -> bytes:
-        # Un seul téléchargement à la fois : deux agendas, quelques lecteurs.
-        with self.lock:
+        with self.locks[slug]:
             entry = self.entries.get(slug)
             now = self.clock()
             if entry and now - entry[0] < self.ttl:
