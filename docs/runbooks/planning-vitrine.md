@@ -74,7 +74,11 @@ mise exec -- sh -c 'curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   dans `planning-equipes`.
 - **App GitHub sans accès** : l'ajouter au dépôt sur sa page de
   configuration, ou laisser Tofu le faire (`TF_VAR_cloudflare_github_installation_id`
-  et un PAT classique scope `repo`, README du module).
+  et un PAT classique scope `repo`, README du module). Une fois l'accès
+  géré par Tofu, garder `TF_VAR_cloudflare_github_installation_id` exporté
+  à chaque plan et apply : sans lui, le plan détruit
+  `github_app_installation_repository.cloudflare`, ce qui retire l'accès
+  au dépôt et coupe les déploiements.
 - **Domaine en attente, CNAME absent ou faux** : `mise run plan-planning`
   puis `mise run apply-planning` (Sylvain) remet
   `ovh_domain_zone_record.planning`. Si le domaine reste en attente une
