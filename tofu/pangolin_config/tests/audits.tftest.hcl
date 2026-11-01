@@ -205,6 +205,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.immich_clients
+  values = { id = "tok-immich", token = "jeton-immich" }
+}
+
+override_resource {
   target = pangolin_resource_access_token.papra_clients
   values = { id = "tok-papra", token = "jeton-papra" }
 }

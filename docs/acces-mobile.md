@@ -116,9 +116,13 @@ Immich, Dawarich et TREK : depuis la connexion de la maison, toute la
 ressource répond sans SSO, et sans le code PIN Pangolin d'Immich
 (`pangolin_resource_pincode.immich`). C'est ce qui fait marcher l'appli
 mobile d'Immich sur le Wi-Fi de la maison, et l'envoi de positions de
-Dawarich (Overland, OwnTracks…), qui n'ouvre aucun chemin au monde. Dehors, rien
-n'est déclaré pour l'appli mobile d'Immich : ni chemin ouvert, ni jeton
-d'accès.
+Dawarich (Overland, OwnTracks…), qui n'ouvre aucun chemin au monde. Dehors,
+l'appli mobile d'Immich passe par un jeton d'accès Pangolin
+(`pangolin_resource_access_token.immich_clients`, un par appareil, sortie
+`immich_client_access_tokens`) qu'elle envoie dans ses en-têtes de proxy
+personnalisés (Paramètres → Avancé → En-têtes de proxy personnalisés :
+`P-Access-Token-Id` et `P-Access-Token`), en plus de la connexion Immich.
+Aucun chemin n'est ouvert au monde.
 
 Ce que ça fait confiance : tout appareil derrière la box (Wi-Fi invité
 compris), et l'adresse plutôt que la maison. Si l'opérateur réattribue l'IP,
