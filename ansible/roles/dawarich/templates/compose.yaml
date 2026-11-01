@@ -9,8 +9,11 @@ services:
     # réécritures et 4,3 Gio écrits en 68 h (io.stat du conteneur,
     # 2026-11-01), ~60 Mio/h sur le SSD SATA de l'hôte. L'arrêt propre
     # (`compose stop` de dc@) enregistre toujours la base ; seul un crash
-    # perd jusqu'à une heure de file, que les jobs cron de Dawarich
-    # replanifient.
+    # perd jusqu'à une heure de file : les jobs cron de Dawarich reviennent
+    # seuls, pas un import ou un export mis en file ni les relances
+    # planifiées (à relancer depuis l'interface). Le healthcheck (`incr
+    # ping`) et les battements de Sidekiq modifient la base en continu :
+    # l'instantané tombe donc bien toutes les heures, même au repos.
     command: >
       redis-server
       --save 3600 1

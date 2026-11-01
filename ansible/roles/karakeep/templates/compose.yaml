@@ -70,7 +70,9 @@ services:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:7700/health"]
       # Toutes les 30 s en régime établi, toutes les 5 s pendant le
       # start_period (start_interval) : karakeep, qui l'attend
-      # (service_healthy), démarre aussi vite qu'avant.
+      # (service_healthy), démarre aussi vite qu'avant. Au-delà des 30 s
+      # (migration MEILI_UPGRADE_DB après une montée), la sonde passe à 30 s :
+      # karakeep peut attendre jusqu'à 30 s de plus.
       interval: 30s
       start_interval: 5s
       timeout: 5s
