@@ -1868,14 +1868,25 @@ run "one_role_per_app_slug" {
 
   # Chaque entrée prend le rôle de son propre slug (sa clé en kebab-case) : un
   # rôle emprunté ouvre l'application aux membres d'une autre (la production de
-  # Flip Planning aux testeurs de la démo). Seule dérogation, décidée : Immich
-  # Swipe, qui agit sur la photothèque d'Immich, prend le rôle d'Immich.
+  # Flip Planning aux testeurs de la démo). Aucune dérogation.
   assert {
     condition = alltrue([
       for key, website in local.websites :
-      lookup(website, "role", null) == null || website.role == lookup({ immich_swipe = "immich" }, key, replace(key, "_", "-"))
+      lookup(website, "role", null) == null || website.role == replace(key, "_", "-")
     ])
-    error_message = "Une entrée de local.websites emprunte le rôle d'une autre application (seul immich_swipe prend celui d'Immich)."
+    error_message = "Une entrée de local.websites emprunte le rôle d'une autre application."
+  }
+
+  # Immich Swipe agit sur la photothèque avec la clé d'API de son nginx : il
+  # n'est lié qu'à son propre rôle, jamais à celui d'Immich (dont un membre
+  # n'y entre donc pas d'office). Même règle que le timelapse.
+  assert {
+    condition = alltrue([
+      for key in ["immich_swipe", "immich_selfie_timelapse"] :
+      local.websites[key].role == replace(key, "_", "-")
+      && length([for k, w in local.websites : k if lookup(w, "role", null) == local.websites[key].role]) == 1
+    ])
+    error_message = "Immich Swipe et le timelapse portent chacun un rôle propre, lié à leur seule ressource, jamais celui d'Immich."
   }
 }
 

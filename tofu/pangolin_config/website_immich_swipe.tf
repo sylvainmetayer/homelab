@@ -1,5 +1,11 @@
 # Resource, target and monitors: local.websites (websites.tf). No backup
 # monitor.
+#
+# Its nginx proxies /api/ to Immich with a server-side API key
+# (immich-swipe.conf.j2, immich role): whoever passes the SSO acts on the
+# photo library with that key. Its own role, not Immich's: a member of the
+# `immich` role is no longer let in by that alone. Members are added in the
+# Pangolin UI (Sylvain).
 locals {
   immich_swipe_website = {
     name      = "Immich Swipe"
@@ -13,8 +19,7 @@ locals {
       icon        = "immich"
     }
 
-    # Bound to Immich's role, not to one of its own.
-    role = "immich"
+    role = "immich-swipe"
 
     target = {
       site_id = pangolin_site.pi.id
