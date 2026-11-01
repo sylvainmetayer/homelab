@@ -221,7 +221,7 @@ resource "uptimekuma_monitor_http" "ustalence_tt" {
 }
 
 # Pushed by something outside this repository (Ansible never touches this
-# token), so the heartbeat source stays as it is; only the definition moves
+# token), so the heartbeat source stays as it is; only the definition lives
 # here.
 #
 # Alerts on Telegram and ntfy, like every monitor of this module.

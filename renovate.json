@@ -400,7 +400,7 @@
       "enabled": false
     },
     {
-      "description": "Guard, kept last: an update of path_bypass_images.json never automerges, and its PR says what to re-read before the manual merge (this note replaced the path-bypass-review.yaml workflow and its relecture-chemins-publics environment on 2026-10-29). Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the re-read",
+      "description": "Guard, kept last: an update of path_bypass_images.json never automerges, and its PR says what to re-read before the manual merge. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the re-read",
       "matchFileNames": [
         "tofu/pangolin_config/path_bypass_images.json"
       ],

@@ -26,12 +26,7 @@ locals {
 # Created by hand in the Pangolin UI and declared here so LIVE and code agree.
 # Same pattern as `pangolin_resource_rule.immich_home_ip`: the home connection
 # is allowed in by IP regardless of the geo rules.
-#
-# Priority 9: the last slot before the `PASS COUNTRY` rules generated in
-# rules.tf (FR at 10, DE at 11). Behind them it would never be reached: the
-# home connection is French, so the FR PASS would match first and send it to
-# the SSO wall like anybody else. Only the backslash DROP of rules.tf
-# (priority 1) comes before it.
+# Priority 9 for the same reason (see there).
 resource "pangolin_resource_rule" "dawarich_home_ip" {
   resource_id = pangolin_resource.website["dawarich"].id
   action      = "ACCEPT"
