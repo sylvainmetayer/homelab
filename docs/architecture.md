@@ -428,7 +428,8 @@ jeton Proxmox existe.
 
 Avec une clé sops chacun (vide : widget absent, la page se déploie sans) :
 Proxmox, Pangolin, Speedtest Tracker et Immich, en lecture seule ; l'agenda
-(lien public iCal d'un agenda Nextcloud, servi par le chemin `/remote.php/*`
+(liens publics iCal des agendas Nextcloud Perso et Top nous, une clé
+chacun, servis par le chemin `/remote.php/*`
 déjà ouvert sans SSO aux clients, `website_nextcloud.tf`) ; et Jellyfin,
 Homebox, Karakeep. Création de chaque jeton, droits minimaux et `sops set` :
 [runbooks/rotation-des-secrets.md](runbooks/rotation-des-secrets.md#widgets-de-homepage).
