@@ -54,6 +54,65 @@
     regexp: "^(\\s*'api_enabled' => )true,$"
     replace: "\\1false,"
 
+# Délai d'actualisation par défaut (rss_ttl_default) et bases SQLite en WAL,
+# pour chaque utilisateur : README.md (« Écritures disque »). Les dossiers
+# users/<utilisateur> sont à www-data, 0770.
+- name: Find the FreshRSS user configurations and databases
+  become: true
+  ansible.builtin.find:
+    paths: "{{ rss_base_path }}/freshrss_data/users"
+    patterns:
+      - config.php
+      - db.sqlite
+    recurse: true
+    depth: 2
+  register: rss_user_files
+
+# La clé est dans la configuration de l'utilisateur, réécrite par FreshRSS
+# (var_export) quand il enregistre un réglage : la ligne garde sa forme.
+# FreshRSS la relit à chaque requête : rien à redémarrer.
+- name: Set the default refresh delay of each FreshRSS user
+  loop: "{{ rss_user_files.files | map(attribute='path') | select('match', '.*/config\\.php$') | list }}"
+  become: true
+  # Le fichier porte le hachage du mot de passe et la clé d'API Karakeep.
+  diff: false
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "^(\\s*'ttl_default' => )\\d+,$"
+    replace: "\\g<1>{{ rss_ttl_default | int }},"
+
+- name: Ensure sqlite3 is installed for the FreshRSS databases
+  become: true
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+
+# -noheader -list : un ~/.sqliterc de root (.headers on, .mode line) ferait
+# rater la comparaison à « wal ». Ne fait que lire, même en --check ; pas de
+# -readonly, qui ne sait pas ouvrir une base en WAL dont le -shm manque.
+- name: Read the journal mode of the FreshRSS databases
+  loop: "{{ rss_user_files.files | map(attribute='path') | select('match', '.*/db\\.sqlite$') | list }}"
+  become: true
+  check_mode: false
+  ansible.builtin.command:
+    argv: [sqlite3, -bail, -noheader, -list, -cmd, .timeout 60000, "{{ item }}", pragma journal_mode]
+  register: rss_db_journal_mode
+  changed_when: false
+
+# Le mode WAL est écrit dans l'en-tête du fichier : il tient pour toutes les
+# connexions suivantes de FreshRSS, qui ne règle aucun journal_mode. Le
+# passage demande un verrou exclusif, que .timeout attend entre deux écritures
+# de l'application démarrée. sqlite3 lancé par root donne les fichiers -wal et
+# -shm qu'il crée au propriétaire de la base (www-data).
+- name: Switch the FreshRSS databases to WAL
+  loop: "{{ rss_db_journal_mode.results | rejectattr('stdout', 'equalto', 'wal') | map(attribute='item') | list }}"
+  become: true
+  ansible.builtin.command:
+    argv: [sqlite3, -bail, -noheader, -list, -cmd, .timeout 60000, "{{ item }}", PRAGMA journal_mode=WAL]
+  register: rss_db_wal
+  changed_when: true
+  failed_when: rss_db_wal.rc != 0 or rss_db_wal.stdout != 'wal'
+
 # Extension « Karakeep Button » (rss_karakeep_button_* dans les defaults).
 # FreshRSS lit le dossier extensions à chaque requête : rien à redémarrer.
 # Elle s'active par utilisateur, dans Configuration > Extensions.
