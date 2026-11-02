@@ -12,8 +12,9 @@ main seulement). Sens unique, sans suppression :
   taille égale, il n'est pas recopié (plus bas).
 - Rien n'efface jamais rien côté NAS : `versions/` ne fait que grossir, son
   ménage est manuel (plus bas).
-- Hors copie (`kdrive_sync_exclude_patterns`, `host_vars/nas`) : `Videos/`
-  et `Backups/Synology/` (films et séries, 1,27 To au relevé du 16/10) et les
+- Hors copie (`kdrive_sync_exclude_patterns`, `host_vars/nas`) : `Videos/`,
+  `Backups/Synology/tv/` et `movies/` (films et séries, 1,27 To au relevé du
+  16/10) et les
   corbeilles digiKam `.dtrash/`. Ces films n'ont donc pas de copie sur le NAS
   par ce rôle. Le reste fait environ 0,95 To. Une exclusion ne vaut que pour
   les passages à venir : ce qui est déjà dans `miroir/` y reste.
@@ -85,7 +86,7 @@ grep -o '"totalBytes":[0-9]*' /root/kdrive-essai.log | tail -1
 grep -o '"object":"[^/"]*/' /root/kdrive-essai.log | sort | uniq -c
 # Chemins des exclusions dans l'essai : 0 attendu. Sinon, regarder lesquels
 # (motif à corriger, ou dossier homonyme plus bas) avant toute copie.
-grep -cE '"object":"([^"]*/)?(Videos|Backups/Synology|\.dtrash)/' /root/kdrive-essai.log
+grep -cE '"object":"([^"]*/)?(Videos|Backups/Synology/(tv|movies)|\.dtrash)/' /root/kdrive-essai.log
 rm /root/kdrive-essai.log
 ```
 
@@ -117,7 +118,7 @@ accès, volontairement.
 ## Retrouver un fichier
 
 - Supprimé dans kDrive : il est toujours dans `miroir/`, sauf s'il était hors
-  copie (`Videos/`, `Backups/Synology/`, `.dtrash/`).
+  copie (`Videos/`, `Backups/Synology/tv/` et `movies/`, `.dtrash/`).
 - Remplacé ou chiffré dans kDrive : la version d'avant est dans le dossier
   `versions/` du passage qui l'a remplacé (le plus ancien qui le contient
   pour remonter loin). `find /volume1/kdrive/versions -path '*/<nom>'`.
