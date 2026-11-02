@@ -6,9 +6,7 @@
 # bypass, no healthcheck, no backup push monitor. Paused since October 2026
 # (see `enabled` below).
 #
-# Resource and targets: local.websites (websites.tf). Same as the other two
-# resources, `headers` is ignored: the provider cannot round-trip an emptied
-# header list, so the attribute is never sent.
+# Resource and targets: local.websites (websites.tf).
 locals {
   demo_planning_kc_website = {
     name        = "Demo Planning KC"

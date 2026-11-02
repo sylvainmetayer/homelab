@@ -1,5 +1,4 @@
-# Resource, targets and monitors: local.websites (websites.tf). The resource
-# ignores its `headers`: see the lifecycle block there.
+# Resource, targets and monitors: local.websites (websites.tf).
 locals {
   flip_planning_website = {
     name      = "Flip Planning"

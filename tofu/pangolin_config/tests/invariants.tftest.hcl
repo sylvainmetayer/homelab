@@ -1726,8 +1726,27 @@ run "every_resource_declares_the_pinned_attributes" {
       && r.block_access == local.resource_pins.block_access
       && r.email_whitelist_enabled == local.resource_pins.email_whitelist_enabled
       && r.sticky_session == local.resource_pins.sticky_session
+      && r.resource_policy_id == local.resource_pins.resource_policy_id
     ])
     error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...)."
+  }
+
+  # Côté privé, chaque ressource déclare les siens, à la main : relu dans le
+  # source, un attribut absent ne se voit pas dans le mock.
+  assert {
+    condition = alltrue(flatten([
+      for f in fileset(path.module, "*.tf") : [
+        for body in regexall("(?ms)^resource\\s+\"pangolin_site_resource\"\\s+\"\\w+\"\\s+\\{(.*?)\\n\\}", file("${path.module}/${f}")) :
+        alltrue([
+          for attr in ["site_ids", "ssl", "enabled"] :
+          length(regexall("(?m)^\\s*${attr}\\s*=", body[0])) == 1
+        ])
+      ]
+      ])) && length(flatten([
+      for f in fileset(path.module, "*.tf") :
+      regexall("(?m)^resource\\s+\"pangolin_site_resource\"\\s+\"", file("${path.module}/${f}"))
+    ])) >= 10
+    error_message = "Une pangolin_site_resource ne déclare pas site_ids, ssl et enabled : le plan ne verrait pas un changement fait dans l'UI."
   }
 
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
@@ -2077,7 +2096,7 @@ run "flip_newt_credentials_come_from_the_flip_site" {
   # privée lue dans le state de tofu/pangolin.
   assert {
     condition = (
-      contains(pangolin_site_resource.flip.site_ids, pangolin_site.flip.id)
+      pangolin_site_resource.flip.site_ids == toset([pangolin_site.flip.id])
       && pangolin_site_resource.flip.destination == "10.0.1.10"
       && pangolin_site_resource.flip.alias == "flip.internal"
       && pangolin_site_resource.flip.mode == "host"
@@ -2096,7 +2115,7 @@ run "dns_resource_points_at_the_lxc_blocky" {
 
   assert {
     condition = (
-      contains(pangolin_site_resource.dns.site_ids, pangolin_site.proxmox_lxc.id)
+      pangolin_site_resource.dns.site_ids == toset([pangolin_site.proxmox_lxc.id])
       && pangolin_site_resource.dns.mode == "host"
       && pangolin_site_resource.dns.destination == "192.168.1.200"
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "newt-lxc ansible_host=192.168.1.200 ")
@@ -2154,7 +2173,7 @@ run "nas_newt_credentials_and_media" {
   # (tofu/dns), pour une seule URL en LAN et dehors.
   assert {
     condition = (
-      contains(pangolin_site_resource.jellyfin.site_ids, pangolin_site.nas.id)
+      pangolin_site_resource.jellyfin.site_ids == toset([pangolin_site.nas.id])
       && pangolin_site_resource.jellyfin.mode == "host"
       && pangolin_site_resource.jellyfin.alias == "media.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/media.tf"), "subdomain = \"media\"")
@@ -2189,7 +2208,7 @@ run "nas_newt_credentials_and_media" {
   # port de MediaManager, sur le réseau que crée l'un et rejoint l'autre.
   assert {
     condition = (
-      contains(pangolin_site_resource.mediamanager.site_ids, pangolin_site.nas.id)
+      pangolin_site_resource.mediamanager.site_ids == toset([pangolin_site.nas.id])
       && pangolin_site_resource.mediamanager.mode == "host"
       && pangolin_site_resource.mediamanager.alias == "mediamanager.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/mediamanager.tf"), "subdomain = \"mediamanager\"")
