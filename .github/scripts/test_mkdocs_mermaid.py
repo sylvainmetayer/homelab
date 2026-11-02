@@ -30,14 +30,9 @@ class AddScript(unittest.TestCase):
 class Pin(unittest.TestCase):
     def test_sha256_is_the_one_of_the_pinned_version(self):
         # Échoue sur une PR Renovate qui monte MERMAID_VERSION : son sha256
-        # se recalcule à la main (docstring de mkdocs_mermaid.py).
-        self.assertEqual(
-            mkdocs_mermaid.MERMAID_SHA256_OF,
-            mkdocs_mermaid.MERMAID_VERSION,
-            f"MERMAID_SHA256 est celui de mermaid {mkdocs_mermaid.MERMAID_SHA256_OF}, pas de "
-            f"{mkdocs_mermaid.MERMAID_VERSION} : curl -sL {mkdocs_mermaid.MERMAID_URL} | sha256sum, "
-            "puis mettre à jour MERMAID_SHA256 et MERMAID_SHA256_OF",
-        )
+        # se recalcule à la main (docstring de mkdocs_mermaid.py) ; le
+        # PluginError de check_pin() dit quoi faire.
+        check_pin()
         self.assertRegex(mkdocs_mermaid.MERMAID_SHA256, re.compile(r"^[0-9a-f]{64}$"))
 
     def test_a_version_bumped_alone_stops_the_build(self):
