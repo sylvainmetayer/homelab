@@ -83,7 +83,9 @@ ExecStartPre=/usr/bin/docker compose pull --policy missing
 # du NAS) ne conviennent. -a : une ligne binaire ne coupe pas la sortie de
 # grep. `exit $${PIPESTATUS[0]}` (`$$` : un `$` pour systemd) rend le code de
 # sortie de `up`, pas celui de grep (1 s'il n'a rien laissé passer).
-ExecStart=/usr/bin/bash -c '/usr/bin/docker compose up --remove-orphans | /usr/bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
+# /bin/bash et /bin/grep (comme /bin/sh plus haut) : présents que /usr soit
+# fusionné ou non (UGOS sur le NAS).
+ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
 # `stop`, pas `down`, délibérément : `down` supprimerait les conteneurs, et
 # avec eux le contenu des volumes anonymes (VOLUME d'une image que le compose
 # ne monte pas) au prochain `up`. Les conteneurs arrêtés sont marqués « stoppés

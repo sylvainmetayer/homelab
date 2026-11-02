@@ -6,8 +6,8 @@
   vars:
     docker_service_unit_path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
     docker_service_exec_start: >-
-      ExecStart=/usr/bin/bash -c '/usr/bin/docker compose up --remove-orphans
-      | /usr/bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
+      ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans
+      | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
   tasks:
     - name: Stat the dc@ unit template and the apps folder
       ansible.builtin.stat:
@@ -79,7 +79,7 @@
         content: |
           [Service]
           Type=oneshot
-          StandardOutput=file:/tmp/molecule-dc-filter.out
+          StandardOutput=truncate:/tmp/molecule-dc-filter.out
           {{ docker_service_exec_start | replace('/usr/bin/docker compose up --remove-orphans', docker_service_fake_up) }}
       vars:
         # Ce qu'écrit `up` sur sa sortie standard, puis un code de sortie que

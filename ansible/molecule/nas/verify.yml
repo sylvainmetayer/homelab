@@ -70,8 +70,8 @@
       vars:
         nas_verify_unit_lines: "{{ (nas_verify_unit_raw.content | b64decode).splitlines() }}"
         nas_verify_exec_start: >-
-          ExecStart=/usr/bin/bash -c '/usr/bin/docker compose up --remove-orphans
-          | /usr/bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
+          ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans
+          | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
       ansible.builtin.assert:
         that:
           - nas_verify_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1

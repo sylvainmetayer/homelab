@@ -139,7 +139,8 @@
       {{ nextcloud_config_dir }}/config.php toujours absent après
       {{ nextcloud_config_wait_timeout }} s : dc@nextcloud n'a pas initialisé
       son dossier config, homelab.config.php (token_auth_enforced,
-      trusted_proxies) n'est pas posé. Voir journalctl --user -u dc@nextcloud.
+      trusted_proxies) n'est pas posé. Voir docker logs nextcloud (la sortie des
+      conteneurs n'est plus dans journalctl --user -u dc@nextcloud).
 
 - name: Check that the Nextcloud container has initialised its config
   ansible.builtin.stat:

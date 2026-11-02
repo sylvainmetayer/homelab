@@ -160,7 +160,8 @@ so the new app's link shows up.
 
 ```bash
 systemctl --user status dc@<service>
-journalctl --user -u dc@<service> -n 50
+journalctl --user -u dc@<service> -n 50   # unit only: container output is in docker logs
+docker compose -f /opt/apps/<service>/compose.yaml logs --tail 50
 curl -I https://<subdomain>.sylvain.cloud   # or whatever full_domain you set
 ```
 
