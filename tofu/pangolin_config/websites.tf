@@ -269,6 +269,8 @@ resource "uptimekuma_monitor_push" "backup" {
 
   interval = local.backup_push_interval
 
+  # A missed window or a pushed `down` pages at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
   retry_interval = 20
   # A paused app (enabled = false) runs no backup: nothing to wait for.
   active = pangolin_resource.website[each.key].enabled

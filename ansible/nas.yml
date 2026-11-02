@@ -12,8 +12,8 @@
   pre_tasks:
     # Secrets SOPS (jeton de l'agent Beszel, clé du hub) et sorties du state de
     # tofu/pangolin_config (terraform_outputs : identifiants Newt du site nas,
-    # URL push de la sauvegarde de Jellyfin, de l'échéance des certificats et
-    # de la copie de kDrive).
+    # URL push de la sauvegarde de Jellyfin, de l'échéance des certificats, de
+    # la copie de kDrive et de la santé des applis).
     # Comme ailleurs, un state illisible (S3, clés) arrête la play quel que
     # soit le tag, --tags beszel_agent compris : l'agent Beszel, lui, parle au
     # hub par le LAN, sans jeton Pangolin.
@@ -49,6 +49,10 @@
         jellyfin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellyfin_url.value | default('') }}"
         nas_proxy_cert_healthcheck_url: "{{ terraform_outputs.uptime_cron_nas_cert_url.value | default('') }}"
         kdrive_sync_healthcheck_url: "{{ terraform_outputs.uptime_cron_kdrive_sync_url.value | default('') }}"
+        # Santé de Jellyfin et de MediaManager (rôle nas_proxy). Retirer
+        # MediaManager retire sa ligne.
+        nas_proxy_jellyfin_healthcheck_url: "{{ terraform_outputs.uptime_health_jellyfin_url.value | default('') }}"
+        nas_proxy_mediamanager_healthcheck_url: "{{ terraform_outputs.uptime_health_mediamanager_url.value | default('') }}"
   roles:
     # dc@ en unité système, exécutée en root (host_vars/nas).
     # always : un `--tags beszel_agent` après une réinitialisation d'UGOS
@@ -93,7 +97,8 @@
     # dc@nas_proxy réessaie toutes les 15 s. Crée mediamanager_proxy, que
     # rejoint MediaManager.
     # Vérifie aussi chaque jour l'échéance des certificats servis (moniteur
-    # « Certificats NAS »).
+    # « Certificats NAS »), et toutes les 5 minutes la santé de Jellyfin et
+    # de MediaManager par ce Traefik (moniteurs « Healthcheck <appli> »).
     - role: nas_proxy
       tags: nas_proxy,app
     # Copie à sens unique de kDrive vers le dossier partagé kdrive, chaque nuit

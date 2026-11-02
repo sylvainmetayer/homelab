@@ -1,0 +1,27 @@
+# Santé des applis du NAS (rôle nas_proxy, files/health_check.sh), poussée aux
+# moniteurs « Healthcheck <appli> » d'Uptime Kuma. Les URL push (jetons des
+# moniteurs) sont dans {{ nas_proxy_health_dir }}/<appli>.curl, 0600 root,
+# jamais sur la ligne de commande : systemctl show et ps la montreraient.
+[Unit]
+Description=Health check of the NAS apps behind its Traefik
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Script de push (rôle uptime_push), au chemin de uptime_push_bin.
+Environment=UPTIME_PUSH={{ uptime_push_bin }}
+ExecStart=/bin/sh {{ nas_proxy_base_path }}/health_check.sh {{ nas_proxy_https_port }} {{ nas_proxy_health_dir }}{% for check in nas_proxy_health_checks %} {{ check.name }} {{ check.domain }} {{ check.path }}{% endfor %}
+
+# Au plus 10 s de curl et 21 s de push par appli : borné, pour qu'une unité
+# bloquée ne fasse pas sauter les passages suivants du timer.
+TimeoutStartSec=2min
+# Root pour lire les .curl et le script (0600/0700 root), avec la seule
+# capacité de lecture et de traversée, comme nas-proxy-cert-check : UGOS
+# présente à root des modes de dossiers partagés qui ne sont pas les vrais.
+# Rien à écrire.
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes

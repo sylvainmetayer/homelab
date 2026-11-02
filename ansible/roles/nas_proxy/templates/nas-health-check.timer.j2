@@ -1,0 +1,13 @@
+# Toutes les 5 minutes ; les moniteurs « Healthcheck <appli> » ont une
+# fenêtre de deux périodes et un essai (tofu/pangolin_config/health_nas.tf) :
+# deux échecs de suite alertent, pas un seul. Sans rattrapage ni délai
+# aléatoire : des push réguliers.
+[Unit]
+Description=Periodic health check of the NAS apps
+
+[Timer]
+OnCalendar={{ nas_proxy_health_check_schedule }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

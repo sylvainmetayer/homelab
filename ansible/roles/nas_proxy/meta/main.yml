@@ -1,0 +1,9 @@
+---
+# Script de push Uptime Kuma partagé (rôle uptime_push), posé avant ce rôle
+# et sous ses tags : la vérification de santé des applis (nas-health-check)
+# pousse par lui. Sur le NAS, uptime_push_bin est sous docker_base_path
+# (host_vars/nas).
+#
+# No galaxy_info block: this role is not published (cf. flip_planning).
+dependencies:
+  - role: uptime_push

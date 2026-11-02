@@ -119,3 +119,31 @@ nas_proxy_cert_check_names:
 # semaines, et il reste deux semaines pour réparer.
 nas_proxy_cert_check_min_days: 14
 nas_proxy_cert_check_schedule: "*-*-* 07:00:00"
+
+# --- Santé des applis (nas-health-check.timer) ---
+# Comme les certificats : l'Uptime Kuma de PikaPods ne joint pas le NAS.
+# Toutes les 5 minutes, files/health_check.sh interroge chaque appli par ce
+# Traefik (127.0.0.1, port publié, son nom en SNI et en Host : le chemin d'un
+# navigateur de la maison, TLS compris) et pousse up, ou down avec l'erreur
+# de curl, au moniteur « Healthcheck <appli> » (uptimekuma_monitor_push.
+# health_nas de tofu/pangolin_config, une clé par entrée, que ses tests
+# comparent à cette liste). URL push : la sortie uptime_health_<name>_url,
+# lue par nas.yml dans nas_proxy_<name>_healthcheck_url ; vide, l'appli est
+# vérifiée sans rien pousser. Retirer MediaManager retire son entrée ici
+# (ansible/roles/mediamanager/README.md).
+nas_proxy_jellyfin_healthcheck_url: ""
+nas_proxy_mediamanager_healthcheck_url: ""
+nas_proxy_health_checks:
+  - name: jellyfin
+    domain: "{{ nas_proxy_media_domain }}"
+    path: /health
+    push_url: "{{ nas_proxy_jellyfin_healthcheck_url }}"
+  - name: mediamanager
+    domain: "{{ nas_proxy_mediamanager_domain }}"
+    path: /api/v1/health
+    push_url: "{{ nas_proxy_mediamanager_healthcheck_url }}"
+# Les configurations curl des URL push, 0600 root.
+nas_proxy_health_dir: "{{ nas_proxy_base_path }}/health"
+# *:0/N seulement : les tests de tofu/pangolin_config en tirent la fenêtre
+# des moniteurs (deux périodes).
+nas_proxy_health_check_schedule: "*:0/5"
