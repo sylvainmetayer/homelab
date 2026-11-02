@@ -148,20 +148,22 @@
       ansible.builtin.assert:
         that:
           # Status, CPU, Memory et Disk sur les 7 systèmes, Temperature sur 3,
-          # LoadAvg5 sur docker seul ; seuils serrés sur docker.
+          # CPUIOWait sur docker seul ; seuils serrés sur docker.
           - beszel_mock.alerts | length == 32
-          - beszel_mock.alerts | map(attribute='name') | unique | sort == ['CPU', 'Disk', 'LoadAvg5', 'Memory', 'Status', 'Temperature']
+          - beszel_mock.alerts | map(attribute='name') | unique | sort == ['CPU', 'CPUIOWait', 'Disk', 'Memory', 'Status', 'Temperature']
           - >-
-            beszel_mock.alerts | selectattr('name', 'eq', 'LoadAvg5') | map(attribute='system') | list
+            beszel_mock.alerts | selectattr('name', 'eq', 'CPUIOWait') | map(attribute='system') | list
             == ['sysdocker000000']
+          - >-
+            beszel_mock.alerts | selectattr('name', 'eq', 'CPUIOWait') | map(attribute='min') | list == [15]
           # Tous les seuils de docker, et sa CPU de départ (80 sur 5 min)
           # remise à 70 sur 10 min.
           - >-
             beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000')
             | items2dict(key_name='name', value_name='value')
-            == {'Status': 0, 'CPU': 70, 'Memory': 85, 'Disk': 80, 'LoadAvg5': 4}
+            == {'Status': 0, 'CPU': 70, 'Memory': 85, 'Disk': 80, 'CPUIOWait': 20}
           - >-
-            beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000') | rejectattr('name', 'eq', 'Status')
+            beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000') | rejectattr('name', 'in', ['Status', 'CPUIOWait'])
             | map(attribute='min') | unique | list == [10]
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'CPU') | selectattr('system', 'eq', 'syspi0000000000')
@@ -169,14 +171,14 @@
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
             == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
-          # Neuf POST groupés (un par type et seuil), la LoadAvg5 de pi supprimée, un PATCH des
+          # Neuf POST groupés (un par type et seuil), la LoadAvg5 de docker supprimée, un PATCH des
           # réglages ; rien au second passage (idempotence), et la Status de
           # flip, déjà juste, jamais réécrite.
           - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 9 + ['DELETE', 'PATCH']
           - "'sysflip00000000' not in beszel_mock_status_write.body.systems"
           - beszel_mock_status_write.body.systems | length == 6
           - beszel_mock_writes[9].body.name == 'LoadAvg5'
-          - beszel_mock_writes[9].body.systems == ['syspi0000000000']
+          - beszel_mock_writes[9].body.systems == ['sysdocker000000']
           - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
           - beszel_mock_settings.emails == [pangolin_le_email]
         fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"
