@@ -47,8 +47,9 @@ ALL_SCENARIOS = [
     "pyproject.toml",
     "uv.lock",
 ]
-# The OpenTofu version of the tofu jobs is read from mise.toml.
-ALL_MODULES = ["mise.toml"]
+# The OpenTofu version of the tofu jobs is read from mise.toml; the script
+# fetches the Pangolin provider they init with (ADR 0021).
+ALL_MODULES = ["mise.toml", ".github/scripts/fetch_pangolin_provider.sh"]
 
 # A playbook is not run by Molecule: each converge.yml reproduces it for one
 # host, with that host's host_vars. A change to the playbook reruns the

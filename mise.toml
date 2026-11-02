@@ -109,14 +109,14 @@ raw = true
 dir = "tofu/planning"
 depends = ["init-planning"]
 
-# Mêmes modules que le job « OpenTofu lint » (lint.yaml), sans accès au
-# state (-backend=false). TF_DATA_DIR jetable : un init -backend=false dans le
-# .terraform du module le désinitialiserait, et tofu show (inventaire
-# hetzner.py) échouerait ensuite sur « Backend configuration changed ».
 [tasks.provider-fork]
 description = "Fetch the fork of the Pangolin provider into tofu/pangolin_config's local mirror (ADR 0021)"
 run = ".github/scripts/fetch_pangolin_provider.sh"
 
+# Mêmes modules que le job « OpenTofu lint » (lint.yaml), sans accès au
+# state (-backend=false). TF_DATA_DIR jetable : un init -backend=false dans le
+# .terraform du module le désinitialiserait, et tofu show (inventaire
+# hetzner.py) échouerait ensuite sur « Backend configuration changed ».
 [tasks.lint]
 description = "Tofu linting: fmt and validate of every module the Lint workflow checks"
 depends = ["provider-fork"]

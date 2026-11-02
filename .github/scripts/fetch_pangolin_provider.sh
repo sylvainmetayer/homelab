@@ -17,8 +17,8 @@ if ! echo "$sha256  $target" | sha256sum --check --status 2>/dev/null; then
   mkdir -p "$mirror"
   tmp=$(mktemp "$mirror/.download.XXXXXX")
   trap 'rm -f "$tmp"' EXIT
-  curl --fail --silent --show-error --location --retry 3 --output "$tmp" \
+  curl --fail --silent --show-error --location --retry 3 --retry-all-errors --output "$tmp" \
     "https://github.com/sylvainmetayer/terraform-provider-pangolin/releases/download/v$version/$zip"
-  echo "$sha256  $tmp" | sha256sum --check --status
+  echo "$sha256  $tmp" | sha256sum --check --quiet
   mv "$tmp" "$target"
 fi

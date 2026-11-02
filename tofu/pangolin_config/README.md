@@ -6,7 +6,11 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 
 ## Provider: a build of the fork
 
-The Pangolin provider is `1.7.0-sylvain.1`, built from `sylvainmetayer/terraform-provider-pangolin` and pinned exactly in `provider.tf`. Run `mise run provider-fork` before `tofu init` in this module (once per clone or worktree; `lint`, `tofu-test` and the CI do it): without it, `init` fails on a version the registry does not have. The zip lands in `terraform.d/plugins`, an implied mirror needing no CLI configuration, as long as no `provider_installation` block exists in `~/.tofurc`. linux_amd64 only. See ADR 0021, which also gives the way back to upstream.
+The Pangolin provider is `1.7.0-sylvain.1`, built from `sylvainmetayer/terraform-provider-pangolin` and pinned exactly in `provider.tf`. Run `mise run provider-fork` before `tofu init` in this module (once per clone or worktree; `lint`, `tofu-test` and the CI do it): without it, `init` fails on a version the registry does not have. The zip lands in `terraform.d/plugins`, an implied mirror needing no CLI configuration, as long as no `provider_installation` block exists in `~/.tofurc`. Rerun it after a version bump. linux_amd64 only. Why: ADR 0021.
+
+What this module says about 1.6.1 (bindings wiped on update, `gateway` undeclarable, a site resource's `ssl` computed only) describes workarounds still in place: the fork lifts some of them, each to be reconsidered on its own. The fork's schema also adds optional+computed attributes nothing here declares, so the plan stays blind to their live value (`AGENTS.md`'s hard rule): `ai_provider_ids` and `resource_policy_id` on `pangolin_resource`; `ai_provider_ids`, `site_ids`, `ssl`, `enabled`, `auth_daemon_port` and `nice_id` on `pangolin_site_resource`.
+
+Way back, once upstream has what the config uses. First, in every checkout and worktree, `rm -rf tofu/pangolin_config/terraform.d`: a provider found in an implied mirror is hidden from the registry, so with the fork's zip still there `init` finds no release matching an upstream constraint. Then put a normal constraint back in `provider.tf`, `tofu init -upgrade`, check an empty plan, and remove the script, the `provider-fork` task and its `depends`, the CI steps, the `select_tests.py` entry and its test, the Renovate rule, `terraform.d/` from `.gitignore`, this section and the two `AGENTS.md` lines.
 
 ## Public resources: country rules and path bypasses
 

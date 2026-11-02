@@ -149,6 +149,7 @@ nav:
       - adr/0018-secrets-depot-prive.md
       - adr/0019-flip-sans-ipv4-publique.md
       - adr/0020-garder-le-raspberry-pi-pour-immich.md
+      - adr/0021-provider-pangolin-du-fork.md
   - Conventions:
       - conventions/ansible.md
       - conventions/app-lifecycle.md

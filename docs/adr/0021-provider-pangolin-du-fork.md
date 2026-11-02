@@ -32,10 +32,9 @@ source reste `stackopshq/pangolin` : l'état ne change pas.
 - linux_amd64 seulement, binaire non signé : la confiance tient au SHA-256
   épinglé dans `.github/scripts/fetch_pangolin_provider.sh`.
 - Renovate ne suit plus ce provider : une version amont ne se verra pas seule.
+- Retour à l'amont dès qu'il a repris ce que la config utilise : la procédure
+  est au README du module.
 
-## Retour à l'amont
+## Liens
 
-Quand l'amont a repris ce que la config utilise : remettre une contrainte
-normale dans `provider.tf`, `tofu init -upgrade`, vérifier un plan vide, puis
-retirer le script, la tâche `provider-fork`, les étapes CI, la règle Renovate,
-`terraform.d/` du `.gitignore` et cet avertissement du README du module.
+PR #1124, [README du module](../../tofu/pangolin_config/README.md#provider-a-build-of-the-fork).
