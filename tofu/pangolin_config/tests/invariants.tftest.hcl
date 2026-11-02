@@ -2072,6 +2072,21 @@ run "flip_newt_credentials_come_from_the_flip_site" {
   }
 }
 
+# Les alertes de Pangolin publient dans un topic où le jeton a le droit d'écrire,
+# sur chaque événement prévu.
+run "pangolin_alerts_publish_to_a_known_topic" {
+  command = plan
+
+  assert {
+    condition = (
+      contains(local.ntfy_publish_topics, local.alert_ntfy_topic)
+      && alltrue([for rule in pangolin_alert_rule.ntfy : rule.enabled && length(rule.webhook_actions) == 1])
+      && length(pangolin_alert_rule.ntfy) == 3
+    )
+    error_message = "Les règles d'alerte doivent rester actives, avec leur webhook vers un topic de ntfy_publish_topics."
+  }
+}
+
 # Les sorties VPN routent tout le trafic d'un client : leurs sites sont un choix.
 run "vpn_gateways_exit_through_their_sites" {
   command = plan
