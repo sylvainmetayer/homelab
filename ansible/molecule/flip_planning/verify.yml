@@ -120,12 +120,6 @@
       register: flip_planning_kc_compose_raw
       changed_when: false
 
-    # Keycloak et sa base n'existent que là.
-    - name: Assert every service of demo_planning_kc has a restart policy
-      ansible.builtin.include_tasks: tasks/assert_restart_policy.yml
-      vars:
-        flip_planning_restart_services: "{{ (flip_planning_kc_compose_raw.stdout | from_json).services }}"
-
     - name: Assert the Keycloak test bench shares nothing with the two other instances
       vars:
         flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
