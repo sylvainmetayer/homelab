@@ -121,11 +121,48 @@ Rotation du secret client (fuite) : en régénérer un dans le Partner Hub,
 le recoller dans HealthLog, reconnecter. Voir
 `docs/runbooks/rotation-des-secrets.md`.
 
+## Claude (API)
+
+Le Coach, les briefings, les rapports et les analyses de HealthLog passent par
+l'API d'Anthropic, avec une clé personnelle saisie dans `/settings/ai`
+(fournisseur **Anthropic**, modèle `claude-opus-5-5` dans le champ
+personnalisé). Pas de variable d'environnement, pas de clé SOPS : la clé est
+chiffrée en base (`ENCRYPTION_KEY`), copie dans KeePassXC (entrée
+« Anthropic — HealthLog »).
+
+**Ce qui sort** : le contexte de santé nécessaire (mesures, cibles, historique
+du Coach) part chez Anthropic à chaque appel, **y compris en tâche de fond** :
+au niveau Standard, les cartes d'état se régénèrent après les synchronisations
+(toutes les 6 h au plus), sans ouvrir l'appli. S'ajoutent les bilans scannés et,
+si « lire les documents automatiquement » est actif, chaque document envoyé.
+Pour limiter : Réglages → IA → Usage de l'IA → **Économe** (cartes une fois par
+jour, bilan court, documents lus à la demande, pas de raisonnement de fond) ;
+la page estime les jetons par jour de chaque niveau. Retirer la clé (bouton
+dédié : enregistrer un champ vide la garde) coupe ces appels.
+
+**Coût** : à l'usage, sur la facture de l'API. Utiliser une clé limitée à un
+workspace dédié, avec sa propre limite de dépense, pour ne pas couper les autres
+usages du compte Anthropic.
+
+**Pas de connecteur MCP** : décision du 02/11/2026. Le module `mcp` reste coupé
+et `/mcp` reste derrière le SSO. Brancher claude.ai ou ChatGPT, qui appellent
+depuis leurs serveurs, demanderait d'ouvrir `/mcp` et les chemins OAuth dans
+`local.path_bypasses`, donc un second accès sans SSO aux données de santé
+(`docs/self-hosting/mcp.md` de l'amont).
+
+**Modèle** : son nom vit en base, ni Renovate ni les moniteurs ne le voient. À
+son retrait, l'appli reste verte mais les appels IA échouent et les cartes ne
+se rafraîchissent plus. Vérifier avec **Tester le fournisseur actif**
+(`/settings/ai`), qui donne le modèle et la cause d'un échec. L'entrée par
+défaut de la liste retombe sur le défaut de l'amont, `claude-sonnet-4-6`.
+Rotation : `docs/runbooks/rotation-des-secrets.md`.
+
 ## Clé de chiffrement
 
 `ENCRYPTION_KEY` chiffre les jetons Withings, les identifiants des
-intégrations et le coffre de documents. Elle est dérivée de
-`backup_passphrase` : **tourner `backup_passphrase` change cette clé**, et
+intégrations, la clé API d'Anthropic et le coffre de documents. Elle est
+dérivée de `backup_passphrase` : **tourner `backup_passphrase` change cette
+clé**, et
 HealthLog refuse alors de démarrer (contrôle de clé au démarrage) ou ne lit
 plus ces colonnes. Avant une telle rotation, figer l'ancienne valeur :
 

@@ -430,6 +430,15 @@ dans KeePassXC. Sur fuite seulement : régénérer le secret dans le Partner
 Hub, le recoller dans HealthLog, puis **Déconnecter** et **Connecter
 Withings** (nouveaux jetons). Détail : `ansible/roles/healthlog/README.md`.
 
+### Clé API Anthropic (HealthLog)
+
+Hors SOPS et hors inventaire de rotation : la clé est saisie dans HealthLog
+(`/settings/ai`, fournisseur Anthropic), chiffrée en base, copie dans KeePassXC
+(« Anthropic — HealthLog »). Sur fuite seulement : créer une nouvelle clé dans
+la console Anthropic, la coller dans `/settings/ai`, vérifier avec **Tester le
+fournisseur actif**, puis révoquer l'ancienne. Détail :
+`ansible/roles/healthlog/README.md`, « Claude (API) ».
+
 ### Code PIN Immich
 
 `immich_pin` du fichier racine est le PIN de la ressource Pangolin d'Immich
