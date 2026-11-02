@@ -12,6 +12,11 @@ main seulement). Sens unique, sans suppression :
   taille égale, il n'est pas recopié (plus bas).
 - Rien n'efface jamais rien côté NAS : `versions/` ne fait que grossir, son
   ménage est manuel (plus bas).
+- Hors copie (`kdrive_sync_exclude_patterns`, `host_vars/nas`) : `Videos/`
+  et `Backups/Synology/` (films et séries, 1,27 To au relevé du 16/10) et les
+  corbeilles digiKam `.dtrash/`. Ces films n'ont donc pas de copie sur le NAS
+  par ce rôle. Le reste fait environ 0,95 To. Une exclusion ne vaut que pour
+  les passages à venir : ce qui est déjà dans `miroir/` y reste.
 
 | Quoi | Où |
 |---|---|
@@ -71,9 +76,17 @@ Sur le NAS, en root. D'abord un essai, sans rien écrire :
 
 ```sh
 cd /volume1/docker/kdrive_sync
-# Racine du kDrive telle que WebDAV la montre : corbeille et anciennes
+docker compose run --rm --no-TTY rclone --dry-run > /root/kdrive-essai.log 2>&1
+# Volume à copier, en octets : environ 0,95 To. Bien plus : une exclusion ne
+# prend pas (motif ancré à la racine WebDAV, sensible à la casse).
+grep -o '"totalBytes":[0-9]*' /root/kdrive-essai.log | tail -1
+# Dossiers de la racine telle que WebDAV la montre : corbeille et anciennes
 # versions ne doivent pas y être (sinon, kdrive_sync_exclude_patterns).
-docker compose run --rm --no-TTY rclone --dry-run --max-depth 1 2>&1 | tail -20
+grep -o '"object":"[^/"]*/' /root/kdrive-essai.log | sort | uniq -c
+# Chemins des exclusions dans l'essai : 0 attendu. Sinon, regarder lesquels
+# (motif à corriger, ou dossier homonyme plus bas) avant toute copie.
+grep -cE '"object":"([^"]*/)?(Videos|Backups/Synology|\.dtrash)/' /root/kdrive-essai.log
+rm /root/kdrive-essai.log
 ```
 
 (L'entrée du conteneur est toujours `rclone copy … "$@"` : les arguments
@@ -86,15 +99,16 @@ journalctl -fu kdrive-sync.service
 ```
 
 Bornée à 23 h (`kdrive_sync_timeout`) : une copie plus longue est arrêtée
-(conteneur retiré, moniteur poussé en rouge) et reprend la nuit suivante, là
-où elle en était. Pour une première copie d'une traite, `--bwlimit` reste
+(conteneur retiré, moniteur poussé en rouge) et reprend là où elle en était au
+passage suivant : la nuit suivante si le timer est actif, sinon à relancer à
+la main comme ci-dessus. Pour une première copie d'une traite, `--bwlimit` reste
 vide par défaut ; à régler (`kdrive_sync_bwlimit`, par exemple
 `"08:00,10M 23:00,off"`) si elle gêne la connexion de la maison.
 
-Une fois la première copie terminée et vérifiée (moniteur vert, `du -sh
-/volume1/kdrive/miroir` proche de la taille du kDrive), activer les passages
-nocturnes : `kdrive_sync_timer_enabled: true` dans `host_vars/nas`, puis
-`ansible-playbook nas.yml --tags kdrive_sync`.
+Une fois la première copie terminée et vérifiée (moniteur vert, `du -s --si
+/volume1/kdrive/miroir` proche de la taille du kDrive, exclusions déduites),
+activer les passages nocturnes : `kdrive_sync_timer_enabled: true` dans
+`host_vars/nas`, puis `ansible-playbook nas.yml --tags kdrive_sync`.
 
 Les dossiers `miroir/` et `versions/` sont à `sylvain`, en 0700 : seul ce
 compte les lit par SMB. Un autre compte du NAS (famille, médias) n'y a pas
@@ -102,7 +116,8 @@ accès, volontairement.
 
 ## Retrouver un fichier
 
-- Supprimé dans kDrive : il est toujours dans `miroir/`.
+- Supprimé dans kDrive : il est toujours dans `miroir/`, sauf s'il était hors
+  copie (`Videos/`, `Backups/Synology/`, `.dtrash/`).
 - Remplacé ou chiffré dans kDrive : la version d'avant est dans le dossier
   `versions/` du passage qui l'a remplacé (le plus ancien qui le contient
   pour remonter loin). `find /volume1/kdrive/versions -path '*/<nom>'`.
@@ -110,6 +125,27 @@ accès, volontairement.
   `versions/<passage>/` les originaux. Avant tout, désactiver le timer
   (`systemctl disable --now kdrive-sync.timer`) pour figer la copie, et
   préférer le retour arrière de kDrive (jusqu'à 3 mois) s'il suffit.
+
+## Fichiers déplacés dans kDrive
+
+`rclone copy` ne suit pas les déplacements : un fichier déplacé ou renommé dans
+kDrive est recopié au nouveau chemin et reste à l'ancien dans `miroir/`. Après
+une grosse réorganisation, repartir d'un miroir propre, sans rien effacer :
+`miroir/` est la seule copie de ce qui a été supprimé dans kDrive. Le mettre de
+côté dans `versions/`, puis tout recopier ; il faut la taille du miroir en plus
+sur le volume (`df -h /volume1`) :
+
+```sh
+systemctl disable --now kdrive-sync.timer
+systemctl stop kdrive-sync.service
+mv /volume1/kdrive/miroir "/volume1/kdrive/versions/$(date +%Y-%m-%dT%H%M%S)-avant-reorganisation"
+install -d -o sylvain -g "$(id -g sylvain)" -m 0700 /volume1/kdrive/miroir
+systemctl start --no-block kdrive-sync.service
+```
+
+Une fois la copie terminée et vérifiée (comme au premier passage),
+`systemctl enable --now kdrive-sync.timer`. L'ancien miroir suit ensuite le
+ménage de `versions/`.
 
 ## Ménage de `versions/`
 
@@ -120,8 +156,8 @@ datés devenus inutiles, à la main (`du -sh /volume1/kdrive/versions/*`).
 
 Désactivée (`kdrive_sync_backup_enabled: false`) : le NAS est la deuxième
 copie, kDrive garde son propre historique (versions, corbeille, retour
-arrière), et la Storage Box (~49 % d'1 Tio) devrait recevoir toute la taille
-du kDrive, versions du NAS comprises. Pour l'activer : ajouter
+arrière), et la Storage Box (~49 % d'1 Tio) devrait recevoir toute la copie
+(~0,95 To), versions du NAS comprises. Pour l'activer : ajouter
 `/volume1/kdrive` à `borgmatic_container_source_paths` (`host_vars/nas`, ce
 que le rôle vérifie), déclarer un moniteur « Backup » dans
 `tofu/pangolin_config` et son URL dans `nas.yml`

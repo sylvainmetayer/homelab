@@ -69,6 +69,13 @@ beszel_agent_extra_filesystems:
 # docs/runbooks/kdrive-nas.md) : ensuite, passer à true et relancer
 # nas.yml --tags kdrive_sync.
 kdrive_sync_timer_enabled: false
+# Hors copie : les films et séries (1,27 To au relevé du 16/10, ils porteraient
+# le volume vers 90 %) et les corbeilles digiKam, qu'un miroir sans suppression
+# garderait même une fois vidées. Ces films n'ont donc pas de copie ici.
+kdrive_sync_exclude_patterns:
+  - /Videos/**
+  - /Backups/Synology/**
+  - .dtrash/**
 
 # --- MediaManager (rôle mediamanager) ---
 # Pays des serveurs P2P de ProtonVPN, noms anglais de gluetun. Pas la France :

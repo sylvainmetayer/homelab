@@ -83,8 +83,8 @@ kdrive_sync_healthcheck_url: ""
 # --- Sauvegarde borg (rôle borgmatic, tasks/app.yml) : désactivée ---
 # Le NAS *est* la deuxième copie de kDrive (kDrive en garde l'historique :
 # versions, corbeille, retour arrière). Une troisième sur la Storage Box
-# (à ~49 % de 1 Tio) coûterait la taille du kDrive entière, versions du NAS
-# comprises. Pour l'activer : ajouter kdrive_sync_share_path à
+# (à ~49 % de 1 Tio) coûterait toute la copie (hors exclusions), versions du
+# NAS comprises. Pour l'activer : ajouter kdrive_sync_share_path à
 # borgmatic_container_source_paths (host_vars/nas, sinon le conteneur
 # borgmatic ne le voit pas, ce que le rôle vérifie), et un moniteur Backup
 # dans tofu/pangolin_config pour kdrive_sync_backup_healthcheck_url.

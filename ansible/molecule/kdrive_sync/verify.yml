@@ -47,6 +47,9 @@
           - kdrive_sync_verify_script is search(' "\$?\$@"$')
           - kdrive_sync_verify_script is not search('\\b(sync|move|moveto|bisync|purge|delete|deletefile|rmdirs?)\\b')
           - kdrive_sync_verify_script is not search('--(delete|max-delete|track-renames)')
+          # Exclusions de host_vars/nas : citées, sinon le shell du conteneur
+          # déploierait ** (sans elles, 1,27 To de films en plus sur le volume).
+          - "\"'--exclude=/Videos/**'\" in kdrive_sync_verify_script"
           - "'rclone obscure -' in kdrive_sync_verify_script"
           - "'unset KDRIVE_APP_PASSWORD' in kdrive_sync_verify_script"
           - kdrive_sync_verify_rclone.command is not defined or not kdrive_sync_verify_rclone.command
