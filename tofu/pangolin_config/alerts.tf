@@ -1,7 +1,18 @@
 # Alertes de Pangolin lui-même, en plus d'Uptime Kuma : un Newt déconnecté se voit
-# ici tout de suite, sans attendre l'échec d'une sonde extérieure. Elles passent
-# par ntfy, donc par Pangolin : si Pangolin tombe, seules les alertes d'Uptime
-# Kuma (et Telegram) restent. Pas de Telegram ici pour cette raison.
+# ici tout de suite, sans attendre l'échec d'une sonde extérieure. Elles ne
+# remplacent pas Uptime Kuma et son canal Telegram, seuls à couvrir ces cas :
+#
+# - Pangolin tombé : rien ne part, ntfy est derrière lui.
+# - Site proxmox-docker hors ligne, ou coupure Internet de la maison : ntfy tourne
+#   sur la VM docker, Pangolin ne le joint plus. Trois essais en quelques secondes
+#   (sendAlertWebhook.ts), puis l'alerte est perdue, sans reprise.
+# - Plusieurs pannes en cinq minutes : le délai est par règle, pas par site ni par
+#   ressource (processAlerts.ts), et compte même si l'envoi a échoué. Seule la
+#   première part, et rien ne rejoue les autres : un événement ne part qu'au
+#   changement d'état. Sans délai, un site hors ligne enverrait une alerte par
+#   ressource.
+#
+# Aucune règle de retour à la normale : il se lit dans Uptime Kuma.
 #
 # Le jeton du producteur uptime-kuma sert aussi ici : écriture seule sur ce topic,
 # et il est déjà dans ce state (website_ntfy.tf), donc rien de plus n'y entre.
@@ -34,12 +45,12 @@ locals {
   lan_probes = {
     bbox = {
       name     = "BBOX"
-      hostname = "192.168.1.254"
-      port     = 80
+      hostname = pangolin_site_resource.app_proxy.destination
+      port     = pangolin_site_resource.app_proxy.destination_port
     }
     nas = {
       name     = "NAS"
-      hostname = "192.168.1.137"
+      hostname = pangolin_site_resource.nas.destination
       port     = 443
     }
   }
@@ -54,6 +65,15 @@ resource "pangolin_health_check" "lan" {
   mode     = "tcp"
   hostname = each.value.hostname
   port     = each.value.port
+
+  # Mêmes cadences que les cibles (websites.tf) : sans ces seuils, le provider
+  # en met 1, et un seul paquet perdu alerterait. method et follow_redirects ne
+  # servent pas en tcp ; ils gardent le défaut fixe du provider, relu à l'API.
+  interval            = 60
+  unhealthy_interval  = 10
+  timeout             = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 3
 }
 
 resource "pangolin_alert_rule" "ntfy" {
@@ -65,9 +85,12 @@ resource "pangolin_alert_rule" "ntfy" {
   cooldown_seconds = 300
 
   # Une seule famille par événement : le provider refuse les autres drapeaux.
-  all_sites         = each.key == "site_offline" ? true : null
-  all_resources     = each.key == "resource_unhealthy" ? true : null
-  all_health_checks = each.key == "health_check_unhealthy" ? true : null
+  all_sites     = each.key == "site_offline" ? true : null
+  all_resources = each.key == "resource_unhealthy" ? true : null
+  # Les sondes LAN seulement. all_health_checks prendrait aussi la sonde de chaque
+  # cible : une panne d'appli alerterait déjà par resource_unhealthy, et elle
+  # consommerait le délai de cette règle, masquant une panne de la BBOX ou du NAS.
+  health_check_ids = each.key == "health_check_unhealthy" ? [for probe in pangolin_health_check.lan : probe.id] : null
 
   webhook_actions = [{
     url          = "https://${pangolin_resource.website["ntfy"].full_domain}/"
@@ -78,6 +101,9 @@ resource "pangolin_alert_rule" "ntfy" {
       title   = "Pangolin : ${each.value.name}"
       message = "{{${each.value.field}}} ({{timestamp}})"
       tags    = ["warning"]
+      # Comme le canal ntfy d'Uptime Kuma (website_ntfy.tf) : un son, sans passer
+      # outre le mode Ne pas déranger.
+      priority = 4
     })
   }]
 }

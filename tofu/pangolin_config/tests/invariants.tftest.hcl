@@ -388,6 +388,16 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_health_check.lan["bbox"]
+  values = { id = 91 }
+}
+
+override_resource {
+  target = pangolin_health_check.lan["nas"]
+  values = { id = 92 }
+}
+
+override_resource {
   target = pangolin_resource.website["homepage"]
   values = { id = 66, full_domain = "home.sylvain.cloud" }
 }
@@ -2073,17 +2083,30 @@ run "flip_newt_credentials_come_from_the_flip_site" {
 }
 
 # Les alertes de Pangolin publient dans un topic où le jeton a le droit d'écrire,
-# sur chaque événement prévu.
+# sur chaque événement prévu, et seules les sondes LAN passent par leur règle.
 run "pangolin_alerts_publish_to_a_known_topic" {
-  command = plan
+  command = apply
 
   assert {
     condition = (
       contains(local.ntfy_publish_topics, local.alert_ntfy_topic)
       && alltrue([for rule in pangolin_alert_rule.ntfy : rule.enabled && length(rule.webhook_actions) == 1])
       && length(pangolin_alert_rule.ntfy) == 3
+      && alltrue([for rule in pangolin_alert_rule.ntfy : jsondecode(rule.webhook_actions[0].body_template).topic == local.alert_ntfy_topic])
+      && alltrue([for rule in pangolin_alert_rule.ntfy : rule.webhook_actions[0].url == "https://${pangolin_resource.website["ntfy"].full_domain}/"])
     )
     error_message = "Les règles d'alerte doivent rester actives, avec leur webhook vers un topic de ntfy_publish_topics."
+  }
+
+  assert {
+    condition     = pangolin_alert_rule.ntfy["health_check_unhealthy"].health_check_ids == toset([91, 92])
+    error_message = "La règle des sondes doit viser les sondes LAN, pas les sondes des cibles : leur délai est commun à la règle."
+  }
+
+  # Mêmes cadences que les cibles (websites.tf) : un seul échec n'alerte pas.
+  assert {
+    condition     = alltrue([for probe in pangolin_health_check.lan : probe.unhealthy_threshold == 3 && probe.healthy_threshold == 2])
+    error_message = "Les sondes LAN doivent garder leurs seuils : au défaut de 1, un seul paquet perdu alerterait."
   }
 }
 
