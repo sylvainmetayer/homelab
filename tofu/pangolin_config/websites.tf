@@ -134,6 +134,7 @@ resource "pangolin_resource" "website" {
   block_access            = local.resource_pins.block_access
   email_whitelist_enabled = local.resource_pins.email_whitelist_enabled
   sticky_session          = local.resource_pins.sticky_session
+  resource_policy_id      = local.resource_pins.resource_policy_id
 
   # Maintenance screen served automatically while no target is healthy.
   # See maintenance.tf.
@@ -142,21 +143,11 @@ resource "pangolin_resource" "website" {
   maintenance_title        = local.maintenance.title
   maintenance_message      = local.maintenance.message
 
-  # No resource declares a custom header. Flip Planning had an X-Pangolin one,
-  # set by hand in the Pangolin UI for the application's MCP guard, which no
-  # longer requires it, and the two demos were made in its image. Removing it
-  # is a manual step in the UI, not an apply - the provider cannot round-trip
-  # an emptied header list (the update response comes back as a string, not a
-  # list) and fails with "cannot unmarshal string into ... headers of type
-  # []ResourceHeader". Ignoring the attribute keeps Tofu from ever sending one.
-  # It used to be ignored on those three resources only; a for_each cannot
-  # vary its lifecycle (`ignore_changes` takes no expression), and since no
-  # apply can remove a header anyway, ignoring it everywhere loses nothing Tofu
-  # could act on. A deliberate behaviour change all the same: a header set by
-  # hand in the UI, on any public resource, no longer shows in a plan.
-  lifecycle {
-    ignore_changes = [headers]
-  }
+  # Aucune ressource ne porte d'en-tête : déclarés vides, un en-tête ajouté dans
+  # l'UI se voit au plan et le prochain apply le retire. Traefik pose les
+  # en-têtes de sécurité pour tout le monde (security-headers@file).
+  headers          = []
+  response_headers = []
 }
 
 resource "pangolin_resource_role" "website" {

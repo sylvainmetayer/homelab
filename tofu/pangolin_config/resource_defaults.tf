@@ -29,6 +29,11 @@
 # it, new id, new rules and new access tokens included. Declared everywhere, it
 # can only change here.
 #
+# `resource_policy_id = 0` means "no shared policy": a policy attached in the UI
+# wipes the resource's rules and grants, so it must show in a plan. Left unset it
+# would keep whatever is attached, silently. `ai_provider_ids` cannot be declared
+# outside `mode = "inference"`.
+#
 # They are applied once, by pangolin_resource.website (websites.tf). A resource
 # that has to differ from a pin says so in its local.websites entry, with the
 # reason next to it; `enabled` is the only pin an entry can override, to pause
@@ -37,6 +42,7 @@
 
 locals {
   resource_pins = {
+    resource_policy_id      = 0
     mode                    = "http"
     ssl                     = true
     enabled                 = true

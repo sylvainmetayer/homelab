@@ -2077,7 +2077,7 @@ run "flip_newt_credentials_come_from_the_flip_site" {
   # privée lue dans le state de tofu/pangolin.
   assert {
     condition = (
-      pangolin_site_resource.flip.site_id == pangolin_site.flip.id
+      contains(pangolin_site_resource.flip.site_ids, pangolin_site.flip.id)
       && pangolin_site_resource.flip.destination == "10.0.1.10"
       && pangolin_site_resource.flip.alias == "flip.internal"
       && pangolin_site_resource.flip.mode == "host"
@@ -2096,7 +2096,7 @@ run "dns_resource_points_at_the_lxc_blocky" {
 
   assert {
     condition = (
-      pangolin_site_resource.dns.site_id == pangolin_site.proxmox_lxc.id
+      contains(pangolin_site_resource.dns.site_ids, pangolin_site.proxmox_lxc.id)
       && pangolin_site_resource.dns.mode == "host"
       && pangolin_site_resource.dns.destination == "192.168.1.200"
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "newt-lxc ansible_host=192.168.1.200 ")
@@ -2154,7 +2154,7 @@ run "nas_newt_credentials_and_media" {
   # (tofu/dns), pour une seule URL en LAN et dehors.
   assert {
     condition = (
-      pangolin_site_resource.jellyfin.site_id == pangolin_site.nas.id
+      contains(pangolin_site_resource.jellyfin.site_ids, pangolin_site.nas.id)
       && pangolin_site_resource.jellyfin.mode == "host"
       && pangolin_site_resource.jellyfin.alias == "media.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/media.tf"), "subdomain = \"media\"")
@@ -2189,7 +2189,7 @@ run "nas_newt_credentials_and_media" {
   # port de MediaManager, sur le réseau que crée l'un et rejoint l'autre.
   assert {
     condition = (
-      pangolin_site_resource.mediamanager.site_id == pangolin_site.nas.id
+      contains(pangolin_site_resource.mediamanager.site_ids, pangolin_site.nas.id)
       && pangolin_site_resource.mediamanager.mode == "host"
       && pangolin_site_resource.mediamanager.alias == "mediamanager.sylvain.cloud"
       && strcontains(file("${path.module}/../dns/mediamanager.tf"), "subdomain = \"mediamanager\"")
