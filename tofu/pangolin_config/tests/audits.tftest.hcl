@@ -18,6 +18,12 @@ mock_provider "pangolin" {
       id = 1
     }
   }
+  # De même pour health_check_ids (alerts.tf).
+  mock_resource "pangolin_health_check" {
+    defaults = {
+      id = 1
+    }
+  }
 }
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}

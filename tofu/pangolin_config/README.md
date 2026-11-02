@@ -14,7 +14,7 @@ Way back, once upstream has what the config uses. First, in every checkout and w
 
 ## Pangolin alerts and LAN probes
 
-`alerts.tf` declares three alert rules (site offline, resource down, probe failing) that publish to ntfy, and the `pangolin_health_check` probes the LXC's Newt runs on the LAN. They need the `createAlertRule`, `listAlertRules`, `getAlertRule`, `updateAlertRule`, `deleteAlertRule`, `createHealthCheck`, `listHealthChecks`, `updateHealthCheck` and `deleteHealthCheck` actions on the Pangolin API key (403 on apply otherwise). Both resources exist only in the fork (ADR 0021).
+`alerts.tf` declares three alert rules (site offline, resource down, probe failing) that publish to ntfy, and the `pangolin_health_check` probes the LXC's Newt runs on the LAN. They need the `createAlertRule`, `listAlertRules`, `getAlertRule`, `updateAlertRule`, `deleteAlertRule`, `createHealthCheck`, `listHealthChecks`, `updateHealthCheck` and `deleteHealthCheck` actions on the Pangolin API key (403 on apply otherwise). Both resources exist only in the fork (ADR 0021). They do not replace Uptime Kuma: an alert goes through ntfy, on the Docker VM, so the `proxmox-docker` site going offline, or Pangolin itself, sends nothing, and the 5-minute delay is per rule, so a second outage inside it is never sent (`alerts.tf`). The probe rule watches the LAN probes only, not the targets' probes.
 
 ## Public resources: country rules and path bypasses
 

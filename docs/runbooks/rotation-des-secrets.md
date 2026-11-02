@@ -334,7 +334,8 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
-  Kuma et la sortie que relit `docker.yml`). Puis
+  Kuma, les alertes de Pangolin de `alerts.tf` et la sortie que relit
+  `docker.yml`). Puis
   `ansible-playbook docker.yml --tags ntfy`. Pour `ntfy_scripts_token`, aussi
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
   de restauration vzdump, mises à jour en attente), sans quoi leurs moniteurs
