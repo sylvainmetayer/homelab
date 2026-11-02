@@ -196,30 +196,9 @@ resource "pangolin_role" "jellyfin" {
   description = "Role for media.sylvain.cloud (Jellyfin, private)"
 }
 
-# Toute mise à jour d'une pangolin_site_resource efface ses liaisons : le
-# provider (stackopshq/pangolin 1.6.1, SitePrivateResource.Update) envoie
-# roleIds, userIds et clientIds vides, et Pangolin
-# (updateSiteResource.ts) remplace alors rôles (sauf Admin), utilisateurs et
-# clients. Sans replace_triggered_by la liaison reste dans le state, absente de
-# Pangolin, jusqu'au plan suivant. Avec, l'apply la retire (avant l'update, la
-# liaison dépendant de la ressource) puis la recrée après. Toute
-# pangolin_site_resource_{role,user,client} le porte (test
-# site_resource_bindings_follow_their_resource).
-# Limites : si l'update échoue, la liaison est déjà retirée et l'apply s'arrête
-# sans la recréer (relancer l'apply). Une liaison faite dans l'UI, sur
-# n'importe quelle pangolin_site_resource de ce fichier, est effacée elle aussi
-# sans que rien ne la rétablisse ni ne la signale au plan suivant : toute
-# liaison voulue se déclare ici. Le refresh retire du state une liaison absente
-# de Pangolin (Read par ListSiteResourceRoles/Clients) ; sans refresh
-# (-refresh=false, plan enregistré périmé), son retrait échoue en 404 et
-# l'apply s'arrête avant l'update.
 resource "pangolin_site_resource_role" "jellyfin" {
   role_id          = pangolin_role.jellyfin.id
   site_resource_id = pangolin_site_resource.jellyfin.id
-
-  lifecycle {
-    replace_triggered_by = [pangolin_site_resource.jellyfin]
-  }
 }
 
 # MediaManager à l'essai (ansible/roles/mediamanager, sur le NAS), comme
@@ -264,10 +243,6 @@ resource "pangolin_role" "mediamanager" {
 resource "pangolin_site_resource_role" "mediamanager" {
   role_id          = pangolin_role.mediamanager.id
   site_resource_id = pangolin_site_resource.mediamanager.id
-
-  lifecycle {
-    replace_triggered_by = [pangolin_site_resource.mediamanager]
-  }
 }
 
 resource "pangolin_client" "ci_runner" {
@@ -292,23 +267,11 @@ output "ci_olm_secret" {
 resource "pangolin_site_resource_client" "docker_apps_ci" {
   client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.docker_apps.id
-
-  # Recréée à chaque mise à jour de la ressource, qui l'efface : voir
-  # pangolin_site_resource_role.jellyfin.
-  lifecycle {
-    replace_triggered_by = [pangolin_site_resource.docker_apps]
-  }
 }
 
 resource "pangolin_site_resource_client" "pi_ci" {
   client_id        = pangolin_client.ci_runner.id
   site_resource_id = pangolin_site_resource.pi.id
-
-  # Recréée à chaque mise à jour de la ressource, qui l'efface : voir
-  # pangolin_site_resource_role.jellyfin.
-  lifecycle {
-    replace_triggered_by = [pangolin_site_resource.pi]
-  }
 }
 
 # Les deux sorties VPN : une passerelle route 0.0.0.0/0 par son site, donc un
