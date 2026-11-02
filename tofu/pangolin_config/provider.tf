@@ -2,9 +2,11 @@ terraform {
   required_version = ">= 1.0"
 
   required_providers {
+    # Build du fork, pas une version de l'amont : `mise run provider-fork` le pose
+    # dans terraform.d/plugins avant `tofu init` (ADR 0021).
     pangolin = {
       source  = "stackopshq/pangolin"
-      version = "~> 1.0"
+      version = "= 1.7.0-sylvain.1"
     }
     sops = {
       source  = "carlpett/sops"

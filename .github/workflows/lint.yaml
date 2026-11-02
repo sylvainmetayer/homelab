@@ -149,6 +149,9 @@ jobs:
       - name: Check formatting
         run: tofu fmt -check -recursive tofu
 
+      - name: Fetch the fork of the Pangolin provider
+        run: .github/scripts/fetch_pangolin_provider.sh
+
       - name: Validate modules
         run: |
           modules=(

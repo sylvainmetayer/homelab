@@ -65,3 +65,4 @@ au plus :
 | [0018](0018-secrets-depot-prive.md) | Secrets SOPS et inventaire de rotation dans un dépôt privé, sous-module `secrets/` | acceptée |
 | [0019](0019-flip-sans-ipv4-publique.md) | flip sans IPv4 publique : NAT et rebond SSH par Pangolin, point unique accepté | acceptée |
 | [0020](0020-garder-le-raspberry-pi-pour-immich.md) | Garder le Raspberry Pi pour Immich, isolé de Proxmox et de la VM docker | acceptée |
+| [0021](0021-provider-pangolin-du-fork.md) | Provider Pangolin : build du fork servi par un miroir local, en attendant l'amont | acceptée |

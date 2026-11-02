@@ -131,21 +131,9 @@ provider "registry.opentofu.org/hashicorp/random" {
 }
 
 provider "registry.opentofu.org/stackopshq/pangolin" {
-  version     = "1.6.1"
-  constraints = "~> 1.0"
+  version     = "1.7.0-sylvain.1"
+  constraints = "1.7.0-sylvain.1"
   hashes = [
-    "h1:L6t4qcp0aqIevlp9ao+DVn8AcjJAbD/6l6O1fWKoxBY=",
-    "h1:P8gwYLvmsFZSLhbHjAQvNffTwXpWRjOn17sIbWRJJ6E=",
-    "h1:VUORICQncwiRk7OTHFh4UgIZvp+6X61SDqlxBeo5h2g=",
-    "h1:WnjuUs8s8aG3lsRyB/FlduVtVssWqMFeXYnJlD+2q5A=",
-    "h1:gdZd5hG7RLiJ9w6jsH9+7YPfxEjgoV8BdiJpGXDMD6w=",
-    "h1:zBEByAxqh+hGU2kZ+NCWqJOfeiK/bPtIECPpuX0DxJ0=",
-    "zh:1fbd2841425ce992767ced6d7a83c0d149f0d02aa545ab17ffbf957314b061c3",
-    "zh:663ad4ee8680285b82da22309276ad455e7852c837c52581dc0d4d72001dfd63",
-    "zh:83983bd314f0dd5a00189366db91c686ac8e995c4ed60d701a297c84bab12522",
-    "zh:86f81393dadaf10bf22239b8543322150769eb6b3d27ddc702a756f060fa5509",
-    "zh:c8e2529dc9f403513a95c165ab41e4efcf2c4b1d8e84be2eae883f713548a581",
-    "zh:e146c94f6ebe66345d7756033334cc3fd18ed0db81e1cc194aa0ee4c241cd85b",
-    "zh:f809ab383cca0a5f83072981c64208cbd7fa67e986a86ee02dd2c82333221e32",
+    "h1:dI/sF6RRKQAluX6VtEVfSCmTXOF8f2aAATGCZ+K29io=",
   ]
 }
