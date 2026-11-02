@@ -2072,9 +2072,6 @@ run "flip_newt_credentials_come_from_the_flip_site" {
   }
 }
 
-# Le Blocky du LXC newt (lxc.yml, rôle blocky en binaire), pour un téléphone
-# en 4G par le client Pangolin : la ressource vise l'IP du LXC de l'inventaire,
-# sur le site du LXC lui-même, en TCP et UDP 53 seulement.
 # Les sorties VPN routent tout le trafic d'un client : leurs sites sont un choix.
 run "vpn_gateways_exit_through_their_sites" {
   command = plan
@@ -2082,13 +2079,24 @@ run "vpn_gateways_exit_through_their_sites" {
   assert {
     condition = (
       pangolin_site_resource.vpn.mode == "gateway"
+      && pangolin_site_resource.vpn.enabled == true
+      && pangolin_site_resource.vpn.site_ids == toset([
+        pangolin_site.proxmox_docker.id,
+        pangolin_site.pi.id,
+        pangolin_site.proxmox_lxc.id,
+        pangolin_site.nas.id,
+      ])
       && pangolin_site_resource.vpn_flip.mode == "gateway"
+      && pangolin_site_resource.vpn_flip.enabled == true
       && pangolin_site_resource.vpn_flip.site_ids == toset([pangolin_site.flip.id])
     )
-    error_message = "vpn et vpn-flip doivent rester des passerelles, vpn-flip sortant par le site flip."
+    error_message = "vpn et vpn-flip doivent rester des passerelles actives, vpn sortant par proxmox-docker, Raspberry PI, proxmox-lxc et nas, vpn-flip par le site flip."
   }
 }
 
+# Le Blocky du LXC newt (lxc.yml, rôle blocky en binaire), pour un téléphone
+# en 4G par le client Pangolin : la ressource vise l'IP du LXC de l'inventaire,
+# sur le site du LXC lui-même, en TCP et UDP 53 seulement.
 run "dns_resource_points_at_the_lxc_blocky" {
   command = plan
 
