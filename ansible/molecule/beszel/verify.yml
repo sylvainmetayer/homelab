@@ -154,9 +154,15 @@
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'LoadAvg5') | map(attribute='system') | list
             == ['sysdocker000000']
+          # Tous les seuils de docker, et sa CPU de départ (80 sur 5 min)
+          # remise à 70 sur 10 min.
           - >-
-            beszel_mock.alerts | selectattr('name', 'eq', 'CPU') | selectattr('system', 'eq', 'sysdocker000000')
-            | map(attribute='value') | map('float') | list == [70.0]
+            beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000')
+            | items2dict(key_name='name', value_name='value')
+            == {'Status': 0, 'CPU': 70, 'Memory': 85, 'Disk': 80, 'LoadAvg5': 4}
+          - >-
+            beszel_mock.alerts | selectattr('system', 'eq', 'sysdocker000000') | rejectattr('name', 'eq', 'Status')
+            | map(attribute='min') | unique | list == [10]
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'CPU') | selectattr('system', 'eq', 'syspi0000000000')
             | map(attribute='value') | map('float') | list == [80.0]
