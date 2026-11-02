@@ -2363,16 +2363,17 @@ run "monitors_are_filed_and_alert" {
   }
 
   # FolderSync (téléphone, hors du dépôt) pousse une fois par jour : sans
-  # essai, il alerte au bout d'un jour, pas de quatre (3 essais d'un jour,
-  # le défaut du provider).
+  # essai, il alerte au bout de 26 h comme les sauvegardes (changement
+  # d'heure compris), pas de quatre jours (3 essais d'un jour, le défaut du
+  # provider).
   assert {
     condition = (
       uptimekuma_monitor_push.foldersync.parent == uptimekuma_monitor_group.backups.id
-      && uptimekuma_monitor_push.foldersync.interval < 25 * 3600
+      && uptimekuma_monitor_push.foldersync.interval == 26 * 3600
       && uptimekuma_monitor_push.foldersync.max_retries == 0
       && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset(local.alert_notification_ids)
     )
-    error_message = "FolderSync : dossier Backup, fenêtre d'un jour, sans essai, notifié sur Telegram et ntfy."
+    error_message = "FolderSync : dossier Backup, fenêtre de 26 h comme les sauvegardes, sans essai, notifié sur Telegram et ntfy."
   }
 
   # Actif tant que l'app tourne : une app en pause (enabled = false) n'a plus
