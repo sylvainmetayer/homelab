@@ -91,7 +91,7 @@ log_agent_binary_version: "0.61.0"
 # Sommes des archives de la release (vector-<version>-SHA256SUMS) : get_url
 # refuse tout autre fichier. Une montée de version doit aussi les changer.
 log_agent_binary_sha256:
-  x86_64: 89a9f134dcc35a6fbba9cb8ad0fec2d4802657bba6cb1c374a30660ef9456bdc
-  aarch64: 1540662d8bc33af5afd287f821ba930417e0f3124073bc9db6a29c59dda88dbb
+  x86_64: 84a27c3ad6b772fdb05bb76ea01a31498bfc8f5e71f32cc78a0d96841f1aa827
+  aarch64: 4f6e3093c0963611c8e31478137adca07920e729bdcc734d4ba7ab6f948a7e9f
 log_agent_binary_dir: /usr/local/lib/log-agent
 log_agent_config_dir: /etc/log-agent
