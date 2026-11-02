@@ -37,7 +37,7 @@ The example uses `betisier` on the Docker VM. Replace it with the app name, whic
    $borgmatic extract --config $config --archive latest --destination /root/restore/betisier
    ```
 
-   Use an archive name from the list in place of `latest` to go back further. Paths in the archive have no leading slash, so the app's files end up in `/root/restore/betisier/opt/apps/betisier/`. Borgmatic 2.1 also stores its SQL dumps there (`borgmatic/postgresql_databases/<container>:<port>/<database>`, `pg_restore` custom format, and the `mysql_databases` equivalent) and every `etc/borgmatic.d/*.yaml` of the host (for `borgmatic config bootstrap`).
+   Use an archive name from the list in place of `latest` to go back further. Paths in the archive have no leading slash, so the app's files end up in `/root/restore/betisier/opt/apps/betisier/`. Borgmatic 2.1 also stores in the archive, outside the app's sources, its SQL dumps (`/root/restore/betisier/borgmatic/postgresql_databases/<container>:<port>/<database>`, `pg_restore` custom format, and the `mysql_databases` equivalent) and every `etc/borgmatic.d/*.yaml` of the host (for `borgmatic config bootstrap`).
 
 3. Look at what came out, then copy it back over the app folder:
 
@@ -45,7 +45,7 @@ The example uses `betisier` on the Docker VM. Replace it with the app name, whic
    cp -a /root/restore/betisier/opt/apps/betisier/. /opt/apps/betisier/
    ```
 
-4. As `sylvain`, start the database container alone (the app itself stays stopped, or it would write to the database or run its migrations while the dump is loaded), and wait for it to be healthy:
+4. As `sylvain`, in a second terminal (keep the root shell of step 2 open: step 5 uses its `$borgmatic` and `$config`), start the database container alone (the app itself stays stopped, or it would write to the database or run its migrations while the dump is loaded), and wait for it to be healthy:
 
    ```bash
    cd /opt/apps/betisier
@@ -53,7 +53,7 @@ The example uses `betisier` on the Docker VM. Replace it with the app name, whic
    docker compose ps betisier_db
    ```
 
-5. As root, restore the database dumps. Borgmatic reaches the database container by its IP (`container:` in the config) and loads the dump with the host's client: `pg_restore` (17.11 on the Docker VM, which reads PostgreSQL 18.6 dumps) or `mariadb`. Should the host's `pg_restore` ever reject a newer dump, load the extracted one with the container's client instead ([runbooks/healthlog.md](runbooks/healthlog.md#restauration-depuis-borg)):
+5. As root, restore the database dumps. Borgmatic reaches the database container by its IP (`container:` in the config) and loads the dump with the host's client: `pg_restore` (17.11 on the Docker VM, which reads PostgreSQL 18.6 dumps) or `mysql` (borgmatic's default `mysql_command`, from `mariadb-client`). Should the host's `pg_restore` ever reject a newer dump, load the extracted one with the container's client instead ([runbooks/healthlog.md](runbooks/healthlog.md#restauration-depuis-borg)):
 
    ```bash
    $borgmatic restore --config $config --archive latest
@@ -71,6 +71,6 @@ The example uses `betisier` on the Docker VM. Replace it with the app name, whic
 
 ### SQLite apps
 
-For an app whose data is SQLite (Pangolin, for example), there is no step 5. The copy is in the extracted archive under `var/lib/borgmatic-sqlite/<app>/`, named after its original path with the slashes turned into underscores: `/opt/pangolin/config/db/db.sqlite` becomes `opt_pangolin_config_db_db.sqlite`. The live database is excluded from the archive, so step 3's copy of the app folder leaves it as it is. Check the copy first (`sqlite3 <copy> 'PRAGMA integrity_check'` prints `ok`). With the app stopped, copy it back to its original path and delete the old database's `-wal` and `-shm` files next to it (Pangolin runs in WAL: a leftover WAL would be replayed onto the restored copy). The copy comes out owned by `root:root` and in `journal_mode=delete` (`VACUUM INTO`): give it back the old file's owner (`stat -c %u:%g` before, `chown` after), and if the old one ran in WAL (`sqlite3 <old> 'PRAGMA journal_mode'` before replacing it), switch the copy back before starting the app: `sqlite3 <copy> 'PRAGMA journal_mode=WAL'`. The backup hook picks `VACUUM INTO` or `.backup` from the live mode at each run, and `.backup` never finishes on a database written all the time ([ansible/roles/borgmatic/README.md](../ansible/roles/borgmatic/README.md)).
+For an app whose data is SQLite (Pangolin, for example), there are no steps 4 and 5 (no database container, no dump): the app stays stopped until its unit starts it in step 6. The copy is in the extracted archive under `var/lib/borgmatic-sqlite/<app>/`, named after its original path with the slashes turned into underscores: `/opt/pangolin/config/db/db.sqlite` becomes `opt_pangolin_config_db_db.sqlite`. The live database is excluded from the archive, so step 3's copy of the app folder leaves it as it is. Check the copy first (`sqlite3 <copy> 'PRAGMA integrity_check'` prints `ok`). With the app stopped, copy it back to its original path and delete the old database's `-wal` and `-shm` files next to it (Pangolin runs in WAL: a leftover WAL would be replayed onto the restored copy). The copy comes out owned by `root:root` and in `journal_mode=delete` (`VACUUM INTO`): give it back the old file's owner (`stat -c %u:%g` before, `chown` after), and if the old one ran in WAL (`sqlite3 <old> 'PRAGMA journal_mode'` before replacing it), switch the copy back before starting the app: `sqlite3 <copy> 'PRAGMA journal_mode=WAL'`. The backup hook picks `VACUUM INTO` or `.backup` from the live mode at each run, and `.backup` never finishes on a database written all the time ([ansible/roles/borgmatic/README.md](../ansible/roles/borgmatic/README.md)).
 
 Pangolin itself is a root systemd service, `pangolin`, so it is stopped and started with `systemctl stop pangolin` and `systemctl start pangolin` as root.

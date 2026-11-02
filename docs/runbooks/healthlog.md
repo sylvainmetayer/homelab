@@ -178,8 +178,9 @@ sudo install -d -m 0700 /root/restore-drill/healthlog
 sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/healthlog.yaml extract \
   --archive latest --destination /root/restore-drill/healthlog
 # base jetable : même image que le rôle, données en tmpfs, aucun port publié,
-# réseau bridge par défaut (borgmatic la joint par son IP), sans mot de passe
-docker run -d --rm --name drill-healthlog-db --network bridge --memory 768m \
+# réseau bridge par défaut (borgmatic la joint par son IP), sans mot de passe ;
+# le tmpfs compte dans --memory : plafond au-dessus de tmpfs-size + Postgres
+docker run -d --rm --name drill-healthlog-db --network bridge --memory 2g \
   --mount type=tmpfs,destination=/var/lib/postgresql,tmpfs-size=1073741824 \
   -e POSTGRES_USER=healthlog -e POSTGRES_DB=healthlog -e POSTGRES_HOST_AUTH_METHOD=trust \
   "$(grep -m1 -o 'postgres:[^ ]*' /opt/apps/healthlog/compose.yaml)"
