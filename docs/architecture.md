@@ -606,8 +606,8 @@ flowchart LR
   80 % et mémoire à plus de 90 % sur 10 min, disque à plus de 85 % ;
   température au-dessus de 80 °C sur le Pi, le NAS et pve. La VM docker a des
   seuils plus serrés (CPU 70 %, mémoire 85 %, disque 80 %) et une alerte de
-  charge moyenne sur 5 min au-delà de 4, où se lit la lenteur de son disque. Le S.M.A.R.T. (WARNING/FAILED) prévient d'office, sans alerte à
-  déclarer. `config.yml` ne sait déclarer que les systèmes : alertes et
+  charge moyenne sur 5 min au-delà de 4, où se lit la lenteur de son disque.
+  Le S.M.A.R.T. (WARNING/FAILED) prévient d'office, sans alerte à déclarer. `config.yml` ne sait déclarer que les systèmes : alertes et
   canaux vivent dans la base du hub, par utilisateur, et le rôle les pose par
   l'API du hub (`127.0.0.1:8090`, connecté au compte administrateur avec
   `beszel_admin_password`, qui doit donc rester son mot de passe). Elles font
