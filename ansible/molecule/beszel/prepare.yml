@@ -33,7 +33,7 @@
 # place sur 127.0.0.1:8090 (connexion, systèmes de config.yml, alertes,
 # user_settings, notification de test). État de départ : une alerte CPU à
 # corriger sur docker, une Status déjà juste sur flip (jamais réécrite), une
-# LoadAvg5 non déclarée sur pi (supprimée), et les réglages tels que le hub
+# LoadAvg5 non déclarée sur docker (supprimée), et les réglages tels que le hub
 # les crée (l'e-mail du compte, aucun webhook).
 - name: Prepare the Beszel API mock
   hosts: all
@@ -100,7 +100,7 @@
           alerts:
             - { system: docker, name: CPU, value: 80, min: 5 }
             - { system: flip, name: Status, value: 0, min: 5 }
-            - { system: pi, name: LoadAvg5, value: 4, min: 10 }
+            - { system: docker, name: LoadAvg5, value: 4, min: 10 }
           user_settings:
             - id: set000000000001
               settings: { chartTime: 1h, emails: ["{{ pangolin_le_email }}"], webhooks: [] }
