@@ -69,3 +69,8 @@ beszel_agent_extra_filesystems:
 # docs/runbooks/kdrive-nas.md) : ensuite, passer à true et relancer
 # nas.yml --tags kdrive_sync.
 kdrive_sync_timer_enabled: false
+
+# --- MediaManager (rôle mediamanager) ---
+# Pays des serveurs P2P de ProtonVPN, noms anglais de gluetun. Pas la France :
+# le tunnel sortirait avec une IP française.
+mediamanager_vpn_server_countries: "Netherlands,Switzerland"
