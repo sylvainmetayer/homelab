@@ -65,7 +65,7 @@
   },
   "TREK": {
     "image": "docker.io/mauriceboe/trek",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "compose": "ansible/roles/trek/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_trek.tf (trek_mcp_public_paths, trek_share_paths)",
     "reread": "server/src/nest/{mcp-transport,oauth,platform}, share.service.ts, journey-share.service.ts, client /app/server/public",

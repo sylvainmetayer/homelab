@@ -2,7 +2,7 @@
 services:
   dawarich-redis:
     mem_limit: 256m
-    image: redis:7.4-alpine@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
+    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
     container_name: dawarich-redis
     # Un instantané par heure au plus, au lieu de toutes les 5 min : le
     # dump.rdb fait ~5,6 Mio et la file Sidekiq change en continu, soit 788
