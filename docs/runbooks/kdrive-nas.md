@@ -14,10 +14,10 @@ main seulement). Sens unique, sans suppression :
   ménage est manuel (plus bas).
 - Hors copie (`kdrive_sync_exclude_patterns`, `host_vars/nas`) : `Videos/`,
   `Backups/Synology/tv/` et `movies/` (films et séries, 1,27 To au relevé du
-  16/10) et les
-  corbeilles digiKam `.dtrash/`. Ces films n'ont donc pas de copie sur le NAS
-  par ce rôle. Le reste fait environ 0,95 To. Une exclusion ne vaut que pour
-  les passages à venir : ce qui est déjà dans `miroir/` y reste.
+  16/10) et les corbeilles digiKam `.dtrash/`. Ces films n'ont donc pas de
+  copie sur le NAS par ce rôle. Le reste fait environ 0,95 To. Une exclusion
+  ne vaut que pour les passages à venir : ce qui est déjà dans `miroir/` y
+  reste.
 
 | Quoi | Où |
 |---|---|
@@ -78,17 +78,23 @@ Sur le NAS, en root. D'abord un essai, sans rien écrire :
 ```sh
 cd /volume1/docker/kdrive_sync
 docker compose run --rm --no-TTY rclone --dry-run > /root/kdrive-essai.log 2>&1
+# Code de sortie : 0 attendu. Sinon l'essai n'a pas tout vu et les contrôles
+# suivants ne valent rien : lire les erreurs du journal (« Échecs fréquents »).
+echo $?
 # Volume à copier, en octets : environ 0,95 To. Bien plus : une exclusion ne
 # prend pas (motif ancré à la racine WebDAV, sensible à la casse).
 grep -o '"totalBytes":[0-9]*' /root/kdrive-essai.log | tail -1
-# Dossiers de la racine telle que WebDAV la montre : corbeille et anciennes
+# Entrées de la racine telle que WebDAV la montre : corbeille et anciennes
 # versions ne doivent pas y être (sinon, kdrive_sync_exclude_patterns).
-grep -o '"object":"[^/"]*/' /root/kdrive-essai.log | sort | uniq -c
-# Chemins des exclusions dans l'essai : 0 attendu. Sinon, regarder lesquels
+grep -o '"object":"[^/"]*' /root/kdrive-essai.log | sort | uniq -c
+# Chemins des exclusions dans l'essai, casse ignorée (les motifs, eux, y sont
+# sensibles) : 0 attendu. Sinon, regarder lesquels, même commande sans -c
 # (motif à corriger, ou dossier homonyme plus bas) avant toute copie.
-grep -cE '"object":"([^"]*/)?(Videos|Backups/Synology/(tv|movies)|\.dtrash)/' /root/kdrive-essai.log
-rm /root/kdrive-essai.log
+grep -ciE '"object":"([^"]*/)?(Videos|Backups/Synology/(tv|movies)|\.dtrash)/' /root/kdrive-essai.log
 ```
+
+Tout est bon : `rm /root/kdrive-essai.log`, qui liste tous les noms de
+fichiers.
 
 (L'entrée du conteneur est toujours `rclone copy … "$@"` : les arguments
 s'ajoutent à la copie, d'où `--dry-run`.) Puis la vraie copie, en arrière-plan
@@ -117,8 +123,9 @@ accès, volontairement.
 
 ## Retrouver un fichier
 
-- Supprimé dans kDrive : il est toujours dans `miroir/`, sauf s'il était hors
-  copie (`Videos/`, `Backups/Synology/tv/` et `movies/`, `.dtrash/`).
+- Supprimé dans kDrive : il est toujours dans `miroir/`, ou dans
+  `versions/<date>-avant-reorganisation/` si le miroir a été mis de côté depuis
+  (plus bas).
 - Remplacé ou chiffré dans kDrive : la version d'avant est dans le dossier
   `versions/` du passage qui l'a remplacé (le plus ancien qui le contient
   pour remonter loin). `find /volume1/kdrive/versions -path '*/<nom>'`.
@@ -126,6 +133,9 @@ accès, volontairement.
   `versions/<passage>/` les originaux. Avant tout, désactiver le timer
   (`systemctl disable --now kdrive-sync.timer`) pour figer la copie, et
   préférer le retour arrière de kDrive (jusqu'à 3 mois) s'il suffit.
+- Hors copie (`Videos/`, `Backups/Synology/tv/` et `movies/`, `.dtrash/`) :
+  rien sur le NAS, ni miroir ni versions. Seul kDrive (corbeille, retour
+  arrière) peut le rendre.
 
 ## Fichiers déplacés dans kDrive
 
