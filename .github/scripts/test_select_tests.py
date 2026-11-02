@@ -216,6 +216,9 @@ class Tofu(unittest.TestCase):
     def test_mise_toml_runs_every_module(self):
         self.assertEqual(selected(["mise.toml"]), ([], REAL.modules))
 
+    def test_pangolin_provider_fetch_runs_every_module(self):
+        self.assertEqual(selected([".github/scripts/fetch_pangolin_provider.sh"]), ([], REAL.modules))
+
 
 class Fallbacks(unittest.TestCase):
     def test_docs_select_nothing(self):

@@ -251,6 +251,7 @@ jobs:
           tofu_wrapper: false
 
       - name: Fetch the fork of the Pangolin provider
+        if: matrix.module == 'tofu/pangolin_config'
         run: .github/scripts/fetch_pangolin_provider.sh
 
       # Providers mockés (mock_provider) et data sources surchargées
