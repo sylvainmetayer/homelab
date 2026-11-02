@@ -44,12 +44,25 @@ beszel_api_url: "http://127.0.0.1:{{ beszel_port }}"
 # Disk prend la partition la plus pleine (racine et EXTRA_FILESYSTEMS).
 # S.M.A.R.T. (WARNING/FAILED) n'en demande aucune : Beszel prévient d'office
 # chaque utilisateur du système.
+# Un type d'alerte peut avoir plusieurs entrées, à condition qu'elles se
+# partagent les systèmes (sinon « déclaré deux fois » échoue).
+# La VM docker a des seuils plus serrés : 3 cœurs, 12 Gio et un SSD SATA
+# d'entrée de gamme dont la lenteur se lit d'abord dans la charge moyenne
+# (docs/conventions/resource-limits.md).
 beszel_alerts_temperature_systems: [nas, pi, pve]
+beszel_alerts_tight_systems: [docker]
+beszel_alerts_other_systems: "{{ beszel_systems | map(attribute='key') | reject('in', beszel_alerts_tight_systems) | list }}"
 beszel_alerts:
   - { name: Status, value: 0, min: 5 }
-  - { name: CPU, value: 90, min: 10 }
-  - { name: Memory, value: 90, min: 10 }
-  - { name: Disk, value: 85, min: 10 }
+  - { name: CPU, value: 80, min: 10, systems: "{{ beszel_alerts_other_systems }}" }
+  - { name: CPU, value: 70, min: 10, systems: "{{ beszel_alerts_tight_systems }}" }
+  - { name: Memory, value: 90, min: 10, systems: "{{ beszel_alerts_other_systems }}" }
+  - { name: Memory, value: 85, min: 10, systems: "{{ beszel_alerts_tight_systems }}" }
+  - { name: Disk, value: 85, min: 10, systems: "{{ beszel_alerts_other_systems }}" }
+  - { name: Disk, value: 80, min: 10, systems: "{{ beszel_alerts_tight_systems }}" }
+  # Charge moyenne sur 5 min au-delà de 4 pour 3 cœurs : surtout de l'attente
+  # disque sur cette VM.
+  - { name: LoadAvg5, value: 4, min: 10, systems: "{{ beszel_alerts_tight_systems }}" }
   - { name: Temperature, value: 80, min: 10, systems: "{{ beszel_alerts_temperature_systems }}" }
 
 # Canaux du compte (user_settings), en URLs shoutrrr. Telegram depuis les clés

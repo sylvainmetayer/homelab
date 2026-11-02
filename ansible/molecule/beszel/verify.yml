@@ -147,20 +147,30 @@
         beszel_mock_telegram_url: "telegram://{{ beszel_telegram_bot_token }}@telegram?chats={{ beszel_telegram_chat_id }}"
       ansible.builtin.assert:
         that:
-          # Status, CPU, Memory et Disk sur les 7 systèmes, Temperature sur 3.
-          - beszel_mock.alerts | length == 31
-          - beszel_mock.alerts | map(attribute='name') | unique | sort == ['CPU', 'Disk', 'Memory', 'Status', 'Temperature']
+          # Status, CPU, Memory et Disk sur les 7 systèmes, Temperature sur 3,
+          # LoadAvg5 sur docker seul ; seuils serrés sur docker.
+          - beszel_mock.alerts | length == 32
+          - beszel_mock.alerts | map(attribute='name') | unique | sort == ['CPU', 'Disk', 'LoadAvg5', 'Memory', 'Status', 'Temperature']
+          - >-
+            beszel_mock.alerts | selectattr('name', 'eq', 'LoadAvg5') | map(attribute='system') | list
+            == ['sysdocker000000']
+          - >-
+            beszel_mock.alerts | selectattr('name', 'eq', 'CPU') | selectattr('system', 'eq', 'sysdocker000000')
+            | map(attribute='value') | map('float') | list == [70.0]
+          - >-
+            beszel_mock.alerts | selectattr('name', 'eq', 'CPU') | selectattr('system', 'eq', 'syspi0000000000')
+            | map(attribute='value') | map('float') | list == [80.0]
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
             == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
-          # Cinq POST groupés, la LoadAvg5 de pi supprimée, un PATCH des
+          # Neuf POST groupés (un par type et seuil), la LoadAvg5 de pi supprimée, un PATCH des
           # réglages ; rien au second passage (idempotence), et la Status de
           # flip, déjà juste, jamais réécrite.
-          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 5 + ['DELETE', 'PATCH']
+          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 9 + ['DELETE', 'PATCH']
           - "'sysflip00000000' not in beszel_mock_status_write.body.systems"
           - beszel_mock_status_write.body.systems | length == 6
-          - beszel_mock_writes[5].body.name == 'LoadAvg5'
-          - beszel_mock_writes[5].body.systems == ['syspi0000000000']
+          - beszel_mock_writes[9].body.name == 'LoadAvg5'
+          - beszel_mock_writes[9].body.systems == ['syspi0000000000']
           - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
           - beszel_mock_settings.emails == [pangolin_le_email]
         fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"
