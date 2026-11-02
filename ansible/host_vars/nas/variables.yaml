@@ -71,10 +71,12 @@ beszel_agent_extra_filesystems:
 kdrive_sync_timer_enabled: false
 # Hors copie : les films et séries (1,27 To au relevé du 16/10, ils porteraient
 # le volume vers 90 %) et les corbeilles digiKam, qu'un miroir sans suppression
-# garderait même une fois vidées. Ces films n'ont donc pas de copie ici.
+# garderait même une fois vidées. Ces films n'ont donc pas de copie ici ;
+# le reste de Backups/Synology (insanity) en a une.
 kdrive_sync_exclude_patterns:
   - /Videos/**
-  - /Backups/Synology/**
+  - /Backups/Synology/tv/**
+  - /Backups/Synology/movies/**
   - .dtrash/**
 
 # --- MediaManager (rôle mediamanager) ---
