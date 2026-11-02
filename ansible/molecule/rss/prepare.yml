@@ -115,4 +115,4 @@
         path: /opt/apps/rss/freshrss_data/users/sylvain/db.sqlite
         owner: www-data
         group: www-data
-        mode: "0664"
+        mode: "0660"
