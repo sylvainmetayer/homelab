@@ -515,12 +515,12 @@ nombres. Création de chaque jeton, droits minimaux et `sops set` :
 d'administration), Homebox (compte invité dans le groupe, qui peut écrire)
 et Karakeep (clé d'API de l'utilisateur) n'ont pas de jeton en lecture
 seule ; qui lit la configuration de Homepage (`0600`, VM docker) peut donc
-administrer Jellyfin et écrire dans Homebox et Karakeep. Même chose, à
-accepter avec les cartes de la deuxième série, pour FreshRSS (le mot de
-passe d'API marque lu et abonne ; l'API, coupée sinon, n'est ouverte qu'avec
-la clé, et seulement sur newt : Pangolin n'ouvre aucun chemin autour du
-SSO), Grocy (utilisateur dédié sans permission, mais l'API lit tout) et
-Dawarich (une seule clé par compte, qui écrit aussi des points). Le widget Jellyfin
+administrer Jellyfin et écrire dans Homebox et Karakeep. Même chose, acceptée
+en posant leurs clés (2026-11-02), pour FreshRSS (le mot de passe d'API marque
+lu et abonne ; l'API, coupée sinon, n'est ouverte qu'avec la clé, et seulement
+sur newt : Pangolin n'ouvre aucun chemin autour du SSO) et Dawarich (une seule
+clé par compte, qui écrit aussi des points) ; à accepter avec sa clé pour Grocy
+(utilisateur dédié sans permission, mais l'API lit tout). Le widget Jellyfin
 est rendu sans ses boutons pause/lecture (`enableMediaControl: false`).
 
 ```mermaid

@@ -66,6 +66,19 @@ Amonts, par service :
   `homepage_dawarich_api_key`. Coûts : le fichier `costs.json` du rôle
   `cost_report` (`/var/lib/cost-report`), réécrit chaque matin.
 
+Trois cartes n'ont pas de service d'appoint, Homepage lit leur amont lui-même :
+
+- **FreshRSS** : API Google Reader, `http://rss:80/api/greader.php` sur `newt`,
+  compte `homepage_freshrss_username`, clé `homepage_freshrss_api_password`.
+  `503` : API coupée, « Autoriser l'accès par API » à cocher dans
+  l'administration de FreshRSS, une fois la clé déployée
+  ([ordre](rotation-des-secrets.md#widgets-de-homepage)).
+- **CrowdSec**, **Blocky** : vmauth, `http://victoria-logs-auth:8427` sur
+  `newt`, compte `homepage`, clé `homepage_victoria_logs_password`. `401` :
+  Homepage et vmauth n'ont pas le même mot de passe. `NaN` sur Blocky : aucune
+  ligne de cet hôte en 24 h. Sur le LXC newt, `blocky_stats.py` n'arrive que par
+  `ansible-playbook lxc.yml --tags blocky`, que la CI ne lance jamais.
+
 « Absente » sur Maintenance : le nom de `homepage_kuma_maintenance_monitors`
 ne correspond plus à aucune sonde de `/metrics` (renommée dans
 `tofu/pangolin_config`, supprimée, ou en pause).
@@ -86,7 +99,10 @@ ne correspond plus à aucune sonde de `/metrics` (renommée dans
   ansible-playbook docker.yml --tags homepage
   ```
 
-  Le changement du compose recrée les services d'appoint.
+  Le changement du compose recrée les services d'appoint. Deux clés servent
+  aussi à un autre rôle : `--tags victoria_logs,homepage` pour
+  `homepage_victoria_logs_password`, `--tags rss,homepage` pour
+  `homepage_freshrss_api_password` quand elle apparaît ou disparaît.
 - **Nom de sonde changé** : mettre `homepage_kuma_maintenance_monitors` à
   jour par une PR (merger déploie `docker.yml --tags homepage`).
 - **Service d'appoint planté** : `systemctl --user restart dc@homepage`
