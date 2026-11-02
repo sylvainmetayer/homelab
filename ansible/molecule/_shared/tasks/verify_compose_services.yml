@@ -6,7 +6,11 @@
 #     la tue d'un SIGKILL au `compose stop` de dc@ ;
 #   - chaque service listé a un healthcheck ;
 #   - chaque dépendance listée est attendue en service_healthy ;
-#   - chaque réseau listé est interne (pas de sortie vers Internet).
+#   - chaque réseau listé est interne (pas de sortie vers Internet) ;
+#   - chaque service a une politique de redémarrage : sans elle, un conteneur
+#     qui sort seul (OOM, crash) reste arrêté, le `compose up` de dc@ tourne
+#     tant qu'un autre service vit et ne le voit pas. `restart: "no"` ne compte
+#     pas. Immich Swipe et Mailpit en ont manqué jusqu'en 11/2026.
 #
 # Variables :
 #   verify_compose_service             nom du projet compose (obligatoire)
@@ -61,3 +65,16 @@
       - verify_compose.networks[item].get('internal', false)
     fail_msg: "Réseau {{ item }} non interne : {{ verify_compose.networks.get(item, 'absent') }}"
   loop: "{{ verify_compose_internal_networks | default([]) }}"
+
+- name: Assert every service has a restart policy in {{ verify_compose_service }}
+  vars:
+    verify_compose: "{{ verify_compose_raw.stdout | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - >-
+        verify_compose.services.values() | map(attribute='restart', default='no')
+        | reject('match', '^(always|unless-stopped|on-failure(:[0-9]+)?)$')
+        | list | length == 0
+    fail_msg: >-
+      {{ dict(verify_compose.services.keys()
+         | zip(verify_compose.services.values() | map(attribute='restart', default='absent'))) | string }}
