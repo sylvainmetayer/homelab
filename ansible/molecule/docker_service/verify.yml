@@ -5,6 +5,9 @@
     - ../../group_vars/all/variables.yml
   vars:
     docker_service_unit_path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
+    docker_service_exec_start: >-
+      ExecStart=/usr/bin/bash -c '/usr/bin/docker compose up --remove-orphans
+      | /usr/bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
   tasks:
     - name: Stat the dc@ unit template and the apps folder
       ansible.builtin.stat:
@@ -45,7 +48,10 @@
           # absentes, elles, sont tirées avant `up`, pour qu'un échec fasse
           # échouer le job de démarrage (handler Ansible compris).
           - docker_service_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list == ['ExecStartPre=/usr/bin/docker compose pull --policy missing']
-          - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in docker_service_unit_lines"
+          # La sortie de `up` passe par grep, qui retire les lignes des
+          # conteneurs (déjà dans les journaux json-file de Docker) ; la tâche
+          # suivante vérifie ce filtre sous systemd.
+          - docker_service_unit_lines | select('match', '^ExecStart=') | list == [docker_service_exec_start]
           - docker_service_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
           - "'ExecStop=/usr/bin/docker compose stop' in docker_service_unit_lines"
           - "'Restart=always' in docker_service_unit_lines"
@@ -62,6 +68,54 @@
         fail_msg: "{{ docker_service_unit_path }} inattendu"
       vars:
         docker_service_unit_lines: "{{ (docker_service_unit_raw.content | b64decode).splitlines() }}"
+
+    # Le drop-in Molecule remplace `up` (aucune image n'est tirée) : l'ExecStart
+    # de l'unité tourne ici sous systemd avec un faux `up` à sa place, pour
+    # vérifier le filtre, l'échappement `$$` et le code de sortie rendu.
+    - name: Write a user unit running the dc@ ExecStart with a fake compose up
+      ansible.builtin.copy:
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/molecule-dc-filter.service"
+        mode: "0600"
+        content: |
+          [Service]
+          Type=oneshot
+          StandardOutput=file:/tmp/molecule-dc-filter.out
+          {{ docker_service_exec_start | replace('/usr/bin/docker compose up --remove-orphans', docker_service_fake_up) }}
+      vars:
+        # Ce qu'écrit `up` sur sa sortie standard, puis un code de sortie que
+        # l'unité doit rendre tel quel.
+        docker_service_fake_up: >-
+          (/usr/bin/printf "%%s\n" "Attaching to app-1, app-db-1" "app-1  | GET /health 200"
+          "app-db-1   | checkpoint | done" "app-1 exited with code 3"; exit 7)
+
+    # Type=oneshot qui sort en 7 : le démarrage échoue, c'est attendu.
+    - name: Run the filter unit
+      ansible.builtin.systemd:
+        name: molecule-dc-filter.service
+        scope: user
+        state: started
+        daemon_reload: true
+      failed_when: false
+
+    - name: Read the filter unit's exit status
+      ansible.builtin.systemd:
+        name: molecule-dc-filter.service
+        scope: user
+      register: docker_service_filter_status
+
+    - name: Read the filter unit's output
+      ansible.builtin.slurp:
+        src: /tmp/molecule-dc-filter.out
+      register: docker_service_filter_out
+
+    - name: Assert dc@ keeps compose's own lines, drops the containers' ones and returns up's exit code
+      ansible.builtin.assert:
+        that:
+          - docker_service_filter_status.status.ExecMainStatus == '7'
+          - (docker_service_filter_out.content | b64decode).splitlines() == ['Attaching to app-1, app-db-1', 'app-1 exited with code 3']
+        fail_msg: >-
+          code {{ docker_service_filter_status.status.ExecMainStatus }}, sortie
+          {{ (docker_service_filter_out.content | b64decode).splitlines() }}
 
     # Une instance quelconque : le manager user a bien chargé ce fichier (le
     # handler Daemon reload est passé).

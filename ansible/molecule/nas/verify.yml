@@ -69,11 +69,16 @@
     - name: Assert the system dc@ unit behaves like the user one
       vars:
         nas_verify_unit_lines: "{{ (nas_verify_unit_raw.content | b64decode).splitlines() }}"
+        nas_verify_exec_start: >-
+          ExecStart=/usr/bin/bash -c '/usr/bin/docker compose up --remove-orphans
+          | /usr/bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
       ansible.builtin.assert:
         that:
           - nas_verify_unit_lines | select('match', '^ExecStartPre=/usr/bin/timeout 120 .*docker info') | list | length == 1
           - nas_verify_unit_lines | select('match', 'ExecStartPre=.*compose pull') | list == ['ExecStartPre=/usr/bin/docker compose pull --policy missing']
-          - "'ExecStart=/usr/bin/docker compose up --remove-orphans' in nas_verify_unit_lines"
+          # Le même filtre que l'unité user (scénario docker_service, qui le
+          # fait tourner sous systemd).
+          - nas_verify_unit_lines | select('match', '^ExecStart=') | list == [nas_verify_exec_start]
           - "'ExecStop=/usr/bin/docker compose stop' in nas_verify_unit_lines"
           - "'Restart=always' in nas_verify_unit_lines"
           - nas_verify_unit_lines | select('match', '^StartLimitBurst=') | list | length == 0
