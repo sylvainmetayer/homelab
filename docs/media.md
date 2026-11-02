@@ -300,22 +300,24 @@ Faits :
   du Traefik devant Jellyfin. Sans elle, Jellyfin voit toutes les connexions
   venir de Traefik et ignore les vraies adresses des clients.
 
-À faire (Tableau de bord → Lecture → Transcodage), d'après la [doc Intel de
+Faits le 2026-11-02 (Tableau de bord → Lecture → Transcodage), d'après la [doc Intel de
 Jellyfin](https://jellyfin.org/docs/general/post-install/transcoding/hardware-acceleration/intel/) et ce
-que `vainfo` rapporte sur le NAS (N100, pilote iHD) :
+que `vainfo` rapporte sur le NAS (N100, pilote iHD) ; détail et commandes de
+contrôle dans le README du rôle `jellyfin` :
 
 - Accélération matérielle : **Intel QuickSync (QSV)** ; périphérique QSV :
   `/dev/dri/renderD128`.
-- Décodage matériel, à cocher : H264, HEVC, MPEG2, VC1, VP8, VP9, AV1, HEVC
+- Décodage matériel, coché : H264, HEVC, MPEG2, VC1, VP8, VP9, AV1, HEVC
   10 bits, VP9 10 bits, HEVC RExt 8/10 bits, HEVC RExt 12 bits.
 - « Préférer les décodeurs matériels natifs DXVA ou VA-API » : coché (requis
   pour Dolby Vision).
 - Encodage matériel activé ; « Autoriser l'encodage au format HEVC » : coché ;
   AV1 : décoché (le N100 décode l'AV1 mais ne l'encode pas). Encodeurs
-  Low-Power H.264/HEVC : `vainfo` les montre disponibles, à cocher puis à
-  vérifier sur une lecture.
+  Low-Power H.264/HEVC : cochés (le journal d'un transcodage montre
+  `h264_qsv -low_power 1`).
 - Tone mapping : activé, en **OpenCL** (vérifié disponible dans le conteneur :
-  « Intel(R) OpenCL Graphics »), qui gère aussi Dolby Vision profil 5.
+  « Intel(R) OpenCL Graphics »), qui gère aussi Dolby Vision profil 5 ; VPP
+  décoché.
 
 Vérifier ensuite : lire un film 4K HDR dans Chrome sur le PC (écran SDR), puis
 Tableau de bord → Activité : la lecture doit indiquer un transcodage
