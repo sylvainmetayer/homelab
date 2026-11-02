@@ -14,7 +14,7 @@ borgmatic_borg_sha256:
 # borgmatic version installed by pipx : la même que celle du scénario Molecule
 # (molecule/_shared/Dockerfile), Renovate fait monter les deux ensemble.
 # renovate: datasource=pypi depName=borgmatic
-borgmatic_version: "2.1.10"
+borgmatic_version: "2.2.0"
 
 # Borg repository encryption mode (for repo-create)
 # Common values: repokey-blake2, repokey-chacha20-poly1305, none
