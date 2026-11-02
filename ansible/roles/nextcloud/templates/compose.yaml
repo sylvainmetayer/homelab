@@ -38,7 +38,7 @@ services:
     stop_grace_period: 60s
     container_name: nextcloud_db
     restart: unless-stopped
-    image: mariadb:12.3.3@sha256:99c125f103f5d081ebbc9ffe064e63daf7f688ac33a5f7f29af2d7260a96debf
+    image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
     # Réglages remontés par les vérifications de base de données de Nextcloud
     # (Administration > Vue d'ensemble). Options passées à mariadbd par
     # l'entrypoint de l'image.
@@ -90,7 +90,7 @@ services:
   cache:
     mem_limit: 256m
     restart: unless-stopped
-    image: redis:8.2.10-bookworm@sha256:e5f23377739f95a2f530b9c99f93accb4f634577f09d00a7d8e0638f2fdf69e0
+    image: redis:8.2.11-bookworm@sha256:99ffb973380cc2f47bca06bd094f7f8c7138a0879a63cb8939896a22b7a65bba
     container_name: nextcloud_redis
     command: redis-server --requirepass {{ nextcloud_redis_password }}
     environment:
