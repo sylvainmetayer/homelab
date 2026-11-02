@@ -206,7 +206,7 @@ run "lxc_template_is_checksummed" {
 
   # Lu dans le fichier : un plan mocké ne montre pas le lifecycle.
   assert {
-    condition     = can(regex("ignore_changes\\s*=\\s*\\[operating_system\\[0\\]\\.template_file_id\\]", file("${path.module}/proxmox_newt_lxc.tf")))
+    condition     = can(regex("(?m)^\\s*ignore_changes\\s*=\\s*\\[operating_system\\[0\\]\\.template_file_id\\]", file("${path.module}/proxmox_newt_lxc.tf")))
     error_message = "Le LXC Newt doit ignorer template_file_id : remplacer le téléchargement du gabarit recréerait le conteneur."
   }
 }
