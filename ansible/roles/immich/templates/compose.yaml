@@ -150,6 +150,7 @@ services:
     volumes:
       - ./immich-swipe.conf:/etc/nginx/conf.d/default.conf:ro
 {% endif %}
+    restart: unless-stopped
     networks:
       - newt
       - immich
