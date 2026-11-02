@@ -182,6 +182,33 @@ run "debian_image_is_checksummed" {
     condition     = can(regex("^[0-9a-f]{128}$", proxmox_download_file.debian_13.checksum))
     error_message = "La somme de contrôle de l'image Debian 13 doit être un SHA-512 hexadécimal (128 caractères), pas vide."
   }
+
+  assert {
+    condition     = startswith(proxmox_download_file.debian_13.url, "https://")
+    error_message = "L'image Debian 13 doit être téléchargée en https."
+  }
+}
+
+# Le gabarit LXC arrive en http (voir le README du module) : la somme est sa
+# seule garantie d'intégrité.
+run "lxc_template_is_checksummed" {
+  command = plan
+
+  assert {
+    condition     = proxmox_download_file.debian.checksum_algorithm == "sha512"
+    error_message = "Le gabarit LXC Debian doit être vérifié en SHA-512."
+  }
+
+  assert {
+    condition     = can(regex("^[0-9a-f]{128}$", proxmox_download_file.debian.checksum))
+    error_message = "La somme de contrôle du gabarit LXC doit être un SHA-512 hexadécimal (128 caractères), pas vide."
+  }
+
+  # Lu dans le fichier : un plan mocké ne montre pas le lifecycle.
+  assert {
+    condition     = can(regex("ignore_changes\\s*=\\s*\\[operating_system\\[0\\]\\.template_file_id\\]", file("${path.module}/proxmox_newt_lxc.tf")))
+    error_message = "Le LXC Newt doit ignorer template_file_id : remplacer le téléchargement du gabarit recréerait le conteneur."
+  }
 }
 
 run "newt_lxc" {
