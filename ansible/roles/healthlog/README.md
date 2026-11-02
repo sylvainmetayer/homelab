@@ -154,7 +154,11 @@ la clé qui ouvre ce dump.
 Le test de restauration (`.github/restore-test/apps.json`, `postgresql`)
 rejoue le dump dans un `postgres:18.6-alpine` jetable. Restauration réelle :
 `pg_restore` du dump borgmatic dans `healthlog-db`, appli arrêtée, avec le
-`.env` de la même archive. Les dumps d'avant migration de HealthLog
+`.env` de la même archive (commandes : `docs/runbooks/healthlog.md`,
+« Restauration depuis Borg »). Le test de la CI ne démarre pas l'appli :
+seule la restauration d'essai de ce runbook (appli jetable sur un réseau
+interne, faite le 02/11/2026) prouve que la clé du `.env` ouvre les
+colonnes chiffrées du dump. Les dumps d'avant migration de HealthLog
 (`healthlog_backups`) se rejouent avec son service `db-restore` (profil
 `restore` du compose amont, `docs/ops/disaster-recovery.md`).
 
