@@ -109,21 +109,26 @@
           - not rss_karakeep_button_entry.stat.woth
         fail_msg: "Extension Karakeep Button absente ou mal installée : {{ rss_karakeep_button_metadata }}"
 
-    - name: Read the FreshRSS user configuration
+    - name: Read the FreshRSS user configurations
       become: true
+      loop: [sylvain, invite]
       ansible.builtin.slurp:
-        src: /opt/apps/rss/freshrss_data/users/sylvain/config.php
+        src: "/opt/apps/rss/freshrss_data/users/{{ item }}/config.php"
       register: rss_user_config_raw
 
-    # rss_ttl_default : 3 h. Le TTL des listes OPML dynamiques reste le sien.
+    # rss_ttl_default : 3 h, remplacé (sylvain) ou inséré (invite). Le TTL des
+    # listes OPML dynamiques reste le sien.
     - name: Assert the default refresh delay is three hours
+      loop: "{{ rss_user_config_raw.results }}"
+      loop_control:
+        label: "{{ item.item }}"
       vars:
-        rss_user_config: "{{ rss_user_config_raw.content | b64decode }}"
+        rss_user_config: "{{ item.content | b64decode }}"
       ansible.builtin.assert:
         that:
           - "\"'ttl_default' => 10800,\" in rss_user_config"
           - "\"'dynamic_opml_ttl_default' => 43200,\" in rss_user_config"
-        fail_msg: "ttl_default n'est pas à 10800 dans users/sylvain/config.php"
+        fail_msg: "ttl_default n'est pas à 10800 dans users/{{ item.item }}/config.php : {{ rss_user_config }}"
 
     - name: Read the journal mode of the FreshRSS database
       become: true
