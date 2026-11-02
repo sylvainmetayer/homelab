@@ -238,8 +238,6 @@ resource "pangolin_role" "mediamanager" {
   description = "Role for mediamanager.sylvain.cloud (MediaManager trial on the NAS, private)"
 }
 
-# Recréée à chaque mise à jour de la ressource, qui l'efface : voir
-# pangolin_site_resource_role.jellyfin.
 resource "pangolin_site_resource_role" "mediamanager" {
   role_id          = pangolin_role.mediamanager.id
   site_resource_id = pangolin_site_resource.mediamanager.id
