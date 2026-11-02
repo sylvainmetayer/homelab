@@ -25,7 +25,7 @@ extraire vers un dossier monté (`--destination
 ## Symptôme
 
 - Le moniteur push de sauvegarde de l'appli (groupe Backups d'Uptime Kuma)
-  passe DOWN : le run a signalé un échec, ou aucun push depuis 25 h
+  passe DOWN : le run a signalé un échec, ou aucun push depuis 26 h
   (`uptimekuma_monitor_push.backup`, `tofu/pangolin_config/websites.tf`,
   fenêtre `local.backup_push_interval`).
 - Ou : `borgmatic.service` en `failed` sur l'hôte.

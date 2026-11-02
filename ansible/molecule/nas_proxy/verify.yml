@@ -379,7 +379,7 @@
           - nas_proxy_verify_health[2].stat.pw_name == 'root'
           - nas_proxy_verify_health[2].stat.mode == '0600'
           - not nas_proxy_verify_health[3].stat.exists
-        fail_msg: "{{ nas_proxy_verify_health | map(attribute='stat') | list }}"
+        fail_msg: "Fichiers de santé : {{ nas_proxy_verify_health | map(attribute='stat') | list | to_json }}"
 
     - name: Verify the app health check units
       ansible.builtin.command: systemd-analyze verify nas-health-check.service nas-health-check.timer
@@ -415,6 +415,17 @@
           - nas_proxy_verify_health_unit.status.ProtectSystem == 'strict'
         fail_msg: "{{ nas_proxy_verify_exec }}"
 
+    # Le timer passe toutes les 5 minutes : un passage à lui pendant les cas
+    # ci-dessous ajouterait un push. Arrêté le temps des cas (et un passage
+    # en cours avec), relancé après.
+    - name: Pause the app health check timer
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - nas-health-check.timer
+        - nas-health-check.service
+
     # Le dernier certificat émis (5 jours, toujours valable) servi sur le
     # 8443 : openssl s_server -www répond 200 à tout GET, les deux applis sont
     # saines ; puis plus rien sur le 8443 : les deux sont en échec.
@@ -422,13 +433,16 @@
       ansible.builtin.include_tasks: tasks/health_check_case.yml
       vars:
         health_check_case_status: up
-        health_check_case_index: 1
 
     - name: Check the apps behind a missing Traefik
       ansible.builtin.include_tasks: tasks/health_check_case.yml
       vars:
         health_check_case_status: down
-        health_check_case_index: 2
+
+    - name: Resume the app health check timer
+      ansible.builtin.systemd:
+        name: nas-health-check.timer
+        state: started
 
     - name: Stop the fake Uptime Kuma
       ansible.builtin.systemd:

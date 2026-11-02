@@ -6,7 +6,15 @@
 #
 # Variables :
 #   health_check_case_status  ce que l'unité doit pousser (up ou down)
-#   health_check_case_index   rang du passage (1, 2…) : nombre de push attendus
+
+# Jellyfin seul a une URL push (converge) ; -I : la dernière invocation de
+# l'unité du faux Uptime Kuma, un `molecule verify` relancé ne compte pas les
+# push du précédent. Compté avant le passage, et attendu un de plus après.
+- name: Count the pushes the fake Uptime Kuma received so far
+  ansible.builtin.command: journalctl --unit molecule-push -I --quiet --output cat --no-pager --grep "GET /api/push/molecule-jellyfin"
+  register: nas_proxy_verify_health_before
+  changed_when: false
+  failed_when: nas_proxy_verify_health_before.rc not in [0, 1]
 
 - name: Serve the certificate on 8443 as Traefik would
   when: health_check_case_status == 'up'
@@ -47,14 +55,13 @@
     name: molecule-tls.service
     state: stopped
 
-# Jellyfin seul a une URL push (converge) ; -I : la dernière invocation de
-# l'unité du faux Uptime Kuma, un `molecule verify` relancé ne compte pas les
-# push du précédent.
 - name: Read what the fake Uptime Kuma received
-  ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-jellyfin"
+  ansible.builtin.command: journalctl --unit molecule-push -I --quiet --output cat --no-pager --grep "GET /api/push/molecule-jellyfin"
   register: nas_proxy_verify_health_pushes
   changed_when: false
-  until: nas_proxy_verify_health_pushes.stdout_lines | length == health_check_case_index
+  until: >-
+    nas_proxy_verify_health_pushes.stdout_lines | length
+    == nas_proxy_verify_health_before.stdout_lines | length + 1
   retries: 10
   delay: 1
 

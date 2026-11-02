@@ -251,11 +251,14 @@ resource "uptimekuma_monitor_push" "foldersync" {
   name   = "FolderSync"
   parent = uptimekuma_monitor_group.backups.id
 
-  # A day and ten seconds, and no retry: with the provider default (3 retries
-  # of a day each), a phone that stopped syncing paged four days later.
-  interval        = 86410
+  # The backups' window (26 h, uptime_globals.tf) and no retry: with the
+  # provider default (3 retries of a day each), a phone that stopped syncing
+  # paged four days later. Without retries, a window of a day and ten seconds
+  # paged every sync later than the day before, and the night the clocks go
+  # back (25 h between two syncs at the same local time).
+  interval        = local.backup_push_interval
   max_retries     = 0
-  retry_interval  = 86410
+  retry_interval  = local.backup_push_interval
   resend_interval = 0
   active          = true
 

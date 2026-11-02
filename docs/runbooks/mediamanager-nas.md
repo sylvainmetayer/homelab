@@ -25,6 +25,10 @@ Les trois derniers n'existent qu'avec la clé SOPS
   ou 404 de Traefik.
 - Moniteur « Certificats NAS » DOWN (certificat à moins de 14 jours, ou
   contrôle en échec).
+- Moniteur « Healthcheck MediaManager » DOWN : deux vérifications de suite en
+  échec par le Traefik du NAS (`nas-health-check.timer`, l'erreur de curl
+  dans le message ; `sudo journalctl -u nas-health-check`), ou plus aucun
+  push depuis 15 minutes.
 - Les téléchargements ne démarrent pas, restent sans pair, ou qBittorrent
   montre l'icône de connexion rouge ou orange.
 - Doute sur une fuite : l'IP de la maison vue d'un tracker.

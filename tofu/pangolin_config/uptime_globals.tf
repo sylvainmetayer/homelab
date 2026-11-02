@@ -70,12 +70,13 @@ locals {
 
   # Retries of the push monitors whose job pushes `status=down` with its
   # reason (update_notify, vzdump and borg restore tests, secrets rotation,
-  # Storage Box quota, every backup): none, so that push pages at once. Left to the provider default (3), a pushed down only turned the
-  # monitor PENDING (Uptime Kuma 2.5.9, determineStatus in api-router.js),
-  # and nothing re-checks a push monitor before its window ends
-  # (monitor.js): the down paged one window after the last success, a
-  # failed restore test 20 days later, a failed update check up to 15. A
-  # missing push still pages at the end of the window, as before.
+  # Storage Box quota, every backup): none, so that push pages at once. Left
+  # to the provider default (3), a pushed down only turned the monitor
+  # PENDING (Uptime Kuma 2.5.9, determineStatus in api-router.js), and
+  # nothing re-checks a push monitor before its window ends (monitor.js): the
+  # down paged one window after the last success, a failed restore test 20
+  # days later, a failed update check up to 15. A missing push still pages
+  # at the end of the window, as before.
   push_down_max_retries = 0
 }
 

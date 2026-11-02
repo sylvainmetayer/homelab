@@ -150,7 +150,7 @@ homepage_supervision_group: Supervision
 # nom des sondes et les sert en JSON (/down.json, /backups.json) sur le réseau
 # privé du projet ; la clé n'est que dans compose.yaml (0600).
 # /metrics ne donne pas l'heure du dernier envoi : une sauvegarde est « OK »
-# tant qu'elle a poussé dans sa fenêtre (25 h, backup_push_interval),
+# tant qu'elle a poussé dans sa fenêtre (26 h, backup_push_interval),
 # « En retard » sinon. Sans la clé ou sans l'URL (output
 # homepage_uptimekuma_url), ni cartes ni conteneur.
 homepage_uptimekuma_widget_key: "{{ homepage_uptimekuma_api_key | default('') }}"
@@ -175,7 +175,7 @@ homepage_kuma_cards:
         label: status
   - name: Sauvegardes
     group: "{{ homepage_supervision_group }}"
-    description: Borgmatic, envoi à Uptime Kuma dans les 25 h (en retard d'abord)
+    description: Borgmatic, envoi à Uptime Kuma dans les 26 h (en retard d'abord)
     icon: mdi-backup-restore
     widget:
       type: customapi
