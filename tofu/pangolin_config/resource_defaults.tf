@@ -21,6 +21,12 @@
 # on updates. It only names the SNI to present upstream, so it cannot silently
 # take a site down the way `enabled` can.
 #
+# `set_host_header`, `skip_to_idp_id`, `post_auth_path` and
+# `maintenance_estimated_time` are null everywhere too, so they cannot be pinned
+# either, and a plan stays blind to a value set in the UI. `pam_mode`,
+# `auth_daemon_mode`, `auth_daemon_port` and `proxy_port` do not apply to
+# `mode = "http"`.
+#
 # `mode` is optional+computed as well, but with a provider-side default of
 # "http", so leaving it out never plans as unknown: five resources declared it
 # and sixteen did not, with the same result. It is pinned for a different

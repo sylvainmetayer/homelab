@@ -3,9 +3,7 @@
 # website_flip_planning.tf: keep the two in step, and keep the `ip` values in
 # step with flip_planning_container_prefix.
 #
-# Resource, targets and monitors: local.websites (websites.tf). Same as the
-# production resource, `headers` is ignored: the provider cannot round-trip an
-# emptied header list, so the attribute is never sent.
+# Resource, targets and monitors: local.websites (websites.tf).
 locals {
   demo_planning_website = {
     name      = "Demo Planning"

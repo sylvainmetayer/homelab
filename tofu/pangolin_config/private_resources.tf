@@ -1,7 +1,9 @@
 # `site_ids`, `ssl` et `enabled` sont optional+computed : déclarés partout pour
-# qu'un changement dans l'UI se voie au plan. `nice_id` n'est qu'une étiquette,
-# `auth_daemon_port` ne sert qu'au mode ssh, `ai_provider_ids` qu'au mode
-# inference : ils restent non déclarés.
+# qu'un changement dans l'UI se voie au plan. Restent non déclarés : `nice_id`
+# (une étiquette), `auth_daemon_port` et `pam_mode` (mode ssh seulement),
+# `ai_provider_ids` (mode inference), `udp_port_range` en mode http (sans effet,
+# Pangolin y force ""). `scheme`, `domain_id`, `subdomain` et `destination_port`
+# valent null hors mode http : un null ne s'épingle pas.
 resource "pangolin_site_resource" "app_proxy" {
   site_ids         = [pangolin_site.proxmox_lxc.id]
   name             = "BBOX"
@@ -11,6 +13,8 @@ resource "pangolin_site_resource" "app_proxy" {
   destination      = "192.168.1.254"
   scheme           = "http"
   destination_port = 80
+  disable_icmp     = true
+  tcp_port_range   = "443,80"
   ssl              = true
   enabled          = true
 }
