@@ -314,7 +314,9 @@ resource "pangolin_site_resource_client" "pi_ci" {
 # Les deux sorties VPN : une passerelle route 0.0.0.0/0 par son site, donc un
 # client Pangolin qui s'y attache sort sur Internet par là. Pangolin force la
 # destination, tous les ports et l'ICMP (createSiteResource.ts), le provider les
-# planifie. Faites dans l'UI, importées avec `tofu import` (README du module).
+# planifie : un écart se voit au plan sans les déclarer. `alias` reste non
+# déclaré, le provider le refuse dans ce mode. Faites dans l'UI, importées avec
+# `tofu import` (README du module). Aucune liaison : Admin seul.
 resource "pangolin_site_resource" "vpn" {
   name = "vpn"
   mode = "gateway"

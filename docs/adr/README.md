@@ -50,7 +50,7 @@ au plus :
 | [0003](0003-crowdsec-sur-pangolin.md) | CrowdSec sur Pangolin, plugin Traefik, AppSec en détection seule | acceptée |
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
 | [0005](0005-retention-journaux-pangolin.md) | Base de Pangolin : rétention des journaux 30/90 jours | acceptée (VACUUM à confirmer) |
-| [0006](0006-objets-faits-main-audites.md) | Objets faits main dans Pangolin et Uptime Kuma audités au plan | acceptée |
+| [0006](0006-objets-faits-main-audites.md) | Objets faits main dans Pangolin et Uptime Kuma audités au plan | acceptée (passerelles VPN déclarées depuis 0021) |
 | [0007](0007-donnees-sur-le-nas.md) | Données d'applis sur le NAS en NFSv3, Jellyfin sur le NAS, relais du 443 | acceptée |
 | [0008](0008-renovate-hebdomadaire.md) | Renovate : PR hebdomadaires, images à état manuelles, automerge ciblé | acceptée |
 | [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée (emplacement des fichiers remplacé par 0018) |

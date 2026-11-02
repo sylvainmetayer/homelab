@@ -1,6 +1,6 @@
 # 0006. Objets faits main : audités au plan dans Pangolin, relevés dans Uptime Kuma
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; passerelles VPN déclarées en Tofu grâce au fork de [0021](0021-provider-pangolin-du-fork.md), audit `vpn_gateways` retiré (PR #1126)
 - **Date** : 2026-08-30 (couverture pays), 2026-08-31 (règles), 2026-10-06 (VPN), 2026-10-28 (cibles, jetons, rôles)
 
 ## Contexte

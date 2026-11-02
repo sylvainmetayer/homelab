@@ -1,8 +1,7 @@
 # ---------------------------------------------------------------------------
 # Audits de rules.tf (les quatre terraform_data à preconditions et le check
-# target_health), d'access_inventory.tf (jetons d'accès et rôles) et de
-# private_resources.tf (passerelles VPN), nourris par les data "http" qui
-# lisent l'API Pangolin.
+# target_health) et d'access_inventory.tf (jetons d'accès et rôles), nourris
+# par les data "http" qui lisent l'API Pangolin.
 #
 # Chaque run négatif fait échouer UNE precondition à la fois, sur une réponse
 # d'API minimale construite pour ne déclencher qu'elle : c'est ce qui prouve
@@ -411,7 +410,6 @@ run "audits_pass_on_realistic_api_responses" {
     condition     = terraform_data.access_inventory.output == 10 && length(local.stale_inventory_exceptions) == 0
     error_message = "access_inventory doit lire les 6 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
   }
-
 }
 
 # ---------------------------------------------------------------------------
@@ -843,4 +841,3 @@ run "unreadable_rules_response_fails_plan" {
     terraform_data.rule_inventory,
   ]
 }
-
