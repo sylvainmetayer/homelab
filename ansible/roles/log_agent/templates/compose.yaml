@@ -9,7 +9,7 @@ services:
     mem_limit: 256m
     # Variante Debian : la seule avec journalctl (systemd de trixie, celui
     # des hôtes), que lance la source journald.
-    image: docker.io/timberio/vector:0.60.0-debian@sha256:3ccb4bbd36e38734394e158db1411e91a69d076ed25013f8de385046a382d36a
+    image: docker.io/timberio/vector:0.61.0-debian@sha256:f6c23b5a7e16fb2838d33619ef7acf4bad2289a7cf22bc90efc2371f520c4ea2
     container_name: log-agent
     # Rien en écoute (API coupée) ; le réseau de l'hôte pour joindre vmauth
     # sur 127.0.0.1 depuis la VM docker elle-même.
