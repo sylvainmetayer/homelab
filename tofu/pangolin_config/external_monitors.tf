@@ -251,7 +251,10 @@ resource "uptimekuma_monitor_push" "foldersync" {
   name   = "FolderSync"
   parent = uptimekuma_monitor_group.backups.id
 
+  # A day and ten seconds, and no retry: with the provider default (3 retries
+  # of a day each), a phone that stopped syncing paged four days later.
   interval        = 86410
+  max_retries     = 0
   retry_interval  = 86410
   resend_interval = 0
   active          = true

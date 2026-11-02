@@ -1,0 +1,68 @@
+---
+# Un passage de nas-health-check.service : contre un faux Traefik (openssl
+# s_server -www sur le 8443, le dernier certificat de cert_check_case.yml,
+# valable pour les trois noms du NAS) quand l'appli doit être saine, contre un
+# 8443 fermé sinon.
+#
+# Variables :
+#   health_check_case_status  ce que l'unité doit pousser (up ou down)
+#   health_check_case_index   rang du passage (1, 2…) : nombre de push attendus
+
+- name: Serve the certificate on 8443 as Traefik would
+  when: health_check_case_status == 'up'
+  ansible.builtin.command:
+    argv:
+      - systemd-run
+      - --unit=molecule-tls
+      - --collect
+      - openssl
+      - s_server
+      - -quiet
+      - -www
+      - -accept
+      - 127.0.0.1:8443
+      - -cert
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.pem"
+      - -key
+      - "{{ nas_proxy_verify_tls_dir }}/leaf.key"
+  changed_when: true
+
+- name: Wait for the fake Traefik to listen
+  when: health_check_case_status == 'up'
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 8443
+    timeout: 30
+
+# systemctl plutôt que le module : son code de retour est ce qui est vérifié.
+- name: Run the app health check
+  ansible.builtin.command: systemctl start nas-health-check.service # noqa: command-instead-of-module
+  register: nas_proxy_verify_health
+  changed_when: true
+  failed_when: (nas_proxy_verify_health.rc == 0) != (health_check_case_status == 'up')
+
+- name: Stop the fake Traefik
+  when: health_check_case_status == 'up'
+  ansible.builtin.systemd:
+    name: molecule-tls.service
+    state: stopped
+
+# Jellyfin seul a une URL push (converge) ; -I : la dernière invocation de
+# l'unité du faux Uptime Kuma, un `molecule verify` relancé ne compte pas les
+# push du précédent.
+- name: Read what the fake Uptime Kuma received
+  ansible.builtin.command: journalctl --unit molecule-push -I --output cat --no-pager --grep "GET /api/push/molecule-jellyfin"
+  register: nas_proxy_verify_health_pushes
+  changed_when: false
+  until: nas_proxy_verify_health_pushes.stdout_lines | length == health_check_case_index
+  retries: 10
+  delay: 1
+
+- name: Assert the check pushed {{ health_check_case_status }}
+  vars:
+    nas_proxy_verify_push: "{{ nas_proxy_verify_health_pushes.stdout_lines | last | urldecode }}"
+  ansible.builtin.assert:
+    that:
+      - ('status=' ~ health_check_case_status ~ '&') in nas_proxy_verify_push
+      - "health_check_case_status == 'up' or 'https://media.sylvain.cloud/health : ' in nas_proxy_verify_push"
+    fail_msg: "{{ nas_proxy_verify_push }}"

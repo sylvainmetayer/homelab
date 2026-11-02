@@ -24,6 +24,7 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 | `monica_v4` | `ExecStartPost` of `monica_v4_cron.service` | `--strict` |
 | `blocky` | `blocky-check.sh`, config on stdin | default (the check's own exit code) |
 | `ntfy` | `ntfy-subscribers-check.sh`, config on stdin | default |
+| `nas_proxy` | `health_check.sh` (`nas-health-check.service`, NAS), one `<name>.curl` per app | default (the check's own exit code) |
 | `ssh_login_notify` | the PAM hook, config on stdin, in the background | `--strict` (logs success or failure) |
 
 Not here: the Python scripts (`kdrive_sync`, `nas_proxy`'s cert check, `update_notify`, `vzdump_restore_test`) push with `urllib`, and `.github/workflows/restore-test.yaml` runs on a GitHub runner.

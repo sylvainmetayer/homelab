@@ -284,9 +284,16 @@ puis `sudo rm -rf /volume1/media/.mediamanager-test`.
 Puis, dans le dépôt : ce rôle, `ansible/molecule/mediamanager/`, l'entrée de
 `nas.yml`, dans `nas_proxy` le routeur, le service et les en-têtes
 `mediamanager` (`templates/dynamic.yml`), le réseau `mediamanager` du compose,
-les `nas_proxy_mediamanager_*` et le nom de `nas_proxy_cert_check_names` (puis
-`--tags nas_proxy` ; le réseau `mediamanager_proxy`, vide, reste dans Docker :
-`docker network rm mediamanager_proxy`), le A `tofu/dns/mediamanager.tf` et son test,
+les `nas_proxy_mediamanager_*`, le nom de `nas_proxy_cert_check_names` et
+l'entrée `mediamanager` de `nas_proxy_health_checks` (et leurs assertions dans
+`ansible/molecule/nas_proxy/`), la ligne `nas_proxy_mediamanager_healthcheck_url`
+de `nas.yml` (puis `--tags nas_proxy` ; le réseau `mediamanager_proxy`, vide,
+reste dans Docker : `docker network rm mediamanager_proxy` ; l'URL push
+restée sur le NAS : `sudo rm /volume1/docker/nas_proxy/health/mediamanager.curl`),
+le moniteur « Healthcheck MediaManager » (clé `mediamanager` de
+`local.nas_health_apps` et sortie `uptime_health_mediamanager_url` dans
+`tofu/pangolin_config/health_nas.tf`, son `override_resource` et sa ligne
+dans `tests/invariants.tftest.hcl`), le A `tofu/dns/mediamanager.tf` et son test,
 `mediamanager.sylvain.cloud` de `blocky_rebinding_allowed_domains`, la
 ressource, le rôle et la liaison `mediamanager` de
 `tofu/pangolin_config/private_resources.tf` (et `pangolin_role.mediamanager`

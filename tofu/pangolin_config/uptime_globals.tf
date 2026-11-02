@@ -54,18 +54,23 @@ locals {
 
   # Window of every backup push monitor (uptimekuma_monitor_push.backup,
   # backup_pangolin, backup_jellyfin). The borgmatic timers fire at a fixed
-  # local time (01:00, 02:30 on the NAS, Europe/Paris), and the push comes at
-  # the end of the run: the night the clocks go back, two runs are 25 h
-  # apart, and a run slower than the one before pushes later still. At
-  # exactly 24 h, both paged a backup that did run. 25 h absorbs the hour and
-  # still pages the morning after a missed night. Uptime Kuma caps a push
-  # monitor at 24 days, far above.
-  backup_push_interval = 60 * 60 * 25
+  # local time (01:00, 02:30 on the NAS, Europe/Paris) and each configuration
+  # pushes when it starts and when it ends: the night the clocks go back, two
+  # runs are 25 h apart, and a configuration that waits behind slower ones
+  # than the night before pushes later still (runs measured 2026-11-02: 1 to
+  # 6 min, 20 min on the Pi). At exactly 24 h, both paged a backup that did
+  # run. 26 h leaves an hour over the clock change, and a missed night pages
+  # about two hours after the usual end of the run, with no retry on top
+  # (max_retries = local.push_down_max_retries, below): until 2026-11-02 the
+  # provider default of 3 retries also turned a pushed `down` (borgmatic's
+  # `fail` hook) into a PENDING that paged only when the window ran out, a
+  # day after the failure. Uptime Kuma caps a push monitor at 24 days, far
+  # above.
+  backup_push_interval = 60 * 60 * 26
 
-  # Retries of the weekly and fortnightly push monitors whose job pushes
-  # `status=down` with its reason (update_notify, vzdump and borg restore
-  # tests, secrets rotation, Storage Box quota): none, so that push pages at
-  # once. Left to the provider default (3), a pushed down only turned the
+  # Retries of the push monitors whose job pushes `status=down` with its
+  # reason (update_notify, vzdump and borg restore tests, secrets rotation,
+  # Storage Box quota, every backup): none, so that push pages at once. Left to the provider default (3), a pushed down only turned the
   # monitor PENDING (Uptime Kuma 2.5.9, determineStatus in api-router.js),
   # and nothing re-checks a push monitor before its window ends
   # (monitor.js): the down paged one window after the last success, a

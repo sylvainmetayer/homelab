@@ -116,6 +116,70 @@
     enabled: true
     daemon_reload: true
 
+# Santé des applis, vérifiée sur le NAS toutes les 5 minutes (defaults,
+# « Santé des applis ») : l'Uptime Kuma de PikaPods ne joint pas le NAS.
+- name: Install the app health check script
+  become: true
+  ansible.builtin.copy:
+    src: health_check.sh
+    dest: "{{ nas_proxy_base_path }}/health_check.sh"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Ensure the app health check push folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ nas_proxy_health_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Chaque URL push porte le jeton de son moniteur : 0600, diff: false et
+# no_log (la boucle afficherait l'élément, URL comprise, sous -v).
+- name: Write the push URL of each app health monitor
+  become: true
+  diff: false
+  no_log: true
+  loop: "{{ nas_proxy_health_checks | selectattr('push_url') }}"
+  ansible.builtin.copy:
+    content: "url = \"{{ item.push_url }}\"\n"
+    dest: "{{ nas_proxy_health_dir }}/{{ item.name }}.curl"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Sans moniteur (sortie absente du state), rien à pousser : pas d'ancien jeton.
+- name: Remove the push URL of an app health check without monitor
+  become: true
+  loop: "{{ nas_proxy_health_checks | rejectattr('push_url') }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ansible.builtin.file:
+    path: "{{ nas_proxy_health_dir }}/{{ item.name }}.curl"
+    state: absent
+
+- name: Install the app health check service and timer
+  become: true
+  loop:
+    - nas-health-check.service
+    - nas-health-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+- name: Enable the periodic app health check
+  become: true
+  ansible.builtin.systemd:
+    name: nas-health-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
 # Le 443 de l'hôte, une fois le redémarrage fait (handlers vidés ici : un
 # échec ci-dessous ne doit pas laisser la nouvelle configuration non
 # appliquée, le 8443 compris). Échec franc plutôt qu'un avertissement : le

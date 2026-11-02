@@ -682,6 +682,16 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.health_nas["jellyfin"]
+  values = { push_token = "push-health-jellyfin" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.health_nas["mediamanager"]
+  values = { push_token = "push-health-mediamanager" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_vzdump_restore_test
   values = { push_token = "push-cron-vzdump-restore-test" }
 }
@@ -1998,9 +2008,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_pangolin_url = output.uptime_backup_pangolin_url
         uptime_cron_geoip_url      = output.uptime_cron_geoip_url
         # nas.yml
-        uptime_backup_jellyfin_url  = output.uptime_backup_jellyfin_url
-        uptime_cron_nas_cert_url    = output.uptime_cron_nas_cert_url
-        uptime_cron_kdrive_sync_url = output.uptime_cron_kdrive_sync_url
+        uptime_backup_jellyfin_url     = output.uptime_backup_jellyfin_url
+        uptime_cron_nas_cert_url       = output.uptime_cron_nas_cert_url
+        uptime_cron_kdrive_sync_url    = output.uptime_cron_kdrive_sync_url
+        uptime_health_jellyfin_url     = output.uptime_health_jellyfin_url
+        uptime_health_mediamanager_url = output.uptime_health_mediamanager_url
         # pve.yml
         uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
@@ -2014,7 +2026,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         url == "https://uptime.example.test/api/push/push-${replace(trimsuffix(trimprefix(trimprefix(name, "uptime_"), "backup_"), "_url"), "_", "-")}"
         ]) && length(distinct(values(urls))) == length(flatten([
           for f in fileset(path.module, "*.tf") :
-          regexall("output \"uptime_(?:backup|cron)_\\w+_url\"", file("${path.module}/${f}"))
+          regexall("output \"uptime_(?:backup|cron|health)_\\w+_url\"", file("${path.module}/${f}"))
       ]))
     ])
     error_message = "Une sortie uptime_*_url lue par Ansible ne pointe pas sur le jeton de SON moniteur push (push-<nom de la sortie>), deux pointent sur le même, ou une sortie manque à cette liste."
@@ -2027,7 +2039,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
     condition = alltrue([
       for name in flatten([
         for f in fileset(path.module, "*.tf") :
-        regexall("output \"(uptime_(?:backup|cron)_\\w+_url)\"", file("${path.module}/${f}"))
+        regexall("output \"(uptime_(?:backup|cron|health)_\\w+_url)\"", file("${path.module}/${f}"))
       ]) :
       anytrue([
         for playbook in ["docker.yml", "flip.yml", "lxc.yml", "nas.yml", "pi.yml", "pangolin.yaml", "pve.yml"] :
@@ -2326,8 +2338,9 @@ run "demo_and_production_planning_share_nothing" {
 }
 
 # Rangement et alerting des moniteurs : chaque sauvegarde dans le dossier
-# Backup avec une fenêtre de 25 h (sauvegarde quotidienne, plus l'heure
-# du changement d'heure d'octobre), chaque healthcheck dans Self-hosted, et
+# Backup avec une fenêtre de 26 h sans essai (sauvegarde quotidienne, plus
+# l'heure du changement d'heure d'octobre, plus une heure de marge ; un
+# « down » poussé alerte aussitôt), chaque healthcheck dans Self-hosted, et
 # tous reliés à Telegram et ntfy (un moniteur sans notification ne prévient
 # personne, comme gramps et scanopy en 503 pendant des heures). Tout moniteur
 # de sauvegarde est actif.
@@ -2342,10 +2355,24 @@ run "monitors_are_filed_and_alert" {
     condition = alltrue([
       for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
-      && m.interval == 25 * 3600
+      && m.interval == 26 * 3600
+      && m.max_retries == 0
       && toset(m.notification_ids) == toset(local.alert_notification_ids)
     ])
-    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, à 25 h (le changement d'heure d'octobre espace deux sauvegardes de 25 h) et notifié sur Telegram et ntfy."
+    error_message = "Chaque moniteur de sauvegarde doit être dans le dossier Backup, à 26 h (le changement d'heure d'octobre espace deux sauvegardes de 25 h, plus une heure de marge), sans essai (max_retries = 0 : un échec poussé alerte aussitôt) et notifié sur Telegram et ntfy."
+  }
+
+  # FolderSync (téléphone, hors du dépôt) pousse une fois par jour : sans
+  # essai, il alerte au bout d'un jour, pas de quatre (3 essais d'un jour,
+  # le défaut du provider).
+  assert {
+    condition = (
+      uptimekuma_monitor_push.foldersync.parent == uptimekuma_monitor_group.backups.id
+      && uptimekuma_monitor_push.foldersync.interval < 25 * 3600
+      && uptimekuma_monitor_push.foldersync.max_retries == 0
+      && toset(uptimekuma_monitor_push.foldersync.notification_ids) == toset(local.alert_notification_ids)
+    )
+    error_message = "FolderSync : dossier Backup, fenêtre d'un jour, sans essai, notifié sur Telegram et ntfy."
   }
 
   # Actif tant que l'app tourne : une app en pause (enabled = false) n'a plus
@@ -2500,6 +2527,32 @@ run "monitors_are_filed_and_alert" {
       && toset(uptimekuma_monitor_push.cron_kdrive_sync.notification_ids) == toset(local.alert_notification_ids)
     )
     error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié sur Telegram et ntfy."
+  }
+
+  # Santé des applis du NAS (nas-health-check.timer, rôle nas_proxy) : un
+  # moniteur par entrée de nas_proxy_health_checks, et réciproquement (une
+  # appli retirée d'un côté seulement laisserait un moniteur muet, donc
+  # rouge, ou une vérification sans moniteur) ; fenêtre de deux périodes du
+  # timer, un essai d'une période ; nas.yml donne à chaque entrée l'URL push
+  # de SON moniteur.
+  assert {
+    condition = (
+      toset(keys(uptimekuma_monitor_push.health_nas)) == toset([
+        for c in yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_health_checks : c.name
+      ])
+      && alltrue([
+        for key, m in uptimekuma_monitor_push.health_nas :
+        m.parent == uptimekuma_monitor_group.self_hosted.id
+        && toset(m.notification_ids) == toset(local.alert_notification_ids)
+        && m.active == true
+        && m.upside_down == false
+        && m.max_retries == 1
+        && m.interval == 2 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_health_check_schedule)[0])
+        && m.retry_interval == m.interval / 2
+        && strcontains(file("${path.module}/../../ansible/nas.yml"), "nas_proxy_${key}_healthcheck_url: \"{{ terraform_outputs.uptime_health_${key}_url.value | default('') }}\"")
+      ])
+    )
+    error_message = "Santé des applis du NAS : un moniteur par entrée de nas_proxy_health_checks, rangé avec les healthchecks, Telegram et ntfy, fenêtre de deux périodes de nas_proxy_health_check_schedule (*:0/N), un essai d'une période ; nas.yml lit uptime_health_<clé>_url dans nas_proxy_<clé>_healthcheck_url."
   }
 
   # Le vérificateur de mises à jour (rôle update_notify) passe une fois par

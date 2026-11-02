@@ -307,11 +307,12 @@
         state: directory
         mode: "0700"
 
-    - name: Create the fake Uptime Kuma push path
+    - name: Create the fake Uptime Kuma push paths
       ansible.builtin.copy:
-        dest: "{{ nas_proxy_verify_tls_dir }}/push/api/push/molecule-cert"
+        dest: "{{ nas_proxy_verify_tls_dir }}/push/api/push/{{ item }}"
         content: "{\"ok\":true}\n"
         mode: "0600"
+      loop: [molecule-cert, molecule-jellyfin]
 
     - name: Start the fake Uptime Kuma
       ansible.builtin.command:
@@ -351,6 +352,83 @@
         cert_check_case_days: 5
         cert_check_case_status: down
         cert_check_case_index: 2
+
+    # --- Santé des applis (nas-health-check.timer) ---
+    - name: Stat the app health check files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ nas_proxy_verify_path }}/health_check.sh"
+        - "{{ nas_proxy_verify_path }}/health"
+        - "{{ nas_proxy_verify_path }}/health/jellyfin.curl"
+        - "{{ nas_proxy_verify_path }}/health/mediamanager.curl"
+      register: nas_proxy_verify_health_files
+
+    # Le .curl porte l'URL push (jeton du moniteur) ; aucun pour MediaManager,
+    # sans URL dans la converge.
+    - name: Assert the health check script and its push URL are root-only
+      vars:
+        nas_proxy_verify_health: "{{ nas_proxy_verify_health_files.results }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_health[0].stat.pw_name == 'root'
+          - nas_proxy_verify_health[0].stat.mode == '0700'
+          - nas_proxy_verify_health[1].stat.isdir
+          - nas_proxy_verify_health[1].stat.pw_name == 'root'
+          - nas_proxy_verify_health[1].stat.mode == '0700'
+          - nas_proxy_verify_health[2].stat.pw_name == 'root'
+          - nas_proxy_verify_health[2].stat.mode == '0600'
+          - not nas_proxy_verify_health[3].stat.exists
+        fail_msg: "{{ nas_proxy_verify_health | map(attribute='stat') | list }}"
+
+    - name: Verify the app health check units
+      ansible.builtin.command: systemd-analyze verify nas-health-check.service nas-health-check.timer
+      register: nas_proxy_verify_health_analyze
+      changed_when: false
+      failed_when: >-
+        nas_proxy_verify_health_analyze.rc != 0
+        or (nas_proxy_verify_health_analyze.stderr_lines | select('search', 'nas-health-check') | list | length > 0)
+
+    - name: Read the app health check timer
+      ansible.builtin.systemd:
+        name: nas-health-check.timer
+      register: nas_proxy_verify_health_timer
+
+    - name: Read the app health check service
+      ansible.builtin.systemd:
+        name: nas-health-check.service
+      register: nas_proxy_verify_health_unit
+
+    # Chaque appli par le port publié, son nom et son chemin de santé ; l'URL
+    # par le fichier seul, jamais sur la ligne de commande.
+    - name: Assert the health check runs every 5 minutes against each app
+      vars:
+        nas_proxy_verify_exec: "{{ nas_proxy_verify_health_unit.status.ExecStart }}"
+      ansible.builtin.assert:
+        that:
+          - nas_proxy_verify_health_timer.status.UnitFileState == 'enabled'
+          - nas_proxy_verify_health_timer.status.ActiveState == 'active'
+          - ('health_check.sh 8443 ' ~ nas_proxy_verify_path ~ '/health '
+            ~ 'jellyfin media.sylvain.cloud /health mediamanager mediamanager.sylvain.cloud /api/v1/health ') in nas_proxy_verify_exec
+          - "'molecule-jellyfin' not in nas_proxy_verify_exec"
+          - nas_proxy_verify_health_unit.status.NoNewPrivileges == 'yes'
+          - nas_proxy_verify_health_unit.status.ProtectSystem == 'strict'
+        fail_msg: "{{ nas_proxy_verify_exec }}"
+
+    # Le dernier certificat émis (5 jours, toujours valable) servi sur le
+    # 8443 : openssl s_server -www répond 200 à tout GET, les deux applis sont
+    # saines ; puis plus rien sur le 8443 : les deux sont en échec.
+    - name: Check the apps behind a responding Traefik
+      ansible.builtin.include_tasks: tasks/health_check_case.yml
+      vars:
+        health_check_case_status: up
+        health_check_case_index: 1
+
+    - name: Check the apps behind a missing Traefik
+      ansible.builtin.include_tasks: tasks/health_check_case.yml
+      vars:
+        health_check_case_status: down
+        health_check_case_index: 2
 
     - name: Stop the fake Uptime Kuma
       ansible.builtin.systemd:
