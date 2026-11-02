@@ -97,20 +97,70 @@ restore` des dumps SQL, cas SQLite) est dans
    `<app>-<date>` ; `--archive latest` prend la dernière.
 3. **Extraire dans un dossier de travail**, jamais directement sur `/` :
    `--destination /root/restore/<app>`. Les chemins n'ont pas de `/`
-   initial.
-4. **Bases PostgreSQL / MariaDB** : l'appli et son conteneur de base
-   démarrés, `borgmatic restore --config /etc/borgmatic.d/<app>.yaml
-   --archive latest`.
+   initial. borgmatic 2.1 y met aussi, hors des sources de l'appli, ses
+   dumps SQL (`borgmatic/postgresql_databases/<conteneur>:<port>/<base>`,
+   format custom de `pg_restore`) et **toutes** les configs
+   `etc/borgmatic.d/*.yaml` de l'hôte (amorçage de `borgmatic bootstrap`).
+4. **Bases PostgreSQL / MariaDB** : le **conteneur de base seul** démarré
+   (`docker compose up -d <base>` dans `/opt/apps/<app>`), l'appli arrêtée
+   (sinon elle écrit ou migre pendant le rejeu), puis `borgmatic restore
+   --config /etc/borgmatic.d/<app>.yaml --archive latest`. borgmatic joint
+   la base par l'IP du conteneur avec le client **de l'hôte** (`pg_restore`
+   17.11 sur la VM docker, qui lit les dumps de PostgreSQL 18.6 ; s'il
+   refusait un dump plus récent, le rejouer avec celui du conteneur :
+   [healthlog.md](healthlog.md#restauration-depuis-borg)).
 5. **Bases SQLite** : la copie est dans l'archive sous
    `var/lib/borgmatic-sqlite/<app>/`, nommée d'après son chemin d'origine
-   (`/` remplacés par `_`). Appli arrêtée, la remettre en place en supprimant
-   les `-wal` et `-shm` de l'ancienne (un WAL resté là serait rejoué sur la
-   copie), puis lui rendre son propriétaire (`stat -c %u:%g` sur l'ancienne
-   avant, `chown` après ; `borgmatic/defaults/main.yml`).
+   (`/` remplacés par `_`) ; la base vivante est exclue de l'archive, donc
+   recopier le dossier de l'appli ne la remplace pas. Vérifier la copie
+   (`sqlite3 <copie> 'PRAGMA integrity_check'` : `ok`). Appli arrêtée, la
+   remettre en place en supprimant les `-wal` et `-shm` de l'ancienne (un
+   WAL resté là serait rejoué sur la copie), puis lui rendre son
+   propriétaire : la copie sort `root:root` (`stat -c %u:%g` sur l'ancienne
+   avant, `chown` après ; `borgmatic/defaults/main.yml`). Elle sort aussi en
+   `journal_mode=delete` (`VACUUM INTO`) : si l'ancienne était en WAL
+   (`sqlite3 <ancienne> 'PRAGMA journal_mode'` avant), remettre la copie en
+   WAL avant de démarrer l'appli (`sqlite3 <copie> 'PRAGMA
+   journal_mode=WAL'`), sinon le hook de sauvegarde, qui choisit à chaque run
+   d'après ce mode, passe à `.backup`, qui ne finit jamais sur une base
+   écrite sans cesse (README du rôle `borgmatic`).
 6. **Dépôt lui-même effacé ou abîmé** : les snapshots de la Storage Box
    (9 quotidiens, `tofu/pangolin/storage_box.tf`) se restaurent depuis la
    console Hetzner (Storage Box → Snapshots), avec le compte principal.
    Procédure exacte : à vérifier dans la console.
+
+## Restauration d'essai (sans toucher à l'appli)
+
+Dans `/root/restore-drill/<app>` (`0700`, root), jamais sur `/` ni dans
+`/opt/apps`, l'appli vivante laissée en marche. Fait le 02/11/2026 pour
+HealthLog et Papra.
+
+- **PostgreSQL** : base jetable de la même image, en tmpfs, sans port
+  publié ni `newt`, et `borgmatic restore --container <conteneur jetable>`
+  y détourne le rejeu ; l'appli jetable sur un réseau `--internal` prouve
+  que la clé de l'archive ouvre les colonnes chiffrées. Commandes :
+  [healthlog.md](healthlog.md#restauration-dessai-sans-toucher-a-lappli).
+- **SQLite et fichiers** (exemple Papra, 795 Mo, extract en 21 s), en root :
+
+  ```bash
+  d=/root/restore-drill/papra
+  install -d -m 0700 $d
+  /root/.local/bin/borgmatic --config /etc/borgmatic.d/papra.yaml extract --archive latest --destination $d
+  for f in $d/var/lib/borgmatic-sqlite/papra/*.sqlite; do sqlite3 -readonly "$f" 'PRAGMA integrity_check'; done   # ok
+  db=$d/var/lib/borgmatic-sqlite/papra/opt_apps_papra_app-data_db_db.sqlite
+  q='select count(*), sum(original_size) from documents'
+  sqlite3 -readonly "$db" "$q"; sqlite3 -readonly 'file:/opt/apps/papra/app-data/db/db.sqlite?mode=ro' "$q"
+  # un échantillon de fichiers : empreinte de la base = copie restaurée = fichier vivant
+  sqlite3 -separator ' ' -readonly "$db" 'select original_sha256_hash, original_storage_key from documents order by random() limit 5' |
+    while read -r h k; do
+      echo "$h  $d/opt/apps/papra/app-data/documents/$k"
+      echo "$h  /opt/apps/papra/app-data/documents/$k"
+    done | sha256sum -c --quiet && echo 'échantillon OK'
+  ```
+
+  Un échantillon, pas tout : le disque de la VM docker est lent.
+
+Ranger ensuite : `sudo rm -rf /root/restore-drill/<app>`.
 
 ## Vérification
 
@@ -124,8 +174,12 @@ données sont celles attendues.
 
 ## Prévention
 
-- Une restauration d'essai de temps en temps, sur une petite appli
-  (`betisier`) : c'est le seul vrai test d'une sauvegarde.
+- Une restauration d'essai de temps en temps (plus haut ; la dernière :
+  HealthLog et Papra, 02/11/2026) : c'est le seul vrai test d'une
+  sauvegarde. Le test de restauration de la CI
+  (`.github/restore-test/README.md`) rejoue les bases et extrait 20
+  fichiers chaque quinzaine, sans les comparer au vivant ni démarrer
+  l'appli (la clé de chiffrement de HealthLog n'y est pas éprouvée).
 - Garder `backup_passphrase` hors du seul SOPS (gestionnaire de mots de
   passe) : sans elle, aucun dépôt ne s'ouvre.
 - borgmatic vérifie le dépôt toutes les 2 semaines et les archives tous les

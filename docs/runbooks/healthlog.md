@@ -152,6 +152,84 @@ haut). Les dumps d'avant migration (`healthlog_backups`, hors borg) se
 rejouent avec le service `db-restore` du compose amont
 (`docs/ops/disaster-recovery.md` de HealthLog).
 
+`borgmatic restore` rejoue le dump avec le `pg_restore` **de l'hôte**
+(Debian 13 : 17.11), pas celui du conteneur : il lit les dumps de
+PostgreSQL 18.6 (format d'archive 1.16), vérifié le 02/11/2026. S'il
+refuse un jour le dump (`unsupported version … in file header`, après une
+montée de Postgres), le rejouer avec le client du conteneur, depuis le dump
+extrait (borgmatic 2.1 le met dans l'archive, au format custom, sous
+`borgmatic/postgresql_databases/<conteneur>:<port>/<base>`) :
+
+```bash
+# en root, après l'extract ; healthlog-db démarré, appli arrêtée
+cat '/root/restore/healthlog/borgmatic/postgresql_databases/healthlog-db:5432/healthlog' \
+  | docker exec -i healthlog-db pg_restore -U healthlog -d healthlog --clean --if-exists --exit-on-error
+```
+
+### Restauration d'essai (sans toucher à l'appli)
+
+Faite le 02/11/2026 sur la VM docker, ~3 min en tout (extract 6 s,
+restore 12 s). Tout dans un dossier `0700` de root et des conteneurs
+jetables : ni l'appli, ni sa base, ni `newt`. En `sylvain`, depuis
+`mise run ssh` :
+
+```bash
+sudo install -d -m 0700 /root/restore-drill/healthlog
+sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/healthlog.yaml extract \
+  --archive latest --destination /root/restore-drill/healthlog
+# base jetable : même image que le rôle, données en tmpfs, aucun port publié,
+# réseau bridge par défaut (borgmatic la joint par son IP), sans mot de passe
+docker run -d --rm --name drill-healthlog-db --network bridge --memory 768m \
+  --mount type=tmpfs,destination=/var/lib/postgresql,tmpfs-size=1073741824 \
+  -e POSTGRES_USER=healthlog -e POSTGRES_DB=healthlog -e POSTGRES_HOST_AUTH_METHOD=trust \
+  "$(grep -m1 -o 'postgres:[^ ]*' /opt/apps/healthlog/compose.yaml)"
+until docker exec drill-healthlog-db pg_isready -q -h 127.0.0.1 -U healthlog; do sleep 2; done
+# --container détourne la restauration vers la base jetable
+sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/healthlog.yaml restore \
+  --archive latest --container drill-healthlog-db
+```
+
+Comparer les lignes de chaque table avec la base vivante (lecture seule) :
+
+```bash
+q='select table_schema||$$.$$||table_name, (xpath($$/row/c/text()$$, query_to_xml(format($$select count(*) as c from %I.%I$$, table_schema, table_name), false, true, $$$$)))[1]::text::bigint from information_schema.tables where table_type=$$BASE TABLE$$ and table_schema not in ($$pg_catalog$$,$$information_schema$$) order by 1'
+diff <(docker exec -e PGOPTIONS='-c default_transaction_read_only=on' healthlog-db psql -U healthlog -d healthlog -AtF' ' -c "$q") \
+     <(docker exec drill-healthlog-db psql -U healthlog -d healthlog -AtF' ' -c "$q")
+```
+
+Seules diffèrent les tables écrites depuis la nuit (`pgboss.job*`,
+`host_metrics`, `database_backup_runs`).
+
+**La clé ouvre-t-elle les colonnes chiffrées ?** Au démarrage, HealthLog
+déchiffre sa ligne témoin (`encryption_key_canaries`, `v1`, chiffrée avec
+`ENCRYPTION_KEY`) et répond 503 partout si elle ne s'ouvre pas. Démarrer
+l'appli jetable sur la base restaurée, avec le `.env` de l'archive, sur un
+réseau **interne** (ni Internet, donc ni Withings ni SMTP), en mode `web`
+(pas de worker) :
+
+```bash
+docker network create --internal drill-healthlog
+docker network connect drill-healthlog drill-healthlog-db
+sudo docker run -d --rm --name drill-healthlog-app --network drill-healthlog \
+  --memory 1536m --cap-drop ALL --security-opt no-new-privileges:true \
+  --env-file /root/restore-drill/healthlog/opt/apps/healthlog/.env \
+  -e DATABASE_URL=postgresql://healthlog:drill@drill-healthlog-db:5432/healthlog \
+  -e HEALTHLOG_PROCESS_TYPE=web -e SMTP_HOST= -e DB_BACKUP_BEFORE_MIGRATE=false \
+  "$(grep -m1 -o 'ghcr.io/mbombeck/healthlog:[^ ]*' /opt/apps/healthlog/compose.yaml)"
+sleep 40   # migrations (aucune en attente) et contrôle de clé
+docker exec drill-healthlog-app wget -q -O - http://127.0.0.1:3000/api/health
+```
+
+`{"status":"ok"}` : la clé de l'archive ouvre le dump. Contre-épreuve du
+02/11 : avec `-e ENCRYPTION_KEY=$(openssl rand -hex 32)` en plus, 503 et
+« HealthLog refuses to serve: encryption key does not match » dans
+`docker logs`. Ranger :
+
+```bash
+docker stop drill-healthlog-app drill-healthlog-db && docker network rm drill-healthlog
+sudo rm -rf /root/restore-drill/healthlog
+```
+
 ## Vérification
 
 - Moniteur « Healthcheck HealthLog » UP ; connexion à `sante.sylvain.cloud`,
@@ -159,8 +237,11 @@ rejouent avec le service `db-restore` du compose amont
 - `curl -sI https://sante.sylvain.cloud/api/withings/webhook/0` : `401`.
 - Se peser hors des minutes :00 à :05 : la pesée apparaît en quelques
   secondes (webhook), pas à l'heure suivante.
-- Après une restauration : Intégrations → Withings « Connecté » (les jetons
-  chiffrés se lisent, donc la clé est la bonne).
+- Après une restauration : l'appli sert (`/api/health` en 200, pas de
+  « encryption key does not match » dans `docker logs healthlog`) : son
+  contrôle de clé au démarrage a ouvert la ligne témoin, la clé est la
+  bonne. Puis Intégrations → Withings « Connecté » et « Tester la
+  connexion » (le jeton chiffré se lit).
 
 ## Prévention
 

@@ -36,6 +36,22 @@ loses the trial is removed with the `remove-app` skill. App description:
   `tofu/pangolin_config`); no path is opened. → `docs/acces-mobile.md`.
   Removing Papra also removes this token (`remove-app` skill, step 6).
 
+## Backup and restore
+
+The archive holds `app-data/` (originals under
+`documents/<original_storage_key>`, as stored in the `documents` table), the
+compose, the `.env`, and consistent copies of both databases under
+`var/lib/borgmatic-sqlite/papra/` (`opt_apps_papra_app-data_db_db.sqlite`,
+`…_tasks.sqlite`; the live files are excluded). Documents are not encrypted
+at rest (`file_encryption_key_wrapped` is empty): the files alone are
+readable. The copies come out `root:root`: give them back the container's
+uid (the host user, `1000:1000` today, `stat -c %u:%g` of the old files).
+`db.sqlite` runs in `delete` mode, `tasks.sqlite` in WAL: switch the copy of
+the latter back with `sqlite3 tasks.sqlite 'PRAGMA journal_mode=WAL'`.
+Drill of 2026-11-02 (864 documents, 795 MB, extract 21 s; integrity `ok`,
+counts and a sample of sha256 equal to the live ones) and its commands:
+`docs/runbooks/sauvegarde-et-restauration.md`, « Restauration d'essai ».
+
 ## Mail intake (`papra_intake_*`, off by default)
 
 A mail sent to a dedicated Infomaniak address ends up in Papra, with no
