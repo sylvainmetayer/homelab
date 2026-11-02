@@ -1,8 +1,12 @@
 """Tests of mkdocs_mermaid.py, the MkDocs hook of mkdocs.yml (Lint
 workflow: python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
+import re
 import unittest
 
-from mkdocs_mermaid import add_script
+from mkdocs.exceptions import PluginError
+
+import mkdocs_mermaid
+from mkdocs_mermaid import add_script, check_pin
 
 PAGE = '<pre class="mermaid"><code>flowchart LR</code></pre><script src="b.js"></script></body></html>'
 
@@ -21,6 +25,29 @@ class AddScript(unittest.TestCase):
     def test_page_without_a_diagram_is_left_alone(self):
         html = "<pre><code>flowchart LR</code></pre></body></html>"
         self.assertEqual(add_script(html, "runbooks/crowdsec/"), html)
+
+
+class Pin(unittest.TestCase):
+    def test_sha256_is_the_one_of_the_pinned_version(self):
+        # Échoue sur une PR Renovate qui monte MERMAID_VERSION : son sha256
+        # se recalcule à la main (docstring de mkdocs_mermaid.py).
+        self.assertEqual(
+            mkdocs_mermaid.MERMAID_SHA256_OF,
+            mkdocs_mermaid.MERMAID_VERSION,
+            f"MERMAID_SHA256 est celui de mermaid {mkdocs_mermaid.MERMAID_SHA256_OF}, pas de "
+            f"{mkdocs_mermaid.MERMAID_VERSION} : curl -sL {mkdocs_mermaid.MERMAID_URL} | sha256sum, "
+            "puis mettre à jour MERMAID_SHA256 et MERMAID_SHA256_OF",
+        )
+        self.assertRegex(mkdocs_mermaid.MERMAID_SHA256, re.compile(r"^[0-9a-f]{64}$"))
+
+    def test_a_version_bumped_alone_stops_the_build(self):
+        saved = mkdocs_mermaid.MERMAID_VERSION
+        mkdocs_mermaid.MERMAID_VERSION = "99.0.0"
+        try:
+            with self.assertRaisesRegex(PluginError, "MERMAID_SHA256 est celui de"):
+                check_pin()
+        finally:
+            mkdocs_mermaid.MERMAID_VERSION = saved
 
 
 if __name__ == "__main__":

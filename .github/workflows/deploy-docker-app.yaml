@@ -285,6 +285,21 @@ jobs:
             ansible/collections
           key: ${{ runner.os }}-ansible-galaxy-${{ hashFiles('ansible/requirements.yml') }}
 
+      # mermaid.min.js du hook mkdocs_mermaid.py, que le rôle docs_site
+      # construit sur ce runner : en cache sous la version et le sha256
+      # épinglés, comme dans lint.yaml (le hook revérifie le sha256).
+      - name: Read the Mermaid pin
+        id: mermaid-pin
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        run: echo "key=mermaid-$(sed -nE 's/^MERMAID_(VERSION|SHA256) = "([^"]+)"$/\2/p' .github/scripts/mkdocs_mermaid.py | paste -sd-)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Mermaid
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/homelab-mkdocs
+          key: ${{ steps.mermaid-pin.outputs.key }}
+
       - name: Install ansible roles and collections
         if: steps.resolve-tags.outputs.any_tags == 'true'
         working-directory: ansible

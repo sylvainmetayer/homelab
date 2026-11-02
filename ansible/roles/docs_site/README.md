@@ -48,8 +48,18 @@ Material chargerait Mermaid depuis `unpkg.com` dans le navigateur : le hook
 `.github/scripts/mkdocs_mermaid.py` dépose à la place une version épinglée
 (version + sha256, téléchargée à la construction, en cache sous
 `~/.cache/homelab-mkdocs/`) en `javascripts/mermaid.min.js`, qu'il ajoute
-aux seules pages qui ont un diagramme. Le site ne charge rien d'un autre domaine. Montée de
-version à la main, dans la majeure qu'attend Material (11 pour Material 9.x).
+aux seules pages qui ont un diagramme. Le site ne charge rien d'un autre domaine.
+En CI (Lint et `deploy-docker-app`), ce cache est un `actions/cache` dont la clé
+est la version et le sha256 épinglés : jsDelivr n'est appelé qu'au premier
+build d'une nouvelle version ; sur le poste qui lance Ansible, c'est le même
+dossier qui sert.
+
+Renovate suit la version (`customManagers` de `renovate.json`, datasource
+npm, PR à part, jamais en automerge, majeure bornée à celle qu'attend
+Material : 11 pour Material 9.x). Il ne sait pas recalculer le sha256 : sur
+sa branche, `curl -sL <url> | sha256sum`, puis mettre à jour
+`MERMAID_SHA256` et `MERMAID_SHA256_OF`. Jusque-là, `test_mkdocs_mermaid.py`
+et le build échouent en le disant.
 
 ## Sans état
 

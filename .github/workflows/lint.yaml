@@ -106,6 +106,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_immich_versions.py
 
+      # mermaid.min.js du hook mkdocs_mermaid.py, en cache sous la version et
+      # le sha256 épinglés : le build ne dépend pas de jsDelivr à chaque run
+      # (le hook revérifie le sha256 du fichier restauré).
+      - name: Read the Mermaid pin
+        id: mermaid-pin
+        if: ${{ !cancelled() }}
+        run: echo "key=mermaid-$(sed -nE 's/^MERMAID_(VERSION|SHA256) = "([^"]+)"$/\2/p' .github/scripts/mkdocs_mermaid.py | paste -sd-)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Mermaid
+        if: ${{ !cancelled() }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/homelab-mkdocs
+          key: ${{ steps.mermaid-pin.outputs.key }}
+
       # Le site docs.sylvain.cloud (rôle docs_site) : un lien cassé ou une
       # page absente de nav: échoue ici, pas au déploiement après le merge.
       - name: Build the documentation site
