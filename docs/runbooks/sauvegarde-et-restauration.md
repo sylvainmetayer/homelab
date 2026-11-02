@@ -100,7 +100,7 @@ restore` des dumps SQL, cas SQLite) est dans
    initial. borgmatic 2.1 y met aussi, hors des sources de l'appli, ses
    dumps SQL (`borgmatic/postgresql_databases/<conteneur>:<port>/<base>`,
    format custom de `pg_restore`) et **toutes** les configs
-   `etc/borgmatic.d/*.yaml` de l'hôte (amorçage de `borgmatic bootstrap`).
+   `etc/borgmatic.d/*.yaml` de l'hôte (amorçage de `borgmatic config bootstrap`).
 4. **Bases PostgreSQL / MariaDB** : le **conteneur de base seul** démarré
    (`docker compose up -d <base>` dans `/opt/apps/<app>`), l'appli arrêtée
    (sinon elle écrit ou migre pendant le rejeu), puis `borgmatic restore
