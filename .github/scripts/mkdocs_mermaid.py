@@ -38,8 +38,10 @@ MERMAID_BLOCK = '<pre class="mermaid">'
 
 
 def _cache_file():
+    # Version et sha256 dans le nom : une version montée sans son sha256 ne
+    # retombe pas sur le fichier de l'ancienne, qui passerait la vérification.
     base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
-    return Path(base) / "homelab-mkdocs" / f"mermaid-{MERMAID_SHA256}.min.js"
+    return Path(base) / "homelab-mkdocs" / f"mermaid-{MERMAID_VERSION}-{MERMAID_SHA256}.min.js"
 
 
 def check_pin():

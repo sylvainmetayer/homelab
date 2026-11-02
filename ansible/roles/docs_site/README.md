@@ -50,9 +50,11 @@ Material chargerait Mermaid depuis `unpkg.com` dans le navigateur : le hook
 `~/.cache/homelab-mkdocs/`) en `javascripts/mermaid.min.js`, qu'il ajoute
 aux seules pages qui ont un diagramme. Le site ne charge rien d'un autre domaine.
 En CI (Lint et `deploy-docker-app`), ce cache est un `actions/cache` dont la clé
-est la version et le sha256 épinglés : jsDelivr n'est appelé qu'au premier
-build d'une nouvelle version ; sur le poste qui lance Ansible, c'est le même
-dossier qui sert.
+est l'empreinte du hook (qui porte la version et le sha256) : jsDelivr n'est
+appelé qu'au premier build d'une nouvelle version dans une portée de cache
+(`main`, puis chaque PR qui ne trouve pas la clé sur `main`), ou après sept
+jours sans build (éviction de GitHub) ; sur le poste qui lance Ansible, c'est
+le même dossier qui sert.
 
 Renovate suit la version (`customManagers` de `renovate.json`, datasource
 npm, PR à part, jamais en automerge, majeure bornée à celle qu'attend
