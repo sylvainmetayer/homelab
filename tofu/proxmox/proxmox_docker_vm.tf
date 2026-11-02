@@ -1,5 +1,13 @@
+# Type renommé par le provider (0.118 : proxmox_virtual_environment_download_file
+# déprécié, retiré en 1.0) ; le provider sait déplacer l'état d'un type à
+# l'autre, sans retélécharger ni toucher au fichier.
+moved {
+  from = proxmox_virtual_environment_download_file.debian_13
+  to   = proxmox_download_file.debian_13
+}
+
 # Téléchargement de l'image Debian 13 Trixie cloud
-resource "proxmox_virtual_environment_download_file" "debian_13" {
+resource "proxmox_download_file" "debian_13" {
   content_type        = "iso"
   datastore_id        = "local"
   file_name           = "debian-13-generic-amd64.img"
@@ -92,7 +100,7 @@ resource "proxmox_virtual_environment_vm" "docker" {
 
   disk {
     datastore_id = var.docker_vm.storage
-    file_id      = proxmox_virtual_environment_download_file.debian_13.id
+    file_id      = proxmox_download_file.debian_13.id
     interface    = "virtio0"
     iothread     = true
     # Sur le SSD M.2 SATA de l'hôte. Pas d'émulation SSD sur virtio-blk (la VM

@@ -1,7 +1,13 @@
 # Doit être joué en premier avec pve.sylvain.cloud ou la connexion directe au PVE en local (IP en dur)
 # avant de pouvoir utiliser l'alias interne via Pangolin
 
-resource "proxmox_virtual_environment_download_file" "debian" {
+# Même renommage de type que debian_13 (proxmox_docker_vm.tf).
+moved {
+  from = proxmox_virtual_environment_download_file.debian
+  to   = proxmox_download_file.debian
+}
+
+resource "proxmox_download_file" "debian" {
   content_type = "vztmpl"
   datastore_id = "local"
   node_name    = var.proxmox_node
@@ -38,7 +44,7 @@ resource "proxmox_virtual_environment_container" "newt" {
   }
 
   operating_system {
-    template_file_id = proxmox_virtual_environment_download_file.debian.id
+    template_file_id = proxmox_download_file.debian.id
     type             = "debian"
   }
 

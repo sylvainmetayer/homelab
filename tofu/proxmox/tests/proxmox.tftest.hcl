@@ -10,7 +10,7 @@
 # Le provider valide dès le plan que les file_id référencés ont la forme
 # `datastore:type/fichier` : les identifiants aléatoires du mock ne passent pas.
 mock_provider "proxmox" {
-  mock_resource "proxmox_virtual_environment_download_file" {
+  mock_resource "proxmox_download_file" {
     defaults = {
       id = "local:iso/mock-image.img"
     }
@@ -174,12 +174,12 @@ run "debian_image_is_checksummed" {
   command = plan
 
   assert {
-    condition     = proxmox_virtual_environment_download_file.debian_13.checksum_algorithm == "sha512"
+    condition     = proxmox_download_file.debian_13.checksum_algorithm == "sha512"
     error_message = "L'image Debian 13 doit être vérifiée en SHA-512."
   }
 
   assert {
-    condition     = can(regex("^[0-9a-f]{128}$", proxmox_virtual_environment_download_file.debian_13.checksum))
+    condition     = can(regex("^[0-9a-f]{128}$", proxmox_download_file.debian_13.checksum))
     error_message = "La somme de contrôle de l'image Debian 13 doit être un SHA-512 hexadécimal (128 caractères), pas vide."
   }
 }
