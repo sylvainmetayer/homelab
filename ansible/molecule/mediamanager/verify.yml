@@ -142,6 +142,7 @@
               '/var/lib/borgmatic-sqlite/mediamanager']
           - mm_verify_live_db in mm_verify_borgmatic.exclude_patterns
           - (mm_verify_path ~ '/prowlarr/logs') in mm_verify_borgmatic.exclude_patterns
+          - (mm_verify_path ~ '/prowlarr/*.db*') in mm_verify_borgmatic.exclude_patterns
           - mm_verify_borgmatic.repositories[0].path
             == 'ssh://' ~ backup_storage_box_subaccounts.nas.username ~ '@' ~ backup_storage_box_subaccounts.nas.server ~ '/./mediamanager'
         fail_msg: "Configuration borgmatic de MediaManager inattendue : {{ mm_verify_borgmatic }}"
