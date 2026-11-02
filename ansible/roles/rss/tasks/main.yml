@@ -81,6 +81,19 @@
     regexp: "^(\\s*'ttl_default' => )\\d+,$"
     replace: "\\g<1>{{ rss_ttl_default | int }},"
 
+# Absente (createUser n'écrit que ses surcharges, et rien ne l'ajoute tant que
+# Configuration > Archivage n'a pas été enregistré), la clé vaut le défaut de
+# FreshRSS (1 h) et la tâche précédente ne trouve rien : elle est insérée en
+# tête du tableau. Sans ligne « return array ( », rien n'est écrit.
+- name: Add the default refresh delay to FreshRSS users without one
+  loop: "{{ rss_user_files.files | map(attribute='path') | select('match', '.*/config\\.php$') | list }}"
+  become: true
+  diff: false
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "^([ \\t]*return array \\(\\n)(?![\\s\\S]*^[ \\t]*'ttl_default' => )"
+    replace: "\\g<1>  'ttl_default' => {{ rss_ttl_default | int }},\\n"
+
 - name: Ensure sqlite3 is installed for the FreshRSS databases
   become: true
   ansible.builtin.apt:

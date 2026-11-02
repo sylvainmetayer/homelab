@@ -58,12 +58,29 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ (item is search('/sylvain$')) | ternary('www-data', 'root') }}"
+        owner: "{{ (item is search('/users/[^/]+$')) | ternary('www-data', 'root') }}"
         group: www-data
-        mode: "{{ (item is search('/sylvain$')) | ternary('0770', '0775') }}"
+        mode: "{{ (item is search('/users/[^/]+$')) | ternary('0770', '0775') }}"
       loop:
         - /opt/apps/rss/freshrss_data/users
         - /opt/apps/rss/freshrss_data/users/sylvain
+        - /opt/apps/rss/freshrss_data/users/invite
+
+    # Configuration telle que createUser l'écrit (ses surcharges seulement,
+    # « <?php\n return ») : pas de clé ttl_default, que le converge ajoute.
+    - name: Install a FreshRSS user configuration without ttl_default
+      become: true
+      ansible.builtin.copy:
+        dest: /opt/apps/rss/freshrss_data/users/invite/config.php
+        owner: www-data
+        group: www-data
+        mode: "0660"
+        content: |
+          <?php
+           return array (
+            'language' => 'fr',
+            'dynamic_opml_ttl_default' => 43200,
+          );
 
     - name: Install a FreshRSS user configuration with the default TTL
       become: true
