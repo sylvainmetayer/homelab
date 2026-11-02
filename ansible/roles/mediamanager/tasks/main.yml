@@ -227,5 +227,9 @@
       - "{{ mediamanager_base_path }}/prowlarr/logs"
       - "{{ mediamanager_base_path }}/prowlarr/Backups"
       - "{{ mediamanager_base_path }}/qbittorrent/qBittorrent/logs"
+      # Les bases de Prowlarr n'existent pas encore au passage qui l'installe
+      # (le gabarit ne les cherche qu'au déploiement) : jamais de copie vivante
+      # pour autant, leur copie par sqlite3 vient au passage suivant (README).
+      - "{{ mediamanager_base_path }}/prowlarr/*.db*"
     borgmatic_app_sqlite_databases:
       - "{{ mediamanager_base_path }}/prowlarr/*.db"

@@ -151,6 +151,13 @@ jamais le nom d'une variable du rôle ; chacune avec son entrée dans
 Le pays des serveurs n'est pas un secret : `mediamanager_vpn_server_countries`
 dans `host_vars/nas` (noms anglais de gluetun, « Switzerland,Netherlands »).
 
+**Rotation de la clé WireGuard** (`kind: provider`, chaque année) : chez
+ProtonVPN, le certificat lié à la clé expire au bout d'un an (date sur la page
+WireGuard du compte). Expiré, le tunnel ne monte plus : rien ne fuit, mais
+aucun moniteur ne le signale. Le prolonger (« Extend ») ou générer une autre
+clé (« NAT-PMP (Port Forwarding) » coché), `sops set`, `nas.yml --tags
+mediamanager`, puis `last_rotated` à la date du jour et `estimated: false`.
+
 ### Limites
 
 Provisoires, celles de l'évaluation : MediaManager 512 Mo, PostgreSQL 256 Mo
@@ -199,6 +206,10 @@ restauration pour un essai.
    Prowlarr télécharge alors lui-même le `.torrent` (par le VPN) au lieu de
    renvoyer MediaManager vers le tracker, qui le chercherait par la connexion
    de la maison.
+5. Puis relancer `nas.yml --tags mediamanager` une fois : la sauvegarde ne
+   copie par `sqlite3` que les bases trouvées au déploiement, et celles de
+   Prowlarr n'existent pas encore au passage qui l'installe. D'ici là, elles
+   ne sont pas sauvegardées (`prowlarr/*.db*` exclu, jamais de copie vivante).
 
 ## Contrôles
 
