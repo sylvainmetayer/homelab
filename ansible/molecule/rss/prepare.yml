@@ -49,3 +49,53 @@
             array (
             ),
           );
+
+    # Un utilisateur FreshRSS tel que l'installation le laisse : TTL par
+    # défaut d'une heure, base SQLite en journal « delete ». Le converge doit
+    # passer le TTL à rss_ttl_default et la base en WAL.
+    - name: Ensure the FreshRSS user folder exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ (item is search('/sylvain$')) | ternary('www-data', 'root') }}"
+        group: www-data
+        mode: "{{ (item is search('/sylvain$')) | ternary('0770', '0775') }}"
+      loop:
+        - /opt/apps/rss/freshrss_data/users
+        - /opt/apps/rss/freshrss_data/users/sylvain
+
+    - name: Install a FreshRSS user configuration with the default TTL
+      become: true
+      ansible.builtin.copy:
+        dest: /opt/apps/rss/freshrss_data/users/sylvain/config.php
+        owner: www-data
+        group: www-data
+        mode: "0660"
+        content: |
+          <?php
+          return array (
+            'language' => 'fr',
+            'ttl_default' => 3600,
+            'dynamic_opml_ttl_default' => 43200,
+          );
+
+    # sqlite3 n'est pas dans l'image (le rôle l'installe) : le module sqlite3
+    # de Python crée la base, en journal « delete » par défaut.
+    - name: Create a FreshRSS user database in rollback-journal mode
+      become: true
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - "import sqlite3, sys; c = sqlite3.connect(sys.argv[1]); c.execute('CREATE TABLE feed (id INTEGER PRIMARY KEY)'); c.commit()"
+          - /opt/apps/rss/freshrss_data/users/sylvain/db.sqlite
+        creates: /opt/apps/rss/freshrss_data/users/sylvain/db.sqlite
+
+    - name: Give the FreshRSS user database to www-data
+      become: true
+      ansible.builtin.file:
+        path: /opt/apps/rss/freshrss_data/users/sylvain/db.sqlite
+        owner: www-data
+        group: www-data
+        mode: "0664"
