@@ -71,6 +71,13 @@
           - immich_compose.services.values() | rejectattr('mem_limit', 'defined') | list | length == 0
           - immich_compose.services.database.mem_reservation is defined
 
+    # Sans politique, un conteneur tombé (OOM, reboot du démon) reste arrêté
+    # sans que dc@immich le voie : Immich Swipe en a manqué jusqu'en 11/2026.
+    - name: Assert every immich service has a restart policy
+      ansible.builtin.assert:
+        that:
+          - immich_compose.services.values() | rejectattr('restart', 'defined') | list | length == 0
+
     # Le dump borgmatic doit viser la base du compose avec les identifiants du .env.
     - name: Assert borgmatic dumps the immich database
       ansible.builtin.assert:
