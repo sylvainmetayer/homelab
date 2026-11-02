@@ -45,7 +45,7 @@ kdrive_sync_source_path: ""
 # Motifs --exclude de rclone (filtres rclone, ancrés à la racine copiée si
 # ils commencent par /). La corbeille et les anciennes versions de kDrive ne
 # sont que dans l'appli web et l'API, pas dans l'arborescence WebDAV :
-# vérifier au premier passage (`rclone lsd`, runbook) et ajouter ici ce qui
+# vérifier au premier passage (essai à blanc, runbook) et ajouter ici ce qui
 # ne doit pas venir.
 kdrive_sync_exclude_patterns: []
 
