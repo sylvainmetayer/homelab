@@ -8,6 +8,8 @@ wait), pas le CPU : l'usage CPU cumulé tourne autour de quelques pour cent.
 
 - Applis lentes, timeouts, moniteurs Uptime Kuma qui clignotent.
 - Charge (`uptime`) élevée alors que le CPU est presque inactif.
+- Alerte Beszel « docker CPU I/O Wait above threshold » (plus de 20 % en
+  moyenne sur 15 min, `beszel_alerts`).
 - Erreurs `No space left on device` dans les journaux, conteneurs qui ne
   démarrent plus, sauvegardes en échec.
 

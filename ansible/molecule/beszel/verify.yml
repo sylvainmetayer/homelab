@@ -171,14 +171,18 @@
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
             == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
-          # Neuf POST groupés (un par type et seuil), la LoadAvg5 de docker supprimée, un PATCH des
-          # réglages ; rien au second passage (idempotence), et la Status de
-          # flip, déjà juste, jamais réécrite.
-          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 9 + ['DELETE', 'PATCH']
+          # Neuf POST groupés (un par type et seuil), la LoadAvg5 et la
+          # Temperature de docker supprimées (cette dernière par système : le
+          # type reste sur nas, pi et pve), un PATCH des réglages ; rien au
+          # second passage (idempotence), et la Status de flip, déjà juste,
+          # jamais réécrite.
+          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 9 + ['DELETE', 'DELETE', 'PATCH']
           - "'sysflip00000000' not in beszel_mock_status_write.body.systems"
           - beszel_mock_status_write.body.systems | length == 6
           - beszel_mock_writes[9].body.name == 'LoadAvg5'
           - beszel_mock_writes[9].body.systems == ['sysdocker000000']
+          - beszel_mock_writes[10].body.name == 'Temperature'
+          - beszel_mock_writes[10].body.systems == ['sysdocker000000']
           - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
           - beszel_mock_settings.emails == [pangolin_le_email]
         fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"

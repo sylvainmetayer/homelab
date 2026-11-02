@@ -39,8 +39,9 @@ beszel_api_url: "http://127.0.0.1:{{ beszel_port }}"
 # collection alerts : Status, CPU, Memory, Disk, Temperature, Bandwidth,
 # LoadAvg5, CPUIOWait…), posée sur chaque système de « systems » (par défaut,
 # tous ceux de beszel_systems). value : le seuil (%, °C, MB/s) ; min : minutes
-# (1 à 60) sur lesquelles la moyenne doit le dépasser, ou, pour Status, durée de la panne
-# avant l'alerte (5 min : un redémarrage de mises à jour passe sans bruit).
+# (1 à 60) sur lesquelles la moyenne doit le dépasser, ou, pour Status, durée de
+# la panne avant l'alerte (5 min : un redémarrage de mises à jour passe sans
+# bruit).
 # Disk prend la partition la plus pleine (racine et EXTRA_FILESYSTEMS).
 # S.M.A.R.T. (WARNING/FAILED) n'en demande aucune : Beszel prévient d'office
 # chaque utilisateur du système.
