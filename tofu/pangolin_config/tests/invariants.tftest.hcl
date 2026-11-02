@@ -316,41 +316,6 @@ override_data {
   }
 }
 
-# GET /v1/org/{org}/site-resources?pageSize=1000 : les quatre ressources
-# privées déclarées dans private_resources.tf et les deux passerelles VPN
-# faites dans l'UI (mode gateway), que lit l'audit vpn_gateways. vpn-flip sort
-# par le site flip ; le site de vpn n'est pas vérifié par l'audit, celui-ci
-# n'est qu'un exemple.
-override_data {
-  target = data.http.pangolin_site_resources
-  values = {
-    status_code   = 200
-    response_body = <<-EOT
-      {"data": {"siteResources": [
-        {"siteResourceId": 1, "niceId": "bbox", "name": "BBOX", "mode": "http", "destination": "192.168.1.254", "enabled": true,
-         "alias": null, "tcpPortRangeString": "443,80", "udpPortRangeString": "", "disableIcmp": true,
-         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
-        {"siteResourceId": 2, "niceId": "docker-apps", "name": "Docker Apps", "mode": "host", "destination": "192.168.1.216", "enabled": true,
-         "alias": "docker-apps.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": true,
-         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
-        {"siteResourceId": 3, "niceId": "raspberry-pi", "name": "Raspberry PI", "mode": "host", "destination": "192.168.1.96", "enabled": true,
-         "alias": "pi.internal", "tcpPortRangeString": "22", "udpPortRangeString": "*", "disableIcmp": false,
-         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
-        {"siteResourceId": 4, "niceId": "flip", "name": "Flip", "mode": "host", "destination": "10.0.1.10", "enabled": true,
-         "alias": "flip.internal", "tcpPortRangeString": "22", "udpPortRangeString": "", "disableIcmp": true,
-         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []},
-        {"siteResourceId": 5, "niceId": "vpn", "name": "vpn", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
-         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
-         "siteIds": [1], "siteNames": ["proxmox-lxc"], "siteNiceIds": ["proxmox-lxc"], "siteOnlines": [true], "labels": []},
-        {"siteResourceId": 6, "niceId": "vpn-flip", "name": "vpn-flip", "mode": "gateway", "destination": "0.0.0.0/0", "enabled": true,
-         "alias": null, "tcpPortRangeString": "*", "udpPortRangeString": "*", "disableIcmp": false,
-         "siteIds": [5], "siteNames": ["flip"], "siteNiceIds": ["flip"], "siteOnlines": [true], "labels": []}
-      ], "pagination": {"total": 6, "pageSize": 1000, "page": 1}},
-      "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
-    EOT
-  }
-}
-
 # --- Identifiants calculés, fixés et distincts -----------------------------
 
 # Sites. flip porte les identifiants Newt que flip.yml lit dans ce state.
@@ -2110,6 +2075,20 @@ run "flip_newt_credentials_come_from_the_flip_site" {
 # Le Blocky du LXC newt (lxc.yml, rôle blocky en binaire), pour un téléphone
 # en 4G par le client Pangolin : la ressource vise l'IP du LXC de l'inventaire,
 # sur le site du LXC lui-même, en TCP et UDP 53 seulement.
+# Les sorties VPN routent tout le trafic d'un client : leurs sites sont un choix.
+run "vpn_gateways_exit_through_their_sites" {
+  command = plan
+
+  assert {
+    condition = (
+      pangolin_site_resource.vpn.mode == "gateway"
+      && pangolin_site_resource.vpn_flip.mode == "gateway"
+      && pangolin_site_resource.vpn_flip.site_ids == toset([pangolin_site.flip.id])
+    )
+    error_message = "vpn et vpn-flip doivent rester des passerelles, vpn-flip sortant par le site flip."
+  }
+}
+
 run "dns_resource_points_at_the_lxc_blocky" {
   command = plan
 
