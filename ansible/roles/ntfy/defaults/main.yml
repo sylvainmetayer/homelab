@@ -58,6 +58,12 @@ ntfy_publishers:
   - name: canary
     topic: canary
     token: "{{ ntfy_canary_token | default('') }}"
+  # Notifications de HealthLog (rappels, alertes de santé) : son propre jeton,
+  # saisi dans ses réglages (/settings/notifications). Clé SOPS
+  # ntfy_healthlog_token.
+  - name: healthlog
+    topic: healthlog
+    token: "{{ ntfy_healthlog_token | default('') }}"
 
 # --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ------------------
 # Détail dans README.md (« Alerte : aucun abonné »). Toutes les

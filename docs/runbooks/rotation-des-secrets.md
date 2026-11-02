@@ -330,7 +330,7 @@ Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
 - Jeton d'un producteur (`ntfy_scripts_token`,
-  `ntfy_github_token`, `ntfy_canary_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+  `ntfy_github_token`, `ntfy_canary_token`, `ntfy_healthlog_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
@@ -361,6 +361,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   Canarytokens.org : après sa rotation, refaire l'URL
   (`ansible/roles/canary/README.md`, « Webhook vers ntfy ») et la coller
   dans la page de gestion de chaque jeton.
+- `ntfy_healthlog_token` est aussi saisi dans HealthLog
+  (`/settings/notifications`, carte ntfy) : après sa rotation, l'y recoller et
+  envoyer un test. Cinq échecs d'affilée d'ici là coupent le canal : le
+  réactiver sur la carte (`ansible/roles/healthlog/README.md`).
 
 ### Jetons pièges
 

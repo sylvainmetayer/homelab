@@ -1251,6 +1251,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /scripts",
       "ntfy /github",
       "ntfy /canary",
+      "ntfy /healthlog",
       "Paperless-ngx /share/*",
       "Promptoramix /*",
       "TREK /.well-known/oauth-protected-resource/mcp",

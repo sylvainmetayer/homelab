@@ -121,6 +121,36 @@ Rotation du secret client (fuite) : en régénérer un dans le Partner Hub,
 le recoller dans HealthLog, reconnecter. Voir
 `docs/runbooks/rotation-des-secrets.md`.
 
+## Notifications (ntfy)
+
+HealthLog publie sur `https://ntfy.sylvain.cloud`, topic `healthlog`, avec son
+propre jeton en écriture seule (producteur `healthlog` du rôle `ntfy`, clé SOPS
+`ntfy_healthlog_token`). L'URL publique suffit : `POST /` est déjà ouvert dans
+Pangolin, avec le contrôle du jeton par ntfy, et HealthLog publie en JSON à la
+racine. Pas de `NOTIFICATION_PRIVATE_ORIGINS` : l'adresse interne
+(`http://ntfy:8080`) demanderait d'ouvrir une cible privée sans rien apporter.
+
+1. `/settings/notifications`, carte ntfy : activer, URL du serveur
+   `https://ntfy.sylvain.cloud`, topic `healthlog`, le jeton, enregistrer.
+2. Appli ntfy du téléphone : s'abonner au topic `healthlog`.
+3. Envoyer le test de la carte. Une erreur 401 : jeton inconnu de ntfy ; 403 :
+   pas de jeton, ou un topic qui n'est pas le sien (`ntfy_publishers`).
+
+Un échec (jeton refusé, panne de Pangolin ou de la ligne) est retenté après
+30 s, 5 min, 30 min et 2 h ; **au cinquième d'affilée, HealthLog coupe le
+canal** (`give_up_after_5_failures`, `src/lib/notifications/retry-policy.ts` de
+l'amont) et plus rien ne part sur ntfy, sans alerte côté homelab. Le réactiver
+sur la carte.
+
+**Boutons du rappel d'humeur** : sur ntfy, ce rappel porte trois réponses que
+l'appli du téléphone envoie en `POST /api/notifications/action/<jeton>` sur
+`sante.sylvain.cloud`, sans session Pangolin. Ce chemin reste derrière le SSO :
+Pangolin répond à la place de HealthLog, rien n'est enregistré, parfois sans
+erreur visible. Répondre dans HealthLog (toucher la notification ouvre `/mood`).
+Les faire marcher demanderait un ACCEPT de plus (`local.path_bypasses`, relecture
+dans `path_bypass_images.json`) et un masquage dans `log_agent_redactions` : le
+jeton signé (une réponse d'humeur, 6 h, usage unique) est dans le chemin.
+
 ## Claude (API)
 
 Le Coach, les briefings, les rapports et les analyses de HealthLog passent par
@@ -160,9 +190,9 @@ Rotation : `docs/runbooks/rotation-des-secrets.md`.
 ## Clé de chiffrement
 
 `ENCRYPTION_KEY` chiffre les jetons Withings, les identifiants des
-intégrations, la clé API d'Anthropic et le coffre de documents. Elle est
-dérivée de `backup_passphrase` : **tourner `backup_passphrase` change cette
-clé**, et
+intégrations, la clé API d'Anthropic, les canaux de notification (jeton ntfy)
+et le coffre de documents. Elle est dérivée de `backup_passphrase` : **tourner
+`backup_passphrase` change cette clé**, et
 HealthLog refuse alors de démarrer (contrôle de clé au démarrage) ou ne lit
 plus ces colonnes. Avant une telle rotation, figer l'ancienne valeur :
 

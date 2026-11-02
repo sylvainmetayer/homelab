@@ -89,13 +89,14 @@
               'scripts:' ~ ntfy_publisher_password_hash ~ ':user',
               'github:' ~ ntfy_publisher_password_hash ~ ':user',
               'canary:' ~ ntfy_publisher_password_hash ~ ':user',
+              'healthlog:' ~ ntfy_publisher_password_hash ~ ':user',
             ] | sort)
           - ntfy_server['auth-access'] | sort == ([
               'sylvain:*:ro',
               'sylvain:uptime-kuma:rw', 'sylvain:scripts:rw', 'sylvain:github:rw',
-              'sylvain:canary:rw',
+              'sylvain:canary:rw', 'sylvain:healthlog:rw',
               'uptime-kuma:uptime-kuma:wo', 'scripts:scripts:wo', 'github:github:wo',
-              'canary:canary:wo',
+              'canary:canary:wo', 'healthlog:healthlog:wo',
             ] | sort)
         fail_msg: Configuration ntfy inattendue (contenu masqué, il porte les jetons).
 
@@ -189,8 +190,8 @@
               - ntfy_verify_health.json.healthy == true
 
         # Chaque producteur publie sur son topic avec son jeton, en POST sur
-        # /<topic> (curl des scripts et des workflows) ; Uptime Kuma, lui,
-        # en JSON sur la racine.
+        # /<topic> (curl des scripts et des workflows) ; Uptime Kuma et
+        # HealthLog, eux, en JSON sur la racine.
         - name: Publish to each topic with its own token
           no_log: true
           loop:
@@ -198,6 +199,7 @@
             - { topic: scripts, token: "{{ ntfy_scripts_token }}" }
             - { topic: github, token: "{{ ntfy_github_token }}" }
             - { topic: canary, token: "{{ ntfy_canary_token }}" }
+            - { topic: healthlog, token: "{{ ntfy_healthlog_token }}" }
           ansible.builtin.uri:
             url: "{{ ntfy_verify_url }}/{{ item.topic }}"
             method: POST
@@ -206,15 +208,18 @@
               Authorization: "Bearer {{ item.token }}"
             status_code: 200
 
-        - name: Publish as JSON on the root, as Uptime Kuma does
+        - name: Publish as JSON on the root, as Uptime Kuma and HealthLog do
           no_log: true
+          loop:
+            - { topic: uptime-kuma, token: "{{ ntfy_verify_uptime_kuma_token }}" }
+            - { topic: healthlog, token: "{{ ntfy_healthlog_token }}" }
           ansible.builtin.uri:
             url: "{{ ntfy_verify_url }}/"
             method: POST
             body_format: json
-            body: { topic: uptime-kuma, message: molecule }
+            body: { topic: "{{ item.topic }}", message: molecule }
             headers:
-              Authorization: "Bearer {{ ntfy_verify_uptime_kuma_token }}"
+              Authorization: "Bearer {{ item.token }}"
             status_code: 200
 
         # Refusés : un autre topic que le sien, la lecture (écriture seule), et
@@ -246,7 +251,7 @@
             status_code: [401, 403]
 
         # L'interface web sous /app (derrière le SSO de Pangolin) ; « / »,
-        # ouvert sans SSO pour Uptime Kuma, ne la sert pas.
+        # ouvert sans SSO pour la publication JSON, ne la sert pas.
         - name: Serve the web app under /app only
           loop:
             - { url: /app, status: 200 }
@@ -272,15 +277,15 @@
           ansible.builtin.assert:
             that:
               - ntfy_verify_lines | select('match', '^user sylvain [(]role:[ ]user,') | list | length == 1
-              - ntfy_verify_lines | select('match', '^user (uptime-kuma|scripts|github|canary) [(]role:[ ]user,') | list | length == 4
-              - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 5
+              - ntfy_verify_lines | select('match', '^user (uptime-kuma|scripts|github|canary|healthlog) [(]role:[ ]user,') | list | length == 5
+              - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 6
               # sylvain : lecture sur le joker (« topic * », cmd/access.go),
-              # lecture-écriture sur les quatre topics, rien d'autre en
+              # lecture-écriture sur les cinq topics, rien d'autre en
               # écriture (ni rôle admin « all topics », ni joker en rw).
               - ntfy_verify_lines | select('match', '^- read-only access to topic [*]( |$)') | list | length == 1
-              - ntfy_verify_lines | select('match', '^- read-write access to ') | list | length == 4
-              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|scripts|github|canary)\\b') | list | length == 4
-              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|scripts|github|canary)\\b') | list | length == 4
+              - ntfy_verify_lines | select('match', '^- read-write access to ') | list | length == 5
+              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|scripts|github|canary|healthlog)\\b') | list | length == 5
+              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|scripts|github|canary|healthlog)\\b') | list | length == 5
               - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
             fail_msg: "{{ ntfy_verify_access.stdout }}"
       always:
