@@ -13,9 +13,13 @@ mode with `synchronous=FULL`. The role sets three things:
 
 - **Refresh delay** `rss_ttl_default` (3 h; FreshRSS's default is 1 h): the
   `ttl_default` key of each `data/users/<user>/config.php`, set by `replace`
-  as the role does for `api_enabled`. A UI change of the default
-  (Configuration > Archivage) is undone by the next deploy; a feed with its own
-  TTL (Configuration > Flux) keeps it.
+  as the role does for `api_enabled` (inserted when the file has none). A UI
+  change of the default (Configuration > Archivage) is undone by the next
+  deploy; a feed with its own TTL (Configuration > Flux) keeps it, at most
+  once an hour. With the hourly cron, a feed is skipped while
+  `now <= lastUpdate + TTL` (no margin) and its last update ended seconds
+  after the previous run started: 3 h exactly refreshes each feed every
+  **4 h** (a TTL just under 3 h, e.g. 10500, for a real 3 h).
 - **Cron hourly** (`CRON_MIN=17` in the compose): FreshRSS 1.30 compares a
   feed's TTL with its last *successful* update (`feedController.php`,
   `actualizeFeeds`), so a feed in error is retried, and its `error` column

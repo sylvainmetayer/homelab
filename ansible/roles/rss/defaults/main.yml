@@ -29,9 +29,13 @@ rss_api_enabled: "{{ homepage_freshrss_api_password | default('') | length > 0 }
 
 # Délai d'actualisation par défaut des flux, en secondes (ttl_default de
 # data/users/<utilisateur>/config.php ; FreshRSS : 3600). Un flux à TTL propre
-# (Configuration > Flux) le garde. Le cron de l'image (CRON_MIN, compose)
-# passe toutes les heures : un flux est relu toutes les 3 à 4 h. Écritures
-# disque : README.md.
+# (Configuration > Flux) le garde, au plus une fois par heure. Le cron de
+# l'image (CRON_MIN, compose) passe toutes les heures à la même minute et
+# FreshRSS saute un flux tant que maintenant <= dernière mise à jour + TTL,
+# sans marge : la mise à jour précédente ayant fini quelques secondes après
+# le début du passage, un TTL de 3 h tout rond relit chaque flux toutes les
+# 4 h (moins de 3 h, 10500 par exemple, pour un vrai 3 h). Écritures disque :
+# README.md.
 rss_ttl_default: 10800
 
 # Borgmatic backup configuration
