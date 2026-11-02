@@ -27,6 +27,13 @@ rss_karakeep_button_path: "{{ rss_base_path }}/freshrss_extensions/xExtension-Ka
 # est sur newt (Homepage) la joint sans lui.
 rss_api_enabled: "{{ homepage_freshrss_api_password | default('') | length > 0 }}"
 
+# Délai d'actualisation par défaut des flux, en secondes (ttl_default de
+# data/users/<utilisateur>/config.php ; FreshRSS : 3600). Un flux à TTL propre
+# (Configuration > Flux) le garde. Le cron de l'image (CRON_MIN, compose)
+# passe toutes les heures : un flux est relu toutes les 3 à 4 h. Écritures
+# disque : README.md.
+rss_ttl_default: 10800
+
 # Borgmatic backup configuration
 rss_backup_enabled: true
 rss_backup_borgmatic_target: "{{ backup_storage_box_url }}/rss"

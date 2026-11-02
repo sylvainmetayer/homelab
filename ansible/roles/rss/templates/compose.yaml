@@ -1,7 +1,8 @@
 ---
 services:
   freshrss:
-    # Mesuré collé à 512 Mio (php memory_limit=-1, actualisation toutes les 15 min).
+    # Mesuré collé à 512 Mio (php memory_limit=-1, actualisation toutes les 15 min
+    # à l'époque, toutes les heures depuis).
     mem_limit: 1g
     mem_reservation: 512m
     container_name: rss
@@ -11,8 +12,9 @@ services:
       - TZ=Europe/Paris
       # Production mode
       - FRESHRSS_ENV=production
-      # Automatic update cron (every 15 minutes)
-      - CRON_MIN=*/15
+      # Actualisation toutes les heures, à la minute 17 : un flux en erreur est
+      # retenté à chaque passage quel que soit son TTL (README.md).
+      - CRON_MIN=17
     volumes:
       - ./freshrss_data:/var/www/FreshRSS/data
       - ./freshrss_extensions:/var/www/FreshRSS/extensions
