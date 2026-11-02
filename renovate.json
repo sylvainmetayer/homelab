@@ -10,6 +10,13 @@
   "rebaseWhen": "conflicted",
   "packageRules": [
     {
+      "description": "Provider Pangolin : build du fork épinglé, servi par un miroir local (ADR 0021)",
+      "matchPackageNames": [
+        "stackopshq/pangolin"
+      ],
+      "enabled": false
+    },
+    {
       "matchCategories": [
         "docker"
       ],

@@ -250,6 +250,9 @@ jobs:
           tofu_version: ${{ steps.tofu-version.outputs.version }}
           tofu_wrapper: false
 
+      - name: Fetch the fork of the Pangolin provider
+        run: .github/scripts/fetch_pangolin_provider.sh
+
       # Providers mockés (mock_provider) et data sources surchargées
       # (override_data) : ni backend, ni credentials, ni secrets SOPS.
       # Même remède que Galaxy : la matrice interroge le registre OpenTofu en

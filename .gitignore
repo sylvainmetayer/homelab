@@ -51,3 +51,6 @@ __pycache__/
 
 # mkdocs build (mkdocs.yml, rôle docs_site)
 /site/
+
+# Provider Pangolin du fork, téléchargé par mise run provider-fork (ADR 0021)
+**/terraform.d/

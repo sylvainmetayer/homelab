@@ -113,8 +113,13 @@ depends = ["init-planning"]
 # state (-backend=false). TF_DATA_DIR jetable : un init -backend=false dans le
 # .terraform du module le désinitialiserait, et tofu show (inventaire
 # hetzner.py) échouerait ensuite sur « Backend configuration changed ».
+[tasks.provider-fork]
+description = "Fetch the fork of the Pangolin provider into tofu/pangolin_config's local mirror (ADR 0021)"
+run = ".github/scripts/fetch_pangolin_provider.sh"
+
 [tasks.lint]
 description = "Tofu linting: fmt and validate of every module the Lint workflow checks"
+depends = ["provider-fork"]
 run = '''
 set -e
 tofu fmt -check -recursive
@@ -161,6 +166,7 @@ raw = true
 
 [tasks.tofu-test]
 description = "tofu test of every module that has tests (mocked providers, no backend)"
+depends = ["provider-fork"]
 run = '''
 failed=""
 for tests in */tests; do

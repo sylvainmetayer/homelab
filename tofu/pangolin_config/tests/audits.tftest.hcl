@@ -12,7 +12,14 @@
 # simulés et chaque data source lue par la configuration est surchargée.
 # ---------------------------------------------------------------------------
 
-mock_provider "pangolin" {}
+mock_provider "pangolin" {
+  # Le provider refuse un site_id < 1 dès la validation, or un mock vaut 0.
+  mock_resource "pangolin_site" {
+    defaults = {
+      id = 1
+    }
+  }
+}
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
