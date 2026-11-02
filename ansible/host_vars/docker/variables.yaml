@@ -64,6 +64,10 @@ beszel_homepage_client_ip: 172.16.97.3
 # widget). Identifiant seulement, comme beszel_homepage_email.
 homepage_homebox_username: homepage@homebox.sylvain.cloud
 
+# Compte FreshRSS du widget de Homepage (mot de passe d'API : clé sops
+# homepage_freshrss_api_password ; sans elle, pas de widget et API coupée).
+homepage_freshrss_username: sylvain
+
 # --- VictoriaLogs (rôle victoria_logs) ---
 # vmauth publié aussi sur le LAN, pour les agents du Pi, du NAS et du LXC
 # newt. Publié par Docker, donc avant ufw : tout le LAN l'atteint, et ses
