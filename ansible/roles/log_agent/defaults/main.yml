@@ -87,7 +87,7 @@ log_agent_socket_proxy_allow_head: >-
 # --- Mode binary --------------------------------------------------------------
 # Même version que l'image du compose, suivie par Renovate.
 # renovate: datasource=github-releases depName=vectordotdev/vector
-log_agent_binary_version: "0.60.0"
+log_agent_binary_version: "0.61.0"
 # Sommes des archives de la release (vector-<version>-SHA256SUMS) : get_url
 # refuse tout autre fichier. Une montée de version doit aussi les changer.
 log_agent_binary_sha256:
