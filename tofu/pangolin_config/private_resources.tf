@@ -1,22 +1,24 @@
+# `site_ids`, `ssl` et `enabled` sont optional+computed : déclarés partout pour
+# qu'un changement dans l'UI se voie au plan. `nice_id` n'est qu'une étiquette,
+# `auth_daemon_port` ne sert qu'au mode ssh, `ai_provider_ids` qu'au mode
+# inference : ils restent non déclarés.
 resource "pangolin_site_resource" "app_proxy" {
-  site_id = pangolin_site.proxmox_lxc.id
-  name    = "BBOX"
-  mode    = "http"
-  # `ssl` n'est que calculé par le provider (1.6.1) : HTTPS est activé dans
-  # l'UI (ssl = true au state), et un changement fait là-bas ne se voit pas
-  # au plan.
+  site_ids         = [pangolin_site.proxmox_lxc.id]
+  name             = "BBOX"
+  mode             = "http"
   domain_id        = local.domain_ids["sylvain.cloud"]
   subdomain        = "bbox-internal"
   destination      = "192.168.1.254"
   scheme           = "http"
   destination_port = 80
+  ssl              = true
+  enabled          = true
 }
 
 # L'imprimante (interface web), par un client Pangolin. Faite à la main dans
 # l'UI jusqu'au 23/10/2026, déclarée ici à la recréation du site du LXC.
-# `ssl` n'est que calculé par le provider : HTTPS se règle dans l'UI.
 resource "pangolin_site_resource" "printer" {
-  site_id          = pangolin_site.proxmox_lxc.id
+  site_ids         = [pangolin_site.proxmox_lxc.id]
   name             = "Imprimante"
   mode             = "http"
   domain_id        = local.domain_ids["sylvain.cloud"]
@@ -28,10 +30,12 @@ resource "pangolin_site_resource" "printer" {
   tcp_port_range   = "443,80"
   auth_daemon_mode = "site"
   pam_mode         = "passthrough"
+  ssl              = true
+  enabled          = true
 }
 
 resource "pangolin_site_resource" "docker_apps" {
-  site_id        = pangolin_site.proxmox_lxc.id
+  site_ids       = [pangolin_site.proxmox_lxc.id]
   name           = "Docker Apps"
   mode           = "host"
   alias          = "docker-apps.internal"
@@ -39,10 +43,12 @@ resource "pangolin_site_resource" "docker_apps" {
   disable_icmp   = true
   tcp_port_range = "22"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 resource "pangolin_site_resource" "pi" {
-  site_id        = pangolin_site.proxmox_lxc.id
+  site_ids       = [pangolin_site.proxmox_lxc.id]
   name           = "Raspberry PI"
   mode           = "host"
   alias          = "pi.internal"
@@ -50,6 +56,8 @@ resource "pangolin_site_resource" "pi" {
   disable_icmp   = false
   tcp_port_range = "22"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # Proxmox web UI (8006) and its SSH (22, used by tofu/proxmox's provider),
@@ -58,7 +66,7 @@ resource "pangolin_site_resource" "pi" {
 # The hypervisor carries every VM, so its UI is not worth a public URL even
 # behind the SSO and the country rules.
 resource "pangolin_site_resource" "proxmox" {
-  site_id        = pangolin_site.proxmox_lxc.id
+  site_ids       = [pangolin_site.proxmox_lxc.id]
   name           = "Proxmox"
   mode           = "host"
   alias          = "pve.internal"
@@ -66,6 +74,8 @@ resource "pangolin_site_resource" "proxmox" {
   disable_icmp   = true
   tcp_port_range = "22,8006"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # NAS web UI, private for the same reason: https://nas.sylvain.cloud, the
@@ -89,7 +99,7 @@ resource "pangolin_site_resource" "proxmox" {
 # Proxmox host; opening them to the LXC would give root on them to every
 # client. No binding: Admin only.
 resource "pangolin_site_resource" "nas" {
-  site_id        = pangolin_site.proxmox_lxc.id
+  site_ids       = [pangolin_site.proxmox_lxc.id]
   name           = "NAS"
   mode           = "host"
   alias          = "nas.sylvain.cloud"
@@ -97,6 +107,8 @@ resource "pangolin_site_resource" "nas" {
   disable_icmp   = true
   tcp_port_range = "22,443,445,8443,9999"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # Blocky (DNS filtering, ansible/roles/blocky) on the newt LXC, for a phone on
@@ -110,7 +122,7 @@ resource "pangolin_site_resource" "nas" {
 # (UDP "*"); its TCP 53 is not opened, so only this primary takes DNS over
 # TCP (large answers). No binding: Admin only, like the NAS.
 resource "pangolin_site_resource" "dns" {
-  site_id        = pangolin_site.proxmox_lxc.id
+  site_ids       = [pangolin_site.proxmox_lxc.id]
   name           = "DNS"
   mode           = "host"
   alias          = "dns.internal"
@@ -118,6 +130,8 @@ resource "pangolin_site_resource" "dns" {
   disable_icmp   = true
   tcp_port_range = "53"
   udp_port_range = "53"
+  ssl            = false
+  enabled        = true
 }
 
 # SSH to the flip server, which has no public IP, for manual access through a
@@ -129,7 +143,7 @@ resource "pangolin_site_resource" "dns" {
 # container through the docker bridge. TCP 22 only: nothing else on flip is
 # meant to be reached this way.
 resource "pangolin_site_resource" "flip" {
-  site_id        = pangolin_site.flip.id
+  site_ids       = [pangolin_site.flip.id]
   name           = "Flip"
   mode           = "host"
   alias          = "flip.internal"
@@ -140,6 +154,8 @@ resource "pangolin_site_resource" "flip" {
   # valeur et l'apply échoue (inconsistent result). ufw sur flip ne laisse de
   # toute façon entrer que 22/tcp.
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # Jellyfin (ansible/roles/jellyfin, sur le NAS), dehors par un client
@@ -156,7 +172,7 @@ resource "pangolin_site_resource" "flip" {
 # la maison marche encore dehors. UDP à "*" comme ailleurs (le provider ne
 # sait pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "jellyfin" {
-  site_id        = pangolin_site.nas.id
+  site_ids       = [pangolin_site.nas.id]
   name           = "Jellyfin"
   mode           = "host"
   alias          = "media.sylvain.cloud"
@@ -164,6 +180,8 @@ resource "pangolin_site_resource" "jellyfin" {
   disable_icmp   = true
   tcp_port_range = "443,8443"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # Qui l'atteint : les membres de ce rôle (Sylvain et sa compagne, ajoutés dans
@@ -217,7 +235,7 @@ resource "pangolin_site_resource_role" "jellyfin" {
 # (tunnel SSH, README du rôle). UDP à "*" comme ailleurs (le provider ne sait
 # pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "mediamanager" {
-  site_id        = pangolin_site.nas.id
+  site_ids       = [pangolin_site.nas.id]
   name           = "MediaManager"
   mode           = "host"
   alias          = "mediamanager.sylvain.cloud"
@@ -225,6 +243,8 @@ resource "pangolin_site_resource" "mediamanager" {
   disable_icmp   = true
   tcp_port_range = "443,8443"
   udp_port_range = "*"
+  ssl            = false
+  enabled        = true
 }
 
 # Qui l'atteint : les membres de ce rôle, Sylvain seul (ajouté dans l'UI de
