@@ -410,6 +410,21 @@
       "enabled": false
     },
     {
+      "description": "Mermaid of the MkDocs hook (custom manager below): its own PR, never grouped (the weekly digest and patch PR would stay red until the hand-made sha256 commit) and never automerged. allowedVersions keeps the major Material 9.x expects (11); a new major waits for a Material that loads it. The PR note says what to commit before the merge",
+      "matchDepNames": [
+        "mermaid"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "groupName": "mermaid",
+      "allowedVersions": "<12",
+      "automerge": false,
+      "prBodyNotes": [
+        "**sha256 à recalculer** : Renovate ne monte que `MERMAID_VERSION` de `.github/scripts/mkdocs_mermaid.py`. Sur cette branche, `curl -sL https://cdn.jsdelivr.net/npm/mermaid@<version>/dist/mermaid.min.js | sha256sum`, puis mettre `MERMAID_SHA256` et `MERMAID_SHA256_OF` à jour : `test_mkdocs_mermaid.py` et le build du site (Lint) échouent jusque-là. Le merge reconstruit docs.sylvain.cloud (tag `docs_site`)."
+      ]
+    },
+    {
       "description": "Guard, kept last: an update of path_bypass_images.json never automerges, and its PR says what to re-read before the manual merge. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the re-read",
       "matchFileNames": [
         "tofu/pangolin_config/path_bypass_images.json"
@@ -421,6 +436,18 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The Mermaid build pinned in the MkDocs hook (docs.sylvain.cloud, ansible/roles/docs_site/README.md). Renovate bumps MERMAID_VERSION only: MERMAID_SHA256 and MERMAID_SHA256_OF are updated by hand on the PR branch (curl -sL <url> | sha256sum), test_mkdocs_mermaid.py and the Lint docs build fail until then",
+      "managerFilePatterns": [
+        "/^\\.github/scripts/mkdocs_mermaid\\.py$/"
+      ],
+      "matchStrings": [
+        "MERMAID_VERSION = \"(?<currentValue>[^\"]+)\""
+      ],
+      "depNameTemplate": "mermaid",
+      "datasourceTemplate": "npm"
+    },
     {
       "customType": "regex",
       "description": "Track the planning-equipes images pinned in the Ansible role defaults (plain vars, no manager covers them); the variable suffix becomes the depType: release (flip_planning) or main (demo_planning)",

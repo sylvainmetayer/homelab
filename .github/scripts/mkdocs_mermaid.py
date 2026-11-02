@@ -8,8 +8,11 @@ l'écrit sous javascripts/ du site ; seules les pages qui ont un diagramme la
 chargent (3,5 Mo à analyser, inutiles ailleurs), et Material utilise le `mermaid`
 global au lieu du CDN. Testé par test_mkdocs_mermaid.py.
 
-Version : la majeure qu'attend Material (bundle : unpkg.com/mermaid@11). Une
-montée se fait à la main, version et sha256 ensemble :
+Version : la majeure qu'attend Material (bundle : unpkg.com/mermaid@11).
+Renovate suit MERMAID_VERSION (customManagers de renovate.json, datasource
+npm) mais ne sait pas recalculer le sha256 : sa PR change la version seule,
+et test_mkdocs_mermaid.py comme le build échouent tant que MERMAID_SHA256 et
+MERMAID_SHA256_OF n'ont pas été mis à jour à la main sur la branche :
   curl -sL <URL> | sha256sum
 """
 import hashlib
@@ -23,6 +26,9 @@ from mkdocs.utils import get_relative_url
 
 MERMAID_VERSION = "11.17.2"
 MERMAID_SHA256 = "581ed7d74bd9048d0e3a91363927d72ef22942d7722546b27f7cc29e35390eb8"
+# La version dont MERMAID_SHA256 est l'empreinte : Renovate ne touche que
+# MERMAID_VERSION, l'écart dit que le sha256 reste à recalculer.
+MERMAID_SHA256_OF = "11.17.2"
 MERMAID_URL = f"https://cdn.jsdelivr.net/npm/mermaid@{MERMAID_VERSION}/dist/mermaid.min.js"
 # Chemin dans le site.
 SITE_PATH = "javascripts/mermaid.min.js"
@@ -36,6 +42,17 @@ def _cache_file():
     return Path(base) / "homelab-mkdocs" / f"mermaid-{MERMAID_SHA256}.min.js"
 
 
+def check_pin():
+    """Arrête le build quand la version a changé sans son sha256 (PR
+    Renovate) : un message qui dit quoi faire, pas un « sha256 inattendu »."""
+    if MERMAID_SHA256_OF != MERMAID_VERSION:
+        raise PluginError(
+            f"mermaid {MERMAID_VERSION} : MERMAID_SHA256 est celui de {MERMAID_SHA256_OF} ; "
+            f"mettre MERMAID_SHA256 (curl -sL {MERMAID_URL} | sha256sum) "
+            f"et MERMAID_SHA256_OF = \"{MERMAID_VERSION}\" dans .github/scripts/mkdocs_mermaid.py"
+        )
+
+
 def _sha256_ok(data):
     return hashlib.sha256(data).hexdigest() == MERMAID_SHA256
 
@@ -44,6 +61,7 @@ def load_mermaid():
     """Le script épinglé, du cache (`mkdocs serve` reconstruit à chaque
     modification) ou téléchargé ; un contenu au mauvais sha256 arrête le
     build."""
+    check_pin()
     cache = _cache_file()
     if cache.is_file():
         data = cache.read_bytes()
