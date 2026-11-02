@@ -39,11 +39,11 @@ locals {
   # `ntfy_topics_match_the_role` test). Sylvain reads all of them.
   # Removing one: the files to touch and the targeted apply are listed in
   # ansible/roles/ntfy/README.md.
-  ntfy_publish_topics = ["uptime-kuma", "scripts", "github", "canary"]
+  ntfy_publish_topics = ["uptime-kuma", "scripts", "github", "canary", "healthlog"]
 }
 
 # The phone apps (Android, iOS) and the publishers (Uptime Kuma, scripts,
-# github, and Canarytokens.org's webhook on canary) talk to ntfy from wherever they are and cannot pass the SSO wall:
+# github, HealthLog, and Canarytokens.org's webhook on canary) talk to ntfy from wherever they are and cannot pass the SSO wall:
 # none of them holds a Pangolin session. ACCEPT through local.path_bypasses
 # (rules.tf), from any country like every path ACCEPT. Every route below runs
 # ntfy's own authorization first: auth-default-access is deny-all, so nothing
@@ -54,7 +54,8 @@ locals {
 #
 # - `/`: publishing as JSON, the topic in the body (POST/PUT /, handlePublish
 #   then the topic's write check). Uptime Kuma's ntfy provider posts there,
-#   always (server/notification-providers/ntfy.js: axios.post(ntfyserverurl)).
+#   always (server/notification-providers/ntfy.js: axios.post(ntfyserverurl)),
+#   and so does HealthLog (src/lib/notifications/senders/ntfy.ts).
 #   Exact path: Pangolin's matcher (server/lib/pathMatch.ts) gives `/` no
 #   segment, so it matches the root and nothing under it. A GET / answers
 #   404: the web app is moved to /app (web-root, role ntfy), behind the SSO,
