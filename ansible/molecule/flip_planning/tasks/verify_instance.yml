@@ -52,6 +52,11 @@
       Compose de {{ flip_instance.service }} inattendu :
       {{ flip_planning_compose.services | dict2items | map(attribute='value.container_name') | list }}
 
+- name: Assert every service has a restart policy for {{ flip_instance.service }}
+  ansible.builtin.include_tasks: assert_restart_policy.yml
+  vars:
+    flip_planning_restart_services: "{{ flip_planning_compose.services }}"
+
 - name: Record the containers and private network of {{ flip_instance.service }}
   ansible.builtin.set_fact:
     flip_planning_containers: >-

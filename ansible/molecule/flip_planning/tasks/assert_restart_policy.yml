@@ -1,0 +1,14 @@
+---
+# Un service sans politique ne repart pas après un OOM ou un redémarrage du
+# démon, et dc@ ne le voit pas : Mailpit en a manqué jusqu'en 11/2026.
+# `restart: "no"` (ou `no` nu, lu false) ne compte pas comme une politique.
+- name: Assert every service has a restart policy
+  ansible.builtin.assert:
+    that:
+      - >-
+        flip_planning_restart_services.values() | map(attribute='restart', default='no')
+        | map('string') | reject('match', '^(always|unless-stopped|on-failure)')
+        | list | length == 0
+    fail_msg: >-
+      {{ dict(flip_planning_restart_services.keys()
+         | zip(flip_planning_restart_services.values() | map(attribute='restart', default='absent'))) | string }}
