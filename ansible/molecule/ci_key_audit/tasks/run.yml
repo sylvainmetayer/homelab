@@ -1,6 +1,6 @@
 ---
 # Un passage de la vraie unité sur un scénario, puis ce que les faux services ont
-# reçu : ci_key_audit_verify_new, les requêtes de ce passage seulement.
+# reçu : ci_key_audit_verify_requests, les requêtes de ce passage seulement.
 - name: "Write the scenario of the step: {{ ci_key_audit_verify_step }}"
   ansible.builtin.copy:
     content: "{{ ci_key_audit_verify_base | combine(ci_key_audit_verify_scenario | default({})) | to_json }}"
@@ -34,17 +34,20 @@
   ansible.builtin.command: journalctl -u ci-key-audit.service -n 15 --no-pager -o cat
   register: ci_key_audit_verify_journal
   changed_when: false
+  failed_when: false
 
 - name: "Assert what happened: {{ ci_key_audit_verify_step }}"
   vars:
     ci_key_audit_verify_requests: "{{ (ci_key_audit_verify_received.content | b64decode).splitlines() | map('from_json') | list }}"
     ci_key_audit_verify_ntfy: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'ntfy') | map(attribute='body') | list }}"
+    ci_key_audit_verify_ntfy_auth: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'ntfy') | map(attribute='authorization') | list }}"
     ci_key_audit_verify_pushes: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'push') | map(attribute='status') | list }}"
   ansible.builtin.assert:
     that:
       - ci_key_audit_verify_start.status.Result == (ci_key_audit_verify_result | default('success'))
       - ci_key_audit_verify_pushes == ci_key_audit_verify_expected_pushes
       - ci_key_audit_verify_ntfy | map(attribute='priority') | list == (ci_key_audit_verify_expected_priorities | default([]))
+      - ci_key_audit_verify_ntfy_auth | reject('equalto', 'Bearer ' ~ ntfy_scripts_token) | list | length == 0
     fail_msg: >-
       {{ ci_key_audit_verify_start.status.Result }}, pushs {{ ci_key_audit_verify_pushes }},
       ntfy {{ ci_key_audit_verify_ntfy }}, journal {{ ci_key_audit_verify_journal.stdout_lines }}

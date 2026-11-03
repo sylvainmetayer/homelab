@@ -28,6 +28,7 @@ ProtectKernelModules=yes
 CapabilityBoundingSet=
 # AF_UNIX : la résolution DNS par systemd-resolved (nss).
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-# Pic mesuré sous Molecule : 14 Mio, 2x comme la doctrine, plus de la place pour
-# une fenêtre longue (10 000 lignes au plus).
+# Pic estimé hors Molecule (dont les faux services ne donnent ni TLS ni vrais
+# runs) : 30 Mio sur une page pleine de runs GitHub, 2x comme la doctrine ; 39 Mio
+# aux plafonds (10 000 lignes, 1 000 runs).
 MemoryMax=64M
