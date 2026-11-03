@@ -29,7 +29,7 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
 ## Conséquences
 
 - Immich, Pangolin, Newt, `flip_planning`, Paperless et Monica restent hors
-  périmètre **sans analyse de l'image** : à faire avant de lever l'exception.
+  périmètre **sans analyse de l'image**, à faire avant de lever l'exception ; `borgmatic` du NAS : pas essayé.
 - Non éprouvé au 2026-11-03 : file Sidekiq, crawl de Karakeep, mise à niveau
   automatique de MariaDB (QG homelab).
 - Image automergée qui casse son `cap_add` : revert **et** retrait de la liste
@@ -37,4 +37,4 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
 
 ## Liens
 
-PR #1132 à #1136, #1142 à #1144 ; [container-hardening.md](../conventions/container-hardening.md).
+PR #1132 à #1137, #1142 à #1144 ; [container-hardening.md](../conventions/container-hardening.md).

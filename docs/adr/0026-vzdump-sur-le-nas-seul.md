@@ -7,8 +7,8 @@
 
 Le job vzdump de Proxmox (VM docker, LXC newt) écrivait sur `local`, la racine de
 l'hôte (94 Go). `keep-last=2`, et vzdump écrit la nouvelle archive avant d'élaguer :
-trois archives de la VM docker ne tenaient plus. Le job a échoué chaque soir du
-30/09 au 27/10/2026 (« No space left on device »).
+trois archives de la VM docker ne tenaient plus. Sa sauvegarde a échoué chaque soir
+du 30/09 au 27/10/2026 (« No space left on device »), celle du LXC passait.
 
 ## Décision
 
@@ -30,8 +30,8 @@ Une copie hors site n'a laissé aucune trace d'étude, seulement l'acceptation.
   dossier sans partage SMB ni autre utilisateur, export pour la seule IP de l'hôte.
 - Écritures de la VM ralenties par le NFS pendant le job : fleecing sur `local-lvm`
   depuis #1058.
-- Chaque mois : LXC restauré, archive de la VM vérifiée mais **pas restaurée**,
-  faute de mémoire sur l'hôte (`vzdump_restore_test`).
+- Le 2 et le 16 de chaque mois : LXC restauré, archive de la VM vérifiée mais **pas
+  restaurée**, faute de disque et de mémoire sur l'hôte (`vzdump_restore_test`).
 
 ## Liens
 
