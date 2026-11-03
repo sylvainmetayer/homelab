@@ -1,0 +1,26 @@
+---
+# Le rôle doit échouer, sur la tâche attendue : celle dont le nom contient
+# decommission_case.fails_on. decommission_app_repo_delete reste lisible ensuite.
+- name: Run the role, which must fail
+  block:
+    - name: Decommission, expected to fail
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: true
+        decommission_app_service: "{{ decommission_case.service }}"
+        decommission_app_base_path: "{{ decommission_case.base_path }}"
+        decommission_app_extra_paths: "{{ decommission_case.extra_paths | default([]) }}"
+        decommission_app_destroy_remote_backup: "{{ decommission_case.destroy | default(false) }}"
+        decommission_app_borgmatic_bin: "{{ molecule_borgmatic_bin }}"
+
+    - name: Report that the role let this case through
+      ansible.builtin.fail:
+        msg: "Accepté à tort : {{ decommission_case }}"
+  rescue:
+    - name: Assert it failed on the expected task
+      ansible.builtin.assert:
+        that:
+          - ansible_failed_task.name is search(decommission_case.fails_on)
+        fail_msg: "{{ decommission_case }} : échec sur « {{ ansible_failed_task.name }} »"
+        quiet: true
