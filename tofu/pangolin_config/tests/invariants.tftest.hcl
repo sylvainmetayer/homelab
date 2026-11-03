@@ -2974,3 +2974,15 @@ run "homepage_status_pages_match_the_role" {
     error_message = "docker.yml doit lire homepage_uptimekuma_url de l'output du même nom."
   }
 }
+
+run "app_roles_open_no_ssh" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for role in concat(values(pangolin_role.apps), [pangolin_role.jellyfin, pangolin_role.mediamanager]) :
+      role.allow_ssh == false && role.ssh_sudo_mode == "none" && role.require_device_approval == false
+    ])
+    error_message = "Aucun rôle d'app n'ouvre de session SSH : chacun déclare local.role_pins."
+  }
+}
