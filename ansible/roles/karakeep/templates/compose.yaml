@@ -34,9 +34,12 @@ services:
     # Upstream ne publie que release/latest pour cette image, pas de tag versionné.
     image: ghcr.io/karakeep-app/karakeep-chrome:release@sha256:4ad61127638dd27bfe685222787c5780dd1d083d23a7658c39af657775814c44
     container_name: karakeep-chrome
+    # Déjà l'utilisateur de l'image, répété ici (automerge Renovate) : cap_drop
+    # en dépend, et une image repassée en root planterait sans moniteur pour le dire.
+    user: "65534:65534"
     security_opt:
       - no-new-privileges:true
-    # Utilisateur 65534 dès l'entrypoint (image) : aucune capacité à perdre.
+    # Sans privilège dès l'entrypoint : aucune capacité à perdre.
     cap_drop:
       - ALL
     restart: unless-stopped
