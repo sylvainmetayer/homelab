@@ -265,35 +265,12 @@ def bounded(lines):
     return "\n".join(shown + ([f"… et {hidden} de plus"] if hidden > 0 else []))
 
 
-def tick(checker, state):
-    """Un passage. Modifie `state` ; rend le résumé, les alertes parties, les manques."""
+def judge(checker, ci_lines, runs, seen):
+    """Marque les connexions couvertes par un run ; rend les anomalies (id, date, ligne)."""
     config = checker.config
-    now = checker.now
-    overlap = config["overlap_seconds"]
-    fingerprint = config["fingerprint"]
-
-    installed_at = state.setdefault("installed_at", now)
-    # Curseur persisté, moins un recouvrement : un passage manqué, une panne de
-    # plusieurs jours ou une ligne en retard retombent dans la fenêtre suivante.
-    cursor = state.get("cursor", now - config["initial_lookback_seconds"] + overlap)
-    start = max(cursor - overlap, now - MAX_WINDOW_SECONDS)
-    seen = state.setdefault("seen", {})
-    checked_runs = state.setdefault("checked_runs", {})
-    gap_notified = state.setdefault("gap_notified", {})
-
-    # Une panne ici ne touche à rien de l'état : le passage suivant relit tout.
-    lines = checker.login_lines(start)
-    fresh = checker.fresh_hosts()
-    runs = checker.runs(start - config["run_lookback_seconds"])
-
-    ci_lines = [
-        line for line in lines
-        if fingerprint in line["_msg"] and not line["_msg"].startswith(COMPANION_LINE)
-    ]
     judged = [line for line in ci_lines if line["host"] not in config["excluded_hosts"]]
     judged.sort(key=lambda line: parse_time(line["_time"]))
-    run_intervals = [(run, checker.run_interval(run)) for run in runs]
-    intervals = [interval for _, interval in run_intervals]
+    intervals = [checker.run_interval(run) for run in runs]
 
     pending = []
     for line in judged:
@@ -313,36 +290,42 @@ def tick(checker, state):
     for identifier, moment, line in pending:
         if checker.covered(moment, intervals):
             seen[identifier] = moment
-        elif now - moment >= config["settle_seconds"]:
+        elif checker.now - moment >= config["settle_seconds"]:
             # Plus jeune : le run peut ne pas être encore visible dans l'API ;
             # le recouvrement, plus long que cette attente, la relira.
             anomalies.append((identifier, moment, line))
+    return len(judged), anomalies
 
-    errors = []
-    stale = sorted(set(config["hosts"]) - fresh)
-    if stale:
-        errors.append(f"journal silencieux depuis {config['freshness_seconds']} s : {', '.join(stale)}")
 
-    # Une étape « Deploy <hôte> » réussie sans aucune ligne du hook : hook absent
-    # ou format changé, le contrôle est aveugle sur cet hôte. Un journal silencieux
-    # remet tout à plus tard (ses lignes sont peut-être en route, le curseur figé
-    # garde les runs dans la fenêtre), sans relire leurs étapes à chaque passage :
-    # le quota de l'API sert aussi à juger les connexions.
+def runs_to_check(checker, runs, checked_runs, not_before):
+    """Runs finis, pas encore vérifiés, dont toutes les lignes sont dans la fenêtre."""
+    settled = checker.now - checker.config["settle_seconds"]
+    found = []
+    for run in runs:
+        interval = checker.run_interval(run)
+        if (
+            run.get("status") == "completed"
+            and run_key(run) not in checked_runs
+            and interval[0] >= not_before
+            and interval[1] <= settled
+        ):
+            found.append((run, interval))
+    return sorted(found, key=lambda item: item[1][1])[:MAX_JOB_CHECKS]
+
+
+def find_gaps(checker, to_check, ci_lines, errors):
+    """Hôtes déployés sans aucune ligne du hook : hook absent ou format changé.
+
+    Rend ces hôtes et les runs vérifiés. Une API en panne ajoute à `errors` : les
+    connexions sont déjà jugées, leur alerte part quand même, et le curseur figé
+    garde ce run pour le passage suivant.
+    """
     gaps = set()
     done_runs = {}
-    to_check = [] if stale else [
-        (run, interval) for run, interval in run_intervals
-        if run.get("status") == "completed"
-        and run_key(run) not in checked_runs
-        and interval[0] >= max(start, installed_at)
-        and interval[1] <= now - config["settle_seconds"]
-    ]
-    for run, interval in sorted(to_check, key=lambda item: item[1][1])[:MAX_JOB_CHECKS]:
+    for run, interval in to_check:
         try:
             deployed = checker.deployed_hosts(run)
         except CheckError as error:
-            # Les connexions sont déjà jugées : leur alerte part quand même, et le
-            # curseur figé garde ce run pour le passage suivant.
             errors.append(str(error))
             break
         gaps.update(
@@ -353,39 +336,91 @@ def tick(checker, state):
             )
         )
         done_runs[run_key(run)] = interval[1]
+    return gaps, done_runs
+
+
+def report_anomalies(checker, anomalies, seen, errors):
+    """Publie les anomalies ; rend le texte du moniteur. Vues seulement une fois publiées."""
+    text = bounded([describe(line) for _, _, line in anomalies])
+    try:
+        checker.publish(
+            "Clé de CI utilisée hors déploiement",
+            f"{text}\nConnexion hors de tout run de {checker.config['workflow']}. Clé volée ? {RUNBOOK}",
+            5,
+        )
+    except CheckError as error:
+        errors.append(str(error))
+    else:
+        seen.update({identifier: moment for identifier, moment, _ in anomalies})
+    return f"{len(anomalies)} connexion(s) de la clé de CI hors run : {describe(anomalies[0][2])}"
+
+
+def report_gaps(checker, hosts, gap_notified, errors):
+    """Publie les hôtes aveugles ; rend le texte du moniteur, et si c'est parti."""
+    try:
+        checker.publish(
+            "Contrôle de la clé de CI aveugle",
+            f"Déploiement réussi sans ligne ssh-login-notify sur : {', '.join(hosts)}. "
+            "Hook absent ou format changé (README de ci_key_audit).",
+            4,
+        )
+    except CheckError as error:
+        errors.append(str(error))
+        delivered = False
+    else:
+        gap_notified.update(dict.fromkeys(hosts, checker.now))
+        delivered = True
+    return f"Déploiement sans ligne ssh-login-notify sur {', '.join(hosts)}", delivered
+
+
+def tick(checker, state):
+    """Un passage. Modifie `state` ; rend le résumé, les alertes parties, les manques."""
+    config = checker.config
+    now = checker.now
+    overlap = config["overlap_seconds"]
+
+    installed_at = state.setdefault("installed_at", now)
+    # Curseur persisté, moins un recouvrement : un passage manqué, une panne de
+    # plusieurs jours ou une ligne en retard retombent dans la fenêtre suivante.
+    cursor = state.get("cursor", now - config["initial_lookback_seconds"] + overlap)
+    start = max(cursor - overlap, now - MAX_WINDOW_SECONDS)
+    seen = state.setdefault("seen", {})
+    checked_runs = state.setdefault("checked_runs", {})
+    gap_notified = state.setdefault("gap_notified", {})
+
+    # Une panne ici ne touche à rien de l'état : le passage suivant relit tout.
+    lines = checker.login_lines(start)
+    fresh = checker.fresh_hosts()
+    runs = checker.runs(start - config["run_lookback_seconds"])
+
+    ci_lines = [
+        line for line in lines
+        if config["fingerprint"] in line["_msg"] and not line["_msg"].startswith(COMPANION_LINE)
+    ]
+    judged_count, anomalies = judge(checker, ci_lines, runs, seen)
+
+    errors = []
+    stale = sorted(set(config["hosts"]) - fresh)
+    if stale:
+        errors.append(f"journal silencieux depuis {config['freshness_seconds']} s : {', '.join(stale)}")
+
+    # Un journal silencieux remet la recherche des hôtes aveugles à plus tard (ses
+    # lignes sont peut-être en route, le curseur figé garde les runs dans la
+    # fenêtre), sans relire leurs étapes à chaque passage : le quota de l'API sert
+    # aussi à juger les connexions.
+    to_check = [] if stale else runs_to_check(checker, runs, checked_runs, max(start, installed_at))
+    gaps, done_runs = find_gaps(checker, to_check, ci_lines, errors)
 
     published = []
     if anomalies:
-        text = bounded([describe(line) for _, _, line in anomalies])
-        try:
-            checker.publish(
-                "Clé de CI utilisée hors déploiement",
-                f"{text}\nConnexion hors de tout run de {config['workflow']}. Clé volée ? {RUNBOOK}",
-                5,
-            )
-        except CheckError as error:
-            errors.append(str(error))
-        else:
-            seen.update({identifier: moment for identifier, moment, _ in anomalies})
-        published.append(f"{len(anomalies)} connexion(s) de la clé de CI hors run : {describe(anomalies[0][2])}")
+        published.append(report_anomalies(checker, anomalies, seen, errors))
 
     new_gaps = sorted(host for host in gaps if now - gap_notified.get(host, 0) >= GAP_REPEAT_SECONDS)
-    gap_ok = True
+    gaps_delivered = True
     if new_gaps:
-        try:
-            checker.publish(
-                "Contrôle de la clé de CI aveugle",
-                f"Déploiement réussi sans ligne ssh-login-notify sur : {', '.join(new_gaps)}. "
-                "Hook absent ou format changé (README de ci_key_audit).",
-                4,
-            )
-        except CheckError as error:
-            errors.append(str(error))
-            gap_ok = False
-        else:
-            gap_notified.update({host: now for host in new_gaps})
-        published.append(f"Déploiement sans ligne ssh-login-notify sur {', '.join(new_gaps)}")
-    if gap_ok:
+        text, gaps_delivered = report_gaps(checker, new_gaps, gap_notified, errors)
+        published.append(text)
+    if gaps_delivered:
         checked_runs.update(done_runs)
 
     # Le curseur n'avance que sur un passage complet : une panne se relit au retour.
@@ -397,7 +432,7 @@ def tick(checker, state):
     state["seen"] = {key: moment for key, moment in seen.items() if moment >= next_start - 1}
     state["checked_runs"] = {key: moment for key, moment in checked_runs.items() if moment >= next_start}
 
-    summary = f"{len(lines)} ligne(s) du hook, {len(judged)} de la clé de CI, {len(runs)} run(s)"
+    summary = f"{len(lines)} ligne(s) du hook, {judged_count} de la clé de CI, {len(runs)} run(s)"
     return summary, published, errors
 
 

@@ -38,9 +38,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def reply(self, status, data=b"{}"):
         self.send_response(status)
+        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(data)
+        self.wfile.write(data)  # NOSONAR (faux serveur local, données du scénario)
 
     def logs(self, form, scenario):
         query = form["query"][0]

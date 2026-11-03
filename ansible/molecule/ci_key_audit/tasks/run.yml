@@ -5,13 +5,13 @@
   ansible.builtin.copy:
     content: "{{ ci_key_audit_verify_base | combine(ci_key_audit_verify_scenario | default({})) | to_json }}"
     dest: "{{ ci_key_audit_verify_tmp }}/scenario.json"
-    mode: "0644"
+    mode: "0600"
 
 - name: "Empty the requests log: {{ ci_key_audit_verify_step }}"
   ansible.builtin.copy:
     content: ""
     dest: "{{ ci_key_audit_verify_log }}"
-    mode: "0644"
+    mode: "0600"
 
 - name: "Run the unit: {{ ci_key_audit_verify_step }}"
   ansible.builtin.systemd:

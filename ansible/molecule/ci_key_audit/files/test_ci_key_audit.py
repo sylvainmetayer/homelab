@@ -324,8 +324,9 @@ class Paging(unittest.TestCase):
         self.assertEqual(checker.queries[0]["created"], ">=" + audit.rfc3339(NOW - 86400))
 
     def test_too_many_pages_prove_nothing(self):
+        checker = RunPaging([[run(NOW, NOW)] * 100] * 5)
         with self.assertRaisesRegex(audit.CheckError, "pages"):
-            RunPaging([[run(NOW, NOW)] * 100] * 5).runs(NOW - 86400)
+            checker.runs(NOW - 86400)
 
 
 class HookGaps(unittest.TestCase):
@@ -541,7 +542,7 @@ class Main(unittest.TestCase):
             with (
                 mock.patch.object(audit, "CONFIG_FILE", config),
                 mock.patch.dict(os.environ, env),
-                mock.patch.object(audit, "Checker", lambda *_: checker),
+                mock.patch.object(audit, "Checker", return_value=checker),
                 mock.patch("sys.stdout", io.StringIO()),
                 mock.patch("sys.stderr", io.StringIO()),
             ):

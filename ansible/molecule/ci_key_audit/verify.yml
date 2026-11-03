@@ -134,7 +134,7 @@
           - ci_key_audit_verify_unit.status.NoNewPrivileges == 'yes'
           - ci_key_audit_verify_unit.status.ProtectSystem == 'strict'
           - ci_key_audit_verify_unit.status.StateDirectory == 'ci-key-audit'
-          - ci_key_audit_verify_unit.status.MemoryMax | int == 134217728
+          - ci_key_audit_verify_unit.status.MemoryMax | int == 67108864
           - ci_key_audit_verify_unit.status.ExecStart is search('python3 -I ' ~ ci_key_audit_verify_script)
           - ci_key_audit_verify_unit.status.ExecStart is not search(ntfy_scripts_token)
           - ci_key_audit_verify_unit.status.ExecStart is not search(victoria_logs_ui_password)
@@ -184,7 +184,7 @@
       ansible.builtin.copy:
         content: "{{ ci_key_audit_verify_base | to_json }}"
         dest: "{{ ci_key_audit_verify_tmp }}/scenario.json"
-        mode: "0644"
+        mode: "0600"
 
     - name: Start the fake services
       ansible.builtin.command:
@@ -289,7 +289,7 @@
       ansible.builtin.copy:
         content: "{{ ci_key_audit_verify_state.content | b64decode | from_json | combine({'installed_at': 0}) | to_json }}"
         dest: /var/lib/private/ci-key-audit/state.json
-        mode: "0644"
+        mode: "0600"
 
     - name: No line at all, and a deployment that should have left one
       ansible.builtin.include_tasks: tasks/run.yml
