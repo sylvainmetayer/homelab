@@ -40,7 +40,7 @@ resource "uptimekuma_monitor_push" "ssh_login" {
   for_each = local.ssh_login_hosts
 
   name        = "SSH ${each.key}"
-  description = "Une alerte par connexion SSH sur ${each.key} (rôle Ansible ssh_login_notify)."
+  description = "Alerte aux connexions SSH sur ${each.key}, hors clés connues (rôle Ansible ssh_login_notify)."
   parent      = uptimekuma_monitor_group.ssh_logins.id
 
   # Inversé : un push = DOWN = notification ; 60 s sans push = retour UP.

@@ -15,7 +15,7 @@ Une clé connue (empreinte SHA256, défauts du rôle : `github-actions` et `pers
 la clé d'Ansible) laisse une trace basse priorité sur ntfy (topic `scripts`) et
 une ligne de journal, sans push. Tout le reste (autre clé, autre méthode,
 empreinte illisible, liste vide) pousse comme avant. Même règle sur Pangolin.
-newt-lxc a sa propre liste, sans la clé de CI : la CI n'y déploie jamais.
+newt-lxc a une liste vide : toute connexion y sonne, CI comme poste.
 
 ## Alternatives écartées
 
@@ -26,8 +26,8 @@ newt-lxc a sa propre liste, sans la clé de CI : la CI n'y déploie jamais.
 
 ## Conséquences
 
-- Risque accepté : une clé connue volée ne sonne plus sur le téléphone, sa trace
-  n'est que basse priorité (`perte-cle-ou-poste.md`, étape 7).
+- Risque accepté : une clé connue volée ne sonne plus que sur newt-lxc, ailleurs
+  sa trace n'est que basse priorité (`perte-cle-ou-poste.md`, étape 7).
 - Risque accepté : une connexion avec la clé d'Ansible ne se distingue pas d'un
   `ssh` à la main de Sylvain ou de Claude, qui prennent la même clé.
 - Reste : deux connexions inconnues à moins de 60 s sur un hôte ne font qu'une

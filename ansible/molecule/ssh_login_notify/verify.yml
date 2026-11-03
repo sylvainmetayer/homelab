@@ -12,8 +12,8 @@
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
   tasks:
-    # --- les listes du dépôt, comparées aux clés de keys/ : la CI connue partout
-    # sauf sur newt-lxc, Ansible partout ---
+    # --- les listes du dépôt, comparées aux clés de keys/ : la CI et Ansible
+    # connues partout sauf sur newt-lxc, dont la liste est vide ---
 
     - name: Compute the fingerprints of the repository keys
       ansible.builtin.command:
@@ -34,7 +34,7 @@
       ansible.builtin.assert:
         that:
           - role_defaults.ssh_login_notify_known_fingerprints == [ci_fp, ansible_fp]
-          - newt_lxc.ssh_login_notify_known_fingerprints == [ansible_fp]
+          - newt_lxc.ssh_login_notify_known_fingerprints == []
 
     # --- ce qui est posé ---
 
@@ -405,7 +405,8 @@
           - ssh_login_notify_ntfy.stdout | length == 0
         fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }} / {{ ssh_login_notify_ntfy.stdout_lines }}"
 
-    # --- liste vide : la clé connue redevient inconnue ---
+    # --- la liste de newt-lxc, vide, déployée par le rôle : la clé connue ailleurs
+    # redevient inconnue ---
 
     - name: Run the empty list case
       become: true
@@ -414,11 +415,21 @@
           ansible.builtin.command: cp -p /etc/ssh-login-notify.conf /etc/ssh-login-notify.conf.orig
           changed_when: true
 
-        - name: Empty the known list
-          ansible.builtin.replace:
-            path: /etc/ssh-login-notify.conf
-            regexp: "KNOWN_FINGERPRINTS='[^']*'"
-            replace: "KNOWN_FINGERPRINTS=''"
+        - name: Deploy the role with the known list of newt-lxc
+          ansible.builtin.include_role:
+            name: ssh_login_notify
+            apply:
+              become: true
+          vars:
+            ssh_login_notify_push_url: http://127.0.0.1:18080/api/push/molecule-ssh-login
+            ssh_login_notify_ntfy_url: http://127.0.0.1:18082
+            ssh_login_notify_known_fingerprints: >-
+              {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../host_vars/newt-lxc/variables.yaml')
+                  | from_yaml).ssh_login_notify_known_fingerprints }}
+
+        - name: Read the hook configuration of the empty list
+          ansible.builtin.command: grep -c "^KNOWN_FINGERPRINTS=''$" /etc/ssh-login-notify.conf
+          changed_when: false
 
         - name: Reset the push log before the empty list case
           ansible.builtin.copy:

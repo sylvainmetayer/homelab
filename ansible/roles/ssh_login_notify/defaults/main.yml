@@ -22,7 +22,7 @@ ssh_login_notify_push_url: ""
 # Risque accepté : docs/adr/0027-connexions-ssh-cles-connues.md.
 #
 # Ici et pas dans group_vars/all, dont un merge redéploie les quatre playbooks.
-# host_vars/newt-lxc la remplace : la CI ne déploie jamais là-bas.
+# host_vars/newt-lxc la vide : toute connexion y sonne.
 ssh_login_notify_known_fingerprints:
   # keys/github-actions.pub : la CI (deploy-docker-app.yaml).
   - "SHA256:+I1uk456KeHmdS0BFT0EiL8ahZTcFj6HB1Gt5G5OENc"
