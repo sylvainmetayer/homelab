@@ -89,6 +89,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Molecule and `tofu test` conventions | `docs/conventions/tests.md` |
 | CI workflows, deploy logic, Renovate automerge, restore test, scheduled checks | `docs/conventions/ci.md` |
 | Resource limits doctrine, measuring disk I/O | `docs/conventions/resource-limits.md` |
+| Container hardening: `no-new-privileges`, `cap_drop`, exceptions, how to test | `docs/conventions/container-hardening.md` |
 | Second environment of an app, pausing, removing | `docs/conventions/app-lifecycle.md` |
 | OpenTofu backends, state encryption | `docs/conventions/opentofu.md` |
 | `dc@.service` systemd pattern, NAS system scope, weekly unused-image prune | `ansible/roles/docker_service/README.md` |
