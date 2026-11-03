@@ -64,6 +64,7 @@
       ansible.builtin.assert:
         that:
           - rss_compose.services.freshrss.container_name == 'rss'
+          - "'no-new-privileges:true' in rss_compose.services.freshrss.security_opt"
           - "'newt' in rss_compose.services.freshrss.networks"
         fail_msg: "Compose de rss inattendu : {{ rss_compose.services.freshrss }}"
 
