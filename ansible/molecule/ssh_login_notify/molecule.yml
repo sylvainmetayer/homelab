@@ -3,8 +3,9 @@
 scenario:
   name: ssh_login_notify
 
-# Prepare propre : sshd en marche, deux paires de clés pour sylvain et un faux
-# Uptime Kuma local qui enregistre les push (cf. prepare.yml).
+# Prepare propre : sshd en marche, trois paires de clés pour sylvain, un faux
+# Uptime Kuma et un faux ntfy locaux qui enregistrent les requêtes (cf.
+# prepare.yml).
 ansible:
   playbooks:
     prepare: prepare.yml

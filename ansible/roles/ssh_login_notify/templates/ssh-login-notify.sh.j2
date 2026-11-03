@@ -1,8 +1,10 @@
 #!/bin/sh
 # {{ ansible_managed }}
 #
-# Alerte Uptime Kuma à chaque ouverture de session SSH (issue #451).
-# Appelé par pam_exec depuis /etc/pam.d/sshd (`session optional`), en root.
+# Alerte Uptime Kuma à chaque ouverture de session SSH (issue #451), sauf clé
+# connue par son empreinte : trace basse priorité sur ntfy, et jamais de push.
+# Tout le reste, doute compris (empreinte illisible, liste vide, autre méthode),
+# sonne. Appelé par pam_exec depuis /etc/pam.d/sshd (`session optional`), en root.
 #
 # Règle d'or : ce script ne doit JAMAIS empêcher une connexion. Il sort
 # toujours en 0, et tout ce qui suit la lecture de la configuration (lecture
@@ -17,6 +19,21 @@ CONFIG={{ ssh_login_notify_config | quote }}
 . "$CONFIG"
 [ -n "${PUSH_URL:-}" ] || exit 0
 
+# Clé connue : le journal d'abord, quoi qu'il arrive à ntfy. Le jeton passe par
+# l'entrée standard (--config -, printf intégré au shell), pas par une ligne de
+# commande, que ps montre. 22 s au pire, en arrière-plan.
+trace() {
+    logger -t ssh-login-notify "clé connue : $1"
+    if [ -z "${NTFY_TOKEN:-}" ]; then
+        logger -t ssh-login-notify -p auth.warning "échec de la trace ntfy, pas de jeton : $1"
+    elif ! printf 'header = "Authorization: Bearer %s"\n' "$NTFY_TOKEN" \
+        | curl --silent --fail --output /dev/null --max-time 10 --retry 1 --retry-delay 2 \
+            --config - --header 'Priority: low' --header "Title: SSH $(hostname)" \
+            --data-raw "$1" "${NTFY_URL%/}/$NTFY_TOPIC" 2>/dev/null; then
+        logger -t ssh-login-notify -p auth.warning "échec de la trace ntfy : $1"
+    fi
+}
+
 notify() {
     # sshd expose dans l'environnement PAM la méthode et la clé qui ont réussi
     # (OpenSSH >= 7.6) : "publickey ssh-ed25519 AAAA...".
@@ -24,16 +41,19 @@ notify() {
     key_type=""
     key_fp=""
     key_name=""
+    known=""
     if [ -n "$key_line" ]; then
         key_type=${key_line%% *}
         key_rest=${key_line#* }
         key_blob=${key_rest%% *}
         key_fp=$(printf '%s\n' "$key_line" | ssh-keygen -l -E sha256 -f - 2>/dev/null | awk '{print $2}')
-        # Clés ignorées : par empreinte, que l'utilisateur ne peut pas changer
-        # (le commentaire de sa ligne dans authorized_keys, si).
-        if [ -n "$key_fp" ] && [ -n "${IGNORED_FINGERPRINTS:-}" ] \
-            && printf '%s\n' "$IGNORED_FINGERPRINTS" | grep -qxF -- "$key_fp"; then
-            return 0
+        # Clé connue : par empreinte, que l'utilisateur ne peut pas changer (le
+        # commentaire de sa ligne dans authorized_keys, si), et seule méthode de
+        # la session : un second facteur n'est plus ce cas-là.
+        if [ -n "$key_fp" ] && [ -n "${KNOWN_FINGERPRINTS:-}" ] \
+            && [ "$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | grep -c .)" = 1 ] \
+            && printf '%s\n' "$KNOWN_FINGERPRINTS" | grep -qxF -- "$key_fp"; then
+            known=1
         fi
         # Nom de la clé, pour le message seulement : le commentaire de sa ligne
         # dans authorized_keys (tout ce qui suit le blob, options éventuelles
@@ -58,6 +78,11 @@ notify() {
     else
         method=$(printf '%s\n' "${SSH_AUTH_INFO_0:-}" | awk 'NR == 1 {print $1}')
         msg="${PAM_USER:-?}@$(hostname) depuis ${PAM_RHOST:-?}, sans clé publique (méthode : ${method:-inconnue})"
+    fi
+
+    if [ -n "$known" ]; then
+        trace "$msg"
+        return 0
     fi
 
     # L'URL push (jeton du moniteur) passe par l'entrée standard (« - »), pas

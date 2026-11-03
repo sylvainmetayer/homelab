@@ -1,15 +1,16 @@
 # ---------------------------------------------------------------------------
-# Alerte à chaque connexion SSH (issue #451).
+# Alerte aux connexions SSH (issue #451).
 #
 # Un moniteur push par hôte. Le rôle Ansible ssh_login_notify (appliqué par
 # 00-setup.yaml) pose un hook pam_exec dans /etc/pam.d/sshd qui pousse
-# `status=up&msg=<utilisateur, IP, clé>` à chaque ouverture de session.
+# `status=up&msg=<utilisateur, IP, clé>` à chaque ouverture de session, sauf
+# clé connue du rôle (trace ntfy, pas de push, le moniteur reste UP).
 #
 # Les moniteurs sont inversés (upside_down) : un push les fait passer DOWN, ce
 # qui envoie la notification avec le message ; sans push pendant `interval`
 # secondes ils repassent UP (second message, de retour au calme). Des
-# connexions sur le même hôte à moins de 60 s d'écart sont donc fusionnées
-# dans une seule alerte.
+# connexions qui poussent sur le même hôte à moins de 60 s d'écart sont donc
+# fusionnées dans une seule alerte.
 #
 # Les clés de local.ssh_login_hosts sont des inventory_hostname : 00-setup.yaml
 # lit `terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname]`, un

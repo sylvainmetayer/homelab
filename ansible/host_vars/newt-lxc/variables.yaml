@@ -23,3 +23,10 @@ security_unattended_reboot_time: "04:45"
 # Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
 # reste non lu dans /var/mail/root.
 security_mta_enabled: true
+
+# Connexions SSH (rôle ssh_login_notify) : la clé de la CI n'est PAS connue ici.
+# La CI ne déploie jamais sur ce LXC (lxc.yml et 00-setup.yaml, à la main), donc
+# une connexion avec keys/github-actions.pub y sonne sur Telegram. Reste Ansible
+# depuis le poste (keys/perso.pub).
+ssh_login_notify_known_fingerprints:
+  - "SHA256:4nBRCz6+8kBw3a54j3xKNaTCNrwsBRB/i2nsNn13U58"
