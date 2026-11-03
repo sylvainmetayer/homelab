@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     image: ghcr.io/linuxserver/nextcloud:35.0.2@sha256:b980e092ea0ce7b509b8c1f03b8b5ae244348faccd4ae9e519d61e32706aa20a
     container_name: nextcloud
+    # `occ` passe par `sudo -u abc` : possible depuis root seulement avec cette
+    # option (`docker exec`, sans `-u`).
+    security_opt:
+      - no-new-privileges:true
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
