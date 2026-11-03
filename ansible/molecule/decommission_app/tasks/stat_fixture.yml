@@ -15,5 +15,5 @@
   ansible.builtin.assert:
     that:
       - fixture_paths.results | map(attribute='stat.exists') | unique == [fixture_present]
-    fail_msg: "{{ fixture_paths.results | map(attribute='item') | zip(fixture_paths.results | map(attribute='stat.exists')) | list }}"
+    fail_msg: "{{ fixture_paths.results | map(attribute='item') | zip(fixture_paths.results | map(attribute='stat.exists')) | list | string }}"
     quiet: true
