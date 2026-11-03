@@ -76,6 +76,7 @@ class FakeChecker(audit.Checker):
         self.github_calls = []
         self.fail_publish = False
         self.fail_github = False
+        self.fail_jobs = False
 
     def logs_query(self, query, start, limit=None):
         if query.startswith("identifier"):
@@ -88,6 +89,8 @@ class FakeChecker(audit.Checker):
         if self.fail_github:
             raise audit.CheckError("GitHub : HTTP 502")
         if path.endswith("/jobs"):
+            if self.fail_jobs:
+                raise audit.CheckError("GitHub : quota épuisé")
             run_id = int(path.split("/runs/")[1].split("/")[0])
             steps = [{"name": f"Deploy {h}", "conclusion": c} for h, c in self.steps.get(run_id, {}).items()]
             return {"jobs": [{"steps": steps}]}
@@ -225,6 +228,15 @@ class Idempotence(unittest.TestCase):
         later = FakeChecker(now=NOW + 7200)
         tick(later, state)
         self.assertEqual(state["seen"], {})
+
+    def test_a_line_of_the_second_the_query_rounds_down_alerts_once(self):
+        moment = NOW - 3600
+        state = {"cursor": NOW - 600, "installed_at": NOW - 86400}
+        first = FakeChecker(now=NOW + 0.5, lines=[line(moment)])
+        state, _, published, _ = tick(first, state)
+        self.assertEqual(len(published), 1)
+        again = FakeChecker(now=NOW + 600.5, lines=[line(moment)])
+        self.assertEqual(tick(again, state)[2], [])
 
     def test_young_login_waits_for_the_run_to_show_then_alerts_if_still_alone(self):
         checker = FakeChecker(lines=[line(NOW - 60)])
@@ -364,6 +376,21 @@ class HookGaps(unittest.TestCase):
         state, _, published, _ = tick(checker, self.state())
         self.assertEqual(published, [])
         self.assertNotIn("7:1", state.get("checked_runs", {}))
+
+    def test_silent_host_spends_no_job_lookup(self):
+        checker = self.deployed(fresh=["pi"])
+        tick(checker, self.state())
+        self.assertFalse([path for path in checker.github_calls if path.endswith("/jobs")])
+
+    def test_failed_job_lookup_does_not_hold_back_an_alert(self):
+        checker = self.deployed(lines=[line(NOW - 3000)])
+        checker.fail_jobs = True
+        state, _, published, errors = tick(checker, self.state())
+        self.assertEqual([item[2] for item in checker.published], [5])
+        self.assertEqual(len(published), 1)
+        self.assertEqual(errors, ["GitHub : quota épuisé"])
+        self.assertNotIn("7:1", state["checked_runs"])
+        self.assertLess(state["cursor"], NOW, "le curseur figé garde ce run")
 
     def test_run_just_finished_waits(self):
         checker = FakeChecker(runs=[run(NOW - 200, NOW - 100, run_id=7)])

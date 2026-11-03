@@ -228,18 +228,22 @@ def event_id(line):
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
+def run_key(run):
+    return f"{run['id']}:{run.get('run_attempt', 1)}"
+
+
 def load_state(path):
     try:
         with open(path, encoding="utf-8") as file:
             state = json.load(file)
-        if isinstance(state, dict):
-            return state
-        print("état illisible : on repart de la fenêtre initiale", file=sys.stderr)
     except FileNotFoundError:
-        pass
+        return {}
     except ValueError:
-        # Revoir une alerte plutôt qu'en perdre une.
-        print("état illisible : on repart de la fenêtre initiale", file=sys.stderr)
+        state = None
+    if isinstance(state, dict):
+        return state
+    # Revoir une alerte plutôt qu'en perdre une.
+    print("état illisible : on repart de la fenêtre initiale", file=sys.stderr)
     return {}
 
 
@@ -288,7 +292,8 @@ def tick(checker, state):
     ]
     judged = [line for line in ci_lines if line["host"] not in config["excluded_hosts"]]
     judged.sort(key=lambda line: parse_time(line["_time"]))
-    intervals = [checker.run_interval(run) for run in runs]
+    run_intervals = [(run, checker.run_interval(run)) for run in runs]
+    intervals = [interval for _, interval in run_intervals]
 
     pending = []
     for line in judged:
@@ -313,32 +318,42 @@ def tick(checker, state):
             # le recouvrement, plus long que cette attente, la relira.
             anomalies.append((identifier, moment, line))
 
+    errors = []
+    stale = sorted(set(config["hosts"]) - fresh)
+    if stale:
+        errors.append(f"journal silencieux depuis {config['freshness_seconds']} s : {', '.join(stale)}")
+
     # Une étape « Deploy <hôte> » réussie sans aucune ligne du hook : hook absent
-    # ou format changé, le contrôle est aveugle sur cet hôte.
-    gaps = []
-    done_runs = []
-    to_check = [
-        run for run in runs
+    # ou format changé, le contrôle est aveugle sur cet hôte. Un journal silencieux
+    # remet tout à plus tard (ses lignes sont peut-être en route, le curseur figé
+    # garde les runs dans la fenêtre), sans relire leurs étapes à chaque passage :
+    # le quota de l'API sert aussi à juger les connexions.
+    gaps = set()
+    done_runs = {}
+    to_check = [] if stale else [
+        (run, interval) for run, interval in run_intervals
         if run.get("status") == "completed"
-        and f"{run['id']}:{run.get('run_attempt', 1)}" not in checked_runs
-        and checker.run_interval(run)[0] >= max(start, installed_at)
-        and checker.run_interval(run)[1] <= now - config["settle_seconds"]
+        and run_key(run) not in checked_runs
+        and interval[0] >= max(start, installed_at)
+        and interval[1] <= now - config["settle_seconds"]
     ]
-    for run in sorted(to_check, key=lambda item: item["updated_at"])[:MAX_JOB_CHECKS]:
-        interval = checker.run_interval(run)
-        complete = True
-        for host in checker.deployed_hosts(run):
-            if host not in fresh:
-                complete = False  # ses lignes sont peut-être en route : plus tard
-            elif not any(
+    for run, interval in sorted(to_check, key=lambda item: item[1][1])[:MAX_JOB_CHECKS]:
+        try:
+            deployed = checker.deployed_hosts(run)
+        except CheckError as error:
+            # Les connexions sont déjà jugées : leur alerte part quand même, et le
+            # curseur figé garde ce run pour le passage suivant.
+            errors.append(str(error))
+            break
+        gaps.update(
+            host for host in deployed
+            if not any(
                 line["host"] == host and checker.covered(parse_time(line["_time"]), [interval])
                 for line in ci_lines
-            ):
-                gaps.append((host, run["id"]))
-        if complete:
-            done_runs.append((f"{run['id']}:{run.get('run_attempt', 1)}", interval[1]))
+            )
+        )
+        done_runs[run_key(run)] = interval[1]
 
-    errors = []
     published = []
     if anomalies:
         text = bounded([describe(line) for _, _, line in anomalies])
@@ -354,7 +369,7 @@ def tick(checker, state):
             seen.update({identifier: moment for identifier, moment, _ in anomalies})
         published.append(f"{len(anomalies)} connexion(s) de la clé de CI hors run : {describe(anomalies[0][2])}")
 
-    new_gaps = sorted({host for host, _ in gaps if now - gap_notified.get(host, 0) >= GAP_REPEAT_SECONDS})
+    new_gaps = sorted(host for host in gaps if now - gap_notified.get(host, 0) >= GAP_REPEAT_SECONDS)
     gap_ok = True
     if new_gaps:
         try:
@@ -371,17 +386,15 @@ def tick(checker, state):
             gap_notified.update({host: now for host in new_gaps})
         published.append(f"Déploiement sans ligne ssh-login-notify sur {', '.join(new_gaps)}")
     if gap_ok:
-        checked_runs.update(dict(done_runs))
-
-    stale = sorted(set(config["hosts"]) - fresh)
-    if stale:
-        errors.append(f"journal silencieux depuis {config['freshness_seconds']} s : {', '.join(stale)}")
+        checked_runs.update(done_runs)
 
     # Le curseur n'avance que sur un passage complet : une panne se relit au retour.
     new_cursor = now if not errors else cursor
     state["cursor"] = new_cursor
     next_start = new_cursor - overlap
-    state["seen"] = {key: moment for key, moment in seen.items() if moment >= next_start}
+    # La requête arrondit son début à la seconde : une ligne de cette seconde-là
+    # revient, et sortie de `seen` elle alerterait une seconde fois.
+    state["seen"] = {key: moment for key, moment in seen.items() if moment >= next_start - 1}
     state["checked_runs"] = {key: moment for key, moment in checked_runs.items() if moment >= next_start}
 
     summary = f"{len(lines)} ligne(s) du hook, {len(judged)} de la clé de CI, {len(runs)} run(s)"

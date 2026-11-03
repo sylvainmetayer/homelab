@@ -127,7 +127,10 @@ sonne que sur newt-lxc.
    l'ancienne avant l'étape 2), puis sur chaque hôte qui l'utilise
    (docker, flip, pangolin, pi : un hôte oublié reste muet)
    `ansible-playbook 00-setup.yaml --tags ssh_login_notify --limit <hôte>`.
-   Une clé absente de la liste sonne : l'oubli se voit.
+   Une clé absente de la liste sonne : l'oubli se voit. Clé de CI : changer
+   aussi `ci_key_audit_fingerprint` (défauts du rôle `ci_key_audit`), puis
+   `ansible-playbook docker.yml --tags ci_key_audit` ; sinon ce contrôle ne
+   reconnaît plus aucune connexion et se dit aveugle au déploiement suivant.
 
 ### Poste perdu
 

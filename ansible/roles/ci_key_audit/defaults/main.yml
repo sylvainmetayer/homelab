@@ -42,13 +42,15 @@ ci_key_audit_margin_seconds: 120
 # montrer encore le run qui vient de démarrer. Aussi le délai avant de conclure
 # qu'un déploiement fini n'a laissé aucune ligne.
 ci_key_audit_settle_seconds: 300
-# Relu en deçà du curseur à chaque passage : lignes en retard (lot de Vector,
-# hôte ralenti) et connexions en attente. Plus long que l'attente ci-dessus
-# (le rôle le vérifie).
-ci_key_audit_overlap_seconds: 3600
 # Sans ligne de journald pendant ce temps, un hôte rend le contrôle incomplet.
 # Assez long pour un hôte calme, la nuit compris.
 ci_key_audit_freshness_seconds: 10800
+# Relu en deçà du curseur à chaque passage : lignes en retard et connexions en
+# attente. Plus long que l'attente ci-dessus et que le silence toléré juste
+# au-dessus (le rôle le vérifie) : le curseur avance tant qu'un hôte n'est pas
+# déclaré silencieux, et un agent Vector qui rattrape son retard livre des lignes
+# datées du début de sa panne.
+ci_key_audit_overlap_seconds: 14400
 # Premier passage, ou état perdu : relire ce temps-là.
 ci_key_audit_initial_lookback_seconds: 86400
 # Runs lus avant le début de la fenêtre : un run commencé plus tôt, ou relancé
@@ -66,7 +68,7 @@ ci_key_audit_retry_delays:
 # que auth.yml qui le contient déjà. Une rotation de victoria_logs_ui_password
 # redéploie aussi ce rôle (docs/runbooks/rotation-des-secrets.md).
 ci_key_audit_vl_url: http://127.0.0.1:9428 # NOSONAR
-ci_key_audit_vl_user: sylvain
+ci_key_audit_vl_user: "{{ victoria_logs_ui_user | default('sylvain') }}"
 ci_key_audit_vl_password: "{{ victoria_logs_ui_password | default('') }}"
 
 # Producteur scripts du rôle ntfy, comme mem_report et cost_report.
