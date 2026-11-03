@@ -27,7 +27,7 @@ Part of `00-setup.yaml` (`all,!backups,!nas,!pve`, role entry with `become: true
 
 ## Testing
 
-`mise run molecule ssh_login_notify` (fake Uptime Kuma, real sshd logins, no `security` role applied): message contents, `ssh -N`, ignored fingerprint versus a key borrowing its comment, login time with a hanging or closed Uptime Kuma, a missing script and a named pipe at `authorized_keys2`, then the uninstall and its idempotence. On a host: log in, then `journalctl -t ssh-login-notify`.
+`mise run molecule ssh_login_notify` (fake Uptime Kuma, real sshd logins, no `security` role applied): message contents, `ssh -N`, ignored fingerprint versus a key borrowing its comment, login time with a hanging Uptime Kuma and with a named pipe at `authorized_keys2`, login still accepted with a closed port and with a missing script, then the uninstall and its idempotence. **Not covered**: the « sans clé publique » message (key logins only), the empty URL, the monitors. On a host: log in, then `journalctl -t ssh-login-notify`.
 
 ## Pointers
 

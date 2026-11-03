@@ -8,7 +8,7 @@ Part of `flip.yml` only (tags `nat,setup`; a merge changing the role deploys tag
 - **DNS has two branches**, chosen at play time by what `/etc/resolv.conf` is, and rendered into the script:
   - a symlink into `/run/systemd/resolve/`: a `resolved.conf.d/50-nat.conf` drop-in, and the watchdog leaves the file alone;
   - anything else: reference `/etc/nat-client/resolv.conf`, which the watchdog copies over `/etc/resolv.conf` on any difference. A hand edit of `/etc/resolv.conf` lasts one interval at most.
-- The last task fails the role after 5 retries if `getent ahostsv4 deb.debian.org` does not answer, rather than letting a later apt or `docker pull` time out unexplained. The resolvers being public, an answer also proves the route through the NAT.
+- The last task fails the role after 5 retries if `getent ahostsv4 deb.debian.org` does not answer, rather than letting a later apt or `docker pull` time out unexplained. The resolvers being public, an answer also proves the route through the NAT (reference branch; on the resolved branch, it may come from resolved's cache).
 
 ## Variables
 
