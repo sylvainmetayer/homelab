@@ -42,7 +42,9 @@ alongside this skill, registered in `docker.yml`, `pi.yml`, `flip.yml` and `nas.
    so it can be run again; a repository already absent is tolerated.
 3. Stops + disables the `dc@<service>` systemd unit.
 4. Runs `docker compose down --volumes --remove-orphans` in the app's base
-   path (removes containers, networks, and named volumes).
+   path (removes containers, networks, and named volumes). If step 3 or 4
+   really fails the run stops and no data is deleted; a missing unit, folder
+   or compose file is tolerated.
 5. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
 6. Removes the app's data directory (`<service>_base_path`), plus every path
    in `decommission_app_extra_paths`, and its `dc@<service>.service.d`

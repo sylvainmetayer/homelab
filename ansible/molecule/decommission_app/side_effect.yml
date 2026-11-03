@@ -138,6 +138,146 @@
         fixture_extra_paths: [/mnt/nas/apps/strings_app]
         fixture_present: false
 
+    # --- Arrêt : un échec réel garde tout, seul l'absent est toléré ------------
+    - name: Create the app whose compose file is invalid
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: broken_compose_app
+
+    - name: Make its compose file invalid
+      become: true
+      ansible.builtin.copy:
+        dest: "{{ docker_base_path }}/broken_compose_app/compose.yaml"
+        owner: sylvain
+        mode: "0600"
+        content: |
+          services: [
+
+    - name: Run the role on the invalid compose file
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      vars:
+        decommission_case:
+          service: broken_compose_app
+          base_path: "{{ docker_base_path }}/broken_compose_app"
+          fails_on: Tear down
+
+    - name: Assert the failed compose kept the config and the data
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: broken_compose_app
+        fixture_present: true
+
+    - name: Create the app whose unit refuses to stop
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: stuck_unit_app
+
+    - name: Create the drop-in folder of its unit
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@stuck_unit_app.service.d"
+        state: directory
+        mode: "0700"
+
+    # systemctl stop échoue alors pour de bon (« Operation refused »).
+    - name: Make its unit refuse a manual stop
+      ansible.builtin.copy:
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@stuck_unit_app.service.d/molecule-refuse-stop.conf"
+        mode: "0600"
+        content: |
+          [Unit]
+          RefuseManualStop=yes
+
+    - name: Start the unit that refuses to stop
+      ansible.builtin.systemd:
+        name: dc@stuck_unit_app
+        scope: user
+        state: started
+        daemon_reload: true
+
+    - name: Run the role on the unit that refuses to stop
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      vars:
+        decommission_case:
+          service: stuck_unit_app
+          base_path: "{{ docker_base_path }}/stuck_unit_app"
+          fails_on: Stop and disable
+
+    - name: Assert the failed stop kept the config and the data
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: stuck_unit_app
+        fixture_present: true
+
+    - name: Read the unit that refused to stop
+      ansible.builtin.systemd:
+        name: dc@stuck_unit_app
+        scope: user
+      register: stuck_unit
+
+    - name: Assert the unit that refused to stop still runs
+      ansible.builtin.assert:
+        that:
+          - stuck_unit.status.ActiveState == 'active'
+
+    - name: Create the app with no compose file
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: no_compose_app
+
+    - name: Remove its compose file
+      become: true
+      ansible.builtin.file:
+        path: "{{ docker_base_path }}/no_compose_app/compose.yaml"
+        state: absent
+
+    - name: Run the role on the folder with no compose file
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: true
+        decommission_app_service: no_compose_app
+        decommission_app_base_path: "{{ docker_base_path }}/no_compose_app"
+
+    - name: Assert the missing compose file was met and tolerated
+      ansible.builtin.assert:
+        that:
+          - decommission_app_compose_down.rc != 0
+          - decommission_app_compose_down is not failed
+
+    - name: Assert the run with no compose file finished the removal
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: no_compose_app
+        fixture_present: false
+
+    # Le scope système, celui du NAS : aucun modèle dc@ n'y est installé ici,
+    # l'unité est donc vraiment introuvable.
+    - name: Create the app with no unit
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: no_unit_app
+
+    - name: Run the role on the app with no unit
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        docker_service_scope: system
+        decommission_app_confirm: true
+        decommission_app_service: no_unit_app
+        decommission_app_base_path: "{{ docker_base_path }}/no_unit_app"
+
+    - name: Assert the missing unit was met and tolerated
+      ansible.builtin.assert:
+        that:
+          - decommission_app_unit_stop.msg is search('Could not find the requested service')
+          - decommission_app_unit_stop is not failed
+
+    - name: Assert the run with no unit finished the removal
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: no_unit_app
+        fixture_present: false
+
     # --- repo-delete : vrais borgmatic et borg, dépôts locaux jetables --------
     - name: Read the pinned borg version
       ansible.builtin.include_vars:
