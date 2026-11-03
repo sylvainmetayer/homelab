@@ -3008,3 +3008,15 @@ run "hand_made_leftovers_stay_as_imported" {
     error_message = "00-NTF-nas doit rester l'accès au port 9999 du NAS sur nas-internal."
   }
 }
+
+run "org_domains_are_the_imported_wildcards" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(keys(pangolin_domain.org)) == toset(["sylvain.cloud", "sylvain.dev"])
+      && alltrue([for domain in pangolin_domain.org : domain.type == "wildcard"])
+    )
+    error_message = "Changer base_domain ou type recrée le domaine : sylvain.cloud et sylvain.dev restent en wildcard."
+  }
+}
