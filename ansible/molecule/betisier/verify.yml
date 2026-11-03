@@ -17,6 +17,8 @@
         verify_compose_service: betisier
         verify_compose_databases:
           - betisier_db
+        verify_compose_healthchecks:
+          - betisier
         verify_compose_healthy_dependencies:
           - { service: betisier, dependency: betisier_db }
         verify_compose_internal_networks:
