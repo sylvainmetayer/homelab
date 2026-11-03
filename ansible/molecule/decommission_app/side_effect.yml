@@ -257,7 +257,8 @@
       vars:
         fixture_service: no_unit_app
 
-    - name: Run the role on the app with no unit
+    # Pas une variable du rôle : le scope de l'hôte, qu'il lit (vars/main.yml).
+    - name: Run the role on the app with no unit  # noqa: var-naming[no-role-prefix]
       ansible.builtin.include_role:
         name: decommission_app
       vars:
