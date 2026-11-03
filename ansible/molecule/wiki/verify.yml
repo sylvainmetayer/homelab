@@ -22,6 +22,20 @@
         verify_compose_internal_networks:
           - wiki
 
+    - name: Read the wiki compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/wiki/compose.yaml
+      register: wiki_compose_raw
+
+    # Molecule ne démarre pas les images : seul le compose peut être vérifié.
+    - name: Assert the bookstack container stays hardened
+      vars:
+        wiki_compose: "{{ wiki_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges:true' in wiki_compose.services.bookstack.security_opt"
+        fail_msg: bookstack n'a plus no-new-privileges.
+
     - name: Stat the wiki borgmatic configuration
       become: true
       ansible.builtin.stat:
