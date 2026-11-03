@@ -21,6 +21,7 @@
   when:
     - ssh_login_notify_enabled | bool
     - ssh_login_notify_push_url | length > 0
+    - ssh_login_notify_known_fingerprints | length > 0
     - ssh_login_notify_ntfy_token | length == 0
   ansible.builtin.debug:
     msg: >-

@@ -85,6 +85,8 @@ principal Hetzner, lui, le peut : changer son mot de passe en priorité.
 
 ### Clé SSH perso perdue ou volée
 
+Volée : commencer par l'étape 7, cette clé ne sonne pas sur le téléphone.
+
 1. Se connecter avec une autre clé autorisée (`pro`, `android`), ou par la
    console (Hetzner pour Pangolin et flip, Proxmox pour la VM docker, accès
    physique pour le Pi), avec le mot de passe de `sylvain`.
@@ -110,14 +112,15 @@ principal Hetzner, lui, le peut : changer son mot de passe en priorité.
 7. `ssh_login_notify` : une clé de `ssh_login_notify_known_fingerprints`
    (défauts du rôle : `keys/perso.pub` et `keys/github-actions.pub` ;
    `host_vars/newt-lxc` : `keys/perso.pub` seule) **ne sonne pas sur le
-   téléphone**. Une clé `perso` volée ne déclenche donc aucune alerte Telegram
-   (hors newt-lxc pour la clé de CI,
+   téléphone**. Une clé `perso` volée ne déclenche donc aucune alerte Telegram,
+   sur aucun hôte (la clé de CI non plus, sauf sur newt-lxc,
    [ADR 0027](../adr/0027-connexions-ssh-cles-connues.md)) : chercher ses
    connexions dans le topic ntfy `scripts` et dans
    `journalctl -t ssh-login-notify --grep 'clé connue'` (aussi dans
    VictoriaLogs). **Volée : faire cette étape dès le début** : retirer
    l'ancienne empreinte des deux listes, ajouter la nouvelle
-   (`ssh-keygen -lf keys/perso.pub`), puis
+   (`ssh-keygen -lf keys/perso.pub`), puis sur chaque hôte de la liste
+   (docker, flip, newt-lxc, pangolin, pi : un hôte oublié reste muet)
    `ansible-playbook 00-setup.yaml --tags ssh_login_notify --limit <hôte>`.
    Une clé absente de la liste sonne : l'oubli se voit.
 

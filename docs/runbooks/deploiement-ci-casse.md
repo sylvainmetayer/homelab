@@ -103,7 +103,9 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   identifiants OLM) : ils viennent de `tofu/github` (`environments.tf`,
   `ssh_key.tf`) ; `tofu plan` puis `tofu apply` dans
   `tofu/github`. Une nouvelle clé SSH réécrit `keys/github-actions.pub` : la
-  committer puis rejouer `00-setup.yaml` sur les hôtes.
+  committer avec sa nouvelle empreinte dans `ssh_login_notify_known_fingerprints`
+  (défauts du rôle, sinon chaque déploiement sonne sur Telegram et le scénario
+  Molecule échoue), puis rejouer `00-setup.yaml` sur les hôtes.
 
 ## Vérification
 
