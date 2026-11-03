@@ -36,6 +36,9 @@ services:
     container_name: karakeep-chrome
     security_opt:
       - no-new-privileges:true
+    # Utilisateur 65534 dès l'entrypoint (image) : aucune capacité à perdre.
+    cap_drop:
+      - ALL
     restart: unless-stopped
     init: true
     command:

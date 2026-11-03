@@ -91,8 +91,9 @@
         that:
           - "'no-new-privileges:true' in karakeep_compose.services.web.security_opt"
           - "'no-new-privileges:true' in karakeep_compose.services.chrome.security_opt"
+          - karakeep_compose.services.chrome.cap_drop == ['ALL']
           - "'--no-sandbox' in karakeep_compose.services.chrome.command"
-        fail_msg: web ou chrome de karakeep n'est plus durci (no-new-privileges, --no-sandbox).
+        fail_msg: web ou chrome de karakeep n'est plus durci (no-new-privileges, cap_drop, --no-sandbox).
 
     # Seul le web est joignable par Pangolin ; chrome et Meilisearch restent
     # sur le réseau du projet.
