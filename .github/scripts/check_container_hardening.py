@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # Only a key closes a top-level section: `---` and Jinja also sit in column 0.
 TOP_LEVEL = re.compile(r"^(?P<key>[A-Za-z0-9._-]+):")
 # The name may be templated, and an anchor or a flow value may follow it.
-SERVICE_LINE = re.compile(r"^  (?P<key>(?:\{\{.*?\}\}|[A-Za-z0-9._-])+):(?:\s|$)")
+SERVICE_LINE = re.compile(r"^  (?P<key>(?:\{\{[^{}]*\}\}|[A-Za-z0-9._-])+):(?:\s|$)")
 SERVICE_KEY = re.compile(r"^    (?P<key>[A-Za-z_]+):")
 # Block form (`- no-new-privileges:true`) or flow form (`["no-new-privileges:true"]`).
 OPTION = re.compile(
