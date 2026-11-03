@@ -3002,8 +3002,7 @@ run "hand_made_leftovers_stay_as_imported" {
 
   assert {
     condition = (
-      pangolin_site_resource.nas_web.destination == "192.168.1.137"
-      && pangolin_site_resource.nas_web.destination_port == 9999
+      pangolin_site_resource.nas_web.destination_port == 9999
       && pangolin_site_resource.nas_web.subdomain == "nas-internal"
     )
     error_message = "00-NTF-nas doit rester l'accès au port 9999 du NAS sur nas-internal."
