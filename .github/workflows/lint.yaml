@@ -106,6 +106,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_immich_versions.py
 
+      # Molecule ne démarre aucune image : un service qui perd no-new-privileges,
+      # ou qui naît sans, ne se verrait nulle part (docs/conventions/container-hardening.md).
+      - name: Check no-new-privileges on the compose services
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/check_container_hardening.py
+
       # mermaid.min.js du hook mkdocs_mermaid.py, en cache sous l'empreinte du
       # hook (qui porte la version et le sha256 épinglés) : le build ne dépend
       # pas de jsDelivr à chaque run (le hook revérifie le sha256 du fichier
