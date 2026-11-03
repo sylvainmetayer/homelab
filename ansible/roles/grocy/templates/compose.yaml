@@ -11,6 +11,8 @@ services:
     # images), puis tourne en abc.
     image: lscr.io/linuxserver/grocy:4.7.1@sha256:6282144f9a14d4a4dca2bc96801a2e43a2ff51116f001b13e5488eacad7b80e2
     container_name: grocy
+    security_opt:
+      - no-new-privileges:true
     env_file:
       - .env
     volumes:

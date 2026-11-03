@@ -3,6 +3,8 @@ services:
   bookstack:
     mem_limit: 768m
     container_name: bookstack
+    security_opt:
+      - no-new-privileges:true
     networks:
       - newt    # Réseau externe pour accès Pangolin/Traefik
       - wiki    # Réseau interne pour communication avec la DB
