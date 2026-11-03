@@ -77,5 +77,7 @@ Deux règles qui valent pour tous les runbooks :
 - **Sylvain applique lui-même.** `tofu apply` et `ansible-playbook` sans
   `--check` touchent la production : relire le plan ou le `--check --diff`
   avant.
-- **Merger sur `main` déploie** dès que la PR touche `ansible/roles/**` ou un
-  playbook d'hôte (`deploy-docker-app.yaml`).
+- **Merger sur `main` déploie** dès que la PR touche `ansible/roles/**`, un
+  playbook d'hôte, ses `host_vars`, un fichier partagé d'`ansible/` ou
+  `docs/**` (`deploy-docker-app.yaml`, détail dans
+  [deploiement-ci-casse.md](deploiement-ci-casse.md)).

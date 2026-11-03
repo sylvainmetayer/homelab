@@ -41,7 +41,8 @@ sudo dmesg | grep -i "memory cgroup out of memory"
 
 Un conteneur au plafond de son `mem_limit` n'est pas forcément tué : son
 cache de pages est évincé et il martèle le disque. Un `oom_kill` qui monte
-signale une boucle OOM (cas de gramps : 8 workers gunicorn sous 1 Gio).
+signale une boucle OOM (cas de gramps, appli retirée depuis : 8 workers
+gunicorn sous 1 Gio).
 
 Place disque :
 

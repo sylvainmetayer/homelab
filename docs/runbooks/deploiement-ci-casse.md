@@ -3,14 +3,19 @@
 Rappels :
 
 - `deploy-docker-app.yaml` part à chaque **push sur `main`** qui touche
-  `ansible/roles/**` ou un playbook d'hôte (`docker.yml`, `pi.yml`,
-  `pangolin.yaml`, `flip.yml`). Il déduit les tags des rôles modifiés
+  `ansible/roles/**`, un playbook d'hôte (`docker.yml`, `pi.yml`,
+  `pangolin.yaml`, `flip.yml`), `ansible/host_vars/` de ces hôtes,
+  `ansible/group_vars/all/**`, `ansible/tasks/**`, `ansible/requirements.yml`,
+  ou les sources du site de docs (`docs/**`, `mkdocs.yml`,
+  `.github/scripts/mkdocs_*.py`). Il déduit les tags des fichiers modifiés
   (`.github/scripts/resolve_docker_tags.py`), ouvre le tunnel OLM vers
   Pangolin, puis lance les playbooks concernés.
 - Il tourne dans l'environnement GitHub `production` : ses secrets
-  (`SOPS_AGE_KEY`, `SSH_PRIVATE_KEY`, `OLM_ID`, `OLM_SECRET`,
-  `PANGOLIN_ENDPOINT`) ne sont lisibles que depuis `main`
-  (`tofu/github/environments.tf`).
+  (`SOPS_AGE_KEY`, `SSH_PRIVATE_KEY`, `OLM_ID`, `OLM_SECRET`) ne sont lisibles
+  que depuis `main` (`tofu/github/environments.tf`). Deux autres sont des
+  secrets du dépôt, hors de ce fichier : `PANGOLIN_ENDPOINT`, qu'aucun module
+  Tofu ne gère, et `HOMELAB_SECRETS_SSH_KEY`
+  (`tofu/github/repository_homelab_secrets.tf`).
 - Le ruleset de `main` (`tofu/github/ruleset_homelab.tf`) exige une PR et les
   checks `Ansible lint`, `OpenTofu lint`, `Tests`, `CI lint`. Le rôle admin
   peut contourner.
@@ -47,7 +52,7 @@ Où ça casse :
 | `Load secrets …` | `SOPS_AGE_KEY` ne déchiffre plus (`.sops.yaml` ou destinataire `github-actions` modifié) |
 | `Read Terraform state from S3 bucket` | clés `state_s3_*` invalides, bucket OVH indisponible |
 | tâche d'un rôle, handler `Restart <service>` | l'appli elle-même ne démarre plus : [appli-en-panne.md](appli-en-panne.md) |
-| `No matching role changed` (vert) | seul un playbook a changé, pas un rôle, ou seulement le `README.md` d'un rôle (jamais lu par Ansible) : rien n'est déployé |
+| `No matching role changed` (vert) | rien à déployer : seuls les commentaires ou la mise en forme d'un playbook ont changé, une entrée de rôle a été retirée, ou seul le `README.md` d'un rôle a changé (jamais lu par Ansible). Aussi un rôle absent des quatre playbooks de la CI : `nas.yml`, `pve.yml` ou `lxc.yml` (`jellyfin`, `mediamanager`…) s'appliquent **à la main**, le run vert ne les a pas déployés (avis `deployed by hand only` dans `Resolve ansible tags`) |
 | `Determine changed files` (vert) : « already deployed by a later successful run » | relance d'un vieux run : un run plus récent a déjà déployé ce commit, rien n'est rejoué (ce serait un retour en arrière) |
 | `Determine changed files` : avertissement « no usable last successful push run » | premier run, plus aucun run réussi dans l'API ou historique réécrit : seul ce push est déployé, les runs annulés ou rouges d'avant ne sont pas rattrapés (les relancer à la main, `workflow_dispatch` avec `tags`) |
 

@@ -43,7 +43,7 @@ session quand son mot de passe change), seules les nouvelles échouent.
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
 | Flip Planning, démo Keycloak | flip, `flip.yml`, `demo_planning_kc` | `demo-planning-kc-db` et `demo-planning-kc-keycloak-db` | `festival` (base `festival`) et `keycloak` (base `keycloak`) | SOPS `demo_planning_kc_db_password` et `demo_planning_kc_keycloak_db_password` | `.env` ; compose (`KC_DB_PASSWORD` de Keycloak) |
 | Betisier (`betisier`) | docker, `docker.yml`, `betisier` | `betisier_db` (`lscr.io/linuxserver/mariadb:11.8.9`) | `betisier` ; root a le même mot de passe | SOPS `betisier_db_password` | `/opt/apps/betisier/config/config.inc.php` (`DBPASSWD`, à la main) |
-| Monica (`monica_v4`) | docker, `docker.yml`, **`monica`** | `monica_v4_db` (linuxserver 11.8.9) | `monica` ; root a le même mot de passe | SOPS `monica_v4_db_password` | `/opt/apps/monica_v4/.env` (`DB_PASSWORD`, à la main : `env_file` non templaté) |
+| Monica (`monica_v4`) | docker, `docker.yml`, **`monica`** | `monica_v4_db` (linuxserver 11.8.9) | `monica` ; root a le même mot de passe | SOPS `monica_v4_db_password` | `.env` (`DB_PASSWORD`, templaté) |
 | Nextcloud (`nextcloud`) | docker, `docker.yml`, `nextcloud` | `nextcloud_db` (`mariadb:12.3.3`, image officielle) | `nextcloud` ; root a le même mot de passe | SOPS `nextcloud_db_password` | `config.php` de Nextcloud (`dbpassword`) : le conteneur `nextcloud` ne reçoit aucune variable de base |
 | BookStack (`wiki`) | docker, `docker.yml`, `wiki` | `bookstack_db` (linuxserver 11.8.9) | `bookstack` ; root a le même mot de passe | SOPS `wiki_db_password` (le défaut du rôle, `wiki`, n'est jamais utilisé) | `/opt/apps/wiki/config/www/.env` (`DB_PASSWORD`). Le `DB_PASS` du compose est ignoré : l'image actuelle ne lit que `DB_PASSWORD`, dans ce `.env` |
 
@@ -167,7 +167,6 @@ D'abord les fichiers écrits à la main que liste la dernière colonne du
 tableau, sur l'hôte (`mise run ssh`), avec un éditeur (`sudo` si le fichier
 n'est pas à `sylvain`), en collant le contenu de `$r/nouveau` :
 
-- Monica : `DB_PASSWORD=` de `/opt/apps/monica_v4/.env` ;
 - BookStack : `DB_PASSWORD=` de `/opt/apps/wiki/config/www/.env` ;
 - Betisier : `define('DBPASSWD', "…");` de
   `/opt/apps/betisier/config/config.inc.php` ;
