@@ -2,10 +2,10 @@
 
 Memory and journal settings of a Docker host: a zram swap, optionally a disk swap behind it, a capped persistent journal and, on the Pi, extra kernel parameters.
 
-Part of `docker.yml`, `pi.yml` and `flip.yml` (tags `tuning,setup`; a merge changing the role deploys tag `tuning` on those three). Not on Pangolin, the NAS, the LXC or the Proxmox host. The role entries have no `become`: each task asks for it.
+Part of `docker.yml`, `pi.yml` and `flip.yml` (tags `tuning,setup`; a merge changing the role deploys tag `tuning` on those three). Not on Pangolin, the NAS, the LXC or the Proxmox host. The role entries have no `become`: the tasks that need it ask for it.
 
 - **zram** (`zram-tools`, 2 GiB zstd by default): a safety net against overcommit. Without swap, an overflow lets the host's OOM killer kill a random container, and zram does not write to the entry-level SATA SSD.
-- **Disk swap** (`dphys-swapfile`, `/var/swap`): overflow behind zram, off unless `host_tuning_disk_swap_size_mb` is above 0. Its negative default priority means it only serves once zram is full.
+- **Disk swap** (`dphys-swapfile`, `/var/swap`): overflow behind zram, managed only when `host_tuning_disk_swap_size_mb` is above 0. Its negative default priority means it only serves once zram is full.
 - **Journal** (`/etc/systemd/journald.conf.d/50-size.conf`): `Storage=persistent` and `SystemMaxUse` (500M). `docker compose up` run attached sends every container's logs to journald, which grew to 3.6 GB. On the Pi this drop-in also beats the `Storage=volatile` of `raspberrypi-sys-mods`.
 - **Kernel command line**: `host_tuning_kernel_cmdline_params` appended to `host_tuning_kernel_cmdline_path` (`/boot/firmware/cmdline.txt`), only for a parameter not already there as a whole word. Empty on every host but the Pi.
 
@@ -20,7 +20,7 @@ Only `host_vars/pi` overrides this role: `host_tuning_disk_swap_size_mb: 4096` a
 
 ## Testing
 
-`mise run molecule host_tuning` loads `host_vars/pi`, so every branch runs, but on simulations: zram is a kernel module of the runner's kernel, so `prepare.yml` shadows `/sys/block` with a tmpfs and replaces `zramswap`, `dphys-swapfile` and `modprobe` with fakes, and `cmdline.txt` is a copy. No device is resized, no swap activated, nothing booted. On a real host, check by hand: `zramctl`, `swapon --show`, `journalctl --disk-usage`, `cat /proc/cmdline`.
+`mise run molecule host_tuning` loads `host_vars/pi`, so every `when:` branch of the role runs, but on simulations: zram is a kernel module of the runner's kernel, so `prepare.yml` shadows `/sys/block` with a tmpfs and replaces `zramswap`, `dphys-swapfile` and `modprobe` with fakes, and `cmdline.txt` is a copy. It also removes `/dev/zram*`, so the zram handler only takes its fallback branch (`modprobe -r`): **the `swapoff` and sysfs reset of a real host never run**. No device is resized, no swap activated, nothing booted. On a real host, check by hand: `zramctl`, `swapon --show`, `journalctl --disk-usage`, `cat /proc/cmdline`.
 
 ## Pointers
 
