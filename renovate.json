@@ -235,7 +235,7 @@
       "allowedVersions": "<2.0.0"
     },
     {
-      "description": "borgmatic runs from pipx on the Debian hosts and from its official image on the NAS (ansible/roles/borgmatic/templates/compose.yaml), whose tag is the borgmatic version: both, and the Molecule image's borgmatic, move together",
+      "description": "borgmatic runs from pipx on the Debian hosts and from its official image on the NAS (ansible/roles/borgmatic/templates/compose.yaml), whose tag is the borgmatic version: both, and the Molecule image's borgmatic, are meant to move together, but a group is not atomic: each waits out its own minimumReleaseAge, so the image can follow in a later PR (ansible/roles/borgmatic/README.md)",
       "groupName": "borgmatic",
       "matchPackageNames": [
         "borgmatic",

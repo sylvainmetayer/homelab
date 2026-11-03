@@ -99,7 +99,8 @@ ligne dans le tableau de bord ; flip sort de nouveau sur Internet
 
 - `pangolin.service` ne renonce jamais (`StartLimitIntervalSec=0`) et ne
   télécharge que les images absentes (`--pull missing`).
-- Une montée de Pangolin, Gerbil, Traefik ou Newt arrive groupée par Renovate
-  (`pangolin-role-dependencies`) : lire les notes de version avant de merger,
-  le merge déploie.
+- Une montée de Pangolin, Gerbil, Traefik ou du conteneur Newt arrive groupée
+  par Renovate (`pangolin-role-dependencies`) : lire les notes de version avant
+  de merger, le merge déploie. Celle du Newt du LXC (`newt_service`) arrive à
+  part, et `lxc.yml` se lance à la main.
 - Sauvegarde nuitière de `/opt/pangolin` vers Borg, moniteur push associé.
