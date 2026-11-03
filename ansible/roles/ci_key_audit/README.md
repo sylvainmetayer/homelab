@@ -20,13 +20,14 @@ Depuis [l'ADR 0027](../../../docs/adr/0027-connexions-ssh-cles-connues.md), une 
 | Déploiement réussi sans ligne du hook sur un hôte | ntfy priorité 4, une fois par 24 h par hôte | `down` puis `up` |
 | ntfy refuse une alerte | rien de perdu : relue et réessayée à chaque passage | `down` avec le message, unité en échec |
 | VictoriaLogs ou GitHub injoignable, réponse illisible, quota épuisé, plafond atteint | état inchangé, unité en échec, raison au journal | **aucun push** : DOWN à l'expiration (30 min, trois périodes) |
+| Seule la lecture des étapes d'un run échoue | connexions jugées et alerte partie, curseur figé, unité en échec | aucun push (`down` s'il y a une alerte) |
 | Journal d'un hôte de `ci_key_audit_hosts` silencieux depuis 3 h | curseur figé, le reste jugé quand même | aucun push, comme ci-dessus |
 
 Pourquoi ntfy **et** le moniteur : un moniteur déjà DOWN ne renotifie pas (la raison de l'ADR 0027), donc ntfy porte chaque événement ; ntfy accepte une publication sans abonné (incident du 29/10), donc Telegram la double. Un unique battement manqué ne sonne pas : une panne passagère de GitHub se résorbe seule, une panne qui dure fait tomber le moniteur.
 
 ## Fenêtre et idempotence
 
-- **Curseur persisté, recouvrement** : chaque passage lit depuis `cursor - 1 h` (24 h au premier, ou état perdu ; 29 jours au plus, la rétention). Le curseur n'avance qu'après un passage complet : un timer manqué (`Persistent=true`), une VM éteinte, une panne de plusieurs jours ou un agent Vector en retard ne laissent pas de trou.
+- **Curseur persisté, recouvrement** : chaque passage lit depuis `cursor - 4 h` (24 h au premier, ou état perdu ; 29 jours au plus, la rétention). Le curseur n'avance qu'après un passage complet : un timer manqué (`Persistent=true`), une VM éteinte ou une panne de plusieurs jours ne laissent pas de trou. Un agent Vector arrêté non plus : le curseur avance jusqu'à ce que son hôte soit déclaré silencieux (3 h), et ses lignes rattrapées portent la date du début de la panne, d'où un recouvrement plus long que ce silence (le rôle le vérifie).
 - **Une alerte par événement** : `seen` garde l'empreinte de chaque ligne jugée (hôte, date, message) tant qu'elle peut revenir dans la fenêtre. Elle n'y entre qu'une fois l'alerte **publiée** : une publication ratée est retentée, jamais perdue. État illisible : on repart de 24 h ; une alerte peut revenir, aucune n'est perdue.
 
 ## Les lignes arrivent-elles ?
@@ -34,7 +35,7 @@ Pourquoi ntfy **et** le moniteur : un moniteur déjà DOWN ne renotifie pas (la 
 L'absence de ligne ne veut rien dire seule : aucune connexion de la clé, c'est le cas normal, et le contrôle reste `up`. Deux contrôles disent si elle est suspecte :
 
 1. **Journal de l'hôte** : chaque hôte de `ci_key_audit_hosts` doit avoir envoyé une ligne journald depuis 3 h, le canal même des lignes du hook. Agent Vector arrêté, identifiants refusés : pas de `up`.
-2. **Après un déploiement** : pour chaque run fini, `GET …/attempts/N/jobs` donne les étapes `Deploy <hôte>` réussies (une étape sautée n'attend rien) ; 5 minutes après, chacun doit avoir au moins une ligne de la clé de CI dans le run. Sinon : hook absent, empreinte remplacée ou format changé, et l'alerte priorité 4 le dit. Rien pour les runs antérieurs à l'installation. **Sans déploiement, ce contrôle-là ne dit rien** : un hook retiré d'un hôte reste invisible jusqu'au suivant.
+2. **Après un déploiement** : pour chaque run fini, `GET …/attempts/N/jobs` donne les étapes `Deploy <hôte>` réussies (une étape sautée n'attend rien) ; 5 minutes après, chacun doit avoir au moins une ligne de la clé de CI dans le run, contrôle remis à plus tard tant qu'un journal est silencieux. Sinon : hook absent, empreinte remplacée ou format changé, et l'alerte priorité 4 le dit. Rien pour les runs antérieurs à l'installation. **Sans déploiement, ce contrôle-là ne dit rien** : un hook retiré d'un hôte reste invisible jusqu'au suivant.
 
 À la main : `journalctl -u ci-key-audit -n 20` (« N ligne(s) du hook, M de la clé de CI, K run(s) »), le même résumé dans le message du moniteur, et dans https://logs.sylvain.cloud :
 

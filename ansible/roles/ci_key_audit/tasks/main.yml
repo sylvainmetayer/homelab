@@ -1,17 +1,19 @@
 ---
 # Sans ces jetons, le contrôle tournerait sans jamais pouvoir conclure ni
-# alerter : échec franc au déploiement. Le recouvrement doit relire ce qui attend.
+# alerter : échec franc au déploiement. Le recouvrement doit relire ce qui attend
+# et ce qu'un agent rattrape. Pas de no_log : il cacherait fail_msg, et assert ne
+# montre que les expressions, jamais leurs valeurs.
 - name: Check the settings of the CI key audit
-  no_log: true
   ansible.builtin.assert:
     that:
       - ci_key_audit_vl_password | length > 0
       - ci_key_audit_ntfy_token | length > 0
       - ci_key_audit_overlap_seconds > ci_key_audit_settle_seconds
+      - ci_key_audit_overlap_seconds > ci_key_audit_freshness_seconds
     fail_msg: >-
       victoria_logs_ui_password et ntfy_scripts_token (secrets/ansible.sops.yaml)
       ne doivent pas être vides ; ci_key_audit_overlap_seconds doit dépasser
-      ci_key_audit_settle_seconds.
+      ci_key_audit_settle_seconds et ci_key_audit_freshness_seconds.
     quiet: true
 
 - name: Warn when the CI key audit has no monitor

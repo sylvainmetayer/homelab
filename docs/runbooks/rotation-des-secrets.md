@@ -359,10 +359,13 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`, aux traces
   des clés SSH connues (rôle `ssh_login_notify`) :
   `ansible-playbook 00-setup.yaml --tags ssh_login_notify`, sans quoi elles
-  échouent en 401 (`journalctl -t ssh-login-notify`), et au
+  échouent en 401 (`journalctl -t ssh-login-notify`), au
   rapport des coûts (`/etc/cost-report.env`, rôle `cost_report`) :
   `ansible-playbook docker.yml --tags cost_report`, sans quoi le rapport du
-  1er échoue (HTTP 401, `journalctl -u cost-report`).
+  1er échoue (HTTP 401, `journalctl -u cost-report`), et au contrôle de la clé
+  de CI (rôle `ci_key_audit`) : `ansible-playbook docker.yml --tags ci_key_audit`,
+  sans quoi ses alertes ntfy échouent en 401 sans que rien ne le montre avant la
+  première (reste le moniteur, donc Telegram).
 - `ntfy_canary_token` est dans l'URL du webhook de chaque jeton
   Canarytokens.org : après sa rotation, refaire l'URL
   (`ansible/roles/canary/README.md`, « Webhook vers ntfy ») et la coller

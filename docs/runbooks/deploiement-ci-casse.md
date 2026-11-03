@@ -163,7 +163,9 @@ ansible-playbook docker.yml --tags <tag> --check --diff
   `tofu/github`. Une nouvelle clé SSH réécrit `keys/github-actions.pub` : la
   committer avec sa nouvelle empreinte dans `ssh_login_notify_known_fingerprints`
   (défauts du rôle, sinon chaque déploiement sonne sur Telegram et le scénario
-  Molecule échoue), puis rejouer `00-setup.yaml` sur les hôtes.
+  Molecule échoue) et dans `ci_key_audit_fingerprint` (défauts du rôle, sinon ce
+  contrôle se dit aveugle et son scénario échoue), puis rejouer `00-setup.yaml`
+  sur les hôtes et `docker.yml --tags ci_key_audit`.
 
 ## Vérification
 
