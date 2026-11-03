@@ -12,9 +12,9 @@
   loop_control:
     label: "{{ item.key }}"
 
-- name: Count the trace failures in the journal
-  ansible.builtin.shell: journalctl -t ssh-login-notify -o cat --no-pager | grep -c 'échec de la trace ntfy' || true
-  register: ssh_login_notify_failures_before
+- name: Read the journal before the login
+  ansible.builtin.command: journalctl -t ssh-login-notify -o cat --no-pager
+  register: ssh_login_notify_journal_before
   changed_when: false
 
 - name: "Log in while ntfy fails, {{ ntfy_failure.name }}"
@@ -36,10 +36,10 @@
 # Le ntfy muet garde curl en vie : le jeton ne se lit pas dans ps.
 - name: Read the curl command lines while ntfy never answers
   when: ntfy_failure.url is search(':18081')
-  ansible.builtin.shell: ps -eo comm=,args= | awk '$1 == "curl"'
-  register: ssh_login_notify_curl_args
+  ansible.builtin.command: ps -eo comm=,args=
+  register: ssh_login_notify_ps
   changed_when: false
-  until: ssh_login_notify_curl_args.stdout | length > 0
+  until: ssh_login_notify_ps.stdout_lines | select('match', 'curl ') | list | length > 0
   retries: 5
   delay: 1
 
@@ -47,15 +47,17 @@
   when: ntfy_failure.url is search(':18081')
   ansible.builtin.assert:
     that:
-      - ntfy_scripts_token not in ssh_login_notify_curl_args.stdout
-      - "'Bearer' not in ssh_login_notify_curl_args.stdout"
+      - ntfy_scripts_token not in ssh_login_notify_ps.stdout
+      - "'Bearer' not in ssh_login_notify_ps.stdout"
     fail_msg: curl montre son jeton dans ps.
 
 # 22 s au pire : deux essais de 10 s, le ntfy muet.
 - name: "Wait for the failure in the journal, {{ ntfy_failure.name }}"
-  ansible.builtin.shell: journalctl -t ssh-login-notify -o cat --no-pager | grep -c 'échec de la trace ntfy' || true
-  register: ssh_login_notify_failures_after
+  ansible.builtin.command: journalctl -t ssh-login-notify -o cat --no-pager
+  register: ssh_login_notify_journal_after
   changed_when: false
-  until: ssh_login_notify_failures_after.stdout | int == ssh_login_notify_failures_before.stdout | int + 1
+  until: >-
+    (ssh_login_notify_journal_after.stdout_lines | select('search', 'échec de la trace ntfy') | list | length)
+    == (ssh_login_notify_journal_before.stdout_lines | select('search', 'échec de la trace ntfy') | list | length) + 1
   retries: 30
   delay: 1
