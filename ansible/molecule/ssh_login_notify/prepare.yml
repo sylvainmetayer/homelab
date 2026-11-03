@@ -29,8 +29,8 @@
         mode: "0700"
 
     # Trois clés : une qui notifie, une dont l'empreinte est dans
-    # ssh_login_notify_ignored_fingerprints (converge.yml), et une autre qui
-    # porte le même commentaire que celle-ci, sans être ignorée pour autant.
+    # ssh_login_notify_known_fingerprints (converge.yml), et une autre qui
+    # porte le même commentaire que celle-ci, sans être connue pour autant.
     - name: Generate the test key pairs of sylvain
       become: true
       become_user: sylvain
@@ -39,8 +39,8 @@
         creates: /home/sylvain/.ssh/{{ item.file }}
       loop:
         - {file: molecule-login, comment: molecule-login}
-        - {file: molecule-ignored, comment: molecule-ignored}
-        - {file: molecule-impostor, comment: molecule-ignored}
+        - {file: molecule-known, comment: molecule-known}
+        - {file: molecule-impostor, comment: molecule-known}
       loop_control:
         label: "{{ item.file }}"
 
@@ -50,7 +50,7 @@
       register: ssh_login_notify_test_pubkeys
       loop:
         - molecule-login
-        - molecule-ignored
+        - molecule-known
         - molecule-impostor
 
     # Comme 00-setup.yaml : une ligne par clé, son commentaire en fin de ligne.
@@ -69,7 +69,7 @@
         state: directory
         mode: "0700"
 
-    - name: Install the fake Uptime Kuma servers
+    - name: Install the fake Uptime Kuma and ntfy servers
       ansible.builtin.copy:
         src: "{{ item }}.py"
         dest: /usr/local/bin/molecule-{{ item }}
@@ -77,6 +77,7 @@
       loop:
         - push-catcher
         - push-blackhole
+        - ntfy-catcher
 
     - name: Install their systemd units
       ansible.builtin.copy:
@@ -91,8 +92,9 @@
       loop:
         - push-catcher
         - push-blackhole
+        - ntfy-catcher
 
-    - name: Start the fake Uptime Kuma servers
+    - name: Start the fake Uptime Kuma and ntfy servers
       ansible.builtin.systemd:
         name: molecule-{{ item }}
         state: started
@@ -100,3 +102,4 @@
       loop:
         - push-catcher
         - push-blackhole
+        - ntfy-catcher

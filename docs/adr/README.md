@@ -71,3 +71,4 @@ au plus :
 | [0024](0024-deploiement-au-merge.md) | Le merge sur `main` déploie : quatre playbooks en CI, Tofu et le reste à la main | acceptée (Tofu en CI ouvert : #704) |
 | [0025](0025-promptoramix-ouverte-sur-flip.md) | Promptoramix sur flip, ouverte de partout, gardée par sa seule signature HMAC | acceptée |
 | [0026](0026-vzdump-sur-le-nas-seul.md) | Sauvegardes vzdump sur le NAS seul, sans copie hors site | acceptée |
+| [0027](0027-connexions-ssh-cles-connues.md) | Connexions SSH : clés connues tracées sur ntfy, tout le reste sonne sur Telegram | acceptée |

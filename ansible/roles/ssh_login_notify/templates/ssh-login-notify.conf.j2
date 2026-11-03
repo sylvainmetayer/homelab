@@ -1,6 +1,9 @@
 # {{ ansible_managed }}
 # Lu (source) par {{ ssh_login_notify_script }}. 0600 root : l'URL porte le
-# jeton du moniteur push.
+# jeton du moniteur push, et NTFY_TOKEN celui de ntfy.
 PUSH_URL={{ ssh_login_notify_push_url | quote }}
-# Une empreinte SHA256 par ligne.
-IGNORED_FINGERPRINTS={{ ssh_login_notify_ignored_fingerprints | join('\n') | quote }}
+# Une empreinte SHA256 par ligne : clés connues, tracées sur ntfy sans push.
+KNOWN_FINGERPRINTS={{ ssh_login_notify_known_fingerprints | join('\n') | quote }}
+NTFY_URL={{ ssh_login_notify_ntfy_url | quote }}
+NTFY_TOPIC={{ ssh_login_notify_ntfy_topic | quote }}
+NTFY_TOKEN={{ ssh_login_notify_ntfy_token | quote }}

@@ -155,6 +155,7 @@ nav:
       - adr/0024-deploiement-au-merge.md
       - adr/0025-promptoramix-ouverte-sur-flip.md
       - adr/0026-vzdump-sur-le-nas-seul.md
+      - adr/0027-connexions-ssh-cles-connues.md
   - Conventions:
       - conventions/ansible.md
       - conventions/app-lifecycle.md

@@ -1,6 +1,7 @@
 ---
 # Comme 00-setup.yaml : rôle appliqué avec become, l'URL push venant du state
-# de pangolin_config (ici le faux Uptime Kuma local de prepare.yml).
+# de pangolin_config (ici le faux Uptime Kuma local de prepare.yml), le jeton
+# ntfy de la fausse clé SOPS ntfy_scripts_token.
 - name: Converge
   hosts: all
   vars_files:
@@ -9,16 +10,19 @@
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
-    # La clé ignorée l'est par son empreinte, calculée sur l'instance (les
+    # La clé connue l'est par son empreinte, calculée sur l'instance (les
     # paires de clés sont générées par prepare.yml).
-    - name: Compute the fingerprint of the ignored test key
-      ansible.builtin.command: ssh-keygen -l -E sha256 -f /home/sylvain/.ssh/molecule-ignored.pub
-      register: ssh_login_notify_test_ignored_fp
+    - name: Compute the fingerprint of the known test key
+      ansible.builtin.command: ssh-keygen -l -E sha256 -f /home/sylvain/.ssh/molecule-known.pub
+      register: ssh_login_notify_test_known_fp
       changed_when: false
   roles:
     - role: ssh_login_notify
       become: true
       vars:
         ssh_login_notify_push_url: http://127.0.0.1:18080/api/push/molecule-ssh-login
-        ssh_login_notify_ignored_fingerprints:
-          - "{{ ssh_login_notify_test_ignored_fp.stdout.split()[1] }}"
+        ssh_login_notify_ntfy_url: http://127.0.0.1:18082
+        # Deux entrées : la vraie valeur a plusieurs lignes dans la configuration.
+        ssh_login_notify_known_fingerprints:
+          - SHA256:molecule-other-known-key
+          - "{{ ssh_login_notify_test_known_fp.stdout.split()[1] }}"

@@ -354,7 +354,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison
-  (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`, et au
+  (rôle `canary`) : `ansible-playbook 00-setup.yaml --tags canary`, aux traces
+  des clés SSH connues (rôle `ssh_login_notify`) :
+  `ansible-playbook 00-setup.yaml --tags ssh_login_notify`, sans quoi elles
+  échouent en 401 (`journalctl -t ssh-login-notify`), et au
   rapport des coûts (`/etc/cost-report.env`, rôle `cost_report`) :
   `ansible-playbook docker.yml --tags cost_report`, sans quoi le rapport du
   1er échoue (HTTP 401, `journalctl -u cost-report`).

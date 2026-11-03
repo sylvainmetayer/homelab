@@ -13,12 +13,30 @@ ssh_login_notify_enabled: true
 # posé reste en place.
 ssh_login_notify_push_url: ""
 
-# Empreintes SHA256 (format de `ssh-keygen -l` : "SHA256:...") des clés dont
-# les connexions ne notifient pas. Par empreinte, pas par commentaire : le
-# commentaire d'une ligne de authorized_keys se change par qui est connecté.
-# Vide : tout notifie, CI comprise — une clé de CI compromise est justement ce
-# qu'on veut voir.
-ssh_login_notify_ignored_fingerprints: []
+# Empreintes SHA256 (format de `ssh-keygen -l` : "SHA256:...") des clés connues :
+# une connexion laisse une trace basse priorité sur ntfy et une ligne de journal,
+# sans push Uptime Kuma, donc sans Telegram. Tout le reste (autre clé, autre
+# méthode, empreinte illisible, liste vide) sonne. Par empreinte, pas par
+# commentaire : le commentaire d'une ligne de authorized_keys se change par qui
+# est connecté. Clé remplacée sans mettre à jour cette liste : elle sonne.
+# Risque accepté : docs/adr/0027-connexions-ssh-cles-connues.md.
+#
+# Ici et pas dans group_vars/all, dont un merge redéploie les quatre playbooks.
+# host_vars/newt-lxc la remplace : la CI ne déploie jamais là-bas.
+ssh_login_notify_known_fingerprints:
+  # keys/github-actions.pub : la CI (deploy-docker-app.yaml).
+  - "SHA256:+I1uk456KeHmdS0BFT0EiL8ahZTcFj6HB1Gt5G5OENc"
+  # keys/perso.pub : Ansible depuis le poste (ansible_ssh_private_key_file,
+  # ~/.ssh/keepassxc.pub, group_vars/all) ; mise run ssh* et un ssh à la main
+  # prennent la même clé, donc la même trace.
+  - "SHA256:4nBRCz6+8kBw3a54j3xKNaTCNrwsBRB/i2nsNn13U58"
+
+# Trace des clés connues : producteur scripts du rôle ntfy (comme canary), jeton
+# dans la configuration 0600 root, jamais sur une ligne de commande. Jeton vide :
+# le journal seulement, avec un avertissement au déploiement.
+ssh_login_notify_ntfy_url: https://ntfy.sylvain.cloud
+ssh_login_notify_ntfy_topic: scripts
+ssh_login_notify_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
 
 ssh_login_notify_script: /usr/local/sbin/ssh-login-notify
 ssh_login_notify_config: /etc/ssh-login-notify.conf

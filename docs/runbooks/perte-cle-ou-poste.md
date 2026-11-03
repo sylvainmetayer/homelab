@@ -107,9 +107,19 @@ principal Hetzner, lui, le peut : changer son mot de passe en priorité.
    compte principal (agent SSH). Mettre la nouvelle clé dans les clés du
    compte principal de la Storage Box (console Hetzner).
 6. GitHub : retirer l'ancienne clé de son compte si elle y était.
-7. `ssh_login_notify` alerte à chaque connexion SSH ; une clé se fait taire
-   par son empreinte (`ssh_login_notify_ignored_fingerprints`), jamais par
-   son commentaire. Mettre à jour la liste si elle contenait l'ancienne.
+7. `ssh_login_notify` : une clé de `ssh_login_notify_known_fingerprints`
+   (défauts du rôle : `keys/perso.pub` et `keys/github-actions.pub` ;
+   `host_vars/newt-lxc` : `keys/perso.pub` seule) **ne sonne pas sur le
+   téléphone**. Une clé `perso` volée ne déclenche donc aucune alerte Telegram
+   (hors newt-lxc pour la clé de CI,
+   [ADR 0027](../adr/0027-connexions-ssh-cles-connues.md)) : chercher ses
+   connexions dans le topic ntfy `scripts` et dans
+   `journalctl -t ssh-login-notify --grep 'clé connue'` (aussi dans
+   VictoriaLogs). **Volée : faire cette étape dès le début** : retirer
+   l'ancienne empreinte des deux listes, ajouter la nouvelle
+   (`ssh-keygen -lf keys/perso.pub`), puis
+   `ansible-playbook 00-setup.yaml --tags ssh_login_notify --limit <hôte>`.
+   Une clé absente de la liste sonne : l'oubli se voit.
 
 ### Poste perdu
 
