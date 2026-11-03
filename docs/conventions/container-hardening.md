@@ -15,6 +15,7 @@ cap_drop:
 
 - **`no-new-privileges` always**, unless the service is listed below. It only stops a gain of privileges through a setuid or setgid binary or file capabilities: an entrypoint started as root that drops to another user (`gosu`, `su-exec`, `setpriv`, s6) still works. What breaks is a process **already unprivileged** calling `sudo`, `su`, a setuid or setgid helper, or a binary that relies on its file capabilities.
 - **`cap_drop: [ALL]` when the image runs unprivileged from its first instruction** (`USER` or `user:`): it has no effective capability to lose. An image started as root gets it only with a tested `cap_add`, possibly empty (the `beszel` hub), written in the compose next to a comment saying which entrypoint call needs each one (`homepage`). A root process with no `CAP_DAC_OVERRIDE` can no longer write a bind mount owned by the deploy user: give the folder to the uid that writes in it (`beszel`, `trek`).
+- `sudo` from root still works under the option, from `abc` it does not: Nextcloud's `occ` wrapper is `sudo -u abc`, so `docker exec nextcloud occ …` works, `docker exec -u abc nextcloud occ …` fails. A setuid `ping` falls back to an ICMP socket through Docker's default `ping_group_range` (speedtest-tracker); not under `network_mode: host`.
 - A new app takes a line off only when a row below covers the service, or with a comment giving the reason.
 
 ## Exceptions
@@ -23,9 +24,14 @@ cap_drop:
 |---|---|---|
 | Databases (postgres, mariadb, redis, valkey, meilisearch) | `cap_drop` | Most start as root and hand over their data directory, meilisearch stays root and writes in it; a wrong capability shows up at a restart, on data. Not worth the risk for a service on an internal network. |
 | s6 images (linuxserver and alike: `grocy`, `speedtest_tracker`, `wiki`, `nextcloud`, `betisier`, `karakeep` web…) | `cap_drop` | `/init` chowns `/config`, adjusts `abc` to PUID/PGID and runs services as `abc`; the set of capabilities depends on the image's init scripts and can change with any update. |
+| `dawarich-app` | `cap_drop` | Its entrypoint runs `chown -R` on `tmp` and `db` (root's in the image) at each recreation, through `tmp/imports/watched`, a `0700` mount of the deploy user: it needs `CAP_DAC_READ_SEARCH` on top of `CHOWN`, `SETUID`, `SETGID`, and only a rootful test can settle the list. |
+| `rss` | `cap_drop` | Apache's master and cron stay root, the entrypoint chowns the data, cron calls `su www-data`. Not analysed further. |
 | `stirling_pdf`, `wishlist` | `cap_drop` | See their compose: `usermod`, `chown` and `setpriv` for one, root writing in the deploy user's folders for the other. |
 | `gluetun` (`mediamanager`) | `cap_drop` | Starts as root with `NET_ADMIN` for the tunnel and its firewall; the other capabilities it needs were not analysed. |
+| `borgmatic` (NAS) | both | `nas.yml` runs by hand; not tried yet. |
 | Immich, Pangolin, Newt (not its socket proxy), `flip_planning`, Paperless (paused), Monica | both | Out of scope for now: family service, the access path to everything else, production, a paused app, an app frozen until December 2026. Not an analysis of the image: to be done before lifting them. |
+
+`check_container_hardening.py` (Lint) enforces the `no-new-privileges` column: its `EXCEPTIONS` list and this table move together. Nothing checks `cap_drop`.
 
 ## Testing a change
 
