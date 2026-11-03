@@ -1,6 +1,7 @@
 ---
-# Un cas de panne de ntfy (ntfy_failure : name, url, topic), sous le become du
-# block appelant. Une ligne d'échec de plus au journal, et un login rapide.
+# Un cas de panne de ntfy (ntfy_failure : name, url, topic, token facultatif),
+# sous le become du block appelant. Une ligne d'échec de plus au journal, et un
+# login rapide.
 - name: "Point the trace at the failing ntfy, {{ ntfy_failure.name }}"
   ansible.builtin.replace:
     path: /etc/ssh-login-notify.conf
@@ -9,6 +10,7 @@
   loop:
     - {key: NTFY_URL, value: "{{ ntfy_failure.url }}"}
     - {key: NTFY_TOPIC, value: "{{ ntfy_failure.topic }}"}
+    - {key: NTFY_TOKEN, value: "{{ ntfy_failure.token | default(ntfy_scripts_token) }}"}
   loop_control:
     label: "{{ item.key }}"
 

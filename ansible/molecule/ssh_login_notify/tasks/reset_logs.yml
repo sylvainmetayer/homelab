@@ -1,0 +1,11 @@
+---
+# Vide les journaux du faux Uptime Kuma et du faux ntfy, avant un cas de test.
+- name: Empty the fake server logs
+  become: true
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ item }}"
+    mode: "0600"
+  loop:
+    - "{{ ssh_login_notify_test_log }}"
+    - "{{ ssh_login_notify_test_ntfy_log }}"

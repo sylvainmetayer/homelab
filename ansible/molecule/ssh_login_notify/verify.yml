@@ -85,14 +85,7 @@
       changed_when: false
 
     - name: Reset the push and ntfy logs
-      become: true
-      ansible.builtin.copy:
-        content: ""
-        dest: "{{ item }}"
-        mode: "0600"
-      loop:
-        - "{{ ssh_login_notify_test_log }}"
-        - "{{ ssh_login_notify_test_ntfy_log }}"
+      ansible.builtin.import_tasks: tasks/reset_logs.yml
 
     - name: Log in over SSH with the notifying key
       ansible.builtin.command: >-
@@ -244,14 +237,7 @@
     # qui la suit de quelques secondes est le premier push de la fenêtre ---
 
     - name: Reset the push and ntfy logs before the window test
-      become: true
-      ansible.builtin.copy:
-        content: ""
-        dest: "{{ item }}"
-        mode: "0600"
-      loop:
-        - "{{ ssh_login_notify_test_log }}"
-        - "{{ ssh_login_notify_test_ntfy_log }}"
+      ansible.builtin.import_tasks: tasks/reset_logs.yml
 
     - name: Log in with the known key, then with an unknown one right after
       ansible.builtin.command: >-
@@ -293,12 +279,8 @@
     # --- une connexion multiplexée n'ouvre qu'une session PAM, quel que soit le
     # nombre de commandes : un seul push ---
 
-    - name: Reset the push log before the multiplexed connection
-      become: true
-      ansible.builtin.copy:
-        content: ""
-        dest: "{{ ssh_login_notify_test_log }}"
-        mode: "0600"
+    - name: Reset the push and ntfy logs before the multiplexed connection
+      ansible.builtin.import_tasks: tasks/reset_logs.yml
 
     # Le maître par -fN, flux fermés : un maître qui hérite de stderr ferait
     # attendre la tâche jusqu'à sa fin.
@@ -349,14 +331,7 @@
       changed_when: false
 
     - name: Reset the push and ntfy logs before the doubtful sessions
-      become: true
-      ansible.builtin.copy:
-        content: ""
-        dest: "{{ item }}"
-        mode: "0600"
-      loop:
-        - "{{ ssh_login_notify_test_log }}"
-        - "{{ ssh_login_notify_test_ntfy_log }}"
+      ansible.builtin.import_tasks: tasks/reset_logs.yml
 
     - name: Call the hook with doubtful authentication info
       become: true
@@ -431,11 +406,8 @@
           ansible.builtin.command: grep -c "^KNOWN_FINGERPRINTS=''$" /etc/ssh-login-notify.conf
           changed_when: false
 
-        - name: Reset the push log before the empty list case
-          ansible.builtin.copy:
-            content: ""
-            dest: "{{ ssh_login_notify_test_log }}"
-            mode: "0600"
+        - name: Reset the push and ntfy logs before the empty list case
+          ansible.builtin.import_tasks: tasks/reset_logs.yml
 
         - name: Log in with the known key and an empty list
           become: false
@@ -469,15 +441,11 @@
           args:
             removes: /etc/ssh-login-notify.conf.orig
 
-    # --- ntfy en panne : le login passe en moins de 5 s, l'échec au journal, et
-    # toujours pas de push pour une clé connue ---
+    # --- ntfy en panne ou sans jeton : le login passe en moins de 5 s, l'échec au
+    # journal, et toujours pas de push pour une clé connue ---
 
-    - name: Reset the push log before the ntfy failures
-      become: true
-      ansible.builtin.copy:
-        content: ""
-        dest: "{{ ssh_login_notify_test_log }}"
-        mode: "0600"
+    - name: Reset the push and ntfy logs before the ntfy failures
+      ansible.builtin.import_tasks: tasks/reset_logs.yml
 
     - name: Run the ntfy failure cases
       become: true
@@ -492,6 +460,8 @@
             - {name: refuses, url: "http://127.0.0.1:18082", topic: refused}
             - {name: closed port, url: "http://127.0.0.1:9", topic: scripts}
             - {name: never answers, url: "http://127.0.0.1:18081", topic: scripts}
+            # Le dernier : l'assertion finale relit son journal.
+            - {name: no token, url: "http://127.0.0.1:18082", topic: scripts, token: ""}
           loop_control:
             loop_var: ntfy_failure
             label: "{{ ntfy_failure.name }}"
@@ -508,11 +478,20 @@
       register: ssh_login_notify_pushes
       changed_when: false
 
-    - name: Assert a known key does not fall back to a push when ntfy fails
+    - name: Read the ntfy log after the ntfy failures
+      become: true
+      ansible.builtin.command: cat {{ ssh_login_notify_test_ntfy_log }}
+      register: ssh_login_notify_ntfy
+      changed_when: false
+
+    # Une seule requête reçue, celle du topic refusé : sans jeton, pas de curl.
+    - name: Assert a known key does not fall back to a push, and sends nothing without a token
       ansible.builtin.assert:
         that:
           - ssh_login_notify_pushes.stdout | length == 0
-        fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }}"
+          - ssh_login_notify_ntfy.stdout_lines | length == 1
+          - ssh_login_notify_journal_after.stdout is search('échec de la trace ntfy, pas de jeton')
+        fail_msg: "{{ ssh_login_notify_pushes.stdout_lines }} / {{ ssh_login_notify_ntfy.stdout_lines }}"
 
     # --- anti-lockout : rien côté notification ne bloque ni ne retarde ---
 
