@@ -19,10 +19,7 @@ services:
     depends_on:
       betisier_db:
         condition: service_healthy
-    # nginx et php-fpm tournent sous s6 : si l'un boucle, le conteneur reste
-    # « running » et Docker ne voit rien. Une connexion TCP à chacun, sans
-    # requête : aucune ligne dans access.log (/config, donc le disque), ni PHP
-    # ni base. Le fonctionnel reste aux sondes de Pangolin et d'Uptime Kuma.
+    # nginx et php-fpm sous s6 : même sonde TCP que le rôle wiki, qui dit pourquoi.
     # Rien n'attend ce service : rouge, la sonde n'arrête ni ne relance rien.
     healthcheck:
       test: ["CMD-SHELL", "nc -z -w 3 127.0.0.1 80 && nc -z -w 3 127.0.0.1 9000"]
