@@ -1,6 +1,6 @@
 # 0010. Supervision : Beszel pour les hôtes, Uptime Kuma (PikaPods) pour les services
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; journaux : VictoriaLogs en place depuis, voir [0011](0011-journaux-victorialogs.md)
 - **Date** : 2026-10-26 (Beszel) ; Uptime Kuma : date à confirmer
 
 ## Contexte

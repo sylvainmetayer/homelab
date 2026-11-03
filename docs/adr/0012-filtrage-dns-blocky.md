@@ -1,6 +1,6 @@
 # 0012. Filtrage DNS du réseau local : Blocky
 
-- **Statut** : proposée (mise en œuvre par la PR du rôle `blocky`, acceptée une fois déployée)
+- **Statut** : acceptée ; déployée sur le Pi et le LXC newt (#945, #1121) ; bascule du DHCP de la Bbox à confirmer (hors dépôt)
 - **Date** : 2026-10-28
 
 ## Contexte
