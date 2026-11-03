@@ -1,6 +1,6 @@
 ---
 # Le rôle doit échouer, sur la tâche attendue : celle dont le nom contient
-# decommission_case.fails_on. decommission_app_repo_delete reste lisible ensuite.
+# decommission_case.fails_on.
 - name: Run the role, which must fail
   block:
     - name: Decommission, expected to fail

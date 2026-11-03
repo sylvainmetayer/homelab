@@ -7,9 +7,9 @@ In `docker.yml`, `pi.yml`, `flip.yml` and `nas.yml`, `tags: [decommission, never
 ## What it does, in order
 
 1. Refuses without `decommission_app_confirm`, `decommission_app_service` and `decommission_app_base_path`, refuses a base path other than `<docker_base_path>/<service>` (`/opt/apps`, `/volume1/docker` on the NAS; `dc@<service>` always runs there, `dc@.service`'s `WorkingDirectory`), and any `decommission_app_extra_paths` entry other than `<nas_storage_mount_path>/<service>`. Nothing has been stopped yet.
-2. Stops and disables `dc@<service>`.
-3. `docker compose down --volumes --remove-orphans` in the base path.
-4. With `decommission_app_destroy_remote_backup` (default `false`): `borgmatic --config <service>.yaml repo-delete --force`. **Irreversible.** A failure stops the run there: config and data stay, fix the cause and run again. A repository already absent is not a failure (`ok`, not `changed`).
+2. With `decommission_app_destroy_remote_backup` (default `false`): `borgmatic --config <service>.yaml repo-delete --force`. **Irreversible.** A failure stops the run there, with the app still running and nothing removed: fix the cause and run again. A repository already absent is not a failure (`ok`, not `changed`).
+3. Stops and disables `dc@<service>`.
+4. `docker compose down --volumes --remove-orphans` in the base path.
 5. Removes `<service>.yaml` and `uptime-kuma/<service>.curl` from `borgmatic_config_dir` (switch: `decommission_app_remove_borgmatic_config`).
 6. Removes the base path and the extra paths as root (switch: `decommission_app_remove_data`).
 7. Removes the `dc@<service>.service.d` drop-ins, then reloads systemd.
@@ -18,7 +18,7 @@ The shared `dc@.service` template stays. On the NAS (`docker_service_scope: syst
 
 ## Non-obvious or dangerous
 
-- **A green run proves nothing about steps 2 and 3**: both tasks have `failed_when: false` (compose's comment gives one reason: on a second pass, the folder is gone). Read their status: compose reports `changed` only on `rc == 0`, so `ok` means it failed. If compose failed, the data is still deleted, and containers may be left running.
+- **A green run proves nothing about steps 3 and 4**: both tasks have `failed_when: false` (compose's comment gives one reason: on a second pass, the folder is gone). Read their status: compose reports `changed` only on `rc == 0`, so `ok` means it failed. If compose failed, the data is still deleted, and containers may be left running.
 - **`repo-delete` needs the borgmatic config**: a first run without `decommission_app_destroy_remote_backup` removes it, and a later run with it fails (« No valid configuration files found »), as does a run again after a successful delete: drop the switch then. Deleting a repository left behind needs its config back (`--tags backup` while the role is still there). Decide before the first run, or keep the config with the switch.
 - **« Already absent » is read off borgmatic's output** (`Repository … does not exist.`, borg exit code 13; borgmatic itself always exits 1). It also holds for a config pointing at the wrong place: `ok` on this task means nothing was deleted.
 - **An app with data on the NAS** must pass its `<service>_data_path` in `decommission_app_extra_paths`, or its files and database cluster stay orphaned there. Nothing else outside the base path is deleted: `ansible/roles/mediamanager/README.md` has such a case.

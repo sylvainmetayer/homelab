@@ -1,12 +1,14 @@
 ---
 - name: Stat what the role removes for {{ fixture_service }}
   become: true
+  vars:
+    fixture_own_paths:
+      - "{{ docker_base_path }}/{{ fixture_service }}"
+      - "{{ borgmatic_config_dir }}/{{ fixture_service }}.yaml"
+      - "{{ borgmatic_config_dir }}/uptime-kuma/{{ fixture_service }}.curl"
   ansible.builtin.stat:
     path: "{{ item }}"
-  loop:
-    - "{{ docker_base_path }}/{{ fixture_service }}"
-    - "{{ borgmatic_config_dir }}/{{ fixture_service }}.yaml"
-    - "{{ borgmatic_config_dir }}/uptime-kuma/{{ fixture_service }}.curl"
+  loop: "{{ fixture_own_paths + fixture_extra_paths | default([]) }}"
   register: fixture_paths
 
 - name: Assert the presence of the app folder and borgmatic files of {{ fixture_service }}

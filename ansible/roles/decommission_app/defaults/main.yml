@@ -4,7 +4,7 @@ decommission_app_confirm: false
 
 # Required, always pass explicitly:
 #   -e decommission_app_service=<service>   (matches dc@<service> and role/base_path naming)
-#   -e decommission_app_base_path=<path>    (usually "{{ <service>_base_path }}")
+#   -e decommission_app_base_path=<path>    (exactly "{{ docker_base_path }}/<service>", anything else is refused)
 decommission_app_service: ""
 decommission_app_base_path: ""
 

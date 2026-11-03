@@ -36,13 +36,13 @@ alongside this skill, registered in `docker.yml`, `pi.yml`, `flip.yml` and `nas.
 1. Asserts `decommission_app_confirm: true` plus service/base_path are set,
    and that base_path is exactly `{{ docker_base_path }}/<service>` —
    refuses to run otherwise, before anything is stopped.
-2. Stops + disables the `dc@<service>` systemd unit.
-3. Runs `docker compose down --volumes --remove-orphans` in the app's base
-   path (removes containers, networks, and named volumes).
-4. Optionally (`decommission_app_destroy_remote_backup: true`) runs
+2. Optionally (`decommission_app_destroy_remote_backup: true`) runs
    `borgmatic repo-delete --force` against the Storage Box repo — irreversible.
-   A real failure stops the run with the config and data kept, so it can be
-   run again; a repository already absent is tolerated.
+   A real failure stops the run with the app still running and nothing removed,
+   so it can be run again; a repository already absent is tolerated.
+3. Stops + disables the `dc@<service>` systemd unit.
+4. Runs `docker compose down --volumes --remove-orphans` in the app's base
+   path (removes containers, networks, and named volumes).
 5. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
 6. Removes the app's data directory (`<service>_base_path`), plus every path
    in `decommission_app_extra_paths`, and its `dc@<service>.service.d`
