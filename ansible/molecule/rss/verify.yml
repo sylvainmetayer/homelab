@@ -58,7 +58,7 @@
         src: /opt/apps/rss/compose.yaml
       register: rss_compose_raw
 
-    - name: Assert the rss container is on newt under its Pangolin target name
+    - name: Assert the rss container is on newt under its Pangolin target name and stays hardened
       vars:
         rss_compose: "{{ rss_compose_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
