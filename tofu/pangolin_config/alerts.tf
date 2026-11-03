@@ -108,14 +108,17 @@ resource "pangolin_alert_rule" "ntfy" {
   }]
 }
 
-# Courriel à chaque changement de santé d'une ressource : malgré son nom,
-# resource_toggle suit healthy, unhealthy et degraded (resourceEvents.ts), pas
-# l'activation d'une ressource. Faite à la main dans l'UI, importée (id 3, voir
+# Courriel aux changements de santé d'une ressource : malgré son nom,
+# resource_toggle suit healthy, unhealthy, degraded et unknown (resourceEvents.ts),
+# pas l'activation d'une ressource. Faite à la main dans l'UI, importée (id 3, voir
 # README). Elle passe par Pangolin, pas par ntfy : le site proxmox-docker hors
 # ligne ne l'empêche pas, mais Pangolin tombé, rien ne part. Le délai évite un
-# courriel par ressource quand un site tombe ; il vaut pour toute la règle, donc
-# une seconde panne dans ces 5 minutes n'envoie rien. user_ids : le compte Admin
-# destinataire, un identifiant opaque (pas d'e-mail dans ce dépôt public).
+# courriel par ressource quand un site tombe : seul le premier part, et il ne nomme
+# qu'une ressource. Il vaut pour toute la règle et tout événement, retours à la
+# normale compris, et compte même si l'envoi a échoué : une panne de moins de 5
+# minutes n'annonce pas son retour, et une panne qui suit le retour d'une autre
+# dans ces 5 minutes n'envoie rien. user_ids : le compte Admin destinataire, un
+# identifiant opaque (pas d'e-mail dans ce dépôt public).
 resource "pangolin_alert_rule" "resource_toggle" {
   name             = "Ressource Alerts"
   event_type       = "resource_toggle"

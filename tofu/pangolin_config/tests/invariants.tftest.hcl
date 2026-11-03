@@ -3001,6 +3001,11 @@ run "hand_made_leftovers_stay_as_imported" {
   }
 
   assert {
+    condition     = pangolin_alert_rule.resource_toggle.cooldown_seconds == 300
+    error_message = "Ressource Alerts garde son délai : sans lui (0 par défaut), un site hors ligne envoie un courriel par ressource."
+  }
+
+  assert {
     condition = (
       pangolin_site_resource.nas_web.destination_port == 9999
       && pangolin_site_resource.nas_web.subdomain == "nas-internal"
