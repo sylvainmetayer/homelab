@@ -85,7 +85,8 @@ principal Hetzner, lui, le peut : changer son mot de passe en priorité.
 
 ### Clé SSH perso perdue ou volée
 
-Volée : commencer par l'étape 7, cette clé ne sonne que sur newt-lxc.
+Volée : générer la nouvelle clé, puis commencer par l'étape 7, cette clé ne
+sonne que sur newt-lxc.
 
 1. Se connecter avec une autre clé autorisée (`pro`, `android`), ou par la
    console (Hetzner pour Pangolin et flip, Proxmox pour la VM docker, accès
@@ -119,7 +120,8 @@ Volée : commencer par l'étape 7, cette clé ne sonne que sur newt-lxc.
    `journalctl -t ssh-login-notify --grep 'clé connue'` (aussi dans
    VictoriaLogs). **Volée : faire cette étape dès le début** : retirer
    l'ancienne empreinte des défauts du rôle, ajouter la nouvelle
-   (`ssh-keygen -lf keys/perso.pub`), puis sur chaque hôte qui l'utilise
+   (`ssh-keygen -lf` sur la nouvelle clé publique : `keys/perso.pub` reste
+   l'ancienne avant l'étape 2), puis sur chaque hôte qui l'utilise
    (docker, flip, pangolin, pi : un hôte oublié reste muet)
    `ansible-playbook 00-setup.yaml --tags ssh_login_notify --limit <hôte>`.
    Une clé absente de la liste sonne : l'oubli se voit.

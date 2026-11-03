@@ -1,5 +1,5 @@
 ---
-# Alerte à chaque connexion SSH (issue #451).
+# Alerte aux connexions SSH (issue #451), sauf clé connue.
 #
 # false : retire le hook (ligne PAM, script, configuration). C'est la seule
 # façon de le désinstaller : une URL vide n'y touche pas.
@@ -27,8 +27,8 @@ ssh_login_notify_known_fingerprints:
   # keys/github-actions.pub : la CI (deploy-docker-app.yaml).
   - "SHA256:+I1uk456KeHmdS0BFT0EiL8ahZTcFj6HB1Gt5G5OENc"
   # keys/perso.pub : Ansible depuis le poste (ansible_ssh_private_key_file,
-  # ~/.ssh/keepassxc.pub, group_vars/all) ; mise run ssh* et un ssh à la main
-  # prennent la même clé, donc la même trace.
+  # ~/.ssh/keepassxc.pub, group_vars/all) ; mise run ssh* (ansible/mise.toml) et
+  # un ssh à la main prennent la même clé, donc la même trace.
   - "SHA256:4nBRCz6+8kBw3a54j3xKNaTCNrwsBRB/i2nsNn13U58"
 
 # Trace des clés connues : producteur scripts du rôle ntfy (comme canary), jeton
