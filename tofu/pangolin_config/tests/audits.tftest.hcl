@@ -282,10 +282,10 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"roles": [
-        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
-        {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
-        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true},
+        {"roleId": 2, "name": "Member", "description": "", "isAdmin": null, "allowSsh": false},
+        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null, "allowSsh": false},
+        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null, "allowSsh": false}
       ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
       "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
     EOT
@@ -683,11 +683,11 @@ run "hand_made_role_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"roles": [
-          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
-          {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
-          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null},
-          {"roleId": 77, "name": "invités", "description": "", "isAdmin": null}
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true},
+          {"roleId": 2, "name": "Member", "description": "", "isAdmin": null, "allowSsh": false},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null, "allowSsh": false},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null, "allowSsh": false},
+          {"roleId": 77, "name": "invités", "description": "", "isAdmin": null, "allowSsh": false}
         ], "pagination": {"total": 5, "page": 1, "pageSize": 1000}},
         "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
       EOT
@@ -704,6 +704,69 @@ run "hand_made_role_fails_plan" {
   }
 }
 
+# Un rôle d'app passé en SSH dans l'UI : le plan ne le voit pas (le provider garde
+# le state), seul l'audit le signale. Admin, hors de cette configuration, garde
+# son SSH.
+run "app_role_with_ssh_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true},
+          {"roleId": 2, "name": "Member", "description": "", "isAdmin": null, "allowSsh": false},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null, "allowSsh": true},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null, "allowSsh": false}
+        ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
+        "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.ssh_enabled_roles == ["3001 (immich)"]
+    error_message = "Seul le rôle d'app ouvert au SSH (3001) doit être signalé."
+  }
+}
+
+# Le champ disparaît de la réponse, comme à la lecture d'un rôle depuis Pangolin
+# 1.19 : l'audit arrête le plan au lieu de devenir aveugle.
+run "role_list_without_allow_ssh_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+          {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+        ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
+        "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.ssh_enabled_roles == ["3001 (immich)", "90 (jellyfin)"]
+    error_message = "Sans le champ allowSsh, chaque rôle d'app compte comme ouvert."
+  }
+}
+
 # Liste de rôles tronquée (la valeur par défaut de l'API est 20 par page).
 run "truncated_role_list_fails_plan" {
   command = plan
@@ -714,7 +777,7 @@ run "truncated_role_list_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"roles": [
-          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true}
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true}
         ], "pagination": {"total": 23, "page": 1, "pageSize": 20}},
         "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
       EOT
@@ -757,9 +820,9 @@ run "stale_inventory_exception_only_warns" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"roles": [
-          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
-          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
-          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null, "allowSsh": false},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null, "allowSsh": false}
         ], "pagination": {"total": 3, "page": 1, "pageSize": 1000}},
         "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
       EOT
