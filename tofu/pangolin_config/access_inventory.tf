@@ -140,6 +140,16 @@ locals {
     if !contains(local.declared_role_ids, role.id) && !contains(keys(local.unmanaged_roles), role.id)
   ]
 
+  # local.role_pins declares allow_ssh = false, but the plan cannot see a role
+  # switched to SSH in the UI: GET /role/{id} does not return allowSsh, so the
+  # provider keeps the value of the state. Only this list says it. A missing
+  # field counts as open, so that a Pangolin upgrade dropping it stops the plan
+  # instead of blinding the audit.
+  ssh_enabled_roles = [
+    for role in coalesce(local.live_roles_raw, []) : "${role.roleId} (${role.name})"
+    if contains(local.declared_role_ids, tostring(role.roleId)) && try(role.allowSsh != false, true)
+  ]
+
   # Exceptions that match nothing live any more: the token or role is gone.
   # Only on complete lists: a page missing would make every exception on it
   # look stale, on top of the precondition that already stops the plan.
@@ -192,6 +202,17 @@ resource "terraform_data" "access_inventory" {
         "local.declared_role_ids), delete them in Pangolin, or list them in",
         "local.unmanaged_roles (access_inventory.tf) with the reason.",
         local.inventory_destroy_hint,
+      ])
+    }
+
+    precondition {
+      condition = length(local.ssh_enabled_roles) == 0
+      error_message = join(" ", [
+        "Roles of this configuration open SSH sessions in Pangolin:",
+        "${join(", ", local.ssh_enabled_roles)}.",
+        "Only Admin should: turn it off in the UI. The plan cannot show or fix it",
+        "(local.role_pins, roles.tf), and the next update of that role would revoke",
+        "it silently.",
       ])
     }
   }

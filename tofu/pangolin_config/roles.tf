@@ -34,10 +34,12 @@ locals {
     "healthlog"
   ]
 
-  # Optional+computed : non déclarés, un rôle passé en SSH dans l'UI ne se voit pas
-  # au plan. Aucun rôle d'app n'ouvre de session SSH : seul Admin le fait, et il
-  # n'est pas géré ici. Le sudo vaut "none" pour la même raison, même si
-  # allow_ssh = false le rend déjà sans effet.
+  # Optional+computed : non déclarés, un changement dans l'UI ne se voit pas au
+  # plan. allow_ssh fait exception : déclaré ou non, le plan ne le voit pas (l'API
+  # ne le renvoie pas à la lecture d'un rôle), seul l'audit ssh_enabled_roles
+  # (access_inventory.tf) le voit. Aucun rôle d'app n'ouvre de session SSH : seul
+  # Admin le fait, et il n'est pas géré ici. Le sudo vaut "none" pour la même
+  # raison, même si allow_ssh = false le rend déjà sans effet.
   role_pins = {
     allow_ssh               = false
     ssh_sudo_mode           = "none"

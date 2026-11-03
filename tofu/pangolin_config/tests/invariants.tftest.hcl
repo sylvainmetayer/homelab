@@ -223,10 +223,10 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"roles": [
-        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
-        {"roleId": 2, "name": "Member", "description": "", "isAdmin": null},
-        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null},
-        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true, "allowSsh": true},
+        {"roleId": 2, "name": "Member", "description": "", "isAdmin": null, "allowSsh": false},
+        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null, "allowSsh": false},
+        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null, "allowSsh": false}
       ], "pagination": {"total": 4, "page": 1, "pageSize": 1000}},
       "success": true, "error": false, "message": "Roles retrieved successfully", "status": 200}
     EOT
