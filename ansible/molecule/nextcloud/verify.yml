@@ -57,6 +57,14 @@
           - nextcloud_compose.services.cache.command == 'redis-server --requirepass ' ~ nextcloud_redis_password
         fail_msg: "Compose de nextcloud inattendu : {{ nextcloud_compose.services }}"
 
+    - name: Assert the Nextcloud container stays hardened
+      vars:
+        nextcloud_compose: "{{ nextcloud_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges:true' in nextcloud_compose.services.nextcloud.security_opt"
+        fail_msg: nextcloud a perdu no-new-privileges.
+
     # Configuration posée à côté de config.php : mots de passe d'application
     # seulement, IP réelle des clients derrière newt, liens en https.
     - name: Stat the homelab Nextcloud configuration
