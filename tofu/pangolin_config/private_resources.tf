@@ -21,6 +21,7 @@ resource "pangolin_site_resource" "app_proxy" {
 
 # Port 9999 du NAS, fait à la main dans l'UI, importé (id 11, voir README).
 # Son nom vient de l'UI ; le NAS au sens hôte est pangolin_site_resource.nas.
+# Aucune liaison : Admin seul (lu à l'API le 03/11/2026).
 resource "pangolin_site_resource" "nas_web" {
   site_ids = [
     pangolin_site.proxmox_docker.id,
@@ -31,7 +32,7 @@ resource "pangolin_site_resource" "nas_web" {
   mode             = "http"
   domain_id        = local.domain_ids["sylvain.cloud"]
   subdomain        = "nas-internal"
-  destination      = "192.168.1.137"
+  destination      = pangolin_site_resource.nas.destination
   scheme           = "http"
   destination_port = 9999
   disable_icmp     = true
