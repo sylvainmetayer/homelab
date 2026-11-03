@@ -242,10 +242,11 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
    Il échoue en le disant si le 443 de l'hôte est tenu par nginx : décocher
    « rediriger HTTP/HTTPS vers le port HTTPS de l'interface » dans l'interface
    d'UGOS, le relais `nas-proxy-443` reprend le port dans la minute
-   (`docs/architecture.md`, Jellyfin et l'interface d'UGOS). Si c'est l'inverse
-   (le relais a pris le 443 avant nginx et l'interface d'UGOS ne répond
-   plus) : en SSH, `docker stop nas-proxy-443`, redémarrer nginx, décocher la
-   case, `docker start nas-proxy-443`.
+   ([Le chemin d'une requête](../architecture.md#le-chemin-dune-requete),
+   exception Jellyfin). Si c'est l'inverse (le relais a pris le 443 avant
+   nginx et l'interface d'UGOS ne répond plus) : en SSH,
+   `docker stop nas-proxy-443`, redémarrer nginx, décocher la case,
+   `docker start nas-proxy-443`.
 2. Vérifier : `https://media.sylvain.cloud` et `https://nas.sylvain.cloud`
    sans port en LAN, `showmount -e 192.168.1.137` (exports `/volume1/...`
    vers la VM docker et l'hôte Proxmox), le moniteur « Certificats NAS » et

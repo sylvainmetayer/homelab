@@ -67,12 +67,15 @@ ansible-playbook docker.yml --tags <tag> --check --diff
 
 - **Revenir en arrière** sur une PR qui casse : un revert, par une PR, comme
   le reste. Le merge du revert redéploie l'ancien état ; l'ancienne image est
-  souvent encore là, `dc@` ne la retélécharge pas.
+  souvent encore là, `dc@` ne la retélécharge pas. Le dépôt fusionne en rebase
+  seulement : pas de commit de merge, une PR de plusieurs commits en pose
+  autant sur `main`. Les annuler tous, le plus ancien en dernier (ce que fait
+  la plage ci-dessous) : un revert partiel se déploie tel quel au merge.
 
   ```bash
   git switch main && git pull
   git switch -c revert/<sujet>
-  git revert <sha du merge>
+  git revert <sha le plus ancien de la PR>^..<sha le plus récent>   # lus dans git log, sur main
   git push -u origin revert/<sujet>
   gh pr create --fill
   ```

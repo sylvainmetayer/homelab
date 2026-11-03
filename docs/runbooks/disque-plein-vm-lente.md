@@ -72,7 +72,7 @@ journalctl --disk-usage
   seulement pour les conteneurs recréés depuis). Au besoin :
   `sudo journalctl --vacuum-size=200M`.
 - **Données d'une appli qui gonflent** : traiter dans l'appli (corbeille
-  Nextcloud, cache Immich, etc.), pas par `rm` dans `/opt/apps`.
+  Nextcloud, etc.), pas par `rm` dans `/opt/apps`.
 - **Conteneur au plafond mémoire** : remonter son `mem_limit` à environ 2×
   le `memory.peak` mesuré, et ajouter `mem_reservation` ≈ le pic pour une
   base. Dans le `compose.yaml` du rôle, PR, merge (= déploiement).

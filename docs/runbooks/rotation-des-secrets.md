@@ -513,8 +513,12 @@ déconnexion, et n'apporte rien sans fuite.
   cours).
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de
   `tofu/pangolin`, `tofu/github`, `tofu/s3_state` et `tofu/keepass_backup`.
-  Changer de passphrase passe par une méthode `fallback` du bloc
-  `encryption` le temps d'un apply par module (documentation OpenTofu,
+  `tofu/dns` et `tofu/pangolin_config`, dont le state reste en clair,
+  déchiffrent celui de `tofu/pangolin` avec la même passphrase (leur
+  `encryption.tf`) : rien à rechiffrer chez eux, mais leur lecture doit suivre
+  la rotation, sinon leur plan échoue. Changer de passphrase passe par une
+  méthode `fallback` du bloc `encryption` le temps d'un apply par module
+  (documentation OpenTofu,
   « State encryption, key rotation »).
 - `github_actions_sops_age_key` : voir
   [perte-cle-ou-poste.md](perte-cle-ou-poste.md) ; une nouvelle clé age ne

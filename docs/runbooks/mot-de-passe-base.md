@@ -16,7 +16,7 @@ Le dump borgmatic de la nuit tombe avec elle. La configuration générée
 (`ansible/roles/borgmatic/templates/app.yaml.j2`) prend le mot de passe de
 l'entrée `password` de `borgmatic_app_postgresql_databases` /
 `borgmatic_app_mysql_databases`, que chaque rôle remplit avec la **même
-variable** que son compose. Grâce à la clé `container:`, borgmatic 2.1 lit
+variable** que son compose. Grâce à la clé `container:`, borgmatic lit
 l'IP du conteneur (`docker container inspect`) et passe `--host <cette IP>`
 au client lancé par `docker exec` : la connexion se fait en TCP, mot de passe
 vérifié (`scram-sha-256` pour Postgres), et non par la socket locale, où

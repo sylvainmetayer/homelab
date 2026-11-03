@@ -157,7 +157,7 @@ rejouent avec le service `db-restore` du compose amont
 PostgreSQL 18.6 (format d'archive 1.16), vérifié le 02/11/2026. S'il
 refuse un jour le dump (`unsupported version … in file header`, après une
 montée de Postgres), le rejouer avec le client du conteneur, depuis le dump
-extrait (borgmatic 2.1 le met dans l'archive, au format custom, sous
+extrait (borgmatic le met dans l'archive, au format custom, sous
 `borgmatic/postgresql_databases/<conteneur>:<port>/<base>`) :
 
 ```bash
