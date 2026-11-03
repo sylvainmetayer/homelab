@@ -528,13 +528,16 @@ class Main(unittest.TestCase):
             config = os.path.join(folder, "config.json")
             with open(config, "w", encoding="utf-8") as file:
                 json.dump(CONFIG, file)
-            with open(os.path.join(folder, "secrets.json"), "w", encoding="utf-8") as file:
-                json.dump(SECRETS, file)
             path = os.path.join(folder, "state.json")
             if state is not None:
                 with open(path, "w", encoding="utf-8") as file:
                     json.dump(state, file)
-            env = {"CREDENTIALS_DIRECTORY": folder, "STATE_DIRECTORY": folder}
+            env = {
+                "CI_KEY_AUDIT_VL_PASSWORD": "faux",
+                "CI_KEY_AUDIT_NTFY_TOKEN": "faux",
+                "CI_KEY_AUDIT_PUSH_URL": SECRETS["push_url"],
+                "STATE_DIRECTORY": folder,
+            }
             with (
                 mock.patch.object(audit, "CONFIG_FILE", config),
                 mock.patch.dict(os.environ, env),
@@ -545,6 +548,13 @@ class Main(unittest.TestCase):
                 code = audit.main()
             saved = audit.load_state(path) if os.path.exists(path) else None
         return code, saved
+
+    def test_secrets_leave_the_environment_before_any_subprocess(self):
+        seen = []
+        checker = FakeChecker()
+        checker.push = lambda *_: seen.append([key for key in os.environ if key.startswith("CI_KEY_AUDIT")]) or True
+        self.launch(checker)
+        self.assertEqual(seen, [[]])
 
     def test_clean_tick_pushes_up(self):
         checker = FakeChecker(lines=[line(NOW - 850)], runs=[run(NOW - 900, NOW - 800)])

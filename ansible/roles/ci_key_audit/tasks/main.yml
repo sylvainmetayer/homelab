@@ -34,7 +34,7 @@
     state: directory
     owner: root
     group: root
-    # Traversés par le compte de l'unité ; secrets.json reste en 0600.
+    # Traversés par le compte de l'unité ; secrets.env reste en 0600.
     mode: "0755" # NOSONAR
 
 - name: Install the CI key audit script
@@ -80,19 +80,18 @@
     mode: "0644" # NOSONAR
 
 # Mot de passe de lecture, jeton ntfy, URL push (jeton du moniteur) : 0600 root,
-# remis à l'unité par LoadCredential, ni environnement ni ligne de commande.
+# jamais sur la ligne de commande de l'unité. Entre guillemets : un mot de passe
+# peut porter ce qu'EnvironmentFile interpréterait sans eux.
 - name: Write the CI key audit secrets
   become: true
   diff: false
   no_log: true
   ansible.builtin.copy:
-    content: >-
-      {{ {
-        'vl_password': ci_key_audit_vl_password,
-        'ntfy_token': ci_key_audit_ntfy_token,
-        'push_url': ci_key_audit_push_url,
-      } | to_nice_json }}
-    dest: "{{ ci_key_audit_config_dir }}/secrets.json"
+    content: |
+      CI_KEY_AUDIT_VL_PASSWORD={{ ci_key_audit_vl_password | to_json(ensure_ascii=False) }}
+      CI_KEY_AUDIT_NTFY_TOKEN={{ ci_key_audit_ntfy_token | to_json(ensure_ascii=False) }}
+      CI_KEY_AUDIT_PUSH_URL={{ ci_key_audit_push_url | to_json(ensure_ascii=False) }}
+    dest: "{{ ci_key_audit_config_dir }}/secrets.env"
     owner: root
     group: root
     mode: "0600"

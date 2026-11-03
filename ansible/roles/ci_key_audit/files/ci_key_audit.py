@@ -404,8 +404,12 @@ def tick(checker, state):
 def main():
     with open(CONFIG_FILE, encoding="utf-8") as file:
         config = json.load(file)
-    with open(os.path.join(os.environ["CREDENTIALS_DIRECTORY"], "secrets.json"), encoding="utf-8") as file:
-        secrets = json.load(file)
+    # Retirés de l'environnement : uptime-push et curl n'en héritent pas.
+    secrets = {
+        "vl_password": os.environ.pop("CI_KEY_AUDIT_VL_PASSWORD"),
+        "ntfy_token": os.environ.pop("CI_KEY_AUDIT_NTFY_TOKEN"),
+        "push_url": os.environ.pop("CI_KEY_AUDIT_PUSH_URL", ""),
+    }
     state_path = os.path.join(os.environ["STATE_DIRECTORY"], "state.json")
     checker = Checker(config, secrets, time.time())
     state = load_state(state_path)

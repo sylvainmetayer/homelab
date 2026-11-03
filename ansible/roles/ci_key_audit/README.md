@@ -64,7 +64,7 @@ Tout est dans `defaults/main.yml`. Aucune clé SOPS nouvelle :
 - `ntfy_scripts_token` : comme `mem_report` et `cost_report`.
 - `ci_key_audit_push_url` : sortie `uptime_cron_ci_key_audit_url` de `tofu/pangolin_config` (`cron_ci_key_audit.tf`), donnée par l'entrée du rôle dans `docker.yml`. Vide avant l'apply : le contrôle alerte, sans battement, avec un avertissement au déploiement.
 
-Les trois dans `/etc/ci-key-audit/secrets.json` (0600 root, `diff: false`, `no_log`), remis par `LoadCredential`, ni environnement ni ligne de commande ; le push passe par `uptime-push`, URL sur stdin. `MemoryMax=128M` : plafond large d'un script qui lit quelques lignes, à revoir sur `MemoryPeak` (affiché par le scénario).
+Les trois dans `/etc/ci-key-audit/secrets.env` (0600 root, `diff: false`, `no_log`), jamais sur la ligne de commande ; le script les retire de son environnement avant tout sous-processus ; le push passe par `uptime-push`, URL sur stdin. `MemoryMax=128M` : plafond large d'un script qui lit quelques lignes, à revoir sur `MemoryPeak` (affiché par le scénario).
 
 ## Tests
 

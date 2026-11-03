@@ -67,7 +67,7 @@
       loop:
         - "{{ ci_key_audit_verify_script }}"
         - /etc/ci-key-audit/config.json
-        - /etc/ci-key-audit/secrets.json
+        - /etc/ci-key-audit/secrets.env
       register: ci_key_audit_verify_files
 
     - name: Assert the files are root-owned and the secrets 0600
@@ -75,7 +75,7 @@
         that:
           - item.stat.exists
           - item.stat.pw_name == 'root'
-          - item.stat.mode == ('0600' if item.item.endswith('secrets.json') else '0644')
+          - item.stat.mode == ('0600' if item.item.endswith('secrets.env') else '0644')
         fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
         quiet: true
       loop: "{{ ci_key_audit_verify_files.results }}"
@@ -88,19 +88,19 @@
         path: "/etc/ci-key-audit/{{ item }}"
       loop:
         - config.json
-        - secrets.json
+        - secrets.env
       register: ci_key_audit_verify_written
 
     - name: Assert the secrets are in the secrets file only
       no_log: true
       vars:
         ci_key_audit_verify_config: "{{ ci_key_audit_verify_written.results[0].content | b64decode }}"
-        ci_key_audit_verify_secrets: "{{ ci_key_audit_verify_written.results[1].content | b64decode | from_json }}"
+        ci_key_audit_verify_secrets: "{{ (ci_key_audit_verify_written.results[1].content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
-          - ci_key_audit_verify_secrets.vl_password == victoria_logs_ui_password
-          - ci_key_audit_verify_secrets.ntfy_token == ntfy_scripts_token
-          - ci_key_audit_verify_secrets.push_url is search('molecule-ci-key-audit')
+          - ('CI_KEY_AUDIT_VL_PASSWORD="' ~ victoria_logs_ui_password ~ '"') in ci_key_audit_verify_secrets
+          - ('CI_KEY_AUDIT_NTFY_TOKEN="' ~ ntfy_scripts_token ~ '"') in ci_key_audit_verify_secrets
+          - ci_key_audit_verify_secrets | select('search', 'CI_KEY_AUDIT_PUSH_URL=.*molecule-ci-key-audit') | list | length == 1
           - victoria_logs_ui_password not in ci_key_audit_verify_config
           - ntfy_scripts_token not in ci_key_audit_verify_config
           - "'molecule-ci-key-audit' not in ci_key_audit_verify_config"
