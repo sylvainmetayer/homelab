@@ -91,12 +91,16 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Resource limits doctrine, measuring disk I/O | `docs/conventions/resource-limits.md` |
 | Container hardening: `no-new-privileges`, `cap_drop`, exceptions, how to test | `docs/conventions/container-hardening.md` |
 | Second environment of an app, pausing, removing | `docs/conventions/app-lifecycle.md` |
+| What `decommission_app` deletes, its guards and traps | `ansible/roles/decommission_app/README.md` |
 | OpenTofu backends, state encryption | `docs/conventions/opentofu.md` |
 | `dc@.service` systemd pattern, NAS system scope, weekly unused-image prune | `ansible/roles/docker_service/README.md` |
 | App data on the NAS (NFS) | `ansible/roles/nas_storage/README.md` |
 | Borgmatic template rules, NAS container mode, Storage Box subaccounts | `ansible/roles/borgmatic/README.md` |
 | Host hardening (ufw, fail2ban, devsec, ssh-audit), LAN hosts' SSH | `ansible/roles/security/README.md` |
-| Newt and its socket proxy | `ansible/roles/newt/README.md` |
+| Newt and its socket proxy; Newt as a systemd service (LXC) | `ansible/roles/newt/README.md`, `ansible/roles/newt_service/README.md` |
+| Internet egress of flip: NAT on Pangolin, route and DNS on flip | `ansible/roles/nat_gateway/README.md`, `ansible/roles/nat_client/README.md` |
+| SSH login alerts | `ansible/roles/ssh_login_notify/README.md` |
+| Host tuning: zram, disk swap, journald cap, Pi kernel command line | `ansible/roles/host_tuning/README.md` |
 | Uptime Kuma pushes from scripts and units (`uptime-push`, options, worst case) | `ansible/roles/uptime_push/README.md` |
 | Homepage widgets | `ansible/roles/homepage/README.md` |
 | Monitoring (Beszel hub + agents) | `ansible/roles/beszel/README.md` |
