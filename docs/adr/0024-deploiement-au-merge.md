@@ -5,14 +5,14 @@
 
 ## Contexte
 
-La maison et flip n'ont aucun port entrant : un runner GitHub les atteint par un
-tunnel OLM, que `ping.yaml` utilisait déjà. Motif de l'automatisation non écrit
+La maison n'a aucun port entrant : un runner GitHub l'atteint par un tunnel OLM,
+que `ping.yaml` utilisait déjà. Motif de l'automatisation non écrit
 (`a25a5447` dit le comment seulement) : à confirmer.
 
 ## Décision
 
-- **Un push sur `main` lance `deploy-docker-app`** par le tunnel OLM : docker, pi,
-  pangolin et flip, avec les tags que `resolve_docker_tags.py` tire des fichiers
+- **Un push sur `main` lance `deploy-docker-app`** : docker et pi par le tunnel
+  OLM, pangolin en direct, flip par rebond, avec les tags que `resolve_docker_tags.py` tire des fichiers
   changés. Environnement `production` : `main` seule, sans relecteur.
 - **`nas.yml`, `pve.yml` et `lxc.yml` à la main** : ni le NAS ni l'hôte Proxmox
   n'ont de clé dans les secrets GitHub (raison du choix, et du LXC, non écrite).
@@ -24,10 +24,7 @@ tunnel OLM, que `ping.yaml` utilisait déjà. Motif de l'automatisation non écr
   (`pre_tasks`, `host_vars`, fichiers partagés), « lourd » d'après `ci.md`.
 - **flip par `flip.internal`** : servi par le Newt de flip, qu'un déploiement peut
   redémarrer en plein play. Rebond SSH par Pangolin à la place.
-- **Diff depuis le `before` du push** : un run en attente annulé perdrait ses
-  fichiers. Base : la tête du dernier run réussi.
-
-En attente, pas écarté : **Tofu en CI** (#704 : jetons, passphrase, API Pangolin).
+- En attente, pas écarté : **Tofu en CI** (#704 : jetons, passphrase, API Pangolin).
 
 ## Conséquences
 
