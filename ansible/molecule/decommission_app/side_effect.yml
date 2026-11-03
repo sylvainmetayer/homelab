@@ -1,0 +1,259 @@
+---
+# Ce que le converge ne peut porter (il doit rester idempotent) : garde-fous et
+# issues de repo-delete. decommission_app_borgmatic_bin vise le vrai borgmatic
+# de l'image, pas le bouchon, avec le vrai borg du rôle borgmatic.
+- name: Exercise the guards of decommission_app
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  vars:
+    molecule_borg_bin: /root/.local/bin/borg
+    molecule_repo_dir: /var/lib/molecule-decommission-repos
+  environment:
+    # Binaire borg PyInstaller « onefile » : il s'extrait dans TMPDIR, et le
+    # /tmp du conteneur est un tmpfs noexec.
+    TMPDIR: /var/tmp
+  tasks:
+    # --- Chemins refusés : wiki, voisine déployée, doit sortir intacte --------
+    - name: Read dc@wiki before the refused runs
+      ansible.builtin.systemd:
+        name: dc@wiki
+        scope: user
+      register: wiki_unit_before
+
+    - name: Run the role on refused paths
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      loop:
+        - {service: wiki, base_path: /, fails_on: Refuse}
+        - {service: wiki, base_path: /etc, fails_on: Refuse}
+        - {service: wiki, base_path: /home, fails_on: Refuse}
+        - {service: wiki, base_path: /opt, fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps, fails_on: Refuse}
+        - {service: wiki, base_path: "", fails_on: Refuse}
+        - {service: wiki, base_path: wiki, fails_on: Refuse}
+        - {service: wiki, base_path: opt/apps/wiki, fails_on: Refuse}
+        - {service: wiki, base_path: ../wiki, fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps/../apps/wiki, fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps/wiki/.., fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps/wiki/data, fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps/rss, fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps-other/wiki, fails_on: Refuse}
+        - {service: wiki, base_path: /mnt/nas/apps/wiki, fails_on: Refuse}
+        - {service: wiki, base_path: /volume1/docker/wiki, fails_on: Refuse}
+        # Le même écart des deux côtés : l'égalité seule le laisserait passer.
+        - {service: .., base_path: /opt/apps/.., fails_on: Refuse}
+        - {service: ../wiki, base_path: /opt/apps/../wiki, fails_on: Refuse}
+        - {service: wiki/../.., base_path: /opt/apps/wiki/../.., fails_on: Refuse}
+        - {service: wiki, base_path: /opt/apps/wiki, extra_paths: [/mnt/nas/apps], fails_on: Refuse}
+      loop_control:
+        loop_var: decommission_case
+
+    - name: Read dc@wiki after the refused runs
+      ansible.builtin.systemd:
+        name: dc@wiki
+        scope: user
+      register: wiki_unit_after
+
+    # Démarrée et jamais arrêtée : même instant d'activation qu'avant.
+    - name: Assert nothing stopped dc@wiki
+      ansible.builtin.assert:
+        that:
+          - wiki_unit_after.status.ActiveState == 'active'
+          - wiki_unit_after.status.UnitFileState == 'enabled'
+          - wiki_unit_after.status.ActiveEnterTimestampMonotonic == wiki_unit_before.status.ActiveEnterTimestampMonotonic
+
+    - name: Stat wiki and a system file, which must still exist
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ docker_base_path }}/wiki/compose.yaml"
+        - "{{ borgmatic_config_dir }}/wiki.yaml"
+        - /etc/hostname
+      register: wiki_paths
+      failed_when: not wiki_paths.stat.exists
+
+    # --- Interrupteurs passés en chaîne, comme par -e key=value ---------------
+    - name: Create the uptime-kuma folder and the NAS folder
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - "{{ borgmatic_config_dir }}/uptime-kuma"
+        - /mnt/nas/apps/strings_app
+
+    - name: Create the app removed by the string switches
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: strings_app
+
+    - name: Run the role with the string false
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: "true"
+        decommission_app_service: strings_app
+        decommission_app_base_path: "{{ docker_base_path }}/strings_app"
+        decommission_app_extra_paths:
+          - /mnt/nas/apps/strings_app
+        decommission_app_destroy_remote_backup: "false"
+        decommission_app_remove_borgmatic_config: "false"
+        decommission_app_remove_data: "false"
+
+    - name: Assert the string false kept everything
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: strings_app
+        fixture_present: true
+
+    - name: Stat the NAS folder after the string false
+      ansible.builtin.stat:
+        path: /mnt/nas/apps/strings_app
+      become: true
+      register: strings_nas_kept
+      failed_when: not strings_nas_kept.stat.exists
+
+    - name: Run the role with the string true
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: "true"
+        decommission_app_service: strings_app
+        decommission_app_base_path: "{{ docker_base_path }}/strings_app"
+        decommission_app_extra_paths:
+          - /mnt/nas/apps/strings_app
+        decommission_app_destroy_remote_backup: "false"
+        decommission_app_remove_borgmatic_config: "true"
+        decommission_app_remove_data: "true"
+
+    - name: Assert the string true removed everything
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: strings_app
+        fixture_present: false
+
+    - name: Stat the NAS folder after the string true
+      ansible.builtin.stat:
+        path: /mnt/nas/apps/strings_app
+      become: true
+      register: strings_nas_gone
+      failed_when: strings_nas_gone.stat.exists
+
+    # --- repo-delete : vrais borgmatic et borg, dépôts locaux jetables --------
+    - name: Read the pinned borg version
+      ansible.builtin.include_vars:
+        file: ../../roles/borgmatic/defaults/main.yml
+        name: molecule_borgmatic_defaults
+
+    - name: Download the borg binary the hosts run
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/borgbackup/borg/releases/download/{{ molecule_borgmatic_defaults.borgmatic_borg_version }}/borg-linux-glibc235-x86_64-gh"
+        dest: "{{ molecule_borg_bin }}"
+        checksum: "sha256:{{ molecule_borgmatic_defaults.borgmatic_borg_sha256.x86_64 }}"
+        mode: "0700"
+
+    # Un dossier qui n'est pas un dépôt : borg sort en 15, borgmatic en 1.
+    - name: Make a target that is not a repository
+      become: true
+      ansible.builtin.file:
+        path: "{{ molecule_repo_dir }}/retry_app/not-a-repository"
+        state: directory
+        mode: "0700"
+
+    - name: Create the app whose repository cannot be deleted
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: retry_app
+
+    - name: Run the role on the repository that cannot be deleted
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      vars:
+        decommission_case: &retry_case
+          service: retry_app
+          base_path: "{{ docker_base_path }}/retry_app"
+          destroy: true
+          fails_on: Destroy
+
+    - name: Assert the failed repo-delete kept the config and the data
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: retry_app
+        fixture_present: true
+
+    - name: Remove the target, leaving an absent repository
+      become: true
+      ansible.builtin.file:
+        path: "{{ molecule_repo_dir }}/retry_app"
+        state: absent
+
+    # Le nouvel essai que la configuration conservée permet.
+    - name: Run the role again on the absent repository
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: true
+        decommission_app_service: retry_app
+        decommission_app_base_path: "{{ docker_base_path }}/retry_app"
+        decommission_app_destroy_remote_backup: true
+        decommission_app_borgmatic_bin: "{{ molecule_borgmatic_bin }}"
+
+    - name: Assert the absent repository was tolerated, not reported as deleted
+      ansible.builtin.assert:
+        that:
+          - decommission_app_repo_delete.rc == 1
+          - decommission_app_repo_delete is not changed
+          - decommission_app_repo_delete is not failed
+
+    - name: Assert the run on the absent repository finished the removal
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: retry_app
+        fixture_present: false
+
+    # Plus de configuration : l'état du dépôt est inconnu, ce n'est pas « absent ».
+    - name: Run the role once more, without a configuration
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      vars:
+        decommission_case: *retry_case
+
+    - name: Create the app whose repository gets deleted
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: deleted_app
+
+    - name: Create its real repository
+      become: true
+      ansible.builtin.command:
+        cmd: "{{ molecule_borg_bin }} init --encryption none {{ molecule_repo_dir }}/deleted_app"
+        creates: "{{ molecule_repo_dir }}/deleted_app/config"
+
+    - name: Run the role on the existing repository
+      ansible.builtin.include_role:
+        name: decommission_app
+      vars:
+        decommission_app_confirm: true
+        decommission_app_service: deleted_app
+        decommission_app_base_path: "{{ docker_base_path }}/deleted_app"
+        decommission_app_destroy_remote_backup: true
+        decommission_app_borgmatic_bin: "{{ molecule_borgmatic_bin }}"
+
+    - name: Stat the deleted repository
+      become: true
+      ansible.builtin.stat:
+        path: "{{ molecule_repo_dir }}/deleted_app"
+      register: deleted_repo
+
+    - name: Assert the repository is deleted and reported so
+      ansible.builtin.assert:
+        that:
+          - decommission_app_repo_delete is changed
+          - not deleted_repo.stat.exists
+
+    - name: Assert the successful repo-delete removed the config and the data
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: deleted_app
+        fixture_present: false

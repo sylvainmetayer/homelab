@@ -1,0 +1,44 @@
+---
+# Une application à retirer, sans image ni unité démarrée : dossier, compose,
+# configuration borgmatic et fichier push. Le dépôt est local et sans
+# chiffrement : aucune phrase de passe, et un `borg init` suffit à le créer.
+- name: Create the app folder of {{ fixture_service }}
+  become: true
+  ansible.builtin.file:
+    path: "{{ docker_base_path }}/{{ fixture_service }}"
+    state: directory
+    owner: sylvain
+    mode: "0700"
+
+- name: Write the compose file of {{ fixture_service }}
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ docker_base_path }}/{{ fixture_service }}/compose.yaml"
+    owner: sylvain
+    mode: "0600"
+    content: |
+      services:
+        app:
+          image: busybox
+
+- name: Write the borgmatic configuration of {{ fixture_service }}
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ borgmatic_config_dir }}/{{ fixture_service }}.yaml"
+    mode: "0600"
+    content: |
+      source_directories:
+          - {{ docker_base_path }}/{{ fixture_service }}
+      local_path: {{ molecule_borg_bin }}
+      repositories:
+          - path: {{ molecule_repo_dir }}/{{ fixture_service }}
+            label: {{ fixture_service }}
+      unknown_unencrypted_repo_access_is_ok: true
+
+- name: Write the push file of {{ fixture_service }}
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ borgmatic_config_dir }}/uptime-kuma/{{ fixture_service }}.curl"
+    mode: "0600"
+    content: |
+      url = https://uptime.example.invalid/api/push/fixture

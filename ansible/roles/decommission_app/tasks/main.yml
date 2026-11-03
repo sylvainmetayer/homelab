@@ -10,6 +10,24 @@
       -e decommission_app_confirm=true -e decommission_app_service=<service>
       -e decommission_app_base_path=<path> to proceed.
 
+# Effacé en root et compose y est lancé : l'unité dc@<service> a pour dossier
+# {{ docker_base_path }}/<service> (dc@.service, WorkingDirectory), un autre
+# chemin n'est donc jamais celui de cette application. L'égalité écarte /, les
+# chemins relatifs, les .., et le dossier d'une voisine ; le motif du service
+# empêche d'y glisser un chemin ou des .. des deux côtés à la fois.
+- name: Refuse a base path other than the app's own folder
+  vars:
+    decommission_app_own_path: "{{ docker_base_path }}/{{ decommission_app_service }}"
+  ansible.builtin.assert:
+    that:
+      - decommission_app_service is match('^[a-z0-9][a-z0-9_-]*$')
+      - decommission_app_base_path == decommission_app_own_path
+    fail_msg: >-
+      decommission_app_base_path n'accepte que {{ decommission_app_own_path }}
+      (dossier de {{ decommission_app_service }} sur cet hôte, sans / final),
+      pas {{ decommission_app_base_path }}.
+    quiet: true
+
 # Effacés en root : un -e mal écrit (/mnt/nas/apps sans /<service>) viderait
 # le NAS de toutes les applis. Seul le dossier NAS de ce service est accepté.
 - name: Refuse extra paths other than the app's own NAS folder
@@ -57,13 +75,22 @@
       repo-delete --force
   register: decommission_app_repo_delete
   changed_when: decommission_app_repo_delete.rc | default(1) == 0
-  failed_when: false
+  # Échec réel : la tâche échoue, la configuration reste pour réessayer. Dépôt
+  # déjà absent : ok. borgmatic sort toujours en 1, seule sa sortie distingue
+  # le cas : code 13 de borg (BORG_EXIT_CODES=modern, posé par borgmatic), relevé
+  # sur borgmatic 2.1 et 2.2, borg 1.4 en local et en SSH (serveur 1.2 et 1.4).
+  # Sortie et erreur réunies : enrobage docker compose run sur le NAS.
+  failed_when:
+    - decommission_app_repo_delete.rc | default(1) != 0
+    - >-
+      (decommission_app_repo_delete.stderr | default('') ~ decommission_app_repo_delete.stdout | default(''))
+      is not search('(?s)Repository \\S+ does not exist\\..*non-zero exit status 13\\.')
 
 # La configuration et le fichier de son URL push Uptime Kuma (rôle borgmatic,
 # tasks/app.yml).
 - name: Remove borgmatic configuration
   become: true
-  when: decommission_app_remove_borgmatic_config
+  when: decommission_app_remove_borgmatic_config | bool
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
@@ -73,14 +100,14 @@
 
 - name: Remove app data directory
   become: true
-  when: decommission_app_remove_data
+  when: decommission_app_remove_data | bool
   ansible.builtin.file:
     path: "{{ decommission_app_base_path }}"
     state: absent
 
 - name: Remove app data kept outside the base path (e.g. on the NAS)
   become: true
-  when: decommission_app_remove_data
+  when: decommission_app_remove_data | bool
   loop: "{{ decommission_app_extra_paths }}"
   ansible.builtin.file:
     path: "{{ item }}"
