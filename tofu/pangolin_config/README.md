@@ -6,7 +6,7 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 
 ## Provider: a build of the fork
 
-The Pangolin provider is `1.7.0-sylvain.1`, built from `sylvainmetayer/terraform-provider-pangolin` and pinned exactly in `provider.tf`. Run `mise run provider-fork` before `tofu init` in this module (once per clone or worktree; `lint`, `tofu-test` and the CI do it): without it, `init` fails on a version the registry does not have. The zip lands in `terraform.d/plugins`, an implied mirror needing no CLI configuration, as long as no `provider_installation` block exists in `~/.tofurc`. Rerun it after a version bump. linux_amd64 only. Why: ADR 0021.
+The Pangolin provider is `1.7.0-sylvain.2`, built from `sylvainmetayer/terraform-provider-pangolin` and pinned exactly in `provider.tf`. Run `mise run provider-fork` before `tofu init` in this module (once per clone or worktree; `lint`, `tofu-test` and the CI do it): without it, `init` fails on a version the registry does not have. The zip lands in `terraform.d/plugins`, an implied mirror needing no CLI configuration, as long as no `provider_installation` block exists in `~/.tofurc`. Rerun it after a version bump. linux_amd64 only. Why: ADR 0021.
 
 The optional+computed attributes the fork adds are declared (`AGENTS.md`'s hard rule): `resource_policy_id` on `pangolin_resource`, `site_ids`, `ssl` and `enabled` on `pangolin_site_resource`. The ones left undeclared have their reason next to the resources (`resource_defaults.tf`, `private_resources.tf`), and the plan stays blind to their live value. Some 1.6.1 workarounds stay although the fork lifts them (`udp_port_range = "*"` in `private_resources.tf`: 1.6.1 dropped an empty string, the fork sends it), each to be reconsidered on its own.
 

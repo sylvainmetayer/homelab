@@ -5,8 +5,8 @@
 # ADR 0021. À retirer quand l'amont aura repris les correctifs.
 set -euo pipefail
 
-version="1.7.0-sylvain.1"
-sha256="338ffb42cc8f3a6208e70a469c3f28afbd9099791741142725813027e6b8f77f"
+version="1.7.0-sylvain.2"
+sha256="3c3e8800701eba9c43b04cf3585bb324b0e7d66354a02a3a857116e5dcd2238b"
 
 root=$(git rev-parse --show-toplevel)
 zip="terraform-provider-pangolin_${version}_linux_amd64.zip"
