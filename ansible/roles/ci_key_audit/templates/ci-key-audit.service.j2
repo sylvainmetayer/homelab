@@ -1,7 +1,7 @@
 # {{ ansible_managed }}
 # Connexions de la clé SSH de la CI comparées aux runs GitHub (rôle ci_key_audit).
-# Secrets dans {{ ci_key_audit_config_dir }}/secrets.json (0600 root), remis au
-# service par LoadCredential, ni dans l'environnement ni sur la ligne de commande.
+# Secrets dans l'EnvironmentFile, 0600 root, jamais sur la ligne de commande :
+# systemctl show et ps la montreraient.
 [Unit]
 Description=Audit of the CI SSH key logins against the GitHub runs
 Wants=network-online.target
@@ -9,7 +9,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-LoadCredential=secrets.json:{{ ci_key_audit_config_dir }}/secrets.json
+EnvironmentFile={{ ci_key_audit_config_dir }}/secrets.env
 # Compte éphémère ; n'écrit que son état (StateDirectory).
 DynamicUser=yes
 StateDirectory=ci-key-audit
