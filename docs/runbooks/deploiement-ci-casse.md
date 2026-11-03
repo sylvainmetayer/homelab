@@ -66,19 +66,77 @@ ansible-playbook docker.yml --tags <tag> --check --diff
 ## Réparation
 
 - **Revenir en arrière** sur une PR qui casse : un revert, par une PR, comme
-  le reste. Le merge du revert redéploie l'ancien état ; l'ancienne image est
-  souvent encore là, `dc@` ne la retélécharge pas. Le dépôt fusionne en rebase
-  seulement : pas de commit de merge, une PR de plusieurs commits en pose
-  autant sur `main`. Les annuler tous, le plus ancien en dernier (ce que fait
-  la plage ci-dessous) : un revert partiel se déploie tel quel au merge.
+  le reste. Pousser la branche ne déploie rien ; le revert arrivé sur `main`
+  (merge, ou push direct en urgence) se déploie comme tout push : il redéploie
+  l'ancien état ; l'ancienne image est souvent encore là, `dc@` ne la
+  retélécharge pas. Ce que le merge ne déploie pas, le revert non plus : un
+  module Tofu (`tofu apply`), un rôle de `nas.yml`, `pve.yml` ou `lxc.yml`, le
+  sous-module `secrets/`, et un changement de playbook annulé après un run
+  rouge, nul au net ([conventions/ci.md](../conventions/ci.md)), se rejouent à
+  la main. Une image de la liste blanche de Renovate : la retirer dans la même
+  PR (voir [Prévention](#prevention)), sinon le lundi suivant la refusionne.
+
+  Le dépôt fusionne en rebase seulement : pas de commit de merge, une PR de
+  plusieurs commits en pose autant sur `main`, sans numéro de PR dans le
+  message et sous d'autres sha que ceux de `gh pr view --json commits`. Il faut
+  les annuler tous : un revert partiel se déploie tel quel au merge. La PR
+  donne les bornes : `merge_commit_sha` est son dernier commit sur `main`, et
+  le rebase y pose le bloc d'un seul tenant ; le nombre est celui de ses
+  commits hors merges (le rebase les retire). Depuis le checkout principal,
+  que `git fetch` ne modifie pas :
 
   ```bash
-  git switch main && git pull
-  git switch -c revert/<sujet>
-  git revert <sha le plus ancien de la PR>^..<sha le plus récent>   # lus dans git log, sur main
+  pr=<numéro>
+  git fetch origin
+  tete=$(gh api "repos/{owner}/{repo}/pulls/$pr" --jq .merge_commit_sha)
+  sujets=$(gh api --paginate "repos/{owner}/{repo}/pulls/$pr/commits" \
+    --jq '.[] | select(.parents | length == 1) | .commit.message | split("\n")[0]')
+  n=$(wc -l <<<"$sujets")
+  diff <(echo "$sujets") <(git log --reverse --format=%s -n "$n" "$tete") &&
+    git log --format='%h %s' -n "$n" "$tete"
+  ```
+
+  `diff` muet et la liste affichée : les bornes sont bonnes. Il ne compare que
+  les sujets. Un écart interdit de lancer le revert, il se lit dans
+  `git log "$tete"`. Les 672 PR fusionnées de la #432 à la #1150 passent
+  (263 de plusieurs commits). Ce qui le fait échouer : un commit vidé par le
+  rebase, donc absent de `main` (#426, #427, #431, « Initial plan » :
+  recompter à la main) ; une PR fusionnée par un commit de merge (jusqu'à la
+  #416 : `git revert -m 1 "$tete"`) ; après le passage au squash
+  ([commits-signes.md](commits-signes.md)), une PR dont `$tete` est alors le
+  seul commit à annuler (`git revert --no-edit "$tete"`).
+
+  Le revert, dans le même shell (il reprend `$tete` et `$n`) et un worktree
+  partant d'`origin/main` :
+
+  ```bash
+  git worktree add -b revert/<sujet> ../homelab-revert origin/main
+  cd ../homelab-revert
+  git revert --no-edit "$tete~$n..$tete"   # du plus récent au plus ancien
+  git rev-list --count origin/main..HEAD   # doit valoir $n
   git push -u origin revert/<sujet>
   gh pr create --fill
   ```
+
+  Une PR postérieure a touché les mêmes lignes : `git revert` s'arrête en
+  conflit, les commits déjà annulés restent sur la branche. Résoudre,
+  `git add`, `git revert --continue` ; ni `--skip` ni push à ce stade, ce
+  serait le revert partiel (`git revert --abort` pour renoncer). Seule
+  exception : `--continue` répond « rien à valider », ce commit n'a plus rien
+  à annuler (déjà défait par une PR postérieure, ou montée seule de
+  `secrets/` dont on garde la révision de `main`). `--skip` passe alors au
+  suivant, et le compte attendu perd un par commit sauté.
+
+  Ce worktree ne lit aucun secret : par exception à la règle d'`AGENTS.md`,
+  inutile d'y initialiser `secrets/`. Le revert d'une montée du sous-module
+  ramène sa révision d'avant (à regarder : `git diff origin/main -- secrets`) ;
+  si la PR portait une rotation, le déploiement suivant réécrirait l'ancienne
+  valeur. `git checkout origin/main -- secrets` garde celle de `main`, puis
+  `git commit` hors conflit (un commit de plus au compte) ; sur un conflit, il remplace le `git add secrets`
+  suggéré par git, qui échoue sur un sous-module non initialisé. Le merge
+  passé, depuis le checkout principal :
+  `git worktree remove ../homelab-revert && git branch -D revert/<sujet>`
+  (`remove` refuse sans `--force` un worktree au sous-module initialisé).
 
   Attention aux montées qui migrent des données (base, appli qui modifie son
   schéma au démarrage) : revenir à l'ancienne image ne défait pas la
