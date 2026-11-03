@@ -192,8 +192,14 @@ resource "pangolin_site_resource" "jellyfin" {
 # l'UI de Pangolin : les utilisateurs ne sont pas gérés ici). Hors de
 # local.apps (roles.tf), dont chaque rôle est lié à une ressource publique.
 resource "pangolin_role" "jellyfin" {
-  name        = "jellyfin"
-  description = "Role for media.sylvain.cloud (Jellyfin, private)"
+  name                    = "jellyfin"
+  description             = "Role for media.sylvain.cloud (Jellyfin, private)"
+  allow_ssh               = local.role_pins.allow_ssh
+  ssh_sudo_mode           = local.role_pins.ssh_sudo_mode
+  ssh_sudo_commands       = local.role_pins.ssh_sudo_commands
+  ssh_create_home_dir     = local.role_pins.ssh_create_home_dir
+  ssh_unix_groups         = local.role_pins.ssh_unix_groups
+  require_device_approval = local.role_pins.require_device_approval
 }
 
 resource "pangolin_site_resource_role" "jellyfin" {
@@ -234,8 +240,14 @@ resource "pangolin_site_resource" "mediamanager" {
 # Pangolin : les utilisateurs ne sont pas gérés ici). Hors de local.apps
 # (roles.tf), comme jellyfin.
 resource "pangolin_role" "mediamanager" {
-  name        = "mediamanager"
-  description = "Role for mediamanager.sylvain.cloud (MediaManager trial on the NAS, private)"
+  name                    = "mediamanager"
+  description             = "Role for mediamanager.sylvain.cloud (MediaManager trial on the NAS, private)"
+  allow_ssh               = local.role_pins.allow_ssh
+  ssh_sudo_mode           = local.role_pins.ssh_sudo_mode
+  ssh_sudo_commands       = local.role_pins.ssh_sudo_commands
+  ssh_create_home_dir     = local.role_pins.ssh_create_home_dir
+  ssh_unix_groups         = local.role_pins.ssh_unix_groups
+  require_device_approval = local.role_pins.require_device_approval
 }
 
 resource "pangolin_site_resource_role" "mediamanager" {
