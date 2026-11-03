@@ -1,0 +1,8 @@
+---
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer.
+- name: Restart ci-key-audit timer
+  become: true
+  ansible.builtin.systemd:
+    name: ci-key-audit.timer
+    state: restarted
+    daemon_reload: true

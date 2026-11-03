@@ -26,7 +26,8 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 | `ntfy` | `ntfy-subscribers-check.sh`, config on stdin | default |
 | `nas_proxy` | `health_check.sh` (`nas-health-check.service`, NAS), one `<name>.curl` per app | default (the check's own exit code) |
 | `ssh_login_notify` | the PAM hook, config on stdin, in the background | `--strict` (logs success or failure) |
+| `ci_key_audit` | `ci_key_audit.py` (`subprocess`), config on stdin | `--strict` (the unit fails) |
 
-Not here: the Python scripts (`kdrive_sync`, `nas_proxy`'s cert check, `update_notify`, `vzdump_restore_test`) push with `urllib`, and `.github/workflows/restore-test.yaml` runs on a GitHub runner.
+Not here: the other Python scripts (`kdrive_sync`, `nas_proxy`'s cert check, `update_notify`, `vzdump_restore_test`) push with `urllib`, and `.github/workflows/restore-test.yaml` runs on a GitHub runner.
 
 Molecule: scenario `uptime_push` (fake Uptime Kuma on `127.0.0.1:18080`, a black hole on `:18081`).

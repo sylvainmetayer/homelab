@@ -1,0 +1,326 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    ci_key_audit_verify_tmp: /root/molecule-ci-key-audit
+    ci_key_audit_verify_log: /root/molecule-ci-key-audit/requests.jsonl
+    ci_key_audit_verify_script: /usr/local/libexec/ci_key_audit.py
+    ci_key_audit_verify_defaults: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../roles/ci_key_audit/defaults/main.yml') | from_yaml }}"
+    ci_key_audit_verify_fp: "{{ ci_key_audit_verify_defaults.ci_key_audit_fingerprint }}"
+    ci_key_audit_verify_login: "clé connue : sylvain@docker depuis 192.0.2.7, clé github-actions (ssh-ed25519 {{ ci_key_audit_verify_fp }})"
+    # Un déploiement fini il y a 800 s, avec sa ligne ; tous les hôtes ont un journal.
+    ci_key_audit_verify_base:
+      fresh: [docker, pi, pangolin, flip]
+      runs:
+        - id: 41
+          start: 1000
+          end: 800
+      steps:
+        - name: Deploy docker
+          conclusion: success
+      lines:
+        - ago: 900
+          host: docker
+          msg: "{{ ci_key_audit_verify_login }}"
+    # La même, et une connexion à 2 h de tout run : une seule alerte par événement.
+    ci_key_audit_verify_stolen:
+      - ago: 900
+        host: docker
+        msg: "{{ ci_key_audit_verify_login }}"
+      - ago: 2000
+        host: pi
+        msg: "{{ ci_key_audit_verify_login | replace('@docker', '@pi') }}"
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    # --- ce que le dépôt doit garder cohérent : l'empreinte est celle de la clé
+    # de CI, ses hôtes ont chacun leur étape dans le workflow, seul à avoir la clé.
+    - name: Compute the fingerprint of the CI key of the repository
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: ssh-keygen -l -E sha256 -f -
+        stdin: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../../keys/github-actions.pub') }}"
+      register: ci_key_audit_verify_repo_fp
+      changed_when: false
+
+    - name: Assert the role matches the repository
+      vars:
+        ci_key_audit_verify_workflow_file: "{{ playbook_dir ~ '/../../../.github/workflows/' ~ ci_key_audit_verify_defaults.ci_key_audit_workflow }}"
+        ci_key_audit_verify_workflow: "{{ lookup('ansible.builtin.file', ci_key_audit_verify_workflow_file) }}"
+        ci_key_audit_verify_steps: "{{ ci_key_audit_verify_defaults.ci_key_audit_hosts | map('regex_replace', '^(.*)$', '- name: Deploy \\1') }}"
+      ansible.builtin.assert:
+        that:
+          - ci_key_audit_verify_repo_fp.stdout.split()[1] == ci_key_audit_verify_fp
+          - "'SSH_PRIVATE_KEY' in ci_key_audit_verify_workflow"
+          - "'newt-lxc' in ci_key_audit_verify_defaults.ci_key_audit_excluded_hosts"
+          - ci_key_audit_verify_steps | reject('in', ci_key_audit_verify_workflow) | list | length == 0
+        quiet: true
+
+    # --- les fichiers
+    - name: Stat the files of the CI key audit
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ ci_key_audit_verify_script }}"
+        - /etc/ci-key-audit/config.json
+        - /etc/ci-key-audit/secrets.json
+      register: ci_key_audit_verify_files
+
+    - name: Assert the files are root-owned and the secrets 0600
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0600' if item.item.endswith('secrets.json') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ ci_key_audit_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the configuration and the secrets
+      no_log: true
+      ansible.builtin.slurp:
+        path: "/etc/ci-key-audit/{{ item }}"
+      loop:
+        - config.json
+        - secrets.json
+      register: ci_key_audit_verify_written
+
+    - name: Assert the secrets are in the secrets file only
+      no_log: true
+      vars:
+        ci_key_audit_verify_config: "{{ ci_key_audit_verify_written.results[0].content | b64decode }}"
+        ci_key_audit_verify_secrets: "{{ ci_key_audit_verify_written.results[1].content | b64decode | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - ci_key_audit_verify_secrets.vl_password == victoria_logs_ui_password
+          - ci_key_audit_verify_secrets.ntfy_token == ntfy_scripts_token
+          - ci_key_audit_verify_secrets.push_url is search('molecule-ci-key-audit')
+          - victoria_logs_ui_password not in ci_key_audit_verify_config
+          - ntfy_scripts_token not in ci_key_audit_verify_config
+          - "'molecule-ci-key-audit' not in ci_key_audit_verify_config"
+        quiet: true
+
+    # --- les unités
+    - name: Verify the CI key audit units
+      ansible.builtin.command: systemd-analyze verify ci-key-audit.service ci-key-audit.timer
+      register: ci_key_audit_verify_analyze
+      changed_when: false
+      failed_when: >-
+        ci_key_audit_verify_analyze.rc != 0
+        or (ci_key_audit_verify_analyze.stderr_lines | select('search', 'ci-key-audit') | list | length > 0)
+
+    - name: Read the CI key audit timer
+      ansible.builtin.systemd:
+        name: ci-key-audit.timer
+      register: ci_key_audit_verify_timer
+
+    - name: Read the CI key audit service
+      ansible.builtin.systemd:
+        name: ci-key-audit.service
+      register: ci_key_audit_verify_unit
+
+    - name: Assert the audit runs unprivileged, secrets out of its command line
+      ansible.builtin.assert:
+        that:
+          - ci_key_audit_verify_timer.status.UnitFileState == 'enabled'
+          - ci_key_audit_verify_timer.status.ActiveState == 'active'
+          - ci_key_audit_verify_unit.status.DynamicUser == 'yes'
+          - ci_key_audit_verify_unit.status.NoNewPrivileges == 'yes'
+          - ci_key_audit_verify_unit.status.ProtectSystem == 'strict'
+          - ci_key_audit_verify_unit.status.StateDirectory == 'ci-key-audit'
+          - ci_key_audit_verify_unit.status.MemoryMax | int == 134217728
+          - ci_key_audit_verify_unit.status.ExecStart is search('python3 -I ' ~ ci_key_audit_verify_script)
+          - ci_key_audit_verify_unit.status.ExecStart is not search(ntfy_scripts_token)
+          - ci_key_audit_verify_unit.status.ExecStart is not search(victoria_logs_ui_password)
+        quiet: true
+
+    # --- tests unitaires : aucun appel réel
+    - name: Create the fixtures folder
+      ansible.builtin.file:
+        path: "{{ ci_key_audit_verify_tmp }}"
+        state: directory
+        mode: "0700"
+
+    - name: Copy the script, its unit tests and the fake services
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ ci_key_audit_verify_tmp }}/{{ item.dest }}"
+        mode: "0600"
+        remote_src: "{{ item.remote | default(false) }}"
+      loop:
+        - src: "{{ ci_key_audit_verify_script }}"
+          dest: ci_key_audit.py
+          remote: true
+        - src: files/test_ci_key_audit.py
+          dest: test_ci_key_audit.py
+        - src: files/fake_api.py
+          dest: fake_api.py
+      loop_control:
+        label: "{{ item.dest }}"
+
+    - name: Run the unit tests of the CI key audit
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ ci_key_audit_verify_tmp }}"
+      changed_when: false
+
+    # --- la vraie unité, durcie, contre les faux services. Un `molecule verify`
+    # relancé repart de zéro, l'état compris.
+    - name: Forget what an earlier verify left
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/private/ci-key-audit/state.json
+        - "{{ ci_key_audit_verify_tmp }}/scenario.json"
+
+    - name: Write the scenario the fake services start with
+      ansible.builtin.copy:
+        content: "{{ ci_key_audit_verify_base | to_json }}"
+        dest: "{{ ci_key_audit_verify_tmp }}/scenario.json"
+        mode: "0644"
+
+    - name: Start the fake services
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-ci-key-audit-api
+          - --collect
+          - python3
+          - -I
+          - "{{ ci_key_audit_verify_tmp }}/fake_api.py"
+          - "18083"
+          - "{{ ci_key_audit_verify_tmp }}/scenario.json"
+          - "{{ ci_key_audit_verify_log }}"
+      changed_when: true
+
+    - name: Wait for the fake services to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18083
+        timeout: 30
+
+    - name: Log in during a genuine run
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: genuine run
+        ci_key_audit_verify_expected_pushes: [up]
+
+    # Les comptes utilisés et les vraies requêtes : le compte de lecture sur
+    # VictoriaLogs, aucun jeton vers GitHub (dépôt public).
+    - name: Read how the services were called
+      ansible.builtin.slurp:
+        path: "{{ ci_key_audit_verify_log }}"
+      register: ci_key_audit_verify_calls
+
+    - name: Assert the accounts and the requests of a tick
+      no_log: true
+      vars:
+        ci_key_audit_verify_requests: "{{ (ci_key_audit_verify_calls.content | b64decode).splitlines() | map('from_json') | list }}"
+        ci_key_audit_verify_github: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'github') | list }}"
+        ci_key_audit_verify_logs: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'logs') | list }}"
+        ci_key_audit_verify_basic: "Basic {{ ('sylvain:' ~ victoria_logs_ui_password) | b64encode }}"
+      ansible.builtin.assert:
+        that:
+          - ci_key_audit_verify_logs | map(attribute='authorization') | unique | list == [ci_key_audit_verify_basic]
+          - ci_key_audit_verify_github | map(attribute='authorization') | unique | list == ['']
+          - ci_key_audit_verify_github[0].path is search('/repos/sylvainmetayer/homelab/actions/workflows/deploy-docker-app.yaml/runs')
+          - ci_key_audit_verify_github[0].path is search('branch=main')
+        quiet: true
+
+    - name: Log in out of any run
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: stolen key
+        ci_key_audit_verify_scenario:
+          lines: "{{ ci_key_audit_verify_stolen }}"
+        ci_key_audit_verify_expected_pushes: [down]
+        ci_key_audit_verify_expected_priorities: [5]
+
+    - name: Run again, same event
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: no second alert
+        ci_key_audit_verify_scenario:
+          lines: "{{ ci_key_audit_verify_stolen }}"
+        ci_key_audit_verify_expected_pushes: [up]
+
+    - name: VictoriaLogs answers 500
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: logs unreachable
+        ci_key_audit_verify_scenario:
+          logs_status: 500
+        ci_key_audit_verify_result: exit-code
+        ci_key_audit_verify_expected_pushes: []
+
+    - name: GitHub answers 503
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: GitHub unreachable
+        ci_key_audit_verify_scenario:
+          github_status: 503
+        ci_key_audit_verify_result: exit-code
+        ci_key_audit_verify_expected_pushes: []
+
+    - name: A host's journal has stopped arriving
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: silent host
+        ci_key_audit_verify_scenario:
+          fresh: [docker, pangolin, flip]
+        ci_key_audit_verify_result: exit-code
+        ci_key_audit_verify_expected_pushes: []
+
+    # Un run plus ancien que l'installation n'attend aucune ligne : on recule la
+    # date d'installation, pour le run de cette étape.
+    - name: Read the state of the audit
+      ansible.builtin.slurp:
+        path: /var/lib/private/ci-key-audit/state.json
+      register: ci_key_audit_verify_state
+
+    - name: Date the installation back
+      ansible.builtin.copy:
+        content: "{{ ci_key_audit_verify_state.content | b64decode | from_json | combine({'installed_at': 0}) | to_json }}"
+        dest: /var/lib/private/ci-key-audit/state.json
+        mode: "0644"
+
+    - name: No line at all, and a deployment that should have left one
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: blind
+        ci_key_audit_verify_scenario:
+          lines: []
+          runs:
+            - id: 42
+              start: 700
+              end: 600
+        ci_key_audit_verify_expected_pushes: [down]
+        ci_key_audit_verify_expected_priorities: [4]
+
+    - name: Nothing to say any more
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        ci_key_audit_verify_step: back to normal
+        ci_key_audit_verify_expected_pushes: [up]
+
+    # Le pic mesuré, pour revoir MemoryMax si besoin.
+    - name: Read the memory peak of the last tick
+      ansible.builtin.systemd:
+        name: ci-key-audit.service
+      register: ci_key_audit_verify_peak
+
+    - name: Show the memory peak
+      ansible.builtin.debug:
+        msg: "MemoryPeak {{ ci_key_audit_verify_peak.status.MemoryPeak | default('?') }}"
+
+    - name: Stop the fake services
+      ansible.builtin.systemd:
+        name: molecule-ci-key-audit-api
+        state: stopped

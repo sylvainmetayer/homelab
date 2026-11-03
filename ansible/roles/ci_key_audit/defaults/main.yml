@@ -1,0 +1,78 @@
+---
+# Connexions de la clé SSH de la CI comparées aux runs GitHub du déploiement
+# (README du rôle, ADR 0027). Tourne sur la VM docker, qui porte VictoriaLogs.
+
+# Moniteur Uptime Kuma du contrôle : sortie uptime_cron_ci_key_audit_url de
+# tofu/pangolin_config, donnée par l'entrée du rôle dans docker.yml. Vide avant
+# l'apply : le contrôle tourne et alerte sur ntfy, sans battement (avertissement).
+ci_key_audit_push_url: ""
+
+# keys/github-actions.pub (le scénario Molecule compare). Clé remplacée sans
+# changer cette valeur : plus aucune ligne, le contrôle le dit au déploiement
+# suivant (« aveugle »).
+ci_key_audit_fingerprint: "SHA256:+I1uk456KeHmdS0BFT0EiL8ahZTcFj6HB1Gt5G5OENc"
+
+# Le seul workflow à avoir SSH_PRIVATE_KEY (environnement production, main).
+ci_key_audit_repository: sylvainmetayer/homelab
+ci_key_audit_workflow: deploy-docker-app.yaml
+ci_key_audit_branch: main
+ci_key_audit_github_api: https://api.github.com
+
+# Hôtes que ce workflow déploie, chacun par une étape « Deploy <hôte> » :
+# journal surveillé et ligne du hook attendue après un déploiement réussi.
+ci_key_audit_hosts:
+  - docker
+  - pi
+  - pangolin
+  - flip
+# Hôtes dont les connexions de la clé ne sont pas jugées. newt-lxc : sa liste de
+# clés connues est vide (host_vars/newt-lxc), la clé de CI y sonne déjà. Tout
+# autre hôte reste jugé : un hôte oublié ici alerte, il ne se tait pas.
+ci_key_audit_excluded_hosts:
+  - newt-lxc
+
+# Toutes les 10 minutes (*:0/N : le test de tofu/pangolin_config en déduit
+# l'intervalle du moniteur, trois périodes).
+ci_key_audit_schedule: "*:0/10"
+ci_key_audit_first_run_delay: 2min
+# Tolérance autour d'un run : horloges des hôtes et de GitHub, dates de GitHub à
+# la seconde. Une connexion à moins de 2 minutes d'un run passe.
+ci_key_audit_margin_seconds: 120
+# Une connexion hors run plus jeune attend le passage suivant : l'API peut ne pas
+# montrer encore le run qui vient de démarrer. Aussi le délai avant de conclure
+# qu'un déploiement fini n'a laissé aucune ligne.
+ci_key_audit_settle_seconds: 300
+# Relu en deçà du curseur à chaque passage : lignes en retard (lot de Vector,
+# hôte ralenti) et connexions en attente. Plus long que l'attente ci-dessus
+# (le rôle le vérifie).
+ci_key_audit_overlap_seconds: 3600
+# Sans ligne de journald pendant ce temps, un hôte rend le contrôle incomplet.
+# Assez long pour un hôte calme, la nuit compris.
+ci_key_audit_freshness_seconds: 10800
+# Premier passage, ou état perdu : relire ce temps-là.
+ci_key_audit_initial_lookback_seconds: 86400
+# Runs lus avant le début de la fenêtre : un run commencé plus tôt, ou relancé
+# (il garde sa date de création). Au-delà, relancer un vieux run alerte à tort.
+ci_key_audit_run_lookback_seconds: 172800
+# Plafonds : les atteindre rend le contrôle incomplet, jamais un « tout va bien ».
+ci_key_audit_max_lines: 10000
+ci_key_audit_max_pages: 10
+# Attente entre deux essais, réseau ou 5xx.
+ci_key_audit_retry_delays:
+  - 5
+  - 20
+
+# vmauth publié sur la VM ; le compte de lecture de l'interface, sur le même hôte
+# que auth.yml qui le contient déjà. Une rotation de victoria_logs_ui_password
+# redéploie aussi ce rôle (docs/runbooks/rotation-des-secrets.md).
+ci_key_audit_vl_url: http://127.0.0.1:9428 # NOSONAR
+ci_key_audit_vl_user: sylvain
+ci_key_audit_vl_password: "{{ victoria_logs_ui_password | default('') }}"
+
+# Producteur scripts du rôle ntfy, comme mem_report et cost_report.
+ci_key_audit_ntfy_url: https://ntfy.sylvain.cloud
+ci_key_audit_ntfy_topic: scripts
+ci_key_audit_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+
+ci_key_audit_script: /usr/local/libexec/ci_key_audit.py
+ci_key_audit_config_dir: /etc/ci-key-audit

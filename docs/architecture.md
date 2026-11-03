@@ -663,6 +663,10 @@ flowchart LR
   passe par un pont USB RTL9210 (`-d sntrealtek`), non vérifié avant
   déploiement ; le LXC newt (non privilégié) ne voit ni S.M.A.R.T. ni
   capteurs fiables, mais son CPU, sa mémoire, son disque et `newt.service`.
+- **Clé SSH de la CI** (rôle `ci_key_audit`, docker) : toutes les 10 minutes,
+  `ci-key-audit.timer` compare les connexions de cette clé, lues dans
+  VictoriaLogs, aux runs GitHub du déploiement ; hors de tout run, ntfy urgent et
+  Telegram, après coup (ADR 0027). Moniteur « Clé de CI : contrôle ».
 - **Rapport mémoire hebdomadaire** (rôle `mem_report`, docker, pi et flip,
   hors Beszel) : chaque lundi à 09:00, `mem-report.timer` lit le cgroup v2 de
   chaque conteneur (`memory.max`, `memory.peak`, `memory.current`,

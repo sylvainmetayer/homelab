@@ -114,8 +114,11 @@ sonne que sur newt-lxc.
    (défauts du rôle : `keys/perso.pub` et `keys/github-actions.pub` ; liste
    vide sur newt-lxc, `host_vars/newt-lxc`) **ne sonne pas sur le téléphone**.
    Une clé `perso` volée, comme la clé de CI, ne déclenche donc une alerte
-   Telegram que sur newt-lxc
-   ([ADR 0027](../adr/0027-connexions-ssh-cles-connues.md)) : chercher ses
+   Telegram immédiate que sur newt-lxc
+   ([ADR 0027](../adr/0027-connexions-ssh-cles-connues.md)). La clé de CI a en
+   plus le contrôle `ci_key_audit` : une connexion hors de tout run de
+   déploiement alerte en quelques minutes (ntfy urgent et moniteur « Clé de CI :
+   contrôle » ; une connexion pendant un vrai run passe). Chercher ses
    connexions dans le topic ntfy `scripts` et dans
    `journalctl -t ssh-login-notify --grep 'clé connue'` (aussi dans
    VictoriaLogs). **Volée : faire cette étape dès le début** : retirer
