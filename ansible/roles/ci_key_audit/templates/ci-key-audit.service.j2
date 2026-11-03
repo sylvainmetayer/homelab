@@ -28,6 +28,6 @@ ProtectKernelModules=yes
 CapabilityBoundingSet=
 # AF_UNIX : la résolution DNS par systemd-resolved (nss).
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-# Un script qui lit quelques lignes : plafond large (doctrine, à revoir sur le
-# pic mesuré, MemoryPeak de systemctl show).
-MemoryMax=128M
+# Pic mesuré sous Molecule : 14 Mio, 2x comme la doctrine, plus de la place pour
+# une fenêtre longue (10 000 lignes au plus).
+MemoryMax=64M
