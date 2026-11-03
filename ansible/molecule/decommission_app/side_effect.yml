@@ -106,14 +106,14 @@
       ansible.builtin.include_tasks: tasks/stat_fixture.yml
       vars:
         fixture_service: strings_app
+        fixture_extra_paths: [/mnt/nas/apps/strings_app]
         fixture_present: true
 
-    - name: Stat the NAS folder after the string false
-      ansible.builtin.stat:
-        path: /mnt/nas/apps/strings_app
-      become: true
-      register: strings_nas_kept
-      failed_when: not strings_nas_kept.stat.exists
+    # Le bouchon de borgmatic sort en 0 : seul ce saut distingue « false » lu vrai.
+    - name: Assert the string false did not reach repo-delete
+      ansible.builtin.assert:
+        that:
+          - decommission_app_repo_delete is skipped
 
     - name: Run the role with the string true
       ansible.builtin.include_role:
@@ -132,14 +132,8 @@
       ansible.builtin.include_tasks: tasks/stat_fixture.yml
       vars:
         fixture_service: strings_app
+        fixture_extra_paths: [/mnt/nas/apps/strings_app]
         fixture_present: false
-
-    - name: Stat the NAS folder after the string true
-      ansible.builtin.stat:
-        path: /mnt/nas/apps/strings_app
-      become: true
-      register: strings_nas_gone
-      failed_when: strings_nas_gone.stat.exists
 
     # --- repo-delete : vrais borgmatic et borg, dépôts locaux jetables --------
     - name: Read the pinned borg version
@@ -168,6 +162,12 @@
       vars:
         fixture_service: retry_app
 
+    - name: Start the app whose repository cannot be deleted
+      ansible.builtin.systemd:
+        name: dc@retry_app
+        scope: user
+        state: started
+
     - name: Run the role on the repository that cannot be deleted
       ansible.builtin.include_tasks: tasks/expect_failure.yml
       vars:
@@ -182,6 +182,17 @@
       vars:
         fixture_service: retry_app
         fixture_present: true
+
+    - name: Read dc@retry_app after the failed repo-delete
+      ansible.builtin.systemd:
+        name: dc@retry_app
+        scope: user
+      register: retry_unit
+
+    - name: Assert the failed repo-delete left the app running
+      ansible.builtin.assert:
+        that:
+          - retry_unit.status.ActiveState == 'active'
 
     - name: Remove the target, leaving an absent repository
       become: true
