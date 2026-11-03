@@ -41,6 +41,8 @@ services:
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
     container_name: nextcloud_db
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
     # Réglages remontés par les vérifications de base de données de Nextcloud
