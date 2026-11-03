@@ -76,8 +76,10 @@
     state: stopped
     enabled: false
   register: decommission_app_unit_stop
-  # Un arrêt qui échoue laisse tout en place : rien n'est effacé ensuite. Seule
-  # une unité introuvable (pas de modèle dc@ sur l'hôte) est tolérée.
+  # Un arrêt qui échoue n'efface rien ensuite, mais l'unité est déjà désactivée
+  # (le module traite enabled avant state) : l'application tourne jusqu'au
+  # prochain redémarrage de l'hôte. Seule une unité introuvable (pas de modèle
+  # dc@ sur l'hôte) est tolérée.
   failed_when:
     - decommission_app_unit_stop.failed | default(false)
     - decommission_app_unit_stop.msg | default('') is not search('Could not find the requested service')
