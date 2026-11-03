@@ -84,6 +84,16 @@
       vars:
         karakeep_ytdlp: "{{ karakeep_env.CRAWLER_YTDLP_ARGS.split('%%') }}"
 
+    # Molecule ne démarre pas les images : seul le compose peut être vérifié.
+    # --no-sandbox : chrome-sandbox, setuid, ne passe pas no-new-privileges.
+    - name: Assert the karakeep web and chrome containers stay hardened
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges:true' in karakeep_compose.services.web.security_opt"
+          - "'no-new-privileges:true' in karakeep_compose.services.chrome.security_opt"
+          - "'--no-sandbox' in karakeep_compose.services.chrome.command"
+        fail_msg: web ou chrome de karakeep n'est plus durci (no-new-privileges, --no-sandbox).
+
     # Seul le web est joignable par Pangolin ; chrome et Meilisearch restent
     # sur le réseau du projet.
     - name: Assert only the karakeep web container joins newt
