@@ -107,3 +107,16 @@ resource "pangolin_alert_rule" "ntfy" {
     })
   }]
 }
+
+# Courriel à l'activation ou la désactivation d'une ressource. Faite à la main
+# dans l'UI, importée (id 3, voir README). Elle passe par Pangolin, pas par ntfy,
+# donc elle n'a pas les limites décrites plus haut. user_ids : le compte Admin
+# destinataire, un identifiant opaque (pas d'e-mail dans ce dépôt public).
+resource "pangolin_alert_rule" "resource_toggle" {
+  name             = "Ressource Alerts"
+  event_type       = "resource_toggle"
+  enabled          = true
+  cooldown_seconds = 0
+  all_resources    = true
+  user_ids         = ["agxy5o5qekx2nkx"]
+}

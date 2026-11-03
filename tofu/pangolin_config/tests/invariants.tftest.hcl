@@ -2986,3 +2986,26 @@ run "app_roles_open_no_ssh" {
     error_message = "Aucun rôle d'app n'ouvre de session SSH : chacun déclare local.role_pins."
   }
 }
+
+run "hand_made_leftovers_stay_as_imported" {
+  command = plan
+
+  assert {
+    condition = (
+      pangolin_alert_rule.resource_toggle.event_type == "resource_toggle"
+      && pangolin_alert_rule.resource_toggle.all_resources
+      && length(pangolin_alert_rule.resource_toggle.user_ids) == 1
+      && pangolin_alert_rule.resource_toggle.webhook_actions == null
+    )
+    error_message = "Ressource Alerts couvre toutes les ressources et prévient un seul compte, par courriel."
+  }
+
+  assert {
+    condition = (
+      pangolin_site_resource.nas_web.destination == "192.168.1.137"
+      && pangolin_site_resource.nas_web.destination_port == 9999
+      && pangolin_site_resource.nas_web.subdomain == "nas-internal"
+    )
+    error_message = "00-NTF-nas doit rester l'accès au port 9999 du NAS sur nas-internal."
+  }
+}
