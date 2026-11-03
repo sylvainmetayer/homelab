@@ -19,6 +19,29 @@ resource "pangolin_site_resource" "app_proxy" {
   enabled          = true
 }
 
+# Port 9999 du NAS, fait à la main dans l'UI, importé (id 11, voir README).
+# Son nom vient de l'UI ; le NAS au sens hôte est pangolin_site_resource.nas.
+resource "pangolin_site_resource" "nas_web" {
+  site_ids = [
+    pangolin_site.proxmox_docker.id,
+    pangolin_site.pi.id,
+    pangolin_site.proxmox_lxc.id,
+  ]
+  name             = "00-NTF-nas"
+  mode             = "http"
+  domain_id        = local.domain_ids["sylvain.cloud"]
+  subdomain        = "nas-internal"
+  destination      = "192.168.1.137"
+  scheme           = "http"
+  destination_port = 9999
+  disable_icmp     = true
+  tcp_port_range   = "443,80"
+  auth_daemon_mode = "site"
+  pam_mode         = "passthrough"
+  ssl              = true
+  enabled          = true
+}
+
 # L'imprimante (interface web), par un client Pangolin. Faite à la main dans
 # l'UI jusqu'au 23/10/2026, déclarée ici à la recréation du site du LXC.
 resource "pangolin_site_resource" "printer" {
