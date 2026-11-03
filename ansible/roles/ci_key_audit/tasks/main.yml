@@ -1,0 +1,119 @@
+---
+# Sans ces jetons, le contrôle tournerait sans jamais pouvoir conclure ni
+# alerter : échec franc au déploiement. Le recouvrement doit relire ce qui attend.
+- name: Check the settings of the CI key audit
+  no_log: true
+  ansible.builtin.assert:
+    that:
+      - ci_key_audit_vl_password | length > 0
+      - ci_key_audit_ntfy_token | length > 0
+      - ci_key_audit_overlap_seconds > ci_key_audit_settle_seconds
+    fail_msg: >-
+      victoria_logs_ui_password et ntfy_scripts_token (secrets/ansible.sops.yaml)
+      ne doivent pas être vides ; ci_key_audit_overlap_seconds doit dépasser
+      ci_key_audit_settle_seconds.
+    quiet: true
+
+- name: Warn when the CI key audit has no monitor
+  when: ci_key_audit_push_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      Pas d'URL push : uptime_cron_ci_key_audit_url vide (tofu/pangolin_config pas
+      appliqué). Le contrôle alerte sur ntfy mais rien ne verrait sa panne.
+
+# /usr/local/libexec n'existe pas partout (absent du Pi, 28/10).
+- name: Ensure the CI key audit folders exist
+  become: true
+  loop:
+    - "{{ ci_key_audit_script | dirname }}"
+    - "{{ ci_key_audit_config_dir }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    # Traversés par le compte de l'unité ; secrets.json reste en 0600.
+    mode: "0755" # NOSONAR
+
+- name: Install the CI key audit script
+  become: true
+  ansible.builtin.copy:
+    src: ci_key_audit.py
+    dest: "{{ ci_key_audit_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Sans secret.
+- name: Write the CI key audit configuration
+  become: true
+  ansible.builtin.copy:
+    content: >-
+      {{ {
+        'vl_url': ci_key_audit_vl_url,
+        'vl_user': ci_key_audit_vl_user,
+        'github_api': ci_key_audit_github_api,
+        'repository': ci_key_audit_repository,
+        'workflow': ci_key_audit_workflow,
+        'branch': ci_key_audit_branch,
+        'fingerprint': ci_key_audit_fingerprint,
+        'hosts': ci_key_audit_hosts,
+        'excluded_hosts': ci_key_audit_excluded_hosts,
+        'margin_seconds': ci_key_audit_margin_seconds,
+        'settle_seconds': ci_key_audit_settle_seconds,
+        'overlap_seconds': ci_key_audit_overlap_seconds,
+        'freshness_seconds': ci_key_audit_freshness_seconds,
+        'initial_lookback_seconds': ci_key_audit_initial_lookback_seconds,
+        'run_lookback_seconds': ci_key_audit_run_lookback_seconds,
+        'max_lines': ci_key_audit_max_lines,
+        'max_pages': ci_key_audit_max_pages,
+        'retry_delays': ci_key_audit_retry_delays,
+        'ntfy_url': ci_key_audit_ntfy_url,
+        'ntfy_topic': ci_key_audit_ntfy_topic,
+        'uptime_push_bin': uptime_push_bin,
+      } | to_nice_json(ensure_ascii=False) }}
+    dest: "{{ ci_key_audit_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Mot de passe de lecture, jeton ntfy, URL push (jeton du moniteur) : 0600 root,
+# remis à l'unité par LoadCredential, ni environnement ni ligne de commande.
+- name: Write the CI key audit secrets
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: >-
+      {{ {
+        'vl_password': ci_key_audit_vl_password,
+        'ntfy_token': ci_key_audit_ntfy_token,
+        'push_url': ci_key_audit_push_url,
+      } | to_nice_json }}
+    dest: "{{ ci_key_audit_config_dir }}/secrets.json"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the CI key audit service and timer
+  become: true
+  loop:
+    - ci-key-audit.service
+    - ci-key-audit.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart ci-key-audit timer
+
+# Le timer seul : le service, oneshot, n'est jamais lancé par Ansible
+# (OnActiveSec le lance peu après).
+- name: Enable the CI key audit timer
+  become: true
+  ansible.builtin.systemd:
+    name: ci-key-audit.timer
+    state: started
+    enabled: true
+    daemon_reload: true

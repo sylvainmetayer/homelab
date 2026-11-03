@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+# Connexions de la clé SSH de la CI comparées aux runs GitHub (rôle ci_key_audit).
+# Secrets dans {{ ci_key_audit_config_dir }}/secrets.json (0600 root), remis au
+# service par LoadCredential, ni dans l'environnement ni sur la ligne de commande.
+[Unit]
+Description=Audit of the CI SSH key logins against the GitHub runs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+LoadCredential=secrets.json:{{ ci_key_audit_config_dir }}/secrets.json
+# Compte éphémère ; n'écrit que son état (StateDirectory).
+DynamicUser=yes
+StateDirectory=ci-key-audit
+ExecStart=/usr/bin/python3 -I {{ ci_key_audit_script }}
+# Réseau en panne : quelques requêtes de 30 s, réessayées. Borné, pour que
+# l'unité ne reste pas « activating ».
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+CapabilityBoundingSet=
+# AF_UNIX : la résolution DNS par systemd-resolved (nss).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Un script qui lit quelques lignes : plafond large (doctrine, à revoir sur le
+# pic mesuré, MemoryPeak de systemctl show).
+MemoryMax=128M

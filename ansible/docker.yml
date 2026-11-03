@@ -148,6 +148,13 @@
       tags: log_agent,monitoring
       vars:
         log_agent_url: "http://127.0.0.1:9428"
+    # Connexions de la clé de CI hors de tout run GitHub : alerte (ADR 0027).
+    # L'URL ici, pas dans un set_fact des pre_tasks ; pas de tag monitoring : un
+    # merge ne déploie que ce tag, pas tous les rôles de supervision.
+    - role: ci_key_audit
+      tags: ci_key_audit
+      vars:
+        ci_key_audit_push_url: "{{ terraform_outputs.uptime_cron_ci_key_audit_url.value | default('') }}"
     # Rapport des coûts (Hetzner, OVH, abonnements), chaque 1er du mois sur
     # ntfy (topic scripts) ; son costs.json, relu chaque jour, nourrit la
     # carte Coûts de Homepage. Avant homepage, qui monte son dossier.

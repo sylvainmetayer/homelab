@@ -238,7 +238,9 @@ sans écran de connexion ; supprimer ensuite l'ancienne clé dans Immich.
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
 changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
-`victoria_logs_ui_password` ne sert qu'à l'interface (vmauth seul).
+`victoria_logs_ui_password` sert à l'interface et au contrôle de la clé de CI :
+`docker.yml --tags victoria_logs,ci_key_audit`, sinon ce contrôle reçoit des 401
+et son moniteur tombe.
 
 ### Widgets de Homepage
 

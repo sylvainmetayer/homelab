@@ -712,6 +712,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_ci_key_audit
+  values = { push_token = "push-cron-ci-key-audit" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["paperless"]
   values = { push_token = "push-paperless" }
 }
@@ -1991,6 +1996,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_papra_url             = output.uptime_backup_papra_url
         uptime_backup_grocy_url             = output.uptime_backup_grocy_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
+        uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         # flip.yml (production, démo, vitrine)
         uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
@@ -2609,6 +2615,22 @@ run "monitors_are_filed_and_alert" {
       && m.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_check_schedule)[0])
     ])
     error_message = "Moniteurs DNS : rangés avec les healthchecks, Telegram et ntfy, intervalle de trois périodes de blocky_check_schedule (*:0/N)."
+  }
+
+  # Clé de CI (rôle ci_key_audit) : la VM docker pousse toutes les N minutes ;
+  # deux passages manqués passent, pas trois. Sans max_retries : un down poussé
+  # (connexion hors run) notifie tout de suite, Telegram compris. docker.yml lit
+  # la sortie dans l'entrée du rôle.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_ci_key_audit.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_ci_key_audit.notification_ids) == toset(local.alert_notification_ids)
+      && uptimekuma_monitor_push.cron_ci_key_audit.active == true
+      && uptimekuma_monitor_push.cron_ci_key_audit.max_retries == 0
+      && uptimekuma_monitor_push.cron_ci_key_audit.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/ci_key_audit/defaults/main.yml")).ci_key_audit_schedule)[0])
+      && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.uptime_cron_ci_key_audit_url.value")
+    )
+    error_message = "Clé de CI : rangé avec les healthchecks, Telegram et ntfy, actif, sans PENDING, intervalle de trois périodes de ci_key_audit_schedule (*:0/N), lu par docker.yml."
   }
 
   # Abonnés ntfy (rôle ntfy) : la VM docker pousse toutes les N minutes

@@ -1,0 +1,42 @@
+---
+# Un passage de la vraie unité sur un scénario, puis ce que les faux services ont
+# reçu : ci_key_audit_verify_new, les requêtes de ce passage seulement.
+- name: "Write the scenario of the step: {{ ci_key_audit_verify_step }}"
+  ansible.builtin.copy:
+    content: "{{ ci_key_audit_verify_base | combine(ci_key_audit_verify_scenario | default({})) | to_json }}"
+    dest: "{{ ci_key_audit_verify_tmp }}/scenario.json"
+    mode: "0644"
+
+- name: "Empty the requests log: {{ ci_key_audit_verify_step }}"
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ ci_key_audit_verify_log }}"
+    mode: "0644"
+
+- name: "Run the unit: {{ ci_key_audit_verify_step }}"
+  ansible.builtin.systemd:
+    name: ci-key-audit.service
+    state: started
+  failed_when: false
+
+- name: "Read the result of the unit: {{ ci_key_audit_verify_step }}"
+  ansible.builtin.systemd:
+    name: ci-key-audit.service
+  register: ci_key_audit_verify_start
+
+- name: "Read the requests: {{ ci_key_audit_verify_step }}"
+  ansible.builtin.slurp:
+    path: "{{ ci_key_audit_verify_log }}"
+  register: ci_key_audit_verify_received
+
+- name: "Assert what happened: {{ ci_key_audit_verify_step }}"
+  vars:
+    ci_key_audit_verify_requests: "{{ (ci_key_audit_verify_received.content | b64decode).splitlines() | map('from_json') | list }}"
+    ci_key_audit_verify_ntfy: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'ntfy') | map(attribute='body') | list }}"
+    ci_key_audit_verify_pushes: "{{ ci_key_audit_verify_requests | selectattr('route', 'equalto', 'push') | map(attribute='status') | list }}"
+  ansible.builtin.assert:
+    that:
+      - ci_key_audit_verify_start.status.Result == (ci_key_audit_verify_result | default('success'))
+      - ci_key_audit_verify_pushes == ci_key_audit_verify_expected_pushes
+      - ci_key_audit_verify_ntfy | map(attribute='priority') | list == (ci_key_audit_verify_expected_priorities | default([]))
+    fail_msg: "{{ ci_key_audit_verify_start.status.Result }}, pushs {{ ci_key_audit_verify_pushes }}, ntfy {{ ci_key_audit_verify_ntfy }}"

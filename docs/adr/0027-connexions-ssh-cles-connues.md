@@ -32,8 +32,14 @@ newt-lxc a une liste vide : toute connexion y sonne, CI comme poste.
   `ssh` à la main de Sylvain ou de Claude, qui prennent la même clé.
 - Reste : deux connexions inconnues à moins de 60 s sur un hôte ne font qu'une
   alerte ; la seconde est au journal.
-- Le lot 2, non fait ici : un timer compare les connexions de la clé de CI aux
-  runs GitHub, pour rendre à cette clé une alerte sur un usage hors déploiement.
+
+## Amendement du 2026-11-03 : la clé de CI (lot 2)
+
+Le rôle `ci_key_audit` compare chaque connexion de la clé de CI, lue dans
+VictoriaLogs, aux runs de `deploy-docker-app.yaml` : hors de tout run (± 2 min),
+ntfy urgent et down du moniteur, donc Telegram. Limites acceptées : c'est après
+coup (quelques minutes) ; une connexion pendant un vrai run passe ; hors
+newt-lxc, déjà sonné. La clé d'Ansible reste au premier risque ci-dessus.
 
 ## Liens
 
