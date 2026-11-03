@@ -11,7 +11,9 @@ The templates are Jinja, so they are not loaded as YAML: an `{% if %}` or a `{{ 
 breaks a parser or, rendered, hides a service behind a variable (flip_planning's
 Keycloak). Lines are read as trivy_images.py reads them: a key indented by two
 spaces under the top-level `services:` starts a service, whatever Jinja surrounds
-it. An option written inside an `{% if %}` counts as set.
+it. An option written inside an `{% if %}` counts as set, in the service's own
+`security_opt` only. A compose where no service is read fails too: its layout has
+left what this parser knows, and it would otherwise pass unchecked.
 
 Usage (from the repository root, workflow Lint): check_container_hardening.py
 """
@@ -21,9 +23,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SERVICE_LINE = re.compile(r"^  (?P<key>[A-Za-z0-9._-]+):\s*(?:#.*)?$")
+# Only a key closes a top-level section: `---` and Jinja also sit in column 0.
+TOP_LEVEL = re.compile(r"^(?P<key>[A-Za-z0-9._-]+):")
+# The name may be templated, and an anchor or a flow value may follow it.
+SERVICE_LINE = re.compile(r"^  (?P<key>(?:\{\{.*?\}\}|[A-Za-z0-9._-])+):(?:\s|$)")
+SERVICE_KEY = re.compile(r"^    (?P<key>[A-Za-z_]+):")
 # Block form (`- no-new-privileges:true`) or flow form (`["no-new-privileges:true"]`).
-OPTION = re.compile(r"""(?:^\s*-\s*|[\[,]\s*)["']?no-new-privileges:true\b""")
+OPTION = re.compile(
+    r"""^\s*(?:-\s*|security_opt:\s*\[[^\]#]*)["']?no-new-privileges:true\b"""
+)
 
 # Owner (role, or compose/ directory; Immich's two share a name) -> why it is left
 # out, and its services. The reasons are detailed in the doctrine.
@@ -72,27 +80,44 @@ def owner(root, path):
 
 
 def services(text):
-    """{service: has the option} of a compose template."""
-    found = {}
-    current = None
-    in_services = False
+    """[(service, has the option)] of a compose template, one per occurrence."""
+    found = []
+    in_services = in_security_opt = False
     for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("{%"):
+        if line.lstrip().startswith("#"):
             continue
-        if not line.startswith(" "):
-            in_services = line.rstrip() == "services:"
-            current = None
+        if top := TOP_LEVEL.match(line):
+            in_services = top["key"] == "services"
             continue
         if not in_services:
             continue
-        key = SERVICE_LINE.match(line)
-        if key:
-            current = key["key"]
-            found.setdefault(current, False)
-        elif current and OPTION.search(line):
-            found[current] = True
+        if service := SERVICE_LINE.match(line):
+            found.append((service["key"], False))
+            in_security_opt = False
+        elif found:
+            if key := SERVICE_KEY.match(line):
+                in_security_opt = key["key"] == "security_opt"
+            if in_security_opt and OPTION.match(line):
+                found[-1] = (found[-1][0], True)
     return found
+
+
+def scan(root):
+    """({(owner, service): has the option}, the files where no service was read).
+
+    A service read twice (two Jinja branches, two files of one owner) must have
+    the option each time.
+    """
+    found = {}
+    unread = []
+    for path in compose_files(root):
+        name = owner(root, path)
+        read = services(path.read_text(encoding="utf-8"))
+        if not read:
+            unread.append(path.relative_to(root))
+        for service, hardened in read:
+            found[(name, service)] = hardened and found.get((name, service), True)
+    return found, unread
 
 
 def check(found, exceptions):
@@ -111,6 +136,11 @@ def check(found, exceptions):
                 f"{name}/{service} a no-new-privileges : le retirer d'EXCEPTIONS."
             )
     errors.extend(
+        f"{name} : exception sans raison dans EXCEPTIONS."
+        for name, (reason, _) in sorted(exceptions.items())
+        if not reason.strip()
+    )
+    errors.extend(
         f"{name}/{service} : dans EXCEPTIONS, absent des composes."
         for name, (_, listed) in sorted(exceptions.items())
         for service in sorted(listed)
@@ -120,13 +150,9 @@ def check(found, exceptions):
 
 
 def main():
-    found = {}
-    for path in compose_files(ROOT):
-        name = owner(ROOT, path)
-        for service, hardened in services(path.read_text(encoding="utf-8")).items():
-            # Same service in two files of one owner: each must have the option.
-            found[(name, service)] = hardened and found.get((name, service), True)
-    errors = check(found, EXCEPTIONS)
+    found, unread = scan(ROOT)
+    errors = [f"{path} : aucun service lu sous `services:`." for path in unread]
+    errors.extend(check(found, EXCEPTIONS))
     for error in errors:
         print(error)
     if not errors:

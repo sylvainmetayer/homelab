@@ -190,14 +190,16 @@ per-app, so there's no DNS record to remove either.
 ## 7. Repo-wide leftover check (don't skip — this is what went wrong last time)
 
 ```bash
-grep -rln "<service>" --include="*.yml" --include="*.yaml" --include="*.tf" . \
+grep -rln "<service>" --include="*.yml" --include="*.yaml" --include="*.tf" --include="*.py" . \
   | grep -v -E "^\./(tofu/pangolin_config/\.terraform|ansible/collections|ansible/\.ansible|ansible/galaxy_roles)"
 ```
 
 Anything left should only be incidental (e.g. a changelog, an unrelated
 comment). If `host_vars`, a `secrets/*.sops.yaml` key, or a
 commented-out (not deleted) playbook role entry show up, go back and finish
-steps 3–5.
+steps 3–5. An `EXCEPTIONS` entry of `.github/scripts/check_container_hardening.py`
+goes too, with its row in `docs/conventions/container-hardening.md`: Lint fails on
+a stale one.
 
 ## 8. Verify
 
