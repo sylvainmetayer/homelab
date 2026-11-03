@@ -14,6 +14,8 @@ services:
     # PUID/PGID et tourne en abc.
     image: lscr.io/linuxserver/speedtest-tracker:1.15.1@sha256:8d3c2826b708c18be7fb46c1afebc6bb3b1ab7c519473df1be89f5ecaa8bb31f
     container_name: speedtest-tracker
+    security_opt:
+      - no-new-privileges:true
     env_file:
       - .env
     volumes:
