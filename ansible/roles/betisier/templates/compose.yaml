@@ -29,6 +29,8 @@ services:
       - betisier
     image: lscr.io/linuxserver/mariadb:11.8.9@sha256:d0f9ffd4d00878b8892888e70cb8ea12f4d2dfa63ac940ceb9fd1b36a1b449e3
     container_name: betisier_db
+    security_opt:
+      - no-new-privileges:true
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
