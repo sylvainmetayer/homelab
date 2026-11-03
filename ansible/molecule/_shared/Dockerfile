@@ -41,8 +41,9 @@ RUN apt-get update \
 
 # Vrai borgmatic, utilisé par le bouchon de /root/.local/bin/borgmatic et par
 # les verify pour valider les configurations templatées. Épinglé pour que la CI
-# ne change pas de validateur du jour au lendemain ; les hôtes suivent
-# borgmatic_version (ansible/roles/borgmatic/tasks/host.yml).
+# ne change pas de validateur du jour au lendemain ; les hôtes Debian suivent
+# borgmatic_version (ansible/roles/borgmatic/tasks/host.yml), le NAS le tag de
+# son image (ansible/roles/borgmatic/templates/compose.yaml).
 # renovate: datasource=pypi depName=borgmatic
 ARG BORGMATIC_VERSION=2.2.0
 RUN python3 -m venv /opt/molecule-borgmatic \
