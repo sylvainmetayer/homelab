@@ -75,19 +75,34 @@
     scope: "{{ decommission_app_dc_scope }}"
     state: stopped
     enabled: false
-  failed_when: false
+  register: decommission_app_unit_stop
+  # Un arrêt qui échoue laisse tout en place : rien n'est effacé ensuite. Seule
+  # une unité introuvable (pas de modèle dc@ sur l'hôte) est tolérée.
+  failed_when:
+    - decommission_app_unit_stop.failed | default(false)
+    - decommission_app_unit_stop.msg | default('') is not search('Could not find the requested service')
 
+- name: Check whether the app folder still exists
+  become: true
+  ansible.builtin.stat:
+    path: "{{ decommission_app_base_path }}"
+  register: decommission_app_base_path_stat
+
+# Dossier absent (2e passage) : rien à arrêter. Dossier sans compose : toléré
+# aussi, compose sort alors en 1 ou 14 selon sa version, seul le message est
+# stable (relevé sur 2.26 et 2.40). Tout autre échec (démon injoignable, compose
+# invalide) arrête le rôle, données et configuration en place.
 - name: Tear down containers, networks and volumes
   become: "{{ decommission_app_as_root }}"
+  when: decommission_app_base_path_stat.stat.exists
   ansible.builtin.command:
     cmd: docker compose down --volumes --remove-orphans
     chdir: "{{ decommission_app_base_path }}"
   register: decommission_app_compose_down
-  # Sans `rc` quand le dossier n'existe plus (« Unable to change directory »,
-  # 2e passage) : depuis ansible-core 2.21 un changed_when en erreur fait
-  # échouer la tâche malgré failed_when: false.
   changed_when: decommission_app_compose_down.rc | default(1) == 0
-  failed_when: false
+  failed_when:
+    - decommission_app_compose_down.rc | default(1) != 0
+    - decommission_app_compose_down.stderr | default('') is not search('no configuration file provided')
 
 # La configuration et le fichier de son URL push Uptime Kuma (rôle borgmatic,
 # tasks/app.yml).
