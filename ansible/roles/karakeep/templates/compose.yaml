@@ -39,6 +39,10 @@ services:
     restart: unless-stopped
     init: true
     command:
+      # Déjà passé par l'entrypoint de l'image (automerge Renovate), répété ici :
+      # sans lui, Chromium essaie chrome-sandbox, setuid, que no-new-privileges
+      # bloque. Un plantage ne se verrait pas : ni healthcheck ni moniteur ici.
+      - --no-sandbox
       - --disable-gpu
       - --disable-dev-shm-usage
       - --hide-scrollbars

@@ -51,6 +51,7 @@
           - "'newt' not in betisier_compose.services.betisier_db.networks"
           - "'betisier' in betisier_compose.services.betisier_db.networks"
           - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
+          - "'no-new-privileges:true' in betisier_compose.services.betisier.security_opt"
         fail_msg: "Compose de betisier inattendu : {{ betisier_compose.services }}"
 
     - name: Read the state of the betisier reset timer
