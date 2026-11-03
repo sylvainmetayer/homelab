@@ -154,6 +154,7 @@ nav:
       - conventions/ansible.md
       - conventions/app-lifecycle.md
       - conventions/ci.md
+      - conventions/container-hardening.md
       - conventions/opentofu.md
       - conventions/resource-limits.md
       - conventions/secrets.md
