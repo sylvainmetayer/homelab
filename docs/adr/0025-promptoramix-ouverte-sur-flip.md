@@ -32,7 +32,7 @@ donc tenir ni derrière le SSO, ni derrière le FR/DE de [0002](0002-pangolin-se
   bannir une IP partagée de Supabase, sans alerte ([runbook](../runbooks/crowdsec.md)).
 - Chaque push sur `main` de l'appli part en production sur flip, à côté du planning.
 - Journal des coups sur un volume (`./journal`, #771), non sauvegardé : fichier
-  d'appoint. L'appli n'est donc pas tout à fait « sans état », malgré `flip.yml`.
+  d'appoint. L'appli n'est donc pas tout à fait « sans état ».
 - Aucune date de fin écrite : retrait après le tournoi, à confirmer.
 
 ## Liens

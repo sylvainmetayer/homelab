@@ -283,8 +283,8 @@
         # solving queued up behind each other.
         flip_planning_solver_max_queued_jobs: 2
     # Promptoramix, the AI bot of the Marmelab Linkx tournament: a single
-    # stateless container (no volume, no database, hence no backup and no push
-    # monitor). Public without SSO and from any country
+    # container, no database, one volume for its move log (./journal, a helper
+    # file read by hand), hence no backup and no push monitor. Public without SSO and from any country
     # (tofu/pangolin_config/website_promptoramix.tf): the HMAC signature
     # checked with promptoramix_linkx_secret is its only guard.
     - role: promptoramix
