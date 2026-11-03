@@ -41,7 +41,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(data)  # NOSONAR (faux serveur local, données du scénario)
+        # Faux serveur local : ce JSON vient du scénario du verify, lu par le script.
+        self.wfile.write(data)  # NOSONAR
 
     def logs(self, form, scenario):
         query = form["query"][0]
