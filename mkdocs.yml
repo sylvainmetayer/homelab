@@ -150,6 +150,11 @@ nav:
       - adr/0019-flip-sans-ipv4-publique.md
       - adr/0020-garder-le-raspberry-pi-pour-immich.md
       - adr/0021-provider-pangolin-du-fork.md
+      - adr/0022-durcissement-des-conteneurs.md
+      - adr/0023-limites-de-ressources.md
+      - adr/0024-deploiement-au-merge.md
+      - adr/0025-promptoramix-ouverte-sur-flip.md
+      - adr/0026-vzdump-sur-le-nas-seul.md
   - Conventions:
       - conventions/ansible.md
       - conventions/app-lifecycle.md

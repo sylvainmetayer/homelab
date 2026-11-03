@@ -24,10 +24,7 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
 - **`cap_drop: [ALL]` partout** : les bases passent le dossier de données à un
   autre utilisateur, une capacité manquante se voit au redémarrage, sur les
   données ; les capacités des images s6 changent avec leurs scripts d'init.
-- **Doctrine sans contrôle** : un oubli passerait inaperçu (voir Contexte).
-- **Contrôle sur les templates rendus** : un `{% if %}` faux cacherait le
-  service (Keycloak de `flip_planning`). Lecture ligne à ligne : une option
-  sous un `{% if %}` compte comme présente, limite assumée (#1144).
+- **Doctrine sans contrôle** : un oubli passerait inaperçu.
 
 ## Conséquences
 
@@ -35,8 +32,8 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
   périmètre **sans analyse de l'image** : à faire avant de lever l'exception.
 - Non éprouvé au 2026-11-03 : file Sidekiq, crawl de Karakeep, mise à niveau
   automatique de MariaDB (QG homelab).
-- Une image automergée peut casser son `cap_add` : revert **et** retrait de la
-  liste d'automerge ([0008](0008-renovate-hebdomadaire.md)).
+- Image automergée qui casse son `cap_add` : revert **et** retrait de la liste
+  ([0008](0008-renovate-hebdomadaire.md)).
 
 ## Liens
 
