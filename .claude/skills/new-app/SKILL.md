@@ -183,7 +183,7 @@ Uptime Kuma.
   service (≈2× expected peak), `mem_reservation` on DBs, **no `cpus:`** except
   `cpus: 2.00` + `cpu_shares: 512` on batch workers. Check the image's default
   worker count fits under the cap.
-- Hardening follows `docs/conventions/container-hardening.md`: `security_opt: [no-new-privileges:true]` on every service, `cap_drop: [ALL]` when the image runs unprivileged; an exception is in that file's table or carries a comment.
+- Hardening follows `docs/conventions/container-hardening.md`: `security_opt: [no-new-privileges:true]` on every service, `cap_drop: [ALL]` when the image runs unprivileged; an exception is in that file's table or carries a comment, and one without `no-new-privileges` is also listed in `EXCEPTIONS` of `.github/scripts/check_container_hardening.py` (Lint fails otherwise).
 
 ## Conventions (the former « Adding a new app role » section of AGENTS.md)
 

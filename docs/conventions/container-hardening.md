@@ -16,7 +16,7 @@ cap_drop:
 - **`no-new-privileges` always**, unless the service is listed below. It only stops a gain of privileges through a setuid or setgid binary or file capabilities: an entrypoint started as root that drops to another user (`gosu`, `su-exec`, `setpriv`, s6) still works. What breaks is a process **already unprivileged** calling `sudo`, `su`, a setuid or setgid helper, or a binary that relies on its file capabilities.
 - **`cap_drop: [ALL]` when the image runs unprivileged from its first instruction** (`USER` or `user:`): it has no effective capability to lose. An image started as root gets it only with a tested `cap_add`, possibly empty (the `beszel` hub), written in the compose next to a comment saying which entrypoint call needs each one (`homepage`). A root process with no `CAP_DAC_OVERRIDE` can no longer write a bind mount owned by the deploy user: give the folder to the uid that writes in it (`beszel`, `trek`).
 - `sudo` from root still works under the option, from `abc` it does not: Nextcloud's `occ` wrapper is `sudo -u abc`, so `docker exec nextcloud occ …` works, `docker exec -u abc nextcloud occ …` fails. A setuid `ping` falls back to an ICMP socket through Docker's default `ping_group_range` (speedtest-tracker); not under `network_mode: host`.
-- A new app takes a line off only when a row below covers the service, or with a comment giving the reason.
+- A new app takes a line off only when a row below covers the service, or with a comment giving the reason. For `no-new-privileges` a comment is not enough: the service goes in the table and in `EXCEPTIONS` (below).
 
 ## Exceptions
 
