@@ -20,6 +20,7 @@
           - db
         verify_compose_healthchecks:
           - cache
+          - nextcloud
         verify_compose_healthy_dependencies:
           - { service: nextcloud, dependency: db }
           - { service: nextcloud, dependency: cache }

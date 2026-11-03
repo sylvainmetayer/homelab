@@ -17,6 +17,7 @@
       vars:
         verify_compose_service: karakeep
         verify_compose_healthchecks:
+          - chrome
           - meilisearch
         verify_compose_healthy_dependencies:
           - { service: web, dependency: meilisearch }

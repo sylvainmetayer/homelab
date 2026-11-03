@@ -17,6 +17,8 @@
         verify_compose_service: wiki
         verify_compose_databases:
           - bookstack_db
+        verify_compose_healthchecks:
+          - bookstack
         verify_compose_healthy_dependencies:
           - { service: bookstack, dependency: bookstack_db }
         verify_compose_internal_networks:

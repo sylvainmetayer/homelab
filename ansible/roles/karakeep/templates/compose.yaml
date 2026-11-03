@@ -47,13 +47,23 @@ services:
     command:
       # Déjà passé par l'entrypoint de l'image (automerge Renovate), répété ici :
       # sans lui, Chromium essaie chrome-sandbox, setuid, que no-new-privileges
-      # bloque. Un plantage ne se verrait pas : ni healthcheck ni moniteur ici.
+      # bloque. Un plantage ne se verrait qu'au healthcheck : pas de moniteur ici.
       - --no-sandbox
       - --disable-gpu
       - --disable-dev-shm-usage
       - --hide-scrollbars
       - --disable-blink-features=AutomationControlled
       - --window-size=1440,900
+    # Par le port du crawler (socat vers Chromium) : un socat mort laisse
+    # Chromium, donc le conteneur, en vie. web n'attend que service_started :
+    # rouge, la sonde n'arrête ni ne relance rien.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9222/json/version"]
+      interval: 60s
+      start_interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - karakeep
 

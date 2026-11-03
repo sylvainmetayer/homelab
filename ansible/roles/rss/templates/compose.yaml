@@ -21,6 +21,19 @@ services:
       - ./freshrss_data:/var/www/FreshRSS/data
       - ./freshrss_extensions:/var/www/FreshRSS/extensions
     restart: unless-stopped
+    # Apache est le PID 1 : mort, le conteneur sort et `restart` le relance. La
+    # sonde voit ce qu'il ne voit pas, un PHP cassé (extension, droits,
+    # configuration). Script de l'image : cURL sur /api/, page d'information
+    # sans session ni base, servie même API coupée. Chaque passage laisse une
+    # ligne dans le journal d'accès (stdout), d'où 2 min en régime établi. Rien
+    # n'attend ce service : rouge, la sonde n'arrête ni ne relance rien.
+    healthcheck:
+      test: ["CMD", "/var/www/FreshRSS/cli/health.php"]
+      interval: 2m
+      start_interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - newt
 
