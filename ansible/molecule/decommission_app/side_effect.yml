@@ -9,6 +9,9 @@
   vars:
     molecule_borg_bin: /root/.local/bin/borg
     molecule_repo_dir: /var/lib/molecule-decommission-repos
+    # Pas de « ../ » écrit en clair : select_tests.py y lirait un chemin vers un
+    # autre scénario, ici wiki.
+    molecule_up: ".."
   environment:
     # Binaire borg PyInstaller « onefile » : il s'extrait dans TMPDIR, et le
     # /tmp du conteneur est un tmpfs noexec.
@@ -32,18 +35,18 @@
         - {service: wiki, base_path: "", fails_on: Refuse}
         - {service: wiki, base_path: wiki, fails_on: Refuse}
         - {service: wiki, base_path: opt/apps/wiki, fails_on: Refuse}
-        - {service: wiki, base_path: ../wiki, fails_on: Refuse}
-        - {service: wiki, base_path: /opt/apps/../apps/wiki, fails_on: Refuse}
-        - {service: wiki, base_path: /opt/apps/wiki/.., fails_on: Refuse}
+        - {service: wiki, base_path: "{{ molecule_up }}/wiki", fails_on: Refuse}
+        - {service: wiki, base_path: "/opt/apps/{{ molecule_up }}/apps/wiki", fails_on: Refuse}
+        - {service: wiki, base_path: "/opt/apps/wiki/{{ molecule_up }}", fails_on: Refuse}
         - {service: wiki, base_path: /opt/apps/wiki/data, fails_on: Refuse}
         - {service: wiki, base_path: /opt/apps/rss, fails_on: Refuse}
         - {service: wiki, base_path: /opt/apps-other/wiki, fails_on: Refuse}
         - {service: wiki, base_path: /mnt/nas/apps/wiki, fails_on: Refuse}
         - {service: wiki, base_path: /volume1/docker/wiki, fails_on: Refuse}
         # Le même écart des deux côtés : l'égalité seule le laisserait passer.
-        - {service: .., base_path: /opt/apps/.., fails_on: Refuse}
-        - {service: ../wiki, base_path: /opt/apps/../wiki, fails_on: Refuse}
-        - {service: wiki/../.., base_path: /opt/apps/wiki/../.., fails_on: Refuse}
+        - {service: "{{ molecule_up }}", base_path: "/opt/apps/{{ molecule_up }}", fails_on: Refuse}
+        - {service: "{{ molecule_up }}/wiki", base_path: "/opt/apps/{{ molecule_up }}/wiki", fails_on: Refuse}
+        - {service: "wiki/{{ molecule_up }}/{{ molecule_up }}", base_path: "/opt/apps/wiki/{{ molecule_up }}/{{ molecule_up }}", fails_on: Refuse}
         - {service: wiki, base_path: /opt/apps/wiki, extra_paths: [/mnt/nas/apps], fails_on: Refuse}
       loop_control:
         loop_var: decommission_case
