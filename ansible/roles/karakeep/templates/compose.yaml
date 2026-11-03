@@ -6,6 +6,8 @@ services:
     mem_limit: 1g
     image: ghcr.io/karakeep-app/karakeep:0.34.1@sha256:69ae5315c618b7c14c1af3e34c6e211acdb231793af424ecd1cab0b70691d987
     container_name: karakeep
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     env_file:
       - .env
@@ -32,6 +34,8 @@ services:
     # Upstream ne publie que release/latest pour cette image, pas de tag versionné.
     image: ghcr.io/karakeep-app/karakeep-chrome:release@sha256:4ad61127638dd27bfe685222787c5780dd1d083d23a7658c39af657775814c44
     container_name: karakeep-chrome
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     init: true
     command:

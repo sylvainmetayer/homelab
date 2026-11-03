@@ -3,6 +3,8 @@ services:
   betisier:
     mem_limit: 512m
     container_name: betisier
+    security_opt:
+      - no-new-privileges:true
     networks:
       - newt
       - betisier
