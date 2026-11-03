@@ -108,7 +108,8 @@
   roles:
     - role: andrewrothstein.starship
       tags: setup,starship
-    # Alerte Telegram (Uptime Kuma) à chaque connexion SSH, clé comprise.
+    # Alerte Telegram (Uptime Kuma) aux connexions SSH, clé comprise ; une clé
+    # connue laisse une trace basse priorité sur ntfy (topic scripts).
     - role: ssh_login_notify
       become: true
       tags: ssh_login_notify,security
