@@ -25,8 +25,9 @@
       changed_when: false
 
     # Un seul conteneur : rien à isoler sur un réseau privé, newt suffit. Son
-    # nom est la cible de Pangolin (website_grocy.tf).
-    - name: Assert grocy only joins newt and publishes no port
+    # nom est la cible de Pangolin (website_grocy.tf). Molecule ne démarre pas
+    # les images : seul le compose peut prouver no-new-privileges.
+    - name: Assert grocy only joins newt, publishes no port and stays hardened
       vars:
         grocy_compose: "{{ grocy_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
@@ -35,6 +36,7 @@
           - grocy_compose.services.app.networks.keys() | list == ['newt']
           - grocy_compose.networks.keys() | list == ['newt']
           - grocy_compose.services.app.ports is not defined
+          - "'no-new-privileges:true' in grocy_compose.services.app.security_opt"
         fail_msg: "Service grocy inattendu : {{ grocy_compose.services.app }}"
 
     - name: Read the grocy borgmatic configuration
