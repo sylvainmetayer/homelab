@@ -131,9 +131,9 @@ provider "registry.opentofu.org/hashicorp/random" {
 }
 
 provider "registry.opentofu.org/stackopshq/pangolin" {
-  version     = "1.7.0-sylvain.1"
-  constraints = "1.7.0-sylvain.1"
+  version     = "1.7.0-sylvain.2"
+  constraints = "1.7.0-sylvain.2"
   hashes = [
-    "h1:dI/sF6RRKQAluX6VtEVfSCmTXOF8f2aAATGCZ+K29io=",
+    "h1:pnm7ZcLrbATqTtkiVqutcrMd7dSvUIJQJ9oh/6wm78M=",
   ]
 }
