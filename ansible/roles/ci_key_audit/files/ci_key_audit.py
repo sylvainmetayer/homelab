@@ -23,6 +23,8 @@ import urllib.request
 
 CONFIG_FILE = "/etc/ci-key-audit/config.json"
 PER_PAGE = 100
+# Ce que le script lit d'un run : l'API en donne environ 15 Kio, sur 1 000 runs au plus.
+RUN_FIELDS = ("id", "status", "run_attempt", "created_at", "run_started_at", "updated_at")
 # VictoriaLogs ne garde que 30 jours : un curseur plus vieux ne lirait rien de plus.
 MAX_WINDOW_SECONDS = 29 * 86400
 # La ligne « clé connue » de la même session est déjà au journal, écrite avant.
@@ -150,7 +152,7 @@ class Checker:
                 "per_page": PER_PAGE,
                 "page": page,
             })["workflow_runs"]
-            found.extend(batch)
+            found.extend({key: run[key] for key in RUN_FIELDS if key in run} for run in batch)
             if len(batch) < PER_PAGE:
                 return found
         raise CheckError(f"GitHub : plus de {self.config['max_pages']} pages de runs")

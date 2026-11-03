@@ -323,6 +323,11 @@ class Paging(unittest.TestCase):
         self.assertEqual(checker.queries[0]["branch"], "main")
         self.assertEqual(checker.queries[0]["created"], ">=" + audit.rfc3339(NOW - 86400))
 
+    def test_only_the_fields_read_are_kept(self):
+        genuine = run(NOW - 900, NOW - 800, run_id=7, attempt=2)
+        checker = RunPaging([[{**genuine, "repository": {"url": "http://github.invalid"}}]])
+        self.assertEqual(checker.runs(NOW - 86400), [genuine])
+
     def test_too_many_pages_prove_nothing(self):
         checker = RunPaging([[run(NOW, NOW)] * 100] * 5)
         with self.assertRaisesRegex(audit.CheckError, "pages"):

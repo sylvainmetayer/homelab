@@ -64,7 +64,7 @@ Tout est dans `defaults/main.yml`. Aucune clé SOPS nouvelle :
 - `ntfy_scripts_token` : comme `mem_report` et `cost_report`.
 - `ci_key_audit_push_url` : sortie `uptime_cron_ci_key_audit_url` de `tofu/pangolin_config` (`cron_ci_key_audit.tf`), donnée par l'entrée du rôle dans `docker.yml`. Vide avant l'apply : le contrôle alerte, sans battement, avec un avertissement au déploiement.
 
-Les trois dans `/etc/ci-key-audit/secrets.env` (0600 root, `diff: false`, `no_log`), jamais sur la ligne de commande ; le script les retire de son environnement avant tout sous-processus ; le push passe par `uptime-push`, URL sur stdin. `MemoryMax=64M` : pic de 14 Mio mesuré par le scénario (`MemoryPeak`), 2x, plus de la place pour une longue fenêtre.
+Les trois dans `/etc/ci-key-audit/secrets.env` (0600 root, `diff: false`, `no_log`), jamais sur la ligne de commande ; le script les retire de son environnement avant tout sous-processus ; le push passe par `uptime-push`, URL sur stdin. `MemoryMax=64M` : le script seul, réseau simulé, sur une vraie page de l'API GitHub et avec un contexte TLS, atteint 30 Mio (`ru_maxrss`, 2x) et 39 Mio aux plafonds (10 000 lignes, 1 000 runs) ; le `MemoryPeak` du scénario (14 Mio) sous-estime, ses faux services n'ayant ni TLS ni vrais runs. À revoir sur le `MemoryPeak` de la VM.
 
 ## Tests
 
