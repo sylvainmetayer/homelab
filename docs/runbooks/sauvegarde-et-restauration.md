@@ -97,7 +97,7 @@ restore` des dumps SQL, cas SQLite) est dans
    `<app>-<date>` ; `--archive latest` prend la dernière.
 3. **Extraire dans un dossier de travail**, jamais directement sur `/` :
    `--destination /root/restore/<app>`. Les chemins n'ont pas de `/`
-   initial. borgmatic 2.1 y met aussi, hors des sources de l'appli, ses
+   initial. borgmatic y met aussi, hors des sources de l'appli, ses
    dumps SQL (`borgmatic/postgresql_databases/<conteneur>:<port>/<base>`,
    format custom de `pg_restore`) et **toutes** les configs
    `etc/borgmatic.d/*.yaml` de l'hôte (amorçage de `borgmatic config bootstrap`).
