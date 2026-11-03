@@ -96,6 +96,8 @@ services:
     restart: unless-stopped
     image: redis:8.2.11-bookworm@sha256:99ffb973380cc2f47bca06bd094f7f8c7138a0879a63cb8939896a22b7a65bba
     container_name: nextcloud_redis
+    security_opt:
+      - no-new-privileges:true
     command: redis-server --requirepass {{ nextcloud_redis_password }}
     environment:
       - REDIS_PASSWORD={{ nextcloud_redis_password }}
