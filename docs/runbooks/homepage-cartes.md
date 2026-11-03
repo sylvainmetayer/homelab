@@ -17,7 +17,7 @@ Détail : [README du rôle](../../ansible/roles/homepage/README.md).
 
 ## Symptôme
 
-- Une carte affiche « API Error » ou reste vide.
+- Une carte affiche « Erreur API » ou reste vide.
 - La carte n'apparaît pas du tout.
 - L'agenda montre des tâches datées d'aujourd'hui (Homepage lit le
   calendrier sans le filtre).
@@ -78,6 +78,12 @@ Trois cartes n'ont pas de service d'appoint, Homepage lit leur amont lui-même :
   Homepage et vmauth n'ont pas le même mot de passe. `NaN` sur Blocky : aucune
   ligne de cet hôte en 24 h. Sur le LXC newt, `blocky_stats.py` n'arrive que par
   `ansible-playbook lxc.yml --tags blocky`, que la CI ne lance jamais.
+
+Les cartes **Beszel** (le lien et le groupe Hôtes) lisent aussi le hub
+elles-mêmes, en superuser, depuis `172.16.97.3`. « Erreur API » sur des cartes
+différentes à chaque rechargement : `429`, règle `_superusers:auth` absente du
+hub. Sur toutes, sans changement : `403`, adresse absente des « Superuser IPs ».
+Réglages : [La supervision](../architecture.md#la-supervision-beszel).
 
 « Absente » sur Maintenance : le nom de `homepage_kuma_maintenance_monitors`
 ne correspond plus à aucune sonde de `/metrics` (renommée dans
