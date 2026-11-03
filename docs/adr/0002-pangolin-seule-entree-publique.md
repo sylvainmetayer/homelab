@@ -1,6 +1,6 @@
 # 0002. Pangolin, seule entrée publique ; FR/DE seulement ; chemins ouverts relus
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; exception FR/DE et SSO de Promptoramix : [0025](0025-promptoramix-ouverte-sur-flip.md)
 - **Date** : 2026-01 (reprise du dépôt), 2026-08-30 (pays), 2026-10-16 (relecture)
 
 ## Contexte

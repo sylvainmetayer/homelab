@@ -1,6 +1,6 @@
 # 0011. Journaux centralisés : VictoriaLogs
 
-- **Statut** : proposée (#931 serveur, #934 agents ; acceptée une fois déployée et mesurée)
+- **Statut** : proposée ; déployée (#931, #934 ; journaux des 6 hôtes reçus le 2026-11-03), mesure à une semaine (due le 2026-11-04) non relevée : acceptée une fois faite
 - **Date** : 2026-10-28
 
 ## Contexte

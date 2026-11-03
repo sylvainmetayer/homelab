@@ -46,7 +46,7 @@ au plus :
 | N° | Décision | Statut |
 |---|---|---|
 | [0001](0001-sauvegardes-borgmatic.md) | Sauvegardes Borgmatic + Borg, un sous-compte par hôte, restauration testée en CI | acceptée (check trimestriel remplacé par 0017) |
-| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée |
+| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée (exception : 0025) |
 | [0003](0003-crowdsec-sur-pangolin.md) | CrowdSec sur Pangolin, plugin Traefik, AppSec en détection seule | acceptée |
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
 | [0005](0005-retention-journaux-pangolin.md) | Base de Pangolin : rétention des journaux 30/90 jours | acceptée (VACUUM à confirmer) |
@@ -54,9 +54,9 @@ au plus :
 | [0007](0007-donnees-sur-le-nas.md) | Données d'applis sur le NAS en NFSv3, Jellyfin sur le NAS, relais du 443 | acceptée |
 | [0008](0008-renovate-hebdomadaire.md) | Renovate : PR hebdomadaires, images à état manuelles, automerge ciblé | acceptée |
 | [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée (emplacement des fichiers remplacé par 0018) |
-| [0010](0010-supervision-beszel-uptime-kuma.md) | Supervision : Beszel et Uptime Kuma (PikaPods) | acceptée |
-| [0011](0011-journaux-victorialogs.md) | Journaux centralisés dans VictoriaLogs | proposée |
-| [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | proposée |
+| [0010](0010-supervision-beszel-uptime-kuma.md) | Supervision : Beszel et Uptime Kuma (PikaPods) | acceptée (journaux : voir 0011) |
+| [0011](0011-journaux-victorialogs.md) | Journaux centralisés dans VictoriaLogs | proposée (déployée, mesure à une semaine à relever) |
+| [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | acceptée (bascule du DHCP à confirmer) |
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |
@@ -66,3 +66,8 @@ au plus :
 | [0019](0019-flip-sans-ipv4-publique.md) | flip sans IPv4 publique : NAT et rebond SSH par Pangolin, point unique accepté | acceptée |
 | [0020](0020-garder-le-raspberry-pi-pour-immich.md) | Garder le Raspberry Pi pour Immich, isolé de Proxmox et de la VM docker | acceptée |
 | [0021](0021-provider-pangolin-du-fork.md) | Provider Pangolin : build du fork servi par un miroir local, en attendant l'amont | acceptée |
+| [0022](0022-durcissement-des-conteneurs.md) | Conteneurs : `no-new-privileges` par défaut, contrôlé en CI, `cap_drop` au cas par cas | acceptée |
+| [0023](0023-limites-de-ressources.md) | Limites : mémoire mesurée sur chaque service, pas de quota CPU hors traitements par lots | acceptée |
+| [0024](0024-deploiement-au-merge.md) | Le merge sur `main` déploie : Ansible en CI, Tofu et trois playbooks à la main | acceptée (Tofu en CI ouvert : #704) |
+| [0025](0025-promptoramix-ouverte-sur-flip.md) | Promptoramix sur flip, ouverte de partout, gardée par sa seule signature HMAC | acceptée |
+| [0026](0026-vzdump-sur-le-nas-seul.md) | Sauvegardes vzdump sur le NAS seul, sans copie hors site | acceptée |
