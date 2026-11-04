@@ -101,8 +101,7 @@ dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive
   `schéma.table`. Y mettre ce qu'une instance en service remplit forcément,
   jamais une table qui peut se vider seule. Choisies dans le schéma amont de la
   version épinglée, sans lire les vraies archives : à revoir si une montée de
-  version renomme une table (immich a déjà renommé `users` en `user`), l'app
-  échoue alors avec « table attendue absente ». `test_restore_test_content.py`
+  version renomme une table, l'app échoue alors avec « table attendue absente ». `test_restore_test_content.py`
   (job Lint) vérifie la forme et l'exige sur chaque app qui a une base ;
 - `allow_empty_databases` (facultatif, liste de bases, mêmes noms) : une base
   listée peut n'avoir aucune table ou aucune ligne sans faire échouer l'app ;
