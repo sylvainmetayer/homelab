@@ -8,6 +8,7 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
 import http.client
+import http.server
 import io
 import json
 import os
@@ -15,9 +16,10 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from unittest import mock
 
 import vzdump_restore_test as vz
@@ -25,6 +27,42 @@ import vzdump_restore_test as vz
 MIB = 1024**2
 CONFIG = {"backup_storage": "nas-backup", "restore_storage": "local-lvm", "max_age_hours": 48}
 MARKED = {"description": f"{vz.MARKER} : copie jetable"}
+
+
+@contextmanager
+def redirecting_server(code=302, body=b""):
+    """Vrai serveur local : tout redirige vers /arrivee, qui répond 200.
+
+    Rend sa base et les requêtes reçues (chemin, en-tête Authorization).
+    """
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def answer(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            seen.append((self.path, self.headers.get("Authorization")))
+            landing = self.path == "/arrivee"
+            self.send_response(200 if landing else code)
+            if not landing:
+                self.send_header("Location", "/arrivee")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = do_POST = answer
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 def completed(stdout="", returncode=0, stderr=""):
@@ -684,9 +722,12 @@ class NotifyTest(unittest.TestCase):
 
     def notify(self, env, failures=(), lines=("ligne",), urlopen=None, config=None):
         err = io.StringIO()
+        # ntfy passe par _OPENER, Uptime Kuma par urlopen : un seul mock, dans l'ordre d'envoi.
+        opened = mock.MagicMock(**(urlopen or {}))
         with (
             mock.patch.dict(os.environ, {vz.NTFY_TOKEN_VARIABLE: "", vz.PUSH_URL_VARIABLE: "", **env}),
-            mock.patch.object(vz.urllib.request, "urlopen", **(urlopen or {})) as opened,
+            mock.patch.object(vz.urllib.request, "urlopen", opened),
+            mock.patch.object(vz._OPENER, "open", opened),
             redirect_stdout(io.StringIO()),
             redirect_stderr(err),
         ):
@@ -769,6 +810,20 @@ class NotifyTest(unittest.TestCase):
         )
         self.assertEqual(problems, 1)
         self.assertNotIn("jeton", err)
+
+    def test_ntfy_redirect_counts_as_a_problem_and_nothing_reaches_the_target(self):
+        err = io.StringIO()
+        with redirecting_server() as (base, seen):
+            with (
+                mock.patch.dict(os.environ, {vz.NTFY_TOKEN_VARIABLE: "jeton", vz.PUSH_URL_VARIABLE: ""}),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(err),
+            ):
+                problems = vz.notify({"ntfy": {"topic": "t", "url": base}}, [], ["ligne"])
+        self.assertEqual(problems, 1)
+        self.assertEqual(seen, [("/", "Bearer jeton")])
+        self.assertIn("envoi à ntfy en échec : HTTPError\n", err.getvalue())
+        self.assertNotIn(base, err.getvalue())
 
     def test_ntfy_error_cites_its_class_only(self):
         problems, _, err = self.notify(

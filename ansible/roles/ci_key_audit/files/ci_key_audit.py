@@ -46,13 +46,29 @@ class WindowTruncated(CheckError):
     """Plafond de lignes atteint : les connexions de la fenêtre ne sont pas jugées."""
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Pour ce qui porte un secret (ntfy, VictoriaLogs) : urllib renverrait l'en-tête à
+# la cible, et le 200 de sa page d'arrivée compterait comme une alerte livrée.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
-    """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx ou un réglage mal formé."""
+    """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx ou un réglage mal formé.
+
+    Une requête avec Authorization ne suit aucune redirection (une 3xx est une
+    erreur). GitHub est lu sans jeton : un dépôt renommé y répond 301, et suivre
+    ne livre rien à la cible.
+    """
     attempts = [*delays, None]
+    opener = _OPENER.open if headers and "Authorization" in headers else urllib.request.urlopen
     for delay in attempts:
         try:
             request = urllib.request.Request(url, data=data, headers=headers or {})  # NOSONAR
-            with urllib.request.urlopen(request, timeout=30) as response:  # NOSONAR
+            with opener(request, timeout=30) as response:  # NOSONAR
                 return response.read()
         except urllib.error.HTTPError as error:
             reason = f"HTTP {error.code}"
@@ -178,14 +194,16 @@ class Checker:
     def deployed_hosts(self, run):
         """Hôtes dont l'étape « Deploy <hôte> » a réussi : ils ont vu la clé."""
         attempt = run.get("run_attempt", 1)
-        jobs = self.github(
-            f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}/jobs", {"per_page": PER_PAGE}
-        )["jobs"]
-        steps = {
-            step.get("name"): step.get("conclusion")
-            for job in jobs
-            for step in job.get("steps", [])
-        }
+        reply = self.github(f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}/jobs", {"per_page": PER_PAGE})
+        try:
+            steps = {
+                step.get("name"): step.get("conclusion")
+                for job in reply["jobs"]
+                for step in job.get("steps", [])
+            }
+        except (KeyError, TypeError, AttributeError):
+            # Un 200 d'une autre forme : les connexions sont jugées, l'alerte part.
+            raise CheckError("GitHub : réponse sans jobs lisibles") from None
         return [host for host in self.config["hosts"] if steps.get(f"Deploy {host}") == "success"]
 
     def run_interval(self, run):

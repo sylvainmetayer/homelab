@@ -18,10 +18,10 @@ Depuis [l'ADR 0027](../../../docs/adr/0027-connexions-ssh-cles-connues.md), une 
 | Rien à signaler | | `up` |
 | Connexion hors de tout run | ntfy `scripts`, **priorité 5**, un message par passage (20 lignes et 3 500 octets au plus : ntfy, sans pièces jointes, refuse au-delà de 4 096) | `down` avec le message, donc Telegram ; `up` au passage suivant |
 | Déploiement réussi sans ligne du hook sur un hôte | ntfy priorité 4, une fois par 24 h par hôte | `down` puis `up` |
-| ntfy refuse une alerte | rien de perdu : relue et réessayée à chaque passage | `down` avec le message, unité en échec |
+| ntfy refuse une alerte, ou la redirige (aucune suivie) | rien de perdu : relue et réessayée à chaque passage | `down` avec le message, unité en échec |
 | Plafond de lignes atteint (`ci_key_audit_max_lines`) : connexions non jugées, journal peut-être saturé par un voleur de la clé | ntfy **priorité 5**, une fois par 24 h, curseur figé, unité en échec | `down` avec le message, donc Telegram |
 | VictoriaLogs ou GitHub injoignable, réponse illisible, quota épuisé, plafond de pages atteint | état inchangé, unité en échec, raison au journal | **aucun push** : DOWN à l'expiration (30 min, trois périodes) |
-| Seule la lecture des étapes d'un run échoue | connexions jugées et alerte partie, curseur figé, unité en échec | aucun push (`down` s'il y a une alerte) |
+| Seule la lecture des étapes d'un run échoue, réponse sans `jobs` comprise | connexions jugées et alerte partie, curseur figé, unité en échec | aucun push (`down` s'il y a une alerte) |
 | Journal d'un hôte de `ci_key_audit_hosts` silencieux depuis 3 h | curseur figé, le reste jugé quand même | aucun push, comme ci-dessus |
 
 Pourquoi ntfy **et** le moniteur : un moniteur déjà DOWN ne renotifie pas (la raison de l'ADR 0027), donc ntfy porte chaque événement ; ntfy accepte une publication sans abonné (incident du 29/10), donc Telegram la double. Un unique battement manqué ne sonne pas : une panne passagère de GitHub se résorbe seule, une panne qui dure fait tomber le moniteur.
@@ -67,7 +67,7 @@ Tout est dans `defaults/main.yml`. Aucune clé SOPS nouvelle :
 - `ntfy_scripts_token` : comme `mem_report` et `cost_report`.
 - `ci_key_audit_push_url` : sortie `uptime_cron_ci_key_audit_url` de `tofu/pangolin_config` (`cron_ci_key_audit.tf`), donnée par l'entrée du rôle dans `docker.yml`. Vide avant l'apply : le contrôle alerte, sans battement, avec un avertissement au déploiement.
 
-Les trois dans `/etc/ci-key-audit/secrets.env` (0600 root, `diff: false`, `no_log`), jamais sur la ligne de commande ; le script les retire de son environnement avant tout sous-processus ; le push passe par `uptime-push`, URL sur stdin. `MemoryMax=64M` : le script seul, réseau simulé, sur une vraie page de l'API GitHub et avec un contexte TLS, atteint 30 Mio (`ru_maxrss`, 2x) et 39 Mio aux plafonds (10 000 lignes, 1 000 runs) ; le `MemoryPeak` du scénario (14 Mio) sous-estime, ses faux services n'ayant ni TLS ni vrais runs. À revoir sur le `MemoryPeak` de la VM.
+Les trois dans `/etc/ci-key-audit/secrets.env` (0600 root, `diff: false`, `no_log`), jamais sur la ligne de commande ; le script les retire de son environnement avant tout sous-processus ; le push passe par `uptime-push`, URL sur stdin. Une requête avec `Authorization` (ntfy, VictoriaLogs) ne suit aucune redirection : urllib renverrait le secret à la cible, et un 3xx est une erreur. GitHub est lu sans jeton, ses redirections restent suivies (dépôt renommé : 301). `MemoryMax=64M` : le script seul, réseau simulé, sur une vraie page de l'API GitHub et avec un contexte TLS, atteint 30 Mio (`ru_maxrss`, 2x) et 39 Mio aux plafonds (10 000 lignes, 1 000 runs) ; le `MemoryPeak` du scénario (14 Mio) sous-estime, ses faux services n'ayant ni TLS ni vrais runs. À revoir sur le `MemoryPeak` de la VM.
 
 ## Tests
 

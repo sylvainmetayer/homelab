@@ -216,6 +216,16 @@ def check_apt(args):
     return notification, summary
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : urllib renverrait le jeton (Authorization) à la
+# cible, et le 200 de sa page d'arrivée compterait comme une publication réussie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def publish(base_url, topic, token, notification):
     """Publication JSON sur la racine de ntfy (le topic dans le corps)."""
     if not token:
@@ -228,7 +238,7 @@ def publish(base_url, topic, token, notification):
             method="POST",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with _OPENER.open(request, timeout=30) as response:
             response.read()
     except (OSError, ValueError, http.client.HTTPException) as error:
         # Une erreur d'urllib peut citer l'URL ou l'en-tête, donc le jeton : sa classe seule.

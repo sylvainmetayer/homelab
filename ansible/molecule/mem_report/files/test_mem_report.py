@@ -7,12 +7,14 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 import argparse
 import datetime
 import http.client
+import http.server
 import io
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -23,6 +25,42 @@ GIB = mr.GIB
 NOW = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.timezone.utc)
 ID_A = "a" * 64
 ID_B = "b" * 64
+
+
+@contextmanager
+def redirecting_server(code=302, body=b""):
+    """Vrai serveur local : tout redirige vers /arrivee, qui répond 200.
+
+    Rend sa base et les requêtes reçues (chemin, en-tête Authorization).
+    """
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def answer(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            seen.append((self.path, self.headers.get("Authorization")))
+            landing = self.path == "/arrivee"
+            self.send_response(200 if landing else code)
+            if not landing:
+                self.send_header("Location", "/arrivee")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = do_POST = answer
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 def measure(**fields):
@@ -544,6 +582,25 @@ class MainTest(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertIn(type(error).__name__, self.stderr)
                 self.assertNotIn("requête citée", self.stderr)
+
+
+class RedirectTest(unittest.TestCase):
+    def test_ntfy_redirect_is_exit_2_and_nothing_reaches_the_target(self):
+        err = io.StringIO()
+        with redirecting_server() as (base, seen):
+            argv = ["--host", "docker", "--url", base, "--topic", "t", "--cgroup-root", "/nonexistent"]
+            with (
+                mock.patch.dict(os.environ, {mr.TOKEN_VARIABLE: "jeton"}),
+                mock.patch.object(mr, "list_containers", return_value=[]),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(err),
+            ):
+                code = mr.main(argv)
+        self.assertEqual(code, 2)
+        self.assertEqual(seen, [("/", "Bearer jeton")])
+        self.assertIn("publication sur ntfy en échec : HTTPError\n", err.getvalue())
+        self.assertNotIn(base, err.getvalue())
+        self.assertNotIn("jeton", err.getvalue())
 
 
 if __name__ == "__main__":
