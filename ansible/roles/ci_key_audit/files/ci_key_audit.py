@@ -175,14 +175,25 @@ class Checker:
         return f"/repos/{self.config['repository']}/actions"
 
     def readable_run(self, run):
-        """Les champs lus d'un run, ou CheckError : un 200 d'une autre forme n'arrête pas le passage en KeyError."""
+        """Les champs lus d'un run, ou CheckError : un 200 d'une autre forme n'arrête pas le passage en KeyError.
+
+        Le statut surtout : tout ce qui n'est pas « completed » compte pour un run
+        encore ouvert (run_interval), et un `null` couvrirait sans alerte toute
+        connexion jusqu'à maintenant. `type() is int` : un booléen n'est pas un numéro.
+        """
         try:
             kept = {key: run[key] for key in RUN_FIELDS if key in run}
-            if not {"id", "status"} <= kept.keys() or not isinstance(kept.get("run_attempt", 1), int):
-                raise TypeError
             self.run_interval(kept)
-        except (KeyError, TypeError, ValueError, AttributeError):
-            raise CheckError("GitHub : run illisible") from None
+            readable = (
+                type(kept["id"]) is int
+                and kept["status"]
+                and isinstance(kept["status"], str)
+                and type(kept.get("run_attempt", 1)) is int
+            )
+        except (KeyError, TypeError, ValueError):
+            readable = False
+        if not readable:
+            raise CheckError("GitHub : run illisible")
         return kept
 
     def runs(self, since):
