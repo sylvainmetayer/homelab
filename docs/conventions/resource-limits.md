@@ -9,6 +9,7 @@ Applies to every service of every compose (Docker VM first; the other hosts foll
   - Databases (and anything measured at its cap) also get `mem_reservation` ≈ the peak: on cgroup v2 it becomes `memory.low` and protects their page cache.
   - **No `cpus:` on DBs, redis/valkey or interactive services.** A CFS quota below 1 core throttles any single-threaded burst even on an idle host.
   - Only batch-capable containers (OCR, document conversion, Celery workers) get `cpus: 2.00` + `cpu_shares: 512`: each cap leaves one of the Docker VM's 3 cores to the rest, but per container only (nothing caps them together): two of them busy at once can use all 3, and then only the weight protects the others. The weight makes them lose under contention and costs nothing when idle.
+  - A declared `mem_limit` is not proof of a limit: a container created without the memory controller (the Pi until #846) keeps none, and Compose does not see it. `mem_report` compares each running container's `memory.max` with its compose every week: `ansible/roles/mem_report/README.md`.
   - Check images' default worker counts (`GUNICORN_NUM_WORKERS`, `pm.max_children`…) against the cap: gramps defaulted to 8 gunicorn workers of 170 MiB under a 1 GiB cap and OOM-looped.
 
 ## Disk I/O (Docker VM)

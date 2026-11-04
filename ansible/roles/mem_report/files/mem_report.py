@@ -9,7 +9,11 @@ memory.events (max, oom, oom_kill), puis publie sur ntfy :
     killer : à agrandir ;
   - ceux dont le pic reste sous --low % de la limite, quand la limite
     suggérée libère au moins --min-saving-mb : à réduire ;
-  - ceux qui n'ont pas de limite (la doctrine en veut une partout).
+  - ceux qui n'ont pas de limite (la doctrine en veut une partout) ;
+  - ceux dont la limite réelle (memory.max) n'est pas le mem_limit de leur
+    compose : un conteneur créé sans contrôleur mémoire garde « max » une fois
+    le contrôleur revenu, et `docker compose up` ne le recrée pas, sa
+    configuration n'ayant pas changé (leçon du Pi, #846).
 La limite suggérée est 2x le pic, arrondie au-dessus (doctrine des limites,
 AGENTS.md). memory.peak et memory.events repartent de zéro avec le cgroup,
 c'est-à-dire à chaque redémarrage du conteneur ou du serveur : le message le
@@ -47,7 +51,19 @@ AT_CAP_PERCENT = 98
 SCOPE_RE = re.compile(r"^(?:docker-)?([0-9a-f]{64})(?:\.scope)?$")
 # Pas de State.OOMKilled : Docker le remet à false à chaque démarrage, il est
 # toujours faux sur un conteneur en cours.
-INSPECT_FORMAT = "{{.Id}}\t{{.Name}}\t{{.RestartCount}}\t{{.State.StartedAt}}"
+INSPECT_FORMAT = (
+    "{{.Id}}\t{{.Name}}\t{{.RestartCount}}\t{{.State.StartedAt}}"
+    '\t{{index .Config.Labels "com.docker.compose.project.config_files"}}'
+    '\t{{index .Config.Labels "com.docker.compose.service"}}'
+)
+# Le compose tel qu'écrit : ni ${VAR} ni env_file résolus, le script n'a pas à
+# voir les secrets. mem_limit y reste donc en texte (« 512m »).
+COMPOSE_CONFIG = ("config", "--format", "json", "--no-interpolate", "--no-env-resolution")
+COMPOSE_TIMEOUT_SECONDS = 60
+# Unités de Docker : base 1024.
+COMPOSE_SIZE_RE = re.compile(r"^(\d+(?:\.\d+)?)([kmgt]?)i?b?$", re.IGNORECASE)
+# Le noyau arrondit memory.max à la page (16 Kio au plus sur nos hôtes).
+DRIFT_TOLERANCE = 64 * 1024
 
 
 def human(size):
@@ -71,6 +87,15 @@ def suggested_limit(peak):
 def compose_size(size):
     """Une taille comme l'écrit un compose (mem_limit) : 512m, 2g."""
     return f"{size // GIB}g" if size % GIB == 0 else f"{size // MIB}m"
+
+
+def parse_compose_size(value):
+    """Un mem_limit de compose en octets ; ValueError s'il n'est pas lisible."""
+    match = COMPOSE_SIZE_RE.match(str(value).strip())
+    if not match:
+        raise ValueError("mem_limit illisible")
+    number, unit = match.groups()
+    return int(float(number) * 1024 ** " kmgt".index(unit.lower() or " "))
 
 
 def read_text(path):
@@ -111,7 +136,8 @@ def find_scopes(root):
 
 
 def list_containers(docker):
-    """Les conteneurs en cours : (id, nom, redémarrages, démarrage)."""
+    """Les conteneurs en cours : (id, nom, redémarrages, démarrage, fichiers
+    compose, service)."""
     # Binaire posé par l'ExecStart de l'unité (root, Ansible), sans shell :
     # aucune entrée extérieure.
     ids = subprocess.run(  # NOSONAR
@@ -129,11 +155,51 @@ def list_containers(docker):
     containers = []
     for line in result.stdout.splitlines():
         fields = line.split("\t")
-        if len(fields) != 4:
+        if len(fields) != 6:
             continue
-        container_id, name, restarts, started = fields
-        containers.append((container_id, name.lstrip("/"), int(restarts or 0), started))
+        container_id, name, restarts, started, config_files, service = fields
+        containers.append((container_id, name.lstrip("/"), int(restarts or 0), started, config_files, service))
     return containers
+
+
+def compose_limits(docker, config_files):
+    """{service: mem_limit en octets, ou None} d'un projet compose."""
+    files = [arg for path in config_files.split(",") for arg in ("-f", path)]
+    # Sortie gardée en mémoire et stderr jamais affiché : le compose peut
+    # porter des secrets en clair.
+    output = subprocess.run(  # NOSONAR
+        [docker, "compose", *files, *COMPOSE_CONFIG],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=COMPOSE_TIMEOUT_SECONDS,
+    ).stdout
+    limits = {}
+    for service, config in json.loads(output)["services"].items():
+        limit = config.get("mem_limit")
+        limits[service] = parse_compose_size(limit) if limit else None
+    return limits
+
+
+def read_declared(docker, containers):
+    """({id du conteneur: mem_limit déclaré ou None}, composes non lus). Un
+    conteneur hors compose n'y figure pas : rien à comparer."""
+    projects, unread = {}, set()
+    declared = {}
+    for container_id, _, _, _, config_files, service in containers:
+        if not config_files or not service:
+            continue
+        if config_files not in projects and config_files not in unread:
+            try:
+                projects[config_files] = compose_limits(docker, config_files)
+            except (OSError, ValueError, KeyError, AttributeError, subprocess.SubprocessError) as error:
+                # Sa classe seule : l'erreur peut citer le compose.
+                print(f"{config_files} non lu : {type(error).__name__}", file=sys.stderr)
+                unread.add(config_files)
+        if config_files in projects:
+            # Absent du compose (service retiré, conteneur resté) : rien de déclaré.
+            declared[container_id] = projects[config_files].get(service)
+    return declared, sorted(unread)
 
 
 def age_days(started, now):
@@ -144,9 +210,9 @@ def age_days(started, now):
     return (now - start).total_seconds() / 86400
 
 
-def measure(containers, scopes, now):
-    measures, missing = [], 0
-    for container_id, name, restarts, started in containers:
+def measure(containers, scopes, now, declared):
+    measures, drifts, missing = [], [], 0
+    for container_id, name, restarts, started, _, service in containers:
         scope = scopes.get(container_id)
         if scope is None:
             missing += 1
@@ -155,15 +221,39 @@ def measure(containers, scopes, now):
         if current is None:
             # Cgroup disparu depuis le parcours (conteneur arrêté), ou
             # contrôleur memory absent (Pi sans cgroup_enable=memory) : rien à
-            # lire, surtout pas « sans limite, pic 0 ».
+            # lire, surtout pas « sans limite, pic 0 ». Mais sans contrôleur,
+            # un mem_limit déclaré n'est pas appliqué : c'est un écart.
             missing += 1
+            if scope.is_dir() and declared.get(container_id):
+                drifts.append(
+                    {
+                        "name": name,
+                        "service": service,
+                        "declared": declared[container_id],
+                        "real": None,
+                        "no_controller": True,
+                    }
+                )
             continue
         peak = read_bytes(scope / "memory.peak")
         events = read_events(scope / "memory.events")
+        limit = read_bytes(scope / "memory.max")
+        drifted = container_id in declared and abs((declared[container_id] or 0) - (limit or 0)) > DRIFT_TOLERANCE
+        if drifted:
+            drifts.append(
+                {
+                    "name": name,
+                    "service": service,
+                    "declared": declared[container_id],
+                    "real": limit,
+                    "no_controller": False,
+                }
+            )
         measures.append(
             {
                 "name": name,
-                "limit": read_bytes(scope / "memory.max"),
+                "limit": limit,
+                "drifted": drifted,
                 # memory.peak date du noyau 5.19 : sans lui, l'instantané.
                 "peak": peak if peak is not None else current,
                 "peak_is_current": peak is None,
@@ -173,7 +263,7 @@ def measure(containers, scopes, now):
                 "days": age_days(started, now),
             }
         )
-    return measures, missing
+    return measures, drifts, missing
 
 
 def window_note(measure_):
@@ -201,7 +291,10 @@ def classify(measures, high, low, min_saving):
     grow, shrink, unlimited = [], [], []
     for m in measures:
         if m["limit"] is None:
-            unlimited.append(m)
+            # Une limite déclarée mais pas appliquée est dans la section des
+            # écarts : lui en suggérer une serait un faux conseil.
+            if not m["drifted"]:
+                unlimited.append(m)
             continue
         percent = 100 * m["peak"] / m["limit"]
         m["percent"] = percent
@@ -248,11 +341,18 @@ def unlimited_line(m):
     )
 
 
+def drift_line(d):
+    declared = human(d["declared"]) if d["declared"] else "rien"
+    if d["no_controller"]:
+        return f"- {d['name']} : déclaré {declared}, contrôleur mémoire absent de l'hôte -> l'activer, puis recréer"
+    real = human(d["real"]) if d["real"] else "aucune limite"
+    return f"- {d['name']} : déclaré {declared}, réel {real} -> docker compose up -d --force-recreate {d['service']}"
+
+
 def fit(sections, footer):
     """(message sous MAX_MESSAGE octets, texte complet pour le journal). Les
     dernières lignes (sections triées) de la plus longue section partent les
-    premières ; « À agrandir », la première, seulement quand les autres sont
-    vides."""
+    premières ; la première section, seulement quand les autres sont vides."""
     sections = [(title, list(lines)) for title, lines in sections if lines]
     dropped = 0
 
@@ -272,27 +372,33 @@ def fit(sections, footer):
     return message, full
 
 
-def build_report(host, measures, missing, args):
+def build_report(host, measures, missing, args, drifts, unread, compared):
     grow, shrink, unlimited = classify(measures, args.high, args.low, args.min_saving_mb * MIB)
     sections = [
+        (
+            "Limite réelle différente du compose (Compose ne le voit pas, un redémarrage ne suffit pas) :",
+            [drift_line(d) for d in sorted(drifts, key=lambda d: d["name"])],
+        ),
         (f"À agrandir (pic >= {args.high} % de la limite, ou OOM-kill) :", [grow_line(m) for m in grow]),
         (
             f"À réduire (pic < {args.low} % de la limite, {args.min_saving_mb} Mio libérés au moins) :",
             [shrink_line(m) for m in shrink],
         ),
         ("Sans limite (la doctrine en veut une) :", [unlimited_line(m) for m in unlimited]),
+        ("Limite non comparée (compose illisible) :", [f"- {path}" for path in unread]),
     ]
     counted = f"{len(measures)} conteneur(s) lu(s)"
     if missing:
         counted += f", {missing} sans cgroup trouvé"
+    counted += f", {compared} comparé(s) à leur compose"
     footer = (
         f"{counted}. Limite suggérée : 2x le pic, arrondie. memory.peak et "
         "memory.events repartent de zéro à chaque redémarrage du conteneur "
         "(et du serveur) : un pic mesuré sur peu de jours sous-estime le besoin."
     )
-    if grow:
+    if grow or drifts:
         priority, tags = 4, ["warning"]
-    elif shrink or unlimited:
+    elif shrink or unlimited or unread:
         priority, tags = 3, ["chart_with_downwards_trend"]
     else:
         priority, tags = 2, ["white_check_mark"]
@@ -301,7 +407,8 @@ def build_report(host, measures, missing, args):
                 "Rien à signaler :",
                 [
                     f"aucun conteneur à {args.high} % de sa limite ni tué, aucun sous {args.low} % "
-                    f"dont la réduction libère {args.min_saving_mb} Mio ou plus."
+                    f"dont la réduction libère {args.min_saving_mb} Mio ou plus, limites réelles "
+                    "conformes aux composes."
                 ],
             )
         ]
@@ -341,9 +448,11 @@ def main(argv=None):
 
     now = datetime.datetime.now(datetime.timezone.utc)
     try:
-        measures, missing = measure(list_containers(args.docker), find_scopes(args.cgroup_root), now)
+        containers = list_containers(args.docker)
+        declared, unread = read_declared(args.docker, containers)
+        measures, drifts, missing = measure(containers, find_scopes(args.cgroup_root), now, declared)
         # Le journal garde le texte complet, lignes coupées du message comprises.
-        report, journal = build_report(args.host, measures, missing, args)
+        report, journal = build_report(args.host, measures, missing, args, drifts, unread, len(declared))
         failed = False
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         # Publié quand même : un rapport qui ne vient plus ne se remarque pas.

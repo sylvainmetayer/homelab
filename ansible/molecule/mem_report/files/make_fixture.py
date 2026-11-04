@@ -2,10 +2,13 @@
   - cgroup/ : un faux /sys/fs/cgroup, un dossier par conteneur (memory.max,
     memory.peak, memory.current, memory.events) ;
   - inspect.tsv : ce que le faux docker (fake_docker.sh) répond à `ps` et à
-    `inspect`, au format INSPECT_FORMAT de mem_report.py.
+    `inspect`, au format INSPECT_FORMAT de mem_report.py ;
+  - compose.json : ce qu'il répond à `compose config`, un service par
+    conteneur.
 """
 
 import datetime
+import json
 import os
 
 MIB = 1024 * 1024
@@ -13,28 +16,41 @@ MIB = 1024 * 1024
 ROOT = "/root/molecule-mem-report"
 SYSTEMD_SCOPE = "system.slice/docker-{}.scope"
 NOW = datetime.datetime.now(datetime.timezone.utc)
+HORS_COMPOSE = object()
+ILLISIBLE = object()
 
 # (caractère de l'id, nom, dossier du cgroup ou None, memory.max, memory.peak
-# ou None, memory.current, événements max, oom_kill, redémarrages, âge en jours)
+# ou None, memory.current ou None (pas de contrôleur mémoire), événements max,
+# oom_kill, redémarrages, âge en jours, mem_limit du compose ou None)
 CONTAINERS = [
     # 255 Mio sur 256 Mio, un OOM-kill : à agrandir, au plafond.
-    ("a", "molecule-big", SYSTEMD_SCOPE, 256 * MIB, 255 * MIB, 190 * MIB, 12, 1, 0, 30),
+    ("a", "molecule-big", SYSTEMD_SCOPE, 256 * MIB, 255 * MIB, 190 * MIB, 12, 1, 0, 30, "256m"),
     # 100 Mio sur 1 Gio, sous le cgroup_parent des conteneurs du NAS, démarré
     # il y a 2 jours : à réduire, pic sur peu de jours.
-    ("b", "molecule-idle", "nas-storage.slice/docker-{}.scope", 1024 * MIB, 100 * MIB, 48 * MIB, 0, 0, 0, 2),
+    ("b", "molecule-idle", "nas-storage.slice/docker-{}.scope", 1024 * MIB, 100 * MIB, 48 * MIB, 0, 0, 0, 2, "1g"),
     # Pas de limite.
-    ("c", "molecule-nolimit", SYSTEMD_SCOPE, "max", 50 * MIB, 38 * MIB, 0, 0, 0, 30),
+    ("c", "molecule-nolimit", SYSTEMD_SCOPE, "max", 50 * MIB, 38 * MIB, 0, 0, 0, 30, None),
     # 4 Mio sur 64 Mio : sous 25 %, mais 16m ne libère que 48 Mio.
-    ("d", "molecule-small", SYSTEMD_SCOPE, 64 * MIB, 4 * MIB, 3 * MIB, 0, 0, 0, 30),
+    ("d", "molecule-small", SYSTEMD_SCOPE, 64 * MIB, 4 * MIB, 3 * MIB, 0, 0, 0, 30, "64m"),
     # Noyau sans memory.peak : memory.current, 900 Mio sur 1 Gio.
-    ("e", "molecule-oldkernel", SYSTEMD_SCOPE, 1024 * MIB, None, 900 * MIB, 0, 0, 3, 30),
+    ("e", "molecule-oldkernel", SYSTEMD_SCOPE, 1024 * MIB, None, 900 * MIB, 0, 0, 3, 30, "1G"),
     # Pilote cgroupfs (docker/<id>), 300 Mio sur 512 Mio : rien à dire.
-    ("f", "molecule-cgroupfs", "docker/{}", 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30),
+    # Hors compose : limite jamais comparée.
+    ("f", "molecule-cgroupfs", "docker/{}", 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30, HORS_COMPOSE),
     # 50 Mio sur 1 Gio, mais relancé par Docker hier (un OOM-kill du
     # processus principal, peut-être) : jamais proposé à la réduction.
-    ("7", "molecule-relaunched", SYSTEMD_SCOPE, 1024 * MIB, 50 * MIB, 40 * MIB, 0, 0, 2, 1),
+    # Déclaré en octets, arrondi à la page par le noyau : pas un écart.
+    ("7", "molecule-relaunched", SYSTEMD_SCOPE, 1024 * MIB, 50 * MIB, 40 * MIB, 0, 0, 2, 1, 1024 * MIB + 100),
     # Listé par docker, cgroup introuvable.
-    ("9", "molecule-gone", None, None, None, None, 0, 0, 0, 30),
+    ("9", "molecule-gone", None, None, None, None, 0, 0, 0, 30, "128m"),
+    # Le Pi : créé sans contrôleur, déclaré 256m, « max » depuis son retour.
+    ("2", "molecule-pi-drift", SYSTEMD_SCOPE, "max", 40 * MIB, 30 * MIB, 0, 0, 0, 30, "256m"),
+    # Le compose dit 1g, le conteneur a encore 512 Mio.
+    ("3", "molecule-stale", SYSTEMD_SCOPE, 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30, "1g"),
+    # Hôte encore sans contrôleur : un cgroup sans aucun fichier memory.*.
+    ("4", "molecule-nocontroller", SYSTEMD_SCOPE, None, None, None, 0, 0, 0, 30, "128m"),
+    # Son compose ne se lit pas : limite non comparée, jamais « conforme ».
+    ("5", "molecule-unread", SYSTEMD_SCOPE, 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30, ILLISIBLE),
 ]
 
 
@@ -43,12 +59,14 @@ def write(directory, name, value):
         handle.write(f"{value}\n")
 
 
+services = {}
 with open(os.path.join(ROOT, "inspect.tsv"), "w") as tsv:
-    for char, name, path, limit, peak, current, max_events, oom_kill, restarts, days in CONTAINERS:
+    for char, name, path, limit, peak, current, max_events, oom_kill, restarts, days, declared in CONTAINERS:
         container_id = char * 64
         if path:
             directory = os.path.join(ROOT, "cgroup", path.format(container_id))
             os.makedirs(directory, mode=0o700)
+        if path and current is not None:
             write(directory, "memory.max", limit)
             if peak is not None:
                 write(directory, "memory.peak", peak)
@@ -59,7 +77,17 @@ with open(os.path.join(ROOT, "inspect.tsv"), "w") as tsv:
                 f"low 0\nhigh 0\nmax {max_events}\noom {oom_kill}\noom_kill {oom_kill}\noom_group_kill 0",
             )
         started = (NOW - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.123456789Z")
-        tsv.write(f"{container_id}\t/{name}\t{restarts}\t{started}\n")
+        if declared is HORS_COMPOSE:
+            labels = "\t"
+        elif declared is ILLISIBLE:
+            labels = f"{ROOT}/absent.json\t{name}"
+        else:
+            labels = f"{ROOT}/compose.json\t{name}"
+            services[name] = {} if declared is None else {"mem_limit": declared}
+        tsv.write(f"{container_id}\t/{name}\t{restarts}\t{started}\t{labels}\n")
+
+with open(os.path.join(ROOT, "compose.json"), "w") as compose:
+    json.dump({"services": services}, compose)
 
 # Le cgroup d'un conteneur que docker ne liste pas (ceux du runner de la CI,
 # vus à travers cgroupns host) : ignoré.

@@ -683,7 +683,11 @@ flowchart LR
   relancé depuis moins de 7 jours n'est jamais proposé à la réduction. À la
   main : `sudo systemctl start mem-report`, le texte complet (lignes coupées
   du message ntfy comprises) dans
-  `journalctl -u mem-report`.
+  `journalctl -u mem-report`. En tête du message, les conteneurs dont
+  `memory.max` n'est pas le `mem_limit` de leur compose : un conteneur créé
+  sans contrôleur mémoire (le Pi avant #846) reste sans limite, et Compose ne
+  le voit pas ; il faut le recréer (`docker compose up -d --force-recreate
+  <service>`), un redémarrage ne suffit pas.
 - **Rapport mensuel des coûts** (rôle `cost_report`, VM docker) : chaque
   matin, `cost-report.timer` relit Hetzner (jeton de projet en lecture
   seule : serveurs, sauvegardes, IP, volumes et Storage Box au tarif
