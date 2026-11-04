@@ -31,18 +31,8 @@
     state: present
   register: nas_storage_fstab
 
-# Nom d'unité systemd du point de montage (`mnt-nas-apps`), suffixé
-# ensuite en .mount / .automount.
-- name: Compute the mount unit name
-  ansible.builtin.command:
-    cmd: "systemd-escape --path {{ nas_storage_mount_path }}"
-  register: nas_storage_unit
-  changed_when: false
-  check_mode: false
-
-- name: Set the mount unit name prefix
-  ansible.builtin.set_fact:
-    nas_storage_unit_prefix: "{{ nas_storage_unit.stdout }}"
+- name: Compute the mount unit name prefix
+  ansible.builtin.import_tasks: unit_prefix.yml
 
 - name: Install the NAS wait script
   become: true

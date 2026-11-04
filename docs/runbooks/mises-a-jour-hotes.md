@@ -245,9 +245,9 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
    `docker stop nas-proxy-443`, redémarrer nginx, décocher la case,
    `docker start nas-proxy-443`.
 2. Vérifier : `https://media.sylvain.cloud` et `https://nas.sylvain.cloud`
-   sans port en LAN, `showmount -e 192.168.1.137` (export `/volume1/pve-backup`
-   vers l'hôte Proxmox), le moniteur « Certificats NAS » et l'agent Beszel
-   `nas` au vert.
+   sans port en LAN, depuis l'hôte Proxmox `showmount -e 192.168.1.137` (export
+   `/volume1/pve-backup` vers cet hôte), le moniteur « Certificats NAS » et
+   l'agent Beszel `nas` au vert.
 
 ## Prévention
 

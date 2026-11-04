@@ -2,7 +2,7 @@
 
 **État au 2026-11-04 : rien n'est en place.** Aucune appli ne s'en sert,
 l'export de l'essai est retiré de `host_vars/nas` et son montage de la VM
-(`ansible/roles/nas_storage/README.md`, « Retirer le montage »). Le dossier
+(`ansible/roles/nas_storage/README.md`, « Removing the mount »). Le dossier
 partagé `/volume1/nas-test` et ses archives restent sur le NAS, non exportés.
 Ce document décrit le modèle à suivre pour la première appli sur le NAS.
 
@@ -237,8 +237,10 @@ Libellés d'UGOS Pro 1.20.0.0142, relevés le 2026-10-25 (test du dossier
    le dossier existe, que nfs-server tourne et qu'aucun export n'est `async`.
    Il est lancé à la main, jamais par la CI.
 4. Chemin exporté : `/volume1/apps`, à déclarer dans `host_vars/nas` et dans
-   `nas_storage_export` (vide aujourd'hui, le rôle échoue sans lui). Depuis la
-   VM, `showmount -e 192.168.1.137` doit lister `/volume1/apps 192.168.1.216`.
+   `nas_storage_export` (vide aujourd'hui, le rôle échoue sans lui). `nfs-common`
+   a quitté la VM avec le montage et le rôle ne tourne pas encore : `sudo apt
+   install nfs-common` d'abord, pour `showmount` et `mount -t nfs`. Depuis la VM,
+   `showmount -e 192.168.1.137` doit lister `/volume1/apps 192.168.1.216`.
 5. Premier test depuis la VM :
    ```bash
    sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/apps /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
@@ -252,8 +254,10 @@ l'interface n'ouvre que 111, 2049 et les ports **dynamiques** de `mountd`,
 redémarrage de nfs-server hors de l'interface (handler du rôle `nas`)
 déplace ces ports : `showmount` et le montage restent alors bloqués alors que
 111 et 2049 répondent (constaté le 26/10). D'où une règle « tout autoriser »
-pour chaque client NFS (la VM `192.168.1.216`, le jour où elle monte un
-export) dans Sécurité → Pare-feu.
+pour chaque client NFS dans Sécurité → Pare-feu : l'hôte Proxmox `192.168.1.26`
+(vzdump), la VM `192.168.1.216` le jour où elle monte un export. Les règles de
+l'essai (VM, Pi `192.168.1.96`) restent dans UGOS tant qu'on ne les retire pas à
+la main.
 
 ### Applis lancées sur le NAS lui-même (`dc@` système)
 

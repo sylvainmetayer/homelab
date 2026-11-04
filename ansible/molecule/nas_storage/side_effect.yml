@@ -103,7 +103,13 @@
       register: molecule_fstab
 
     - name: Read the installed NFS packages
-      ansible.builtin.command: dpkg-query --show --showformat=${db:Status-Abbrev}${Package}\n nfs-common rpcbind
+      ansible.builtin.command:
+        argv:
+          - dpkg-query
+          - --show
+          - "--showformat=${db:Status-Abbrev}${Package}\n"
+          - nfs-common
+          - rpcbind
       register: molecule_nfs_packages
       changed_when: false
       failed_when: false
