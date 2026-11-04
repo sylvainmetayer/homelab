@@ -1188,6 +1188,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "nextcloud /index.php/apps/files_trashbin/preview",
       "nextcloud /index.php/apps/files_versions/preview",
       "nextcloud /index.php/apps/files/api/v1/thumbnail/*",
+      "nextcloud /index.php/apps/cospend/api-priv/*",
       "nextcloud /.well-known/caldav",
       "nextcloud /.well-known/carddav",
       "nextcloud /s/*",
