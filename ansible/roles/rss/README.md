@@ -23,10 +23,8 @@ and rootless, removing each in turn (PR #1172):
 The first three only log warnings, but leave the permissions of a restored or
 hand-edited file unrepaired. All six are in Docker's default set; `DAC_READ_SEARCH`
 would also cross these folders but opens a path to the host's files
-(`docs/conventions/container-hardening.md`). With `data` owned by another uid,
-`prepare.php` can no longer create its folders or rewrite `.htaccess` (logged,
-the container still starts): check the owner after a restore. Workers and the
-cron's PHP keep no capability. `NET_BIND_SERVICE` is not needed on port 80: Docker sets
+(`docs/conventions/container-hardening.md`). Workers and the cron's PHP keep no
+capability. `NET_BIND_SERVICE` is not needed on port 80: Docker sets
 `ip_unprivileged_port_start=0` on a bridge network (read at 0 in the running
 container); under `network_mode: host` it would be.
 
