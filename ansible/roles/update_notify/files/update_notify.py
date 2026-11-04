@@ -222,7 +222,8 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 # Aucune redirection suivie : urllib renverrait le jeton (Authorization) à la
-# cible, et le 200 de sa page d'arrivée compterait comme une publication réussie.
+# cible, et le 200 de sa page d'arrivée compterait comme une publication réussie,
+# ou comme un push livré à Uptime Kuma.
 _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
@@ -252,7 +253,7 @@ def push(url, status, msg):
     query = urllib.parse.urlencode({"status": status, "msg": msg[:250], "ping": ""})
     separator = "&" if "?" in url else "?"
     try:
-        with urllib.request.urlopen(url + separator + query, timeout=30) as response:
+        with _OPENER.open(url + separator + query, timeout=30) as response:
             response.read()
     except (OSError, ValueError, http.client.HTTPException) as error:
         # Une erreur d'urllib peut citer l'URL, donc le jeton : sa classe seule.

@@ -204,6 +204,17 @@ def _build(pulls, runs, repo, now):
     }, render(sections, footer)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie, sur GitHub (GITHUB_TOKEN) comme sur ntfy : urllib
+# renverrait l'en-tête Authorization à la cible, et le 200 de sa page d'arrivée
+# compterait comme une publication réussie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def github(token, path, body=None):
     request = urllib.request.Request(
         API + path,
@@ -215,7 +226,7 @@ def github(token, path, body=None):
         },
         method="POST" if body is not None else "GET",
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with _OPENER.open(request, timeout=30) as response:
         return json.load(response)
 
 
@@ -247,7 +258,7 @@ def publish(url, topic, token, report):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with _OPENER.open(request, timeout=30) as response:
         response.read()
 
 
