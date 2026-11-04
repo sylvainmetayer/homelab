@@ -10,14 +10,16 @@ role than it names), and on an exclusion that is stale or has no reason: the
 list only says what is true.
 
 A backup is a task of a role including `borgmatic` with `tasks_from: app.yml`.
-Its name is `borgmatic_app_name`, the repository's folder: apps.json's "repo". A
-name that is one variable (flip_planning's instances) gives one backup per entry
-of that role in a playbook.
+Its name is `borgmatic_app_name`, the repository's folder: apps.json's "repo". It
+exists once per entry of that role in a playbook (none for a role no playbook
+runs), and a name that is one variable (flip_planning's instances) gives one
+backup per entry.
 
-It counts as off only when its `<x>_backup_enabled` switch is a literal false,
-read from the playbook entry, else host_vars and group_vars, else the role
-defaults. Anything else (a Jinja value too, which is not resolved) counts as on,
-so turning kdrive_sync's backup on fails here until it is tested or excluded.
+It counts as off only when a `<x>_backup_enabled` switch its `when:` requires is
+a literal false, or one variable that is one, read from the playbook entry, else
+host_vars and group_vars, else the role defaults. Anything else (other Jinja, a
+`not` or an `or`, which guarantee nothing) counts as on, so turning kdrive_sync's
+backup on fails here until it is tested or excluded.
 
 Usage (from the repository root, workflow Lint): check_restore_coverage.py
 """
@@ -30,7 +32,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-SWITCH = re.compile(r"\b\w+_backup_enabled\b")
+SWITCH = re.compile(r"(\w+_backup_enabled)(?:\s*\|\s*bool)?")
 ONE_VARIABLE = re.compile(r"^\{\{\s*(\w+)\s*\}\}$")
 
 # Repository (borgmatic_app_name) -> why its restore is not tested.
@@ -42,8 +44,15 @@ EXCLUDED = {
 }
 
 
+class Loader(yaml.SafeLoader):
+    """SafeLoader that tolerates Ansible's custom tags (!vault, !unsafe)."""
+
+
+Loader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+
 def load_yaml(path):
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=Loader)  # noqa: S506 - SafeLoader subclass
 
 
 def walk_tasks(tasks):
@@ -68,11 +77,18 @@ def backup_tasks(tasks):
 
 
 def variables_set_outside_roles(root):
-    """Variables of host_vars and group_vars (keys only: SOPS files are not there)."""
+    """Variables of host_vars and group_vars (SOPS files are not there).
+
+    Which host runs which role is not read, so hosts are not told apart: the first
+    value other than false wins, host_vars before group_vars. A false on one host
+    must not hide the backup of another, and false needs every file to agree.
+    """
     found = {}
     for pattern in ("ansible/host_vars/*/*.y*ml", "ansible/group_vars/*/*.y*ml"):
         for path in sorted(root.glob(pattern)):
-            found.update(load_yaml(path) or {})
+            for key, value in (load_yaml(path) or {}).items():
+                if found.get(key, False) is False:
+                    found[key] = value
     return found
 
 
@@ -88,34 +104,43 @@ def playbook_entries(root):
     return entries
 
 
+def required_switches(when):
+    """The switches a `when:` requires: any of them false skips the task. A
+    condition with an `or` requires nothing, a `not x` does not require x."""
+    switches = []
+    for condition in when if isinstance(when, list) else [when]:
+        if not re.search(r"\bor\b", str(condition)):
+            terms = re.split(r"\s+and\s+", str(condition).strip())
+            switches += [match[1] for match in map(SWITCH.fullmatch, terms) if match]
+    return switches
+
+
+def switch_is_off(switch, layers):
+    value = layers.get(switch)
+    variable = ONE_VARIABLE.match(value) if isinstance(value, str) else None
+    return (layers.get(variable[1]) if variable else value) is False
+
+
 def role_backups(role, tasks, defaults, entries, outside):
-    """([(repository, role, on)], errors) of one role's task list."""
+    """([(repository, on)], errors) of one role's task list."""
     backups, errors = [], []
     for task in backup_tasks(tasks):
-        task_vars = task.get("vars") or {}
-        name = task_vars.get("borgmatic_app_name")
+        name = (task.get("vars") or {}).get("borgmatic_app_name")
         if not isinstance(name, str) or not name:
             errors.append(f"{role} : sauvegarde sans borgmatic_app_name lisible dans ses vars:.")
             continue
-        switches = SWITCH.findall(str(task.get("when", "")))
-
-        def on(entry_vars):
-            layers = {**defaults, **outside, **entry_vars}
-            return not any(layers.get(switch) is False for switch in switches)
-
         variable = ONE_VARIABLE.match(name)
         if not variable and "{{" in name:
             errors.append(f"{role} : {name} ne se résout pas en un nom de dépôt.")
             continue
-        if not variable:
-            backups.append((name, role, any(on(e) for e in entries or [{}])))
-            continue
-        for entry_vars in entries or [{}]:
-            instance = entry_vars.get(variable[1], defaults.get(variable[1]))
-            if not isinstance(instance, str) or "{{" in instance:
+        switches = required_switches(task.get("when"))
+        for entry_vars in entries:
+            layers = {**defaults, **outside, **entry_vars}
+            repository = layers.get(variable[1]) if variable else name
+            if not isinstance(repository, str) or "{{" in repository:
                 errors.append(f"{role} : {name} ne se résout pas en un nom de dépôt.")
                 continue
-            backups.append((instance, role, on(entry_vars)))
+            backups.append((repository, not any(switch_is_off(s, layers) for s in switches)))
     return backups, errors
 
 
@@ -130,29 +155,30 @@ def find_backups(root):
             continue
         defaults_path = role_dir / "defaults" / "main.yml"
         defaults = (load_yaml(defaults_path) or {}) if defaults_path.exists() else {}
-        for path in sorted((role_dir / "tasks").glob("*.y*ml")):
+        for path in sorted((role_dir / "tasks").rglob("*.y*ml")):
             backups, role_errors = role_backups(
                 role, load_yaml(path), defaults, entries.get(role, []), outside
             )
             errors.extend(role_errors)
-            for name, owner, on in backups:
-                if name in found and found[name][0] != owner:
-                    errors.append(f"{name} : dépôt de deux rôles ({found[name][0]}, {owner}).")
-                found[name] = (owner, on or found.get(name, (owner, False))[1])
+            for name, on in backups:
+                if name in found and found[name][0] != role:
+                    errors.append(f"{name} : dépôt de deux rôles ({found[name][0]}, {role}).")
+                found[name] = (role, on or found.get(name, (role, False))[1])
     return found, errors
 
 
 def check(backups, manifest, excluded):
     """Errors: backups is {repository: (role, on)}, manifest is apps.json."""
     errors = []
-    tested = {entry["repo"]: (app, entry["role"]) for app, entry in manifest.items()}
+    tested = {entry["repo"] for entry in manifest.values()}
     for name, (role, on) in sorted(backups.items()):
         if on and name not in tested and name not in excluded:
             errors.append(
                 f"{name} (rôle {role}) : sauvegardé, sans test de restauration. L'ajouter à "
                 ".github/restore-test/apps.json, ou l'exclure avec sa raison dans EXCLUDED."
             )
-    for repo, (app, role) in sorted(tested.items()):
+    for app, entry in sorted(manifest.items()):
+        repo, role = entry["repo"], entry["role"]
         if repo not in backups:
             errors.append(f"apps.json, {app} : aucun rôle ne sauvegarde le dépôt {repo}.")
         elif backups[repo][0] != role:
