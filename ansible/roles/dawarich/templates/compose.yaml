@@ -2,6 +2,11 @@
 services:
   dawarich-redis:
     mem_limit: 256m
+    # L'entrypoint de l'image charge d'office RediSearch, RedisJSON,
+    # RedisTimeSeries et RedisBloom, que Dawarich n'utilise pas : RSS au repos
+    # ~23 Mio contre ~9 en 7.4 (mesuré le 2026-11-04, à vide). 7.4 et 8.2
+    # écrivent le RDB 12 : un retour en 7.4 relit le dump, tant qu'aucune clé
+    # de module n'y entre.
     image: redis:8.2-alpine@sha256:489a769e0a54dc245896132a15c72d2bc7296719954da99398f43a3877e5f8eb
     container_name: dawarich-redis
     security_opt:
