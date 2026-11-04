@@ -22,6 +22,7 @@ jamais de la ligne de commande, jamais affichés.
 """
 
 import argparse
+import http.client
 import json
 import os
 import re
@@ -52,6 +53,9 @@ DOCKER_NAME_RE = re.compile(r"^(docker-|containerd)")
 # l'hôte (pas docker-ce-cli ni les plugins compose/buildx), au début d'une
 # entrée « <paquet> <installée> → <candidate> ».
 DOCKERD_ENTRY_RE = re.compile(r"^(docker-ce|containerd\.io) ")
+# Le début numérique d'un nom de noyau (6.8.12-9, 6.1.0-40, 6.12.57+deb13) ; ce
+# qui suit est sa famille (-pve, -cloud-amd64, -amd64, -rpi-2712).
+KERNEL_VERSION_RE = re.compile(r"^\d+(?:\.\d+)*(?:-\d+)?(?:\+[^-]*)?")
 
 
 class CheckError(Exception):
@@ -94,16 +98,20 @@ def parse_simulation(output):
     return security, sensitive, other, removed
 
 
+def kernel_family(release):
+    return KERNEL_VERSION_RE.sub("", release, count=1)
+
+
 def pending_kernel(boot_dir, running):
     """Le noyau installé le plus récent de la même famille que celui qui
-    tourne (suffixe -pve), s'il est plus récent que lui. Un noyau Debian
-    resté installé (-amd64) n'est pas comparé : il ne démarrerait pas par
-    défaut."""
-    flavour = "-" + running.rsplit("-", 1)[-1] if "-" in running else ""
+    tourne (-pve, -cloud-amd64…), s'il est plus récent que lui. Un noyau
+    d'une autre famille resté installé (-amd64 sur un hôte -pve ou
+    -cloud-amd64) n'est pas comparé : il ne démarrerait pas par défaut."""
+    family = kernel_family(running)
     try:
         kernels = [
             f[len("vmlinuz-"):] for f in os.listdir(boot_dir)
-            if f.startswith("vmlinuz-") and f.endswith(flavour)
+            if f.startswith("vmlinuz-") and kernel_family(f[len("vmlinuz-"):]) == family
         ]
     except OSError:
         return None
@@ -195,7 +203,10 @@ def check_apt(args):
     if total:
         title = f"{args.host} : {total} mise(s) à jour, dont {len(security)} de sécurité"
     else:
-        title = f"{args.host} : redémarrage en attente"
+        reasons = ["redémarrage en attente"] if newest else []
+        if removed:
+            reasons.append(f"{len(removed)} paquet(s) à retirer")
+        title = f"{args.host} : {', '.join(reasons)}"
     notification = {
         "title": title,
         "message": fit_message(lines, tail),
@@ -233,7 +244,8 @@ def push(url, status, msg):
     try:
         with urllib.request.urlopen(url + separator + query, timeout=30) as response:
             response.read()
-    except OSError as error:
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        # Une erreur d'urllib peut citer l'URL, donc le jeton : sa classe seule.
         print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
         return False
     return True
