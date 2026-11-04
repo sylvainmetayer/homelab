@@ -1,4 +1,4 @@
-"""Tests of trivy_critical.py: CRITICAL fixable vulnerabilities, per image, to ntfy
+"""Tests of trivy_critical.py: CRITICAL fixable vulnerabilities and end-of-life distributions, per image, to ntfy
 (Lint workflow: python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
 
 import io
@@ -163,6 +163,15 @@ class MessageTest(unittest.TestCase):
         self.assertLessEqual(len(text.encode("utf-8")), trivy_critical.MAX_MESSAGE_BYTES + 100)
         self.assertIn("lignes de plus", text)
         self.assertEqual(text.splitlines()[-1], "  monica : debian 11.6")
+
+    def test_end_of_life_alone_has_the_whole_message(self):
+        eol = {f"image-{i:02d}": "debian 11.6" for i in range(70)}
+        text = trivy_critical.message({}, "", eol)["message"]
+        self.assertGreater(len(text.encode("utf-8")), trivy_critical.MAX_MESSAGE_BYTES // 2)
+        self.assertNotIn("de plus", text)
+
+    def test_one_line_left_is_singular(self):
+        self.assertEqual(trivy_critical.fit(["a", "b"], 2), "a\n… et 1 ligne de plus\n")
 
     def test_many_end_of_life_images_stay_under_the_limit(self):
         eol = {f"image-with-a-rather-long-name-{i}": "debian 11.6" for i in range(500)}

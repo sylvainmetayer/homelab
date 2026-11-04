@@ -7,8 +7,8 @@ regroupées par image avec la version qui les corrige. S'y ajoutent, pour
 information, les images dont la distribution est en fin de vie
 (`Metadata.OS.EOSL`, absent sinon, table embarquée dans le binaire Trivy) :
 --ignore-unfixed les fait paraître propres. Seules, elles partent en priorité
-basse, sans son ; ce constat ne fait jamais échouer le script. Sans aucun des
-deux, rien n'est publié. Le message part sur le topic `github` de
+basse, sans son ; le constat ne fait pas échouer le script, une publication
+ratée si. Sans aucun des deux, rien n'est publié. Le message part sur le topic `github` de
 ntfy.sylvain.cloud (JSON sur `/`, le chemin ouvert sans SSO de
 tofu/pangolin_config), le détail des CVE reste dans l'onglet Security (code
 scanning).
@@ -96,7 +96,8 @@ def fit(lines, limit, where=""):
     for index, line in enumerate(lines):
         candidate = body + line + "\n"
         if len(candidate.encode("utf-8")) > limit:
-            return body + f"… et {len(lines) - index} lignes de plus{where}\n"
+            rest = len(lines) - index
+            return body + f"… et {rest} ligne{'s' if rest > 1 else ''} de plus{where}\n"
         body = candidate
     return body
 
@@ -107,12 +108,13 @@ def message(images, link, eol=None):
     if not images and not eol:
         return None
     eol_count = f"{len(eol)} image{'s' if len(eol) > 1 else ''}"
-    # Réservées d'abord : une longue liste de CVE ne les coupe pas.
+    # Réservées d'abord : une longue liste de CVE ne les coupe pas. Seules,
+    # elles ont toute la place : ce détail n'est nulle part ailleurs.
     eol_block = ""
     if eol:
         eol_block = fit(
             ["Distribution en fin de vie (information) :", *(f"  {name} : {eol[name]}" for name in sorted(eol))],
-            MAX_MESSAGE_BYTES // 2,
+            MAX_MESSAGE_BYTES // 2 if images else MAX_MESSAGE_BYTES,
         )
     if not images:
         return {

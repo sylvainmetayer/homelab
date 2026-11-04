@@ -9,15 +9,16 @@ name: Trivy
 # SARIF refusé) si.
 # --ignore-unfixed : sans lui, les CVE sans correctif, que Renovate ne peut
 # pas régler, noyaient les autres. Il masque aussi le statut end_of_life :
-# une image restée sur une distribution en fin de vie paraît propre, seul le
-# champ Metadata.OS.EOSL du rapport JSON le dit encore (lu par le job notify).
+# une image restée sur une distribution en fin de vie paraît propre, seuls le
+# log du job et le champ Metadata.OS.EOSL du rapport JSON (lu par le job
+# notify) le disent encore.
 # Code scanning ferme les alertes masquées comme « Fixed » sans qu'elles le
 # soient ; une CVE qui reçoit un correctif revient comme une nouvelle alerte.
 # Sur ntfy (job notify, topic github, .github/scripts/trivy_critical.py) : les
 # CRITICAL corrigeables, une ligne par CVE, par image, avec la version qui la
 # corrige, et une ligne par image en fin de vie, pour information : seules,
-# elles partent en priorité basse et ne font jamais échouer le run. Aucun
-# constat : aucun message.
+# elles partent en priorité basse ; le constat ne fait pas échouer le run, une
+# publication ratée si. Aucun constat : aucun message.
 # Le lundi à 05:00 UTC, après les tests de la semaine (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
 # ce que corrigent ses montées de version.
@@ -173,7 +174,8 @@ jobs:
       # TOOMANYREQUESTS quand plusieurs jobs lisent ses images en même temps
       # (vu sur bookstack, mariadb et nextcloud au premier run). Rapport en
       # JSON, converti en SARIF ensuite : le job notify lit le JSON (version
-      # corrigée de chaque CVE), code scanning le SARIF, d'une seule analyse.
+      # corrigée de chaque CVE, fin de vie), code scanning le SARIF, d'une seule
+      # analyse.
       - name: Run trivy image
         env:
           IMAGE: ${{ matrix.image.ref }}
@@ -225,7 +227,7 @@ jobs:
   # ntfy-github (tofu/github/environments.tf) ne porte que le jeton du
   # producteur github de ntfy, et refuse toute autre branche.
   notify:
-    name: Publish critical vulnerabilities to ntfy
+    name: Publish the findings to ntfy
     needs: image
     if: ${{ !cancelled() && needs.image.result != 'skipped' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-26.04
