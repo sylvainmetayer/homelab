@@ -20,7 +20,7 @@ Depuis [l'ADR 0027](../../../docs/adr/0027-connexions-ssh-cles-connues.md), une 
 | Déploiement réussi sans ligne du hook sur un hôte | ntfy priorité 4, une fois par 24 h par hôte | `down` puis `up` |
 | ntfy refuse une alerte, ou la redirige (aucune suivie) | rien de perdu : relue et réessayée à chaque passage | `down` avec le message, unité en échec |
 | Plafond de lignes atteint (`ci_key_audit_max_lines`) : connexions non jugées, journal peut-être saturé par un voleur de la clé | ntfy **priorité 5**, une fois par 24 h, curseur figé, unité en échec | `down` avec le message, donc Telegram |
-| VictoriaLogs ou GitHub injoignable, réponse illisible, quota épuisé, plafond de pages atteint | état inchangé, unité en échec, raison au journal | **aucun push** : DOWN à l'expiration (30 min, trois périodes) |
+| VictoriaLogs ou GitHub injoignable, réponse illisible ou sans `workflow_runs` ni run lisibles, quota épuisé, plafond de pages atteint | état inchangé, unité en échec, raison au journal | **aucun push** : DOWN à l'expiration (30 min, trois périodes) |
 | Seule la lecture des étapes d'un run échoue, réponse sans `jobs` comprise | connexions jugées et alerte partie, curseur figé, unité en échec | aucun push (`down` s'il y a une alerte) |
 | Journal d'un hôte de `ci_key_audit_hosts` silencieux depuis 3 h | curseur figé, le reste jugé quand même | aucun push, comme ci-dessus |
 

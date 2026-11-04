@@ -174,19 +174,34 @@ class Checker:
     def repo_path(self):
         return f"/repos/{self.config['repository']}/actions"
 
+    def readable_run(self, run):
+        """Les champs lus d'un run, ou CheckError : un 200 d'une autre forme n'arrête pas le passage en KeyError."""
+        try:
+            kept = {key: run[key] for key in RUN_FIELDS if key in run}
+            if not {"id", "status"} <= kept.keys() or not isinstance(kept.get("run_attempt", 1), int):
+                raise TypeError
+            self.run_interval(kept)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            raise CheckError("GitHub : run illisible") from None
+        return kept
+
     def runs(self, since):
         """Les runs du déploiement créés depuis `since`, page après page."""
         path = f"{self.repo_path()}/workflows/{self.config['workflow']}/runs"
         found = []
         for page in range(1, self.config["max_pages"] + 1):
-            batch = self.github(path, {
+            reply = self.github(path, {
                 "created": ">=" + rfc3339(since),
                 "branch": self.config["branch"],
                 "exclude_pull_requests": "true",
                 "per_page": PER_PAGE,
                 "page": page,
-            })["workflow_runs"]
-            found.extend({key: run[key] for key in RUN_FIELDS if key in run} for run in batch)
+            })
+            try:
+                batch = listed(reply["workflow_runs"])
+            except (KeyError, TypeError):
+                raise CheckError("GitHub : réponse sans workflow_runs lisibles") from None
+            found.extend(self.readable_run(run) for run in batch)
             if len(batch) < PER_PAGE:
                 return found
         raise CheckError(f"GitHub : plus de {self.config['max_pages']} pages de runs")
@@ -194,7 +209,7 @@ class Checker:
     def earlier_attempts(self, run):
         """Un run relancé ne montre que son dernier essai ; les connexions du premier comptent."""
         return [
-            self.github(f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}")
+            self.readable_run(self.github(f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}"))
             for attempt in range(1, run.get("run_attempt", 1))
         ]
 

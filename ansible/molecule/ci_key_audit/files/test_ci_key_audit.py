@@ -425,6 +425,55 @@ class Paging(unittest.TestCase):
             checker.runs(NOW - 86400)
 
 
+class RunsReply(unittest.TestCase):
+    """Un 200 d'une autre forme : contrôle impossible, jamais un KeyError hors de main."""
+
+    UNREADABLE_RUNS = (
+        "x",
+        3,
+        None,
+        [],
+        {},
+        {"status": "completed"},
+        {"id": 1, "status": "completed"},
+        {"id": 1, "status": "completed", "created_at": "hier", "updated_at": "hier"},
+        {"id": 1, "status": "completed", "created_at": 3, "updated_at": 3},
+        {**run(NOW, NOW), "run_attempt": "2"},
+        {**run(NOW, NOW), "run_attempt": None},
+        {key: value for key, value in run(NOW, NOW).items() if key != "id"},
+        {key: value for key, value in run(NOW, NOW).items() if key != "status"},
+    )
+
+    def test_any_reply_without_a_list_of_runs_is_a_check_error(self):
+        for reply in ({}, {"message": "x"}, {"workflow_runs": None}, {"workflow_runs": {}}, {"workflow_runs": ""}, [], 3):
+            with self.subTest(reply=reply):
+                checker = audit.Checker(CONFIG, SECRETS, NOW)
+                checker.github = lambda *_args, reply=reply: reply
+                with self.assertRaisesRegex(audit.CheckError, "^GitHub : réponse sans workflow_runs lisibles$"):
+                    checker.runs(NOW - 86400)
+
+    def test_any_unreadable_run_of_the_list_is_a_check_error(self):
+        for reply in self.UNREADABLE_RUNS:
+            with self.subTest(reply=reply):
+                checker = RunPaging([[reply]])
+                with self.assertRaisesRegex(audit.CheckError, "^GitHub : run illisible$"):
+                    checker.runs(NOW - 86400)
+
+    def test_any_unreadable_earlier_attempt_is_a_check_error(self):
+        for reply in self.UNREADABLE_RUNS:
+            with self.subTest(reply=reply):
+                checker = FakeChecker()
+                checker.attempts["1"] = reply
+                with self.assertRaisesRegex(audit.CheckError, "^GitHub : run illisible$"):
+                    checker.earlier_attempts(run(NOW - 900, NOW - 800, attempt=2))
+
+    def test_an_earlier_attempt_keeps_only_the_fields_read(self):
+        genuine = run(NOW - 900, NOW - 800)
+        checker = FakeChecker()
+        checker.attempts["1"] = {**genuine, "repository": {"url": "http://github.invalid"}}
+        self.assertEqual(checker.earlier_attempts(run(NOW - 700, NOW - 600, attempt=2)), [genuine])
+
+
 class HookGaps(unittest.TestCase):
     def state(self):
         return {"cursor": NOW - 3600, "installed_at": NOW - 86400}
@@ -792,6 +841,25 @@ class Main(unittest.TestCase):
         self.assertEqual(len(checker.published), 1)
         self.assertEqual([status for status, _ in checker.pushed], ["down"])
         self.assertEqual(len(saved["seen"]), 1)
+
+    def test_reply_without_workflow_runs_ends_cleanly_with_no_push_and_no_state(self):
+        checker = FakeChecker()
+        checker.github = lambda *_: {"message": "x"}
+        state = {"cursor": NOW - 3600, "installed_at": NOW - 86400}
+        code, saved = self.launch(checker, state)
+        self.assertEqual(code, 1)
+        self.assertEqual(checker.pushed, [])
+        self.assertEqual(saved["cursor"], NOW - 3600)
+
+    def test_unreadable_earlier_attempt_ends_cleanly_with_no_push_and_no_state(self):
+        checker = FakeChecker(lines=[line(NOW - 2000)], runs=[run(NOW - 900, NOW - 800, attempt=2)])
+        checker.attempts["1"] = {"message": "x"}
+        state = {"cursor": NOW - 3600, "installed_at": NOW - 86400}
+        code, saved = self.launch(checker, state)
+        self.assertEqual(code, 1)
+        self.assertEqual(checker.pushed, [])
+        self.assertEqual(checker.published, [])
+        self.assertEqual(saved["cursor"], NOW - 3600)
 
     def test_anomaly_pushes_down_with_the_alert_then_up_on_the_next_tick(self):
         checker = FakeChecker(lines=[line(NOW - 1000)])
