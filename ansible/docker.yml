@@ -85,6 +85,8 @@
       tags: rss,app
     - role: betisier
       tags: betisier,app
+    - role: neonova
+      tags: neonova,app
     - role: monica_v4
       tags: monica,app
     - role: wiki
