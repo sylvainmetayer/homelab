@@ -20,9 +20,12 @@ Steps, on the latest archive:
      still present goes unnoticed);
   2. extract a sample of regular files (borg checks every chunk it decrypts);
   3. replay every PostgreSQL / MySQL dump in a throwaway container of the
-     role's database image, and check that a table came back (unless the
-     database is listed in the entry's allow_empty_databases);
-  4. run PRAGMA integrity_check on every SQLite copy.
+     role's database image;
+  4. run PRAGMA integrity_check on every SQLite copy;
+  5. check the content of each database of steps 3 and 4: every table of the
+     entry's expected_tables exists and holds a row, and some table holds one
+     (unless the database is listed in the entry's allow_empty_databases). A
+     database of expected_tables that the archive does not hold fails.
 Exits non-zero on any failure; the workflow's last job pushes the overall
 result to the "Restore test" monitor.
 """
@@ -141,6 +144,24 @@ def wait_until(container, *probe, ready=lambda stdout: True):
     raise RestoreError(f"{container} pas prêt en {DB_READY_TIMEOUT} s")
 
 
+def quoted(name, quote='"'):
+    return quote + name.replace(quote, quote * 2) + quote
+
+
+def tables_with_rows(query, tables):
+    """{name: holds a row} for {name: quoted identifier}, in one statement: one
+    command line per table would flood the log (Nextcloud has hundreds)."""
+    names = sorted(tables)
+    if not names:
+        return {}
+    # Never a count(*): immich's tables are big, and a count would say more
+    # than this log needs to. `select N where` is valid in all three engines.
+    statement = " union all ".join(f"select {index} where exists (select 1 from {tables[name]})"
+                                   for index, name in enumerate(names))
+    filled = {int(line) for line in query(statement).split()}
+    return {name: index in filled for index, name in enumerate(names)}
+
+
 def restore_postgresql(image, name, dump):
     container = f"restore-pg-{secrets.token_hex(4)}"
     run("docker", "run", "-d", "--name", container, "-e", "POSTGRES_PASSWORD=restore-test", image)
@@ -158,15 +179,23 @@ def restore_postgresql(image, name, dump):
             "--no-privileges", "--exit-on-error", "-d", name, "/tmp/dump", quiet=True)
         # Tables of the dump only: those an extension creates (postgis's
         # spatial_ref_sys, topology, tiger) would make an empty dump pass.
-        tables = run("docker", "exec", container, "psql", "-U", "postgres", "-d", name, "-tAc",
-                     "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace "
-                     "where c.relkind in ('r', 'p') "
-                     "and n.nspname not in ('pg_catalog', 'information_schema') "
-                     "and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass "
-                     "and d.objid = c.oid and d.deptype = 'e')").stdout.strip()
+        # Quiet: table names of an app's plugins, nothing the log needs.
+        query = lambda sql: run("docker", "exec", container, "psql", "-U", "postgres", "-d", name,
+                                "-tA", "-F", "\t", "-c", sql, quiet=True).stdout
+        listing = query("select n.nspname, c.relname from pg_class c "
+                        "join pg_namespace n on n.oid = c.relnamespace "
+                        "where c.relkind in ('r', 'p') "
+                        "and n.nspname not in ('pg_catalog', 'information_schema') "
+                        "and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass "
+                        "and d.objid = c.oid and d.deptype = 'e')")
+        # A table outside public is named with its schema in expected_tables.
+        tables = {}
+        for line in filter(None, listing.splitlines()):
+            schema, table = line.split("\t")
+            tables[table if schema == "public" else f"{schema}.{table}"] = f"{quoted(schema)}.{quoted(table)}"
+        return tables_with_rows(query, tables)
     finally:
         run("docker", "rm", "-f", container, check=False)
-    return int(tables)
 
 
 def restore_mysql(image, name, dump):
@@ -189,12 +218,13 @@ def restore_mysql(image, name, dump):
         # borgmatic dumps with --databases: the dump creates its database.
         with open(dump) as sql:
             run("docker", "exec", "-i", container, *client, stdin=sql, quiet=True)
-        tables = run("docker", "exec", container, *client, "-N", "-e",
-                     f"select count(*) from information_schema.tables where table_schema = '{name}'"
-                     ).stdout.strip()
+        query = lambda sql: run("docker", "exec", container, *client, "-N", "-e", sql, quiet=True).stdout
+        listing = query("select table_name from information_schema.tables "
+                        f"where table_schema = '{name}' and table_type = 'BASE TABLE'")
+        return tables_with_rows(query, {table: f"{quoted(name, '`')}.{quoted(table, '`')}"
+                                        for table in listing.split()})
     finally:
         run("docker", "rm", "-f", container, check=False)
-    return int(tables)
 
 
 def check_sqlite(path, label):
@@ -204,8 +234,10 @@ def check_sqlite(path, label):
     if integrity != "ok":
         # Its messages name tables, indexes and rows: only their count.
         raise RestoreError(f"{label} : integrity_check en échec ({len(integrity.splitlines())} lignes)")
-    return int(run("sqlite3", "-readonly", str(path),
-                   "select count(*) from sqlite_master where type = 'table';", quiet=True).stdout.strip())
+    query = lambda sql: run("sqlite3", "-readonly", str(path), sql, quiet=True).stdout
+    # Not sqlite_sequence and the like: the engine's own, they say nothing of the data.
+    listing = query("select name from sqlite_master where type = 'table' and name not like 'sqlite\\_%' escape '\\'")
+    return tables_with_rows(query, {table: quoted(table) for table in listing.splitlines()})
 
 
 def archive_age(timestamp):
@@ -254,6 +286,46 @@ def check_databases(entry, dumps, sqlite):
         raise RestoreError(f"{', '.join(unexpected)} présent dans l'archive mais absent de databases (apps.json)")
 
 
+def is_database(key, engine_name):
+    """Does a key of expected_tables or allow_empty_databases name this database?
+
+    A dump goes by its database name. A SQLite copy by the end of its staging
+    name, which carries its source path (srv_trek_data_travel.db): the file name
+    only, the same for each copy of a glob (FreshRSS's users/*/db.sqlite).
+    """
+    return engine_name == key or engine_name.endswith(f"_{key}")
+
+
+def check_expected_present(entry, names):
+    # What the per-kind check of check_databases misses: the second database
+    # of a kind whose first one is still there.
+    missing = sorted(key for key in entry.get("expected_tables", {})
+                     if not any(is_database(key, name) for name in names))
+    if missing:
+        raise RestoreError(f"{', '.join(missing)} : base de expected_tables absente de l'archive")
+
+
+def check_content(entry, name, label, content):
+    """content is {table: holds a row}. Table names here come from apps.json
+    (public) or the check's own count, never from a row."""
+    expected = [table for key, tables in entry.get("expected_tables", {}).items()
+                if is_database(key, name) for table in tables]
+    missing = sorted(table for table in expected if table not in content)
+    if missing:
+        raise RestoreError(f"{label} : table attendue absente ({', '.join(missing)})")
+    empty = sorted(table for table in expected if not content[table])
+    if empty:
+        raise RestoreError(f"{label} : table attendue vide ({', '.join(empty)})")
+    # By name, not for the whole app: a second database added later, or a
+    # non-list value ("false" is truthy), must not slip through.
+    if not any(is_database(key, name) for key in entry.get("allow_empty_databases", [])):
+        if not content:
+            raise RestoreError(f"{label} : aucune table après restauration")
+        if not any(content.values()):
+            raise RestoreError(f"{label} : aucune ligne dans aucune table")
+    return f"{label} : {len(content)} tables, {sum(content.values())} non vides"
+
+
 def restore(entry, workdir):
     repo = repository(entry)
     latest = latest_archive(repo)
@@ -273,6 +345,7 @@ def restore(entry, workdir):
     dumps = [(m.group(1), m.group(2), path) for _, path in files if (m := DUMP_RE.search(path))]
     sqlite = [path for _, path in files if path.startswith(SQLITE_STAGING + entry["repo"] + "/")]
     check_databases(entry, dumps, sqlite)
+    check_expected_present(entry, [name for _, name, _ in dumps] + [pathlib.PurePosixPath(path).name for path in sqlite])
     candidates = [path for size, path in files
                   if 0 < size <= SAMPLE_MAX_BYTES and not DUMP_RE.search(path)
                   and not path.startswith(SQLITE_STAGING)]
@@ -294,19 +367,11 @@ def restore(entry, workdir):
             raise RestoreError(f"nom de base inattendu : {name!r}")
         image = role_image(entry["role"], engine)
         restorer = restore_postgresql if engine == "postgresql" else restore_mysql
-        tables = restorer(image, name, workdir / path)
-        # By name, not for the whole app: a second database added later, or
-        # a non-list value ("false" is truthy), must not slip through.
-        if tables == 0 and name not in entry.get("allow_empty_databases", []):
-            raise RestoreError(f"{engine} {name} : aucune table après restauration")
-        report.append(f"{engine} {name} : {tables} tables")
+        report.append(check_content(entry, name, f"{engine} {name}", restorer(image, name, workdir / path)))
 
     for index, path in enumerate(sqlite, 1):
         label = f"sqlite n°{index}"
-        tables = check_sqlite(workdir / path, label)
-        if tables == 0:
-            raise RestoreError(f"{label} : aucune table")
-        report.append(f"{label} : {tables} tables")
+        report.append(check_content(entry, pathlib.PurePosixPath(path).name, label, check_sqlite(workdir / path, label)))
 
     return ", ".join(report)
 

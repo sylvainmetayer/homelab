@@ -12,21 +12,25 @@ dépôt (`.github/scripts/restore_test.py`) :
 - l'archive doit contenir un dump ou une copie SQLite de chaque type listé
   dans `databases` (`apps.json`), et d'aucun autre : un type dont plus aucun
   dump ni copie ne s'écrit fait échouer l'app au lieu de passer sur les seuls
-  fichiers (par type, pas par base : une seconde base du même type qui
-  disparaît, comme celle de Keycloak de flip_planning, passe inaperçue) ;
+  fichiers. Ce contrôle est par type ; chaque base nommée dans
+  `expected_tables` doit en plus être présente : une seconde base listée là
+  qui disparaît fait échouer l'app ;
 - un échantillon de 20 fichiers (≤ 5 Mio) est extrait : borg vérifie chaque
   bloc qu'il déchiffre ;
 - les dumps PostgreSQL (`pg_restore`) et MariaDB (`mariadb`) sont rejoués
   dans un conteneur jetable de l'image de la base du rôle (lue dans son
-  `compose.yaml`), puis il doit rester au moins une table (sauf
-  `allow_empty_databases`, voir plus bas) ;
+  `compose.yaml`) ;
 - les copies SQLite (`/var/lib/borgmatic-sqlite/<dépôt>/`) passent
-  `PRAGMA integrity_check`.
+  `PRAGMA integrity_check` ;
+- le contenu de chaque base est lu : les tables de `expected_tables` doivent
+  exister et avoir au moins une ligne, et une base sans liste doit avoir au
+  moins une table non vide (sauf `allow_empty_databases`, voir plus bas). Un
+  dump d'un schéma sans données, ou une base recréée vide, échoue.
 
 Les journaux d'un dépôt public sont publics : les commandes qui portent des
 chemins de l'archive (`borg list`, `borg extract`) ou des lignes d'un dump
-(`pg_restore`, `mariadb`) n'y montrent pas leurs arguments, et aucune commande
-n'y montre sa sortie d'erreur (seule exception : la dernière ligne de
+(`pg_restore`, `mariadb`) n'y montrent pas leurs arguments, les requêtes sur le
+contenu non plus, et aucune commande n'y montre sa sortie d'erreur (seule exception : la dernière ligne de
 `borg list --json`, le message de borg quand le dépôt ne s'ouvre pas). Cette
 ligne et les commandes borg affichées passent par `redact()` : URL `ssh://`,
 `compte@hôte`, hôte de la Storage Box et chemins (absolus, entre guillemets ou
@@ -90,12 +94,23 @@ dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive
   `_mysql_databases`, `_sqlite_databases`) ; `[]` pour une app sans base.
   `test_restore_test_databases.py` (job Lint) vérifie l'accord avec les
   tâches du rôle ;
-- `allow_empty_databases` (facultatif, liste de noms de bases) : le dump
-  PostgreSQL ou MariaDB d'une base listée peut être rejoué sans aucune table
-  sans faire échouer l'app ; les autres bases de l'app restent tenues d'en
-  avoir une. Réservé à une base vide par construction (une démo qui ne crée
-  aucun schéma ; aucune app ne s'en sert aujourd'hui), jamais pour faire
-  taire une vraie app ;
+- `expected_tables` (obligatoire si `databases` n'est pas vide) : `{ base :
+  [tables] }`, ce qui doit exister et avoir au moins une ligne. La base est le
+  nom du dump, ou le nom du fichier SQLite d'origine (`db.sqlite`, celui de
+  chaque copie d'un glob). Une table hors du schéma `public` s'écrit
+  `schéma.table`. Y mettre ce qu'une instance en service remplit forcément,
+  jamais une table qui peut se vider seule. Choisies dans le schéma amont de la
+  version épinglée, sans lire les vraies archives : à revoir si une montée de
+  version renomme une table (immich a déjà renommé `users` en `user`), l'app
+  échoue alors avec « table attendue absente ». `test_restore_test_content.py`
+  (job Lint) vérifie la forme et l'exige sur chaque app qui a une base ;
+- `allow_empty_databases` (facultatif, liste de bases, mêmes noms) : une base
+  listée peut n'avoir aucune table ou aucune ligne sans faire échouer l'app ;
+  ses `expected_tables` éventuelles restent exigées, et les autres bases de
+  l'app restent tenues d'avoir du contenu. Réservé à une base que rien n'oblige
+  à remplir : file d'attente vidée après traitement (`queue.db` de Karakeep,
+  `tasks.sqlite` de Papra), journal (`auxiliary.db` de Beszel) ; jamais pour
+  faire taire une vraie app ;
 - `paused` (facultatif, booléen) : app en pause
   (`docs/runbooks/app-en-pause.md`), arrêtée exprès et sans sauvegarde. Le run
   complet la saute ; un run manuel qui la nomme restaure sa dernière archive
