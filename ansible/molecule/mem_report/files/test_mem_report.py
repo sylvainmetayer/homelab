@@ -374,6 +374,32 @@ class BuildReportTest(unittest.TestCase):
             with self.subTest(message=report["message"]):
                 self.assertEqual(report["priority"], 3)
 
+    def test_nothing_measured_is_not_all_fine(self):
+        report, journal = self.report(missing=3)
+        self.assertEqual((report["priority"], report["tags"]), (4, ["warning"]))
+        self.assertNotIn("Rien à signaler", report["message"])
+        self.assertIn("Rien de mesuré", report["message"])
+        self.assertIn("3 conteneur(s)", report["message"])
+        self.assertIn("Rien de mesuré", journal)
+
+    def test_nothing_measured_keeps_the_unread_section(self):
+        report, _ = self.report(missing=1, unread=["/c.yaml"])
+        self.assertEqual(report["priority"], 4)
+        self.assertIn("Rien de mesuré", report["message"])
+        self.assertIn("Limite non comparée", report["message"])
+
+    def test_no_controller_drift_stays_a_drift(self):
+        drift = {"name": "a", "service": "s", "declared": MIB, "real": None, "no_controller": True}
+        report, _ = self.report(drifts=[drift], missing=1, compared=1)
+        self.assertEqual(report["priority"], 4)
+        self.assertIn("contrôleur mémoire absent", report["message"])
+        self.assertNotIn("Rien de mesuré", report["message"])
+
+    def test_some_measured_is_not_nothing_measured(self):
+        report, _ = self.report([measure()], missing=1, compared=1)
+        self.assertEqual(report["priority"], 2)
+        self.assertNotIn("Rien de mesuré", report["message"])
+
     def test_missing_cgroups_are_counted(self):
         report, _ = self.report([measure()], missing=2)
         self.assertIn("2 sans cgroup trouvé", report["message"])
