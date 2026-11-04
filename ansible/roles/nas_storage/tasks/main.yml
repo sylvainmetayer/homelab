@@ -1,4 +1,11 @@
 ---
+- name: Require a NAS export
+  when: nas_storage_manage_mount
+  ansible.builtin.assert:
+    that: nas_storage_export | length > 0
+    fail_msg: "nas_storage_export est vide : créer le partage, l'export (host_vars/nas), puis renseigner cette variable"
+    quiet: true
+
 - name: Install the NFS client
   become: true
   ansible.builtin.apt:

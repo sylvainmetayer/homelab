@@ -2,9 +2,10 @@
 # Export NFS du NAS Ugreen DXP2800 (UGOS Pro), un sous-dossier par appli.
 # Voir nas-storage-docker/homelab-storage-architecture.md.
 nas_storage_server: 192.168.1.137
-# Dossier partagé de l'essai du 25/10, exporté vers la VM par nas.yml
-# (host_vars/nas). Un vrai partage `apps` le remplacera.
-nas_storage_export: /volume1/nas-test
+# Dossier partagé exporté vers la VM par nas.yml (host_vars/nas). Aucun
+# aujourd'hui : à renseigner avec la première appli sur le NAS (partage `apps`),
+# le rôle échoue tant qu'il est vide.
+nas_storage_export: ""
 nas_storage_mount_path: /mnt/nas/apps
 
 # Type de système de fichiers attendu au point de montage (contrôle du rôle et

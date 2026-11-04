@@ -1,5 +1,11 @@
 # Données des applis sur le NAS — Ugreen DXP2800 + VM docker
 
+**État au 2026-11-04 : rien n'est en place.** Aucune appli ne s'en sert,
+l'export de l'essai est retiré de `host_vars/nas` et son montage de la VM
+(`ansible/roles/nas_storage/README.md`, « Retirer le montage »). Le dossier
+partagé `/volume1/nas-test` et ses archives restent sur le NAS, non exportés.
+Ce document décrit le modèle à suivre pour la première appli sur le NAS.
+
 ## Besoin
 
 - Les **données** des applis vivent sur le NAS Ugreen DXP2800 (UGOS Pro,
@@ -230,12 +236,12 @@ Libellés d'UGOS Pro 1.20.0.0142, relevés le 2026-10-25 (test du dossier
    parce que l'export ne vise que l'IP de la VM. Le rôle vérifie aussi que
    le dossier existe, que nfs-server tourne et qu'aucun export n'est `async`.
    Il est lancé à la main, jamais par la CI.
-4. Chemin exporté : `/volume1/nas-test` aujourd'hui (défaut de
-   `nas_storage_export`, dossier de l'essai du 25/10). Depuis la VM,
-   `showmount -e 192.168.1.137` doit lister `/volume1/nas-test 192.168.1.216`.
+4. Chemin exporté : `/volume1/apps`, à déclarer dans `host_vars/nas` et dans
+   `nas_storage_export` (vide aujourd'hui, le rôle échoue sans lui). Depuis la
+   VM, `showmount -e 192.168.1.137` doit lister `/volume1/apps 192.168.1.216`.
 5. Premier test depuis la VM :
    ```bash
-   sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/nas-test /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
+   sudo mount -t nfs -o vers=3,hard 192.168.1.137:/volume1/apps /mnt && nfsstat -m && ls -lan /mnt && sudo umount /mnt
    ```
    En v3 (`sec=sys`), les UID/GID passent tels quels : pas de mapping par nom.
 6. (Recommandé) Snapshots Btrfs planifiés sur `apps`, en complément de borg.
@@ -246,8 +252,8 @@ l'interface n'ouvre que 111, 2049 et les ports **dynamiques** de `mountd`,
 redémarrage de nfs-server hors de l'interface (handler du rôle `nas`)
 déplace ces ports : `showmount` et le montage restent alors bloqués alors que
 111 et 2049 répondent (constaté le 26/10). D'où une règle « tout autoriser »
-pour chaque client NFS (VM `192.168.1.216`, Pi `192.168.1.96`) dans
-Sécurité → Pare-feu.
+pour chaque client NFS (la VM `192.168.1.216`, le jour où elle monte un
+export) dans Sécurité → Pare-feu.
 
 ### Applis lancées sur le NAS lui-même (`dc@` système)
 

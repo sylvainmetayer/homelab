@@ -88,7 +88,7 @@
       vars:
         nas_exportfs_flat: "{{ nas_exportfs.stdout | regex_replace('\\n\\s+', ' ') }}"
         # Chemin exact de chaque entrée : une sous-chaîne ferait passer
-        # /volume1/nas pour actif dès que /volume1/nas-test l'est.
+        # /volume1/pve pour actif dès que /volume1/pve-backup l'est.
         nas_exportfs_paths: "{{ nas_exportfs_flat.splitlines() | select | map('split') | map('first') | list }}"
       ansible.builtin.assert:
         that:
