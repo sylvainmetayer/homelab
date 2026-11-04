@@ -119,6 +119,55 @@ class Quiet(unittest.TestCase):
         self.assertNotIn("secret_path", " ".join(str(arg) for c in printed.call_args_list for arg in c.args))
 
 
+def fake_engine(listing, filled):
+    """subprocess.run of a throwaway database: the SQL statements it received
+    go in the returned list."""
+    statements = []
+
+    def fake_run(args, **_):
+        stdout = ""
+        sql = args[-1]
+        if "UPTIME" in sql:
+            stdout = "60\n"
+        elif "pg_class" in sql or "information_schema.tables" in sql:
+            stdout = listing
+        elif "exists" in sql:
+            statements.append(sql)
+            stdout = filled
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+    return fake_run, statements
+
+
+class RestoreEngines(unittest.TestCase):
+    def shown(self, printed):
+        return " ".join(str(arg) for c in printed.call_args_list for arg in c.args)
+
+    def test_postgresql_names_a_table_outside_public_with_its_schema(self):
+        fake_run, statements = fake_engine("public\tuser\naudit\tlog\n", "1\n")
+        with mock.patch("subprocess.run", fake_run), mock.patch("builtins.print") as printed:
+            content = rt.restore_postgresql("postgres:18", "immich", "/tmp/dump")
+        self.assertEqual(content, {"audit.log": False, "user": True})
+        self.assertIn('"public"."user"', statements[0])
+        self.assertIn('"audit"."log"', statements[0])
+        self.assertEqual(len(statements), 1)
+        self.assertNotIn("audit", self.shown(printed))
+
+    def test_postgresql_without_a_table_asks_nothing_more(self):
+        fake_run, statements = fake_engine("", "")
+        with mock.patch("subprocess.run", fake_run), mock.patch("builtins.print"):
+            self.assertEqual(rt.restore_postgresql("postgres:18", "x", "/tmp/dump"), {})
+        self.assertEqual(statements, [])
+
+    def test_mysql_reads_each_table_of_the_listing(self):
+        fake_run, statements = fake_engine("oc_a\noc b\n", "0\n")
+        with tempfile.NamedTemporaryFile("w") as dump, mock.patch("subprocess.run", fake_run), \
+                mock.patch("builtins.print") as printed:
+            content = rt.restore_mysql("mariadb:12", "nextcloud", dump.name)
+        self.assertEqual(content, {"oc b": True, "oc_a": False})
+        self.assertIn("`nextcloud`.`oc b`", statements[0])
+        self.assertNotIn("oc_a", self.shown(printed))
+
+
 class Manifest(unittest.TestCase):
     def test_every_app_with_a_database_says_what_it_must_hold(self):
         for app, entry in MANIFEST.items():
@@ -127,6 +176,8 @@ class Manifest(unittest.TestCase):
                 self.assertEqual(bool(expected), bool(entry["databases"]))
                 for key, tables in (expected or {}).items():
                     self.assertTrue(key)
+                    # A list: a bare string would pass, its characters being strings.
+                    self.assertIsInstance(tables, list)
                     self.assertTrue(tables)
                     self.assertTrue(all(isinstance(table, str) and table for table in tables))
 
