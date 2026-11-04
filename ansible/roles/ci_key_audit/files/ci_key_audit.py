@@ -47,7 +47,7 @@ class WindowTruncated(CheckError):
 
 
 def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
-    """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx."""
+    """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx ou un réglage mal formé."""
     attempts = [*delays, None]
     for delay in attempts:
         try:
@@ -61,8 +61,12 @@ def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
                 raise CheckError(f"{label} : quota épuisé, retour à {reset}") from error
             if error.code < 500:
                 raise CheckError(f"{label} : {reason}") from error
-        except (OSError, ValueError, http.client.HTTPException) as error:
-            # Une erreur d'urllib peut citer l'URL ou un en-tête, donc un jeton : sa classe seule.
+        except (ValueError, http.client.InvalidURL) as error:
+            # URL ou en-tête mal formés : un autre essai n'y changerait rien.
+            # Cette erreur les cite, donc un jeton : sa classe seule.
+            raise CheckError(f"{label} : {type(error).__name__}") from None
+        except (OSError, http.client.HTTPException) as error:
+            # Une erreur d'urllib peut citer l'URL : sa classe seule.
             reason = type(error).__name__
         if delay is None:
             raise CheckError(f"{label} : {reason}")

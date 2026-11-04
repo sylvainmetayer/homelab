@@ -516,13 +516,6 @@ class Fetch(unittest.TestCase):
                 audit.fetch("GitHub", "http://x.invalid", delays=(1,), sleep=lambda _: None)
         self.assertEqual(urlopen.call_count, 1)
 
-    def test_error_never_quotes_the_url(self):
-        error = urllib.error.URLError("http://secret.invalid/url")
-        with mock.patch("urllib.request.urlopen", side_effect=error):
-            with self.assertRaises(audit.CheckError) as caught:
-                audit.fetch("X", "http://secret.invalid/url", sleep=lambda _: None)
-        self.assertNotIn("secret", str(caught.exception))
-
     def test_malformed_url_is_a_check_error_that_never_quotes_it(self):
         # Vrai urllib, rien ne part : l'URL est refusée avant toute connexion.
         for url in ("secret.invalid/marqueur", "http://secret.invalid/marqueur avec espace"):
@@ -539,6 +532,7 @@ class Fetch(unittest.TestCase):
 
     def test_errors_of_the_exchange_show_their_class_only(self):
         for error in (
+            urllib.error.URLError("http://secret.invalid/marqueur"),
             ValueError("http://secret.invalid/marqueur"),
             http.client.InvalidURL("http://secret.invalid/marqueur"),
             http.client.IncompleteRead(b"marqueur"),
@@ -548,6 +542,15 @@ class Fetch(unittest.TestCase):
                     with self.assertRaises(audit.CheckError) as caught:
                         audit.fetch("X", "http://x.invalid", sleep=lambda _: None)
                 self.assertEqual(str(caught.exception), f"X : {type(error).__name__}")
+
+    def test_malformed_setting_is_not_retried(self):
+        for error in (ValueError("x"), http.client.InvalidURL("x")):
+            with self.subTest(error=type(error).__name__):
+                sleeps = []
+                with mock.patch("urllib.request.urlopen", side_effect=error) as opened:
+                    with self.assertRaises(audit.CheckError):
+                        audit.fetch("X", "http://x.invalid", delays=(5, 20), sleep=sleeps.append)
+                self.assertEqual((opened.call_count, sleeps), (1, []))
 
 
 class Requests(unittest.TestCase):
