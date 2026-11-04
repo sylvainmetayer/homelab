@@ -1,0 +1,27 @@
+---
+# Site statique sans donnée : aucune sauvegarde, tout est dans l'image.
+- name: Ensure Neonova folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ neonova_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart neonova
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ neonova_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure neonova service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@neonova
+    scope: user
+    enabled: true

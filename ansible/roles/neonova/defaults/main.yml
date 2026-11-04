@@ -1,0 +1,2 @@
+---
+neonova_base_path: "{{ docker_base_path }}/neonova"

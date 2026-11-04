@@ -1,0 +1,32 @@
+---
+services:
+  app:
+    # Image de démo du site de Neonova (dépôt privé sylvainmetayer/neonova-services,
+    # package public), publiée par sa CI à chaque push sur main. Renovate épingle
+    # et met à jour le digest : dc@ ne retélécharge jamais un tag déjà présent.
+    image: ghcr.io/sylvainmetayer/neonova-services:main@sha256:ceb34144f73d23fa2b515b07fe924d648905b4140b2c325b9c07bedc5510fdb1
+    container_name: neonova
+    # nginx sur des fichiers statiques, à deux processus environ.
+    mem_limit: 64m
+    # nginx-unprivileged n'écrit que son pid et ses fichiers temporaires dans /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

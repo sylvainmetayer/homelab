@@ -75,6 +75,7 @@ locals {
     immich_selfie_timelapse = local.immich_selfie_timelapse_website
     karakeep                = local.karakeep_website
     monica                  = local.monica_website
+    neonova                 = local.neonova_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
     paperless               = local.paperless_website

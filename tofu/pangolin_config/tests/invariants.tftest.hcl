@@ -39,6 +39,7 @@ override_data {
       UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
       home_ip                = "203.0.113.10"
       immich_pin             = "123456"
+      neonova_pin            = "123456"
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
 
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
@@ -485,6 +486,11 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["stirling_pdf"]
   values = { id = 68 }
+}
+
+override_resource {
+  target = pangolin_resource.website["neonova"]
+  values = { id = 98 }
 }
 
 override_resource {

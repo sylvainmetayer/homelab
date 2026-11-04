@@ -30,7 +30,8 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix"
+        "!ghcr.io/sylvainmetayer/promptoramix",
+        "!ghcr.io/sylvainmetayer/neonova-services"
       ],
       "groupName": "weekly digest and patch updates",
       "schedule": [
@@ -44,7 +45,8 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix"
+        "!ghcr.io/sylvainmetayer/promptoramix",
+        "!ghcr.io/sylvainmetayer/neonova-services"
       ],
       "schedule": [
         "before 9am on monday"
@@ -102,7 +104,8 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix"
+        "!ghcr.io/sylvainmetayer/promptoramix",
+        "!ghcr.io/sylvainmetayer/neonova-services"
       ],
       "dependencyDashboardApproval": true
     },
@@ -404,6 +407,21 @@
         "pinDigest",
         "digest"
       ],
+      "automerge": true
+    },
+    {
+      "description": "neonova-services is our own image (static demo of the Neonova site, ansible/roles/neonova), published by its CI on every push to main and followed through the main tag: no cooldown, and the first digest pin and every new digest automerge once the lint workflow passes; merging on main triggers the deploy workflow",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sylvainmetayer/neonova-services"
+      ],
+      "matchUpdateTypes": [
+        "pinDigest",
+        "digest"
+      ],
+      "minimumReleaseAge": null,
       "automerge": true
     },
     {
