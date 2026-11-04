@@ -171,7 +171,7 @@ LXC newt) : ne rien merger qui déploie pendant ce temps.
    qu'elle n'est pas arrêtée puis relancée (un `reboot` dans la VM ne suffit
    pas) : `qm shutdown <id> --timeout 300 && qm start <id>`.
 4. Avec un noyau : arrêter les guests dans l'ordre, la VM docker d'abord (ses
-   applis et son montage NFS), le LXC newt en dernier (c'est lui qui donne
+   applis), le LXC newt en dernier (c'est lui qui donne
    l'accès distant), puis redémarrer l'hôte :
    ```bash
    qm shutdown <id VM docker> --timeout 300   # arrêt propre par l'agent QEMU
@@ -192,8 +192,7 @@ systemctl start update-notify.service && journalctl -u update-notify.service -n 
 ```
 
 Puis : les moniteurs Uptime Kuma reviennent au vert (quelques minutes, le
-temps des `dc@`), l'agent Beszel `pve` remonte, et sur la VM docker
-`findmnt /mnt/nas/apps` (montage NFS du NAS, rôle `nas_storage`). Le dernier
+temps des `dc@`), l'agent Beszel `pve` remonte. Le dernier
 `update-notify` ne publie plus rien sur ntfy (ou seulement ce qui reste) et
 pousse « à jour » à son moniteur.
 
@@ -205,9 +204,7 @@ sauvegarde vzdump faite avant (`qmrestore`, interface de Proxmox > storage
 ## NAS Ugreen (UGOS Pro)
 
 Le NAS redémarre pendant la mise à jour (une dizaine de minutes). Pendant
-ce temps : Jellyfin et l'interface d'UGOS tombent, la VM docker attend son
-montage NFS (`hard` : les applis qui y ont leurs données se figent, puis
-repartent seules ; aucune aujourd'hui), le site Pangolin `nas` est
+ce temps : Jellyfin et l'interface d'UGOS tombent, le site Pangolin `nas` est
 hors ligne. Éviter 21:00-22:00 (vzdump vers le NAS) et 02:30 (borgmatic du
 NAS).
 
@@ -248,9 +245,9 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
    `docker stop nas-proxy-443`, redémarrer nginx, décocher la case,
    `docker start nas-proxy-443`.
 2. Vérifier : `https://media.sylvain.cloud` et `https://nas.sylvain.cloud`
-   sans port en LAN, `showmount -e 192.168.1.137` (exports `/volume1/...`
-   vers la VM docker et l'hôte Proxmox), le moniteur « Certificats NAS » et
-   l'agent Beszel `nas` au vert, `findmnt /mnt/nas/apps` sur la VM docker.
+   sans port en LAN, `showmount -e 192.168.1.137` (export `/volume1/pve-backup`
+   vers l'hôte Proxmox), le moniteur « Certificats NAS » et l'agent Beszel
+   `nas` au vert.
 
 ## Prévention
 
