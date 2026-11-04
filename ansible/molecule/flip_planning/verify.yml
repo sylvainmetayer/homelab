@@ -180,6 +180,7 @@
       vars:
         verify_app_service: exemple_planning
         verify_app_borgmatic_config: ""
+        verify_app_unit_started: false
 
     - name: Read the effective compose model of exemple_planning
       ansible.builtin.command: docker compose config --format json
@@ -267,8 +268,9 @@
           - "'After=dc@exemple_planning.service' in reset_unit"
           - "'Restart=on-failure' in reset_unit"
           - reset_unit | select('match', '^TimeoutStartSec=') | list | length == 1
-          - flip_planning_reset_timer.status.UnitFileState == 'enabled'
-          - flip_planning_reset_timer.status.ActiveState == 'active'
+          # En pause : un timer actif relancerait dc@ (Requires=) chaque nuit.
+          - flip_planning_reset_timer.status.UnitFileState != 'enabled'
+          - flip_planning_reset_timer.status.ActiveState == 'inactive'
           - "'03:30:00 Europe/Paris' in flip_planning_reset_timer.status.TimersCalendar"
           - showcase_containers | select('match', '^exemple-planning') | list | length == showcase_containers | length
           - showcase_containers | intersect(flip_planning_containers['flip_planning'] + flip_planning_containers['demo_planning']) | length == 0

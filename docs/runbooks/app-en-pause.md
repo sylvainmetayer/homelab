@@ -3,9 +3,11 @@
 Une appli qu'on n'utilise plus pour l'instant, sans vouloir la supprimer
 (pour la supprimer : skill `remove-app`). En pause, rien n'est détruit :
 compose, données, volumes, dépôt borg et ses archives, ressource Pangolin,
-jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Deux apps
-sont en pause, depuis octobre 2026 : Paperless-ngx et le banc Keycloak de
-Flip Planning (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)).
+jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Trois apps
+sont en pause : Paperless-ngx et le banc Keycloak de Flip Planning
+(`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)) depuis
+octobre 2026, la vitrine publique (`exemple_planning`, voir
+[plus bas](#la-vitrine-publique-de-flip-planning)) depuis novembre 2026.
 
 ## Les quatre endroits
 
@@ -13,7 +15,7 @@ Flip Planning (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-pla
 |---|---|---|
 | `ansible/host_vars/docker/variables.yaml` | `paperless_enabled: false` | `dc@paperless` arrêtée et désactivée, aucun handler de redémarrage ; `/etc/borgmatic.d/paperless.yaml` retiré. Le compose reste templaté |
 | `tofu/pangolin_config/website_paperless.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, moniteurs « Healthcheck » et « Backup » en pause, sonde Pangolin de ses cibles coupée (`hc_enabled`, `websites.tf`) |
-| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"paperless"` dans la liste des apps en pause (`["demo_planning_kc", "paperless"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
+| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"paperless"` dans la liste des apps en pause (`["demo_planning_kc", "exemple_planning", "paperless"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
 | `.github/restore-test/apps.json` | `"paused": true` | le test de restauration du 1er et du 15 saute l'app ; un run manuel qui la nomme restaure sa dernière archive sans en exiger l'âge |
 
 Hors de ces quatre endroits, `renovate.json` porte une règle « Paused apps »
@@ -118,6 +120,29 @@ le vérifie) et `verify.yml` (`assert_kc_paused.yml`,
 sinon ; puis `tofu apply` et merge (le rôle redémarre l'unité). Le banc suit le tag
 mobile `pr-72` (`pull_policy: always`) : à la reprise, l'image doit encore
 exister sur ghcr.io.
+
+## La vitrine publique de Flip Planning
+
+`exemple-planning.sylvain.dev` suit le même modèle que le banc Keycloak :
+`flip_planning_enabled: false` sur son entrée de `flip.yml` et dans la copie de
+`molecule/flip_planning/converge.yml`, `enabled = false` dans
+`website_exemple_planning.tf`, `"exemple_planning"` dans la liste des apps en
+pause. Pas d'entrée dans `apps.json` : elle n'est pas sauvegardée. Deux choses
+en plus :
+
+- le timer `exemple_planning-reset.timer` est arrêté et désactivé par le rôle.
+  C'est lui qui compte : `reset.service` a `Requires=dc@exemple_planning` et son
+  script lance `docker compose up`, il rallumerait la vitrine chaque nuit ;
+- le moniteur « Reset Exemple Planning » se met en pause avec l'entrée, avec son
+  moniteur « Healthcheck ».
+
+La version de l'image suit le canal release et n'a rien à couper côté Renovate.
+Pour reprendre : retirer les deux interrupteurs et l'application de la liste,
+réaligner `verify.yml` (`verify_app_unit_started`, l'état du timer), vérifier
+qu'il reste de la mémoire sur flip (pas assez pour la vitrine et le banc
+Keycloak ensemble), `tofu apply`, puis merge : le rôle redémarre l'unité et le
+timer, le reset part à 3 h 30. Remettre aussi un lien sur la page du produit,
+s'il le faut.
 
 ## Une autre appli
 

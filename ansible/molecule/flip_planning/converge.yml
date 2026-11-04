@@ -159,6 +159,7 @@
         flip_planning_backup_enabled: false
     - role: flip_planning
       vars:
+        flip_planning_enabled: false
         flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
         flip_planning_service: exemple_planning
         flip_planning_container_prefix: exemple-planning

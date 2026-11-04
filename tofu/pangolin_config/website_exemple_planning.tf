@@ -1,5 +1,6 @@
 # Public showcase of Planning Équipes, exemple-planning.sylvain.dev: the
-# instance the product's web page links to. Deployed by the same Ansible role
+# instance the product's web page used to link to. Paused since November 2026
+# (see `enabled` below). Deployed by the same Ansible role
 # as production (ansible/flip.yml, applies flip_planning once per instance), on
 # fictional data reset every night to a pre-solved reference database. Keep the
 # `ip` values in step with flip_planning_container_prefix.
@@ -23,6 +24,12 @@ locals {
     subdomain = "exemple-planning"
     domain_id = local.domain_ids["sylvain.dev"]
     sso       = false
+
+    # Paused since November 2026 (flip_planning_enabled: false on its entry of
+    # ansible/flip.yml): resource disabled, healthcheck and reset monitors
+    # paused, Homepage link dropped, nothing destroyed. No entry in
+    # .github/restore-test/apps.json. See docs/runbooks/app-en-pause.md.
+    enabled = false
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
@@ -132,8 +139,9 @@ resource "uptimekuma_monitor_push" "cron_exemple_planning_reset" {
   interval = 60 * 60 * 49
 
   retry_interval = 20
-  active         = true
-  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
+  # A paused showcase (enabled = false) has its timer stopped: nothing pushes.
+  active = pangolin_resource.website["exemple_planning"].enabled
+  tags   = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
   notification_ids = local.alert_notification_ids
 }

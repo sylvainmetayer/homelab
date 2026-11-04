@@ -70,8 +70,8 @@ rule, an entry in `declared_extra_rules`. Secrets are per-environment too (`demo
 
 ## Pausing an app
 
-An app kept but unused (Paperless-ngx and Flip Planning's Keycloak demo
-today) is paused, not removed: `docs/runbooks/app-en-pause.md`. Four switches
+An app kept but unused (Paperless-ngx, Flip Planning's Keycloak demo and its
+public showcase today) is paused, not removed: `docs/runbooks/app-en-pause.md`. Four switches
 move together — the role's `<service>_enabled: false` in `host_vars` (unit stopped and disabled, restart
 handler skipped, borgmatic config removed so the nightly dump cannot fail;
 compose, data and borg repository kept), `enabled = false` in the app's
