@@ -156,6 +156,7 @@ nav:
       - adr/0025-promptoramix-ouverte-sur-flip.md
       - adr/0026-vzdump-sur-le-nas-seul.md
       - adr/0027-connexions-ssh-cles-connues.md
+      - adr/0028-cle-ssh-de-ci-root.md
   - Conventions:
       - conventions/ansible.md
       - conventions/app-lifecycle.md
