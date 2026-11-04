@@ -42,6 +42,10 @@ class CheckError(Exception):
     """Le contrôle n'a pas pu conclure. Le message ne cite ni URL ni jeton."""
 
 
+class WindowTruncated(CheckError):
+    """Plafond de lignes atteint : les connexions de la fenêtre ne sont pas jugées."""
+
+
 def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
     """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx."""
     request = urllib.request.Request(url, data=data, headers=headers or {})  # NOSONAR
@@ -116,7 +120,7 @@ class Checker:
             'identifier:="ssh-login-notify" source:=journald | fields _time, host, _msg', start, limit
         )
         if len(lines) >= limit:
-            raise CheckError(f"VictoriaLogs : au moins {limit} lignes, fenêtre tronquée")
+            raise WindowTruncated(f"VictoriaLogs : au moins {limit} lignes, fenêtre tronquée")
         return lines
 
     def fresh_hosts(self):
@@ -385,6 +389,27 @@ def report_gaps(checker, hosts, gap_notified, errors):
     return f"Déploiement sans ligne ssh-login-notify sur {', '.join(hosts)}", delivered
 
 
+def report_truncated(checker, state, error):
+    """Alerte sur un plafond atteint, une fois par 24 h ; rend le texte du moniteur.
+
+    Écrire des lignes au tag du hook ne demande aucun droit : un voleur de la clé
+    empêcherait ainsi le jugement de sa propre connexion. Rien de jugé ici.
+    """
+    if checker.now - state.get("truncated_notified", 0) < GAP_REPEAT_SECONDS:
+        return None
+    text = (
+        f"{error}. Connexions non jugées : journal saturé par un voleur de la clé, "
+        f"ou plafond trop bas (README de ci_key_audit). {RUNBOOK}"
+    )
+    try:
+        checker.publish("Contrôle de la clé de CI saturé", text, 5)
+    except CheckError as publish_error:
+        print(f"contrôle incomplet : {publish_error}", file=sys.stderr)
+    else:
+        state["truncated_notified"] = checker.now
+    return text
+
+
 def tick(checker, state):
     """Un passage. Modifie `state` ; rend le résumé, les alertes parties, les manques."""
     config = checker.config
@@ -438,6 +463,7 @@ def tick(checker, state):
     # Le curseur n'avance que sur un passage complet : une panne se relit au retour.
     new_cursor = now if not errors else cursor
     state["cursor"] = new_cursor
+    state.pop("truncated_notified", None)
     next_start = new_cursor - overlap
     # La requête arrondit son début à la seconde : une ligne de cette seconde-là
     # revient, et sortie de `seen` elle alerterait une seconde fois.
@@ -463,6 +489,13 @@ def main():
 
     try:
         summary, published, errors = tick(checker, state)
+    except WindowTruncated as error:
+        print(f"contrôle impossible : {error}", file=sys.stderr)
+        text = report_truncated(checker, state, error)
+        save_state(state_path, state)
+        if text:
+            checker.push("down", text)
+        return 1
     except CheckError as error:
         # Aucun push : le moniteur tombe à l'expiration de son intervalle.
         print(f"contrôle impossible : {error}", file=sys.stderr)
