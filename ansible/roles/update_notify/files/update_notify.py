@@ -221,17 +221,17 @@ def publish(base_url, topic, token, notification):
     if not token:
         raise CheckError(f"{NTFY_TOKEN_VARIABLE} vide : rien ne peut être publié")
     body = json.dumps(dict(notification, topic=topic)).encode()
-    request = urllib.request.Request(
-        base_url.rstrip("/") + "/",
-        data=body,
-        method="POST",
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-    )
     try:
+        request = urllib.request.Request(
+            base_url.rstrip("/") + "/",
+            data=body,
+            method="POST",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        )
         with urllib.request.urlopen(request, timeout=30) as response:
             response.read()
-    except OSError as error:
-        # Une erreur d'urllib peut citer l'URL ou la requête : sa classe seule.
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        # Une erreur d'urllib peut citer l'URL ou l'en-tête, donc le jeton : sa classe seule.
         raise CheckError(f"publication ntfy en échec : {type(error).__name__}") from error
 
 

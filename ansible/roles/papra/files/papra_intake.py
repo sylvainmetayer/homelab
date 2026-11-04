@@ -247,7 +247,7 @@ def deliver(items, dest_dir, tmp_dir):
         for name in written:
             try:
                 os.unlink(inside(dest_dir, name))  # NOSONAR - nom rendu par deliver_one
-            except OSError:
+            except (OSError, ValueError):
                 pass  # déjà pris par Papra : l'erreur d'origine compte seule
         raise
     return written
@@ -271,7 +271,12 @@ def deliver_one(name, payload, dest_dir, tmp_dir):
                 n += 1
                 candidate = f"{stem}-{n}{dot}{ext}"
     finally:
-        os.unlink(tmp_path)
+        # Une erreur ici ferait perdre le nom d'un fichier déjà lié, ou l'erreur
+        # d'origine : le reste du sas part au passage suivant (remove_stale_tmp).
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def remove_stale_tmp(tmp_dir):

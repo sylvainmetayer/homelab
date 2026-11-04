@@ -23,8 +23,8 @@
     update_notify_verify_env:
       NTFY_TOKEN: "{{ ntfy_scripts_token }}"
       UPTIME_PUSH_URL: "http://127.0.0.1:18081{{ update_notify_verify_push }}" # NOSONAR
-    # Même famille que le noyau qui tourne : même découpe que KERNEL_VERSION_RE.
-    update_notify_verify_kernel: "999.0.0-1{{ update_notify_verify_uname.stdout | regex_replace('^[0-9]+([.][0-9]+)*(-[0-9]+)?([+][^-]*)?', '') }}"
+    # Le noyau qui tourne, sa version seule changée : même famille.
+    update_notify_verify_kernel: "{{ update_notify_verify_uname.stdout | regex_replace('^[0-9.]+', '999.0.0') }}"
     # Ce qu'attend chaque cas, entre guillemets : un « : » dans une
     # expression nue en ferait un dictionnaire YAML.
     update_notify_verify_titles:

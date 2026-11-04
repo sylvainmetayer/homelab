@@ -341,6 +341,21 @@ class MainTest(unittest.TestCase):
             un.publish("http://ntfy.invalid", "t", "jeton", {"title": "x"})
         self.assertNotIn("secret-path", str(raised.exception))
 
+    def test_publish_failure_outside_oserror_is_a_check_error_that_cites_nothing(self):
+        real_urlopen = un.urllib.request.urlopen
+        for url, token, side_effect in (
+            ("ntfy.invalid", "jeton", real_urlopen),  # refusée dès la requête
+            ("http://ntfy.invalid", "jeton\nmultiligne", real_urlopen),  # http.client cite l'en-tête
+            ("http://ntfy.invalid", "jeton", http.client.IncompleteRead(b"")),
+        ):
+            with (
+                self.subTest(url=url, token=token),
+                mock.patch.object(un.urllib.request, "urlopen", side_effect=side_effect),
+                self.assertRaises(un.CheckError) as raised,
+            ):
+                un.publish(url, "t", token, {"title": "x"})
+            self.assertNotIn("jeton", str(raised.exception))
+
     def test_publish_sends_the_topic_in_the_body(self):
         response = mock.MagicMock()
         with mock.patch.object(un.urllib.request, "urlopen", return_value=response) as urlopen:
