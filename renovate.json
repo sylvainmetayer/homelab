@@ -237,6 +237,13 @@
         "lscr.io/linuxserver/qbittorrent"
       ],
       "allowedVersions": "<14"
+    },
+    {
+      "description": "Dawarich's Redis stays on the 8.2 line: its dumps are RDB 12, still readable by 7.4, while 8.10 writes RDB 15 and a revert then refuses to start until ./redis is emptied. Patches of 8.2 pass. Lift this in a dedicated PR, as a migration",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
         "ansible/roles/dawarich/templates/compose.yaml"
       ],
       "matchPackageNames": [
