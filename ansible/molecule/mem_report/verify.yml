@@ -167,8 +167,9 @@
     # cgroupfs), ni celui que Docker a relancé hier, ni le cgroup que docker
     # ne liste pas. Les écarts au compose : limite jamais appliquée (le Pi, et
     # pas de faux « sans limite »), limite périmée, hôte sans contrôleur ; un
-    # compose illisible est cité, mais pas un conteneur hors compose ni un
-    # mem_limit arrondi à la page.
+    # compose illisible et un service retiré sont cités, sans remède, mais pas
+    # un conteneur hors compose ni un mem_limit arrondi à la page. Le conteneur
+    # sans cgroup ne compte pas comme comparé.
     - name: Assert the report lists what to grow, shrink and limit
       vars:
         mem_report_verify_lines: "{{ (mem_report_verify_received.content | b64decode).splitlines() }}"
@@ -205,7 +206,9 @@
             in mem_report_verify_message
           - "'- molecule-pi-drift : pic' not in mem_report_verify_message"
           - "'- ' ~ mem_report_verify_tmp ~ '/absent.json' in mem_report_verify_message"
-          - "'10 conteneur(s) lu(s), 2 sans cgroup trouvé, 10 comparé(s) à leur compose' in mem_report_verify_message"
+          - "'- ' ~ mem_report_verify_tmp ~ '/compose.json : service molecule-orphan absent' in mem_report_verify_message"
+          - "'--force-recreate molecule-orphan' not in mem_report_verify_message"
+          - "'11 conteneur(s) lu(s), 2 sans cgroup trouvé, 9 comparé(s) à leur compose' in mem_report_verify_message"
           - ntfy_scripts_token not in mem_report_verify_run.stdout
         fail_msg: "{{ mem_report_verify_message }}"
 
@@ -284,6 +287,10 @@
           - PrivateTmp=yes
           - -p
           - ProtectControlGroups=yes
+          - -p
+          - ProtectKernelTunables=yes
+          - -p
+          - ProtectKernelModules=yes
           - -p
           - RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
           - /usr/bin/docker

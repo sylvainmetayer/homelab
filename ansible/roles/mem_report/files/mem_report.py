@@ -32,6 +32,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -60,10 +61,15 @@ INSPECT_FORMAT = (
 # voir les secrets. mem_limit y reste donc en texte (« 512m »).
 COMPOSE_CONFIG = ("config", "--format", "json", "--no-interpolate", "--no-env-resolution")
 COMPOSE_TIMEOUT_SECONDS = 60
+# Pour tous les composes d'un hôte : le rapport doit partir avant que l'unité
+# ne soit tuée (TimeoutStartSec=5min), les composes restants sont cités.
+COMPOSE_BUDGET_SECONDS = 180
 # Unités de Docker : base 1024.
 COMPOSE_SIZE_RE = re.compile(r"^(\d+(?:\.\d+)?)([kmgt]?)i?b?$", re.IGNORECASE)
 # Le noyau arrondit memory.max à la page (16 Kio au plus sur nos hôtes).
 DRIFT_TOLERANCE = 64 * 1024
+# Les écarts et « À agrandir » : ne partent du message que si le reste est vide.
+PROTECTED_SECTIONS = 2
 
 
 def human(size):
@@ -162,7 +168,7 @@ def list_containers(docker):
     return containers
 
 
-def compose_limits(docker, config_files):
+def compose_limits(docker, config_files, timeout):
     """{service: mem_limit en octets, ou None} d'un projet compose."""
     files = [arg for path in config_files.split(",") for arg in ("-f", path)]
     # Sortie gardée en mémoire et stderr jamais affiché : le compose peut
@@ -172,7 +178,7 @@ def compose_limits(docker, config_files):
         check=True,
         capture_output=True,
         text=True,
-        timeout=COMPOSE_TIMEOUT_SECONDS,
+        timeout=timeout,
     ).stdout
     limits = {}
     for service, config in json.loads(output)["services"].items():
@@ -182,23 +188,30 @@ def compose_limits(docker, config_files):
 
 
 def read_declared(docker, containers):
-    """({id du conteneur: mem_limit déclaré ou None}, composes non lus). Un
-    conteneur hors compose n'y figure pas : rien à comparer."""
-    projects, unread = {}, set()
-    declared = {}
+    """({id du conteneur: mem_limit déclaré ou None}, ce qui n'a pas pu être
+    comparé). Un conteneur hors compose n'y figure pas : rien à comparer."""
+    projects, unread, declared = {}, set(), {}
+    deadline = time.monotonic() + COMPOSE_BUDGET_SECONDS
     for container_id, _, _, _, config_files, service in containers:
         if not config_files or not service:
             continue
-        if config_files not in projects and config_files not in unread:
+        if config_files not in projects:
             try:
-                projects[config_files] = compose_limits(docker, config_files)
-            except (OSError, ValueError, KeyError, AttributeError, subprocess.SubprocessError) as error:
+                timeout = min(COMPOSE_TIMEOUT_SECONDS, deadline - time.monotonic())
+                projects[config_files] = compose_limits(docker, config_files, timeout)
+            except (OSError, ValueError, KeyError, AttributeError, TypeError, subprocess.SubprocessError) as error:
                 # Sa classe seule : l'erreur peut citer le compose.
                 print(f"{config_files} non lu : {type(error).__name__}", file=sys.stderr)
+                projects[config_files] = None
                 unread.add(config_files)
-        if config_files in projects:
-            # Absent du compose (service retiré, conteneur resté) : rien de déclaré.
-            declared[container_id] = projects[config_files].get(service)
+        limits = projects[config_files]
+        if limits is None:
+            continue
+        if service in limits:
+            declared[container_id] = limits[service]
+        else:
+            # Service retiré, conteneur resté : `up --force-recreate` le refuserait.
+            unread.add(f"{config_files} : service {service} absent")
     return declared, sorted(unread)
 
 
@@ -211,12 +224,13 @@ def age_days(started, now):
 
 
 def measure(containers, scopes, now, declared):
-    measures, drifts, missing = [], [], 0
+    measures, drifts, missing, compared = [], [], 0, 0
     for container_id, name, restarts, started, _, service in containers:
         scope = scopes.get(container_id)
         if scope is None:
             missing += 1
             continue
+        drift = {"name": name, "service": service, "declared": declared.get(container_id)}
         current = read_bytes(scope / "memory.current")
         if current is None:
             # Cgroup disparu depuis le parcours (conteneur arrêté), ou
@@ -225,30 +239,16 @@ def measure(containers, scopes, now, declared):
             # un mem_limit déclaré n'est pas appliqué : c'est un écart.
             missing += 1
             if scope.is_dir() and declared.get(container_id):
-                drifts.append(
-                    {
-                        "name": name,
-                        "service": service,
-                        "declared": declared[container_id],
-                        "real": None,
-                        "no_controller": True,
-                    }
-                )
+                compared += 1
+                drifts.append({**drift, "real": None, "no_controller": True})
             continue
         peak = read_bytes(scope / "memory.peak")
         events = read_events(scope / "memory.events")
         limit = read_bytes(scope / "memory.max")
         drifted = container_id in declared and abs((declared[container_id] or 0) - (limit or 0)) > DRIFT_TOLERANCE
+        compared += container_id in declared
         if drifted:
-            drifts.append(
-                {
-                    "name": name,
-                    "service": service,
-                    "declared": declared[container_id],
-                    "real": limit,
-                    "no_controller": False,
-                }
-            )
+            drifts.append({**drift, "real": limit, "no_controller": False})
         measures.append(
             {
                 "name": name,
@@ -263,7 +263,7 @@ def measure(containers, scopes, now, declared):
                 "days": age_days(started, now),
             }
         )
-    return measures, drifts, missing
+    return measures, drifts, missing, compared
 
 
 def window_note(measure_):
@@ -305,7 +305,13 @@ def classify(measures, high, low, min_saving):
             if m["suggested"] <= m["limit"]:
                 m["suggested"] = suggested_limit(m["limit"])
             grow.append(m)
-        elif percent < low and m["limit"] - m["suggested"] >= min_saving and not recently_restarted(m):
+        elif (
+            percent < low
+            and m["limit"] - m["suggested"] >= min_saving
+            and not recently_restarted(m)
+            # Limite périmée : le gain se juge une fois recréé, contre le compose.
+            and not m["drifted"]
+        ):
             shrink.append(m)
     grow.sort(key=lambda m: (-m["oom_kill"], -m["percent"]))
     shrink.sort(key=lambda m: m["suggested"] - m["limit"])
@@ -352,8 +358,9 @@ def drift_line(d):
 def fit(sections, footer):
     """(message sous MAX_MESSAGE octets, texte complet pour le journal). Les
     dernières lignes (sections triées) de la plus longue section partent les
-    premières ; la première section, seulement quand les autres sont vides."""
-    sections = [(title, list(lines)) for title, lines in sections if lines]
+    premières ; les PROTECTED_SECTIONS premières, seulement quand les autres
+    sont vides."""
+    sections = [(title, list(lines)) for title, lines in sections]
     dropped = 0
 
     def render():
@@ -364,8 +371,8 @@ def fit(sections, footer):
 
     full = message = render()
     while len(message.encode()) > MAX_MESSAGE and any(lines for _, lines in sections):
-        others = [lines for _, lines in sections[1:] if lines]
-        longest = max(others or [sections[0][1]], key=len)
+        others = [lines for _, lines in sections[PROTECTED_SECTIONS:] if lines]
+        longest = max(others or [lines for _, lines in sections if lines], key=len)
         longest.pop()
         dropped += 1
         message = render()
@@ -385,7 +392,7 @@ def build_report(host, measures, missing, args, drifts, unread, compared):
             [shrink_line(m) for m in shrink],
         ),
         ("Sans limite (la doctrine en veut une) :", [unlimited_line(m) for m in unlimited]),
-        ("Limite non comparée (compose illisible) :", [f"- {path}" for path in unread]),
+        ("Limite non comparée (compose illisible ou service absent) :", [f"- {entry}" for entry in unread]),
     ]
     counted = f"{len(measures)} conteneur(s) lu(s)"
     if missing:
@@ -407,8 +414,8 @@ def build_report(host, measures, missing, args, drifts, unread, compared):
                 "Rien à signaler :",
                 [
                     f"aucun conteneur à {args.high} % de sa limite ni tué, aucun sous {args.low} % "
-                    f"dont la réduction libère {args.min_saving_mb} Mio ou plus, limites réelles "
-                    "conformes aux composes."
+                    f"dont la réduction libère {args.min_saving_mb} Mio ou plus, {compared} limite(s) "
+                    "réelle(s) conforme(s) au compose."
                 ],
             )
         ]
@@ -450,9 +457,9 @@ def main(argv=None):
     try:
         containers = list_containers(args.docker)
         declared, unread = read_declared(args.docker, containers)
-        measures, drifts, missing = measure(containers, find_scopes(args.cgroup_root), now, declared)
+        measures, drifts, missing, compared = measure(containers, find_scopes(args.cgroup_root), now, declared)
         # Le journal garde le texte complet, lignes coupées du message comprises.
-        report, journal = build_report(args.host, measures, missing, args, drifts, unread, len(declared))
+        report, journal = build_report(args.host, measures, missing, args, drifts, unread, compared)
         failed = False
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         # Publié quand même : un rapport qui ne vient plus ne se remarque pas.
