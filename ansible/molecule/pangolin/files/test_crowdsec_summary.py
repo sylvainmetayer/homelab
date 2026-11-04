@@ -6,11 +6,13 @@ nom dans un même dossier, puis
 python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
+import http.client
 import io
 import json
 import os
 import subprocess
 import unittest
+import urllib.request
 from contextlib import redirect_stdout
 from unittest import mock
 
@@ -23,6 +25,16 @@ def alert(scenario="crowdsecurity/ssh-bf", cn="FR", decisions=0):
 
 def completed(stdout="[]", returncode=0, stderr=""):
     return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+
+def answering_302(seen):
+    """Vrai urllib, sans réseau : tout répond 302 vers /arrivee, qui répond 200."""
+    def http_open(_handler, request):
+        seen.append((request.full_url, request.get_header("Authorization")))
+        headers = http.client.parse_headers(io.BytesIO(b"Location: /arrivee\r\n\r\n"))
+        code = 200 if request.full_url.endswith("/arrivee") else 302
+        return mock.MagicMock(code=code, msg="x", info=lambda: headers)
+    return mock.patch.object(urllib.request.HTTPHandler, "http_open", http_open)
 
 
 class CscliTest(unittest.TestCase):
@@ -139,28 +151,28 @@ class MainTest(unittest.TestCase):
             mock.patch.object(cs.sys, "argv", ["crowdsec-summary", *argv]),
             mock.patch.dict(os.environ, env if env is not None else self.ENV),
             mock.patch.object(cs, "cscli", **(cscli or {"return_value": []})),
-            mock.patch.object(cs.urllib.request, "urlopen") as urlopen,
+            mock.patch.object(cs._OPENER, "open") as opened,
             redirect_stdout(out),
         ):
             code = cs.main()
-        return code, urlopen, out.getvalue()
+        return code, opened, out.getvalue()
 
     def test_dry_run_prints_without_publishing(self):
-        code, urlopen, out = self.main(["--dry-run"], env={})
+        code, opened, out = self.main(["--dry-run"], env={})
         self.assertEqual(code, 0)
-        urlopen.assert_not_called()
+        opened.assert_not_called()
         self.assertEqual(json.loads(out)["priority"], 2)
 
     def test_dry_run_of_a_failure_fails(self):
-        code, urlopen, out = self.main(["--dry-run"], env={}, side_effect=RuntimeError("cscli absent"))
+        code, opened, out = self.main(["--dry-run"], env={}, side_effect=RuntimeError("cscli absent"))
         self.assertEqual(code, 1)
-        urlopen.assert_not_called()
+        opened.assert_not_called()
         self.assertEqual(json.loads(out)["priority"], 4)
 
     def test_publishes_with_the_token(self):
-        code, urlopen, _ = self.main()
+        code, opened, _ = self.main()
         self.assertEqual(code, 0)
-        request = urlopen.call_args.args[0]
+        request = opened.call_args.args[0]
         self.assertEqual(request.get_header("Authorization"), "Bearer jeton")
         self.assertEqual(json.loads(request.data)["topic"], "t")
 
@@ -172,9 +184,9 @@ class MainTest(unittest.TestCase):
             subprocess.TimeoutExpired("cscli", 120),
         ):
             with self.subTest(error=error):
-                code, urlopen, _ = self.main(side_effect=error)
+                code, opened, _ = self.main(side_effect=error)
                 self.assertEqual(code, 1)
-                body = json.loads(urlopen.call_args.args[0].data)
+                body = json.loads(opened.call_args.args[0].data)
                 self.assertEqual((body["priority"], body["title"]), (4, "CrowdSec : résumé impossible"))
                 self.assertIn(str(error), body["message"])
 
@@ -186,9 +198,9 @@ class MainTest(unittest.TestCase):
             ([{"source": {"cn": ["x"]}}], []),
         ):
             with self.subTest(alerts=alerts, decisions=decisions):
-                code, urlopen, _ = self.main(side_effect=[alerts, decisions])
+                code, opened, _ = self.main(side_effect=[alerts, decisions])
                 self.assertEqual(code, 1)
-                body = json.loads(urlopen.call_args.args[0].data)
+                body = json.loads(opened.call_args.args[0].data)
                 self.assertEqual((body["priority"], body["title"]), (4, "CrowdSec : résumé impossible"))
 
     def test_bad_arguments(self):
@@ -209,18 +221,31 @@ class MainTest(unittest.TestCase):
             mock.patch.object(cs.sys, "argv", ["crowdsec-summary"]),
             mock.patch.dict(os.environ, self.ENV),
             mock.patch.object(cs, "cscli", return_value=[]),
-            mock.patch.object(cs.urllib.request, "urlopen", side_effect=refused),
+            mock.patch.object(cs._OPENER, "open", side_effect=refused),
             self.assertRaises(SystemExit) as raised,
         ):
             cs.main()
         self.assertEqual(raised.exception.code, "publication ntfy en échec : HTTP 403")
+
+    def test_publication_redirect_fails_and_nothing_reaches_the_target(self):
+        seen = []
+        with (
+            answering_302(seen),
+            mock.patch.object(cs.sys, "argv", ["crowdsec-summary"]),
+            mock.patch.dict(os.environ, self.ENV),
+            mock.patch.object(cs, "cscli", return_value=[]),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            cs.main()
+        self.assertEqual(raised.exception.code, "publication ntfy en échec : HTTP 302")
+        self.assertEqual(seen, [("http://ntfy.invalid/t", "Bearer jeton")])
 
     def test_publication_error_cites_its_class_only(self):
         with (
             mock.patch.object(cs.sys, "argv", ["crowdsec-summary"]),
             mock.patch.dict(os.environ, self.ENV),
             mock.patch.object(cs, "cscli", return_value=[]),
-            mock.patch.object(cs.urllib.request, "urlopen", side_effect=OSError("http://ntfy.invalid/jeton")),
+            mock.patch.object(cs._OPENER, "open", side_effect=OSError("http://ntfy.invalid/jeton")),
             self.assertRaises(SystemExit) as raised,
         ):
             cs.main()

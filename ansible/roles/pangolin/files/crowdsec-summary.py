@@ -60,6 +60,16 @@ def summary():
     return title, "\n".join(lines), 4 if appsec else 2
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : urllib renverrait le jeton (Authorization) à la
+# cible, et le 200 de sa page d'arrivée compterait comme une publication réussie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def main():
     if sys.argv[1:] not in ([], ["--dry-run"]):
         sys.exit("usage : crowdsec-summary [--dry-run]")
@@ -82,7 +92,7 @@ def main():
                                      headers={"Authorization": f"Bearer {token}",
                                               "Content-Type": "application/json"})
     try:
-        urllib.request.urlopen(request, timeout=30).close()
+        _OPENER.open(request, timeout=30).close()
     except urllib.error.HTTPError as error:
         sys.exit(f"publication ntfy en échec : HTTP {error.code}")
     except (OSError, ValueError, http.client.HTTPException) as error:

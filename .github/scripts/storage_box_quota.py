@@ -61,17 +61,27 @@ def evaluate(payload, name, threshold):
     return status, f"{percent:.1f} % occupés (seuil {threshold:g} %) : {detail}"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : urllib renverrait le jeton Hetzner (Authorization) à
+# la cible, et le 200 de sa page d'arrivée compterait comme un push livré.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def fetch(token, name):
     url = API + "?" + urllib.parse.urlencode({"name": name})
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with _OPENER.open(request, timeout=30) as response:
         return json.load(response)
 
 
 def push(url, status, msg):
     query = urllib.parse.urlencode({"status": status, "msg": msg, "ping": ""})
     separator = "&" if "?" in url else "?"
-    with urllib.request.urlopen(url + separator + query, timeout=30) as response:
+    with _OPENER.open(url + separator + query, timeout=30) as response:
         response.read()
 
 

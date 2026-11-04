@@ -387,7 +387,7 @@ class MainTest(unittest.TestCase):
     def test_push_error_does_not_cite_the_url(self):
         err = io.StringIO()
         with (
-            mock.patch.object(un.urllib.request, "urlopen", side_effect=OSError("http://kuma.invalid/api/push/jeton")),
+            mock.patch.object(un._OPENER, "open", side_effect=OSError("http://kuma.invalid/api/push/jeton")),
             redirect_stderr(err),
         ):
             self.assertFalse(un.push("http://kuma.invalid/api/push/jeton", "up", "ok"))
@@ -404,18 +404,26 @@ class MainTest(unittest.TestCase):
     def test_push_http_error_is_a_failure(self):
         err = io.StringIO()
         with (
-            mock.patch.object(un.urllib.request, "urlopen", side_effect=http.client.IncompleteRead(b"")),
+            mock.patch.object(un._OPENER, "open", side_effect=http.client.IncompleteRead(b"")),
             redirect_stderr(err),
         ):
             self.assertFalse(un.push("http://kuma.invalid/p", "up", "ok"))
         self.assertIn("IncompleteRead", err.getvalue())
 
     def test_push_truncates_and_appends_to_an_existing_query(self):
-        with mock.patch.object(un.urllib.request, "urlopen") as urlopen:
+        with mock.patch.object(un._OPENER, "open") as opened:
             self.assertTrue(un.push("http://kuma.invalid/p?a=1", "down", "x" * 300))
-        url = urlopen.call_args.args[0]
+        url = opened.call_args.args[0]
         self.assertTrue(url.startswith("http://kuma.invalid/p?a=1&status=down&msg="))
         self.assertIn("msg=" + "x" * 250 + "&ping=", url)
+
+    def test_push_redirect_is_a_failure_and_nothing_reaches_the_target(self):
+        err, seen = io.StringIO(), []
+        with answering_302(seen), redirect_stderr(err):
+            self.assertFalse(un.push("http://kuma.invalid/api/push/jeton", "up", "ok"))
+        self.assertEqual(seen, [("http://kuma.invalid/api/push/jeton?status=up&msg=ok&ping=", None)])
+        self.assertIn("push vers Uptime Kuma en échec : HTTPError\n", err.getvalue())
+        self.assertNotIn("kuma.invalid", err.getvalue())
 
     def test_empty_push_url_is_not_a_failure(self):
         with redirect_stderr(io.StringIO()):
