@@ -1,6 +1,0 @@
----
-- name: Restart neonova
-  ansible.builtin.systemd:
-    name: dc@neonova
-    scope: user
-    state: restarted
