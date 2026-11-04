@@ -5,8 +5,9 @@
 # ceux à agrandir (pic à mem_report_high_percent % de la limite ou plus, ou
 # OOM-kill), ceux à réduire (pic sous mem_report_low_percent %) et ceux sans
 # limite, avec une limite suggérée de 2x le pic (doctrine des limites,
-# AGENTS.md). Un message par hôte, « Rien à signaler » compris : un rapport
-# qui ne vient plus se remarque.
+# AGENTS.md), et ceux dont memory.max n'est pas le mem_limit de leur compose.
+# Un message par hôte, « Rien à signaler » compris : un rapport qui ne vient
+# plus se remarque.
 #
 # memory.peak repart de zéro avec le cgroup, à chaque redémarrage du
 # conteneur ou de l'hôte (redémarrages automatiques après une mise à jour du

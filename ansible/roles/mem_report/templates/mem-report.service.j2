@@ -9,13 +9,14 @@ After=network-online.target docker.service
 [Service]
 Type=oneshot
 User={{ mem_report_user }}
-# docker ps et inspect ; memory.* des cgroups est lisible par tous.
+# docker ps, inspect et compose config ; memory.* des cgroups est lisible par
+# tous, compose.yaml (0600) par ce compte, le sien sur docker, pi et flip.
 SupplementaryGroups=docker
 EnvironmentFile={{ mem_report_env_file }}
 ExecStart=/usr/bin/python3 -I {{ mem_report_script }} --host {{ mem_report_host_label | quote }} --url {{ mem_report_ntfy_url | quote }} --topic {{ mem_report_ntfy_topic | quote }} --high {{ mem_report_high_percent | int }} --low {{ mem_report_low_percent | int }} --min-saving-mb {{ mem_report_min_saving_mb | int }}
 TimeoutStartSec=5min
-# Lecture seule partout : le script n'écrit rien, il lit /sys/fs/cgroup et
-# parle au socket Docker et à ntfy.
+# Lecture seule partout : le script n'écrit rien, il lit /sys/fs/cgroup et les
+# composes, et parle au socket Docker et à ntfy.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only

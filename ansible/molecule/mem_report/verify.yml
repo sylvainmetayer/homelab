@@ -165,7 +165,10 @@
     # à réduire (cgroup_parent du NAS, pic sur 2 jours), sans limite. Ni le
     # petit conteneur (48 Mio libérés seulement), ni celui à 58 % (pilote
     # cgroupfs), ni celui que Docker a relancé hier, ni le cgroup que docker
-    # ne liste pas.
+    # ne liste pas. Les écarts au compose : limite jamais appliquée (le Pi, et
+    # pas de faux « sans limite »), limite périmée, hôte sans contrôleur ; un
+    # compose illisible est cité, mais pas un conteneur hors compose ni un
+    # mem_limit arrondi à la page.
     - name: Assert the report lists what to grow, shrink and limit
       vars:
         mem_report_verify_lines: "{{ (mem_report_verify_received.content | b64decode).splitlines() }}"
@@ -191,6 +194,18 @@
           - "'molecule-small' not in mem_report_verify_message"
           - "'molecule-cgroupfs' not in mem_report_verify_message"
           - "'molecule-relaunched' not in mem_report_verify_message"
+          - >-
+            '- molecule-pi-drift : déclaré 256 Mio, réel aucune limite -> docker compose up -d --force-recreate molecule-pi-drift'
+            in mem_report_verify_message
+          - >-
+            '- molecule-stale : déclaré 1.0 Gio, réel 512 Mio -> docker compose up -d --force-recreate molecule-stale'
+            in mem_report_verify_message
+          - >-
+            '- molecule-nocontroller : déclaré 128 Mio, contrôleur mémoire absent de l\'hôte'
+            in mem_report_verify_message
+          - "'- molecule-pi-drift : pic' not in mem_report_verify_message"
+          - "'- ' ~ mem_report_verify_tmp ~ '/absent.json' in mem_report_verify_message"
+          - "'10 conteneur(s) lu(s), 2 sans cgroup trouvé, 10 comparé(s) à leur compose' in mem_report_verify_message"
           - ntfy_scripts_token not in mem_report_verify_run.stdout
         fail_msg: "{{ mem_report_verify_message }}"
 
@@ -228,6 +243,69 @@
           - (mem_report_verify_received.content | b64decode).splitlines() | length == 1
           - "'molecule-big' in mem_report_verify_tokenless.stdout"
           - "'rien n\\'est publié' in mem_report_verify_tokenless.stderr"
+
+    # Le vrai `docker compose config`, sous le bac à sable de l'unité : le
+    # service de la vraie unité ne l'appelle pas ici (aucun conteneur), et le
+    # faux docker ne dit rien des options ni de la forme du JSON. Compose
+    # sous sylvain en 0600, comme sur les hôtes.
+    - name: Write a compose as the app roles do
+      ansible.builtin.copy:
+        dest: /home/sylvain/mem-report-probe.yaml
+        owner: sylvain
+        group: sylvain
+        mode: "0600"
+        content: |
+          services:
+            app:
+              image: "scratch:${MOLECULE_UNSET_TAG}"
+              mem_limit: 1100m
+            nolimit:
+              image: scratch
+              env_file: [/home/sylvain/mem-report-absent.env]
+
+    - name: Read the compose under the sandbox of the unit
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --wait
+          - --pipe
+          - --collect
+          - --quiet
+          - --uid=sylvain
+          - -p
+          - SupplementaryGroups=docker
+          - -p
+          - NoNewPrivileges=yes
+          - -p
+          - ProtectSystem=strict
+          - -p
+          - ProtectHome=read-only
+          - -p
+          - PrivateTmp=yes
+          - -p
+          - ProtectControlGroups=yes
+          - -p
+          - RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+          - /usr/bin/docker
+          - compose
+          - -f
+          - /home/sylvain/mem-report-probe.yaml
+          - config
+          - --format
+          - json
+          - --no-interpolate
+          - --no-env-resolution
+      register: mem_report_verify_compose
+      changed_when: false
+
+    - name: Assert compose hands mem_limit over unresolved
+      vars:
+        mem_report_verify_services: "{{ (mem_report_verify_compose.stdout | from_json).services }}"
+      ansible.builtin.assert:
+        that:
+          - mem_report_verify_services.app.mem_limit == '1100m'
+          - "'mem_limit' not in mem_report_verify_services.nolimit"
+        fail_msg: "{{ mem_report_verify_compose.stdout }}"
 
     # La vraie unité, durcie, sous sylvain : vrais cgroups, Docker du
     # conteneur Molecule sans aucun conteneur.
