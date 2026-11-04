@@ -112,6 +112,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_container_hardening.py
 
+      # Le tofu test de pangolin_config tient apps.json égal aux moniteurs de
+      # sauvegarde : une sauvegarde sans moniteur ne serait testée nulle part
+      # (.github/restore-test/README.md).
+      - name: Check that every borg backup is restore-tested or excluded
+        if: ${{ !cancelled() }}
+        run: python -I .github/scripts/check_restore_coverage.py
+
       # mermaid.min.js du hook mkdocs_mermaid.py, en cache sous l'empreinte du
       # hook (qui porte la version et le sha256 épinglés) : le build ne dépend
       # pas de jsDelivr à chaque run (le hook revérifie le sha256 du fichier
