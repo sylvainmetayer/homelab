@@ -173,8 +173,8 @@
     # with `enabled = false` in tofu/pangolin_config/website_demo_planning_kc.tf
     # (resource disabled; pinned by its invariants test). Here, a role
     # parameter: in host_vars it would pause every instance. Unpausing it
-    # needs room first: flip has no memory for it next to the public showcase
-    # (exemple_planning below).
+    # needs room first if the public showcase (exemple_planning below) comes
+    # back too: flip has no memory for both.
     - role: flip_planning
       tags: demo_planning_kc,app
       when: demo_planning_kc_db_password is defined
@@ -208,8 +208,16 @@
         flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
         flip_planning_backup_enabled: false
     # Public showcase, exemple-planning.sylvain.dev: the instance the product's
-    # web page links to, open without Pangolin SSO and with its admin password
-    # printed on that page — hence "demo" below, in plain text on purpose.
+    # web page used to link to, open without Pangolin SSO and with its admin
+    # password printed on that page — hence "demo" below, in plain text on
+    # purpose.
+    #
+    # PAUSED since November 2026 (docs/runbooks/app-en-pause.md): the web page
+    # now shows the application in images. dc@ and the reset timer stopped and
+    # disabled, nothing restarted by a deploy, compose and reference dump kept.
+    # Moves with `enabled = false` in
+    # tofu/pangolin_config/website_exemple_planning.tf (pinned by its
+    # invariants test).
     #
     # It runs the release channel, like production, so that what a prospect
     # sees is what a deployment runs; and every night it goes back to a
@@ -238,6 +246,7 @@
     - role: flip_planning
       tags: exemple_planning,app
       vars:
+        flip_planning_enabled: false
         flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
         flip_planning_service: exemple_planning
         flip_planning_container_prefix: exemple-planning

@@ -83,7 +83,8 @@ Kuma) est déclaré dans `tofu/pangolin_config/`, une entrée de
 Quelques ressources s'écartent du modèle « SSO partout », chacune relue dans
 son `website_<app>.tf` :
 
-- **`exemple-planning.sylvain.dev`** (flip) : la vitrine publique de Planning
+- **`exemple-planning.sylvain.dev`** (flip, en pause depuis novembre 2026,
+  voir `docs/runbooks/app-en-pause.md`) : la vitrine publique de Planning
   Équipes, sans SSO (règles pays maintenues, DROP sur ce que le mot de passe
   administrateur affiché ne doit pas ouvrir), données fictives restaurées
   chaque nuit depuis `ansible/roles/flip_planning/files/exemple/` ; pas de
