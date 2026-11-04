@@ -8,6 +8,7 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 import email
 import email.message
 import email.policy
+import errno
 import imaplib
 import io
 import json
@@ -154,6 +155,18 @@ class SafeNameTest(unittest.TestCase):
         name = pi.safe_name("x" * 300 + ".pdf", "pdf")
         self.assertEqual(name, "x" * 120 + ".pdf")
 
+    def test_stem_is_capped_in_bytes(self):
+        name = pi.safe_name("漢" * 120 + ".pdf", "pdf")
+        self.assertEqual(name, "漢" * 40 + ".pdf")
+
+    def test_cap_never_cuts_a_character(self):
+        self.assertEqual(pi.safe_name("a" * 119 + "é.pdf", "pdf"), "a" * 119 + ".pdf")
+        # Quatre octets, aussi un \\w : coupé à 118 + 2 octets d'un caractère.
+        self.assertEqual(pi.safe_name("a" * 118 + "\U00020000.pdf", "pdf"), "a" * 118 + ".pdf")
+
+    def test_cap_leaves_no_trailing_separator(self):
+        self.assertEqual(pi.safe_name("a" * 119 + " é.pdf", "pdf"), "a" * 119 + ".pdf")
+
 
 class AttachmentsTest(unittest.TestCase):
     def run_attachments(self, msg):
@@ -272,6 +285,14 @@ class BodyFilesTest(unittest.TestCase):
         self.assertEqual(([name.rsplit(".")[-1] for name, _ in kept], skipped), (["txt"], 1))
         self.assertIn(".eml du mail écarté", err.getvalue())
 
+    def test_long_cjk_subject_stays_a_valid_name(self):
+        msg = message()
+        kept, _ = pi.body_files(msg, b"x", "漢" * 200, 10000)
+        for name, _ in kept:
+            with self.subTest(name=name):
+                self.assertLessEqual(len(name.encode()), 255)
+                self.assertTrue(name.startswith("2026-11-03 - 漢"))
+
     def test_unknown_charset_falls_back(self):
         raw = (
             b"From: moi@exemple.test\nSubject: x\nDate: Tue, 03 Nov 2026 10:00:00 +0100\n"
@@ -309,6 +330,25 @@ class DeliverTest(Directories):
         with self.assertRaises(ValueError):
             pi.deliver([("../a.pdf", b"1")], self.dest, self.tmp)
         self.assertEqual((os.listdir(self.dest), os.listdir(self.tmp)), ([], []))
+
+    def test_failure_takes_back_what_the_message_already_delivered(self):
+        # Le message reste en place et sera repris : rien ne doit rester en double.
+        with self.assertRaises(OSError):
+            pi.deliver([("a.pdf", b"1"), ("x" * 300 + ".pdf", b"2")], self.dest, self.tmp)
+        self.assertEqual((os.listdir(self.dest), os.listdir(self.tmp)), ([], []))
+
+    def test_failed_take_back_keeps_the_original_error(self):
+        # Papra a pu prendre le fichier entre-temps.
+        real_unlink = pi.os.unlink
+
+        def unlink(path):
+            if os.path.basename(path) == "a.pdf":
+                raise FileNotFoundError(path)
+            real_unlink(path)
+
+        with mock.patch.object(pi.os, "unlink", side_effect=unlink), self.assertRaises(OSError) as raised:
+            pi.deliver([("a.pdf", b"1"), ("x" * 300 + ".pdf", b"2")], self.dest, self.tmp)
+        self.assertEqual(raised.exception.errno, errno.ENAMETOOLONG)
 
     def test_remove_stale_tmp_only_touches_its_own_files(self):
         for name in (".intake-reste", "autre"):
@@ -437,12 +477,35 @@ class HandleTest(Directories):
         self.assertEqual(self.handle(imap)[0], "left")
         self.assertEqual([c[0] for c in imap.commands], ["FETCH", "FETCH"])
 
-    def test_write_error_leaves_the_message_and_stops(self):
+    def test_write_error_leaves_the_message_without_raising(self):
         self.config["dest_dir"] = os.path.join(self.dest, "absent")
         imap = FakeImap(raw=attach(message(), "a.pdf").as_bytes())
-        with self.assertRaises(OSError):
-            self.handle(imap)
+        outcome, log = self.handle(imap)
+        self.assertEqual(outcome, "failed")
         self.assertNotIn("MOVE", [c[0] for c in imap.commands])
+        self.assertIn("Message 7 : dépôt en échec (FileNotFoundError", log)
+        self.assertIn("laissé en place", log)
+        # Le nom d'une pièce jointe ne passe pas par le message d'une OSError.
+        self.assertNotIn("a.pdf", log)
+        self.assertNotIn("absent", log)
+
+    def test_imap_error_still_stops_the_pass(self):
+        imap = FakeImap(raw=attach(message(), "a.pdf").as_bytes())
+        with mock.patch.object(imap, "uid", side_effect=OSError("coupé")), self.assertRaises(OSError):
+            self.handle(imap)
+
+    def test_long_cjk_name_is_delivered(self):
+        imap = FakeImap(raw=attach(message(), "漢" * 120 + ".pdf").as_bytes())
+        outcome, _ = self.handle(imap)
+        self.assertEqual(outcome, "imported")
+        self.assertEqual(os.listdir(self.dest), ["漢" * 40 + ".pdf"])
+
+    def test_long_cjk_subject_is_delivered(self):
+        self.config["max_bytes"] = 10000  # l'objet encodé dépasse MAX_BYTES
+        imap = FakeImap(raw=message(subject="[mail] " + "漢" * 200).as_bytes())
+        outcome, _ = self.handle(imap)
+        self.assertEqual(outcome, "imported")
+        self.assertEqual(sorted(name.rsplit(".")[-1] for name in os.listdir(self.dest)), ["eml", "txt"])
 
     def test_unreadable_message_goes_to_rejected(self):
         # Tout sauf une OSError : le message ne bloque pas les suivants.
@@ -563,7 +626,31 @@ class RunTest(Directories):
         _, log = self.run_against(imap)
         self.assertEqual(os.listdir(self.dest), ["a.pdf"])
         self.assertIn(("MOVE", '"Papra/Import&AOk-"'), imap.commands)
-        self.assertIn("1 message(s) traité(s), 0 refusé(s), 0 laissé(s)", log)
+        self.assertIn("1 message(s) traité(s), 0 refusé(s), 0 laissé(s), 0 en échec", log)
+
+    def test_failed_delivery_does_not_block_the_next_messages_and_fails_the_run(self):
+        imap = ServerImap(uids=b"7 8", raw=attach(message(), "a.pdf").as_bytes())
+        real_process = pi.process
+        calls = []
+
+        def process(raw, config):
+            calls.append(raw)
+            if len(calls) == 1:
+                raise OSError(errno.ENOSPC, "No space left on device", "a.pdf")
+            return real_process(raw, config)
+
+        with (
+            mock.patch.object(pi, "process", side_effect=process),
+            mock.patch.object(pi.imaplib, "IMAP4_SSL", return_value=imap),
+            redirect_stdout(io.StringIO()) as out,
+            self.assertRaisesRegex(RuntimeError, "1 message"),
+        ):
+            pi.run(self.config)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(os.listdir(self.dest), ["a.pdf"])
+        self.assertEqual([c for c in imap.commands if c[0] == "MOVE"], [("MOVE", '"Papra/Import&AOk-"')])
+        self.assertIn("1 message(s) traité(s), 0 refusé(s), 0 laissé(s), 1 en échec", out.getvalue())
+        self.assertEqual(imap.names()[-1], "LOGOUT")
 
     def test_neither_move_nor_uidplus_touches_nothing(self):
         imap = ServerImap(capabilities=b"IMAP4rev1", uids=b"7")
