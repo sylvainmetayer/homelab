@@ -4,6 +4,31 @@ FreshRSS (`rss`, Docker VM), read in the browser only: API off except for
 Homepage's widget, Karakeep Button extension (comments in `defaults/main.yml`
 and `tasks/main.yml`). App description: `docs/apps.md`.
 
+## Capabilities
+
+`cap_drop: ALL` plus six capabilities, tested on the pinned image (1.30.4) with
+fictitious data owned as in production (`data/users/<user>` `0770` www-data,
+`extensions` root:www-data `0750`), rootful and rootless, removing each in turn
+(PR #1172):
+
+| Capability | Without it |
+|---|---|
+| `CHOWN` | entrypoint warnings: `chown -R :www-data` refused on www-data's files |
+| `DAC_READ_SEARCH` | same `chown` and `chmod`: cannot enter `data/users/<user>` |
+| `FOWNER` | entrypoint warnings: `chmod -R g+rX,g+w` refused on www-data's files |
+| `KILL` | `AH00046`: Apache cannot signal its workers, a stop takes ~11 s |
+| `SETGID` | **no error at start, workers stay root**; `su` of the cron fails |
+| `SETUID` | Apache exits (`AH02162`) |
+
+The first three only log warnings, but leave the permissions of a restored or
+hand-edited file unrepaired. Workers and the cron's PHP keep no capability.
+`NET_BIND_SERVICE` is not needed on port 80: Docker sets
+`ip_unprivileged_port_start=0` on a bridge network (read at 0 in the running
+container); under `network_mode: host` it would be. Without `DAC_OVERRIDE`, root
+in the container cannot write in www-data's folders: run the CLI with
+`docker exec -u www-data rss ...`. The host-side tasks of the role are not
+concerned.
+
 ## Disk writes
 
 FreshRSS was the Docker VM's top disk writer (~24 GB in 68 h, 2026-11-01,
