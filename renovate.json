@@ -216,14 +216,26 @@
     },
     {
       "description": "MediaManager's database stays on PostgreSQL 17: upstream asks for postgres:17 (maintained until November 2029), the app is on trial and this database is not backed up. Drop this rule when upstream moves to 18, and plan that upgrade as a migration",
-      "matchFileNames": ["ansible/roles/mediamanager/templates/compose.yaml"],
-      "matchPackageNames": ["docker.io/library/postgres"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "ansible/roles/mediamanager/templates/compose.yaml"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/postgres"
+      ],
       "allowedVersions": "<18"
     },
     {
-      "description": "linuxserver/qbittorrent keeps a stale 20.04.1 tag from 2021, which Renovate ranks above 5.x and offers as a major upgrade: it would be a downgrade. Raise the bound if qBittorrent ever nears version 20",
-      "matchPackageNames": ["lscr.io/linuxserver/qbittorrent"],
-      "allowedVersions": "<20"
+      "description": "linuxserver/qbittorrent keeps two stale numeric tags, 20.04.1 (November 2021) and 14.3.9 (January 2022), both builds of the old 14.3.9.x numbering. Renovate ranks them above 5.x and offers them as major upgrades: they would be downgrades. The bound sits under the lower one: \"<20\" alone would only make Renovate offer 14.3.9 next. Raise it if qBittorrent ever nears version 14",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "lscr.io/linuxserver/qbittorrent"
+      ],
+      "allowedVersions": "<14"
     },
     {
       "description": "Badger v1.8.0 fails Traefik's plugin integrity check (traefik/traefik#14115): Traefik disables the plugin, the badger@file middleware vanishes and every Pangolin router returns 404. Upstream says to stay on v1.7.0; drop this rule once Traefik fixes it",
