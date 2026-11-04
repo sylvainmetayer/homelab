@@ -373,3 +373,35 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: papra
+      register: papra_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/papra/files/papra_intake.py"
+          dest: papra_intake.py
+        - src: "{{ playbook_dir }}/files/test_papra_intake.py"
+          dest: test_papra_intake.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ papra_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Expéditeur autorisé, noms de fichier sûrs, pièces jointes, dépôt sans
+    # écrasement, sort d'un message contre un faux IMAP ; le verify ci-dessus ne
+    # joue que --eml, sans IMAP.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ papra_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      ansible.builtin.file:
+        path: "{{ papra_unit_tests_dir.path }}"
+        state: absent

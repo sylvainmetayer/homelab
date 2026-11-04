@@ -574,3 +574,34 @@
       vars:
         verify_borgmatic_push_config: "{{ borgmatic_config_dir }}/pangolin.yaml"
         verify_borgmatic_push_url: https://uptime.example.invalid/api/push/pangolin_backup
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: pangolin
+      register: pangolin_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/pangolin/files/crowdsec-summary.py"
+          dest: crowdsec_summary.py
+        - src: "{{ playbook_dir }}/files/test_crowdsec_summary.py"
+          dest: test_crowdsec_summary.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ pangolin_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Comptes du résumé, pluriels, AppSec, réponses de cscli d'une autre forme. Sous
+    # un autre nom : un tiret ne s'importe pas.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ pangolin_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      ansible.builtin.file:
+        path: "{{ pangolin_unit_tests_dir.path }}"
+        state: absent
