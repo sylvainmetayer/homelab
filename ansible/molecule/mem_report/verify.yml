@@ -246,8 +246,9 @@
 
     # Le vrai `docker compose config`, sous le bac à sable de l'unité : le
     # service de la vraie unité ne l'appelle pas ici (aucun conteneur), et le
-    # faux docker ne dit rien des options ni de la forme du JSON. Compose
-    # sous sylvain en 0600, comme sur les hôtes.
+    # faux docker ne dit rien de la forme du JSON. Compose sous sylvain en
+    # 0600, comme sur les hôtes. Sans --no-env-resolution, inconnu du compose
+    # de Debian 13 (les hôtes sont en v5 et l'acceptent) : ni env_file ici.
     - name: Write a compose as the app roles do
       ansible.builtin.copy:
         dest: /home/sylvain/mem-report-probe.yaml
@@ -261,7 +262,6 @@
               mem_limit: 1100m
             nolimit:
               image: scratch
-              env_file: [/home/sylvain/mem-report-absent.env]
 
     - name: Read the compose under the sandbox of the unit
       ansible.builtin.command:
@@ -294,7 +294,6 @@
           - --format
           - json
           - --no-interpolate
-          - --no-env-resolution
       register: mem_report_verify_compose
       changed_when: false
 
