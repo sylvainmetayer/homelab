@@ -33,6 +33,9 @@ RUNBOOK = "docs/runbooks/perte-cle-ou-poste.md"
 GAP_REPEAT_SECONDS = 86400
 MAX_JOB_CHECKS = 10
 MAX_ALERT_LINES = 20
+# Sans pièces jointes (rôle ntfy), ntfy refuse en 400 un message de plus de 4 096
+# octets : l'alerte ne partirait jamais. La marge laisse la place au texte qui suit.
+MAX_ALERT_BYTES = 3500
 
 
 class CheckError(Exception):
@@ -159,10 +162,10 @@ class Checker:
 
     def earlier_attempts(self, run):
         """Un run relancé ne montre que son dernier essai ; les connexions du premier comptent."""
-        attempts = []
-        for attempt in range(1, run.get("run_attempt", 1)):
-            attempts.append(self.github(f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}"))
-        return attempts
+        return [
+            self.github(f"{self.repo_path()}/runs/{run['id']}/attempts/{attempt}")
+            for attempt in range(1, run.get("run_attempt", 1))
+        ]
 
     def deployed_hosts(self, run):
         """Hôtes dont l'étape « Deploy <hôte> » a réussi : ils ont vu la clé."""
@@ -262,7 +265,13 @@ def describe(line):
 
 
 def bounded(lines):
-    shown = lines[:MAX_ALERT_LINES]
+    shown = []
+    size = 0
+    for text in lines[:MAX_ALERT_LINES]:
+        size += len(text.encode()) + 1
+        if size > MAX_ALERT_BYTES:
+            break
+        shown.append(text)
     hidden = len(lines) - len(shown)
     return "\n".join(shown + ([f"… et {hidden} de plus"] if hidden > 0 else []))
 
@@ -274,22 +283,23 @@ def judge(checker, ci_lines, runs, seen):
     judged.sort(key=lambda line: parse_time(line["_time"]))
     intervals = [checker.run_interval(run) for run in runs]
 
-    pending = []
+    # Par empreinte : Vector livre au moins une fois, une ligne peut revenir en double.
+    pending = {}
     for line in judged:
         identifier = event_id(line)
-        if identifier in seen:
+        if identifier in seen or identifier in pending:
             continue
         moment = parse_time(line["_time"])
         if checker.covered(moment, intervals):
             seen[identifier] = moment
         else:
-            pending.append((identifier, moment, line))
+            pending[identifier] = (moment, line)
     if pending:
         for run in runs:
             intervals.extend(checker.run_interval(attempt) for attempt in checker.earlier_attempts(run))
 
     anomalies = []
-    for identifier, moment, line in pending:
+    for identifier, (moment, line) in pending.items():
         if checker.covered(moment, intervals):
             seen[identifier] = moment
         elif checker.now - moment >= config["settle_seconds"]:

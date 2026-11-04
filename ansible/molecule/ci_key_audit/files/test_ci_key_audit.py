@@ -200,6 +200,22 @@ class Judgement(unittest.TestCase):
         self.assertIn("et 10 de plus", checker.published[0][1])
         self.assertTrue(published[0].startswith("30 connexion(s)"))
 
+    def test_long_lines_stay_under_what_ntfy_accepts(self):
+        forged = [line(NOW - 1000 - i) for i in range(20)]
+        for row in forged:
+            row["_msg"] = row["_msg"] + " é" * 200
+        checker = FakeChecker(lines=forged)
+        tick(checker)
+        message = checker.published[0][1]
+        self.assertLess(len(message.encode()), 4096)
+        self.assertRegex(message, r"et \d+ de plus")
+
+    def test_a_line_delivered_twice_is_one_event(self):
+        checker = FakeChecker(lines=[line(NOW - 1000), line(NOW - 1000)])
+        _, _, published, _ = tick(checker)
+        self.assertTrue(published[0].startswith("1 connexion(s)"))
+        self.assertEqual(checker.published[0][1].count("clé connue"), 1)
+
 
 class Idempotence(unittest.TestCase):
     def test_same_event_alerts_once(self):
