@@ -46,6 +46,10 @@ class ParseSimulationTest(unittest.TestCase):
     def test_security_wins_over_any_other_origin(self):
         self.assertEqual(self.names(self.security), ["openssl", "libc6"])
 
+    def test_security_suite_in_lower_case(self):
+        security, _, _, _ = un.parse_simulation("Inst x [1] (2 Debian:13/trixie-security [amd64])\n")
+        self.assertEqual(security, ["x 1 → 2"])
+
     def test_sensitive_by_origin_or_by_name(self):
         self.assertEqual(
             self.names(self.sensitive),
