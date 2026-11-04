@@ -178,6 +178,19 @@ class MainTest(unittest.TestCase):
                 self.assertEqual((body["priority"], body["title"]), (4, "CrowdSec : résumé impossible"))
                 self.assertIn(str(error), body["message"])
 
+    def test_unexpected_alert_shapes_are_published_as_a_failure(self):
+        for alerts, decisions in (
+            ([{"source": "x"}], []),
+            ([], [{"decisions": 5}]),
+            ([{"scenario": ["x"]}], []),
+            ([{"source": {"cn": ["x"]}}], []),
+        ):
+            with self.subTest(alerts=alerts, decisions=decisions):
+                code, urlopen, _ = self.main(side_effect=[alerts, decisions])
+                self.assertEqual(code, 1)
+                body = json.loads(urlopen.call_args.args[0].data)
+                self.assertEqual((body["priority"], body["title"]), (4, "CrowdSec : résumé impossible"))
+
     def test_bad_arguments(self):
         with self.assertRaises(SystemExit) as raised:
             self.main(["--autre"])

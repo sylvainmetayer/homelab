@@ -65,7 +65,9 @@ def main():
         sys.exit("usage : crowdsec-summary [--dry-run]")
     try:
         title, text, priority, failed = *summary(), False
-    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+    # AttributeError, TypeError : des champs d'une forme inattendue (source ou
+    # décisions d'un autre type), que cscli() ne contrôle pas un par un.
+    except (OSError, ValueError, RuntimeError, AttributeError, TypeError, subprocess.TimeoutExpired) as error:
         title, text, priority, failed = ("CrowdSec : résumé impossible",
                                          f"cscli : {error}\nsudo docker ps --filter name=crowdsec ; "
                                          "docs/runbooks/crowdsec.md", 4, True)
