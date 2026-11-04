@@ -54,6 +54,7 @@ def redirecting_server(code=302, body=b""):
         server.server_close()
         thread.join()
 
+
 # Sortie de `apt-get -s dist-upgrade`, formes vues sur Debian et Proxmox.
 SIMULATION = """\
 NOTE: This is only a simulation!
