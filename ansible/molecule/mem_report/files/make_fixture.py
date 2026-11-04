@@ -18,6 +18,7 @@ SYSTEMD_SCOPE = "system.slice/docker-{}.scope"
 NOW = datetime.datetime.now(datetime.timezone.utc)
 HORS_COMPOSE = object()
 ILLISIBLE = object()
+SERVICE_ABSENT = object()
 
 # (caractère de l'id, nom, dossier du cgroup ou None, memory.max, memory.peak
 # ou None, memory.current ou None (pas de contrôleur mémoire), événements max,
@@ -51,6 +52,8 @@ CONTAINERS = [
     ("4", "molecule-nocontroller", SYSTEMD_SCOPE, None, None, None, 0, 0, 0, 30, "128m"),
     # Son compose ne se lit pas : limite non comparée, jamais « conforme ».
     ("5", "molecule-unread", SYSTEMD_SCOPE, 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30, ILLISIBLE),
+    # Service retiré du compose, conteneur resté : pas d'écart, `up` le refuserait.
+    ("6", "molecule-orphan", SYSTEMD_SCOPE, 512 * MIB, 300 * MIB, 290 * MIB, 0, 0, 0, 30, SERVICE_ABSENT),
 ]
 
 
@@ -83,7 +86,8 @@ with open(os.path.join(ROOT, "inspect.tsv"), "w") as tsv:
             labels = f"{ROOT}/absent.json\t{name}"
         else:
             labels = f"{ROOT}/compose.json\t{name}"
-            services[name] = {} if declared is None else {"mem_limit": declared}
+            if declared is not SERVICE_ABSENT:
+                services[name] = {} if declared is None else {"mem_limit": declared}
         tsv.write(f"{container_id}\t/{name}\t{restarts}\t{started}\t{labels}\n")
 
 with open(os.path.join(ROOT, "compose.json"), "w") as compose:
