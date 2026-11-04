@@ -51,12 +51,48 @@ class CriticalFixedTest(unittest.TestCase):
         self.assertEqual(trivy_critical.critical_fixed(report([vuln("CVE-1", installed=None)])), [("CVE-1", "openssl", "?", "1.0.1")])
 
 
+def with_os(base, **os_info):
+    return {**base, "Metadata": {"OS": os_info}}
+
+
+class EndOfLifeTest(unittest.TestCase):
+    def test_eosl_true(self):
+        self.assertEqual(trivy_critical.end_of_life(with_os({}, Family="debian", Name="11.6", EOSL=True)), "debian 11.6")
+
+    def test_field_absent_when_supported(self):
+        # Trivy omet EOSL (omitempty) quand la distribution est suivie.
+        self.assertIsNone(trivy_critical.end_of_life(with_os({}, Family="alpine", Name="3.22.7")))
+
+    def test_explicit_false(self):
+        self.assertIsNone(trivy_critical.end_of_life(with_os({}, Family="alpine", Name="3.22.7", EOSL=False)))
+
+    def test_no_metadata_or_no_os(self):
+        # Image sans distribution reconnue (scratch, distroless).
+        for found in ({}, {"Metadata": None}, {"Metadata": {}}, {"Metadata": {"OS": None}}):
+            self.assertIsNone(trivy_critical.end_of_life(found))
+
+    def test_missing_names(self):
+        self.assertEqual(trivy_critical.end_of_life(with_os({}, EOSL=True)), "? ?")
+
+    def test_unexpected_shape_raises(self):
+        with self.assertRaises(trivy_critical.ReportError):
+            trivy_critical.end_of_life({"Metadata": "debian"})
+
+
 class CollectTest(unittest.TestCase):
+    def test_collects_vulnerabilities_and_end_of_life_apart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "monica.json").write_text(json.dumps(with_os(report([]), Family="debian", Name="11.6", EOSL=True)))
+            Path(directory, "trek.json").write_text(json.dumps(with_os(report([vuln("CVE-1")]), Family="alpine", Name="3.22.7")))
+            images, eol = trivy_critical.collect(directory)
+        self.assertEqual(list(images), ["trek"])
+        self.assertEqual(eol, {"monica": "debian 11.6"})
+
     def test_images_without_critical_are_dropped(self):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory, "immich.json").write_text(json.dumps(report([vuln("CVE-1")])))
             Path(directory, "trek.json").write_text(json.dumps(report([vuln("CVE-2", severity="HIGH")])))
-            self.assertEqual(list(trivy_critical.collect(directory)), ["immich"])
+            self.assertEqual(list(trivy_critical.collect(directory)[0]), ["immich"])
 
     def test_empty_directory_is_an_error(self):
         with tempfile.TemporaryDirectory() as directory, self.assertRaises(trivy_critical.ReportError):
@@ -98,7 +134,42 @@ class MessageTest(unittest.TestCase):
         vulns = [(f"CVE-2026-{i:05d}", "package-with-a-long-name", "1.0.0", "1.0.1") for i in range(500)]
         payload = trivy_critical.message({"big": vulns}, "")
         self.assertLessEqual(len(payload["message"].encode("utf-8")), trivy_critical.MAX_MESSAGE_BYTES + 100)
-        self.assertIn("lignes de plus", payload["message"].splitlines()[-1])
+        self.assertIn("lignes de plus (onglet Security)", payload["message"].splitlines()[-1])
+
+    def test_end_of_life_alone_is_low_priority(self):
+        payload = trivy_critical.message({}, "https://example.test", {"redis-dawarich": "alpine 3.21.9", "monica": "debian 11.6"})
+        self.assertEqual(payload["topic"], "github")
+        self.assertEqual(payload["title"], "Trivy : 2 images sur une distribution en fin de vie")
+        self.assertEqual(payload["message"].splitlines(), [
+            "Distribution en fin de vie (information) :", "  monica : debian 11.6", "  redis-dawarich : alpine 3.21.9",
+        ])
+        self.assertEqual(payload["priority"], 2)
+        self.assertNotIn("rotating_light", payload["tags"])
+        # L'onglet Security ne dit rien des fins de vie : pas de lien vers lui.
+        self.assertNotIn("click", payload)
+
+    def test_end_of_life_follows_the_cves(self):
+        payload = trivy_critical.message({"trek": [("CVE-1", "openssl", "1", "2")]}, "https://example.test", {"monica": "debian 11.6"})
+        self.assertEqual(payload["title"], "Trivy : 1 CVE critique corrigeable, 1 image ; 1 image en fin de vie")
+        self.assertEqual(payload["message"].splitlines(), [
+            "trek", "  CVE-1 openssl 1 → 2", "Distribution en fin de vie (information) :", "  monica : debian 11.6",
+        ])
+        self.assertEqual(payload["priority"], 4)
+        self.assertEqual(payload["click"], "https://example.test")
+
+    def test_long_cve_list_does_not_cut_end_of_life(self):
+        vulns = [(f"CVE-2026-{i:05d}", "package-with-a-long-name", "1.0.0", "1.0.1") for i in range(500)]
+        text = trivy_critical.message({"big": vulns}, "", {"monica": "debian 11.6"})["message"]
+        self.assertLessEqual(len(text.encode("utf-8")), trivy_critical.MAX_MESSAGE_BYTES + 100)
+        self.assertIn("lignes de plus", text)
+        self.assertEqual(text.splitlines()[-1], "  monica : debian 11.6")
+
+    def test_many_end_of_life_images_stay_under_the_limit(self):
+        eol = {f"image-with-a-rather-long-name-{i}": "debian 11.6" for i in range(500)}
+        vulns = [(f"CVE-2026-{i:05d}", "package-with-a-long-name", "1.0.0", "1.0.1") for i in range(500)]
+        for images in ({}, {"big": vulns}):
+            text = trivy_critical.message(images, "", eol)["message"]
+            self.assertLessEqual(len(text.encode("utf-8")), trivy_critical.MAX_MESSAGE_BYTES + 100)
 
 
 class MainTest(unittest.TestCase):
@@ -121,6 +192,16 @@ class MainTest(unittest.TestCase):
             code, _ = self.run_main()
         self.assertEqual(code, 0)
         publish.assert_not_called()
+
+    def test_end_of_life_alone_is_published_and_succeeds(self):
+        Path(self.directory.name, "monica.json").write_text(json.dumps(with_os(report([]), Family="debian", Name="11.6", EOSL=True)))
+        with mock.patch.object(trivy_critical, "publish") as publish:
+            code, out = self.run_main()
+        self.assertEqual(code, 0)
+        self.assertEqual(publish.call_args.args[1]["priority"], 2)
+        # Dépôt public : le titre seul dans le log, comme pour les CVE.
+        self.assertIn("1 image sur une distribution en fin de vie", out)
+        self.assertNotIn("debian", out)
 
     def test_publishes_with_the_token(self):
         self.write(vuln("CVE-1"))
