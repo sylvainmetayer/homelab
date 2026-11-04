@@ -249,3 +249,34 @@
       ansible.builtin.systemd:
         name: molecule-update-notify-fakes.service
         state: stopped
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: update_notify
+      register: update_notify_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/update_notify/files/update_notify.py"
+          dest: update_notify.py
+        - src: "{{ playbook_dir }}/files/test_update_notify.py"
+          dest: test_update_notify.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ update_notify_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Lecture de la simulation apt, noyau en attente, coupe du message à la limite
+    # de ntfy, codes de sortie ; le verify ci-dessus joue le script entier.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ update_notify_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      ansible.builtin.file:
+        path: "{{ update_notify_unit_tests_dir.path }}"
+        state: absent

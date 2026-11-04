@@ -301,3 +301,39 @@
         that:
           - borgmatic_config_dir_stat.stat.isdir | default(false)
           - borgmatic_config_dir_stat.stat.pw_name == 'root'
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      become: true
+      ansible.builtin.tempfile:
+        state: directory
+        path: /root
+        suffix: borgmatic
+      register: borgmatic_unit_tests_dir
+
+    - name: Copy the script and its tests
+      become: true
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/borgmatic/files/borgmatic-docker-dump"
+          dest: borgmatic-docker-dump
+        - src: "{{ playbook_dir }}/files/test_borgmatic_docker_dump.py"
+          dest: test_borgmatic_docker_dump.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ borgmatic_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Les formes de --result-file et l'échappement du mot de passe. Sous /root, pas
+    # /tmp, monté noexec : le faux docker doit s'y exécuter.
+    - name: Run the script tests
+      become: true
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ borgmatic_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      become: true
+      ansible.builtin.file:
+        path: "{{ borgmatic_unit_tests_dir.path }}"
+        state: absent

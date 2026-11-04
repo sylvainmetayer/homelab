@@ -227,3 +227,34 @@
       ansible.builtin.systemd:
         name: molecule-push.service
         state: stopped
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: kdrive_sync
+      register: kdrive_sync_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/kdrive_sync/files/kdrive_sync.py"
+          dest: kdrive_sync.py
+        - src: "{{ playbook_dir }}/files/test_kdrive_sync.py"
+          dest: test_kdrive_sync.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ kdrive_sync_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0644"
+
+    # Statistiques de rclone, dernière erreur, SIGTERM, statut poussé, URL jamais
+    # citée ; le verify ci-dessus joue le script par l'unité.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ kdrive_sync_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      ansible.builtin.file:
+        path: "{{ kdrive_sync_unit_tests_dir.path }}"
+        state: absent
