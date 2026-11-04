@@ -1,6 +1,6 @@
 # 0024. Le merge sur `main` déploie : quatre playbooks en CI, Tofu et le reste à la main
 
-- **Statut** : acceptée (Tofu en CI ouvert : #704)
+- **Statut** : acceptée
 - **Date** : 2026-08-05 (docker, écrit le 2026-08-02 ; pi, pangolin), 2026-09-30 (flip)
 
 ## Contexte
@@ -24,7 +24,7 @@ que `ping.yaml` utilisait déjà. Motif non écrit (`a25a5447` dit le comment se
   (`pre_tasks`, `host_vars`, fichiers partagés ; ces derniers « heavy » d'après `ci.md`).
 - **flip par `flip.internal`** : servi par le Newt de flip, qu'un déploiement peut
   redémarrer en plein play. Rebond SSH par Pangolin à la place.
-- En attente, pas écarté : **Tofu en CI** (#704 : jetons, passphrase, API Pangolin).
+- Écarté le 2026-11-04 : **Tofu en CI** (#704 fermée : jetons, passphrase, API Pangolin ; tout reste en local).
 
 ## Conséquences
 
