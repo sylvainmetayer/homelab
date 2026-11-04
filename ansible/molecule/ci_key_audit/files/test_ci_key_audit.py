@@ -540,8 +540,9 @@ class JobsReply(unittest.TestCase):
             with self.subTest(reply=reply):
                 checker = FakeChecker()
                 checker.jobs_reply = reply
+                finished = run(NOW - 900, NOW - 800)
                 with self.assertRaisesRegex(audit.CheckError, "^GitHub : réponse sans jobs lisibles$"):
-                    checker.deployed_hosts(run(NOW - 900, NOW - 800))
+                    checker.deployed_hosts(finished)
 
 
 class Response(io.BytesIO):

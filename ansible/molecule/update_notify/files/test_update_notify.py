@@ -5,54 +5,32 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
 import http.client
-import http.server
 import io
 import json
 import os
 import tempfile
-import threading
 import types
 import unittest
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+import urllib.request
+import urllib.response
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import update_notify as un
 
 
-@contextmanager
-def redirecting_server(code=302, body=b""):
-    """Vrai serveur local : tout redirige vers /arrivee, qui répond 200.
+def answering_302(seen):
+    """Vrai urllib, sans réseau : tout répond 302 vers /arrivee, qui répond 200."""
 
-    Rend sa base et les requêtes reçues (chemin, en-tête Authorization).
-    """
-    seen = []
+    def http_open(_handler, request):
+        seen.append((request.full_url, request.get_header("Authorization")))
+        headers = http.client.parse_headers(io.BytesIO(b"Location: /arrivee\r\n\r\n"))
+        code = 200 if request.full_url.endswith("/arrivee") else 302
+        response = urllib.response.addinfourl(io.BytesIO(), headers, request.full_url, code)
+        response.msg = "x"
+        return response
 
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def answer(self):
-            self.rfile.read(int(self.headers.get("Content-Length", 0)))
-            seen.append((self.path, self.headers.get("Authorization")))
-            landing = self.path == "/arrivee"
-            self.send_response(200 if landing else code)
-            if not landing:
-                self.send_header("Location", "/arrivee")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        do_GET = do_POST = answer
-
-        def log_message(self, *_):
-            pass
-
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_address[1]}", seen
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+    return mock.patch.object(urllib.request.HTTPHandler, "http_open", http_open)
 
 
 # Sortie de `apt-get -s dist-upgrade`, formes vues sur Debian et Proxmox.
@@ -396,10 +374,11 @@ class MainTest(unittest.TestCase):
             self.assertNotIn("jeton", str(raised.exception))
 
     def test_publish_redirect_is_a_check_error_and_nothing_reaches_the_target(self):
-        with redirecting_server() as (base, seen), self.assertRaises(un.CheckError) as raised:
-            un.publish(base, "t", "jeton", {"title": "x"})
+        seen = []
+        with answering_302(seen), self.assertRaises(un.CheckError) as raised:
+            un.publish("http://ntfy.invalid", "t", "jeton", {"title": "x"})
         self.assertEqual(str(raised.exception), "publication ntfy en échec : HTTPError")
-        self.assertEqual(seen, [("/", "Bearer jeton")])
+        self.assertEqual(seen, [("http://ntfy.invalid/", "Bearer jeton")])
 
     def test_publish_sends_the_topic_in_the_body(self):
         response = mock.MagicMock()
