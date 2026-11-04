@@ -532,6 +532,10 @@ def ntfy(settings, token, title, message, failed):
 
 
 def notify(config, failures, lines):
+    """Compte les envois en échec. Le test est fini, et son code de sortie reste
+    à rendre : rien d'un envoi ne doit planter ici (http.client.InvalidURL n'est
+    ni une OSError ni un ValueError, réglages ntfy incomplets), ni apparaître :
+    ces erreurs citent l'URL ou l'en-tête, donc un jeton. Leur classe seule."""
     failed = bool(failures)
     title = "Test de restauration vzdump : " + ("ÉCHEC" if failed else "OK")
     message = "\n".join([f"ÉCHEC : {failure}" for failure in failures] + lines)
@@ -542,8 +546,7 @@ def notify(config, failures, lines):
     if token and config.get("ntfy"):
         try:
             ntfy(config["ntfy"], token, title, message, failed)
-        except (OSError, ValueError) as error:
-            # Une erreur d'urllib peut citer l'URL : sa classe seule est affichée.
+        except Exception as error:  # NOSONAR : voir notify
             print(f"envoi à ntfy en échec : {type(error).__name__}", file=sys.stderr)
             problems += 1
     else:
@@ -553,9 +556,7 @@ def notify(config, failures, lines):
     if url:
         try:
             push(url, "down" if failed else "up", "; ".join(failures) or " ; ".join(lines))
-        # ValueError : http.client.InvalidURL et « unknown url type » citent
-        # l'URL, donc le jeton du moniteur, dans un traceback.
-        except (OSError, ValueError) as error:
+        except Exception as error:  # NOSONAR : voir notify
             print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
             problems += 1
     else:
