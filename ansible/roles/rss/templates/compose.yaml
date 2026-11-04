@@ -6,8 +6,26 @@ services:
     mem_limit: 1g
     mem_reservation: 512m
     container_name: rss
+    # Apache maître, cron et le filtre du journal d'accès restent root ; les
+    # workers et l'actualisation passent à www-data, sans aucune capacité.
+    # CHOWN, FOWNER, DAC_READ_SEARCH : `chown -R :www-data` et `chmod -R` de
+    # data/ par l'entrypoint, à travers les fichiers et les dossiers 0770 de
+    # www-data. SETUID, SETGID : workers d'Apache, `su www-data` du cron ; sans
+    # SETGID, Apache garde ses workers en root sans rien dire. KILL : signaux
+    # d'Apache à ses workers, sinon l'arrêt traîne jusqu'au SIGKILL. Pas de
+    # NET_BIND_SERVICE : Docker ouvre le port 80 à tous sur un réseau bridge
+    # (ip_unprivileged_port_start=0). Essais : README.md.
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_READ_SEARCH
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
     image: freshrss/freshrss:1.30.4@sha256:af44385229541bee24aa9148d0ff8f3b40e095373c63a2c0f74e09a27d3c59df
     environment:
       # Timezone configuration

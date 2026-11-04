@@ -18,6 +18,22 @@
         verify_compose_healthchecks:
           - freshrss
 
+    - name: Read the rss compose file
+      ansible.builtin.slurp:
+        src: /opt/apps/rss/compose.yaml
+      register: rss_compose_raw
+
+    # Molecule ne démarre pas les images : seul le compose peut être vérifié.
+    - name: Assert the rss container stays hardened
+      vars:
+        rss_service: "{{ (rss_compose_raw.content | b64decode | from_yaml).services.freshrss }}"
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges:true' in rss_service.security_opt"
+          - rss_service.cap_drop == ['ALL']
+          - rss_service.cap_add | sort == ['CHOWN', 'DAC_READ_SEARCH', 'FOWNER', 'KILL', 'SETGID', 'SETUID']
+        fail_msg: rss n'est plus durci (no-new-privileges, cap_drop, cap_add d'Apache et de l'entrypoint).
+
     - name: Stat the rss borgmatic configuration
       become: true
       ansible.builtin.stat:
