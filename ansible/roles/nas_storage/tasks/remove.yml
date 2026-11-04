@@ -1,23 +1,15 @@
 ---
 # Retire de l'hôte ce que tasks/main.yml y pose : montage, automount, entrée
 # fstab, drop-in docker.service, slice, script d'attente, point de montage,
-# paquets NFS. Lancé à la main (README.md, « Retirer le montage »), aucun
+# paquets NFS. Lancé à la main (README.md, « Removing the mount »), aucun
 # playbook ne l'inclut. Rien n'est effacé côté NAS : ces tâches ne lisent ni n'écrivent
 # sous le point de montage, et `rmdir` échoue plutôt que de vider un dossier.
 #
 # Docker reste en place : le drop-in ne pose qu'un After=, sans Requires= ni
 # BindsTo= ni RequiresMountsFor= ; ni l'arrêt du montage ni le daemon-reload ne
 # touchent docker.service. Le contrôle du PID de dockerd, à la fin, le prouve.
-- name: Compute the mount unit name
-  ansible.builtin.command:
-    cmd: "systemd-escape --path {{ nas_storage_mount_path }}"
-  register: nas_storage_unit
-  changed_when: false
-  check_mode: false
-
-- name: Set the mount unit name prefix
-  ansible.builtin.set_fact:
-    nas_storage_unit_prefix: "{{ nas_storage_unit.stdout }}"
+- name: Compute the mount unit name prefix
+  ansible.builtin.import_tasks: unit_prefix.yml
 
 - name: Read dockerd before the removal
   ansible.builtin.systemd:
@@ -114,6 +106,16 @@
     path: "{{ item }}"
     state: absent
 
+# Une unité en échec resterait dans systemctl --failed, fichier retiré ou non.
+- name: Forget the failed state of the mount units
+  become: true
+  when: item.status.ActiveState == 'failed'
+  loop: "{{ nas_storage_units.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  ansible.builtin.command: "systemctl reset-failed {{ item.item }}"  # noqa command-instead-of-module
+  changed_when: true
+
 # Relit les unités, sans redémarrer aucun service.
 - name: Reload systemd
   become: true
@@ -124,14 +126,12 @@
 # fait échouer le run au lieu de disparaître.
 - name: Remove the mount point
   become: true
-  when: not ansible_check_mode
   ansible.builtin.command:
     cmd: "rmdir {{ nas_storage_mount_path }}"
     removes: "{{ nas_storage_mount_path }}"
 
 - name: Remove the now empty parent folders
   become: true
-  when: not ansible_check_mode
   loop:
     - "{{ nas_storage_mount_path | dirname }}"
     - /etc/systemd/system/docker.service.d

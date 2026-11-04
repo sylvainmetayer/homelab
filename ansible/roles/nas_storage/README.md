@@ -62,25 +62,25 @@ its export (`host_vars/nas`). The rules:
   "others") in its place: everything but the fstab/automount path is covered.
 - No iSCSI: considered and rejected (see the doc).
 
-## Retirer le montage
+## Removing the mount
 
-`tasks/remove.yml`, qu'aucun playbook n'inclut, donc qu'aucun déploiement ne
-lance. À la main, depuis `ansible/`, `--check` d'abord :
+`tasks/remove.yml`: no playbook includes it, so no deploy runs it. By hand, from
+`ansible/`, `--check` first:
 
 ```bash
 ansible docker --check -m ansible.builtin.include_role -a 'name=nas_storage tasks_from=remove'
 ansible docker -m ansible.builtin.include_role -a 'name=nas_storage tasks_from=remove'
 ```
 
-Il refuse si un conteneur utilise l'export ou la slice, démonte, arrête
-l'automount, retire l'entrée fstab, le drop-in `docker.service`, la slice, le
-script d'attente, le point de montage, puis `nfs-common` et `rpcbind`. Rien
-n'est effacé sur le NAS. Docker n'est pas arrêté : le drop-in ne pose qu'un
-`After=`, et le retrait échoue si le PID de dockerd a changé.
+It refuses while a container uses the export or the slice, then unmounts, stops
+the automount, removes the fstab entry, the `docker.service` drop-in, the slice,
+the wait script, the mount point, then `nfs-common` and `rpcbind`. Nothing is
+deleted on the NAS. Docker is not stopped: the drop-in only sets an `After=`, and
+the removal fails if dockerd's PID changed.
 
-Ordre : ce retrait **avant** `nas.yml --tags nas`, qui retire l'export (un
-montage `hard` sur un export disparu pourrait bloquer le démontage). Un export
-occupé arrête le run au démontage, avant tout retrait ; il se relance tel quel.
+Order: this removal **before** `nas.yml --tags nas`, which withdraws the export
+(a `hard` mount on a vanished export could block the unmount). A busy export
+stops the run at the unmount, before anything is removed; run it again as is.
 
 ## Reference snippets
 
