@@ -135,7 +135,7 @@
       "allowedVersions": "<13"
     },
     {
-      "description": "Redis builds -bookworm tags only up to the 8.2 line (8.4 and later are trixie or alpine; 8.4.0-bookworm is a stale February 2026 tag, never patched since). Without this cap Renovate offers 8.4.0-bookworm to Nextcloud's cache, older than the 8.2.x it runs, and that minor update shares the renovate/redis-8.x branch with Dawarich's 7.4 -> 8 major, so the major's dashboard approval holds it too. Moving off bookworm is a deliberate tag change, not a bump. A regex, not \"<8.3\": a suffixed tag is valid npm semver (a prerelease), which no plain range satisfies, so \"<8.3\" would also drop the 8.2 patches",
+      "description": "Redis builds -bookworm tags only up to the 8.2 line (8.4 and later are trixie or alpine; 8.4.0-bookworm is a stale February 2026 tag, never patched since). Without this cap Renovate offers 8.4.0-bookworm to Nextcloud's cache, older than the 8.2.x it runs, in the renovate/redis-8.x branch that Dawarich's minor updates (X.Y-alpine) also use. Moving off bookworm is a deliberate tag change, not a bump. A regex, not \"<8.3\": a suffixed tag is valid npm semver (a prerelease), which no plain range satisfies, so \"<8.3\" would also drop the 8.2 patches",
       "matchDatasources": [
         "docker"
       ],
