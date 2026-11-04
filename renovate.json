@@ -216,6 +216,7 @@
     },
     {
       "description": "MediaManager's database stays on PostgreSQL 17: upstream asks for postgres:17 (maintained until November 2029), the app is on trial and this database is not backed up. Drop this rule when upstream moves to 18, and plan that upgrade as a migration",
+      "description": "Dawarich's Redis stays on the 8.2 line: its dumps are RDB 12, still readable by 7.4, while 8.10 writes RDB 15 and a revert then refuses to start until ./redis is emptied. Patches of 8.2 pass. Lift this in a dedicated PR, as a migration",
       "matchDatasources": [
         "docker"
       ],
@@ -236,6 +237,12 @@
         "lscr.io/linuxserver/qbittorrent"
       ],
       "allowedVersions": "<14"
+        "ansible/roles/dawarich/templates/compose.yaml"
+      ],
+      "matchPackageNames": [
+        "redis"
+      ],
+      "allowedVersions": "<8.3"
     },
     {
       "description": "Badger v1.8.0 fails Traefik's plugin integrity check (traefik/traefik#14115): Traefik disables the plugin, the badger@file middleware vanishes and every Pangolin router returns 404. Upstream says to stay on v1.7.0; drop this rule once Traefik fixes it",
