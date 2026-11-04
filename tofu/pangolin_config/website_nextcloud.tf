@@ -73,10 +73,21 @@ locals {
 #    - Thumbnails: /index.php/core/preview (and its .png form, some
 #      NextcloudKit calls), /index.php/apps/files/api/v1/thumbnail/*, and the
 #      trashbin and versions previews, same credentials.
-#    - /index.php/apps/cospend/api-priv/*: the Android Cospend client (its reads
+#    - /index.php/apps/cospend/api-priv/*: the Android Cospend client (Cospend 4.3.0) (its reads
 #      and writes of bills, read off the nginx log of Nextcloud), HTTP Basic with
 #      the app password. Behind the wall it gets a redirect and the app stops.
 #      Its own lists go through OCS, already opened.
+#    - /index.php/apps/cospend/api/ping (exact): the same client checks a login
+#      there when an account is added or entered again (MoneyBuster,
+#      CospendClientUtil.isValidLogin): behind the wall, the login page instead
+#      of JSON and the account is refused. Answers the user id.
+#      These routes are not #[PublicPage] (Cospend's OldApiController): the CORS
+#      middleware wants HTTP Basic, an app password under token_auth_enforced,
+#      401 otherwise. Only the OPTIONS preflight of api-priv answers without a
+#      login, CORS headers and no data. Cospend is a store app: the version in
+#      path_bypass_images.json does not follow it, re-read on its updates too.
+#      Its anonymous API (/index.php/apps/cospend/api/projects/<token>/<password>,
+#      a project joined by share link) stays behind the wall.
 #    - /.well-known/caldav, /.well-known/carddav: DAVx5 and Thunderbird
 #      discovery, a 301 to /remote.php/dav/ answered by nginx.
 #    Deliberately not opened: avatars (cosmetic in the apps), the Notes and
@@ -132,6 +143,7 @@ locals {
     "/index.php/apps/files_versions/preview"   = 4
     "/index.php/apps/files/api/v1/thumbnail/*" = 4
     "/index.php/apps/cospend/api-priv/*"       = 4
+    "/index.php/apps/cospend/api/ping"         = 4
     "/.well-known/caldav"                      = 4
     "/.well-known/carddav"                     = 4
   }
