@@ -1,0 +1,131 @@
+---
+# tasks/remove.yml, que le converge ne peut porter : un conteneur qui utilise
+# l'export bloque tout, puis le retrait réel, relancé à vide. L'entrée fstab tient
+# lieu de celle du rôle (le tmpfs du prepare reste monté). L'automount n'est pas
+# couvert : autofs demande un conteneur rootful, pas toujours disponible en
+# local. Le rôle est réappliqué à la fin pour verify.yml.
+- name: Exercise the removal of the NAS mount
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  vars:
+    nas_storage_manage_mount: false
+    nas_storage_fstype: tmpfs
+    molecule_fstab_line: molecule-nas /mnt/nas/apps tmpfs mode=0700 0 0
+  tasks:
+    - name: Declare the stand-in export in fstab
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "{{ molecule_fstab_line }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Build an empty image
+      become: true
+      ansible.builtin.shell: |  # noqa: command-instead-of-module
+        set -o pipefail
+        tar -cf - --files-from /dev/null | docker import - molecule-nas-empty
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Create a container that bind-mounts the export
+      become: true
+      ansible.builtin.command: docker create --name molecule-nas-user --volume /mnt/nas/apps/app:/data molecule-nas-empty /data
+      changed_when: true
+
+    - name: Try the removal with that container in place
+      block:
+        - name: Run the removal
+          ansible.builtin.import_role:
+            name: nas_storage
+            tasks_from: remove
+        - name: The removal should have been refused
+          ansible.builtin.set_fact:
+            molecule_not_refused: true
+      rescue:
+        - name: Note the refusal
+          ansible.builtin.set_fact:
+            molecule_refusal: "{{ ansible_failed_result.msg }}"
+
+    - name: Read the mount table after the refusal
+      ansible.builtin.command: findmnt --noheadings --raw --output TARGET
+      register: molecule_mounts_refused
+      changed_when: false
+
+    - name: Stat the wait script after the refusal
+      ansible.builtin.stat:
+        path: /usr/local/bin/nas-storage-wait
+      register: molecule_wait_refused
+
+    - name: Assert the refusal named the container and changed nothing
+      ansible.builtin.assert:
+        that:
+          - molecule_not_refused is not defined
+          - "'molecule-nas-user' in molecule_refusal"
+          - "'/mnt/nas/apps' in molecule_mounts_refused.stdout_lines"
+          - molecule_wait_refused.stat.exists
+
+    - name: Remove the container
+      become: true
+      ansible.builtin.command: docker rm molecule-nas-user
+      changed_when: true
+
+    - name: Run the removal for real
+      ansible.builtin.import_role:
+        name: nas_storage
+        tasks_from: remove
+
+    - name: Stat what the role installed
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /mnt/nas/apps
+        - /mnt/nas
+        - /usr/local/bin/nas-storage-wait
+        - /etc/systemd/system/nas-storage.slice
+        - /etc/systemd/system/docker.service.d/nas-storage.conf
+      register: molecule_removed
+
+    - name: Read the mount table after the removal
+      ansible.builtin.command: findmnt --noheadings --raw --output TARGET
+      register: molecule_mounts_removed
+      changed_when: false
+
+    - name: Read fstab after the removal
+      ansible.builtin.slurp:
+        src: /etc/fstab
+      register: molecule_fstab
+
+    - name: Read the installed NFS packages
+      ansible.builtin.command: dpkg-query --show --showformat=${db:Status-Abbrev}${Package}\n nfs-common rpcbind
+      register: molecule_nfs_packages
+      changed_when: false
+      failed_when: false
+
+    - name: Assert nothing is left
+      ansible.builtin.assert:
+        that:
+          - molecule_removed.results | selectattr('stat.exists') | list | length == 0
+          - "'/mnt/nas/apps' not in molecule_mounts_removed.stdout_lines"
+          - "'/mnt/nas/apps' not in (molecule_fstab.content | b64decode)"
+          - molecule_nfs_packages.stdout_lines | select('match', '^ii') | list | length == 0
+
+    - name: Run the removal again, on a clean host
+      ansible.builtin.import_role:
+        name: nas_storage
+        tasks_from: remove
+
+    - name: Mount the stand-in export again
+      become: true
+      ansible.builtin.shell: mkdir -p /mnt/nas/apps && mount -t tmpfs -o mode=0700 molecule-nas /mnt/nas/apps
+      changed_when: true
+
+    - name: Apply the role again for verify.yml
+      ansible.builtin.import_role:
+        name: nas_storage
