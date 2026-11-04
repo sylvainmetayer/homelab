@@ -4,6 +4,7 @@ côté de ansible/roles/update_notify/files/update_notify.py, puis
 python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
+import http.client
 import io
 import json
 import os
@@ -113,6 +114,27 @@ class PendingKernelTest(unittest.TestCase):
         boot = self.boot("vmlinuz-6.8.12-9-pve", "vmlinuz-7.0.0-1-amd64")
         self.assertIsNone(un.pending_kernel(boot, "6.8.12-9-pve"))
 
+    def test_cloud_and_generic_are_two_families(self):
+        for running, other in (
+            ("6.12.57+deb13-cloud-amd64", "6.12.63+deb13-amd64"),
+            ("6.12.57+deb13-amd64", "6.12.63+deb13-cloud-amd64"),
+            ("6.1.0-40-cloud-amd64", "6.1.0-41-amd64"),
+            ("6.1.0-40-amd64", "6.1.0-41-rt-amd64"),
+            ("6.12.47+rpt-rpi-2712", "6.12.62+rpt-rpi-v8"),
+        ):
+            with self.subTest(running=running):
+                self.assertIsNone(un.pending_kernel(self.boot("vmlinuz-" + running, "vmlinuz-" + other), running))
+
+    def test_newer_kernel_found_whatever_the_release_form(self):
+        for running, newer in (
+            ("6.12.57+deb13-cloud-amd64", "6.12.63+deb13-cloud-amd64"),
+            ("6.1.0-40-cloud-amd64", "6.1.0-41-cloud-amd64"),
+            ("6.12.47+rpt-rpi-2712", "6.12.62+rpt-rpi-2712"),
+            ("6.1.21-v8+", "6.1.77-v8+"),
+        ):
+            with self.subTest(running=running):
+                self.assertEqual(un.pending_kernel(self.boot("vmlinuz-" + running, "vmlinuz-" + newer), running), newer)
+
     def test_running_kernel_absent_from_boot_dir(self):
         self.assertIsNone(un.pending_kernel(self.boot(), "6.8.12-9-pve"))
 
@@ -215,9 +237,13 @@ class CheckAptTest(unittest.TestCase):
         self.assertIn("noyau 6.12.2-1-amd64 en attente", summary)
 
     def test_removal_alone_notifies(self):
-        # Son titre (« redémarrage en attente ») est trompeur : bug connu, pas figé ici.
         notification, _ = self.check("Remv old-package [1.0]\n")
+        self.assertEqual(notification["title"], "docker : 1 paquet(s) à retirer")
         self.assertIn("Retirés par dist-upgrade (1) :\n  old-package", notification["message"])
+
+    def test_removal_and_pending_kernel_both_in_the_title(self):
+        notification, _ = self.check("Remv old-package [1.0]\n", ["vmlinuz-6.12.2-1-amd64"])
+        self.assertEqual(notification["title"], "docker : redémarrage en attente, 1 paquet(s) à retirer")
 
     def test_failed_simulation_raises(self):
         failed = types.SimpleNamespace(returncode=100, stdout="", stderr="E: first\nE: last\n")
@@ -332,6 +358,23 @@ class MainTest(unittest.TestCase):
         ):
             self.assertFalse(un.push("http://kuma.invalid/api/push/jeton", "up", "ok"))
         self.assertNotIn("jeton", err.getvalue())
+
+    def test_malformed_push_url_is_a_failure_that_does_not_cite_it(self):
+        # Vrai urllib, rien ne part : l'URL est refusée avant toute connexion.
+        for url in ("kuma.invalid/api/push/jeton-du-moniteur", "http://kuma.invalid/api/push/jeton du moniteur"):
+            err = io.StringIO()
+            with self.subTest(url=url), redirect_stderr(err):
+                self.assertFalse(un.push(url, "up", "ok"))
+            self.assertNotIn("jeton", err.getvalue())
+
+    def test_push_http_error_is_a_failure(self):
+        err = io.StringIO()
+        with (
+            mock.patch.object(un.urllib.request, "urlopen", side_effect=http.client.IncompleteRead(b"")),
+            redirect_stderr(err),
+        ):
+            self.assertFalse(un.push("http://kuma.invalid/p", "up", "ok"))
+        self.assertIn("IncompleteRead", err.getvalue())
 
     def test_push_truncates_and_appends_to_an_existing_query(self):
         with mock.patch.object(un.urllib.request, "urlopen") as urlopen:
