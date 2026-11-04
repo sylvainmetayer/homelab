@@ -28,6 +28,10 @@ def completed(stdout="", returncode=0, stderr=""):
     return subprocess.CompletedProcess([], returncode, stdout, stderr)
 
 
+def argvs_of(run):
+    return [" ".join(call.args[0]) for call in run.call_args_list]
+
+
 class ParseConfTest(unittest.TestCase):
     def test_keeps_the_current_config_only(self):
         text = (
@@ -104,8 +108,6 @@ class Fixture(unittest.TestCase):
         self.addCleanup(patcher.stop)
         return patcher.start()
 
-    def argvs(self):
-        return [" ".join(call.args[0]) for call in self.run.call_args_list]
 
 
 class CheckTargetTest(Fixture):
@@ -210,13 +212,15 @@ class CheckLogTest(Fixture):
 
     def test_error_line(self):
         self.write_log("a.log", "ERROR: disque plein\nFinished Backup of VM 200\n")
+        archive = os.path.join(self.dir, "a.tar.zst")
         with self.assertRaisesRegex(vz.TestFailure, "signale une erreur .a.log."):
-            self.test.check_log("LXC", 200, os.path.join(self.dir, "a.tar.zst"))
+            self.test.check_log("LXC", 200, archive)
 
     def test_finished_for_another_guest(self):
         self.write_log("a.log", "Finished Backup of VM 100\n")
+        archive = os.path.join(self.dir, "a.tar.zst")
         with self.assertRaises(vz.TestFailure):
-            self.test.check_log("LXC", 200, os.path.join(self.dir, "a.tar.zst"))
+            self.test.check_log("LXC", 200, archive)
 
     def test_no_log_is_a_note_not_a_failure(self):
         self.test.check_log("LXC", 200, os.path.join(self.dir, "a.tar.zst"))
@@ -324,7 +328,7 @@ class RestoreTest(Fixture):
         with mock.patch.object(self.test, "guest_conf", return_value={**MARKED, "net0": "x"}):
             with self.assertRaisesRegex(vz.TestFailure, "interfaces réseau encore présentes"):
                 self.restore()
-        argvs = self.argvs()
+        argvs = argvs_of(self.run)
         self.assertTrue(argvs[0].startswith("pct restore 990 nas-backup:b "))
         self.assertIn("--net0 name=eth0,bridge=vmbr0,link_down=1", argvs[0])
         self.assertIn("--unique 1", argvs[0])
@@ -376,7 +380,7 @@ class DestroyTest(Fixture):
         self.run.side_effect = [completed(), completed("status: stopped\n"), completed()]
         self.test.destroy(990)
         self.assertEqual(
-            self.argvs(),
+            argvs_of(self.run),
             ["pct unmount 990", "pct status 990", "pct destroy 990 --purge 0 --destroy-unreferenced-disks 0"],
         )
 
@@ -385,7 +389,7 @@ class DestroyTest(Fixture):
         self.conf()
         self.run.side_effect = [completed(), completed("status: running\n"), completed(), completed()]
         self.test.destroy(990)
-        self.assertIn("pct stop 990", self.argvs())
+        self.assertIn("pct stop 990", argvs_of(self.run))
 
     def test_still_there_after_destroy(self):
         self.guests(990)
@@ -448,8 +452,10 @@ class CleanupAndExecuteTest(Fixture):
         self.assertEqual(order, ["destroy", "vm"])
 
     def test_sigterm_is_not_swallowed(self):
+        config = {"lxc": {"source": 200}, "vm": {"source": 100}}
+        lxc = {"side_effect": vz.Terminated("x")}
         with self.assertRaises(vz.Terminated):
-            self.execute({"lxc": {"source": 200}, "vm": {"source": 100}}, lxc={"side_effect": vz.Terminated("x")})
+            self.execute(config, lxc=lxc)
 
 
 class RunCommandTest(unittest.TestCase):

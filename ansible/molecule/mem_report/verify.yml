@@ -363,7 +363,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ mem_report_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Tailles, lecture du cgroup, écarts au compose, classement, coupe du message,
     # priorités ; le verify ci-dessus joue le script entier.

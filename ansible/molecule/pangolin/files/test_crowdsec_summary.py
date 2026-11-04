@@ -50,17 +50,20 @@ class CscliTest(unittest.TestCase):
                 self.assertEqual(self.cscli(completed(stdout))[0], [])
 
     def test_failure_cites_the_last_line_of_stderr(self):
+        result = completed(returncode=1, stderr="première\ndernière\n")
         with self.assertRaisesRegex(RuntimeError, "^dernière$"):
-            self.cscli(completed(returncode=1, stderr="première\ndernière\n"))
+            self.cscli(result)
 
     def test_failure_without_stderr(self):
+        result = completed(returncode=1)
         with self.assertRaisesRegex(RuntimeError, r"^\?$"):
-            self.cscli(completed(returncode=1))
+            self.cscli(result)
 
     def test_other_shapes_are_refused(self):
         for stdout in ('{"a": 1}', "[1]", "pas du json", '"texte"'):
+            result = completed(stdout)
             with self.subTest(stdout=stdout), self.assertRaises(ValueError):
-                self.cscli(completed(stdout))
+                self.cscli(result)
 
 
 class SummaryTest(unittest.TestCase):

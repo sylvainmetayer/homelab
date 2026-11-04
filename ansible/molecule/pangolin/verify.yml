@@ -591,7 +591,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ pangolin_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Comptes du résumé, pluriels, AppSec, réponses de cscli d'une autre forme. Sous
     # un autre nom : un tiret ne s'importe pas.

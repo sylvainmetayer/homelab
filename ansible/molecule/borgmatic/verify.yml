@@ -321,7 +321,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ borgmatic_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Les formes de --result-file et l'échappement du mot de passe. Sous /root, pas
     # /tmp, monté noexec : le faux docker doit s'y exécuter.

@@ -390,7 +390,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ papra_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Expéditeur autorisé, noms de fichier sûrs, pièces jointes, dépôt sans
     # écrasement, sort d'un message contre un faux IMAP ; le verify ci-dessus ne

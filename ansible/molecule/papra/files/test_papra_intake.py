@@ -482,8 +482,9 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual([c[0] for c in imap.commands], ["CREATE", "STATUS"])
 
     def test_neither_created_nor_there_stops_before_any_delivery(self):
+        imap = FakeImap(create_ok=False, status_ok=False)
         with self.assertRaisesRegex(RuntimeError, "STATUS Refuse"):
-            self.ensure(FakeImap(create_ok=False, status_ok=False))
+            self.ensure(imap)
 
     def test_server_delimiter(self):
         self.assertEqual(pi.server_delimiter(FakeImap(listing=b'(\\Noselect) "." ""')), ".")
