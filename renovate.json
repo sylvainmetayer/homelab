@@ -215,6 +215,19 @@
       "versioning": "regex:^ee-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
     },
     {
+      "description": "Dawarich's Redis stays on the 8.2 line: its dumps are RDB 12, still readable by 7.4, while 8.10 writes RDB 15 and a revert then refuses to start until ./redis is emptied. Patches of 8.2 pass. Lift this in a dedicated PR, as a migration",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "ansible/roles/dawarich/templates/compose.yaml"
+      ],
+      "matchPackageNames": [
+        "redis"
+      ],
+      "allowedVersions": "<8.3"
+    },
+    {
       "description": "Badger v1.8.0 fails Traefik's plugin integrity check (traefik/traefik#14115): Traefik disables the plugin, the badger@file middleware vanishes and every Pangolin router returns 404. Upstream says to stay on v1.7.0; drop this rule once Traefik fixes it",
       "matchDatasources": [
         "github-releases"
