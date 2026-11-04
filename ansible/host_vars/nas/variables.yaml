@@ -65,7 +65,8 @@ beszel_agent_extra_filesystems:
   - { path: /volume1, name: volume1 }
 
 # --- Copie de kDrive (rôle kdrive_sync, nas.yml) ---
-# Timer actif depuis la première copie, faite à la main et vérifiée le 04/11
+# Timer actif depuis la première copie, faite à la main et vérifiée le 04/11.
+# Sur une nouvelle installation, false jusqu'au premier passage
 # (docs/runbooks/kdrive-nas.md).
 kdrive_sync_timer_enabled: true
 # Hors copie : les films et séries (1,27 To au relevé du 16/10, ils porteraient

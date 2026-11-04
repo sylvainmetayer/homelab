@@ -15,3 +15,5 @@
     - role: kdrive_sync
       vars:
         kdrive_sync_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-kdrive # NOSONAR
+        # Timer actif (host_vars/nas) : il ne doit pas partir pendant le scénario.
+        kdrive_sync_schedule: "2099-01-01 00:00:00"

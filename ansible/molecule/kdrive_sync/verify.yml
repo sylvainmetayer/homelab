@@ -141,7 +141,7 @@
         kdrive_sync_verify_exec: "{{ kdrive_sync_verify_unit.status.ExecStart }}"
       ansible.builtin.assert:
         that:
-          # Coupé sur le NAS jusqu'au premier passage à la main (host_vars/nas).
+          # Valeur de host_vars/nas, que ce scénario lit (vars_files).
           - kdrive_sync_verify_timer.status.UnitFileState == ('enabled' if kdrive_sync_timer_enabled else 'disabled')
           - kdrive_sync_verify_timer.status.ActiveState == ('active' if kdrive_sync_timer_enabled else 'inactive')
           - kdrive_sync_verify_unit.status.ActiveState == 'inactive'

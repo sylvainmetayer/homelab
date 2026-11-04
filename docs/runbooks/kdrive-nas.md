@@ -63,13 +63,14 @@ part dans `versions/`.
    `kdrive_webdav_user` est l'e-mail de connexion du compte Infomaniak.
 5. **Moniteur** : `tofu apply` dans `tofu/pangolin_config` (crée « kDrive
    vers NAS » et la sortie `uptime_cron_kdrive_sync_url` que lit `nas.yml`).
-6. **Déploiement** : `ansible-playbook nas.yml --tags kdrive_sync`. Le rôle
-   refuse de déployer sans le dossier partagé ou les clés SOPS. Il ne lance
-   aucune copie et laisse le timer **coupé** (`kdrive_sync_timer_enabled:
-   false`, `host_vars/nas`) : la copie ne supprimant jamais rien, ce qu'un
-   premier passage automatique rapatrierait à tort (corbeille, dossier
-   inattendu) resterait sur le NAS. Faire d'abord le premier passage
-   ci-dessous.
+6. **Déploiement** : le dépôt porte `kdrive_sync_timer_enabled: true`
+   (`host_vars/nas`). Sur une nouvelle installation, le passer d'abord à
+   `false`, dans ce fichier : sinon le timer part dès le déploiement et la copie
+   de 04:00 échappe aux contrôles du premier passage ; ne supprimant jamais
+   rien, ce qu'elle rapatrierait à tort (corbeille, dossier inattendu) resterait
+   sur le NAS. Puis `ansible-playbook nas.yml --tags kdrive_sync`. Le rôle refuse
+   de déployer sans le dossier partagé ou les clés SOPS, et ne lance aucune
+   copie. Faire ensuite le premier passage ci-dessous.
 
 ## Premier passage
 
@@ -114,7 +115,7 @@ vide par défaut ; à régler (`kdrive_sync_bwlimit`, par exemple
 
 Une fois la première copie terminée et vérifiée (moniteur vert, `du -s --si
 /volume1/kdrive/miroir` proche de la taille du kDrive, exclusions déduites),
-activer les passages nocturnes : `kdrive_sync_timer_enabled: true` dans
+activer les passages nocturnes : remettre `kdrive_sync_timer_enabled: true` dans
 `host_vars/nas`, puis `ansible-playbook nas.yml --tags kdrive_sync`.
 
 Les dossiers `miroir/` et `versions/` sont à `sylvain`, en 0700 : seul ce
@@ -131,8 +132,11 @@ accès, volontairement.
   pour remonter loin). `find /volume1/kdrive/versions -path '*/<nom>'`.
 - Après un rançongiciel dans kDrive : `miroir/` porte les fichiers chiffrés,
   `versions/<passage>/` les originaux. Avant tout, désactiver le timer
-  (`systemctl disable --now kdrive-sync.timer`) pour figer la copie, et
-  préférer le retour arrière de kDrive (jusqu'à 3 mois) s'il suffit.
+  (`systemctl disable --now kdrive-sync.timer`) pour figer la copie, et passer
+  `kdrive_sync_timer_enabled: false` dans `host_vars/nas` tant qu'elle doit le
+  rester : le prochain `nas.yml` rallumerait le timer, et `Persistent` lancerait
+  aussitôt la copie manquée. Préférer le retour arrière de kDrive (jusqu'à
+  3 mois) s'il suffit.
 - Hors copie (`Videos/`, `Backups/Synology/tv/` et `movies/`, `.dtrash/`) :
   rien sur le NAS, ni miroir ni versions. Seul kDrive (corbeille, retour
   arrière) peut le rendre.
@@ -155,8 +159,8 @@ systemctl start --no-block kdrive-sync.service
 ```
 
 Une fois la copie terminée et vérifiée (comme au premier passage),
-`systemctl enable --now kdrive-sync.timer`. L'ancien miroir suit ensuite le
-ménage de `versions/`.
+`systemctl enable --now kdrive-sync.timer` (jusque-là, pas de `nas.yml` : il
+rallumerait le timer). L'ancien miroir suit ensuite le ménage de `versions/`.
 
 ## Ménage de `versions/`
 
