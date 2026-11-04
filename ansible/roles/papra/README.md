@@ -93,9 +93,15 @@ runs `files/papra_intake.py` (Python stdlib) as the container's user. It reads
 Nothing is ever deleted from the mailbox (IMAP `MOVE`, or `COPY` + `\Deleted`
 + `UID EXPUNGE` of that UID alone); both folders are created when missing,
 and a folder that can be neither created nor found stops the run before any
-attachment is written. A write error, or a move that fails after the
-attachments were written, leaves the message in place for the next run
-(attachments already written by that run would then be imported twice).
+attachment is written. A move that fails after the attachments were written
+leaves the message in place for the next run (those attachments would then be
+imported twice).
+
+A write error (disk full, NFS gone) leaves that message in place with nothing of
+it in the ingestion folder (what it already delivered is taken back, unless Papra
+already imported it), retried on the next pass. The following messages are still
+processed, and the unit ends failed. An IMAP error still stops the pass. Names
+are capped at 120 UTF-8 bytes before the extension, never cutting a character.
 
 The `From` header can be forged: the allow-list stops strays and spam, not a
 targeted sender. Keep the intake address to yourself.
@@ -105,12 +111,6 @@ identifier) and `papra_intake_imap_password` (an Infomaniak *application
 password*, not the account password). They land in `/etc/papra-intake.json`
 (`0600`, owned by the unit's user, `diff: false`), never on a command line.
 Logs: `journalctl -u papra-intake`.
-
-A write error (disk full, NFS gone) leaves that message in place with nothing of
-it in the ingestion folder (what it already delivered is taken back, unless Papra
-already imported it), retried on the next pass. The following messages are still
-processed, and the unit ends failed. An IMAP error still stops the pass. Names
-are capped at 120 UTF-8 bytes before the extension, never cutting a character.
 
 ### Enabling it
 

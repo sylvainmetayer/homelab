@@ -350,6 +350,23 @@ class DeliverTest(Directories):
             pi.deliver([("a.pdf", b"1"), ("x" * 300 + ".pdf", b"2")], self.dest, self.tmp)
         self.assertEqual(raised.exception.errno, errno.ENAMETOOLONG)
 
+    def test_failed_tmp_cleanup_loses_neither_the_name_nor_the_take_back(self):
+        real_unlink = pi.os.unlink
+
+        def unlink(path):
+            if os.path.basename(path).startswith(".intake-"):
+                raise OSError(errno.ESTALE, "Stale file handle")
+            real_unlink(path)
+
+        with mock.patch.object(pi.os, "unlink", side_effect=unlink):
+            self.assertEqual(pi.deliver([("a.pdf", b"1")], self.dest, self.tmp), ["a.pdf"])
+            with self.assertRaises(OSError) as raised:
+                pi.deliver([("b.pdf", b"1"), ("x" * 300 + ".pdf", b"2")], self.dest, self.tmp)
+        self.assertEqual(raised.exception.errno, errno.ENAMETOOLONG)
+        self.assertEqual(os.listdir(self.dest), ["a.pdf"])
+        pi.remove_stale_tmp(self.tmp)
+        self.assertEqual(os.listdir(self.tmp), [])
+
     def test_remove_stale_tmp_only_touches_its_own_files(self):
         for name in (".intake-reste", "autre"):
             with open(os.path.join(self.tmp, name), "wb"):

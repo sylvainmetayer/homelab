@@ -39,7 +39,9 @@ noyaux, puis le reste ; priorité haute dès que `S > 0`. Une ligne le dit
 quand `docker-ce` ou `containerd.io` attend (tous les conteneurs
 redémarreront ; pas pour `docker-ce-cli` ni les plugins). Aussi
 `<hôte> : redémarrage en attente` quand un noyau plus récent que celui qui
-tourne est installé. Rien n'est installé : `apt-get update` puis une
+tourne est installé, `<hôte> : K paquet(s) à retirer` quand dist-upgrade ne
+ferait que retirer des paquets (les deux, séparés d'une virgule, s'il y a les
+deux). Rien n'est installé : `apt-get update` puis une
 simulation (`apt-get -s dist-upgrade`). Tout à jour : pas de message, le
 moniteur reçoit « à jour ».
 
