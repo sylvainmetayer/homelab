@@ -48,10 +48,10 @@ class WindowTruncated(CheckError):
 
 def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
     """Corps de la réponse. Réessaie sur le réseau et les 5xx, jamais sur un 4xx."""
-    request = urllib.request.Request(url, data=data, headers=headers or {})  # NOSONAR
     attempts = [*delays, None]
     for delay in attempts:
         try:
+            request = urllib.request.Request(url, data=data, headers=headers or {})  # NOSONAR
             with urllib.request.urlopen(request, timeout=30) as response:  # NOSONAR
                 return response.read()
         except urllib.error.HTTPError as error:
@@ -61,8 +61,8 @@ def fetch(label, url, headers=None, data=None, delays=(), sleep=time.sleep):
                 raise CheckError(f"{label} : quota épuisé, retour à {reset}") from error
             if error.code < 500:
                 raise CheckError(f"{label} : {reason}") from error
-        except (OSError, http.client.HTTPException) as error:
-            # Une erreur d'urllib peut citer l'URL : sa classe seule.
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            # Une erreur d'urllib peut citer l'URL ou un en-tête, donc un jeton : sa classe seule.
             reason = type(error).__name__
         if delay is None:
             raise CheckError(f"{label} : {reason}")
@@ -220,13 +220,17 @@ class Checker:
         if not url:
             print("URL push vide (moniteur pas appliqué) : rien n'est poussé.", file=sys.stderr)
             return True
-        result = subprocess.run(  # NOSONAR
-            [self.config["uptime_push_bin"], "--strict", "--agent", "ci-key-audit", "-", status, clean(message, 250)],
-            input=f'url = "{url}"\n',
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        try:
+            result = subprocess.run(  # NOSONAR
+                [self.config["uptime_push_bin"], "--strict", "--agent", "ci-key-audit", "-", status, clean(message, 250)],
+                input=f'url = "{url}"\n',
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        except (OSError, ValueError) as error:
+            print(f"push {status} en échec ({type(error).__name__})", file=sys.stderr)
+            return False
         if result.returncode != 0:
             print(f"push {status} en échec (curl {result.returncode})", file=sys.stderr)
         return result.returncode == 0

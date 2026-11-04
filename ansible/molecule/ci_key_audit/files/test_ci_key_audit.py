@@ -4,6 +4,7 @@
 python3 -I -m unittest discover -s . -p 'test_*.py'
 """
 
+import http.client
 import io
 import json
 import os
@@ -522,6 +523,32 @@ class Fetch(unittest.TestCase):
                 audit.fetch("X", "http://secret.invalid/url", sleep=lambda _: None)
         self.assertNotIn("secret", str(caught.exception))
 
+    def test_malformed_url_is_a_check_error_that_never_quotes_it(self):
+        # Vrai urllib, rien ne part : l'URL est refusée avant toute connexion.
+        for url in ("secret.invalid/marqueur", "http://secret.invalid/marqueur avec espace"):
+            with self.subTest(url=url):
+                with self.assertRaises(audit.CheckError) as caught:
+                    audit.fetch("X", url, sleep=lambda _: None)
+                self.assertNotIn("marqueur", str(caught.exception))
+
+    def test_malformed_header_is_a_check_error_that_never_quotes_it(self):
+        # Vrai urllib : la valeur est refusée avant la connexion, et son erreur la cite.
+        with self.assertRaises(audit.CheckError) as caught:
+            audit.fetch("X", "http://x.invalid", headers={"Authorization": "marqueur\n"}, sleep=lambda _: None)
+        self.assertNotIn("marqueur", str(caught.exception))
+
+    def test_errors_of_the_exchange_show_their_class_only(self):
+        for error in (
+            ValueError("http://secret.invalid/marqueur"),
+            http.client.InvalidURL("http://secret.invalid/marqueur"),
+            http.client.IncompleteRead(b"marqueur"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch("urllib.request.urlopen", side_effect=error):
+                    with self.assertRaises(audit.CheckError) as caught:
+                        audit.fetch("X", "http://x.invalid", sleep=lambda _: None)
+                self.assertEqual(str(caught.exception), f"X : {type(error).__name__}")
+
 
 class Requests(unittest.TestCase):
     def test_logs_are_queried_with_the_reader_account(self):
@@ -556,6 +583,27 @@ class Requests(unittest.TestCase):
         checker = audit.Checker(CONFIG, SECRETS, NOW)
         with mock.patch("subprocess.run", return_value=mock.Mock(returncode=7)), mock.patch("sys.stderr", io.StringIO()):
             self.assertFalse(checker.push("up", "résumé"))
+
+    def test_push_that_cannot_start_is_false_and_shows_its_class_only(self):
+        checker = audit.Checker(CONFIG, SECRETS, NOW)
+        for error in (FileNotFoundError("/bin/uptime-push"), ValueError(SECRETS["push_url"])):
+            with self.subTest(error=type(error).__name__):
+                err = io.StringIO()
+                with mock.patch("subprocess.run", side_effect=error), mock.patch("sys.stderr", err):
+                    self.assertFalse(checker.push("up", "résumé"))
+                self.assertEqual(err.getvalue(), f"push up en échec ({type(error).__name__})\n")
+
+    def test_publish_turns_a_malformed_setting_into_a_check_error(self):
+        for config, secrets in (
+            ({"ntfy_url": "ntfy.invalid/marqueur"}, {}),
+            ({}, {"ntfy_token": "marqueur\n"}),
+        ):
+            with self.subTest(config=config):
+                checker = audit.Checker(dict(CONFIG, **config), dict(SECRETS, **secrets), NOW)
+                with self.assertRaises(audit.CheckError) as caught:
+                    checker.publish("titre", "texte", 5)
+                self.assertTrue(str(caught.exception).startswith("ntfy : "))
+                self.assertNotIn("marqueur", str(caught.exception))
 
 
 class Helpers(unittest.TestCase):
