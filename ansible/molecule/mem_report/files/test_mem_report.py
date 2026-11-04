@@ -13,7 +13,6 @@ import subprocess
 import tempfile
 import unittest
 import urllib.request
-import urllib.response
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -29,15 +28,11 @@ ID_B = "b" * 64
 
 def answering_302(seen):
     """Vrai urllib, sans réseau : tout répond 302 vers /arrivee, qui répond 200."""
-
     def http_open(_handler, request):
         seen.append((request.full_url, request.get_header("Authorization")))
         headers = http.client.parse_headers(io.BytesIO(b"Location: /arrivee\r\n\r\n"))
         code = 200 if request.full_url.endswith("/arrivee") else 302
-        response = urllib.response.addinfourl(io.BytesIO(), headers, request.full_url, code)
-        response.msg = "x"
-        return response
-
+        return mock.MagicMock(code=code, msg="x", info=lambda: headers)
     return mock.patch.object(urllib.request.HTTPHandler, "http_open", http_open)
 
 
