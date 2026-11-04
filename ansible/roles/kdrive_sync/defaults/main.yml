@@ -64,8 +64,8 @@ kdrive_sync_bwlimit: ""
 # Après les sauvegardes des autres hôtes (01:00) et celle du NAS (02:30),
 # avant la vérification des certificats (07:00) et le test de restauration.
 kdrive_sync_schedule: "*-*-* 04:00:00"
-# Timer actif. Le NAS le coupe (host_vars/nas) jusqu'au premier passage à la
-# main, après vérification de ce que WebDAV expose (runbook).
+# Timer actif. Une nouvelle installation le coupe (host_vars) jusqu'au premier
+# passage à la main, après vérification de ce que WebDAV expose (runbook).
 kdrive_sync_timer_enabled: true
 # La première copie prend des heures : bornée sous la journée, pour que le
 # timer du lendemain reparte. Une copie interrompue reprend là où elle en
