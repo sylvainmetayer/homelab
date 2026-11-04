@@ -65,10 +65,9 @@ beszel_agent_extra_filesystems:
   - { path: /volume1, name: volume1 }
 
 # --- Copie de kDrive (rôle kdrive_sync, nas.yml) ---
-# Timer coupé jusqu'au premier passage à la main (--dry-run puis copie,
-# docs/runbooks/kdrive-nas.md) : ensuite, passer à true et relancer
-# nas.yml --tags kdrive_sync.
-kdrive_sync_timer_enabled: false
+# Timer actif depuis la première copie, faite à la main et vérifiée le 04/11
+# (docs/runbooks/kdrive-nas.md).
+kdrive_sync_timer_enabled: true
 # Hors copie : les films et séries (1,27 To au relevé du 16/10, ils porteraient
 # le volume vers 90 %) et les corbeilles digiKam, qu'un miroir sans suppression
 # garderait même une fois vidées. Ces films n'ont donc pas de copie ici ;
