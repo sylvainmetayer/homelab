@@ -5,16 +5,54 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
 import http.client
+import http.server
 import io
 import json
 import os
 import tempfile
+import threading
 import types
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from unittest import mock
 
 import update_notify as un
+
+
+@contextmanager
+def redirecting_server(code=302, body=b""):
+    """Vrai serveur local : tout redirige vers /arrivee, qui répond 200.
+
+    Rend sa base et les requêtes reçues (chemin, en-tête Authorization).
+    """
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def answer(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            seen.append((self.path, self.headers.get("Authorization")))
+            landing = self.path == "/arrivee"
+            self.send_response(200 if landing else code)
+            if not landing:
+                self.send_header("Location", "/arrivee")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = do_POST = answer
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 # Sortie de `apt-get -s dist-upgrade`, formes vues sur Debian et Proxmox.
 SIMULATION = """\
@@ -335,32 +373,38 @@ class MainTest(unittest.TestCase):
     def test_publish_error_does_not_cite_the_request(self):
         error = OSError("http://ntfy.invalid/secret-path")
         with (
-            mock.patch.object(un.urllib.request, "urlopen", side_effect=error),
+            mock.patch.object(un._OPENER, "open", side_effect=error),
             self.assertRaises(un.CheckError) as raised,
         ):
             un.publish("http://ntfy.invalid", "t", "jeton", {"title": "x"})
         self.assertNotIn("secret-path", str(raised.exception))
 
     def test_publish_failure_outside_oserror_is_a_check_error_that_cites_nothing(self):
-        real_urlopen = un.urllib.request.urlopen
+        real_open = un._OPENER.open
         for url, token, side_effect in (
-            ("ntfy.invalid", "jeton", real_urlopen),  # refusée dès la requête
-            ("http://ntfy.invalid", "jeton\nmultiligne", real_urlopen),  # http.client cite l'en-tête
+            ("ntfy.invalid", "jeton", real_open),  # refusée dès la requête
+            ("http://ntfy.invalid", "jeton\nmultiligne", real_open),  # http.client cite l'en-tête
             ("http://ntfy.invalid", "jeton", http.client.IncompleteRead(b"")),
         ):
             with (
                 self.subTest(url=url, token=token),
-                mock.patch.object(un.urllib.request, "urlopen", side_effect=side_effect),
+                mock.patch.object(un._OPENER, "open", side_effect=side_effect),
                 self.assertRaises(un.CheckError) as raised,
             ):
                 un.publish(url, "t", token, {"title": "x"})
             self.assertNotIn("jeton", str(raised.exception))
 
+    def test_publish_redirect_is_a_check_error_and_nothing_reaches_the_target(self):
+        with redirecting_server() as (base, seen), self.assertRaises(un.CheckError) as raised:
+            un.publish(base, "t", "jeton", {"title": "x"})
+        self.assertEqual(str(raised.exception), "publication ntfy en échec : HTTPError")
+        self.assertEqual(seen, [("/", "Bearer jeton")])
+
     def test_publish_sends_the_topic_in_the_body(self):
         response = mock.MagicMock()
-        with mock.patch.object(un.urllib.request, "urlopen", return_value=response) as urlopen:
+        with mock.patch.object(un._OPENER, "open", return_value=response) as opened:
             un.publish("http://ntfy.invalid/", "t", "jeton", {"title": "x"})
-        request = urlopen.call_args.args[0]
+        request = opened.call_args.args[0]
         self.assertEqual(request.full_url, "http://ntfy.invalid/")
         self.assertEqual(json.loads(request.data), {"title": "x", "topic": "t"})
         self.assertEqual(request.get_header("Authorization"), "Bearer jeton")

@@ -5,13 +5,16 @@ python3 -I -m unittest discover -s . -p 'test_*.py'
 """
 
 import http.client
+import http.server
 import io
 import json
 import os
 import sys
 import tempfile
+import threading
 import unittest
 import urllib.error
+from contextlib import contextmanager
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +50,42 @@ CONFIG = {
 SECRETS = {"vl_password": "faux", "ntfy_token": "faux", "push_url": "http://kuma.invalid/api/push/faux"}
 
 
+@contextmanager
+def redirecting_server(code=302, body=b""):
+    """Vrai serveur local : tout redirige vers /arrivee, qui répond 200.
+
+    Rend sa base et les requêtes reçues (chemin, en-tête Authorization).
+    """
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def answer(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            seen.append((self.path, self.headers.get("Authorization")))
+            landing = self.path == "/arrivee"
+            self.send_response(200 if landing else code)
+            if not landing:
+                self.send_header("Location", "/arrivee")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = do_POST = answer
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
 def line(moment, host="docker", fingerprint=CI_FP, prefix="clé connue : "):
     message = f"{prefix}sylvain@{host} depuis 192.0.2.7, clé github-actions (ssh-ed25519 {fingerprint})"
     return {"_time": audit.rfc3339(moment).replace("Z", ".123456789Z"), "host": host, "_msg": message}
@@ -78,6 +117,7 @@ class FakeChecker(audit.Checker):
         self.fail_publish = False
         self.fail_github = False
         self.fail_jobs = False
+        self.jobs_reply = None
 
     def logs_query(self, query, start, limit=None):
         if query.startswith("identifier"):
@@ -92,6 +132,8 @@ class FakeChecker(audit.Checker):
         if path.endswith("/jobs"):
             if self.fail_jobs:
                 raise audit.CheckError("GitHub : quota épuisé")
+            if self.jobs_reply is not None:
+                return self.jobs_reply
             run_id = int(path.split("/runs/")[1].split("/")[0])
             steps = [{"name": f"Deploy {h}", "conclusion": c} for h, c in self.steps.get(run_id, {}).items()]
             return {"jobs": [{"steps": steps}]}
@@ -475,6 +517,29 @@ class HookGaps(unittest.TestCase):
         self.assertEqual(len([path for path in checker.github_calls if path.endswith("/jobs")]), audit.MAX_JOB_CHECKS)
 
 
+class JobsReply(unittest.TestCase):
+    """Un 200 sans jobs lisibles : contrôle incomplet, jamais un KeyError qui arrête le passage."""
+
+    REPLIES = (
+        {},
+        {"message": "x"},
+        {"jobs": None},
+        {"jobs": 3},
+        {"jobs": ["x"]},
+        {"jobs": [{"steps": None}]},
+        {"jobs": [{"steps": ["x"]}]},
+        [],
+    )
+
+    def test_any_unreadable_reply_is_a_check_error(self):
+        for reply in self.REPLIES:
+            with self.subTest(reply=reply):
+                checker = FakeChecker()
+                checker.jobs_reply = reply
+                with self.assertRaisesRegex(audit.CheckError, "^GitHub : réponse sans jobs lisibles$"):
+                    checker.deployed_hosts(run(NOW - 900, NOW - 800))
+
+
 class Response(io.BytesIO):
     def __enter__(self):
         return self
@@ -553,13 +618,49 @@ class Fetch(unittest.TestCase):
                 self.assertEqual((opened.call_count, sleeps), (1, []))
 
 
+class Redirects(unittest.TestCase):
+    """Vrai urllib contre un vrai serveur local : un mock ne verrait pas le suivi."""
+
+    def test_ntfy_redirect_is_an_error_that_sends_nothing_to_the_target(self):
+        with redirecting_server() as (base, seen):
+            checker = audit.Checker(dict(CONFIG, ntfy_url=base), SECRETS, NOW)
+            with self.assertRaises(audit.CheckError) as caught:
+                checker.publish("titre", "texte", 5)
+        self.assertEqual(str(caught.exception), "ntfy : HTTP 302")
+        self.assertEqual(seen, [("/", "Bearer faux")])
+
+    def test_blocked_alert_is_not_taken_for_delivered(self):
+        # Le 200 de la page d'arrivée comptait comme alerte livrée : plus jamais revue.
+        with redirecting_server() as (base, _):
+            checker = FakeChecker(lines=[line(NOW - 1000)], config={"ntfy_url": base})
+            checker.publish = lambda *args: audit.Checker.publish(checker, *args)
+            state, _, published, errors = tick(checker)
+        self.assertEqual(len(published), 1)
+        self.assertEqual(errors, ["ntfy : HTTP 302"])
+        self.assertEqual(state["seen"], {})
+
+    def test_logs_redirect_keeps_the_password_home(self):
+        with redirecting_server() as (base, seen):
+            checker = audit.Checker(dict(CONFIG, vl_url=base), SECRETS, NOW)
+            with self.assertRaises(audit.CheckError) as caught:
+                checker.fresh_hosts()
+        self.assertEqual(str(caught.exception), "VictoriaLogs : HTTP 302")
+        self.assertEqual([path for path, _ in seen], ["/select/logsql/query"])
+
+    def test_github_still_follows_a_legitimate_301_and_sends_no_token(self):
+        with redirecting_server(301, b'{"ok": true}') as (base, seen):
+            checker = audit.Checker(dict(CONFIG, github_api=base), SECRETS, NOW)
+            self.assertEqual(checker.github("/"), {"ok": True})
+        self.assertEqual(seen, [("/", None), ("/arrivee", None)])
+
+
 class Requests(unittest.TestCase):
     def test_logs_are_queried_with_the_reader_account(self):
         checker = audit.Checker(CONFIG, {"vl_password": "faux"}, NOW)
         reply = Response(b'{"_time":"2027-01-15T08:00:00Z","host":"docker","_msg":"x"}\n')
-        with mock.patch("urllib.request.urlopen", return_value=reply) as urlopen:
+        with mock.patch.object(audit._OPENER, "open", return_value=reply) as opened:
             lines = checker.login_lines(NOW - 3600)
-        request = urlopen.call_args.args[0]
+        request = opened.call_args.args[0]
         self.assertEqual(lines[0]["host"], "docker")
         self.assertEqual(request.full_url, "http://logs.invalid/select/logsql/query")
         self.assertTrue(request.get_header("Authorization").startswith("Basic "))
@@ -667,6 +768,25 @@ class Main(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual([status for status, _ in checker.pushed], ["up"])
         self.assertEqual(saved["cursor"], NOW)
+
+    def jobs_without_jobs(self, lines=()):
+        checker = FakeChecker(lines=lines, runs=[run(NOW - 900, NOW - 800, run_id=7)])
+        checker.jobs_reply = {"message": "x"}
+        return checker, self.launch(checker, {"cursor": NOW - 3600, "installed_at": NOW - 86400})
+
+    def test_reply_without_jobs_pushes_no_up_and_freezes_the_cursor(self):
+        checker, (code, saved) = self.jobs_without_jobs()
+        self.assertEqual(code, 1)
+        self.assertEqual(checker.pushed, [])
+        self.assertEqual(saved["cursor"], NOW - 3600)
+        self.assertEqual(saved["checked_runs"], {})
+
+    def test_reply_without_jobs_does_not_stop_the_alert(self):
+        checker, (code, saved) = self.jobs_without_jobs([line(NOW - 2000)])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(checker.published), 1)
+        self.assertEqual([status for status, _ in checker.pushed], ["down"])
+        self.assertEqual(len(saved["seen"]), 1)
 
     def test_anomaly_pushes_down_with_the_alert_then_up_on_the_next_tick(self):
         checker = FakeChecker(lines=[line(NOW - 1000)])

@@ -441,6 +441,16 @@ def build_report(host, measures, missing, args, drifts, unread, compared):
     return {"title": title, "message": message, "priority": priority, "tags": tags}, full
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : urllib renverrait le jeton (Authorization) à la
+# cible, et le 200 de sa page d'arrivée compterait comme une publication réussie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def publish(url, topic, token, report):
     payload = dict(report, topic=topic)
     request = urllib.request.Request(  # NOSONAR
@@ -451,7 +461,7 @@ def publish(url, topic, token, report):
     )
     # URL posée par l'ExecStart de l'unité (Ansible), pas une entrée
     # extérieure : la règle SSRF de Sonar ne s'applique pas.
-    with urllib.request.urlopen(request, timeout=30) as response:  # NOSONAR
+    with _OPENER.open(request, timeout=30) as response:  # NOSONAR
         response.read()
 
 
