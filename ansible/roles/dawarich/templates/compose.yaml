@@ -78,17 +78,17 @@ services:
     container_name: dawarich-app
     # L'entrypoint démarre en root, donne tmp et db à PUID:PGID puis passe à ce
     # compte (gosu) : le processus de l'appli n'a plus aucune capacité. CHOWN :
-    # le `chown -R`. DAC_READ_SEARCH : ce chown traverse tmp/imports/watched,
-    # 0700 de l'utilisateur de déploiement, et un échec arrête l'entrypoint
-    # (set -e). SETUID, SETGID : gosu. Sans DAC_OVERRIDE, un `docker exec` root
-    # n'écrit plus dans les montages : passer `-u` avec l'uid de PUID.
+    # le `chown -R`. DAC_OVERRIDE : ce chown traverse tmp/imports/watched, 0700
+    # de l'utilisateur de déploiement, et un échec arrête l'entrypoint (set -e) ;
+    # pas DAC_READ_SEARCH, hors du jeu par défaut de Docker
+    # (docs/conventions/container-hardening.md). SETUID, SETGID : gosu.
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
       - CHOWN
-      - DAC_READ_SEARCH
+      - DAC_OVERRIDE
       - SETUID
       - SETGID
     restart: unless-stopped

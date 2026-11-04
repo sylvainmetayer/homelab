@@ -8,9 +8,10 @@ services:
     container_name: rss
     # Apache maître, cron et le filtre du journal d'accès restent root ; les
     # workers et l'actualisation passent à www-data, sans aucune capacité.
-    # CHOWN, FOWNER, DAC_READ_SEARCH : `chown -R :www-data` et `chmod -R` de
-    # data/ par l'entrypoint, à travers les fichiers et les dossiers 0770 de
-    # www-data. SETUID, SETGID : workers d'Apache, `su www-data` du cron ; sans
+    # CHOWN, FOWNER, DAC_OVERRIDE : `chown -R :www-data` et `chmod -R` de data/
+    # par l'entrypoint, à travers les fichiers et les dossiers 0770 de www-data
+    # (pas DAC_READ_SEARCH, hors du jeu par défaut de Docker : voir
+    # docs/conventions/container-hardening.md). SETUID, SETGID : workers d'Apache, `su www-data` du cron ; sans
     # SETGID, Apache garde ses workers en root sans rien dire. KILL : signaux
     # d'Apache à ses workers, sinon l'arrêt traîne jusqu'au SIGKILL. Pas de
     # NET_BIND_SERVICE : Docker ouvre le port 80 à tous sur un réseau bridge
@@ -21,7 +22,7 @@ services:
       - ALL
     cap_add:
       - CHOWN
-      - DAC_READ_SEARCH
+      - DAC_OVERRIDE
       - FOWNER
       - KILL
       - SETGID
