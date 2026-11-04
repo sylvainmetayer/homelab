@@ -76,8 +76,21 @@ services:
     stop_grace_period: 60s
     image: freikin/dawarich:1.19.0@sha256:d9385242202ae385a5d8064f41a59a0b58218399e60e7e499d2a6afb449bc304
     container_name: dawarich-app
+    # L'entrypoint démarre en root, donne tmp et db à PUID:PGID puis passe à ce
+    # compte (gosu) : le processus de l'appli n'a plus aucune capacité. CHOWN :
+    # le `chown -R`. DAC_READ_SEARCH : ce chown traverse tmp/imports/watched,
+    # 0700 de l'utilisateur de déploiement, et un échec arrête l'entrypoint
+    # (set -e). SETUID, SETGID : gosu. Sans DAC_OVERRIDE, un `docker exec` root
+    # n'écrit plus dans les montages : passer `-u` avec l'uid de PUID.
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_READ_SEARCH
+      - SETUID
+      - SETGID
     restart: unless-stopped
     stdin_open: true
     tty: true
