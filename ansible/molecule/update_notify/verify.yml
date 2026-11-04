@@ -266,7 +266,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ update_notify_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Lecture de la simulation apt, noyau en attente, coupe du message à la limite
     # de ntfy, codes de sortie ; le verify ci-dessus joue le script entier.

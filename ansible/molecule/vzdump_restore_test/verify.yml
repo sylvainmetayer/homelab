@@ -297,7 +297,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ vzdump_restore_test_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Les garde-fous cas par cas : id cible, copie hors ligne, destruction, chemins
     # du rootfs ; le verify ci-dessus joue le déroulé contre le faux Proxmox.

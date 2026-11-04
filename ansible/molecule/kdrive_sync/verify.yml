@@ -244,7 +244,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ kdrive_sync_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Statistiques de rclone, dernière erreur, SIGTERM, statut poussé, URL jamais
     # citée ; le verify ci-dessus joue le script par l'unité.

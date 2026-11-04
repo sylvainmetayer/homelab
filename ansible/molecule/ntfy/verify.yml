@@ -525,7 +525,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ ntfy_unit_tests_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # La lecture des relevés et l'URL push sur l'entrée standard. Sous /root, pas
     # /tmp, monté noexec : les faux docker et uptime-push doivent s'y exécuter.
