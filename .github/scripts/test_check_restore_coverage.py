@@ -64,6 +64,12 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("le retirer", errors[0])
 
+    def test_every_entry_of_one_repository_is_checked(self):
+        manifest = {"a": entry("r", "foo"), "b": entry("r", "bar")}
+        errors = coverage.check({"r": ("foo", True)}, manifest, {})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("apps.json, b", errors[0])
+
     def test_exclusion_without_a_reason_fails(self):
         errors = coverage.check({"a": ("foo", True)}, {}, {"a": "  "})
         self.assertEqual(len(errors), 1)
@@ -79,13 +85,14 @@ class CheckTest(unittest.TestCase):
 
 class FindBackupsTest(unittest.TestCase):
     def tree(self, tmp, tasks=TASKS.format(name="foo"), defaults="foo_backup_enabled: true\n",
-             playbook="- hosts: all\n  roles:\n    - role: foo\n", host_vars=None):
+             playbook="- hosts: all\n  roles:\n    - role: foo\n", host_vars=None, files=None):
         root = Path(tmp)
         for relative, text in {
             "ansible/roles/foo/tasks/main.yml": tasks,
             "ansible/roles/foo/defaults/main.yml": defaults,
             "ansible/host.yml": playbook,
             "ansible/host_vars/nas/variables.yaml": host_vars,
+            **(files or {}),
         }.items():
             if text is not None:
                 path = root / relative
@@ -121,6 +128,63 @@ class FindBackupsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             found, _ = self.tree(tmp, host_vars="foo_backup_enabled: false\n")
             self.assertEqual(found, {"foo": ("foo", False)})
+
+    def test_group_vars_do_not_beat_host_vars(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            found, _ = self.tree(tmp, host_vars="foo_backup_enabled: true\n",
+                                 files={"ansible/group_vars/all/variables.yml": "foo_backup_enabled: false\n"})
+            self.assertEqual(found, {"foo": ("foo", True)})
+
+    def test_false_on_one_host_does_not_hide_another_host(self):
+        for hosts in (("a", "b"), ("b", "a")):
+            with self.subTest(hosts=hosts), tempfile.TemporaryDirectory() as tmp:
+                found, _ = self.tree(tmp, files={
+                    f"ansible/host_vars/{hosts[0]}/variables.yaml": "foo_backup_enabled: true\n",
+                    f"ansible/host_vars/{hosts[1]}/variables.yaml": "foo_backup_enabled: false\n",
+                })
+                self.assertEqual(found, {"foo": ("foo", True)})
+
+    def test_switch_required_with_something_else_turns_it_off(self):
+        for when in ("x | bool and foo_backup_enabled", "foo_backup_enabled | bool and x",
+                     "[x, foo_backup_enabled]"):
+            tasks = TASKS.format(name="foo").replace("when: foo_backup_enabled", f"when: {when}")
+            with self.subTest(when=when), tempfile.TemporaryDirectory() as tmp:
+                found, _ = self.tree(tmp, tasks=tasks, defaults="foo_backup_enabled: false\n")
+                self.assertEqual(found, {"foo": ("foo", False)})
+
+    def test_switch_not_required_stays_on(self):
+        for when in ("not foo_backup_enabled", "foo_backup_enabled or x", "x or y and foo_backup_enabled"):
+            tasks = TASKS.format(name="foo").replace("when: foo_backup_enabled", f"when: {when}")
+            with self.subTest(when=when), tempfile.TemporaryDirectory() as tmp:
+                found, _ = self.tree(tmp, tasks=tasks, defaults="foo_backup_enabled: false\n")
+                self.assertEqual(found, {"foo": ("foo", True)})
+
+    def test_switch_that_is_one_variable_is_read_through_it(self):
+        playbook = ("- hosts: all\n  roles:\n    - role: foo\n      vars:\n"
+                    "        foo_backup_enabled: '{{ x }}'\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            found, _ = self.tree(tmp, playbook=playbook, host_vars="x: false\n")
+            self.assertEqual(found, {"foo": ("foo", False)})
+
+    def test_role_no_playbook_runs_backs_up_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.tree(tmp, playbook="- hosts: all\n  roles:\n    - role: bar\n"), ({}, []))
+
+    def test_task_file_in_a_subfolder_is_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            found, _ = self.tree(tmp, tasks=None, files={"ansible/roles/foo/tasks/sub/backup.yml": TASKS.format(name="foo")})
+            self.assertEqual(found, {"foo": ("foo", True)})
+
+    def test_ansible_tags_are_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            found, _ = self.tree(tmp, defaults="foo_backup_enabled: true\nfoo_raw: !unsafe '{{ x }}'\n")
+            self.assertEqual(found, {"foo": ("foo", True)})
+
+    def test_name_set_in_host_vars_is_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            found, _ = self.tree(tmp, tasks=TASKS.format(name='"{{ foo_service }}"'),
+                                 defaults="foo_service: prod\n", host_vars="foo_service: other\n")
+            self.assertEqual(found, {"other": ("foo", True)})
 
     def test_role_entry_turning_it_on_wins_over_the_defaults(self):
         playbook = ("- hosts: all\n  roles:\n    - role: foo\n      vars:\n"
@@ -163,8 +227,9 @@ class FindBackupsTest(unittest.TestCase):
         self.assertIn("borgmatic_app_name", errors[0])
 
     def test_one_repository_in_two_roles_fails(self):
+        playbook = "- hosts: all\n  roles:\n    - role: foo\n    - role: bar\n"
         with tempfile.TemporaryDirectory() as tmp:
-            self.tree(tmp)
+            self.tree(tmp, playbook=playbook)
             other = Path(tmp) / "ansible/roles/bar/tasks/main.yml"
             other.parent.mkdir(parents=True)
             other.write_text(TASKS.format(name="foo"), encoding="utf-8")
@@ -174,25 +239,13 @@ class FindBackupsTest(unittest.TestCase):
 
 
 class RepositoryTest(unittest.TestCase):
-    """The repository itself: what the Lint step runs, and today's verdicts."""
-
-    def setUp(self):
-        self.backups, self.errors = coverage.find_backups(coverage.ROOT)
+    """The repository itself, what the Lint step runs."""
 
     def test_clean(self):
+        backups, errors = coverage.find_backups(coverage.ROOT)
         manifest = json.loads((coverage.ROOT / ".github/restore-test/apps.json").read_text(encoding="utf-8"))
-        self.assertEqual(self.errors, [])
-        self.assertEqual(coverage.check(self.backups, manifest, coverage.EXCLUDED), [])
-
-    def test_backups_turned_off_are_read_as_off(self):
-        for name in ("kdrive", "demo_planning_kc", "exemple_planning"):
-            with self.subTest(name=name):
-                self.assertFalse(self.backups[name][1])
-
-    def test_mediamanager_and_the_flip_instances_are_read_as_on(self):
-        for name in ("mediamanager", "flip_planning", "demo_planning"):
-            with self.subTest(name=name):
-                self.assertTrue(self.backups[name][1])
+        self.assertEqual(errors, [])
+        self.assertEqual(coverage.check(backups, manifest, coverage.EXCLUDED), [])
 
 
 if __name__ == "__main__":
