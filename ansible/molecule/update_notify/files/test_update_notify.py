@@ -74,6 +74,18 @@ class ParseSimulationTest(unittest.TestCase):
         self.assertEqual(un.parse_simulation("0 upgraded, 0 newly installed.\n"), ([], [], [], []))
 
 
+class RunTest(unittest.TestCase):
+    def test_apt_speaks_c_and_never_asks(self):
+        # La lecture de la simulation repose sur la sortie anglaise d'apt-get.
+        with (
+            mock.patch.dict(os.environ, {"LC_ALL": "fr_FR.UTF-8"}),
+            mock.patch.object(un.subprocess, "run") as run,
+        ):
+            un.run(["apt-get", "update"])
+        env = run.call_args.kwargs["env"]
+        self.assertEqual((env["LC_ALL"], env["DEBIAN_FRONTEND"]), ("C", "noninteractive"))
+
+
 class VersionKeyTest(unittest.TestCase):
     def test_numeric_not_lexical(self):
         self.assertGreater(un.version_key("6.8.12-10-pve"), un.version_key("6.8.12-9-pve"))
@@ -202,6 +214,11 @@ class CheckAptTest(unittest.TestCase):
         self.assertIn("Noyau 6.12.2-1-amd64 installé, 6.12.1-1-amd64 en service", notification["message"])
         self.assertIn("noyau 6.12.2-1-amd64 en attente", summary)
 
+    def test_removal_alone_notifies(self):
+        # Son titre (« redémarrage en attente ») est trompeur : bug connu, pas figé ici.
+        notification, _ = self.check("Remv old-package [1.0]\n")
+        self.assertIn("Retirés par dist-upgrade (1) :\n  old-package", notification["message"])
+
     def test_failed_simulation_raises(self):
         failed = types.SimpleNamespace(returncode=100, stdout="", stderr="E: first\nE: last\n")
         args = types.SimpleNamespace(host="docker", retry_delay=0, boot_dir="/nonexistent")
@@ -211,6 +228,23 @@ class CheckAptTest(unittest.TestCase):
             self.assertRaisesRegex(un.CheckError, "simulation de dist-upgrade en échec : E: last"),
         ):
             un.check_apt(args)
+
+
+class AptTailTest(unittest.TestCase):
+    def tail(self, result):
+        with (
+            mock.patch.object(un.shutil, "which", return_value="/usr/bin/pveversion"),
+            mock.patch.object(un, "run", return_value=result),
+        ):
+            return un.apt_tail(None, "6.8.12-9-pve", False)
+
+    def test_first_line_of_pveversion_before_the_runbook(self):
+        result = types.SimpleNamespace(returncode=0, stdout="pve-manager/9.2\nautre\n", stderr="")
+        self.assertEqual(self.tail(result), ["pve-manager/9.2", f"À appliquer à la main : {un.RUNBOOK}"])
+
+    def test_failed_pveversion_is_left_out(self):
+        result = types.SimpleNamespace(returncode=1, stdout="pve-manager/9.2\n", stderr="")
+        self.assertEqual(self.tail(result), [f"À appliquer à la main : {un.RUNBOOK}"])
 
 
 class AptUpdateTest(unittest.TestCase):

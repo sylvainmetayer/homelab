@@ -6,6 +6,7 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 
 import argparse
 import datetime
+import http.client
 import io
 import os
 import subprocess
@@ -133,8 +134,8 @@ class CgroupFilesTest(unittest.TestCase):
             (path / name.replace("_", ".")).write_text(value + "\n")
         return path
 
-    def run_measure(self, scope, declared, container_id=ID_A):
-        containers = [(container_id, "app", 3, "2026-11-03T12:00:00Z", "/c.yaml", "svc")]
+    def run_measure(self, scope, declared):
+        containers = [(ID_A, "app", 3, "2026-11-03T12:00:00Z", "/c.yaml", "svc")]
         return mr.measure(containers, {ID_A: scope}, NOW, declared)
 
     def test_measure_reads_the_cgroup(self):
@@ -440,29 +441,52 @@ class DockerCallsTest(unittest.TestCase):
 
     def test_read_declared_unreadable_compose_does_not_cite_the_error(self):
         containers = [(ID_A, "a", 0, "", "/c.yaml", "web"), (ID_B, "b", 0, "", "/c.yaml", "db")]
-        err = io.StringIO()
-        with (
-            mock.patch.object(mr, "compose_limits", side_effect=ValueError("mot de passe en clair")) as limits,
-            redirect_stderr(err),
+        for error in (
+            ValueError("mot de passe en clair"),
+            OSError("mot de passe en clair"),
+            KeyError("mot de passe en clair"),
+            AttributeError("mot de passe en clair"),
+            TypeError("mot de passe en clair"),
+            subprocess.TimeoutExpired("mot de passe en clair", 60),
+            subprocess.CalledProcessError(1, "mot de passe en clair"),
         ):
-            declared, unread = mr.read_declared("docker", containers)
-        self.assertEqual((declared, unread), ({}, ["/c.yaml"]))
-        self.assertEqual(limits.call_count, 1)
-        self.assertNotIn("mot de passe", err.getvalue())
+            err = io.StringIO()
+            with (
+                self.subTest(error=type(error).__name__),
+                mock.patch.object(mr, "compose_limits", side_effect=error) as limits,
+                redirect_stderr(err),
+            ):
+                declared, unread = mr.read_declared("docker", containers)
+                self.assertEqual((declared, unread), ({}, ["/c.yaml"]))
+                self.assertEqual(limits.call_count, 1)
+                self.assertNotIn("mot de passe", err.getvalue())
+
+    def test_read_declared_shares_one_budget_between_composes(self):
+        containers = [(ID_A, "a", 0, "", "/a.yaml", "web"), (ID_B, "b", 0, "", "/b.yaml", "web")]
+        with (
+            # Départ, premier compose tout de suite, second à 30 s de la fin.
+            mock.patch.object(mr.time, "monotonic", side_effect=[0, 0, mr.COMPOSE_BUDGET_SECONDS - 30]),
+            mock.patch.object(mr, "compose_limits", return_value={"web": MIB}) as limits,
+        ):
+            mr.read_declared("docker", containers)
+        self.assertEqual([call.args[2] for call in limits.call_args_list], [mr.COMPOSE_TIMEOUT_SECONDS, 30])
 
 
 class MainTest(unittest.TestCase):
     ARGV = ["--host", "docker", "--url", "http://ntfy.invalid", "--topic", "t", "--cgroup-root", "/nonexistent"]
 
     def main(self, env, **patches):
+        err = io.StringIO()
         with (
             mock.patch.dict(os.environ, env, clear=False),
             mock.patch.object(mr, "list_containers", **patches.get("list", {"return_value": []})),
             mock.patch.object(mr, "publish", **patches.get("publish", {})) as publish,
             redirect_stdout(io.StringIO()),
-            redirect_stderr(io.StringIO()),
+            redirect_stderr(err),
         ):
-            return mr.main(self.ARGV), publish
+            code = mr.main(self.ARGV)
+        self.stderr = err.getvalue()
+        return code, publish
 
     def test_ok(self):
         code, publish = self.main({mr.TOKEN_VARIABLE: "jeton"})
@@ -487,9 +511,13 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 1)
         publish.assert_not_called()
 
-    def test_failed_publication_is_exit_2(self):
-        code, _ = self.main({mr.TOKEN_VARIABLE: "jeton"}, publish={"side_effect": OSError("x")})
-        self.assertEqual(code, 2)
+    def test_failed_publication_is_exit_2_and_cites_its_class_only(self):
+        for error in (OSError("requête citée"), ValueError("requête citée"), http.client.InvalidURL("requête citée")):
+            with self.subTest(error=type(error).__name__):
+                code, _ = self.main({mr.TOKEN_VARIABLE: "jeton"}, publish={"side_effect": error})
+                self.assertEqual(code, 2)
+                self.assertIn(type(error).__name__, self.stderr)
+                self.assertNotIn("requête citée", self.stderr)
 
 
 if __name__ == "__main__":

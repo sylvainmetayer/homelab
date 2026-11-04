@@ -8,9 +8,11 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 import email
 import email.message
 import email.policy
+import imaplib
 import io
 import json
 import os
+import ssl
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -369,8 +371,8 @@ class FakeImap:
     """Le serveur IMAP réduit à ce que handle et move appellent : journal des
     commandes UID, réponses données par le test."""
 
-    def __init__(self, size=100, raw=b"", fetch_ok=True, create_ok=True, status_ok=True, listing=None):
-        self.size, self.raw, self.fetch_ok = size, raw, fetch_ok
+    def __init__(self, size=100, raw=b"", command_ok=True, create_ok=True, status_ok=True, listing=None):
+        self.size, self.raw, self.command_ok = size, raw, command_ok
         self.create_ok, self.status_ok, self.listing = create_ok, status_ok, listing
         self.commands = []
 
@@ -380,7 +382,7 @@ class FakeImap:
             return "OK", [b"1 (UID 7 RFC822.SIZE %d)" % self.size]
         if command == "FETCH":
             return ("OK", [(b"1 (BODY[]", self.raw), b")"]) if self.raw else ("OK", [None])
-        return ("OK", [b""]) if self.fetch_ok else ("NO", [b"refus"])
+        return ("OK", [b""]) if self.command_ok else ("NO", [b"refus"])
 
     def create(self, mailbox):
         self.commands.append(("CREATE", mailbox))
@@ -460,7 +462,7 @@ class HandleTest(Directories):
         )
 
     def test_failed_copy_does_not_delete(self):
-        imap = FakeImap(fetch_ok=False)
+        imap = FakeImap(command_ok=False)
         with self.assertRaises(RuntimeError):
             pi.move(imap, b"7", "Importe", False)
         self.assertEqual([c[0] for c in imap.commands], ["COPY"])
@@ -489,6 +491,136 @@ class MailboxTest(unittest.TestCase):
     def test_server_delimiter(self):
         self.assertEqual(pi.server_delimiter(FakeImap(listing=b'(\\Noselect) "." ""')), ".")
         self.assertEqual(pi.server_delimiter(FakeImap(listing=None)), "/")
+
+
+class ServerImap(FakeImap):
+    """FakeImap et ce que run() appelle en plus, noté dans l'ordre."""
+
+    def __init__(self, capabilities=b"IMAP4rev1 MOVE", uids=b"", logout_error=None, **kwargs):
+        super().__init__(**kwargs)
+        self.capabilities, self.uids, self.logout_error = capabilities, uids, logout_error
+
+    def login(self, *_):
+        self.commands.append(("LOGIN",))
+        return "OK", [b""]
+
+    def capability(self):
+        self.commands.append(("CAPABILITY",))
+        return "OK", [self.capabilities]
+
+    def select(self, mailbox):
+        self.commands.append(("SELECT", mailbox))
+        return "OK", [b"1"]
+
+    def uid(self, command, uid, *args):
+        if command == "SEARCH":
+            return "OK", [self.uids]
+        return super().uid(command, uid, *args)
+
+    def logout(self):
+        self.commands.append(("LOGOUT",))
+        if self.logout_error:
+            raise self.logout_error
+        return "BYE", [b""]
+
+    def names(self):
+        return [command[0] for command in self.commands]
+
+
+class RunTest(Directories):
+    """run() contre le faux serveur : le verify ne joue que --eml, sans IMAP."""
+
+    def setUp(self):
+        super().setUp()
+        self.config.update(host="imap.invalid", port=993, user="u", password="valeur-fictive")
+        self.config.update(folder="INBOX", done_folder="Papra/Importé")
+
+    def run_against(self, imap):
+        with mock.patch.object(pi.imaplib, "IMAP4_SSL", return_value=imap) as connect, redirect_stdout(io.StringIO()) as out:
+            pi.run(self.config)
+        return connect, out.getvalue()
+
+    def test_server_certificate_is_verified(self):
+        connect, _ = self.run_against(ServerImap())
+        context = connect.call_args.kwargs["ssl_context"]
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(context.check_hostname)
+
+    def test_capabilities_after_login_and_folders_before_select(self):
+        imap = ServerImap()
+        self.run_against(imap)
+        self.assertEqual(imap.names(), ["LOGIN", "CAPABILITY", "CREATE", "CREATE", "SELECT", "LOGOUT"])
+        self.assertEqual(imap.commands[4], ("SELECT", '"INBOX"'))
+
+    def test_folders_use_the_server_delimiter(self):
+        imap = ServerImap(listing=b'() "." "INBOX"')
+        self.run_against(imap)
+        self.assertIn(("CREATE", '"Papra.Import&AOk-"'), imap.commands)
+        self.assertIn(("CREATE", '"Papra.Refus&AOk-"'), imap.commands)
+
+    def test_a_message_goes_through_and_the_outcome_is_logged(self):
+        imap = ServerImap(uids=b"7", raw=attach(message(), "a.pdf").as_bytes())
+        _, log = self.run_against(imap)
+        self.assertEqual(os.listdir(self.dest), ["a.pdf"])
+        self.assertIn(("MOVE", '"Papra/Import&AOk-"'), imap.commands)
+        self.assertIn("1 message(s) traité(s), 0 refusé(s), 0 laissé(s)", log)
+
+    def test_neither_move_nor_uidplus_touches_nothing(self):
+        imap = ServerImap(capabilities=b"IMAP4rev1", uids=b"7")
+        with self.assertRaisesRegex(RuntimeError, "ni MOVE ni UIDPLUS"):
+            self.run_against(imap)
+        self.assertEqual(imap.names(), ["LOGIN", "CAPABILITY", "LOGOUT"])
+
+    def test_uidplus_alone_copies_then_expunges(self):
+        imap = ServerImap(capabilities=b"IMAP4rev1 UIDPLUS", uids=b"7", raw=message().as_bytes())
+        self.run_against(imap)
+        self.assertNotIn("MOVE", imap.names())
+        self.assertIn(("COPY", '"Papra/Import&AOk-"'), imap.commands)
+        self.assertIn(("EXPUNGE",), imap.commands)
+
+    def test_unusable_folder_stops_before_any_delivery(self):
+        imap = ServerImap(create_ok=False, status_ok=False, uids=b"7", raw=attach(message(), "a.pdf").as_bytes())
+        with self.assertRaisesRegex(RuntimeError, "STATUS"):
+            self.run_against(imap)
+        self.assertNotIn("FETCH", imap.names())
+        self.assertEqual(imap.names()[-1], "LOGOUT")
+        self.assertEqual(os.listdir(self.dest), [])
+
+    def test_failed_logout_is_not_a_failed_run(self):
+        self.run_against(ServerImap(logout_error=OSError("coupé")))
+
+
+class MainTest(Directories):
+    def main(self, **run):
+        out = io.StringIO()
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as f:
+            json.dump({"dest_dir": self.dest, "tmp_dir": self.tmp}, f)
+            f.flush()
+            with (
+                mock.patch.object(pi.sys, "argv", ["papra_intake.py", "--config", f.name]),
+                mock.patch.object(pi.os, "umask") as umask,
+                mock.patch.object(pi, "run", **run) as relieve,
+                redirect_stdout(out),
+            ):
+                code = pi.main()
+        return code, umask, relieve, out.getvalue()
+
+    def test_leftovers_are_removed_before_the_run_under_a_strict_umask(self):
+        with open(os.path.join(self.tmp, ".intake-reste"), "wb"):
+            pass
+        seen = []
+        code, umask, relieve, _ = self.main(side_effect=lambda _config: seen.extend(os.listdir(self.tmp)))
+        self.assertEqual(code, 0)
+        relieve.assert_called_once()
+        self.assertEqual(seen, [])
+        umask.assert_called_once_with(0o077)
+
+    def test_failed_run_is_exit_1_and_logged(self):
+        for error in (OSError("x"), imaplib.IMAP4.error("x"), RuntimeError("x")):
+            with self.subTest(error=type(error).__name__):
+                code, _, _, log = self.main(side_effect=error)
+                self.assertEqual(code, 1)
+                self.assertIn("Échec de la relève", log)
 
 
 if __name__ == "__main__":

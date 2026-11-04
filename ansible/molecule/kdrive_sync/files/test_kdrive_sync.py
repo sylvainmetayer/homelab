@@ -5,6 +5,7 @@ ansible/roles/kdrive_sync/files/kdrive_sync.py, puis
 python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
+import http.client
 import io
 import json
 import os
@@ -45,6 +46,30 @@ class SummaryTest(unittest.TestCase):
 
     def test_null_fields(self):
         self.assertEqual(ks.summary({"transfers": None}), "0 fichier(s) copié(s), 0 o en 0 min ; 0 vérifié(s), 0 erreur(s)")
+
+
+def sigterm_once_armed(case):
+    """Lignes du faux rclone : le SIGTERM de systemd, une fois le gestionnaire de
+    run() posé, sans quoi ce signal tuerait tout le test. Elles attendent (10 s
+    au plus) un fichier écrit juste après le signal.signal de run()."""
+    directory = tempfile.TemporaryDirectory()
+    case.addCleanup(directory.cleanup)
+    armed = os.path.join(directory.name, "armed")
+    real = signal.signal
+
+    def arm(signum, handler):
+        previous = real(signum, handler)
+        with open(armed, "w", encoding="ascii"):
+            pass
+        return previous
+
+    patcher = mock.patch.object(ks.signal, "signal", side_effect=arm)
+    case.addCleanup(patcher.stop)
+    patcher.start()
+    return (
+        f'n=0; while [ ! -e "{armed}" ] && [ "$n" -lt 1000 ]; do n=$((n + 1)); sleep 0.01; done\n'
+        f"kill -TERM {os.getpid()}\n"
+    )
 
 
 class Script(unittest.TestCase):
@@ -91,9 +116,8 @@ class RunTest(Script):
 
     def test_sigterm_stops_the_command_and_is_reported(self):
         # Le faux rclone envoie SIGTERM au script, comme systemd, puis attend :
-        # seul le relais du signal peut le terminer. La pause : le temps que
-        # run() pose son gestionnaire, juste après le Popen.
-        command = self.command(extra=f"sleep 0.5\nkill -TERM {os.getpid()}\nexec sleep 30\n")
+        # seul le relais du signal peut le terminer.
+        command = self.command(extra=sigterm_once_armed(self) + "exec sleep 30\n")
         (code, _, _, interrupted), _ = self.run_command(command)
         self.assertTrue(interrupted)
         self.assertEqual(code, -signal.SIGTERM)
@@ -154,16 +178,18 @@ class MainTest(Script):
 
     def test_interrupted_with_exit_0_is_still_down(self):
         # rclone qui attrape SIGTERM et sort en 0 : interrompu, jamais up.
-        command = self.command(
-            extra=f"trap 'exit 0' TERM\nsleep 0.5\nkill -TERM {os.getpid()}\nwhile :; do sleep 0.1; done\n"
-        )
+        command = self.command(extra=f"trap 'exit 0' TERM\n{sigterm_once_armed(self)}for _ in 1 2 3 4 5 6 7 8 9 10; do sleep 1; done\n")
         code, pushed, _, _ = self.main(command)
         self.assertEqual(code, 1)
         self.assertEqual(pushed.call_args.args[1], "down")
         self.assertIn("interrompu", pushed.call_args.args[2])
 
     def test_failed_push_is_exit_2_and_never_cites_the_url(self):
-        for error in (OSError("http://kuma.invalid/api/push/jeton"), ValueError("kuma.invalid/api/push/jeton")):
+        for error in (
+            OSError("http://kuma.invalid/api/push/jeton"),
+            ValueError("kuma.invalid/api/push/jeton"),
+            http.client.InvalidURL("http://kuma.invalid/api/push/jeton x"),
+        ):
             with self.subTest(error=error):
                 code, _, out, err = self.main(self.command(), push={"side_effect": error})
                 self.assertEqual(code, 2)
