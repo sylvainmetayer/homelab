@@ -459,7 +459,7 @@ fournisseur actif**, puis révoquer l'ancienne. Détail :
 puis `tofu apply` de `pangolin_config`. C'est la seule copie : celle du
 fichier Ansible, lue par rien, a été retirée le 2026-10-28.
 
-### Code PIN de la démo Neonova
+### Code PIN Neonova
 
 `neonova_pin` du fichier racine est le PIN de la ressource Pangolin de la démo
 (`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
