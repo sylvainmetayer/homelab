@@ -2,7 +2,7 @@
 services:
   dawarich-redis:
     mem_limit: 256m
-    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    image: redis:8.2-alpine@sha256:489a769e0a54dc245896132a15c72d2bc7296719954da99398f43a3877e5f8eb
     container_name: dawarich-redis
     security_opt:
       - no-new-privileges:true
