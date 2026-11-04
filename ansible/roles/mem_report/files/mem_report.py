@@ -405,6 +405,20 @@ def build_report(host, measures, missing, args, drifts, unread, compared):
     )
     if grow or drifts:
         priority, tags = 4, ["warning"]
+    elif missing and not measures:
+        # Des conteneurs tournent, aucun n'a pu être lu : tout le reste est vide
+        # faute de mesure, ce n'est pas un rapport sans rien à signaler.
+        priority, tags = 4, ["warning"]
+        sections.insert(
+            0,
+            (
+                "Rien de mesuré :",
+                [
+                    f"{missing} conteneur(s) en cours, aucun cgroup mémoire lu : voir "
+                    "/sys/fs/cgroup/cgroup.controllers sur l'hôte (cgroup v2, contrôleur memory)."
+                ],
+            ),
+        )
     elif shrink or unlimited or unread:
         priority, tags = 3, ["chart_with_downwards_trend"]
     else:
