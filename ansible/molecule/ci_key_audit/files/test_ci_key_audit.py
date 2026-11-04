@@ -320,6 +320,38 @@ class Failures(unittest.TestCase):
             audit.tick(checker, {})
 
 
+class Truncated(unittest.TestCase):
+    ERROR = audit.WindowTruncated("VictoriaLogs : au moins 100 lignes, fenêtre tronquée")
+
+    def test_alerts_at_top_priority_once_a_day(self):
+        checker, state = FakeChecker(), {}
+        self.assertIn("non jugées", audit.report_truncated(checker, state, self.ERROR))
+        self.assertEqual(checker.published[0][2], 5)
+        self.assertIsNone(audit.report_truncated(checker, state, self.ERROR))
+        self.assertEqual(len(checker.published), 1)
+        later = FakeChecker(now=NOW + 86400)
+        self.assertIsNotNone(audit.report_truncated(later, state, self.ERROR))
+        self.assertEqual(len(later.published), 1)
+
+    def test_refused_alert_is_retried_and_still_reaches_the_monitor(self):
+        checker, state = FakeChecker(), {}
+        checker.fail_publish = True
+        self.assertIsNotNone(audit.report_truncated(checker, state, self.ERROR))
+        self.assertNotIn("truncated_notified", state)
+
+    def test_complete_pass_rearms_the_alert(self):
+        state = {"truncated_notified": NOW - 60}
+        audit.tick(FakeChecker(), state)
+        self.assertNotIn("truncated_notified", state)
+
+    def test_truncated_pass_leaves_the_cursor_alone(self):
+        state = {"cursor": NOW - 5000}
+        checker = FakeChecker(lines=[line(NOW - 1000 - i) for i in range(100)])
+        with self.assertRaises(audit.WindowTruncated):
+            audit.tick(checker, state)
+        self.assertEqual(state["cursor"], NOW - 5000)
+
+
 class RunPaging(audit.Checker):
     def __init__(self, pages):
         super().__init__(CONFIG, SECRETS, NOW)
