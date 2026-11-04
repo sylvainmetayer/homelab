@@ -16,7 +16,7 @@ Depuis [l'ADR 0027](../../../docs/adr/0027-connexions-ssh-cles-connues.md), une 
 | Cas | Effet | Moniteur « Clé de CI : contrôle » |
 |---|---|---|
 | Rien à signaler | | `up` |
-| Connexion hors de tout run | ntfy `scripts`, **priorité 5**, un message par passage (20 lignes au plus) | `down` avec le message, donc Telegram ; `up` au passage suivant |
+| Connexion hors de tout run | ntfy `scripts`, **priorité 5**, un message par passage (20 lignes et 3 500 octets au plus : ntfy, sans pièces jointes, refuse au-delà de 4 096) | `down` avec le message, donc Telegram ; `up` au passage suivant |
 | Déploiement réussi sans ligne du hook sur un hôte | ntfy priorité 4, une fois par 24 h par hôte | `down` puis `up` |
 | ntfy refuse une alerte | rien de perdu : relue et réessayée à chaque passage | `down` avec le message, unité en échec |
 | VictoriaLogs ou GitHub injoignable, réponse illisible, quota épuisé, plafond atteint | état inchangé, unité en échec, raison au journal | **aucun push** : DOWN à l'expiration (30 min, trois périodes) |
@@ -46,8 +46,9 @@ identifier:="ssh-login-notify" | stats by (host) count() n, max(_time) last
 ## Limites acceptées
 
 - **Une connexion pendant un vrai run passe.** Rien ne distingue alors un voleur de la CI : l'IP de sortie n'est pas fixe. La fenêtre vaut la durée des déploiements.
-- **C'est après coup** : 10 à 20 minutes dans le cas courant ; plus si le contrôle ou GitHub est en panne, et le moniteur le dit.
-- Qui prend root assez vite peut couper Vector avant l'envoi (lot de 5 s) : le journal silencieux finit par se voir, pas la connexion. Il peut aussi écrire de fausses lignes : au pire, une fausse alerte.
+- **C'est après coup** : 5 à 15 minutes dans le cas courant (le passage suivant, plus jeune que 300 s : celui d'après) ; plus si le contrôle ou GitHub est en panne, et le moniteur le dit.
+- Qui prend root assez vite peut couper Vector avant l'envoi (lot de 5 s) : le journal silencieux finit par se voir, pas la connexion. Il peut aussi écrire de fausses lignes, sans root (`logger`) : une fausse alerte, ou assez de lignes pour atteindre le plafond (10 000), et alors plus aucune alerte sur ntfy, le moniteur seul tombe à 30 min.
+- **Un plafond atteint ne se résorbe pas seul** (`ci_key_audit_max_lines`, `ci_key_audit_max_pages`) : le curseur figé garde ces lignes dans la fenêtre, qui s'allonge jusqu'à 29 jours. Le moniteur reste DOWN. Relever le plafond (revoir `MemoryMax`) ou, pour repartir de 24 h sans juger le reste, supprimer `/var/lib/private/ci-key-audit/state.json`.
 - Relancer un run créé il y a plus de 48 h (`ci_key_audit_run_lookback_seconds`) : ses connexions alertent à tort, du bon côté.
 - API sans jeton : 60 requêtes par heure, partagées avec l'IP publique de la maison (6 par heure ici, plus une par run fini, 10 au plus par passage, plus les réessais). Quota épuisé : unité en échec, date de retour au journal.
 - Une rotation de la clé de CI : changer `ci_key_audit_fingerprint` avec la liste de `ssh_login_notify` (le scénario Molecule compare aux `keys/`). `perte-cle-ou-poste.md`, étape 7.
