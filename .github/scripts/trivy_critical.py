@@ -1,12 +1,17 @@
-"""Vulnérabilités CRITICAL corrigeables de l'analyse Trivy hebdomadaire, sur ntfy.
+"""CVE CRITICAL corrigeables et distributions en fin de vie de l'analyse Trivy, sur ntfy.
 
 Lu par le job `notify` de .github/workflows/trivy.yaml : chaque job d'image y
 dépose son rapport JSON (`<nom de l'image>.json`, déjà filtré par
 --severity HIGH,CRITICAL --ignore-unfixed). Seules les CRITICAL restent,
-regroupées par image avec la version qui les corrige ; sans aucune, rien
-n'est publié. Le message part sur le topic `github` de ntfy.sylvain.cloud
-(JSON sur `/`, le chemin ouvert sans SSO de tofu/pangolin_config), le
-détail reste dans l'onglet Security (code scanning).
+regroupées par image avec la version qui les corrige. S'y ajoutent, pour
+information, les images dont la distribution est en fin de vie
+(`Metadata.OS.EOSL`, absent sinon, table embarquée dans le binaire Trivy) :
+--ignore-unfixed les fait paraître propres. Seules, elles partent en priorité
+basse, sans son ; ce constat ne fait jamais échouer le script. Sans aucun des
+deux, rien n'est publié. Le message part sur le topic `github` de
+ntfy.sylvain.cloud (JSON sur `/`, le chemin ouvert sans SSO de
+tofu/pangolin_config), le détail des CVE reste dans l'onglet Security (code
+scanning).
 
 Le jeton (NTFY_TOKEN) arrive par l'environnement, jamais affiché.
 
@@ -53,9 +58,21 @@ def critical_fixed(report):
         raise ReportError(f"rapport Trivy inattendu : {error!r}") from error
 
 
+def end_of_life(report):
+    """« famille version » de la distribution si elle est en fin de vie, sinon None."""
+    try:
+        os_info = (report.get("Metadata") or {}).get("OS") or {}
+        if not os_info.get("EOSL"):
+            return None
+        return f"{os_info.get('Family') or '?'} {os_info.get('Name') or '?'}"
+    except AttributeError as error:
+        raise ReportError(f"rapport Trivy inattendu : {error!r}") from error
+
+
 def collect(directory):
-    """{nom de l'image: [vulnérabilités]} des images qui en ont au moins une."""
+    """({image: [vulnérabilités]}, {image: distribution en fin de vie}), sans les images sans constat."""
     images = {}
+    eol = {}
     paths = sorted(Path(directory).glob("*.json"))
     if not paths:
         raise ReportError(f"aucun rapport dans {directory}")
@@ -67,31 +84,57 @@ def collect(directory):
         vulns = critical_fixed(report)
         if vulns:
             images[path.stem] = vulns
-    return images
+        distribution = end_of_life(report)
+        if distribution:
+            eol[path.stem] = distribution
+    return images, eol
 
 
-def message(images, link):
-    """Charge JSON de la publication ntfy, ou None sans vulnérabilité."""
-    if not images:
+def fit(lines, limit, where=""):
+    """Les lignes qui tiennent en `limit` octets, le reste résumé en une ligne."""
+    body = ""
+    for index, line in enumerate(lines):
+        candidate = body + line + "\n"
+        if len(candidate.encode("utf-8")) > limit:
+            return body + f"… et {len(lines) - index} lignes de plus{where}\n"
+        body = candidate
+    return body
+
+
+def message(images, link, eol=None):
+    """Charge JSON de la publication ntfy, ou None sans aucun constat."""
+    eol = eol or {}
+    if not images and not eol:
         return None
+    eol_count = f"{len(eol)} image{'s' if len(eol) > 1 else ''}"
+    # Réservées d'abord : une longue liste de CVE ne les coupe pas.
+    eol_block = ""
+    if eol:
+        eol_block = fit(
+            ["Distribution en fin de vie (information) :", *(f"  {name} : {eol[name]}" for name in sorted(eol))],
+            MAX_MESSAGE_BYTES // 2,
+        )
+    if not images:
+        return {
+            "topic": TOPIC,
+            "title": f"Trivy : {eol_count} sur une distribution en fin de vie",
+            "message": eol_block.rstrip("\n"),
+            "priority": 2,
+            "tags": ["information_source"],
+        }
     # Des CVE, pas des lignes : une même CVE touche souvent plusieurs paquets.
     total = sum(len({vuln[0] for vuln in vulns}) for vulns in images.values())
     lines = []
     for name in sorted(images):
         lines.append(name)
         lines.extend(f"  {vid} {pkg} {installed} → {fixed}" for vid, pkg, installed, fixed in images[name])
-    body = ""
-    for index, line in enumerate(lines):
-        candidate = body + line + "\n"
-        if len(candidate.encode("utf-8")) > MAX_MESSAGE_BYTES:
-            body += f"… et {len(lines) - index} lignes de plus (onglet Security)\n"
-            break
-        body = candidate
+    body = fit(lines, MAX_MESSAGE_BYTES - len(eol_block.encode("utf-8")), " (onglet Security)")
     plural = "s" if len(images) > 1 else ""
+    title = f"Trivy : {total} CVE critique{'s' if total > 1 else ''} corrigeable{'s' if total > 1 else ''}, {len(images)} image{plural}"
     return {
         "topic": TOPIC,
-        "title": f"Trivy : {total} CVE critique{'s' if total > 1 else ''} corrigeable{'s' if total > 1 else ''}, {len(images)} image{plural}",
-        "message": body.rstrip("\n"),
+        "title": f"{title} ; {eol_count} en fin de vie" if eol else title,
+        "message": (body + eol_block).rstrip("\n"),
         "priority": 4,
         "tags": ["rotating_light"],
         "click": link,
@@ -119,13 +162,14 @@ def main(argv=None):
     repository = os.environ.get("GITHUB_REPOSITORY", "sylvainmetayer/homelab")
     link = f"{server}/{repository}/security/code-scanning?query=is%3Aopen+severity%3Acritical"
     try:
-        payload = message(collect(args.reports), link)
+        images, eol = collect(args.reports)
+        payload = message(images, link, eol)
     except ReportError as error:
         print(f"::error::{error}")
         return 1
 
     if payload is None:
-        print("Aucune vulnérabilité CRITICAL corrigeable : rien n'est publié.")
+        print("Ni vulnérabilité CRITICAL corrigeable ni distribution en fin de vie : rien n'est publié.")
         return 0
     # Le titre seul : le dépôt est public, le détail reste sur ntfy et dans l'onglet Security.
     print(payload["title"])

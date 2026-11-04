@@ -10,12 +10,14 @@ name: Trivy
 # --ignore-unfixed : sans lui, les CVE sans correctif, que Renovate ne peut
 # pas régler, noyaient les autres. Il masque aussi le statut end_of_life :
 # une image restée sur une distribution en fin de vie paraît propre, seul le
-# log du job le dit. Code scanning ferme les alertes masquées comme « Fixed »
-# sans qu'elles le soient ; une CVE qui reçoit un correctif revient comme une
-# nouvelle alerte.
-# Les CRITICAL corrigeables, et elles seules, partent aussi sur ntfy (job
-# notify, topic github, .github/scripts/trivy_critical.py) : une ligne par
-# CVE, par image, avec la version qui la corrige. Aucune : aucun message.
+# champ Metadata.OS.EOSL du rapport JSON le dit encore (lu par le job notify).
+# Code scanning ferme les alertes masquées comme « Fixed » sans qu'elles le
+# soient ; une CVE qui reçoit un correctif revient comme une nouvelle alerte.
+# Sur ntfy (job notify, topic github, .github/scripts/trivy_critical.py) : les
+# CRITICAL corrigeables, une ligne par CVE, par image, avec la version qui la
+# corrige, et une ligne par image en fin de vie, pour information : seules,
+# elles partent en priorité basse et ne font jamais échouer le run. Aucun
+# constat : aucun message.
 # Le lundi à 05:00 UTC, après les tests de la semaine (03:30) et avant la PR
 # hebdomadaire de Renovate (lundi avant 9h, Paris) : l'onglet Security dit
 # ce que corrigent ses montées de version.
@@ -217,9 +219,9 @@ jobs:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.image.name }}
 
-  # Les CRITICAL corrigeables de toutes les images, en un message ntfy (rien
-  # s'il n'y en a pas). Aussi quand une image a échoué : les autres sont
-  # signalées, le run reste rouge. Depuis main seulement : l'environnement
+  # Les CRITICAL corrigeables et les fins de vie de toutes les images, en un
+  # message ntfy (rien s'il n'y en a pas). Aussi quand une image a échoué : les
+  # autres sont signalées, le run reste rouge. Depuis main seulement : l'environnement
   # ntfy-github (tofu/github/environments.tf) ne porte que le jeton du
   # producteur github de ntfy, et refuse toute autre branche.
   notify:
