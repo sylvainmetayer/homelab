@@ -109,7 +109,12 @@ class SummaryTest(unittest.TestCase):
         alerts = [alert(f"s{i}", cn=f"C{i}") for i in range(cs.TOP + 2)]
         lines = self.summary(alerts)[1].splitlines()
         self.assertIn("  … et 2 autres", lines)
+        self.assertEqual(len([line for line in lines if line.startswith("  s")]), cs.TOP)
         self.assertEqual(lines[-2].count(","), cs.TOP - 1)
+
+    def test_at_the_cap_has_no_remainder(self):
+        alerts = [alert(f"s{i}") for i in range(cs.TOP)]
+        self.assertNotIn("… et", self.summary(alerts)[1])
 
     def test_one_over_the_cap_is_singular(self):
         alerts = [alert(f"s{i}") for i in range(cs.TOP + 1)]
@@ -142,6 +147,12 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 0)
         urlopen.assert_not_called()
         self.assertEqual(json.loads(out)["priority"], 2)
+
+    def test_dry_run_of_a_failure_fails(self):
+        code, urlopen, out = self.main(["--dry-run"], env={}, side_effect=RuntimeError("cscli absent"))
+        self.assertEqual(code, 1)
+        urlopen.assert_not_called()
+        self.assertEqual(json.loads(out)["priority"], 4)
 
     def test_publishes_with_the_token(self):
         code, urlopen, _ = self.main()

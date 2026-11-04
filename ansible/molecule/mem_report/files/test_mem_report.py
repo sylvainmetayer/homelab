@@ -452,7 +452,7 @@ class DockerCallsTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    ARGV = ["--host", "docker", "--url", "http://ntfy.invalid", "--topic", "t"]
+    ARGV = ["--host", "docker", "--url", "http://ntfy.invalid", "--topic", "t", "--cgroup-root", "/nonexistent"]
 
     def main(self, env, **patches):
         with (
@@ -480,6 +480,11 @@ class MainTest(unittest.TestCase):
     def test_no_token_publishes_nothing(self):
         code, publish = self.main({mr.TOKEN_VARIABLE: ""})
         self.assertEqual(code, 0)
+        publish.assert_not_called()
+
+    def test_read_failure_without_token_still_fails(self):
+        code, publish = self.main({mr.TOKEN_VARIABLE: ""}, list={"side_effect": OSError("x")})
+        self.assertEqual(code, 1)
         publish.assert_not_called()
 
     def test_failed_publication_is_exit_2(self):

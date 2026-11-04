@@ -17,6 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "borgmatic-docker-dump"
 EXTRA_FILE = "--defaults-extra-file=/dev/stdin"
+VALEUR = "valeur-fictive"
 
 
 class DumpTest(unittest.TestCase):
@@ -97,11 +98,11 @@ class DumpTest(unittest.TestCase):
         self.assertEqual(self.argv()[-1], "--where=a b")
 
     def test_password_goes_through_stdin_never_argv_nor_env(self):
-        result = self.dump("db", "mariadb-dump", "--databases", "app", password="motdepassefictif")
+        result = self.dump("db", "mariadb-dump", "--databases", "app", password=VALEUR)
         self.assertEqual(result.returncode, 0)
         # L'option doit être la première du client.
         self.assertEqual(self.argv(), ["exec", "-i", "db", "mariadb-dump", EXTRA_FILE, "--databases", "app"])
-        self.assertEqual(self.stdin(), '[client]\npassword="motdepassefictif"\n')
+        self.assertEqual(self.stdin(), f'[client]\npassword="{VALEUR}"\n')
         self.assertNotIn("MYSQL_PWD", (self.dir / "env").read_text(encoding="utf-8"))
 
     def test_password_escaping(self):
@@ -124,13 +125,13 @@ class DumpTest(unittest.TestCase):
 
     def test_client_failure_fails_the_script_with_or_without_password(self):
         self.docker(3)
-        for password in (None, "motdepassefictif"):
+        for password in (None, VALEUR):
             with self.subTest(password=password):
                 self.assertEqual(self.dump("db", "mariadb-dump", password=password).returncode, 3)
 
     def test_client_failure_with_a_result_file(self):
         self.docker(3)
-        result = self.dump("db", "mariadb-dump", "--result-file", str(self.result_file), password="motdepassefictif")
+        result = self.dump("db", "mariadb-dump", "--result-file", str(self.result_file), password=VALEUR)
         self.assertEqual(result.returncode, 3)
 
 
