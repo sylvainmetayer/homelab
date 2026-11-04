@@ -105,7 +105,7 @@
         that:
           - "'no-new-privileges:true' in dawarich_compose.services['dawarich-app'].security_opt"
           - dawarich_compose.services['dawarich-app'].cap_drop == ['ALL']
-          - dawarich_compose.services['dawarich-app'].cap_add | sort == ['CHOWN', 'DAC_READ_SEARCH', 'SETGID', 'SETUID']
+          - dawarich_compose.services['dawarich-app'].cap_add | sort == ['CHOWN', 'DAC_OVERRIDE', 'SETGID', 'SETUID']
         fail_msg: dawarich-app n'est plus durci (no-new-privileges, cap_drop, cap_add de l'entrypoint).
 
     # Le dump borgmatic doit viser la base du compose avec les identifiants du .env.
