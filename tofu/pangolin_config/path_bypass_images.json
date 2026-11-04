@@ -44,7 +44,7 @@
     "version": "35.0.2",
     "compose": "ansible/roles/nextcloud/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_nextcloud.tf (nextcloud_client_paths, nextcloud_share_paths)",
-    "reread": "server: core/routes.php, apps/*/appinfo/routes.php of files_sharing, files, files_trashbin, files_versions, theming, text, files_pdfviewer, core/ajax (never opened); linuxserver root/defaults/nginx/site-confs/default.conf.sample (front controller, .well-known); clients: desktop src/libsync + src/gui/wizard, Android ConnectivityServiceImpl.kt, NextcloudKit, DAVx5, and the store app cospend: its appinfo/routes.php (api-priv).",
+    "reread": "server: core/routes.php, apps/*/appinfo/routes.php of files_sharing, files, files_trashbin, files_versions, theming, text, files_pdfviewer, core/ajax (never opened); linuxserver root/defaults/nginx/site-confs/default.conf.sample (front controller, .well-known); clients: desktop src/libsync + src/gui/wizard, Android ConnectivityServiceImpl.kt, NextcloudKit, DAVx5, the Android Cospend client (MoneyBuster: CospendClientUtil.isValidLogin, VersatileProjectSyncClient); the store app cospend, not pinned by this image and to re-read on its own updates too: appinfo/routes.php (api-priv, api/ping) and lib/Controller/OldApiController.php (none of them #[PublicPage])",
     "releases": "https://github.com/nextcloud/server/releases"
   },
   "ntfy": {
