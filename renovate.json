@@ -30,8 +30,7 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix",
-        "!ghcr.io/sylvainmetayer/neonova-services"
+        "!ghcr.io/sylvainmetayer/promptoramix"
       ],
       "groupName": "weekly digest and patch updates",
       "schedule": [
@@ -45,8 +44,7 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix",
-        "!ghcr.io/sylvainmetayer/neonova-services"
+        "!ghcr.io/sylvainmetayer/promptoramix"
       ],
       "schedule": [
         "before 9am on monday"
@@ -104,8 +102,7 @@
       ],
       "matchPackageNames": [
         "!ghcr.io/sylvainmetayer/planning-equipes",
-        "!ghcr.io/sylvainmetayer/promptoramix",
-        "!ghcr.io/sylvainmetayer/neonova-services"
+        "!ghcr.io/sylvainmetayer/promptoramix"
       ],
       "dependencyDashboardApproval": true
     },
@@ -410,19 +407,14 @@
       "automerge": true
     },
     {
-      "description": "neonova-services is our own image (static demo of the Neonova site, ansible/roles/neonova), published by its CI on every push to main and followed through the main tag: no cooldown, and the first digest pin and every new digest automerge once the lint workflow passes; merging on main triggers the deploy workflow",
+      "description": "neonova-services is our own image (static demo of the Neonova site, ansible/roles/neonova): it follows the main tag on purpose, no digest, its build triggers the deploy workflow directly",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "ghcr.io/sylvainmetayer/neonova-services"
       ],
-      "matchUpdateTypes": [
-        "pinDigest",
-        "digest"
-      ],
-      "minimumReleaseAge": null,
-      "automerge": true
+      "enabled": false
     },
     {
       "description": "path_bypass_images.json notes the version each app's public paths were read off (tofu/pangolin_config/tests/invariants.tftest.hcl). Its custom manager has no digest to pin: the compose file pins it",

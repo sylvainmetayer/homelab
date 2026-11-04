@@ -2,9 +2,11 @@
 services:
   app:
     # Image de démo du site de Neonova (dépôt privé sylvainmetayer/neonova-services,
-    # package public), publiée par sa CI à chaque push sur main. Renovate épingle
-    # et met à jour le digest : dc@ ne retélécharge jamais un tag déjà présent.
-    image: ghcr.io/sylvainmetayer/neonova-services:main@sha256:b7a7444fbbbaa0931cb3114d4171765d2b630b246221d77d1409c73b1e8d8dee
+    # package public). Elle suit le tag main, sans digest, exprès : le workflow
+    # de ce dépôt lance le déploiement à la fin de chaque build, et le rôle
+    # redémarre dc@, qui retélécharge l'image grâce à pull_policy: always.
+    image: ghcr.io/sylvainmetayer/neonova-services:main
+    pull_policy: always
     container_name: neonova
     # nginx sur des fichiers statiques, à deux processus environ.
     mem_limit: 64m
