@@ -73,7 +73,7 @@ locals {
 #    - Thumbnails: /index.php/core/preview (and its .png form, some
 #      NextcloudKit calls), /index.php/apps/files/api/v1/thumbnail/*, and the
 #      trashbin and versions previews, same credentials.
-#    - /index.php/apps/cospend/api-priv/*: the Android Cospend client (Cospend 4.3.0) (its reads
+#    - /index.php/apps/cospend/api-priv/*: the Android client MoneyBuster, on Cospend 4.3.0 (its reads
 #      and writes of bills, read off the nginx log of Nextcloud), HTTP Basic with
 #      the app password. Behind the wall it gets a redirect and the app stops.
 #      Its own lists go through OCS, already opened.
