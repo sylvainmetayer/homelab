@@ -106,6 +106,12 @@ password*, not the account password). They land in `/etc/papra-intake.json`
 (`0600`, owned by the unit's user, `diff: false`), never on a command line.
 Logs: `journalctl -u papra-intake`.
 
+A write error (disk full, NFS gone) leaves that message in place with nothing of
+it in the ingestion folder (what it already delivered is taken back, unless Papra
+already imported it), retried on the next pass. The following messages are still
+processed, and the unit ends failed. An IMAP error still stops the pass. Names
+are capped at 120 UTF-8 bytes before the extension, never cutting a character.
+
 ### Enabling it
 
 1. In the Infomaniak Manager, create the intake address and an application

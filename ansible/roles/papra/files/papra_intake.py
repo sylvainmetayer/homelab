@@ -15,7 +15,9 @@ message :
     (« <date> - <objet>.txt », en-têtes puis corps) et l'original (.eml).
 Aucun message n'est jamais supprimé : il est déplacé (MOVE, ou COPY puis
 \\Deleted et EXPUNGE de ce seul UID si le serveur n'a pas MOVE). Une erreur
-d'écriture laisse le message en place, retenté au passage suivant.
+d'écriture laisse le message en place, sans rien de lui dans le dossier
+d'ingestion, retenté au passage suivant : les suivants sont quand même traités,
+et le passage finit en échec (unité failed).
 
 Une pièce jointe est d'abord écrite hors du dossier surveillé (tmp_dir, même
 système de fichiers), puis liée sous son nom final : Papra ne voit jamais un
@@ -54,6 +56,9 @@ MAX_MESSAGE_FACTOR = 4
 # Image en ligne référencée par Content-ID sous cette taille : un logo de
 # signature, pas un document.
 INLINE_LOGO_MAX_BYTES = 50 * 1024
+# Base d'un nom déposé, en octets UTF-8 : NAME_MAX vaut 255 octets, et il reste
+# la place de l'extension et du suffixe de collision.
+MAX_STEM_BYTES = 120
 SAFE_CHARS_RE = re.compile(r"[^\w.\- ]+")
 # Préfixes qu'un transfert ou une réponse ajoute devant l'objet tapé.
 FORWARD_PREFIX_RE = re.compile(r"^\s*(?:(?:fwd?|tr|re)\s*:\s*)*", re.IGNORECASE)
@@ -91,11 +96,12 @@ def sender_allowed(msg, allowed):
 
 def safe_name(filename, extension):
     """Nom de fichier sûr : base seule, NFC, caractères hors [\\w.- ] remplacés,
-    sans point en tête, 120 caractères au plus, extension gardée."""
+    sans point en tête, base de MAX_STEM_BYTES octets au plus sans couper de
+    caractère, extension gardée."""
     name = unicodedata.normalize("NFC", filename).replace("\\", "/").rsplit("/", 1)[-1]
     name = SAFE_CHARS_RE.sub("_", name).strip(" .")
     stem = name[: -(len(extension) + 1)] if name.lower().endswith("." + extension) else name
-    stem = stem.strip(" ._")[:120] or "piece-jointe"
+    stem = stem.strip(" ._").encode()[:MAX_STEM_BYTES].decode(errors="ignore").rstrip(" ._") or "piece-jointe"
     return f"{stem}.{extension}"
 
 
@@ -230,29 +236,42 @@ def inside(directory, name):
 
 def deliver(items, dest_dir, tmp_dir):
     """Écrit chaque pièce jointe dans tmp_dir puis la lie dans dest_dir sans
-    jamais écraser. Renvoie les noms finaux."""
+    jamais écraser. Renvoie les noms finaux. Sur une erreur, retire ce que cet
+    appel a déjà lié : le message reste en place et sera repris, sans doublon
+    (sauf un fichier que Papra aurait déjà importé)."""
     written = []
-    for name, payload in items:
-        fd, tmp_path = tempfile.mkstemp(dir=tmp_dir, prefix=".intake-")
-        try:
-            with os.fdopen(fd, "wb") as f:
-                f.write(payload)
-                f.flush()
-                os.fsync(f.fileno())
-            stem, dot, ext = name.rpartition(".")
-            candidate, n = name, 0
-            while True:
-                target = inside(dest_dir, candidate)
-                try:
-                    os.link(tmp_path, target)  # NOSONAR - nom assaini (safe_name) et borné (inside)
-                    break
-                except FileExistsError:
-                    n += 1
-                    candidate = f"{stem}-{n}{dot}{ext}"
-            written.append(candidate)
-        finally:
-            os.unlink(tmp_path)
+    try:
+        for name, payload in items:
+            written.append(deliver_one(name, payload, dest_dir, tmp_dir))
+    except (OSError, ValueError):
+        for name in written:
+            try:
+                os.unlink(inside(dest_dir, name))  # NOSONAR - nom rendu par deliver_one
+            except OSError:
+                pass  # déjà pris par Papra : l'erreur d'origine compte seule
+        raise
     return written
+
+
+def deliver_one(name, payload, dest_dir, tmp_dir):
+    fd, tmp_path = tempfile.mkstemp(dir=tmp_dir, prefix=".intake-")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        stem, dot, ext = name.rpartition(".")
+        candidate, n = name, 0
+        while True:
+            target = inside(dest_dir, candidate)
+            try:
+                os.link(tmp_path, target)  # NOSONAR - nom assaini (safe_name) et borné (inside)
+                return candidate
+            except FileExistsError:
+                n += 1
+                candidate = f"{stem}-{n}{dot}{ext}"
+    finally:
+        os.unlink(tmp_path)
 
 
 def remove_stale_tmp(tmp_dir):
@@ -346,7 +365,7 @@ def move(imap, uid, mailbox, has_move):
 
 
 def handle(imap, uid, config, folders, has_move):
-    """Traite un message ; renvoie "imported", "refused" ou "left"."""
+    """Traite un message ; renvoie "imported", "refused", "left" ou "failed"."""
     label = uid.decode()
     rejected_label = config["rejected_folder"]
     size_data = check(imap.uid("FETCH", uid, "(RFC822.SIZE)"), "FETCH SIZE")
@@ -362,8 +381,10 @@ def handle(imap, uid, config, folders, has_move):
         return "left"
     try:
         allowed, domain, written, skipped = process(raw, config)
-    except OSError:
-        raise
+    except OSError as e:
+        # Son nom de fichier reste hors du journal, comme le contenu du message.
+        log(f"Message {label} : dépôt en échec ({type(e).__name__} : {e.strerror}), laissé en place")
+        return "failed"
     except Exception as e:  # noqa: BLE001 - un message illisible ne doit pas bloquer les suivants
         log(f"Message {label} : illisible ({type(e).__name__}), déplacé vers {rejected_label}")
         move(imap, uid, folders["rejected"], has_move)
@@ -399,8 +420,11 @@ def run(config):
         outcomes = [handle(imap, uid, config, folders, has_move) for uid in uids]
         log(
             f"Relève terminée : {outcomes.count('imported')} message(s) traité(s), "
-            f"{outcomes.count('refused')} refusé(s), {outcomes.count('left')} laissé(s)"
+            f"{outcomes.count('refused')} refusé(s), {outcomes.count('left')} laissé(s), "
+            f"{outcomes.count('failed')} en échec"
         )
+        if "failed" in outcomes:
+            raise RuntimeError(f"{outcomes.count('failed')} message(s) non déposé(s), laissé(s) en place")
     finally:
         try:
             imap.logout()
