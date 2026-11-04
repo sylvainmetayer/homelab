@@ -1,0 +1,162 @@
+---
+# Retire de l'hôte ce que tasks/main.yml y pose : montage, automount, entrée
+# fstab, drop-in docker.service, slice, script d'attente, point de montage,
+# paquets NFS. Lancé à la main (README.md, « Retirer le montage »), aucun
+# playbook ne l'inclut. Rien n'est effacé côté NAS : ces tâches ne lisent ni n'écrivent
+# sous le point de montage, et `rmdir` échoue plutôt que de vider un dossier.
+#
+# Docker reste en place : le drop-in ne pose qu'un After=, sans Requires= ni
+# BindsTo= ni RequiresMountsFor= ; ni l'arrêt du montage ni le daemon-reload ne
+# touchent docker.service. Le contrôle du PID de dockerd, à la fin, le prouve.
+- name: Compute the mount unit name
+  ansible.builtin.command:
+    cmd: "systemd-escape --path {{ nas_storage_mount_path }}"
+  register: nas_storage_unit
+  changed_when: false
+  check_mode: false
+
+- name: Set the mount unit name prefix
+  ansible.builtin.set_fact:
+    nas_storage_unit_prefix: "{{ nas_storage_unit.stdout }}"
+
+- name: Read dockerd before the removal
+  ansible.builtin.systemd:
+    name: docker.service
+  register: nas_storage_dockerd_before
+
+- name: List every container, stopped ones included
+  become: true
+  ansible.builtin.command: docker ps --all --quiet --no-trunc
+  register: nas_storage_containers
+  changed_when: false
+  check_mode: false
+
+# Les montages et le cgroup_parent seulement : un inspect complet écrirait les
+# variables d'environnement des conteneurs dans run.log.
+- name: Read the mounts and the cgroup parent of the containers
+  become: true
+  when: nas_storage_containers.stdout_lines | length > 0
+  vars:
+    nas_storage_inspect_format: "{% raw %}{{.Name}} {{json .Mounts}} {{.HostConfig.CgroupParent}}{% endraw %}"
+  ansible.builtin.command:
+    argv: "{{ ['docker', 'inspect', '--format', nas_storage_inspect_format] + nas_storage_containers.stdout_lines }}"
+  register: nas_storage_inspect
+  changed_when: false
+  check_mode: false
+
+- name: Refuse while a container uses the NAS export or its slice
+  vars:
+    nas_storage_users: >-
+      {{ (nas_storage_inspect.stdout_lines | default([]))
+         | select('search', nas_storage_mount_path ~ '|' ~ nas_storage_slice)
+         | map('split') | map('first') | list }}
+  ansible.builtin.assert:
+    that: nas_storage_users | length == 0
+    fail_msg: "Conteneurs qui utilisent {{ nas_storage_mount_path }} ou {{ nas_storage_slice }} : {{ nas_storage_users }}"
+    quiet: true
+
+# Sans `state`, le module lit l'unité et accepte qu'elle n'existe plus.
+- name: Read the mount units
+  loop:
+    - "{{ nas_storage_unit_prefix }}.mount"
+    - "{{ nas_storage_unit_prefix }}.automount"
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  register: nas_storage_units
+
+# Le .mount d'abord : un export occupé fait échouer umount, le run s'arrête ici
+# et rien n'est retiré. Arrêter l'.automount en premier détacherait le montage
+# sans le dire. Le timeout couvre un NAS injoignable (montage `hard`).
+- name: Unmount the NAS export
+  become: true
+  when: nas_storage_units.results[0].status.ActiveState not in ['inactive', 'failed']
+  ansible.builtin.systemd:
+    name: "{{ nas_storage_unit_prefix }}.mount"
+    state: stopped
+  timeout: 120
+
+- name: Stop the NAS automount
+  become: true
+  when: nas_storage_units.results[1].status.ActiveState not in ['inactive', 'failed']
+  ansible.builtin.systemd:
+    name: "{{ nas_storage_unit_prefix }}.automount"
+    state: stopped
+  timeout: 120
+
+# La table des montages, sans argument : findmnt ne passe pas par le chemin.
+- name: Read the mount table
+  ansible.builtin.command: findmnt --noheadings --raw --output TARGET
+  register: nas_storage_mount_table
+  changed_when: false
+  check_mode: false
+
+- name: Assert nothing is mounted on the mount point any more
+  when: not ansible_check_mode
+  ansible.builtin.assert:
+    that: nas_storage_mount_path not in nas_storage_mount_table.stdout_lines
+    fail_msg: "{{ nas_storage_mount_path }} est encore monté (accès pendant le retrait ?) : relancer"
+    quiet: true
+
+# absent_from_fstab, pas absent : absent démonte et fait un rmdir lui-même.
+- name: Remove the NAS export from fstab
+  become: true
+  ansible.posix.mount:
+    path: "{{ nas_storage_mount_path }}"
+    state: absent_from_fstab
+
+- name: Remove the docker.service drop-in, the slice and the wait script
+  become: true
+  loop:
+    - /etc/systemd/system/docker.service.d/nas-storage.conf
+    - "/etc/systemd/system/{{ nas_storage_slice }}"
+    - "{{ nas_storage_wait_command }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+
+# Relit les unités, sans redémarrer aucun service.
+- name: Reload systemd
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+# rmdir strict : un fichier local sous le point de montage n'est pas prévu, il
+# fait échouer le run au lieu de disparaître.
+- name: Remove the mount point
+  become: true
+  when: not ansible_check_mode
+  ansible.builtin.command:
+    cmd: "rmdir {{ nas_storage_mount_path }}"
+    removes: "{{ nas_storage_mount_path }}"
+
+- name: Remove the now empty parent folders
+  become: true
+  when: not ansible_check_mode
+  loop:
+    - "{{ nas_storage_mount_path | dirname }}"
+    - /etc/systemd/system/docker.service.d
+  ansible.builtin.command:
+    cmd: "rmdir --ignore-fail-on-non-empty {{ item }}"
+    removes: "{{ item }}"
+
+- name: Remove the NFS client
+  become: true
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+      - rpcbind
+    state: absent
+    purge: true
+
+- name: Read dockerd after the removal
+  ansible.builtin.systemd:
+    name: docker.service
+  register: nas_storage_dockerd_after
+
+- name: Assert dockerd was not restarted
+  ansible.builtin.assert:
+    that:
+      - nas_storage_dockerd_after.status.ActiveState == 'active'
+      - nas_storage_dockerd_after.status.MainPID == nas_storage_dockerd_before.status.MainPID
+    fail_msg: "dockerd a changé : {{ nas_storage_dockerd_before.status.MainPID }} -> {{ nas_storage_dockerd_after.status.MainPID }}, vérifier les conteneurs"
+    quiet: true

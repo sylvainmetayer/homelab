@@ -12,9 +12,9 @@ the export, removed on 2026-10-29) was its only consumer. Its last version
 is in git history (`git show c945b564:ansible/roles/nginx_demo/tasks/main.yml`,
 same for `defaults/`, `meta/`, `templates/compose.yaml` and
 `ansible/molecule/nginx_demo/`); the snippets at the end are taken from it.
-Nothing applies the role any more: the fstab entry, the slice and
-`nas-storage-wait` it installed on the docker VM stay there, unused, until
-an app depends on it again. The rules:
+Nothing applies the role and no export exists (`nas_storage_export` is empty,
+the role fails until it is set): the first app on the NAS creates the share and
+its export (`host_vars/nas`). The rules:
 
 - Declare `dependencies: [{role: nas_storage}]` in the app's `meta/main.yml`
   (not in `docker.yml`): it mounts `/mnt/nas/apps` (`hard`,
@@ -61,6 +61,26 @@ an app depends on it again. The rules:
   `ansible/molecule/nas_storage/prepare.yml`, which mounts a tmpfs (closed to
   "others") in its place: everything but the fstab/automount path is covered.
 - No iSCSI: considered and rejected (see the doc).
+
+## Retirer le montage
+
+`tasks/remove.yml`, qu'aucun playbook n'inclut, donc qu'aucun déploiement ne
+lance. À la main, depuis `ansible/`, `--check` d'abord :
+
+```bash
+ansible docker --check -m ansible.builtin.include_role -a 'name=nas_storage tasks_from=remove'
+ansible docker -m ansible.builtin.include_role -a 'name=nas_storage tasks_from=remove'
+```
+
+Il refuse si un conteneur utilise l'export ou la slice, démonte, arrête
+l'automount, retire l'entrée fstab, le drop-in `docker.service`, la slice, le
+script d'attente, le point de montage, puis `nfs-common` et `rpcbind`. Rien
+n'est effacé sur le NAS. Docker n'est pas arrêté : le drop-in ne pose qu'un
+`After=`, et le retrait échoue si le PID de dockerd a changé.
+
+Ordre : ce retrait **avant** `nas.yml --tags nas`, qui retire l'export (un
+montage `hard` sur un export disparu pourrait bloquer le démontage). Un export
+occupé arrête le run au démontage, avant tout retrait ; il se relance tel quel.
 
 ## Reference snippets
 

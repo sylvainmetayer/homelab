@@ -4,6 +4,7 @@ scenario:
   name: nas_storage
 
 # Prepare propre : un tmpfs tient lieu de l'export NFS du NAS (cf. prepare.yml).
+# side_effect.yml : le retrait (tasks/remove.yml), puis le rôle réappliqué.
 ansible:
   playbooks:
     prepare: prepare.yml
