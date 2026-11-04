@@ -10,6 +10,8 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 import io
 import json
 import os
+import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -99,7 +101,7 @@ class Fixture(unittest.TestCase):
 
     def setUp(self):
         self.pvesh = self.patch("pvesh")
-        self.run = self.patch("run", return_value=completed())
+        self.pct = self.patch("run", return_value=completed())
         self.test = vz.Run(dict(CONFIG))
         self.test.node = "pve"
 
@@ -107,7 +109,6 @@ class Fixture(unittest.TestCase):
         patcher = mock.patch.object(vz, name, **kwargs)
         self.addCleanup(patcher.stop)
         return patcher.start()
-
 
 
 class CheckTargetTest(Fixture):
@@ -147,9 +148,10 @@ class LatestBackupTest(Fixture):
     def setUp(self):
         super().setUp()
         self.test.now = 1_800_000_000
-        self.run.return_value = completed("/mnt/backup/vzdump-lxc-200.tar.zst\n")
-        self.check_log = mock.patch.object(self.test, "check_log").start()
-        self.addCleanup(mock.patch.stopall)
+        self.pct.return_value = completed("/mnt/backup/vzdump-lxc-200.tar.zst\n")
+        patcher = mock.patch.object(self.test, "check_log")
+        self.addCleanup(patcher.stop)
+        self.check_log = patcher.start()
 
     def item(self, hours_ago, vmid=200, size=100 * MIB):
         return {
@@ -292,43 +294,46 @@ class AssertOfflineTest(Fixture):
                 self.check(**conf)
 
 
+LXC_SETTINGS = {
+    "source": 200,
+    "target": 990,
+    "min_size_mb": 1,
+    "restore_timeout": 10,
+    "boot_timeout": 10,
+    "expect_files": [],
+    "expect_executables": [],
+    "mask_units": [],
+}
+
+
+def restore_copy(case):
+    """test_lxc du Run de ce cas, sauvegarde et archive remplacées."""
+    for name, value in (
+        ("check_target", None),
+        ("latest_backup", {"volid": "nas-backup:b", "summary": "s"}),
+        ("archive_conf", {"hostname": "newt", "unprivileged": "1", "net0": "name=eth0,bridge=vmbr0"}),
+    ):
+        patcher = mock.patch.object(case.test, name, return_value=value)
+        case.addCleanup(patcher.stop)
+        patcher.start()
+    case.test.test_lxc(LXC_SETTINGS)
+
+
 class RestoreTest(Fixture):
     """test_lxc jusqu'à la restauration : l'id est noté avant, la commande
     n'écrase rien et ne branche rien."""
 
-    SETTINGS = {
-        "source": 200,
-        "target": 990,
-        "min_size_mb": 1,
-        "restore_timeout": 10,
-        "boot_timeout": 10,
-        "expect_files": [],
-        "expect_executables": [],
-        "mask_units": [],
-    }
-
-    def restore(self):
-        for name, value in (
-            ("check_target", None),
-            ("latest_backup", {"volid": "nas-backup:b", "summary": "s"}),
-            ("archive_conf", {"hostname": "newt", "unprivileged": "1", "net0": "name=eth0,bridge=vmbr0"}),
-        ):
-            patcher = mock.patch.object(self.test, name, return_value=value)
-            self.addCleanup(patcher.stop)
-            patcher.start()
-        self.test.test_lxc(self.SETTINGS)
-
     def test_failed_restore_stays_listed_for_the_cleanup(self):
-        self.run.side_effect = vz.TestFailure("pct restore : code 1")
+        self.pct.side_effect = vz.TestFailure("pct restore : code 1")
         with self.assertRaises(vz.TestFailure):
-            self.restore()
+            restore_copy(self)
         self.assertEqual(self.test.created, [990])
 
     def test_copy_with_an_interface_left_is_never_started(self):
         with mock.patch.object(self.test, "guest_conf", return_value={**MARKED, "net0": "x"}):
             with self.assertRaisesRegex(vz.TestFailure, "interfaces réseau encore présentes"):
-                self.restore()
-        argvs = argvs_of(self.run)
+                restore_copy(self)
+        argvs = argvs_of(self.pct)
         self.assertTrue(argvs[0].startswith("pct restore 990 nas-backup:b "))
         self.assertIn("--net0 name=eth0,bridge=vmbr0,link_down=1", argvs[0])
         self.assertIn("--unique 1", argvs[0])
@@ -337,6 +342,137 @@ class RestoreTest(Fixture):
         self.assertNotIn("--force", argvs[0])
         self.assertEqual(argvs[1], "pct set 990 --delete net0")
         self.assertFalse([argv for argv in argvs if argv.startswith("pct start")])
+
+
+class BootTest(Fixture):
+    """test_lxc après la restauration : ce que la copie montre une fois démarrée.
+    Le verify ne joue que le cas nominal."""
+
+    def boot(self, interfaces="lo\n", state="running\n"):
+        outputs = {"/sys/class/net": interfaces, "is-system-running": state}
+
+        def pct(argv, **_):
+            return completed(next((output for key, output in outputs.items() if key in argv), ""))
+
+        self.pct.side_effect = pct
+        with mock.patch.object(self.test, "assert_offline"), mock.patch.object(self.test, "check_rootfs"):
+            restore_copy(self)
+
+    def test_running_copy_is_stopped_and_reported(self):
+        self.boot()
+        self.assertEqual(argvs_of(self.pct)[-1], "pct stop 990")
+        self.assertIn("systemd running", self.test.lines[0])
+
+    def test_interface_at_boot_stops_the_copy(self):
+        with self.assertRaisesRegex(vz.TestFailure, r"interfaces réseau au démarrage \(eth0, lo\), arrêté"):
+            self.boot(interfaces="eth0\nlo\n")
+        argvs = argvs_of(self.pct)
+        self.assertEqual(argvs[-1], "pct stop 990")
+        self.assertFalse([argv for argv in argvs if "is-system-running" in argv])
+
+    def test_no_lo_is_unreadable_not_offline(self):
+        with self.assertRaisesRegex(vz.TestFailure, "aucune, lo absent"):
+            self.boot(interfaces="")
+
+    def test_systemd_in_another_state_fails(self):
+        with self.assertRaisesRegex(vz.TestFailure, "systemd à l'état « starting »"):
+            self.boot(state="starting\n")
+
+    def test_systemd_without_a_state_fails(self):
+        with self.assertRaisesRegex(vz.TestFailure, "systemd à l'état « inconnu »"):
+            self.boot(state="")
+
+    def test_rootfs_failure_never_starts_the_copy(self):
+        with (
+            mock.patch.object(self.test, "assert_offline"),
+            mock.patch.object(self.test, "check_rootfs", side_effect=vz.TestFailure("rootfs")),
+            self.assertRaisesRegex(vz.TestFailure, "rootfs"),
+        ):
+            restore_copy(self)
+        self.assertFalse([argv for argv in argvs_of(self.pct) if argv.startswith("pct start")])
+
+
+class CheckRootfsTest(Fixture):
+    """check_rootfs sur un vrai dossier : son contenu vient de l'invité, et un
+    lien absolu y pointerait sur l'hôte."""
+
+    SETTINGS = {"expect_files": ["etc/newt.conf"], "expect_executables": ["usr/bin/newt"], "mask_units": ["newt.service"]}
+
+    def setUp(self):
+        super().setUp()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.rootfs = directory.name
+        os.makedirs(self.path("etc/systemd/system"))
+        os.makedirs(self.path("usr/bin"))
+        for relative, text in (
+            ("etc/hostname", "newt\n"),
+            ("etc/newt.conf", ""),
+            ("etc/systemd/system/newt.service", "[Unit]\n"),
+            ("usr/bin/newt", ""),
+        ):
+            with open(self.path(relative), "w", encoding="ascii") as f:
+                f.write(text)
+        os.chmod(self.path("usr/bin/newt"), 0o700)
+        self.pct.return_value = completed(f"mounted CT 990 in '{self.rootfs}'\n")
+
+    def path(self, relative):
+        return os.path.join(self.rootfs, relative)
+
+    def replace_with_a_link(self, relative):
+        os.unlink(self.path(relative))
+        os.symlink("/etc/passwd", self.path(relative))
+
+    def check(self, hostname="newt"):
+        self.test.check_rootfs(990, hostname, self.SETTINGS)
+
+    def test_good_rootfs_masks_the_unit_and_unmounts(self):
+        self.check()
+        self.assertEqual(os.readlink(self.path("etc/systemd/system/newt.service")), "/dev/null")
+        self.assertEqual(os.listdir(self.path("etc/systemd/system")), ["newt.service"])
+        self.assertEqual(argvs_of(self.pct), ["pct mount 990", "pct unmount 990"])
+
+    def test_other_hostname_fails_and_still_unmounts(self):
+        with self.assertRaisesRegex(vz.TestFailure, "vaut « newt », pas « autre »"):
+            self.check("autre")
+        self.assertEqual(argvs_of(self.pct)[-1], "pct unmount 990")
+
+    def test_no_hostname_in_the_archive_is_not_compared(self):
+        self.check("")
+
+    def test_hostname_link_is_never_read(self):
+        self.replace_with_a_link("etc/hostname")
+        with self.assertRaisesRegex(vz.TestFailure, "/etc/hostname absent"):
+            self.check()
+
+    def test_missing_expected_file(self):
+        os.unlink(self.path("etc/newt.conf"))
+        with self.assertRaisesRegex(vz.TestFailure, "/etc/newt.conf absent"):
+            self.check()
+
+    def test_expected_file_as_a_link_is_refused(self):
+        self.replace_with_a_link("etc/newt.conf")
+        with self.assertRaisesRegex(vz.TestFailure, "/etc/newt.conf absent"):
+            self.check()
+
+    def test_expected_executable_without_the_bit(self):
+        os.chmod(self.path("usr/bin/newt"), 0o600)
+        with self.assertRaisesRegex(vz.TestFailure, "/usr/bin/newt n'est pas exécutable"):
+            self.check()
+
+    def test_mask_behind_a_link_writes_nothing_outside(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        shutil.rmtree(self.path("etc/systemd"))
+        os.symlink(outside.name, self.path("etc/systemd"))
+        with self.assertRaisesRegex(vz.TestFailure, "n'est pas un dossier"):
+            self.check()
+        self.assertEqual(os.listdir(outside.name), [])
+
+    def test_unreadable_mount_point(self):
+        self.pct.return_value = completed("autre chose\n")
+        with self.assertRaisesRegex(vz.TestFailure, "point de montage introuvable"):
+            self.check()
 
 
 class VerifyArchiveTest(Fixture):
@@ -360,41 +496,41 @@ class DestroyTest(Fixture):
             with self.subTest(vmid=vmid), self.assertRaisesRegex(vz.TestFailure, "refus de détruire"):
                 self.test.destroy(vmid)
         self.pvesh.assert_not_called()
-        self.run.assert_not_called()
+        self.pct.assert_not_called()
 
     def test_gone_already(self):
         self.guests(100)
         self.test.destroy(990)
-        self.run.assert_not_called()
+        self.pct.assert_not_called()
 
     def test_no_marker_is_left_in_place(self):
         self.guests(990)
         self.conf({"description": "un invité de quelqu'un"})
         with self.assertRaisesRegex(vz.TestFailure, "laissé en place"):
             self.test.destroy(990)
-        self.run.assert_not_called()
+        self.pct.assert_not_called()
 
     def test_stopped_copy_is_destroyed_without_purge(self):
         self.pvesh.side_effect = [[{"vmid": 990}], []]
         self.conf()
-        self.run.side_effect = [completed(), completed("status: stopped\n"), completed()]
+        self.pct.side_effect = [completed(), completed("status: stopped\n"), completed()]
         self.test.destroy(990)
         self.assertEqual(
-            argvs_of(self.run),
+            argvs_of(self.pct),
             ["pct unmount 990", "pct status 990", "pct destroy 990 --purge 0 --destroy-unreferenced-disks 0"],
         )
 
     def test_running_copy_is_stopped_first(self):
         self.pvesh.side_effect = [[{"vmid": 990}], []]
         self.conf()
-        self.run.side_effect = [completed(), completed("status: running\n"), completed(), completed()]
+        self.pct.side_effect = [completed(), completed("status: running\n"), completed(), completed()]
         self.test.destroy(990)
-        self.assertIn("pct stop 990", argvs_of(self.run))
+        self.assertIn("pct stop 990", argvs_of(self.pct))
 
     def test_still_there_after_destroy(self):
         self.guests(990)
         self.conf()
-        self.run.return_value = completed("status: stopped\n")
+        self.pct.return_value = completed("status: stopped\n")
         with self.assertRaisesRegex(vz.TestFailure, "toujours là"):
             self.test.destroy(990)
 
@@ -494,6 +630,39 @@ class RunCommandTest(unittest.TestCase):
         with redirect_stdout(io.StringIO()), self.assertRaisesRegex(vz.TestFailure, "plus de 0.2 s"):
             vz.run(["sleep", "30"], timeout=0.2)
         self.assertLess(time.monotonic() - started, 20)
+
+    def test_exception_stops_the_child_with_sigterm(self):
+        # pct restore relaie SIGTERM à sa tâche détachée, qui annule et nettoie :
+        # un SIGKILL d'emblée la laisserait finir seule.
+        real = subprocess.Popen.communicate
+
+        def interrupted(proc, timeout):
+            if timeout == vz.STOP_GRACE:
+                return real(proc, timeout=timeout)
+            proc.stdout.readline()  # le trap de l'enfant est posé
+            raise vz.Terminated("signal")
+
+        with tempfile.TemporaryDirectory() as directory:
+            marker = os.path.join(directory, "sigterm")
+            # Boucle bornée : sans stop(), le test échoue au lieu de bloquer sur l'enfant.
+            script = f"trap 'touch {marker}; exit 0' TERM; echo pret; for _ in 1 2 3 4 5 6 7 8 9 10; do sleep 1; done"
+            with (
+                mock.patch.object(subprocess.Popen, "communicate", autospec=True, side_effect=interrupted),
+                redirect_stdout(io.StringIO()),
+                self.assertRaises(vz.Terminated),
+            ):
+                vz.run(["sh", "-c", script])
+            self.assertTrue(os.path.exists(marker))
+
+    def test_child_ignoring_sigterm_is_killed_after_the_grace(self):
+        script = "trap '' TERM; echo pret; exec sleep 30"
+        with (
+            subprocess.Popen(["sh", "-c", script], stdout=subprocess.PIPE, text=True) as proc,
+            mock.patch.object(vz, "STOP_GRACE", 0.2),
+        ):
+            proc.stdout.readline()
+            vz.stop(proc)
+        self.assertEqual(proc.returncode, -signal.SIGKILL)
 
     def test_pvesh_reads_json(self):
         with mock.patch.object(vz, "run", return_value=completed('[{"vmid": 1}]')) as run:
@@ -609,6 +778,37 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 1)
         cleanup.assert_called_once()
         self.assertIn("erreur inattendue : RuntimeError: x", notify.call_args.args[1][0])
+
+    def test_both_locks_are_held_during_the_test(self):
+        events = []
+
+        def acquire(path, _what):
+            handle = mock.MagicMock()
+            handle.close.side_effect = lambda: events.append("close")
+            events.append(path)
+            return handle
+
+        self.main(acquire={"side_effect": acquire}, execute={"side_effect": lambda: events.append("execute")})
+        self.assertEqual(events, [vz.LOCK_PATH, vz.VZDUMP_LOCK_PATH, "execute", "close", "close"])
+
+    def test_sigterm_interrupts_the_test_but_not_its_cleanup(self):
+        self.addCleanup(signal.signal, signal.SIGTERM, signal.getsignal(signal.SIGTERM))
+        # Sans le gestionnaire de main(), le signal ne tue pas ce test : il échoue.
+        signal.signal(signal.SIGTERM, lambda *_: None)
+
+        def sigterm(*_):
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        with (
+            mock.patch.object(vz, "acquire"),
+            mock.patch.object(vz.Run, "execute", side_effect=sigterm),
+            mock.patch.object(vz.Run, "cleanup", side_effect=sigterm) as cleanup,
+            mock.patch.object(vz, "notify", return_value=0) as notify,
+        ):
+            code = vz.main(self.argv)
+        self.assertEqual(code, 1)
+        cleanup.assert_called_once()
+        self.assertIn("interrompu par le signal", notify.call_args.args[1][0])
 
     def test_lock_is_exclusive(self):
         with tempfile.NamedTemporaryFile() as lock:

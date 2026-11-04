@@ -189,6 +189,19 @@ class MainTest(unittest.TestCase):
                 self.main(env={**self.ENV, missing: ""})
             self.assertIn("rien n'est publié", str(raised.exception.code))
 
+    def test_publication_refused_cites_its_http_code(self):
+        refused = cs.urllib.error.HTTPError("http://ntfy.invalid/jeton", 403, "refus", {}, None)
+        self.addCleanup(refused.close)
+        with (
+            mock.patch.object(cs.sys, "argv", ["crowdsec-summary"]),
+            mock.patch.dict(os.environ, self.ENV),
+            mock.patch.object(cs, "cscli", return_value=[]),
+            mock.patch.object(cs.urllib.request, "urlopen", side_effect=refused),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            cs.main()
+        self.assertEqual(raised.exception.code, "publication ntfy en échec : HTTP 403")
+
     def test_publication_error_cites_its_class_only(self):
         with (
             mock.patch.object(cs.sys, "argv", ["crowdsec-summary"]),
