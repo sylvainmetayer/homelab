@@ -17,6 +17,7 @@ jamais sur la ligne de commande, jamais affichée.
 """
 
 import argparse
+import http.client
 import os
 import socket
 import ssl
@@ -78,8 +79,8 @@ def main(argv=None):
     if url:
         try:
             push(url, status, msg)
-        except OSError as error:
-            # Une erreur d'urllib peut citer l'URL : sa classe seule est affichée.
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            # Une erreur d'urllib peut citer l'URL, donc le jeton : sa classe seule.
             print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
             return 2
     else:

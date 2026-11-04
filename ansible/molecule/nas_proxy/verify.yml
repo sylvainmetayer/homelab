@@ -353,6 +353,36 @@
         cert_check_case_status: down
         cert_check_case_index: 2
 
+    # Le push : une URL mal formée ne doit ni planter ni être citée. Les deux
+    # passages ci-dessus jouent le script entier, jamais avec une telle URL.
+    - name: Create a throwaway folder for the cert_check tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: cert_check
+      register: nas_proxy_verify_cert_tests_dir
+
+    - name: Copy cert_check and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/nas_proxy/files/cert_check.py"
+          dest: cert_check.py
+        - src: "{{ playbook_dir }}/files/test_cert_check.py"
+          dest: test_cert_check.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ nas_proxy_verify_cert_tests_dir.path }}/{{ item.dest }}"
+        mode: "0600"
+
+    - name: Run the cert_check tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ nas_proxy_verify_cert_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the cert_check tests
+      ansible.builtin.file:
+        path: "{{ nas_proxy_verify_cert_tests_dir.path }}"
+        state: absent
+
     # --- Santé des applis (nas-health-check.timer) ---
     - name: Stat the app health check files
       ansible.builtin.stat:
