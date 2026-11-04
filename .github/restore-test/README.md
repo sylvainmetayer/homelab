@@ -25,7 +25,10 @@ dépôt (`.github/scripts/restore_test.py`) :
 - le contenu de chaque base est lu : les tables de `expected_tables` doivent
   exister et avoir au moins une ligne, et une base sans liste doit avoir au
   moins une table non vide (sauf `allow_empty_databases`, voir plus bas). Un
-  dump d'un schéma sans données, ou une base recréée vide, échoue.
+  dump d'un schéma sans données échoue. Une base que l'app a recréée vide
+  garde des lignes dans ses tables de migrations : seules ses
+  `expected_tables` peuvent la repérer, si elles ne se remplissent pas seules
+  au démarrage.
 
 Les journaux d'un dépôt public sont publics : les commandes qui portent des
 chemins de l'archive (`borg list`, `borg extract`) ou des lignes d'un dump

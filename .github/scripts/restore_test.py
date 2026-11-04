@@ -222,7 +222,7 @@ def restore_mysql(image, name, dump):
         listing = query("select table_name from information_schema.tables "
                         f"where table_schema = '{name}' and table_type = 'BASE TABLE'")
         return tables_with_rows(query, {table: f"{quoted(name, '`')}.{quoted(table, '`')}"
-                                        for table in listing.split()})
+                                        for table in listing.splitlines()})
     finally:
         run("docker", "rm", "-f", container, check=False)
 
@@ -291,7 +291,9 @@ def is_database(key, engine_name):
 
     A dump goes by its database name. A SQLite copy by the end of its staging
     name, which carries its source path (srv_trek_data_travel.db): the file name
-    only, the same for each copy of a glob (FreshRSS's users/*/db.sqlite).
+    only, the same for each copy of a glob (FreshRSS's users/*/db.sqlite). The
+    staging name turns "/" into "_", so a file old_travel.db next to travel.db
+    also answers to travel.db: a key cannot tell them apart.
     """
     return engine_name == key or engine_name.endswith(f"_{key}")
 
