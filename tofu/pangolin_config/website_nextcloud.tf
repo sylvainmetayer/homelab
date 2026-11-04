@@ -73,6 +73,10 @@ locals {
 #    - Thumbnails: /index.php/core/preview (and its .png form, some
 #      NextcloudKit calls), /index.php/apps/files/api/v1/thumbnail/*, and the
 #      trashbin and versions previews, same credentials.
+#    - /index.php/apps/cospend/api-priv/*: the Android Cospend client (its reads
+#      and writes of bills, read off the nginx log of Nextcloud), HTTP Basic with
+#      the app password. Behind the wall it gets a redirect and the app stops.
+#      Its own lists go through OCS, already opened.
 #    - /.well-known/caldav, /.well-known/carddav: DAVx5 and Thunderbird
 #      discovery, a 301 to /remote.php/dav/ answered by nginx.
 #    Deliberately not opened: avatars (cosmetic in the apps), the Notes and
@@ -127,6 +131,7 @@ locals {
     "/index.php/apps/files_trashbin/preview"   = 4
     "/index.php/apps/files_versions/preview"   = 4
     "/index.php/apps/files/api/v1/thumbnail/*" = 4
+    "/index.php/apps/cospend/api-priv/*"       = 4
     "/.well-known/caldav"                      = 4
     "/.well-known/carddav"                     = 4
   }

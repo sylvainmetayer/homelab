@@ -44,7 +44,7 @@
     "version": "35.0.2",
     "compose": "ansible/roles/nextcloud/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_nextcloud.tf (nextcloud_client_paths, nextcloud_share_paths)",
-    "reread": "server: core/routes.php, apps/*/appinfo/routes.php of files_sharing, files, files_trashbin, files_versions, theming, text, files_pdfviewer, core/ajax (never opened); linuxserver root/defaults/nginx/site-confs/default.conf.sample (front controller, .well-known); clients: desktop src/libsync + src/gui/wizard, Android ConnectivityServiceImpl.kt, NextcloudKit, DAVx5",
+    "reread": "server: core/routes.php, apps/*/appinfo/routes.php of files_sharing, files, files_trashbin, files_versions, theming, text, files_pdfviewer, core/ajax (never opened); linuxserver root/defaults/nginx/site-confs/default.conf.sample (front controller, .well-known); clients: desktop src/libsync + src/gui/wizard, Android ConnectivityServiceImpl.kt, NextcloudKit, DAVx5, and the store app cospend: its appinfo/routes.php (api-priv).",
     "releases": "https://github.com/nextcloud/server/releases"
   },
   "ntfy": {
