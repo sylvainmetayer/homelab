@@ -7,6 +7,7 @@ ansible/roles/vzdump_restore_test/files/vzdump_restore_test.py, puis
 python3 -I -m unittest discover -s . -p 'test_*.py'.
 """
 
+import http.client
 import io
 import json
 import os
@@ -679,7 +680,9 @@ class NotifyTest(unittest.TestCase):
     # Pas de schéma : urllib lève un ValueError qui cite l'URL entière.
     BAD_URL = "kuma.invalid/api/push/jeton-du-moniteur"
 
-    def notify(self, env, failures=(), lines=("ligne",), urlopen=None):
+    real_urlopen = staticmethod(vz.urllib.request.urlopen)
+
+    def notify(self, env, failures=(), lines=("ligne",), urlopen=None, config=None):
         err = io.StringIO()
         with (
             mock.patch.dict(os.environ, {vz.NTFY_TOKEN_VARIABLE: "", vz.PUSH_URL_VARIABLE: "", **env}),
@@ -687,7 +690,7 @@ class NotifyTest(unittest.TestCase):
             redirect_stdout(io.StringIO()),
             redirect_stderr(err),
         ):
-            problems = vz.notify(self.NTFY, list(failures), list(lines))
+            problems = vz.notify(config or self.NTFY, list(failures), list(lines))
         return problems, opened, err.getvalue()
 
     def test_nothing_configured_sends_nothing(self):
@@ -717,7 +720,52 @@ class NotifyTest(unittest.TestCase):
     def test_malformed_url_counts_as_a_problem_and_is_not_shown(self):
         problems, _, err = self.notify(
             {vz.PUSH_URL_VARIABLE: self.BAD_URL},
-            urlopen={"side_effect": vz.urllib.request.urlopen},
+            urlopen={"side_effect": self.real_urlopen},
+        )
+        self.assertEqual(problems, 1)
+        self.assertNotIn("jeton", err)
+
+    def test_url_with_a_space_does_not_crash_and_is_not_shown(self):
+        # http.client.InvalidURL n'est ni une OSError ni un ValueError.
+        problems, _, err = self.notify(
+            {vz.PUSH_URL_VARIABLE: "http://kuma.invalid/api/push/jeton du moniteur"},
+            urlopen={"side_effect": self.real_urlopen},
+        )
+        self.assertEqual(problems, 1)
+        self.assertIn("InvalidURL", err)
+        self.assertNotIn("jeton", err)
+
+    def test_truncated_push_response_does_not_crash(self):
+        problems, _, err = self.notify(
+            {vz.PUSH_URL_VARIABLE: "http://kuma.invalid/p"},
+            urlopen={"side_effect": http.client.IncompleteRead(b"")},
+        )
+        self.assertEqual(problems, 1)
+        self.assertIn("IncompleteRead", err)
+
+    def test_malformed_ntfy_url_does_not_crash_nor_stop_the_push(self):
+        for url in ("ntfy.invalid/jeton", "http://ntfy.invalid/jeton du sujet"):
+            with self.subTest(url=url):
+                problems, _, err = self.notify(
+                    {vz.NTFY_TOKEN_VARIABLE: "jeton", vz.PUSH_URL_VARIABLE: "kuma.invalid/p"},
+                    urlopen={"side_effect": self.real_urlopen},
+                    config={"ntfy": {"topic": "t", "url": url}},
+                )
+                self.assertEqual(problems, 2)
+                self.assertNotIn("jeton", err)
+
+    def test_incomplete_ntfy_settings_do_not_crash(self):
+        for settings in ({"url": "http://ntfy.invalid"}, {"topic": "t"}, {"topic": "t", "url": None}, "chaine"):
+            with self.subTest(settings=settings):
+                problems, _, err = self.notify({vz.NTFY_TOKEN_VARIABLE: "jeton"}, config={"ntfy": settings})
+                self.assertEqual(problems, 1)
+                self.assertIn("envoi à ntfy en échec", err)
+
+    def test_token_in_a_refused_header_is_not_shown(self):
+        # http.client cite la valeur refusée de l'en-tête dans son ValueError.
+        problems, _, err = self.notify(
+            {vz.NTFY_TOKEN_VARIABLE: "jeton\nmultiligne"},
+            urlopen={"side_effect": self.real_urlopen},
         )
         self.assertEqual(problems, 1)
         self.assertNotIn("jeton", err)
