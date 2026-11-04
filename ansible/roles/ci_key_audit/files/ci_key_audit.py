@@ -106,6 +106,13 @@ def clean(text, limit=300):
     return re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text)[:limit]
 
 
+def listed(value):
+    """Une liste, ou TypeError : un `{}` ou un `""` se parcourrait sans rien donner, « aucun hôte déployé »."""
+    if not isinstance(value, list):
+        raise TypeError
+    return value
+
+
 class Checker:
     def __init__(self, config, secrets, now, sleep=time.sleep):
         self.config = config
@@ -198,8 +205,8 @@ class Checker:
         try:
             steps = {
                 step.get("name"): step.get("conclusion")
-                for job in reply["jobs"]
-                for step in job.get("steps", [])
+                for job in listed(reply["jobs"])
+                for step in listed(job.get("steps", []))
             }
         except (KeyError, TypeError, AttributeError):
             # Un 200 d'une autre forme : les connexions sont jugées, l'alerte part.

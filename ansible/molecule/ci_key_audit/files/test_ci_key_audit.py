@@ -525,8 +525,12 @@ class JobsReply(unittest.TestCase):
         {"message": "x"},
         {"jobs": None},
         {"jobs": 3},
+        {"jobs": {}},
+        {"jobs": ""},
         {"jobs": ["x"]},
         {"jobs": [{"steps": None}]},
+        {"jobs": [{"steps": {}}]},
+        {"jobs": [{"steps": ""}]},
         {"jobs": [{"steps": ["x"]}]},
         [],
     )
