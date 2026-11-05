@@ -191,3 +191,24 @@
         conf: "{{ immich_swipe_conf.content | b64decode }}"
         # Du `location =` du mode aléatoire au `location ^~ /api/` qui le suit.
         random_location: "{{ conf.split('location = /api/assets/random {')[1].split('location ^~ /api/')[0] }}"
+
+    # Avec la clé (fake_secrets) : cadre photo plein écran, joint par Pangolin
+    # seul (newt, derrière le SSO), jamais publié sur le LAN, durci, avec la
+    # clé en lecture seule dans le compose (0600, vérifié plus haut).
+    - name: Assert Immich Kiosk is rendered, private and hardened
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - kiosk.environment.KIOSK_IMMICH_URL == 'http://immich-server:2283'
+          - kiosk.environment.KIOSK_IMMICH_API_KEY == 'molecule-immich-kiosk-api-key'
+          - kiosk.environment.KIOSK_DISABLE_CONFIG_ENDPOINT == 'true'
+          - kiosk.environment.KIOSK_BEHIND_PROXY == 'true'
+          - kiosk.networks.keys() | sort == ['immich', 'newt']
+          - "'ports' not in kiosk"
+          - kiosk.read_only
+          - kiosk.cap_drop == ['ALL']
+          - kiosk.security_opt == ['no-new-privileges:true']
+          - kiosk.healthcheck.test == ['CMD', '/kiosk', '--healthcheck']
+          - kiosk.mem_limit is defined
+      vars:
+        kiosk: "{{ immich_compose.services['immich-kiosk'] }}"
