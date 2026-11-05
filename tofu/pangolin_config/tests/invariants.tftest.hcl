@@ -42,6 +42,12 @@ override_data {
       neonova_pin            = "123456"
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
 
+      # Client OIDC de Pangolin dans Pocket ID (pocket_id.tf) : présents ici
+      # pour que les assertions voient l'IdP ; les autres fichiers de tests
+      # ne les ont pas, l'IdP y est absent.
+      pocket_id_pangolin_client_id     = "fake-pocket-id-pangolin-client"
+      pocket_id_pangolin_client_secret = "fake-pocket-id-pangolin-secret"
+
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"
     }
@@ -675,6 +681,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.cron_geoip
   values = { push_token = "push-cron-geoip" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup_pocket_id
+  values = { push_token = "push-pocket-id" }
 }
 
 override_resource {
@@ -2078,8 +2089,9 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
         uptime_cron_dns_lxc_url  = output.uptime_cron_dns_lxc_url
         # pangolin.yaml
-        uptime_backup_pangolin_url = output.uptime_backup_pangolin_url
-        uptime_cron_geoip_url      = output.uptime_cron_geoip_url
+        uptime_backup_pangolin_url  = output.uptime_backup_pangolin_url
+        uptime_cron_geoip_url       = output.uptime_cron_geoip_url
+        uptime_backup_pocket_id_url = output.uptime_backup_pocket_id_url
         # nas.yml
         uptime_backup_jellyfin_url     = output.uptime_backup_jellyfin_url
         uptime_cron_nas_cert_url       = output.uptime_cron_nas_cert_url
@@ -2446,7 +2458,7 @@ run "monitors_are_filed_and_alert" {
   # .github/restore-test/apps.json, plus bas.
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_jellyfin]) :
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 26 * 3600
       && m.max_retries == 0
@@ -2526,7 +2538,7 @@ run "monitors_are_filed_and_alert" {
   # moniteur de sauvegarde, Pangolin et Jellyfin compris. Une app ajoutée avec
   # `backup = true` doit y entrer, une app retirée en sortir.
   assert {
-    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "jellyfin"]))
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "pocket_id", "jellyfin"]))
     error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin et Jellyfin compris."
   }
 
@@ -3105,6 +3117,48 @@ run "hand_made_leftovers_stay_as_imported" {
       && pangolin_site_resource.nas_web.subdomain == "nas-internal"
     )
     error_message = "00-NTF-nas doit rester l'accès au port 9999 du NAS sur nas-internal."
+  }
+}
+
+run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
+  command = plan
+
+  # Le fournisseur d'identité sert le login du mur SSO : jamais une ressource
+  # Pangolin (derrière le mur, personne ne pourrait s'y connecter). Son routeur
+  # est dans le rôle pangolin (ADR 0030) ; le nom d'hôte est celui que ce
+  # routeur et le provider lisent.
+  assert {
+    condition = (
+      length([for website in local.websites : website.name if try(website.subdomain, "") == "id"]) == 0
+      && local.pocket_id_issuer == "https://id.sylvain.cloud"
+      && strcontains(file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"), "pocket_id_host: \"id.{{ pangolin_base_domain }}\"")
+      && strcontains(file("${path.module}/../../ansible/roles/pangolin/templates/traefik_dynamic_config.yml.j2"), "Host(`{{ pangolin_idp_host }}`)")
+    )
+    error_message = "Pocket ID ne doit jamais être une entrée de local.websites : elle le mettrait derrière le mur SSO qu'il sert."
+  }
+
+  # Pilote : rien n'est créé par Pangolin à la première connexion, les rôles
+  # réécrits au login ne montent jamais au-dessus de Member, et aucun
+  # utilisateur interne n'est déclaré ici.
+  assert {
+    condition = (
+      length(pangolin_idp.pocket_id) == 1
+      && pangolin_idp.pocket_id[0].auto_provision == false
+      && pangolin_idp.pocket_id[0].variant == "oidc"
+      && pangolin_idp.pocket_id[0].identifier_path == "preferred_username"
+      && contains(split(" ", pangolin_idp.pocket_id[0].scopes), "groups")
+      && pangolin_idp_org.pocket_id[0].role_mapping == "'Member'"
+      && pangolin_idp_org.pocket_id[0].org_id == "homelab"
+    )
+    error_message = "L'IdP Pocket ID doit rester sans auto-provision, avec le rôle Member et le scope groups (pocket_id.tf)."
+  }
+
+  assert {
+    condition = (
+      uptimekuma_monitor_http.pocket_id.url == "https://id.sylvain.cloud/.well-known/openid-configuration"
+      && uptimekuma_monitor_push.backup_pocket_id.name == "Backup Pocket ID"
+    )
+    error_message = "Les moniteurs de Pocket ID (découverte OIDC, sauvegarde) sont déclarés dans pocket_id.tf."
   }
 }
 

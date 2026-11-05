@@ -48,3 +48,15 @@ security_mta_enabled: true
 # backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
 # de tofu/pangolin.
 backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pangolin }}"
+
+# Pocket ID (rôle pocket_id, ADR 0030), pilote du fournisseur d'identité. Rendu
+# seulement quand la clé SOPS pocket_id_encryption_key existe : sans elle, ni
+# conteneur ni routeur Traefik (rôle pangolin), rien ne change.
+pocket_id_host: "id.{{ pangolin_base_domain }}"
+# true tant que le premier compte administrateur n'existe pas : tout l'hôte
+# n'est admis que depuis home_ip (la page /setup de Pocket ID est ouverte à
+# qui arrive le premier). À passer à false, puis pangolin.yaml --tags pangolin,
+# une fois le compte créé (docs/runbooks/pocket-id.md, étape 2).
+pocket_id_setup_phase: true
+pangolin_idp_host: "{{ pocket_id_host if (pocket_id_encryption_key | default('') | length > 0) else '' }}"
+pangolin_idp_allowed_ips: "{{ home_ip if pocket_id_setup_phase | bool else '' }}"

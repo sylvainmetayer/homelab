@@ -1,0 +1,41 @@
+---
+# Pocket ID, fournisseur d'identité OIDC (passkeys) sur la VM Pangolin, en
+# pilote (docs/adr/0030-pocket-id-pilote.md). Rôle appliqué par pangolin.yaml
+# APRÈS le rôle pangolin : son conteneur rejoint le réseau « pangolin » créé par
+# la pile, où le Traefik de Pangolin l'atteint (routeur du rôle pangolin,
+# pangolin_idp_host). Jamais une ressource Pangolin : derrière le mur SSO qu'il
+# sert, personne ne pourrait se connecter.
+pocket_id_base_path: /opt/pocket-id
+
+# Nom d'hôte public (host_vars/pangolin : id.sylvain.cloud) : APP_URL, que les
+# passkeys lient à ce domaine. Le changer rend les passkeys inutilisables.
+pocket_id_host: ""
+
+# Utilisateur du conteneur : sans privilège dès la première instruction
+# (l'entrypoint de l'image n'a alors plus rien à faire, PUID/PGID ignorés) ;
+# data/ lui appartient (tasks/main.yml).
+pocket_id_uid: 65532
+pocket_id_gid: 65532
+
+# Clé SOPS pocket_id_encryption_key (ansible.sops.yaml), générée par
+# `openssl rand -base64 32`. Chiffre au repos les clés de signature des jetons.
+# Sans elle, ou vide, le rôle ne rend rien (ni conteneur ni routeur) et le dit.
+# La perdre, c'est perdre les clés de l'IdP : elle est aussi dans la sauvegarde
+# (.env), donc la restauration d'une archive suffit.
+pocket_id_enc_key: "{{ pocket_id_encryption_key | default('') }}"
+pocket_id_enabled: "{{ pocket_id_enc_key | length > 0 }}"
+
+# Réseaux de confiance pour X-Forwarded-For (TRUST_PROXY) : le Traefik de
+# Pangolin, sur le réseau bridge « pangolin » (une plage 172.x choisie par
+# Docker). Il retire tout X-Forwarded-* reçu du client avant d'écrire le sien.
+pocket_id_trust_proxy: 172.16.0.0/12
+
+# false : écrit les fichiers sans lancer `docker compose up` (Molecule : pas
+# d'image tirée).
+pocket_id_compose_up: true
+
+# Borgmatic backup configuration (SQLite par le gabarit partagé)
+pocket_id_backup_enabled: true
+pocket_id_backup_borgmatic_target: "{{ backup_storage_box_url }}/pocket_id"
+pocket_id_backup_encryption_passphrase: "{{ backup_passphrase }}"
+pocket_id_backup_healthcheck_url: ""

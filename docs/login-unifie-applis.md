@@ -1,6 +1,14 @@
 # Login unifié : support OIDC des applis
 
-Détail de l'[ADR 0016](adr/0016-login-unifie-oidc.md) (« proposée ») : support
+> **Pilote Pocket ID** ([ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md), 2026-11-05) : Pocket ID
+> remplace Authelia (0016, remplacée) comme fournisseur ; seul **Homebox** est branché, et seul le compte de
+> Sylvain l'utilise. Le support des applis ci-dessous ne dépend pas du fournisseur, mais
+> les passages « Avec Authelia » (`authorization_policy`, `claims_policy`) valent pour Pocket ID
+> ainsi : les groupes autorisés se règlent dans le client Pocket ID, le claim `groups` exige le scope
+> `groups` et porte les noms internes des groupes (voir [runbooks/pocket-id.md](runbooks/pocket-id.md)).
+> Pocket ID n'a ni mot de passe ni TOTP : les « second facteur » de 0016 n'y existent pas.
+
+Détail de l'[ADR 0016](adr/0016-login-unifie-oidc.md) (remplacée par 0030) : support
 OIDC de chaque appli à la version déployée le 2026-10-29, effort, et ce qui
 reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 

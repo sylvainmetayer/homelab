@@ -1,0 +1,111 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/pangolin/variables.yaml
+    - ../_shared/vars/fake_secrets.yml
+  tasks:
+    - name: Stat the Pocket ID compose file, environment and data folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/pocket-id/compose.yaml
+        - /opt/pocket-id/.env
+        - /opt/pocket-id/data
+      register: pocket_id_stats
+
+    # Le compose et le .env portent la clé de chiffrement : 0600 root. data/ est
+    # à l'utilisateur sans privilège du conteneur, privé.
+    - name: Assert the files are private
+      ansible.builtin.assert:
+        that:
+          - pocket_id_stats.results[0].stat.mode == '0600'
+          - pocket_id_stats.results[0].stat.pw_name == 'root'
+          - pocket_id_stats.results[1].stat.mode == '0600'
+          - pocket_id_stats.results[1].stat.pw_name == 'root'
+          - pocket_id_stats.results[2].stat.mode == '0700'
+          - pocket_id_stats.results[2].stat.uid == 65532
+          - pocket_id_stats.results[2].stat.gid == 65532
+
+    - name: Validate the Pocket ID compose file
+      become: true
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: /opt/pocket-id
+      register: pocket_id_compose_raw
+      changed_when: false
+
+    - name: Assert the Pocket ID service is hardened and only on the pangolin network
+      vars:
+        pocket_id_compose: "{{ pocket_id_compose_raw.stdout | from_json }}"
+        pocket_id_service: "{{ pocket_id_compose.services['pocket-id'] }}"
+      ansible.builtin.assert:
+        that:
+          # Le nom du conteneur est la cible du routeur Traefik (rôle pangolin,
+          # pangolin_idp_upstream, vérifié par son propre scénario).
+          - pocket_id_service.container_name == 'pocket-id'
+          - pocket_id_service.networks.keys() | list == ['pangolin']
+          - pocket_id_compose.networks.pangolin.external
+          - pocket_id_service.ports is not defined
+          - pocket_id_service.user == '65532:65532'
+          - pocket_id_service.read_only
+          - pocket_id_service.cap_drop == ['ALL']
+          - pocket_id_service.security_opt == ['no-new-privileges:true']
+          - pocket_id_service.mem_limit | int > 0
+          # Image par digest : jamais un tag flottant.
+          - pocket_id_service.image is match('^ghcr\.io/pocket-id/pocket-id:v[0-9.]+@sha256:[0-9a-f]{64}$')
+        fail_msg: "Service pocket-id inattendu : {{ pocket_id_service }}"
+
+    - name: Read the Pocket ID environment
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/pocket-id/.env
+      register: pocket_id_env_raw
+
+    - name: Assert the Pocket ID environment
+      vars:
+        pocket_id_env: "{{ (pocket_id_env_raw.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'APP_URL=https://id.sylvain.cloud' in pocket_id_env"
+          - "('ENCRYPTION_KEY=' ~ pocket_id_encryption_key) in pocket_id_env"
+          - "'TRUST_PROXY=172.16.0.0/12' in pocket_id_env"
+          - "'ANALYTICS_DISABLED=true' in pocket_id_env"
+          # L'inscription libre reste à sa valeur par défaut (disabled).
+          - pocket_id_env | select('search', '^ALLOW_USER_SIGNUPS') | list | length == 0
+
+    - name: Validate the Pocket ID borgmatic configuration
+      become: true
+      ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config {{ borgmatic_config_dir }}/pocket_id.yaml"
+      changed_when: false
+
+    - name: Read the Pocket ID borgmatic configuration
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ borgmatic_config_dir }}/pocket_id.yaml"
+      register: pocket_id_borgmatic_raw
+
+    # prepare.yml a posé la base : copiée par le hook SQLite du gabarit, jamais
+    # lue vivante ni par sqlite_databases de borgmatic.
+    - name: Assert the SQLite database is staged by the shared template, not copied live
+      vars:
+        pocket_id_borgmatic: "{{ pocket_id_borgmatic_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - pocket_id_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/pocket_id' in pocket_id_borgmatic.source_directories"
+          - "'/opt/pocket-id/data' in pocket_id_borgmatic.source_directories"
+          - "'/opt/pocket-id/data/pocket-id.db' in pocket_id_borgmatic.exclude_patterns"
+          - >-
+            pocket_id_borgmatic.commands[0].run
+            | select('search', 'sqlite3 -bail .*/opt/pocket-id/data/pocket-id\.db ')
+            | list | length == 1
+        fail_msg: "Configuration borgmatic de pocket_id inattendue : {{ pocket_id_borgmatic }}"
+
+    - name: Verify the Pocket ID backup push
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_borgmatic_push.yml
+      vars:
+        verify_borgmatic_push_config: "{{ borgmatic_config_dir }}/pocket_id.yaml"
+        verify_borgmatic_push_url: https://uptime.example.invalid/api/push/pocket_id_backup

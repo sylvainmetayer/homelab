@@ -87,6 +87,25 @@ http:
 {% for range in pangolin_api_allowed_ips.split(',') | map('trim') | select %}
           - "{{ range }}"
 {% endfor %}
+{% if pangolin_idp_host | length > 0 %}
+
+    # Fournisseur d'identité (pangolin_idp_host) : débit par IP, et, avant le
+    # premier compte administrateur, la seule IP de la maison.
+    pocket-id-ratelimit:
+      rateLimit:
+        average: {{ pangolin_idp_rate_average }}
+        period: 1s
+        burst: {{ pangolin_idp_rate_burst }}
+{% if pangolin_idp_allowed_ips | length > 0 %}
+
+    pocket-id-allowlist:
+      ipAllowList:
+        sourceRange:
+{% for range in pangolin_idp_allowed_ips.split(',') | map('trim') | select %}
+          - "{{ range }}"
+{% endfor %}
+{% endif %}
+{% endif %}
 {% for redirect in pangolin_domain_redirects %}
 
     # {{ redirect.host }} -> {{ redirect.target }} ({{ '301' if redirect.permanent | default(true) else '302' }}, chemin {{ 'conservé' if redirect.keep_path | default(true) else 'ignoré' }}). Le
@@ -170,6 +189,33 @@ http:
       tls:
         certResolver: letsencrypt
 
+{% if pangolin_idp_host | length > 0 %}
+    # Fournisseur d'identité (rôle pocket_id) : ni badger ni mur SSO, il sert
+    # le login de ce mur. Le conteneur est sur le réseau « pangolin » du
+    # compose, comme Pangolin lui-même. security-headers et crowdsec viennent de
+    # l'entrypoint websecure ; aucun filtre pays (ADR 0030, exception à 0002).
+    pocket-id-router-redirect:
+      rule: "Host(`{{ pangolin_idp_host }}`)"
+      service: pocket-id-service
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-to-https
+
+    pocket-id-router:
+      rule: "Host(`{{ pangolin_idp_host }}`)"
+      service: pocket-id-service
+      entryPoints:
+        - websecure
+      middlewares:
+{% if pangolin_idp_allowed_ips | length > 0 %}
+        - pocket-id-allowlist
+{% endif %}
+        - pocket-id-ratelimit
+      tls:
+        certResolver: letsencrypt
+
+{% endif %}
 {% for redirect in pangolin_domain_redirects %}
     # Redirection de domaine entier (pangolin_domain_redirects) : HTTP et HTTPS
     # vont directement vers la cible, sans passer par redirect-to-https.
@@ -223,6 +269,13 @@ http:
       loadBalancer:
         servers:
           - url: "http://pangolin:3000"  # API/WebSocket server
+{% if pangolin_idp_host | length > 0 %}
+
+    pocket-id-service:
+      loadBalancer:
+        servers:
+          - url: "{{ pangolin_idp_upstream }}"
+{% endif %}
 {% for redirect in pangolin_domain_redirects if redirect.service_worker is defined %}
 
     redirect-{{ redirect.name }}-sw:

@@ -76,6 +76,8 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
 - MediaManager (role `mediamanager`, NAS, `https://mediamanager.sylvain.cloud` private, via `nas_proxy` like Jellyfin) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun (ProtonVPN, NL/CH), rendered because `mediamanager_wireguard_private_key` is set (its certificate expires yearly); its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
 
+- Pocket ID (role `pocket_id`, Pangolin VM, `id.sylvain.cloud`) is a pilot identity provider (ADR 0030, replaces 0016): **never a Pangolin resource** (it serves the SSO wall's login), a Traefik router of the `pangolin` role (`pangolin_idp_host`) outside the FR/DE filter, rendered only if the SOPS key `pocket_id_encryption_key` exists; Sylvain's account only, Homebox the only app, `pangolin_idp` with auto-provision off. → `docs/runbooks/pocket-id.md`, `ansible/roles/pocket_id/README.md`
+
 ## Map: topic → file to read
 
 | Topic | File |
@@ -116,6 +118,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | NAS: TLS proxy, Jellyfin network, kDrive mirror | `ansible/roles/nas_proxy/README.md`, `ansible/roles/jellyfin/README.md`, `ansible/roles/kdrive_sync/README.md` |
 | Canary traps (Canarytokens AWS keys, trap file, fake SSH account) | `ansible/roles/canary/README.md`, `docs/runbooks/jeton-piege.md` |
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin); hardening (sshd, PVE firewall, repos, SDN) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md`, `ansible/roles/pve_hardening/README.md` |
+| Pocket ID pilot (identity provider, setup order, rescue) | `ansible/roles/pocket_id/README.md`, `docs/runbooks/pocket-id.md` |
 | Papra trial | `ansible/roles/papra/README.md` |
 | MediaManager trial (NAS, VPN, sandbox) | `ansible/roles/mediamanager/README.md` |
 | Docs site (docs.sylvain.cloud, Zensical): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |

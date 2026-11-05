@@ -373,6 +373,15 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
 - `ntfy_publisher_password_hash` : hash d'un mot de passe tiré et jeté (les
   producteurs n'entrent que par jeton) ; le refaire de même, sur incident
   seulement.
+- Pocket ID (pilote, [pocket-id.md](pocket-id.md)) : `pocket_id_encryption_key`
+  (`ansible.sops.yaml`, `application`) ne se tourne pas à la légère, Pocket ID
+  chiffre ses clés de signature avec (procédure de la doc de Pocket ID, à
+  confirmer, puis `pangolin.yaml --tags pocket_id`) ; `pocket_id_homebox_client_id`
+  (`identifier`) et `pocket_id_homebox_client_secret` (`application`) :
+  régénérer le secret dans le client Pocket ID, `sops set`, puis
+  `docker.yml --tags homebox` ; `pocket_id_pangolin_client_id` et
+  `pocket_id_pangolin_client_secret` (`secrets.sops.yaml`) : idem, puis
+  `tofu apply` de `pangolin_config`.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

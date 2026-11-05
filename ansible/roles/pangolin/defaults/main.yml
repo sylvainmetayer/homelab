@@ -25,6 +25,23 @@ pangolin_le_email: ""
 #       replacement: chemin, sur target, d'un worker qui se désinstalle
 pangolin_domain_redirects: []
 
+# Fournisseur d'identité public (rôle pocket_id, ADR 0030) : un routeur Traefik
+# direct vers son conteneur, JAMAIS une ressource Pangolin (derrière le mur SSO
+# qu'il sert, personne ne pourrait se connecter) : donc ni Badger, ni filtre
+# FR/DE. Vide : aucun routeur, le reste du fichier ne change pas (host_vars/
+# pangolin le remplit seulement quand la clé SOPS pocket_id_encryption_key existe).
+pangolin_idp_host: ""
+pangolin_idp_upstream: "http://pocket-id:1411"
+# Plages (séparées par des virgules) seules admises sur tout le routeur ; vide :
+# le monde entier. Réglée sur home_ip tant que le premier compte administrateur
+# n'existe pas (pocket_id_setup_phase, host_vars/pangolin) : /setup de Pocket ID
+# est ouverte à qui arrive le premier.
+pangolin_idp_allowed_ips: ""
+# Débit par IP source (rateLimit de Traefik) : le login est un passkey, une
+# page charge ~30 fichiers statiques.
+pangolin_idp_rate_average: 20
+pangolin_idp_rate_burst: 60
+
 # SMTP configuration
 pangolin_smtp_user: ""
 pangolin_smtp_pass: ""

@@ -1,0 +1,132 @@
+# Pocket ID : pilote du fournisseur d'identité
+
+Décision et risques : [ADR 0030](../adr/0030-pocket-id-fournisseur-identite-pilote.md).
+Pocket ID (`id.sylvain.cloud`, rôle `pocket_id` sur la VM Pangolin) est un
+fournisseur OIDC à **passkeys seuls**. Le pilote concerne **le compte de
+Sylvain uniquement** : le foyer ne change rien, les comptes internes de Pangolin
+(dont l'`Admin` de secours) restent le chemin de tout le monde.
+
+## Ce que ça change et ne change pas
+
+| | Pilote |
+|---|---|
+| Mur SSO de Pangolin | **inchangé** : comptes internes. Un bouton « Pocket ID » s'y ajoute pour l'utilisateur externe de Sylvain, sans auto-provision ni rôle réécrit |
+| Clients mobiles (Immich, Karakeep, Papra, Grocy, Nextcloud, ntfy, flux) | **aucun effet** : ils passent par des jetons d'accès Pangolin, des en-têtes, des mots de passe d'application ou des chemins ouverts ([acces-mobile.md](../acces-mobile.md)), jamais par la page de login du mur. Rien à reconfigurer, aucun chemin ouvert ajouté |
+| Navigateur, PWA (HealthLog…) | inchangés tant que le mur reste sur les comptes internes ; à la bascule, le login passe par Pocket ID dans le navigateur, les en-têtes `P-Access-Token-*` des applis ne bougent pas |
+| Homebox | un bouton « Se connecter avec Pocket ID » **en plus** du login local, qui reste le secours |
+| `id.sylvain.cloud` | public, **hors filtre FR/DE** : en voyage, la connexion Pocket ID marche sans déclarer le pays ; c'est la différence de 0002 |
+
+## Étapes de Sylvain, dans l'ordre
+
+Le merge de la PR ne déploie rien de visible : sans la clé SOPS de l'étape 1, ni
+conteneur ni routeur (`pangolin.yaml` la saute en le disant).
+
+1. **Clé SOPS** (`secrets/`, PR sur `homelab-secrets` puis bump ici) :
+   `pocket_id_encryption_key` dans `ansible.sops.yaml`
+   (`openssl rand -base64 32`, 16 octets au moins). Entrée de
+   `secrets-rotation.yaml` : `kind: application`, jamais tournée à la légère :
+   Pocket ID chiffre ses clés de signature avec ; une rotation passe par la
+   commande de rotation de Pocket ID (à confirmer dans sa doc) avant de changer
+   la clé. Puis, depuis `tofu/pangolin_config` : `tofu plan` (les moniteurs
+   « Pocket ID » et « Backup Pocket ID », rouges jusqu'au déploiement) et
+   `tofu apply`. Puis, depuis `ansible/` : `ansible-playbook pangolin.yaml --check
+   --tags pangolin,pocket_id`, puis sans `--check`. Surveiller le premier
+   démarrage : `sudo docker compose -f /opt/pocket-id/compose.yaml ps` (`healthy`) et
+   `logs` (le conteneur tourne sans privilège, `read_only` : sa première
+   écriture dans `data/` est le test). **Repli** si une permission est refusée :
+   dans `templates/compose.yaml`, retirer `user:`, `read_only:` et `cap_drop:`
+   (l'image part en root et rend `data/` à l'utilisateur 1000), redéployer, et
+   corriger dans une PR.
+2. **Premier compte administrateur**, depuis la maison seulement (tant que
+   `pocket_id_setup_phase: true`, `host_vars/pangolin`, tout l'hôte refuse une
+   autre IP : la page `/setup` est ouverte à qui arrive le premier) : ouvrir
+   `https://id.sylvain.cloud/setup`, créer le compte (nom d'utilisateur sans
+   espace : c'est l'identifiant lu par Pangolin), enregistrer le **premier
+   passkey**. Puis une PR passe `pocket_id_setup_phase: false`, déployée par
+   `pangolin.yaml --tags pangolin` : le routeur s'ouvre au monde. Enfin
+   `pangolin.yaml --tags pocket_id` une seconde fois : la base SQLite existe,
+   la sauvegarde la trouve (au premier passage elle n'existait pas encore).
+3. **Passkeys sur deux appareils au moins** (téléphone, clé matérielle, poste),
+   dans Pocket ID, profil, Passkeys. Tester « se connecter avec un autre
+   appareil » (QR code, 5 minutes). Sans mot de passe ni TOTP, un seul passkey
+   perdu est un compte à récupérer (secours ci-dessous).
+4. **Clients OIDC** (Pocket ID, Administration, Clients OIDC), un par appli :
+   - **Homebox** : URL de rappel `https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback`
+     (confirmée dans le code de Homebox 0.27.1), groupes autorisés : créer le
+     groupe `homebox` avec le seul compte de Sylvain. Noter l'identifiant et le
+     secret : clés SOPS `pocket_id_homebox_client_id` et
+     `pocket_id_homebox_client_secret` (`ansible.sops.yaml`, entrées de
+     rotation : `identifier` et `application`), puis
+     `ansible-playbook docker.yml --tags homebox`. Le bouton apparaît sur la page
+     de connexion ; le login local reste. La liaison d'un compte local par
+     e-mail, et la création d'un compte OIDC inscription fermée, sont à
+     confirmer à l'essai (voir [login-unifie-applis.md](../login-unifie-applis.md)).
+   - **Pangolin** : callback provisoire (le vrai vient après), groupes autorisés
+     : le même groupe de test, ou aucun (il n'y a qu'un compte). Clés
+     `pocket_id_pangolin_client_id` et `pocket_id_pangolin_client_secret` dans
+     `secrets/secrets.sops.yaml` (celui de Tofu), puis `tofu plan` : relire
+     `pangolin_idp.pocket_id` (**auto_provision = false**, `Member`) avant
+     `tofu apply`. Relire les URL d'autorisation et du jeton que Pocket ID
+     affiche (« Show more details ») : `pocket_id.tf` suppose `/authorize` et
+     `/api/oidc/token`. `tofu output pocket_id_pangolin_redirect_url` donne le
+     callback à coller dans le client Pocket ID.
+5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
+   externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
+   celui de Pocket ID, e-mail, rôle voulu. Se connecter à la page de login de
+   Pangolin avec « Pocket ID » : le compte interne n'est ni lié ni modifié.
+
+## Ce que Pangolin lit des claims de Pocket ID
+
+Vérifié dans les docs ([Pangolin](https://docs.pangolin.net/manage/identity-providers/pocket-id),
+[Pocket ID](https://pocket-id.org/docs/guides/scopes-and-claims)) : le jeton
+d'identité de Pocket ID porte `sub`, `preferred_username`, `email`, `name`
+selon les scopes ; **`groups`** (liste des noms *internes* des groupes, pas
+les noms affichés) **seulement avec le scope `groups`**, que le guide de Pangolin
+ne demande pas : `pocket_id.tf` l'ajoute. Pangolin lit un identifiant
+(`preferred_username`, modifiable dans Pocket ID : le renommer sans le suivre
+dans Pangolin coupe le compte externe) et évalue ses expressions de rôle (JMESPath,
+chaînes entre `'`) sur le jeton **à chaque login** ; un rôle inexistant, ou aucune
+règle qui correspond, donne « No policies matched ». Plusieurs rôles par
+utilisateur : édition payante ou clé EE seulement. **Pas vérifié** : que
+`groups` soit présent (liste vide ou absent) pour un utilisateur sans groupe
+(une expression `contains(groups, …)` sur un champ absent échouerait),
+l'effet exact de `auto_provision = false` sur un rôle déjà posé, et
+l'éventuel besoin d'une clé EE pour `pangolin_idp_org` : le `tofu plan` le
+dira. C'est pourquoi le pilote n'écrit aucune règle de groupe : `Member`
+fixe, rôle posé à la main sur l'utilisateur externe.
+
+## Plan de bascule (hors pilote, une PR chacune)
+
+1. Pilote : Pocket ID, Homebox, un utilisateur externe Pangolin (ce runbook).
+2. Quelques semaines sans incident : les moniteurs verts, le test de
+   restauration vert, les passkeys testés, une montée de version passée.
+3. Le mur : plus d'applis (Immich, TREK, Wishlist, Dawarich, Beszel, Nextcloud,
+   Karakeep, [ordre de login-unifie-applis.md](../login-unifie-applis.md)), le
+   foyer invité dans Pocket ID, auto-provision et règle de groupes décidées sur ce que
+   la vérification ci-dessus aura montré. Comptes internes gardés.
+4. BookStack, FreshRSS, vmauth (OIDC exclusif) en dernier, si le gain vaut le
+   login local perdu.
+
+## Secours
+
+- **L'IdP tombe** (moniteur « Pocket ID » rouge, `docker compose ps`) : le mur
+  Pangolin et les applis ne dépendent pas de lui pendant le pilote (comptes
+  internes, login local de Homebox). Redémarrer : `sudo docker compose -f
+  /opt/pocket-id/compose.yaml up -d`, journaux avec `logs`. Si Pangolin
+  redémarre, le conteneur reste sur le réseau `pangolin` (`docker compose down` de
+  la pile Pangolin dit alors qu'il ne peut pas le retirer : sans conséquence).
+- **Tous les passkeys sont perdus** : un code créé par l'administrateur **sur
+  l'hôte** (pas besoin d'un compte), valable 1 heure, une seule fois :
+  `sudo docker compose -f /opt/pocket-id/compose.yaml exec pocket-id /app/pocket-id one-time-access-token <nom d'utilisateur>`.
+  Ouvrir l'URL affichée, enregistrer un nouveau passkey (deux), supprimer
+  les anciens. Même chemin si le compte perdu est l'administrateur. Pas d'e-mail
+  de connexion : SMTP n'est pas configuré, et ce serait « la boîte mail ouvre tout ».
+- **Mise à jour** : lire les notes de version et le [guide de mise à jour](https://pocket-id.org/docs/setup/upgrading).
+  La base migre au démarrage et Pocket ID refuse de repartir en arrière
+  (`ALLOW_DOWNGRADE=true` l'impose, à vos risques) : le retour arrière, c'est
+  l'archive borg d'avant. Le tag est épinglé en v2 : une v3 (interface refaite)
+  est une montée majeure, jamais automatique.
+- **Restauration** : [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md),
+  dépôt `pocket_id` du sous-compte de Pangolin ; même clé de chiffrement que
+  celle du `.env` archivé.
+- **Retour arrière du pilote** : ADR 0030.

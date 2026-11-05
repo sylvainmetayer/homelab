@@ -1,6 +1,6 @@
 # 0016. Login unifié : Authelia comme fournisseur OIDC, de Pangolin et des applis
 
-- **Statut** : proposée
+- **Statut** : remplacée par [0030](0030-pocket-id-fournisseur-identite-pilote.md) (Pocket ID en pilote, le 2026-11-05) ; le comparatif reste la référence
 - **Date** : 2026-10-29
 
 Dépasse les 40 lignes du modèle, à dessein : le comparatif des IdP est gardé ici.

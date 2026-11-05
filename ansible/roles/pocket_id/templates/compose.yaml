@@ -1,0 +1,43 @@
+---
+services:
+  pocket-id:
+    # ~2x un pic estimé (Go, SQLite, ~30 Mio au repos d'après le projet) :
+    # pas encore mesuré, à recaler sur memory.peak après une semaine. La VM
+    # Pangolin (4 Gio) porte aussi Pangolin (2,5 Gio de plafond), Traefik et
+    # CrowdSec : un plafond serré ici protège tout le homelab.
+    mem_limit: 256m
+    image: ghcr.io/pocket-id/pocket-id:v2.19.1@sha256:f085157f0b6ea4b2e8aa5ecfd99eada0d83a4960f3a3dcfd46014097d0ef7ab5
+    container_name: pocket-id
+    # Sans privilège dès la première instruction, comme le documente le guide
+    # de durcissement de Pocket ID (user + read_only) : data/ appartient à cet
+    # utilisateur. Pas testé ici avant le premier déploiement (Molecule ne tire
+    # aucune image) : voir docs/runbooks/pocket-id.md pour le repli.
+    user: "{{ pocket_id_uid }}:{{ pocket_id_gid }}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    env_file:
+      - .env
+    volumes:
+      # pocket-id.db (SQLite), images téléversées, base GeoLite2 éventuelle.
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/pocket-id", "healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Le réseau de la pile Pangolin : le Traefik de Pangolin (réseau de gerbil)
+    # y joint « pocket-id:1411 ». Aucun port publié sur l'hôte. Ni base ni
+    # réseau privé : un seul conteneur, SQLite.
+    networks:
+      - pangolin
+
+networks:
+  pangolin:
+    external: true
