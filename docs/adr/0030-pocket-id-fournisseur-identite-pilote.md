@@ -35,8 +35,10 @@ d'où deux passkeys au moins, et un code créé par l'administrateur en secours.
   vaut une connexion à tout ce qui lui fait confiance : d'où le pilote étroit,
   et la page `/setup` (premier administrateur, avis de concurrence 2026-07)
   réservée à `home_ip` tant que le compte n'existe pas.
-- **Retour arrière** : retirer le client Homebox, supprimer `pangolin_idp`,
-  retirer la clé SOPS puis `pangolin.yaml --tags pangolin,pocket_id` (routeur
+- **Retour arrière** : retirer de `tofu/pangolin_config/pocket_id.tf` les
+  clients, le groupe, `pangolin_idp` et le provider `pocketid`, `tofu apply`
+  tant que Pocket ID répond (sinon `tofu state rm` des ressources `pocketid_*`),
+  retirer les clés SOPS puis `pangolin.yaml --tags pangolin,pocket_id` (routeur
   retiré ; le conteneur se supprime à la main, les données restent), rien d'autre
   ne dépend de lui. Authelia reste possible : 0016 reste lisible.
 
@@ -51,6 +53,8 @@ d'où deux passkeys au moins, et un code créé par l'administrateur en secours.
 
 - Une ouverture publique de plus, hors pays : sa surface est celle de Pocket ID.
 - Panne de l'IdP : mur Pangolin et logins locaux intacts (le pilote n'y touche pas).
+  Mais `tofu plan` de `pangolin_config` échoue en lisant les clients OIDC : le
+  reste se planifie avec `-exclude` sur les ressources `pocketid_*`.
 - Perte de tous les passkeys : code à usage unique créé sur l'hôte
   ([runbook](../runbooks/pocket-id.md)). Premier démarrage non testé en CI.
 
