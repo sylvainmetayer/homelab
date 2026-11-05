@@ -103,6 +103,10 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      l'interrupteur. Le secret n'est relu par aucun rôle : après une rotation
      du `random_password`, le ressaisir ici, et après une restauration ou une
      reconstruction du hub, vérifier que le fournisseur est toujours là.
+     Adresses différentes (cas du 05/11 : compte Beszel créé avec l'adresse
+     de service de `beszel_admin_email`) : dans l'admin PocketBase, collection
+     `users`, changer l'e-mail de l'enregistrement pour celui de Pocket ID,
+     `verified` coché ; la variable ne sert qu'au premier démarrage du hub.
      Mot de passe gardé.
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
