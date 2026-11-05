@@ -44,20 +44,7 @@ EXCEPTIONS = {
         "production, non analysé",
         ["app", "postgres", "mailpit", "assets", "keycloak", "keycloak-db", "pgadmin"],
     ),
-    "immich": (
-        "service familial, non analysé",
-        [
-            "immich-server",
-            "immich-server-remote",
-            "immich-machine-learning",
-            "redis",
-            "database",
-            "immich-swipe",
-            "immich-selfie-timelapse",
-        ],
-    ),
     "monica_v4": ("gelée jusqu'à la version de décembre 2026", ["crm", "monica_v4_db"]),
-    "newt": ("chemin d'accès à tout le reste, non analysé", ["newt"]),
     "pangolin": (
         "chemin d'accès à tout le reste, non analysé",
         ["pangolin", "gerbil", "traefik", "crowdsec"],
