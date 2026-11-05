@@ -1,0 +1,7 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle comme pve.yml (en root sans become). Le verify lance la vraie unité
+# une fois, puis le script contre un faux smartctl (fixtures JSON), avec un
+# faux ntfy et un faux Uptime Kuma.
+scenario:
+  name: smart_check

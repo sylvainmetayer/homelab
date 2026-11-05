@@ -53,8 +53,9 @@ Donc :
 - **Rien si le disque n'est pas lu** (pont USB sans passage SMART, permission) :
   il faut le voir dans la page S.M.A.R.T. du système.
 
-Aucun réglage du rôle ne comble cela : les alertes du rôle sont les types du
-hub, et il n'en existe pas pour les attributs. C'est le seul trou, voir la fin.
+Aucun réglage du rôle `beszel` ne comble cela : ses alertes sont les types du
+hub, et il n'en existe pas pour les attributs. Le rôle `smart_check` le fait,
+voir « Alerte hebdomadaire sur l'usure et les secteurs ».
 
 ## À régler dans l'interface de Beszel (https://monitoring.sylvain.cloud)
 
@@ -123,15 +124,29 @@ un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
 pas depuis le second disque : la vérification du RAID (`md`) est l'affaire
 d'UGOS, à vérifier aussi (`cat /proc/mdstat` : `[UU]` tant que les deux disques sont là).
 
-## Ce qui reste à décider
+## Alerte hebdomadaire sur l'usure et les secteurs
 
-Une alerte sur l'**usure** et les **secteurs en attente**, que Beszel n'offre
-pas. La forme la plus petite : un script `smartctl -j` lancé chaque semaine par
-un timer sur `pve` et sur le NAS, qui publie sur ntfy (comme `update_notify`) et
-pousse un moniteur Uptime Kuma. Non fait ici : il demande un moniteur dans
-`tofu/pangolin_config`, une URL push dans SOPS (dépôt `homelab-secrets`) et, sur
-le NAS, un timer posé à la main (`nas.yml` ne passe jamais en CI). À lancer
-quand Sylvain le décide ; d'ici là, le contrôle trimestriel ci-dessus.
+Le rôle `smart_check` ([README](../../ansible/roles/smart_check/README.md))
+comble ce que Beszel ne fait pas. Chaque lundi à 07:30, `smart-check.timer` lit
+chaque disque par `smartctl -j` sur `pve` (`sda`), le Pi (le NVMe, `-d
+sntrealtek`) et le NAS (`sda`, `sdb`, `sdc`), applique **les seuils du tableau
+du contrôle trimestriel ci-dessus**, publie sur ntfy (topic `scripts`) et
+pousse le moniteur Uptime Kuma « S.M.A.R.T. <hôte> ».
+
+- **Elle sonne sur une hausse**, pas à chaque passage : chaque constat garde le
+  plus haut niveau déjà annoncé, par numéro de série. `sdc` (défaillant, gardé
+  sans y compter) sonne une fois au premier passage, puis seulement si un
+  compteur grossit. Ce qui reste en cours se lit dans le message du moniteur
+  (« N constat(s) : … »). Une alerte annoncée et ignorée ne revient donc pas :
+  le contrôle trimestriel reste la relecture de fond.
+- **Un disque illisible** met le moniteur en `down` (le Pi derrière son pont,
+  par exemple) : le silence ne passe pas pour une bonne santé.
+- Le contrôle à la main reste utile pour la pente, que l'alerte ne dit pas.
+
+Déploiement : `pi.yml` par la CI (installe `smartmontools`, absent du Pi),
+`pve.yml` et `nas.yml` à la main : `ansible-playbook pve.yml --tags smart_check`
+et `ansible-playbook nas.yml --tags smart_check`, après un `tofu apply` de
+`tofu/pangolin_config` (les trois moniteurs), sans quoi rien n'est poussé.
 
 ## Relevés
 
@@ -143,11 +158,11 @@ quand Sylvain le décide ; d'ici là, le contrôle trimestriel ci-dessus.
 | NAS `sdb` WD40EFZZ (1678 h) | 0 | 0 | 0 | 0 | 39 °C | lien SATA négocié à 3 Gb/s au lieu de 6 |
 | NAS `sdc` WD30EZRX, USB (5199 h) | | **2167** | **2031** | | 32 °C | **défaillant** |
 | `pve` `sda` SSD 512 Go (13 258 h) | 0 | | | | 53 °C | usure normalisée (177) à 100 |
-| `pi` NVMe | | | | | | non lu : `smartctl` absent du Pi, à installer à la main avant le contrôle trimestriel |
+| `pi` NVMe | | | | | | non lu : `smartctl` absent du Pi ; le rôle `smart_check` l'installe (`apt install smartmontools` à la main d'ici là) |
 
 `sdc` dépasse largement le seuil de remplacement sans que Beszel prévienne,
-comme attendu plus haut : c'est exactement le trou décrit dans « Ce qui reste à
-décider ». Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
+comme attendu plus haut : c'est le trou que comble l'alerte hebdomadaire
+(« Alerte hebdomadaire sur l'usure et les secteurs »). Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
 mais rien ne doit compter sur lui, aucune copie ni sauvegarde (la règle « remplacer
 le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 

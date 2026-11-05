@@ -192,7 +192,7 @@ proposé ici.
    originaux en entier.
 3. **Hôte Proxmox** : `/etc/pve` et l'installation de l'hôte, non trouvés
    dans le dépôt ; la VM n'a jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt ; à vérifier dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global.
+4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt ; à vérifier dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

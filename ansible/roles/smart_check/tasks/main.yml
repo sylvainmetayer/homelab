@@ -1,0 +1,87 @@
+---
+# Un jeton vide publierait en vain : échec franc au déploiement.
+- name: Assert the disk check has an ntfy token and disks to read
+  ansible.builtin.assert:
+    that:
+      - smart_check_ntfy_token | length > 0
+      - smart_check_devices | length > 0
+      # Le chemin et le type finissent dans la ligne de commande de l'unité.
+      - smart_check_devices | map(attribute='path') | select('match', '^/dev/[a-z0-9]+$') | list | length == smart_check_devices | length
+      - smart_check_devices | map(attribute='type', default='sat') | select('match', '^[a-z0-9,+]+$') | list | length == smart_check_devices | length
+    fail_msg: >-
+      ntfy_scripts_token (secrets/ansible.sops.yaml) ne doit pas être vide, et
+      smart_check_devices liste des { path: /dev/xxx, type: facultatif }.
+    quiet: true
+
+- name: Install smartmontools
+  when: smart_check_install_smartmontools
+  become: true
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Look for smartctl
+  ansible.builtin.stat:
+    path: "{{ smart_check_smartctl }}"
+  register: smart_check_smartctl_stat
+
+- name: Assert smartctl is there
+  ansible.builtin.assert:
+    that: smart_check_smartctl_stat.stat.exists
+    fail_msg: "{{ smart_check_smartctl }} absent : smart_check_install_smartmontools, ou l'installer à la main (NAS, ansible/roles/smart_check/README.md)."
+    quiet: true
+
+- name: Ensure the disk check folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ smart_check_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the disk check script
+  become: true
+  ansible.builtin.copy:
+    src: smart_check.py
+    dest: "{{ smart_check_dir }}/smart_check.py"
+    owner: root
+    group: root
+    mode: "0700"
+
+# Le jeton ntfy et l'URL push (jeton du moniteur) : 0600, diff: false, jamais
+# sur la ligne de commande de l'unité (systemctl show, ps).
+- name: Write the ntfy token and the push URL of the disk check
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: |
+      NTFY_TOKEN={{ smart_check_ntfy_token }}
+      UPTIME_PUSH_URL={{ smart_check_healthcheck_url }}
+    dest: "{{ smart_check_dir }}/smart-check.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the disk check service and timer
+  become: true
+  loop:
+    - smart-check.service
+    - smart-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+- name: Enable the weekly disk check
+  become: true
+  ansible.builtin.systemd:
+    name: smart-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true

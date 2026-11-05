@@ -1,0 +1,1 @@
+{"smart_status": {"passed": true}, "model_name": "FAKE NVME", "serial_number": "NVME1", "device": {"name": "/dev/nvme0"}, "nvme_smart_health_information_log": {"percentage_used": 3, "available_spare": 100, "media_errors": 0}}

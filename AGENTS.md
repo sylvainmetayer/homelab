@@ -103,6 +103,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Host hardening (ufw, fail2ban, devsec, ssh-audit), LAN hosts' SSH | `ansible/roles/security/README.md` |
 | Newt and its socket proxy; Newt as a systemd service (LXC) | `ansible/roles/newt/README.md`, `ansible/roles/newt_service/README.md` |
 | Internet egress of flip: NAT on Pangolin, route and DNS on flip | `ansible/roles/nat_gateway/README.md`, `ansible/roles/nat_client/README.md` |
+| Weekly S.M.A.R.T. alert on disk wear and bad sectors (pve, pi, nas; a rise, not every pass) | `ansible/roles/smart_check/README.md`, `docs/runbooks/sante-des-disques.md` |
 | SSH login alerts | `ansible/roles/ssh_login_notify/README.md` |
 | Host tuning: zram, disk swap, journald cap, Pi kernel command line | `ansible/roles/host_tuning/README.md` |
 | Uptime Kuma pushes from scripts and units (`uptime-push`, options, worst case) | `ansible/roles/uptime_push/README.md` |

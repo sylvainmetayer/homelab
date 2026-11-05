@@ -656,7 +656,7 @@ flowchart LR
   température au-dessus de 80 °C sur le Pi, le NAS et pve. La VM docker a des
   seuils plus serrés (CPU 70 %, mémoire 85 %, disque 80 %) et une alerte
   d'I/O wait au-delà de 20 % sur 15 min, où se lit la lenteur de son disque.
-  Le S.M.A.R.T. (passage de PASSED à FAILED) prévient d'office, sans alerte à déclarer ; usure et secteurs en attente ne sont pas vus ([runbooks/sante-des-disques.md](runbooks/sante-des-disques.md)). `config.yml` ne sait déclarer que les systèmes : alertes et
+  Le S.M.A.R.T. (passage de PASSED à FAILED) prévient d'office, sans alerte à déclarer ; usure et secteurs en attente sont vus par le rôle `smart_check` (script hebdomadaire, ntfy sur une hausse) et non par Beszel ([runbooks/sante-des-disques.md](runbooks/sante-des-disques.md)). `config.yml` ne sait déclarer que les systèmes : alertes et
   canaux vivent dans la base du hub, par utilisateur, et le rôle les pose par
   l'API du hub (`127.0.0.1:8090`, connecté au compte administrateur avec
   `beszel_admin_password`, qui doit donc rester son mot de passe). Elles font

@@ -1,0 +1,23 @@
+# S.M.A.R.T. des disques (rôle smart_check, files/smart_check.py) : usure et
+# secteurs, publiés sur le topic {{ smart_check_ntfy_topic }} de ntfy sur une
+# hausse, poussés au moniteur Uptime Kuma de l'hôte. Jeton ntfy et URL push dans
+# l'EnvironmentFile (0600 root), jamais sur la ligne de commande.
+[Unit]
+Description=S.M.A.R.T. check of the disks
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ smart_check_dir }}/smart-check.env
+ExecStart=/usr/bin/python3 -I {{ smart_check_dir }}/smart_check.py --host {{ smart_check_host_label }} --ntfy-url {{ smart_check_ntfy_url }} --topic {{ smart_check_ntfy_topic }} --state-file {{ smart_check_dir }}/state.json --smartctl {{ smart_check_smartctl }}{% for device in smart_check_devices %} --device {{ device.path }}{{ ':' ~ device.type if device.type is defined else '' }}{% endfor %}
+
+# Un disque USB qui se réveille peut mettre du temps : borné.
+TimeoutStartSec=10min
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+# Seul le dossier du rôle (fichier d'état) est inscriptible ; /dev reste
+# visible, smartctl y ouvre les disques.
+ProtectSystem=strict
+ReadWritePaths={{ smart_check_dir }}
