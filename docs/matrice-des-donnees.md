@@ -164,8 +164,8 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
    fichier ne sauvegarde `/etc/pve` ; le job vzdump ne couvre que la VM 100 et
    le LXC 200 (`tofu/proxmox/backup.tf`), et le dépôt n'écrit dans `/etc/pve`
    que pour le pare-feu (`pve_hardening`). **Scrub Btrfs du NAS : non trouvé
-   dans le dépôt, à vérifier sur l'hôte** (aucune occurrence de « scrub »).
-   Le dépôt n'a que le S.M.A.R.T. des trois disques, lu par Beszel.
+   dans le dépôt, à vérifier sur l'hôte** (aucune occurrence de « scrub » dans le code ; procédure à vérifier dans UGOS : [sante-des-disques.md](runbooks/sante-des-disques.md)).
+   Le dépôt n'a que le S.M.A.R.T. des trois disques, lu par Beszel (verdict global seulement, pas l'usure).
 
 ## Limites décidées (faits, pas des manques)
 
@@ -188,7 +188,7 @@ proposé ici.
    originaux en entier.
 3. **Hôte Proxmox** : `/etc/pve` et l'installation de l'hôte, non trouvés
    dans le dépôt ; la VM n'a jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt.
+4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt ; à vérifier dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global.
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

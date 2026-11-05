@@ -40,6 +40,7 @@ choix dans [../adr/](../adr/README.md).
 | Homepage : carte en erreur ou absente (agenda `ical-filter`, Supervision `kuma-summary`, cartes d'applis `apps-summary`) | [homepage-cartes.md](homepage-cartes.md) |
 | Un disque du NAS meurt, ou le NAS entier : ce qui en dépend (vzdump, Jellyfin, kDrive, MediaManager), RAID 1, remise en route | [disque-nas-mort.md](disque-nas-mort.md) |
 | L'hôte Proxmox est mort : réinstaller, restaurer la VM docker et le LXC newt depuis vzdump, ordre, conséquences (Blocky, Newt `proxmox-lxc`) | [hote-proxmox-mort.md](hote-proxmox-mort.md) |
+| Santé des disques : alertes S.M.A.R.T. de Beszel et ce qu'elles ne voient pas (usure, secteurs), contrôle trimestriel, scrub Btrfs du NAS | [sante-des-disques.md](sante-des-disques.md) |
 | Le Raspberry Pi ou son SSD est mort : Immich depuis Borg, Blocky, IP et réservation | [pi-mort.md](pi-mort.md) |
 | La Bbox est remplacée : DHCP, DNS, réservations d'adresses, IP publique (`home_ip`), Wi-Fi | [bbox-remplacee.md](bbox-remplacee.md) |
 | Intrusion supposée, la première heure : isoler, garder les traces, reconstruire, secrets à tourner, dépôts Borg, clé de CI, prévenir les utilisateurs de Flip Planning | [intrusion-premiere-heure.md](intrusion-premiere-heure.md) |

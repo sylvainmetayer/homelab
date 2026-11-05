@@ -110,6 +110,7 @@ nav:
       - runbooks/immich-swipe.md
       - runbooks/homepage-cartes.md
       - runbooks/disque-nas-mort.md
+      - runbooks/sante-des-disques.md
       - runbooks/hote-proxmox-mort.md
       - runbooks/pi-mort.md
       - runbooks/bbox-remplacee.md
