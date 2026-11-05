@@ -46,7 +46,7 @@ prise : la charge totale n'est qu'une estimation (55 à 80 W, pointe vers 100 W)
 | 5 | Couper au mur pendant 2 min | heure | tout est éteint |
 | 6 | Rétablir le courant, **sans rien allumer à la main** | heure de démarrage de chaque machine | les quatre démarrent seules |
 | 7 | `qm list`, `pct list`, `pvesm status` sur l'hôte ; `docker ps` sur la VM et le Pi | ce qui manque | tout revient en moins de 20 min, `nas-backup` actif |
-| 8 | Page des disques de Beszel, `smartctl -A` sur chaque disque, `cat /proc/mdstat` au NAS | écart avec les [relevés](sante-des-disques.md) | aucune nouvelle erreur, `md1` en `[UU]` |
+| 8 | Page des disques de Beszel, `smartctl -A` sur chaque disque, `cat /proc/mdstat` au NAS | écart avec les [relevés](sante-des-disques.md) | aucune nouvelle erreur, `md1` en `[UU]` et sans ligne `resync` ou `recovery` ; `sdc` peut manquer (décroché le 05/11) |
 | 9 | Ouvrir `photos.sylvain.cloud` et une appli derrière le SSO | temps jusqu'au retour | accès rétabli, sites Newt en ligne |
 
 Une machine qui ne démarre pas seule à l'étape 6 : corriger son réglage dans le

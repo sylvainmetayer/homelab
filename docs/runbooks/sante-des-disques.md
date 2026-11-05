@@ -78,7 +78,7 @@ Lecture seule, en root sur `pve`, avec `sudo` sur le NAS (`/usr/sbin/smartctl` y
 05/11/2026 ; l'agent Beszel du NAS emporte le sien : à vérifier).
 
 ```bash
-smartctl -H -A /dev/sda    # sur chaque disque : sda, sdb, sdc au NAS ; sda sur pve
+smartctl -H -A /dev/sda    # sur chaque disque : sda, sdb, sdc au NAS (sdc s'il est revenu) ; sda sur pve
 smartctl -H -A -d sntrealtek /dev/sda   # sur le Pi (voir sa ligne ci-dessous)
 ```
 
@@ -154,9 +154,9 @@ le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 Volume `/volume1` : `btrfs scrub status` répond « no stats available », aucun
 scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le RAID 1 est un `md` : `lsblk` montre
 `sda2` et `sdb2` en `md1` (raid1, `[UU]` dans `/proc/mdstat`), puis LVM
-(`ug_E300EF_…-volume1`), puis Btrfs monté sur `/volume1`. Un scrub détecte donc
+(un volume logique `…-volume1`), puis Btrfs monté sur `/volume1`. Un scrub détecte donc
 une corruption des données sans la réparer depuis l'autre disque.
 
-**`sdc` a décroché du bus USB le 05/11/2026 à 16:13** (journal du noyau :
+**`sdc` a décroché du bus USB le 05/11/2026 à 16:13** (heure du NAS, journal du noyau :
 `tag#0 timing out command, waited 30s`, puis `usb 4-2: USB disconnect`). Au
 relevé suivant, `lsblk` ne le listait plus. Cause non établie.
