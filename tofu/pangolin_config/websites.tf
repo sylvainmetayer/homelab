@@ -129,7 +129,6 @@ resource "pangolin_resource" "website" {
   name        = each.value.name
   subdomain   = each.value.subdomain
   domain_id   = each.value.domain_id
-  protocol    = "tcp"
   sso         = contains(local.php_lockdown_sso, each.key) || lookup(each.value, "sso", true)
   apply_rules = true
 
