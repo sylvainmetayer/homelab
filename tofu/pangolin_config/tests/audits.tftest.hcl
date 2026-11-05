@@ -24,14 +24,9 @@ mock_provider "pangolin" {
       id = 1
     }
   }
-  # pocketid_client.pangolin valide son URL de rappel, qu'un mock tire au
-  # hasard (pocket_id.tf).
-  mock_resource "pangolin_idp" {
-    defaults = {
-      redirect_url = "https://pangolin.example.test/auth/idp/1/oidc/callback"
-    }
-  }
 }
+# L'IdP passe par la clé root (pocket_id.tf) ; pocketid_client.pangolin valide
+# son URL de rappel, qu'un mock tire au hasard.
 mock_provider "pangolin" {
   alias = "root"
   mock_resource "pangolin_idp" {

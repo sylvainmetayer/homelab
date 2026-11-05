@@ -63,7 +63,9 @@ decides what that means:
 | nothing (Homebox 0.27.1) | one group to gate access (`allowed_user_groups`); roles stay in the app (Homebox: home owner, invitations) |
 
 `allowed_user_groups` on the client lists every group that may log in (admins
-included). A user in no listed group gets access denied at Pocket ID: put
+included). **Empty or omitted means every Pocket ID user** (provider doc):
+always set it, unless the app has its own gate (the Pangolin client has none
+because Pangolin still requires an org user). A user in no listed group gets access denied at Pocket ID: put
 Sylvain in the groups (UI), or the first test fails for a reason that looks
 like a bug.
 
@@ -147,12 +149,12 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 |---|---|---|
 | Pocket ID pages blank, `NS_ERROR_CORRUPTED_CONTENT`, « disallowed MIME type ("") » | Traefik rate limit on `id.sylvain.cloud` returned 429: a page loads ~100 files | `pangolin_idp_rate_burst` 300 (role `pangolin`); blank page again: check 429 first |
 | `redirect_uri 'https://https:/...' is not registered` | app prepends the scheme to a hostname setting that already had one | section 1: read how the app builds the callback |
-| `403 Key does not have root access` creating `pangolin_idp` | Pangolin org key cannot create an IdP | provider alias `pangolin.root`, key `pangolin_root_api_key` (IdP actions only) |
+| `403 Key does not have root access` creating `pangolin_idp` | Pangolin org key cannot create an IdP | provider alias `pangolin.root`, key `pangolin_root_api_key` (IdP actions + « get organization ») |
 | `Pangolin API key lacks access ... 403` at plan | provider start-up probe `GET /org/<org>` | root key also has « get organization » |
 | Pangolin: `User with username sylvain is unprovisioned` | `auto_provision = false`: no org user is created at login | create the external user in the org (IdP Pocket ID, same username, role) |
 | Tofu cycle client ↔ IdP | client callback is the IdP's `redirect_url`, IdP needs the client id | fixed `client_id` literal (local), not read from the resource |
 | `HBOX_OIDC_CLIENT_ID` empty | `pocketid_client.client_id` stays null unless set | always set `client_id` |
-| `tofu test`: `invalid callback URL` | mocked `redirect_url` is random | `mock_resource "pangolin_idp"` with a URL default (both test files, both aliases) |
+| `tofu test`: `invalid callback URL` | mocked `redirect_url` is random | `mock_resource "pangolin_idp"` with a URL default on the `root` alias mock (both test files) |
 | plan of the whole module fails | Pocket ID down, `pocketid_*` cannot refresh | `-exclude=pocketid_client.<x>` ... for the unrelated change |
 | merge redeploys a whole playbook | outputs read in a playbook's `pre_tasks` | read them in the role's defaults |
 | plan wants to destroy what was just merged | worktree from a stale `FETCH_HEAD` | `pangolin-config-plan` section 1 |

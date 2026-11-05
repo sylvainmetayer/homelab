@@ -201,8 +201,9 @@ supprimer l'ancienne clé dans l'interface.
 `pangolin_root_api_key` (même fichier, alias `pangolin.root`, servi au seul
 fournisseur d'identité de `pocket_id.tf`) : même chemin dans l'**admin du
 serveur**, API Keys, avec les seules actions des fournisseurs d'identité et
-de leurs politiques d'organisation (une clé d'organisation ne peut pas créer
-d'IdP).
+de leurs politiques d'organisation, plus « voir une organisation » (la sonde
+de démarrage du provider la lit, 403 sinon) ; une clé d'organisation ne peut
+pas créer d'IdP.
 
 ## Secrets d'application (tous les deux ans)
 
