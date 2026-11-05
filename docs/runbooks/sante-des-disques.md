@@ -84,8 +84,8 @@ smartctl -H -A -d sntrealtek /dev/sda   # sur le Pi (voir sa ligne ci-dessous)
 
 | Disque | À lire | Remplacer ou racheter quand |
 |---|---|---|
-| NAS (HDD) | 5 `Reallocated_Sector_Ct`, 197 `Current_Pending_Sector`, 198 `Offline_Uncorrectable` (valeur brute, `RAW_VALUE`) ; 199 `UDMA_CRC_Error_Count` (câble) | 197 ou 198 supérieur à 0 : copier ce qui compte et remplacer le disque, sans attendre qu'il croisse. 5 supérieur à 0 **et en hausse** d'un contrôle à l'autre : idem. 199 en hausse : changer le câble ou le pont USB |
-| `pve` (SSD SATA) | l'attribut d'usure du modèle : 177 `Wear_Leveling_Count`, 173, 169, 202, 231 ou 233 (valeur **normalisée** `VALUE`, 100 neuf, qui descend ; sur certains modèles le brut est le pourcentage déjà consommé, lire le nom de l'attribut) ; 232 `Available_Reservd_Space` | normalisée sous 20 : racheter ; sous 10 : sans attendre. Le modèle n'est pas dans le dépôt : à vérifier |
+| NAS (HDD ; `sdc` fait exception, voir « Relevés ») | 5 `Reallocated_Sector_Ct`, 197 `Current_Pending_Sector`, 198 `Offline_Uncorrectable` (valeur brute, `RAW_VALUE`) ; 199 `UDMA_CRC_Error_Count` (câble) | 197 ou 198 supérieur à 0 : copier ce qui compte et remplacer le disque, sans attendre qu'il croisse. 5 supérieur à 0 **et en hausse** d'un contrôle à l'autre : idem. 199 en hausse : changer le câble ou le pont USB |
+| `pve` (SSD SATA) | l'attribut d'usure du modèle : 177 `Wear_Leveling_Count`, 173, 169, 202, 231 ou 233 (valeur **normalisée** `VALUE`, 100 neuf, qui descend ; sur certains modèles le brut est le pourcentage déjà consommé, lire le nom de l'attribut) ; 232 `Available_Reservd_Space` | normalisée sous 20 : racheter ; sous 10 : sans attendre. Le modèle n'est pas dans le dépôt (SSD 512 Go, usure à 100 au premier relevé) |
 | `pi` (NVMe, pont USB) | `smartctl -H -A -d sntrealtek /dev/sda` : `Percentage Used`, `Available Spare`, `Media and Data Integrity Errors` | `Percentage Used` au-delà de 80 : racheter ; `Available Spare` sous 20 ou erreurs d'intégrité non nulles : sans attendre. Si le pont ne remonte rien, ce contrôle est le seul |
 
 Noter la date et les valeurs en bas de ce fichier (« Relevés »), pour voir la
@@ -96,9 +96,9 @@ pente. Une pente vaut mieux qu'un seuil.
 UGOS n'est pas géré par le dépôt (aucune modification système d'UGOS) : le rôle
 `nas` ne touche que les réglages NFS. **Pas de timer posé par le dépôt**, parce
 qu'un `btrfs scrub` programmé de l'extérieur ajoute une unité systemd au système
-d'UGOS, peut doubler un scrub qu'UGOS programme déjà, et qu'on ne sait pas
-(à vérifier) si le RAID 1 est celui de Btrfs ou un `md` sous Btrfs, ce qui change
-ce que le scrub répare.
+d'UGOS, peut doubler un scrub qu'UGOS programme déjà, et que le RAID 1 est
+probablement un `md` sous Btrfs (volume sur `/dev/mapper`, voir « Relevés »), ce
+qui change ce que le scrub répare.
 
 **À vérifier dans UGOS** (menu à chercher : stockage, volume `volume1`,
 maintenance ou vérification) :
@@ -118,8 +118,8 @@ sudo btrfs device stats /volume1   # tous les compteurs doivent être à 0
 ```
 
 Des compteurs non nuls, ou des erreurs non corrigeables, valent une alerte :
-copier ce qui compte, puis [disque-nas-mort.md](disque-nas-mort.md). Si le RAID 1
-est un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
+copier ce qui compte, puis [disque-nas-mort.md](disque-nas-mort.md). Le RAID 1 étant
+probablement un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
 pas depuis le second disque : la vérification du RAID (`md`) est l'affaire
 d'UGOS, à vérifier aussi.
 
@@ -143,14 +143,16 @@ quand Sylvain le décide ; d'ici là, le contrôle trimestriel ci-dessus.
 | NAS `sdb` WD40EFZZ (1678 h) | 0 | 0 | 0 | 0 | 39 °C | lien SATA négocié à 3 Gb/s au lieu de 6 |
 | NAS `sdc` WD30EZRX, USB (5199 h) | | **2167** | **2031** | | 32 °C | **défaillant** |
 | `pve` `sda` SSD 512 Go (13 258 h) | 0 | | | | 53 °C | usure normalisée (177) à 100 |
-| `pi` NVMe | | | | | | non lu : `smartctl` absent du Pi |
+| `pi` NVMe | | | | | | non lu : `smartctl` absent du Pi, à installer à la main avant le contrôle trimestriel |
 
 `sdc` dépasse largement le seuil de remplacement sans que Beszel prévienne,
 comme attendu plus haut : c'est exactement le trou décrit dans « Ce qui reste à
 décider ». Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
-mais rien ne doit compter sur lui, aucune copie ni sauvegarde.
+mais rien ne doit compter sur lui, aucune copie ni sauvegarde (la règle « remplacer
+le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 
 Volume `/volume1` : `btrfs scrub status` répond « no stats available », aucun
 scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le volume est posé
-sur un `/dev/mapper`, le RAID 1 est donc sous Btrfs : un scrub détecterait une
-corruption sans la réparer depuis l'autre disque.
+sur un `/dev/mapper` : le RAID 1 serait donc un `md` sous Btrfs (à confirmer),
+et un scrub détecterait une corruption des données sans la réparer depuis l'autre
+disque.
