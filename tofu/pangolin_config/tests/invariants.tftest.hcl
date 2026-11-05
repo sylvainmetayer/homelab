@@ -521,6 +521,9 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["jellystat"]
   values = { id = 191 }
+}
+
+override_resource {
   target = pangolin_resource.website["yamtrack"]
   values = { id = 192 }
 }
