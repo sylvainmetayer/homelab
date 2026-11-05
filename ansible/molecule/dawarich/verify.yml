@@ -162,7 +162,7 @@
     - name: Assert dawarich OIDC is configured without auto-registration
       ansible.builtin.assert:
         that:
-          - dawarich_env.OIDC_ISSUER == 'https://id.sylvain.cloud'
+          - dawarich_env.OIDC_ISSUER == 'https://idp.example.invalid'
           - dawarich_env.OIDC_CLIENT_ID == 'molecule-pocket-id-dawarich-client-id'
           - dawarich_env.OIDC_CLIENT_SECRET == 'molecule-pocket-id-dawarich-client-secret'
           - dawarich_env.OIDC_REDIRECT_URI == 'https://tracks.sylvain.cloud/users/auth/openid_connect/callback'

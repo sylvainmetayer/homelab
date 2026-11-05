@@ -104,7 +104,7 @@
         trek_env_lines: "{{ (trek_env_raw.content | b64decode).splitlines() }}"
       ansible.builtin.assert:
         that:
-          - "'OIDC_ISSUER=https://id.sylvain.cloud' in trek_env_lines"
+          - "'OIDC_ISSUER=https://idp.example.invalid' in trek_env_lines"
           - "'OIDC_CLIENT_ID=molecule-pocket-id-trek-client-id' in trek_env_lines"
           - "'OIDC_CLIENT_SECRET=molecule-pocket-id-trek-client-secret' in trek_env_lines"
           - "'OIDC_SCOPE=openid email profile groups' in trek_env_lines"
