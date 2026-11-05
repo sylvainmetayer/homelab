@@ -106,6 +106,8 @@
       ansible.builtin.assert:
         that:
           - "'HBOX_OPTIONS_ALLOW_REGISTRATION=false' in homebox_env_lines"
+          # Sans schéma : Homebox ajoute « https:// » au rappel OIDC.
+          - "homebox_env_lines | select('match', '^HBOX_OPTIONS_HOSTNAME=[a-z0-9.-]+$') | list | length == 1"
           - homebox_env_lines | select('match', '^HBOX_AUTH_API_KEY_PEPPER=[0-9a-f]{64}$') | list | length == 1
 
     # Pilote Pocket ID (ADR 0030) : les clés SOPS factices existent, le bouton

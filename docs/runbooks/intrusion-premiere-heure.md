@@ -94,7 +94,8 @@ nouveau, basculer, vérifier, puis révoquer l'ancien
    NAS…). Ceux du fichier racine (Hetzner, OVH, S3 des states, Proxmox)
    seulement si la clé age ou le poste est en cause.
 3. **Le tunnel** de l'hôte : ses identifiants Newt (« Identifiants Newt »),
-   `pangolin_api_key` si Pangolin a été touché.
+   `pangolin_api_key` et `pangolin_root_api_key` (elle crée des fournisseurs
+   d'identité : un IdP ajouté ouvrirait le mur) si Pangolin a été touché.
 4. **Les secrets d'appli de l'hôte** (ce que ses `compose.yaml` et `.env`
    contenaient), clés de session comprises : tout le monde est déconnecté.
 5. **Les sauvegardes** : l'hôte reconstruit génère sa clé, `backup.yaml` la

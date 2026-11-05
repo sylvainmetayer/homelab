@@ -408,7 +408,8 @@
           - idp_routers['pocket-id-router-redirect'].middlewares == ['redirect-to-https']
           - "dynamic_config.http.services['pocket-id-service'].loadBalancer.servers | map(attribute='url') | list == ['http://pocket-id:1411']"
           - "'pocket-id-allowlist' not in dynamic_config.http.middlewares"
-          - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.average == 20
+          - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.average == 50
+          - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.burst == 300
           # Aucune autre route touchée : l'entrypoint garde ses deux middlewares.
           - idp_routers['next-router'].middlewares == ['badger']
         fail_msg: "Routeur Pocket ID inattendu : {{ idp_routers['pocket-id-router'] | default('absent') }}"
