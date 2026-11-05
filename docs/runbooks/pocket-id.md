@@ -71,10 +71,14 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      on redevient utilisateur, sauf le dernier admin que TREK garde). Comptes
      Pocket ID du foyer créés par l'administrateur (code à usage unique).
      Liaison au compte TREK existant par e-mail : refusée si Pocket ID ne le dit
-     pas vérifié (`email_not_verified`), ou si le compte TREK a saisi son adresse
+     pas vérifié (`email_not_verified` ; cocher « E-mail vérifié » sur
+     l'utilisateur dans Pocket ID, ou le réglage global « E-mails vérifiés »), ou si le compte TREK a saisi son adresse
      lui-même (`email_link_blocked`) : l'admin de TREK la confirme en la
      changeant dans le panneau d'administration. Login local gardé
-     (`OIDC_ONLY=false`).
+     (`OIDC_ONLY=false`). L'inscription par SSO de TREK est ouverte par défaut
+     (`oidc_registration`, réglage de l'admin TREK, pas une variable) : toute
+     personne du groupe Pocket ID `trek` sans compte TREK en reçoit un.
+     Le groupe est donc la seule barrière.
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
    celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de

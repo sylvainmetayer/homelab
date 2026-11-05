@@ -3222,7 +3222,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "terraform_outputs.pocket_id_trek_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "trek_oidc_admin_value: trek-admin")
     )
-    error_message = "Les clients OIDC Homebox et Pangolin de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, et Homebox lu par le rôle homebox."
+    error_message = "Les clients OIDC Homebox, Pangolin et TREK de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle."
   }
 
   assert {
