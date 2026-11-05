@@ -3224,6 +3224,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
       && pocketid_client.beszel.pkce_enabled == true
       && pocketid_client.dawarich.callback_urls == tolist(["https://tracks.sylvain.cloud/users/auth/openid_connect/callback"])
       && pocketid_client.dawarich.pkce_enabled == true
+      && alltrue([for r in ["homebox", "trek", "healthlog", "dawarich"] : strcontains(file("${path.module}/../../ansible/roles/${r}/defaults/main.yml"), "terraform_outputs.pocket_id_issuer.value")])
       && length(pocketid_client.dawarich.allowed_user_groups) == 1
       && strcontains(file("${path.module}/../../ansible/roles/dawarich/defaults/main.yml"), "terraform_outputs.pocket_id_dawarich_client_secret.value")
       && length(pocketid_client.beszel.allowed_user_groups) == 1

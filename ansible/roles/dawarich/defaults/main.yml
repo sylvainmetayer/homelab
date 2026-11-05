@@ -18,8 +18,8 @@ dawarich_timezone: Europe/Paris
 # SSO ne crée aucun compte, il relie l'existant après un défi.
 dawarich_oidc_client_id: "{{ terraform_outputs.pocket_id_dawarich_client_id.value | default('') }}"
 dawarich_oidc_client_secret: "{{ terraform_outputs.pocket_id_dawarich_client_secret.value | default('') }}"
-dawarich_oidc_enabled: "{{ dawarich_oidc_client_id | length > 0 and dawarich_oidc_client_secret | length > 0 }}"
-dawarich_oidc_issuer: https://id.sylvain.cloud
+dawarich_oidc_enabled: "{{ dawarich_oidc_client_id | length > 0 and dawarich_oidc_client_secret | length > 0 and dawarich_oidc_issuer | length > 0 }}"
+dawarich_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 
 # Borgmatic backup configuration
 dawarich_backup_enabled: true
