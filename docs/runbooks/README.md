@@ -43,6 +43,8 @@ choix dans [../adr/](../adr/README.md).
 | Le Raspberry Pi ou son SSD est mort : Immich depuis Borg, Blocky, IP et réservation | [pi-mort.md](pi-mort.md) |
 | La Bbox est remplacée : DHCP, DNS, réservations d'adresses, IP publique (`home_ip`), Wi-Fi | [bbox-remplacee.md](bbox-remplacee.md) |
 | Intrusion supposée, la première heure : isoler, garder les traces, reconstruire, secrets à tourner, dépôts Borg, clé de CI, prévenir les utilisateurs de Flip Planning | [intrusion-premiere-heure.md](intrusion-premiere-heure.md) |
+| Partir plusieurs jours (procédure, pas un incident) : couper l'automerge Renovate et les déploiements, contrôle de santé, ce que le foyer peut faire et ne pas faire, retour | [mode-absence.md](mode-absence.md) |
+| Pannes passées, ce qui s'est passé (symptôme, cause, ce qui a manqué, action) | [../incidents/README.md](../incidents/README.md) |
 
 ## Avant de commencer
 

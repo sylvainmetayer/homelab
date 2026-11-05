@@ -114,6 +114,7 @@ nav:
       - runbooks/pi-mort.md
       - runbooks/bbox-remplacee.md
       - runbooks/intrusion-premiere-heure.md
+      - runbooks/mode-absence.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
@@ -121,6 +122,13 @@ nav:
   - Accès mobile: acces-mobile.md
   - Login unifié: login-unifie-applis.md
   - Médiathèque: media.md
+  - Incidents:
+      - incidents/README.md
+      - incidents/pangolin-cibles-detruites.md
+      - incidents/pangolin-cibles-sans-sonde-503.md
+      - incidents/vzdump-disque-plein.md
+      - incidents/pangolin-verrou-sqlite.md
+      - incidents/ntfy-topic-retire.md
   - ADR:
       - adr/README.md
       - adr/0001-sauvegardes-borgmatic.md
