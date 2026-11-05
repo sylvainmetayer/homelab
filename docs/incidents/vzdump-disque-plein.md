@@ -4,7 +4,8 @@
 
 La sauvegarde vzdump de la VM docker a **échoué chaque soir du 30/09 au
 27/10/2026** (« No space left on device ») ; celle du LXC newt passait. Soit
-quatre semaines sans image de la VM. Comment cela a été vu : à confirmer
+quatre semaines sans nouvelle image de la VM (les deux archives précédentes
+restaient, de plus en plus vieilles). Comment cela a été vu : à confirmer
 ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md) ne le dit pas).
 
 ## Cause

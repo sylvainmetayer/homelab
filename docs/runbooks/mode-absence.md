@@ -48,7 +48,9 @@ actif) :
 2. **Renovate** — aucun interrupteur unique dans le dépôt. Deux leviers :
    - les PR déjà ouvertes avec fusion automatique : lister
      (`gh pr list --author "app/renovate"`, à vérifier) et retirer la fusion
-     automatique de chacune (`gh pr merge --disable-auto <n>`, à vérifier) ;
+     automatique de chacune (`gh pr merge --disable-auto <n>`, à vérifier) ; Renovate peut la
+     remettre à son prochain passage tant qu'il n'est pas en pause, d'où le
+     point suivant puis l'étape 3, qui est le vrai filet ;
    - empêcher les suivantes : mettre l'application Renovate en pause dans les
      réglages GitHub (hors dépôt, à vérifier), ou, par une PR qui ne déploie
      rien (`renovate.json` n'est dans aucun chemin de
@@ -107,7 +109,8 @@ mois d'absence, y penser.
 - **L'accès à distance marche** : le client Pangolin du poste emporté ouvre
   l'hôte Proxmox ou une ressource privée ; une clé SSH autorisée est sur le poste
   emporté, et la console Hetzner (Pangolin, flip) est atteignable avec ses
-  seconds facteurs (feuille d'exercice de `perte-totale-maison.md`).
+  seconds facteurs ([pangolin-injoignable.md](pangolin-injoignable.md) dit quand
+  l'ouvrir ; ce que le dépôt ne dit pas : où sont ces seconds facteurs).
 - **Copies à jour** : lancer `restore-test.yaml` à la main s'il date de plus
   d'une semaine (`gh workflow run restore-test.yaml`, à vérifier).
 
@@ -127,7 +130,8 @@ Pangolin, tableau de bord Uptime Kuma, clés) : à vérifier, le dépôt ne le d
   ([bbox-remplacee.md](bbox-remplacee.md) dit ce que la box doit servir : la
   remettre en route, jamais la réinitialiser).
 - Redémarrer le **Pi** (Immich s'arrête quelques minutes, le premier Blocky
-  aussi : le second répond, [dns-blocky.md](dns-blocky.md)).
+  aussi : le second répond, [dns-blocky.md](dns-blocky.md)), mais pas entre
+  01:00 et 05:00 (sauvegarde d'Immich, [pi-mort.md](pi-mort.md)).
 - Dire à Sylvain **quoi, depuis quand, à quelle heure**, avec une photo des
   voyants : c'est le renseignement qui lui manque.
 - Utiliser ce qui marche (Wi-Fi, photos) et dire ce qui ne marche pas.

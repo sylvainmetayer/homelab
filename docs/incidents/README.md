@@ -36,8 +36,8 @@ ci-dessous.
 
 | Date | Panne | Page |
 |---|---|---|
-| à confirmer (avant le 31/08/2026) | Pangolin : cibles de Flip Planning détruites par une mise à jour sans attributs épinglés | [pangolin-cibles-detruites.md](pangolin-cibles-detruites.md) |
-| à confirmer (avant le 31/08/2026) | Pangolin : cibles sans schéma de sonde, 503 sur gramps, scanopy et Flip Planning | [pangolin-cibles-sans-sonde-503.md](pangolin-cibles-sans-sonde-503.md) |
+| à confirmer | Pangolin : cibles de Flip Planning détruites par une mise à jour sans attributs épinglés | [pangolin-cibles-detruites.md](pangolin-cibles-detruites.md) |
+| corrigé le 30/08/2026 | Pangolin : cibles sans schéma de sonde, 503 sur gramps, scanopy et Flip Planning | [pangolin-cibles-sans-sonde-503.md](pangolin-cibles-sans-sonde-503.md) |
 | 30/09 au 27/10/2026 | vzdump de la VM docker en échec chaque soir (disque plein) | [vzdump-disque-plein.md](vzdump-disque-plein.md) |
 | 07/10/2026 | Pangolin figé pendant sa sauvegarde (verrou SQLite) | [pangolin-verrou-sqlite.md](pangolin-verrou-sqlite.md) |
 | 29/10/2026 | Notifications ntfy coupées sur Android après le retrait d'un topic | [ntfy-topic-retire.md](ntfy-topic-retire.md) |
