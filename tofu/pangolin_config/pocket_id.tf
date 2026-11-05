@@ -79,7 +79,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog"])
 
   length  = 48
   special = false
@@ -158,6 +158,37 @@ output "pocket_id_trek_client_id" {
 output "pocket_id_trek_client_secret" {
   description = "POCKET ID - secret du client OIDC de TREK"
   value       = random_password.pocket_id_client["trek"].result
+  sensitive   = true
+}
+
+# HealthLog (données de santé) : Sylvain seul, groupe healthlog. Pas de rôle
+# par claim ; un membre du groupe sans compte en recevrait un neuf, donc le
+# groupe reste étroit. Rappel comparé octet par octet (docs/self-hosting/sso.md
+# de HealthLog 1.46.5), sans barre finale.
+resource "pocketid_group" "healthlog" {
+  name          = "healthlog"
+  friendly_name = "HealthLog"
+}
+
+resource "pocketid_client" "healthlog" {
+  name                = "HealthLog"
+  client_id           = "healthlog"
+  client_secret       = random_password.pocket_id_client["healthlog"].result
+  callback_urls       = ["https://sante.sylvain.cloud/api/auth/oidc/callback"]
+  allowed_user_groups = [pocketid_group.healthlog.id]
+  launch_url          = "https://sante.sylvain.cloud"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_healthlog_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de HealthLog"
+  value       = pocketid_client.healthlog.client_id
+}
+
+output "pocket_id_healthlog_client_secret" {
+  description = "POCKET ID - secret du client OIDC de HealthLog"
+  value       = random_password.pocket_id_client["healthlog"].result
   sensitive   = true
 }
 

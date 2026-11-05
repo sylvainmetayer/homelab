@@ -79,6 +79,11 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      (`oidc_registration`, réglage de l'admin TREK, pas une variable) : toute
      personne du groupe Pocket ID `trek` sans compte TREK en reçoit un.
      Le groupe est donc la seule barrière.
+   - **HealthLog** (Sylvain seul, groupe `healthlog`) : liaison du compte
+     existant si Pocket ID dit l'e-mail vérifié, puis une connexion par mot de
+     passe (et 2FA HealthLog) dans les 10 minutes ; liaison définitive. Un
+     membre du groupe sans compte en reçoit un, sans mot de passe (secours :
+     `docker compose exec healthlog node scripts/reset-password.mjs <compte>`).
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
    celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de
