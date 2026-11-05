@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Faux Uptime Kuma du scénario Molecule uptime_push, sur la boucle locale.
 
-- 127.0.0.1:18080 rend 200 et ajoute une ligne JSON par requête (chemin,
-  status et msg décodés, User-Agent) à /var/lib/molecule-push/requests.jsonl ;
+- 127.0.0.1:18080 rend 200 (302 vers /api/push/arrivee sur /redirect) et ajoute
+  une ligne JSON par requête (chemin, status et msg décodés, User-Agent) à
+  /var/lib/molecule-push/requests.jsonl ;
 - 127.0.0.1:18081 accepte la connexion TCP sans jamais lire ni répondre : un
   Uptime Kuma qui pend, que uptime-push doit lâcher en 21 s au pire.
 """
@@ -27,6 +28,12 @@ class Handler(BaseHTTPRequestHandler):
         }
         with open(LOG, "a", encoding="utf-8") as log:
             log.write(json.dumps(record, ensure_ascii=False) + "\n")
+        if url.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", "/api/push/arrivee")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         body = b'{"ok":true}'
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

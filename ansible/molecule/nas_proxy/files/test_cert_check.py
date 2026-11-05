@@ -18,13 +18,13 @@ import cert_check as cc
 class MainPushTest(unittest.TestCase):
     """main() avec un certificat à 60 jours : seul le push peut échouer."""
 
-    def main(self, url, **urlopen):
+    def main(self, url, **opener):
         out, err = io.StringIO(), io.StringIO()
-        real_urlopen = cc.urllib.request.urlopen
+        real_open = cc._OPENER.open
         with (
             mock.patch.dict(os.environ, {cc.PUSH_URL_VARIABLE: url}),
             mock.patch.object(cc, "days_left", return_value=60),
-            mock.patch.object(cc.urllib.request, "urlopen", **(urlopen or {"side_effect": real_urlopen})) as opened,
+            mock.patch.object(cc._OPENER, "open", **(opener or {"side_effect": real_open})) as opened,
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -57,6 +57,21 @@ class MainPushTest(unittest.TestCase):
         code, opened, _, _ = self.main("http://kuma.invalid/p?a=1", return_value=mock.MagicMock())
         self.assertEqual(code, 0)
         self.assertTrue(opened.call_args.args[0].startswith("http://kuma.invalid/p?a=1&status=up&msg="))
+
+    def test_redirect_is_exit_2_and_nothing_reaches_the_target(self):
+        seen = []
+
+        def http_open(_handler, request):
+            seen.append(request.full_url)
+            headers = http.client.parse_headers(io.BytesIO(b"Location: /arrivee\r\n\r\n"))
+            return mock.MagicMock(code=302, msg="x", info=lambda: headers)
+
+        with mock.patch.object(cc.urllib.request.HTTPHandler, "http_open", http_open):
+            code, _, out, err = self.main("http://kuma.invalid/jeton")
+        self.assertEqual(code, 2)
+        self.assertIn("HTTPError", err)
+        self.assertNotIn("jeton", out + err)
+        self.assertEqual(len(seen), 1)
 
 
 if __name__ == "__main__":

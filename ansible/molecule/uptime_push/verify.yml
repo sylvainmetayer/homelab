@@ -122,3 +122,39 @@
           - "'/api/push/' not in uptime_push_test_failures.stdout ~ uptime_push_test_failures.stderr"
           - "'molecule-uptime-push' not in uptime_push_test_failures.stdout ~ uptime_push_test_failures.stderr"
         fail_msg: "{{ uptime_push_test_failures.stdout_lines }} / {{ uptime_push_test_failures.stderr_lines }}"
+
+    # --- 3xx : curl -f le laisse passer et rien n'arrive au moniteur ---
+
+    - name: Reset the push log before the redirect case
+      become: true
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ uptime_push_test_log }}"
+        mode: "0666"
+
+    - name: Push to a URL answering 302, without then with --strict
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -u -o pipefail
+          printf 'url = "http://127.0.0.1:18080/redirect"\n' | {{ uptime_push_test_bin }} - up; echo "redirect=$?"
+          printf 'url = "http://127.0.0.1:18080/redirect"\n' | {{ uptime_push_test_bin }} --strict - up; echo "redirect_strict=$?"
+      register: uptime_push_test_redirect
+      changed_when: false
+
+    - name: Read what the fake Uptime Kuma received on the redirect case
+      become: true
+      ansible.builtin.command: cat {{ uptime_push_test_log }}
+      register: uptime_push_test_redirect_log
+      changed_when: false
+
+    - name: Assert a 302 fails the push, is not followed and is reported without the URL
+      ansible.builtin.assert:
+        that:
+          - "'redirect=0' in uptime_push_test_redirect.stdout_lines"
+          - "'redirect_strict=22' in uptime_push_test_redirect.stdout_lines"
+          - "'réponse 302' in uptime_push_test_redirect.stderr"
+          - "'127.0.0.1' not in uptime_push_test_redirect.stderr"
+          - uptime_push_test_redirect_log.stdout_lines | length == 2
+          - "'arrivee' not in uptime_push_test_redirect_log.stdout"
+        fail_msg: "{{ uptime_push_test_redirect.stdout_lines }} / {{ uptime_push_test_redirect.stderr_lines }} / {{ uptime_push_test_redirect_log.stdout_lines }}"
