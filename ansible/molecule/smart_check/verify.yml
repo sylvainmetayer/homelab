@@ -133,7 +133,7 @@
       register: smart_check_verify_unit_log
       loop:
         - "{{ smart_check_verify_dir }}/requests.jsonl"
-        - "{{ smart_check_verify_dir }}/argv.log"
+        - "{{ smart_check_dir }}/argv.log"
 
     - name: Assert the unit pushed up to its monitor, with the bridge type
       vars:
