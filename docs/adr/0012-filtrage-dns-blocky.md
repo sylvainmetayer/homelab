@@ -1,6 +1,6 @@
 # 0012. Filtrage DNS du réseau local : Blocky
 
-- **Statut** : acceptée ; déployée sur le Pi et le LXC newt (#945 ; vue sur le LXC par #1121) ; bascule du DHCP de la Bbox à confirmer (hors dépôt)
+- **Statut** : acceptée ; déployée sur le Pi et le LXC newt (#945 ; vue sur le LXC par #1121) ; bascule du DHCP de la Bbox **non faite au 2026-11-05** d'après les compteurs des deux instances (hors dépôt, à confirmer par Sylvain)
 - **Date** : 2026-10-28
 
 ## Contexte
@@ -19,6 +19,11 @@ Deux instances, que le DHCP de la Bbox annonce toutes les deux : le Pi
 (conteneur) et le LXC newt (binaire, pas de Docker). Listes HaGeZi Pro et
 TIF medium ; amont en DoT chez Quad9 et Mullvad. Bascule du DHCP faite à la
 main dans la Bbox ([runbook](../runbooks/dns-blocky.md)).
+
+Relevé du 2026-11-05 (lecture seule) : Pi et LXC n'ont reçu que les 2 requêtes
+par 5 min de `blocky-check` depuis le 01/11 (`queries_total=2210`) : aucun
+client. Le DHCP n'annonce pas Blocky, ou aucun bail n'a été renouvelé ;
+architecture.md, dns-blocky.md et bbox-remplacee.md l'affirment, sans preuve.
 
 ## Alternatives écartées
 
