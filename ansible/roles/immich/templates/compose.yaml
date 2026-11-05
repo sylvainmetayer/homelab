@@ -155,6 +155,47 @@ services:
       - newt
       - immich
 
+{% if immich_kiosk_enabled | bool %}
+  # Cadre photo plein écran (damongolding/immich-kiosk), lu avec une clé
+  # d'API Immich en lecture seule. Pas de port publié : sa seule entrée est la
+  # route Pangolin derrière le SSO (rôle immich-kiosk, sans membre). Rendu
+  # seulement si immich_kiosk_api_key existe ; la clé retirée, le conteneur
+  # reste jusqu'à un `docker compose up --remove-orphans` (README du rôle).
+  immich-kiosk:
+    image: ghcr.io/damongolding/immich-kiosk:0.45.2@sha256:2059203dbe7d509f529937a39f2def13d6363254bcc0a4f59d963b726c9e58b6
+    container_name: immich-kiosk
+    # Pas encore mesuré sur le Pi : un binaire Go qui garde un cache d'images
+    # en mémoire. Valeur prudente, à recaler sur memory.peak (mem_report).
+    mem_limit: 256m
+    # Image distroless en utilisateur nonroot (USER de l'image) ; essayée en
+    # local en lecture seule, sans capacité, avec no-new-privileges.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      # L'API d'Immich par le réseau immich ; les liens et QR codes visent
+      # l'Immich public.
+      KIOSK_IMMICH_URL: http://immich-server:2283
+      KIOSK_IMMICH_EXTERNAL_URL: https://{{ immich_domain }}
+      KIOSK_IMMICH_API_KEY: "{{ immich_kiosk_api_key }}"
+      KIOSK_BEHIND_PROXY: "true"
+      # /config rendrait la configuration, clé d'API comprise.
+      KIOSK_DISABLE_CONFIG_ENDPOINT: "true"
+      TZ: Europe/Paris
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/kiosk", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - newt
+      - immich
+
+{% endif %}
   immich-selfie-timelapse:
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse

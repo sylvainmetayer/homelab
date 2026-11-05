@@ -206,7 +206,7 @@ Clé ou jeton qu'un rôle écrit dans le compose ou le `.env` d'une appli
 (clés MCP, secrets OIDC, `promptoramix_linkx_secret`,
 `pangolin_maxmind_license_key`, `beszel_agent_tokens`,
 `dawarich_chibigeo_api_key`, `immich_timelapse_api_key`,
-`immich_swipe_api_key`…) :
+`immich_swipe_api_key`, `immich_kiosk_api_key`…) :
 
 1. Créer la nouvelle valeur là où elle est émise : `openssl rand` pour un
    secret partagé que le homelab invente ; le service tiers sinon (MaxMind :
@@ -234,6 +234,12 @@ Swipe pose côté serveur ; nom `immich-swipe` et permissions listées dans
 `ansible/roles/immich/README.md`. `pi.yml --tags immich` (redémarre la pile
 Immich), puis `https://swipe-photos.sylvain.cloud` doit afficher une photo
 sans écran de connexion ; supprimer ensuite l'ancienne clé dans Immich.
+
+`immich_kiosk_api_key` : clé d'API d'Immich **en lecture seule** (compte de
+Sylvain), nom `immich-kiosk`, permissions listées dans
+`ansible/roles/immich/README.md`. `pi.yml --tags immich`, puis
+`https://kiosk.sylvain.cloud` doit afficher une photo ; supprimer ensuite
+l'ancienne clé dans Immich.
 
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte

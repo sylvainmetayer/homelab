@@ -1,7 +1,50 @@
 # immich
 
 Immich sur le Raspberry Pi (`pi.yml`), avec deux outils qui s'en servent :
-Immich Swipe et Immich Selfie Timelapse (`docs/apps.md`).
+Immich Swipe, Immich Kiosk et Immich Selfie Timelapse (`docs/apps.md`).
+
+## Immich Kiosk (`kiosk.sylvain.cloud`)
+
+Cadre photo plein écran de [damongolding/immich-kiosk](https://github.com/damongolding/immich-kiosk),
+image `ghcr.io/damongolding/immich-kiosk:0.45.2` (binaire Go, distroless,
+utilisateur `nonroot`). Dans ce rôle et pas dans un rôle à part : comme Swipe,
+il appelle `immich-server` par le réseau `immich` du projet compose, et
+Immich reste sur le Pi ([ADR 0020](../../../docs/adr/0020-garder-le-raspberry-pi-pour-immich.md)).
+
+**Rendu seulement si la clé SOPS `immich_kiosk_api_key` existe**
+(`immich_kiosk_enabled`, dérivée, comme `immich_swipe_preconfigured`). La clé
+est dans le `compose.yaml` (`0600`, `diff: false`), en `KIOSK_IMMICH_API_KEY`.
+Retirer la clé ne supprime pas le conteneur : `docker compose up -d
+--remove-orphans` dans `immich/`, ou `docker rm -f immich-kiosk`.
+
+Clé : compte de Sylvain, Account Settings → API Keys, nom `immich-kiosk`,
+**lecture seule**. Permissions (doc amont, « Installation »), sans les
+boutons « j'aime » et « masquer » : `asset.read`, `asset.view`,
+`asset.download`, `album.read`, `album.statistics`, `archive.read`,
+`face.read`, `memory.read`, `person.read`, `person.statistics`,
+`server.about`, `tag.read`, `user.read`. Ni `asset.update` ni aucune
+permission `create`, `update` ou `delete` : à vérifier en créant la clé (les
+noms exacts viennent de la doc amont, non essayés contre cet Immich). Rotation :
+`docs/runbooks/rotation-des-secrets.md`.
+
+Réglages : `KIOSK_BEHIND_PROXY=true`, `KIOSK_DISABLE_CONFIG_ENDPOINT=true`
+(sinon `/config` rendrait la configuration, clé comprise). Pas de volume, pas de
+port publié, pas de sauvegarde. Rôle Pangolin `immich-kiosk` sans membre
+(administrateurs seulement), un test d'invariant de `pangolin_config` le garde
+lié à cette seule ressource.
+
+`mem_limit: 256m` est une valeur prudente, **à remesurer** sur le Pi.
+
+**Question ouverte : un écran de TV sans login.** Le SSO de Pangolin demande
+une connexion interactive ; un navigateur de TV ne peut pas la faire et aucun
+chemin public n'est ouvert (la clé donne la photothèque à qui atteint la
+page). Pistes, à choisir par Sylvain, aucune faite ici : (1) l'authentification
+par en-tête de Pangolin, comme l'appli Android de Grocy (identifiants HTTP
+Basic dans l'URL, `docs/acces-mobile.md`), si le navigateur de la TV les
+accepte ; (2) un mini-PC ou une clé HDMI qui garde une session SSO ouverte ;
+(3) publier le port 3000 du Pi sur le LAN (`ports: 192.168.1.x:3000:3000`) avec
+`KIOSK_PASSWORD`, sans passer par Pangolin, contre la règle « aucun port
+d'appli publié » du Pi.
 
 ## Immich Swipe (`swipe-photos.sylvain.cloud`)
 

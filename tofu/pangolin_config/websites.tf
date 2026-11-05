@@ -71,6 +71,7 @@ locals {
     homebox                 = local.homebox_website
     homepage                = local.homepage_website
     immich                  = local.immich_website
+    immich_kiosk            = local.immich_kiosk_website
     immich_swipe            = local.immich_swipe_website
     immich_selfie_timelapse = local.immich_selfie_timelapse_website
     karakeep                = local.karakeep_website

@@ -10,6 +10,7 @@ locals {
     "neonova-aide",
     "immich-selfie-timelapse",
     "immich-swipe",
+    "immich-kiosk",
     "nextcloud",
     "monica",
     "homepage",
