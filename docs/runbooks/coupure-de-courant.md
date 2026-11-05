@@ -17,7 +17,7 @@ n'est prouvé sur ces machines. Noter le résultat en bas de ce fichier.
 | Applis de la VM | reviennent seules : unités `dc@` lancées après Docker |
 | Montages NFS de `nas_storage` | `nofail,_netdev,x-systemd.automount` : rien n'attend le NAS au démarrage |
 | Stockage `nas-backup` de Proxmox | NFS `vers=3`. Si le NAS revient après l'hôte : à observer |
-| Hôte Proxmox : redémarre seul au retour du courant | **à vérifier dans le BIOS** (« Restore on AC Power Loss ») |
+| Hôte Proxmox : redémarre seul au retour du courant | **à vérifier dans le BIOS** (« Restore on AC Power Loss », voir la mise en garde sous l'exercice) |
 | NAS DXP2800 : redémarre seul au retour du courant | **à vérifier dans le BIOS** ; son dernier redémarrage ne coupait pas le courant, il ne prouve donc rien |
 | Pi | démarre à la mise sous tension (comportement du matériel, à observer) |
 | Bbox | se rallume seule en général, à observer |
@@ -45,12 +45,19 @@ prise : la charge totale n'est qu'une estimation (55 à 80 W, pointe vers 100 W)
 | 4 | Arrêter le Pi en dernier | durée | pas de vérification de disque au démarrage suivant |
 | 5 | Couper au mur pendant 2 min | heure | tout est éteint |
 | 6 | Rétablir le courant, **sans rien allumer à la main** | heure de démarrage de chaque machine | les quatre démarrent seules |
-| 7 | `qm list`, `pct list`, `pvesm status` sur l'hôte ; `docker ps` sur la VM et le Pi | ce qui manque | tout revient en moins de 15 min, `nas-backup` actif |
+| 7 | `qm list`, `pct list`, `pvesm status` sur l'hôte ; `docker ps` sur la VM et le Pi | ce qui manque | tout revient en moins de 20 min, `nas-backup` actif |
 | 8 | Page des disques de Beszel, `smartctl -A` sur chaque disque | écart avec les [relevés](sante-des-disques.md) | aucune nouvelle erreur |
 | 9 | Ouvrir `photos.sylvain.cloud` et une appli derrière le SSO | temps jusqu'au retour | accès rétabli, sites Newt en ligne |
 
 Une machine qui ne démarre pas seule à l'étape 6 : corriger son réglage dans le
 BIOS, puis rejouer les étapes 5 et 6.
+
+**Limite de l'exercice.** Une machine arrêtée proprement puis privée de courant
+se comporte comme sur le réglage « Power On », pas comme après une vraie
+coupure : avec « Last State » (dernier état), elle reste éteinte, alors qu'une
+coupure subie allumée la relancerait. Lire donc le réglage dans le BIOS
+(« Power On » ou « Last State »), sans se fier au seul résultat de l'étape 6 ;
+si c'est « Last State », l'exercice ne prouve rien pour cette machine.
 
 ## Au retour du secteur
 

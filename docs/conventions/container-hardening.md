@@ -36,7 +36,7 @@ cap_drop:
 
 ## Docker Bench findings left as they are
 
-`live-restore` stays off (Docker Bench 2.13). Units `dc@` would not benefit: `compose up` exits when the daemon stops, then `ExecStop` stops the containers. Turning it on restarts every container of the host once, for nothing. Only the Pangolin stack, outside `dc@`, would gain, and restarting it cuts every public route. Decided on 05/11/2026.
+`live-restore` stays off (Docker Bench 2.13). Units `dc@` would not benefit: `compose up` exits when the daemon stops, then `ExecStop` stops the containers. Turning it on gains nothing there, and enabling it by a daemon restart would restart every container of the host once (a `SIGHUP` reload would not). Only the Pangolin stack, outside `dc@`, would gain, and restarting it cuts every public route. Decided on 05/11/2026.
 
 ## Testing a change
 
