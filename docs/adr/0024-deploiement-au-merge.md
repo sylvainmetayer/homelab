@@ -1,6 +1,6 @@
 # 0024. Le merge sur `main` déploie : quatre playbooks en CI, Tofu et le reste à la main
 
-- **Statut** : acceptée
+- **Statut** : acceptée (fenêtre de calme : [0029](0029-fenetre-de-calme-du-deploiement.md))
 - **Date** : 2026-08-05 (docker, écrit le 2026-08-02 ; pi, pangolin), 2026-09-30 (flip)
 
 ## Contexte

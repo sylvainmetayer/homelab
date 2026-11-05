@@ -68,8 +68,9 @@ au plus :
 | [0021](0021-provider-pangolin-du-fork.md) | Provider Pangolin : build du fork servi par un miroir local, en attendant l'amont | acceptée |
 | [0022](0022-durcissement-des-conteneurs.md) | Conteneurs : `no-new-privileges` par défaut, contrôlé en CI, `cap_drop` au cas par cas | acceptée |
 | [0023](0023-limites-de-ressources.md) | Limites : mémoire mesurée sur chaque service, pas de quota CPU hors traitements par lots | acceptée |
-| [0024](0024-deploiement-au-merge.md) | Le merge sur `main` déploie : quatre playbooks en CI, Tofu et le reste à la main | acceptée |
+| [0024](0024-deploiement-au-merge.md) | Le merge sur `main` déploie : quatre playbooks en CI, Tofu et le reste à la main | acceptée (fenêtre de calme : 0029) |
 | [0025](0025-promptoramix-ouverte-sur-flip.md) | Promptoramix sur flip, ouverte de partout, gardée par sa seule signature HMAC | acceptée |
 | [0026](0026-vzdump-sur-le-nas-seul.md) | Sauvegardes vzdump sur le NAS seul, sans copie hors site | acceptée |
 | [0027](0027-connexions-ssh-cles-connues.md) | Connexions SSH : clés connues tracées sur ntfy, tout le reste sonne sur Telegram | acceptée |
 | [0028](0028-cle-ssh-de-ci-root.md) | La clé SSH de la CI reste équivalente à root : risque accepté | acceptée |
+| [0029](0029-fenetre-de-calme-du-deploiement.md) | Fenêtre de calme : pas de déploiement automatique de 19:00 à 08:00 (Paris), rattrapage au matin | acceptée |
