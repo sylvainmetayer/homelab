@@ -26,6 +26,10 @@ are the two reference implementations: copy them.
 4. **Existing local accounts**: does the app link an OIDC login to an existing
    account (by email, by username) or create a new one? If unknown, say it is
    tested at the first login and the local account stays usable either way.
+   **Ask which email / username each existing app account uses** and compare
+   it with the person's Pocket ID account: they often differ (Beszel's admin
+   was created with a service address, Pocket ID uses the personal one). Plan
+   the rename in the app *before* the first SSO login (section 1b).
 5. **Who does the UI steps**: Sylvain adds people to Pocket ID groups (Tofu
    never declares users, see pitfalls). Confirm he will.
 
@@ -50,6 +54,28 @@ From the app's docs **and code** at the image tag in its compose:
 
 `docs/login-unifie-applis.md` has a first pass per app; re-check it against the
 current tag.
+
+## 1b. Reconcile identities before the first SSO login
+
+Linking matches one attribute of the Pocket ID account to the app account:
+email for most apps (TREK, HealthLog, Homebox, Beszel/PocketBase), username
+for the Pangolin wall (`preferred_username` = the external user's username).
+If they differ, the app does not find the account and, with sign-up closed,
+refuses; with sign-up open, it creates a **second, empty account**. Before
+anyone clicks the SSO button:
+
+- list each existing app account and the attribute the app matches on;
+- change it **in the app** to the Pocket ID value (never the reverse unless
+  the person wants a new address everywhere), keeping the « verified » flag
+  where the app has one (PocketBase: `users` record, `verified` ticked);
+- make sure Pocket ID marks the email verified (user, « E-mail vérifié »):
+  TREK, HealthLog and PocketBase refuse to link otherwise;
+- an email set by the app at first start from a variable (Beszel's
+  `USER_EMAIL`, from `beszel_admin_email`) only seeds the first start: the
+  rename is in the app's data, the variable stays (and stays in SOPS).
+
+Apps that pin the link once (HealthLog: `(issuer, sub)` stored at the first
+login) cannot be re-pointed by a later rename: get it right the first time.
 
 ## 2. Admin vs user
 
@@ -155,6 +181,7 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 | Pangolin: `User with username sylvain is unprovisioned` | `auto_provision = false`: no org user is created at login | create the external user in the org (IdP Pocket ID, same username, role) |
 | Tofu cycle client ↔ IdP | client callback is the IdP's `redirect_url`, IdP needs the client id | fixed `client_id` literal (local), not read from the resource |
 | Pocket ID « My apps » empty | the launcher lists only clients with a `launch_url` | set `launch_url` on every client |
+| SSO login refused, « Failed to authenticate » (PocketBase) or `email_not_verified` / no account found | app account email differs from the Pocket ID one, or not verified | section 1b: rename in the app first, tick verified on both sides |
 | `HBOX_OIDC_CLIENT_ID` empty | `pocketid_client.client_id` stays null unless set | always set `client_id` |
 | `tofu test`: `invalid callback URL` | mocked `redirect_url` is random | `mock_resource "pangolin_idp"` with a URL default on the `root` alias mock (both test files) |
 | plan of the whole module fails | Pocket ID down, `pocketid_*` cannot refresh | `-exclude=pocketid_client.<x>` ... for the unrelated change |
