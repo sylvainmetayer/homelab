@@ -1,7 +1,7 @@
 # immich
 
 Immich sur le Raspberry Pi (`pi.yml`), avec deux outils qui s'en servent :
-Immich Swipe, Immich Kiosk et Immich Selfie Timelapse (`docs/apps.md`).
+Immich Swipe, Immich Kiosk, Immich Power Tools et Immich Selfie Timelapse (`docs/apps.md`).
 
 ## Immich Kiosk (`kiosk.sylvain.cloud`)
 
@@ -40,6 +40,91 @@ l'évite (`immich_kiosk_home_ip`, `tofu/pangolin_config/website_immich_kiosk.tf`
 Tout appareil derrière cette adresse, Wi-Fi invité compris, voit donc le cadre
 photo sans connexion. Hors de la maison, le SSO reste exigé. Si l'IP de la ligne
 change, mettre à jour `home_ip` et appliquer `pangolin_config`.
+
+## Immich Power Tools (`power-tools.sylvain.cloud`)
+
+[immich-power-tools](https://github.com/immich-power-tools/immich-power-tools)
+(AGPL-3.0, Next.js, image `ghcr.io/immich-power-tools/immich-power-tools:0.25.0`
+épinglée par digest, arm64 compris ; la 0.25.0 date du 2026-10-05, Immich 3
+exigé depuis la 0.22). Gestion en masse : personnes (fusion, suggestions),
+lieux manquants, décalage de dates, albums potentiels, analyses, recherche.
+
+**IL PEUT MODIFIER LA PHOTOTHÈQUE.** Avec `IMMICH_API_KEY`, l'appli ne demande
+aucune connexion : tout visiteur sans cookie est traité comme le propriétaire de
+la clé (`getCurrentUser`, `user.utils.ts`), et `/api/immich-proxy/*` relaie
+n'importe quel appel à l'API d'Immich avec cette clé (méthode, chemin et corps
+du visiteur). Fusionner des personnes, changer lieux et dates, supprimer des
+albums passe donc par la clé : ce que la clé permet, qui franchit le SSO le
+peut. Comme Swipe, le seul barrage est Pangolin.
+
+**Accès** (décision de Sylvain, 2026-11-05) : rôle Pangolin dédié
+`immich-power-tools`, créé sans membre, que Sylvain s'attribue seul (interface
+de Pangolin) ; aucun chemin ouvert, aucune règle d'IP de la maison, aucun jeton
+d'accès. Un test d'invariant de `pangolin_config` le garde lié à cette seule
+ressource, jamais au rôle `immich`.
+
+**Rendu seulement si la clé SOPS `immich_power_tools_api_key` existe**
+(`immich_power_tools_enabled`, dérivée, comme Kiosk). Elle est dans le
+`compose.yaml` (`0600`, `diff: false`). Retirer la clé ne supprime pas le
+conteneur : `docker compose up -d --remove-orphans` dans `immich/`, ou
+`docker rm -f immich-power-tools`.
+
+**La clé a pour l'instant tous les droits** (décision de Sylvain : la rotation
+vers une clé restreinte vient plus tard). Liste minimale à lui donner lors de
+cette rotation (compte de Sylvain, Account Settings → API Keys, nom
+`immich-power-tools`), déduite des sources de la 0.25.0, noms de l'amont non
+essayés contre cet Immich, à vérifier en créant la clé :
+
+- noyau : `user.read`, `asset.read`, `asset.view`, `asset.download`,
+  `asset.update` (lieux, décalage de dates), `asset.statistics`, `album.read`,
+  `album.create`, `album.delete`, `albumAsset.create`, `person.read`,
+  `person.update`, `person.merge` ;
+- facultatives : `sharedLink.create` (partage d'un album), `duplicate.read`
+  (page des doublons) ;
+- à ne pas donner (fonctions d'import et de workflows, non utilisées) :
+  `apiKey.*`, `tag.*`, `asset.upload`, `albumAsset.delete`, `asset.delete`.
+
+Une clé restreinte ne protège pas du proxy générique : elle borne ce qu'il peut
+faire, pas le fait qu'il relaie.
+
+**Accès direct à la base d'Immich.** L'appli se connecte à PostgreSQL
+(`immich_postgres:5432`, réseau `immich`, base `immich`) avec les identifiants
+d'Immich lui-même : utilisateur `postgres`, mot de passe `immich_db_password`
+(posé dans le `compose.yaml`, `0600`). Lu dans les sources (0.25.0) :
+
+- **lit** (`SELECT` par drizzle et SQL brut, pour les analyses, la carte
+  thermique, les lieux manquants, les albums potentiels, les visages
+  similaires) : assets, exif, personnes et visages, albums, et tout ce que le
+  compte `postgres` voit, dont les hachages des mots de passe et des clés
+  d'API d'Immich, les sessions et les liens de partage ;
+- **n'écrit pas** : aucun `INSERT`, `UPDATE`, `DELETE` ni DDL contre cette base
+  dans le code (recherche de `db.insert|update|delete` et de SQL d'écriture :
+  rien) ; toutes les modifications de la photothèque passent par l'API d'Immich
+  avec la clé ;
+- **écrit** seulement dans son propre SQLite (`/app/data`, workflows, imports,
+  réglages), jamais dans la base d'Immich.
+
+Un compte `postgres` donne pourtant à l'appli le droit d'écrire et de lire tout
+le serveur PostgreSQL : un défaut ou une compromission de l'appli ouvrirait la
+base d'Immich en entier. Un rôle PostgreSQL en lecture seule dédié
+(`GRANT SELECT`) réduirait cela ; non fait, il demande une étape Ansible qui
+s'exécute dans `immich_postgres` après son démarrage, non testable ici.
+
+Pas de `JWT_SECRET` : sans lui, les liens de partage publics de l'appli
+(`/api/share-link/*`, qui se passent de session) ne peuvent pas être générés.
+Aucune clé Google Maps ni de fournisseur d'IA (`AI_*`) : la carte thermique et
+la recherche en langage naturel ne servent pas.
+
+Durcissement : l'utilisateur `nextjs` (uid 1001, `USER` de l'image),
+`read_only`, `cap_drop: ALL`, `no-new-privileges`, `tmpfs` sur `/tmp` et
+`/app/data` (SQLite de l'appli : workflows, imports et réglages se perdent à un
+redémarrage, rien n'est sauvegardé ; `mode=1777` plutôt que `uid=1001`, que
+podman refuse). Essayé en local (podman, mêmes options) : démarre
+(« Ready in 283ms »), `GET /api/health` répond `{"status":"healthy"}` (sans
+appel à la base), `/` répond 200 ; **non essayé** : une session contre un vrai
+Immich et sa base. `mem_limit` :
+512m (~93 Mio mesurés au repos), à remesurer sur le Pi (`mem_report`).
+Pas de volume, pas de port publié, pas de sauvegarde.
 
 ## Immich Swipe (`swipe-photos.sylvain.cloud`)
 
