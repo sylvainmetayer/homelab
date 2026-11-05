@@ -13,6 +13,8 @@
       ansible.builtin.set_fact:
         dawarich_backup_healthcheck_url: https://uptime.example.invalid/api/push/molecule-dawarich
         terraform_outputs:
+          pocket_id_issuer:
+            value: https://id.sylvain.cloud
           pocket_id_dawarich_client_id:
             value: molecule-pocket-id-dawarich-client-id
           pocket_id_dawarich_client_secret:

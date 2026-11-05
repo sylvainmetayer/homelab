@@ -13,6 +13,8 @@
       ansible.builtin.set_fact:
         healthlog_backup_healthcheck_url: https://uptime.example.invalid/api/push/molecule-healthlog
         terraform_outputs:
+          pocket_id_issuer:
+            value: https://id.sylvain.cloud
           pocket_id_healthlog_client_id:
             value: molecule-pocket-id-healthlog-client-id
           pocket_id_healthlog_client_secret:

@@ -10,8 +10,8 @@ trek_encryption_key: "{{ (backup_passphrase ~ '-trek-encryption') | hash('sha256
 # admin suit le groupe Pocket ID trek-admin, relu à chaque connexion.
 trek_oidc_client_id: "{{ terraform_outputs.pocket_id_trek_client_id.value | default('') }}"
 trek_oidc_client_secret: "{{ terraform_outputs.pocket_id_trek_client_secret.value | default('') }}"
-trek_oidc_enabled: "{{ trek_oidc_client_id | length > 0 and trek_oidc_client_secret | length > 0 }}"
-trek_oidc_issuer: https://id.sylvain.cloud
+trek_oidc_enabled: "{{ trek_oidc_client_id | length > 0 and trek_oidc_client_secret | length > 0 and trek_oidc_issuer | length > 0 }}"
+trek_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 trek_oidc_admin_value: trek-admin
 
 # Borgmatic backup configuration

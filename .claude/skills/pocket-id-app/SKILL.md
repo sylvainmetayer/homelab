@@ -136,7 +136,8 @@ nothing in the playbook changes:
 ```yaml
 <app>_oidc_client_id: "{{ terraform_outputs.pocket_id_<app>_client_id.value | default('') }}"
 <app>_oidc_client_secret: "{{ terraform_outputs.pocket_id_<app>_client_secret.value | default('') }}"
-<app>_oidc_enabled: "{{ <app>_oidc_client_id | length > 0 and <app>_oidc_client_secret | length > 0 }}"
+<app>_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"   # one source: the output
+<app>_oidc_enabled: "{{ <app>_oidc_client_id | length > 0 and <app>_oidc_client_secret | length > 0 and <app>_oidc_issuer | length > 0 }}"
 ```
 
 Render the OIDC block of the app's env only when enabled, local login kept

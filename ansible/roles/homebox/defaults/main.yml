@@ -34,8 +34,8 @@ homebox_api_key_pepper: "{{ (backup_passphrase ~ '-homebox-api-key-pepper') | ha
 # retirer les clés (ou enabled à false), redéployer.
 homebox_oidc_client_id: "{{ terraform_outputs.pocket_id_homebox_client_id.value | default('') }}"
 homebox_oidc_client_secret: "{{ terraform_outputs.pocket_id_homebox_client_secret.value | default('') }}"
-homebox_oidc_enabled: "{{ homebox_oidc_client_id | length > 0 and homebox_oidc_client_secret | length > 0 }}"
-homebox_oidc_issuer_url: https://id.sylvain.cloud
+homebox_oidc_enabled: "{{ homebox_oidc_client_id | length > 0 and homebox_oidc_client_secret | length > 0 and homebox_oidc_issuer_url | length > 0 }}"
+homebox_oidc_issuer_url: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 homebox_oidc_allow_local_login: true
 
 # Borgmatic backup configuration

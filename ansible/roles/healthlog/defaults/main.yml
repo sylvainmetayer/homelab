@@ -34,8 +34,8 @@ healthlog_withings_webhook_secret: "{{ (backup_passphrase ~ '-healthlog-withings
 # aucun compte, il ne relie que le compte existant.
 healthlog_oidc_client_id: "{{ terraform_outputs.pocket_id_healthlog_client_id.value | default('') }}"
 healthlog_oidc_client_secret: "{{ terraform_outputs.pocket_id_healthlog_client_secret.value | default('') }}"
-healthlog_oidc_enabled: "{{ healthlog_oidc_client_id | length > 0 and healthlog_oidc_client_secret | length > 0 }}"
-healthlog_oidc_issuer: https://id.sylvain.cloud
+healthlog_oidc_enabled: "{{ healthlog_oidc_client_id | length > 0 and healthlog_oidc_client_secret | length > 0 and healthlog_oidc_issuer | length > 0 }}"
+healthlog_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 
 # Borgmatic backup configuration
 healthlog_backup_enabled: true

@@ -250,6 +250,13 @@ output "pocket_id_dawarich_client_secret" {
   sensitive   = true
 }
 
+# L'émetteur OIDC, lu par les rôles des applis branchées (homebox, trek,
+# healthlog, dawarich) : une seule source pour l'URL de Pocket ID.
+output "pocket_id_issuer" {
+  description = "POCKET ID - URL de l'émetteur OIDC"
+  value       = local.pocket_id_issuer
+}
+
 # Lues par docker.yml pour le rôle homebox (HBOX_OIDC_CLIENT_*).
 output "pocket_id_homebox_client_id" {
   description = "POCKET ID - identifiant du client OIDC de Homebox"
