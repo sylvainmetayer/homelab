@@ -3220,12 +3220,14 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
       && contains(pocketid_client.trek.callback_urls, "https://travels.sylvain.cloud/api/auth/oidc/callback")
       && pocketid_group.trek_admin.name == "trek-admin"
       && pocketid_client.healthlog.pkce_enabled == true
+      && pocketid_client.beszel.callback_urls == tolist(["https://monitoring.sylvain.cloud/api/oauth2-redirect"])
+      && pocketid_client.beszel.pkce_enabled == true
       && pocketid_client.healthlog.callback_urls == tolist(["https://sante.sylvain.cloud/api/auth/oidc/callback"])
       && strcontains(file("${path.module}/../../ansible/roles/healthlog/defaults/main.yml"), "terraform_outputs.pocket_id_healthlog_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "terraform_outputs.pocket_id_trek_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "trek_oidc_admin_value: trek-admin")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK et HealthLog de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog et Beszel de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle."
   }
 
   assert {

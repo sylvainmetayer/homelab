@@ -88,6 +88,14 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      ne crée aucun compte (`oidc_registration_disabled`). Si elle était
      rouverte, un compte créé par SSO n'aurait pas de mot de passe :
      `docker compose exec app node scripts/reset-password.mjs <compte>`.
+   - **Beszel** (Sylvain seul, groupe `beszel`) : le client existe par Tofu,
+     le fournisseur se saisit à la main dans l'admin PocketBase du hub
+     (`/_/#/settings` : couper « Hide collection create and edit controls »,
+     collection `users`, Options, OAuth2, fournisseur OIDC : identifiant
+     `beszel`, secret lu par `tofu output -raw pocket_id_beszel_client_secret`
+     dans un terminal, URL `https://id.sylvain.cloud` ; puis remettre
+     l'interrupteur). Rappel `/api/oauth2-redirect`. `USER_CREATION` reste à
+     false : le SSO ne crée aucun compte. Mot de passe gardé.
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
    celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de

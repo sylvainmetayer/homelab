@@ -79,7 +79,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel"])
 
   length  = 48
   special = false
@@ -189,6 +189,33 @@ output "pocket_id_healthlog_client_id" {
 output "pocket_id_healthlog_client_secret" {
   description = "POCKET ID - secret du client OIDC de HealthLog"
   value       = random_password.pocket_id_client["healthlog"].result
+  sensitive   = true
+}
+
+# Beszel : Sylvain seul, groupe beszel. Le fournisseur se règle dans l'admin
+# PocketBase du hub (collection users, OAuth2), pas par l'environnement : le
+# secret se lit par `tofu output -raw pocket_id_beszel_client_secret`, dans un
+# terminal, jamais dans une conversation. USER_CREATION reste à false (défaut) :
+# le SSO ne crée aucun compte, le rôle reste celui du compte Beszel.
+resource "pocketid_group" "beszel" {
+  name          = "beszel"
+  friendly_name = "Beszel"
+}
+
+resource "pocketid_client" "beszel" {
+  name                = "Beszel"
+  client_id           = "beszel"
+  client_secret       = random_password.pocket_id_client["beszel"].result
+  callback_urls       = ["https://monitoring.sylvain.cloud/api/oauth2-redirect"]
+  allowed_user_groups = [pocketid_group.beszel.id]
+  launch_url          = "https://monitoring.sylvain.cloud"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_beszel_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Beszel (à saisir dans l'admin PocketBase)"
+  value       = random_password.pocket_id_client["beszel"].result
   sensitive   = true
 }
 
