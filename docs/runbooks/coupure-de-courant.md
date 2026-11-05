@@ -46,7 +46,7 @@ prise : la charge totale n'est qu'une estimation (55 à 80 W, pointe vers 100 W)
 | 5 | Couper au mur pendant 2 min | heure | tout est éteint |
 | 6 | Rétablir le courant, **sans rien allumer à la main** | heure de démarrage de chaque machine | les quatre démarrent seules |
 | 7 | `qm list`, `pct list`, `pvesm status` sur l'hôte ; `docker ps` sur la VM et le Pi | ce qui manque | tout revient en moins de 20 min, `nas-backup` actif |
-| 8 | Page des disques de Beszel, `smartctl -A` sur chaque disque | écart avec les [relevés](sante-des-disques.md) | aucune nouvelle erreur |
+| 8 | Page des disques de Beszel, `smartctl -A` sur chaque disque, `cat /proc/mdstat` au NAS | écart avec les [relevés](sante-des-disques.md) | aucune nouvelle erreur, `md1` en `[UU]` |
 | 9 | Ouvrir `photos.sylvain.cloud` et une appli derrière le SSO | temps jusqu'au retour | accès rétabli, sites Newt en ligne |
 
 Une machine qui ne démarre pas seule à l'étape 6 : corriger son réglage dans le
@@ -75,7 +75,8 @@ si c'est « Last State », l'exercice ne prouve rien pour cette machine.
 Pas d'onduleur pour l'instant, décision du 05/11/2026 : on prouve d'abord le
 retour à froid. Si un onduleur arrive, il faudra une ADR, un rôle NUT et une
 section ici. Le disque USB `sdc` du NAS ne compte pas : il est défaillant et
-gardé sans y compter ([relevés](sante-des-disques.md)).
+gardé sans y compter ; il a décroché du bus USB le 05/11/2026 à 16:13
+([relevés](sante-des-disques.md)).
 
 ## Résultats
 

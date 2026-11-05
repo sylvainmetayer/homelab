@@ -37,7 +37,9 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 1. Un disque ou deux ? Dans UGOS (gestionnaire de stockage, à vérifier) et
    dans Beszel. Noter le **numéro de série** du disque fautif : c'est lui
    qu'on retire, pas le voisin. D'après `host_vars/nas`, `sda` et `sdb`
-   (4 To) sont la paire du RAID, `sdc` est un disque USB : à confirmer.
+   (4 To) sont la paire du RAID (`md1` en raid1 sur `sda2` et `sdb2`, relevé du
+   05/11 : `cat /proc/mdstat` donne `[UU]`, et `[U_]` ou `[_U]` si un disque
+   manque), `sdc` est un disque USB, hors RAID.
 2. Le disque restant est-il sain ? Son S.M.A.R.T. avant tout (Beszel). S'il
    est douteux, copier d'abord ce qui compte (Réparation, étape 1).
 3. Les sauvegardes sont à jour : moniteurs « Backup Jellyfin » et « kDrive
