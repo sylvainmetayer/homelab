@@ -129,7 +129,9 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 ## Prévention
 
 - Surveiller le S.M.A.R.T. de `nas` dans Beszel ; remplacer un disque qui
-  se dégrade avant qu'il meure.
+  se dégrade avant qu'il meure. Beszel ne voit que le verdict global, pas les
+  secteurs en attente : contrôle trimestriel et scrub Btrfs dans
+  [sante-des-disques.md](sante-des-disques.md).
 - Le point faible reste ADR 0026 : les archives vzdump n'existent que sur ce
   NAS. Une copie hors du NAS (même du seul LXC, qui est petit) réduit le trou.
 - Les médias n'ont qu'une copie : décider d'une sauvegarde ou l'assumer.
