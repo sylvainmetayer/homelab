@@ -464,7 +464,7 @@
       "enabled": false
     },
     {
-      "description": "Mermaid of the docs site build (custom manager below): its own PR, never grouped (the weekly digest and patch PR would stay red until the hand-made sha256 commit) and never automerged. allowedVersions keeps the major Material 9.x expects (11); a new major waits for a Material that loads it. The PR note says what to commit before the merge",
+      "description": "Mermaid of the docs site build (custom manager below): its own PR, never grouped (the weekly digest and patch PR would stay red until the hand-made sha256 commit) and never automerged. allowedVersions keeps the major Zensical 0.0.x expects (12); a new major waits for a Zensical that loads it. The PR note says what to commit before the merge",
       "matchDepNames": [
         "mermaid"
       ],

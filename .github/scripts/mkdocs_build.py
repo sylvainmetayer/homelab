@@ -6,6 +6,7 @@ réécrits sur une copie de docs/ avant le build (les sources restent justes sur
 GitHub), et Mermaid est déposé dans le site après.
 """
 import argparse
+import posixpath
 import re
 import shutil
 import subprocess
@@ -13,20 +14,43 @@ import sys
 import tempfile
 from pathlib import Path
 
-from mkdocs_external_links import rewrite
-from mkdocs_mermaid import SITE_PATH, MermaidError, add_script, load_mermaid
+from mkdocs_external_links import LINK_RE, REF_RE, SCHEME_RE, rewrite
+from mkdocs_mermaid import MERMAID_VERSION, SITE_PATH, MermaidError, add_script, load_mermaid
 
 
 class BuildError(Exception):
     """Arrête le build avec la liste de ce qui est à corriger."""
 
 
-FENCE_RE = re.compile(r"^ *```.*?^ *```", re.MULTILINE | re.DOTALL)
-ABSOLUTE_LINK_RE = re.compile(r"\]\((/[^)\s]*)")
+# Bloc clôturé (``` ou ~~~, longueur quelconque) et code en ligne : les liens
+# qu'ils montrent en exemple ne sont pas des liens.
+FENCE_RE = re.compile(r"^ *(`{3,}|~{3,}).*?^ *\1", re.MULTILINE | re.DOTALL)
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 
 def blob_url(config_text):
     return re.search(r"^\s*repo_blob_url:\s*(\S+)", config_text, re.MULTILINE).group(1).rstrip("/")
+
+
+def link_targets(docs, page):
+    """Les cibles des liens (en ligne ou par référence) d'une page, hors code."""
+    text = INLINE_CODE_RE.sub("", FENCE_RE.sub("", (docs / page).read_text(encoding="utf-8")))
+    return [m.group(2) for m in LINK_RE.finditer(text)] + [m.group(2) for m in REF_RE.finditer(text)]
+
+
+def check_targets(docs):
+    """Ce que Zensical 0.0.x laisse passer d'un lien (MkDocs : not_found et
+    unrecognized_links) : cible hors .md absente (image, fichier), dossier."""
+    problems = []
+    for page in sorted(p.relative_to(docs).as_posix() for p in docs.rglob("*.md")):
+        for target in link_targets(docs, page):
+            path = target.partition("#")[0].partition("?")[0]
+            if not path or path.startswith("/") or SCHEME_RE.match(target) or path.endswith(".md"):
+                continue
+            found = docs / posixpath.normpath(posixpath.join(posixpath.dirname(page), path))
+            if not found.is_file():
+                problems.append(f"{page} : cible de lien absente ou dossier : {target}")
+    return problems
 
 
 def check_sources(config_text, docs):
@@ -37,8 +61,7 @@ def check_sources(config_text, docs):
     problems = [f"{page} : absente de nav:" for page in sorted(pages - nav)]
     problems += [f"{page} : dans nav:, fichier absent" for page in sorted(nav - pages)]
     for page in sorted(pages):
-        text = FENCE_RE.sub("", (docs / page).read_text(encoding="utf-8"))
-        problems += [f"{page} : lien absolu {target}" for target in ABSOLUTE_LINK_RE.findall(text)]
+        problems += [f"{page} : lien absolu {t}" for t in link_targets(docs, page) if t.startswith("/")]
     return problems
 
 
@@ -49,16 +72,22 @@ def prepare(config, work):
     docs = work / "docs"
     shutil.copytree(config.parent / "docs", docs)
     problems = check_sources(text, docs)
-    if problems:
-        raise BuildError("\n".join(problems))
     url = blob_url(text)
     for page in docs.rglob("*.md"):
         uri = page.relative_to(docs).as_posix()
         page.write_text(rewrite(page.read_text(encoding="utf-8"), uri, "docs", url), encoding="utf-8")
+    # Après la réécriture : un lien qui sort de docs/ est devenu une URL.
+    problems += check_targets(docs)
+    if problems:
+        raise BuildError("\n".join(problems))
 
 
 def add_mermaid(site):
     """Ajoute le script aux seules pages à diagramme, et le dépose s'il sert."""
+    major = MERMAID_VERSION.split(".")[0]
+    bundles = (site / "assets/javascripts").glob("bundle*.js")
+    if not any(f"mermaid@{major}/" in bundle.read_text(encoding="utf-8") for bundle in bundles):
+        raise BuildError(f"Zensical n'attend plus Mermaid {major} : aligner MERMAID_VERSION sur son bundle")
     used = False
     for page in site.rglob("*.html"):
         html = page.read_text(encoding="utf-8")

@@ -38,8 +38,9 @@ ansible-playbook docker.yml --tags docs_site
 ```
 
 Le workflow Lint lance `mkdocs_build.py` sur chaque PR : un lien cassé, une
-ancre inconnue (Zensical), une page absente de `nav:` ou un lien absolu
-(contrôles du script, que Zensical ne fait pas) font échouer la PR avant le
+ancre inconnue (Zensical), une page absente de `nav:`, un lien absolu, une
+cible hors `.md` absente ou un lien vers un dossier (contrôles du script, que
+Zensical ne fait pas) font échouer la PR avant le
 merge.
 
 ## Liens hors de docs/
