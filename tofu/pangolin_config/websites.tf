@@ -93,6 +93,7 @@ locals {
     victoria_logs           = local.victoria_logs_website
     wiki                    = local.wiki_website
     wishlist                = local.wishlist_website
+    yamtrack                = local.yamtrack_website
   }
 
   # `target` under the app's own key, each sub_target under "<app>_<suffix>":

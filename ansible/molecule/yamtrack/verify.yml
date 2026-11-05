@@ -1,0 +1,128 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    yamtrack_path: "{{ docker_base_path }}/yamtrack"
+  tasks:
+    - name: Verify the yamtrack deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: yamtrack
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/yamtrack.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/molecule-yamtrack
+
+    - name: Verify the supporting services of yamtrack
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: yamtrack
+        verify_compose_healthchecks:
+          - app
+          - yamtrack-redis
+        verify_compose_healthy_dependencies:
+          - { service: app, dependency: yamtrack-redis }
+        verify_compose_internal_networks:
+          - yamtrack
+
+    - name: Stat the yamtrack environment file and database folder
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ yamtrack_path }}/.env"
+        - "{{ yamtrack_path }}/db"
+      register: yamtrack_stats
+
+    # Le .env porte SECRET ; db/ est au compte du conteneur (PUID/PGID).
+    - name: Assert the yamtrack files are private and owned by the deploy user
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == '0600' or item.stat.isdir
+          - item.stat.mode == '0700' or not item.stat.isdir
+          - item.stat.pw_name == ansible_facts['user_id']
+      loop: "{{ yamtrack_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the yamtrack files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ yamtrack_path }}/.env"
+        - "{{ borgmatic_config_dir }}/yamtrack.yaml"
+      register: yamtrack_files
+
+    - name: Render the yamtrack compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ yamtrack_path }}"
+      register: yamtrack_compose_raw
+      changed_when: false
+
+    - name: Parse the yamtrack files
+      ansible.builtin.set_fact:
+        yamtrack_env: >-
+          {{ dict((yamtrack_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        yamtrack_borgmatic: "{{ yamtrack_files.results[1].content | b64decode | from_yaml }}"
+        yamtrack_compose: "{{ yamtrack_compose_raw.stdout | from_json }}"
+
+    # Dérivé de backup_passphrase (64 hexadécimaux), jamais la clé publique de l'image ;
+    # inscription fermée, admin Django coupé, ids du compte de déploiement.
+    - name: Assert the yamtrack environment
+      ansible.builtin.assert:
+        that:
+          - yamtrack_env.SECRET is match('^[0-9a-f]{64}$')
+          - yamtrack_env.REGISTRATION == 'False'
+          - yamtrack_env.ADMIN_ENABLED == 'False'
+          - yamtrack_env.URLS == 'https://yamtrack.sylvain.cloud'
+          - yamtrack_env.REDIS_URL == 'redis://yamtrack-redis:6379'
+          - yamtrack_env.PUID == ansible_facts['user_uid'] | string
+          - yamtrack_env.PGID == ansible_facts['user_gid'] | string
+
+    # Nom du conteneur = cible de Pangolin (website_yamtrack.tf) ; Redis reste
+    # sur le réseau interne.
+    - name: Assert only the app joins the newt network
+      ansible.builtin.assert:
+        that:
+          - yamtrack_compose.networks.newt.external
+          - yamtrack_compose.services.app.container_name == 'yamtrack'
+          - yamtrack_newt_services == ['app']
+          - yamtrack_compose.services['yamtrack-redis'].networks.keys() | list == ['yamtrack']
+        fail_msg: "Services sur newt : {{ yamtrack_newt_services }}"
+      vars:
+        yamtrack_newt_services: >-
+          {{ yamtrack_compose.services | dict2items
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    # Jeu de capacités minimal : l'entrypoint démarre en root (README.md).
+    - name: Assert yamtrack keeps only the capabilities its entrypoint needs
+      ansible.builtin.assert:
+        that:
+          - yamtrack_compose.services.app.cap_drop == ['ALL']
+          - yamtrack_compose.services.app.cap_add | sort == ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'KILL', 'SETGID', 'SETUID']
+          - yamtrack_compose.services.app.security_opt == ['no-new-privileges:true']
+          - yamtrack_compose.services.app.mem_limit is defined
+          - yamtrack_compose.services['yamtrack-redis'].mem_limit is defined
+          - "'ports' not in yamtrack_compose.services.app"
+          - "'volumes' not in yamtrack_compose.services['yamtrack-redis']"
+
+    # db.sqlite3 (posée par prepare.yml) est copiée par « .backup » dans le
+    # dossier de staging archivé, sa copie vivante hors de l'archive. Jamais
+    # sqlite_databases.
+    - name: Assert the yamtrack SQLite database is copied by .backup, not dumped or copied live
+      ansible.builtin.assert:
+        that:
+          - yamtrack_borgmatic.sqlite_databases is not defined
+          - "'/var/lib/borgmatic-sqlite/yamtrack' in yamtrack_borgmatic.source_directories"
+          - yamtrack_path ~ '/.env' in yamtrack_borgmatic.source_directories
+          - yamtrack_path ~ '/compose.yaml' in yamtrack_borgmatic.source_directories
+          - >-
+            yamtrack_borgmatic.commands[0].run
+            | select('search', 'sqlite3 -bail .*/opt/apps/yamtrack/db/db\\.sqlite3 ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/yamtrack/opt_apps_yamtrack_db_db\\.sqlite3')
+            | list | length == 1

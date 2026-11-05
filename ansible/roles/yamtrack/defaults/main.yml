@@ -1,0 +1,26 @@
+---
+# Yamtrack : suivi de films, séries, animés, mangas, jeux, livres. Un conteneur
+# (nginx + gunicorn + celery sous supervisord) et son Redis, base SQLite sous
+# db/. README.md : accès, premier compte, connexion à Jellyfin (facultative).
+yamtrack_base_path: "{{ docker_base_path }}/yamtrack"
+yamtrack_domain: yamtrack.sylvain.cloud
+yamtrack_timezone: Europe/Paris
+
+# Inscription fermée. Le premier compte se crée en la rouvrant le temps d'un
+# passage,
+#   ansible-playbook docker.yml --tags yamtrack -e yamtrack_registration_enabled=true
+# puis « Register » sur https://yamtrack.sylvain.cloud (derrière le SSO), puis
+# le même passage sans le -e, qui la referme. Chaque compte suivant de la même
+# façon (README.md).
+yamtrack_registration_enabled: false
+
+# SECRET_KEY de Django (sessions, jetons signés) : l'image en a une par défaut,
+# publique, d'où ce secret dérivé de backup_passphrase comme ceux de TREK et
+# Papra : pas de clé SOPS. Le changer déconnecte tout le monde.
+yamtrack_secret: "{{ (backup_passphrase ~ '-yamtrack-secret') | hash('sha256') }}"
+
+# Borgmatic backup configuration
+yamtrack_backup_enabled: true
+yamtrack_backup_borgmatic_target: "{{ backup_storage_box_url }}/yamtrack"
+yamtrack_backup_encryption_passphrase: "{{ backup_passphrase }}"
+yamtrack_backup_healthcheck_url: ""

@@ -75,6 +75,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Karakeep (marque-pages) | 2 | Borg : `data` + copies SQLite | oui | ~30 min (est.) | CI | `queue.db` (file de jobs) copiée aussi, vide par nature ; jobs en cours perdus avec le dernier jour |
 | Homebox (inventaire, factures, garanties) | 2 | Borg : `data` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | Jellystat (historique de lecture de Jellyfin) | 2 | Borg : dump PostgreSQL + `compose.yaml` + `.env` | oui | ~30 min (est.) | CI | `backup-data/` (sauvegardes JSON à la demande) hors Borg |
+| Yamtrack (suivi de médias) | 2 | Borg : copie SQLite (`.backup`) + `compose.yaml` + `.env` | oui | ~30 min (est.) | CI | Redis (cache et file) hors Borg |
 | Grocy | 2 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | `log` et `viewcache` exclus (jetables) |
 | TREK (voyages) | 2 | Borg : `data`, `uploads` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | BookStack (wiki) | 2 | Borg : `config` + dump MariaDB | oui | ~30 min (est.) | CI | — |

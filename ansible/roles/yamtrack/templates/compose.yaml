@@ -1,0 +1,75 @@
+---
+services:
+  yamtrack-redis:
+    # Cache et file Celery seulement : rien à garder (les tâches périodiques
+    # reviennent seules), donc ni instantané ni volume, pas d'écriture sur le
+    # disque de la VM. Mesuré en local : ~24 Mio au repos.
+    mem_limit: 128m
+    image: redis:8.2-alpine@sha256:489a769e0a54dc245896132a15c72d2bc7296719954da99398f43a3877e5f8eb
+    container_name: yamtrack-redis
+    security_opt:
+      - no-new-privileges:true
+    command: redis-server --save "" --appendonly no
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - yamtrack
+
+  app:
+    # Mesuré en local à ~370 Mio juste après les migrations du premier
+    # démarrage (nginx, gunicorn et celery : un worker par cœur, la VM en a
+    # 3). Service interactif, pas de quota CPU. À recaler sur memory.peak
+    # (rapport mem_report) après quelques semaines.
+    mem_limit: 1g
+    image: ghcr.io/fuzzygrim/yamtrack:0.26.3@sha256:78497b454b2b52d3b1062f6fd238351d714cff0895db4369e49ace36f4622e75
+    container_name: yamtrack
+    # Pas de `user:` ni de lecture seule : l'entrypoint démarre en root,
+    # remappe son compte `abc` sur PUID/PGID (usermod, chown) et supervisord
+    # lance gunicorn et celery sous ce compte. D'où le jeu de capacités
+    # minimal essayé en local (podman) : CHOWN et FOWNER (chown de db/ et de
+    # staticfiles/), DAC_OVERRIDE (lecture de db/), SETUID et SETGID
+    # (supervisord, usermod), KILL (supervisord arrête gunicorn et celery).
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    volumes:
+      - ./db:/yamtrack/db
+    restart: unless-stopped
+    healthcheck:
+      # Celui de l'image (base, cache, Redis, ping Celery), sur 127.0.0.1. Les
+      # migrations du premier démarrage prennent plus d'une minute en local ;
+      # le disque de la VM est plus lent.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8000/health/"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+    depends_on:
+      yamtrack-redis:
+        condition: service_healthy
+    networks:
+      - yamtrack
+      - newt
+
+networks:
+  # Interne : Redis n'a pas besoin d'Internet. L'appli garde le sien par newt
+  # (TMDB, MyAnimeList, IGDB... : ses sources de métadonnées).
+  yamtrack:
+    internal: true
+  newt:
+    external: true

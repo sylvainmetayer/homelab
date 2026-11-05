@@ -1,0 +1,67 @@
+---
+# db/ appartient à l'uid de déploiement : l'entrypoint de l'image (PUID/PGID du
+# .env) y chown ses fichiers et gunicorn/celery y écrivent sous ce compte.
+- name: Ensure Yamtrack app folders exist
+  loop:
+    - "{{ yamtrack_base_path }}"
+    - "{{ yamtrack_base_path }}/db"
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart yamtrack
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ yamtrack_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  notify: Restart yamtrack
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ yamtrack_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
+# SQLite (db/db.sqlite3, créée par les migrations au premier démarrage :
+# présente dans la configuration à partir du passage suivant) est copiée par
+# le hook du rôle borgmatic. Redis n'est qu'un cache et une file : hors
+# sauvegarde.
+- name: Configure borgmatic backup for Yamtrack
+  when: yamtrack_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: yamtrack
+    borgmatic_app_title: Yamtrack
+    borgmatic_app_target: "{{ yamtrack_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ yamtrack_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ yamtrack_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ yamtrack_base_path }}/db"
+      - "{{ yamtrack_base_path }}/compose.yaml"
+      - "{{ yamtrack_base_path }}/.env"
+    borgmatic_app_sqlite_databases:
+      - "{{ yamtrack_base_path }}/db/*.sqlite3"
+
+- name: Make sure yamtrack service is running
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: true
+    name: dc@yamtrack
+    scope: user
+    enabled: true
