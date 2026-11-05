@@ -145,8 +145,9 @@ sert) reste.
 ## L'IP de la maison
 
 `ACCEPT` de `home_ip` (clé de `secrets/secrets.sops.yaml`) en priorité 9 sur
-Immich, Dawarich et TREK : depuis la connexion de la maison, toute la
-ressource répond sans SSO, et sans le code PIN Pangolin d'Immich
+Immich, le kiosque d'Immich (`website_immich_kiosk.tf`, le cadre photo de la
+maison, une télé, ne sait pas passer le SSO), Dawarich et TREK : depuis la maison,
+toute la ressource répond sans SSO, et sans le code PIN Pangolin d'Immich
 (`pangolin_resource_pincode.immich`). C'est ce qui fait marcher l'appli
 mobile d'Immich sur le Wi-Fi de la maison, et l'envoi de positions de
 Dawarich (Overland, OwnTracks…), qui n'ouvre aucun chemin au monde. Dehors,
