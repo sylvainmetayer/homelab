@@ -17,3 +17,4 @@
         verify_compose_service: neonova
         verify_compose_healthchecks:
           - app
+          - aide

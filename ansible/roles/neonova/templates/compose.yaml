@@ -25,7 +25,32 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    # Sites statiques sans base : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+  # Site d'aide (dossier aide/ du même dépôt, Zensical), publié par le même build.
+  aide:
+    image: ghcr.io/sylvainmetayer/neonova-services:aide
+    pull_policy: always
+    container_name: neonova-aide
+    # nginx sur des fichiers statiques, à deux processus environ.
+    mem_limit: 64m
+    # nginx-unprivileged n'écrit que son pid et ses fichiers temporaires dans /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - newt
 
