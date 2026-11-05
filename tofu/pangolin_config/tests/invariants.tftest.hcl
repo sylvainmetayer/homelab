@@ -3204,20 +3204,19 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
     error_message = "L'IdP Pocket ID doit rester sans auto-provision, avec le rôle Member et le scope groups (pocket_id.tf)."
   }
 
-  # Clients OIDC déclarés par l'API de Pocket ID : confidentiels, PKCE coupé
-  # comme un client créé dans l'interface (les guides de Pangolin et de Homebox
-  # le supposent), Homebox réservé au groupe homebox.
+  # Clients OIDC déclarés par l'API de Pocket ID : confidentiels, PKCE exigé
+  # (Pangolin et Homebox l'envoient), Homebox réservé au groupe homebox.
   assert {
     condition = (
       pocketid_client.homebox.is_public == false
-      && pocketid_client.homebox.pkce_enabled == false
+      && pocketid_client.homebox.pkce_enabled == true
       && contains(pocketid_client.homebox.callback_urls, "https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback")
       && pocketid_group.homebox.name == "homebox"
       && pocketid_client.pangolin.is_public == false
-      && pocketid_client.pangolin.pkce_enabled == false
+      && pocketid_client.pangolin.pkce_enabled == true
       && strcontains(file("${path.module}/../../ansible/roles/homebox/defaults/main.yml"), "terraform_outputs.pocket_id_homebox_client_secret.value")
     )
-    error_message = "Les clients OIDC Homebox et Pangolin de Pocket ID (pocket_id.tf) doivent rester confidentiels, sans PKCE, et Homebox lu par le rôle homebox."
+    error_message = "Les clients OIDC Homebox et Pangolin de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, et Homebox lu par le rôle homebox."
   }
 
   assert {
