@@ -1,8 +1,8 @@
 # Matrice des données
 
-Une ligne par appli ou jeu de données (l'hôte est le titre de chaque tableau) : où il vit, combien de copies, ce qui
-survit si la maison disparaît, ce qu'on peut perdre au maximum, le temps de
-reprise estimé, et ce qui n'est pas protégé. Base d'un futur runbook de perte
+Une ligne par appli ou jeu de données (l'hôte est le titre de chaque tableau) :
+où il vit, combien de copies, ce qui survit si la maison disparaît, ce qu'on
+peut perdre au maximum, le temps de reprise estimé, et ce qui n'est pas protégé. Base d'un futur runbook de perte
 totale de la maison. Ce n'est pas une procédure : pour restaurer, voir
 [sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md) et
 [backup-restore.md](backup-restore.md).
@@ -69,9 +69,9 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Dawarich (historique de position) | 1 | Borg : `storage`, `public`, `watched`, `redis` + dump PostgreSQL | oui | ~1 h (est.) | CI | clés dérivées de `backup_passphrase` (voir « Secrets ») |
 | HealthLog (poids, tension, sommeil, analyses) | 1 | Borg : dump PostgreSQL + `compose.yaml` + `.env` | oui | ~1 h (est.) | CI ; la clé de chiffrement de l'appli n'y est pas éprouvée | dump interne de l'appli coupé ; `healthlog_backups` hors Borg ; `ENCRYPTION_KEY` dérivée de `backup_passphrase` |
 | Papra (essai, documents scannés) | 1 | Borg : `app-data` (SQLite + originaux), `.env` | oui | ~10 min pour 795 Mo (mesuré le 02/11 : extraction 21 s) | CI | à l'essai, remplaçant possible de Paperless |
-| Paperless-ngx (**en pause** depuis 10/2026) | 1 | données et dépôt Borg gardés ; plus de nouvelle sauvegarde | oui, mais figé à la date de la pause (non trouvée dans le dépôt) | ~1 h (est.) | sauté par le run complet (`paused`) | tout ce qui est entré après la pause (l'appli est arrêtée) |
+| Paperless-ngx (**en pause** depuis 10/2026) | 1 | données et dépôt Borg gardés ; plus de nouvelle sauvegarde | oui, mais figé à la date de la pause (non trouvée dans le dépôt) | ~1 h (est.) | sauté par le run complet (`paused`) | rien n'entre tant que l'appli est arrêtée ; les données de la pause n'ont qu'une copie hors site, figée |
 | Monica | 2 | Borg : `data` + dump MariaDB | oui | ~30 min (est.) | CI | — |
-| Karakeep (marque-pages) | 2 | Borg : `data` + copies SQLite | oui | ~30 min (est.) | CI | file d'attente `queue.db` (vide par nature) |
+| Karakeep (marque-pages) | 2 | Borg : `data` + copies SQLite | oui | ~30 min (est.) | CI | `queue.db` (file de jobs) copiée aussi, vide par nature ; jobs en cours perdus avec le dernier jour |
 | Homebox (inventaire, factures, garanties) | 2 | Borg : `data` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | Grocy | 2 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | `log` et `viewcache` exclus (jetables) |
 | TREK (voyages) | 2 | Borg : `data`, `uploads` + copie SQLite | oui | ~30 min (est.) | CI | — |
@@ -90,7 +90,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Immich : originaux** (`library`) | 1 | Borg `immich` à 01:00 : `library` entier (originaux, vignettes, vidéos transcodées), `timelapse_output`, `timelapse_config`. **Seule copie** en plus du disque USB du Pi (pas de vzdump) | oui, si Borg | non mesuré : dépend du volume, taille non relevée ; extraction depuis la Storage Box, une journée ou plus (est.) | CI : liste de l'archive, dump de la base et échantillon seulement ; originaux non extraits en entier | un fichier envoyé depuis la dernière nuit ; blocs corrompus hors échantillon (ADR 0017) |
+| **Immich : originaux** (`library`) | 1 | Borg `immich` à 01:00 : `library` entier (originaux, vignettes, vidéos transcodées), `timelapse_output`, `timelapse_config`. **Seule copie** en plus du disque USB du Pi (pas de vzdump) | oui (Borg) | non mesuré : dépend du volume, taille non relevée ; extraction depuis la Storage Box, une journée ou plus (est.) | CI : liste de l'archive, dump de la base et échantillon seulement ; originaux non extraits en entier | un fichier envoyé depuis la dernière nuit ; blocs corrompus hors échantillon (ADR 0017) |
 | Immich : base PostgreSQL | 1 | même dépôt, dump fait dans le conteneur `immich_postgres` | oui | ~1 h (est.) | CI : dump rejoué, table non vide | — |
 | Immich Swipe, Selfie Timelapse | 3 | Swipe sans état ; sorties du timelapse dans le dépôt Borg ci-dessus | oui | < 30 min (est.) | non | clés d'API dans SOPS |
 | Blocky (DNS) | 3 | aucune, config par Ansible ; une 2e instance sur le LXC | oui (via le dépôt) | < 30 min (est.) | non | — |
@@ -145,7 +145,7 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
 |---|---|---|
 | Panne de la VM docker ou de l'hôte Proxmox | l'état entre 01:00 et la panne ; la config `/etc/pve` (non trouvée sauvegardée) | Borg de chaque appli ; image vzdump si le NAS tient |
 | Panne du Pi | Immich en ligne tant que le Pi est absent | Borg `immich` ; le disque USB peut survivre |
-| Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (Jellyfin) ; kDrive chez Infomaniak ; aucune appli ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
+| Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager sans sa base) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
 | Panne de Pangolin ou flip | accès public ; flip n'a pas d'image Hetzner | Borg ; images Hetzner de Pangolin ; ~45 min pour Pangolin (mesuré) |
 | **Maison sinistrée** | VM docker, Pi, NAS (médias, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule), config Proxmox | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
 | **Compromission** d'un hôte | ce que root de cet hôte efface de ses dépôts | les 9 instantanés (aucun sous-compte ne peut les effacer) ; les dépôts des autres hôtes. Un jeton Hetzner en écriture volé peut lever la protection de la box ([storage_box.tf](../tofu/pangolin/storage_box.tf)) |
