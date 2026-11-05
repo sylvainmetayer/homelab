@@ -37,10 +37,12 @@ pangolin_idp_upstream: "http://pocket-id:1411"
 # n'existe pas (pocket_id_setup_phase, host_vars/pangolin) : /setup de Pocket ID
 # est ouverte à qui arrive le premier.
 pangolin_idp_allowed_ips: ""
-# Débit par IP source (rateLimit de Traefik) : le login est un passkey, une
-# page charge ~30 fichiers statiques.
-pangolin_idp_rate_average: 20
-pangolin_idp_rate_burst: 60
+# Débit par IP source (rateLimit de Traefik) : le login est un passkey, rien
+# à deviner. Une page de Pocket ID v2 charge d'un coup une centaine de fichiers
+# (_app/immutable) : 60 de rafale renvoyaient des 429 au navigateur, page
+# blanche (05/11/2026).
+pangolin_idp_rate_average: 50
+pangolin_idp_rate_burst: 300
 
 # SMTP configuration
 pangolin_smtp_user: ""
