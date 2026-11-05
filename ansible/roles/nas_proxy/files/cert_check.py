@@ -29,6 +29,16 @@ import urllib.request
 PUSH_URL_VARIABLE = "NAS_PROXY_CERT_PUSH_URL"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : le 200 de la page d'arrivée compterait comme un
+# push livré à Uptime Kuma, et l'URL de push porte le jeton du moniteur.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def days_left(host, port, name, context):
     """Jours restants avant le notAfter du certificat servi pour `name`."""
     # Hôte et port viennent de l'ExecStart de l'unité (root), pas d'une entrée
@@ -39,16 +49,6 @@ def days_left(host, port, name, context):
     ):
         cert = tls.getpeercert()
     return (ssl.cert_time_to_seconds(cert["notAfter"]) - time.time()) / 86400
-
-
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-# Aucune redirection suivie : le 200 de la page d'arrivée compterait comme un
-# push livré à Uptime Kuma, et l'URL de push porte le jeton du moniteur.
-_OPENER = urllib.request.build_opener(_NoRedirect)
 
 
 def push(url, status, msg):

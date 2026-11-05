@@ -200,5 +200,6 @@ jobs:
               echo "::error::push Uptime Kuma : réponse $code, redirection non suivie, push non livré"
               exit 1
               ;;
+            *) ;;
           esac
           echo "Restore test: $status"
