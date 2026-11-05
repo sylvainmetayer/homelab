@@ -461,8 +461,8 @@ fichier Ansible, lue par rien, a été retirée le 2026-10-28.
 
 ### Code PIN Neonova
 
-`neonova_pin` du fichier racine est le PIN de la ressource Pangolin de la démo
-(`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
+`neonova_pin` du fichier racine est le PIN des ressources Pangolin de la démo et
+du site d'aide (`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
 `sops set`, puis `tofu apply` de `pangolin_config`.
 
 ### Secrets du site sylvain.dev

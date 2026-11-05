@@ -76,6 +76,7 @@ locals {
     karakeep                = local.karakeep_website
     monica                  = local.monica_website
     neonova                 = local.neonova_website
+    neonova_aide            = local.neonova_aide_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
     paperless               = local.paperless_website

@@ -7,6 +7,7 @@ locals {
   apps = [
     "immich",
     "neonova",
+    "neonova-aide",
     "immich-selfie-timelapse",
     "immich-swipe",
     "nextcloud",
