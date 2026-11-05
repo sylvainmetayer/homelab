@@ -24,10 +24,18 @@ mock_provider "pangolin" {
       id = 1
     }
   }
+  # pocketid_client.pangolin valide son URL de rappel, qu'un mock tire au
+  # hasard (pocket_id.tf).
+  mock_resource "pangolin_idp" {
+    defaults = {
+      redirect_url = "https://pangolin.example.test/auth/idp/1/oidc/callback"
+    }
+  }
 }
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
+mock_provider "pocketid" {}
 
 # Les pays de voyage dépendent de l'horloge du plan (plantimestamp) : sans cette
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
@@ -52,6 +60,8 @@ override_data {
       immich_pin             = "123456"
       neonova_pin            = "123456"
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
+
+      pocket_id_static_api_key = "fake-pocket-id-static-api-key"
 
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"

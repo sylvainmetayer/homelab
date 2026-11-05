@@ -13,10 +13,19 @@
 # Aucun backend, aucune clé SOPS, aucun appel réseau.
 # ---------------------------------------------------------------------------
 
-mock_provider "pangolin" {}
+mock_provider "pangolin" {
+  # pocketid_client.pangolin valide son URL de rappel, qu'un mock tire au
+  # hasard (pocket_id.tf).
+  mock_resource "pangolin_idp" {
+    defaults = {
+      redirect_url = "https://pangolin.example.test/auth/idp/1/oidc/callback"
+    }
+  }
+}
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
+mock_provider "pocketid" {}
 
 # Les pays de voyage dépendent de l'horloge du plan (plantimestamp) : sans cette
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
@@ -42,11 +51,7 @@ override_data {
       neonova_pin            = "123456"
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
 
-      # Client OIDC de Pangolin dans Pocket ID (pocket_id.tf) : présents ici
-      # pour que les assertions voient l'IdP ; les autres fichiers de tests
-      # ne les ont pas, l'IdP y est absent.
-      pocket_id_pangolin_client_id     = "fake-pocket-id-pangolin-client"
-      pocket_id_pangolin_client_secret = "fake-pocket-id-pangolin-secret"
+      pocket_id_static_api_key = "fake-pocket-id-static-api-key"
 
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"
@@ -3185,15 +3190,31 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
   # utilisateur interne n'est déclaré ici.
   assert {
     condition = (
-      length(pangolin_idp.pocket_id) == 1
-      && pangolin_idp.pocket_id[0].auto_provision == false
-      && pangolin_idp.pocket_id[0].variant == "oidc"
-      && pangolin_idp.pocket_id[0].identifier_path == "preferred_username"
-      && contains(split(" ", pangolin_idp.pocket_id[0].scopes), "groups")
-      && pangolin_idp_org.pocket_id[0].role_mapping == "'Member'"
-      && pangolin_idp_org.pocket_id[0].org_id == "homelab"
+      pangolin_idp.pocket_id.auto_provision == false
+      && pangolin_idp.pocket_id.variant == "oidc"
+      && pangolin_idp.pocket_id.identifier_path == "preferred_username"
+      && contains(split(" ", pangolin_idp.pocket_id.scopes), "groups")
+      && pangolin_idp_org.pocket_id.role_mapping == "'Member'"
+      && pangolin_idp_org.pocket_id.org_id == "homelab"
+      && pangolin_idp.pocket_id.client_id == pocketid_client.pangolin.client_id
     )
     error_message = "L'IdP Pocket ID doit rester sans auto-provision, avec le rôle Member et le scope groups (pocket_id.tf)."
+  }
+
+  # Clients OIDC déclarés par l'API de Pocket ID : confidentiels, PKCE coupé
+  # comme un client créé dans l'interface (les guides de Pangolin et de Homebox
+  # le supposent), Homebox réservé au groupe homebox.
+  assert {
+    condition = (
+      pocketid_client.homebox.is_public == false
+      && pocketid_client.homebox.pkce_enabled == false
+      && contains(pocketid_client.homebox.callback_urls, "https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback")
+      && pocketid_group.homebox.name == "homebox"
+      && pocketid_client.pangolin.is_public == false
+      && pocketid_client.pangolin.pkce_enabled == false
+      && strcontains(file("${path.module}/../../ansible/roles/homebox/defaults/main.yml"), "terraform_outputs.pocket_id_homebox_client_secret.value")
+    )
+    error_message = "Les clients OIDC Homebox et Pangolin de Pocket ID (pocket_id.tf) doivent rester confidentiels, sans PKCE, et Homebox lu par le rôle homebox."
   }
 
   assert {

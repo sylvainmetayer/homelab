@@ -263,6 +263,22 @@ changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
 `docker.yml --tags victoria_logs,ci_key_audit`, sinon ce contrôle reçoit des 401
 et son moniteur tombe.
 
+### Clé API statique de Pocket ID
+
+`pocket_id_static_api_key`, **la même valeur** dans `ansible.sops.yaml` (le
+rôle `pocket_id` la pose en `STATIC_API_KEY`) et dans `secrets.sops.yaml` (le
+provider `pocketid` de `tofu/pangolin_config` s'en sert) : droits
+d'administration sur Pocket ID. Rotation, dans cet ordre (l'ancienne cesse de
+marcher au redémarrage) :
+
+1. `K=$(openssl rand -hex 32)`, puis `sops set` de la clé dans les deux
+   fichiers avec `"$K"`, sans l'afficher ; commit dans `homelab-secrets`,
+   bump du sous-module.
+2. `ansible-playbook pangolin.yaml --tags pocket_id` (redémarre Pocket ID,
+   quelques secondes sans login).
+3. `tofu plan` de `pangolin_config` : vide, ce qui prouve que la nouvelle clé
+   lit l'API.
+
 ### Widgets de Homepage
 
 Clés `homepage_*` de `secrets/ansible.sops.yaml`, lues par le rôle
@@ -377,12 +393,12 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
 - Pocket ID (pilote, [pocket-id.md](pocket-id.md)) : `pocket_id_encryption_key`
   (`ansible.sops.yaml`, `application`) ne se tourne pas à la légère, Pocket ID
   chiffre ses clés de signature avec (procédure de la doc de Pocket ID, à
-  confirmer, puis `pangolin.yaml --tags pocket_id`) ; `pocket_id_homebox_client_id`
-  (`identifier`) et `pocket_id_homebox_client_secret` (`application`) :
-  régénérer le secret dans le client Pocket ID, `sops set`, puis
-  `docker.yml --tags homebox` ; `pocket_id_pangolin_client_id` et
-  `pocket_id_pangolin_client_secret` (`secrets.sops.yaml`) : idem, puis
-  `tofu apply` de `pangolin_config`.
+  confirmer, puis `pangolin.yaml --tags pocket_id`). Les secrets des clients
+  OIDC (Homebox, Pangolin) ne sont pas dans SOPS : ce sont des
+  `random_password` de `tofu/pangolin_config/pocket_id.tf`. Les tourner :
+  `tofu apply -replace='random_password.pocket_id_client["homebox"]'` (ou
+  `["pangolin"]`), puis `docker.yml --tags homebox` pour Homebox ; Pangolin
+  reçoit le sien dans le même apply.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

@@ -25,6 +25,12 @@ pocket_id_gid: 65532
 pocket_id_enc_key: "{{ pocket_id_encryption_key | default('') }}"
 pocket_id_enabled: "{{ pocket_id_enc_key | length > 0 }}"
 
+# Clé SOPS pocket_id_static_api_key (ansible.sops.yaml, la même dans
+# secrets.sops.yaml pour tofu/pangolin_config) : clé d'API administrateur
+# fixe (STATIC_API_KEY), par laquelle Tofu déclare les clients OIDC et les
+# groupes. Vide : pas de STATIC_API_KEY, Tofu ne peut plus rien gérer.
+pocket_id_api_key: "{{ pocket_id_static_api_key | default('') }}"
+
 # Réseaux de confiance pour X-Forwarded-For (TRUST_PROXY) : le Traefik de
 # Pangolin, sur le réseau bridge « pangolin » (une plage 172.x choisie par
 # Docker). Il retire tout X-Forwarded-* reçu du client avant d'écrire le sien.

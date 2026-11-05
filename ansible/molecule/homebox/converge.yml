@@ -4,6 +4,14 @@
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
+  vars:
+    # Sorties de tofu/pangolin_config (pocket_id.tf) que les pré-tâches des
+    # playbooks posent dans terraform_outputs : le client OIDC de Homebox.
+    terraform_outputs:
+      pocket_id_homebox_client_id:
+        value: molecule-pocket-id-homebox-client-id
+      pocket_id_homebox_client_secret:
+        value: molecule-pocket-id-homebox-client-secret
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
