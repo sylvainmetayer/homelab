@@ -118,7 +118,7 @@
       ansible.builtin.assert:
         that:
           - "'HBOX_OIDC_ENABLED=true' in homebox_env_lines"
-          - "'HBOX_OIDC_ISSUER_URL=https://id.sylvain.cloud' in homebox_env_lines"
+          - "'HBOX_OIDC_ISSUER_URL=https://idp.example.invalid' in homebox_env_lines"
           - "'HBOX_OIDC_CLIENT_ID=molecule-pocket-id-homebox-client-id' in homebox_env_lines"
           - "'HBOX_OIDC_CLIENT_SECRET=molecule-pocket-id-homebox-client-secret' in homebox_env_lines"
           - "'HBOX_OPTIONS_ALLOW_LOCAL_LOGIN=true' in homebox_env_lines"

@@ -8,7 +8,7 @@
     # Sorties de tofu/pangolin_config (pocket_id.tf) : le client OIDC de TREK.
     terraform_outputs:
       pocket_id_issuer:
-        value: https://id.sylvain.cloud
+        value: https://idp.example.invalid
       pocket_id_trek_client_id:
         value: molecule-pocket-id-trek-client-id
       pocket_id_trek_client_secret:

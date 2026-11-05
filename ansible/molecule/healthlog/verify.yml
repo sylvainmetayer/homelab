@@ -140,7 +140,7 @@
     - name: Assert healthlog OIDC is configured and the local login stays open
       ansible.builtin.assert:
         that:
-          - healthlog_env.OIDC_ISSUER_URL == 'https://id.sylvain.cloud'
+          - healthlog_env.OIDC_ISSUER_URL == 'https://idp.example.invalid'
           - healthlog_env.OIDC_CLIENT_ID == 'molecule-pocket-id-healthlog-client-id'
           - healthlog_env.OIDC_CLIENT_SECRET == 'molecule-pocket-id-healthlog-client-secret'
           - healthlog_env.OIDC_ONLY == 'false'
