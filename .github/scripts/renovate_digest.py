@@ -9,7 +9,7 @@ les fusions automatiques qui le suivent. Sur les 7 derniers jours :
   - les PR de Renovate encore ouvertes, avec leur âge, les plus vieilles
     d'abord ; celles dont l'auto-merge attend les checks sont signalées ;
   - les runs en échec de deploy-docker-app.yaml ; un échec suivi d'un run
-    de push réussi est « rattrapé » (ce run redéploie tout depuis le
+    de push ou de schedule réussi est « rattrapé » (ce run redéploie tout depuis le
     dernier succès) et ne fait plus monter la priorité.
 
 API GraphQL (une recherche pour les PR, avec mergedBy et autoMergeRequest)
@@ -154,7 +154,7 @@ def open_line(pull, now):
 
 
 def caught_up(run, last_success):
-    """Un échec suivi d'un run de push réussi : ce run a redéployé tout ce que
+    """Un échec suivi d'un run de push ou de schedule réussi : ce run a redéployé tout ce que
     l'échec n'avait pas fait (diff depuis le dernier succès)."""
     return last_success is not None and parse_time(run["created_at"]) < parse_time(last_success["created_at"])
 
@@ -243,11 +243,12 @@ def fetch(token, repo, since):
         raise DigestError(f"GraphQL : {[e.get('message') for e in errors or [] if isinstance(e, dict)]}")
     query = urllib.parse.urlencode({"status": "failure", "created": f">={stamp}", "per_page": 100})
     runs = github(token, f"/repos/{repo}/actions/workflows/{DEPLOY_WORKFLOW}/runs?{query}")
-    query = urllib.parse.urlencode({"status": "success", "event": "push", "per_page": 1})
+    # Push or schedule (the quiet window's morning catch-up), never a dispatch.
+    query = urllib.parse.urlencode({"status": "success", "per_page": 30})
     latest = github(token, f"/repos/{repo}/actions/workflows/{DEPLOY_WORKFLOW}/runs?{query}")
     if not isinstance(runs, dict) or not isinstance(latest, dict):
         raise DigestError("runs de deploy-docker-app : réponse inattendue")
-    runs["last_success"] = (latest.get("workflow_runs") or [None])[0]
+    runs["last_success"] = next((r for r in latest.get("workflow_runs") or [] if r.get("event") != "workflow_dispatch"), None)
     return answer["data"], runs
 
 

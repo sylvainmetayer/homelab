@@ -91,7 +91,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          python3 -I .github/scripts/deploy_window.py && exit 0
+          rc=0
+          python3 -I .github/scripts/deploy_window.py || rc=$?
+          [ "$rc" -eq 0 ] && exit 0
+          # Only the script's own "closed" (1) cancels: a crash (any other code)
+          # must fail the job, not pass for a quiet window every night.
+          [ "$rc" -eq 1 ] || { echo "::error::deploy_window.py crashed (exit $rc)"; exit "$rc"; }
           echo "::notice::quiet window (19:00-08:00 Paris): run cancelled, the next one in the window deploys these commits"
           gh run cancel "$RUN_ID"
           sleep 120
@@ -142,7 +147,9 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.event.after }}
+          # github.sha, not event.after: a schedule event has no `after`, and an
+          # empty AFTER_SHA would make every catch-up "nothing to deploy".
+          AFTER_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
