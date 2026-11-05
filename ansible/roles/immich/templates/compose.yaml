@@ -204,8 +204,8 @@ services:
   # AGIT SUR LA PHOTOTHÈQUE avec cette clé. Seul barrage : la route Pangolin
   # derrière le SSO (rôle immich-power-tools, sans membre). Il lit aussi la
   # base d'Immich en direct. Rendu seulement si immich_power_tools_api_key
-  # existe ; la clé retirée, le conteneur reste jusqu'à un
-  # `docker compose up --remove-orphans` (README du rôle).
+  # existe ; la clé retirée, le redémarrage de dc@immich (`up
+  # --remove-orphans`) supprime le conteneur.
   immich-power-tools:
     image: ghcr.io/immich-power-tools/immich-power-tools:0.25.0@sha256:85af8a9f116cfb626dcda491a49616baf90108fe428a885df5ab68bd7cddb291
     container_name: immich-power-tools
