@@ -111,6 +111,7 @@ nav:
       - runbooks/homepage-cartes.md
       - runbooks/disque-nas-mort.md
       - runbooks/sante-des-disques.md
+      - runbooks/coupure-de-courant.md
       - runbooks/hote-proxmox-mort.md
       - runbooks/pi-mort.md
       - runbooks/bbox-remplacee.md

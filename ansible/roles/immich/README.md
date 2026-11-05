@@ -1,6 +1,6 @@
 # immich
 
-Immich sur le Raspberry Pi (`pi.yml`), avec deux outils qui s'en servent :
+Immich sur le Raspberry Pi (`pi.yml`), avec des outils qui s'en servent :
 Immich Swipe, Immich Kiosk, Immich Power Tools et Immich Selfie Timelapse (`docs/apps.md`).
 
 ## Immich Kiosk (`kiosk.sylvain.cloud`)
