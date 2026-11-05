@@ -18,7 +18,7 @@ Ce que le dépôt suppose de la box :
 | Réglage | Valeur attendue | Qui en dépend |
 |---|---|---|
 | Réseau local | `192.168.1.0/24`, passerelle et DHCP en `192.168.1.254` | **tous** les hôtes (`tofu/proxmox` : VM et LXC à IP fixe avec cette passerelle) |
-| DNS annoncés par le DHCP | `192.168.1.200` puis `192.168.1.96` | filtrage Blocky ([dns-blocky.md](dns-blocky.md)) |
+| DNS annoncés par le DHCP | `192.168.1.200` puis `192.168.1.96` | filtrage Blocky ([dns-blocky.md](dns-blocky.md)) ; bascule non constatée au 05/11 ([ADR 0012](../adr/0012-filtrage-dns-blocky.md)), à relire dans la Bbox |
 | Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (à vérifier), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
 | Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (à vérifier) |
 | Redirections de ports | **aucune** | ([ADR 0015](../adr/0015-acces-de-secours-wireguard.md) n'est pas mise en œuvre) |

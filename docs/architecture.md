@@ -205,8 +205,9 @@ lui-même est `dc@newt`. Sur le NAS, le même modèle tourne en unité
 
 ## Le DNS de la maison (Blocky)
 
-Le DHCP de la Bbox annonce deux résolveurs Blocky (rôle `blocky`,
-[ADR 0012](adr/0012-filtrage-dns-blocky.md)) : le LXC newt (192.168.1.200,
+Le DHCP de la Bbox doit annoncer deux résolveurs Blocky (rôle `blocky`,
+[ADR 0012](adr/0012-filtrage-dns-blocky.md) ; au 05/11 aucun client ne les a
+interrogés, bascule non constatée) : le LXC newt (192.168.1.200,
 binaire, `lxc.yml`) et le Pi (192.168.1.96, conteneur publié sur son IP LAN
 seule, `pi.yml`). Une panne de l'un passe inaperçue des clients, qui
 basculent sur l'autre.
