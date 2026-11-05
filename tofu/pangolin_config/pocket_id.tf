@@ -70,8 +70,9 @@ output "uptime_backup_pocket_id_url" {
 # comptes Flip) ne sont ni déclarés ici ni rattachés à l'IdP : un login Pocket ID
 # ne les touche jamais, il crée ou retrouve un utilisateur externe.
 #
-# Attributs optionnels : tous écrits, aucun optional+computed ici
-# (README du module, règle du fournisseur).
+# Attributs optionnels : tous écrits, dont les optional+computed (variant,
+# email_path, name_path, tags, auto_provision), sans quoi le plan dit « No
+# changes » quel que soit l'état réel (README du module, règle du fournisseur).
 locals {
   pocket_id_pangolin_client_id     = lookup(data.sops_file.secrets.data, "pocket_id_pangolin_client_id", "")
   pocket_id_pangolin_client_secret = lookup(data.sops_file.secrets.data, "pocket_id_pangolin_client_secret", "")
@@ -102,6 +103,7 @@ resource "pangolin_idp" "pocket_id" {
   identifier_path = "preferred_username"
   email_path      = "email"
   name_path       = "name"
+  tags            = ""
 
   auto_provision = false
 }
