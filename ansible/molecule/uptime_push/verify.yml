@@ -157,4 +157,6 @@
           - "'127.0.0.1' not in uptime_push_test_redirect.stderr"
           - uptime_push_test_redirect_log.stdout_lines | length == 2
           - "'arrivee' not in uptime_push_test_redirect_log.stdout"
-        fail_msg: "{{ uptime_push_test_redirect.stdout_lines }} / {{ uptime_push_test_redirect.stderr_lines }} / {{ uptime_push_test_redirect_log.stdout_lines }}"
+        fail_msg: >-
+          {{ uptime_push_test_redirect.stdout_lines }} / {{ uptime_push_test_redirect.stderr_lines }}
+          / {{ uptime_push_test_redirect_log.stdout_lines }}
