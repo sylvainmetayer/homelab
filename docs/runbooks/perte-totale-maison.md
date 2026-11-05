@@ -34,25 +34,31 @@ GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
 | Pangolin et flip | VM Hetzner, intactes | clé SSH, ou console Hetzner |
 | Secrets (SOPS) | dépôt privé `homelab-secrets` sur GitHub | compte GitHub + une clé age (`perso`, `pro` ou `secours`) |
 | States Tofu | bucket OVH versionné | clés S3 et phrase de chiffrement, **dans les SOPS** |
-| Bases KeePass | kDrive (Infomaniak) et restic horaire sur OVH (Object Lock 30 jours) | compte kDrive, ou compte OVH + mot de passe du dépôt restic (papier) |
+| Bases KeePass | kDrive (Infomaniak) et restic horaire sur OVH (Object Lock 30 jours) | compte kDrive, ou compte OVH + mot de passe du dépôt restic |
 | Code et runbooks | GitHub (public) | rien |
+| kDrive (Infomaniak) | envois du téléphone, bases KeePass, et 1,27 To de films et séries hors du miroir du NAS (`Backups/Synology/tv`, `movies`, [kdrive-nas.md](kdrive-nas.md)) | compte Infomaniak |
 | DNS, sites Pages, Uptime Kuma | OVH/Cloudflare, PikaPods | leurs comptes |
 
 **Perdu sans recours** (rien de plus ancien à restaurer) :
 
 - **Les médias du NAS** (`/volume1/media` : films, séries, musique, livres) :
   ni Borg ni miroir hors site, RAID 1 et instantanés Btrfs sur les mêmes
-  disques. Seule issue : une copie que Sylvain aurait ailleurs (à vérifier,
-  le dépôt n'en connaît aucune) ou les ré-obtenir.
+  disques. Seule issue : une copie que Sylvain aurait ailleurs, ou les
+  ré-obtenir. Piste à vérifier : les films et séries de kDrive (ligne
+  « kDrive » ci-dessus) sont-ils une copie de ces médias ? Le dépôt ne le dit pas.
 - **Les archives vzdump** (images de la VM docker et du LXC) : seule copie sur
   le NAS ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md)). La VM se
   reconstruit **depuis Borg appli par appli**, pas depuis une image.
 - **La configuration de l'hôte Proxmox** (`/etc/pve` : storage, jetons, droits)
   et l'installation de l'hôte : aucune sauvegarde trouvée dans le dépôt.
-- **L'historique `versions/` du miroir kDrive** et les films exclus de la copie :
-  le reste se recopie depuis kDrive.
-- **La base PostgreSQL de MediaManager** (essai), **Paperless** après sa pause,
-  les journaux VictoriaLogs.
+- **Le miroir kDrive du NAS et son historique `versions/`** (anciennes versions
+  de fichiers remplacés, absentes de kDrive) : le miroir se recopie depuis
+  kDrive, pas `versions/`. Les films et séries exclus de la copie n'ont jamais
+  été sur le NAS par ce rôle : ils restent chez kDrive.
+- **La base PostgreSQL de MediaManager** (essai), les journaux VictoriaLogs,
+  les réglages faits dans l'interface d'UGOS (dossiers partagés, comptes,
+  droits) et l'installation de base du NAS et du Pi. Paperless n'est **pas**
+  perdu : figé à sa pause, son dépôt Borg se restaure.
 - **Les données écrites depuis la dernière nuit** : Borg tourne à 01:00 (NAS
   02:30), donc au plus une journée, deux si une nuit manquait. Les photos
   prises depuis ne sont que sur les téléphones : **ne rien supprimer sur les
@@ -71,13 +77,14 @@ Rien d'autre ne démarre sans cet étage, et c'est lui qui porte les dépendance
 circulaires (voir la feuille d'exercice) : chaque accès attend un second
 facteur sur le **téléphone**.
 
-1. Un poste de remplacement, connecté. Installer mise, puis dans un clone neuf
+1. Un poste de remplacement, connecté (la maison n'a plus de réseau : partage
+   de connexion du téléphone, ou un autre lieu). Installer mise, puis dans un clone neuf
    (`git clone` du dépôt public) : `mise install`, `uv sync`.
 2. Les **comptes** d'abord, avec le téléphone : GitHub, Hetzner (console),
    OVH, Infomaniak (kDrive). Où sont leurs identifiants et leurs seconds
    facteurs : à vérifier. Si les bases KeePass sont nécessaires pour les
    atteindre, les restaurer avant ([sauvegarde-keepass.md](sauvegarde-keepass.md),
-   couches 2 et 3 : kDrive ou restic, mot de passe du dépôt sur papier).
+   couches 2 et 3 : kDrive ou restic, mot de passe du dépôt restic).
 3. Une **clé age** qui ouvre SOPS : `perso` et `pro` étaient peut-être sur le
    poste perdu ; `secours` est hors ligne, son lieu est « à vérifier » dans
    [perte-cle-ou-poste.md](perte-cle-ou-poste.md). Cloner le sous-module
@@ -86,14 +93,20 @@ facteur sur le **téléphone**.
 4. Une **clé SSH** autorisée sur les hôtes : `keys/*.pub` (`perso`, `pro`,
    `android`). Sinon la console Hetzner (Pangolin, flip) et un nouveau
    `keys/perso.pub` ([perte-cle-ou-poste.md](perte-cle-ou-poste.md), « Clé SSH
-   perso perdue »). Rejouer `00-setup.yaml` hôte par hôte est à la main.
-5. L'accès à un dépôt Borg : `backup_passphrase` (SOPS, et le gestionnaire de
-   mots de passe selon [perte-cle-ou-poste.md](perte-cle-ou-poste.md)) et la clé
+   perso perdue ou volée »). Rejouer `00-setup.yaml` hôte par hôte est à la main.
+5. L'accès à un dépôt Borg : `backup_passphrase` (SOPS) et la clé
    du sous-compte en lecture seule `restore-test` (`tofu output -raw
    storage_box_restore_test_ssh_private_key` dans `tofu/pangolin`, ce qui exige
    le state, donc les clés S3 des SOPS : [reconstruction-pangolin.md](reconstruction-pangolin.md),
    « Diagnostic »). Si le state est illisible, le compte principal de la Storage
    Box se gère dans la console Hetzner (créer un accès : à vérifier).
+6. Le **compte principal de la Storage Box** accepte la clé SSH du poste
+   neuf (console Hetzner, [perte-cle-ou-poste.md](perte-cle-ou-poste.md),
+   « Clé SSH perso perdue ou volée », étape 5) : `backup.yaml` (étages 4 et 5) en dépend.
+7. Poste ou clés **volés** (et non seulement détruits) : ne pas attendre
+   l'étage 6. Retirer la clé SSH `perso` des hôtes et du compte GitHub, et
+   commencer la rotation (jetons Hetzner et OVH d'abord) dès que l'étage 1
+   passe ([perte-cle-ou-poste.md](perte-cle-ou-poste.md), « Clé age volée, ou poste volé »).
 
 **Critère de passage** : `sops decrypt` ouvre les deux fichiers SOPS ;
 `borg list --bypass-lock <dépôt>` répond sur un dépôt d'appli
@@ -124,9 +137,9 @@ Pour `home_ip` : le nouveau site a une nouvelle IP publique. Mettre `home_ip`
 SSO** jusque-là.
 
 **Critère de passage** : le LAN répond (`ping 192.168.1.254`), Internet sort,
-`curl -sSI https://pangolin.sylvain.cloud` répond, et le DHCP annonce
-`192.168.1.200` puis `192.168.1.96` (ces deux résolveurs n'existent pas encore :
-le temps que l'étage 3 les rende, laisser le DNS de la box).
+`curl -sSI https://pangolin.sylvain.cloud` répond. Le DHCP annonce encore le
+DNS de la box : `192.168.1.200` (Blocky du LXC) et `192.168.1.96` (Pi) ne
+sont annoncés qu'une fois ces deux résolveurs revenus (étage 3 et Immich).
 
 ### Étage 3. Hôte Proxmox, ou machine de remplacement
 
@@ -138,9 +151,15 @@ par Tofu).
 
 1. `mise run init-proxmox`, `mise run plan-proxmox`, relire, puis
    `mise run apply-proxmox` (Sylvain applique).
+   Le NAS n'existe plus : `proxmox_storage_nfs.nas_backup` et
+   `proxmox_backup_job.nightly` (`backup.tf`) ne peuvent pas être créés. Lire
+   le plan et n'appliquer que la VM et le LXC (`apply -target` : lire d'abord
+   `plan -target`, un apply ciblé applique aussi les dépendances) ; stockage et
+   job reviennent avec le NAS (étage 6).
 2. Le LXC newt : Tofu le crée, `lxc.yml` le configure (à la main, jamais en
    CI). Il rend le site `proxmox-lxc` (accès à la maison depuis Internet et
-   chemin de la CI) et le deuxième Blocky.
+   chemin de la CI) et le deuxième Blocky ; une fois Blocky répondant, faire annoncer
+   `192.168.1.200` par le DHCP.
 3. **`ansible/known_hosts` est strict** : la clé de chaque hôte neuf se lit
    sur l'hôte (console), jamais par `ssh-keyscan`, et se committe par PR
    ([cle-hote-ssh-changee.md](cle-hote-ssh-changee.md)).
@@ -157,9 +176,14 @@ par Tofu).
 2. `ansible-playbook backup.yaml` : autorise la clé de root de la VM neuve chez
    son sous-compte (même mécanique que
    [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), « Clé non
-   autorisée »).
+   autorisée »). Le playbook lit la clé de `docker`, `pi`, `pangolin`, `flip` et
+   `nas` et refuse tout si l'une manque : Pi et NAS absents, le limiter aux
+   hôtes présents avec `-e '{"backup_storage_box_hosts": ["docker"]}'` (à vérifier
+   en `--check`), et refaire de même pour le Pi à l'étage 5.
 3. `ansible-playbook docker.yml` pour le reste de la pile. Les applis démarrent
-   **à vide** : les arrêter avant de leur rendre leurs données.
+   **à vide** : les arrêter avant de leur rendre leurs données, et ne pas laisser
+   la sauvegarde de 01:00 d'une appli encore vide passer avant sa restauration
+   (arrêter son minuteur borgmatic).
 
 **Pas de merge qui déploie pendant la reprise.** Un merge sur `main` qui touche
 `ansible/roles/**`, un playbook ou `docs/**` lance `deploy-docker-app` : tant
@@ -180,7 +204,9 @@ appli par appli de [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md
 en **arrêtant l'appli avant** de rejouer son dump. Proposition d'ordre :
 
 1. **Immich d'abord, en tâche de fond** : l'extraction de `library` est la
-   plus longue (taille et durée jamais relevées). Le Pi n'existe plus ;
+   plus longue (taille et durée jamais relevées). Immich ne dépend ni de
+   Proxmox ni de la VM docker, seulement des étages 1 et 2 : il peut démarrer
+   dès l'étage 2 passé, en parallèle des étages 3 et 4. Le Pi n'existe plus ;
    [pi-mort.md](pi-mort.md) suppose un Pi réinstallé. Sur un autre support
    qu'un Pi (x86, la VM docker), `pi.yml` ne s'applique pas tel quel : c'est
    à écrire le jour venu (à vérifier, [ADR 0020](../adr/0020-garder-le-raspberry-pi-pour-immich.md)).
@@ -202,6 +228,8 @@ calendriers : le dire.
 
 Par ordre de valeur, sans urgence :
 
+- Paperless, si on le sort de sa pause
+  ([app-en-pause.md](app-en-pause.md)), depuis son dépôt Borg figé.
 - Les applis d'étage 2 et 3 de la matrice (Monica, Karakeep, Homebox, Grocy,
   TREK, BookStack, Wishlist, FreshRSS, Beszel, ntfy…), depuis Borg.
 - **Le NAS**, si un nouveau est acheté : [disque-nas-mort.md](disque-nas-mort.md),
@@ -210,8 +238,8 @@ Par ordre de valeur, sans urgence :
   la copie que Sylvain aura, sinon de rien.
 - Le job vzdump (`tofu/proxmox/backup.tf`) à recréer avec le NAS, puis une
   archive à la main sans attendre 21:00.
-- **Le reste de la sécurité** : rotation des secrets du poste perdu si
-  rien ne prouve qu'il n'est pas dans de mauvaises mains (voir
+- **Le reste de la sécurité** : rotation des secrets du poste perdu (faite
+  dès l'étage 1 si le poste a pu être volé), si rien ne prouve qu'il n'est pas dans de mauvaises mains (voir
   [perte-cle-ou-poste.md](perte-cle-ou-poste.md), « Poste perdu »), puis
   seulement les merges qui déploient.
 - Mettre à jour [matrice-des-donnees.md](../matrice-des-donnees.md) et les
@@ -235,7 +263,7 @@ Ce que le scénario montre et que le dépôt ne règle pas (les trous 1, 3, 5, 6
 de la matrice) :
 
 - **Écrire hors du dépôt public** où sont rangés : la clé age `secours` et `pro`,
-  le mot de passe papier des KeePass, `backup_passphrase`, les seconds
+  le mot de passe du dépôt restic des KeePass, `backup_passphrase`, les seconds
   facteurs des comptes. S'ils sont dans la maison, ils partent avec elle.
 - Garder un **autre moyen de second facteur** (codes de secours imprimés ou un
   deuxième appareil enrôlé) pour GitHub, Hetzner, OVH et Infomaniak.
@@ -274,12 +302,12 @@ boucle trouvée, et on passe à la suivante en admettant ce qu'on a.
 | 4 | Cloner le dépôt public, puis `mise install`, `uv sync` | réseau, GitHub (public : aucun compte) | l'installation de mise et d'`uv` passe par Internet : vérifier |
 | 5 | `git submodule update --init` (dépôt privé `homelab-secrets`) | une clé SSH ou un jeton GitHub | la clé SSH est dans KeePass ; KeePass est sur kDrive ou OVH : **boucle A** |
 | 6 | Ouvrir KeePass : se connecter à kDrive (Infomaniak), télécharger la base | compte Infomaniak, second facteur (étape 1), puis le mot de passe de la base | le mot de passe de la base est-il dans la base ? |
-| 7 | Sinon, restaurer la base depuis restic (OVH) | compte OVH, **mot de passe du dépôt restic (papier)**, ou le SOPS des dotfiles, qui veut une clé age : **boucle B** | le papier est-il hors de la maison ? |
+| 7 | Sinon, restaurer la base depuis restic (OVH) | compte OVH, **mot de passe du dépôt restic** (hors du poste et hors de la maison ?) : **boucle B** si on ne l'a que derrière une clé age | ce mot de passe est-il atteignable sans ce qu'on cherche à restaurer ? |
 | 8 | Obtenir une clé age (`secours`) | son support hors ligne ([test-cle-secours.md](test-cle-secours.md)) | où est-il ? Si dans la maison : fin de partie, sauf `perso` ou `pro` ailleurs |
 | 9 | `sops decrypt secrets/secrets.sops.yaml > /dev/null`, idem `ansible.sops.yaml` | 5 et 8 | la preuve que les secrets sont atteignables |
 | 10 | Lire le state Tofu (`mise exec -- tofu -chdir=tofu/pangolin output`, en lecture seule) | clés S3 et phrase de chiffrement **dans les SOPS** (9) | le state est la porte de l'inventaire et de la clé `restore-test` |
-| 11 | Ouvrir la console Hetzner et se connecter en SSH à Pangolin (sans rien modifier) | compte (3 ou 6), clé SSH de KeePass (6) | clé SSH sur le poste perdu : boucle A |
-| 12 | Lister un dépôt Borg : `borg list --bypass-lock <dépôt>` (étape 5 de [intrusion-premiere-heure.md](intrusion-premiere-heure.md)) | `backup_passphrase` (9 ou KeePass), clé `restore-test` (10) | la phrase de passe est-elle ailleurs que dans SOPS ? |
+| 11 | Ouvrir la console Hetzner et se connecter en SSH à Pangolin (sans rien modifier) | compte (3 ou 6), clé SSH (5) | clé SSH sur le poste perdu : boucle A |
+| 12 | Lister un dépôt Borg : `borg list --bypass-lock <dépôt>` (étape 5 de [intrusion-premiere-heure.md](intrusion-premiere-heure.md)) | `backup_passphrase` (9, ou une copie hors SOPS), clé `restore-test` (10) | la phrase de passe est-elle ailleurs que dans SOPS ? |
 | 13 | Lire cette page et les runbooks sans le site de docs (SSO de Pangolin) | GitHub | la doc privée n'est pas lisible si Pangolin tombe : GitHub suffit |
 | 14 | Joindre le foyer (téléphone, messagerie) et lui dire ce qui se passe | le téléphone | personne d'autre que Sylvain n'a la procédure |
 
