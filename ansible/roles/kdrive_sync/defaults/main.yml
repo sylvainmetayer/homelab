@@ -72,7 +72,7 @@ kdrive_sync_timer_enabled: true
 # était (les fichiers déjà copiés sont sautés).
 kdrive_sync_timeout: 23h
 # Provisoire : à recaler à ~2x memory.peak après quelques nuits. Job par lots
-# (doctrine des limites, AGENTS.md) : cpus 2.00 et cpu_shares 512.
+# (docs/conventions/resource-limits.md) : cpus 2.00 et cpu_shares 512.
 kdrive_sync_mem_limit: 512m
 
 # URL push du moniteur « kDrive vers NAS » (nas.yml, sortie
