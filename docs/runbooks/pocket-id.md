@@ -66,6 +66,15 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    toucher à l'administrateur. La liaison d'un compte local de Homebox par
    e-mail, et la création d'un compte OIDC inscription fermée, sont à
    confirmer à l'essai (voir [login-unifie-applis.md](../login-unifie-applis.md)).
+   - **TREK** (le foyer) : groupes `trek` (accès) et `trek-admin` (admin,
+     relu à chaque connexion : **s'y mettre avant sa première connexion**, sinon
+     on redevient utilisateur, sauf le dernier admin que TREK garde). Comptes
+     Pocket ID du foyer créés par l'administrateur (code à usage unique).
+     Liaison au compte TREK existant par e-mail : refusée si Pocket ID ne le dit
+     pas vérifié (`email_not_verified`), ou si le compte TREK a saisi son adresse
+     lui-même (`email_link_blocked`) : l'admin de TREK la confirme en la
+     changeant dans le panneau d'administration. Login local gardé
+     (`OIDC_ONLY=false`).
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
    celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de
