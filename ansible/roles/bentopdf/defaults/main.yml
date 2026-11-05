@@ -1,0 +1,7 @@
+---
+bentopdf_base_path: "{{ docker_base_path }}/bentopdf"
+bentopdf_container_name: bentopdf
+bentopdf_port: 8080
+
+# Pas de sauvegarde, exprès : sans état (README.md).
+# Pas de variable bentopdf_backup_* : il n'y a rien à activer.

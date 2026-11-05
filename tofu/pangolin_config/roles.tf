@@ -35,6 +35,8 @@ locals {
     "docs",
     "enclosed",
     "pairdrop",
+    "bentopdf",
+    "bentopdf",
     "healthlog"
   ]
 

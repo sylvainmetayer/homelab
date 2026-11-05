@@ -519,6 +519,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["bentopdf"]
+  values = { id = 111 }
+}
+
+override_resource {
   target = pangolin_resource.website["paperless"]
   values = { id = 40 }
 }

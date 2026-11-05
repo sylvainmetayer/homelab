@@ -1,0 +1,43 @@
+---
+services:
+  app:
+    # Pas encore mesuré : nginx qui sert des fichiers statiques (3 Mio au
+    # repos en local). Tout le travail sur les PDF se fait dans le navigateur.
+    # Valeur prudente, à recaler sur memory.peak (rapport mem_report) après
+    # quelques semaines.
+    mem_limit: 128m
+    # Variante « simple » (tous les outils, sans la vitrine commerciale) ; les
+    # URL WASM et OCR sont celles par défaut, vers cdn.jsdelivr.net (README.md).
+    image: ghcr.io/alam00000/bentopdf-simple:2.8.11@sha256:3bbab98791694b77bc70ab03bf1b2ea89e568a75ef172c27d95cbdbdf810038f
+    container_name: {{ bentopdf_container_name }}
+    # nginx-unprivileged : tourne sans privilège, mais l'uid de déploiement
+    # (comme PairDrop) garde les fichiers du volume hors de portée de l'uid 101.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Seuls endroits où nginx écrit (essayé en local, mêmes options) : le pid
+    # et noindex.conf de l'image, ses caches temporaires.
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+      - /etc/nginx/tmp:mode=1777,size=16m
+      - /var/cache/nginx:mode=1777,size=64m
+    environment:
+      # Instance privée : ajoute « X-Robots-Tag: noindex » (script d'entrée).
+      ROBOTS_NOINDEX: "true"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:{{ bentopdf_port }}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # Seul conteneur du projet, sans état : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true
