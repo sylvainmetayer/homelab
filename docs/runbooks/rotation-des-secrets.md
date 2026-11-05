@@ -198,6 +198,12 @@ interface de Pangolin, organisation, API Keys, nouvelle clé avec les mêmes
 permissions. `sops set`, `plan` de `tofu/pangolin_config` vide, puis
 supprimer l'ancienne clé dans l'interface.
 
+`pangolin_root_api_key` (même fichier, alias `pangolin.root`, servi au seul
+fournisseur d'identité de `pocket_id.tf`) : même chemin dans l'**admin du
+serveur**, API Keys, avec les seules actions des fournisseurs d'identité et
+de leurs politiques d'organisation (une clé d'organisation ne peut pas créer
+d'IdP).
+
 ## Secrets d'application (tous les deux ans)
 
 ### Secret d'appli lu par Ansible

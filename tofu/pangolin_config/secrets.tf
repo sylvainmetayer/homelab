@@ -6,6 +6,8 @@ locals {
   pangolin_org_id  = data.sops_file.secrets.data["pangolin_org_id"]
   pangolin_url     = data.sops_file.secrets.data["pangolin_url"]
   pangolin_api_key = data.sops_file.secrets.data["pangolin_api_key"]
+  # Root key of the Pangolin server, for the identity provider only (pocket_id.tf).
+  pangolin_root_api_key = data.sops_file.secrets.data["pangolin_root_api_key"]
 
   # Bot and chat of the Telegram notification (notifications.tf).
   telegram_bot_token = data.sops_file.secrets.data["uptimekuma_telegram_bot_token"]

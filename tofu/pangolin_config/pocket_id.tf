@@ -134,7 +134,7 @@ output "pocket_id_homebox_client_secret" {
 #
 # Pilote : auto_provision = false. Personne n'est créé à la première connexion
 # par Pangolin : le compte externe de Sylvain est ajouté à la main dans
-# l'interface, avec son rôle. Les comptes internes (le « Admin » de secours, les
+# l'interface, avec son rôle. Les comptes internes (le propriétaire de l'organisation, secours, les
 # comptes Flip) ne sont ni déclarés ici ni rattachés à l'IdP : un login Pocket ID
 # ne les touche jamais, il crée ou retrouve un utilisateur externe.
 #
@@ -142,6 +142,8 @@ output "pocket_id_homebox_client_secret" {
 # email_path, name_path, tags, auto_provision), sans quoi le plan dit « No
 # changes » quel que soit l'état réel (README du module, règle du fournisseur).
 resource "pangolin_idp" "pocket_id" {
+  provider = pangolin.root
+
   name    = "Pocket ID"
   variant = "oidc"
 
@@ -174,6 +176,8 @@ resource "pangolin_idp" "pocket_id" {
 # « rôles réécrits à chaque login »), « Member » ne peut rien élargir. Les
 # groupes de Pocket ID ne passent en rôles qu'à l'étape suivante, hors pilote.
 resource "pangolin_idp_org" "pocket_id" {
+  provider = pangolin.root
+
   idp_id       = pangolin_idp.pocket_id.id
   org_id       = local.pangolin_org_id
   role_mapping = "'Member'"
