@@ -9,6 +9,7 @@
   "homebox": {"host": "docker", "repo": "homebox", "role": "homebox", "databases": ["sqlite"], "expected_tables": {"homebox.db": ["users", "groups"]}},
   "immich": {"host": "pi", "repo": "immich", "role": "immich", "databases": ["postgresql"], "expected_tables": {"immich": ["user", "asset"]}},
   "jellyfin": {"host": "nas", "repo": "jellyfin", "role": "jellyfin", "databases": ["sqlite"], "expected_tables": {"jellyfin.db": ["Users", "BaseItems"]}},
+  "jellystat": {"host": "docker", "repo": "jellystat", "role": "jellystat", "databases": ["postgresql"], "expected_tables": {"jellystat": ["app_config"]}},
   "karakeep": {"host": "docker", "repo": "karakeep", "role": "karakeep", "databases": ["sqlite"], "expected_tables": {"db.db": ["user", "bookmarks"]}, "allow_empty_databases": ["queue.db"]},
   "monica": {"host": "docker", "repo": "monica_v4", "role": "monica_v4", "databases": ["mysql"], "expected_tables": {"monica": ["users", "accounts"]}},
   "nextcloud": {"host": "docker", "repo": "nextcloud", "role": "nextcloud", "databases": ["mysql"], "expected_tables": {"nextcloud": ["oc_appconfig", "oc_storages", "oc_filecache"]}},

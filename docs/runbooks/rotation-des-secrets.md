@@ -241,6 +241,13 @@ Sylvain), nom `immich-kiosk`, permissions listées dans
 `https://kiosk.sylvain.cloud` doit afficher une photo ; supprimer ensuite
 l'ancienne clé dans Immich.
 
+`jellystat_jellyfin_api_key` : clé d'API de Jellyfin (Tableau de bord → Avancé → Clés API, nom `jellystat` ; une clé Jellyfin n'a pas de périmètre, elle
+vaut un administrateur), lue par Jellystat pour lire la médiathèque et les
+lectures. Le rôle `jellystat` ne déploie rien tant qu'elle manque. Rotation :
+`sops set`, puis `ansible-playbook docker.yml --tags jellystat` (redémarre
+Jellystat), vérifier qu'une synchronisation passe (Jellystat, Paramètres →
+Tâches), puis supprimer l'ancienne clé dans Jellyfin.
+
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
 changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.

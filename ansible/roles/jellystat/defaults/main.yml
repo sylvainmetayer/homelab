@@ -1,0 +1,30 @@
+---
+jellystat_base_path: "{{ docker_base_path }}/jellystat"
+
+# Jellyfin est sur le NAS, privé : la VM docker le joint par son port publié
+# sur le LAN, comme le widget de Homepage (homepage_jellyfin_url), sans passer
+# par Traefik ni Pangolin. HTTP : le trafic reste sur le LAN.
+jellystat_jellyfin_url: "http://192.168.1.137:8096" # NOSONAR (LAN, port publié du NAS, sans TLS)
+jellystat_timezone: Europe/Paris
+
+jellystat_db_name: jellystat
+jellystat_db_user: jellystat
+
+# Dérivés de backup_passphrase, comme ceux de HealthLog et Dawarich : pas de
+# clé SOPS, un sel distinct par secret. Le mot de passe de la base n'est lu
+# que par le dump borgmatic et l'appli ; JWT_SECRET signe les sessions de
+# Jellystat (le changer déconnecte tout le monde, rien d'autre).
+jellystat_db_password: "{{ (backup_passphrase ~ '-jellystat-db') | hash('sha256') }}"
+jellystat_jwt_secret: "{{ (backup_passphrase ~ '-jellystat-jwt') | hash('sha256') }}"
+
+# La clé d'API de Jellyfin est la clé SOPS `jellystat_jellyfin_api_key`
+# (secrets/ansible.sops.yaml), jamais définie ici : une valeur de rôle serait
+# battue par la clé SOPS et la masquerait (docs/conventions/secrets.md).
+# Sans elle le rôle ne déploie rien (README.md). Lue avec `default('')`.
+jellystat_jellyfin_key_set: "{{ (jellystat_jellyfin_api_key | default('')) | length > 0 }}"
+
+# Borgmatic backup configuration
+jellystat_backup_enabled: true
+jellystat_backup_borgmatic_target: "{{ backup_storage_box_url }}/jellystat"
+jellystat_backup_encryption_passphrase: "{{ backup_passphrase }}"
+jellystat_backup_healthcheck_url: ""

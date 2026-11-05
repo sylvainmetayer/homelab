@@ -36,6 +36,7 @@ locals {
     "enclosed",
     "pairdrop",
     "bentopdf",
+    "jellystat",
     "healthlog"
   ]
 

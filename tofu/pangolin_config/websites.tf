@@ -75,6 +75,7 @@ locals {
     immich_kiosk            = local.immich_kiosk_website
     immich_swipe            = local.immich_swipe_website
     immich_selfie_timelapse = local.immich_selfie_timelapse_website
+    jellystat               = local.jellystat_website
     karakeep                = local.karakeep_website
     monica                  = local.monica_website
     neonova                 = local.neonova_website

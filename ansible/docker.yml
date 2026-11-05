@@ -23,6 +23,7 @@
         homebox_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_homebox_url.value | default('') }}"
         papra_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_papra_url.value | default('') }}"
         grocy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_grocy_url.value | default('') }}"
+        jellystat_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellystat_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
@@ -129,6 +130,11 @@
     # sauvegarde (rôle bentopdf, README.md).
     - role: bentopdf
       tags: bentopdf,app
+    # Statistiques de lecture de Jellyfin (NAS), jellystat.sylvain.cloud.
+    # Ne déploie rien tant que la clé SOPS jellystat_jellyfin_api_key manque
+    # (rôle jellystat, README.md).
+    - role: jellystat
+      tags: jellystat,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).
