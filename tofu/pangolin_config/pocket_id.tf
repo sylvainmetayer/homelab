@@ -142,10 +142,7 @@ resource "pocketid_client" "trek" {
   client_id     = "trek"
   client_secret = random_password.pocket_id_client["trek"].result
   # APP_URL + /api/auth/oidc/callback (oidc.controller.ts de TREK 5.0.1).
-  callback_urls = [
-    "https://travels.sylvain.cloud/api/auth/oidc/callback",
-    "https://travels.sylvain.cloud/api/auth/oidc/callback/",
-  ]
+  callback_urls       = ["https://travels.sylvain.cloud/api/auth/oidc/callback"]
   allowed_user_groups = [pocketid_group.trek.id, pocketid_group.trek_admin.id]
   launch_url          = "https://travels.sylvain.cloud"
   # TREK envoie PKCE (S256).

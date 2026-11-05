@@ -4,7 +4,6 @@ trek_domain: travels.sylvain.cloud
 trek_timezone: Europe/Paris
 trek_encryption_key: "{{ (backup_passphrase ~ '-trek-encryption') | hash('sha256') }}"
 
-# Borgmatic backup configuration
 # Connexion OIDC par Pocket ID (tofu/pangolin_config/pocket_id.tf, ADR 0030).
 # Client lu dans les sorties du state (terraform_outputs) : rendu seulement
 # après l'apply. Le login local RESTE (OIDC_ONLY=false) : le secours. Le rôle
@@ -15,6 +14,7 @@ trek_oidc_enabled: "{{ trek_oidc_client_id | length > 0 and trek_oidc_client_sec
 trek_oidc_issuer: https://id.sylvain.cloud
 trek_oidc_admin_value: trek-admin
 
+# Borgmatic backup configuration
 trek_backup_enabled: true
 trek_backup_borgmatic_target: "{{ backup_storage_box_url }}/trek"
 trek_backup_encryption_passphrase: "{{ backup_passphrase }}"
