@@ -1,0 +1,7 @@
+---
+pairdrop_base_path: "{{ docker_base_path }}/pairdrop"
+pairdrop_container_name: pairdrop
+pairdrop_port: 3000
+
+# Pas de sauvegarde, exprès : sans état (README.md).
+# Pas de variable pairdrop_backup_* : il n'y a rien à activer.

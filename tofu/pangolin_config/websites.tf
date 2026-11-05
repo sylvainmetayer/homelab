@@ -79,6 +79,7 @@ locals {
     neonova_aide            = local.neonova_aide_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
+    pairdrop                = local.pairdrop_website
     paperless               = local.paperless_website
     papra                   = local.papra_website
     promptoramix            = local.promptoramix_website
