@@ -12,6 +12,16 @@ Applies to every service of every compose (Docker VM first; the other hosts foll
   - A declared `mem_limit` is not proof of a limit: a container created without the memory controller (the Pi until #846) keeps none, and Compose does not see it. `mem_report` compares each running container's `memory.max` with its compose every week: `ansible/roles/mem_report/README.md`.
   - Check images' default worker counts (`GUNICORN_NUM_WORKERS`, `pm.max_children`…) against the cap: gramps defaulted to 8 gunicorn workers of 170 MiB under a 1 GiB cap and OOM-looped.
 
+## Process limit (`pids_limit`)
+
+Decision of 2026-11-05 (Docker Bench): **no blanket `pids_limit`, none set today, an opt-in for a few risky services once measured.**
+
+- What it protects against: a fork bomb or a leak of threads in one container exhausting the host's PID space (Docker sets no limit; `TasksMax` of `docker.service` is infinity). On this homelab the realistic cases are a headless browser leaking processes (`karakeep` chrome, Paperless's Tika and Gotenberg), a proxy or a crawler spawning workers, never the batch workers (Celery, OCR, `borgmatic`, `rclone`, qBittorrent) nor the databases (PostgreSQL forks one process per connection, MariaDB and Meilisearch run many threads: a threads count is a pid in cgroups).
+- **Not measured, so no value is imposed.** The counter exists: `pids.peak` and `pids.current` in `/sys/fs/cgroup/system.slice/docker-<id>.scope` (cgroup v2, kernel 6.1 or later; check it exists on the Pi's kernel before relying on it). Read it after a week with the app's heaviest job (a crawl, an OCR batch), like `memory.peak`.
+- Rule once measured: `pids_limit` ≈ 4× the peak (a thread leak must hit it long before the host's ~32k, a spike must not), never below 128, only on the browsers, proxies and crawlers above, one PR per app (it recreates that app's container only). An app killed by it shows `Resource temporarily unavailable` or `fork: retry` in its logs: revert, raise, note it here.
+- Not in the doctrine's default list (unlike `mem_limit`): a limit nobody measured breaks an app at its busiest moment and a restart of every app at once would be needed to roll it out, for a gain on a single-user homelab where the isolation already comes from `cap_drop`, `no-new-privileges` and the network.
+- Follow-up, not done: `mem_report` could report `pids.peak` next to `memory.peak` (`ansible/roles/mem_report/README.md`), which would give the numbers without a manual read.
+
 ## Disk I/O (Docker VM)
 
 The disk, not CPU or RAM, is the bottleneck. Measure it with cgroup counters, never by reading the journal over weeks:
