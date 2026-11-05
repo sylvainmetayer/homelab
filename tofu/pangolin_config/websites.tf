@@ -59,6 +59,7 @@ locals {
   websites = {
     beszel                  = local.beszel_website
     betisier                = local.betisier_website
+    bentopdf                = local.bentopdf_website
     dawarich                = local.dawarich_website
     demo_planning           = local.demo_planning_website
     demo_planning_kc        = local.demo_planning_kc_website

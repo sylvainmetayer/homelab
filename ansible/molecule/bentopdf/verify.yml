@@ -1,0 +1,48 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Sans état : aucune configuration borgmatic, exprès.
+    - name: Verify the bentopdf deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: bentopdf
+        verify_app_borgmatic_config: ""
+
+    - name: Verify the bentopdf compose services
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: bentopdf
+        verify_compose_healthchecks:
+          - app
+
+    - name: Stat the bentopdf borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/bentopdf.yaml"
+      register: bentopdf_borgmatic
+
+    - name: Assert bentopdf is not backed up
+      ansible.builtin.assert:
+        that:
+          - not bentopdf_borgmatic.stat.exists
+
+    # Le modèle compose est celui que verify_compose_services.yml vient de rendre.
+    - name: Assert bentopdf is hardened, unprivileged and holds no volume
+      vars:
+        bentopdf_compose: "{{ verify_compose_raw.stdout | from_json }}"
+        bentopdf_app: "{{ bentopdf_compose.services.app }}"
+      ansible.builtin.assert:
+        that:
+          - bentopdf_app.networks.keys() | list == ['newt']
+          - bentopdf_app.read_only
+          - bentopdf_app.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
+          - bentopdf_app.cap_drop == ['ALL']
+          - bentopdf_app.security_opt == ['no-new-privileges:true']
+          - bentopdf_app.mem_limit is defined
+          - "'volumes' not in bentopdf_app"
+          - "'ports' not in bentopdf_app"
+          - bentopdf_app.environment.ROBOTS_NOINDEX == 'true'
+        fail_msg: "Compose de BentoPDF inattendu : {{ bentopdf_app }}"
