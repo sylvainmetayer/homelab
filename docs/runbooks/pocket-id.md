@@ -75,6 +75,11 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    celui de Pocket ID, e-mail, rôle voulu. Se connecter à la page de login de
    Pangolin avec « Pocket ID » : le compte interne n'est ni lié ni modifié.
 
+**Test de restauration rouge, attendu.** Dès le merge, le test planifié échoue
+pour Pocket ID : aucune archive avant l'étape 2 et la seconde passe de
+`--tags pocket_id`, et `oidc_clients` doit contenir au moins une ligne, donc rien
+de vert avant le premier client de l'étape 4 suivi d'une sauvegarde.
+
 ## Ce que Pangolin lit des claims de Pocket ID
 
 Vérifié dans les docs ([Pangolin](https://docs.pangolin.net/manage/identity-providers/pocket-id),
