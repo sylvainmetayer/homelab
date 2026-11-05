@@ -59,4 +59,5 @@ pocket_id_host: "id.{{ pangolin_base_domain }}"
 # une fois le compte créé (docs/runbooks/pocket-id.md, étape 2).
 pocket_id_setup_phase: true
 pangolin_idp_host: "{{ pocket_id_host if (pocket_id_encryption_key | default('') | length > 0) else '' }}"
-pangolin_idp_allowed_ips: "{{ home_ip if pocket_id_setup_phase | bool else '' }}"
+# Une liste vide ouvre l'hôte au monde : un home_ip vide n'admet que le loopback.
+pangolin_idp_allowed_ips: "{{ (home_ip | default('', true) or '127.0.0.1/32') if pocket_id_setup_phase | bool else '' }}"
