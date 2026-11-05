@@ -90,3 +90,24 @@
         that:
           - trek_env.stat.exists
           - trek_env.stat.mode == '0600'
+
+    - name: Read the trek environment file
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/apps/trek/.env
+      register: trek_env_raw
+
+    # OIDC rendu (sorties fictives du converge), login local gardé, rôle admin
+    # tiré du groupe trek-admin.
+    - name: Assert trek OIDC is configured and the local login stays open
+      vars:
+        trek_env_lines: "{{ (trek_env_raw.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'OIDC_ISSUER=https://id.sylvain.cloud' in trek_env_lines"
+          - "'OIDC_CLIENT_ID=molecule-pocket-id-trek-client-id' in trek_env_lines"
+          - "'OIDC_CLIENT_SECRET=molecule-pocket-id-trek-client-secret' in trek_env_lines"
+          - "'OIDC_SCOPE=openid email profile groups' in trek_env_lines"
+          - "'OIDC_ADMIN_CLAIM=groups' in trek_env_lines"
+          - "'OIDC_ADMIN_VALUE=trek-admin' in trek_env_lines"
+          - "'OIDC_ONLY=false' in trek_env_lines"

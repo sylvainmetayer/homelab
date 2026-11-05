@@ -79,7 +79,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox"])
+  for_each = toset(["pangolin", "homebox", "trek"])
 
   length  = 48
   special = false
@@ -120,6 +120,48 @@ resource "pocketid_client" "pangolin" {
   launch_url    = "https://pangolin.sylvain.cloud"
   pkce_enabled  = true
   is_public     = false
+}
+
+# TREK : le foyer s'y connecte. Groupe trek pour l'accès, trek-admin pour le
+# rôle admin, que TREK relit à chaque connexion dans le claim groups
+# (OIDC_ADMIN_CLAIM / OIDC_ADMIN_VALUE du rôle trek) : un admin sorti de
+# trek-admin redevient utilisateur à sa connexion suivante, sauf s'il est le
+# dernier admin (TREK le garde).
+resource "pocketid_group" "trek" {
+  name          = "trek"
+  friendly_name = "TREK"
+}
+
+resource "pocketid_group" "trek_admin" {
+  name          = "trek-admin"
+  friendly_name = "TREK admin"
+}
+
+resource "pocketid_client" "trek" {
+  name          = "TREK"
+  client_id     = "trek"
+  client_secret = random_password.pocket_id_client["trek"].result
+  # APP_URL + /api/auth/oidc/callback (oidc.controller.ts de TREK 5.0.1).
+  callback_urls = [
+    "https://travels.sylvain.cloud/api/auth/oidc/callback",
+    "https://travels.sylvain.cloud/api/auth/oidc/callback/",
+  ]
+  allowed_user_groups = [pocketid_group.trek.id, pocketid_group.trek_admin.id]
+  launch_url          = "https://travels.sylvain.cloud"
+  # TREK envoie PKCE (S256).
+  pkce_enabled = true
+  is_public    = false
+}
+
+output "pocket_id_trek_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de TREK"
+  value       = pocketid_client.trek.client_id
+}
+
+output "pocket_id_trek_client_secret" {
+  description = "POCKET ID - secret du client OIDC de TREK"
+  value       = random_password.pocket_id_client["trek"].result
+  sensitive   = true
 }
 
 # Lues par docker.yml pour le rôle homebox (HBOX_OIDC_CLIENT_*).

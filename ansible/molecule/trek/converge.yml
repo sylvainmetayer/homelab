@@ -4,6 +4,13 @@
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
+  vars:
+    # Sorties de tofu/pangolin_config (pocket_id.tf) : le client OIDC de TREK.
+    terraform_outputs:
+      pocket_id_trek_client_id:
+        value: molecule-pocket-id-trek-client-id
+      pocket_id_trek_client_secret:
+        value: molecule-pocket-id-trek-client-secret
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml

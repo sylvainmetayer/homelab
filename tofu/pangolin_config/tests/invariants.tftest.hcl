@@ -3215,6 +3215,12 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
       && pocketid_client.pangolin.is_public == false
       && pocketid_client.pangolin.pkce_enabled == true
       && strcontains(file("${path.module}/../../ansible/roles/homebox/defaults/main.yml"), "terraform_outputs.pocket_id_homebox_client_secret.value")
+      && pocketid_client.trek.is_public == false
+      && pocketid_client.trek.pkce_enabled == true
+      && contains(pocketid_client.trek.callback_urls, "https://travels.sylvain.cloud/api/auth/oidc/callback")
+      && pocketid_group.trek_admin.name == "trek-admin"
+      && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "terraform_outputs.pocket_id_trek_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "trek_oidc_admin_value: trek-admin")
     )
     error_message = "Les clients OIDC Homebox et Pangolin de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, et Homebox lu par le rôle homebox."
   }
