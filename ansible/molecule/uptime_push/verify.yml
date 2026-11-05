@@ -130,7 +130,7 @@
       ansible.builtin.copy:
         content: ""
         dest: "{{ uptime_push_test_log }}"
-        mode: "0666"
+        mode: "0600"
 
     - name: Push to a URL answering 302, without then with --strict
       ansible.builtin.shell:
