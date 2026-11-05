@@ -46,7 +46,7 @@ au plus :
 | N° | Décision | Statut |
 |---|---|---|
 | [0001](0001-sauvegardes-borgmatic.md) | Sauvegardes Borgmatic + Borg, un sous-compte par hôte, restauration testée en CI | acceptée (check trimestriel remplacé par 0017) |
-| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée (exception : 0025) |
+| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée (exceptions : 0025, 0030) |
 | [0003](0003-crowdsec-sur-pangolin.md) | CrowdSec sur Pangolin, plugin Traefik, AppSec en détection seule | acceptée |
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
 | [0005](0005-retention-journaux-pangolin.md) | Base de Pangolin : rétention des journaux 30/90 jours | acceptée (VACUUM à confirmer) |
@@ -60,7 +60,7 @@ au plus :
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |
-| [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey + mot de passe, ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | proposée |
+| [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey + mot de passe, ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | remplacée par 0030 |
 | [0017](0017-pas-de-verification-complete-des-donnees.md) | Pas de vérification complète des données Borg ; test de restauration et checks des hôtes | acceptée |
 | [0018](0018-secrets-depot-prive.md) | Secrets SOPS et inventaire de rotation dans un dépôt privé, sous-module `secrets/` | acceptée |
 | [0019](0019-flip-sans-ipv4-publique.md) | flip sans IPv4 publique : NAT et rebond SSH par Pangolin, point unique accepté | acceptée |
@@ -74,3 +74,4 @@ au plus :
 | [0027](0027-connexions-ssh-cles-connues.md) | Connexions SSH : clés connues tracées sur ntfy, tout le reste sonne sur Telegram | acceptée |
 | [0028](0028-cle-ssh-de-ci-root.md) | La clé SSH de la CI reste équivalente à root : risque accepté | acceptée |
 | [0029](0029-fenetre-de-calme-du-deploiement.md) | Fenêtre de calme : pas de déploiement automatique de 19:00 à 08:00 (Paris), rattrapage au matin | acceptée |
+| [0030](0030-pocket-id-fournisseur-identite-pilote.md) | Pocket ID, fournisseur d'identité en pilote (remplace 0016), public hors du filtre FR/DE : exception à 0002 | acceptée (pilote) |

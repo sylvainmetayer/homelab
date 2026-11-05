@@ -1,0 +1,98 @@
+---
+- name: Warn that Pocket ID has no encryption key
+  when: not pocket_id_enabled | bool
+  ansible.builtin.debug:
+    msg: >-
+      pocket_id_encryption_key absente de secrets/ansible.sops.yaml : Pocket ID
+      n'est pas déployé, et le routeur Traefik de pangolin_idp_host reste éteint
+      (docs/runbooks/pocket-id.md).
+
+- name: Deploy Pocket ID
+  when: pocket_id_enabled | bool
+  become: true
+  block:
+    - name: Refuse to deploy Pocket ID without its public host name
+      ansible.builtin.assert:
+        that:
+          - pocket_id_host | length > 0
+          - pocket_id_enc_key | length >= 16
+        fail_msg: >-
+          pocket_id_host (host_vars/pangolin) vide, ou pocket_id_encryption_key
+          de moins de 16 octets (le minimum de Pocket ID).
+        quiet: true
+
+    - name: Ensure the Pocket ID folder exists
+      ansible.builtin.file:
+        path: "{{ pocket_id_base_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    # Le conteneur y écrit sans privilège : la base SQLite (empreintes des
+    # passkeys, jetons) est à lui seul. root la lit pour la sauvegarde.
+    - name: Ensure the Pocket ID data folder belongs to its user
+      ansible.builtin.file:
+        path: "{{ pocket_id_base_path }}/data"
+        state: directory
+        owner: "{{ pocket_id_uid }}"
+        group: "{{ pocket_id_gid }}"
+        mode: "0700"
+
+    - name: Template the Pocket ID compose configuration
+      diff: false
+      ansible.builtin.template:
+        src: compose.yaml
+        dest: "{{ pocket_id_base_path }}/compose.yaml"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Template the Pocket ID environment
+      diff: false
+      ansible.builtin.template:
+        src: env.j2
+        dest: "{{ pocket_id_base_path }}/.env"
+        owner: root
+        group: root
+        mode: "0600"
+
+    # Pangolin : pas de docker_service (ni dc@ ni lingering). `up -d` recrée ce
+    # dont le compose ou le .env a changé et ne touche pas au reste ; la restart
+    # policy relance le conteneur au démarrage de Docker. Il faut le réseau
+    # « pangolin », créé par la pile (rôle pangolin, juste avant).
+    - name: Start Pocket ID with docker compose
+      when: pocket_id_compose_up | bool
+      ansible.builtin.command:
+        cmd: docker compose up -d --remove-orphans
+        chdir: "{{ pocket_id_base_path }}"
+      register: pocket_id_compose_result
+      changed_when: pocket_id_compose_result.stderr is search('(Creat|Recreat|Start|Remov)(ed|ing)')
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml). La base
+# n'existe qu'après le premier démarrage : le premier déploiement ne la trouve
+# pas, le suivant la copie (docs/runbooks/pocket-id.md).
+- name: Configure borgmatic backup for Pocket ID
+  when: pocket_id_enabled | bool and pocket_id_backup_enabled | bool
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: pocket_id
+    borgmatic_app_title: Pocket ID
+    borgmatic_app_target: "{{ pocket_id_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ pocket_id_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ pocket_id_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - "{{ pocket_id_base_path }}/data"
+      - "{{ pocket_id_base_path }}/compose.yaml"
+      - "{{ pocket_id_base_path }}/.env"
+    # La copie vivante de la base est exclue par le gabarit ; la base GeoLite2
+    # (audit des connexions), si elle est activée un jour, se retélécharge.
+    borgmatic_app_exclude_patterns:
+      - "{{ pocket_id_base_path }}/data/GeoLite2-City.mmdb"
+    borgmatic_app_sqlite_databases:
+      - "{{ pocket_id_base_path }}/data/pocket-id.db"

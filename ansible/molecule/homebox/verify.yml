@@ -107,3 +107,18 @@
         that:
           - "'HBOX_OPTIONS_ALLOW_REGISTRATION=false' in homebox_env_lines"
           - homebox_env_lines | select('match', '^HBOX_AUTH_API_KEY_PEPPER=[0-9a-f]{64}$') | list | length == 1
+
+    # Pilote Pocket ID (ADR 0030) : les clés SOPS factices existent, le bouton
+    # OIDC est rendu, et le login local reste ouvert (secours si l'IdP tombe).
+    - name: Assert homebox OIDC is configured and the local login stays open
+      vars:
+        homebox_env_lines: "{{ (homebox_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'HBOX_OIDC_ENABLED=true' in homebox_env_lines"
+          - "'HBOX_OIDC_ISSUER_URL=https://id.sylvain.cloud' in homebox_env_lines"
+          - "'HBOX_OIDC_CLIENT_ID=molecule-pocket-id-homebox-client-id' in homebox_env_lines"
+          - "'HBOX_OIDC_CLIENT_SECRET=molecule-pocket-id-homebox-client-secret' in homebox_env_lines"
+          - "'HBOX_OPTIONS_ALLOW_LOCAL_LOGIN=true' in homebox_env_lines"
+          - "'HBOX_OIDC_AUTO_REDIRECT=false' in homebox_env_lines"
+        quiet: true

@@ -125,6 +125,23 @@ partout).
 | Betisier (`betisier.sylvain.dev`) | navigateur (appli de TP, publique) | l'appli elle-même ; FR et DE seulement |
 | Promptoramix | serveurs du tournoi | HMAC ; et son `ACCEPT` de `/*` lève aussi le filtre pays |
 
+### Pocket ID : hors Pangolin, et sans effet sur ces clients
+
+`id.sylvain.cloud` (pilote du fournisseur d'identité,
+[ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md)) n'est **pas** une
+ressource Pangolin : un routeur Traefik direct du rôle `pangolin`, donc hors de
+ce tableau, des règles pays et de tout chemin ouvert de ce document. Il est
+joignable du monde entier (un passkey se présente de n'importe où ; en voyage,
+aucun pays à déclarer pour lui). Ce que ça change pour les clients : **rien**.
+Les applis mobiles ci-dessus passent par des jetons d'accès Pangolin, des
+en-têtes, des mots de passe d'application ou des chemins ouverts, jamais par
+la page de login du mur, que le pilote ne remplace pas (les comptes internes
+restent) ; aucun jeton ni chemin n'est ajouté ou retiré. À une bascule future
+du mur vers Pocket ID, seul le login du navigateur changerait (PWA comprises) ;
+les en-têtes `P-Access-Token-*`, les clés d'API et les chemins ouverts ne
+bougent pas. Homebox n'a pas d'appli mobile ; son compte local (Homepage s'en
+sert) reste.
+
 ## L'IP de la maison
 
 `ACCEPT` de `home_ip` (clé de `secrets/secrets.sops.yaml`) en priorité 9 sur

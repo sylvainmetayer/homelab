@@ -17,6 +17,7 @@
   "pangolin": {"host": "pangolin", "repo": "pangolin", "role": "pangolin", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["user", "orgs", "sites", "resources"]}},
   "paperless": {"host": "docker", "repo": "paperless", "role": "paperless_ngx", "databases": ["postgresql"], "paused": true, "expected_tables": {"paperless": ["auth_user", "documents_document"]}},
   "papra": {"host": "docker", "repo": "papra", "role": "papra", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["users", "documents"]}, "allow_empty_databases": ["tasks.sqlite"]},
+  "pocket_id": {"host": "pangolin", "repo": "pocket_id", "role": "pocket_id", "databases": ["sqlite"], "expected_tables": {"pocket-id.db": ["users", "oidc_clients"]}},
   "rss": {"host": "docker", "repo": "rss", "role": "rss", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["category", "feed"]}},
   "speedtest_tracker": {"host": "docker", "repo": "speedtest_tracker", "role": "speedtest_tracker", "databases": ["sqlite"], "expected_tables": {"database.sqlite": ["users", "results"]}},
   "trek": {"host": "docker", "repo": "trek", "role": "trek", "databases": ["sqlite"], "expected_tables": {"travel.db": ["users", "trips"]}},

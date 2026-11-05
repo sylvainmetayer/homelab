@@ -159,6 +159,17 @@ besoin).
 Le mode d'emploi (applis, cast, dépôt et nommage des fichiers, causes de
 transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 
+## Le fournisseur d'identité, une exception (pilote)
+
+`id.sylvain.cloud` (Pocket ID, [ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md))
+est la seule adresse publique qui ne passe ni par le mur SSO ni par le filtre
+FR/DE : le Traefik de Pangolin la route directement vers le conteneur `pocket-id`
+de la même VM (un routeur du fichier dynamique, pas une ressource), derrière la
+limite de débit par IP, CrowdSec et les en-têtes de l'entrypoint. Pendant le
+pilote, il ne sert qu'au compte de Sylvain (un utilisateur externe de Pangolin,
+et Homebox) ; le mur reste aux comptes internes. Procédure et secours :
+[runbooks/pocket-id.md](runbooks/pocket-id.md).
+
 ## Où tourne quoi
 
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
