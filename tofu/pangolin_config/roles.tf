@@ -18,7 +18,6 @@ locals {
     "wiki",
     "paperless",
     "papra",
-    "stirling-pdf",
     "flip-planning",
     "demo-planning",
     "demo-planning-kc",
