@@ -389,7 +389,8 @@
 
     # Fournisseur d'identité (rôle pocket_id, ADR 0030) : un routeur direct,
     # sans badger (il sert le login du mur SSO), avec la limite de débit, et
-    # limité à home_ip tant que pocket_id_setup_phase vaut true. Le reste du
+    # sans restriction d'IP depuis la fin de la mise en place (pocket_id_setup_phase
+    # à false, host_vars/pangolin). Le reste du
     # fichier est celui d'avant (assertions ci-dessus et ci-dessous).
     - name: Assert Traefik routes Pocket ID directly, outside the SSO wall
       vars:
@@ -403,10 +404,10 @@
           - idp_routers['pocket-id-router'].entryPoints == ['websecure']
           - idp_routers['pocket-id-router'].tls.certResolver == 'letsencrypt'
           # Jamais Badger : ce serait le mur SSO devant le fournisseur du mur.
-          - idp_routers['pocket-id-router'].middlewares == ['pocket-id-allowlist', 'pocket-id-ratelimit']
+          - idp_routers['pocket-id-router'].middlewares == ['pocket-id-ratelimit']
           - idp_routers['pocket-id-router-redirect'].middlewares == ['redirect-to-https']
           - "dynamic_config.http.services['pocket-id-service'].loadBalancer.servers | map(attribute='url') | list == ['http://pocket-id:1411']"
-          - dynamic_config.http.middlewares['pocket-id-allowlist'].ipAllowList.sourceRange == [home_ip]
+          - "'pocket-id-allowlist' not in dynamic_config.http.middlewares"
           - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.average == 20
           # Aucune autre route touchée : l'entrypoint garde ses deux middlewares.
           - idp_routers['next-router'].middlewares == ['badger']
