@@ -35,16 +35,11 @@ lié à cette seule ressource.
 
 `mem_limit: 256m` est une valeur prudente, **à remesurer** sur le Pi.
 
-**Question ouverte : un écran de TV sans login.** Le SSO de Pangolin demande
-une connexion interactive ; un navigateur de TV ne peut pas la faire et aucun
-chemin public n'est ouvert (la clé donne la photothèque à qui atteint la
-page). Pistes, à choisir par Sylvain, aucune faite ici : (1) l'authentification
-par en-tête de Pangolin, comme l'appli Android de Grocy (identifiants HTTP
-Basic dans l'URL, `docs/acces-mobile.md`), si le navigateur de la TV les
-accepte ; (2) un mini-PC ou une clé HDMI qui garde une session SSO ouverte ;
-(3) publier le port 3000 du Pi sur le LAN (`ports: 192.168.1.x:3000:3000`) avec
-`KIOSK_PASSWORD`, sans passer par Pangolin, contre la règle « aucun port
-d'appli publié » du Pi.
+**La TV de la maison.** Elle ne peut pas passer le SSO : l'adresse de la maison
+l'évite (`immich_kiosk_home_ip`, `tofu/pangolin_config/website_immich_kiosk.tf`).
+Tout appareil derrière cette adresse, Wi-Fi invité compris, voit donc le cadre
+photo sans connexion. Hors de la maison, le SSO reste exigé. Si l'IP de la ligne
+change, mettre à jour `home_ip` et appliquer `pangolin_config`.
 
 ## Immich Swipe (`swipe-photos.sylvain.cloud`)
 

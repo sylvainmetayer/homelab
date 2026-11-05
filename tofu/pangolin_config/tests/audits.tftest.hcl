@@ -137,6 +137,11 @@ override_resource {
   values = { id = 2006 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.immich_kiosk_home_ip
+  values = { id = 2099 }
+}
+
 # Un identifiant commun à toutes les instances, comme pour les règles pays.
 override_resource {
   target = pangolin_resource_rule.backslash_guard

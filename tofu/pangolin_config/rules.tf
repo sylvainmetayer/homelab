@@ -43,8 +43,8 @@ locals {
   #              country rules but keep the authentication;
   #            - exemple_planning_drop, the DROPs of the public showcase
   #              (website_exemple_planning.tf);
-  #            - the home-IP ACCEPTs at 9 (immich_home_ip, dawarich_home_ip,
-  #              trek_home_ip). Behind the country PASS they were never reached
+  #            - the home-IP ACCEPTs at 9 (immich_home_ip, immich_kiosk_home_ip,
+  #              dawarich_home_ip, trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
   #            Rules sharing a priority on one resource all carry the same
   #            action, so the order Pangolin picks between them cannot matter
@@ -515,6 +515,7 @@ locals {
       pangolin_resource_rule.beszel_agent_connect,
       pangolin_resource_rule.dawarich_home_ip,
       pangolin_resource_rule.immich_home_ip,
+      pangolin_resource_rule.immich_kiosk_home_ip,
       pangolin_resource_rule.trek_home_ip,
       pangolin_resource_rule.trek_mcp,
       pangolin_resource_rule.victoria_logs_insert,
