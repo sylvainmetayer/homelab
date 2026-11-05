@@ -14,7 +14,7 @@ cette page sur GitHub ou dans un clone local.
   les alertes ne viennent plus que de Telegram** (Uptime Kuma est chez PikaPods).
 
 Ne tombent pas : Immich (Newt du Pi), Flip Planning, Pangolin, les sites
-Cloudflare Pages. Le DNS tient : le Pi garde le second Blocky, les clients
+Cloudflare Pages. Le DNS tient : le Pi garde son Blocky (secondaire du DHCP), les clients
 basculent ([dns-blocky.md](dns-blocky.md)).
 
 ## Diagnostic
