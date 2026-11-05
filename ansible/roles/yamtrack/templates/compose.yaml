@@ -9,7 +9,11 @@ services:
     container_name: yamtrack-redis
     security_opt:
       - no-new-privileges:true
-    command: redis-server --save "" --appendonly no
+    # maxmemory sous le mem_limit : un cache qui grossit (réponses des sources
+    # de métadonnées, 24 h) évince ses clés à échéance au lieu de faire tuer
+    # Redis par le cgroup et de perdre la file Celery, dont les clés n'ont pas
+    # d'échéance et ne sont jamais évincées.
+    command: redis-server --save "" --appendonly no --maxmemory 100mb --maxmemory-policy volatile-lru
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

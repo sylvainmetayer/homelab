@@ -5,7 +5,7 @@
 # No path opened, no access token.
 #
 # Its optional Jellyfin connection (watch events pushed by Jellyfin to
-# /api/webhook/jellyfin/<token>) is NOT opened here: Jellyfin's server-to-server
+# /webhook/jellyfin/<token>) is NOT opened here: Jellyfin's server-to-server
 # POST would hit the SSO wall. Opening it is a path bypass (local.path_bypasses,
 # rules.tf, plus a path_bypass_images.json entry) to decide separately
 # (ansible/roles/yamtrack/README.md).
