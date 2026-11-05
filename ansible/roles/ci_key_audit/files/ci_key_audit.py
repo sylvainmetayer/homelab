@@ -287,7 +287,7 @@ class Checker:
             print(f"push {status} en échec ({type(error).__name__})", file=sys.stderr)
             return False
         if result.returncode != 0:
-            print(f"push {status} en échec (curl {result.returncode})", file=sys.stderr)
+            print(f"push {status} en échec (uptime-push {result.returncode})", file=sys.stderr)
         return result.returncode == 0
 
 
