@@ -27,17 +27,17 @@ healthlog_api_token_hmac_key: "{{ (backup_passphrase ~ '-healthlog-api-token-hma
 # de chiffrement ») ; sinon l'abonnement à l'ancienne URL reste chez Withings.
 healthlog_withings_webhook_secret: "{{ (backup_passphrase ~ '-healthlog-withings-webhook') | hash('sha256') }}"
 
-# Borgmatic backup configuration
 # Connexion OIDC par Pocket ID (tofu/pangolin_config/pocket_id.tf, ADR 0030),
 # Sylvain seul (groupe healthlog). Client lu dans les sorties du state : rendu
 # seulement après l'apply. Login par mot de passe et passkey gardé
-# (OIDC_ONLY=false) ; un compte créé par SSO n'a pas de mot de passe, secours :
-# scripts/reset-password.mjs dans le conteneur.
+# (OIDC_ONLY=false). Inscription fermée (README, étape 4) : le SSO ne crée
+# aucun compte, il ne relie que le compte existant.
 healthlog_oidc_client_id: "{{ terraform_outputs.pocket_id_healthlog_client_id.value | default('') }}"
 healthlog_oidc_client_secret: "{{ terraform_outputs.pocket_id_healthlog_client_secret.value | default('') }}"
 healthlog_oidc_enabled: "{{ healthlog_oidc_client_id | length > 0 and healthlog_oidc_client_secret | length > 0 }}"
 healthlog_oidc_issuer: https://id.sylvain.cloud
 
+# Borgmatic backup configuration
 healthlog_backup_enabled: true
 healthlog_backup_borgmatic_target: "{{ backup_storage_box_url }}/healthlog"
 healthlog_backup_encryption_passphrase: "{{ backup_passphrase }}"

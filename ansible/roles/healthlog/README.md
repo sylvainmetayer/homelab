@@ -46,6 +46,16 @@ Aucune clé SOPS : mot de passe de la base, `ENCRYPTION_KEY`,
    filtre déjà, mais rien ne sert de la laisser ouverte.
 5. Activer la double authentification du compte (Paramètres → Sécurité).
 
+## Connexion par Pocket ID
+
+Bouton « Pocket ID » en plus du mot de passe et du passkey (`OIDC_ONLY=false`).
+Le client OIDC est déclaré par `tofu/pangolin_config/pocket_id.tf` (groupe
+`healthlog`, Sylvain seul) ; le rôle lit son identifiant et son secret dans les
+sorties du state (`terraform_outputs`), rien dans SOPS. Inscription fermée
+(étape 4) : le SSO ne crée aucun compte, il relie l'existant une fois
+(e-mail vérifié dans Pocket ID, puis mot de passe dans les 10 minutes).
+Procédure : [docs/runbooks/pocket-id.md](../../../docs/runbooks/pocket-id.md).
+
 ## Accès
 
 Derrière le SSO Pangolin, les règles pays (FR, DE) et le login de HealthLog.

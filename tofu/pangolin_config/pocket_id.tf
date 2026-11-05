@@ -162,8 +162,8 @@ output "pocket_id_trek_client_secret" {
 }
 
 # HealthLog (données de santé) : Sylvain seul, groupe healthlog. Pas de rôle
-# par claim ; un membre du groupe sans compte en recevrait un neuf, donc le
-# groupe reste étroit. Rappel comparé octet par octet (docs/self-hosting/sso.md
+# par claim. L'inscription de HealthLog est fermée : le SSO ne crée aucun
+# compte (oidc_registration_disabled), il ne relie que l'existant. Rappel comparé octet par octet (docs/self-hosting/sso.md
 # de HealthLog 1.46.5), sans barre finale.
 resource "pocketid_group" "healthlog" {
   name          = "healthlog"
