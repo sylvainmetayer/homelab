@@ -121,6 +121,11 @@ nav:
       - runbooks/planning-vitrine.md
       - runbooks/immich-swipe.md
       - runbooks/homepage-cartes.md
+      - runbooks/disque-nas-mort.md
+      - runbooks/hote-proxmox-mort.md
+      - runbooks/pi-mort.md
+      - runbooks/bbox-remplacee.md
+      - runbooks/intrusion-premiere-heure.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md

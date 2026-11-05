@@ -38,6 +38,11 @@ choix dans [../adr/](../adr/README.md).
 | planning.sylvain.dev (Cloudflare Pages) : déploiement en échec, domaine en attente, jeton du beacon, dérive du plan de `tofu/planning` | [planning-vitrine.md](planning-vitrine.md) |
 | Immich Swipe (swipe-photos.sylvain.cloud) : erreur de connexion, mode aléatoire, rotation de la clé d'API, rôle Pangolin `immich-swipe` | [immich-swipe.md](immich-swipe.md) |
 | Homepage : carte en erreur ou absente (agenda `ical-filter`, Supervision `kuma-summary`, cartes d'applis `apps-summary`) | [homepage-cartes.md](homepage-cartes.md) |
+| Un disque du NAS meurt, ou le NAS entier : ce qui en dépend (vzdump, Jellyfin, kDrive, MediaManager), RAID 1, remise en route | [disque-nas-mort.md](disque-nas-mort.md) |
+| L'hôte Proxmox est mort : réinstaller, restaurer la VM docker et le LXC newt depuis vzdump, ordre, conséquences (Blocky, Newt `proxmox-lxc`) | [hote-proxmox-mort.md](hote-proxmox-mort.md) |
+| Le Raspberry Pi ou son SSD est mort : Immich depuis Borg, Blocky, IP et réservation | [pi-mort.md](pi-mort.md) |
+| La Bbox est remplacée : DHCP, DNS, réservations d'adresses, IP publique (`home_ip`), Wi-Fi | [bbox-remplacee.md](bbox-remplacee.md) |
+| Intrusion supposée, la première heure : isoler, garder les traces, reconstruire, secrets à tourner, dépôts Borg, clé de CI, prévenir les utilisateurs de Flip Planning | [intrusion-premiere-heure.md](intrusion-premiere-heure.md) |
 
 ## Avant de commencer
 
