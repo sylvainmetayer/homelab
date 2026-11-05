@@ -825,6 +825,9 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["jellystat"]
   values = { push_token = "push-jellystat" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["yamtrack"]
   values = { push_token = "push-yamtrack" }
 }
