@@ -32,10 +32,10 @@ pas en SSH avec un agent transféré.
 
 | Hôte | Couper |
 |---|---|
-| VM docker | `qm config 100 \| grep net0`, puis `qm set 100 --net0 <même ligne>,link_down=1` |
-| LXC newt | `pct set 200 --net0 <même ligne>,link_down=1` (plus d'accès à la maison ni de CI) |
+| VM docker | `qm config 100 \| grep net0`, puis `qm set 100 --net0 <la ligne sans le préfixe net0:>,link_down=1` |
+| LXC newt | `pct config 200 \| grep net0`, puis `pct set 200 --net0 <la ligne sans le préfixe>,link_down=1` (plus d'accès à la maison ni de CI) |
 | Pi, NAS, hôte Proxmox | débrancher le câble réseau (l'hôte Proxmox, c'est aussi la VM et le LXC) |
-| Pangolin | pas de coupure, c'est l'entrée de tout : `sudo ufw deny from <IP>`, fail2ban, console Hetzner |
+| Pangolin | pas de coupure, c'est l'entrée de tout. SSH : `sudo ufw insert 1 deny from <IP>` (un `deny` simple s'ajoute **après** les `allow` et ne bloque rien). 80/443 : les ports publiés par Docker contournent ufw, utiliser `docker exec crowdsec cscli decisions add --ip <IP> --duration 24h` (le bouncer ne couvre que `websecure`) ou le pare-feu de la console Hetzner |
 | flip | pas d'IP publique : détacher du réseau privé dans la console Hetzner (à vérifier) |
 
 **VM docker : exporter avant de couper** (étape 2). VictoriaLogs y reçoit les
@@ -57,8 +57,10 @@ journaux de tous les hôtes, et la couper les arrête.
   `systemctl list-timers`, les `authorized_keys` de `sylvain` et de root. Copier
   la sortie vers le poste, tirée par le poste, jamais poussée depuis l'hôte.
 - **Disque**, VM ou LXC : `vzdump <id> --storage nas-backup --mode snapshot
-  --compress zstd --prune-backups keep-all=1`. **Sans ce dernier réglage**, le
-  `keep-last=2` du storage élague une archive saine. ~50 Gio pour la VM.
+  --compress zstd --prune-backups keep-all=1 --protected 1`. **Sans
+  `keep-all=1`**, le `keep-last=2` du storage élague une archive saine ;
+  **sans `--protected 1`**, le job de 21:00 (`keep-last=2`) élague celle-ci dans
+  les deux nuits. ~50 Gio pour la VM.
   Hetzner : snapshot du serveur dans la console ; pour Pangolin, convertir une
   image « Backups » en snapshot d'abord
   ([reconstruction-pangolin.md](reconstruction-pangolin.md)). Pi : SSD cloné
@@ -125,7 +127,10 @@ première trace n'est pas fiable.
 quotidiens (03:00 UTC, après borgmatic), qu'aucun sous-compte ne peut effacer.
 Plus ancien, un effacement ne se prouve ni ne se défait. Restauration d'un
 snapshot : console Hetzner, Storage Box, Snapshots, compte principal
-(procédure exacte : à vérifier). Le test de la CI (1er et 15 du mois) ne
+(procédure exacte : à vérifier). **Ne pas « revenir » à un snapshot sur toute la
+Storage Box** : cela écraserait les sauvegardes plus récentes de tous les hôtes.
+Lire le snapshot en lecture seule (dossier `.zfs/snapshot` : à vérifier) et n'en
+recopier que le dépôt effacé. Le test de la CI (1er et 15 du mois) ne
 remplace pas ce contrôle.
 
 ### 6. La clé de CI (ADR 0028)
@@ -153,8 +158,10 @@ en clair), ou la clé de CI : sans attendre d'être sûr.
 
 - **D'abord le responsable du traitement** (l'organisateur,
   `flip_planning_legal_responsable_traitement`, dans SOPS, pas dans le dépôt),
-  tout de suite. Il décide d'avertir la CNIL (72 h après en avoir eu
-  connaissance, RGPD art. 33) et les personnes (art. 34). Sylvain héberge :
+  tout de suite. Il évalue le risque et notifie la CNIL, sauf si la
+  violation est improbable de présenter un risque pour les personnes (72 h après
+  en avoir eu connaissance, RGPD art. 33), et avertit les personnes si le risque
+  est élevé (art. 34). Sylvain héberge :
   son statut de sous-traitant (art. 33, al. 2) est à vérifier au contrat.
 - **Les utilisateurs**, par lui ou avec lui : ce qui est su, ce qui ne l'est
   pas, ce qu'ils doivent faire. Sans délai si le service est coupé ou le
