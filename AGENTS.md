@@ -71,7 +71,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 
 ## Current state worth knowing
 
-- `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.2`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
+- `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.3`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
 - Papra (role `papra`, `papra.sylvain.cloud`) is on trial as Paperless-ngx's replacement (Paperless is paused): whichever loses is removed with `remove-app`. Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
 - MediaManager (role `mediamanager`, NAS, `https://mediamanager.sylvain.cloud` private, via `nas_proxy` like Jellyfin) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun (ProtonVPN, NL/CH), rendered because `mediamanager_wireguard_private_key` is set (its certificate expires yearly); its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
