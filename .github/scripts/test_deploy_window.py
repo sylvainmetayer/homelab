@@ -68,6 +68,10 @@ class CronTest(unittest.TestCase):
             self.assertTrue(opened, f"no cron lands in the window on {day:%Y-%m-%d}")
             day += timedelta(days=1)
 
+    def test_catch_up_does_not_read_a_push_only_field(self):
+        # A schedule event has no `after`: reading it would empty the catch-up.
+        self.assertNotIn("github.event.after", WORKFLOW.read_text())
+
     def test_a_cron_hits_the_opening_summer_and_winter(self):
         for d in (utc(2026, 1, 15), utc(2026, 7, 15)):
             hours = [d.replace(hour=h, minute=m).astimezone(PARIS).hour for h, m in self.slots()]
