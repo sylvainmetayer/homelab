@@ -26,6 +26,13 @@ on:
       - docs/**
       - mkdocs.yml
       - .github/scripts/mkdocs_*.py
+  # Fenêtre de calme (ADR 0029) : un push entre 19:00 et 08:00 (Paris) est
+  # annulé par le job `window`, et ces crons déploient le lendemain ce qu'il a
+  # retenu. 06:00 et 07:00 UTC : 08:00 Paris l'été, puis l'hiver ; l'autre
+  # tombe à 09:00 et ne trouve rien à faire. 09:00 UTC est le filet si GitHub
+  # retarde ou saute un schedule (non garanti).
+  schedule:
+    - cron: "0 6,7,9 * * *"
   workflow_dispatch:
     inputs:
       playbook:
@@ -59,8 +66,40 @@ concurrency:
 permissions: {}
 
 jobs:
+  # Fenêtre de calme : fermée, le run s'annule lui-même. Un run annulé n'est
+  # jamais « le dernier run réussi » (Determine changed files) : le suivant
+  # rattrape tous ses commits. Un job `deploy` simplement sauté laisserait le
+  # run vert, donc base du suivant, et perdrait ces commits. Le `exit 1` final
+  # ne sert que si l'annulation tardait : rouge plutôt que vert.
+  window:
+    name: window
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      actions: write # gh run cancel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Quiet window
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 -I .github/scripts/deploy_window.py && exit 0
+          echo "::notice::quiet window (19:00-08:00 Paris): run cancelled, the next one in the window deploys these commits"
+          gh run cancel "$RUN_ID"
+          sleep 120
+          exit 1
+
   deploy:
     name: deploy-docker-app
+    needs: window
     runs-on: ubuntu-26.04
     # Secrets de déploiement (clé age, clé SSH, OLM) : environnement lisible
     # depuis main seulement (tofu/github/environments.tf).
@@ -113,7 +152,7 @@ jobs:
             exit 0
           fi
 
-          # Diff from the head of the last successful PUSH run, not from this
+          # Diff from the head of the last successful push or schedule run, not from this
           # push's own `before`: a run cancelled while pending (one pending run
           # per concurrency group), or a failed one, is then caught up here.
           # A failed run never becomes the base, so its changes are retried
@@ -121,7 +160,8 @@ jobs:
           # Dispatch runs never count: forced tags deploy only part of main.
           # An API error fails the run: deploying only this push and turning
           # green would make it the base and lose the missed commits for good.
-          last_ok="$(gh api "repos/$REPO/actions/workflows/deploy-docker-app.yaml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""')"
+          # Push and schedule runs count, dispatch runs never.
+          last_ok="$(gh api "repos/$REPO/actions/workflows/deploy-docker-app.yaml/runs?branch=main&status=success&per_page=30" --jq '[.workflow_runs[] | select(.event != "workflow_dispatch")][0].head_sha // ""')"
           base=""
           if [[ "$last_ok" =~ ^[0-9a-f]{40}$ ]] && [ "$last_ok" != "$AFTER_SHA" ] && git cat-file -e "$last_ok^{commit}" 2>/dev/null; then
             if git merge-base --is-ancestor "$AFTER_SHA" "$last_ok"; then
@@ -134,6 +174,17 @@ jobs:
             fi
             if git merge-base --is-ancestor "$last_ok" "$AFTER_SHA"; then
               base="$last_ok"
+            fi
+          fi
+
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            # The morning catch-up of the quiet window: main since the last
+            # success, or nothing. Never "this push only" (there is no push).
+            if [ -z "$base" ]; then
+              echo "::notice::schedule: nothing to catch up (main is already deployed, or no usable last successful run)"
+              echo "files=" >> "$GITHUB_OUTPUT"
+              echo "base=" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
           fi
 
