@@ -84,6 +84,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Human map of the homelab (FR) | `docs/architecture.md` |
 | Data matrix: per dataset, copies, what survives the loss of the house, gaps (FR) | `docs/matrice-des-donnees.md` |
 | Incident procedures (FR) | `docs/runbooks/README.md` |
+| Past incidents (symptom, cause, what was missing, action), leaving for days (absence mode) | `docs/incidents/README.md`, `docs/runbooks/mode-absence.md` |
 | Architecture decisions | `docs/adr/README.md` |
 | Playbooks per host group, inventory, flip bastion, `pangolin_config` state read, config layering | `docs/conventions/ansible.md` |
 | Secrets: SOPS files, age recipients, `load_vars`, precedence, rotation inventory | `docs/conventions/secrets.md` |
