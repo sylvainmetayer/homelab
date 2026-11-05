@@ -6,7 +6,8 @@ Gramps et scanopy répondaient **503** (« no available server » de Traefik),
 puis les trois cibles de Flip Planning ont fini à `hcHealth="unhealthy"` de la
 même façon (`websites.tf`). Durée : le dépôt dit deux choses, « pendant des
 heures » (`notifications.tf`) et « pendant des semaines » (`resource_defaults.tf`).
-Laquelle est juste : à confirmer. Date : avant le 31/08/2026 (à confirmer).
+Laquelle est juste : à confirmer. Date : corrigé le 30/08/2026 (commits `8a9aaded`, `08c63c6f`) ; début de la
+panne : à confirmer.
 
 ## Cause
 

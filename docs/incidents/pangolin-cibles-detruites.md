@@ -2,27 +2,31 @@
 
 ## Symptôme
 
-Une mise à jour de `tofu/pangolin_config` a **détruit les cibles** (targets)
-de la ressource Flip Planning (`AGENTS.md`, règle « Pangolin provider »). Date,
-durée de la coupure, ressources touchées au-delà de Flip Planning : à
-confirmer, le dépôt ne les donne pas.
+Les **cibles** (targets) de la ressource Flip Planning ont été **détruites**
+(`AGENTS.md`, règle « Pangolin provider » : « two outages: flip-planning's
+targets destroyed… »). Ce qui les a détruites, la date, la durée de la
+coupure, les ressources touchées au-delà de Flip Planning : à confirmer, le
+dépôt ne les donne pas.
 
 ## Cause
 
-Des attributs `optional+computed` de `pangolin_resource` laissés sans valeur.
-Non déclarés, ils veulent dire « accepter ce que l'API contient » : ils
-apparaissent « (known after apply) » à chaque mise à jour, et un plan ne peut
-jamais contredire le serveur (`resource_defaults.tf`). Les cinq épinglés depuis :
-`ssl`, `enabled`, `block_access`, `email_whitelist_enabled`, `sticky_session`.
-Le chemin exact qui a détruit les cibles : à confirmer.
+À confirmer : le dépôt ne décrit pas le mécanisme. Il établit seulement la
+classe de panne, que `AGENTS.md` range avec l'autre : des attributs
+`optional+computed` non déclarés veulent dire « accepter ce que l'API
+contient », ils apparaissent « (known after apply) » à chaque mise à jour, et
+un plan ne peut jamais contredire le serveur (`resource_defaults.tf`). Les cinq
+attributs de `pangolin_resource` épinglés depuis : `ssl`, `enabled`,
+`block_access`, `email_whitelist_enabled`, `sticky_session`. Que l'un d'eux ait
+détruit les cibles n'est pas écrit.
 
 ## Ce qui a manqué
 
 - Un plan qui dit « No changes » **quelle que soit la valeur réelle** : rien
   ne signalait la dérive tant que rien ne mettait ces ressources à jour
   (`resource_defaults.tf`).
-- Une règle écrite : elle n'est entrée dans `AGENTS.md` qu'après deux pannes
-  (celle-ci et [la suivante](pangolin-cibles-sans-sonde-503.md)).
+- Une règle écrite : `AGENTS.md` la donne comme tirée de deux pannes (celle-ci
+  et [la suivante](pangolin-cibles-sans-sonde-503.md)) ; quand elle a été
+  écrite : à confirmer.
 
 ## Action
 
