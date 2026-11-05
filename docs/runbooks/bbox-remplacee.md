@@ -52,7 +52,7 @@ changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
      Ansible), [rotation-des-secrets.md](rotation-des-secrets.md) pour la
      méthode (`sops set`, commit dans le sous-module, bump par PR) ;
    - `tofu apply` dans `tofu/pangolin_config` : les règles `ACCEPT` de
-     priorité 9 d'Immich, Dawarich et TREK suivent ([acces-mobile.md](../acces-mobile.md)) ;
+     priorité 9 d'Immich (et de son kiosque), Dawarich et TREK suivent ([acces-mobile.md](../acces-mobile.md)) ;
    - `ansible-playbook pangolin.yaml --check --diff` puis sans `--check` (liste
      blanche de CrowdSec, [crowdsec.md](crowdsec.md)).
 

@@ -74,8 +74,8 @@ Ansible, et le dépôt ne peut pas le vérifier.
 
 ## Contrôle trimestriel à la main (usure, secteurs)
 
-Lecture seule, en root sur `pve`, avec `sudo` sur le NAS (`smartctl` y est :
-à vérifier ; l'agent Beszel du NAS emporte le sien).
+Lecture seule, en root sur `pve`, avec `sudo` sur le NAS (`/usr/sbin/smartctl` y est, relevé le
+05/11/2026 ; l'agent Beszel du NAS emporte le sien : à vérifier).
 
 ```bash
 smartctl -H -A /dev/sda    # sur chaque disque : sda, sdb, sdc au NAS ; sda sur pve
@@ -97,7 +97,7 @@ UGOS n'est pas géré par le dépôt (aucune modification système d'UGOS) : le 
 `nas` ne touche que les réglages NFS. **Pas de timer posé par le dépôt**, parce
 qu'un `btrfs scrub` programmé de l'extérieur ajoute une unité systemd au système
 d'UGOS, peut doubler un scrub qu'UGOS programme déjà, et que le RAID 1 est
-probablement un `md` sous Btrfs (volume sur `/dev/mapper`, voir « Relevés »), ce
+un `md` sous Btrfs (`md1`, puis LVM, voir « Relevés »), ce
 qui change ce que le scrub répare.
 
 **À vérifier dans UGOS** (menu à chercher : stockage, volume `volume1`,
@@ -119,9 +119,9 @@ sudo btrfs device stats /volume1   # tous les compteurs doivent être à 0
 
 Des compteurs non nuls, ou des erreurs non corrigeables, valent une alerte :
 copier ce qui compte, puis [disque-nas-mort.md](disque-nas-mort.md). Le RAID 1 étant
-probablement un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
+un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
 pas depuis le second disque : la vérification du RAID (`md`) est l'affaire
-d'UGOS, à vérifier aussi.
+d'UGOS, à vérifier aussi (`cat /proc/mdstat` : `[UU]` tant que les deux disques sont là).
 
 ## Ce qui reste à décider
 
@@ -152,7 +152,11 @@ mais rien ne doit compter sur lui, aucune copie ni sauvegarde (la règle « remp
 le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 
 Volume `/volume1` : `btrfs scrub status` répond « no stats available », aucun
-scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le volume est posé
-sur un `/dev/mapper` : le RAID 1 serait donc un `md` sous Btrfs (à confirmer),
-et un scrub détecterait une corruption des données sans la réparer depuis l'autre
-disque.
+scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le RAID 1 est un `md` : `lsblk` montre
+`sda2` et `sdb2` en `md1` (raid1, `[UU]` dans `/proc/mdstat`), puis LVM
+(`ug_E300EF_…-volume1`), puis Btrfs monté sur `/volume1`. Un scrub détecte donc
+une corruption des données sans la réparer depuis l'autre disque.
+
+**`sdc` a décroché du bus USB le 05/11/2026 à 16:13** (journal du noyau :
+`tag#0 timing out command, waited 30s`, puis `usb 4-2: USB disconnect`). Au
+relevé suivant, `lsblk` ne le listait plus. Cause non établie.
