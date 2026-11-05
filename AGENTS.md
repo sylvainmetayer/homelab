@@ -82,6 +82,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 |---|---|
 | Apps, their role and host | `docs/apps.md` |
 | Human map of the homelab (FR) | `docs/architecture.md` |
+| Data matrix: per dataset, copies, what survives the loss of the house, gaps (FR) | `docs/matrice-des-donnees.md` |
 | Incident procedures (FR) | `docs/runbooks/README.md` |
 | Architecture decisions | `docs/adr/README.md` |
 | Playbooks per host group, inventory, flip bastion, `pangolin_config` state read, config layering | `docs/conventions/ansible.md` |
