@@ -59,15 +59,17 @@ peut. Comme Swipe, le seul barrage est Pangolin.
 
 **Accès** (décision de Sylvain, 2026-11-05) : rôle Pangolin dédié
 `immich-power-tools`, créé sans membre, que Sylvain s'attribue seul (interface
-de Pangolin) ; aucun chemin ouvert, aucune règle d'IP de la maison, aucun jeton
-d'accès. Un test d'invariant de `pangolin_config` le garde lié à cette seule
+de Pangolin) ; aucun chemin ouvert, aucune règle d'IP de la maison. Le jeton
+d'accès du healthcheck (`websites.tf`, comme pour toute application) existe
+pourtant : il franchit le SSO et est tenu par le moniteur d'Uptime Kuma, donc qui
+le détient agit sur la photothèque avec la clé. Un test d'invariant de `pangolin_config` le garde lié à cette seule
 ressource, jamais au rôle `immich`.
 
 **Rendu seulement si la clé SOPS `immich_power_tools_api_key` existe**
 (`immich_power_tools_enabled`, dérivée, comme Kiosk). Elle est dans le
-`compose.yaml` (`0600`, `diff: false`). Retirer la clé ne supprime pas le
-conteneur : `docker compose up -d --remove-orphans` dans `immich/`, ou
-`docker rm -f immich-power-tools`.
+`compose.yaml` (`0600`, `diff: false`). Retirer la clé et lancer
+`pi.yml --tags immich` supprime le conteneur : le compose change, le
+redémarrage de `dc@immich` relance `up --remove-orphans`.
 
 **La clé a pour l'instant tous les droits** (décision de Sylvain : la rotation
 vers une clé restreinte vient plus tard). Liste minimale à lui donner lors de

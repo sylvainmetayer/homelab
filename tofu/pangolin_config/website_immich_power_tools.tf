@@ -5,7 +5,9 @@
 # (immich role): whoever passes the SSO acts on the photo library with that
 # key, and /api/immich-proxy relays any Immich API call. Its own role,
 # `immich-power-tools`, created with no member: Sylvain alone adds himself in
-# the Pangolin UI. No path opened, no home-IP rule, no access token.
+# the Pangolin UI. No path opened, no home-IP rule. Like every entry it still
+# gets the healthcheck access token (websites.tf), held by the Uptime Kuma
+# monitor: whoever holds it passes the SSO and acts on the library with the key.
 locals {
   immich_power_tools_website = {
     name      = "Immich Power Tools"
