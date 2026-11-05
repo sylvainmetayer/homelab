@@ -6,8 +6,9 @@ mort : [disque-nas-mort.md](disque-nas-mort.md),
 [hote-proxmox-mort.md](hote-proxmox-mort.md).
 
 Écrit le 05/11/2026 depuis le dépôt et le code de Beszel 0.21.1 (version de
-l'image du hub). Rien ici n'a été relevé sur un hôte : ce qui touche le
-matériel, UGOS ou l'interface de Beszel est marqué « à vérifier ».
+l'image du hub). Hors de la section « Relevés », rien ici n'a été relevé sur un
+hôte : ce qui touche le matériel, UGOS ou l'interface de Beszel est marqué « à
+vérifier ».
 
 ## Ce que le dépôt fait déjà
 
@@ -134,4 +135,22 @@ quand Sylvain le décide ; d'ici là, le contrôle trimestriel ci-dessus.
 
 ## Relevés
 
-(vide : premier relevé à faire)
+**05/11/2026.** Valeurs brutes, heures de marche entre parenthèses.
+
+| Disque | Réalloués (5) | En attente (197) | Non corrigeables (198) | CRC (199) | Temp. | Remarque |
+|---|---|---|---|---|---|---|
+| NAS `sda` WD40EFZZ (1662 h) | 0 | 0 | 0 | 0 | 41 °C | |
+| NAS `sdb` WD40EFZZ (1678 h) | 0 | 0 | 0 | 0 | 39 °C | lien SATA négocié à 3 Gb/s au lieu de 6 |
+| NAS `sdc` WD30EZRX, USB (5199 h) | | **2167** | **2031** | | 32 °C | **défaillant** |
+| `pve` `sda` SSD 512 Go (13 258 h) | 0 | | | | 53 °C | usure normalisée (177) à 100 |
+| `pi` NVMe | | | | | | non lu : `smartctl` absent du Pi |
+
+`sdc` dépasse largement le seuil de remplacement sans que Beszel prévienne,
+comme attendu plus haut : c'est exactement le trou décrit dans « Ce qui reste à
+décider ». Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
+mais rien ne doit compter sur lui, aucune copie ni sauvegarde.
+
+Volume `/volume1` : `btrfs scrub status` répond « no stats available », aucun
+scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le volume est posé
+sur un `/dev/mapper`, le RAID 1 est donc sous Btrfs : un scrub détecterait une
+corruption sans la réparer depuis l'autre disque.

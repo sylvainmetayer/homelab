@@ -34,6 +34,10 @@ cap_drop:
 
 `check_container_hardening.py` (Lint) enforces the `no-new-privileges` column: its `EXCEPTIONS` list and this table move together. Nothing checks `cap_drop`.
 
+## Docker Bench findings left as they are
+
+`live-restore` stays off (Docker Bench 2.13). Units `dc@` would not benefit: `compose up` exits when the daemon stops, then `ExecStop` stops the containers. Turning it on restarts every container of the host once, for nothing. Only the Pangolin stack, outside `dc@`, would gain, and restarting it cuts every public route. Decided on 05/11/2026.
+
 ## Testing a change
 
 Molecule pulls no image: a crash only shows in production. So, before a merge, for any image with a risk (s6, an entrypoint changing user, setuid binaries):
