@@ -181,7 +181,7 @@ jobs:
           python-version: "3.14"
 
       # ansible-core, boto3, passlib, pyyaml (lu par resolve_docker_tags.py) et
-      # mkdocs + Material (le rôle docs_site construit le site sur le runner)
+      # Zensical (le rôle docs_site construit le site sur le runner)
       # aux versions d'uv.lock, comme test.yaml et lint.yaml : Renovate ne
       # bumpe que le lock. 2.21+ est requis par community.sops.load_vars
       # `return_method: vars-only`. Le vieux crash "argument -o: expected one
@@ -285,7 +285,7 @@ jobs:
             ansible/collections
           key: ${{ runner.os }}-ansible-galaxy-${{ hashFiles('ansible/requirements.yml') }}
 
-      # mermaid.min.js du hook mkdocs_mermaid.py, que le rôle docs_site
+      # mermaid.min.js de mkdocs_mermaid.py, que le rôle docs_site
       # construit sur ce runner : en cache sous l'empreinte du hook, comme dans
       # lint.yaml (le hook revérifie le sha256). docs_site n'est que dans
       # docker.yml : un déploiement sans docker ne crée pas le dossier, et

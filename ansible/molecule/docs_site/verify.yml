@@ -76,7 +76,7 @@
         - runbooks/appli-en-panne/index.html
         - adr/index.html
         - 404.html
-        - search/search_index.json
+        - search.json
       register: docs_site_pages
 
     - name: Assert the pages exist and are world-readable

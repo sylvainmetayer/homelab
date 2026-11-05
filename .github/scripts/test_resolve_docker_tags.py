@@ -263,6 +263,7 @@ class RealPlaybooks(unittest.TestCase):
         for path in ("docs/runbooks/appli-en-panne.md", "docs/runbooks/README.md",
                      "docs/runbooks/nextcloud-app-passwords.sh", "mkdocs.yml",
                      ".github/scripts/mkdocs_external_links.py",
+                     ".github/scripts/mkdocs_build.py",
                      ".github/scripts/mkdocs_mermaid.py"):
             result, stderr = self.run_script(path)
             self.assertEqual(result, {p: ("docs_site" if p == "ansible/docker.yml" else "")

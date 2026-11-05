@@ -18,7 +18,7 @@ on:
       - secrets
       - .gitmodules
       - .sops.yaml
-      # docs/runbooks/test-cle-secours.md (dernier_test) et le site MkDocs.
+      # docs/runbooks/test-cle-secours.md (dernier_test) et le site de doc.
       - docs/**
       - mkdocs.yml
   workflow_dispatch:
@@ -119,9 +119,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_restore_coverage.py
 
-      # mermaid.min.js du hook mkdocs_mermaid.py, en cache sous l'empreinte du
-      # hook (qui porte la version et le sha256 épinglés) : le build ne dépend
-      # pas de jsDelivr à chaque run (le hook revérifie le sha256 du fichier
+      # mermaid.min.js de mkdocs_mermaid.py, en cache sous l'empreinte du
+      # script (qui porte la version et le sha256 épinglés) : le build ne dépend
+      # pas de jsDelivr à chaque run (le script revérifie le sha256 du fichier
       # restauré).
       - name: Cache Mermaid
         if: ${{ !cancelled() }}
@@ -134,9 +134,7 @@ jobs:
       # page absente de nav: échoue ici, pas au déploiement après le merge.
       - name: Build the documentation site
         if: ${{ !cancelled() }}
-        env:
-          NO_MKDOCS_2_WARNING: "1"
-        run: mkdocs build --strict --site-dir "$RUNNER_TEMP/site"
+        run: python .github/scripts/mkdocs_build.py --site-dir "$RUNNER_TEMP/site"
 
       # resolve_docker_tags.py choisit ce qu'un merge déploie sur les hôtes.
       - name: Test the CI scripts

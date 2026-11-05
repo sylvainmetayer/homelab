@@ -1,5 +1,5 @@
 ---
-# Le site est construit sur le contrôleur (mkdocs du venv d'uv.lock, celui qui
+# Le site est construit sur le contrôleur (Zensical du venv d'uv.lock, celui qui
 # lance Ansible), empaqueté en une archive reproductible, puis déposé sur
 # l'hôte sous releases/<sha256 de l'archive>/ ; releases/current pointe sur la
 # version servie. Une archive inchangée ne redépose rien (idempotent), une
@@ -62,7 +62,7 @@
     # l'échec ne dirait plus quel lien casse. SOURCE_DATE_EPOCH fige la date
     # du sitemap : sans lui, chaque construction donnerait une archive neuve
     # et un redépôt.
-    - name: Build the site with mkdocs on the controller
+    - name: Build the site with Zensical on the controller
       delegate_to: localhost
       run_once: true
       become: false
@@ -70,14 +70,10 @@
       changed_when: false
       environment:
         SOURCE_DATE_EPOCH: "0"
-        NO_MKDOCS_2_WARNING: "1"
       ansible.builtin.command:
         argv:
           - "{{ ansible_playbook_python }}"
-          - -m
-          - mkdocs
-          - build
-          - --strict
+          - "{{ docs_site_build_script }}"
           - --config-file
           - "{{ docs_site_mkdocs_config }}"
           - --site-dir

@@ -2,41 +2,29 @@
 # Le dossier docs/ publié en site statique privé sur docs.sylvain.cloud,
 # derrière le SSO Pangolin : lire un runbook depuis un téléphone pendant une
 # panne. Construit sur le contrôleur Ansible par le rôle docs_site (VM docker),
-# vérifié par `mkdocs build --strict` dans le workflow Lint.
+# vérifié par .github/scripts/mkdocs_build.py dans le workflow Lint. Zensical lit
+# ce fichier directement (https://zensical.org/docs/compatibility/mkdocs/migration/).
 #
-# En local : `uv run mkdocs serve` (http://127.0.0.1:8000).
+# Construire : `uv run python .github/scripts/mkdocs_build.py --site-dir site`.
+# Aperçu : `uv run zensical serve` (http://127.0.0.1:8000), sans les deux étapes
+# de mkdocs_build.py : liens hors de docs/ morts, Mermaid depuis unpkg.com.
 #
-# Une nouvelle page s'ajoute à `nav:` ci-dessous : une page absente de la
-# navigation fait échouer le build strict (validation.nav.omitted_files).
+# Une nouvelle page s'ajoute à `nav:` ci-dessous : mkdocs_build.py échoue sinon.
 site_name: Homelab
 site_description: Documentation du homelab (architecture, runbooks, ADR)
 site_url: https://docs.sylvain.cloud/
-# Pas de repo_url : Material interrogerait api.github.com depuis chaque
+# Pas de repo_url : le thème interrogerait api.github.com depuis chaque
 # navigateur (étoiles, forks), le site doit se suffire derrière le SSO.
 # Un lien vers un fichier hors de docs/ (README d'un rôle, AGENTS.md...) est
-# réécrit par le hook ci-dessous vers ce dépôt public.
+# réécrit par mkdocs_build.py vers ce dépôt public.
 extra:
   repo_blob_url: https://github.com/sylvainmetayer/homelab/blob/main
 docs_dir: docs
 strict: true
 
-hooks:
-  - .github/scripts/mkdocs_external_links.py
-  # Dépose mermaid.min.js (version épinglée) dans le site et le charge sur
-  # les seules pages à diagramme : Material utilise ce `mermaid` global au
-  # lieu d'aller le chercher sur unpkg.com.
-  - .github/scripts/mkdocs_mermaid.py
-
-validation:
-  nav:
-    omitted_files: warn
-    not_found: warn
-  links:
-    not_found: warn
-    absolute_links: warn
-    unrecognized_links: warn
-
 theme:
+  # La variante qui garde l'apparence de Material for MkDocs.
+  variant: classic
   name: material
   language: fr
   # Pas de Google Fonts : polices du système, rien de tiers au chargement
@@ -75,7 +63,7 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.details
-  # Un bloc ```mermaid devient un <pre class="mermaid"> que Material dessine ;
+  # Un bloc ```mermaid devient un <pre class="mermaid"> que Zensical dessine ;
   # sans ce fence, il reste un bloc de code.
   - pymdownx.superfences:
       custom_fences:

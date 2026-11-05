@@ -49,7 +49,7 @@ issue.md
 __pycache__/
 *.py[cod]
 
-# mkdocs build (mkdocs.yml, rôle docs_site)
+# site de doc (mkdocs.yml, rôle docs_site)
 /site/
 
 # Provider Pangolin du fork, téléchargé par mise run provider-fork (ADR 0021)

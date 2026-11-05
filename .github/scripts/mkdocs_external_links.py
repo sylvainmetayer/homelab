@@ -1,19 +1,18 @@
-"""Hook MkDocs (mkdocs.yml, `hooks:`) : un lien relatif qui sort de docs/
+"""Étape de mkdocs_build.py : un lien relatif qui sort de docs/
 (README d'un rôle, AGENTS.md, un module tofu...) devient son URL GitHub.
 
 Les fichiers Markdown gardent leurs liens relatifs, justes sur GitHub et dans
-un éditeur ; seul le site les réécrit, faute de quoi `mkdocs build --strict`
+un éditeur ; seul le site les réécrit, faute de quoi `zensical build --strict`
 échoue (cible absente des fichiers de la documentation) et le lien serait
 mort sur docs.sylvain.cloud. Testé par test_mkdocs_external_links.py.
 """
 import posixpath
 import re
-from pathlib import Path
 
 # [texte](cible) ou [texte](cible "titre") ; la cible s'arrête au premier
 # blanc ou à la parenthèse fermante.
 LINK_RE = re.compile(r"(\]\()([^)\s]+)")
-# Définition d'un lien par référence, [id]: cible "titre" : MkDocs la valide
+# Définition d'un lien par référence, [id]: cible "titre" : Zensical la valide
 # comme un lien en ligne.
 REF_RE = re.compile(r"^( {0,3}\[[^\]]+\]:[ \t]*)(\S+)", re.MULTILINE)
 SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
@@ -39,10 +38,3 @@ def rewrite(markdown, src_uri, docs_prefix, repo_blob_url):
         return f"{match.group(1)}{repo_blob_url}/{in_repo}{sep}{anchor}"
 
     return REF_RE.sub(replace, LINK_RE.sub(replace, markdown))
-
-
-def on_page_markdown(markdown, page, config, files, **kwargs):
-    root = Path(config.config_file_path).resolve().parent
-    docs_prefix = Path(config.docs_dir).resolve().relative_to(root).as_posix()
-    blob_url = config.extra["repo_blob_url"].rstrip("/")
-    return rewrite(markdown, page.file.src_uri, docs_prefix, blob_url)
