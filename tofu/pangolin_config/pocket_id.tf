@@ -79,7 +79,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich"])
 
   length  = 48
   special = false
@@ -216,6 +216,37 @@ resource "pocketid_client" "beszel" {
 output "pocket_id_beszel_client_secret" {
   description = "POCKET ID - secret du client OIDC de Beszel (à saisir dans l'admin PocketBase)"
   value       = random_password.pocket_id_client["beszel"].result
+  sensitive   = true
+}
+
+# Dawarich : le foyer, groupe dawarich. Pas de rôle par claim (l'admin est un
+# drapeau du compte Dawarich). OIDC_AUTO_REGISTER=false (rôle dawarich) : le
+# SSO ne crée aucun compte ; un compte existant se relie par un défi (mot de
+# passe Dawarich) à la première connexion, e-mail vérifié exigé.
+resource "pocketid_group" "dawarich" {
+  name          = "dawarich"
+  friendly_name = "Dawarich"
+}
+
+resource "pocketid_client" "dawarich" {
+  name                = "Dawarich"
+  client_id           = "dawarich"
+  client_secret       = random_password.pocket_id_client["dawarich"].result
+  callback_urls       = ["https://tracks.sylvain.cloud/users/auth/openid_connect/callback"]
+  allowed_user_groups = [pocketid_group.dawarich.id]
+  launch_url          = "https://tracks.sylvain.cloud"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_dawarich_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Dawarich"
+  value       = pocketid_client.dawarich.client_id
+}
+
+output "pocket_id_dawarich_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Dawarich"
+  value       = random_password.pocket_id_client["dawarich"].result
   sensitive   = true
 }
 

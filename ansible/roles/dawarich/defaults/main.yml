@@ -12,6 +12,15 @@ dawarich_auth_jwt_secret_key: "{{ (backup_passphrase ~ '-dawarich-auth-jwt-secre
 
 dawarich_timezone: Europe/Paris
 
+# Connexion OIDC par Pocket ID (tofu/pangolin_config/pocket_id.tf, ADR 0030),
+# le foyer (groupe dawarich). Client lu dans les sorties du state : rendu
+# seulement après l'apply. Mot de passe gardé ; OIDC_AUTO_REGISTER=false : le
+# SSO ne crée aucun compte, il relie l'existant après un défi.
+dawarich_oidc_client_id: "{{ terraform_outputs.pocket_id_dawarich_client_id.value | default('') }}"
+dawarich_oidc_client_secret: "{{ terraform_outputs.pocket_id_dawarich_client_secret.value | default('') }}"
+dawarich_oidc_enabled: "{{ dawarich_oidc_client_id | length > 0 and dawarich_oidc_client_secret | length > 0 }}"
+dawarich_oidc_issuer: https://id.sylvain.cloud
+
 # Borgmatic backup configuration
 dawarich_backup_enabled: true
 dawarich_backup_borgmatic_target: "{{ backup_storage_box_url }}/dawarich"

@@ -156,3 +156,15 @@
         that:
           - dawarich_sources.results | rejectattr('stat.exists') | list | length == 0
         fail_msg: "Sources absentes : {{ dawarich_sources.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+
+    # OIDC rendu (sorties fictives du converge) : rappel explicite, PKCE,
+    # aucune inscription par SSO.
+    - name: Assert dawarich OIDC is configured without auto-registration
+      ansible.builtin.assert:
+        that:
+          - dawarich_env.OIDC_ISSUER == 'https://id.sylvain.cloud'
+          - dawarich_env.OIDC_CLIENT_ID == 'molecule-pocket-id-dawarich-client-id'
+          - dawarich_env.OIDC_CLIENT_SECRET == 'molecule-pocket-id-dawarich-client-secret'
+          - dawarich_env.OIDC_REDIRECT_URI == 'https://tracks.sylvain.cloud/users/auth/openid_connect/callback'
+          - dawarich_env.OIDC_PKCE_ENABLED == 'true'
+          - dawarich_env.OIDC_AUTO_REGISTER == 'false'
