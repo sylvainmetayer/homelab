@@ -1,0 +1,136 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  vars:
+    jellystat_path: "{{ docker_base_path }}/jellystat"
+  tasks:
+    - name: Verify the jellystat deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: jellystat
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/jellystat.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/molecule-jellystat
+
+    - name: Verify the supporting services of jellystat
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: jellystat
+        verify_compose_databases:
+          - jellystat-db
+        verify_compose_healthchecks:
+          - app
+        verify_compose_healthy_dependencies:
+          - { service: app, dependency: jellystat-db }
+        verify_compose_internal_networks:
+          - jellystat
+
+    - name: Stat the jellystat environment file
+      ansible.builtin.stat:
+        path: "{{ jellystat_path }}/.env"
+      register: jellystat_env_stat
+
+    # Il porte la clé d'API de Jellyfin et le mot de passe de la base.
+    - name: Assert the jellystat environment file is private
+      ansible.builtin.assert:
+        that:
+          - jellystat_env_stat.stat.exists
+          - jellystat_env_stat.stat.mode == '0600'
+          - jellystat_env_stat.stat.pw_name == ansible_facts['user_id']
+
+    - name: Read the jellystat files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ jellystat_path }}/.env"
+        - "{{ borgmatic_config_dir }}/jellystat.yaml"
+      register: jellystat_files
+
+    - name: Render the jellystat compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ jellystat_path }}"
+      register: jellystat_compose_raw
+      changed_when: false
+
+    - name: Parse the jellystat files
+      ansible.builtin.set_fact:
+        jellystat_env: >-
+          {{ dict((jellystat_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        jellystat_borgmatic: "{{ jellystat_files.results[1].content | b64decode | from_yaml }}"
+        jellystat_compose: "{{ jellystat_compose_raw.stdout | from_json }}"
+
+    # Dérivés de backup_passphrase : 64 caractères hexadécimaux, distincts.
+    - name: Assert the jellystat secrets are derived and distinct
+      ansible.builtin.assert:
+        that:
+          - jellystat_secrets | select('match', '^[0-9a-f]{64}$') | list | length == 2
+          - jellystat_secrets | unique | length == 2
+        fail_msg: Secrets jellystat vides, mal dérivés ou identiques
+      vars:
+        jellystat_secrets:
+          - "{{ jellystat_compose.services['jellystat-db'].environment.POSTGRES_PASSWORD }}"
+          - "{{ jellystat_env.JWT_SECRET }}"
+
+    # L'appli joint la base du compose avec son mot de passe, et Jellyfin par
+    # son port LAN avec la clé SOPS.
+    - name: Assert jellystat reaches its database and Jellyfin
+      ansible.builtin.assert:
+        that:
+          - jellystat_env.POSTGRES_IP == jellystat_db.container_name
+          - jellystat_env.POSTGRES_USER == jellystat_db.environment.POSTGRES_USER
+          - jellystat_env.POSTGRES_DB == jellystat_db.environment.POSTGRES_DB
+          - jellystat_env.POSTGRES_PASSWORD == jellystat_db.environment.POSTGRES_PASSWORD
+          - jellystat_env.JF_HOST == 'http://192.168.1.137:8096'
+          - jellystat_env.JF_API_KEY == jellystat_jellyfin_api_key
+        fail_msg: "Environnement jellystat inattendu"
+      vars:
+        jellystat_db: "{{ jellystat_compose.services['jellystat-db'] }}"
+
+    # Nom du conteneur = cible de Pangolin (website_jellystat.tf) ; la base
+    # reste sur le réseau interne.
+    - name: Assert only the app joins the newt network
+      ansible.builtin.assert:
+        that:
+          - jellystat_compose.networks.newt.external
+          - jellystat_compose.services.app.container_name == 'jellystat'
+          - jellystat_newt_services == ['app']
+          - jellystat_compose.services['jellystat-db'].networks.keys() | list == ['jellystat']
+        fail_msg: "Services sur newt : {{ jellystat_newt_services }}"
+      vars:
+        jellystat_newt_services: >-
+          {{ jellystat_compose.services | dict2items
+             | selectattr('value.networks', 'contains', 'newt')
+             | map(attribute='key') | list }}
+
+    - name: Assert the jellystat app is hardened and unprivileged
+      ansible.builtin.assert:
+        that:
+          - jellystat_compose.services.app.read_only
+          - jellystat_compose.services.app.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
+          - jellystat_compose.services.app.cap_drop == ['ALL']
+          - jellystat_compose.services.app.security_opt == ['no-new-privileges:true']
+          - jellystat_compose.services.app.mem_limit is defined
+          - jellystat_compose.services['jellystat-db'].mem_reservation is defined
+          - "'ports' not in jellystat_compose.services.app"
+
+    # Le dump borgmatic doit viser la base du compose avec ses identifiants ;
+    # le compose et le .env (clé d'API) sont archivés avec lui.
+    - name: Assert borgmatic dumps the jellystat database
+      ansible.builtin.assert:
+        that:
+          - jellystat_dump.container == jellystat_db.container_name
+          - jellystat_dump.name == jellystat_db.environment.POSTGRES_DB
+          - jellystat_dump.username == jellystat_db.environment.POSTGRES_USER
+          - jellystat_dump.password == jellystat_db.environment.POSTGRES_PASSWORD
+          - jellystat_path ~ '/.env' in jellystat_borgmatic.source_directories
+          - jellystat_path ~ '/compose.yaml' in jellystat_borgmatic.source_directories
+          - jellystat_borgmatic.sqlite_databases is not defined
+        fail_msg: "Configuration borgmatic de jellystat inattendue : {{ jellystat_borgmatic }}"
+      vars:
+        jellystat_db: "{{ jellystat_compose.services['jellystat-db'] }}"
+        jellystat_dump: "{{ jellystat_borgmatic.postgresql_databases[0] }}"

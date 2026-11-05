@@ -1,0 +1,79 @@
+---
+# Sans clé d'API de Jellyfin (SOPS : jellystat_jellyfin_api_key), rien n'est
+# rendu ni démarré, et pas de sauvegarde non plus (README.md).
+- name: Warn that Jellystat is not deployed without its Jellyfin API key
+  when: not (jellystat_jellyfin_key_set | bool)
+  ansible.builtin.debug:
+    msg: >-
+      jellystat_jellyfin_api_key absente de secrets/ansible.sops.yaml :
+      Jellystat n'est pas déployé (README du rôle).
+
+- name: Deploy Jellystat
+  when: jellystat_jellyfin_key_set | bool
+  block:
+    - name: Ensure Jellystat app folders exist
+      loop:
+        - "{{ jellystat_base_path }}"
+        - "{{ jellystat_base_path }}/backup-data"
+      ansible.builtin.file:
+        mode: "0700"
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+
+    - name: Template compose configuration
+      diff: false
+      notify: Restart jellystat
+      ansible.builtin.template:
+        src: "templates/compose.yaml"
+        dest: "{{ jellystat_base_path }}/compose.yaml"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0600"
+
+    - name: Template environment configuration
+      diff: false
+      notify: Restart jellystat
+      ansible.builtin.template:
+        src: "templates/env.j2"
+        dest: "{{ jellystat_base_path }}/.env"
+        owner: "{{ ansible_facts['user_id'] }}"
+        group: "{{ ansible_facts['user_gid'] }}"
+        mode: "0600"
+
+    # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+    - name: Configure borgmatic backup for Jellystat
+      when: jellystat_backup_enabled
+      tags: backup
+      ansible.builtin.include_role:
+        name: borgmatic
+        tasks_from: app.yml
+        apply:
+          tags: backup
+      vars:
+        borgmatic_app_name: jellystat
+        borgmatic_app_title: Jellystat
+        borgmatic_app_target: "{{ jellystat_backup_borgmatic_target }}"
+        borgmatic_app_passphrase: "{{ jellystat_backup_encryption_passphrase }}"
+        borgmatic_app_healthcheck_url: "{{ jellystat_backup_healthcheck_url }}"
+        # Tout l'état est dans la base : son dump, plus le compose et le .env
+        # (clé d'API de Jellyfin, JWT_SECRET). Ni le volume de la base (copié
+        # à chaud, incohérent) ni backup-data/ (sauvegardes JSON que Jellystat
+        # prend à la demande : redondantes avec le dump).
+        borgmatic_app_source_directories:
+          - "{{ jellystat_base_path }}/compose.yaml"
+          - "{{ jellystat_base_path }}/.env"
+        borgmatic_app_postgresql_databases:
+          - container: jellystat-db
+            name: "{{ jellystat_db_name }}"
+            username: "{{ jellystat_db_user }}"
+            password: "{{ jellystat_db_password }}"
+
+    - name: Make sure jellystat service is running
+      ansible.builtin.systemd:
+        state: started
+        daemon_reload: true
+        name: dc@jellystat
+        scope: user
+        enabled: true

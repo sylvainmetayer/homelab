@@ -521,6 +521,8 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["bentopdf"]
   values = { id = 190 }
+  target = pangolin_resource.website["jellystat"]
+  values = { id = 112 }
 }
 
 override_resource {
@@ -810,6 +812,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["healthlog"]
   values = { push_token = "push-healthlog" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup["jellystat"]
+  values = { push_token = "push-jellystat" }
 }
 
 override_resource {
@@ -2043,6 +2050,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_paperless_url         = output.uptime_backup_paperless_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url
         uptime_backup_grocy_url             = output.uptime_backup_grocy_url
+        uptime_backup_jellystat_url         = output.uptime_backup_jellystat_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         # flip.yml (production, démo, vitrine)
