@@ -56,7 +56,7 @@ au plus :
 | [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée (emplacement des fichiers remplacé par 0018) |
 | [0010](0010-supervision-beszel-uptime-kuma.md) | Supervision : Beszel et Uptime Kuma (PikaPods) | acceptée (journaux : voir 0011) |
 | [0011](0011-journaux-victorialogs.md) | Journaux centralisés dans VictoriaLogs | proposée (déployée, mesure à une semaine à relever) |
-| [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | acceptée (bascule du DHCP non faite au 05/11, à confirmer) |
+| [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | acceptée (bascule du DHCP non constatée au 05/11, à confirmer) |
 | [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin (non mise en œuvre) | proposée |

@@ -2,7 +2,8 @@
 
 Le DNS de la maison passe par **Blocky** (rôle `ansible/roles/blocky`,
 [ADR 0012](../adr/0012-filtrage-dns-blocky.md)), en deux instances que le
-DHCP de la Bbox annonce toutes les deux :
+DHCP de la Bbox doit annoncer toutes les deux (au 05/11, aucun client ne les
+interrogeait : bascule non constatée, voir l'ADR) :
 
 | Instance | IP | Déployée par | Forme |
 |---|---|---|---|

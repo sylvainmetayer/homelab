@@ -21,7 +21,7 @@ n'est prouvé sur ces machines. Noter le résultat en bas de ce fichier.
 | NAS DXP2800 : redémarre seul au retour du courant | **à vérifier dans le BIOS** ; son dernier redémarrage ne coupait pas le courant, il ne prouve donc rien |
 | Pi | démarre à la mise sous tension (comportement du matériel, à observer) |
 | Bbox | se rallume seule en général, à observer |
-| DNS pendant le retour | le DHCP annonce Blocky (LXC et Pi) : à observer tant qu'ils ne sont pas revenus |
+| DNS pendant le retour | le DHCP est censé annoncer Blocky (LXC et Pi ; aucun client constaté au 05/11, [ADR 0012](../adr/0012-filtrage-dns-blocky.md)) : à observer tant qu'ils ne sont pas revenus |
 
 ## Exercice
 
