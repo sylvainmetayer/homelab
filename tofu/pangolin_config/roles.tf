@@ -33,6 +33,7 @@ locals {
     "victoria-logs",
     "docs",
     "enclosed",
+    "pairdrop",
     "healthlog"
   ]
 

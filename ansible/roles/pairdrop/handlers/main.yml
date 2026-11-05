@@ -1,0 +1,7 @@
+---
+- name: Restart pairdrop
+  ansible.builtin.systemd:
+    name: dc@pairdrop
+    scope: user
+    state: restarted
+    daemon_reload: true

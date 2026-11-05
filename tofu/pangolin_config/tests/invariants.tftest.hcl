@@ -504,6 +504,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["pairdrop"]
+  values = { id = 110 }
+}
+
+override_resource {
   target = pangolin_resource.website["paperless"]
   values = { id = 40 }
 }
