@@ -129,13 +129,15 @@ d'UGOS, à vérifier aussi (`cat /proc/mdstat` : `[UU]` tant que les deux disque
 Le rôle `smart_check` ([README](../../ansible/roles/smart_check/README.md))
 comble ce que Beszel ne fait pas. Chaque lundi à 07:30, `smart-check.timer` lit
 chaque disque par `smartctl -j` sur `pve` (`sda`), le Pi (le NVMe, `-d
-sntrealtek`) et le NAS (`sda`, `sdb`, `sdc`), applique **les seuils du tableau
+sntrealtek`) et le NAS (`sda`, `sdb` ; `sdc`, qui a quitté le bus USB le
+05/11/2026, y sera ajouté une fois rebranché), applique **les seuils du tableau
 du contrôle trimestriel ci-dessus**, publie sur ntfy (topic `scripts`) et
 pousse le moniteur Uptime Kuma « S.M.A.R.T. <hôte> ».
 
 - **Elle sonne sur une hausse**, pas à chaque passage : chaque constat garde le
-  plus haut niveau déjà annoncé, par numéro de série. `sdc` (défaillant, gardé
-  sans y compter) sonne une fois au premier passage, puis seulement si un
+  plus haut niveau déjà annoncé, par numéro de série (le chemin au NAS, dont le
+  `smartctl` n'en donne pas). `sdc` (défaillant, gardé sans y compter), une
+  fois ajouté, sonnera une fois au premier passage, puis seulement si un
   compteur grossit. Ce qui reste en cours se lit dans le message du moniteur
   (« N constat(s) : … »). Une alerte annoncée et ignorée ne revient donc pas :
   le contrôle trimestriel reste la relecture de fond.
@@ -162,7 +164,9 @@ et `ansible-playbook nas.yml --tags smart_check`, après un `tofu apply` de
 
 `sdc` dépasse largement le seuil de remplacement sans que Beszel prévienne,
 comme attendu plus haut : c'est le trou que comble l'alerte hebdomadaire
-(« Alerte hebdomadaire sur l'usure et les secteurs »). Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
+(« Alerte hebdomadaire sur l'usure et les secteurs »). Le 05/11/2026 à 16:13 il
+a quitté le bus USB (`timing out command`, puis `USB disconnect` dans `dmesg`) :
+plus de `/dev/sdc` à 16:48. Il ne porte que 680 Mo. Décision du 05/11/2026 : il reste branché,
 mais rien ne doit compter sur lui, aucune copie ni sauvegarde (la règle « remplacer
 le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 

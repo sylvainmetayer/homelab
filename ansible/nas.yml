@@ -119,10 +119,13 @@
     # skill remove-app (ansible/roles/mediamanager/README.md).
     - role: mediamanager
       tags: mediamanager,app
-    # Secteurs en attente et réalloués des trois disques durs, chaque lundi sur
-    # ntfy sur une HAUSSE (sdc, défaillant et gardé sans y compter, n'est
-    # annoncé qu'une fois). smartctl est celui d'UGOS, rien n'est installé ;
-    # script et état sur le disque du NAS, pas dans /usr/local (overlay).
+    # Secteurs en attente et réalloués des disques durs, chaque lundi sur ntfy
+    # sur une HAUSSE. smartctl est celui d'UGOS, rien n'est installé ; script
+    # et état sur le disque du NAS, pas dans /usr/local (overlay).
+    # sdc (USB, défaillant, gardé sans y compter) n'est pas listé : le
+    # 05/11/2026 il a quitté le bus USB (timeouts puis « USB disconnect », plus
+    # de /dev/sdc), et un disque absent pousserait « down » chaque semaine.
+    # Rebranché, l'ajouter ici : il sonnera une fois, puis s'il s'aggrave.
     - role: smart_check
       tags: smart_check,monitoring
       vars:
@@ -131,4 +134,3 @@
         smart_check_devices:
           - { path: /dev/sda }
           - { path: /dev/sdb }
-          - { path: /dev/sdc }

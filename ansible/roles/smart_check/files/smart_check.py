@@ -117,7 +117,9 @@ def inspect(data):
 
 
 def disk_name(data):
-    return f"{data.get('model_name', '?')} {data.get('device', {}).get('name', '?')}"
+    # Le smartctl d'UGOS ne donne ni modèle ni numéro de série : le chemin seul
+    # sert alors de nom et de clé d'état (shortcut: stable tant que sda reste sda).
+    return f"{data.get('model_name', 'disque')} {data.get('device', {}).get('name', '?')}"
 
 
 def load_state(path):
