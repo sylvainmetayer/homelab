@@ -132,8 +132,8 @@ services:
 
   qbittorrent:
     mem_limit: {{ mediamanager_qbittorrent_mem_limit }}
-    # Job par lots (hachage, vérification) : un cœur reste aux autres, et il
-    # perd face à eux sous contention.
+    # Job par lots (hachage, vérification) : deux des quatre cœurs du NAS restent aux
+    # autres, et il perd face à eux sous contention.
     cpus: 2.00
     cpu_shares: 512
     image: lscr.io/linuxserver/qbittorrent:5.3.0@sha256:05c1454f9a32967affc1f34f67f8cc0cc57dd805dca45489fe797095a6286556

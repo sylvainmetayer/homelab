@@ -26,8 +26,8 @@ services:
     environment:
       TZ: Europe/Paris
       BORG_HOST_ID: "{{ inventory_hostname }}@borgmatic-container"
-    # Job par lots : un cœur reste toujours aux autres, et il perd face à eux
-    # sous contention (doctrine des limites, AGENTS.md).
+    # Job par lots : deux des quatre cœurs du NAS restent aux autres, et il perd face à eux
+    # sous contention (docs/conventions/resource-limits.md).
     mem_limit: {{ borgmatic_container_mem_limit }}
     cpus: 2.00
     cpu_shares: 512
