@@ -129,10 +129,6 @@
     # sauvegarde (rôle bentopdf, README.md).
     - role: bentopdf
       tags: bentopdf,app
-    # Outils PDF dans le navigateur (bentopdf.sylvain.cloud). Sans état, pas de
-    # sauvegarde (rôle bentopdf, README.md).
-    - role: bentopdf
-      tags: bentopdf,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).

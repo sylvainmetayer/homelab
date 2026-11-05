@@ -40,7 +40,9 @@ CSP que sert l'image (vérifiée sur le conteneur) :
   `rawcdn.githack.com` (`VITE_OCR_FONT_BASE_URL` vide) ;
 - les autres outils lourds (PyMuPDF, Ghostscript, CoherentPDF) chargent aussi
   leur WASM depuis `cdn.jsdelivr.net`, versions figées à la construction de
-  l'image ; la CSP de l'image n'autorise que ces dossiers précis ;
+  l'image ; la CSP de l'image n'autorise le chargement de scripts que depuis
+  ces dossiers précis (les données de langue passent par `connect-src`, tout
+  `cdn.jsdelivr.net`) ;
 - aujourd'hui Stirling-PDF fait l'OCR en français et en anglais sur le serveur,
   sans CDN : **BentoPDF fait la même chose, mais sans hors-ligne** (le
   navigateur doit pouvoir joindre jsDelivr) et sur le poste de l'utilisateur.
