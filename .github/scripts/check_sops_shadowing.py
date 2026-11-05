@@ -5,7 +5,9 @@ that a playbook, a shared task file or a role sets in a layer it outranks.
 community.sops.load_vars (return_method: vars-only, ansible-core 2.21+) puts
 the secrets in the include_vars layer: they beat play `vars:`, the `vars:` of a
 `roles:` entry, block and task `vars:` (import_role's included) and a role's
-vars/*.yml, and the override silently loses (docs/conventions/secrets.md). Not
+vars/*.yml, host_vars and group_vars, and the override silently loses
+(docs/conventions/secrets.md). Only the keys of a vars file count: a value that
+reads a secret (`{{ key | default(...) }}`) is a use, not a definition. Not
 checked, because they outrank the secrets: set_fact/register, role params (bare
 keys of a `roles:` entry) and the `vars:` of an include_role.
 
@@ -36,7 +38,14 @@ VARS_KEYWORD_FILES = [
     "ansible/roles/*/handlers/**/*.yml",
 ]
 # Files whose top-level keys are variables.
-VARS_FILES = ["ansible/roles/*/vars/**/*.yml", "ansible/roles/*/vars/**/*.yaml"]
+VARS_FILES = [
+    "ansible/roles/*/vars/**/*.yml",
+    "ansible/roles/*/vars/**/*.yaml",
+    "ansible/host_vars/**/*.yml",
+    "ansible/host_vars/**/*.yaml",
+    "ansible/group_vars/**/*.yml",
+    "ansible/group_vars/**/*.yaml",
+]
 
 INCLUDE_ROLE = {"include_role", "ansible.builtin.include_role"}
 
