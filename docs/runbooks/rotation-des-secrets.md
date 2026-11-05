@@ -405,7 +405,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `random_password` de `tofu/pangolin_config/pocket_id.tf`. Les tourner :
   `tofu apply -replace='random_password.pocket_id_client["homebox"]'` (ou
   `["pangolin"]`), puis `docker.yml --tags homebox` pour Homebox ; Pangolin
-  reçoit le sien dans le même apply.
+  reçoit le sien dans le même apply. Beszel (`["beszel"]`) : ressaisir le
+  secret dans l'admin PocketBase du hub (`pocket-id.md`), aucun rôle ne le
+  relit.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison
