@@ -522,7 +522,7 @@ override_resource {
   target = pangolin_resource.website["bentopdf"]
   values = { id = 190 }
   target = pangolin_resource.website["jellystat"]
-  values = { id = 112 }
+  values = { id = 191 }
 }
 
 override_resource {
