@@ -2,8 +2,9 @@
 
 Une ligne par appli ou jeu de données (l'hôte est le titre de chaque tableau) :
 où il vit, combien de copies, ce qui survit si la maison disparaît, ce qu'on
-peut perdre au maximum, le temps de reprise estimé, et ce qui n'est pas protégé. Base d'un futur runbook de perte
-totale de la maison. Ce n'est pas une procédure : pour restaurer, voir
+peut perdre au maximum, le temps de reprise estimé, et ce qui n'est pas protégé. Base du runbook de perte
+totale de la maison ([perte-totale-maison.md](runbooks/perte-totale-maison.md)).
+Ce n'est pas une procédure : pour restaurer, voir
 [sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md) et
 [backup-restore.md](backup-restore.md).
 

@@ -116,6 +116,7 @@ nav:
       - runbooks/bbox-remplacee.md
       - runbooks/intrusion-premiere-heure.md
       - runbooks/mode-absence.md
+      - runbooks/perte-totale-maison.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
