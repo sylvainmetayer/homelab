@@ -57,7 +57,8 @@ def read_disk(smartctl, spec):
     path, _, kind = spec.partition(":")
     argv = [smartctl, "-j", "-H", "-A"] + (["-d", kind] if kind else []) + [path]
     try:
-        result = subprocess.run(argv, capture_output=True, text=True, check=False)
+        # Chemins et binaire viennent de l'ExecStart de l'unité (root, écrit par Ansible), pas d'une entrée extérieure.
+        result = subprocess.run(argv, capture_output=True, text=True, check=False)  # NOSONAR
     except OSError as error:
         raise CheckError(f"{path} illisible : {type(error).__name__}") from error
     try:
@@ -125,8 +126,9 @@ def disk_name(data):
 
 
 def load_state(path):
+    # path : --state-file de l'ExecStart de l'unité, pas une entrée extérieure.
     try:
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:  # NOSONAR
             state = json.load(handle)
         # Une entrée qui n'est pas { constat: niveau } ferait planter chaque passage.
         return {k: v for k, v in state.items() if isinstance(v, dict)} if isinstance(state, dict) else {}
@@ -136,9 +138,9 @@ def load_state(path):
 
 def save_state(path, state):
     tmp = f"{path}.tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
+    with open(tmp, "w", encoding="utf-8") as handle:  # NOSONAR (même --state-file)
         json.dump(state, handle)
-    os.replace(tmp, path)
+    os.replace(tmp, path)  # NOSONAR
 
 
 def check(args):
