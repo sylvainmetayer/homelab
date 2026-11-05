@@ -27,13 +27,13 @@ homebox_read_timeout: 5m
 homebox_api_key_pepper: "{{ (backup_passphrase ~ '-homebox-api-key-pepper') | hash('sha256') }}"
 
 # Connexion OIDC par Pocket ID (pilote, ADR 0030, docs/runbooks/pocket-id.md).
-# Rendue seulement si les deux clés SOPS existent (client créé dans Pocket ID,
-# callback https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback) :
-# sans elles, rien ne change. Le login local RESTE ouvert
+# Le client est déclaré par tofu/pangolin_config/pocket_id.tf ; ses sorties
+# arrivent par terraform_outputs (pré-tâches communes des playbooks). Rendue
+# seulement quand elles existent (après l'apply) : sans elles, rien ne change. Le login local RESTE ouvert
 # (homebox_oidc_allow_local_login) : le secours si l'IdP tombe. Retour arrière :
 # retirer les clés (ou enabled à false), redéployer.
-homebox_oidc_client_id: "{{ pocket_id_homebox_client_id | default('') }}"
-homebox_oidc_client_secret: "{{ pocket_id_homebox_client_secret | default('') }}"
+homebox_oidc_client_id: "{{ terraform_outputs.pocket_id_homebox_client_id.value | default('') }}"
+homebox_oidc_client_secret: "{{ terraform_outputs.pocket_id_homebox_client_secret.value | default('') }}"
 homebox_oidc_enabled: "{{ homebox_oidc_client_id | length > 0 and homebox_oidc_client_secret | length > 0 }}"
 homebox_oidc_issuer_url: https://id.sylvain.cloud
 homebox_oidc_allow_local_login: true

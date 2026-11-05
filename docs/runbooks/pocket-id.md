@@ -50,29 +50,23 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    dans Pocket ID, profil, Passkeys. Tester « se connecter avec un autre
    appareil » (QR code, 5 minutes). Sans mot de passe ni TOTP, un seul passkey
    perdu est un compte à récupérer (secours ci-dessous).
-4. **Clients OIDC** (Pocket ID, Administration, Clients OIDC), un par appli :
-   - **Homebox** : URL de rappel `https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback`
-     (confirmée dans le code de Homebox 0.27.1), groupes autorisés : créer le
-     groupe `homebox` avec le seul compte de Sylvain. Noter l'identifiant et le
-     secret : clés SOPS `pocket_id_homebox_client_id` et
-     `pocket_id_homebox_client_secret` (`ansible.sops.yaml`, entrées de
-     rotation : `identifier` et `application`), puis
-     `ansible-playbook docker.yml --tags homebox`. Le bouton apparaît sur la page
-     de connexion ; le login local reste. La liaison d'un compte local par
-     e-mail, et la création d'un compte OIDC inscription fermée, sont à
-     confirmer à l'essai (voir [login-unifie-applis.md](../login-unifie-applis.md)).
-   - **Pangolin** : callback provisoire (le vrai vient après), groupes autorisés
-     : le même groupe de test, ou aucun (il n'y a qu'un compte). Clés
-     `pocket_id_pangolin_client_id` et `pocket_id_pangolin_client_secret` dans
-     `secrets/secrets.sops.yaml` (celui de Tofu), puis `tofu plan` : relire
-     `pangolin_idp.pocket_id` (**auto_provision = false**, `Member`) avant
-     `tofu apply`. Relire les URL d'autorisation et du jeton que Pocket ID
-     affiche (« Show more details ») : `pocket_id.tf` suppose `/authorize` et
-     `/api/oidc/token`. `tofu output pocket_id_pangolin_redirect_url` donne le
-     callback à coller dans le client Pocket ID.
+4. **Clients OIDC, déclarés par Tofu** (`tofu/pangolin_config/pocket_id.tf`,
+   provider `trozz/pocketid`). Le rôle `pocket_id` pose `STATIC_API_KEY`
+   (clé SOPS `pocket_id_static_api_key`, la même dans les deux fichiers) ;
+   `tofu apply` crée le groupe `homebox`, les clients `Homebox` et `Pangolin`
+   (confidentiels, PKCE coupé, secrets en `random_password` du state) et
+   l'IdP « Pocket ID » de Pangolin, dont l'URL de rappel remplit le client
+   `Pangolin`. Rien à recopier. Puis `ansible-playbook docker.yml --tags
+   homebox` : le rôle lit le client dans les sorties du state, le bouton
+   apparaît, le login local reste. **À la main** : s'ajouter au groupe
+   `homebox` dans Pocket ID (Administration, Utilisateurs, son compte,
+   Groupes) ; Tofu ne déclare aucun compte, pour qu'un apply ne puisse jamais
+   toucher à l'administrateur. La liaison d'un compte local de Homebox par
+   e-mail, et la création d'un compte OIDC inscription fermée, sont à
+   confirmer à l'essai (voir [login-unifie-applis.md](../login-unifie-applis.md)).
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
-   celui de Pocket ID, e-mail, rôle voulu. Se connecter à la page de login de
+   celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de
    Pangolin avec « Pocket ID » : le compte interne n'est ni lié ni modifié.
 
 **Test de restauration rouge, attendu.** Dès le merge, le test planifié échoue

@@ -7,7 +7,8 @@
 # Ce qui suit : ses moniteurs Uptime Kuma, hors de local.websites (rien à
 # générer : ni cible ni jeton d'accès), et sa déclaration côté Pangolin.
 locals {
-  pocket_id_issuer = "https://id.sylvain.cloud"
+  pocket_id_issuer             = "https://id.sylvain.cloud"
+  pocket_id_pangolin_client_id = "pangolin"
 }
 
 # Le document de découverte OIDC : répond 200 sans compte, et c'est ce que
@@ -58,11 +59,71 @@ output "uptime_backup_pocket_id_url" {
   sensitive   = true
 }
 
-# Pangolin comme client OIDC de Pocket ID. Absent tant que les clés SOPS du
-# client (secrets.sops.yaml) n'existent pas : le client se crée dans Pocket ID
-# une fois l'instance déployée, après le premier compte administrateur
-# (docs/runbooks/pocket-id.md, étape 4). Le secret passe par le state, chiffré
-# (encryption.tf), comme tout le reste ici.
+# Les clients OIDC de Pocket ID, déclarés ici par son API (provider
+# trozz/pocketid, clé d'administration STATIC_API_KEY posée par le rôle
+# pocket_id) : aucun identifiant ni secret à recopier à la main. Chaque secret
+# est un random_password de ce state, que Pocket ID reçoit à la création et
+# que Pangolin (pangolin_idp) ou Ansible (sortie lue par docker.yml)
+# reçoivent aussi : rien ne passe par SOPS ni par l'interface.
+#
+# PKCE coupé : c'est la valeur par défaut d'un client créé dans l'interface,
+# celle que supposent les guides de Pangolin et de Homebox ; un client qui ne
+# l'envoie pas serait refusé.
+#
+# Les comptes de Pocket ID ne sont pas déclarés : un apply ne doit jamais
+# pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
+# homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
+resource "random_password" "pocket_id_client" {
+  for_each = toset(["pangolin", "homebox"])
+
+  length  = 48
+  special = false
+}
+
+resource "pocketid_group" "homebox" {
+  name          = "homebox"
+  friendly_name = "Homebox"
+}
+
+resource "pocketid_client" "homebox" {
+  name          = "Homebox"
+  client_secret = random_password.pocket_id_client["homebox"].result
+  # Le code de Homebox 0.27.1 rappelle sans barre finale, le guide de Pocket
+  # ID l'écrit avec : les deux.
+  callback_urls = [
+    "https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback",
+    "https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback/",
+  ]
+  allowed_user_groups = [pocketid_group.homebox.id]
+  pkce_enabled        = false
+  is_public           = false
+}
+
+resource "pocketid_client" "pangolin" {
+  name          = "Pangolin"
+  client_id     = local.pocket_id_pangolin_client_id
+  client_secret = random_password.pocket_id_client["pangolin"].result
+  # L'URL de rappel n'est connue qu'une fois l'IdP créé dans Pangolin. Pour
+  # qu'il n'attende pas ce client, l'identifiant est fixé ici (local) plutôt
+  # que lu sur la ressource : pas de cycle.
+  callback_urls = [pangolin_idp.pocket_id.redirect_url]
+  pkce_enabled  = false
+  is_public     = false
+}
+
+# Lues par docker.yml pour le rôle homebox (HBOX_OIDC_CLIENT_*).
+output "pocket_id_homebox_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Homebox"
+  value       = pocketid_client.homebox.id
+}
+
+output "pocket_id_homebox_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Homebox"
+  value       = random_password.pocket_id_client["homebox"].result
+  sensitive   = true
+}
+
+# Pangolin comme client OIDC de Pocket ID.
 #
 # Pilote : auto_provision = false. Personne n'est créé à la première connexion
 # par Pangolin : le compte externe de Sylvain est ajouté à la main dans
@@ -73,20 +134,12 @@ output "uptime_backup_pocket_id_url" {
 # Attributs optionnels : tous écrits, dont les optional+computed (variant,
 # email_path, name_path, tags, auto_provision), sans quoi le plan dit « No
 # changes » quel que soit l'état réel (README du module, règle du fournisseur).
-locals {
-  pocket_id_pangolin_client_id     = lookup(data.sops_file.secrets.data, "pocket_id_pangolin_client_id", "")
-  pocket_id_pangolin_client_secret = lookup(data.sops_file.secrets.data, "pocket_id_pangolin_client_secret", "")
-  pocket_id_idp_enabled            = nonsensitive(local.pocket_id_pangolin_client_id != "" && local.pocket_id_pangolin_client_secret != "")
-}
-
 resource "pangolin_idp" "pocket_id" {
-  count = local.pocket_id_idp_enabled ? 1 : 0
-
   name    = "Pocket ID"
   variant = "oidc"
 
   client_id     = local.pocket_id_pangolin_client_id
-  client_secret = local.pocket_id_pangolin_client_secret
+  client_secret = random_password.pocket_id_client["pangolin"].result
 
   # Points d'accès de Pocket ID v2 ; l'interface du client (« Show more
   # details ») les affiche, à recopier si l'un diffère (à confirmer au premier
@@ -108,22 +161,13 @@ resource "pangolin_idp" "pocket_id" {
   auto_provision = false
 }
 
-# L'URL de rappel que Pangolin attend, à coller dans le client « Pangolin » de
-# Pocket ID (runbook, étape 4) ; null tant que l'IdP n'est pas déclaré.
-output "pocket_id_pangolin_redirect_url" {
-  description = "POCKET ID - URL de rappel (callback) du client Pangolin"
-  value       = try(pangolin_idp.pocket_id[0].redirect_url, null)
-}
-
 # Rattache l'IdP à l'organisation. Avec auto_provision à false, Pangolin ne
 # s'en sert que si un login retrouve un utilisateur externe existant ; si une
 # version relit tout de même l'expression à chaque connexion (ADR 0016 :
 # « rôles réécrits à chaque login »), « Member » ne peut rien élargir. Les
 # groupes de Pocket ID ne passent en rôles qu'à l'étape suivante, hors pilote.
 resource "pangolin_idp_org" "pocket_id" {
-  count = local.pocket_id_idp_enabled ? 1 : 0
-
-  idp_id       = pangolin_idp.pocket_id[0].id
+  idp_id       = pangolin_idp.pocket_id.id
   org_id       = local.pangolin_org_id
   role_mapping = "'Member'"
   org_mapping  = "'${local.pangolin_org_id}'"

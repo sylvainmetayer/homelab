@@ -71,6 +71,7 @@
         that:
           - "'APP_URL=https://id.sylvain.cloud' in pocket_id_env"
           - "('ENCRYPTION_KEY=' ~ pocket_id_encryption_key) in pocket_id_env"
+          - "('STATIC_API_KEY=' ~ pocket_id_static_api_key) in pocket_id_env"
           - "'TRUST_PROXY=172.16.0.0/12' in pocket_id_env"
           - "'ANALYTICS_DISABLED=true' in pocket_id_env"
           # L'inscription libre reste à sa valeur par défaut (disabled).

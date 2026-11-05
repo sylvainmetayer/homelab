@@ -24,6 +24,11 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.7"
     }
+    # Clients OIDC et groupes de Pocket ID (pocket_id.tf, ADR 0030).
+    pocketid = {
+      source  = "trozz/pocketid"
+      version = "= 2.5.0"
+    }
   }
 }
 
@@ -42,4 +47,11 @@ provider "pangolin" {
   url     = local.pangolin_url
   api_key = local.pangolin_api_key
   org_id  = local.pangolin_org_id
+}
+
+# Clé STATIC_API_KEY de Pocket ID (rôle pocket_id), la même clé SOPS
+# pocket_id_static_api_key dans secrets.sops.yaml et ansible.sops.yaml.
+provider "pocketid" {
+  base_url  = local.pocket_id_issuer
+  api_token = local.pocket_id_api_token
 }
