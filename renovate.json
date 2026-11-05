@@ -58,7 +58,6 @@
       "matchPackageNames": [
         "docker.io/gotenberg/gotenberg",
         "docker.io/apache/tika",
-        "docker.io/stirlingtools/stirling-pdf",
         "ghcr.io/gethomepage/homepage",
         "ghcr.io/karakeep-app/karakeep-chrome",
         "docker.io/rclone/rclone",

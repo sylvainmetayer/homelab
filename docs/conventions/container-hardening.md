@@ -27,7 +27,7 @@ cap_drop:
 |---|---|---|
 | Databases (postgres, mariadb, redis, valkey, meilisearch) | `cap_drop` | Most start as root and hand over their data directory, meilisearch stays root and writes in it; a wrong capability shows up at a restart, on data. Not worth the risk for a service on an internal network. |
 | s6 images (linuxserver and alike: `grocy`, `speedtest_tracker`, `wiki`, `nextcloud`, `betisier`, `karakeep` web…) | `cap_drop` | `/init` chowns `/config`, adjusts `abc` to PUID/PGID and runs services as `abc`; the set of capabilities depends on the image's init scripts and can change with any update. |
-| `stirling_pdf`, `wishlist` | `cap_drop` | See their compose: `usermod`, `chown` and `setpriv` for one, root writing in the deploy user's folders for the other. |
+| `wishlist` | `cap_drop` | See its compose: root writing in the deploy user's folders. |
 | `gluetun` (`mediamanager`) | `cap_drop` | Starts as root with `NET_ADMIN` for the tunnel and its firewall; the other capabilities it needs were not analysed. |
 | `borgmatic` (NAS) | both | `nas.yml` runs by hand; not tried yet. |
 | Immich, Pangolin, Newt (not its socket proxy), `flip_planning`, Paperless (paused), Monica | both | Out of scope for now: family service, the access path to everything else, production, a paused app, an app frozen until December 2026. Not an analysis of the image: to be done before lifting them. |

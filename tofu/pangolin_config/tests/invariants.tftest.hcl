@@ -494,11 +494,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["stirling_pdf"]
-  values = { id = 68 }
-}
-
-override_resource {
   target = pangolin_resource.website["neonova"]
   values = { id = 98 }
 }
