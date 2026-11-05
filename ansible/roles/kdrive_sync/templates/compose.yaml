@@ -30,8 +30,8 @@ services:
       RCLONE_CONFIG_KDRIVE_VENDOR: other
       RCLONE_CONFIG_KDRIVE_USER: {{ kdrive_sync_webdav_user | replace('$', '$$') | to_json }}
       KDRIVE_APP_PASSWORD: {{ kdrive_sync_app_password | replace('$', '$$') | to_json }}
-    # Job par lots : un cœur reste toujours aux autres, et il perd face à eux
-    # sous contention (doctrine des limites, AGENTS.md).
+    # Job par lots : deux des quatre cœurs du NAS restent aux autres, et il perd face à eux
+    # sous contention (docs/conventions/resource-limits.md).
     mem_limit: {{ kdrive_sync_mem_limit }}
     cpus: 2.00
     cpu_shares: 512
