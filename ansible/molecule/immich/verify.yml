@@ -203,7 +203,7 @@
           - kiosk.environment.KIOSK_IMMICH_API_KEY == 'molecule-immich-kiosk-api-key'
           - kiosk.environment.KIOSK_DISABLE_CONFIG_ENDPOINT == 'true'
           - kiosk.environment.KIOSK_BEHIND_PROXY == 'true'
-          - kiosk.networks.keys() | sort == ['immich', 'newt']
+          - kiosk.networks | sort == ['immich', 'newt']
           - "'ports' not in kiosk"
           - kiosk.read_only
           - kiosk.cap_drop == ['ALL']
