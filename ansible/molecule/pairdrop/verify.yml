@@ -46,4 +46,5 @@
           - "'ports' not in pairdrop_app"
           - pairdrop_app.environment.WS_FALLBACK == 'false'
           - "'RTC_CONFIG' not in pairdrop_app.environment"
+          - pairdrop_app.environment.IPV6_LOCALIZE == '4'
         fail_msg: "Compose de PairDrop inattendu : {{ pairdrop_app }}"

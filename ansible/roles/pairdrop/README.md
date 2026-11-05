@@ -18,8 +18,12 @@ Sans état : aucun volume, pas de sauvegarde, pas dans le test de restauration.
 - **`X-Forwarded-For`** : le proxy doit le poser, sinon tous les clients se
   voient entre eux ; PairDrop groupe les appareils par IP publique. Traefik le
   pose. Non vérifié en production : après le déploiement, deux appareils du
-  même foyer doivent se voir, un appareil en 4G non (`DEBUG_MODE=true`
-  et `/ip` aident, jamais en production).
+  même foyer doivent se voir, un appareil en 4G non (`DEBUG_MODE=true` aide,
+  jamais en production ; `/ip` n'existe qu'avec `RATE_LIMIT` actif).
+- **IPv6** : `IPV6_LOCALIZE=4` réduit l'adresse IPv6 d'un client à son préfixe
+  /64 ; sans lui, chaque appareil du foyer a sa propre adresse publique
+  (extensions de confidentialité) et PairDrop les range dans des groupes
+  différents.
 - **Port** 3000 ; le serveur n'est publié nulle part (réseau `newt`).
 
 ## Limite : pas de serveur TURN
