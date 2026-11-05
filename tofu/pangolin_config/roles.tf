@@ -36,6 +36,7 @@ locals {
     "pairdrop",
     "bentopdf",
     "jellystat",
+    "yamtrack",
     "healthlog"
   ]
 

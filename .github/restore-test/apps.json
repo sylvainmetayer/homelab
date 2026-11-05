@@ -21,5 +21,6 @@
   "speedtest_tracker": {"host": "docker", "repo": "speedtest_tracker", "role": "speedtest_tracker", "databases": ["sqlite"], "expected_tables": {"database.sqlite": ["users", "results"]}},
   "trek": {"host": "docker", "repo": "trek", "role": "trek", "databases": ["sqlite"], "expected_tables": {"travel.db": ["users", "trips"]}},
   "wiki": {"host": "docker", "repo": "wiki", "role": "wiki", "databases": ["mysql"], "expected_tables": {"bookstack": ["users"]}},
-  "wishlist": {"host": "docker", "repo": "wishlist", "role": "wishlist", "databases": ["sqlite"], "expected_tables": {"prod.db": ["user"]}}
+  "wishlist": {"host": "docker", "repo": "wishlist", "role": "wishlist", "databases": ["sqlite"], "expected_tables": {"prod.db": ["user"]}},
+  "yamtrack": {"host": "docker", "repo": "yamtrack", "role": "yamtrack", "databases": ["sqlite"], "expected_tables": {"db.sqlite3": ["users_user"]}}
 }

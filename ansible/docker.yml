@@ -24,6 +24,7 @@
         papra_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_papra_url.value | default('') }}"
         grocy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_grocy_url.value | default('') }}"
         jellystat_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellystat_url.value | default('') }}"
+        yamtrack_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_yamtrack_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
@@ -133,6 +134,10 @@
     # (rôle jellystat, README.md).
     - role: jellystat
       tags: jellystat,app
+    # Suivi de films, séries, jeux et livres (yamtrack.sylvain.cloud), base
+    # SQLite sauvegardée (rôle yamtrack, README.md).
+    - role: yamtrack
+      tags: yamtrack,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).
