@@ -417,6 +417,24 @@
         fail_msg: >-
           chage : {{ security_chage.stdout_lines }} ; /proc : {{ security_proc_options.stdout }}
 
+# --- règles d'audit de Docker : surveillances en écriture, jamais les sockets ---
+
+- name: Read the Docker audit rules
+  become: true
+  ansible.builtin.slurp:
+    src: /etc/audit/rules.d/docker.rules
+  register: security_docker_rules
+
+- name: Assert the Docker audit rules are quiet
+  vars:
+    docker_rules: "{{ security_docker_rules.content | b64decode | split('\n') | select('match', '^-w ') | list }}"
+  ansible.builtin.assert:
+    that:
+      - docker_rules | length > 0
+      - docker_rules | reject('match', '^-w \S+ -p wa -k docker$') | list | length == 0
+      - docker_rules | select('search', '[.]sock') | list | length == 0
+    fail_msg: "{{ docker_rules }}"
+
 # --- systèmes de fichiers que devsec ne doit pas bloquer ---
 
 - name: Read the modprobe file written by devsec
