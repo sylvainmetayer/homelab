@@ -124,6 +124,7 @@ nav:
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
+  - Matrice des données: matrice-des-donnees.md
   - Accès mobile: acces-mobile.md
   - Login unifié: login-unifie-applis.md
   - Médiathèque: media.md
