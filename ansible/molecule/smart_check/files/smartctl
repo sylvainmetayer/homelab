@@ -2,11 +2,12 @@
 # Faux smartctl du verify (scénario smart_check) : sort le JSON de
 # fixtures/<cas>-<disque>.json, ou celui de healthy-<disque>.json à défaut ;
 # le cas est lu dans le fichier « case ». Les arguments reçus sont consignés
-# dans argv.log. Sort en 4, comme smartctl pour un disque dont un attribut est
+# dans argv.log, à côté du fichier d état. Sort en 4, comme smartctl pour un disque dont un attribut est
 # au-delà de son seuil : le code ne dit rien de la lisibilité.
 d=/opt/molecule-smart-check
 for a; do disk=$(basename "$a"); done
-echo "$*" >> "$d/argv.log"
+# Le seul dossier inscriptible sous ProtectSystem=strict de la vraie unité.
+echo "$*" >> /usr/local/lib/smart-check/argv.log
 f="$d/fixtures/$(cat "$d/case")-$disk.json"
 [ -f "$f" ] || f="$d/fixtures/healthy-$disk.json"
 cat "$f"
