@@ -128,7 +128,8 @@ def load_state(path):
     try:
         with open(path, encoding="utf-8") as handle:
             state = json.load(handle)
-        return state if isinstance(state, dict) else {}
+        # Une entrée qui n'est pas { constat: niveau } ferait planter chaque passage.
+        return {k: v for k, v in state.items() if isinstance(v, dict)} if isinstance(state, dict) else {}
     except (OSError, ValueError):
         return {}
 

@@ -1,5 +1,5 @@
 # Vérificateur S.M.A.R.T. (rôle smart_check) : usure et secteurs des disques de
-# pve (SSD), du Pi (NVMe) et du NAS (trois disques durs). Il publie sur ntfy
+# pve (SSD), du Pi (NVMe) et du NAS (deux disques durs listés, sdc en dehors). Il publie sur ntfy
 # (topic scripts) sur une hausse d'un constat et pousse ici à chaque passage
 # hebdomadaire : up avec un résumé, down si un disque est illisible ou si ntfy
 # échoue. Sans battement (timer arrêté, hôte éteint), le moniteur passe au

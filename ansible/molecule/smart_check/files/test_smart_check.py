@@ -165,6 +165,11 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(len(unreadable), 1)
         self.assertIn("/dev/sdd illisible", unreadable[0])
 
+    def test_malformed_state_entries_are_dropped(self):
+        with open(self.args.state_file, "w", encoding="utf-8") as handle:
+            json.dump({"HDD1": [1], "HDD2": {"attr197": 5}}, handle)
+        self.assertEqual(sc.load_state(self.args.state_file), {"HDD2": {"attr197": 5}})
+
     def test_corrupt_state_is_ignored(self):
         with open(self.args.state_file, "w", encoding="utf-8") as handle:
             handle.write("pas du json")
