@@ -247,6 +247,7 @@ lectures. Le rôle `jellystat` ne déploie rien tant qu'elle manque. Rotation :
 `sops set`, puis `ansible-playbook docker.yml --tags jellystat` (redémarre
 Jellystat), vérifier qu'une synchronisation passe (Jellystat, Paramètres →
 Tâches), puis supprimer l'ancienne clé dans Jellyfin.
+
 `immich_power_tools_api_key` : clé d'API d'Immich (compte de Sylvain) qu'Immich
 Power Tools pose côté serveur ; **tous les droits pour l'instant**, à remplacer
 par une clé restreinte (nom `immich-power-tools`, permissions minimales dans

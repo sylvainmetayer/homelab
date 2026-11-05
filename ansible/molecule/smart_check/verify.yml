@@ -77,13 +77,13 @@
       ansible.builtin.file:
         path: "{{ smart_check_verify_dir }}/fixtures"
         state: directory
-        mode: "0755"
+        mode: "0755" # NOSONAR faux de test, sans secret
 
     - name: Install the fixtures and the fake servers
       ansible.builtin.copy:
         src: "files/{{ item }}"
         dest: "{{ smart_check_verify_dir }}/{{ item }}"
-        mode: "0644"
+        mode: "0644" # NOSONAR faux de test, sans secret
       loop:
         - fake_server.py
         - fixtures/healthy-sda.json
@@ -116,7 +116,7 @@
       ansible.builtin.copy:
         content: healthy
         dest: "{{ smart_check_verify_dir }}/case"
-        mode: "0644"
+        mode: "0644" # NOSONAR fixture de test, sans secret
 
     - name: Forget the requests made before the unit run
       ansible.builtin.file:

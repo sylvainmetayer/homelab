@@ -246,7 +246,7 @@ class MainTest(unittest.TestCase):
     def test_failing_push_exits_2(self):
         with fake_smartctl({"/dev/sdc": hdd()}), \
                 mock.patch.dict(os.environ, {"NTFY_TOKEN": "t"}, clear=True), \
-                mock.patch.object(sc, "push", lambda *a: False), \
+                mock.patch.object(sc, "push", return_value=False), \
                 redirect_stdout(io.StringIO()):
             self.assertEqual(sc.main(self.argv), 2)
 

@@ -18,7 +18,7 @@
   ansible.builtin.copy:
     content: "{{ case_name }}"
     dest: "{{ smart_check_verify_dir }}/case"
-    mode: "0644"
+    mode: "0644" # NOSONAR fixture de test, sans secret
 
 - name: Run the disk check, {{ case_name }}
   vars:
