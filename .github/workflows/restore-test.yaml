@@ -192,6 +192,13 @@ jobs:
           else
             status=down msg="échec ($RESTORE) : $RUN_URL"
           fi
-          curl --proto '=https' --tlsv1.2 -fsS -o /dev/null --retry 2 --retry-connrefused -G "$PUSH_URL" \
-            --data-urlencode "status=$status" --data-urlencode "msg=$msg" --data-urlencode "ping="
+          code=$(curl --proto '=https' --tlsv1.2 -fsS -o /dev/null -w '%{http_code}' --retry 2 --retry-connrefused -G "$PUSH_URL" \
+            --data-urlencode "status=$status" --data-urlencode "msg=$msg" --data-urlencode "ping=")
+          # -f ne couvre pas les 3xx et sans -L curl s'arrête là : code 0, push non livré.
+          case "$code" in
+            3??)
+              echo "::error::push Uptime Kuma : réponse $code, redirection non suivie, push non livré"
+              exit 1
+              ;;
+          esac
           echo "Restore test: $status"
