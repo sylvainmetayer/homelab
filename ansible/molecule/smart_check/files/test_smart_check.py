@@ -132,6 +132,20 @@ class CheckTest(unittest.TestCase):
         notification, _, _, _ = self.run_check(hdd(pending=60))
         self.assertIsNone(notification)
 
+    def test_a_finding_that_went_away_rings_again_on_relapse(self):
+        _, state, _, _ = self.run_check(hdd(pending=100))
+        sc.save_state(self.args.state_file, state)
+        _, state, _, _ = self.run_check(hdd())
+        sc.save_state(self.args.state_file, state)
+        notification, _, _, _ = self.run_check(hdd(pending=3))
+        self.assertIsNotNone(notification)
+
+    def test_empty_attributes_are_unreadable_not_healthy(self):
+        data = hdd()
+        data["ata_smart_attributes"] = {"table": []}
+        _, _, _, unreadable = self.run_check(data)
+        self.assertEqual(len(unreadable), 1)
+
     def test_state_is_per_serial_not_per_path(self):
         _, state, _, _ = self.run_check(hdd(pending=5, serial="A"))
         sc.save_state(self.args.state_file, state)
@@ -217,6 +231,12 @@ class MainTest(unittest.TestCase):
         code, pushes = self.run_main(hdd(pending=1), {"NTFY_TOKEN": "t"})
         self.assertEqual((code, pushes[0][0]), (0, "up"))
         self.assertTrue(os.path.exists(self.argv[self.argv.index("--state-file") + 1]))
+
+    def test_an_unexpected_crash_pushes_down(self):
+        data = hdd(pending=1)
+        del data["ata_smart_attributes"]["table"][1]["id"]
+        code, pushes = self.run_main(data, {"NTFY_TOKEN": "t"})
+        self.assertEqual((code, pushes[0][0]), (1, "down"))
 
     def test_failing_push_exits_2(self):
         with fake_smartctl({"/dev/sdc": hdd()}), \
