@@ -49,6 +49,16 @@ provider "pangolin" {
   org_id  = local.pangolin_org_id
 }
 
+# Clé « root » (admin du serveur) : une clé d'organisation ne peut pas créer un
+# fournisseur d'identité (403 « Key does not have root access »). Servie à
+# pangolin_idp et pangolin_idp_org seulement (pocket_id.tf).
+provider "pangolin" {
+  alias   = "root"
+  url     = local.pangolin_url
+  api_key = local.pangolin_root_api_key
+  org_id  = local.pangolin_org_id
+}
+
 # Clé STATIC_API_KEY de Pocket ID (rôle pocket_id), la même clé SOPS
 # pocket_id_static_api_key dans secrets.sops.yaml et ansible.sops.yaml.
 provider "pocketid" {

@@ -22,6 +22,14 @@ mock_provider "pangolin" {
     }
   }
 }
+mock_provider "pangolin" {
+  alias = "root"
+  mock_resource "pangolin_idp" {
+    defaults = {
+      redirect_url = "https://pangolin.example.test/auth/idp/1/oidc/callback"
+    }
+  }
+}
 mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
@@ -52,6 +60,7 @@ override_data {
       ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
 
       pocket_id_static_api_key = "fake-pocket-id-static-api-key"
+      pangolin_root_api_key    = "fake-pangolin-root-api-key"
 
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"

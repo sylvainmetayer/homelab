@@ -4,7 +4,8 @@ Décision et risques : [ADR 0030](../adr/0030-pocket-id-fournisseur-identite-pil
 Pocket ID (`id.sylvain.cloud`, rôle `pocket_id` sur la VM Pangolin) est un
 fournisseur OIDC à **passkeys seuls**. Le pilote concerne **le compte de
 Sylvain uniquement** : le foyer ne change rien, les comptes internes de Pangolin
-(dont l'`Admin` de secours) restent le chemin de tout le monde.
+(dont le compte interne propriétaire de l'organisation, mot de passe et 2FA,
+le secours si Pocket ID tombe) restent le chemin de tout le monde.
 
 ## Ce que ça change et ne change pas
 
@@ -55,8 +56,9 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    (clé SOPS `pocket_id_static_api_key`, la même dans les deux fichiers) ;
    `tofu apply` crée le groupe `homebox`, les clients `Homebox` et `Pangolin`
    (confidentiels, PKCE coupé, secrets en `random_password` du state) et
-   l'IdP « Pocket ID » de Pangolin, dont l'URL de rappel remplit le client
-   `Pangolin`. Rien à recopier. Puis `ansible-playbook docker.yml --tags
+   l'IdP « Pocket ID » de Pangolin (clé root `pangolin_root_api_key`, alias
+   `pangolin.root` : une clé d'organisation ne peut pas créer d'IdP), dont
+   l'URL de rappel remplit le client `Pangolin`. Rien à recopier. Puis `ansible-playbook docker.yml --tags
    homebox` : le rôle lit le client dans les sorties du state, le bouton
    apparaît, le login local reste. **À la main** : s'ajouter au groupe
    `homebox` dans Pocket ID (Administration, Utilisateurs, son compte,
