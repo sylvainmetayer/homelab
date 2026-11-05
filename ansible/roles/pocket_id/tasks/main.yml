@@ -16,9 +16,11 @@
         that:
           - pocket_id_host | length > 0
           - pocket_id_enc_key | length >= 16
+          - pocket_id_api_key | length == 0 or pocket_id_api_key | length >= 16
         fail_msg: >-
           pocket_id_host (host_vars/pangolin) vide, ou pocket_id_encryption_key
-          de moins de 16 octets (le minimum de Pocket ID).
+          ou pocket_id_static_api_key de moins de 16 caractères (le minimum de
+          Pocket ID, qui ne démarrerait pas).
         quiet: true
 
     - name: Ensure the Pocket ID folder exists

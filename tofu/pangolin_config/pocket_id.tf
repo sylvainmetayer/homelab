@@ -9,6 +9,7 @@
 locals {
   pocket_id_issuer             = "https://id.sylvain.cloud"
   pocket_id_pangolin_client_id = "pangolin"
+  pocket_id_homebox_client_id  = "homebox"
 }
 
 # Le document de découverte OIDC : répond 200 sans compte, et c'est ce que
@@ -66,6 +67,10 @@ output "uptime_backup_pocket_id_url" {
 # que Pangolin (pangolin_idp) ou Ansible (sortie lue par docker.yml)
 # reçoivent aussi : rien ne passe par SOPS ni par l'interface.
 #
+# Pocket ID en panne bloque le refresh de ces ressources, donc tout plan du
+# module : planifier le reste avec -exclude=pocketid_client.homebox
+# -exclude=pocketid_client.pangolin -exclude=pocketid_group.homebox.
+#
 # PKCE coupé : c'est la valeur par défaut d'un client créé dans l'interface,
 # celle que supposent les guides de Pangolin et de Homebox ; un client qui ne
 # l'envoie pas serait refusé.
@@ -87,6 +92,7 @@ resource "pocketid_group" "homebox" {
 
 resource "pocketid_client" "homebox" {
   name          = "Homebox"
+  client_id     = local.pocket_id_homebox_client_id
   client_secret = random_password.pocket_id_client["homebox"].result
   # Le code de Homebox 0.27.1 rappelle sans barre finale, le guide de Pocket
   # ID l'écrit avec : les deux.
@@ -105,7 +111,8 @@ resource "pocketid_client" "pangolin" {
   client_secret = random_password.pocket_id_client["pangolin"].result
   # L'URL de rappel n'est connue qu'une fois l'IdP créé dans Pangolin. Pour
   # qu'il n'attende pas ce client, l'identifiant est fixé ici (local) plutôt
-  # que lu sur la ressource : pas de cycle.
+  # que lu sur la ressource : pas de cycle. Les deux clients fixent le leur
+  # (sans client_id, le provider le laisse vide et seul `id` le porte).
   callback_urls = [pangolin_idp.pocket_id.redirect_url]
   pkce_enabled  = false
   is_public     = false
@@ -114,7 +121,7 @@ resource "pocketid_client" "pangolin" {
 # Lues par docker.yml pour le rôle homebox (HBOX_OIDC_CLIENT_*).
 output "pocket_id_homebox_client_id" {
   description = "POCKET ID - identifiant du client OIDC de Homebox"
-  value       = pocketid_client.homebox.id
+  value       = pocketid_client.homebox.client_id
 }
 
 output "pocket_id_homebox_client_secret" {
