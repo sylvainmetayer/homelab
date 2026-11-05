@@ -28,8 +28,9 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
 
 ## Conséquences
 
-- Immich et Newt ont `no-new-privileges` depuis le 2026-11-05 (images
-  inspectées, `cap_drop` toujours à faire) ; Pangolin, `flip_planning`, Paperless
+- Immich et Newt ont `no-new-privileges` depuis le 2026-11-05 (Newt, Valkey,
+  Swipe et Timelapse inspectées ; Dockerfiles et entrypoints amont lus pour le
+  serveur, le ML et Postgres, images non lancées ; `cap_drop` toujours à faire) ; Pangolin, `flip_planning`, Paperless
   et Monica restent hors périmètre **sans analyse de l'image**, à faire avant
   de lever l'exception ; `borgmatic` du NAS : pas essayé.
 - Non éprouvé au 2026-11-03 : file Sidekiq, crawl de Karakeep, mise à niveau

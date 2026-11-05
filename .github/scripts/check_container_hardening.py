@@ -33,7 +33,7 @@ OPTION = re.compile(
     r"""^\s*(?:-\s*|security_opt:\s*\[[^\]#]*)["']?no-new-privileges:true\b"""
 )
 
-# Owner (role, or compose/ directory; Immich's two share a name) -> why it is left
+# Owner (role, or compose/ directory) -> why it is left
 # out, and its services. The reasons are detailed in the doctrine.
 EXCEPTIONS = {
     "borgmatic": (
