@@ -11,6 +11,7 @@ locals {
     "immich-selfie-timelapse",
     "immich-swipe",
     "immich-kiosk",
+    "immich-power-tools",
     "nextcloud",
     "monica",
     "homepage",

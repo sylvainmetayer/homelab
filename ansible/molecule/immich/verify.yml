@@ -212,3 +212,29 @@
           - kiosk.mem_limit is defined
       vars:
         kiosk: "{{ immich_compose.services['immich-kiosk'] }}"
+
+    # Avec la clé (fake_secrets) : agit sur la photothèque avec elle, sans
+    # connexion ; joint par Pangolin seul (newt, derrière le SSO), jamais
+    # publié sur le LAN, durci, sans volume (SQLite de l'appli en tmpfs). La
+    # base d'Immich est lue par le réseau immich ; pas de JWT_SECRET (liens de
+    # partage publics désactivés).
+    - name: Assert Immich Power Tools is rendered, private and hardened
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - power_tools.environment.IMMICH_URL == 'http://immich-server:2283'
+          - power_tools.environment.IMMICH_API_KEY == 'molecule-immich-power-tools-api-key'
+          - power_tools.environment.DB_HOST == immich_compose.services.database.container_name
+          - power_tools.environment.DB_PASSWORD == immich_env.DB_PASSWORD
+          - "'JWT_SECRET' not in power_tools.environment"
+          - power_tools.networks | sort == ['immich', 'newt']
+          - "'ports' not in power_tools"
+          - "'volumes' not in power_tools"
+          - power_tools.read_only
+          - power_tools.cap_drop == ['ALL']
+          - power_tools.security_opt == ['no-new-privileges:true']
+          - power_tools.healthcheck.test[0] == 'CMD'
+          - power_tools.mem_limit is defined
+          - power_tools.image is match('^ghcr.io/immich-power-tools/immich-power-tools:[0-9.]+@sha256:[0-9a-f]{64}$')
+      vars:
+        power_tools: "{{ immich_compose.services['immich-power-tools'] }}"

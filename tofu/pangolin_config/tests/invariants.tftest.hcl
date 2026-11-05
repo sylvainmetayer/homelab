@@ -444,6 +444,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["immich_power_tools"]
+  values = { id = 193 }
+}
+
+override_resource {
   target = pangolin_resource.website["homebox"]
   values = { id = 69 }
 }
@@ -1940,16 +1945,18 @@ run "one_role_per_app_slug" {
   }
 
   # Immich Kiosk lit la photothèque avec une clé d'API en lecture seule, même
-  # règle. Immich Swipe agit sur la photothèque avec la clé d'API de son nginx : il
+  # règle. Immich Power Tools agit avec la clé d'API de son conteneur, sans
+  # connexion : même règle, et pas de règle d'IP de la maison (son entrée n'en
+  # déclare aucune). Immich Swipe agit sur la photothèque avec la clé d'API de son nginx : il
   # n'est lié qu'à son propre rôle, jamais à celui d'Immich (dont un membre
   # n'y entre donc pas d'office). Même règle que le timelapse.
   assert {
     condition = alltrue([
-      for key in ["immich_swipe", "immich_selfie_timelapse", "immich_kiosk"] :
+      for key in ["immich_swipe", "immich_selfie_timelapse", "immich_kiosk", "immich_power_tools"] :
       local.websites[key].role == replace(key, "_", "-")
       && length([for k, w in local.websites : k if lookup(w, "role", null) == local.websites[key].role]) == 1
     ])
-    error_message = "Immich Swipe, le timelapse et Kiosk portent chacun un rôle propre, lié à leur seule ressource, jamais celui d'Immich."
+    error_message = "Immich Swipe, le timelapse, Kiosk et Power Tools portent chacun un rôle propre, lié à leur seule ressource, jamais celui d'Immich."
   }
 }
 

@@ -247,6 +247,13 @@ lectures. Le rôle `jellystat` ne déploie rien tant qu'elle manque. Rotation :
 `sops set`, puis `ansible-playbook docker.yml --tags jellystat` (redémarre
 Jellystat), vérifier qu'une synchronisation passe (Jellystat, Paramètres →
 Tâches), puis supprimer l'ancienne clé dans Jellyfin.
+`immich_power_tools_api_key` : clé d'API d'Immich (compte de Sylvain) qu'Immich
+Power Tools pose côté serveur ; **tous les droits pour l'instant**, à remplacer
+par une clé restreinte (nom `immich-power-tools`, permissions minimales dans
+`ansible/roles/immich/README.md`). `pi.yml --tags immich` (redémarre la pile
+Immich), puis `https://power-tools.sylvain.cloud` doit s'ouvrir sans écran de
+connexion (rôle Pangolin `immich-power-tools`, que seul Sylvain porte) et lister
+les personnes ; supprimer ensuite l'ancienne clé dans Immich.
 
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
