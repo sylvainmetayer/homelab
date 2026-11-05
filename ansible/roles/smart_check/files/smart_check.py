@@ -64,7 +64,9 @@ def read_disk(smartctl, spec):
         data = json.loads(result.stdout)
     except ValueError:
         data = {}
-    if "ata_smart_attributes" not in data and "nvme_smart_health_information_log" not in data:
+    # Des attributs absents ou vides ne sont pas un disque sain : illisible.
+    nvme_log = data.get("nvme_smart_health_information_log") or {}
+    if not data.get("ata_smart_attributes", {}).get("table") and "percentage_used" not in nvme_log:
         messages = data.get("smartctl", {}).get("messages") or [{}]
         raise CheckError(f"{path} illisible : {messages[0].get('string', 'pas de données S.M.A.R.T.')}")
     return data
@@ -150,16 +152,21 @@ def check(args):
             unreadable.append(str(error))
             continue
         serial = data.get("serial_number") or disk_name(data)
-        risen = []
+        risen, kept = [], {}
         for item in inspect(data):
             ongoing.append(f"{disk_name(data)} {item['text']}")
             before = state.get(serial, {}).get(item["key"], 0)
+            kept[item["key"]] = max(before, item["level"])
             if item["level"] > before:
                 if before:
                     item["text"] += f" (annoncé à {before})"
                 risen.append(item)
                 priority = max(priority, item["priority"])
-                new_state.setdefault(serial, {})[item["key"]] = item["level"]
+        # Un constat disparu est oublié : sa rechute sonne de nouveau, et un
+        # disque remplacé, resté sous le même nom, repart de zéro.
+        new_state.pop(serial, None)
+        if kept:
+            new_state[serial] = kept
         if risen:
             lines.append(f"{disk_name(data)} :")
             lines += [f"  {item['text']}" for item in risen]
@@ -243,9 +250,10 @@ def main(argv=None):
         save_state(args.state_file, new_state)
         if unreadable:
             raise CheckError("; ".join(unreadable))
-    except (CheckError, OSError) as error:
-        print(f"down: {error}", flush=True)
-        push(push_url, "down", str(error))
+    except Exception as error:  # noqa: BLE001 un plantage ne doit pas laisser le moniteur muet
+        message = str(error) if isinstance(error, (CheckError, OSError)) else f"erreur inattendue : {type(error).__name__}"
+        print(f"down: {message}", flush=True)
+        push(push_url, "down", message)
         return 1
     print(f"up: {summary}", flush=True)
     return 0 if push(push_url, "up", summary) else 2
