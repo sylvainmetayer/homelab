@@ -55,7 +55,7 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    provider `trozz/pocketid`). Le rôle `pocket_id` pose `STATIC_API_KEY`
    (clé SOPS `pocket_id_static_api_key`, la même dans les deux fichiers) ;
    `tofu apply` crée le groupe `homebox`, les clients `Homebox` et `Pangolin`
-   (confidentiels, PKCE coupé, secrets en `random_password` du state) et
+   (confidentiels, PKCE exigé, secrets en `random_password` du state) et
    l'IdP « Pocket ID » de Pangolin (clé root `pangolin_root_api_key`, alias
    `pangolin.root` : une clé d'organisation ne peut pas créer d'IdP), dont
    l'URL de rappel remplit le client `Pangolin`. Rien à recopier. Puis `ansible-playbook docker.yml --tags

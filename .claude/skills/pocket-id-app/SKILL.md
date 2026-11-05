@@ -92,7 +92,8 @@ resource "pocketid_client" "<app>" {
   client_secret       = random_password.pocket_id_client["<app>"].result
   callback_urls       = ["https://<host>/<path>", "https://<host>/<path>/"]
   allowed_user_groups = [pocketid_group.<app>.id]
-  pkce_enabled        = false        # true only if the app sends PKCE
+  launch_url          = "https://<host>"   # else hidden from « My apps »
+  pkce_enabled        = true         # Pangolin and Homebox send it; false only if the app does not
   is_public           = false
 }
 
@@ -153,6 +154,7 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 | `Pangolin API key lacks access ... 403` at plan | provider start-up probe `GET /org/<org>` | root key also has « get organization » |
 | Pangolin: `User with username sylvain is unprovisioned` | `auto_provision = false`: no org user is created at login | create the external user in the org (IdP Pocket ID, same username, role) |
 | Tofu cycle client ↔ IdP | client callback is the IdP's `redirect_url`, IdP needs the client id | fixed `client_id` literal (local), not read from the resource |
+| Pocket ID « My apps » empty | the launcher lists only clients with a `launch_url` | set `launch_url` on every client |
 | `HBOX_OIDC_CLIENT_ID` empty | `pocketid_client.client_id` stays null unless set | always set `client_id` |
 | `tofu test`: `invalid callback URL` | mocked `redirect_url` is random | `mock_resource "pangolin_idp"` with a URL default on the `root` alias mock (both test files) |
 | plan of the whole module fails | Pocket ID down, `pocketid_*` cannot refresh | `-exclude=pocketid_client.<x>` ... for the unrelated change |

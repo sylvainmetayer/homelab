@@ -71,9 +71,9 @@ output "uptime_backup_pocket_id_url" {
 # module : planifier le reste avec -exclude=pocketid_client.homebox
 # -exclude=pocketid_client.pangolin -exclude=pocketid_group.homebox.
 #
-# PKCE coupé : c'est la valeur par défaut d'un client créé dans l'interface,
-# celle que supposent les guides de Pangolin et de Homebox ; un client qui ne
-# l'envoie pas serait refusé.
+# PKCE exigé : Pangolin et Homebox 0.27.1 l'envoient tous les deux (Pocket ID
+# l'a constaté sur Pangolin, le code de Homebox crée un pkceVerifier) ; un
+# client qui ne l'enverrait pas serait refusé.
 #
 # Les comptes de Pocket ID ne sont pas déclarés : un apply ne doit jamais
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
@@ -101,8 +101,11 @@ resource "pocketid_client" "homebox" {
     "https://homebox.sylvain.cloud/api/v1/users/login/oidc/callback/",
   ]
   allowed_user_groups = [pocketid_group.homebox.id]
-  pkce_enabled        = false
-  is_public           = false
+  # Sans URL de lancement, le client n'apparaît pas dans « Mes applications »
+  # de Pocket ID (ListAccessibleOidcClients filtre dessus).
+  launch_url   = "https://homebox.sylvain.cloud"
+  pkce_enabled = true
+  is_public    = false
 }
 
 resource "pocketid_client" "pangolin" {
@@ -114,7 +117,8 @@ resource "pocketid_client" "pangolin" {
   # que lu sur la ressource : pas de cycle. Les deux clients fixent le leur
   # (sans client_id, le provider le laisse vide et seul `id` le porte).
   callback_urls = [pangolin_idp.pocket_id.redirect_url]
-  pkce_enabled  = false
+  launch_url    = "https://pangolin.sylvain.cloud"
+  pkce_enabled  = true
   is_public     = false
 }
 
