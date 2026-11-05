@@ -9,7 +9,7 @@ uptime-push [--strict] [--agent NAME] <curl-config-file|-> <up|down> [message]
 - The push URL carries the monitor's token: it is read from a curl config file (`url = "…"`, `0600`, owned by whoever pushes) or from stdin with `-` (`printf 'url = "%s"\n' "$URL" | uptime-push - up "$msg"`), never from a command line (`ps`, `systemctl show`, journald's `_CMDLINE`). curl prints neither the URL nor the file path in its errors.
 - curl options: `-q -fsS -o /dev/null --max-time 10 --retry 2 --retry-connrefused --retry-max-time 15 -A <NAME> -G`, `status` and `msg` (default `OK`) through `--data-urlencode`.
 - **Worst case**: a hanging Uptime Kuma (connection accepted, no answer) costs 21 s (10 s, 1 s wait, 10 s; a third try would start after the 15 s window). A refused connection: three tries in ~3 s. Measured by the Molecule scenario.
-- Exit code: 0 even when the push fails (curl writes the error to stderr), so a down Uptime Kuma never fails the caller; `--strict` returns curl's code instead. 2 on a usage error.
+- Exit code: 0 even when the push fails (curl writes the error to stderr), so a down Uptime Kuma never fails the caller; `--strict` returns curl's code instead. A 3xx counts as a failed push (`-f` lets it through and curl does not follow it, so nothing reached the monitor): one line on stderr with the code only, 22 with `--strict`. 2 on a usage error.
 
 ## Callers
 

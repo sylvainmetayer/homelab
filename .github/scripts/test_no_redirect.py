@@ -1,4 +1,5 @@
-"""Scripts sending a token (trivy_critical, renovate_digest, storage_box_quota):
+"""Scripts sending a token (trivy_critical, renovate_digest, storage_box_quota,
+check_secret_rotation's Kuma push):
 no redirect followed. The real urllib on a fake answer, without network: a mock
 of the opener would not see the following. In one file, for Sonar's duplication
 gate (python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
@@ -12,6 +13,7 @@ import urllib.request
 from contextlib import redirect_stdout
 from unittest import mock
 
+import check_secret_rotation
 import renovate_digest
 import storage_box_quota
 import trivy_critical
@@ -27,6 +29,15 @@ def answering_302(seen):
         return mock.MagicMock(code=code, msg="x", info=lambda: headers)
 
     return mock.patch.object(urllib.request.HTTPSHandler, "https_open", https_open)
+
+
+class CheckSecretRotationTest(unittest.TestCase):
+    def test_kuma_redirect_is_an_error_and_nothing_reaches_the_target(self):
+        seen = []
+        with answering_302(seen), self.assertRaises(urllib.error.HTTPError) as raised:
+            check_secret_rotation.push("https://kuma.test/api/push/jeton", "up", "x")
+        self.assertEqual(raised.exception.code, 302)
+        self.assertEqual(len(seen), 1)
 
 
 class TrivyCriticalTest(unittest.TestCase):

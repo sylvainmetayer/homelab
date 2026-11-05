@@ -209,9 +209,25 @@ class MainTest(Script):
         self.assertIn("rien n'est poussé", err.getvalue())
 
     def test_push_appends_to_an_existing_query(self):
-        with mock.patch.object(ks.urllib.request, "urlopen") as urlopen:
+        with mock.patch.object(ks._OPENER, "open") as opened:
             ks.push("http://kuma.invalid/p?a=1", "up", "un message")
-        self.assertEqual(urlopen.call_args.args[0], "http://kuma.invalid/p?a=1&status=up&msg=un+message&ping=")
+        self.assertEqual(opened.call_args.args[0], "http://kuma.invalid/p?a=1&status=up&msg=un+message&ping=")
+
+    def test_push_redirect_is_an_error_and_nothing_reaches_the_target(self):
+        seen = []
+
+        def http_open(_handler, request):
+            seen.append(request.full_url)
+            headers = http.client.parse_headers(io.BytesIO(b"Location: /arrivee\r\n\r\n"))
+            return mock.MagicMock(code=302, msg="x", info=lambda: headers)
+
+        with (
+            mock.patch.object(ks.urllib.request.HTTPHandler, "http_open", http_open),
+            self.assertRaises(ks.urllib.error.HTTPError) as raised,
+        ):
+            ks.push("http://kuma.invalid/p", "up", "x")
+        self.assertEqual(raised.exception.code, 302)
+        self.assertEqual(len(seen), 1)
 
 
 if __name__ == "__main__":

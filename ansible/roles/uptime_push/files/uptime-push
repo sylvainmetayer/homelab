@@ -14,9 +14,9 @@
 # qui pendent, 10 + 1 + 10 = 21 s ; un refus de connexion, trois essais en
 # ~3 s.
 #
-# Code de sortie : 0 même si le push échoue (curl l'écrit sur stderr), pour
+# Code de sortie : 0 même si le push échoue (curl ou un 3xx, sur stderr), pour
 # qu'un Uptime Kuma injoignable ne fasse pas échouer l'appelant ; avec
-# --strict, celui de curl. 2 sur un usage invalide.
+# --strict, celui de curl, 22 sur un 3xx. 2 sur un usage invalide.
 set -u
 
 strict=false
@@ -39,11 +39,19 @@ case "$2" in
 esac
 
 # -q en tête : pas de ~/.curlrc.
-curl -q -fsS -o /dev/null --max-time 10 --retry 2 --retry-connrefused --retry-max-time 15 \
+code=$(curl -q -fsS -o /dev/null -w '%{http_code}' --max-time 10 --retry 2 --retry-connrefused --retry-max-time 15 \
   -A "$agent" -G -K "$1" \
   --data-urlencode "status=$2" \
-  --data-urlencode "msg=${3:-OK}"
+  --data-urlencode "msg=${3:-OK}")
 rc=$?
+
+# -f ne couvre pas les 3xx et sans -L curl s'arrête là : code 0, push non livré.
+case "$code" in
+  3??)
+    echo "uptime-push : réponse $code, redirection non suivie, push non livré" >&2
+    rc=22
+    ;;
+esac
 
 if [ "$strict" = true ]; then
   exit "$rc"

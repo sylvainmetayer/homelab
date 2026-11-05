@@ -95,12 +95,22 @@ def run(command):
     return process.returncode, stats, last_error, interrupted
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : le 200 de la page d'arrivée compterait comme un
+# push livré à Uptime Kuma, et l'URL de push porte le jeton du moniteur.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def push(url, status, msg):
     query = urllib.parse.urlencode({"status": status, "msg": msg, "ping": ""})
     separator = "&" if "?" in url else "?"
     # URL lue dans l'environnement de l'unité (root), pas une entrée
     # extérieure : la règle SSRF de Sonar ne s'applique pas.
-    with urllib.request.urlopen(url + separator + query, timeout=30) as response:  # NOSONAR
+    with _OPENER.open(url + separator + query, timeout=30) as response:  # NOSONAR
         response.read()
 
 
