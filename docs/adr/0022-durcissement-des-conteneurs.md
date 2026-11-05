@@ -28,8 +28,10 @@ une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
 
 ## Conséquences
 
-- Immich, Pangolin, Newt, `flip_planning`, Paperless et Monica restent hors
-  périmètre **sans analyse de l'image**, à faire avant de lever l'exception ; `borgmatic` du NAS : pas essayé.
+- Immich et Newt ont `no-new-privileges` depuis le 2026-11-05 (images
+  inspectées, `cap_drop` toujours à faire) ; Pangolin, `flip_planning`, Paperless
+  et Monica restent hors périmètre **sans analyse de l'image**, à faire avant
+  de lever l'exception ; `borgmatic` du NAS : pas essayé.
 - Non éprouvé au 2026-11-03 : file Sidekiq, crawl de Karakeep, mise à niveau
   automatique de MariaDB (QG homelab).
 - Image automergée qui casse son `cap_add` : revert **et** retrait de la liste

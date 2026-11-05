@@ -2,6 +2,8 @@
 name: immich_remote_ml
 services:
   immich-server-remote:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:v3.3.5@sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6
     volumes:
@@ -11,6 +13,8 @@ services:
       - .env
     restart: unless-stopped
   immich-machine-learning:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_machine_learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda

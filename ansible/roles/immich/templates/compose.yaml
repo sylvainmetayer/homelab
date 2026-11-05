@@ -9,6 +9,8 @@
 name: immich
 services:
   immich-server:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_server
     # mem_limit ≈ 2× le pic mesuré (memory.peak du cgroup, docs/conventions/
     # resource-limits.md) : 1,4 Gio pour le serveur, 1,1 Gio pour Postgres
@@ -42,6 +44,8 @@ services:
       disable: false
 
   immich-machine-learning:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_machine_learning
     # Pic mesuré 1,4 Gio, mais sur 26 h seulement : un gros import charge en
     # même temps les modèles CLIP, visages et OCR, d'où une marge au-delà du
@@ -65,6 +69,8 @@ services:
       disable: false
 
   redis:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_redis
     mem_limit: 256m
     mem_reservation: 128m
@@ -96,6 +102,8 @@ services:
       - immich
 
   database:
+    security_opt:
+      - no-new-privileges:true
     container_name: immich_postgres
     mem_limit: 2560m
     mem_reservation: 1152m
@@ -143,6 +151,8 @@ services:
   # la clé côté serveur : pas de CORS ni d'écran de connexion (README du
   # rôle). Sans, l'image telle quelle : URL et clé saisies dans le navigateur.
   immich-swipe:
+    security_opt:
+      - no-new-privileges:true
     image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
     mem_limit: 64m
@@ -253,6 +263,8 @@ services:
 
 {% endif %}
   immich-selfie-timelapse:
+    security_opt:
+      - no-new-privileges:true
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse
     mem_limit: 768m
