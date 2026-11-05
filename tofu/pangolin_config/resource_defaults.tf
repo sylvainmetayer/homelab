@@ -27,6 +27,11 @@
 # `auth_daemon_mode`, `auth_daemon_port` and `proxy_port` do not apply to
 # `mode = "http"`.
 #
+# `protocol` is optional+computed too, but deprecated and left undeclared on
+# purpose: the fork derives it from `mode`, and Pangolin neither stores nor
+# returns it for an http resource (checked on the live API on 2026-11-05), so
+# Traefik never reads it and it cannot hide an outage.
+#
 # `mode` is optional+computed as well, but with a provider-side default of
 # "http", so leaving it out never plans as unknown: five resources declared it
 # and sixteen did not, with the same result. It is pinned for a different
