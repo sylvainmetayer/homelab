@@ -29,6 +29,25 @@ security_ufw_enabled: true
 security_auditd_enabled: true
 security_os_hardening_enabled: true
 
+# Surveillances auditd de Docker (CIS Docker 1.1.3 à 1.1.18, celles qui existent
+# avec docker-ce sur Debian). Écartés : docker.sock et containerd.sock (chaque
+# connexion d'un client, Beszel, le proxy de Newt, ferait un évènement), les
+# chemins RHEL (/etc/sysconfig/docker) et /etc/default/docker, absent. Écrites
+# en -p wa : un dossier surveillé ne couvre que ses entrées directes, pas les
+# couches ni les volumes sous /var/lib/docker. Mesurer après le premier jour :
+# `aureport -k --summary`.
+security_auditd_docker_watches:
+  - /usr/bin/dockerd
+  - /usr/bin/containerd
+  - /usr/bin/containerd-shim-runc-v2
+  - /usr/bin/runc
+  - /etc/docker
+  - /etc/containerd/config.toml
+  - /var/lib/docker
+  - /run/containerd
+  - /usr/lib/systemd/system/docker.service
+  - /usr/lib/systemd/system/docker.socket
+
 # --- sshd, transmis à devsec ssh_hardening ---
 
 # AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion

@@ -6,6 +6,13 @@
     name: fail2ban
     state: restarted
 
+- name: Load audit rules
+  become: true
+  # Pas de noyau d'audit dans un conteneur (Molecule) : auditctl y échoue.
+  when: ansible_facts['virtualization_type'] | default('') not in ['docker', 'container', 'lxc', 'podman']
+  ansible.builtin.command: augenrules --load
+  changed_when: true
+
 # Relit les générateurs : systemd-ssh-generator masqué n'est plus lancé. Nom
 # propre au rôle : os_hardening de devsec, inclus avant, a un handler
 # « Reload systemd », et un notify par nom va au dernier chargé.

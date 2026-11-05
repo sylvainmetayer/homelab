@@ -107,6 +107,31 @@
       community.general.ufw:
         state: enabled
 
+# Règles d'audit de Docker (CIS Docker, 1.1.x). Écrites seulement pour les
+# chemins présents : auditctl refuse (ou ignore, selon la version) une
+# surveillance sur un chemin absent, et un échec en milieu de fichier chargerait
+# les règles à moitié. Un hôte sans Docker n'en reçoit aucune.
+- name: Look for the Docker paths to watch
+  when: security_auditd_enabled | bool
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: security_auditd_docker_stat
+  loop: "{{ security_auditd_docker_watches }}"
+
+- name: Write the Docker audit rules
+  when: security_auditd_enabled | bool
+  notify: Load audit rules
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/docker.rules
+    mode: "0640"
+    content: |
+      # Géré par Ansible (rôle security). -p wa : écritures et changements
+      # d'attributs, jamais x ni r (chaque `docker exec` appelle runc : trop
+      # bavard pour le SSD). Journal : /var/log/audit/audit.log, clé « docker ».
+      {% for r in security_auditd_docker_stat.results | selectattr('stat.exists') %}
+      -w {{ r.item }} -p wa -k docker
+      {% endfor %}
+
 - name: Enable security services
   ansible.builtin.systemd:
     name: "{{ item }}"
