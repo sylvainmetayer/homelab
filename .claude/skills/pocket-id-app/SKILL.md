@@ -86,7 +86,7 @@ decides what that means:
 |---|---|
 | `groups` claim (Nextcloud `user_oidc`, Pangolin's JMESPath) | one `pocketid_group` per role (`<app>-admin`, `<app>`); scope `groups`; the app maps the group names |
 | a role claim (Immich `immich_role`, TREK admin claim) | a group with `custom_claims = { <claim> = "admin" }`; members get the claim |
-| nothing (Homebox 0.27.1) | one group to gate access (`allowed_user_groups`); roles stay in the app (Homebox: home owner, invitations) |
+| nothing (Homebox 0.27.1, HealthLog 1.46.5, Dawarich 1.19.0, Beszel 0.21.1) | one group to gate access (`allowed_user_groups`); roles stay in the app (Homebox: home owner, invitations; Dawarich: admin flag in its admin panel). Say so to the user; never create an `<app>-admin` group the app does not read: it would look like it grants admin and does nothing |
 
 `allowed_user_groups` on the client lists every group that may log in (admins
 included). **Empty or omitted means every Pocket ID user** (provider doc):

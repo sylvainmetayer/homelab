@@ -108,11 +108,16 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      `users`, changer l'e-mail de l'enregistrement pour celui de Pocket ID,
      `verified` coché ; la variable ne sert qu'au premier démarrage du hub.
      Mot de passe gardé.
-   - **Dawarich** (le foyer, groupe `dawarich`) : e-mail du compte Dawarich
-     identique à celui de Pocket ID et vérifié ; à la première connexion, un
-     défi demande le mot de passe Dawarich, puis le compte est relié.
-     `OIDC_AUTO_REGISTER=false` : aucun compte créé par SSO. Les traceurs
-     (téléphone) gardent leur clé d'API.
+   - **Dawarich** (le foyer, groupe `dawarich`) : chaque personne a déjà un
+     compte Dawarich, est dans le groupe `dawarich`, et son e-mail Pocket ID
+     est identique à celui du compte et coché « vérifié » (sinon
+     `email_not_verified`, ou « requires administrator » si aucun compte ne
+     correspond : `OIDC_AUTO_REGISTER=false`, rien n'est créé). À la première
+     connexion, un défi demande le mot de passe Dawarich ; un compte avec 2FA
+     est alors relié mais renvoyé vers la page de login, à refaire une fois.
+     **Admin / utilisateur : réglé dans Dawarich** (Administration,
+     Utilisateurs) : Dawarich 1.19.0 ne lit aucun rôle dans l'OIDC, pas de
+     groupe `dawarich-admin`. Les traceurs gardent leur clé d'API.
 5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
    externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
    celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de
