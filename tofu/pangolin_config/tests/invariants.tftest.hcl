@@ -738,6 +738,21 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_smart["pve"]
+  values = { push_token = "push-cron-pve-smart" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_smart["pi"]
+  values = { push_token = "push-cron-pi-smart" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.cron_smart["nas"]
+  values = { push_token = "push-cron-nas-smart" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_dns["pi"]
   values = { push_token = "push-cron-dns-pi" }
 }
@@ -2094,6 +2109,10 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_pi_updates_url       = output.uptime_cron_pi_updates_url
         uptime_cron_flip_updates_url     = output.uptime_cron_flip_updates_url
         uptime_cron_pangolin_updates_url = output.uptime_cron_pangolin_updates_url
+        # smart_check : pve.yml, pi.yml, nas.yml
+        uptime_cron_pve_smart_url = output.uptime_cron_pve_smart_url
+        uptime_cron_pi_smart_url  = output.uptime_cron_pi_smart_url
+        uptime_cron_nas_smart_url = output.uptime_cron_nas_smart_url
         }] : alltrue([
         for name, url in urls :
         url == "https://uptime.example.test/api/push/push-${replace(trimsuffix(trimprefix(trimprefix(name, "uptime_"), "backup_"), "_url"), "_", "-")}"
@@ -2676,6 +2695,30 @@ run "monitors_are_filed_and_alert" {
     error_message = "Mises à jour (update_notify) : timer hebdomadaire ; un moniteur par hôte (pve, docker, pi, flip, pangolin), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
   }
 
+  # Le vérificateur S.M.A.R.T. (rôle smart_check) passe une fois par semaine
+  # sur pve, le Pi et le NAS : même fenêtre que celui des mises à jour. Chaque
+  # playbook joue le rôle et lui donne le moniteur de SON hôte.
+  assert {
+    condition = (
+      can(regex("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/smart_check/defaults/main.yml")).smart_check_schedule))
+      && toset(keys(local.smart_check_hosts)) == toset(["nas", "pi", "pve"])
+      && alltrue([
+        for host, playbook in {
+          pve = "pve.yml"
+          pi  = "pi.yml"
+          nas = "nas.yml"
+        } :
+        uptimekuma_monitor_push.cron_smart[host].interval > 60 * 60 * 24 * 14
+        && uptimekuma_monitor_push.cron_smart[host].interval < 60 * 60 * 24 * 24
+        && uptimekuma_monitor_push.cron_smart[host].parent == uptimekuma_monitor_group.self_hosted.id
+        && toset(uptimekuma_monitor_push.cron_smart[host].notification_ids) == toset(local.alert_notification_ids)
+        && strcontains(file("${path.module}/../../ansible/${playbook}"), "smart_check_healthcheck_url: \"{{ terraform_outputs.uptime_cron_${host}_smart_url.value | default('') }}\"")
+        && strcontains(file("${path.module}/../../ansible/${playbook}"), "- role: smart_check\n")
+      ])
+    )
+    error_message = "S.M.A.R.T. (smart_check) : timer hebdomadaire ; un moniteur par hôte (pve, pi, nas), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
+  }
+
   # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes
   # (blocky-check.timer) ; l'intervalle laisse passer deux vérifications
   # manquées, pas trois. Telegram et ntfy, comme les autres.
@@ -2783,7 +2826,7 @@ run "pushed_down_pages_at_once" {
 
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.cron_updates), [
+      for m in concat(values(uptimekuma_monitor_push.cron_updates), values(uptimekuma_monitor_push.cron_smart), [
         uptimekuma_monitor_push.cron_vzdump_restore_test,
         uptimekuma_monitor_push.restore_test,
         uptimekuma_monitor_push.secrets_rotation,

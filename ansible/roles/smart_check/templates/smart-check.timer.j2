@@ -1,0 +1,12 @@
+# S.M.A.R.T. des disques (rôle smart_check), chaque semaine. Persistent : un
+# hôte éteint à l'heure dite rattrape le passage à son démarrage.
+[Unit]
+Description=Weekly S.M.A.R.T. check of the disks
+
+[Timer]
+OnCalendar={{ smart_check_schedule }}
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,35 @@
+---
+# Usure et secteurs des disques, chaque semaine : smart-check.timer lance
+# files/smart_check.py, qui lit chaque disque par smartctl -j et publie sur
+# ntfy sur une HAUSSE d'un constat (seuils de docs/runbooks/sante-des-disques.md).
+# Beszel ne prévient que sur le verdict FAILED.
+
+# Disques à lire : { path: /dev/sda, type: <-d de smartctl, facultatif> }.
+# Propre à chaque hôte, donné dans le vars: de l'entrée du rôle.
+smart_check_devices: []
+
+# Nom de l'hôte dans les titres des messages.
+smart_check_host_label: "{{ inventory_hostname }}"
+
+# Script, fichier d'environnement et fichier d'état (0700 root). Sur le NAS :
+# docker_base_path (la racine d'UGOS est un overlay sur l'eMMC), voir nas.yml.
+smart_check_dir: /usr/local/lib/smart-check
+
+# smartmontools posé par apt (le Pi n'a pas smartctl). Faux sur le NAS : le
+# système appartient à UGOS, qui fournit le sien.
+smart_check_install_smartmontools: true
+smart_check_smartctl: /usr/sbin/smartctl
+
+# Topic scripts de ntfy (rôle ntfy, ntfy_publishers), comme update_notify.
+smart_check_ntfy_url: https://ntfy.sylvain.cloud
+smart_check_ntfy_topic: scripts
+smart_check_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+
+# URL push du moniteur Uptime Kuma de l'hôte (sortie
+# uptime_cron_<hôte>_smart_url de tofu/pangolin_config, lue par son
+# playbook) : vide, rien n'est poussé.
+smart_check_healthcheck_url: ""
+
+# Le lundi matin, avant update_notify (08:00 et suivants). Le moniteur tolère
+# un passage manqué, pas deux (tofu/pangolin_config/cron_smart.tf).
+smart_check_schedule: "Mon *-*-* 07:30:00"

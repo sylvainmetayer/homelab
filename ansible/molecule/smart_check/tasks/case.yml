@@ -1,0 +1,41 @@
+---
+# Un passage du script hors de l'unité, contre le faux smartctl (cas lu dans
+# /opt/molecule-smart-check/case), le faux ntfy et le faux Uptime Kuma.
+#
+# Variables :
+#   case_name   fixtures à servir (healthy, sick, sicker, unreadable)
+#   case_state  fichier d'état du passage (le même d'un cas à l'autre : la hausse)
+#   case_env    environnement en plus (NTFY_TOKEN…)
+#   case_rc     code de retour attendu
+# Résultat : smart_check_case_requests, les requêtes reçues par les faux
+# serveurs pendant ce passage (ntfy : POST /, Uptime Kuma : GET /api/push/…).
+- name: Forget the requests of the previous case
+  ansible.builtin.file:
+    path: "{{ smart_check_verify_dir }}/requests.jsonl"
+    state: absent
+
+- name: Choose the fixtures, {{ case_name }}
+  ansible.builtin.copy:
+    content: "{{ case_name }}"
+    dest: "{{ smart_check_verify_dir }}/case"
+    mode: "0644"
+
+- name: Run the disk check, {{ case_name }}
+  vars:
+    smart_check_case_state_args: ['--state-file', "{{ smart_check_verify_dir }}/{{ case_state }}"]
+  ansible.builtin.command:
+    argv: "{{ ['/usr/bin/python3', '-I', smart_check_dir ~ '/smart_check.py'] + smart_check_verify_args + smart_check_case_state_args }}"
+  environment: "{{ smart_check_verify_env | combine(case_env | default({})) }}"
+  register: smart_check_case_run
+  changed_when: true
+  failed_when: smart_check_case_run.rc != case_rc
+
+- name: Read what the fake servers received
+  ansible.builtin.slurp:
+    src: "{{ smart_check_verify_dir }}/requests.jsonl"
+  register: smart_check_case_log
+
+- name: Keep the requests of this case
+  ansible.builtin.set_fact:
+    smart_check_case_requests: >-
+      {{ (smart_check_case_log.content | b64decode).splitlines() | map('from_json') | list }}

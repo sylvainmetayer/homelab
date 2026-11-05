@@ -1,0 +1,287 @@
+---
+- name: Verify
+  hosts: all
+  # En root, comme l'unité : le dossier du script est 0700 root.
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../roles/smart_check/defaults/main.yml
+    - ../_shared/vars/fake_secrets.yml
+  vars:
+    smart_check_verify_dir: /opt/molecule-smart-check
+    smart_check_verify_push: /api/push/molecule-smart
+    # Les arguments de l'unité, faux smartctl en plus.
+    smart_check_verify_args:
+      - --host
+      - pve
+      - --ntfy-url
+      - http://127.0.0.1:18081 # NOSONAR
+      - --topic
+      - scripts
+      - --smartctl
+      - /opt/molecule-smart-check/bin/smartctl
+      - --device
+      - /dev/sda
+      - --device
+      - /dev/nvme0:sntrealtek
+    smart_check_verify_env:
+      NTFY_TOKEN: "{{ ntfy_scripts_token }}"
+      UPTIME_PUSH_URL: "http://127.0.0.1:18081{{ smart_check_verify_push }}" # NOSONAR
+  tasks:
+    - name: Read the environment file and the service unit
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: smart_check_verify_files
+      loop:
+        - "{{ smart_check_dir }}/smart-check.env"
+        - /etc/systemd/system/smart-check.service
+
+    - name: Stat the environment file
+      ansible.builtin.stat:
+        path: "{{ smart_check_dir }}/smart-check.env"
+      register: smart_check_verify_env_stat
+
+    # systemd-analyze verify échoue sur une directive inconnue ou mal écrite,
+    # que systemd ne ferait qu'ignorer au chargement.
+    - name: Verify the units as systemd parses them
+      ansible.builtin.command: systemd-analyze verify /etc/systemd/system/smart-check.service /etc/systemd/system/smart-check.timer
+      changed_when: false
+
+    - name: Read the loaded unit properties
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: smart_check_verify_units
+      loop: [smart-check.service, smart-check.timer]
+
+    - name: Assert the units, the secrets kept off the command line
+      vars:
+        smart_check_verify_envfile: "{{ smart_check_verify_files.results[0].content | b64decode }}"
+        smart_check_verify_service: "{{ smart_check_verify_files.results[1].content | b64decode }}"
+        smart_check_verify_props: "{{ smart_check_verify_units.results[0].status }}"
+      ansible.builtin.assert:
+        that:
+          - smart_check_verify_env_stat.stat.mode == '0600'
+          - smart_check_verify_env_stat.stat.pw_name == 'root'
+          - ('NTFY_TOKEN=' ~ ntfy_scripts_token) in smart_check_verify_envfile.splitlines()
+          - ('UPTIME_PUSH_URL=http://127.0.0.1:18081' ~ smart_check_verify_push) in smart_check_verify_envfile.splitlines()
+          - ntfy_scripts_token not in smart_check_verify_service
+          - smart_check_verify_push not in smart_check_verify_service
+          - "'--device /dev/sda --device /dev/nvme0:sntrealtek' in smart_check_verify_service"
+          - smart_check_verify_props.ProtectSystem == 'strict'
+          - smart_check_verify_props.NoNewPrivileges == 'yes'
+          - smart_check_verify_units.results[1].status.UnitFileState == 'enabled'
+          - smart_check_verify_units.results[1].status.ActiveState == 'active'
+        fail_msg: "{{ smart_check_verify_service }}"
+
+    - name: Create the folders of the fakes
+      ansible.builtin.file:
+        path: "{{ smart_check_verify_dir }}/fixtures"
+        state: directory
+        mode: "0755"
+
+    - name: Install the fixtures and the fake servers
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ smart_check_verify_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - fake_server.py
+        - fixtures/healthy-sda.json
+        - fixtures/healthy-nvme0.json
+        - fixtures/sick-sda.json
+        - fixtures/sicker-sda.json
+        - fixtures/unreadable-nvme0.json
+
+    - name: Start the fake ntfy and Uptime Kuma
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-smart-check-fakes
+          - --collect
+          - python3
+          - -I
+          - "{{ smart_check_verify_dir }}/fake_server.py"
+          - "{{ smart_check_verify_dir }}/requests.jsonl"
+      changed_when: true
+
+    - name: Wait for the fake servers to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18081
+        timeout: 30
+
+    # La vraie unité, durcie : le fichier d'état s'écrit sous
+    # ProtectSystem=strict, la lecture passe par le faux smartctl, le push arrive.
+    - name: Choose healthy fixtures for the unit run
+      ansible.builtin.copy:
+        content: healthy
+        dest: "{{ smart_check_verify_dir }}/case"
+        mode: "0644"
+
+    - name: Forget the requests made before the unit run
+      ansible.builtin.file:
+        path: "{{ smart_check_verify_dir }}/requests.jsonl"
+        state: absent
+
+    - name: Run the disk check unit
+      ansible.builtin.command: systemctl start smart-check.service # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: Read what the unit sent, and the arguments smartctl got
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: smart_check_verify_unit_log
+      loop:
+        - "{{ smart_check_verify_dir }}/requests.jsonl"
+        - "{{ smart_check_verify_dir }}/argv.log"
+
+    - name: Assert the unit pushed up to its monitor, with the bridge type
+      vars:
+        smart_check_verify_requests: >-
+          {{ (smart_check_verify_unit_log.results[0].content | b64decode).splitlines() | map('from_json') | list }}
+        smart_check_verify_argv: "{{ (smart_check_verify_unit_log.results[1].content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - smart_check_verify_requests | length == 1
+          - smart_check_verify_requests[0].method == 'GET'
+          - smart_check_verify_requests[0].path is search('^' ~ smart_check_verify_push ~ '\?status=up&')
+          - "'-j -H -A /dev/sda' in smart_check_verify_argv"
+          - "'-j -H -A -d sntrealtek /dev/nvme0' in smart_check_verify_argv"
+        fail_msg: "{{ smart_check_verify_requests | to_json }} {{ smart_check_verify_argv }}"
+
+    - name: Check a disk with pending sectors, first pass
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: sick
+        case_state: state-rise.json
+        case_rc: 0
+
+    - name: Assert an urgent message, the monitor gets up
+      vars:
+        smart_check_verify_ntfy: "{{ smart_check_case_requests[0] }}"
+        smart_check_verify_msg: "{{ smart_check_verify_ntfy.body | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - smart_check_case_requests | length == 2
+          - smart_check_verify_ntfy.method == 'POST'
+          - smart_check_verify_ntfy.authorization == 'Bearer ' ~ ntfy_scripts_token
+          - smart_check_verify_msg.topic == 'scripts'
+          - smart_check_verify_msg.priority == 5
+          - "smart_check_verify_msg.title == 'pve : disque à surveiller'"
+          - "'197 en attente : 2167' in smart_check_verify_msg.message"
+          - "'198 non corrigeables : 2031' in smart_check_verify_msg.message"
+          - smart_check_case_requests[1].path is search('\?status=up&')
+        fail_msg: "{{ smart_check_case_requests | to_json }}"
+
+    # Le point de la conception : un disque connu défaillant ne sonne pas
+    # chaque semaine. Seul le battement part, avec ses constats en résumé.
+    - name: Check the same disk again, nothing new
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: sick
+        case_state: state-rise.json
+        case_rc: 0
+
+    - name: Assert nothing is published, the summary still tells
+      ansible.builtin.assert:
+        that:
+          - smart_check_case_requests | length == 1
+          - smart_check_case_requests[0].method == 'GET'
+          - "(smart_check_case_requests[0].path | urldecode) is search('2 constat\\(s\\) : .*197 en attente : 2167')"
+        fail_msg: "{{ smart_check_case_requests | to_json }}"
+
+    - name: Check the same disk worse
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: sicker
+        case_state: state-rise.json
+        case_rc: 0
+
+    - name: Assert only the risen counter is announced
+      vars:
+        smart_check_verify_msg: "{{ smart_check_case_requests[0].body | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - smart_check_case_requests | length == 2
+          - "'197 en attente : 2200 (annoncé à 2167)' in smart_check_verify_msg.message"
+          - "'198' not in smart_check_verify_msg.message"
+        fail_msg: "{{ smart_check_case_requests | to_json }}"
+
+    # Une alerte qui ne part pas doit se voir : down au moniteur, et rien
+    # n'est marqué annoncé (le passage suivant la refait).
+    - name: Check a disk alert with no ntfy token
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: sick
+        case_state: state-notoken.json
+        case_env:
+          NTFY_TOKEN: ""
+        case_rc: 1
+
+    - name: Assert a message that cannot be published pushes down
+      ansible.builtin.assert:
+        that:
+          - smart_check_case_requests | length == 1
+          - smart_check_case_requests[0].path is search('\?status=down&')
+          - (smart_check_case_requests[0].path | urldecode) is search('NTFY_TOKEN vide')
+        fail_msg: "{{ smart_check_case_requests | to_json }}"
+
+    - name: Stat the state file of the failed publication
+      ansible.builtin.stat:
+        path: "{{ smart_check_verify_dir }}/state-notoken.json"
+      register: smart_check_verify_notoken_state
+
+    - name: Assert the state was not written
+      ansible.builtin.assert:
+        that: not smart_check_verify_notoken_state.stat.exists
+
+    - name: Check an unreadable disk
+      ansible.builtin.include_tasks: tasks/case.yml
+      vars:
+        case_name: unreadable
+        case_state: state-unreadable.json
+        case_rc: 1
+
+    - name: Assert an unreadable disk pushes down, the other one is still read
+      ansible.builtin.assert:
+        that:
+          - smart_check_case_requests | length == 1
+          - smart_check_case_requests[0].path is search('\?status=down&')
+          - "(smart_check_case_requests[0].path | urldecode) is search('/dev/nvme0 illisible : Read Device Identity failed')"
+        fail_msg: "{{ smart_check_case_requests | to_json }}"
+
+    - name: Stop the fake servers
+      ansible.builtin.systemd:
+        name: molecule-smart-check-fakes.service
+        state: stopped
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: smart_check
+      register: smart_check_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/smart_check/files/smart_check.py"
+          dest: smart_check.py
+        - src: "{{ playbook_dir }}/files/test_smart_check.py"
+          dest: test_smart_check.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ smart_check_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0600"
+
+    # Seuils, hausse seule, état, codes de sortie ; le verify ci-dessus joue
+    # le script entier.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ smart_check_unit_tests_dir.path }}"
+      changed_when: false
+
+    - name: Remove the script tests
+      ansible.builtin.file:
+        path: "{{ smart_check_unit_tests_dir.path }}"
+        state: absent
