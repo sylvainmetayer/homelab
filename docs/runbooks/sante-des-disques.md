@@ -21,13 +21,20 @@ La VM docker, flip, Pangolin et le LXC ne voient qu'un disque virtuel : leur
 usure se lit sur `pve` (ou chez Hetzner). Les autres hôtes n'ont rien à lire.
 
 **Alerte automatique.** Beszel prévient quand l'état d'un disque **empire**
-(`PASSED` vers `WARNING` ou `FAILED`, `internal/alerts/alerts_smart.go`), sans
-rien à déclarer dans `beszel_alerts` ni seuil à régler. Le message part aux
+depuis `PASSED` (`internal/alerts/alerts_smart.go`), sans rien à déclarer dans
+`beszel_alerts` ni seuil à régler. En 0.21.1 l'état ne prend que les valeurs
+`PASSED`, `FAILED` et `UNKNOWN` (`agent/smart_parse.go`) : l'alerte réelle est
+`PASSED` vers `FAILED`, le `WARNING` du code d'alerte n'est jamais produit.
+Le disque est relu toutes les heures par défaut : l'alerte peut arriver une
+heure après le verdict. Le message part aux
 utilisateurs du système (`config.yml` : le compte administrateur) par leurs
 canaux : l'e-mail (SMTP réglé dans l'interface du hub) et Telegram, **qui
 n'existe pas encore** (clés SOPS `beszel_telegram_bot_token` et
 `beszel_telegram_chat_id` absentes, [README du rôle](../../ansible/roles/beszel/README.md)).
-Un disque `UNKNOWN` (illisible) ne déclenche rien.
+Un disque `UNKNOWN` (illisible) ne déclenche rien, et un disque qui passe
+d'`UNKNOWN` à `FAILED`, ou qui apparaît déjà `FAILED`, non plus : seule la
+transition depuis `PASSED` prévient. Un système en sourdine dans l'interface
+(notifications silencieuses) ne reçoit rien.
 
 À côté : l'alerte `Temperature` (80 °C sur 10 min) sur `nas`, `pi`, `pve`, et
 `Status` (hôte muet 5 min) partout.
@@ -71,12 +78,14 @@ Lecture seule, en root sur `pve`, avec `sudo` sur le NAS (`smartctl` y est :
 
 ```bash
 smartctl -H -A /dev/sda    # sur chaque disque : sda, sdb, sdc au NAS ; sda sur pve
+smartctl -H -A -d sntrealtek /dev/sda   # sur le Pi (voir sa ligne ci-dessous)
 ```
 
 | Disque | À lire | Remplacer ou racheter quand |
 |---|---|---|
-| NAS (HDD) | 5 `Reallocated_Sector_Ct`, 197 `Current_Pending_Sector`, 198 `Offline_Uncorrectable` ; 199 `UDMA_CRC_Error_Count` (câble) | l'un des trois premiers est supérieur à 0 **et croît** d'un contrôle à l'autre |
-| `pve` (SSD SATA) | l'attribut d'usure du modèle : 177 `Wear_Leveling_Count`, 202, 231 ou 233 (valeur normalisée, 100 neuf, qui descend) | normalisée sous 20 : racheter ; sous 10 : sans attendre. Le modèle n'est pas dans le dépôt : à vérifier |
+| NAS (HDD) | 5 `Reallocated_Sector_Ct`, 197 `Current_Pending_Sector`, 198 `Offline_Uncorrectable` (valeur brute, `RAW_VALUE`) ; 199 `UDMA_CRC_Error_Count` (câble) | 197 ou 198 supérieur à 0 : copier ce qui compte et remplacer le disque, sans attendre qu'il croisse. 5 supérieur à 0 **et en hausse** d'un contrôle à l'autre : idem. 199 en hausse : changer le câble ou le pont USB |
+| `pve` (SSD SATA) | l'attribut d'usure du modèle : 177 `Wear_Leveling_Count`, 173, 169, 202, 231 ou 233 (valeur **normalisée** `VALUE`, 100 neuf, qui descend ; sur certains modèles le brut est le pourcentage déjà consommé, lire le nom de l'attribut) ; 232 `Available_Reservd_Space` | normalisée sous 20 : racheter ; sous 10 : sans attendre. Le modèle n'est pas dans le dépôt : à vérifier |
+| `pi` (NVMe, pont USB) | `smartctl -H -A -d sntrealtek /dev/sda` : `Percentage Used`, `Available Spare`, `Media and Data Integrity Errors` | `Percentage Used` au-delà de 80 : racheter ; `Available Spare` sous 20 ou erreurs d'intégrité non nulles : sans attendre. Si le pont ne remonte rien, ce contrôle est le seul |
 
 Noter la date et les valeurs en bas de ce fichier (« Relevés »), pour voir la
 pente. Une pente vaut mieux qu'un seuil.
@@ -96,8 +105,9 @@ maintenance ou vérification) :
 1. Existe-t-il un scrub planifié du volume, et quand a-t-il tourné la dernière
    fois ? S'il y en a un, **ne rien ajouter**.
 2. Sinon, le lancer à la main un dimanche en journée et le planifier si UGOS le
-   permet. Éviter 21:00 (vzdump), 02:30 (borgmatic) et 04:00 (kDrive) : le scrub
-   lit tout le volume et ralentit les trois.
+   permet. Éviter 21:00 (vzdump), 02:30 (borgmatic), 04:00 (kDrive) et
+   10:00 les 2 et 16 du mois (test de restauration vzdump, qui relit l'archive
+   sur le NAS) : le scrub lit tout le volume et ralentit les quatre.
 
 Lecture seule, sur le NAS, pour constater (sans rien lancer) :
 
