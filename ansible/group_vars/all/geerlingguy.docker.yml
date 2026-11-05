@@ -5,8 +5,14 @@ docker_users:
 # Rotation des logs json-file : sans ça les logs de conteneur grossissent sans
 # limite (et sont déjà dupliqués dans journald par `docker compose up` attaché).
 # Ne s'applique qu'aux conteneurs (re)créés après le changement.
-docker_daemon_options:
-  log-driver: json-file
-  log-opts:
-    max-size: 10m
-    max-file: "3"
+docker_daemon_options: >-
+  {{ {'log-driver': 'json-file', 'log-opts': {'max-size': '10m', 'max-file': '3'}}
+  | combine({'live-restore': true} if docker_live_restore | bool else {}) }}
+
+# live-restore : les conteneurs survivent à un redémarrage du démon (mise à jour
+# de docker-ce par unattended-upgrades comprise). Par hôte (host_vars), pas
+# partout : changer daemon.json redémarre Docker, donc tous les conteneurs de
+# l'hôte, une fois. Les unités dc@ n'en profitent pas : `up` sort, ExecStop
+# arrête les conteneurs, l'unité les relance 15 s après (docker_service). Gain
+# réel : les conteneurs hors dc@ (la pile de Pangolin).
+docker_live_restore: false
