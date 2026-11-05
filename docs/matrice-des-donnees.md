@@ -13,7 +13,7 @@ sur l'hôte », ce qui ne veut pas dire que c'est absent.
 
 Sinistres visés : **panne matérielle**, **maison sinistrée** (NAS, hôte
 Proxmox, Pi et poste perdus ensemble), **compromission**. Dépendants : Sylvain,
-sa compagne, la famille. Le dépôt ne dit pas qui utilise quelle appli, sauf
+le foyer, la famille. Le dépôt ne dit pas qui utilise quelle appli, sauf
 Immich (« le service le plus utilisé de la famille »,
 [ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)), Wishlist (listes
 partagées avec la famille) et Jellyfin (un compte par personne du foyer,
@@ -26,8 +26,8 @@ par Sylvain.
 
 | Étage | Critère |
 |---|---|
-| 1 | Pas d'autre source connue dans le dépôt, perte définitive, touche une personne du foyer ; ou secret dont la perte bloque toute la reprise. |
-| 2 | Donnée saisie à la main ou historique : se refait en jours, ou existe en partie ailleurs ; ou accès à reconstruire. |
+| 1 | Pas d'autre source connue dans le dépôt, perte définitive et difficile à refaire (souvenirs, documents), touche une personne du foyer ; ou secret dont la perte bloque toute la reprise. |
+| 2 | Donnée saisie à la main ou historique : se refait en jours, même si sa perte serait définitive (listes, comptes, réglages), ou existe en partie ailleurs ; ou accès à reconstruire. |
 | 3 | Se reconstruit depuis le dépôt (Tofu, Ansible) ou jetable (mesures, journaux, caches). |
 
 **Copies** : « Borg » = dépôt `backup/<hôte>/<appli>` sur la Storage Box
@@ -204,7 +204,7 @@ proposé ici.
    éprouvée.
 9. **Temps de reprise** : une seule reprise mesurée (Pangolin, 45 min). Aucune
    reconstruction complète de la VM docker ni du Pi n'est décrite.
-10. **Autres que Sylvain** : aucun document du dépôt ne s'adresse à sa compagne
+10. **Autres que Sylvain** : aucun document du dépôt ne s'adresse au foyer
     ou à la famille pour reprendre quoi que ce soit. Non vérifié ligne à ligne.
 11. **Jours sans nuit réussie** : un dépôt dont le dump échoue chaque nuit
     garde une vieille archive qui se restaure (cas de Nextcloud en octobre
