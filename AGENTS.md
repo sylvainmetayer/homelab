@@ -67,6 +67,8 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 
 - `new-app` (`.claude/skills/new-app/`): add an app; holds the former « Adding a new app role » section. Delegates to `pangolin-route` (Pangolin resource, targets, SSO, monitors) and `borgmatic-backup`.
 - `remove-app`: decommission an app (`decommission_app` role, `--tags decommission`), then grep the repo for the name.
+- `pangolin-config-plan`: worktree on `origin/main`, `tofu plan` of `tofu/pangolin_config`, the traps of a plan that lies, and the narrow cases an agent may apply alone.
+- `provider-fork-release`: fix the Pangolin provider fork, build and publish its prerelease by hand, bump the homelab to it with an empty full plan.
 - `homelab-reviewer` agent: review a diff before `tofu apply` / `ansible-playbook`.
 
 ## Current state worth knowing
