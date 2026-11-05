@@ -9,8 +9,7 @@ dependencies = [
     "ansible-lint>=26.10.1",
     "boto3>=1.43.24",
     "botocore>=1.43.24",
-    "mkdocs>=1.6.1",
-    "mkdocs-material>=9.8.0",
+    "zensical>=0.0.74",
     "passlib>=1.7.4",
 ]
 

@@ -1,9 +1,7 @@
-"""Tests of mkdocs_mermaid.py, the MkDocs hook of mkdocs.yml (Lint
+"""Tests of mkdocs_mermaid.py, a build step of mkdocs_build.py (Lint
 workflow: python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
 import re
 import unittest
-
-from mkdocs.exceptions import PluginError
 
 import mkdocs_mermaid
 from mkdocs_mermaid import add_script, check_pin
@@ -31,7 +29,7 @@ class Pin(unittest.TestCase):
     def test_sha256_is_the_one_of_the_pinned_version(self):
         # Échoue sur une PR Renovate qui monte MERMAID_VERSION : son sha256
         # se recalcule à la main (docstring de mkdocs_mermaid.py) ; le
-        # PluginError de check_pin() dit quoi faire.
+        # mkdocs_mermaid.MermaidError de check_pin() dit quoi faire.
         check_pin()
         self.assertRegex(mkdocs_mermaid.MERMAID_SHA256, re.compile(r"^[0-9a-f]{64}$"))
 
@@ -39,7 +37,7 @@ class Pin(unittest.TestCase):
         saved = mkdocs_mermaid.MERMAID_VERSION
         mkdocs_mermaid.MERMAID_VERSION = "99.0.0"
         try:
-            with self.assertRaisesRegex(PluginError, "MERMAID_SHA256 est celui de"):
+            with self.assertRaisesRegex(mkdocs_mermaid.MermaidError, "MERMAID_SHA256 est celui de"):
                 check_pin()
         finally:
             mkdocs_mermaid.MERMAID_VERSION = saved

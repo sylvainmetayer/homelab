@@ -57,7 +57,7 @@ SHARED_PATH_RE = re.compile(r"^ansible/(?:(?:group_vars/all|tasks)/.+|requiremen
 # change deploys it as a change to its own files would. docs_site builds the
 # docs/ folder with mkdocs.yml and its hooks (.github/scripts/mkdocs_*.py,
 # the same glob as deploy-docker-app.yaml's paths) into docs.sylvain.cloud. A
-# mkdocs or Material bump (uv.lock) is left out, like every uv.lock change:
+# Zensical bump (uv.lock) is left out, like every uv.lock change:
 # the next docs change rebuilds with it.
 ROLE_SOURCES = [
     (re.compile(r"^(?:docs/.+|mkdocs\.yml|\.github/scripts/mkdocs_[a-z_]+\.py)$"), "docs_site"),

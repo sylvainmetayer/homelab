@@ -117,7 +117,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin); hardening (sshd, PVE firewall, repos, SDN) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md`, `ansible/roles/pve_hardening/README.md` |
 | Papra trial | `ansible/roles/papra/README.md` |
 | MediaManager trial (NAS, VPN, sandbox) | `ansible/roles/mediamanager/README.md` |
-| Docs site (docs.sylvain.cloud, MkDocs): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |
+| Docs site (docs.sylvain.cloud, Zensical): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |
 | Proxmox VM, LXC, vzdump job | `tofu/proxmox/README.md` |
 | Hetzner VMs, NAT, Storage Box; Pangolin server rebuild | `tofu/pangolin/README.md` (+ `STORAGE_BOX_SETUP.md`) |
 | Pangolin config: resources, rules, path bypasses, private resources, bindings | `tofu/pangolin_config/README.md` |

@@ -1,4 +1,4 @@
-"""Tests of mkdocs_external_links.py, the MkDocs hook of mkdocs.yml (Lint
+"""Tests of mkdocs_external_links.py, a build step of mkdocs_build.py (Lint
 workflow: python -I -m unittest discover -s .github/scripts -p 'test_*.py')."""
 import unittest
 
