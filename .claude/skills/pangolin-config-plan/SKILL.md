@@ -28,8 +28,9 @@ destroy them. A PR branch is planned to read it, never applied.
 
 ```bash
 git fetch origin main                          # alone
-git worktree add --detach .claude/worktrees/plan-pc origin/main
-cd .claude/worktrees/plan-pc
+W="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/worktrees/plan-pc"   # main checkout's worktrees dir, from anywhere
+git worktree add --detach "$W" origin/main
+cd "$W"
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 git submodule update --init secrets            # alone
 mise trust .                                   # outside the sandbox if any
@@ -50,7 +51,8 @@ and fails on credentials.
 ## 2. Plan and read it
 
 ```bash
-P=$SCRATCH/pc.tfplan          # a session scratch dir, never the repo
+: "${SCRATCH:?set SCRATCH to the session scratch dir first}"   # never the repo
+P=$SCRATCH/pc.tfplan
 mise exec -- tofu -chdir=tofu/pangolin_config plan -input=false -no-color -concise -compact-warnings -out=$P
 ```
 
@@ -82,7 +84,9 @@ Read the warnings too:
 - **A recreated PIN, password or header auth with nothing changed** on the
   server is a read problem, not drift: provider ≤ `1.7.0-sylvain.2` read only
   the first 20 items of the org lists. Check the live object through the API
-  (`pageSize=1000`) before applying anything that recreates auth.
+  (`pageSize=1000` on resources, roles, site-resources, sites, users, clients;
+  `limit`/`offset` on access-tokens, invitations, domains, blueprints) before
+  applying anything that recreates auth.
 - **`-target` pulls in dependencies**: a targeted apply also applies whatever
   its target depends on (Nextcloud's SSO came back that way on 2026-11-04).
   Run `plan -target=...` and read *its* summary; `-exclude=<addr>` exists to
@@ -91,6 +95,9 @@ Read the warnings too:
   upstream provider it may not (`tofu/pangolin_config/README.md`).
 
 ## 4. Apply the plan you read
+
+Only if section 0 allows it for this plan; otherwise hand these commands to
+Sylvain.
 
 ```bash
 mise exec -- tofu -chdir=tofu/pangolin_config apply -input=false -no-color -concise -compact-warnings $P
@@ -109,6 +116,6 @@ exit `0` (empty); `2` means something did not converge, report it.
   by hand for `nas.yml`, `pve.yml`, `lxc.yml`).
 - A new or changed route: `curl -I https://<full_domain>`, target healthy in
   Pangolin within 60 s, Uptime Kuma green within 5 min.
-- Remove the worktree when done: `git worktree remove .claude/worktrees/plan-pc`.
+- Remove the worktree when done: `git worktree remove "$W"`.
 - Say what was applied, the follow-up plan's exit code, and what is still red
   and why.

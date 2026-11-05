@@ -23,6 +23,7 @@ state never changes provider.
 ## 1. Fix on the fork
 
 ```bash
+: "${SCRATCH:?set SCRATCH to the session scratch dir first}"   # an empty one makes the rm -rf below hit /rel
 gh repo clone sylvainmetayer/terraform-provider-pangolin "$SCRATCH/tfp"   # alone (git clone over SSH fails in a sandbox)
 cd "$SCRATCH/tfp" && git switch -c fix/<topic>
 export GOMODCACHE=$SCRATCH/gomod GOCACHE=$SCRATCH/gocache GOPATH=$SCRATCH/gopath
@@ -75,7 +76,7 @@ In a worktree from `origin/main` (never the main checkout), one PR:
 | `tofu/pangolin_config/provider.tf` | `version = "= $V"` |
 | `tofu/pangolin_config/.terraform.lock.hcl` | delete the `stackopshq/pangolin` block, `init` writes it back with the new `h1:` |
 | `AGENTS.md` | the version in « Current state worth knowing » |
-| `docs/adr/0021-provider-pangolin-du-fork.md` | the version in « Décision » |
+| `docs/adr/0021-provider-pangolin-du-fork.md` | the version in « Décision », and the PR count in « Contexte » when the fix adds one |
 
 ```bash
 grep -rln 'sylvain\.<N-1>' --exclude-dir=.git .          # nothing left after the edit
