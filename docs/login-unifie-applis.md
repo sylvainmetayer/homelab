@@ -1,12 +1,11 @@
 # Login unifié : support OIDC des applis
 
-> **Pilote Pocket ID** ([ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md), 2026-11-05) : Pocket ID
-> remplace Authelia (0016, remplacée) comme fournisseur ; seul **Homebox** est branché, et seul le compte de
-> Sylvain l'utilise. Le support des applis ci-dessous ne dépend pas du fournisseur, mais
-> les passages « Avec Authelia » (`authorization_policy`, `claims_policy`) valent pour Pocket ID
-> ainsi : les groupes autorisés se règlent dans le client Pocket ID, le claim `groups` exige le scope
-> `groups` et porte les noms internes des groupes (voir [runbooks/pocket-id.md](runbooks/pocket-id.md)).
-> Pocket ID n'a ni mot de passe ni TOTP : les « second facteur » de 0016 n'y existent pas.
+> **Pocket ID** ([ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md), pilote le 2026-11-05,
+> clos le 2026-11-07) remplace Authelia (0016, remplacée) comme fournisseur. Toutes les applis
+> marquées « branché » ci-dessous l'utilisent, le foyer compris ; le mur Pangolin saute directement
+> vers lui. Les groupes autorisés se règlent dans le client Pocket ID, le claim `groups` exige le
+> scope `groups` et porte les noms internes des groupes ([runbooks/pocket-id.md](runbooks/pocket-id.md)).
+> Pocket ID n'a ni mot de passe ni TOTP.
 
 Détail de l'[ADR 0016](adr/0016-login-unifie-oidc.md) (remplacée par 0030) : support
 OIDC de chaque appli à la version déployée le 2026-10-29, effort, et ce qui
@@ -14,7 +13,7 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 
 | Appli (version) | OIDC | Source | Effort | Login local gardé |
 |---|---|---|---|---|
-| Homebox 0.27.1 (pilote) | natif, liaison par e-mail | [conf.go](https://github.com/sysadminsmedia/homebox/blob/v0.27.1/backend/internal/sys/config/conf.go) | faible | oui (`ALLOW_LOCAL_LOGIN`) ; chaque nouveau compte a son propre foyer, hors de l'invitation de groupe de [0014](adr/0014-homebox.md) : allowed groups, et effet de l'inscription fermée sur la création OIDC à confirmer |
+| Homebox 0.27.1 (branché, Sylvain seul) | natif, liaison par e-mail | [conf.go](https://github.com/sysadminsmedia/homebox/blob/v0.27.1/backend/internal/sys/config/conf.go) | faible | oui (`ALLOW_LOCAL_LOGIN`) ; chaque nouveau compte a son propre foyer, hors de l'invitation de groupe de [0014](adr/0014-homebox.md) : allowed groups, et effet de l'inscription fermée sur la création OIDC à confirmer |
 | Immich v3.3.5 (branché, le foyer) | natif, réglé dans l'UI ; rôle par claim `immich_role` (groupe `immich-admin`), liaison par e-mail sans vérification, auto-register coupé ; mobile `app.immich:///oauth-callback` | [doc](https://docs.immich.app/administration/oauth) | faible | oui (`passwordLogin`) |
 | Nextcloud 35.0.2 (branché, le foyer) | `user_oidc` (magasin d'applis) posé par le rôle (`occ user_oidc:provider`), PKCE ; **liaison par uid** = nom d'utilisateur Pocket ID, aucune création, pas de synchro de groupes (admin local) | [UpsertProvider.php](https://github.com/nextcloud/user_oidc/blob/v8.11.0/lib/Command/UpsertProvider.php) | moyen | oui (`/login?direct=1`) ; clients par mots de passe d'application |
 | Proxmox VE 9.2 (branché, hors mur) | realm OpenID `pocketid` (`pve_hardening`, tag `pve_oidc`), sans PKCE ; groupes `proxmox-admin` / `proxmox-auditor` → ACL | [pveum](https://pve.proxmox.com/pve-docs/chapter-pveum.html) | faible | oui (`root@pam`) |
@@ -41,13 +40,6 @@ reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 | Monica 3.7.0, Speedtest Tracker 1.15.1, ntfy v2.34.0, Uptime Kuma 2.5.8 | aucun ([ntfy #1596](https://github.com/binwiederhier/ntfy/issues/1596), [Kuma #6539](https://github.com/louislam/uptime-kuma/issues/6539)) | code aux tags | — | **reste tel quel** : le mur Pangolin, puis leur compte |
 | Flip Planning, Betisier, Promptoramix | Keycloak à soi / public | — | — | **reste tel quel** : autres utilisateurs |
 
-**Avec Authelia** : les « allowed groups » ci-dessus (Homebox)
-deviennent l'`authorization_policy` du client (`subject: group:<appli>`, en
-`two_factor`) ; une appli qui lit les groupes dans l'ID token plutôt qu'au
-userinfo a besoin d'une `claims_policy` (Authelia 4.39 ne les y met plus par
-défaut), à vérifier appli par appli au branchement.
-
-**Ordre** : vérifier la clé EE ; Authelia, passkeys et TOTP ; **pilote Homebox** ;
-mur Pangolin (comptes recréés côté IdP) ; Immich, TREK, Wishlist, Dawarich,
-Beszel, Nextcloud, Karakeep ; BookStack, FreshRSS, vmauth
-en dernier, si le gain vaut le login local perdu.
+**Ordre suivi** (05 et 06/11) : pilote Homebox ; mur Pangolin (auto-provision,
+rôles depuis les groupes) ; Immich, TREK, Wishlist, Dawarich, Beszel, Nextcloud,
+Karakeep et les autres ; BookStack, FreshRSS et vmauth (OIDC exclusif) en dernier.

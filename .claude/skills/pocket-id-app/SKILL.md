@@ -22,7 +22,7 @@ are the two reference implementations: copy them.
    goes in each. If no: roles stay in the app (invitations, local settings),
    OIDC only gates access; say it plainly.
 3. **Break glass**: keep the app's local login (default, recommended), or
-   OIDC only? Never remove the local login during the pilot (ADR 0030).
+   OIDC only? Remove the local login only on Sylvain's explicit choice, with a documented break-glass switch (BookStack, FreshRSS, vmauth, Grocy did; ADR 0030).
 4. **Existing local accounts**: does the app link an OIDC login to an existing
    account (by email, by username) or create a new one? If unknown, say it is
    tested at the first login and the local account stays usable either way.

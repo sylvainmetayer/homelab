@@ -1,20 +1,20 @@
-# Pocket ID : pilote du fournisseur d'identité
+# Pocket ID : le fournisseur d'identité
 
-Décision et risques : [ADR 0030](../adr/0030-pocket-id-fournisseur-identite-pilote.md).
-Pocket ID (`id.sylvain.cloud`, rôle `pocket_id` sur la VM Pangolin) est un
-fournisseur OIDC à **passkeys seuls**. Le pilote concerne **le compte de
-Sylvain uniquement** : le foyer ne change rien, les comptes internes de Pangolin
-(dont le compte interne propriétaire de l'organisation, mot de passe et 2FA,
-le secours si Pocket ID tombe) restent le chemin de tout le monde.
+Décision et risques : [ADR 0030](../adr/0030-pocket-id-fournisseur-identite-pilote.md)
+(pilote du 05/11, clos le 07/11). Pocket ID (`id.sylvain.cloud`, rôle `pocket_id`
+sur la VM Pangolin) est un fournisseur OIDC à **passkeys seuls**. Le foyer s'y
+connecte : au mur Pangolin et à chaque appli qui sait faire de l'OIDC
+([login-unifie-applis.md](../login-unifie-applis.md)). Le compte interne
+propriétaire de l'organisation (mot de passe et 2FA, jamais relié à l'IdP)
+reste le secours si Pocket ID tombe.
 
 ## Ce que ça change et ne change pas
 
-| | Pilote |
+| | Depuis le 06/11 |
 |---|---|
-| Mur SSO de Pangolin | comptes internes **inchangés** (rôles posés dans l'interface). Un bouton « Pocket ID » s'y ajoute : Pangolin crée l'utilisateur externe à sa première connexion et **réécrit ses rôles à chaque connexion** d'après ses groupes Pocket ID (un groupe par rôle d'appli, même nom) |
-| Clients mobiles (Immich, Karakeep, Papra, Grocy, Nextcloud, ntfy, flux) | **aucun effet** : ils passent par des jetons d'accès Pangolin, des en-têtes, des mots de passe d'application ou des chemins ouverts ([acces-mobile.md](../acces-mobile.md)), jamais par la page de login du mur. Rien à reconfigurer, aucun chemin ouvert ajouté |
-| Navigateur, PWA (HealthLog…) | inchangés tant que le mur reste sur les comptes internes ; à la bascule, le login passe par Pocket ID dans le navigateur, les en-têtes `P-Access-Token-*` des applis ne bougent pas |
-| Homebox | un bouton « Se connecter avec Pocket ID » **en plus** du login local, qui reste le secours |
+| Mur SSO de Pangolin | la page de login d'une ressource **saute directement** vers Pocket ID (`skip_to_idp_id`, `websites.tf`). Pangolin crée l'utilisateur externe à sa première connexion et **réécrit ses rôles à chaque connexion** d'après ses groupes Pocket ID (un groupe par rôle d'appli, même nom). Les comptes internes gardent leurs rôles posés à la main et se connectent par la page de login du tableau de bord, qui garde le formulaire local |
+| Clients mobiles (Immich, Karakeep, Papra, Grocy, Nextcloud, ntfy, flux) | **aucun effet** : ils passent par des jetons d'accès Pangolin, des en-têtes, des mots de passe d'application ou des chemins ouverts ([acces-mobile.md](../acces-mobile.md)), jamais par la page de login du mur |
+| Applis branchées | un bouton Pocket ID **en plus** du login local, sauf BookStack, FreshRSS (web), l'interface de VictoriaLogs et Grocy, où Pocket ID (ou Pangolin pour Grocy) est le seul chemin : leur secours est plus bas |
 | `id.sylvain.cloud` | public, **hors filtre FR/DE** : en voyage, la connexion Pocket ID marche sans déclarer le pays ; c'est la différence de 0002 |
 
 ## Étapes de Sylvain, dans l'ordre
@@ -300,17 +300,13 @@ utilisateur créé par Pangolin lui-même (`auto_provision`). La règle
 Pocket ID nommé `Admin` ou `Member` ne donne rien. Un `groups` absent donne
 une liste vide, donc un refus.
 
-## Plan de bascule (hors pilote, une PR chacune)
+## Bascule (faite les 05 et 06/11)
 
-1. Pilote : Pocket ID, Homebox, un utilisateur externe Pangolin (ce runbook).
-2. Quelques semaines sans incident : les moniteurs verts, le test de
-   restauration vert, les passkeys testés, une montée de version passée.
-3. Le mur : plus d'applis (Immich, TREK, Wishlist, Dawarich, Beszel, Nextcloud,
-   Karakeep, [ordre de login-unifie-applis.md](../login-unifie-applis.md)), le
-   foyer invité dans Pocket ID (auto-provision et règle de groupes en place depuis le
-   06/11 : il reste à vérifier la licence EE et le claim `groups`). Comptes internes gardés.
-4. BookStack, FreshRSS, vmauth (OIDC exclusif) en dernier, si le gain vaut le
-   login local perdu.
+Pilote sur Homebox le 05/11, puis toutes les applis OIDC et le foyer le 06/11,
+BookStack, FreshRSS et vmauth (OIDC exclusif) compris, et le saut direct du mur
+vers Pocket ID. Pilote clos le 07/11 sans attendre ses critères (ADR 0030, « Fin
+du pilote ») : chaque montée de version de Pocket ID passe donc par l'audit
+ci-dessous. Comptes internes Pangolin gardés.
 
 ## Audit de sécurité (après chaque montée de version)
 
@@ -357,12 +353,21 @@ elle) puis `sudo docker exec crowdsec cscli allowlists add pocket-id-audit
 
 ## Secours
 
-- **L'IdP tombe** (moniteur « Pocket ID » rouge, `docker compose ps`) : le mur
-  Pangolin et les applis ne dépendent pas de lui pendant le pilote (comptes
-  internes, login local de Homebox). Redémarrer : `sudo docker compose -f
-  /opt/pocket-id/compose.yaml up -d`, journaux avec `logs`. Si Pangolin
-  redémarre, le conteneur reste sur le réseau `pangolin` (`docker compose down` de
-  la pile Pangolin dit alors qu'il ne peut pas le retirer : sans conséquence).
+- **L'IdP tombe** (moniteur « Pocket ID » rouge, `docker compose ps`) :
+  redémarrer : `sudo docker compose -f /opt/pocket-id/compose.yaml up -d`,
+  journaux avec `logs`. Si Pangolin redémarre, le conteneur reste sur le réseau
+  `pangolin` (`docker compose down` de la pile Pangolin dit alors qu'il ne peut
+  pas le retirer : sans conséquence). Le temps qu'il revienne :
+  - **mur** : une session se prend avec le
+    compte interne propriétaire, par la page de login du **tableau de bord**
+    Pangolin (formulaire local gardé), dont la session ouvre les ressources ;
+  - **applis à login local** : leur mot de passe, comme avant ;
+  - **BookStack** : `wiki_oidc_force_standard: true` (rôle `wiki`, à relancer) rend le login
+    standard ; **FreshRSS** : `auth_type` à `form` et `OIDC_*` retirés sur l'hôte
+    (`ansible/roles/rss/README.md`) ; **Grocy** : `grocy_proxy_auth_enabled:
+    false` (rôle `grocy`, à relancer) rend le login Grocy ; **VictoriaLogs** : depuis l'hôte docker,
+    interroger `127.0.0.1:9428` avec le compte Basic `sylvain`
+    (`/select/logsql/query` seulement, hors hôte SSO).
 - **Tous les passkeys sont perdus** : un code créé par l'administrateur **sur
   l'hôte** (pas besoin d'un compte), valable 1 heure, une seule fois :
   `sudo docker compose -f /opt/pocket-id/compose.yaml exec pocket-id /app/pocket-id one-time-access-token <nom d'utilisateur>`.
@@ -394,4 +399,4 @@ elle) puis `sudo docker exec crowdsec cscli allowlists add pocket-id-audit
 - **Restauration** : [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md),
   dépôt `pocket_id` du sous-compte de Pangolin ; même clé de chiffrement que
   celle du `.env` archivé.
-- **Retour arrière du pilote** : ADR 0030.
+- **Retour arrière** : ADR 0030 (décision, puis « Fin du pilote »).

@@ -389,7 +389,7 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
 - `ntfy_publisher_password_hash` : hash d'un mot de passe tiré et jeté (les
   producteurs n'entrent que par jeton) ; le refaire de même, sur incident
   seulement.
-- Pocket ID (pilote, [pocket-id.md](pocket-id.md)) : `pocket_id_encryption_key`
+- Pocket ID ([pocket-id.md](pocket-id.md)) : `pocket_id_encryption_key`
   (`ansible.sops.yaml`, `encryption`, sur incident seulement) ne se tourne pas à
   la légère, Pocket ID chiffre ses clés de signature avec :
   `encryption-key-rotate` dans le conteneur d'abord, puis la clé SOPS, puis

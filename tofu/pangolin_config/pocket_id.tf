@@ -1,4 +1,4 @@
-# Pocket ID, fournisseur d'identité OIDC en pilote (ADR 0030, rôle Ansible
+# Pocket ID, fournisseur d'identité OIDC (ADR 0030, rôle Ansible
 # pocket_id sur la VM Pangolin).
 #
 # Pas une ressource Pangolin : elle serait derrière le mur SSO qu'elle sert.
