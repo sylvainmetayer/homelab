@@ -160,9 +160,14 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      l'utilisent (ou une clé d'API). Pas de rôle par claim.
    - **Papra** (le foyer, groupe `papra`) : rien à saisir, le rôle `papra`
      pose `AUTH_PROVIDERS_CUSTOMS` (fournisseur `pocket-id`, PKCE) depuis les
-     sorties Tofu. Liaison par e-mail vérifié (better-auth), à confirmer au
-     premier essai ; l'inscription fermée empêche toute création. Mot de passe
-     gardé. Pas de rôle par claim.
+     sorties Tofu. Liaison par e-mail : better-auth 1.6.11 exige l'e-mail
+     vérifié **des deux côtés** (`requireLocalEmailVerified`, non réglable
+     dans Papra). Un compte créé par inscription a `email_verified = 0` :
+     le bouton Pocket ID finit sur `/api/auth/error` (« account not linked »).
+     Avant la première connexion de chacun, depuis `ansible/` :
+     `ansible docker -b -m shell -a "cd /opt/apps/papra/app-data/db && sqlite3 db.sqlite \"VACUUM INTO 'db.sqlite.avant-verif'\" && sqlite3 db.sqlite \"UPDATE users SET email_verified=1 WHERE email='<adresse>'; SELECT changes();\""`
+     (doit afficher `1` ; fait pour Sylvain le 2026-11-06). L'inscription
+     fermée empêche toute création. Mot de passe gardé. Pas de rôle par claim.
    - **Yamtrack** (le foyer, groupe `yamtrack`) : rien à saisir, le rôle pose
      `SOCIAL_PROVIDERS` et `SOCIALACCOUNT_PROVIDERS` (allauth, PKCE). **Aucune
      liaison automatique** : chacun se connecte une fois par mot de passe, puis
