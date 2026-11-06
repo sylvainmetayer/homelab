@@ -136,9 +136,9 @@
           - "'<RoleClaim>groups</RoleClaim>' in jellyfin_verify_sso"
           - "'<DefaultUsernameClaim>preferred_username</DefaultUsernameClaim>' in jellyfin_verify_sso"
           - "'<SchemeOverride>https</SchemeOverride>' in jellyfin_verify_sso"
-          - jellyfin_verify_sso | regex_search('<AdminRoles>\\s*<string>jellyfin-admin</string>\\s*</AdminRoles>')
-          - jellyfin_verify_sso | regex_search('<Roles>\\s*<string>jellyfin</string>\\s*<string>jellyfin-admin</string>\\s*</Roles>')
-          - jellyfin_verify_sso | regex_search('<OidScopes>\\s*<string>email</string>\\s*<string>groups</string>\\s*</OidScopes>')
+          - jellyfin_verify_sso is search('<AdminRoles>\\s*<string>jellyfin-admin</string>\\s*</AdminRoles>')
+          - jellyfin_verify_sso is search('<Roles>\\s*<string>jellyfin</string>\\s*<string>jellyfin-admin</string>\\s*</Roles>')
+          - jellyfin_verify_sso is search('<OidScopes>\\s*<string>email</string>\\s*<string>groups</string>\\s*</OidScopes>')
         fail_msg: "{{ 'Configuration du greffon SSO inattendue' }}"
       no_log: true
 
