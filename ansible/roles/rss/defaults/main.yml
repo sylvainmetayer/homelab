@@ -43,3 +43,22 @@ rss_backup_enabled: true
 rss_backup_borgmatic_target: "{{ backup_storage_box_url }}/rss"
 rss_backup_encryption_passphrase: "{{ backup_passphrase }}"
 rss_backup_healthcheck_url: ""
+
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client rss) :
+# mod_auth_openidc de l'image (OIDC_*), et FreshRSS en auth_type http_auth
+# (tasks/main.yml, CLI reconfigure). Plus de formulaire web : le
+# preferred_username Pocket ID est le compte FreshRSS (identique au caractère
+# près ; un inconnu du groupe rss reçoit un compte neuf,
+# http_auth_auto_register). Seul /i/ passe par l'OIDC : l'API (mots de passe
+# d'API, Homepage) n'est pas touchée. Rendu seulement quand l'émetteur,
+# l'identifiant et le secret sont dans le state. Secours : README du rôle.
+rss_oidc_client_id: "{{ terraform_outputs.pocket_id_rss_client_id.value | default('') }}"
+rss_oidc_client_secret: "{{ terraform_outputs.pocket_id_rss_client_secret.value | default('') }}"
+rss_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+rss_oidc_enabled: >-
+  {{ rss_oidc_client_id | length > 0
+     and rss_oidc_client_secret | length > 0
+     and rss_oidc_issuer | length > 0 }}
+# Chiffre la session de mod_auth_openidc ; dérivée, sans clé sops. La changer
+# ne coupe que les sessions en cours.
+rss_oidc_crypto_key: "{{ (backup_passphrase ~ '-freshrss-oidc') | hash('sha256') }}"

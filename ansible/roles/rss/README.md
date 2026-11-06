@@ -75,3 +75,26 @@ mise exec -- ansible docker -o -m shell -a 'id=$(docker ps -q --no-trunc -f name
 
 The write rate is the `wbytes` (and `wios`) difference over the `date`
 difference. Before this change (2026-11-02 07:32-07:4x): see the PR.
+
+## Connexion par Pocket ID
+
+Client `rss` de `tofu/pangolin_config/pocket_id.tf` (groupe `rss`, le foyer).
+Quand les sorties Tofu sont là, le compose active le `mod_auth_openidc` de
+l'image officielle (`OIDC_*`, rappel `/i/oidc/`, en-têtes `X-Forwarded-*` de
+Traefik), puis le rôle passe `auth_type` de `form` à `http_auth` dans
+`freshrss_data/config.php`, après le redémarrage (jamais `http_auth` sans
+OIDC devant). **Plus de formulaire de mot de passe sur le web** : le
+`preferred_username` Pocket ID est le compte FreshRSS, identique au caractère
+près (`sylvain` des deux côtés, vérifié le 2026-11-06) ; un membre du groupe
+sans compte en reçoit un neuf (`http_auth_auto_register`). Seul `/i/` passe par
+l'OIDC : l'API (Google Reader, Fever, mots de passe d'API, Homepage) n'est pas
+touchée. Le moniteur d'Uptime Kuma sonde `/api/` (`website_rss.tf`). Pas de
+PKCE (l'Apache de l'image n'en règle pas).
+
+Secours (Pocket ID en panne, ou mauvais nom d'utilisateur) : sur l'hôte docker,
+`sed -i "s/'auth_type' => 'http_auth',/'auth_type' => 'form',/"
+/opt/apps/rss/freshrss_data/config.php` rend le formulaire tout de suite
+(FreshRSS relit le fichier à chaque requête) ; mais mod_auth_openidc garde
+`/i/` tant que le compose a `OIDC_ENABLED`, il faut donc aussi retirer les
+lignes `OIDC_*` du compose et relancer `dc@rss`. Le prochain passage du rôle
+remet l'OIDC si les sorties Tofu existent toujours.

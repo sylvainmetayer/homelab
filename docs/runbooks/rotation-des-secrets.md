@@ -411,8 +411,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   modify` reposé à chaque passage). VictoriaLogs (`["victoria-logs"]`) :
   `docker.yml --tags victoria_logs` (vmauth relit `auth.yml`) ; son secret de
   cookie SSO est dérivé de `backup_passphrase` (pas de clé sops) : une rotation
-  de celle-ci ne coupe que les connexions en cours. Les tuiles
-  vitrine n'ont pas de secret.
+  de celle-ci ne coupe que les connexions en cours. FreshRSS (`["rss"]`) :
+  `docker.yml --tags rss` (clé de session dérivée de `backup_passphrase`).
+  Les tuiles vitrine n'ont pas de secret.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

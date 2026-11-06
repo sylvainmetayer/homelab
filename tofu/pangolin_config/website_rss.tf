@@ -7,11 +7,13 @@ locals {
     role      = "rss"
     backup    = true
 
-    # FreshRSS's root answers 302 to /i/: monitoring "/" cost two requests per
-    # probe (the redirect, followed). /i/ itself, a 200, is the one request.
-    # Pangolin serves its maintenance page on any path, so the inverted
+    # /i/ is behind FreshRSS's own OIDC (mod_auth_openidc, pocket_id.tf): a
+    # probe there would only see the redirect to Pocket ID. /api/ is FreshRSS's
+    # information page, served by PHP without session or database even with
+    # the API off (the container's own healthcheck reads it): one request, a
+    # 200. Pangolin serves its maintenance page on any path, so the inverted
     # keyword still sees an outage.
-    monitor_path = "/i/"
+    monitor_path = "/api/"
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {

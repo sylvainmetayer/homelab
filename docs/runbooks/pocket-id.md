@@ -210,6 +210,11 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      saisir, le rôle `victoria_logs` pose `sso:` depuis les sorties Tofu ;
      plus d'interface en Basic (le compte `sylvain` ne sert plus qu'aux
      scripts, `/select/logsql/query`). Agents et Homepage inchangés.
+   - **FreshRSS** (le foyer, groupe `rss`) : rien à saisir, le rôle `rss`
+     active l'OIDC de l'image et passe `auth_type` à `http_auth`. **Plus de
+     formulaire web** : le nom d'utilisateur Pocket ID est le compte FreshRSS
+     (créé s'il manque). API (applis mobiles, Homepage) inchangée. Secours :
+     README du rôle `rss`.
    - **Tuiles vitrine** : chaque appli du mur sans client réel a un client
      public `vitrine-<appli>` (`pocketid_client.launcher`, généré depuis
      `local.websites`), jamais utilisé pour se connecter, pour paraître dans

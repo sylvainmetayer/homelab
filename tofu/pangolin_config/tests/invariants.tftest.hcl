@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3309,6 +3309,10 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_client.victoria_logs.callback_urls == tolist(["https://logs.sylvain.cloud/_vmauth/sso/callback"])
       && strcontains(file("${path.module}/../../ansible/roles/victoria_logs/defaults/main.yml"), "terraform_outputs.pocket_id_victoria_logs_client_secret.value")
       && contains(pocketid_client.immich.callback_urls, "https://power-tools.sylvain.cloud/api/auth/oauth/callback")
+      # FreshRSS : mod_auth_openidc sans PKCE, rappel /i/oidc/, groupe rss.
+      && pocketid_client.rss.pkce_enabled == false
+      && pocketid_client.rss.callback_urls == tolist(["https://rss.sylvain.cloud/i/oidc/"])
+      && strcontains(file("${path.module}/../../ansible/roles/rss/defaults/main.yml"), "terraform_outputs.pocket_id_rss_client_secret.value")
     )
     error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox et VictoriaLogs de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
