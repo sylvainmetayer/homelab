@@ -60,7 +60,7 @@
         state: directory
         owner: root
         group: root
-        mode: "0755"
+        mode: "0755" # NOSONAR: lu par Pocket ID (uid 65532), bases GeoLite2 publiques
 
     - name: Provide placeholder GeoLite2 databases
       ansible.builtin.copy:
@@ -68,7 +68,7 @@
         content: "molecule: base GeoLite2 factice\n"
         owner: root
         group: root
-        mode: "0644"
+        mode: "0644" # NOSONAR: lu par Pocket ID (uid 65532), bases GeoLite2 publiques
         force: false
       loop:
         - GeoLite2-Country
