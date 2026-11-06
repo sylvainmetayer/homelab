@@ -1,7 +1,7 @@
 ---
 services:
   traefik:
-    image: docker.io/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+    image: docker.io/traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
     container_name: {{ nas_proxy_container_name }}
     mem_limit: {{ nas_proxy_mem_limit }}
     # Root dans le conteneur (propriétaire d'acme.json), sans autre capacité que
@@ -70,7 +70,7 @@ services:
   # de dc@ arrêterait nas-proxy à chaque essai. Même image, aucun secret :
   # ni identifiants OVH ni certificats.
   forward:
-    image: docker.io/traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+    image: docker.io/traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
     container_name: {{ nas_proxy_forward_container_name }}
     mem_limit: {{ nas_proxy_forward_mem_limit }}
     network_mode: host

@@ -8,7 +8,7 @@ services:
     networks:
       - newt    # Réseau externe pour accès Pangolin/Traefik
       - wiki    # Réseau interne pour communication avec la DB
-    image: lscr.io/linuxserver/bookstack:26.09.2@sha256:da6324232770050b7d5f6222e8f4e223f1c688363b02ebb3c15a7546dd7133d5
+    image: lscr.io/linuxserver/bookstack:26.09.2@sha256:33f61a72d9aaa021f7e687987b9fcb992673d9ca3fc08f63f5ddaddf59e94efc
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
@@ -59,7 +59,7 @@ services:
       - no-new-privileges:true
     networks:
       - wiki    # Réseau interne uniquement
-    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:d0f9ffd4d00878b8892888e70cb8ea12f4d2dfa63ac940ceb9fd1b36a1b449e3
+    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:7b4b9904c151bc50caf2ec9c5bc2213ceedc82c30eaf9ed2b0d47492ebffbe08
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}

@@ -49,7 +49,7 @@
   },
   "ntfy": {
     "image": "docker.io/binwiederhier/ntfy",
-    "version": "v2.37.1",
+    "version": "v2.37.2",
     "compose": "ansible/roles/ntfy/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_ntfy.tf (ntfy_client_paths)",
     "reread": "server/server.go (handleInternal and the path regexes above it: every route answering /, /<topic>, /<topic>/json|ws|auth, and which of them skip authorizeTopic*), server/server_middleware.go (authorizeTopicRead/Write), server/server_account.go and server/server_admin.go (nothing under /v1 opened), user/manager.go (auth-default-access deny-all, provisioned users and tokens); the clients: ntfy-android ApiService.kt, WsConnection.kt and util/Util.kt, ntfy-ios ntfy/Utils/ApiService.swift and Helpers.swift, Uptime Kuma server/notification-providers/ntfy.js, HealthLog src/lib/notifications/senders/ntfy.ts, shoutrrr pkg/services/push/ntfy",

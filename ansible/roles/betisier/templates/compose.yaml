@@ -8,7 +8,7 @@ services:
     networks:
       - newt
       - betisier
-    image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:62561012a5f372f2098bc7818df1fbc5cf5554066b0261c1a49646a88cec6801
+    image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:8732f3365c7065e9b94587b5bef7a439caa438bc3206dec71eaff97308f89ef9
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
@@ -36,7 +36,7 @@ services:
     stop_grace_period: 60s
     networks:
       - betisier
-    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:d0f9ffd4d00878b8892888e70cb8ea12f4d2dfa63ac940ceb9fd1b36a1b449e3
+    image: lscr.io/linuxserver/mariadb:11.8.9@sha256:7b4b9904c151bc50caf2ec9c5bc2213ceedc82c30eaf9ed2b0d47492ebffbe08
     container_name: betisier_db
     security_opt:
       - no-new-privileges:true
