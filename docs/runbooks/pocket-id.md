@@ -171,6 +171,45 @@ une liste vide, donc un refus.
 4. BookStack, FreshRSS, vmauth (OIDC exclusif) en dernier, si le gain vaut le
    login local perdu.
 
+## Audit de sécurité (après chaque montée de version)
+
+`mise run audit-pocket-id` (depuis le poste, environnement SOPS de mise) :
+`.github/scripts/pocket_id_audit.py`, environ 2 minutes, code de sortie 1 si
+un contrôle échoue.
+
+- **Passif** : découverte OIDC (S256, pas d'`alg none`, pas d'implicite),
+  JWKS sans partie privée, en-têtes, CORS, chemins exposés, configuration
+  publique (inscription fermée), version comparée aux avis publiés.
+- **Sans compte** : API admin, userinfo (dont un JWT `alg=none` forgé),
+  token, introspection, device flow refusés ; 40 clés API fausses.
+- **Flux complet**, avec un groupe, deux clients et un utilisateur jetables
+  `pid-audit-*` (supprimés à la fin, et les restes d'un passage interrompu au
+  début ; ils passent dans le journal d'audit) : refus hors groupe, PKCE,
+  `redirect_uri` piégées, codes entre clients, rejeu de code, refresh après
+  rotation et après retrait du groupe.
+
+Résultats connus de la v2.19.1 (06/11/2026), à ne pas reprendre pour une
+régression : PKCE `plain` accepté (activé en dur), ancien refresh token
+valable une minute après rotation (période de grâce voulue), `nosniff` et
+`Referrer-Policy` absents (en-têtes Traefik).
+
+Scanners génériques, à la demande, images épinglées par digest :
+
+```bash
+A=$(mktemp -d); chmod 777 "$A"
+podman run --rm -v "$A:/out:Z" docker.io/drwetter/testssl.sh@sha256:64bab3c1fd8eee440f68d5e020dd633c1f2d375fe0ae593bdfec2725110a7e29 \
+  --quiet --color 0 --jsonfile /out/testssl.json id.sylvain.cloud
+podman run --rm -v "$A:/zap/wrk:Z" ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af \
+  zap-baseline.py -t https://id.sylvain.cloud -m 1 -J zap.json -I
+podman run --rm -v "$A:/root/nuclei-templates:Z" docker.io/projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb -ut
+podman run --rm -v "$A:/root/nuclei-templates:Z" docker.io/projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb \
+  -u https://id.sylvain.cloud -rl 5 -c 5 -etags dos,fuzz,intrusive,bruteforce -duc
+```
+
+Avant les scanners, ton IP en liste blanche CrowdSec le temps du passage
+(expire seule) : `sudo docker exec crowdsec cscli allowlists add
+pocket-id-audit <ip> -e 4h` sur Pangolin (`docs/runbooks/crowdsec.md`).
+
 ## Secours
 
 - **L'IdP tombe** (moniteur « Pocket ID » rouge, `docker compose ps`) : le mur

@@ -220,6 +220,11 @@ arg "<keyfile>" help="the secours age key file (mounted USB stick)"
 run = 'python3 -I .github/scripts/secours_key_check.py --sops "$(mise which sops)" --age-keygen "$(mise which age-keygen)" "${usage_keyfile}"'
 raw = true
 
+[tasks.audit-pocket-id]
+description = "Security audit of Pocket ID (id.sylvain.cloud): passive, unauthenticated, full OIDC flow with throwaway pid-audit-* objects; rerun after each Pocket ID upgrade"
+run = "python3 -I .github/scripts/pocket_id_audit.py"
+raw = true
+
 [tasks.secrets-scan]
 description = "Scan the whole git history for secrets (gitleaks, .gitleaks.toml); the pre-commit hook covers staged changes"
 run = "gitleaks git . --no-banner --redact"
