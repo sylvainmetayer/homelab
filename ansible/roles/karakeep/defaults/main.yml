@@ -12,6 +12,17 @@ karakeep_meili_master_key: "{{ (backup_passphrase ~ '-karakeep-meili') | hash('s
 # d'ouvrir un compte supplémentaire, ou le créer depuis l'admin.
 karakeep_disable_signups: true
 
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
+# karakeep) : rendue seulement quand l'émetteur, l'identifiant et le secret
+# sont dans le state. Le mot de passe reste (appli mobile et extension).
+# Liaison par e-mail d'un compte existant : DISABLE_SIGNUPS empêche Karakeep de
+# créer un compte au premier login, il faut donc lier. Sûr ici : seul
+# l'administrateur crée les comptes Pocket ID, avec leur e-mail.
+karakeep_oidc_client_id: "{{ terraform_outputs.pocket_id_karakeep_client_id.value | default('') }}"
+karakeep_oidc_client_secret: "{{ terraform_outputs.pocket_id_karakeep_client_secret.value | default('') }}"
+karakeep_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+karakeep_oidc_enabled: "{{ karakeep_oidc_client_id | length > 0 and karakeep_oidc_client_secret | length > 0 and karakeep_oidc_issuer | length > 0 }}"
+
 # Téléchargement des vidéos au crawl (yt-dlp), plafond en Mo par vidéo.
 karakeep_video_download: true
 karakeep_video_download_max_size_mb: 100

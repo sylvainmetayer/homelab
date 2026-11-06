@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep"])
 
   length  = 48
   special = false
@@ -271,6 +271,90 @@ output "pocket_id_dawarich_client_id" {
 output "pocket_id_dawarich_client_secret" {
   description = "POCKET ID - secret du client OIDC de Dawarich"
   value       = random_password.pocket_id_client["dawarich"].result
+  sensitive   = true
+}
+
+# Immich (le foyer) : réglé dans son interface (Administration, OAuth : pas de
+# variable d'env en v3.3.5, et IMMICH_CONFIG_FILE figerait tous les réglages).
+# Émetteur, identifiant et secret lus par `tofu output -raw`. Rappels : la page
+# de connexion, la liaison depuis les réglages utilisateur, et l'appli mobile
+# (schéma app.immich, accepté par Pocket ID). Immich envoie PKCE dès que la
+# découverte l'annonce. Rôle : claim immich_role du groupe immich-admin, relu à
+# chaque connexion ; absent pour les autres, Immich garde alors le rôle posé.
+# Un admin est aussi dans le groupe immich (mur Pangolin, accès au client).
+resource "pocketid_group" "immich_admin" {
+  name          = "immich-admin"
+  friendly_name = "Immich admin"
+  custom_claims = { immich_role = "admin" }
+}
+
+resource "pocketid_client" "immich" {
+  name          = "Immich"
+  client_id     = "immich"
+  client_secret = random_password.pocket_id_client["immich"].result
+  callback_urls = [
+    "https://photos.sylvain.cloud/auth/login",
+    "https://photos.sylvain.cloud/user-settings",
+    "app.immich:///oauth-callback",
+  ]
+  allowed_user_groups = [pocketid_group.pangolin_role["immich"].id, pocketid_group.immich_admin.id]
+  launch_url          = "https://photos.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/immich.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# Wishlist (le foyer) : réglé dans son interface (Administration, OIDC), comme
+# Immich. Rappel : origine + /login (src/lib/server/openid.ts, v0.69.0). PKCE
+# toujours envoyé. Aucun rôle par claim : les admins se règlent dans Wishlist.
+# Logo du dépôt à la version de l'image (absent de dashboard-icons).
+resource "pocketid_client" "wishlist" {
+  name                = "Wishlist"
+  client_id           = "wishlist"
+  client_secret       = random_password.pocket_id_client["wishlist"].result
+  callback_urls       = ["https://cadeaux.sylvain.cloud/login"]
+  allowed_user_groups = [pocketid_group.pangolin_role["wishlist"].id]
+  launch_url          = "https://cadeaux.sylvain.cloud"
+  logo_url            = "https://cdn.jsdelivr.net/gh/cmintey/wishlist@v0.69.0/src/lib/assets/logo.png"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# Karakeep (le foyer) : variables OAUTH_* du rôle karakeep. Rappel :
+# NEXTAUTH_URL + /api/auth/callback/custom ; PKCE toujours. Aucun rôle par
+# claim (le premier compte créé est admin).
+resource "pocketid_client" "karakeep" {
+  name                = "Karakeep"
+  client_id           = "karakeep"
+  client_secret       = random_password.pocket_id_client["karakeep"].result
+  callback_urls       = ["https://keep.sylvain.cloud/api/auth/callback/custom"]
+  allowed_user_groups = [pocketid_group.pangolin_role["karakeep"].id]
+  launch_url          = "https://keep.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/karakeep.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_immich_client_secret" {
+  description = "POCKET ID - secret du client OIDC d'Immich (saisi dans son interface)"
+  value       = random_password.pocket_id_client["immich"].result
+  sensitive   = true
+}
+
+output "pocket_id_wishlist_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Wishlist (saisi dans son interface)"
+  value       = random_password.pocket_id_client["wishlist"].result
+  sensitive   = true
+}
+
+output "pocket_id_karakeep_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Karakeep"
+  value       = pocketid_client.karakeep.client_id
+}
+
+output "pocket_id_karakeep_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Karakeep"
+  value       = random_password.pocket_id_client["karakeep"].result
   sensitive   = true
 }
 

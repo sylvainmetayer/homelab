@@ -120,6 +120,33 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      **Admin / utilisateur : réglé dans Dawarich** (Administration,
      Utilisateurs) : Dawarich 1.19.0 ne lit aucun rôle dans l'OIDC, pas de
      groupe `dawarich-admin`. Les traceurs gardent leur clé d'API.
+   - **Immich** (le foyer, groupe `immich` ; admins aussi dans `immich-admin`,
+     qui porte le claim `immich_role: admin`, relu à chaque connexion ; sans
+     lui, Immich garde le rôle déjà posé) : réglé dans l'interface
+     (Administration, Paramètres, Authentification OAuth) : émetteur
+     `https://id.sylvain.cloud`, Client ID `immich`, secret lu par `tofu output
+     -raw pocket_id_immich_client_secret` dans un terminal, scope `openid email
+     profile`, claim de rôle `immich_role`, bouton « Pocket ID ». **Auto-register
+     coupé** : Immich lie un compte existant par e-mail (sans exiger qu'il soit
+     vérifié) et, sinon, en créerait un vide. Mobile : rappel
+     `app.immich:///oauth-callback`, déclaré sur le client (si l'appli le
+     refuse, cocher l'override mobile avec
+     `https://photos.sylvain.cloud/api/oauth/mobile-redirect` et l'ajouter au
+     client). Connexion par mot de passe gardée (`passwordLogin`). Le secret
+     n'est relu par aucun rôle : le ressaisir après une rotation.
+   - **Wishlist** (le foyer, groupe `wishlist`) : réglé dans l'interface
+     (Administration, Paramètres, OIDC) : URL de découverte
+     `https://id.sylvain.cloud/.well-known/openid-configuration`, Client ID
+     `wishlist`, secret par `tofu output -raw pocket_id_wishlist_client_secret`,
+     nom « Pocket ID », **auto-register coupé** (liaison par e-mail ; refusée
+     si Pocket ID marque l'e-mail non vérifié). Pas de rôle par claim : les
+     admins se règlent dans Wishlist. Mot de passe gardé.
+   - **Karakeep** (le foyer, groupe `karakeep`) : rien à saisir, le rôle
+     `karakeep` pose `OAUTH_*` depuis les sorties Tofu. Liaison par e-mail
+     (`OAUTH_ALLOW_DANGEROUS_EMAIL_ACCOUNT_LINKING`, sûr ici : seul
+     l'administrateur crée les comptes Pocket ID) ; `DISABLE_SIGNUPS` empêche
+     toute création. Mot de passe gardé : l'appli mobile et l'extension
+     l'utilisent (ou une clé d'API). Pas de rôle par claim.
 5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
    groupe Pocket ID de chaque appli (nom technique = le rôle Pangolin : `immich`,
    `trek`… ; nom affiché = celui de l'appli, sans préfixe : tout groupe

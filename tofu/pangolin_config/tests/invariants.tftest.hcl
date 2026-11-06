@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3264,8 +3264,19 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && strcontains(file("${path.module}/../../ansible/roles/healthlog/defaults/main.yml"), "terraform_outputs.pocket_id_healthlog_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "terraform_outputs.pocket_id_trek_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/trek/defaults/main.yml"), "trek_oidc_admin_value: trek-admin")
+      # Immich, Wishlist, Karakeep : confidentiels, PKCE, réservés à leur
+      # groupe (rôle Pangolin du même nom) ; immich-admin porte immich_role.
+      && alltrue([for c in [pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep] : c.is_public == false && c.pkce_enabled == true])
+      && contains(pocketid_client.immich.callback_urls, "app.immich:///oauth-callback")
+      && contains(pocketid_client.immich.callback_urls, "https://photos.sylvain.cloud/auth/login")
+      && contains(pocketid_client.immich.allowed_user_groups, pocketid_group.immich_admin.id)
+      && pocketid_group.immich_admin.custom_claims == tomap({ immich_role = "admin" })
+      && pocketid_client.wishlist.callback_urls == tolist(["https://cadeaux.sylvain.cloud/login"])
+      && pocketid_client.karakeep.callback_urls == tolist(["https://keep.sylvain.cloud/api/auth/callback/custom"])
+      && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_karakeep_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_issuer.value")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel et Dawarich de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist et Karakeep de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
 
   assert {
