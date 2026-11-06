@@ -98,12 +98,6 @@ resource "hcloud_firewall" "pangolin" {
     protocol   = "icmp"
     source_ips = local.public_ips
   }
-
-  rule {
-    direction  = "in"
-    protocol   = "icmp"
-    source_ips = local.public_ips
-  }
 }
 
 resource "hcloud_network" "main" {

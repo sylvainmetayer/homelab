@@ -21,12 +21,12 @@ variable "state_encryption_passphrase" {
   sensitive   = true
 }
 
-# MX nul de sylvain.cloud (mail.tf), à n'activer qu'une fois vérifié que
-# l'API OVH accepte la cible « 0 . » (docs/runbooks/dmarc.md).
+# MX nul de sylvain.cloud (mail.tf), activé : le record doit avoir été importé
+# (tofu import, docs/runbooks/dmarc.md) sinon l'apply en crée un second à côté des MX OVH.
 variable "sylvain_cloud_null_mx" {
   description = "Remplacer les MX OVH de sylvain.cloud par un MX nul (RFC 7505)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # Destinataire des rapports DMARC agrégés (rua) et TLS-RPT de toutes les zones
