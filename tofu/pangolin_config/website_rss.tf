@@ -27,6 +27,10 @@ locals {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "rss"
       port    = 80
+      # / redirects to /i/, behind FreshRSS's OIDC: the probe would follow it
+      # and get a 401, and Pangolin would serve its maintenance page. /api/
+      # is answered by PHP without session (the container's own healthcheck).
+      hc_path = "/api/"
     }
   }
 }
