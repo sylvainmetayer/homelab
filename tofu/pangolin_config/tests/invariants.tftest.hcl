@@ -3198,7 +3198,9 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pangolin_idp.pocket_id.variant == "oidc"
       && pangolin_idp.pocket_id.identifier_path == "preferred_username"
       && contains(split(" ", pangolin_idp.pocket_id.scopes), "groups")
-      && pangolin_idp_org.pocket_id.role_mapping == "groups[?contains(`${jsonencode(sort(local.pocket_id_role_groups))}`, @)]"
+      && startswith(pangolin_idp_org.pocket_id.role_mapping, "groups[?contains(`")
+      && endswith(pangolin_idp_org.pocket_id.role_mapping, "`, @)]")
+      && toset(jsondecode(regex("`(.*)`", pangolin_idp_org.pocket_id.role_mapping)[0])) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
       && !contains(local.pocket_id_role_groups, "Admin")
       && !contains(local.pocket_id_role_groups, "Member")
       && pangolin_idp_org.pocket_id.org_id == "homelab"
@@ -3208,13 +3210,17 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   }
 
   assert {
-    condition = toset(concat(
-      [for group in pocketid_group.pangolin_role : group.name],
-      [pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name],
-      )) == toset(concat(
-      [for role in pangolin_role.apps : role.name],
-      [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name],
-    ))
+    # Même ensemble de noms, aucun en double (un doublon que Pocket ID
+    # refuserait à l'apply), et la liste des groupes propres aux applis
+    # branchées est bien celle que le for_each exclut.
+    condition = (
+      toset(concat(
+        [for group in pocketid_group.pangolin_role : group.name],
+        [pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name],
+      )) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
+      && length(pocketid_group.pangolin_role) + 5 == length(pangolin_role.apps) + 2
+      && toset([pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name]) == local.pocket_id_app_groups
+    )
     error_message = "Chaque rôle Pangolin d'appli doit avoir son groupe Pocket ID du même nom, et inversement (local.pocket_id_role_groups, pocket_id.tf)."
   }
 

@@ -25,7 +25,7 @@ d'où deux passkeys au moins, et un code créé par l'administrateur en secours.
   entrée du test de restauration, **hors automerge Renovate**. Rendu seulement si
   la clé SOPS `pocket_id_encryption_key` existe.
 - Pangolin : `pangolin_idp` en Tofu (le fork le gère), **auto-provision coupée**,
-  rôle `Member` ; aucun compte interne déclaré ni relié. Applis : **Homebox
+  rôle `Member` (levé le 2026-11-06, voir « Évolution » plus bas) ; aucun compte interne déclaré ni relié. Applis : **Homebox
   seul**, login local gardé.
 - **Risques** : 17 avis de sécurité publiés depuis 2025-01-01, dont 6 high ou
   critical : e-mail vérifié usurpable (critical, 2026-07), CSRF créant un
