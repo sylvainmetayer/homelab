@@ -71,7 +71,8 @@ repositories:
     - path: {{ borgmatic_app_target | to_json }}
       label: {{ borgmatic_app_label | to_json }}
 
-ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23
+# Keepalive : 60 s x 5 = 5 min de silence avant d'abandonner une connexion morte, sans couper un borg qui calcule longtemps.
+ssh_command: ssh -i {{ backup_storage_box_ssh_key_path }} -p 23 -o ServerAliveInterval=60 -o ServerAliveCountMax=5
 
 encryption_passphrase: {{ borgmatic_app_passphrase | to_json }}
 
