@@ -171,3 +171,61 @@
         that:
           - "'CRON_MIN=17' in rss_compose.services.freshrss.environment"
         fail_msg: "CRON_MIN inattendu : {{ rss_compose.services.freshrss.environment }}"
+
+# Avec les sorties Tofu du client Pocket ID (fictives) : le compose porte
+# l'OIDC de l'image. Rendu hors de /opt/apps, le déploiement convergé (sans
+# sorties, formulaire) n'est pas touché.
+- name: Verify the FreshRSS OIDC environment
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/rss/defaults/main.yml
+  vars:
+    # Dérive la clé de session OIDC (defaults/main.yml).
+    backup_passphrase: molecule-backup-passphrase
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_rss_client_id:
+        value: rss
+      pocket_id_rss_client_secret:
+        value: molecule-pocket-id-rss-client-secret
+  tasks:
+    - name: Create a scratch directory for the OIDC compose
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: rss
+      register: rss_oidc_scratch
+
+    - name: Render the compose with OIDC
+      diff: false
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/rss/templates/compose.yaml"
+        dest: "{{ rss_oidc_scratch.path }}/compose.yaml"
+        mode: "0600"
+
+    - name: Read the compose with OIDC
+      ansible.builtin.slurp:
+        src: "{{ rss_oidc_scratch.path }}/compose.yaml"
+      register: rss_oidc_compose_raw
+
+    - name: Assert FreshRSS protects /i/ with Pocket ID
+      no_log: true
+      vars:
+        rss_oidc_env: "{{ (rss_oidc_compose_raw.content | b64decode | from_yaml).services.freshrss.environment }}"
+      ansible.builtin.assert:
+        that:
+          - "'OIDC_ENABLED=1' in rss_oidc_env"
+          - "'OIDC_PROVIDER_METADATA_URL=https://idp.example.invalid/.well-known/openid-configuration' in rss_oidc_env"
+          - "'OIDC_CLIENT_ID=rss' in rss_oidc_env"
+          - "'OIDC_CLIENT_SECRET=molecule-pocket-id-rss-client-secret' in rss_oidc_env"
+          - "'OIDC_REMOTE_USER_CLAIM=preferred_username' in rss_oidc_env"
+          - "'OIDC_X_FORWARDED_HEADERS=X-Forwarded-Proto X-Forwarded-Host' in rss_oidc_env"
+          - rss_oidc_env | select('match', '^OIDC_CLIENT_CRYPTO_KEY=[0-9a-f]{64}$') | list | length == 1
+          - "'CRON_MIN=17' in rss_oidc_env"
+        fail_msg: "Environnement OIDC de FreshRSS inattendu (secrets masqués)"
+
+    - name: Remove the OIDC scratch directory
+      ansible.builtin.file:
+        path: "{{ rss_oidc_scratch.path }}"
+        state: absent

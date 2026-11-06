@@ -54,6 +54,23 @@
     regexp: "^(\\s*'api_enabled' => )true,$"
     replace: "\\1false,"
 
+# Pocket ID (defaults/main.yml) : Apache redémarré d'abord avec
+# mod_auth_openidc (le compose vient de changer), puis FreshRSS passe en
+# http_auth, qui lit REMOTE_USER posé par le module. Dans cet ordre, /i/ n'est
+# jamais en http_auth sans OIDC devant. Retour au formulaire : README.md.
+- name: Restart FreshRSS with OIDC before switching its authentication
+  when: rss_oidc_enabled | bool
+  ansible.builtin.meta: flush_handlers
+
+- name: Switch FreshRSS to HTTP authentication behind OIDC
+  when: rss_system_config.stat.exists and rss_oidc_enabled | bool
+  become: true
+  diff: false
+  ansible.builtin.replace:
+    path: "{{ rss_base_path }}/freshrss_data/config.php"
+    regexp: "^(\\s*'auth_type' => )'form',$"
+    replace: "\\1'http_auth',"
+
 # Délai d'actualisation par défaut (rss_ttl_default) et bases SQLite en WAL,
 # pour chaque utilisateur : README.md (« Écritures disque »). Les dossiers
 # users/<utilisateur> sont à www-data, 0770.

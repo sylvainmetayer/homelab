@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss"])
 
   length  = 48
   special = false
@@ -510,6 +510,23 @@ resource "pocketid_client" "victoria_logs" {
   is_public           = false
 }
 
+# FreshRSS (le foyer, groupe rss) : mod_auth_openidc de l'image officielle
+# (OIDC_* du rôle rss), auth_type http_auth : plus de formulaire web, le nom
+# d'utilisateur Pocket ID est le compte FreshRSS (créé à la première connexion
+# s'il n'existe pas). Rappel /i/oidc/. Sans PKCE (la configuration Apache de
+# l'image n'en règle pas).
+resource "pocketid_client" "rss" {
+  name                = "FreshRSS"
+  client_id           = "rss"
+  client_secret       = random_password.pocket_id_client["rss"].result
+  callback_urls       = ["https://rss.sylvain.cloud/i/oidc/"]
+  allowed_user_groups = [pocketid_group.pangolin_role["rss"].id]
+  launch_url          = "https://rss.sylvain.cloud/i/"
+  logo_url            = "${local.pocket_id_logo_base}/freshrss.svg"
+  pkce_enabled        = false
+  is_public           = false
+}
+
 output "pocket_id_victoria_logs_client_id" {
   description = "POCKET ID - identifiant du client OIDC de VictoriaLogs (vmauth)"
   value       = pocketid_client.victoria_logs.client_id
@@ -518,6 +535,17 @@ output "pocket_id_victoria_logs_client_id" {
 output "pocket_id_victoria_logs_client_secret" {
   description = "POCKET ID - secret du client OIDC de VictoriaLogs (vmauth)"
   value       = random_password.pocket_id_client["victoria-logs"].result
+  sensitive   = true
+}
+
+output "pocket_id_rss_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de FreshRSS"
+  value       = pocketid_client.rss.client_id
+}
+
+output "pocket_id_rss_client_secret" {
+  description = "POCKET ID - secret du client OIDC de FreshRSS"
+  value       = random_password.pocket_id_client["rss"].result
   sensitive   = true
 }
 
@@ -540,7 +568,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs",
+    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs", "rss",
   ])
 
   pocket_id_launchers = {

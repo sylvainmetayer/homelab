@@ -36,6 +36,19 @@ services:
       # Actualisation toutes les heures, à la minute 17 : un flux en erreur est
       # retenté à chaque passage quel que soit son TTL (README.md).
       - CRON_MIN=17
+{% if rss_oidc_enabled | bool %}
+      # Pocket ID (defaults/main.yml) : /i/ derrière mod_auth_openidc, rappel
+      # /i/oidc/ ; nom d'utilisateur = preferred_username. En-têtes de Traefik
+      # (Pangolin) pour bâtir le rappel en https sur le nom public.
+      - OIDC_ENABLED=1
+      - OIDC_PROVIDER_METADATA_URL={{ rss_oidc_issuer }}/.well-known/openid-configuration
+      - OIDC_CLIENT_ID={{ rss_oidc_client_id }}
+      - OIDC_CLIENT_SECRET={{ rss_oidc_client_secret }}
+      - OIDC_CLIENT_CRYPTO_KEY={{ rss_oidc_crypto_key }}
+      - OIDC_SCOPES=openid email profile
+      - OIDC_REMOTE_USER_CLAIM=preferred_username
+      - OIDC_X_FORWARDED_HEADERS=X-Forwarded-Proto X-Forwarded-Host
+{% endif %}
     volumes:
       - ./freshrss_data:/var/www/FreshRSS/data
       - ./freshrss_extensions:/var/www/FreshRSS/extensions
