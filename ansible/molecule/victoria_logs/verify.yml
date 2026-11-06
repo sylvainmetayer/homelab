@@ -177,6 +177,8 @@
     - ../../group_vars/all/variables.yml
     - ../../roles/victoria_logs/defaults/main.yml
   vars:
+    # Dérive le secret du cookie SSO (defaults/main.yml).
+    backup_passphrase: molecule-backup-passphrase
     victoria_logs_ui_password: molecule-victoria-logs-ui-password-0000
     victoria_logs_agent_passwords:
       docker: molecule-victoria-logs-agent-docker-000
