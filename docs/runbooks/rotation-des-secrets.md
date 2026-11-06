@@ -468,7 +468,7 @@ changer le mot de passe du compte dans Uptime Kuma (Settings → Security),
 `pangolin_smtp_pass` (fichier Ansible : msmtp du rôle `security`, Pangolin
 et les applis qui envoient des mails) : nouveau mot de passe du compte dans
 Infomaniak, `sops set`, puis les playbooks des hôtes (`--tags security`, et
-les rôles qui écrivent ces identifiants). Vérifier par un envoi de test sur
+les rôles qui écrivent ces identifiants, dont `pangolin.yaml --tags pocket_id`). Vérifier par un envoi de test sur
 chaque hôte : `printf 'Subject: test msmtp\n\nok\n' | sudo msmtp root`
 (`--tags beszel_alerts_test` ne teste que le canal Telegram de Beszel, sans
 clés aujourd'hui, et le SMTP de Beszel est réglé dans son interface, pas par
