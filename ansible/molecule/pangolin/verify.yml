@@ -403,6 +403,7 @@
       vars:
         dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
         idp_routers: "{{ dynamic_config.http.routers }}"
+        idp_headers: "{{ dynamic_config.http.middlewares['pocket-id-headers'].headers }}"
       ansible.builtin.assert:
         that:
           - pangolin_idp_host == 'id.sylvain.cloud'
@@ -411,12 +412,19 @@
           - idp_routers['pocket-id-router'].entryPoints == ['websecure']
           - idp_routers['pocket-id-router'].tls.certResolver == 'letsencrypt'
           # Jamais Badger : ce serait le mur SSO devant le fournisseur du mur.
-          - idp_routers['pocket-id-router'].middlewares == ['pocket-id-ratelimit']
+          - idp_routers['pocket-id-router'].middlewares == ['pocket-id-ratelimit', 'pocket-id-headers']
           - idp_routers['pocket-id-router-redirect'].middlewares == ['redirect-to-https']
           - "dynamic_config.http.services['pocket-id-service'].loadBalancer.servers | map(attribute='url') | list == ['http://pocket-id:1411']"
           - "'pocket-id-allowlist' not in dynamic_config.http.middlewares"
           - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.average == 50
           - dynamic_config.http.middlewares['pocket-id-ratelimit'].rateLimit.burst == 300
+          # En-têtes de l'audit du 06/11 ; WebAuthn reste permis à la page.
+          - idp_headers.contentTypeNosniff
+          - idp_headers.referrerPolicy == 'strict-origin-when-cross-origin'
+          - "'publickey-credentials-get=(self)' in idp_headers.permissionsPolicy"
+          - "'publickey-credentials-create=(self)' in idp_headers.permissionsPolicy"
+          - idp_headers.customResponseHeaders['Cross-Origin-Resource-Policy'] == 'same-site'
+          - "'Cross-Origin-Opener-Policy' not in idp_headers.customResponseHeaders"
           # Aucune autre route touchée : l'entrypoint garde ses deux middlewares.
           - idp_routers['next-router'].middlewares == ['badger']
         fail_msg: "Routeur Pocket ID inattendu : {{ idp_routers['pocket-id-router'] | default('absent') }}"
