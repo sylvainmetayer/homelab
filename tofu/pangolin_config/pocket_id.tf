@@ -370,3 +370,40 @@ resource "pocketid_group" "pangolin_role" {
     "victoria-logs"    = "VictoriaLogs"
   }, each.key, title(replace(each.key, "-", " ")))
 }
+
+# TEMPORAIRE (06/11/2026) : deux clients pour la suite de conformité de
+# l'OpenID Foundation hébergée (www.certification.openid.net, plan
+# oidcc-basic-certification-test-plan, alias pocket-id). Sans PKCE : le plan
+# de base n'en envoie pas. Réservés au groupe oidf-test (Sylvain, ajouté dans
+# l'interface). Secrets : `tofu output -json pocket_id_oidf_test_clients`.
+# À retirer, groupe, clients, mot de passe et sortie, une fois le test fini.
+resource "random_password" "pocket_id_oidf_test" {
+  for_each = toset(["1", "2"])
+
+  length  = 48
+  special = false
+}
+
+resource "pocketid_group" "oidf_test" {
+  name          = "oidf-test"
+  friendly_name = "Test OpenID Foundation"
+}
+
+resource "pocketid_client" "oidf_test" {
+  for_each = toset(["1", "2"])
+
+  name                = "OIDF test ${each.key}"
+  client_id           = "oidf-test-${each.key}"
+  client_secret       = random_password.pocket_id_oidf_test[each.key].result
+  callback_urls       = ["https://www.certification.openid.net/test/a/pocket-id/callback"]
+  allowed_user_groups = [pocketid_group.oidf_test.id]
+  logo_url            = "https://gitlab.com/openid/conformance-suite/-/raw/master/src/main/resources/static/images/openid.png"
+  pkce_enabled        = false
+  is_public           = false
+}
+
+output "pocket_id_oidf_test_clients" {
+  description = "Temporary OIDF conformance clients (id and secret)."
+  value       = { for k, c in pocketid_client.oidf_test : k => { client_id = c.client_id, client_secret = random_password.pocket_id_oidf_test[k].result } }
+  sensitive   = true
+}
