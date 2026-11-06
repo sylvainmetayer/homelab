@@ -108,7 +108,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0755" # NOSONAR: lu par Pocket ID (uid 65532), bases GeoLite2 publiques
 
 # Premier déploiement (ou nouvelle édition) : les bases doivent exister avant
 # que Pangolin et Pocket ID démarrent.
