@@ -30,10 +30,14 @@ jobs:
 
     permissions:
       contents: read
+      # Lit le paquet GHCR de l'image Molecule (présence du tag).
+      packages: read
 
     outputs:
       scenarios: ${{ steps.discover.outputs.scenarios }}
+      shards: ${{ steps.discover.outputs.shards }}
       modules: ${{ steps.discover.outputs.modules }}
+      image_present: ${{ steps.image.outputs.present }}
 
     steps:
       # Sur une PR, HEAD est le commit de fusion de test : son premier parent
@@ -96,8 +100,15 @@ jobs:
 
           scenarios="$(jq -c .scenarios <<< "$selection")"
           modules="$(jq -c .modules <<< "$selection")"
-          echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
-          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+          # Au plus 8 jobs Molecule : les scénarios sont répartis en tourniquet,
+          # chaque job installe son environnement une fois puis les enchaîne.
+          shards="$(jq -c '. as $s | ([($s | length), 8] | min) as $k
+            | [range(0; $k) as $i | {id: ($i + 1), scenarios: [$s | to_entries[] | select(.key % $k == $i) | .value]}]' <<< "$scenarios")"
+          {
+            echo "scenarios=$scenarios"
+            echo "shards=$shards"
+            echo "modules=$modules"
+          } >> "$GITHUB_OUTPUT"
           echo "Molecule: $scenarios"
           echo "Tofu: $modules"
           {
@@ -107,7 +118,26 @@ jobs:
             echo "- Tofu ($(jq length <<< "$modules")) : $(jq -r 'join(", ")' <<< "$modules")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Construit l'image une fois par run et la range dans le cache GitHub
+      # L'image Molecule est publiée sur GHCR par molecule-image.yaml (tag =
+      # empreinte du Dockerfile). Absente (Dockerfile modifié par cette PR, PR
+      # de fork sans droit de lecture) : le job image la construit dans le cache.
+      - name: Check that the Molecule image is published
+        id: image
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          IMAGE_TAG: ${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
+        run: |
+          present=false
+          if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null 2>&1 \
+            && docker manifest inspect "ghcr.io/sylvainmetayer/homelab-molecule:$IMAGE_TAG" >/dev/null 2>&1; then
+            present=true
+          fi
+          echo "Image GHCR publiée : $present"
+          echo "present=$present" >> "$GITHUB_OUTPUT"
+
+  # Repli : sans image publiée sur GHCR pour ce Dockerfile (voir discover),
+  # construit l'image une fois par run et la range dans le cache GitHub
   # Actions ; chaque job Molecule la recharge de ce cache au lieu de la
   # reconstruire. La portée suit le Dockerfile (il ne copie rien du contexte) :
   # une image changée repart d'un cache neuf. Les entrées écrites depuis main
@@ -115,7 +145,7 @@ jobs:
   image:
     name: Molecule image
     needs: discover
-    if: needs.discover.outputs.scenarios != '[]'
+    if: needs.discover.outputs.scenarios != '[]' && needs.discover.outputs.image_present != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
 
@@ -148,15 +178,22 @@ jobs:
           cache-from: type=gha,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
           cache-to: type=gha,mode=max,scope=molecule-${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
 
+  # Un job par tranche de scénarios (8 au plus, discover) : environnement
+  # installé une fois, scénarios enchaînés. Un échec n'arrête pas la tranche :
+  # tous les scénarios tournent, ceux qui ont échoué sont listés dans le
+  # résumé et le job échoue à la fin.
   molecule:
-    name: Molecule (${{ matrix.scenario }})
+    name: Molecule (tranche ${{ matrix.shard.id }})
     needs: [discover, image]
-    if: needs.discover.outputs.scenarios != '[]'
+    # image est sautée quand l'image GHCR existe : !cancelled() lève le saut en
+    # cascade, mais un échec de image bloque.
+    if: ${{ !cancelled() && needs.discover.result == 'success' && needs.image.result != 'failure' && needs.discover.outputs.scenarios != '[]' }}
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     permissions:
       contents: read
+      packages: read
 
     env:
       DOCKER_BUILD_SUMMARY: "false"
@@ -165,7 +202,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: ${{ fromJSON(needs.discover.outputs.scenarios) }}
+        shard: ${{ fromJSON(needs.discover.outputs.shards) }}
 
     steps:
       - name: Checkout
@@ -212,12 +249,25 @@ jobs:
           done
           exit 1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
       # Même tag que `mise run molecule-image` : .config/molecule/config.yml
       # le cherche dans le démon local (pull: false).
+      - name: Pull the Molecule image from GHCR
+        if: needs.discover.outputs.image_present == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          IMAGE_TAG: ${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null
+          docker pull --quiet "ghcr.io/sylvainmetayer/homelab-molecule:$IMAGE_TAG"
+          docker tag "ghcr.io/sylvainmetayer/homelab-molecule:$IMAGE_TAG" homelab-molecule:debian13
+
+      - name: Set up Docker Buildx
+        if: needs.discover.outputs.image_present != 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
       - name: Load the Molecule image from the cache
+        if: needs.discover.outputs.image_present != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ansible/molecule/_shared
@@ -230,8 +280,25 @@ jobs:
         env:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
-          SCENARIO: ${{ matrix.scenario }}
-        run: molecule test --scenario-name "$SCENARIO"
+          SCENARIOS: ${{ join(matrix.shard.scenarios, ' ') }}
+          SHARD: ${{ matrix.shard.id }}
+        run: |
+          failed=()
+          for scenario in $SCENARIOS; do
+            echo "::group::molecule test $scenario"
+            if ! molecule test --scenario-name "$scenario"; then
+              failed+=("$scenario")
+              echo "::error::Scénario $scenario en échec"
+            fi
+            echo "::endgroup::"
+          done
+          {
+            echo "### Tranche $SHARD"
+            echo
+            echo "- Scénarios : $SCENARIOS"
+            echo "- En échec : ${failed[*]:-aucun}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "${#failed[@]}" -eq 0 ]
 
   tofu:
     name: OpenTofu test (${{ matrix.module }})

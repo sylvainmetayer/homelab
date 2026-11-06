@@ -1,0 +1,65 @@
+name: Molecule image
+
+# Publie l'image des scénarios Molecule sur GHCR, sous l'empreinte du
+# Dockerfile (le contexte ne copie rien d'autre) : les PR la tirent au lieu de
+# la reconstruire (test.yaml, job discover). Seul ce workflow écrit des
+# paquets, et seulement depuis main : une PR ne peut pas pousser sous un tag
+# que les autres PR tireront ; une PR qui change le Dockerfile retombe sur la
+# construction locale dans le cache GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ansible/molecule/_shared/Dockerfile
+      - .github/workflows/molecule-image.yaml
+  # Avant le run complet de test.yaml (lundi 03:30 UTC) : repart de zéro
+  # (paquets apt non épinglés) et republie le même tag.
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Publish the Molecule image
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      DOCKER_BUILD_SUMMARY: "false"
+      DOCKER_BUILD_RECORD_UPLOAD: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+      # Le label relie le paquet au dépôt : le GITHUB_TOKEN des jobs de
+      # test.yaml (packages: read) peut alors le lire.
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ansible/molecule/_shared
+          tags: ghcr.io/sylvainmetayer/homelab-molecule:${{ hashFiles('ansible/molecule/_shared/Dockerfile') }}
+          labels: org.opencontainers.image.source=https://github.com/sylvainmetayer/homelab
+          push: true
+          no-cache: ${{ github.event_name == 'schedule' }}
