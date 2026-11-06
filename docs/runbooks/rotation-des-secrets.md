@@ -398,9 +398,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   producteurs n'entrent que par jeton) ; le refaire de même, sur incident
   seulement.
 - Pocket ID (pilote, [pocket-id.md](pocket-id.md)) : `pocket_id_encryption_key`
-  (`ansible.sops.yaml`, `application`) ne se tourne pas à la légère, Pocket ID
-  chiffre ses clés de signature avec (procédure de la doc de Pocket ID, à
-  confirmer, puis `pangolin.yaml --tags pocket_id`). Les secrets des clients
+  (`ansible.sops.yaml`, `encryption`, sur incident seulement) ne se tourne pas à
+  la légère, Pocket ID chiffre ses clés de signature avec :
+  `encryption-key-rotate` dans le conteneur d'abord, puis la clé SOPS, puis
+  `pangolin.yaml --tags pocket_id` (« Secours » de pocket-id.md). Les secrets des clients
   OIDC (Homebox, Pangolin) ne sont pas dans SOPS : ce sont des
   `random_password` de `tofu/pangolin_config/pocket_id.tf`. Les tourner :
   `tofu apply -replace='random_password.pocket_id_client["homebox"]'` (ou
