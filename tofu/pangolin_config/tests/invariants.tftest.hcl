@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3318,8 +3318,16 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && strcontains(file("${path.module}/../../ansible/roles/wiki/defaults/main.yml"), "terraform_outputs.pocket_id_wiki_client_secret.value")
       && pocketid_client.actual.callback_urls == tolist(["https://budget.sylvain.cloud/openid/callback"])
       && contains(pocketid_client.actual.allowed_user_groups, pocketid_group.actual.id)
+      # Jellyfin (greffon SSO-Auth) : rappel du fournisseur pocketid, groupe du
+      # rôle foyer et jellyfin-admin, secret lu par le rôle.
+      && pocketid_client.jellyfin.is_public == false
+      && contains(pocketid_client.jellyfin.callback_urls, "https://media.sylvain.cloud/sso/OID/redirect/pocketid")
+      && contains(pocketid_client.jellyfin.allowed_user_groups, pocketid_group.jellyfin_admin.id)
+      && contains(pocketid_client.jellyfin.allowed_user_groups, pocketid_group.pangolin_role["jellyfin"].id)
+      && pocketid_group.jellyfin_admin.name == "jellyfin-admin"
+      && strcontains(file("${path.module}/../../ansible/roles/jellyfin/defaults/main.yml"), "terraform_outputs.pocket_id_jellyfin_client_secret.value")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox et VictoriaLogs de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox, VictoriaLogs et Jellyfin de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,

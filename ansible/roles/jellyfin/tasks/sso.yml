@@ -1,0 +1,111 @@
+---
+# Dossier du greffon : Jellyfin lit meta.json de n'importe quel dossier de
+# config/plugins (testé : « Loaded plugin: SSO Authentication 5.1.1 »). Le
+# fichier de configuration est config/plugins/configurations/SSO-Auth.xml.
+- name: Ensure the plugin folders exist
+  become: true
+  loop:
+    - "{{ jellyfin_base_path }}/config/plugins"
+    - "{{ jellyfin_base_path }}/config/plugins/configurations"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ jellyfin_uid }}"
+    group: "{{ jellyfin_gid }}"
+    mode: "0700"
+
+- name: Download and extract the SSO plugin
+  when: jellyfin_sso_install | bool
+  vars:
+    jellyfin_sso_dir: "{{ jellyfin_base_path }}/config/plugins/sso-authentication_{{ jellyfin_sso_version }}"
+  block:
+    # Hors de config/ (donc de borg) : l'archive se retélécharge.
+    - name: Download the pinned SSO plugin archive
+      become: true
+      ansible.builtin.get_url:
+        url: "{{ jellyfin_sso_url }}"
+        dest: "{{ jellyfin_base_path }}/sso-authentication_{{ jellyfin_sso_version }}.zip"
+        checksum: "{{ jellyfin_sso_checksum }}"
+        mode: "0600"
+
+    # zipfile de python3 (déjà là pour Ansible) : pas de dépendance à unzip,
+    # absent d'UGOS peut-être.
+    - name: Extract the SSO plugin
+      become: true
+      notify: Restart jellyfin
+      ansible.builtin.command:
+        argv: [python3, -m, zipfile, -e, "{{ jellyfin_base_path }}/sso-authentication_{{ jellyfin_sso_version }}.zip", "{{ jellyfin_sso_dir }}"]
+        creates: "{{ jellyfin_sso_dir }}/meta.json"
+
+    - name: Give the plugin folder to the Jellyfin account
+      become: true
+      when: not ansible_check_mode
+      ansible.builtin.file:
+        path: "{{ jellyfin_sso_dir }}"
+        state: directory
+        recurse: true
+        owner: "{{ jellyfin_uid }}"
+        group: "{{ jellyfin_gid }}"
+        mode: "u=rwX,go="
+
+# Le greffon réécrit son XML (CanonicalLinks : le lien identifiant SSO / compte
+# Jellyfin) : poser le gabarit à chaque passage effacerait les liens et
+# redémarrerait Jellyfin à chaque fois (mise en forme différente). On pose donc
+# le XML seulement quand ce que nous gérons change (empreinte du rendu sans les
+# liens, rangée à côté), en reprenant les CanonicalLinks existants.
+- name: Stat the plugin configuration and its stamp
+  become: true
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ jellyfin_base_path }}/config/plugins/configurations/SSO-Auth.xml"
+    - "{{ jellyfin_base_path }}/config/plugins/configurations/SSO-Auth.ansible.sha256"
+  register: jellyfin_sso_stat
+
+- name: Read the current plugin configuration and stamp
+  become: true
+  no_log: true
+  when: item.stat.exists
+  ansible.builtin.slurp:
+    src: "{{ item.item }}"
+  loop: "{{ jellyfin_sso_stat.results }}"
+  register: jellyfin_sso_read
+
+- name: Compute what the plugin configuration should be
+  no_log: true
+  vars:
+    jellyfin_sso_old: >-
+      {{ (jellyfin_sso_read.results | selectattr('item.item', 'search', 'SSO-Auth.xml$')
+      | selectattr('content', 'defined')
+      | map(attribute='content') | first | default('')) | b64decode }}
+    jellyfin_sso_stamp_prev: >-
+      {{ (jellyfin_sso_read.results | selectattr('item.item', 'search', 'sha256$')
+      | selectattr('content', 'defined')
+      | map(attribute='content') | first | default('')) | b64decode | trim }}
+  ansible.builtin.set_fact:
+    jellyfin_sso_hash: "{{ lookup('ansible.builtin.template', 'SSO-Auth.xml.j2', template_vars={'jellyfin_sso_links': ''}) | hash('sha256') }}"
+    jellyfin_sso_links_kept: "{{ jellyfin_sso_old | regex_search('(?s)<CanonicalLinks>.*?</CanonicalLinks>') | default('', true) }}"
+    jellyfin_sso_stamp_old: "{{ jellyfin_sso_stamp_prev }}"
+
+- name: Write the plugin configuration when it changed
+  become: true
+  no_log: true
+  diff: false
+  when: jellyfin_sso_hash != jellyfin_sso_stamp_old or not jellyfin_sso_stat.results[0].stat.exists
+  notify: Restart jellyfin
+  ansible.builtin.copy:
+    content: "{{ lookup('ansible.builtin.template', 'SSO-Auth.xml.j2', template_vars={'jellyfin_sso_links': jellyfin_sso_links_kept}) }}"
+    dest: "{{ jellyfin_base_path }}/config/plugins/configurations/SSO-Auth.xml"
+    owner: "{{ jellyfin_uid }}"
+    group: "{{ jellyfin_gid }}"
+    mode: "0600"
+
+- name: Record the stamp of the plugin configuration
+  become: true
+  when: jellyfin_sso_hash != jellyfin_sso_stamp_old
+  ansible.builtin.copy:
+    content: "{{ jellyfin_sso_hash }}\n"
+    dest: "{{ jellyfin_base_path }}/config/plugins/configurations/SSO-Auth.ansible.sha256"
+    owner: "{{ jellyfin_uid }}"
+    group: "{{ jellyfin_gid }}"
+    mode: "0600"

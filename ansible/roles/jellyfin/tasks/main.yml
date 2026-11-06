@@ -102,6 +102,16 @@
     group: "{{ omit if jellyfin_as_root else jellyfin_gid }}"
     mode: "0600"
 
+# Connexion par Pocket ID : greffon épinglé (version + md5 du manifeste) et sa
+# configuration. Sans les sorties de pangolin_config, rien n'est touché.
+- name: Install and configure the Jellyfin SSO plugin
+  when: jellyfin_sso_enabled | bool
+  tags: sso
+  ansible.builtin.include_tasks:
+    file: sso.yml
+    apply:
+      tags: sso
+
 # Unité user, ou système sur le NAS (/etc/systemd/system/dc@.service posée par
 # docker_service dans nas.yml).
 - name: Make sure the Jellyfin service is running

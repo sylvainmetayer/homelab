@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <SamlConfigs />
+  <OidConfigs>
+    <item>
+      <key>
+        <string>{{ jellyfin_sso_provider | e }}</string>
+      </key>
+      <value>
+        <PluginConfiguration>
+          <OidEndpoint>{{ (jellyfin_sso_issuer | trim('/') ~ '/.well-known/openid-configuration') | e }}</OidEndpoint>
+          <OidClientId>{{ jellyfin_sso_client_id | e }}</OidClientId>
+          <OidSecret>{{ jellyfin_sso_client_secret | e }}</OidSecret>
+          <Enabled>true</Enabled>
+          <EnableAuthorization>true</EnableAuthorization>
+          <EnableAllFolders>true</EnableAllFolders>
+          <PreserveAdminPermissions>true</PreserveAdminPermissions>
+          <AdminRoles>
+{% for role in jellyfin_sso_admin_roles %}
+            <string>{{ role | e }}</string>
+{% endfor %}
+          </AdminRoles>
+          <Roles>
+{% for role in jellyfin_sso_roles %}
+            <string>{{ role | e }}</string>
+{% endfor %}
+          </Roles>
+          <RoleClaim>groups</RoleClaim>
+          <OidScopes>
+            <string>email</string>
+            <string>groups</string>
+          </OidScopes>
+          <SchemeOverride>https</SchemeOverride>
+          <NewPath>true</NewPath>
+{{ jellyfin_sso_links | default('') }}
+          <DefaultUsernameClaim>preferred_username</DefaultUsernameClaim>
+        </PluginConfiguration>
+      </value>
+    </item>
+  </OidConfigs>
+</PluginConfiguration>

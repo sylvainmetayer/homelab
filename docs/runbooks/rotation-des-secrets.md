@@ -405,7 +405,8 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   interface. Karakeep (`["karakeep"]`), Papra (`["papra"]`) et Yamtrack
   (`["yamtrack"]`) : `docker.yml --tags <appli>`, le rôle relit la sortie.
   MediaManager (`["mediamanager"]`) : `nas.yml --tags mediamanager`, à la main
-  (jamais par la CI). Nextcloud (`["nextcloud"]`) : `docker.yml --tags
+  (jamais par la CI). Jellyfin (`["jellyfin"]`) : `nas.yml --tags jellyfin`, à la
+  main (le XML du greffon est réécrit, liens des comptes gardés). Nextcloud (`["nextcloud"]`) : `docker.yml --tags
   nextcloud` (le rôle rejoue `occ user_oidc:provider`). Proxmox
   (`["proxmox"]`) : `pve.yml --tags pve_oidc`, à la main (`pveum realm
   modify` reposé à chaque passage). VictoriaLogs (`["victoria-logs"]`) :
