@@ -224,6 +224,7 @@
           - victoria_logs_sso.sso[0].oidc.cookie_secret | length >= 16
           - victoria_logs_sso_jwt | length == 1
           - victoria_logs_sso_jwt[0].jwt.match_claims.aud == '^victoria\-logs$'
+          - victoria_logs_sso_jwt[0].jwt.default_vm_access_claim.logs_account_id == 0
           - victoria_logs_sso_jwt[0].jwt.match_claims.groups == '^victoria\-logs$'
           - victoria_logs_sso_jwt[0].url_prefix is not defined
           - victoria_logs_sso_jwt[0].url_map | map(attribute='src_paths') | flatten == ['/', '/select/.*']

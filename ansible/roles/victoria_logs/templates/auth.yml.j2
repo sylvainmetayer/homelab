@@ -21,6 +21,12 @@ users:
   - jwt:
       oidc:
         issuer: {{ victoria_logs_oidc_issuer | to_json }}
+      # vmauth n'accepte un JWT que s'il porte vm_access ou si l'utilisateur
+      # en déclare un par défaut (main.go, v1.155.0) ; Pocket ID n'en envoie
+      # pas : tenant 0, le seul de cette VictoriaLogs.
+      default_vm_access_claim:
+        logs_account_id: 0
+        logs_project_id: 0
       match_claims:
         iss: {{ ('^' ~ (victoria_logs_oidc_issuer | regex_escape) ~ '$') | to_json }}
         aud: {{ ('^' ~ (victoria_logs_oidc_client_id | regex_escape) ~ '$') | to_json }}
