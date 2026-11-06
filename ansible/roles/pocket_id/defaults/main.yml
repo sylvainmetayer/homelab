@@ -62,6 +62,12 @@ pocket_id_accent_color: oklch(0.6 0.2 240)
 # Inscription par lien seulement (Administration > Users > Create Signup
 # Token, groupes choisis par lien) : rien d'ouvert sans lien.
 pocket_id_allow_user_signups: withToken
+# Chacun ne modifie plus son propre profil (e-mail, nom d'utilisateur) : seul
+# l'admin le fait. Ouvert (défaut de Pocket ID), un membre du foyer mettrait
+# l'e-mail d'un autre et se connecterait à son compte dans les applis qui
+# lient par e-mail sans regarder email_verified (Immich, Karakeep,
+# MediaManager). La locale reste modifiable.
+pocket_id_allow_own_account_edit: false
 # Même boîte Infomaniak que msmtp (rôle security) et les autres applis.
 pocket_id_smtp_host: mail.infomaniak.com
 pocket_id_smtp_port: 587
