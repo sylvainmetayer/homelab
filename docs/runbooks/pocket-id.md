@@ -73,7 +73,7 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      Pocket ID du foyer créés par l'administrateur (code à usage unique).
      Liaison au compte TREK existant par e-mail : refusée si Pocket ID ne le dit
      pas vérifié (`email_not_verified` ; cocher « E-mail vérifié » sur
-     l'utilisateur dans Pocket ID, ou le réglage global « E-mails vérifiés »), ou si le compte TREK a saisi son adresse
+     l'utilisateur dans Pocket ID ; le réglage global « E-mails vérifiés » n'est plus modifiable, l'env tient la configuration), ou si le compte TREK a saisi son adresse
      lui-même (`email_link_blocked`) : l'admin de TREK la confirme en la
      changeant dans le panneau d'administration. Login local gardé
      (`OIDC_ONLY=false`). L'inscription par SSO de TREK est ouverte par défaut
