@@ -95,8 +95,15 @@ because Pangolin still requires an org user). A user in no listed group gets acc
 Sylvain in the groups (UI), or the first test fails for a reason that looks
 like a bug.
 
-Pangolin itself: one role per user outside the paid edition; the pilot keeps
-`role_mapping = "'Member'"`.
+Pangolin itself: its roles come from the same groups. Every Pangolin app role
+(`local.apps`, plus `jellyfin`, `mediamanager`) has a Pocket ID group of the
+same name (`pocketid_group.pangolin_role`), and `pangolin_idp_org` maps the
+`groups` claim entries with such a name to roles, rewritten at each login
+(auto-provisioned users only; several roles need the EE license activated).
+So the app's access group **is** its Pangolin role group: a member passes both
+the wall and the client's `allowed_user_groups`. An admin group
+(`<app>-admin`) has no Pangolin role: admins are members of both groups, or
+the wall stops them. Internal Pangolin accounts keep their hand-set roles.
 
 ## 3. Declare it (copy Homebox)
 
@@ -106,10 +113,14 @@ In `tofu/pangolin_config/pocket_id.tf`:
 # toset(["pangolin", "homebox", "<app>"])
 resource "random_password" "pocket_id_client" { ... }
 
-resource "pocketid_group" "<app>" {
-  name          = "<app>"          # technical name, sent in `groups`
-  friendly_name = "<App>"
-  # custom_claims = { immich_role = "admin" }   # role-claim apps, admin group only
+# Access group: already there, pocketid_group.pangolin_role["<slug>"] (the
+# app's Pangolin role slug in local.apps). Reuse it; never declare a second
+# group with that name (Pocket ID refuses duplicate names at apply).
+# Only an admin group, if the app reads one, is a new resource:
+resource "pocketid_group" "<app>_admin" {
+  name          = "<app>-admin"    # technical name, sent in `groups`
+  friendly_name = "<App> admin"
+  # custom_claims = { immich_role = "admin" }   # role-claim apps
 }
 
 resource "pocketid_client" "<app>" {
@@ -117,7 +128,7 @@ resource "pocketid_client" "<app>" {
   client_id           = "<app>"      # ALWAYS set: unset, the provider leaves it empty
   client_secret       = random_password.pocket_id_client["<app>"].result
   callback_urls       = ["https://<host>/<path>", "https://<host>/<path>/"]
-  allowed_user_groups = [pocketid_group.<app>.id]
+  allowed_user_groups = [pocketid_group.pangolin_role["<slug>"].id]  # + the admin group
   launch_url          = "https://<host>"   # else hidden from « My apps »
   pkce_enabled        = true         # Pangolin and Homebox send it; false only if the app does not
   is_public           = false
@@ -146,7 +157,7 @@ on, secrets in the `0600` env with `diff: false` (AGENTS.md).
 Tests:
 
 - `tofu/pangolin_config/tests/invariants.tftest.hcl`, run
-  `pocket_id_stays_outside_the_sso_wall_and_provisions_nobody`: assert the
+  `pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles`: assert the
   client (confidential, PKCE as decided, callback, groups) and that the role
   defaults read `terraform_outputs.pocket_id_<app>_client_secret.value`.
 - Molecule `converge.yml` of the app: `vars: terraform_outputs:` with fake
@@ -179,7 +190,9 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 | `redirect_uri 'https://https:/...' is not registered` | app prepends the scheme to a hostname setting that already had one | section 1: read how the app builds the callback |
 | `403 Key does not have root access` creating `pangolin_idp` | Pangolin org key cannot create an IdP | provider alias `pangolin.root`, key `pangolin_root_api_key` (IdP actions + « get organization ») |
 | `Pangolin API key lacks access ... 403` at plan | provider start-up probe `GET /org/<org>` | root key also has « get organization » |
-| Pangolin: `User with username sylvain is unprovisioned` | `auto_provision = false`: no org user is created at login | create the external user in the org (IdP Pocket ID, same username, role) |
+| Pangolin: `User with username sylvain is unprovisioned` | `auto_provision = false` (until 2026-11-06): no org user is created at login | now auto-provisioned; « No policies matched » instead means no Pocket ID group named after an app role |
+| Pangolin roles of a Pocket ID user never change | external user created by hand (`autoProvisioned = false`): Pangolin syncs only users it created | delete it in Pangolin, it comes back at the next login |
+| Pocket ID user gets only one Pangolin role | EE license not activated: 1.25.3 keeps the first mapped role only | Pangolin, License page |
 | Tofu cycle client ↔ IdP | client callback is the IdP's `redirect_url`, IdP needs the client id | fixed `client_id` literal (local), not read from the resource |
 | Pocket ID « My apps » empty | the launcher lists only clients with a `launch_url` | set `launch_url` on every client |
 | SSO login refused, « Failed to authenticate » (PocketBase) or `email_not_verified` / no account found | app account email differs from the Pocket ID one, or not verified | section 1b: rename in the app first, tick verified on both sides |

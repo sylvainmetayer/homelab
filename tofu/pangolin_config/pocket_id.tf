@@ -10,6 +10,10 @@ locals {
   pocket_id_issuer             = "https://id.sylvain.cloud"
   pocket_id_pangolin_client_id = "pangolin"
   pocket_id_homebox_client_id  = "homebox"
+
+  # Les rôles Pangolin repris des groupes Pocket ID : tous ceux d'applis
+  # (roles.tf), plus ceux des ressources privées (private_resources.tf).
+  pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager"]))
 }
 
 # Le document de découverte OIDC : répond 200 sans compte, et c'est ce que
@@ -271,11 +275,15 @@ output "pocket_id_homebox_client_secret" {
 
 # Pangolin comme client OIDC de Pocket ID.
 #
-# Pilote : auto_provision = false. Personne n'est créé à la première connexion
-# par Pangolin : le compte externe de Sylvain est ajouté à la main dans
-# l'interface, avec son rôle. Les comptes internes (le propriétaire de l'organisation, secours, les
-# comptes Flip) ne sont ni déclarés ici ni rattachés à l'IdP : un login Pocket ID
-# ne les touche jamais, il crée ou retrouve un utilisateur externe.
+# auto_provision = true : Pangolin crée l'utilisateur externe à sa première
+# connexion par Pocket ID et lui réécrit ses rôles à chaque connexion, d'après
+# ses groupes Pocket ID (pangolin_idp_org plus bas). Les droits d'une personne
+# se règlent donc dans Pocket ID seul. Un utilisateur externe créé à la main
+# avant (autoProvisioned = false) n'est jamais synchronisé : le supprimer, il
+# revient à sa connexion suivante. Les comptes internes (le propriétaire de
+# l'organisation, compte de secours, les comptes Flip, le foyer pas encore
+# passé à Pocket ID) ne sont ni déclarés ici ni rattachés à l'IdP : un login
+# Pocket ID ne les touche jamais, leurs rôles restent ceux de l'interface.
 #
 # Attributs optionnels : tous écrits, dont les optional+computed (variant,
 # email_path, name_path, tags, auto_provision), sans quoi le plan dit « No
@@ -306,19 +314,32 @@ resource "pangolin_idp" "pocket_id" {
   name_path       = "name"
   tags            = ""
 
-  auto_provision = false
+  auto_provision = true
 }
 
-# Rattache l'IdP à l'organisation. Avec auto_provision à false, Pangolin ne
-# s'en sert que si un login retrouve un utilisateur externe existant ; si une
-# version relit tout de même l'expression à chaque connexion (ADR 0016 :
-# « rôles réécrits à chaque login »), « Member » ne peut rien élargir. Les
-# groupes de Pocket ID ne passent en rôles qu'à l'étape suivante, hors pilote.
+# Rattache l'IdP à l'organisation. Rôles = groupes Pocket ID dont le nom est
+# celui d'un rôle d'appli (local.pocket_id_role_groups) : jamais Admin ni
+# Member, même si un groupe Pocket ID portait ce nom. Une liste de plusieurs
+# rôles n'est gardée en entier qu'avec la licence Enterprise activée
+# (fullRbac) ; sans elle, Pangolin 1.25.3 ne garde que le premier, sans le
+# dire. Aucun groupe reconnu : connexion refusée (« No policies matched »).
 resource "pangolin_idp_org" "pocket_id" {
   provider = pangolin.root
 
   idp_id       = pangolin_idp.pocket_id.id
   org_id       = local.pangolin_org_id
-  role_mapping = "'Member'"
+  role_mapping = "groups[?contains(`${jsonencode(sort(local.pocket_id_role_groups))}`, @)]"
   org_mapping  = "'${local.pangolin_org_id}'"
+}
+
+# Un groupe Pocket ID par rôle Pangolin d'appli, du même nom : y mettre
+# quelqu'un lui donne la ressource Pangolin à sa connexion suivante. Les
+# applis branchées sur Pocket ID ont déjà le leur (plus haut, filtre
+# allowed_user_groups de leur client) ; un admin d'appli (trek-admin) est
+# membre des deux groupes, sinon le mur Pangolin l'arrête.
+resource "pocketid_group" "pangolin_role" {
+  for_each = setsubtract(local.pocket_id_role_groups, ["homebox", "trek", "healthlog", "beszel", "dawarich"])
+
+  name          = each.key
+  friendly_name = each.key
 }

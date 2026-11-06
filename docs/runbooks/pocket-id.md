@@ -11,7 +11,7 @@ le secours si Pocket ID tombe) restent le chemin de tout le monde.
 
 | | Pilote |
 |---|---|
-| Mur SSO de Pangolin | **inchangé** : comptes internes. Un bouton « Pocket ID » s'y ajoute pour l'utilisateur externe de Sylvain, sans auto-provision ni rôle réécrit |
+| Mur SSO de Pangolin | comptes internes **inchangés** (rôles posés dans l'interface). Un bouton « Pocket ID » s'y ajoute : Pangolin crée l'utilisateur externe à sa première connexion et **réécrit ses rôles à chaque connexion** d'après ses groupes Pocket ID (un groupe par rôle d'appli, même nom) |
 | Clients mobiles (Immich, Karakeep, Papra, Grocy, Nextcloud, ntfy, flux) | **aucun effet** : ils passent par des jetons d'accès Pangolin, des en-têtes, des mots de passe d'application ou des chemins ouverts ([acces-mobile.md](../acces-mobile.md)), jamais par la page de login du mur. Rien à reconfigurer, aucun chemin ouvert ajouté |
 | Navigateur, PWA (HealthLog…) | inchangés tant que le mur reste sur les comptes internes ; à la bascule, le login passe par Pocket ID dans le navigateur, les en-têtes `P-Access-Token-*` des applis ne bougent pas |
 | Homebox | un bouton « Se connecter avec Pocket ID » **en plus** du login local, qui reste le secours |
@@ -118,10 +118,17 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      **Admin / utilisateur : réglé dans Dawarich** (Administration,
      Utilisateurs) : Dawarich 1.19.0 ne lit aucun rôle dans l'OIDC, pas de
      groupe `dawarich-admin`. Les traceurs gardent leur clé d'API.
-5. **Utilisateur externe dans Pangolin** (Utilisateurs, Ajouter un utilisateur
-   externe, IdP « Pocket ID ») : nom d'utilisateur **identique à la lettre** à
-   celui de Pocket ID, e-mail, rôle `Member` pendant l'essai. Se connecter à la page de login de
-   Pangolin avec « Pocket ID » : le compte interne n'est ni lié ni modifié.
+5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
+   groupe Pocket ID de chaque appli (même nom que le rôle Pangolin : `immich`,
+   `trek`…), puis se connecter à la page de login de Pangolin avec « Pocket
+   ID » : Pangolin crée l'utilisateur externe et lui donne ces rôles, à chaque
+   connexion. Un admin d'appli (`trek-admin`) est aussi dans le groupe de
+   base (`trek`), sinon le mur l'arrête. Aucun groupe reconnu : « No policies
+   matched ». Un utilisateur externe créé à la main avant (le cas de Sylvain
+   jusqu'au 06/11) n'est jamais synchronisé : le supprimer dans Pangolin, il
+   revient à la connexion suivante. Le compte interne n'est ni lié ni modifié.
+   **Licence Enterprise activée exigée** (page Licence de Pangolin) : sans
+   elle, Pangolin 1.25.3 ne garde que le premier rôle, sans prévenir.
 
 **Test de restauration rouge, attendu.** Dès le merge, le test planifié échoue
 pour Pocket ID : aucune archive avant l'étape 2 et la seconde passe de
@@ -140,13 +147,14 @@ ne demande pas : `pocket_id.tf` l'ajoute. Pangolin lit un identifiant
 dans Pangolin coupe le compte externe) et évalue ses expressions de rôle (JMESPath,
 chaînes entre `'`) sur le jeton **à chaque login** ; un rôle inexistant, ou aucune
 règle qui correspond, donne « No policies matched ». Plusieurs rôles par
-utilisateur : édition payante ou clé EE seulement. **Pas vérifié** : que
-`groups` soit présent (liste vide ou absent) pour un utilisateur sans groupe
-(une expression `contains(groups, …)` sur un champ absent échouerait),
-l'effet exact de `auto_provision = false` sur un rôle déjà posé, et
-l'éventuel besoin d'une clé EE pour `pangolin_idp_org` : le `tofu plan` le
-dira. C'est pourquoi le pilote n'écrit aucune règle de groupe : `Member`
-fixe, rôle posé à la main sur l'utilisateur externe.
+utilisateur : licence EE activée seulement (`fullRbac`, lu dans
+`validateOidcCallback.ts` de la 1.25.3 : sans elle, seul le premier nom est
+gardé). Dans ce même code : la règle peut rendre une liste de noms, les noms
+sans rôle Pangolin sont ignorés, et les rôles ne sont réécrits que pour un
+utilisateur créé par Pangolin lui-même (`auto_provision`). La règle
+(`pocket_id.tf`) filtre `groups` sur la liste des rôles d'applis : un groupe
+Pocket ID nommé `Admin` ou `Member` ne donne rien. Un `groups` absent donne
+une liste vide, donc un refus.
 
 ## Plan de bascule (hors pilote, une PR chacune)
 
