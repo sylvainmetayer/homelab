@@ -413,6 +413,8 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   cookie SSO est dérivé de `backup_passphrase` (pas de clé sops) : une rotation
   de celle-ci ne coupe que les connexions en cours. FreshRSS (`["rss"]`) :
   `docker.yml --tags rss` (clé de session dérivée de `backup_passphrase`).
+  BookStack (`["wiki"]`) : `docker.yml --tags wiki`. Actual Budget
+  (`["actual"]`) : ressaisir le secret dans son interface.
   Les tuiles vitrine n'ont pas de secret.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,

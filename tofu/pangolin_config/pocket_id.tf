@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual"])
 
   length  = 48
   special = false
@@ -549,6 +549,63 @@ output "pocket_id_rss_client_secret" {
   sensitive   = true
 }
 
+# BookStack (wiki, le foyer, groupe wiki) : AUTH_METHOD=oidc du rôle wiki,
+# exclusif (plus de formulaire). Liaison par external_auth_id = sub Pocket ID
+# (identifiant de l'utilisateur), posé à la main sur les comptes existants
+# avant la bascule (runbook pocket-id). Rôles gérés dans BookStack. PKCE.
+resource "pocketid_client" "wiki" {
+  name                = "BookStack"
+  client_id           = "wiki"
+  client_secret       = random_password.pocket_id_client["wiki"].result
+  callback_urls       = ["https://wiki.sylvain.cloud/oidc/callback"]
+  allowed_user_groups = [pocketid_group.pangolin_role["wiki"].id]
+  launch_url          = "https://wiki.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/bookstack.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_wiki_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de BookStack"
+  value       = pocketid_client.wiki.client_id
+}
+
+output "pocket_id_wiki_client_secret" {
+  description = "POCKET ID - secret du client OIDC de BookStack"
+  value       = random_password.pocket_id_client["wiki"].result
+  sensitive   = true
+}
+
+# Actual Budget (PikaPods, budget.sylvain.cloud, hors Pangolin : public) :
+# OpenID réglé dans son interface (Paramètres, Avancé), secret par
+# `tofu output -raw pocket_id_actual_client_secret`. Compte = preferred_username ;
+# le premier login OpenID devient propriétaire (budgets du compte mot de passe
+# repris), les suivants sont créés par lui dans l'annuaire d'Actual. Pas de
+# rôle Pangolin : groupe Pocket ID dédié, seule barrière devant une appli
+# publique. PKCE (S256, openid.js v26.11.0).
+resource "pocketid_group" "actual" {
+  name          = "actual"
+  friendly_name = "Actual Budget"
+}
+
+resource "pocketid_client" "actual" {
+  name                = "Actual Budget"
+  client_id           = "actual"
+  client_secret       = random_password.pocket_id_client["actual"].result
+  callback_urls       = ["https://budget.sylvain.cloud/openid/callback"]
+  allowed_user_groups = [pocketid_group.actual.id]
+  launch_url          = "https://budget.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/actual-budget.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_actual_client_secret" {
+  description = "POCKET ID - secret du client OIDC d'Actual Budget (saisi dans son interface)"
+  value       = random_password.pocket_id_client["actual"].result
+  sensitive   = true
+}
+
 # Tuiles « vitrine » : chaque appli du mur sans client OIDC réel a un client
 # public jamais utilisé pour se connecter, juste pour paraître dans « Mes
 # applis » de Pocket ID aux membres de son groupe (= son rôle Pangolin) : le
@@ -568,7 +625,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs", "rss",
+    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs", "rss", "wiki",
   ])
 
   pocket_id_launchers = {

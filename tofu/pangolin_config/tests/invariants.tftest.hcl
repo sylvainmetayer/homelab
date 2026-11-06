@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3313,6 +3313,11 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_client.rss.pkce_enabled == false
       && pocketid_client.rss.callback_urls == tolist(["https://rss.sylvain.cloud/i/oidc/"])
       && strcontains(file("${path.module}/../../ansible/roles/rss/defaults/main.yml"), "terraform_outputs.pocket_id_rss_client_secret.value")
+      # BookStack (rôle wiki) et Actual Budget (PikaPods, groupe dédié).
+      && pocketid_client.wiki.callback_urls == tolist(["https://wiki.sylvain.cloud/oidc/callback"])
+      && strcontains(file("${path.module}/../../ansible/roles/wiki/defaults/main.yml"), "terraform_outputs.pocket_id_wiki_client_secret.value")
+      && pocketid_client.actual.callback_urls == tolist(["https://budget.sylvain.cloud/openid/callback"])
+      && contains(pocketid_client.actual.allowed_user_groups, pocketid_group.actual.id)
     )
     error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox et VictoriaLogs de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
