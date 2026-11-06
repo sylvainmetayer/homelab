@@ -54,6 +54,9 @@ log_agent_redactions:
   # ouvre le compte, créé par l'admin ou la CLI de secours.
   - pattern: '/lc/[^/?&#\s"]+'
     replacement: /lc/***
+  # Le même code, quand la page l'échange (POST /api/one-time-access-token/<code>).
+  - pattern: '/api/one-time-access-token/[^/?&#\s"]+'
+    replacement: /api/one-time-access-token/***
   # Jeton d'accès ntfy (tk_ + 29 caractères, rôle ntfy).
   - pattern: '\btk_[A-Za-z0-9]{29}\b'
     replacement: tk_***

@@ -282,6 +282,26 @@ tests:
               assert_eq!(.path, "/lc/***")
               assert!(!contains(encode_json(.), "moleculelogincode"))
 
+  - name: traefik masks pocket id login code exchange
+    inputs:
+      - insert_at: traefik_fields
+        type: log
+        log_fields:
+          message: >-
+            {"StartUTC":"2026-10-28T10:00:00Z",
+            "ClientHost":"198.51.100.7",
+            "RequestMethod":"POST",
+            "RequestHost":"id.sylvain.cloud",
+            "RequestPath":"/api/one-time-access-token/moleculelogincode",
+            "DownstreamStatus":200}
+    outputs:
+      - extract_from: traefik_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.path, "/api/one-time-access-token/***")
+              assert!(!contains(encode_json(.), "moleculelogincode"))
+
   # Les envois des agents eux-mêmes : une ligne par lot, qui en ferait un de
   # plus.
   - name: traefik drops the agents' own uploads
