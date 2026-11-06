@@ -17,7 +17,7 @@ services:
     # (surtout du cache de pages), 130 Mio pour Valkey, 311 Mio pour le
     # timelapse, 15 Mio pour swipe (pi, 31/10/2026, 26 h après le démarrage).
     mem_limit: 3g
-    image: ghcr.io/immich-app/immich-server:v3.3.5@sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6
+    image: ghcr.io/immich-app/immich-server:v3.3.6@sha256:e1981983b1c13f6024b57d72e7ecae3342eed1581201ab09fb248932d86c593a
     # extends:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
@@ -54,7 +54,7 @@ services:
     mem_limit: 4g
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:v3.3.5@sha256:5b28c9352c8374b8a1ed96fbdd8d6755fea6e43510ec43fdf6538aa02ea40f56
+    image: ghcr.io/immich-app/immich-machine-learning:v3.3.6@sha256:14367bfb374b8576ddf49abd67c5ca0190a4c7fcf6303cdad65d7f7bf1a50bc2
     # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
     #   file: hwaccel.ml.yml
     #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
@@ -172,7 +172,7 @@ services:
   # seulement si immich_kiosk_api_key existe ; la clé retirée, le conteneur
   # reste jusqu'à un `docker compose up --remove-orphans` (README du rôle).
   immich-kiosk:
-    image: ghcr.io/damongolding/immich-kiosk:0.45.2@sha256:2059203dbe7d509f529937a39f2def13d6363254bcc0a4f59d963b726c9e58b6
+    image: ghcr.io/damongolding/immich-kiosk:0.47.0@sha256:bc6a7c629fdf709467bdfac84b8077e0e3d08d4781166546d929e5c9cf2290ad
     container_name: immich-kiosk
     # Pas encore mesuré sur le Pi : un binaire Go qui garde un cache d'images
     # en mémoire. Valeur prudente, à recaler sur memory.peak (mem_report).
