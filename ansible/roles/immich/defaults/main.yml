@@ -9,10 +9,10 @@ immich_swipe_preconfigured: "{{ immich_swipe_api_key | default('') | length > 0 
 # existe ; le conteneur immich-kiosk n'est rendu que dans ce cas (README du
 # rôle). Clé en lecture seule, distincte de celle de Swipe.
 immich_kiosk_enabled: "{{ immich_kiosk_api_key | default('') | length > 0 }}"
-# Dérivée, ne pas la définir : vrai quand la clé SOPS immich_power_tools_api_key
-# existe ; le conteneur immich-power-tools n'est rendu que dans ce cas (README
-# du rôle). Clé distincte de celles de Swipe et de Kiosk.
-immich_power_tools_enabled: "{{ immich_power_tools_api_key | default('') | length > 0 }}"
+# Immich Power Tools, sans clé d'API depuis le 2026-11-06 : chacun s'y connecte
+# avec son propre compte Immich (bouton OAuth, donc Pocket ID) et n'agit
+# qu'avec ses droits (README du rôle).
+immich_power_tools_enabled: true
 # Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
 # Mot de passe de Valkey (requirepass), dérivé du mot de passe de la base :

@@ -208,14 +208,10 @@ services:
 {% endif %}
 {% if immich_power_tools_enabled | bool %}
   # Immich Power Tools (immich-power-tools/immich-power-tools) : gestion en
-  # masse des personnes, lieux, dates et albums. AVEC la clé d'API, tout
-  # visiteur sans cookie est traité comme son propriétaire (aucun login) et
-  # /api/immich-proxy/* relaie n'importe quel appel à l'API d'Immich : il
-  # AGIT SUR LA PHOTOTHÈQUE avec cette clé. Seul barrage : la route Pangolin
-  # derrière le SSO (rôle immich-power-tools, sans membre). Il lit aussi la
-  # base d'Immich en direct. Rendu seulement si immich_power_tools_api_key
-  # existe ; la clé retirée, le redémarrage de dc@immich (`up
-  # --remove-orphans`) supprime le conteneur.
+  # masse des personnes, lieux, dates et albums, chacun avec son propre compte
+  # Immich (OAuth par Immich, sans clé d'API). Derrière le SSO (rôle
+  # immich-power-tools, le foyer). Il lit aussi la base d'Immich en direct,
+  # chaque requête filtrée sur l'utilisateur connecté (README du rôle).
   immich-power-tools:
     image: ghcr.io/immich-power-tools/immich-power-tools:0.25.0@sha256:85af8a9f116cfb626dcda491a49616baf90108fe428a885df5ab68bd7cddb291
     container_name: immich-power-tools
@@ -240,7 +236,16 @@ services:
       # L'API d'Immich par le réseau immich ; les liens visent l'Immich public.
       IMMICH_URL: http://immich-server:2283
       EXTERNAL_IMMICH_URL: https://{{ immich_domain }}
-      IMMICH_API_KEY: "{{ immich_power_tools_api_key }}"
+      # Pas d'IMMICH_API_KEY : avec elle, tout visiteur sans cookie agissait
+      # comme son propriétaire. Connexion par Immich (OAuth, Pocket ID) :
+      # Power Tools demande l'autorisation à l'Immich public
+      # (EXTERNAL_IMMICH_URL, joint depuis le Pi par l'IP de la maison), le
+      # rappel est déclaré sur le client immich de Pocket ID. Chacun agit
+      # avec son propre jeton Immich.
+      OAUTH_ENABLED: "true"
+      OAUTH_BUTTON_TEXT: "Se connecter avec Pocket ID"
+      POWER_TOOLS_ENDPOINT_URL: https://power-tools.sylvain.cloud
+      SECURE_COOKIE: "true"
       # La base d'Immich, par le réseau immich (le compte postgres de .env :
       # l'appli ne fait que lire, README du rôle). Pas de JWT_SECRET: sans lui
       # les liens de partage publics de l'appli restent désactivés.

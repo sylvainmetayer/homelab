@@ -255,14 +255,6 @@ lectures. Le rôle `jellystat` ne déploie rien tant qu'elle manque. Rotation :
 Jellystat), vérifier qu'une synchronisation passe (Jellystat, Paramètres →
 Tâches), puis supprimer l'ancienne clé dans Jellyfin.
 
-`immich_power_tools_api_key` : clé d'API d'Immich (compte de Sylvain) qu'Immich
-Power Tools pose côté serveur ; **tous les droits pour l'instant**, à remplacer
-par une clé restreinte (nom `immich-power-tools`, permissions minimales dans
-`ansible/roles/immich/README.md`). `pi.yml --tags immich` (redémarre la pile
-Immich), puis `https://power-tools.sylvain.cloud` doit s'ouvrir sans écran de
-connexion (rôle Pangolin `immich-power-tools`, que seul Sylvain porte) et lister
-les personnes ; supprimer ensuite l'ancienne clé dans Immich.
-
 `victoria_logs_agent_passwords` (un mot de passe par hôte) aussi : vmauth
 (`docker.yml --tags victoria_logs`), puis l'agent de journaux de chaque hôte
 changé, faute de quoi ses envois sont refusés (401) jusqu'à son passage.
@@ -416,7 +408,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   (jamais par la CI). Nextcloud (`["nextcloud"]`) : `docker.yml --tags
   nextcloud` (le rôle rejoue `occ user_oidc:provider`). Proxmox
   (`["proxmox"]`) : `pve.yml --tags pve_oidc`, à la main (`pveum realm
-  modify` reposé à chaque passage). Les tuiles vitrine n'ont pas de secret.
+  modify` reposé à chaque passage). VictoriaLogs (`["victoria-logs"]`) :
+  `docker.yml --tags victoria_logs` (vmauth relit `auth.yml`). Les tuiles
+  vitrine n'ont pas de secret.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

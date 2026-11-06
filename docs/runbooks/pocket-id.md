@@ -201,6 +201,15 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      page, `https://pve.sylvain.cloud:8006` et `https://192.168.1.26:8006`
      (une autre adresse d'accès : l'ajouter au client). `root@pam` reste le
      secours.
+   - **Immich Power Tools** (le foyer, groupe `immich-power-tools`, et
+     `immich` pour passer le client Immich) : plus de clé d'API, chacun se
+     connecte par « Se connecter avec Pocket ID » (OAuth d'Immich, rappel
+     `https://power-tools.sylvain.cloud/api/auth/oauth/callback` sur le client
+     `immich`) et agit avec son propre compte Immich.
+   - **VictoriaLogs** (groupe `victoria-logs`) : SSO de vmauth, rien à
+     saisir, le rôle `victoria_logs` pose `sso:` depuis les sorties Tofu ;
+     plus d'interface en Basic (le compte `sylvain` ne sert plus qu'aux
+     scripts, `/select/logsql/query`). Agents et Homepage inchangés.
    - **Tuiles vitrine** : chaque appli du mur sans client réel a un client
      public `vitrine-<appli>` (`pocketid_client.launcher`, généré depuis
      `local.websites`), jamais utilisé pour se connecter, pour paraître dans

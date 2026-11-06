@@ -223,7 +223,10 @@
       ansible.builtin.assert:
         that:
           - power_tools.environment.IMMICH_URL == 'http://immich-server:2283' # NOSONAR (réseau interne)
-          - power_tools.environment.IMMICH_API_KEY == 'molecule-immich-power-tools-api-key'
+          - "'IMMICH_API_KEY' not in power_tools.environment"
+          - power_tools.environment.OAUTH_ENABLED == 'true'
+          - power_tools.environment.SECURE_COOKIE == 'true'
+          - power_tools.environment.POWER_TOOLS_ENDPOINT_URL == 'https://power-tools.sylvain.cloud'
           - power_tools.environment.DB_HOST == immich_compose.services.database.container_name
           - power_tools.environment.DB_PASSWORD == immich_env.DB_PASSWORD
           - "'JWT_SECRET' not in power_tools.environment"
