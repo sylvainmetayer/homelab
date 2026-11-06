@@ -5,8 +5,9 @@
       - newt_service_id | length > 0
       - newt_service_secret | length > 0
     fail_msg: >-
-      newt_service_id / newt_service_secret vides : lxc.yml les lit dans les
-      outputs proxmox_lxc_newt_* de tofu/pangolin_config (tofu apply fait ?).
+      newt_service_id / newt_service_secret vides : lxc.yml et pc-support.yml
+      les lisent dans les outputs *_newt_* de tofu/pangolin_config
+      (proxmox_lxc_, pc_sylvain_ ; tofu apply fait ?).
     quiet: true
 
 - name: Download the newt binary
