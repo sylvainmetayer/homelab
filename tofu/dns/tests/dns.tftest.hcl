@@ -387,8 +387,8 @@ run "sylvain_cloud_verrouille" {
   command = plan
 
   assert {
-    condition     = length(ovh_domain_zone_record.sylvain_cloud_null_mx) == 0
-    error_message = "Le MX nul de sylvain.cloud reste désactivé par défaut tant que l'API OVH n'a pas accepté « 0 . »."
+    condition     = length(ovh_domain_zone_record.sylvain_cloud_null_mx) == 1
+    error_message = "Le MX nul de sylvain.cloud est activé par défaut."
   }
 
   assert {

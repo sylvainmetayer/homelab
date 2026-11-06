@@ -81,7 +81,7 @@ tofu import 'ovh_domain_zone_record.sylvain_cloud_null_mx[0]' 5305117097.sylvain
 tofu plan -var sylvain_cloud_null_mx=true   # le MX mx1 devient « 0 . »
 ```
 
-passer `sylvain_cloud_null_mx` à `true` dans `variables.tf` (PR), appliquer,
+`sylvain_cloud_null_mx` vaut `true` par défaut dans `variables.tf` (fait), appliquer,
 et supprimer à la main `5 mx2.mail.ovh.net.` et `100 mx3.mail.ovh.net.` : un
 MX nul doit être le seul MX. Il ne couvre que l'apex : `x@foo.sylvain.cloud`
 retombe sur le A du joker (Pangolin, port 25 fermé), ce qui ne change rien à
