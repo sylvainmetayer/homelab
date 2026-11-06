@@ -206,7 +206,7 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      `local.websites`), jamais utilisé pour se connecter, pour paraître dans
      « Mes applis » de Pocket ID aux seuls membres du groupe de son rôle. Une
      nouvelle appli y entre d'elle-même (test `tofu test`).
- Mettre la personne dans le
+5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
    groupe Pocket ID de chaque appli (nom technique = le rôle Pangolin : `immich`,
    `trek`… ; nom affiché = celui de l'appli, sans préfixe : tout groupe
    d'appli vaut accès au mur Pangolin), puis se connecter à la page de login de Pangolin avec « Pocket
