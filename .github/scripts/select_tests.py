@@ -19,6 +19,10 @@ What a suite depends on is read from the tree, not listed by hand:
 - a module: its own directory and every path its .tf and tests read through
   `${path.module}`/`${path.root}` (file(), fileset(), templatefile()), an
   interpolation standing for one path segment.
+- KEYED files (fake_secrets.yml, group_vars/**/*.yml): compared key by key with
+  the PR's base (git HEAD^1); only the scenarios whose files mention an added
+  or changed key (or a key whose value cites it) run. A key read through a
+  name built at runtime is missed: the weekly run catches it.
 A file nothing classifies selects everything: a missed test costs more than a
 full run. The weekly full run (schedule) catches what this misses.
 """
@@ -26,6 +30,7 @@ import functools
 import json
 import posixpath
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,11 +47,21 @@ EVERYTHING = [
 ALL_SCENARIOS = [
     "ansible/molecule/_shared/**",
     ".config/molecule/**",
-    "ansible/group_vars/**",
+    "ansible/group_vars/**",  # sauf les clés lisibles une à une, voir KEYED
     "ansible/requirements.yml",
     "pyproject.toml",
     "uv.lock",
 ]
+# Variable files read key by key: a PR that adds or changes keys only reruns
+# the scenarios whose files (role, scenario, host_vars, shared tasks) mention
+# one of them. A removed or renamed key, an unreadable base or a file that
+# does not parse as a mapping still reruns every scenario.
+KEYED = [
+    "ansible/molecule/_shared/vars/fake_secrets.yml",
+    "ansible/group_vars/**/*.yml",
+    "ansible/group_vars/**/*.yaml",
+]
+
 # The OpenTofu version of the tofu jobs is read from mise.toml; the script
 # fetches the Pangolin provider they init with (ADR 0021).
 ALL_MODULES = ["mise.toml", ".github/scripts/fetch_pangolin_provider.sh"]
@@ -182,6 +197,19 @@ def role_names(node, found):
     return found
 
 
+def mapping(text):
+    """Top-level mapping of a YAML text, None when it is not one."""
+    try:
+        doc = yaml.load(text, Loader=_Loader)
+    except yaml.YAMLError:
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def mentions(key, text):
+    return re.search(rf"(?<![\w.]){re.escape(key)}(?![\w])", text) is not None
+
+
 def yaml_files(directory):
     return sorted(p for p in directory.rglob("*") if p.is_file() and p.suffix in (".yml", ".yaml"))
 
@@ -302,6 +330,63 @@ class Tree:
         # one segment: _dynamic_module_reads reads it from that data instead.
         return {p for p in patterns if not p.startswith("../") and p != "*"}
 
+    def _files(self, patterns):
+        """Files of the tree a scenario's patterns reach."""
+        found = set()
+        for pattern in patterns:
+            if pattern.endswith("/**") and "*" not in pattern[:-3]:
+                base = self.root / pattern[:-3]
+                if base.is_dir():
+                    found.update(p for p in base.rglob("*") if p.is_file())
+            elif "*" not in pattern:
+                if (self.root / pattern).is_file():
+                    found.add(self.root / pattern)
+            else:
+                found.update(p for p in (self.root / "ansible").rglob("*")
+                             if p.is_file() and matches(p.relative_to(self.root).as_posix(), [pattern]))
+        return found
+
+    def keyed_scenarios(self, path, base):
+        """Scenarios reading a key that `path` (a KEYED file) adds or changes;
+        None when every scenario must run."""
+        if base is None:
+            return None
+        try:
+            old_text = base(path)
+            old = {} if old_text is None else mapping(old_text)
+            file = self.root / path
+            new = mapping(file.read_text()) if file.is_file() else {}
+        except Exception:  # noqa: BLE001 - any doubt reruns everything
+            return None
+        if old is None or new is None or set(old) - set(new):
+            return None
+        keys = {k for k, v in new.items() if k not in old or old[k] != v}
+        # A key whose value cites a changed key (`{{ other }}`) changes too.
+        every = {}
+        for keyed in self.root.glob("ansible/**/*.y*ml"):
+            rel = keyed.relative_to(self.root).as_posix()
+            if matches(rel, KEYED) and rel != path and (m := mapping(keyed.read_text())):
+                every.update(m)
+        pending = set(keys)
+        while pending:
+            cited = pending.pop()
+            for k, v in {**every, **new}.items():
+                if k not in keys and mentions(cited, yaml.safe_dump(v, default_flow_style=True)):
+                    keys.add(k)
+                    pending.add(k)
+        hit = []
+        for scenario, patterns in self.scenario_patterns.items():
+            texts = []
+            for f in sorted(self._files(patterns)):
+                if f != self.root / path and not matches(f.relative_to(self.root).as_posix(), KEYED):
+                    try:
+                        texts.append(f.read_text())
+                    except UnicodeDecodeError:
+                        continue
+            if any(mentions(k, t) for k in keys for t in texts):
+                hit.append(scenario)
+        return hit
+
     def _normalised(self, ref):
         rel = posixpath.normpath(ref)
         if "*" not in rel and (self.root / rel).is_dir():
@@ -331,8 +416,10 @@ class Tree:
         return {pin["compose"] for pin in json.loads(pins.read_text()).values() if "compose" in pin}
 
 
-def select(changed, tree):
-    """Return (scenarios, modules, reasons)."""
+def select(changed, tree, base=None):
+    """Return (scenarios, modules, reasons). `base(path)` gives the text of a
+    file on the diff base (None when absent); without it a KEYED file
+    selects every scenario."""
     scenarios, modules, reasons = set(), set(), []
     every_scenario, every_module = set(tree.scenarios), set(tree.modules)
 
@@ -347,6 +434,12 @@ def select(changed, tree):
         if matches(path, EVERYTHING):
             reasons.append(f"{path} -> everything")
             return every_scenario, every_module, reasons
+
+        if matches(path, KEYED):
+            keyed = tree.keyed_scenarios(path, base)
+            if keyed is not None:
+                pick("scenario", keyed, path)
+                continue
 
         docs = path.startswith("docs/") or path.endswith(".md")
         classified = False
@@ -388,6 +481,16 @@ def select(changed, tree):
     return scenarios, modules, reasons
 
 
+def git_base(path):
+    """Text of `path` on the first parent of HEAD (the PR's base), None when
+    the file does not exist there."""
+    spec = f"HEAD^1:{path}"
+    if subprocess.run(["git", "cat-file", "-e", spec], cwd=ROOT, capture_output=True).returncode:
+        subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD^1"], cwd=ROOT, check=True, capture_output=True)
+        return None
+    return subprocess.run(["git", "show", spec], cwd=ROOT, check=True, capture_output=True, text=True).stdout
+
+
 def main(argv=None, stdin=sys.stdin):
     argv = sys.argv[1:] if argv is None else argv
     tree = Tree()
@@ -395,7 +498,7 @@ def main(argv=None, stdin=sys.stdin):
         scenarios, modules, reasons = set(tree.scenarios), set(tree.modules), ["--all -> everything"]
     elif not argv:
         changed = [line.strip() for line in stdin if line.strip()]
-        scenarios, modules, reasons = select(changed, tree)
+        scenarios, modules, reasons = select(changed, tree, git_base)
     else:
         sys.exit("usage: select_tests.py [--all] < changed-files.txt")
     for reason in reasons:

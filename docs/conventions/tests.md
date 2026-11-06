@@ -11,6 +11,7 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 - `verify.yml` uses `_shared/tasks/verify_app.yml` for `dc@` apps plus role-specific assertions. Idempotence must hold.
 - Never hardcode secret-looking literals in scenarios (GitGuardian fails the PR): compare against the fake-secret variables. Prefer 0700/0600 for files a prepare creates (SonarCloud).
 - A new role gets a scenario: copy `ansible/molecule/trek/`. CI discovers it automatically.
+- On a PR, a change to `fake_secrets.yml` or `group_vars` reruns only the scenarios that mention the added or changed keys (`select_tests.py`, keyed files): read a secret through its literal name in the role, scenario or host_vars, never a name built at runtime (`lookup('vars', prefix ~ ...)`), or only the weekly full run will catch a break.
 
 ## OpenTofu
 

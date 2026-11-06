@@ -132,8 +132,10 @@ class Scenarios(unittest.TestCase):
         self.assertEqual(selected(["ansible/molecule/wiki/verify.yml"]), (["wiki"], []))
 
     def test_shared_files_run_every_scenario(self):
+        # Les fichiers à clés (fake_secrets, group_vars) sans base lisible aussi.
         for path in ("ansible/molecule/_shared/Dockerfile", ".config/molecule/config.yml",
-                     "ansible/group_vars/all/variables.yml", "ansible/requirements.yml", "uv.lock"):
+                     "ansible/group_vars/all/variables.yml", "ansible/molecule/_shared/vars/fake_secrets.yml",
+                     "ansible/requirements.yml", "uv.lock"):
             scenarios, _ = selected([path])
             self.assertEqual(scenarios, REAL.scenarios, path)
 
@@ -283,6 +285,97 @@ class History(unittest.TestCase):
     def test_docs_only(self):
         # #834 docs: s'approprier le dépôt.
         self.assertEqual(selected(["README.md", "docs/architecture.md", "docs/runbooks/README.md"]), ([], []))
+
+
+FAKE = "ansible/molecule/_shared/vars/fake_secrets.yml"
+GV = "ansible/group_vars/all/variables.yml"
+
+
+def keyed_tree(old, new, group_vars=None):
+    """Two scenarios: a reads `alpha_token`, b reads `beta_token` (through a
+    role default). Returns (tree, base) for a change of FAKE old -> new."""
+    files = {
+        **scenario("a", "- hosts: all\n  roles: [a]\n"),
+        **scenario("b", "- hosts: all\n  roles: [b]\n"),
+        "ansible/roles/a/tasks/main.yml": "- debug: msg={{ alpha_token }}\n",
+        "ansible/roles/b/defaults/main.yml": "b_x: \"{{ beta_token }}\"\n",
+        "ansible/roles/b/tasks/main.yml": "- debug: msg={{ b_x }}\n",
+        FAKE: new,
+    }
+    if group_vars is not None:
+        files[GV] = group_vars
+    tmp, tree = fake_tree(files)
+    tree._tmp = tmp
+    return tree, lambda path: old if path == FAKE else None
+
+
+class KeyedFiles(unittest.TestCase):
+    def pick(self, old, new, path=FAKE, **kw):
+        tree, base = keyed_tree(old, new, **kw)
+        scenarios, _, _ = st.select([path], tree, base)
+        return sorted(scenarios)
+
+    def test_changed_key_selects_its_readers_only(self):
+        self.assertEqual(self.pick("alpha_token: x\nbeta_token: y\n", "alpha_token: z\nbeta_token: y\n"), ["a"])
+
+    def test_added_key_selects_its_reader(self):
+        self.assertEqual(self.pick("alpha_token: x\n", "alpha_token: x\nbeta_token: y\n"), ["b"])
+
+    def test_key_read_by_no_scenario_selects_nothing(self):
+        self.assertEqual(self.pick("alpha_token: x\n", "alpha_token: x\nother: y\n"), [])
+
+    def test_removed_or_renamed_key_selects_everything(self):
+        self.assertEqual(self.pick("alpha_token: x\nbeta_token: y\n", "alpha_token: x\n"), ["a", "b"])
+        self.assertEqual(self.pick("alpha_token: x\n", "alpha2: x\n"), ["a", "b"])
+
+    def test_unparsable_base_or_new_selects_everything(self):
+        self.assertEqual(self.pick("- a\n", "alpha_token: x\n"), ["a", "b"])
+        self.assertEqual(self.pick("alpha_token: x\n", "alpha_token: [\n"), ["a", "b"])
+
+    def test_without_base_reader_selects_everything(self):
+        tree, _ = keyed_tree("alpha_token: x\n", "alpha_token: y\n")
+        self.assertEqual(sorted(st.select([FAKE], tree)[0]), ["a", "b"])
+
+    def test_failing_base_reader_selects_everything(self):
+        tree, _ = keyed_tree("alpha_token: x\n", "alpha_token: y\n")
+
+        def broken(path):
+            raise RuntimeError("no parent commit")
+        self.assertEqual(sorted(st.select([FAKE], tree, broken)[0]), ["a", "b"])
+
+    def test_value_citing_a_changed_key_follows_it(self):
+        # beta_token's value cites alpha_token: a change of alpha_token reaches b too.
+        self.assertEqual(
+            self.pick("alpha_token: x\nbeta_token: \"{{ alpha_token }}-s\"\n",
+                      "alpha_token: y\nbeta_token: \"{{ alpha_token }}-s\"\n"), ["a", "b"])
+
+    def test_group_vars_follow_the_same_rule(self):
+        tree, _ = keyed_tree("", "", group_vars="alpha_token: 2\nunused: 1\n")
+        scenarios, _, _ = st.select([GV], tree, lambda p: "alpha_token: 1\nunused: 1\n")
+        self.assertEqual(sorted(scenarios), ["a"])
+
+    def test_other_shared_file_still_selects_everything(self):
+        tree, base = keyed_tree("alpha_token: x\n", "alpha_token: x\n")
+        self.assertEqual(sorted(st.select(["ansible/molecule/_shared/prepare.yml"], tree, base)[0]), ["a", "b"])
+
+    def test_key_cited_by_shared_prepare_selects_its_readers(self):
+        files = {
+            **scenario("a", "- hosts: all\n  roles: [a]\n"),
+            "ansible/molecule/a/molecule.yml": "provisioner:\n  playbooks:\n    prepare: ../_shared/prepare.yml\n",
+            "ansible/molecule/_shared/prepare.yml": "- debug: msg={{ alpha_token }}\n",
+            FAKE: "alpha_token: y\n",
+        }
+        tmp, tree = fake_tree(files)
+        self.addCleanup(tmp.cleanup)
+        self.assertEqual(sorted(st.select([FAKE], tree, lambda p: "alpha_token: x\n")[0]), ["a"])
+
+    def test_real_tree_narrows_a_changed_fake_secret(self):
+        import yaml
+        new = yaml.safe_load(Path(st.ROOT / FAKE).read_text())
+        old = dict(new, backup_passphrase="other")
+        scenarios, _, _ = st.select([FAKE], REAL, lambda p: yaml.safe_dump(old))
+        self.assertGreater(len(scenarios), 0)
+        self.assertLess(len(scenarios), len(REAL.scenarios))
 
 
 class Main(unittest.TestCase):
