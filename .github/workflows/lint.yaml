@@ -59,7 +59,21 @@ jobs:
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
+      # Rôles et collections Galaxy en cache sous l'empreinte de requirements.yml
+      # (versions figées) : un pas de 30 à 75 s par job, et plus de dépendance à
+      # Galaxy quand le cache est chaud. Les entrées écrites depuis main (le run
+      # planifié) servent à toutes les PR.
+      - name: Cache the Galaxy roles and collections
+        id: galaxy
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ansible/galaxy_roles
+            ansible/collections
+          key: galaxy-${{ runner.os }}-${{ hashFiles('ansible/requirements.yml') }}
+
       - name: Install ansible roles and collections
+        if: steps.galaxy.outputs.cache-hit != 'true'
         working-directory: ansible
         run: |
           ansible-galaxy role install -r requirements.yml
