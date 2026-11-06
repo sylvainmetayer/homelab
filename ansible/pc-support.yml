@@ -1,0 +1,205 @@
+---
+# Support à distance, POC sur ce poste (Fedora, GNOME) : Newt en service au
+# boot (site pc-sylvain) et GNOME Remote Desktop, joints par les ressources
+# Pangolin `vnc` et `rdp` de tofu/pangolin_config/remote_support.tf.
+#
+#   ansible-playbook pc-support.yml -K
+#
+# Jamais lancé par la CI (localhost, absent des chemins du déploiement).
+# Ordre : apply de tofu/pangolin_config d'abord, ce playbook lit les
+# identifiants Newt du site dans son state.
+#
+#   - VNC : partage de la session ouverte (service grd utilisateur), mot de
+#     passe VNC (seuls ses 8 premiers caractères comptent). Lecture seule par
+#     défaut chez grd : désactivée ici.
+#   - RDP : connexion à distance du service grd système, dès le boot, à l'écran
+#     de GDM, identifiants propres à grd (pas ceux du compte).
+#   - Pare-feu : la zone FedoraWorkstation ouvre 1025-65535 au LAN et grd
+#     n'écoute pas que sur la boucle locale ; un REJECT dans chaque zone active
+#     garde 5900 et 3389 pour Newt, qui vise 127.0.0.1 (lo n'est dans aucune
+#     zone).
+#
+# Les mots de passe sont demandés à chaque passage (à garder dans KeePass), et
+# reposés : rien dans SOPS pour un POC. grdctl les lit sur son entrée standard,
+# jamais en argument, que `ps` montrerait.
+#
+# Démontage : systemctl disable --now newt gnome-remote-desktop ;
+# systemctl --user disable --now gnome-remote-desktop ; grdctl vnc disable ;
+# firewall-cmd --permanent --zone=<zone> --remove-rich-rule=... puis --reload.
+- name: Remote support on this workstation (Newt, GNOME Remote Desktop)
+  hosts: localhost
+  connection: local
+  vars:
+    # Arguments des modules (mots de passe compris) passés par un pipe à
+    # Python, jamais écrits dans un AnsiballZ_*.py de ~/.ansible/tmp.
+    ansible_pipelining: true
+    pc_support_vnc_port: 5900
+    pc_support_rdp_port: 3389
+    pc_support_grd_dir: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
+  vars_prompt:
+    - name: pc_support_vnc_password
+      prompt: Mot de passe VNC (8 caractères au plus comptent)
+      private: true
+    - name: pc_support_rdp_username
+      prompt: Identifiant RDP de la connexion à distance
+      private: false
+    - name: pc_support_rdp_password
+      prompt: Mot de passe RDP de la connexion à distance
+      private: true
+
+  pre_tasks:
+    - name: Refuse empty remote desktop credentials
+      ansible.builtin.assert:
+        that:
+          - pc_support_vnc_password | length > 0
+          - pc_support_rdp_username | length > 0
+          - pc_support_rdp_password | length > 0
+        fail_msg: Identifiants VNC et RDP obligatoires.
+        quiet: true
+
+    # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # no_log : le secret Newt, qu'un -v écrirait dans run.log.
+    - name: Load the Newt credentials of the pc-sylvain site from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        newt_service_id: "{{ terraform_outputs.pc_sylvain_newt_id.value | default('') }}"
+        newt_service_secret: "{{ terraform_outputs.pc_sylvain_newt_secret.value | default('') }}"
+
+  roles:
+    - role: newt_service
+      tags: newt
+
+  tasks:
+    - name: List the active firewalld zones
+      tags: firewall
+      become: true
+      check_mode: false
+      changed_when: false
+      ansible.builtin.command: firewall-cmd --get-active-zones
+      register: pc_support_zones
+
+    # Une ligne sans retrait par zone (« FedoraWorkstation (default) »), suivie
+    # de ses « interfaces: » en retrait.
+    - name: Keep the VNC and RDP ports to the loopback
+      tags: firewall
+      become: true
+      ansible.posix.firewalld:
+        zone: "{{ item.0 }}"
+        rich_rule: 'rule port port="{{ item.1 }}" protocol="tcp" reject'
+        permanent: true
+        immediate: true
+        state: enabled
+      loop: >-
+        {{ pc_support_zones.stdout_lines | reject('match', ' ') | map('split') | map('first')
+           | product([pc_support_vnc_port, pc_support_rdp_port]) | list }}
+
+    - name: Create the TLS directory of the RDP system daemon
+      tags: rdp
+      become: true
+      ansible.builtin.file:
+        path: "{{ pc_support_grd_dir }}"
+        state: directory
+        owner: gnome-remote-desktop
+        group: gnome-remote-desktop
+        mode: "0700"
+
+    # Auto-signé : Newt ne vérifie pas le certificat du serveur RDP (paquet
+    # browsergateway). creates : jamais régénéré.
+    - name: Generate the TLS key and certificate of the RDP system daemon
+      tags: rdp
+      become: true
+      become_user: gnome-remote-desktop
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -new
+          - -newkey
+          - rsa:4096
+          - -days
+          - "3650"
+          - -nodes
+          - -x509
+          - -subj
+          - /CN=pc-sylvain
+          - -out
+          - "{{ pc_support_grd_dir }}/tls.crt"
+          - -keyout
+          - "{{ pc_support_grd_dir }}/tls.key"
+        creates: "{{ pc_support_grd_dir }}/tls.key"
+
+    - name: Configure the RDP system daemon
+      tags: rdp
+      become: true
+      ansible.builtin.command:
+        argv: [grdctl, --system, rdp, "{{ item.0 }}", "{{ item.1 }}"]
+      loop:
+        - [set-tls-key, "{{ pc_support_grd_dir }}/tls.key"]
+        - [set-tls-cert, "{{ pc_support_grd_dir }}/tls.crt"]
+        - [set-port, "{{ pc_support_rdp_port }}"]
+      changed_when: true
+
+    # Sans négociation : grd prendrait un autre port si 3389 est pris, et la
+    # cible Pangolin viserait un port vide.
+    - name: Pin the RDP port and allow remote control
+      tags: rdp
+      become: true
+      ansible.builtin.command:
+        argv: [grdctl, --system, rdp, "{{ item }}"]
+      loop: [disable-port-negotiation, disable-view-only, enable]
+      changed_when: true
+
+    - name: Set the RDP credentials
+      tags: rdp
+      become: true
+      no_log: true
+      ansible.builtin.command:
+        argv: [grdctl, --system, rdp, set-credentials]
+        stdin: "{{ pc_support_rdp_username }}\n{{ pc_support_rdp_password }}"
+      changed_when: true
+
+    - name: Start the RDP system daemon at boot
+      tags: rdp
+      become: true
+      ansible.builtin.systemd:
+        name: gnome-remote-desktop.service
+        state: restarted
+        enabled: true
+
+    # Service utilisateur : sans become, dans la session de Sylvain (bus D-Bus
+    # de la session ouverte).
+    - name: Configure VNC screen sharing
+      tags: vnc
+      ansible.builtin.command:
+        argv: [grdctl, vnc, "{{ item.0 }}", "{{ item.1 }}"]
+      loop:
+        - [set-auth-method, password]
+        - [set-port, "{{ pc_support_vnc_port }}"]
+      changed_when: true
+
+    - name: Pin the VNC port and allow remote control
+      tags: vnc
+      ansible.builtin.command:
+        argv: [grdctl, vnc, "{{ item }}"]
+      loop: [disable-port-negotiation, disable-view-only, enable]
+      changed_when: true
+
+    - name: Set the VNC password
+      tags: vnc
+      no_log: true
+      ansible.builtin.command:
+        argv: [grdctl, vnc, set-password]
+        stdin: "{{ pc_support_vnc_password }}"
+      changed_when: true
+
+    - name: Start VNC screen sharing with the session
+      tags: vnc
+      ansible.builtin.systemd:
+        name: gnome-remote-desktop.service
+        scope: user
+        state: restarted
+        enabled: true

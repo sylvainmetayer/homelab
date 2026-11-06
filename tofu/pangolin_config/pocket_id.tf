@@ -18,8 +18,9 @@ locals {
   pocket_id_logo_base = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@16c42dc580c144246651d322a079e535cb2b69f8/svg"
 
   # Les rôles Pangolin repris des groupes Pocket ID : tous ceux d'applis
-  # (roles.tf), plus ceux des ressources privées (private_resources.tf).
-  pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager"]))
+  # (roles.tf), plus ceux des ressources privées (private_resources.tf) et du
+  # support à distance (remote_support.tf).
+  pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager", "support"]))
   # Ceux dont l'appli est branchée sur Pocket ID ont leur propre ressource
   # pocketid_group (plus bas) : pas de second groupe du même nom, que Pocket
   # ID refuserait à l'apply.

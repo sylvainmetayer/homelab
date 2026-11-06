@@ -389,6 +389,38 @@ override_resource {
   values = { id = 93 }
 }
 
+# Support à distance (remote_support.tf) : son site, son rôle, ses ressources
+# et leurs cibles.
+override_resource {
+  target = pangolin_site.pc_sylvain
+  values = { id = 7, newt_id = "newt-pc-sylvain", newt_secret = "secret-pc-sylvain" }
+}
+
+override_resource {
+  target = pangolin_role.support
+  values = { id = 94 }
+}
+
+override_resource {
+  target = pangolin_resource.remote_desktop["pc_sylvain_vnc"]
+  values = { id = 3101 }
+}
+
+override_resource {
+  target = pangolin_resource.remote_desktop["pc_sylvain_rdp"]
+  values = { id = 3102 }
+}
+
+override_resource {
+  target = pangolin_target.remote_desktop["pc_sylvain_vnc"]
+  values = { id = 3111 }
+}
+
+override_resource {
+  target = pangolin_target.remote_desktop["pc_sylvain_rdp"]
+  values = { id = 3112 }
+}
+
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
 # (une surcharge peut viser une seule instance d'un for_each, vérifié sur
 # OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite.
@@ -1751,17 +1783,34 @@ run "every_public_resource_applies_its_rules" {
   }
 
   # Toutes les ressources publiques sont des instances de
-  # pangolin_resource.website : aucune n'échappe aux épinglages, à la page de
-  # maintenance ni à local.managed_resources, qui en est dérivée.
+  # pangolin_resource.website, ou de pangolin_resource.remote_desktop (support
+  # à distance, remote_support.tf) : aucune n'échappe aux épinglages, à la page
+  # de maintenance ni à local.managed_resources, qui en est dérivée.
   assert {
     condition = (
       length(flatten([
         for f in fileset(path.module, "*.tf") :
         regexall("resource\\s+\"pangolin_resource\"\\s+\"", file("${path.module}/${f}"))
-      ])) == 1
-      && toset([for r in pangolin_resource.website : r.name]) == toset(keys(local.managed_resources))
+      ])) == 2
+      && toset(concat(
+        [for r in pangolin_resource.website : r.name],
+        [for r in pangolin_resource.remote_desktop : r.name],
+      )) == toset(keys(local.managed_resources))
     )
-    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), ou manque à local.managed_resources."
+    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf) et pangolin_resource.remote_desktop (remote_support.tf), ou manque à local.managed_resources."
+  }
+
+  # Prendre la main sur un PC : derrière le SSO, réservé au rôle support, en
+  # VNC ou RDP vers la boucle locale du site, sans sonde (le PC s'éteint).
+  assert {
+    condition = alltrue([
+      for key, r in pangolin_resource.remote_desktop :
+      r.sso && r.apply_rules && contains(["vnc", "rdp"], r.mode)
+      && pangolin_resource_role.remote_desktop[key].role_id == pangolin_role.support.id
+      && pangolin_target.remote_desktop[key].ip == "127.0.0.1"
+      && !pangolin_target.remote_desktop[key].hc_enabled
+    ])
+    error_message = "Une ressource de support à distance doit rester derrière le SSO, liée au seul rôle support, viser 127.0.0.1 sans sonde (remote_support.tf)."
   }
 
   # local.websites liste à la main les entrées local.<app>_website des
@@ -1866,7 +1915,8 @@ run "resources_have_unique_fqdns" {
 
   assert {
     condition = length(distinct([
-      for r in pangolin_resource.website : "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
+      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop)) :
+      "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
     ])) == length(local.managed_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
   }
@@ -2019,7 +2069,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # sans ses règles fait aussi échouer le run.
   assert {
     condition = length([
-      for r in pangolin_resource.website :
+      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop)) :
       r.name if try(
         pangolin_resource_rule.block_country[r.name].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-FR"].resource_id == r.id
@@ -2213,6 +2263,16 @@ run "pangolin_alerts_publish_to_a_known_topic" {
       && alltrue([for rule in pangolin_alert_rule.ntfy : rule.webhook_actions[0].url == "https://${pangolin_resource.website["ntfy"].full_domain}/"])
     )
     error_message = "Les règles d'alerte doivent rester actives, avec leur webhook vers un topic de ntfy_publish_topics."
+  }
+
+  # Un PC du support à distance s'éteint tous les soirs : son site n'alerte pas,
+  # tous les autres oui.
+  assert {
+    condition = (
+      pangolin_alert_rule.ntfy["site_offline"].site_ids == toset([2, 3, 1, 5, 6, 4])
+      && !pangolin_alert_rule.ntfy["site_offline"].all_sites
+    )
+    error_message = "« Site hors ligne » doit viser chaque site d'infra (local.alert_infra_sites), jamais un site du support à distance."
   }
 
   assert {
@@ -3200,7 +3260,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && contains(split(" ", pangolin_idp.pocket_id.scopes), "groups")
       && startswith(pangolin_idp_org.pocket_id.role_mapping, "groups[?contains(`")
       && endswith(pangolin_idp_org.pocket_id.role_mapping, "`, @)]")
-      && toset(jsondecode(regex("`(.*)`", pangolin_idp_org.pocket_id.role_mapping)[0])) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
+      && toset(jsondecode(regex("`(.*)`", pangolin_idp_org.pocket_id.role_mapping)[0])) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name, pangolin_role.support.name]))
       && !contains(local.pocket_id_role_groups, "Admin")
       && !contains(local.pocket_id_role_groups, "Member")
       && pangolin_idp_org.pocket_id.org_id == "homelab"
@@ -3217,8 +3277,8 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       toset(concat(
         [for group in pocketid_group.pangolin_role : group.name],
         [pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name],
-      )) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
-      && length(pocketid_group.pangolin_role) + 5 == length(pangolin_role.apps) + 2
+      )) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name, pangolin_role.support.name]))
+      && length(pocketid_group.pangolin_role) + 5 == length(pangolin_role.apps) + 3
       && toset([pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name]) == local.pocket_id_app_groups
     )
     error_message = "Chaque rôle Pangolin d'appli doit avoir son groupe Pocket ID du même nom, et inversement (local.pocket_id_role_groups, pocket_id.tf)."
