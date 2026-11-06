@@ -112,6 +112,8 @@ resource "proxmox_virtual_environment_vm" "docker" {
   }
 
   lifecycle {
+    # Un destroy ou un replace accidentel détruirait la VM et toutes les apps : il faut retirer ce garde-fou à la main.
+    prevent_destroy = true
     ignore_changes = [
       disk[0].file_id
     ]
