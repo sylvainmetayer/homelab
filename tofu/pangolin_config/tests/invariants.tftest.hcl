@@ -3313,7 +3313,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       for key, website in local.websites :
       contains(keys(pocketid_client.launcher), key) != contains(local.pocket_id_oidc_roles, website.role)
       if try(website.role, null) != null && website.homepage != null && try(website.enabled, true)
-    ]) && alltrue([
+      ]) && alltrue([
       for key, client in pocketid_client.launcher :
       client.is_public && length(client.allowed_user_groups) == 1
       && startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
