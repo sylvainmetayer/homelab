@@ -58,6 +58,17 @@ d'où deux passkeys au moins, et un code créé par l'administrateur en secours.
 - Perte de tous les passkeys : code à usage unique créé sur l'hôte
   ([runbook](../runbooks/pocket-id.md)). Premier démarrage non testé en CI.
 
+## Évolution du 2026-11-06 : rôles Pangolin repris des groupes Pocket ID
+
+Donner une appli demandait deux gestes (groupe Pocket ID, rôle Pangolin). Désormais
+`auto_provision = true` et la règle de rôles rend les groupes Pocket ID dont le
+nom est un rôle d'appli ; un groupe Pocket ID par rôle Pangolin, déclaré en Tofu.
+Écartés : retirer le mur des applis branchées (pages de login exposées), un rôle
+unique pour tout le foyer (les applis sans OIDC perdaient leur filtre), tout
+déclarer en Tofu (utilisateurs Pocket ID et noms du foyer dans le dépôt public).
+Dépend de la licence Enterprise : sans elle, un seul rôle par personne (des
+accès en moins, jamais en trop). Comptes internes inchangés.
+
 ## Liens
 
 [runbook](../runbooks/pocket-id.md), `ansible/roles/pocket_id/README.md`,

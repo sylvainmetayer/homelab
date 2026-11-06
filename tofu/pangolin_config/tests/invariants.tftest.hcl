@@ -3171,7 +3171,7 @@ run "hand_made_leftovers_stay_as_imported" {
   }
 }
 
-run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
+run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   command = plan
 
   # Le fournisseur d'identité sert le login du mur SSO : jamais une ressource
@@ -3188,20 +3188,34 @@ run "pocket_id_stays_outside_the_sso_wall_and_provisions_nobody" {
     error_message = "Pocket ID ne doit jamais être une entrée de local.websites : elle le mettrait derrière le mur SSO qu'il sert."
   }
 
-  # Pilote : rien n'est créé par Pangolin à la première connexion, les rôles
-  # réécrits au login ne montent jamais au-dessus de Member, et aucun
-  # utilisateur interne n'est déclaré ici.
+  # Les rôles Pangolin d'un utilisateur Pocket ID viennent de ses groupes :
+  # création automatique, expression qui ne garde que les noms de rôles
+  # d'applis (jamais Admin ni Member), et un groupe Pocket ID par rôle Pangolin
+  # déclaré, du même nom (un rôle sans groupe ne serait plus attribuable).
   assert {
     condition = (
-      pangolin_idp.pocket_id.auto_provision == false
+      pangolin_idp.pocket_id.auto_provision == true
       && pangolin_idp.pocket_id.variant == "oidc"
       && pangolin_idp.pocket_id.identifier_path == "preferred_username"
       && contains(split(" ", pangolin_idp.pocket_id.scopes), "groups")
-      && pangolin_idp_org.pocket_id.role_mapping == "'Member'"
+      && pangolin_idp_org.pocket_id.role_mapping == "groups[?contains(`${jsonencode(sort(local.pocket_id_role_groups))}`, @)]"
+      && !contains(local.pocket_id_role_groups, "Admin")
+      && !contains(local.pocket_id_role_groups, "Member")
       && pangolin_idp_org.pocket_id.org_id == "homelab"
       && pangolin_idp.pocket_id.client_id == pocketid_client.pangolin.client_id
     )
-    error_message = "L'IdP Pocket ID doit rester sans auto-provision, avec le rôle Member et le scope groups (pocket_id.tf)."
+    error_message = "L'IdP Pocket ID doit créer ses utilisateurs et ne leur donner que des rôles d'applis, lus dans le claim groups (pocket_id.tf)."
+  }
+
+  assert {
+    condition = toset(concat(
+      [for group in pocketid_group.pangolin_role : group.name],
+      [pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name],
+      )) == toset(concat(
+      [for role in pangolin_role.apps : role.name],
+      [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name],
+    ))
+    error_message = "Chaque rôle Pangolin d'appli doit avoir son groupe Pocket ID du même nom, et inversement (local.pocket_id_role_groups, pocket_id.tf)."
   }
 
   # Clients OIDC déclarés par l'API de Pocket ID : confidentiels, PKCE exigé

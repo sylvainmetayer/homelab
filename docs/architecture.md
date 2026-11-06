@@ -165,9 +165,10 @@ transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 est la seule adresse publique qui ne passe ni par le mur SSO ni par le filtre
 FR/DE : le Traefik de Pangolin la route directement vers le conteneur `pocket-id`
 de la même VM (un routeur du fichier dynamique, pas une ressource), derrière la
-limite de débit par IP, CrowdSec et les en-têtes de l'entrypoint. Pendant le
-pilote, il ne sert qu'au compte de Sylvain (un utilisateur externe de Pangolin,
-et Homebox) ; le mur reste aux comptes internes. Procédure et secours :
+limite de débit par IP, CrowdSec et les en-têtes de l'entrypoint. Sur le mur, un
+login Pocket ID crée un utilisateur externe dont les rôles sont ceux de ses
+groupes Pocket ID (un groupe par rôle d'appli) ; les comptes internes restent
+gérés dans Pangolin. Procédure et secours :
 [runbooks/pocket-id.md](runbooks/pocket-id.md).
 
 ## Où tourne quoi
