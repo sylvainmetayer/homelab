@@ -2,7 +2,7 @@
 
 Newt as a plain systemd service, without Docker: the binary of the GitHub release, `/etc/newt/env`, `newt.service`. The Docker hosts have the role `newt` (container, `ansible/roles/newt/README.md`).
 
-Part of `lxc.yml` only (tags `newt,setup`), on the Proxmox Newt LXC: site `proxmox-lxc`, the LAN private resources and the CI's way to the home hosts. **By hand only, never by CI**: `resolve_docker_tags.py` prints a notice for this role and deploys nothing.
+Part of `lxc.yml` (tags `newt,setup`), on the Proxmox Newt LXC: site `proxmox-lxc`, the LAN private resources and the CI's way to the home hosts; and of `pc-support.yml` (tag `newt`), on the workstation: site `pc-sylvain`, the remote support POC (`tofu/pangolin_config/remote_support.tf`). **By hand only, never by CI**: `resolve_docker_tags.py` prints a notice for this role and deploys nothing.
 
 ## Variables
 
