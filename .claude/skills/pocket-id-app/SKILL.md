@@ -132,10 +132,8 @@ resource "pocketid_client" "<app>" {
   launch_url          = "https://<host>"   # else hidden from « My apps »
   # ALWAYS a logo (a test pins it): dashboard-icons at the pinned commit
   # (`curl -sI ${local.pocket_id_logo_base}/<name>.svg` must be 200); absent
-  # there, the app's upstream repo at the image's tag, through jsDelivr
-  # (cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/<path>, TREK): Pocket ID only
-  # downloads logos from its icon library's host (OUTBOUND_ALLOWED_HOSTS_CLIENT_LOGO
-  # is none), so never raw.githubusercontent.com nor a *.sylvain.cloud URL.
+  # there, the app's upstream repo at the image's tag (TREK). Never a
+  # *.sylvain.cloud URL: Pocket ID downloads it at apply, the wall blocks it.
   logo_url            = "${local.pocket_id_logo_base}/<name>.svg"
   pkce_enabled        = true         # Pangolin and Homebox send it; false only if the app does not
   is_public           = false
