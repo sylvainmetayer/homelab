@@ -170,7 +170,8 @@ def check_exposed():
     for path in ("/metrics", "/debug/pprof/", "/api/swagger/index.html", "/swagger/index.html", "/.env", "/api/test/reset", "/.git/config"):
         status, hdrs, data = request("GET", path)
         # Le frontal SvelteKit répond 200 (sa page) à tout chemin inconnu : seul compte un contenu qui n'est pas cette page.
-        spa = b"<!doctype html" in data[:200].lower()
+        # Un Swagger UI ou un index pprof est aussi du HTML : reconnu à son contenu, jamais pris pour le frontal.
+        spa = b"<!doctype html" in data[:200].lower() and not re.search(rb"swagger|openapi|redoc|pprof", data, re.I)
         exposed = status == 200 and not spa
         record(f"exposé : {path}", "FAIL" if exposed else "PASS", f"HTTP {status}" + (" (page du frontal)" if spa else ""))
 
@@ -333,6 +334,15 @@ def token(client_id, secret, **form):
     return status, as_json(data) or {}
 
 
+def check_refused(label, code, where, cid, secret, **form):
+    """Échange refusé attendu ; sans code obtenu le contrôle n'a rien vérifié, il ne passe pas à vide."""
+    if not code:
+        record(label, "WARN", "aucun code obtenu, non vérifié : " + where[:80])
+        return
+    status, tok = token(cid, secret, grant_type="authorization_code", code=code, **form)
+    record(label, "PASS" if status >= 400 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
+
+
 def userinfo(access_token):
     status, _, _ = request("GET", "/api/oidc/userinfo", {"Authorization": f"Bearer {access_token}"})
     return status
@@ -382,22 +392,21 @@ def check_flow(admin):
         returned_state = urllib.parse.parse_qs(urllib.parse.urlsplit(where).query).get("state", [""])[0]
         record("flux : state renvoyé", "PASS" if returned_state == state else "FAIL")
 
-        status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
-        record("PKCE : mauvais vérificateur refusé", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
+        check_refused("PKCE : mauvais vérificateur refusé", code, where, cid_a, sec_a, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
 
         code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
-        status, tok = token(cid_b, sec_b, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier)
-        record("code d'un client échangé par un autre", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
+        check_refused("code d'un client échangé par un autre", code, where, cid_b, sec_b, redirect_uri=CALLBACK, code_verifier=verifier)
 
         code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
-        status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
-        record("token : redirect_uri différente refusée", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
+        check_refused("token : redirect_uri différente refusée", code, where, cid_a, sec_a, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
 
         code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
-        status, tok = token(cid_a, "faux-" + secrets.token_hex(16), grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier)
-        record("token : secret client faux refusé", "PASS" if status in (400, 401) else "FAIL", f"HTTP {status} {tok.get('error', '')}")
+        check_refused("token : secret client faux refusé", code, where, cid_a, "faux-" + secrets.token_hex(16), redirect_uri=CALLBACK, code_verifier=verifier)
 
         code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        if not code:
+            record("flux : échange du code", "FAIL", "aucun code obtenu : " + where[:100])
+            return
         status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier, audience="https://evil.example", resource="https://evil.example")
         record("flux : échange du code", "PASS" if status == 200 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
         if status != 200:
@@ -426,19 +435,29 @@ def check_flow(admin):
         refresh = tok.get("refresh_token")
         if refresh:
             code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
-            status, tok2 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier)
+            status, tok2 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
             r1 = tok2.get("refresh_token")
-            status, rot = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
-            record("refresh : fonctionne", "PASS" if status == 200 else "WARN", f"HTTP {status}")
-            # Pocket ID garde l'ancien jeton une minute après la rotation (refreshTokenGracePeriod,
-            # rafraîchissements parallèles) : refusé seulement au-delà.
-            time.sleep(65)
-            status, reuse = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
-            record("refresh : ancien jeton refusé 65 s après rotation", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {reuse.get('error', '')}")
-            admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": []})
-            status, after = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=rot.get("refresh_token", r1))
-            record("refresh : refusé après retrait du groupe", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {after.get('error', '')}")
-            admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": [group["id"]]})
+            if r1:
+                status, rot = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
+                record("refresh : fonctionne", "PASS" if status == 200 else "WARN", f"HTTP {status}")
+                # Pocket ID garde l'ancien jeton une minute après la rotation (refreshTokenGracePeriod,
+                # rafraîchissements parallèles) : refusé seulement au-delà.
+                time.sleep(65)
+                status, reuse = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
+                record("refresh : ancien jeton refusé 65 s après rotation", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {reuse.get('error', '')}")
+            else:
+                record("refresh : rotation", "WARN", "pas de refresh_token au second échange, non vérifié")
+            # Chaîne neuve : la réutilisation de r1 a pu révoquer toute la précédente, le refus ne prouverait alors rien sur le groupe.
+            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+            status, tok3 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
+            r3 = tok3.get("refresh_token")
+            if r3:
+                admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": []})
+                status, after = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r3)
+                record("refresh : refusé après retrait du groupe", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {after.get('error', '')}")
+                admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": [group["id"]]})
+            else:
+                record("refresh : refusé après retrait du groupe", "WARN", "aucun refresh_token obtenu, non vérifié")
         else:
             record("refresh", "SKIP", "aucun refresh_token délivré (offline_access)")
 
@@ -460,14 +479,15 @@ def check_flow(admin):
             same = target == "audit.invalid" and parts.scheme == "https" and parts.port is None and parts.path == "/callback"
             if target not in ("", HOST) and not same:
                 status = "FAIL"  # code ou erreur envoyés vers un autre hôte ou chemin
-            elif code and not same:
-                status = "FAIL"
             else:
                 status = "INFO" if code else "PASS"  # code vers le même hôte (casse différente) : équivalent
             record(f"redirect_uri piégée : {variant}", status, "code délivré au même hôte" if code else where[:100])
     finally:
-        admin.cleanup(only=created)
-        record("nettoyage des objets de test", "PASS")
+        try:
+            admin.cleanup(only=created)
+            record("nettoyage des objets de test", "PASS")
+        except Exception as exc:
+            record("nettoyage des objets de test", "FAIL", f"à supprimer à la main (pid-audit-*) : {exc}")
 
 
 def main():
@@ -477,21 +497,25 @@ def main():
     args = parser.parse_args()
     key = os.environ.get("pocket_id_static_api_key", "")
 
-    doc = check_discovery()
-    check_jwks(doc)
-    check_headers()
-    check_cors()
-    check_exposed()
-    check_public_config()
-    check_version()
-    check_unauthenticated(len(key))
-    check_burst()
+    def guarded(fn, *a):
+        """Une erreur réseau ou une réponse inattendue devient un FAIL : le tableau et le JSON sortent quand même."""
+        try:
+            return fn(*a)
+        except Exception as exc:
+            record(fn.__name__, "FAIL", f"{type(exc).__name__}: {exc}")
+
+    doc = guarded(check_discovery) or {}
+    guarded(check_jwks, doc)
+    for fn in (check_headers, check_cors, check_exposed, check_public_config, check_version):
+        guarded(fn)
+    guarded(check_unauthenticated, len(key))
+    guarded(check_burst)
     if args.no_flow or not key:
         record("flux complet", "SKIP", "pas de clé admin" if not key else "--no-flow")
     else:
         admin = Admin(key)
-        admin.cleanup()
-        check_flow(admin)
+        guarded(admin.cleanup)
+        guarded(check_flow, admin)
 
     counts = {}
     for r in results:

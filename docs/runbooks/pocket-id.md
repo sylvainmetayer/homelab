@@ -207,8 +207,10 @@ podman run --rm -v "$A:/root/nuclei-templates:Z" docker.io/projectdiscovery/nucl
 ```
 
 Avant les scanners, ton IP en liste blanche CrowdSec le temps du passage
-(expire seule) : `sudo docker exec crowdsec cscli allowlists add
-pocket-id-audit <ip> -e 4h` sur Pangolin (`docs/runbooks/crowdsec.md`).
+(expire seule), sur Pangolin : `sudo docker exec crowdsec cscli allowlists
+create pocket-id-audit -d "audit Pocket ID"` (une fois, l'`add` échoue sans
+elle) puis `sudo docker exec crowdsec cscli allowlists add pocket-id-audit
+<ip> -e 4h` (`docs/runbooks/crowdsec.md`).
 
 ## Secours
 
