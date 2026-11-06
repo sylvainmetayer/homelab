@@ -201,6 +201,13 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      page, `https://pve.sylvain.cloud:8006` et `https://192.168.1.26:8006`
      (une autre adresse d'accès : l'ajouter au client). `root@pam` reste le
      secours.
+   - **Jellyfin** (NAS, le foyer, groupes `jellyfin` et `jellyfin-admin`) :
+     greffon SSO-Auth posé par le rôle `jellyfin` (`nas.yml --tags jellyfin`,
+     à la main), fournisseur `pocketid`, rappel
+     `https://media.sylvain.cloud/sso/OID/redirect/pocketid`. À la main une
+     fois : le bouton dans Tableau de bord, Général, Branding (README du rôle)
+     et `sylvain` dans `jellyfin-admin`. Mots de passe et Quick Connect
+     gardés : secours.
    - **Immich Power Tools** (le foyer, groupe `immich-power-tools`, et
      `immich` pour passer le client Immich) : plus de clé d'API, chacun se
      connecte par « Se connecter avec Pocket ID » (OAuth d'Immich, rappel

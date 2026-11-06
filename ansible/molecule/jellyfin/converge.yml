@@ -10,6 +10,18 @@
     # Le bouchon de _shared/prepare.yml au lieu de l'enrobage du conteneur
     # borgmatic, qui tirerait l'image (repo-create de tasks/app.yml).
     borgmatic_bin: /root/.local/bin/borgmatic
+    # Sorties fictives du state pangolin_config : le client Pocket ID de
+    # Jellyfin, donc la configuration du greffon SSO rendue.
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_jellyfin_client_id:
+        value: molecule-pocket-id-jellyfin-client-id
+      pocket_id_jellyfin_client_secret:
+        value: molecule-pocket-id-jellyfin-client-secret
+    # Pas de réseau en Molecule : le greffon n'est ni téléchargé ni extrait
+    # (le téléchargement épinglé se vérifie sur le NAS), sa configuration l'est.
+    jellyfin_sso_install: false
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml

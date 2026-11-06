@@ -107,6 +107,41 @@
           - not (jellyfin_verify_model.networks.media.external | default(false))
         fail_msg: "Service jellyfin inattendu : {{ jellyfin_verify_service }}"
 
+    # Greffon SSO : XML posé à 0600 pour le compte du conteneur, avec les
+    # réglages gérés ; l'empreinte rangée à côté évite de le réécrire (et de
+    # perdre CanonicalLinks) au passage suivant.
+    - name: Read the Jellyfin SSO plugin configuration
+      ansible.builtin.slurp:
+        src: "{{ jellyfin_verify_path }}/config/plugins/configurations/SSO-Auth.xml"
+      register: jellyfin_verify_sso_raw
+
+    - name: Stat the Jellyfin SSO plugin configuration
+      ansible.builtin.stat:
+        path: "{{ jellyfin_verify_path }}/config/plugins/configurations/SSO-Auth.xml"
+      register: jellyfin_verify_sso_stat
+
+    - name: Assert the Jellyfin SSO plugin configuration
+      vars:
+        jellyfin_verify_sso: "{{ jellyfin_verify_sso_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - jellyfin_verify_sso_stat.stat.mode == '0600'
+          - jellyfin_verify_sso_stat.stat.pw_name == 'sylvain'
+          - "'<string>pocketid</string>' in jellyfin_verify_sso"
+          - "'<OidEndpoint>https://idp.example.invalid/.well-known/openid-configuration</OidEndpoint>' in jellyfin_verify_sso"
+          - "'<OidClientId>molecule-pocket-id-jellyfin-client-id</OidClientId>' in jellyfin_verify_sso"
+          - "'<OidSecret>molecule-pocket-id-jellyfin-client-secret</OidSecret>' in jellyfin_verify_sso"
+          - "'<EnableAuthorization>true</EnableAuthorization>' in jellyfin_verify_sso"
+          - "'<PreserveAdminPermissions>true</PreserveAdminPermissions>' in jellyfin_verify_sso"
+          - "'<RoleClaim>groups</RoleClaim>' in jellyfin_verify_sso"
+          - "'<DefaultUsernameClaim>preferred_username</DefaultUsernameClaim>' in jellyfin_verify_sso"
+          - "'<SchemeOverride>https</SchemeOverride>' in jellyfin_verify_sso"
+          - jellyfin_verify_sso | regex_search('<AdminRoles>\\s*<string>jellyfin-admin</string>\\s*</AdminRoles>')
+          - jellyfin_verify_sso | regex_search('<Roles>\\s*<string>jellyfin</string>\\s*<string>jellyfin-admin</string>\\s*</Roles>')
+          - jellyfin_verify_sso | regex_search('<OidScopes>\\s*<string>email</string>\\s*<string>groups</string>\\s*</OidScopes>')
+        fail_msg: "{{ 'Configuration du greffon SSO inattendue' }}"
+      no_log: true
+
     - name: Stat the Jellyfin folders
       ansible.builtin.stat:
         path: "{{ jellyfin_verify_path }}/{{ item }}"

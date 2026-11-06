@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin"])
 
   length  = 48
   special = false
@@ -391,6 +391,45 @@ resource "pocketid_client" "mediamanager" {
   logo_url            = "https://cdn.jsdelivr.net/gh/maxdorninger/MediaManager@v1.12.3/web/static/logo.svg"
   pkce_enabled        = false
   is_public           = false
+}
+
+# Jellyfin (NAS, https://media.sylvain.cloud, ressource privée Pangolin) : le
+# greffon SSO-Auth de K0lin (ansible/roles/jellyfin), fournisseur « pocketid ».
+# Le groupe du rôle Pangolin jellyfin (foyer) donne l'accès, jellyfin-admin le
+# statut d'administrateur (claim groups, AdminRoles du greffon). Rappel
+# /sso/OID/redirect/pocketid bâti depuis la requête : les deux origines servies
+# par nas_proxy (443 et 8443). PKCE : client Duende OidcClient, qui l'envoie
+# par défaut (non confirmé en vrai) ; sinon Pocket ID refuserait la connexion
+# et il faudrait le désactiver ici.
+resource "pocketid_group" "jellyfin_admin" {
+  name          = "jellyfin-admin"
+  friendly_name = "Jellyfin admin"
+}
+
+resource "pocketid_client" "jellyfin" {
+  name          = "Jellyfin"
+  client_id     = "jellyfin"
+  client_secret = random_password.pocket_id_client["jellyfin"].result
+  callback_urls = [
+    "https://media.sylvain.cloud/sso/OID/redirect/pocketid",
+    "https://media.sylvain.cloud:8443/sso/OID/redirect/pocketid",
+  ]
+  allowed_user_groups = [pocketid_group.pangolin_role["jellyfin"].id, pocketid_group.jellyfin_admin.id]
+  launch_url          = "https://media.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/jellyfin.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_jellyfin_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Jellyfin"
+  value       = pocketid_client.jellyfin.client_id
+}
+
+output "pocket_id_jellyfin_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Jellyfin"
+  value       = random_password.pocket_id_client["jellyfin"].result
+  sensitive   = true
 }
 
 output "pocket_id_wishlist_client_secret" {

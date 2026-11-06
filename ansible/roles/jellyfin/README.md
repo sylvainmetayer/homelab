@@ -11,3 +11,20 @@ Quick Sync (N100 iGPU, `i915`): the compose passes `jellyfin_render_device` (`/d
 Backup (tag `backup`, `jellyfin_backup_enabled`, default true): `config/` and the compose through the shared borgmatic template, run by the NAS's containerised borgmatic (02:30, `ansible/roles/borgmatic/README.md`); the SQLite databases `config/data/*.db` are copied by `sqlite3` (`VACUUM INTO` in WAL, `.backup` otherwise), their live copy excluded. Push monitor « Backup Jellyfin » (`tofu/pangolin_config/backup_jellyfin.tf`, outside `local.websites`: Jellyfin is no public resource), restore-tested (`.github/restore-test/apps.json`). The media are not in borg.
 
 Health: push monitor « Healthcheck Jellyfin » (`tofu/pangolin_config/health_nas.tf`), fed every 5 minutes by the NAS itself through its Traefik (`nas-health-check.timer`, role `nas_proxy`, `ansible/roles/nas_proxy/README.md`): the PikaPods Uptime Kuma cannot reach `media.sylvain.cloud`.
+
+Connexion par Pocket ID (tag `sso`, `tasks/sso.yml`, ADR 0030) : greffon « SSO Authentication » du fork K0lin de jellyfin-plugin-sso (v5.1.1, `targetAbi` 12.0.0.0, chargé par Jellyfin 12.4, testé le 2026-11-06 : « Loaded plugin: SSO Authentication 5.1.1 »). Posé seulement si `terraform_outputs` porte `pocket_id_jellyfin_client_id`/`_secret` et `pocket_id_issuer` (client `jellyfin` de `tofu/pangolin_config/pocket_id.tf`, à appliquer d'abord) ; sinon Jellyfin reste tel quel.
+
+- Installation : zip épinglé (`jellyfin_sso_version`, md5 du manifeste `manifest-release` dans `jellyfin_sso_checksum`, vérifié par `get_url`) téléchargé hors de `config/`, extrait par `python3 -m zipfile` (pas d'`unzip`) dans `config/plugins/sso-authentication_<version>/` ; Jellyfin lit `meta.json` de n'importe quel dossier. Monter la version : nouvelle ligne du manifeste, vérifier son `targetAbi`, changer les deux variables ; l'ancien dossier se supprime à la main (deux versions chargées ensemble sont refusées, non confirmé).
+- Configuration : `config/plugins/configurations/SSO-Auth.xml` (0600, secret dedans, `no_log`), gabarit `templates/SSO-Auth.xml.j2` (forme `item/key/value` de `SerializableDictionary`, lue dans le code v5.1.1 : **non confirmé en vrai**, vérifier la page du greffon après le premier déploiement). Le greffon réécrit ce fichier (`CanonicalLinks` : liens identifiant SSO / compte Jellyfin) : le rôle ne le repose **que si le rendu sans les liens change** (empreinte rangée dans `SSO-Auth.ansible.sha256`), en reprenant les `CanonicalLinks` existants ; sinon ni écrasement ni redémarrage à chaque passage. Le rôle possède le fournisseur `pocketid` seul : un autre fournisseur ajouté dans l'interface serait écrasé au prochain changement.
+- Réglages : compte = `preferred_username`, scopes `email groups`, `RoleClaim` `groups`, `Roles` `jellyfin` et `jellyfin-admin`, `AdminRoles` `jellyfin-admin`, `EnableAuthorization` et `EnableAllFolders` vrais, `PreserveAdminPermissions` vrai (le compte `sylvain` n'est jamais rétrogradé), `SchemeOverride` https (derrière Traefik). Même nom d'utilisateur = même compte Jellyfin ; un nouveau nom crée un compte sans mot de passe utilisable. Mots de passe locaux et Quick Connect (TV, applis) ne changent pas.
+- Bouton, à coller une fois dans Tableau de bord › Général › Branding › Avis de la page de connexion (stocké en base, pas posé par le rôle) :
+
+```html
+<form action="https://media.sylvain.cloud/sso/OID/start/pocketid">
+  <button class="raised block emby-button button-submit" type="submit">Se connecter avec Pocket ID</button>
+</form>
+```
+
+- À la main aussi : dans Pocket ID, `sylvain` et `marielea` dans le groupe `jellyfin` (accès), `sylvain` dans `jellyfin-admin`. `marielea` n'existe pas encore dans Jellyfin : créée à sa première connexion.
+- Secours : le formulaire local reste (mots de passe, Quick Connect). Greffon ou Pocket ID en panne : se connecter par mot de passe ; pour couper le greffon, retirer le dossier `config/plugins/sso-authentication_*` et redémarrer (`dc@jellyfin`), ou mettre `<Enabled>false</Enabled>`.
+- Jamais par la CI : `nas.yml --tags jellyfin` (ou `--tags sso`), à la main, après l'apply de `pangolin_config`.
