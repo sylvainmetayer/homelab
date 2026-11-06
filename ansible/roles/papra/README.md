@@ -171,5 +171,12 @@ Client `papra` de `tofu/pangolin_config/pocket_id.tf` (groupe `papra`). Les
 `papra_oidc_*` de `defaults/main.yml` lisent les sorties Tofu ; tant qu'elles
 manquent, `AUTH_PROVIDERS_CUSTOMS` n'est pas rendu. Fournisseur `pocket-id`
 (rappel `/api/auth/oauth2/callback/pocket-id`), PKCE. better-auth lie un compte
-existant par e-mail vérifié ; l'inscription fermée empêche d'en créer un. Le
-mot de passe et les clés d'API restent (secours, appli mobile).
+existant par e-mail, vérifié **des deux côtés** : better-auth 1.6.11
+(`requireLocalEmailVerified`, vrai par défaut, non réglable dans Papra) refuse
+un compte Papra dont `users.email_verified` vaut 0, ce qui est le cas de tout
+compte créé par inscription. Symptôme : le retour de Pocket ID finit sur
+`/api/auth/error`. Remède, par compte, avant sa première connexion par Pocket
+ID : `email_verified=1` dans `app-data/db/db.sqlite` (commande dans
+`docs/runbooks/pocket-id.md`, copie de la base avant). L'inscription fermée
+empêche d'en créer un. Le mot de passe et les clés d'API restent (secours,
+appli mobile).
