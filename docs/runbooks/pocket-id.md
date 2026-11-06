@@ -25,9 +25,10 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
 1. **Clé SOPS** (`secrets/`, PR sur `homelab-secrets` puis bump ici) :
    `pocket_id_encryption_key` dans `ansible.sops.yaml`
    (`openssl rand -base64 32`, 16 octets au moins). Entrée de
-   `secrets-rotation.yaml` : `kind: application`, jamais tournée à la légère :
-   Pocket ID chiffre ses clés de signature avec ; une rotation passe par
-   `encryption-key-rotate` (« Rotations » plus bas) avant de changer la clé. Puis, depuis `tofu/pangolin_config` : `tofu plan` (les moniteurs
+   `secrets-rotation.yaml` : `kind: encryption` (sur incident seulement, pas
+   d'échéance) : Pocket ID chiffre ses clés de signature avec ; une rotation
+   passe par `encryption-key-rotate` (« Rotations » plus bas) avant de changer
+   la clé. Puis, depuis `tofu/pangolin_config` : `tofu plan` (les moniteurs
    « Pocket ID » et « Backup Pocket ID », rouges jusqu'au déploiement) et
    `tofu apply`. Puis, depuis `ansible/` : `ansible-playbook pangolin.yaml --check
    --tags pangolin,pocket_id`, puis sans `--check`. Surveiller le premier
@@ -186,8 +187,12 @@ une liste vide, donc un refus.
   de connexion : SMTP n'est pas configuré, et ce serait « la boîte mail ouvre tout ».
 - **Rotations** (depuis le dossier `/opt/pocket-id`, `sudo docker compose exec
   pocket-id /app/pocket-id …`) :
-  - `ENCRYPTION_KEY` : `encryption-key-rotate --new-key <nouvelle clé>`
-    rechiffre les données, **puis** la nouvelle clé dans SOPS
+  - `ENCRYPTION_KEY` (nouvelle clé : `openssl rand -base64 32`, 16 octets au
+    moins, sinon le rôle refuse de la déployer) : vérifier d'abord que la
+    sauvegarde Borg de la nuit est verte (le rechiffrement ne se défait pas) ; puis `encryption-key-rotate --new-key
+    <nouvelle clé>` rechiffre les données (la clé reste dans l'historique du
+    shell : la saisir depuis une variable, `--new-key "$NEW"`), **puis** la
+    nouvelle clé dans SOPS
     (`pocket_id_encryption_key`), `pangolin.yaml --tags pocket_id`, et
     `last_rotated` dans `secrets-rotation.yaml`. Changer la clé SOPS d'abord
     rend les clés de signature illisibles.
