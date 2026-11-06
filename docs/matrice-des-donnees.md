@@ -117,7 +117,7 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
 | Donnée | Étage | Copies | Survit à la maison | Reprise | Test | Non protégé |
 |---|---|---|---|---|---|---|
 | Pangolin : base SQLite, `config/` (certificats, clés), `compose.yaml` | 2 (porte l'accès public et les identifiants des sites : les Newt se reconnectent seuls si la base revient, [reconstruction-pangolin.md](runbooks/reconstruction-pangolin.md)) | Borg `pangolin` à 01:00 (~10 Go, dont ~7,7 Go de copies de migration) ; en plus 7 images quotidiennes Hetzner de la VM (restent chez Hetzner) | oui | ~45 min de bout en bout (**mesuré** le 28/10 sur une VM jetable) | CI | journaux Traefik exclus ; perte max 1 jour |
-| Pocket ID (pilote, [ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md)) : base SQLite (comptes, passkeys, clients OIDC), `data/`, `.env` (clé de chiffrement) | 3 (pilote ; les passkeys se refont par un code créé sur l'hôte, [pocket-id.md](runbooks/pocket-id.md)) | Borg `pocket_id` de la VM Pangolin | oui | ~15 min (est.) | CI | rien |
+| Pocket ID ([ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md)) : base SQLite (comptes, passkeys, clients OIDC), `data/`, `.env` (clé de chiffrement) | 3 (les passkeys se refont par un code créé sur l'hôte, [pocket-id.md](runbooks/pocket-id.md)) | Borg `pocket_id` de la VM Pangolin | oui | ~15 min (est.) | CI | rien |
 
 ### flip (Hetzner, fsn1, sans IP publique)
 

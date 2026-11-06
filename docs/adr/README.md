@@ -74,4 +74,4 @@ au plus :
 | [0027](0027-connexions-ssh-cles-connues.md) | Connexions SSH : clés connues tracées sur ntfy, tout le reste sonne sur Telegram | acceptée |
 | [0028](0028-cle-ssh-de-ci-root.md) | La clé SSH de la CI reste équivalente à root : risque accepté | acceptée |
 | [0029](0029-fenetre-de-calme-du-deploiement.md) | Fenêtre de calme : pas de déploiement automatique de 19:00 à 08:00 (Paris), rattrapage au matin | acceptée |
-| [0030](0030-pocket-id-fournisseur-identite-pilote.md) | Pocket ID, fournisseur d'identité en pilote (remplace 0016), public hors du filtre FR/DE : exception à 0002 | acceptée (pilote) |
+| [0030](0030-pocket-id-fournisseur-identite-pilote.md) | Pocket ID, fournisseur d'identité (remplace 0016 ; pilote clos le 2026-11-07), public hors du filtre FR/DE : exception à 0002 | acceptée |

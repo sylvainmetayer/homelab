@@ -1,6 +1,6 @@
-# 0030. Pocket ID, fournisseur d'identité en pilote, public hors du filtre FR/DE
+# 0030. Pocket ID, fournisseur d'identité, public hors du filtre FR/DE
 
-- **Statut** : acceptée (pilote) ; remplace [0016](0016-login-unifie-oidc.md) ; exception à [0002](0002-pangolin-seule-entree-publique.md)
+- **Statut** : acceptée ; pilote clos le 2026-11-07 (voir « Fin du pilote ») ; remplace [0016](0016-login-unifie-oidc.md) ; exception à [0002](0002-pangolin-seule-entree-publique.md)
 - **Date** : 2026-11-05
 
 ## Contexte
@@ -52,7 +52,7 @@ d'où deux passkeys au moins, et un code créé par l'administrateur en secours.
 ## Conséquences
 
 - Une ouverture publique de plus, hors pays : sa surface est celle de Pocket ID.
-- Panne de l'IdP : mur Pangolin et logins locaux intacts (le pilote n'y touche pas).
+- Panne de l'IdP, au pilote : mur Pangolin et logins locaux intacts (le pilote n'y touche pas ; plus vrai depuis la fin du pilote, voir plus bas).
   Mais `tofu plan` de `pangolin_config` échoue en lisant les clients OIDC : le
   reste se planifie avec `-exclude` sur les ressources `pocketid_*`.
 - Perte de tous les passkeys : code à usage unique créé sur l'hôte
@@ -68,6 +68,36 @@ unique pour tout le foyer (les applis sans OIDC perdaient leur filtre), tout
 déclarer en Tofu (utilisateurs Pocket ID et noms du foyer dans le dépôt public).
 Dépend de la licence Enterprise : sans elle, un seul rôle par personne (des
 accès en moins, jamais en trop). Comptes internes inchangés.
+
+## Fin du pilote, le 2026-11-07
+
+Le périmètre étroit n'a pas tenu deux jours : le 06/11, Sylvain branche toutes
+les applis qui savent faire de l'OIDC, le foyer y compris
+([login-unifie-applis.md](../login-unifie-applis.md)), puis fait sauter la page
+de login du mur directement vers Pocket ID (`skip_to_idp_id` sur chaque
+ressource derrière le SSO, `websites.tf`). Le 07/11, il clôt le pilote **sans
+attendre ses critères** (quelques semaines sans incident, une montée de version
+passée) : c'est un choix, pas un constat.
+
+Ce qui change par rapport à la décision d'origine :
+
+- **Panne de l'IdP** : elle n'est plus sans effet. Le login du mur part vers
+  Pocket ID ; BookStack, FreshRSS (web), l'interface de VictoriaLogs et Grocy
+  n'ont plus de login local. Les autres applis gardent le leur, les clients
+  mobiles leurs jetons et en-têtes ([acces-mobile.md](../acces-mobile.md)).
+- **Secours** : le compte interne propriétaire de l'organisation (mot de passe
+  et 2FA, jamais relié à l'IdP) se connecte par la page de login du tableau de
+  bord Pangolin, qui garde le formulaire local, et sa session ouvre les
+  ressources ; chaque appli OIDC exclusive a son interrupteur de secours
+  ([runbook](../runbooks/pocket-id.md), « Secours »). Le code à usage unique
+  créé sur l'hôte reste le secours des passkeys.
+- **Ce qui compense les critères non tenus** : Pocket ID reste hors automerge
+  Renovate, chaque montée de version passe par `mise run audit-pocket-id`, le
+  test de restauration le couvre, `ALLOW_OWN_ACCOUNT_EDIT=false` (Immich,
+  Karakeep et MediaManager lient par e-mail sans vérification).
+- **Retour arrière** : celui de la décision vaut toujours, en retirant d'abord
+  `skip_to_idp_id` et en rendant leur login local aux applis exclusives
+  (README de leur rôle) ; plus long qu'au pilote, une PR par appli.
 
 ## Liens
 

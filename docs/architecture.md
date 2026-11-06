@@ -159,7 +159,7 @@ besoin).
 Le mode d'emploi (applis, cast, dépôt et nommage des fichiers, causes de
 transcodage, commande ffmpeg de la version 1080p) est dans [media.md](media.md).
 
-## Le fournisseur d'identité, une exception (pilote)
+## Le fournisseur d'identité, une exception
 
 `id.sylvain.cloud` (Pocket ID, [ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md))
 est la seule adresse publique qui ne passe ni par le mur SSO ni par le filtre

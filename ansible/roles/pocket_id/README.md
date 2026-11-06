@@ -1,6 +1,6 @@
 # Role `pocket_id`
 
-Pocket ID, fournisseur OIDC à passkeys (`id.sylvain.cloud`), en pilote sur la VM Pangolin ([ADR 0030](../../../docs/adr/0030-pocket-id-fournisseur-identite-pilote.md), procédure et secours : [docs/runbooks/pocket-id.md](../../../docs/runbooks/pocket-id.md)).
+Pocket ID, fournisseur OIDC à passkeys (`id.sylvain.cloud`), sur la VM Pangolin ([ADR 0030](../../../docs/adr/0030-pocket-id-fournisseur-identite-pilote.md), procédure et secours : [docs/runbooks/pocket-id.md](../../../docs/runbooks/pocket-id.md)).
 
 - **Hors du mur SSO.** Le conteneur `pocket-id` (image `ghcr.io/pocket-id/pocket-id`, tag et digest, jamais `latest` : Pocket ID migre sa base au démarrage et ne revient pas en arrière) rejoint le réseau externe `pangolin` créé par la pile de Pangolin, où le Traefik de Pangolin l'atteint (`http://pocket-id:1411`). Le routeur est dans la configuration du rôle `pangolin` (`traefik_dynamic_config.yml.j2`, `pangolin_idp_host`), sans Badger, avec une limite de débit par IP ; il ne remplace ni ne touche aucune autre route. Jamais une ressource Pangolin ni un label Docker. Aucun port publié.
 - **Rendu seulement avec la clé SOPS `pocket_id_encryption_key`** (`ansible.sops.yaml`, 16 octets au moins). Sans elle, le rôle le dit et ne fait rien, et `host_vars/pangolin` laisse `pangolin_idp_host` vide : pas de routeur. Dans le rôle, `pocket_id_enc_key` la lit (une clé SOPS ne porte jamais le nom d'une variable que le rôle pose).
