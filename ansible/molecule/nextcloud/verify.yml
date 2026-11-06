@@ -104,6 +104,10 @@
           - "\"0 => '\" ~ nextcloud_newt_subnet ~ \"',\" in nextcloud_homelab_config"
           - "\"0 => 'HTTP_X_FORWARDED_FOR',\" in nextcloud_homelab_config"
           - "\"'overwriteprotocol' => 'https',\" in nextcloud_homelab_config"
+          # user_oidc : liaison au compte local de même uid, aucune création.
+          - "\"'soft_auto_provision' => true,\" in nextcloud_homelab_config"
+          - "\"'disable_account_creation' => true,\" in nextcloud_homelab_config"
+          - "\"'allow_multiple_user_backends' => 1,\" in nextcloud_homelab_config"
         fail_msg: "homelab.config.php inattendu (sous-réseau newt : {{ nextcloud_newt_subnet }}) : {{ nextcloud_homelab_config }}"
 
     # Le stand-in de config.php du prepare n'est pas réécrit par le rôle.

@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3289,9 +3289,38 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/papra/templates/env.j2"), "\"providerId\": \"pocket-id\"")
       && strcontains(file("${path.module}/../../ansible/roles/yamtrack/templates/env.j2"), "\"provider_id\": \"pocket-id\"")
+      # Nextcloud : PKCE, groupe nextcloud ; Proxmox sans PKCE (proxmox-openid
+      # ne l'envoie pas), ses deux groupes, rôles lus par pve_hardening.
+      && pocketid_client.nextcloud.pkce_enabled == true
+      && pocketid_client.nextcloud.is_public == false
+      && contains(pocketid_client.nextcloud.callback_urls, "https://sylvain.cloud/apps/user_oidc/code")
+      && strcontains(file("${path.module}/../../ansible/roles/nextcloud/defaults/main.yml"), "terraform_outputs.pocket_id_nextcloud_client_secret.value")
+      && pocketid_client.proxmox.pkce_enabled == false
+      && pocketid_client.proxmox.is_public == false
+      && contains(pocketid_client.proxmox.allowed_user_groups, pocketid_group.proxmox_auditor.id)
+      && pocketid_group.proxmox_admin.name == "proxmox-admin"
+      && pocketid_group.proxmox_auditor.name == "proxmox-auditor"
+      && strcontains(file("${path.module}/../../ansible/roles/pve_hardening/defaults/main.yml"), "terraform_outputs.pocket_id_proxmox_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/pve_hardening/defaults/main.yml"), "proxmox-admin: Administrator")
     )
     error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack et MediaManager de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
+  # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
+  # client, réel ou vitrine, jamais les deux ; une vitrine est publique,
+  # réservée au groupe de son rôle, sans secret, avec un logo hors homelab.
+  assert {
+    condition = alltrue([
+      for key, website in local.websites :
+      contains(keys(pocketid_client.launcher), key) != contains(local.pocket_id_oidc_roles, website.role)
+      if try(website.role, null) != null && website.homepage != null && try(website.enabled, true)
+    ]) && alltrue([
+      for key, client in pocketid_client.launcher :
+      client.is_public && length(client.allowed_user_groups) == 1
+      && startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
+    ]) && contains(keys(pocketid_client.launcher), "pairdrop")
+    error_message = "Chaque appli du mur doit avoir un client Pocket ID, réel ou vitrine (pocket_id_launchers, pocket_id.tf), une vitrine publique, sans secret, réservée à son groupe et avec un logo."
+  }
+
 
   assert {
     condition = (

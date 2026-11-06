@@ -37,3 +37,18 @@ Then `tofu -chdir=tofu/proxmox plan` (API and SSH still work), the Homepage Prox
 ## Test
 
 Molecule scenario `ansible/molecule/pve_hardening/`: a real sshd (root key login works, password login offers only `publickey`), a fake `pvesh`/`pve-firewall` (`files/fake_pve.py`: SDN state in JSON, delete order enforced like the API), a stand-in `dnsmasq@homelab`, and a second pass where a guest uses the vnet: the role must stop before any delete.
+
+## Connexion par Pocket ID (tag `pve_oidc`)
+
+`tasks/oidc.yml` pose le realm OpenID `pocketid` quand les sorties du client
+`proxmox` (`tofu/pangolin_config/pocket_id.tf`) sont dans le state : ajout la
+première fois, `pveum realm modify` ensuite (secret jamais dans les logs).
+`--username-claim username` (utilisateurs `<nom Pocket ID>@pocketid`, créés au
+premier login), `--groups-claim groups` sans création de groupe et avec
+réécriture : seuls les groupes PVE `proxmox-admin-pocketid` (Administrator sur
+/) et `proxmox-auditor-pocketid` (PVEAuditor), créés par le rôle, comptent.
+Pas de PKCE (proxmox-openid ne l'envoie pas, client Pocket ID réglé en
+conséquence). L'hôte joint lui-même `id.sylvain.cloud` (échange du code côté
+serveur). `root@pam` reste le secours ; Pocket ID en panne, seul lui entre.
+Molecule ne couvre pas ce volet (pas de sorties Tofu dans le scénario, faux
+Proxmox sans `pveum`).

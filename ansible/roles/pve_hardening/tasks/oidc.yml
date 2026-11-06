@@ -1,0 +1,83 @@
+---
+# Realm OpenID « Pocket ID » (defaults/main.yml). Rien sans les sorties du
+# state. Le realm s'ajoute une fois puis se modifie à chaque passage (pveum
+# realm modify réécrit les mêmes valeurs : pas de changement compté) ; le
+# secret ne passe jamais dans les logs.
+- name: Read the PVE realms
+  when: pve_hardening_oidc_enabled | bool
+  ansible.builtin.command: pveum realm list --output-format json
+  register: pve_hardening_realms
+  changed_when: false
+  check_mode: false
+
+- name: Declare the Pocket ID realm
+  when: pve_hardening_oidc_enabled | bool
+  no_log: true
+  vars:
+    pve_hardening_oidc_exists: >-
+      {{ pve_hardening_oidc_realm in (pve_hardening_realms.stdout | from_json | map(attribute='realm')) }}
+    pve_hardening_oidc_args:
+      - --issuer-url
+      - "{{ pve_hardening_oidc_issuer }}"
+      - --client-id
+      - "{{ pve_hardening_oidc_client_id }}"
+      - --client-key
+      - "{{ pve_hardening_oidc_client_secret }}"
+      - --username-claim
+      - username
+      - --scopes
+      - email profile groups
+      - --autocreate
+      - "1"
+      - --groups-claim
+      - groups
+      - --groups-autocreate
+      - "0"
+      - --groups-overwrite
+      - "1"
+      - --comment
+      - Pocket ID
+  ansible.builtin.command:
+    argv: >-
+      {{ (['pveum', 'realm', 'modify', pve_hardening_oidc_realm] if pve_hardening_oidc_exists | bool
+          else ['pveum', 'realm', 'add', pve_hardening_oidc_realm, '--type', 'openid'])
+         + pve_hardening_oidc_args }}
+  changed_when: not (pve_hardening_oidc_exists | bool)
+
+- name: Read the PVE groups
+  when: pve_hardening_oidc_enabled | bool
+  ansible.builtin.command: pveum group list --output-format json
+  register: pve_hardening_groups
+  changed_when: false
+  check_mode: false
+
+- name: Create the PVE groups fed by Pocket ID
+  when:
+    - pve_hardening_oidc_enabled | bool
+    - (item ~ '-' ~ pve_hardening_oidc_realm) not in (pve_hardening_groups.stdout | from_json | map(attribute='groupid'))
+  ansible.builtin.command:
+    argv: [pveum, group, add, "{{ item }}-{{ pve_hardening_oidc_realm }}", --comment, "Groupe Pocket ID {{ item }}"]
+  loop: "{{ pve_hardening_oidc_group_roles.keys() | list }}"
+  changed_when: true
+
+- name: Read the PVE ACLs
+  when: pve_hardening_oidc_enabled | bool
+  ansible.builtin.command: pveum acl list --output-format json
+  register: pve_hardening_acls
+  changed_when: false
+  check_mode: false
+
+- name: Grant each Pocket ID group its role on /
+  when:
+    - pve_hardening_oidc_enabled | bool
+    - >-
+      pve_hardening_acls.stdout | from_json
+      | selectattr('type', 'equalto', 'group')
+      | selectattr('ugid', 'equalto', item.key ~ '-' ~ pve_hardening_oidc_realm)
+      | selectattr('roleid', 'equalto', item.value)
+      | selectattr('path', 'equalto', '/')
+      | list | length == 0
+  ansible.builtin.command:
+    argv: [pveum, acl, modify, /, --groups, "{{ item.key }}-{{ pve_hardening_oidc_realm }}", --roles, "{{ item.value }}"]
+  loop: "{{ pve_hardening_oidc_group_roles | dict2items }}"
+  changed_when: true

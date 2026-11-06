@@ -9,6 +9,10 @@
   ansible.builtin.import_tasks: sdn.yml
   tags: pve_sdn
 
+- name: Sign in through Pocket ID
+  ansible.builtin.import_tasks: oidc.yml
+  tags: pve_oidc
+
 - name: Restrict sshd to keys
   ansible.builtin.import_tasks: ssh.yml
   tags: pve_ssh

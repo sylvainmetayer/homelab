@@ -24,3 +24,22 @@ pve_hardening_sdn_removed_zones: [homelab]
 # est pmxcfs, où les écritures atomiques d'Ansible (chmod 0644 du fichier
 # créé) échouent.
 pve_hardening_state_dir: /var/lib/pve-hardening
+
+# Connexion à l'interface par Pocket ID (tasks/oidc.yml, tag pve_oidc) :
+# realm OpenID posé seulement quand l'émetteur, l'identifiant et le secret du
+# client proxmox (tofu/pangolin_config/pocket_id.tf) sont dans le state.
+# Utilisateurs <nom Pocket ID>@<realm> créés au premier login, sans droit
+# propre : ils les tiennent des groupes Pocket ID listés ici, devenus groupes
+# PVE <groupe>-<realm> (groups-overwrite : retiré de Pocket ID, retiré de PVE).
+# root@pam reste le secours.
+pve_hardening_oidc_realm: pocketid
+pve_hardening_oidc_client_id: "{{ terraform_outputs.pocket_id_proxmox_client_id.value | default('') }}"
+pve_hardening_oidc_client_secret: "{{ terraform_outputs.pocket_id_proxmox_client_secret.value | default('') }}"
+pve_hardening_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+pve_hardening_oidc_enabled: >-
+  {{ pve_hardening_oidc_client_id | length > 0
+     and pve_hardening_oidc_client_secret | length > 0
+     and pve_hardening_oidc_issuer | length > 0 }}
+pve_hardening_oidc_group_roles:
+  proxmox-admin: Administrator
+  proxmox-auditor: PVEAuditor

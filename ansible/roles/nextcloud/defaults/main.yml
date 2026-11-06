@@ -51,3 +51,21 @@ nextcloud_backup_borgmatic_target: "{{ backup_storage_box_url }}/nextcloud"
 # Ancien nom de la passphrase, encore lu s'il est défini (host_vars).
 nextcloud_backup_encryption_passphrase: "{{ nextcloud_backup_borgmatic_password | default(backup_passphrase) }}"
 nextcloud_backup_healthcheck_url: ""
+
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
+# nextcloud), par l'app user_oidc : posée seulement quand l'émetteur,
+# l'identifiant et le secret sont dans le state. Liaison par uid : l'uid
+# Nextcloud doit être le nom d'utilisateur Pocket ID (preferred_username),
+# un uid ne se renomme pas (on aligne Pocket ID). Aucun compte créé par OIDC
+# (disable_account_creation), groupes et admin gérés dans Nextcloud (pas de
+# synchro de groupes : elle retirerait les groupes locaux absents du claim).
+# Le formulaire local reste (allow_multiple_user_backends, /login?direct=1).
+nextcloud_oidc_client_id: "{{ terraform_outputs.pocket_id_nextcloud_client_id.value | default('') }}"
+nextcloud_oidc_client_secret: "{{ terraform_outputs.pocket_id_nextcloud_client_secret.value | default('') }}"
+nextcloud_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+nextcloud_oidc_enabled: >-
+  {{ nextcloud_oidc_client_id | length > 0
+     and nextcloud_oidc_client_secret | length > 0
+     and nextcloud_oidc_issuer | length > 0 }}
+# Identifiant du fournisseur dans user_oidc, aussi le texte du bouton.
+nextcloud_oidc_provider: Pocket ID

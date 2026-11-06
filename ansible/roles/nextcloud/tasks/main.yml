@@ -160,3 +160,54 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0640"
+
+# Pocket ID par user_oidc (defaults/main.yml). L'app vient du magasin
+# d'applis (dernière version compatible avec ce Nextcloud) ; occ
+# user_oidc:provider est un upsert, rejoué à chaque passage. Secret par
+# l'environnement du docker exec, jamais en argument d'occ ni dans les logs.
+- name: Read the installed Nextcloud apps
+  when:
+    - nextcloud_oidc_enabled | bool
+    - nextcloud_main_config.stat.exists
+    - not ansible_check_mode
+  ansible.builtin.command: docker exec nextcloud occ app:list --output=json
+  register: nextcloud_apps
+  changed_when: false
+
+- name: Install and enable user_oidc
+  when:
+    - nextcloud_oidc_enabled | bool
+    - nextcloud_main_config.stat.exists
+    - not ansible_check_mode
+    - "'user_oidc' not in (nextcloud_apps.stdout | from_json).enabled"
+  ansible.builtin.command: >-
+    docker exec nextcloud occ
+    {{ 'app:enable' if 'user_oidc' in (nextcloud_apps.stdout | from_json).disabled else 'app:install' }}
+    user_oidc
+  changed_when: true
+
+- name: Declare the Pocket ID provider in user_oidc
+  when:
+    - nextcloud_oidc_enabled | bool
+    - nextcloud_main_config.stat.exists
+    - not ansible_check_mode
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - -e
+      - "NC_OIDC_SECRET={{ nextcloud_oidc_client_secret }}"
+      - nextcloud
+      - occ
+      - user_oidc:provider
+      - "{{ nextcloud_oidc_provider }}"
+      - "--clientid={{ nextcloud_oidc_client_id }}"
+      - --clientsecret-env=NC_OIDC_SECRET
+      - "--discoveryuri={{ nextcloud_oidc_issuer }}/.well-known/openid-configuration"
+      - --scope=openid email profile
+      - --unique-uid=0
+      - --mapping-uid=preferred_username
+      - --group-provisioning=0
+      - --check-bearer=0
+  changed_when: false
