@@ -90,6 +90,11 @@
           - "('SMTP_PASSWORD=' ~ pangolin_smtp_pass) in pocket_id_env"
           - "'EMAIL_LOGIN_NOTIFICATION_MODE=browserRecognition' in pocket_id_env"
           - "'EMAIL_VERIFICATION=optional' in pocket_id_env"
+          - "'ACCENT_COLOR=oklch(0.6 0.2 240)' in pocket_id_env"
+          - "'EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED=true' in pocket_id_env"
+          - "'EMAIL_API_KEY_EXPIRATION_ENABLED=true' in pocket_id_env"
+          # Jamais de code demandé par l'utilisateur seul, écrit en clair.
+          - "'EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED=false' in pocket_id_env"
 
     - name: Validate the Pocket ID borgmatic configuration
       become: true
