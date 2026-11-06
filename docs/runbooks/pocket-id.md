@@ -26,18 +26,18 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    `pocket_id_encryption_key` dans `ansible.sops.yaml`
    (`openssl rand -base64 32`, 16 octets au moins). Entrée de
    `secrets-rotation.yaml` : `kind: application`, jamais tournée à la légère :
-   Pocket ID chiffre ses clés de signature avec ; une rotation passe par la
-   commande de rotation de Pocket ID (à confirmer dans sa doc) avant de changer
-   la clé. Puis, depuis `tofu/pangolin_config` : `tofu plan` (les moniteurs
+   Pocket ID chiffre ses clés de signature avec ; une rotation passe par
+   `encryption-key-rotate` (« Rotations » plus bas) avant de changer la clé. Puis, depuis `tofu/pangolin_config` : `tofu plan` (les moniteurs
    « Pocket ID » et « Backup Pocket ID », rouges jusqu'au déploiement) et
    `tofu apply`. Puis, depuis `ansible/` : `ansible-playbook pangolin.yaml --check
    --tags pangolin,pocket_id`, puis sans `--check`. Surveiller le premier
    démarrage : `sudo docker compose -f /opt/pocket-id/compose.yaml ps` (`healthy`) et
    `logs` (le conteneur tourne sans privilège, `read_only` : sa première
    écriture dans `data/` est le test). **Repli** si une permission est refusée :
-   dans `templates/compose.yaml`, retirer `user:`, `read_only:` et `cap_drop:`
-   (l'image part en root et rend `data/` à l'utilisateur 1000), redéployer, et
-   corriger dans une PR.
+   dans `templates/compose.yaml`, revenir à l'image sans `-distroless` (même
+   version) et retirer `user:`, `read_only:` et `cap_drop:` (l'image part en
+   root et rend `data/` à l'utilisateur 1000), redéployer, et corriger dans une
+   PR.
 2. **Premier compte administrateur**, depuis la maison seulement (tant que
    `pocket_id_setup_phase: true`, `host_vars/pangolin`, tout l'hôte refuse une
    autre IP : la page `/setup` est ouverte à qui arrive le premier) : ouvrir
@@ -88,7 +88,8 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      ne crée aucun compte (`oidc_registration_disabled`). Si elle était
      rouverte, un compte créé par SSO n'aurait pas de mot de passe :
      `docker compose exec app node scripts/reset-password.mjs <compte>`.
-   - **Beszel** (Sylvain seul) : s'ajouter au groupe `beszel` et cocher
+   - **Beszel** (Sylvain seul ; `requires_reauthentication` : le passkey à
+     chaque connexion, même avec une session Pocket ID ouverte) : s'ajouter au groupe `beszel` et cocher
      « E-mail vérifié » dans Pocket ID ; l'adresse doit être **exactement**
      celle du compte Beszel (`beszel_admin_email`), sinon PocketBase ne trouve
      aucun compte et, `USER_CREATION` étant à false, refuse. PocketBase n'a pas
@@ -183,6 +184,16 @@ une liste vide, donc un refus.
   Ouvrir l'URL affichée, enregistrer un nouveau passkey (deux), supprimer
   les anciens. Même chemin si le compte perdu est l'administrateur. Pas d'e-mail
   de connexion : SMTP n'est pas configuré, et ce serait « la boîte mail ouvre tout ».
+- **Rotations** (depuis le dossier `/opt/pocket-id`, `sudo docker compose exec
+  pocket-id /app/pocket-id …`) :
+  - `ENCRYPTION_KEY` : `encryption-key-rotate --new-key <nouvelle clé>`
+    rechiffre les données, **puis** la nouvelle clé dans SOPS
+    (`pocket_id_encryption_key`), `pangolin.yaml --tags pocket_id`, et
+    `last_rotated` dans `secrets-rotation.yaml`. Changer la clé SOPS d'abord
+    rend les clés de signature illisibles.
+  - Clé de signature des jetons : `key-rotate` (RS256 par défaut ; `--alg
+    ES256` seulement si tous les clients le lisent). Invalide tous les jetons
+    émis : chaque appli redemande une connexion. Puis redémarrer le conteneur.
 - **Mise à jour** : lire les notes de version et le [guide de mise à jour](https://pocket-id.org/docs/setup/upgrading).
   La base migre au démarrage et Pocket ID refuse de repartir en arrière
   (`ALLOW_DOWNGRADE=true` l'impose, à vos risques) : le retour arrière, c'est
