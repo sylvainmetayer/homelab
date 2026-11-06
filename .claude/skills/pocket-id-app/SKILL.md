@@ -208,6 +208,13 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 | merge redeploys a whole playbook | outputs read in a playbook's `pre_tasks` | read them in the role's defaults |
 | plan wants to destroy what was just merged | worktree from a stale `FETCH_HEAD` | `pangolin-config-plan` section 1 |
 | secret visible in the session | `tofu show -json`, `tofu output` of a sensitive value | never; text plan only, `random_password` for client secrets |
+| CI deploy ran, app has no OIDC | merge deploys before the apply: outputs absent, OIDC block skipped | after the apply, rerun the role by hand (`--tags <app>`) |
+| SSO works, then the app links/creates the wrong account | links by email without `email_verified` (Immich, Karakeep, MediaManager) | keep `ALLOW_OWN_ACCOUNT_EDIT=false` in Pocket ID (role pocket_id) |
+| Papra: back from Pocket ID on `/api/auth/error` | better-auth `requireLocalEmailVerified`: Papra's own `users.email_verified` is 0 | set it to 1 in the DB per account (runbook pocket-id) |
+| vmauth SSO: « Access Denied » after login, nothing logged | JWT accepted only with `vm_access` or `default_vm_access_claim` | declare `default_vm_access_claim` on the jwt user |
+| FreshRSS `http_auth`: « Vous n'avez pas le droit… Remote-User= » | Pangolin's `Remote-User` header differs from the OIDC `REMOTE_USER` | unset it in Apache (`RequestHeader unset Remote-User early`) |
+| app behind its own OIDC shows Pangolin's maintenance page | the target's probe (`hc_path`) hits a path now answering 401/302 to the IdP | point `hc_path` and `monitor_path` at an unauthenticated health path |
+| a role's `occ`/CLI wrapper loses env or splits args | linuxserver `occ` goes through `sudo` and `$*` | call the binary directly (`docker exec -u abc … php occ`) with argv |
 
 Never declare a `pocketid_user`: an apply must never be able to modify or
 delete the admin account. Membership is set in the UI.
