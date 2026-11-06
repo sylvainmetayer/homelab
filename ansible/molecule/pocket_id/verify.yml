@@ -55,7 +55,7 @@
           - pocket_id_service.security_opt == ['no-new-privileges:true']
           - pocket_id_service.mem_limit | int > 0
           # Image par digest : jamais un tag flottant.
-          - pocket_id_service.image is match('^ghcr\.io/pocket-id/pocket-id:v[0-9.]+@sha256:[0-9a-f]{64}$')
+          - pocket_id_service.image is match('^ghcr\.io/pocket-id/pocket-id:v[0-9.]+-distroless@sha256:[0-9a-f]{64}$')
         fail_msg: "Service pocket-id inattendu : {{ pocket_id_service }}"
 
     - name: Read the Pocket ID environment

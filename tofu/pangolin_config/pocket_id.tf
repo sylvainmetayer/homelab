@@ -161,8 +161,10 @@ resource "pocketid_client" "trek" {
   callback_urls       = ["https://travels.sylvain.cloud/api/auth/oidc/callback"]
   allowed_user_groups = [pocketid_group.trek.id, pocketid_group.trek_admin.id]
   launch_url          = "https://travels.sylvain.cloud"
-  # Absent de dashboard-icons : l'icône du dépôt TREK, à la version de l'image.
-  logo_url = "https://raw.githubusercontent.com/mauriceboe/TREK/v5.0.1/client/public/icons/icon.svg"
+  # Absent de dashboard-icons : l'icône du dépôt TREK, à la version de l'image,
+  # par jsDelivr : Pocket ID télécharge le logo lui-même et n'admet que l'hôte
+  # de sa bibliothèque d'icônes (OUTBOUND_ALLOWED_HOSTS_CLIENT_LOGO à none).
+  logo_url = "https://cdn.jsdelivr.net/gh/mauriceboe/TREK@v5.0.1/client/public/icons/icon.svg"
   # TREK envoie PKCE (S256).
   pkce_enabled = true
   is_public    = false
@@ -231,6 +233,9 @@ resource "pocketid_client" "beszel" {
   logo_url            = "${local.pocket_id_logo_base}/beszel.svg"
   pkce_enabled        = true
   is_public           = false
+  # L'admin de la supervision : le passkey à chaque connexion, même avec une
+  # session Pocket ID ouverte.
+  requires_reauthentication = true
 }
 
 output "pocket_id_beszel_client_secret" {
