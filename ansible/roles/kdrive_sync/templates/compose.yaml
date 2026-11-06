@@ -4,7 +4,7 @@
 # copie. Le fichier porte le mot de passe d'application kDrive : 0600 root.
 services:
   rclone:
-    image: docker.io/rclone/rclone:1.75.2@sha256:2687085f718d3c628f7fdfb77c52a1d344332aed543110bb88088f2c70d43eb5
+    image: docker.io/rclone/rclone:1.76.0@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466
     # Script de vars/main.yml : obscurcit le mot de passe, puis `rclone copy`
     # avec les arguments que kdrive_sync.py ajoute (--backup-dir daté).
     entrypoint: {{ ['/bin/sh', '-c', kdrive_sync_entrypoint_script, 'kdrive-sync'] | to_json }}
