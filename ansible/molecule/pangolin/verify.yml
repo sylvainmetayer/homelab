@@ -379,6 +379,9 @@
           - dynamic_config.http.routers['int-api-router'].rule == 'Host(`' ~ pangolin_api_url ~ '`)'
           # API d'intégration réservée aux IP autorisées.
           - dynamic_config.http.routers['int-api-router'].middlewares == ['int-api-allowlist']
+          - dynamic_config.tls.options.default.minVersion == 'VersionTLS12'
+          - dynamic_config.tls.options.default.cipherSuites | length == 6
+          - dynamic_config.tls.options.default.cipherSuites | select('search', 'CBC|_SHA$') | list | length == 0
           - dynamic_config.http.middlewares['int-api-allowlist'].ipAllowList.sourceRange == pangolin_api_allowed_ips.split(',')
           # Redirection vers un fichier : chemin ignoré, 302 (host_vars, keep_path / permanent)
           - dynamic_config.http.middlewares['redirect-memoire-epsi'].redirectRegex.replacement == memoire_epsi_pdf
