@@ -2,7 +2,8 @@
 # Realm OpenID « Pocket ID » (defaults/main.yml). Rien sans les sorties du
 # state. Le realm s'ajoute une fois puis se modifie à chaque passage (pveum
 # realm modify réécrit les mêmes valeurs : pas de changement compté) ; le
-# secret ne passe jamais dans les logs.
+# secret ne passe jamais dans les logs. --username-claim est fixé à la création
+# (absent de realm modify : le passer ferait échouer le second passage).
 - name: Read the PVE realms
   when: pve_hardening_oidc_enabled | bool
   ansible.builtin.command: pveum realm list --output-format json
@@ -23,8 +24,6 @@
       - "{{ pve_hardening_oidc_client_id }}"
       - --client-key
       - "{{ pve_hardening_oidc_client_secret }}"
-      - --username-claim
-      - username
       - --scopes
       - email profile groups
       - --autocreate
@@ -40,7 +39,7 @@
   ansible.builtin.command:
     argv: >-
       {{ (['pveum', 'realm', 'modify', pve_hardening_oidc_realm] if pve_hardening_oidc_exists | bool
-          else ['pveum', 'realm', 'add', pve_hardening_oidc_realm, '--type', 'openid'])
+          else ['pveum', 'realm', 'add', pve_hardening_oidc_realm, '--type', 'openid', '--username-claim', 'username'])
          + pve_hardening_oidc_args }}
   changed_when: not (pve_hardening_oidc_exists | bool)
 
