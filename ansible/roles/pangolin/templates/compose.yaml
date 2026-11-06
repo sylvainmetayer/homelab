@@ -25,6 +25,8 @@ services:
       ENABLE_SQLITE_WAL_MODE: "true"
     volumes:
       - ./config:/app/config
+      # GeoLite2-Country (géofiltre), tenue à jour par geoipupdate.service.
+      - {{ pangolin_geoip_dir }}:/app/geoip:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
       interval: "10s"

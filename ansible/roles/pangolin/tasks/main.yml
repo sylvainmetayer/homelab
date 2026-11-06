@@ -100,16 +100,30 @@
     enabled: true
     daemon_reload: true
 
-# Premier déploiement : la base doit exister avant que Pangolin démarre.
-- name: Check whether the GeoLite2 database exists
+# Lisible par Pocket ID (uid 65532) : les .mmdb sont en 0644.
+- name: Create the shared GeoLite2 directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ pangolin_geoip_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Premier déploiement (ou nouvelle édition) : les bases doivent exister avant
+# que Pangolin et Pocket ID démarrent.
+- name: Check whether the GeoLite2 databases exist
   become: true
   ansible.builtin.stat:
-    path: "{{ pangolin_dir }}/config/GeoLite2-Country.mmdb"
-  register: pangolin_geoip_database
+    path: "{{ pangolin_geoip_dir }}/{{ item }}.mmdb"
+  loop:
+    - GeoLite2-Country
+    - GeoLite2-City
+  register: pangolin_geoip_databases
 
-- name: Download GeoLite2-Country once if it is missing
+- name: Download the GeoLite2 databases once if one is missing
   become: true
-  when: not pangolin_geoip_database.stat.exists
+  when: pangolin_geoip_databases.results | rejectattr('stat.exists') | list | length > 0
   ansible.builtin.systemd:
     name: geoipupdate.service
     state: started

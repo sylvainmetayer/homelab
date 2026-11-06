@@ -1,7 +1,8 @@
-# Mise à jour de la base GeoLite2-Country lue par Pangolin (géofiltre de toutes
-# les ressources publiques), par l'image officielle de MaxMind épinglée.
-# Pangolin ne relit la base qu'au démarrage : il est redémarré seulement si
-# elle a changé. Un succès est signalé au moniteur push Uptime Kuma (tofu/
+# Mise à jour des bases GeoLite2 de pangolin_geoip_dir, par l'image officielle
+# de MaxMind épinglée : Country, lue par Pangolin (géofiltre de toutes les
+# ressources publiques), City, lue par Pocket ID (lieux du journal d'audit).
+# Pangolin ne relit sa base qu'au démarrage : il est redémarré seulement si
+# Country a changé ; Pocket ID surveille le dossier et recharge seul. Un succès est signalé au moniteur push Uptime Kuma (tofu/
 # pangolin_config, « GeoIP Pangolin ») ; sans signal, il passe au rouge.
 [Unit]
 Description=GeoLite2 update for Pangolin
@@ -11,13 +12,13 @@ After=docker.service network-online.target
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c '\
-  before=$(sha256sum {{ pangolin_dir }}/config/GeoLite2-Country.mmdb 2>/dev/null); \
+  before=$(sha256sum {{ pangolin_geoip_dir }}/GeoLite2-Country.mmdb 2>/dev/null); \
   /usr/bin/docker run --rm \
     --env-file {{ pangolin_geoipupdate_config_dir }}/env \
     -v {{ pangolin_geoipupdate_config_dir }}/license_key:/run/secrets/license_key:ro \
-    -v {{ pangolin_dir }}/config:/usr/share/GeoIP \
+    -v {{ pangolin_geoip_dir }}:/usr/share/GeoIP \
     {{ pangolin_geoipupdate_image }} || exit 1; \
-  after=$(sha256sum {{ pangolin_dir }}/config/GeoLite2-Country.mmdb); \
+  after=$(sha256sum {{ pangolin_geoip_dir }}/GeoLite2-Country.mmdb); \
   if [ "$before" != "$after" ] && /usr/bin/docker inspect pangolin >/dev/null 2>&1; then \
     /usr/bin/docker restart pangolin; \
   fi'

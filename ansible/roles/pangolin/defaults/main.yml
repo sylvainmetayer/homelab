@@ -57,6 +57,9 @@ pangolin_backup_healthcheck_url: ""
 # l'output uptime_cron_geoip_url de tofu/pangolin_config (pangolin.yaml).
 pangolin_geoipupdate_image: "ghcr.io/maxmind/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d"
 pangolin_geoipupdate_config_dir: /etc/geoipupdate
+# Bases GeoLite2 partagées, lues en lecture seule : Country par Pangolin
+# (géofiltre), City par Pocket ID (lieux du journal d'audit, rôle pocket_id).
+pangolin_geoip_dir: /opt/geoip
 pangolin_geoip_healthcheck_url: ""
 
 # Backup (borgmatic)
