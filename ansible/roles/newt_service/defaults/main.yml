@@ -4,7 +4,7 @@
 # newt (conteneur). Même version visée des deux côtés, sans garantie : Renovate
 # suit la release ici, l'image là-bas, en deux PR (README du rôle).
 # renovate: datasource=github-releases depName=fosrl/newt
-newt_service_version: "1.19.0"
+newt_service_version: "1.20.0"
 # Sommes des binaires de la release GitHub : get_url refuse tout autre fichier.
 # Une montée de version (Renovate) doit aussi changer ces sommes.
 newt_service_sha256:
