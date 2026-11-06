@@ -268,13 +268,13 @@ class History(unittest.TestCase):
 
     def test_role_with_docs(self):
         # #876 Jellyfin: role, its scenario and docs. Since #893 its Traefik
-        # lives in the nas_proxy role, whose files the pangolin_config
-        # invariants read instead of jellyfin's.
+        # lives in the nas_proxy role; since the Pocket ID client (#1251) the
+        # pangolin_config invariants read jellyfin's defaults again.
         self.assertEqual(selected([
             "ansible/molecule/jellyfin/verify.yml", "ansible/roles/jellyfin/defaults/main.yml",
             "ansible/roles/jellyfin/templates/compose.yaml", "ansible/roles/jellyfin/templates/traefik.yml",
             "docs/apps.md", "docs/architecture.md", "docs/media.md",
-        ]), (["jellyfin", "mediamanager", "nas", "nas_proxy"], []))
+        ]), (["jellyfin", "mediamanager", "nas", "nas_proxy"], ["tofu/pangolin_config"]))
         self.assertEqual(selected(["ansible/roles/nas_proxy/defaults/main.yml"]),
                          (["jellyfin", "mediamanager", "nas", "nas_proxy"], ["tofu/pangolin_config"]))
 
