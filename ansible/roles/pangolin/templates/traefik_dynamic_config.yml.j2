@@ -96,6 +96,21 @@ http:
         average: {{ pangolin_idp_rate_average }}
         period: 1s
         burst: {{ pangolin_idp_rate_burst }}
+
+    # En-têtes propres à Pocket ID, en plus de security-headers (HSTS) de
+    # l'entrypoint ; l'anti-iframe vient de sa CSP (frame-ancestors 'none').
+    # Permissions-Policy garde WebAuthn (passkeys) pour la page elle-même.
+    # CORP same-site : les applis de *.sylvain.cloud affichent l'avatar
+    # (claim picture). Pas de Cross-Origin-Opener-Policy : la connexion de
+    # Beszel (PocketBase) ouvre Pocket ID dans une fenêtre surgissante, que
+    # COOP couperait de la page qui l'a ouverte.
+    pocket-id-headers:
+      headers:
+        contentTypeNosniff: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)"
+        customResponseHeaders:
+          Cross-Origin-Resource-Policy: "same-site"
 {% if pangolin_idp_allowed_ips | length > 0 %}
 
     pocket-id-allowlist:
@@ -212,6 +227,7 @@ http:
         - pocket-id-allowlist
 {% endif %}
         - pocket-id-ratelimit
+        - pocket-id-headers
       tls:
         certResolver: letsencrypt
 
