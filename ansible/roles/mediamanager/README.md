@@ -312,3 +312,17 @@ dans `access_inventory.tf`, son test dans `tests/invariants.tftest.hcl`),
 les clés SOPS `mediamanager_wireguard_*` et leurs entrées de rotation,
 `docs/apps.md`, `docs/conventions/ansible.md`, `AGENTS.md` ; puis
 `grep -rn mediamanager` sur tout le dépôt.
+
+## Connexion par Pocket ID
+
+Client `mediamanager` de `tofu/pangolin_config/pocket_id.tf` (groupe
+`mediamanager`). Les `mediamanager_oidc_*` de `defaults/main.yml` lisent les
+sorties Tofu ; tant qu'elles manquent, `[auth.openid_connect]` reste coupé.
+Déploiement à la main (`nas.yml --tags mediamanager`). Pas de PKCE
+(httpx-oauth). MediaManager 1.12.3 lie par e-mail sans regarder
+`email_verified` et n'a **aucun interrupteur d'inscription** : le groupe Pocket
+ID est la seule barrière, tout membre peut se créer un compte. Admin :
+l'adresse de `mediamanager_admin_email`, appliquée à l'inscription seulement.
+Le rappel est bâti depuis la requête : `FORWARDED_ALLOW_IPS: "*"` fait croire
+à uvicorn le `X-Forwarded-Proto` de nas-proxy (joint seulement par lui), et les
+deux origines (443, 8443) sont déclarées. Le mot de passe reste.

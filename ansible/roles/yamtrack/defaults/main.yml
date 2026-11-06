@@ -20,6 +20,16 @@ yamtrack_registration_enabled: false
 yamtrack_secret: "{{ (backup_passphrase ~ '-yamtrack-secret') | hash('sha256') }}"
 
 # Borgmatic backup configuration
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
+# yamtrack), rendue seulement quand l'émetteur, l'identifiant et le secret sont
+# dans le state. Pas de liaison automatique : chacun se connecte par mot de
+# passe puis relie Pocket ID dans Réglages, Comptes. REGISTRATION=False
+# (adaptateur NoNewUsersAccountAdapter) ferme aussi l'inscription par OIDC.
+yamtrack_oidc_client_id: "{{ terraform_outputs.pocket_id_yamtrack_client_id.value | default('') }}"
+yamtrack_oidc_client_secret: "{{ terraform_outputs.pocket_id_yamtrack_client_secret.value | default('') }}"
+yamtrack_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+yamtrack_oidc_enabled: "{{ yamtrack_oidc_client_id | length > 0 and yamtrack_oidc_client_secret | length > 0 and yamtrack_oidc_issuer | length > 0 }}"
+
 yamtrack_backup_enabled: true
 yamtrack_backup_borgmatic_target: "{{ backup_storage_box_url }}/yamtrack"
 yamtrack_backup_encryption_passphrase: "{{ backup_passphrase }}"

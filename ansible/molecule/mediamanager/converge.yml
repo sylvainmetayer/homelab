@@ -13,6 +13,15 @@
     # Le bouchon de _shared/prepare.yml au lieu de l'enrobage du conteneur
     # borgmatic, qui tirerait l'image (repo-create de tasks/app.yml).
     borgmatic_bin: /root/.local/bin/borgmatic
+    # Sorties fictives du state pangolin_config : la connexion Pocket ID rendue
+    # (la variante avec VPN de verify.yml ne les a pas : OIDC coupé).
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_mediamanager_client_id:
+        value: molecule-pocket-id-mediamanager-client-id
+      pocket_id_mediamanager_client_secret:
+        value: molecule-pocket-id-mediamanager-client-secret
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml

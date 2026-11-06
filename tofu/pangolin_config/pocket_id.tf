@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager"])
 
   length  = 48
   special = false
@@ -341,6 +341,56 @@ output "pocket_id_immich_client_secret" {
   sensitive   = true
 }
 
+# Papra (le foyer) : AUTH_PROVIDERS_CUSTOMS du rôle papra, fournisseur
+# « pocket-id » (dans le rappel). Liaison par e-mail vérifié (better-auth) ;
+# l'inscription fermée bloque la création d'un compte au premier login.
+resource "pocketid_client" "papra" {
+  name                = "Papra"
+  client_id           = "papra"
+  client_secret       = random_password.pocket_id_client["papra"].result
+  callback_urls       = ["https://papra.sylvain.cloud/api/auth/oauth2/callback/pocket-id"]
+  allowed_user_groups = [pocketid_group.pangolin_role["papra"].id]
+  launch_url          = "https://papra.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/papra.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# Yamtrack (le foyer) : SOCIALACCOUNT_PROVIDERS du rôle yamtrack (allauth,
+# provider_id « pocket-id »). Aucune liaison automatique : chacun relie son
+# compte depuis Réglages, Comptes, une fois connecté par mot de passe.
+resource "pocketid_client" "yamtrack" {
+  name                = "Yamtrack"
+  client_id           = "yamtrack"
+  client_secret       = random_password.pocket_id_client["yamtrack"].result
+  callback_urls       = ["https://yamtrack.sylvain.cloud/accounts/oidc/pocket-id/login/callback/"]
+  allowed_user_groups = [pocketid_group.pangolin_role["yamtrack"].id]
+  launch_url          = "https://yamtrack.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/yamtrack.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# MediaManager (essai, NAS) : [auth.openid_connect] du rôle mediamanager. Pas
+# de PKCE (httpx-oauth 1.12.3 n'en envoie pas). Liaison par e-mail sans
+# contrôle de vérification et AUCUN interrupteur d'inscription : ce groupe est
+# la seule barrière, tout membre peut se créer un compte. Rappel bâti depuis
+# la requête : les deux origines servies par nas_proxy (443 et 8443).
+resource "pocketid_client" "mediamanager" {
+  name          = "MediaManager"
+  client_id     = "mediamanager"
+  client_secret = random_password.pocket_id_client["mediamanager"].result
+  callback_urls = [
+    "https://mediamanager.sylvain.cloud/api/v1/auth/oauth/callback",
+    "https://mediamanager.sylvain.cloud:8443/api/v1/auth/oauth/callback",
+  ]
+  allowed_user_groups = [pocketid_group.pangolin_role["mediamanager"].id]
+  launch_url          = "https://mediamanager.sylvain.cloud"
+  logo_url            = "https://cdn.jsdelivr.net/gh/maxdorninger/MediaManager@v1.12.3/web/static/logo.svg"
+  pkce_enabled        = false
+  is_public           = false
+}
+
 output "pocket_id_wishlist_client_secret" {
   description = "POCKET ID - secret du client OIDC de Wishlist (saisi dans son interface)"
   value       = random_password.pocket_id_client["wishlist"].result
@@ -355,6 +405,39 @@ output "pocket_id_karakeep_client_id" {
 output "pocket_id_karakeep_client_secret" {
   description = "POCKET ID - secret du client OIDC de Karakeep"
   value       = random_password.pocket_id_client["karakeep"].result
+  sensitive   = true
+}
+
+output "pocket_id_papra_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Papra"
+  value       = pocketid_client.papra.client_id
+}
+
+output "pocket_id_papra_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Papra"
+  value       = random_password.pocket_id_client["papra"].result
+  sensitive   = true
+}
+
+output "pocket_id_yamtrack_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Yamtrack"
+  value       = pocketid_client.yamtrack.client_id
+}
+
+output "pocket_id_yamtrack_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Yamtrack"
+  value       = random_password.pocket_id_client["yamtrack"].result
+  sensitive   = true
+}
+
+output "pocket_id_mediamanager_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de MediaManager"
+  value       = pocketid_client.mediamanager.client_id
+}
+
+output "pocket_id_mediamanager_client_secret" {
+  description = "POCKET ID - secret du client OIDC de MediaManager"
+  value       = random_password.pocket_id_client["mediamanager"].result
   sensitive   = true
 }
 

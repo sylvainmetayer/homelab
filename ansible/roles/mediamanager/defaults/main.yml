@@ -54,6 +54,20 @@ mediamanager_network: mediamanager_proxy
 # Premier compte : créé au premier démarrage avec cette adresse et le mot de
 # passe « admin », à changer aussitôt (README).
 mediamanager_admin_email: "{{ pangolin_le_email }}"
+
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
+# mediamanager), rendue seulement quand l'émetteur, l'identifiant et le
+# secret sont dans le state. MediaManager 1.12.3 lie par e-mail, sans
+# vérifier email_verified, et n'a pas d'interrupteur d'inscription : tout
+# membre du groupe Pocket ID mediamanager peut se créer un compte. Admin :
+# l'adresse de mediamanager_admin_email, à l'inscription seulement.
+mediamanager_oidc_client_id: "{{ terraform_outputs.pocket_id_mediamanager_client_id.value | default('') }}"
+mediamanager_oidc_client_secret: "{{ terraform_outputs.pocket_id_mediamanager_client_secret.value | default('') }}"
+mediamanager_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+mediamanager_oidc_enabled: >-
+  {{ mediamanager_oidc_client_id | length > 0
+     and mediamanager_oidc_client_secret | length > 0
+     and mediamanager_oidc_issuer | length > 0 }}
 # Métadonnées par le relais du développeur (défaut de MediaManager) ; en
 # français pour une œuvre originale française, en anglais sinon.
 mediamanager_tmdb_primary_languages: ["fr"]

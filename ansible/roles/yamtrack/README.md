@@ -85,3 +85,13 @@ comportement derrière Pangolin (`URLS` règle CSRF et `ALLOWED_HOSTS`), la copi
 SQLite par borgmatic sur le Storage Box, l'écriture de la base par `abc`
 (uid de l'hôte) sur le bind mount `db/` de la VM (essayé seulement en espace
 de noms utilisateur de podman).
+
+## Connexion par Pocket ID
+
+Client `yamtrack` de `tofu/pangolin_config/pocket_id.tf` (groupe `yamtrack`).
+Les `yamtrack_oidc_*` de `defaults/main.yml` lisent les sorties Tofu ; tant
+qu'elles manquent, rien n'est rendu. allauth `openid_connect`, fournisseur
+`pocket-id`, PKCE. Pas de liaison automatique : se connecter par mot de passe,
+puis Réglages, Comptes, « Manage Account Connections », Pocket ID.
+`REGISTRATION=False` (adaptateur `NoNewUsersAccountAdapter`) ferme aussi
+l'inscription par OIDC. Le mot de passe reste.

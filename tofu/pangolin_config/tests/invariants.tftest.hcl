@@ -3227,7 +3227,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3275,8 +3275,22 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_client.karakeep.callback_urls == tolist(["https://keep.sylvain.cloud/api/auth/callback/custom"])
       && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_karakeep_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_issuer.value")
+      # Papra, Yamtrack : PKCE ; MediaManager n'en envoie pas, et son groupe
+      # est sa seule barrière (pas d'interrupteur d'inscription).
+      && alltrue([for c in [pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager] : c.is_public == false && length(c.allowed_user_groups) == 1])
+      && pocketid_client.papra.pkce_enabled == true
+      && pocketid_client.yamtrack.pkce_enabled == true
+      && pocketid_client.mediamanager.pkce_enabled == false
+      && pocketid_client.papra.callback_urls == tolist(["https://papra.sylvain.cloud/api/auth/oauth2/callback/pocket-id"])
+      && pocketid_client.yamtrack.callback_urls == tolist(["https://yamtrack.sylvain.cloud/accounts/oidc/pocket-id/login/callback/"])
+      && contains(pocketid_client.mediamanager.callback_urls, "https://mediamanager.sylvain.cloud/api/v1/auth/oauth/callback")
+      && strcontains(file("${path.module}/../../ansible/roles/papra/defaults/main.yml"), "terraform_outputs.pocket_id_papra_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/yamtrack/defaults/main.yml"), "terraform_outputs.pocket_id_yamtrack_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/papra/templates/env.j2"), "\"providerId\": \"pocket-id\"")
+      && strcontains(file("${path.module}/../../ansible/roles/yamtrack/templates/env.j2"), "\"provider_id\": \"pocket-id\"")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist et Karakeep de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack et MediaManager de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
 
   assert {
