@@ -8,7 +8,7 @@ services:
     # borg 1.4 dans l'image comme le borg des hôtes (la Storage Box n'a qu'un
     # serveur borg 1.x). Renovate fait monter les deux ensemble (groupe
     # borgmatic).
-    image: ghcr.io/borgmatic-collective/borgmatic:2.1.10@sha256:25a97d84a2371c385c0031a02b64f7167de85631a85b84ef46dc01a80010d19e
+    image: ghcr.io/borgmatic-collective/borgmatic:2.2.0@sha256:14b70ae1354f9c1fbd5b790c372b948bc25cb00d45d0e6803916bb83cff6fe3c
     # borgmatic directement, sans l'init s6 ni le cron de l'image : le
     # timer systemd de l'hôte décide de l'heure.
     entrypoint: ["borgmatic"]
