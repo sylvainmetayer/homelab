@@ -13,6 +13,10 @@
     - name: Load a fake healthcheck URL in place of the Terraform state output
       ansible.builtin.set_fact:
         pocket_id_backup_healthcheck_url: "https://uptime.example.invalid/api/push/pocket_id_backup"
+        # Sortie fictive du state : les groupes par défaut des nouveaux comptes.
+        terraform_outputs:
+          pocket_id_default_group_ids:
+            value: [molecule-group-bentopdf, molecule-group-enclosed, molecule-group-pairdrop]
 
   roles:
     # Pas de `docker compose up` : ni image tirée, ni réseau « pangolin ».

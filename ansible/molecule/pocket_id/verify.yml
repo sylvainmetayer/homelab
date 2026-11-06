@@ -84,6 +84,7 @@
           - "'APP_NAME=homelab de Sylvain' in pocket_id_env"
           - "'ALLOW_USER_SIGNUPS=withToken' in pocket_id_env"
           - "'ALLOW_OWN_ACCOUNT_EDIT=false' in pocket_id_env"
+          - "'SIGNUP_DEFAULT_USER_GROUP_IDS=[\"molecule-group-bentopdf\",\"molecule-group-enclosed\",\"molecule-group-pairdrop\"]' in pocket_id_env"
           - "'SMTP_HOST=mail.infomaniak.com' in pocket_id_env"
           - "'SMTP_TLS=starttls' in pocket_id_env"
           - "('SMTP_FROM=' ~ pangolin_smtp_user) in pocket_id_env"

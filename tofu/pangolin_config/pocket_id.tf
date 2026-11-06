@@ -566,6 +566,18 @@ output "pocket_id_proxmox_client_secret" {
   sensitive   = true
 }
 
+# Groupes de tout nouveau compte Pocket ID créé sans groupe choisi
+# (SIGNUP_DEFAULT_USER_GROUP_IDS, rôle pocket_id) : les applis ouvertes à
+# tous. Leur groupe donne aussi leur rôle Pangolin à la connexion suivante.
+locals {
+  pocket_id_default_groups = ["bentopdf", "enclosed", "pairdrop"]
+}
+
+output "pocket_id_default_group_ids" {
+  description = "POCKET ID - groupes donnés à tout nouveau compte (rôle pocket_id)"
+  value       = [for group in local.pocket_id_default_groups : pocketid_group.pangolin_role[group].id]
+}
+
 # L'émetteur OIDC, lu par les rôles des applis branchées (homebox, trek,
 # healthlog, dawarich) : une seule source pour l'URL de Pocket ID.
 output "pocket_id_issuer" {
