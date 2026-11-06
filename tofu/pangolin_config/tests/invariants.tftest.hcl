@@ -3224,6 +3224,15 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
     error_message = "Chaque rôle Pangolin d'appli doit avoir son groupe Pocket ID du même nom, et inversement (local.pocket_id_role_groups, pocket_id.tf)."
   }
 
+  # Chaque client a son logo, jamais servi par une appli derrière le mur.
+  assert {
+    condition = alltrue([
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich] :
+      startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
+    ])
+    error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
+  }
+
   # Clients OIDC déclarés par l'API de Pocket ID : confidentiels, PKCE exigé
   # (Pangolin et Homebox l'envoient), Homebox réservé au groupe homebox.
   assert {

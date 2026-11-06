@@ -11,6 +11,12 @@ locals {
   pocket_id_pangolin_client_id = "pangolin"
   pocket_id_homebox_client_id  = "homebox"
 
+  # Logos des clients (« Mes applications » et écran de consentement), que
+  # Pocket ID télécharge à l'apply : dashboard-icons, comme Homepage, figé sur
+  # un commit. Jamais l'adresse de l'appli elle-même : derrière le mur SSO, le
+  # téléchargement échouerait.
+  pocket_id_logo_base = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@16c42dc580c144246651d322a079e535cb2b69f8/svg"
+
   # Les rôles Pangolin repris des groupes Pocket ID : tous ceux d'applis
   # (roles.tf), plus ceux des ressources privées (private_resources.tf).
   pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager"]))
@@ -112,6 +118,7 @@ resource "pocketid_client" "homebox" {
   # Sans URL de lancement, le client n'apparaît pas dans « Mes applications »
   # de Pocket ID (ListAccessibleOidcClients filtre dessus).
   launch_url   = "https://homebox.sylvain.cloud"
+  logo_url     = "${local.pocket_id_logo_base}/homebox.svg"
   pkce_enabled = true
   is_public    = false
 }
@@ -126,6 +133,7 @@ resource "pocketid_client" "pangolin" {
   # (sans client_id, le provider le laisse vide et seul `id` le porte).
   callback_urls = [pangolin_idp.pocket_id.redirect_url]
   launch_url    = "https://pangolin.sylvain.cloud"
+  logo_url      = "${local.pocket_id_logo_base}/pangolin.svg"
   pkce_enabled  = true
   is_public     = false
 }
@@ -153,6 +161,8 @@ resource "pocketid_client" "trek" {
   callback_urls       = ["https://travels.sylvain.cloud/api/auth/oidc/callback"]
   allowed_user_groups = [pocketid_group.trek.id, pocketid_group.trek_admin.id]
   launch_url          = "https://travels.sylvain.cloud"
+  # Absent de dashboard-icons : l'icône du dépôt TREK, à la version de l'image.
+  logo_url = "https://raw.githubusercontent.com/mauriceboe/TREK/v5.0.1/client/public/icons/icon.svg"
   # TREK envoie PKCE (S256).
   pkce_enabled = true
   is_public    = false
@@ -185,6 +195,7 @@ resource "pocketid_client" "healthlog" {
   callback_urls       = ["https://sante.sylvain.cloud/api/auth/oidc/callback"]
   allowed_user_groups = [pocketid_group.healthlog.id]
   launch_url          = "https://sante.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/healthlog.svg"
   pkce_enabled        = true
   is_public           = false
 }
@@ -217,6 +228,7 @@ resource "pocketid_client" "beszel" {
   callback_urls       = ["https://monitoring.sylvain.cloud/api/oauth2-redirect"]
   allowed_user_groups = [pocketid_group.beszel.id]
   launch_url          = "https://monitoring.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/beszel.svg"
   pkce_enabled        = true
   is_public           = false
 }
@@ -243,6 +255,7 @@ resource "pocketid_client" "dawarich" {
   callback_urls       = ["https://tracks.sylvain.cloud/users/auth/openid_connect/callback"]
   allowed_user_groups = [pocketid_group.dawarich.id]
   launch_url          = "https://tracks.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/dawarich.svg"
   pkce_enabled        = true
   is_public           = false
 }
