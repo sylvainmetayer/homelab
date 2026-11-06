@@ -27,7 +27,7 @@ class MermaidError(Exception):
     """Arrête le build avec un message qui dit quoi faire."""
 
 
-MERMAID_VERSION = "12.2.0"
+MERMAID_VERSION = "12.3.0"
 MERMAID_SHA256 = "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f"
 # La version dont MERMAID_SHA256 est l'empreinte : Renovate ne touche que
 # MERMAID_VERSION, l'écart dit que le sha256 reste à recalculer.
