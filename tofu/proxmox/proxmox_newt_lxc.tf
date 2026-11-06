@@ -88,6 +88,8 @@ resource "proxmox_virtual_environment_container" "newt" {
   # et l'id du téléchargement devient inconnu dès que celui-ci est remplacé
   # (checksum, url) : sans ceci, retélécharger le gabarit recréerait le LXC.
   lifecycle {
-    ignore_changes = [operating_system[0].template_file_id]
+    # Un destroy ou un replace accidentel détruirait le LXC : il faut retirer ce garde-fou à la main.
+    prevent_destroy = true
+    ignore_changes  = [operating_system[0].template_file_id]
   }
 }
