@@ -79,8 +79,17 @@
           - "'GEOLITE_DB_PATH=/app/geoip/GeoLite2-City.mmdb' in pocket_id_env"
           - pocket_id_env | select('search', '^MAXMIND_LICENSE_KEY') | list | length == 0
           - "'ANALYTICS_DISABLED=true' in pocket_id_env"
-          # L'inscription libre reste à sa valeur par défaut (disabled).
-          - pocket_id_env | select('search', '^ALLOW_USER_SIGNUPS') | list | length == 0
+          # Configuration applicative par l'env, inscription par lien seulement.
+          - "'UI_CONFIG_DISABLED=true' in pocket_id_env"
+          - "'APP_NAME=homelab de Sylvain' in pocket_id_env"
+          - "'ALLOW_USER_SIGNUPS=withToken' in pocket_id_env"
+          - "'SMTP_HOST=mail.infomaniak.com' in pocket_id_env"
+          - "'SMTP_TLS=starttls' in pocket_id_env"
+          - "('SMTP_FROM=' ~ pangolin_smtp_user) in pocket_id_env"
+          - "('SMTP_USER=' ~ pangolin_smtp_user) in pocket_id_env"
+          - "('SMTP_PASSWORD=' ~ pangolin_smtp_pass) in pocket_id_env"
+          - "'EMAIL_LOGIN_NOTIFICATION_MODE=browserRecognition' in pocket_id_env"
+          - "'EMAIL_VERIFICATION=optional' in pocket_id_env"
 
     - name: Validate the Pocket ID borgmatic configuration
       become: true

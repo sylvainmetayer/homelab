@@ -51,3 +51,24 @@ pocket_id_backup_enabled: true
 pocket_id_backup_borgmatic_target: "{{ backup_storage_box_url }}/pocket_id"
 pocket_id_backup_encryption_passphrase: "{{ backup_passphrase }}"
 pocket_id_backup_healthcheck_url: ""
+
+# Configuration applicative (« Application Configuration ») tenue par l'env :
+# UI_CONFIG_DISABLED=true, la page passe en lecture seule et tout réglage non
+# déclaré ici revient au défaut de Pocket ID. Noms lus dans le code de la
+# v2.19.1 (appconfig/model.go), la doc des variables est en retard : à revoir
+# à chaque montée de version.
+pocket_id_app_name: homelab de Sylvain
+pocket_id_accent_color: oklch(0.6 0.2 240)
+# Inscription par lien seulement (Administration > Users > Create Signup
+# Token, groupes choisis par lien) : rien d'ouvert sans lien.
+pocket_id_allow_user_signups: withToken
+# Même boîte Infomaniak que msmtp (rôle security) et les autres applis.
+pocket_id_smtp_host: mail.infomaniak.com
+pocket_id_smtp_port: 587
+pocket_id_smtp_tls: starttls
+pocket_id_smtp_user: "{{ pangolin_smtp_user | default('') }}"
+pocket_id_smtp_password: "{{ pangolin_smtp_pass | default('') }}"
+# disabled, always, ipAndUserAgent ou browserRecognition (nouveau navigateur).
+pocket_id_login_notification_mode: browserRecognition
+# disabled, optional ou required ; required bloque un compte non vérifié.
+pocket_id_email_verification: optional

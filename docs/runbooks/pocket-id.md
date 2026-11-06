@@ -138,6 +138,22 @@ pour Pocket ID : aucune archive avant l'étape 2 et la seconde passe de
 `--tags pocket_id`, et `oidc_clients` doit contenir au moins une ligne, donc rien
 de vert avant le premier client de l'étape 4 suivi d'une sauvegarde.
 
+## Inviter le foyer (lien d'inscription)
+
+Inscription par lien seulement (`ALLOW_USER_SIGNUPS=withToken`, rôle
+`pocket_id`) : sans lien, personne ne crée de compte.
+
+1. Administration → Users → Add User → **Create Signup Token** : expiration
+   courte (7 jours), autant d'utilisations que de personnes, groupes des applis
+   à ouvrir (`trek`, `dawarich`…).
+2. Envoyer le lien. Chacun crée son compte et son passkey, déjà dans les
+   groupes ; l'e-mail de vérification part tout seul (`EMAIL_VERIFICATION=optional`),
+   « E-mail vérifié » se coche au clic, plus à la main.
+3. « View Active Signup Tokens » : révoquer le lien une fois tout le monde inscrit.
+
+Les comptes créés avant le SMTP restent non vérifiés : la case se coche encore
+à la main pour eux.
+
 ## Ce que Pangolin lit des claims de Pocket ID
 
 Vérifié dans les docs ([Pangolin](https://docs.pangolin.net/manage/identity-providers/pocket-id),
@@ -183,8 +199,11 @@ une liste vide, donc un refus.
   l'hôte** (pas besoin d'un compte), valable 1 heure, une seule fois :
   `sudo docker compose -f /opt/pocket-id/compose.yaml exec pocket-id /app/pocket-id one-time-access-token <nom d'utilisateur>`.
   Ouvrir l'URL affichée, enregistrer un nouveau passkey (deux), supprimer
-  les anciens. Même chemin si le compte perdu est l'administrateur. Pas d'e-mail
-  de connexion : SMTP n'est pas configuré, et ce serait « la boîte mail ouvre tout ».
+  les anciens. Même chemin si le compte perdu est l'administrateur. Pour un
+  membre du foyer, l'admin peut aussi lui envoyer le code par e-mail (menu ⋯ de
+  l'utilisateur, « Send Email ») ; jamais de code demandé par l'utilisateur
+  lui-même (`EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED` reste à false :
+  ce serait « la boîte mail ouvre tout »).
 - **Rotations** (depuis le dossier `/opt/pocket-id`, `sudo docker compose exec
   pocket-id /app/pocket-id …`) :
   - `ENCRYPTION_KEY` (nouvelle clé : `openssl rand -base64 32`, 16 octets au
