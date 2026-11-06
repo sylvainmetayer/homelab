@@ -82,6 +82,8 @@
       ansible.builtin.assert:
         that:
           - "'GROCY_DEFAULT_LOCALE=fr' in grocy_env_lines"
+          - "'GROCY_AUTH_CLASS=Grocy\\\\Middleware\\\\Auth\\\\ReverseProxyAuthMiddleware' in grocy_env_lines"
+          - "'GROCY_REVERSE_PROXY_AUTH_HEADER=Remote-User' in grocy_env_lines"
           - "'GROCY_CURRENCY=EUR' in grocy_env_lines"
           - "'GROCY_STOCK_BARCODE_LOOKUP_PLUGIN=OpenFoodFactsBarcodeLookupPlugin' in grocy_env_lines"
           - "'GROCY_FEATURE_FLAG_TASKS=false' in grocy_env_lines"

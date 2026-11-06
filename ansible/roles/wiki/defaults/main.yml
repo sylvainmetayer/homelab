@@ -7,3 +7,20 @@ wiki_backup_borgmatic_target: "{{ backup_storage_box_url }}/wiki"
 # Ancien nom de la passphrase, encore lu s'il est défini (host_vars).
 wiki_backup_encryption_passphrase: "{{ wiki_backup_borgmatic_password | default(backup_passphrase) }}"
 wiki_backup_healthcheck_url: ""
+
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client wiki) :
+# AUTH_METHOD=oidc, exclusif (plus de formulaire). Rendu seulement quand
+# l'émetteur, l'identifiant et le secret sont dans le state. Un compte
+# existant n'est retrouvé que par external_auth_id = sub Pocket ID, à poser
+# avant la première connexion (runbook pocket-id) ; sans lui, BookStack
+# refuse (e-mail déjà pris) ou crée un compte. Rôles gérés dans BookStack.
+# Secours : wiki_oidc_force_standard: true et relancer le rôle.
+wiki_oidc_client_id: "{{ terraform_outputs.pocket_id_wiki_client_id.value | default('') }}"
+wiki_oidc_client_secret: "{{ terraform_outputs.pocket_id_wiki_client_secret.value | default('') }}"
+wiki_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+wiki_oidc_force_standard: false
+wiki_oidc_enabled: >-
+  {{ not (wiki_oidc_force_standard | bool)
+     and wiki_oidc_client_id | length > 0
+     and wiki_oidc_client_secret | length > 0
+     and wiki_oidc_issuer | length > 0 }}

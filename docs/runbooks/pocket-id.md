@@ -215,6 +215,24 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      formulaire web** : le nom d'utilisateur Pocket ID est le compte FreshRSS
      (créé s'il manque). API (applis mobiles, Homepage) inchangée. Secours :
      README du rôle `rss`.
+   - **BookStack** (le foyer, groupe `wiki`) : `AUTH_METHOD=oidc` posé par le
+     rôle `wiki`, **exclusif**. Avant la bascule, poser l'identifiant Pocket ID
+     (`users.id` de la base Pocket ID = `sub`) dans `external_auth_id` de
+     chaque compte BookStack (table `users`, fait le 2026-11-06 pour Sylvain
+     et Marie-Léa) ; sans lui, BookStack refuse ou crée un compte. Rôles dans
+     BookStack. Secours : `wiki_oidc_force_standard: true`, relancer le rôle.
+   - **Grocy** (groupe `grocy`) : pas d'OIDC ; Grocy fait confiance à
+     l'en-tête `Remote-User` de Pangolin (nom d'utilisateur Pangolin = Pocket
+     ID), badger efface tout `Remote-User` venu du client. Plus de formulaire ;
+     l'appli Android garde sa clé d'API. Sondes sur `/robots.txt`. Secours :
+     `grocy_proxy_auth_enabled: false`, relancer le rôle.
+   - **Actual Budget** (PikaPods, hors Pangolin, groupe dédié `actual`) :
+     réglé dans son interface (Paramètres, Avancé, « Start using OpenID ») :
+     émetteur `https://id.sylvain.cloud`, Client ID `actual`, secret par
+     `tofu output -raw pocket_id_actual_client_secret`, adresse du serveur
+     `https://budget.sylvain.cloud`. Le premier login OpenID devient
+     propriétaire et reprend les budgets ; les autres comptes se créent dans
+     l'annuaire d'Actual, nom = nom d'utilisateur Pocket ID.
    - **Tuiles vitrine** : chaque appli du mur sans client réel a un client
      public `vitrine-<appli>` (`pocketid_client.launcher`, généré depuis
      `local.websites`), jamais utilisé pour se connecter, pour paraître dans

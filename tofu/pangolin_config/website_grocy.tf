@@ -11,9 +11,10 @@ locals {
     domain_id = local.domain_ids["sylvain.cloud"]
     role      = "grocy"
     backup    = true
-    # `/` redirects to the login page: the page it lands on, one request per
-    # probe instead of two.
-    monitor_path = "/login"
+    # Grocy trusts Pangolin's Remote-User header (ansible/roles/grocy): every
+    # PHP page needs it, and a probe carries none. robots.txt is served by
+    # nginx without session: it proves the container answers, not PHP.
+    monitor_path = "/robots.txt"
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
@@ -26,9 +27,8 @@ locals {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "grocy"
       port    = 80
-      # Answers 200 without an account and goes through PHP and the SQLite
-      # database, not only through nginx (`/` redirects here).
-      hc_path = "/login"
+      # Static, no session (see monitor_path).
+      hc_path = "/robots.txt"
     }
   }
 }
