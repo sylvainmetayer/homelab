@@ -2275,6 +2275,13 @@ run "pangolin_alerts_publish_to_a_known_topic" {
     error_message = "« Site hors ligne » doit viser chaque site d'infra (local.alert_infra_sites), jamais un site du support à distance."
   }
 
+  # Un site d'infra ajouté à nodes.tf sans entrer dans local.alert_infra_sites
+  # tomberait sans prévenir.
+  assert {
+    condition     = length(regexall("(?m)^resource\\s+\"pangolin_site\"\\s+\"", file("${path.module}/nodes.tf"))) == length(local.alert_infra_sites)
+    error_message = "Chaque pangolin_site de nodes.tf doit être dans local.alert_infra_sites (alerts.tf), sinon sa chute n'alerte pas."
+  }
+
   assert {
     condition     = pangolin_alert_rule.ntfy["health_check_unhealthy"].health_check_ids == toset([91, 92])
     error_message = "La règle des sondes doit viser les sondes LAN, pas les sondes des cibles : leur délai est commun à la règle."

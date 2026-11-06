@@ -84,9 +84,13 @@
 
     # Une ligne sans retrait par zone (« FedoraWorkstation (default) »), suivie
     # de ses « interfaces: » en retrait.
+    # Interpréteur du système : le module firewalld importe python3-firewall,
+    # absent du venv d'ansible-playbook que localhost prend par défaut.
     - name: Keep the VNC and RDP ports to the loopback
       tags: firewall
       become: true
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
       ansible.posix.firewalld:
         zone: "{{ item.0 }}"
         rich_rule: 'rule port port="{{ item.1 }}" protocol="tcp" reject'
