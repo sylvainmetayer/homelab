@@ -39,6 +39,18 @@ locals {
     }
   }
 
+  # Les sites dont la chute alerte : tous sauf ceux du support à distance
+  # (remote_support.tf), des PC souvent éteints. Un site d'infra ajouté
+  # (nodes.tf) entre ici, sinon il tombe sans prévenir.
+  alert_infra_sites = [
+    pangolin_site.pangolin.id,
+    pangolin_site.proxmox_docker.id,
+    pangolin_site.proxmox_lxc.id,
+    pangolin_site.flip.id,
+    pangolin_site.nas.id,
+    pangolin_site.pi.id,
+  ]
+
   # Sondes lancées par le Newt du LXC, depuis le LAN, pour ce qu'aucune sonde
   # extérieure ne joint. Pas l'imprimante : souvent éteinte, elle alerterait sans
   # raison.
@@ -85,7 +97,7 @@ resource "pangolin_alert_rule" "ntfy" {
   cooldown_seconds = 300
 
   # Une seule famille par événement : le provider refuse les autres drapeaux.
-  all_sites     = each.key == "site_offline" ? true : null
+  site_ids      = each.key == "site_offline" ? local.alert_infra_sites : null
   all_resources = each.key == "resource_unhealthy" ? true : null
   # Les sondes LAN seulement. all_health_checks prendrait aussi la sonde de chaque
   # cible : une panne d'appli alerterait déjà par resource_unhealthy, et elle

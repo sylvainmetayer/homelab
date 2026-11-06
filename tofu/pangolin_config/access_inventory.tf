@@ -86,6 +86,7 @@ locals {
     [tostring(pangolin_role.jellyfin.id)],
     [tostring(pangolin_role.mediamanager.id)],
     [tostring(pangolin_role.mediamanager_admin.id)],
+    [tostring(pangolin_role.support.id)],
   ))
 
   # null when the response does not decode: reported below, never read as an

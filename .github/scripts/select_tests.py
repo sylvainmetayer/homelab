@@ -70,7 +70,8 @@ ALL_MODULES = ["mise.toml", ".github/scripts/fetch_pangolin_provider.sh"]
 # host, with that host's host_vars. A change to the playbook reruns the
 # scenarios loading those host_vars. A playbook with no host of its own (None)
 # reruns the scenarios applying one of its roles (00-setup.yaml:
-# ssh_login_notify; backup.yaml, pc-nas.yml and test.yaml apply none). A
+# ssh_login_notify; pc-support.yml: newt_service; backup.yaml, pc-nas.yml and
+# test.yaml apply none). A
 # playbook missing here reruns everything.
 PLAYBOOK_HOSTS = {
     "ansible/docker.yml": "docker",
@@ -83,6 +84,7 @@ PLAYBOOK_HOSTS = {
     "ansible/00-setup.yaml": None,
     "ansible/backup.yaml": None,
     "ansible/pc-nas.yml": None,
+    "ansible/pc-support.yml": None,
     "ansible/test.yaml": None,
 }
 
