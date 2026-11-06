@@ -2,8 +2,9 @@
 # de MaxMind épinglée : Country, lue par Pangolin (géofiltre de toutes les
 # ressources publiques), City, lue par Pocket ID (lieux du journal d'audit).
 # Pangolin ne relit sa base qu'au démarrage : il est redémarré seulement si
-# Country a changé ; Pocket ID surveille le dossier et recharge seul. Un succès est signalé au moniteur push Uptime Kuma (tofu/
-# pangolin_config, « GeoIP Pangolin ») ; sans signal, il passe au rouge.
+# Country a changé ; Pocket ID surveille le dossier et recharge seul. Un
+# succès est signalé au moniteur push Uptime Kuma (tofu/pangolin_config,
+# « GeoIP Pangolin ») ; sans signal, il passe au rouge.
 [Unit]
 Description=GeoLite2 update for Pangolin
 Wants=docker.service network-online.target
