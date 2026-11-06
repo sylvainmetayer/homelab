@@ -119,8 +119,9 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      Utilisateurs) : Dawarich 1.19.0 ne lit aucun rôle dans l'OIDC, pas de
      groupe `dawarich-admin`. Les traceurs gardent leur clé d'API.
 5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
-   groupe Pocket ID de chaque appli (même nom que le rôle Pangolin : `immich`,
-   `trek`…), puis se connecter à la page de login de Pangolin avec « Pocket
+   groupe Pocket ID de chaque appli (nom technique = le rôle Pangolin : `immich`,
+   `trek`… ; nom affiché = celui de l'appli, sans préfixe : tout groupe
+   d'appli vaut accès au mur Pangolin), puis se connecter à la page de login de Pangolin avec « Pocket
    ID » : Pangolin crée l'utilisateur externe et lui donne ces rôles, à chaque
    connexion. Un admin d'appli (`trek-admin`) est aussi dans le groupe de
    base (`trek`), sinon le mur l'arrête. Aucun groupe reconnu : « No policies
