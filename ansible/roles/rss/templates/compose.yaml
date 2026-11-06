@@ -52,6 +52,8 @@ services:
     volumes:
       - ./freshrss_data:/var/www/FreshRSS/data
       - ./freshrss_extensions:/var/www/FreshRSS/extensions
+      # En-têtes d'identité de Pangolin effacés avant PHP (files/).
+      - ./homelab-apache.conf:/etc/apache2/conf-enabled/homelab.conf:ro
     restart: unless-stopped
     # Apache est le PID 1 : mort, le conteneur sort et `restart` le relance. La
     # sonde voit ce qu'il ne voit pas, un PHP cassé (extension, droits,
