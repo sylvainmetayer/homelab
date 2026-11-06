@@ -130,6 +130,11 @@ resource "pocketid_client" "<app>" {
   callback_urls       = ["https://<host>/<path>", "https://<host>/<path>/"]
   allowed_user_groups = [pocketid_group.pangolin_role["<slug>"].id]  # + the admin group
   launch_url          = "https://<host>"   # else hidden from « My apps »
+  # ALWAYS a logo (a test pins it): dashboard-icons at the pinned commit
+  # (`curl -sI ${local.pocket_id_logo_base}/<name>.svg` must be 200); absent
+  # there, the app's upstream repo at the image's tag (TREK). Never a
+  # *.sylvain.cloud URL: Pocket ID downloads it at apply, the wall blocks it.
+  logo_url            = "${local.pocket_id_logo_base}/<name>.svg"
   pkce_enabled        = true         # Pangolin and Homebox send it; false only if the app does not
   is_public           = false
 }
@@ -195,6 +200,7 @@ Docs: the app's role README (OIDC, break glass, where roles live),
 | Pocket ID user gets only one Pangolin role | EE license not activated: 1.25.3 keeps the first mapped role only | Pangolin, License page |
 | Tofu cycle client ↔ IdP | client callback is the IdP's `redirect_url`, IdP needs the client id | fixed `client_id` literal (local), not read from the resource |
 | Pocket ID « My apps » empty | the launcher lists only clients with a `launch_url` | set `launch_url` on every client |
+| apply fails on `logo_url` (download failed, type not supported) | URL 404, behind the SSO wall, or not an image | check the URL with `curl -sI` before the plan; SVG/PNG under 2 MB |
 | SSO login refused, « Failed to authenticate » (PocketBase) or `email_not_verified` / no account found | app account email differs from the Pocket ID one, or not verified | section 1b: rename in the app first, tick verified on both sides |
 | `HBOX_OIDC_CLIENT_ID` empty | `pocketid_client.client_id` stays null unless set | always set `client_id` |
 | `tofu test`: `invalid callback URL` | mocked `redirect_url` is random | `mock_resource "pangolin_idp"` with a URL default on the `root` alias mock (both test files) |
