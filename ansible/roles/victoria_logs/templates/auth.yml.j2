@@ -15,8 +15,9 @@ sso:
 {% endif %}
 users:
 {% if victoria_logs_oidc_enabled | bool %}
-  # L'interface (vmui) et les requêtes LogsQL : tout VictoriaLogs, pour un
-  # ID token Pocket ID de ce client portant le groupe victoria-logs.
+  # L'interface (vmui) et les requêtes LogsQL, en lecture (/select/...) et sur
+  # le seul nom public, pour un ID token Pocket ID de ce client portant le
+  # groupe victoria-logs : ni écriture, ni entrée par le port du LAN.
   - jwt:
       oidc:
         issuer: {{ victoria_logs_oidc_issuer | to_json }}
@@ -24,7 +25,10 @@ users:
         iss: {{ ('^' ~ (victoria_logs_oidc_issuer | regex_escape) ~ '$') | to_json }}
         aud: {{ ('^' ~ (victoria_logs_oidc_client_id | regex_escape) ~ '$') | to_json }}
         groups: {{ ('^' ~ (victoria_logs_oidc_group | regex_escape) ~ '$') | to_json }}
-    url_prefix: "http://victoria-logs:9428"
+    url_map:
+      - src_hosts: [{{ ('^' ~ (victoria_logs_oidc_host | regex_escape) ~ '$') | to_json }}]
+        src_paths: ["/", "/select/.*"]
+        url_prefix: "http://victoria-logs:9428"
   # Scripts (ci_key_audit, par 127.0.0.1, hors du nom public donc hors SSO) :
   # requêtes LogsQL seulement, plus d'interface en Basic.
   - username: {{ victoria_logs_ui_user | to_json }}

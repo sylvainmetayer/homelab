@@ -244,7 +244,7 @@ services:
       # avec son propre jeton Immich.
       OAUTH_ENABLED: "true"
       OAUTH_BUTTON_TEXT: "Se connecter avec Pocket ID"
-      POWER_TOOLS_ENDPOINT_URL: https://power-tools.sylvain.cloud
+      POWER_TOOLS_ENDPOINT_URL: https://{{ immich_power_tools_domain }}
       SECURE_COOKIE: "true"
       # La base d'Immich, par le réseau immich (le compte postgres de .env :
       # l'appli ne fait que lire, README du rôle). Pas de JWT_SECRET: sans lui

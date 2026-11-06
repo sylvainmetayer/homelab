@@ -3310,7 +3310,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && strcontains(file("${path.module}/../../ansible/roles/victoria_logs/defaults/main.yml"), "terraform_outputs.pocket_id_victoria_logs_client_secret.value")
       && contains(pocketid_client.immich.callback_urls, "https://power-tools.sylvain.cloud/api/auth/oauth/callback")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack et MediaManager de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox et VictoriaLogs de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,

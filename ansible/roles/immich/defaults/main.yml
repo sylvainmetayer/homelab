@@ -13,6 +13,9 @@ immich_kiosk_enabled: "{{ immich_kiosk_api_key | default('') | length > 0 }}"
 # avec son propre compte Immich (bouton OAuth, donc Pocket ID) et n'agit
 # qu'avec ses droits (README du rôle).
 immich_power_tools_enabled: true
+# Nom public de Power Tools : le rappel OAuth (client immich de Pocket ID,
+# tofu/pangolin_config/pocket_id.tf) et la route Pangolin portent le même.
+immich_power_tools_domain: power-tools.sylvain.cloud
 # Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
 # Mot de passe de Valkey (requirepass), dérivé du mot de passe de la base :
