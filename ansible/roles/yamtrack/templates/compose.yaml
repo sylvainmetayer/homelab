@@ -5,7 +5,7 @@ services:
     # reviennent seules), donc ni instantané ni volume, pas d'écriture sur le
     # disque de la VM. Mesuré en local : ~24 Mio au repos.
     mem_limit: 128m
-    image: redis:8.2-alpine@sha256:489a769e0a54dc245896132a15c72d2bc7296719954da99398f43a3877e5f8eb
+    image: redis:8.10-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
     container_name: yamtrack-redis
     security_opt:
       - no-new-privileges:true
