@@ -28,10 +28,10 @@ class MermaidError(Exception):
 
 
 MERMAID_VERSION = "12.3.0"
-MERMAID_SHA256 = "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f"
+MERMAID_SHA256 = "336df803d87a38b70a01e736e666c8f7601d2ce42f5e47c8fafe5d721074b9a3"
 # La version dont MERMAID_SHA256 est l'empreinte : Renovate ne touche que
 # MERMAID_VERSION, l'écart dit que le sha256 reste à recalculer.
-MERMAID_SHA256_OF = "12.2.0"
+MERMAID_SHA256_OF = "12.3.0"
 MERMAID_URL = f"https://cdn.jsdelivr.net/npm/mermaid@{MERMAID_VERSION}/dist/mermaid.min.js"
 # Chemin dans le site.
 SITE_PATH = "javascripts/mermaid.min.js"
