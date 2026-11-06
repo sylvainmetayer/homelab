@@ -167,3 +167,74 @@
       ansible.builtin.file:
         path: "{{ victoria_logs_scratch.path }}"
         state: absent
+
+# Avec les sorties Tofu du client Pocket ID (fictives) : SSO de vmauth, un
+# utilisateur JWT pour l'interface, plus de compte Basic « sylvain » ; agents
+# inchangés. Rendu hors de /opt/apps.
+- name: Verify the vmauth SSO configuration
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/victoria_logs/defaults/main.yml
+  vars:
+    victoria_logs_ui_password: molecule-victoria-logs-ui-password-0000
+    victoria_logs_agent_passwords:
+      docker: molecule-victoria-logs-agent-docker-000
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_victoria_logs_client_id:
+        value: victoria-logs
+      pocket_id_victoria_logs_client_secret:
+        value: molecule-pocket-id-victoria-logs-client-secret
+  tasks:
+    - name: Create a scratch directory for the vmauth SSO configuration
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: vmauth
+      register: victoria_logs_sso_scratch
+
+    - name: Render the vmauth SSO configuration
+      diff: false
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/victoria_logs/templates/auth.yml.j2"
+        dest: "{{ victoria_logs_sso_scratch.path }}/auth.yml"
+        mode: "0600"
+
+    - name: Read the vmauth SSO configuration
+      ansible.builtin.slurp:
+        src: "{{ victoria_logs_sso_scratch.path }}/auth.yml"
+      register: victoria_logs_sso_raw
+
+    - name: Assert the browser goes through Pocket ID and the agents keep Basic
+      no_log: true
+      vars:
+        victoria_logs_sso: "{{ victoria_logs_sso_raw.content | b64decode | from_yaml }}"
+        victoria_logs_sso_jwt: "{{ victoria_logs_sso.users | selectattr('jwt', 'defined') | list }}"
+      ansible.builtin.assert:
+        that:
+          - victoria_logs_sso.sso | length == 1
+          - victoria_logs_sso.sso[0].src_host == '^logs\.sylvain\.cloud$'
+          - victoria_logs_sso.sso[0].oidc.issuer == 'https://idp.example.invalid'
+          - victoria_logs_sso.sso[0].oidc.client_id == 'victoria-logs'
+          - victoria_logs_sso.sso[0].oidc.client_secret == 'molecule-pocket-id-victoria-logs-client-secret'
+          - "'groups' in victoria_logs_sso.sso[0].oidc.scopes"
+          - victoria_logs_sso.sso[0].oidc.cookie_secret | length >= 16
+          - victoria_logs_sso_jwt | length == 1
+          - victoria_logs_sso_jwt[0].jwt.match_claims.aud == '^victoria\-logs$'
+          - victoria_logs_sso_jwt[0].jwt.match_claims.groups == '^victoria\-logs$'
+          - victoria_logs_sso_jwt[0].url_prefix == 'http://victoria-logs:9428'
+          - victoria_logs_sso.users | selectattr('username', 'defined') | map(attribute='username') | sort == ['docker', 'sylvain']
+          # sylvain : plus d'interface, les requêtes des scripts seulement.
+          - >-
+            victoria_logs_sso.users | selectattr('username', 'defined') | selectattr('username', 'eq', 'sylvain')
+            | map(attribute='url_map') | flatten | map(attribute='src_paths') | flatten == ['/select/logsql/query']
+          - >-
+            victoria_logs_sso.users | selectattr('username', 'defined') | selectattr('username', 'eq', 'sylvain')
+            | selectattr('url_prefix', 'defined') | list == []
+        fail_msg: "Configuration SSO de vmauth inattendue (secrets masqués)"
+
+    - name: Remove the SSO scratch directory
+      ansible.builtin.file:
+        path: "{{ victoria_logs_sso_scratch.path }}"
+        state: absent

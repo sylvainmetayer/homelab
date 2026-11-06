@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs"])
 
   length  = 48
   special = false
@@ -296,6 +296,8 @@ resource "pocketid_client" "immich" {
     "https://photos.sylvain.cloud/auth/login",
     "https://photos.sylvain.cloud/user-settings",
     "app.immich:///oauth-callback",
+    # Immich Power Tools (OAuth par Immich : Immich transmet ce rappel tel quel).
+    "https://power-tools.sylvain.cloud/api/auth/oauth/callback",
   ]
   allowed_user_groups = [pocketid_group.pangolin_role["immich"].id, pocketid_group.immich_admin.id]
   launch_url          = "https://photos.sylvain.cloud"
@@ -492,6 +494,33 @@ resource "pocketid_client" "proxmox" {
   is_public           = false
 }
 
+# VictoriaLogs (groupe victoria-logs) : SSO de vmauth (rôle victoria_logs,
+# section sso: de auth.yml), rappel /_vmauth/sso/callback. vmauth n'envoie
+# pas de PKCE (sso.go, v1.155.0) : client confidentiel sans. Les agents et
+# Homepage gardent leurs comptes Basic.
+resource "pocketid_client" "victoria_logs" {
+  name                = "VictoriaLogs"
+  client_id           = "victoria-logs"
+  client_secret       = random_password.pocket_id_client["victoria-logs"].result
+  callback_urls       = ["https://logs.sylvain.cloud/_vmauth/sso/callback"]
+  allowed_user_groups = [pocketid_group.pangolin_role["victoria-logs"].id]
+  launch_url          = "https://logs.sylvain.cloud/select/vmui/"
+  logo_url            = "${local.pocket_id_logo_base}/victorialogs.svg"
+  pkce_enabled        = false
+  is_public           = false
+}
+
+output "pocket_id_victoria_logs_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de VictoriaLogs (vmauth)"
+  value       = pocketid_client.victoria_logs.client_id
+}
+
+output "pocket_id_victoria_logs_client_secret" {
+  description = "POCKET ID - secret du client OIDC de VictoriaLogs (vmauth)"
+  value       = random_password.pocket_id_client["victoria-logs"].result
+  sensitive   = true
+}
+
 # Tuiles « vitrine » : chaque appli du mur sans client OIDC réel a un client
 # public jamais utilisé pour se connecter, juste pour paraître dans « Mes
 # applis » de Pocket ID aux membres de son groupe (= son rôle Pangolin) : le
@@ -511,7 +540,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "nextcloud",
+    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs",
   ])
 
   pocket_id_launchers = {

@@ -1,11 +1,43 @@
 # {{ ansible_managed }}
 # Comptes de vmauth (devant VictoriaLogs). Sans compte, vmauth ne sert que
 # /health (sondes de Pangolin et d'Uptime Kuma) et répond 401 au reste.
+{% if victoria_logs_oidc_enabled | bool %}
+# Navigateur : SSO par Pocket ID (defaults/main.yml), sur le seul nom public.
+sso:
+  - src_host: {{ ('^' ~ (victoria_logs_oidc_host | regex_escape) ~ '$') | to_json }}
+    oidc:
+      issuer: {{ victoria_logs_oidc_issuer | to_json }}
+      client_id: {{ victoria_logs_oidc_client_id | to_json }}
+      client_secret: {{ victoria_logs_oidc_client_secret | to_json }}
+      scopes: ["openid", "profile", "email", "groups"]
+      cookie_secret: {{ victoria_logs_oidc_cookie_secret | to_json }}
+      session_duration: {{ victoria_logs_oidc_session | to_json }}
+{% endif %}
 users:
+{% if victoria_logs_oidc_enabled | bool %}
+  # L'interface (vmui) et les requêtes LogsQL : tout VictoriaLogs, pour un
+  # ID token Pocket ID de ce client portant le groupe victoria-logs.
+  - jwt:
+      oidc:
+        issuer: {{ victoria_logs_oidc_issuer | to_json }}
+      match_claims:
+        iss: {{ ('^' ~ (victoria_logs_oidc_issuer | regex_escape) ~ '$') | to_json }}
+        aud: {{ ('^' ~ (victoria_logs_oidc_client_id | regex_escape) ~ '$') | to_json }}
+        groups: {{ ('^' ~ (victoria_logs_oidc_group | regex_escape) ~ '$') | to_json }}
+    url_prefix: "http://victoria-logs:9428"
+  # Scripts (ci_key_audit, par 127.0.0.1, hors du nom public donc hors SSO) :
+  # requêtes LogsQL seulement, plus d'interface en Basic.
+  - username: {{ victoria_logs_ui_user | to_json }}
+    password: {{ victoria_logs_ui_password | to_json }}
+    url_map:
+      - src_paths: {{ victoria_logs_script_paths | to_json }}
+        url_prefix: "http://victoria-logs:9428"
+{% else %}
   # L'interface (vmui) et les requêtes LogsQL : tout VictoriaLogs.
   - username: {{ victoria_logs_ui_user | to_json }}
     password: {{ victoria_logs_ui_password | to_json }}
     url_prefix: "http://victoria-logs:9428"
+{% endif %}
 {% for agent in victoria_logs_agents %}
   # Agent {{ agent.key }} : écriture seule.
   - username: {{ agent.key | to_json }}

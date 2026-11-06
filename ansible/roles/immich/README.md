@@ -49,45 +49,26 @@ change, mettre à jour `home_ip` et appliquer `pangolin_config`.
 exigé depuis la 0.22). Gestion en masse : personnes (fusion, suggestions),
 lieux manquants, décalage de dates, albums potentiels, analyses, recherche.
 
-**IL PEUT MODIFIER LA PHOTOTHÈQUE.** Avec `IMMICH_API_KEY`, l'appli ne demande
-aucune connexion : tout visiteur sans cookie est traité comme le propriétaire de
-la clé (`getCurrentUser`, `user.utils.ts`), et `/api/immich-proxy/*` relaie
-n'importe quel appel à l'API d'Immich avec cette clé (méthode, chemin et corps
-du visiteur). Fusionner des personnes, changer lieux et dates, supprimer des
-albums passe donc par la clé : ce que la clé permet, qui franchit le SSO le
-peut. Comme Swipe, le seul barrage est Pangolin.
+**Connexion par Immich, sans clé d'API** (depuis le 2026-11-06). Avec
+`IMMICH_API_KEY`, tout visiteur sans cookie était traité comme le propriétaire
+de la clé (`getCurrentUser`, `user.utils.ts`) et `/api/immich-proxy/*`
+relayait n'importe quel appel à l'API avec elle. La clé est retirée : le bouton
+« Se connecter avec Pocket ID » (`OAUTH_ENABLED`) passe par l'OAuth d'Immich
+(`/api/oauth/authorize`, appelé côté serveur sur `EXTERNAL_IMMICH_URL`, joint
+depuis le Pi par l'IP de la maison), le rappel
+`https://power-tools.sylvain.cloud/api/auth/oauth/callback` est déclaré sur le
+client `immich` de Pocket ID, et le cookie de session porte le jeton Immich de
+la personne. Sans cookie, les routes protégées échouent fermées. Les requêtes
+directes à la base d'Immich (compte `postgres`, lecture) filtrent sur
+l'utilisateur connecté, sauf `albums/[id]/public-info` (sans authentification)
+et `albums/[id]/assets` (sans contrôle d'appartenance) : qui connaît l'UUID
+d'un album en lit les métadonnées, pas les photos (elles passent par le proxy,
+donc par les droits Immich). Lu dans le code de la 0.25.0, non essayé.
 
-**Accès** (décision de Sylvain, 2026-11-05) : rôle Pangolin dédié
-`immich-power-tools`, créé sans membre, que Sylvain s'attribue seul (interface
-de Pangolin) ; aucun chemin ouvert, aucune règle d'IP de la maison. Le jeton
-d'accès du healthcheck (`websites.tf`, comme pour toute application) existe
-pourtant : il franchit le SSO et est tenu par le moniteur d'Uptime Kuma, donc qui
-le détient agit sur la photothèque avec la clé. Un test d'invariant de `pangolin_config` le garde lié à cette seule
-ressource, jamais au rôle `immich`.
-
-**Rendu seulement si la clé SOPS `immich_power_tools_api_key` existe**
-(`immich_power_tools_enabled`, dérivée, comme Kiosk). Elle est dans le
-`compose.yaml` (`0600`, `diff: false`). Retirer la clé et lancer
-`pi.yml --tags immich` supprime le conteneur : le compose change, le
-redémarrage de `dc@immich` relance `up --remove-orphans`.
-
-**La clé a pour l'instant tous les droits** (décision de Sylvain : la rotation
-vers une clé restreinte vient plus tard). Liste minimale à lui donner lors de
-cette rotation (compte de Sylvain, Account Settings → API Keys, nom
-`immich-power-tools`), déduite des sources de la 0.25.0, noms de l'amont non
-essayés contre cet Immich, à vérifier en créant la clé :
-
-- noyau : `user.read`, `asset.read`, `asset.view`, `asset.download`,
-  `asset.update` (lieux, décalage de dates), `asset.statistics`, `album.read`,
-  `album.create`, `album.delete`, `albumAsset.create`, `person.read`,
-  `person.update`, `person.merge` ;
-- facultatives : `sharedLink.create` (partage d'un album), `duplicate.read`
-  (page des doublons) ;
-- à ne pas donner (fonctions d'import et de workflows, non utilisées) :
-  `apiKey.*`, `tag.*`, `asset.upload`, `albumAsset.delete`, `asset.delete`.
-
-Une clé restreinte ne protège pas du proxy générique : elle borne ce qu'il peut
-faire, pas le fait qu'il relaie.
+**Accès** : rôle Pangolin `immich-power-tools`, donné par le groupe Pocket ID
+du même nom (le foyer). Le jeton d'accès du healthcheck (`websites.tf`)
+franchit le SSO mais ne donne plus aucun droit sur la photothèque : sans
+session Immich, l'appli n'agit pas.
 
 **Accès direct à la base d'Immich.** L'appli se connecte à PostgreSQL
 (`immich_postgres:5432`, réseau `immich`, base `immich`) avec les identifiants

@@ -1,13 +1,13 @@
 # Resource, target and monitors: local.websites (websites.tf). No backup
 # monitor (nothing persisted).
 #
-# Immich Power Tools has no login of its own once IMMICH_API_KEY is set
-# (immich role): whoever passes the SSO acts on the photo library with that
-# key, and /api/immich-proxy relays any Immich API call. Its own role,
-# `immich-power-tools`, created with no member: Sylvain alone adds himself in
-# the Pangolin UI. No path opened, no home-IP rule. Like every entry it still
-# gets the healthcheck access token (websites.tf), held by the Uptime Kuma
-# monitor: whoever holds it passes the SSO and acts on the library with the key.
+# Immich Power Tools: each person signs in with their own Immich account
+# (OAuth through Immich, hence Pocket ID; no IMMICH_API_KEY since
+# 2026-11-06, immich role). Its own role, `immich-power-tools`, given by the
+# Pocket ID group of the same name (the household). No path opened, no
+# home-IP rule. The healthcheck access token (websites.tf) passes the SSO but
+# grants nothing on the photo library: without an Immich session the app acts
+# on nothing.
 locals {
   immich_power_tools_website = {
     name      = "Immich Power Tools"

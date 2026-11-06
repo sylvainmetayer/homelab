@@ -722,8 +722,10 @@ VictoriaLogs garde tous les journaux de tous les hôtes **30 jours** et les
 interroge en LogsQL. Version légère, à l'essai (#79,
 [ADR 0011](adr/0011-journaux-victorialogs.md), « proposée ») : VictoriaLogs
 seul, ni Grafana ni métriques. Rôle `victoria_logs` sur la VM docker, interface (vmui)
-sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le compte
-vmauth `sylvain` (mot de passe sops `victoria_logs_ui_password`).
+sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le SSO de
+vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
+(sops `victoria_logs_ui_password`) ne sert plus qu'aux requêtes des scripts
+(`ci_key_audit`, par `127.0.0.1`).
 
 - **Deux conteneurs** : `victoria-logs` (le stockage) n'est que sur un réseau
   interne ; `victoria-logs-auth` (vmauth) est seul à le joindre, sur `newt`

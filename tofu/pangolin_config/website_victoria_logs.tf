@@ -3,9 +3,10 @@
 # VictoriaLogs: the logs of every host, 30 days (Ansible role victoria_logs,
 # docker VM). Its built-in interface (vmui, /select/vmui/) behind the SSO,
 # with no path opened around it. The target is vmauth, in front of the
-# storage: it asks for its own account (sops victoria_logs_ui_password) after
-# the SSO, since anything on the newt network, or on the LAN through the
-# published port, reaches it without Pangolin.
+# storage: after the SSO, a browser signs in again through vmauth's own SSO
+# (Pocket ID client victoria-logs, pocket_id.tf), since anything on the newt
+# network, or on the LAN through the published port, reaches it without
+# Pangolin. Scripts and agents keep Basic accounts on their own paths.
 #
 # No backup: logs are reproducible (every host keeps its journald) and losing
 # them only loses history. Hence no `backup`, no push monitor, nothing in

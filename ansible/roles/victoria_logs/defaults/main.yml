@@ -32,9 +32,37 @@ victoria_logs_max_disk_space_usage: 5GiB
 victoria_logs_publish_addresses:
   - 127.0.0.1
 
-# Compte de l'interface (lecture, requêtes LogsQL, vmui). Mot de passe : clé
-# sops victoria_logs_ui_password.
+# Compte Basic de l'interface (lecture, requêtes LogsQL, vmui) tant que le
+# SSO n'est pas posé (victoria_logs_oidc_enabled faux). Avec le SSO, le
+# navigateur passe par Pocket ID (décision de Sylvain, 2026-11-06 : pas
+# d'interface en Basic) et ce compte ne garde que les chemins des scripts
+# (victoria_logs_script_paths : ci_key_audit, rôle du même nom, qui l'utilise
+# par 127.0.0.1). Mot de passe : clé sops victoria_logs_ui_password, qui
+# dérive aussi victoria_logs_internal_auth_key.
 victoria_logs_ui_user: sylvain
+victoria_logs_script_paths:
+  - /select/logsql/query
+
+# SSO de vmauth (v1.153+) par Pocket ID, client victoria-logs
+# (tofu/pangolin_config/pocket_id.tf) : posé seulement quand l'émetteur,
+# l'identifiant et le secret sont dans le state. Un navigateur sans compte
+# (GET) part sur Pocket ID ; l'ID token, gardé en cookie, doit venir de
+# l'émetteur, viser ce client et porter le groupe victoria-logs. Les agents et
+# Homepage gardent leurs comptes Basic. vmauth joint lui-même l'émetteur
+# (découverte, JWKS rafraîchies toutes les 5 min).
+victoria_logs_oidc_client_id: "{{ terraform_outputs.pocket_id_victoria_logs_client_id.value | default('') }}"
+victoria_logs_oidc_client_secret: "{{ terraform_outputs.pocket_id_victoria_logs_client_secret.value | default('') }}"
+victoria_logs_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+victoria_logs_oidc_enabled: >-
+  {{ victoria_logs_oidc_client_id | length > 0
+     and victoria_logs_oidc_client_secret | length > 0
+     and victoria_logs_oidc_issuer | length > 0 }}
+victoria_logs_oidc_host: logs.sylvain.cloud
+victoria_logs_oidc_group: victoria-logs
+victoria_logs_oidc_session: 12h
+# Signe le cookie CSRF du SSO ; dérivé comme les autres secrets d'appli, sans
+# clé sops. Le changer n'invalide que les connexions en cours.
+victoria_logs_oidc_cookie_secret: "{{ (backup_passphrase ~ '-vmauth-sso-cookie') | hash('sha256') }}"
 
 # Un compte d'écriture par agent (nom = inventory_hostname) : clé sops
 # victoria_logs_agent_passwords (dict hôte => mot de passe), lue aussi par le
