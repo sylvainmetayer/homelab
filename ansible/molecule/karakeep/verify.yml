@@ -69,6 +69,12 @@
           - karakeep_env.NEXTAUTH_SECRET != karakeep_env.MEILI_MASTER_KEY
           - karakeep_env.MEILI_MASTER_KEY == karakeep_compose.services.meilisearch.environment.MEILI_MASTER_KEY
           - karakeep_env.DISABLE_SIGNUPS == 'true'
+          # Pocket ID (sorties fictives du converge), mot de passe gardé.
+          - karakeep_env.OAUTH_WELLKNOWN_URL == 'https://idp.example.invalid/.well-known/openid-configuration'
+          - karakeep_env.OAUTH_CLIENT_ID == 'molecule-pocket-id-karakeep-client-id'
+          - karakeep_env.OAUTH_CLIENT_SECRET == 'molecule-pocket-id-karakeep-client-secret'
+          - karakeep_env.OAUTH_ALLOW_DANGEROUS_EMAIL_ACCOUNT_LINKING == 'true'
+          - karakeep_env.DISABLE_PASSWORD_AUTH is not defined
         fail_msg: "Environnement de karakeep inattendu : {{ karakeep_env.keys() | list }}"
 
     # Arguments yt-dlp séparés par %% : YouTube exclu (la playlist « À regarder
