@@ -36,12 +36,19 @@ HOST = urllib.parse.urlsplit(BASE).hostname
 PREFIX = "pid-audit-"
 CALLBACK = "https://audit.invalid/callback"
 REPO = Path(__file__).resolve().parents[2]
+EVIL = "https://evil.example"
 PRIVATE_JWK_FIELDS = {"d", "p", "q", "dp", "dq", "qi", "k"}
 
 results = []
 
 
+def redact(text):
+    """Masque codes, jetons et secrets qu'une URL ou une réponse ferait passer dans le détail."""
+    return re.sub(r"((?:code|token|secret|access_token|refresh_token|id_token)=)[^&\s]+", r"\1…", str(text))
+
+
 def record(check, status, detail=""):
+    detail = redact(detail)
     results.append({"check": check, "status": status, "detail": detail})
     print(f"{status:5} {check}" + (f" : {detail}" if detail else ""), flush=True)
 
@@ -160,9 +167,9 @@ def check_headers():
 
 
 def check_cors():
-    _, hdrs, _ = request("GET", "/api/users/me", {"Origin": "https://evil.example"})
+    _, hdrs, _ = request("GET", "/api/users/me", {"Origin": EVIL})
     acao = header(hdrs, "access-control-allow-origin")
-    bad = acao in ("*", "https://evil.example") and header(hdrs, "access-control-allow-credentials") == "true"
+    bad = acao in ("*", EVIL) and header(hdrs, "access-control-allow-credentials") == "true"
     record("CORS : origine étrangère refusée", "FAIL" if bad else ("WARN" if acao else "PASS"), acao or "aucun ACAO")
 
 
@@ -407,7 +414,7 @@ def check_flow(admin):
         if not code:
             record("flux : échange du code", "FAIL", "aucun code obtenu : " + where[:100])
             return
-        status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier, audience="https://evil.example", resource="https://evil.example")
+        status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier, audience=EVIL, resource=EVIL)
         record("flux : échange du code", "PASS" if status == 200 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
         if status != 200:
             return
@@ -421,7 +428,7 @@ def check_flow(admin):
         try:
             _, access_claims = jwt_parts(tok["access_token"])
             access_aud = access_claims.get("aud")
-            record("access token : audience non détournable", "FAIL" if "https://evil.example" in str(access_aud) else "PASS", str(access_aud))
+            record("access token : audience non détournable", "FAIL" if EVIL in (access_aud if isinstance(access_aud, list) else [access_aud]) else "PASS", str(access_aud))
             record("access token : durée", "INFO", f"{(access_claims.get('exp', 0) - access_claims.get('iat', 0)) // 60} min")
         except ValueError:
             record("access token : opaque", "INFO", f"expires_in={tok.get('expires_in')}")
@@ -470,7 +477,7 @@ def check_flow(admin):
         record("client inconnu : pas de code", "PASS" if not code else "FAIL", where[:120])
 
         for variant in ("https://evil.example/callback", "https://audit.invalid.evil.example/callback", "https://audit.invalid@evil.example/callback",
-                        "https://evil.example\\@audit.invalid/callback", "http://audit.invalid/callback", "https://AUDIT.invalid/callback",
+                        "https://evil.example\\@audit.invalid/callback", "http://audit.invalid/callback", "https://AUDIT.invalid/callback",  # NOSONAR: http volontaire, la variante doit être refusée
                         "https://audit.invalid/callback/autre", "https://audit.invalid/callback?x=1", "https://audit.invalid/callback/",
                         "https://audit.invalid/callback/../evil", "https://audit.invalid:8443/callback"):
             code, where, *_ = authorize(sess, cid_a, variant)
@@ -522,7 +529,9 @@ def main():
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     print("\n" + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
     if args.json:
-        Path(args.json).write_text(json.dumps({"date": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "results": results}, ensure_ascii=False, indent=1))
+        # Chemin donné par la personne qui lance l'audit sur son poste.
+        report = json.dumps({"date": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "results": results}, ensure_ascii=False, indent=1)
+        Path(args.json).write_text(report)  # NOSONAR
     return 1 if counts.get("FAIL") else 0
 
 

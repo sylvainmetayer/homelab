@@ -16,6 +16,14 @@ class VersionRange(unittest.TestCase):
         self.assertTrue(audit.in_range(v, "= 2.19.1"))
 
 
+class Redaction(unittest.TestCase):
+    def test_codes_and_secrets_never_reach_the_report(self):
+        out = audit.redact("https://audit.invalid/callback?code=pocket_id_ac_x.y&state=abc refresh_token=r1")
+        self.assertNotIn("pocket_id_ac_x", out)
+        self.assertNotIn("r1", out)
+        self.assertIn("state=abc", out)
+
+
 class Tokens(unittest.TestCase):
     def test_pkce_challenge_is_s256_of_verifier(self):
         verifier, challenge = audit.pkce_pair()
