@@ -410,8 +410,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   secret dans l'admin PocketBase du hub (`pocket-id.md`), aucun rôle ne le
   relit. Immich (`["immich"]`) et Wishlist (`["wishlist"]`) : idem, ressaisir
   le secret (`tofu output -raw pocket_id_<appli>_client_secret`) dans leur
-  interface. Karakeep (`["karakeep"]`) : `docker.yml --tags karakeep`, le rôle
-  relit la sortie.
+  interface. Karakeep (`["karakeep"]`), Papra (`["papra"]`) et Yamtrack
+  (`["yamtrack"]`) : `docker.yml --tags <appli>`, le rôle relit la sortie.
+  MediaManager (`["mediamanager"]`) : `nas.yml --tags mediamanager`, à la main
+  (jamais par la CI).
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

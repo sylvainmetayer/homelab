@@ -19,7 +19,6 @@ yamtrack_registration_enabled: false
 # Papra : pas de clé SOPS. Le changer déconnecte tout le monde.
 yamtrack_secret: "{{ (backup_passphrase ~ '-yamtrack-secret') | hash('sha256') }}"
 
-# Borgmatic backup configuration
 # Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
 # yamtrack), rendue seulement quand l'émetteur, l'identifiant et le secret sont
 # dans le state. Pas de liaison automatique : chacun se connecte par mot de
@@ -30,6 +29,7 @@ yamtrack_oidc_client_secret: "{{ terraform_outputs.pocket_id_yamtrack_client_sec
 yamtrack_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 yamtrack_oidc_enabled: "{{ yamtrack_oidc_client_id | length > 0 and yamtrack_oidc_client_secret | length > 0 and yamtrack_oidc_issuer | length > 0 }}"
 
+# Borgmatic backup configuration
 yamtrack_backup_enabled: true
 yamtrack_backup_borgmatic_target: "{{ backup_storage_box_url }}/yamtrack"
 yamtrack_backup_encryption_passphrase: "{{ backup_passphrase }}"
