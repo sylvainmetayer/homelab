@@ -17,6 +17,12 @@ pocket_id_host: ""
 pocket_id_uid: 65532
 pocket_id_gid: 65532
 
+# Bases GeoLite2 tenues à jour par le rôle pangolin (pangolin_geoip_dir,
+# geoipupdate.service) : Pocket ID y lit GeoLite2-City, en lecture seule, pour
+# les lieux approximatifs du journal d'audit. Sans le fichier, il n'affiche
+# aucun lieu (avertissement au démarrage), sans autre effet.
+pocket_id_geoip_dir: /opt/geoip
+
 # Clé SOPS pocket_id_encryption_key (ansible.sops.yaml), générée par
 # `openssl rand -base64 32`. Chiffre au repos les clés de signature des jetons.
 # Sans elle, ou vide, le rôle ne rend rien (ni conteneur ni routeur) et le dit.

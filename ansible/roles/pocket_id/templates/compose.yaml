@@ -26,8 +26,11 @@ services:
     env_file:
       - .env
     volumes:
-      # pocket-id.db (SQLite), images téléversées, base GeoLite2 éventuelle.
+      # pocket-id.db (SQLite), images téléversées.
       - ./data:/app/data
+      # GeoLite2-City du rôle pangolin. Le dossier, pas le fichier : geoipupdate
+      # le remplace par renommage, et Pocket ID surveille le dossier.
+      - {{ pocket_id_geoip_dir }}:/app/geoip:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "/app/pocket-id", "healthcheck"]
