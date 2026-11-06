@@ -190,8 +190,10 @@ un contrôle échoue.
 
 Résultats connus de la v2.19.1 (06/11/2026), à ne pas reprendre pour une
 régression : PKCE `plain` accepté (activé en dur), ancien refresh token
-valable une minute après rotation (période de grâce voulue), `nosniff` et
-`Referrer-Policy` absents (en-têtes Traefik).
+valable une minute après rotation (période de grâce voulue). Les en-têtes
+`nosniff`, `Referrer-Policy`, `Permissions-Policy` et CORP sont posés par le
+middleware `pocket-id-headers` du rôle pangolin (pas de COOP : fenêtre
+surgissante de Beszel).
 
 Scanners génériques, à la demande, images épinglées par digest :
 
