@@ -223,7 +223,9 @@
           - victoria_logs_sso_jwt | length == 1
           - victoria_logs_sso_jwt[0].jwt.match_claims.aud == '^victoria\-logs$'
           - victoria_logs_sso_jwt[0].jwt.match_claims.groups == '^victoria\-logs$'
-          - victoria_logs_sso_jwt[0].url_prefix == 'http://victoria-logs:9428'
+          - victoria_logs_sso_jwt[0].url_prefix is not defined
+          - victoria_logs_sso_jwt[0].url_map | map(attribute='src_paths') | flatten == ['/', '/select/.*']
+          - victoria_logs_sso_jwt[0].url_map | map(attribute='src_hosts') | flatten == ['^logs\.sylvain\.cloud$']
           - victoria_logs_sso.users | selectattr('username', 'defined') | map(attribute='username') | sort == ['docker', 'sylvain']
           # sylvain : plus d'interface, les requêtes des scripts seulement.
           - >-

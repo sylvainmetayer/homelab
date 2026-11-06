@@ -409,7 +409,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   nextcloud` (le rôle rejoue `occ user_oidc:provider`). Proxmox
   (`["proxmox"]`) : `pve.yml --tags pve_oidc`, à la main (`pveum realm
   modify` reposé à chaque passage). VictoriaLogs (`["victoria-logs"]`) :
-  `docker.yml --tags victoria_logs` (vmauth relit `auth.yml`). Les tuiles
+  `docker.yml --tags victoria_logs` (vmauth relit `auth.yml`) ; son secret de
+  cookie SSO est dérivé de `backup_passphrase` (pas de clé sops) : une rotation
+  de celle-ci ne coupe que les connexions en cours. Les tuiles
   vitrine n'ont pas de secret.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
