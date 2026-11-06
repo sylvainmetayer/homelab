@@ -250,7 +250,7 @@
         homepage_services_path: /opt/apps/homepage/config/services.yaml
 
     # Groupes dans l'ordre de homepage_groups, le groupe inconnu en dernier ;
-    # cartes triées par nom dans un groupe ; Jellyfin, MediaManager et Proxmox
+    # cartes triées par nom dans un groupe ; Jellyfin, MediaManager, Pocket ID et Proxmox
     # (homepage_extra_links) en plus de l'output ; pas d'icône vide.
     - name: Assert the homepage services list every link in its group
       ansible.builtin.assert:
@@ -260,7 +260,7 @@
           - homepage_card_names['Lecture'] == ['FreshRSS', 'Karakeep']
           - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin', 'MediaManager']
           - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
-          - homepage_card_names['Administration'] == ['Beszel', 'Coûts', 'Pangolin', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
+          - homepage_card_names['Administration'] == ['Beszel', 'Coûts', 'Pangolin', 'Pocket ID', 'Proxmox', 'Speedtest Tracker', 'sylvain.dev']
           - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
           - homepage_cards['Documents']['BookStack'].icon == 'bookstack'
           - homepage_cards['Documents']['BookStack'].widget is not defined
@@ -281,6 +281,7 @@
           - homepage_cards['Photos et médias']['Jellyfin'].siteMonitor == 'http://192.168.1.137:8096/health' # NOSONAR
           - homepage_cards['Administration']['Proxmox'].siteMonitor == 'https://192.168.1.26:8006'
           - homepage_cards['Administration']['Pangolin'].siteMonitor is not defined
+          - homepage_cards['Administration']['Pocket ID'].siteMonitor == 'https://id.sylvain.cloud/healthz'
           - homepage_cards['Administration']['sylvain.dev'].siteMonitor is not defined
         fail_msg: "Pastilles inattendues : {{ homepage_cards }}"
 
@@ -494,7 +495,7 @@
           - "'Hôtes' not in homepage_group_names"
           # Le bus TBM, sans clé, reste ; aucun autre widget.
           - homepage_card_names['Vie perso'] == ['Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
-          - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Proxmox', 'Speedtest Tracker']
+          - homepage_card_names['Administration'] == ['Beszel', 'Pangolin', 'Pocket ID', 'Proxmox', 'Speedtest Tracker']
           - >-
             homepage_all_cards | selectattr('widget', 'defined') | map(attribute='widget.url') | list
             == [homepage_apps_summary_url ~ '/tbm.json']
