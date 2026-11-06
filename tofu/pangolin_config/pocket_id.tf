@@ -345,7 +345,15 @@ resource "pocketid_group" "pangolin_role" {
   for_each = setsubtract(local.pocket_id_role_groups, local.pocket_id_app_groups)
 
   name = each.key
-  # Distingue, dans l'interface, ces groupes d'accès au mur des groupes
-  # d'admin d'appli (« TREK admin »).
-  friendly_name = "Pangolin ${each.key}"
+  # Nom affiché comme ceux des applis branchées (« Homebox », « TREK ») ; les
+  # sigles et graphies que title() casserait sont écrits à la main.
+  friendly_name = lookup({
+    rss                = "RSS"
+    ntfy               = "ntfy"
+    bentopdf           = "BentoPDF"
+    pairdrop           = "PairDrop"
+    "demo-planning-kc" = "Demo Planning KC"
+    mediamanager       = "MediaManager"
+    "victoria-logs"    = "VictoriaLogs"
+  }, each.key, title(replace(each.key, "-", " ")))
 }
