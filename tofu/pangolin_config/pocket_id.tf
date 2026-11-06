@@ -14,6 +14,10 @@ locals {
   # Les rôles Pangolin repris des groupes Pocket ID : tous ceux d'applis
   # (roles.tf), plus ceux des ressources privées (private_resources.tf).
   pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager"]))
+  # Ceux dont l'appli est branchée sur Pocket ID ont leur propre ressource
+  # pocketid_group (plus bas) : pas de second groupe du même nom, que Pocket
+  # ID refuserait à l'apply.
+  pocket_id_app_groups = toset(["homebox", "trek", "healthlog", "beszel", "dawarich"])
 }
 
 # Le document de découverte OIDC : répond 200 sans compte, et c'est ce que
@@ -338,8 +342,10 @@ resource "pangolin_idp_org" "pocket_id" {
 # allowed_user_groups de leur client) ; un admin d'appli (trek-admin) est
 # membre des deux groupes, sinon le mur Pangolin l'arrête.
 resource "pocketid_group" "pangolin_role" {
-  for_each = setsubtract(local.pocket_id_role_groups, ["homebox", "trek", "healthlog", "beszel", "dawarich"])
+  for_each = setsubtract(local.pocket_id_role_groups, local.pocket_id_app_groups)
 
-  name          = each.key
-  friendly_name = each.key
+  name = each.key
+  # Distingue, dans l'interface, ces groupes d'accès au mur des groupes
+  # d'admin d'appli (« TREK admin »).
+  friendly_name = "Pangolin ${each.key}"
 }

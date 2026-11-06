@@ -163,8 +163,8 @@ une liste vide, donc un refus.
    restauration vert, les passkeys testés, une montée de version passée.
 3. Le mur : plus d'applis (Immich, TREK, Wishlist, Dawarich, Beszel, Nextcloud,
    Karakeep, [ordre de login-unifie-applis.md](../login-unifie-applis.md)), le
-   foyer invité dans Pocket ID, auto-provision et règle de groupes décidées sur ce que
-   la vérification ci-dessus aura montré. Comptes internes gardés.
+   foyer invité dans Pocket ID (auto-provision et règle de groupes en place depuis le
+   06/11 : il reste à vérifier la licence EE et le claim `groups`). Comptes internes gardés.
 4. BookStack, FreshRSS, vmauth (OIDC exclusif) en dernier, si le gain vaut le
    login local perdu.
 
