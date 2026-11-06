@@ -395,14 +395,17 @@ resource "pocketid_group" "oidf_test" {
 resource "pocketid_client" "oidf_test" {
   for_each = toset(["1", "2"])
 
-  name                = "OIDF test ${each.key}"
-  client_id           = "oidf-test-${each.key}"
-  client_secret       = random_password.pocket_id_oidf_test[each.key].result
-  callback_urls       = ["https://www.certification.openid.net/test/a/pocket-id/callback"]
-  allowed_user_groups = [pocketid_group.oidf_test.id]
-  logo_url            = "https://gitlab.com/openid/conformance-suite/-/raw/master/src/main/resources/static/images/openid.png"
-  pkce_enabled        = false
-  is_public           = false
+  name          = "OIDF test ${each.key}"
+  client_id     = "oidf-test-${each.key}"
+  client_secret = random_password.pocket_id_oidf_test[each.key].result
+  callback_urls = ["https://www.certification.openid.net/test/a/pocket-id/callback"]
+  # Plans « OpenID Connect Logout » (RP-initiated) : retour après déconnexion,
+  # base_url + "/post_logout_redirect" (CreatePostLogoutRedirectUri de la suite).
+  logout_callback_urls = ["https://www.certification.openid.net/test/a/pocket-id/post_logout_redirect"]
+  allowed_user_groups  = [pocketid_group.oidf_test.id]
+  logo_url             = "https://gitlab.com/openid/conformance-suite/-/raw/master/src/main/resources/static/images/openid.png"
+  pkce_enabled         = false
+  is_public            = false
 }
 
 output "pocket_id_oidf_test_clients" {
