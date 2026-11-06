@@ -10,6 +10,15 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
+- name: Drop Pangolin's identity headers before FreshRSS
+  notify: Restart rss service
+  ansible.builtin.copy:
+    src: homelab-apache.conf
+    dest: "{{ rss_base_path }}/homelab-apache.conf"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0644"
+
 - name: Template compose configuration
   diff: false
   notify: Restart rss service

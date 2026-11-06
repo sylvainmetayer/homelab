@@ -223,6 +223,9 @@
           - "'OIDC_X_FORWARDED_HEADERS=X-Forwarded-Proto X-Forwarded-Host' in rss_oidc_env"
           - rss_oidc_env | select('match', '^OIDC_CLIENT_CRYPTO_KEY=[0-9a-f]{64}$') | list | length == 1
           - "'CRON_MIN=17' in rss_oidc_env"
+          - >-
+            './homelab-apache.conf:/etc/apache2/conf-enabled/homelab.conf:ro'
+            in (rss_oidc_compose_raw.content | b64decode | from_yaml).services.freshrss.volumes
         fail_msg: "Environnement OIDC de FreshRSS inattendu (secrets masqués)"
 
     - name: Remove the OIDC scratch directory
