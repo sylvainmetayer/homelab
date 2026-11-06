@@ -134,6 +134,17 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      `https://photos.sylvain.cloud/api/oauth/mobile-redirect` et l'ajouter au
      client). Connexion par mot de passe gardée (`passwordLogin`). Le secret
      n'est relu par aucun rôle : le ressaisir après une rotation.
+     **Quota de stockage : réglé dans Immich** (Administration, Utilisateurs),
+     aucun claim `immich_quota` dans Pocket ID. Immich 3.3.5
+     (`auth.service.ts`, `syncOAuthClaims`) réapplique ce claim **à chaque
+     connexion, comptes existants compris** : posé sur un groupe (20 Go), il
+     ramènerait un compte à 100 Go à 20 Go. Absent, Immich ne touche pas au
+     quota. Le « quota par défaut » de l'interface ne sert qu'aux comptes
+     créés par OIDC, donc jamais tant que l'auto-register est coupé. Pour
+     piloter un jour les quotas depuis Pocket ID : un claim par utilisateur
+     (interface de Pocket ID, Tofu ne déclare pas les utilisateurs), jamais
+     sur le groupe, au prix d'un quota réglé à deux endroits ; priorité
+     utilisateur / groupe dans Pocket ID non vérifiée.
    - **Wishlist** (le foyer, groupe `wishlist`) : réglé dans l'interface
      (Administration, Paramètres, OIDC) : URL de découverte
      `https://id.sylvain.cloud/.well-known/openid-configuration`, Client ID
