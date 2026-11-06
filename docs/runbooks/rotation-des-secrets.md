@@ -408,7 +408,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `["pangolin"]`), puis `docker.yml --tags homebox` pour Homebox ; Pangolin
   reçoit le sien dans le même apply. Beszel (`["beszel"]`) : ressaisir le
   secret dans l'admin PocketBase du hub (`pocket-id.md`), aucun rôle ne le
-  relit.
+  relit. Immich (`["immich"]`) et Wishlist (`["wishlist"]`) : idem, ressaisir
+  le secret (`tofu output -raw pocket_id_<appli>_client_secret`) dans leur
+  interface. Karakeep (`["karakeep"]`) : `docker.yml --tags karakeep`, le rôle
+  relit la sortie.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison
