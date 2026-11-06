@@ -24,4 +24,12 @@ $CONFIG = array (
 
   // Traefik termine le TLS ; nginx ne voit que du HTTP sur le port 80.
   'overwriteprotocol' => 'https',
+
+  // user_oidc (Pocket ID, defaults/main.yml) : un login OIDC retrouve le
+  // compte local de même uid, n'en crée jamais ; le formulaire local reste.
+  'user_oidc' => array (
+    'soft_auto_provision' => true,
+    'disable_account_creation' => true,
+  ),
+  'allow_multiple_user_backends' => 1,
 );

@@ -182,7 +182,31 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      compte, le groupe est la seule barrière. Admin : `admin_emails`, à
      l'inscription seulement. Rappel bâti depuis la requête
      (`FORWARDED_ALLOW_IPS` pour le https), déclaré pour 443 et 8443.
-5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
+   - **Nextcloud** (le foyer, groupe `nextcloud`) : rien à saisir, le rôle
+     installe l'app `user_oidc` (magasin d'applis) et pose le fournisseur
+     « Pocket ID » par `occ user_oidc:provider` (rejoué à chaque passage).
+     **Liaison par uid** (`preferred_username`), jamais par e-mail : le nom
+     d'utilisateur Pocket ID doit être l'uid Nextcloud (vérifié le
+     2026-11-06 : `sylvain`, `marielea` ; un uid ne se renomme pas, on aligne
+     Pocket ID). Aucune création de compte (`disable_account_creation`), pas
+     de synchro de groupes (elle retirerait `admin`) : groupes et admin dans
+     Nextcloud. Formulaire local gardé (`/login?direct=1`), mots de passe
+     d'application inchangés pour les clients.
+   - **Proxmox** (hors mur : LAN et ressource privée `pve.internal`) : realm
+     OpenID `pocketid` posé par `pve.yml --tags pve_oidc` (à la main). Groupes
+     Pocket ID `proxmox-admin` (Administrator) et `proxmox-auditor`
+     (PVEAuditor, lecture) → groupes PVE `<groupe>-pocketid`, réécrits à
+     chaque connexion ; utilisateurs `<nom>@pocketid` créés au premier login.
+     Pas de PKCE (proxmox-openid ne l'envoie pas). Rappel : l'origine de la
+     page, `https://pve.sylvain.cloud:8006` et `https://192.168.1.26:8006`
+     (une autre adresse d'accès : l'ajouter au client). `root@pam` reste le
+     secours.
+   - **Tuiles vitrine** : chaque appli du mur sans client réel a un client
+     public `vitrine-<appli>` (`pocketid_client.launcher`, généré depuis
+     `local.websites`), jamais utilisé pour se connecter, pour paraître dans
+     « Mes applis » de Pocket ID aux seuls membres du groupe de son rôle. Une
+     nouvelle appli y entre d'elle-même (test `tofu test`).
+ Mettre la personne dans le
    groupe Pocket ID de chaque appli (nom technique = le rôle Pangolin : `immich`,
    `trek`… ; nom affiché = celui de l'appli, sans préfixe : tout groupe
    d'appli vaut accès au mur Pangolin), puis se connecter à la page de login de Pangolin avec « Pocket

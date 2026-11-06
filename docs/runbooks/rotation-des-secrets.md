@@ -413,7 +413,10 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   interface. Karakeep (`["karakeep"]`), Papra (`["papra"]`) et Yamtrack
   (`["yamtrack"]`) : `docker.yml --tags <appli>`, le rôle relit la sortie.
   MediaManager (`["mediamanager"]`) : `nas.yml --tags mediamanager`, à la main
-  (jamais par la CI).
+  (jamais par la CI). Nextcloud (`["nextcloud"]`) : `docker.yml --tags
+  nextcloud` (le rôle rejoue `occ user_oidc:provider`). Proxmox
+  (`["proxmox"]`) : `pve.yml --tags pve_oidc`, à la main (`pveum realm
+  modify` reposé à chaque passage). Les tuiles vitrine n'ont pas de secret.
 - `ntfy_scripts_token` sert aussi au résumé CrowdSec hebdomadaire de Pangolin
   (`/etc/crowdsec-summary/env`) : après sa rotation,
   `ansible-playbook pangolin.yaml --tags pangolin`, aux pièges maison

@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox"])
 
   length  = 48
   special = false
@@ -438,6 +438,131 @@ output "pocket_id_mediamanager_client_id" {
 output "pocket_id_mediamanager_client_secret" {
   description = "POCKET ID - secret du client OIDC de MediaManager"
   value       = random_password.pocket_id_client["mediamanager"].result
+  sensitive   = true
+}
+
+# Nextcloud (le foyer, groupe nextcloud) : app user_oidc, fournisseur posé par
+# le rôle nextcloud (occ user_oidc:provider). Liaison par uid : l'uid
+# Nextcloud = le nom d'utilisateur Pocket ID (preferred_username), vérifié le
+# 2026-11-06 pour les comptes du foyer. Création de compte par OIDC coupée,
+# groupes (admin compris) gérés dans Nextcloud.
+resource "pocketid_client" "nextcloud" {
+  name          = "Nextcloud"
+  client_id     = "nextcloud"
+  client_secret = random_password.pocket_id_client["nextcloud"].result
+  callback_urls = [
+    "https://sylvain.cloud/apps/user_oidc/code",
+    "https://sylvain.cloud/index.php/apps/user_oidc/code",
+  ]
+  allowed_user_groups = [pocketid_group.pangolin_role["nextcloud"].id]
+  launch_url          = "https://sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/nextcloud.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# Proxmox VE (hors mur Pangolin : LAN et ressource privée) : realm OpenID
+# « pocketid » posé par le rôle pve_hardening (pve.yml, à la main). Les groupes
+# Pocket ID deviennent les groupes PVE <groupe>-pocketid, qui portent les ACL
+# (Administrator, PVEAuditor). root@pam reste le secours. Pas de PKCE :
+# proxmox-openid génère un défi mais ne l'envoie pas. Rappel : l'origine de la
+# page (sans chemin), une par adresse d'accès.
+resource "pocketid_group" "proxmox_admin" {
+  name          = "proxmox-admin"
+  friendly_name = "Proxmox admin"
+}
+
+resource "pocketid_group" "proxmox_auditor" {
+  name          = "proxmox-auditor"
+  friendly_name = "Proxmox lecture"
+}
+
+resource "pocketid_client" "proxmox" {
+  name          = "Proxmox"
+  client_id     = "proxmox"
+  client_secret = random_password.pocket_id_client["proxmox"].result
+  callback_urls = [
+    "https://pve.sylvain.cloud:8006",
+    "https://192.168.1.26:8006",
+  ]
+  allowed_user_groups = [pocketid_group.proxmox_admin.id, pocketid_group.proxmox_auditor.id]
+  launch_url          = "https://pve.sylvain.cloud:8006"
+  logo_url            = "${local.pocket_id_logo_base}/proxmox.svg"
+  pkce_enabled        = false
+  is_public           = false
+}
+
+# Tuiles « vitrine » : chaque appli du mur sans client OIDC réel a un client
+# public jamais utilisé pour se connecter, juste pour paraître dans « Mes
+# applis » de Pocket ID aux membres de son groupe (= son rôle Pangolin) : le
+# lanceur liste tout client à launch_url dont un groupe contient la personne
+# (ListAccessibleOidcClients, v2.19.1). Le rappel est l'appli elle-même.
+locals {
+  # Logos hors dashboard-icons/<icon>.svg (icône absente ou mdi-), rempli
+  # après vérification (curl -sI) de chaque URL.
+  pocket_id_launcher_logos = {
+    pairdrop          = "${local.pocket_id_mdi_base}/file-send.svg"
+    speedtest_tracker = "${replace(local.pocket_id_logo_base, "/svg", "/png")}/speedtest-tracker.png"
+  }
+
+  # Icônes mdi- de Homepage, en SVG, version épinglée.
+  pocket_id_mdi_base = "https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg"
+
+  # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
+  pocket_id_oidc_roles = toset([
+    "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
+    "karakeep", "papra", "yamtrack", "nextcloud",
+  ])
+
+  pocket_id_launchers = {
+    for key, website in local.websites : key => {
+      name = lookup(website.homepage, "title", website.name)
+      role = website.role
+      icon = lookup(website.homepage, "icon", "")
+    }
+    if try(website.role, null) != null
+    && website.homepage != null
+    && try(website.enabled, true)
+    && !contains(local.pocket_id_oidc_roles, website.role)
+  }
+}
+
+resource "pocketid_client" "launcher" {
+  for_each = local.pocket_id_launchers
+
+  name                = each.value.name
+  client_id           = "vitrine-${each.key}"
+  callback_urls       = ["https://${pangolin_resource.website[each.key].full_domain}"]
+  allowed_user_groups = [pocketid_group.pangolin_role[each.value.role].id]
+  launch_url          = "https://${pangolin_resource.website[each.key].full_domain}"
+  logo_url = lookup(local.pocket_id_launcher_logos, each.key, (
+    startswith(each.value.icon, "mdi-")
+    ? "${local.pocket_id_mdi_base}/${trimprefix(each.value.icon, "mdi-")}.svg"
+    : "${local.pocket_id_logo_base}/${each.value.icon}.svg"
+  ))
+  pkce_enabled = true
+  is_public    = true
+}
+
+output "pocket_id_nextcloud_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Nextcloud"
+  value       = pocketid_client.nextcloud.client_id
+}
+
+output "pocket_id_nextcloud_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Nextcloud"
+  value       = random_password.pocket_id_client["nextcloud"].result
+  sensitive   = true
+}
+
+output "pocket_id_proxmox_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Proxmox"
+  value       = pocketid_client.proxmox.client_id
+}
+
+output "pocket_id_proxmox_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Proxmox"
+  value       = random_password.pocket_id_client["proxmox"].result
   sensitive   = true
 }
 
