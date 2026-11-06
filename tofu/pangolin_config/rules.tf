@@ -91,9 +91,11 @@ locals {
   # Derived rather than listed, so a new app cannot be left out of it; every
   # one of them gets the country rules, and the coverage precondition below
   # still fails the plan on a live, enabled resource that no entry declares.
-  managed_resources = {
-    for key, website in local.websites : website.name => pangolin_resource.website[key].id
-  }
+  # Plus les bureaux à distance (remote_support.tf), hors de local.websites.
+  managed_resources = merge(
+    { for key, website in local.websites : website.name => pangolin_resource.website[key].id },
+    { for key, desktop in local.remote_desktops : desktop.name => pangolin_resource.remote_desktop[key].id },
+  )
 
 
   # Trip countries share the resource and the key format of the permanent ones
@@ -431,7 +433,10 @@ locals {
   # Stringified so the ids compare cleanly against the JSON numbers. Every
   # target comes from the for_each of websites.tf: a standalone pangolin_target
   # would have to be added here, or the audit reports it as undeclared.
-  declared_target_ids = toset([for target in pangolin_target.website : tostring(target.id)])
+  declared_target_ids = toset(concat(
+    [for target in pangolin_target.website : tostring(target.id)],
+    [for target in pangolin_target.remote_desktop : tostring(target.id)],
+  ))
 
   truncated_target_lists = [
     for name, response in data.http.pangolin_targets : name

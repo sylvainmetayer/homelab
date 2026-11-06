@@ -229,7 +229,7 @@ class RealPlaybooks(unittest.TestCase):
         # newt_service has an entry in lxc.yml only, which CI never runs.
         result, stderr = self.run_script("ansible/roles/newt_service/tasks/main.yml")
         self.assertEqual(set(result.values()), {""})
-        self.assertIn("::notice::role 'newt_service' changed, deployed by hand only (lxc.yml), not by CI", stderr)
+        self.assertIn("::notice::role 'newt_service' changed, deployed by hand only (lxc.yml, pc-support.yml), not by CI", stderr)
         self.assertNotIn("::warning::", stderr)
 
     def test_role_of_the_setup_playbook_gets_a_notice(self):
