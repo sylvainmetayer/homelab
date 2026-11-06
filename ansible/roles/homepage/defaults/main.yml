@@ -49,6 +49,13 @@ homepage_extra_links:
     group: Administration
     description: Tableau de bord du reverse proxy
     icon: mdi-shield-key-outline
+  - key: pocket-id
+    name: Pocket ID
+    href: https://id.sylvain.cloud
+    group: Administration
+    description: Fournisseur d'identité (OIDC, passkeys)
+    icon: pocket-id
+    site_monitor: https://id.sylvain.cloud/healthz
   - key: proxmox
     name: Proxmox
     href: https://pve.sylvain.cloud:8006
