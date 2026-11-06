@@ -55,6 +55,8 @@
           # newt (Pangolin passe par nas-proxy).
           - mm_verify_app.networks.keys() | sort == ['db', 'default', 'proxy']
           - mm_verify_app.mem_limit | int == 536870912
+          # Rappel OIDC en https : uvicorn croit le X-Forwarded-Proto de nas-proxy.
+          - mm_verify_app.environment.FORWARDED_ALLOW_IPS == '*'
           # La base : jamais sur proxy ni sur un réseau qui sort.
           - mm_verify_db.networks.keys() | list == ['db']
           - mm_verify_db.ports is not defined
@@ -90,7 +92,12 @@
           - mm_verify_config is search('(?m)^category_save_path = "/data/torrents"$')
           - mm_verify_config is search('(?m)^frontend_url = "https://mediamanager.sylvain.cloud"$')
           - mm_verify_config is search('(?m)^cors_urls = \\["https://mediamanager.sylvain.cloud", "https://mediamanager.sylvain.cloud:8443"\\]$')
-          - mm_verify_config | regex_findall('(?m)^enabled = false$') | length == 3
+          # OIDC rendu (sorties fictives du converge) ; qBittorrent et Prowlarr coupés.
+          - mm_verify_config | regex_findall('(?m)^enabled = false$') | length == 2
+          - mm_verify_config is search('(?m)^\\[auth\\.openid_connect\\]\\n.*\\nenabled = true$')
+          - mm_verify_config is search('(?m)^client_id = "molecule-pocket-id-mediamanager-client-id"$')
+          - mm_verify_config is search('(?m)^client_secret = "molecule-pocket-id-mediamanager-client-secret"$')
+          - mm_verify_config is search('(?m)^configuration_endpoint = "https://idp.example.invalid/.well-known/openid-configuration"$')
           - mm_verify_config is search('password = "' ~ ((backup_passphrase ~ '-mediamanager-db') | hash('sha256')) ~ '"')
         fail_msg: "config.toml inattendu ({{ mm_verify_config_stat.stat.mode | default('absent') }})"
 

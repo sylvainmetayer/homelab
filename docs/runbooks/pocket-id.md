@@ -158,6 +158,25 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      l'administrateur crée les comptes Pocket ID) ; `DISABLE_SIGNUPS` empêche
      toute création. Mot de passe gardé : l'appli mobile et l'extension
      l'utilisent (ou une clé d'API). Pas de rôle par claim.
+   - **Papra** (le foyer, groupe `papra`) : rien à saisir, le rôle `papra`
+     pose `AUTH_PROVIDERS_CUSTOMS` (fournisseur `pocket-id`, PKCE) depuis les
+     sorties Tofu. Liaison par e-mail vérifié (better-auth), à confirmer au
+     premier essai ; l'inscription fermée empêche toute création. Mot de passe
+     gardé. Pas de rôle par claim.
+   - **Yamtrack** (le foyer, groupe `yamtrack`) : rien à saisir, le rôle pose
+     `SOCIAL_PROVIDERS` et `SOCIALACCOUNT_PROVIDERS` (allauth, PKCE). **Aucune
+     liaison automatique** : chacun se connecte une fois par mot de passe, puis
+     Réglages, Comptes, « Manage Account Connections », Pocket ID.
+     `REGISTRATION=False` ferme aussi l'inscription par OIDC. Mot de passe
+     gardé.
+   - **MediaManager** (essai, NAS, groupe `mediamanager`) : rien à saisir, le
+     rôle pose `[auth.openid_connect]` ; **déploiement à la main**
+     (`nas.yml --tags mediamanager`, jamais par la CI). Pas de PKCE.
+     Liaison par e-mail **sans contrôle de vérification** et **aucun
+     interrupteur d'inscription** : tout membre du groupe peut se créer un
+     compte, le groupe est la seule barrière. Admin : `admin_emails`, à
+     l'inscription seulement. Rappel bâti depuis la requête
+     (`FORWARDED_ALLOW_IPS` pour le https), déclaré pour 443 et 8443.
 5. **Accès au mur Pangolin = groupes Pocket ID.** Mettre la personne dans le
    groupe Pocket ID de chaque appli (nom technique = le rôle Pangolin : `immich`,
    `trek`… ; nom affiché = celui de l'appli, sans préfixe : tout groupe

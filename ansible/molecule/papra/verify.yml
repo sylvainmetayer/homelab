@@ -110,6 +110,25 @@
           - "'AUTH_IS_REGISTRATION_ENABLED=false' in papra_env_lines"
           - papra_env_lines | select('match', '^AUTH_SECRET=[0-9a-f]{64}$') | list | length == 1
 
+    # Pocket ID (sorties fictives du converge) : un fournisseur « pocket-id »,
+    # PKCE, mot de passe gardé ; le JSON entre apostrophes reste lisible.
+    - name: Assert papra signs in through Pocket ID and keeps the password
+      vars:
+        papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
+        papra_oidc_line: "{{ papra_env_lines | select('match', '^AUTH_PROVIDERS_CUSTOMS=') | first }}"
+        papra_oidc: "{{ papra_oidc_line.split('=', 1)[1][1:-1] | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - papra_oidc_line.split('=', 1)[1] is match("^'.*'$")
+          - papra_oidc | length == 1
+          - papra_oidc[0].providerId == 'pocket-id'
+          - papra_oidc[0].type == 'oidc'
+          - papra_oidc[0].clientId == 'molecule-pocket-id-papra-client-id'
+          - papra_oidc[0].clientSecret == 'molecule-pocket-id-papra-client-secret'
+          - papra_oidc[0].discoveryUrl == 'https://idp.example.invalid/.well-known/openid-configuration'
+          - papra_oidc[0].pkce
+          - papra_env_lines | select('match', '^AUTH_PROVIDERS_EMAIL_IS_ENABLED=') | list | length == 0
+
     # File des tâches dans une base du volume, à côté de db.sqlite (glob de
     # la sauvegarde) : en mémoire, un redémarrage la perdrait.
     - name: Assert papra persists its task queue on the volume

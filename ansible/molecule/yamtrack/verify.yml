@@ -73,6 +73,8 @@
     # Dérivé de backup_passphrase (64 hexadécimaux), jamais la clé publique de l'image ;
     # inscription fermée, admin Django coupé, ids du compte de déploiement.
     - name: Assert the yamtrack environment
+      vars:
+        yamtrack_oidc: "{{ (yamtrack_env.SOCIALACCOUNT_PROVIDERS[1:-1] | from_json).openid_connect }}"
       ansible.builtin.assert:
         that:
           - yamtrack_env.SECRET is match('^[0-9a-f]{64}$')
@@ -82,6 +84,14 @@
           - yamtrack_env.REDIS_URL == 'redis://yamtrack-redis:6379'
           - yamtrack_env.PUID == ansible_facts['user_uid'] | string
           - yamtrack_env.PGID == ansible_facts['user_gid'] | string
+          # Pocket ID (sorties fictives du converge), mot de passe gardé.
+          - yamtrack_env.SOCIAL_PROVIDERS == 'allauth.socialaccount.providers.openid_connect'
+          - yamtrack_env.SOCIALACCOUNT_ONLY is not defined
+          - yamtrack_oidc.OAUTH_PKCE_ENABLED
+          - yamtrack_oidc.APPS[0].provider_id == 'pocket-id'
+          - yamtrack_oidc.APPS[0].client_id == 'molecule-pocket-id-yamtrack-client-id'
+          - yamtrack_oidc.APPS[0].secret == 'molecule-pocket-id-yamtrack-client-secret'
+          - yamtrack_oidc.APPS[0].settings.server_url == 'https://idp.example.invalid/.well-known/openid-configuration'
 
     # Nom du conteneur = cible de Pangolin (website_yamtrack.tf) ; Redis reste
     # sur le réseau interne.

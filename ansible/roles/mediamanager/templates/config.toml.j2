@@ -29,7 +29,16 @@ email_password_resets = false
 admin_emails = [{{ mediamanager_admin_email | to_json }}]
 
 [auth.openid_connect]
+{% if mediamanager_oidc_enabled | bool %}
+# Pocket ID (defaults/main.yml) ; rappel {URL}/api/v1/auth/oauth/callback.
+enabled = true
+client_id = {{ mediamanager_oidc_client_id | to_json }}
+client_secret = {{ mediamanager_oidc_client_secret | to_json }}
+configuration_endpoint = {{ (mediamanager_oidc_issuer ~ '/.well-known/openid-configuration') | to_json }}
+name = "Pocket ID"
+{% else %}
 enabled = false
+{% endif %}
 
 [torrents.qbittorrent]
 # Derrière gluetun (network_mode: service:gluetun) : joint par le nom du

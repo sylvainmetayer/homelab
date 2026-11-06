@@ -4,6 +4,15 @@
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
+  vars:
+    # Sorties fictives du state pangolin_config : la connexion Pocket ID rendue.
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_yamtrack_client_id:
+        value: molecule-pocket-id-yamtrack-client-id
+      pocket_id_yamtrack_client_secret:
+        value: molecule-pocket-id-yamtrack-client-secret
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml

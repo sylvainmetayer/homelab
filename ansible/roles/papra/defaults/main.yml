@@ -16,6 +16,16 @@ papra_domain: papra.sylvain.cloud
 # part par le relais SMTP Infomaniak).
 papra_registration_enabled: false
 
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client papra),
+# rendue seulement quand l'émetteur, l'identifiant et le secret sont dans le
+# state. Le mot de passe reste (secours, clés d'API). better-auth lie un
+# compte existant par e-mail vérifié ; l'inscription fermée l'empêche d'en
+# créer un au premier login.
+papra_oidc_client_id: "{{ terraform_outputs.pocket_id_papra_client_id.value | default('') }}"
+papra_oidc_client_secret: "{{ terraform_outputs.pocket_id_papra_client_secret.value | default('') }}"
+papra_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+papra_oidc_enabled: "{{ papra_oidc_client_id | length > 0 and papra_oidc_client_secret | length > 0 and papra_oidc_issuer | length > 0 }}"
+
 # Langues de l'OCR (Tesseract, tesseract.js dans l'image), codes Tesseract.
 papra_ocr_languages:
   - fra

@@ -164,3 +164,12 @@ its trial, run that once before `remove-app`: the decommission knows nothing of
 Follow-up, not wired: an Uptime Kuma push monitor (like
 `ntfy-subscribers-check`) to be told when the run keeps failing (expired app
 password, IMAP down).
+
+## Connexion par Pocket ID
+
+Client `papra` de `tofu/pangolin_config/pocket_id.tf` (groupe `papra`). Les
+`papra_oidc_*` de `defaults/main.yml` lisent les sorties Tofu ; tant qu'elles
+manquent, `AUTH_PROVIDERS_CUSTOMS` n'est pas rendu. Fournisseur `pocket-id`
+(rappel `/api/auth/oauth2/callback/pocket-id`), PKCE. better-auth lie un compte
+existant par e-mail vérifié ; l'inscription fermée empêche d'en créer un. Le
+mot de passe et les clés d'API restent (secours, appli mobile).

@@ -19,6 +19,10 @@ services:
       TZ: Europe/Paris
       CONFIG_DIR: /app/config
       MEDIAMANAGER_NO_STARTUP_ART: "1"
+      # uvicorn (--proxy-headers) ne croit X-Forwarded-Proto que de 127.0.0.1 :
+      # sans ça, le rappel OIDC partirait en http. Joint seulement par
+      # nas-proxy, sur les réseaux du compose.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - ./config:/app/config
       - ./images:/images
