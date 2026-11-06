@@ -142,6 +142,13 @@ resource "pangolin_resource" "website" {
   sticky_session          = local.resource_pins.sticky_session
   resource_policy_id      = local.resource_pins.resource_policy_id
 
+  # Behind the SSO, the login page jumps straight to Pocket ID (Pangolin's
+  # AutoLoginHandler): one click less for the household. Break glass: the
+  # dashboard's own login page keeps the local form (internal owner account),
+  # and its session also opens the resources. Public resources (sso = false)
+  # have no login page: null, left computed (it cannot be pinned to null).
+  skip_to_idp_id = (contains(local.php_lockdown_sso, each.key) || lookup(each.value, "sso", true)) ? pangolin_idp.pocket_id.id : null
+
   # Maintenance screen served automatically while no target is healthy.
   # See maintenance.tf.
   maintenance_mode_enabled = local.maintenance.enabled
