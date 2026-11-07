@@ -77,9 +77,6 @@
           - not (nas_proxy_verify_jellyfin.networks.media.internal | default(false))
         fail_msg: "Service traefik inattendu : {{ nas_proxy_verify_traefik }}"
 
-    # Relais du 443 de l'hôte : réseau hôte sans port publié (un 443 déjà pris
-    # par le nginx d'UGOS ne fait pas échouer `up`, ni tomber nas-proxy), même
-    # image que nas-proxy, durci pareil, sans secret ni certificat.
     # oauth2-proxy : durci comme Traefik (sans capacité à ajouter), sur newt
     # seul (sortie vers Pocket ID, jamais gluetun), aucun port publié, groupe
     # mediamanager-admin exigé, PKCE, cookie sans Domain (un par nom), secrets
@@ -110,17 +107,21 @@
           - "'--cookie-secure=true' in nas_proxy_verify_oauth2.command"
           - "'--reverse-proxy=true' in nas_proxy_verify_oauth2.command"
           - "'--upstream=static://202' in nas_proxy_verify_oauth2.command"
+          - "'--skip-provider-button=true' in nas_proxy_verify_oauth2.command"
           - "'--whitelist-domain=prowlarr.sylvain.cloud:*' in nas_proxy_verify_oauth2.command"
           - "'--whitelist-domain=qbittorrent.sylvain.cloud:*' in nas_proxy_verify_oauth2.command"
           - nas_proxy_verify_oauth2_cmd is not search('cookie-domain')
           - nas_proxy_verify_oauth2_cmd is not search('molecule-pocket-id-tools-client-secret')
           - nas_proxy_verify_oauth2.environment.OAUTH2_PROXY_CLIENT_SECRET == 'molecule-pocket-id-tools-client-secret'
-          # Exactement 32 octets, dérivés de backup_passphrase.
+          # 32 caractères, dérivés de backup_passphrase.
           - nas_proxy_verify_oauth2.environment.OAUTH2_PROXY_COOKIE_SECRET | length == 32
           - nas_proxy_verify_oauth2.environment.OAUTH2_PROXY_COOKIE_SECRET
             == ((backup_passphrase ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32]
         fail_msg: "Service oauth2-proxy inattendu : {{ nas_proxy_verify_oauth2 }}"
 
+    # Relais du 443 de l'hôte : réseau hôte sans port publié (un 443 déjà pris
+    # par le nginx d'UGOS ne fait pas échouer `up`, ni tomber nas-proxy), même
+    # image que nas-proxy, durci pareil, sans secret ni certificat.
     - name: Assert the host port 443 relay runs in the host network, hardened and secretless
       vars:
         nas_proxy_verify_model: "{{ nas_proxy_verify_compose.results[0].stdout | from_json }}"
@@ -226,11 +227,11 @@
           - nas_proxy_verify_routers.qbittorrent.rule == 'Host(`qbittorrent.sylvain.cloud`)'
           - nas_proxy_verify_routers.prowlarr.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_routers.qbittorrent.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
-          # Pocket ID : l'errors middleware (401 vers la page de connexion) en
-          # amont du forwardAuth, puis les en-têtes ; mediamanager, media et nas
-          # n'ont ni l'un ni l'autre.
-          - nas_proxy_verify_routers.prowlarr.middlewares == ['oauth2-signin', 'oauth2-auth', 'mediamanager-headers']
-          - nas_proxy_verify_routers.qbittorrent.middlewares == ['oauth2-signin', 'oauth2-auth', 'mediamanager-headers']
+          # Pocket ID : forwardAuth seul (302 vers Pocket ID fait par
+          # oauth2-proxy, pas d'errors middleware), puis les en-têtes ;
+          # mediamanager, media et nas n'en ont pas.
+          - nas_proxy_verify_routers.prowlarr.middlewares == ['oauth2-auth', 'mediamanager-headers']
+          - nas_proxy_verify_routers.qbittorrent.middlewares == ['oauth2-auth', 'mediamanager-headers']
           - nas_proxy_verify_routers.jellyfin.middlewares == ['jellyfin-headers']
           - nas_proxy_verify_routers.ugos.middlewares == ['ugos-lan', 'ugos-headers']
           - nas_proxy_verify_routers['prowlarr-oauth2'].rule == 'Host(`prowlarr.sylvain.cloud`) && PathPrefix(`/oauth2/`)'
@@ -242,11 +243,8 @@
           - nas_proxy_verify_routers['prowlarr-oauth2'].middlewares is not defined
           - nas_proxy_verify_routers['prowlarr-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_routers['qbittorrent-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
-          - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.address == 'http://nas-proxy-oauth2:4180/oauth2/auth'
+          - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.address == 'http://nas-proxy-oauth2:4180/'
           - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.trustForwardHeader
-          - nas_proxy_verify_dynamic.http.middlewares['oauth2-signin'].errors.status == ['401']
-          - nas_proxy_verify_dynamic.http.middlewares['oauth2-signin'].errors.service == 'oauth2-proxy'
-          - nas_proxy_verify_dynamic.http.middlewares['oauth2-signin'].errors.query == '/oauth2/sign_in?rd={url}'
           - nas_proxy_verify_services['oauth2-proxy'].loadBalancer.servers | map(attribute='url') | list == ['http://nas-proxy-oauth2:4180']
           - nas_proxy_verify_services.prowlarr.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:9696']
           - nas_proxy_verify_services.qbittorrent.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:8080']

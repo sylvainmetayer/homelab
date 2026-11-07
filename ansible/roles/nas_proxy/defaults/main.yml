@@ -136,9 +136,10 @@ nas_proxy_oauth2_group: mediamanager-admin
 # Estimé, pas mesuré : un proxy Go sans état, ~15 à 30 Mo de RSS au repos ;
 # 2x le haut de la fourchette. À recaler sur memory.peak après une semaine.
 nas_proxy_oauth2_mem_limit: 64m
-# Exactement 32 octets (32 caractères hexadécimaux), dérivés comme les clés des
-# autres rôles ; pas de clé SOPS. Change seulement si backup_passphrase change :
-# les sessions ouvertes tomberaient, sans autre dégât.
+# 32 caractères hexadécimaux dérivés comme les clés des autres rôles ; pas de
+# clé SOPS. oauth2-proxy les lit en base64 (24 octets, AES-192 valide) : sans
+# conséquence, mais ce ne sont pas 32 octets. Change seulement si
+# backup_passphrase change : les sessions ouvertes tomberaient, sans autre dégât.
 nas_proxy_oauth2_cookie_secret: "{{ ((backup_passphrase ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32] }}"
 # Les noms protégés : un cookie propre à chacun (préfixe __Host-, sans Domain).
 # Le premier label sert de nom au routeur /oauth2/.
