@@ -26,4 +26,6 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 
 ## Rebuild / restore
 
+- Database copies: Pangolin copies its SQLite DB (~2 GiB each) to `config/db/backups/` before every migration and never purges them. They are excluded from borgmatic (the live DB is dumped), and `/etc/tmpfiles.d/pangolin-db-copies.conf` (`e` rule, run daily by `systemd-tmpfiles-clean.timer`) deletes those older than `pangolin_db_copies_retention_days` (30). Age only: the newest copy is not kept if it is old.
+
 Server image, Hetzner backups and the rebuild order: `tofu/pangolin/README.md`.

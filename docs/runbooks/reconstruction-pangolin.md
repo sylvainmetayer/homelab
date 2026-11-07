@@ -102,9 +102,11 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
    Le conteneur tourne en root : le fichier SQLite reste `root:root`
    `0644`, comme le crée le `cp` de root (umask 022 ; vérifié le
    2026-10-28). L'archive pèse
-   ~10 Go (la base ~2,3 Go, et `config/db/backups/`, les copies que Pangolin
-   fait avant chaque migration, ~7,7 Go) : compter ~3 min d'extraction et
-   ~20 Go libres sur le disque.
+   ~2,3 Go (la base) : `config/db/backups/`, les copies que Pangolin fait
+   avant chaque migration (~2 Go pièce), est exclu de Borg et purgé après
+   30 jours (`pangolin_db_copies_retention_days`). Les archives antérieures
+   au changement en contiennent encore (~10 Go) : compter ~3 min
+   d'extraction et ~20 Go libres sur le disque.
 
 6. **Le reste de la play** (pile, NAT, sécurité) :
 
