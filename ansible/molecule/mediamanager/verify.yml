@@ -9,7 +9,7 @@
   vars:
     mm_verify_path: "{{ docker_base_path }}/mediamanager"
     mm_verify_vpn_path: "{{ docker_base_path }}/mediamanager_vpn"
-    mm_verify_sandbox: /volume1/media/.mediamanager-test
+    mm_verify_sandbox: /volume1/media/mediamanager
     mm_verify_borgmatic_path: "{{ docker_base_path }}/borgmatic/borgmatic.d/mediamanager.yaml"
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml

@@ -3,8 +3,8 @@
 MediaManager ([maxdorninger/MediaManager](https://github.com/maxdorninger/MediaManager),
 image `master` du 05/07/2026, voir « Version ») **à l'essai** sur le NAS : on y demande un film ou une série,
 Prowlarr cherche sur des trackers publics, qBittorrent télécharge par le VPN,
-MediaManager range le fichier. Tout se passe dans un bac à sable : les
-bibliothèques de Jellyfin ne sont jamais touchées. S'il ne convainc pas : skill
+MediaManager range le fichier dans son propre dossier de `media`, que Jellyfin
+lit par deux bibliothèques à lui : ta collection n'est jamais touchée. S'il ne convainc pas : skill
 `remove-app` (plus bas, « Retirer l'essai »).
 
 Partie de `nas.yml` (tag `mediamanager`), lancé à la main seulement, jamais
@@ -31,13 +31,23 @@ configuration. Retirer la clé et relancer le rôle les supprime
 
 ### Bac à sable et liens physiques
 
-`/volume1/media/.mediamanager-test/{films,series,torrents}`, au compte
+`/volume1/media/mediamanager/{films,series,torrents}` (caché, en
+`.mediamanager-test`, jusqu'au premier import réussi le 07/11), au compte
 `sylvain`, `0750`. Il est **dans** le dossier partagé `media`, parce que
 chaque dossier partagé d'UGOS est un sous-volume btrfs à part (vérifié : `media`
 et `docker` ont des `st_dev` différents) et qu'un lien physique ne traverse pas
 un sous-volume : MediaManager retomberait alors sans rien dire sur une copie.
-Il est caché et hors des dossiers des bibliothèques : Jellyfin, qui garde
-`media` en lecture seule, ne le voit pas.
+Il est hors des dossiers de la collection : Jellyfin, qui garde `media` en
+lecture seule, le lit par deux bibliothèques à lui, créées à la main
+(Tableau de bord → Bibliothèques → Ajouter) :
+
+| Bibliothèque | Type | Dossier (vu par Jellyfin) |
+|---|---|---|
+| Nouveautés films | Films | `/media/mediamanager/films` |
+| Nouveautés séries | Séries | `/media/mediamanager/series` |
+
+`torrents` n'est jamais une bibliothèque : il garde les noms du tracker et,
+pour un film, le même fichier une seconde fois (lien physique).
 
 MediaManager et qBittorrent montent ce dossier **une seule fois, en `/data`,
 au même chemin** : un lien physique entre deux montages distincts échoue
@@ -247,8 +257,8 @@ torrents sont un seul fichier, avec deux noms :
 
 ```bash
 # sur le NAS
-stat -c '%h %i %n' "/volume1/media/.mediamanager-test/films/<Titre (année)>/"*.mkv \
-  "/volume1/media/.mediamanager-test/torrents/<nom du torrent>/"*.mkv
+stat -c '%h %i %n' "/volume1/media/mediamanager/films/<Titre (année)>/"*.mkv \
+  "/volume1/media/mediamanager/torrents/<nom du torrent>/"*.mkv
 ```
 
 attendu : `2` (nombre de liens) et le **même numéro d'inode** sur les deux
@@ -295,7 +305,7 @@ Le bac à sable est hors de `docker_base_path` et `decommission_app` n'efface
 rien dans `media` (il n'accepte que `/mnt/nas/apps/<service>` en plus) : sur le
 NAS, garder d'abord ce qui doit l'être (déplacer un film vers `media/films`
 garde le fichier, le lien du dossier des torrents disparaît avec le reste),
-puis `sudo rm -rf /volume1/media/.mediamanager-test`.
+puis `sudo rm -rf /volume1/media/mediamanager`.
 
 Puis, dans le dépôt : ce rôle, `ansible/molecule/mediamanager/`, l'entrée de
 `nas.yml`, dans `nas_proxy` le routeur, le service et les en-têtes

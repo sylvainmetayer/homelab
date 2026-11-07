@@ -17,12 +17,13 @@ mediamanager_user: "{{ ansible_user }}"
 # Dans le dossier partagé media (rôle jellyfin), donc le même sous-volume btrfs
 # que les bibliothèques : un import par lien physique y marche, ce qu'un
 # dossier hors de media (autre sous-volume) empêcherait, MediaManager
-# retombant alors sans rien dire sur une copie. Caché (point) et hors des
-# dossiers des bibliothèques : Jellyfin, qui garde media en lecture seule, ne
-# le voit pas. Jamais media/films ni media/series : l'import d'une
-# bibliothèque existante renomme ses dossiers avec un point devant.
+# retombant alors sans rien dire sur une copie. Hors des dossiers de la
+# collection : Jellyfin le lit par deux bibliothèques à lui (« Nouveautés
+# films » et « Nouveautés séries », sur films et series de ce dossier, créées
+# à la main). Jamais media/films ni media/series : l'import d'une bibliothèque
+# existante renomme ses dossiers avec un point devant.
 mediamanager_media_path: /volume1/media
-mediamanager_sandbox_path: "{{ mediamanager_media_path }}/.mediamanager-test"
+mediamanager_sandbox_path: "{{ mediamanager_media_path }}/mediamanager"
 # Monté une seule fois, en /data, dans MediaManager comme dans qBittorrent :
 # un lien physique entre deux montages distincts échoue (EXDEV), même sur le
 # même système de fichiers.

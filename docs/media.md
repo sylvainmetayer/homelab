@@ -48,10 +48,13 @@ media/
 ├── series/
 ├── musique/
 ├── livres/
-└── livres-audio/
+├── livres-audio/
+└── mediamanager/   (MediaManager, à l'essai : n'y rien déposer à la main)
 ```
 
-Une bibliothèque Jellyfin par dossier. Pour copier, renommer ou supprimer,
+Une bibliothèque Jellyfin par dossier ; `mediamanager/films` et
+`mediamanager/series` sont « Nouveautés films » et « Nouveautés séries »
+(rôle `mediamanager`, README). Pour copier, renommer ou supprimer,
 monter le partage sur le PC, depuis `ansible/` du dépôt :
 
 ```bash
