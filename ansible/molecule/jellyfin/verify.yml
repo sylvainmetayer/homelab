@@ -54,7 +54,9 @@
           - jellyfin_verify_live_db in jellyfin_verify_borgmatic.exclude_patterns
           - (jellyfin_verify_live_db ~ '-wal') in jellyfin_verify_borgmatic.exclude_patterns
           - jellyfin_verify_borgmatic.local_path == '/usr/local/bin/borg'
-          - jellyfin_verify_borgmatic.ssh_command == 'ssh -i ' ~ docker_base_path ~ '/borgmatic/ssh/borgmatic_storage_box_ed25519 -p 23 -o ServerAliveInterval=60 -o ServerAliveCountMax=5'
+          - jellyfin_verify_borgmatic.ssh_command
+            == 'ssh -i ' ~ docker_base_path ~ '/borgmatic/ssh/borgmatic_storage_box_ed25519 -p 23'
+            ~ ' -o ServerAliveInterval=60 -o ServerAliveCountMax=5'
           - jellyfin_verify_borgmatic.repositories[0].path
             == 'ssh://' ~ backup_storage_box_subaccounts.nas.username ~ '@' ~ backup_storage_box_subaccounts.nas.server ~ '/./jellyfin'
           - jellyfin_verify_borgmatic.archive_name_format is match('jellyfin-')
