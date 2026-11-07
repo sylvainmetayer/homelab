@@ -1,0 +1,20 @@
+---
+# Remplissage du thin pool LVM de l'hôte Proxmox (local-lvm), données et
+# métadonnées : thin-pool-check.timer lance files/thin-pool-check.sh, qui pousse
+# up (résumé) ou down au moniteur « Thin pool Proxmox » d'Uptime Kuma, d'où
+# Telegram et ntfy. Beszel ne voit que `/` de l'hôte, pas le thin pool, et un
+# pool plein gèle la VM docker et le LXC.
+
+# Seuil en pour cent, appliqué aux données et aux métadonnées de chaque pool.
+thin_pool_check_threshold: 85
+
+# Script et fichier d'environnement (0700 root).
+thin_pool_check_dir: /usr/local/lib/thin-pool-check
+
+# URL push du moniteur (sortie uptime_cron_pve_thin_pool_url de
+# tofu/pangolin_config, lue par pve.yml) : vide, rien n'est poussé.
+thin_pool_check_healthcheck_url: ""
+
+# Toutes les 6 heures. Le moniteur tolère trois passages manqués
+# (cron_thin_pool.tf).
+thin_pool_check_schedule: "*-*-* 00/6:15:00"

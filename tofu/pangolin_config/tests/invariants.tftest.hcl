@@ -772,6 +772,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_thin_pool
+  values = { push_token = "push-cron-pve-thin-pool" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_dns["pi"]
   values = { push_token = "push-cron-dns-pi" }
 }
@@ -2133,6 +2138,8 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_pve_smart_url = output.uptime_cron_pve_smart_url
         uptime_cron_pi_smart_url  = output.uptime_cron_pi_smart_url
         uptime_cron_nas_smart_url = output.uptime_cron_nas_smart_url
+        # thin_pool_check : pve.yml
+        uptime_cron_pve_thin_pool_url = output.uptime_cron_pve_thin_pool_url
         }] : alltrue([
         for name, url in urls :
         url == "https://uptime.example.test/api/push/push-${replace(trimsuffix(trimprefix(trimprefix(name, "uptime_"), "backup_"), "_url"), "_", "-")}"
@@ -2737,6 +2744,22 @@ run "monitors_are_filed_and_alert" {
       ])
     )
     error_message = "S.M.A.R.T. (smart_check) : timer hebdomadaire ; un moniteur par hôte (pve, pi, nas), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
+  }
+
+  # Le contrôle du thin pool (rôle thin_pool_check) pousse toutes les 6 heures
+  # depuis pve : un jour de fenêtre, un down page tout de suite, et pve.yml
+  # joue le rôle avec l'URL du moniteur.
+  assert {
+    condition = (
+      can(regex("^\\*-\\*-\\* 00/6:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/thin_pool_check/defaults/main.yml")).thin_pool_check_schedule))
+      && uptimekuma_monitor_push.cron_thin_pool.interval == 60 * 60 * 24
+      && uptimekuma_monitor_push.cron_thin_pool.max_retries == 0
+      && uptimekuma_monitor_push.cron_thin_pool.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_thin_pool.notification_ids) == toset(local.alert_notification_ids)
+      && strcontains(file("${path.module}/../../ansible/pve.yml"), "thin_pool_check_healthcheck_url: \"{{ terraform_outputs.uptime_cron_pve_thin_pool_url.value | default('') }}\"")
+      && strcontains(file("${path.module}/../../ansible/pve.yml"), "- role: thin_pool_check\n")
+    )
+    error_message = "Thin pool (thin_pool_check) : timer toutes les 6 heures ; un moniteur push d'un jour qui page tout de suite, rangé avec les healthchecks, Telegram et ntfy ; pve.yml joue le rôle et lui donne son URL push."
   }
 
   # Blocky (rôle blocky) : chaque hôte pousse toutes les 5 minutes

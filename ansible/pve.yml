@@ -33,6 +33,7 @@
         vzdump_restore_test_healthcheck_url: "{{ terraform_outputs.uptime_cron_vzdump_restore_test_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}"
         smart_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_smart_url.value | default('') }}"
+        thin_pool_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_thin_pool_url.value | default('') }}"
   roles:
     - role: beszel_agent
       tags: beszel_agent,monitoring
@@ -61,6 +62,11 @@
       vars:
         smart_check_devices:
           - { path: /dev/sda }
+    # Remplissage du thin pool LVM (local-lvm), données et métadonnées, toutes
+    # les 6 heures : down dans Uptime Kuma à 85 %. Beszel ne voit que `/` de
+    # l'hôte (ansible/roles/thin_pool_check/README.md).
+    - role: thin_pool_check
+      tags: thin_pool_check,monitoring
     # En dernier : sshd par clé, dépôt pve-enterprise retiré, zone SDN
     # homelab supprimée, pare-feu PVE limité à l'hôte (22 et 8006 depuis le
     # LAN). Un tag par volet (pve_ssh, pve_firewall, pve_apt, pve_sdn), à

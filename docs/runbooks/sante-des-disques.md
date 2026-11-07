@@ -124,6 +124,16 @@ un `md` sous Btrfs, le scrub **détecte** une corruption mais ne la répare
 pas depuis le second disque : la vérification du RAID (`md`) est l'affaire
 d'UGOS, à vérifier aussi (`cat /proc/mdstat` : `[UU]` tant que les deux disques sont là).
 
+## Remplissage du thin pool de pve
+
+Beszel ne mesure que `/` de `pve`, pas `local-lvm`. Le rôle `thin_pool_check`
+([README](../../ansible/roles/thin_pool_check/README.md)) lit `lvs` toutes les
+6 heures et pousse le moniteur Uptime Kuma « Thin pool Proxmox » : down (Telegram
+et ntfy) dès que les données **ou** les métadonnées d'un thin pool atteignent
+85 %. Relevé du 07/11/2026 : données 23,85 %, métadonnées 1,32 %. Un pool plein
+gèle la VM docker et le LXC : libérer de la place (`lvs -a`, disque de la VM
+docker) avant d'agrandir quoi que ce soit.
+
 ## Alerte hebdomadaire sur l'usure et les secteurs
 
 Le rôle `smart_check` ([README](../../ansible/roles/smart_check/README.md))

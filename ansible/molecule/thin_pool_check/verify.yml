@@ -1,0 +1,100 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../roles/thin_pool_check/defaults/main.yml
+    - ../../roles/uptime_push/defaults/main.yml
+  vars:
+    thin_pool_check_verify_dir: /opt/molecule-thin-pool
+    # cas => [code de sortie attendu, statut poussé, morceau du message]
+    thin_pool_check_verify_cases:
+      ok: [0, up, "pve/data données 23.9 %, métadonnées 1.3 %"]
+      data: [1, down, "(seuil 85 %)"]
+      meta: [1, down, "métadonnées 91.4 %"]
+      none: [1, down, "aucun thin pool"]
+      fail: [1, down, "lvs: boom"]
+  tasks:
+    - name: Read the environment file and the service unit
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: thin_pool_check_verify_files
+      loop:
+        - "{{ thin_pool_check_dir }}/thin-pool-check.env"
+        - /etc/systemd/system/thin-pool-check.service
+
+    - name: Stat the environment file
+      ansible.builtin.stat:
+        path: "{{ thin_pool_check_dir }}/thin-pool-check.env"
+      register: thin_pool_check_verify_env_stat
+
+    - name: Verify the units as systemd parses them
+      ansible.builtin.command: systemd-analyze verify /etc/systemd/system/thin-pool-check.service /etc/systemd/system/thin-pool-check.timer
+      changed_when: false
+
+    - name: Read the loaded timer
+      ansible.builtin.systemd:
+        name: thin-pool-check.timer
+      register: thin_pool_check_verify_timer
+
+    - name: Assert the push URL stays off the command line, the timer runs
+      vars:
+        thin_pool_check_verify_service: "{{ thin_pool_check_verify_files.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - thin_pool_check_verify_env_stat.stat.mode == '0600'
+          - thin_pool_check_verify_env_stat.stat.pw_name == 'root'
+          - >-
+            'THIN_POOL_CHECK_PUSH_URL=http://127.0.0.1:18081/api/push/molecule-thin-pool'
+            in (thin_pool_check_verify_files.results[0].content | b64decode).splitlines()
+          - "'molecule-thin-pool' not in thin_pool_check_verify_service"
+          - "('thin-pool-check.sh 85') in thin_pool_check_verify_service"
+          - thin_pool_check_verify_timer.status.UnitFileState == 'enabled'
+          - thin_pool_check_verify_timer.status.ActiveState == 'active'
+        fail_msg: "{{ thin_pool_check_verify_service }}"
+
+    - name: Create the folder of the fakes
+      ansible.builtin.file:
+        path: "{{ thin_pool_check_verify_dir }}"
+        state: directory
+        mode: "0755" # NOSONAR faux de test, sans secret
+
+    - name: Install the fake lvs and uptime-push
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ thin_pool_check_verify_dir }}/{{ item }}"
+        mode: "0755" # NOSONAR faux de test, sans secret
+      loop: [lvs, uptime-push]
+
+    - name: Run the script on each case
+      ansible.builtin.shell: |
+        set -eu
+        d={{ thin_pool_check_verify_dir }}
+        echo {{ item.key }} > $d/case
+        : > $d/pushes.log
+        rc=0
+        THIN_POOL_CHECK_LVS=$d/lvs UPTIME_PUSH=$d/uptime-push \
+          THIN_POOL_CHECK_PUSH_URL=http://127.0.0.1:18081/api/push/x \
+          sh {{ thin_pool_check_dir }}/thin-pool-check.sh 85 >$d/out || rc=$?
+        echo "rc=$rc"
+        cat $d/pushes.log
+      args:
+        executable: /bin/sh
+      register: thin_pool_check_verify_runs
+      changed_when: false
+      loop: "{{ thin_pool_check_verify_cases | dict2items }}"
+
+    - name: Assert the exit code, the pushed status and message, the URL on stdin only
+      vars:
+        thin_pool_check_verify_expected: "{{ item.item.value }}"
+      ansible.builtin.assert:
+        that:
+          - "('rc=' ~ thin_pool_check_verify_expected[0]) in item.stdout_lines"
+          - "('args: --agent thin-pool-check - ' ~ thin_pool_check_verify_expected[1] ~ ' ') in item.stdout"
+          - thin_pool_check_verify_expected[2] in item.stdout
+          - "'url = \"http://127.0.0.1:18081/api/push/x\"' in item.stdout_lines"
+        fail_msg: "{{ item.stdout }}"
+      loop: "{{ thin_pool_check_verify_runs.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
