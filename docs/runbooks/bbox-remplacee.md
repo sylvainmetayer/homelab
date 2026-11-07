@@ -21,7 +21,7 @@ Ce que le dépôt suppose de la box :
 | DNS annoncés par le DHCP | `192.168.1.200` puis `192.168.1.96` | filtrage Blocky ([dns-blocky.md](dns-blocky.md)) ; bascule non constatée au 05/11 ([ADR 0012](../adr/0012-filtrage-dns-blocky.md)), à relire dans la Bbox |
 | Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (à vérifier), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
 | Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (à vérifier) |
-| Redirections de ports | **aucune** | ([ADR 0015](../adr/0015-acces-de-secours-wireguard.md) n'est pas mise en œuvre) |
+| Redirections de ports | **aucune** | (accès de secours WireGuard rejeté : [ADR 0015](../adr/0015-acces-de-secours-wireguard.md)) |
 | IP publique | stable ou non : à vérifier chez l'opérateur | `home_ip`, plus bas |
 
 Si la nouvelle box ne sait pas servir un autre réseau que le sien, ne pas
