@@ -80,22 +80,23 @@
   ansible.builtin.set_fact:
     beszel_api_token: "{{ beszel_api_auth.json.token }}"
 
-# Le compte administrateur, par son adresse ; le filtre est celui de l'API
-# (email="…"), encodé dans l'URL.
+# Le compte administrateur, par son rôle (role="admin") et non par son
+# adresse : depuis Pocket ID, l'adresse du compte suit celle de la personne
+# (renommée pour la liaison) et ne vaut plus beszel_admin_email.
 - name: Look up the Beszel admin user
   no_log: true
   ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/collections/users/records?perPage=2&skipTotal=1&fields=id&filter={{ ('email=\"' ~ beszel_admin_email ~ '\"') | urlencode }}"
+    url: "{{ beszel_api_url }}/api/collections/users/records?perPage=2&skipTotal=1&fields=id&filter=role%3D%22admin%22"
     headers:
       Authorization: "{{ beszel_api_token }}"
   register: beszel_api_admin
   check_mode: false
 
-- name: Refuse a hub without exactly one account for beszel_admin_email
+- name: Refuse a hub without exactly one Beszel admin account
   ansible.builtin.assert:
     that:
       - beszel_api_admin.json['items'] | length == 1
-    fail_msg: "Aucun compte Beszel (ou plusieurs) à l'adresse beszel_admin_email : alertes et réglages n'ont pas de propriétaire."
+    fail_msg: "Aucun compte Beszel de rôle admin (ou plusieurs) : alertes et réglages n'ont pas de propriétaire."
     quiet: true
 
 - name: Keep the admin user id
