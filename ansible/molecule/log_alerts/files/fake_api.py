@@ -50,7 +50,8 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200)
 
     def log_message(self, *_):
+        # Muet : le journal des requêtes est celui du scénario.
         pass
 
 
-HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()  # NOSONAR faux de test, boucle locale
