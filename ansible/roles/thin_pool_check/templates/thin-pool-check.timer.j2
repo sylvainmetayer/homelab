@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Persistent : un hôte éteint à l'heure dite rattrape le passage au démarrage.
+[Unit]
+Description=Periodic check of the LVM thin pool
+
+[Timer]
+OnCalendar={{ thin_pool_check_schedule }}
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

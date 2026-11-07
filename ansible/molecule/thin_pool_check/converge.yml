@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    # En root sans become, comme sur l'hôte.
+    - ../../host_vars/pve/variables.yaml
+  pre_tasks:
+    - name: Set the push URL as pve.yml does
+      no_log: true
+      ansible.builtin.set_fact:
+        thin_pool_check_healthcheck_url: http://127.0.0.1:18081/api/push/molecule-thin-pool # NOSONAR
+  roles:
+    - role: thin_pool_check

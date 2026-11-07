@@ -1,0 +1,6 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle comme pve.yml (en root sans become). Le verify joue le script contre
+# un faux lvs et un faux uptime-push.
+scenario:
+  name: thin_pool_check

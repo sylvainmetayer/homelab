@@ -1,0 +1,64 @@
+---
+- name: Assert the threshold is a percentage
+  ansible.builtin.assert:
+    that: thin_pool_check_threshold | int > 0 and thin_pool_check_threshold | int < 100
+    fail_msg: thin_pool_check_threshold est un pourcentage entre 1 et 99.
+    quiet: true
+
+- name: Ensure the thin pool check folder exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ thin_pool_check_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the thin pool check script
+  become: true
+  ansible.builtin.copy:
+    src: thin-pool-check.sh
+    dest: "{{ thin_pool_check_dir }}/thin-pool-check.sh"
+    owner: root
+    group: root
+    mode: "0700"
+
+# L'URL push porte le jeton du moniteur : 0600 root, diff: false.
+- name: Write the push URL of the thin pool check
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: "THIN_POOL_CHECK_PUSH_URL={{ thin_pool_check_healthcheck_url }}\n"
+    dest: "{{ thin_pool_check_dir }}/thin-pool-check.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Warn that the thin pool check will not push
+  when: thin_pool_check_healthcheck_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      thin_pool_check_healthcheck_url vide : le contrôle du thin pool ne va
+      qu'au journal (journalctl -u thin-pool-check). Appliquer
+      tofu/pangolin_config (sortie uptime_cron_pve_thin_pool_url) avant pve.yml.
+
+- name: Install the thin pool check service and timer
+  become: true
+  loop:
+    - thin-pool-check.service
+    - thin-pool-check.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+- name: Enable the thin pool check
+  become: true
+  ansible.builtin.systemd:
+    name: thin-pool-check.timer
+    state: started
+    enabled: true
+    daemon_reload: true
