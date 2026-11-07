@@ -105,7 +105,10 @@ services:
       # chaque connexion : gluetun le donne à qBittorrent par son API, sur le
       # 127.0.0.1 qu'ils partagent (WebUI\LocalHostAuth=false dans
       # qBittorrent.conf), et le retire quand le tunnel tombe. Commandes de la
-      # doc de gluetun (setup/advanced/vpn-port-forwarding.md).
+      # doc de gluetun (setup/advanced/vpn-port-forwarding.md), sauf la bascule
+      # sur « lo » à la descente : ProtonVPN refuse parfois un renouvellement
+      # NAT-PMP (toutes les 2 à 5 min), et « lo » coupait alors les transferts.
+      # qBittorrent reste sur tun0, le pare-feu de gluetun bloque le reste.
       VPN_PORT_FORWARDING: "on"
 {% if mediamanager_vpn_provider == 'protonvpn' %}
       # Serveurs P2P seuls : les autres refusent la redirection de port.
@@ -114,7 +117,7 @@ services:
       VPN_PORT_FORWARDING_UP_COMMAND: >-
         /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":{{ '{{PORT}}' }},\"current_network_interface\":\"{{ '{{VPN_INTERFACE}}' }}\",\"random_port\":false,\"upnp\":false}" http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/setPreferences'
       VPN_PORT_FORWARDING_DOWN_COMMAND: >-
-        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}" http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/setPreferences'
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":0}" http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app/setPreferences'
 {% endif %}
 {% if mediamanager_vpn_static_port | string | length > 0 %}
       # Port fixe réservé chez le fournisseur (AirVPN), posé dans qBittorrent.

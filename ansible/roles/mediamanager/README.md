@@ -69,8 +69,13 @@ qBittorrent par le mécanisme qu'il documente
 `VPN_PORT_FORWARDING_UP_COMMAND` appelle `POST /api/v2/app/setPreferences` de
 qBittorrent sur le `127.0.0.1` qu'ils partagent (`listen_port`, interface,
 `random_port` et UPnP coupés), `VPN_PORT_FORWARDING_DOWN_COMMAND` remet le port
-à 0 quand le tunnel tombe (un bug de qBittorrent exige de le reposer pour que
-la redirection reprenne). Ces appels passent sans mot de passe parce que
+à 0 quand la redirection tombe (un bug de qBittorrent exige de le reposer pour
+que la redirection reprenne), sans toucher à l'interface : la doc de gluetun
+bascule aussi sur `lo`, mais ProtonVPN refuse un renouvellement NAT-PMP toutes
+les 2 à 5 minutes (vu le 07/11 sur deux serveurs, même port rendu 10 à 60 s
+plus tard), et chaque bascule coupait tous les transferts. Rien ne fuit pour
+autant : qBittorrent reste lié à `tun0`, et le pare-feu de gluetun bloque tout
+hors du tunnel. Ces appels passent sans mot de passe parce que
 `WebUI\LocalHostAuth=false` : seuls gluetun, qBittorrent et Prowlarr voient
 cette boucle locale. MediaManager, lui, passe par `http://gluetun:8080` et se
 connecte avec le compte `mediamanager`.
