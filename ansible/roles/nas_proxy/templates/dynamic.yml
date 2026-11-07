@@ -35,6 +35,34 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Prowlarr et qBittorrent (rôle mediamanager) : leurs ports sont ceux de
+    # gluetun, dont ils partagent l'espace réseau. Même ouverture que
+    # mediamanager ; les ressources privées Pangolin sont liées au rôle
+    # mediamanager-admin.
+    prowlarr:
+      rule: "Host(`{{ nas_proxy_prowlarr_domain }}`)"
+      entryPoints:
+        - websecure
+        - websecure-lan
+        - websecure-forwarded
+      service: prowlarr
+      middlewares:
+        - mediamanager-headers
+      tls:
+        certResolver: letsencrypt
+
+    qbittorrent:
+      rule: "Host(`{{ nas_proxy_qbittorrent_domain }}`)"
+      entryPoints:
+        - websecure
+        - websecure-lan
+        - websecure-forwarded
+      service: qbittorrent
+      middlewares:
+        - mediamanager-headers
+      tls:
+        certResolver: letsencrypt
+
     # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
     # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443 et
     # le 443 de l'hôte (relais, websecure-forwarded) ; le 443 du conteneur
@@ -97,3 +125,11 @@ http:
       loadBalancer:
         servers:
           - url: "{{ nas_proxy_mediamanager_url }}"
+    prowlarr:
+      loadBalancer:
+        servers:
+          - url: "{{ nas_proxy_prowlarr_url }}"
+    qbittorrent:
+      loadBalancer:
+        servers:
+          - url: "{{ nas_proxy_qbittorrent_url }}"

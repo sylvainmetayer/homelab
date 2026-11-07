@@ -170,7 +170,7 @@
           - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.dnsChallenge.provider == 'ovh'
           - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.storage == '/letsencrypt/acme.json'
           - nas_proxy_verify_static.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
-          - nas_proxy_verify_routers.keys() | sort == ['jellyfin', 'mediamanager', 'ugos']
+          - nas_proxy_verify_routers.keys() | sort == ['jellyfin', 'mediamanager', 'prowlarr', 'qbittorrent', 'ugos']
           - nas_proxy_verify_routers.values() | map(attribute='tls.certResolver') | unique | list == ['letsencrypt']
           - nas_proxy_verify_routers.jellyfin.rule == 'Host(`media.sylvain.cloud`)'
           - nas_proxy_verify_routers.jellyfin.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
@@ -180,6 +180,15 @@
           - nas_proxy_verify_routers.mediamanager.middlewares == ['mediamanager-headers']
           - nas_proxy_verify_dynamic.http.middlewares['mediamanager-headers'].headers.stsSeconds == 31536000
           - nas_proxy_verify_services.mediamanager.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager:8000']
+          # Prowlarr et qBittorrent : gluetun, sur le réseau mediamanager_proxy.
+          - nas_proxy_verify_routers.prowlarr.rule == 'Host(`prowlarr.sylvain.cloud`)'
+          - nas_proxy_verify_routers.qbittorrent.rule == 'Host(`qbittorrent.sylvain.cloud`)'
+          - nas_proxy_verify_routers.prowlarr.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
+          - nas_proxy_verify_routers.qbittorrent.entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
+          - nas_proxy_verify_routers.prowlarr.middlewares == ['mediamanager-headers']
+          - nas_proxy_verify_routers.qbittorrent.middlewares == ['mediamanager-headers']
+          - nas_proxy_verify_services.prowlarr.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:9696']
+          - nas_proxy_verify_services.qbittorrent.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:8080']
           - nas_proxy_verify_routers.ugos.rule == 'Host(`nas.sylvain.cloud`)'
           - nas_proxy_verify_routers.ugos.entryPoints | sort == ['websecure-forwarded', 'websecure-lan']
           # Le Newt du site nas joint aussi le 8443 (ressource media, rôle
@@ -248,7 +257,7 @@
           - nas_proxy_verify_timer.status.ActiveState == 'active'
           - "'--port 8443 ' in nas_proxy_verify_exec"
           - "'--min-days 14 ' in nas_proxy_verify_exec"
-          - "'media.sylvain.cloud nas.sylvain.cloud mediamanager.sylvain.cloud' in nas_proxy_verify_exec"
+          - "'media.sylvain.cloud nas.sylvain.cloud mediamanager.sylvain.cloud prowlarr.sylvain.cloud qbittorrent.sylvain.cloud' in nas_proxy_verify_exec"
           - "'molecule-cert' not in nas_proxy_verify_exec"
           - nas_proxy_verify_check_unit.status.EnvironmentFiles is search(nas_proxy_verify_path ~ '/cert_check.env')
           - nas_proxy_verify_check_unit.status.NoNewPrivileges == 'yes'

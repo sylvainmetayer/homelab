@@ -1,5 +1,5 @@
 # Échéance des certificats du Traefik du NAS (media.sylvain.cloud,
-# nas.sylvain.cloud, mediamanager.sylvain.cloud), servis sur le LAN et par le
+# nas.sylvain.cloud, mediamanager, prowlarr et qbittorrent.sylvain.cloud), servis sur le LAN et par le
 # client Pangolin seulement : un moniteur HTTP de cet Uptime Kuma (PikaPods)
 # ne les joint pas. Le NAS vérifie lui-même chaque jour
 # (nas-proxy-cert-check.timer, rôle nas_proxy, nas.yml) et pousse up, ou down

@@ -388,6 +388,21 @@ override_resource {
   values = { id = 93 }
 }
 
+override_resource {
+  target = pangolin_role.mediamanager_admin
+  values = { id = 94 }
+}
+
+override_resource {
+  target = pangolin_site_resource.prowlarr
+  values = { id = 95 }
+}
+
+override_resource {
+  target = pangolin_site_resource.qbittorrent
+  values = { id = 96 }
+}
+
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
 # (une surcharge peut viser une seule instance d'un for_each, vérifié sur
 # OpenTofu 1.13), ceux de l'API quand un commentaire du code les cite.
@@ -2380,6 +2395,48 @@ run "nas_newt_credentials_and_media" {
     error_message = "mediamanager.sylvain.cloud (tofu/dns/mediamanager.tf, nas_proxy_mediamanager_domain, mediamanager_frontend_url) doit viser nas-proxy sur le site nas, en TCP 443 et 8443 comme media.sylvain.cloud, ouverte au seul rôle mediamanager, sans ressource publique ; nas_proxy_mediamanager_url doit viser le conteneur mediamanager sur mediamanager_port, et nas_proxy_mediamanager_network valoir mediamanager_network."
   }
 
+  # Prowlarr et qBittorrent (rôle mediamanager, derrière gluetun) : même
+  # nas-proxy et mêmes ports que MediaManager, un alias qui est le nom public de
+  # tofu/dns (mediamanager.tf), le même que sert le routeur de Traefik ; liés au
+  # seul rôle mediamanager-admin (jamais mediamanager), sans ressource publique.
+  # L'URL du service de Traefik suit le conteneur de gluetun et les ports de
+  # l'interface web de chacun, sur le réseau que crée nas_proxy.
+  assert {
+    condition = (
+      alltrue([
+        for r in [pangolin_site_resource.prowlarr, pangolin_site_resource.qbittorrent] :
+        r.site_ids == toset([pangolin_site.nas.id])
+        && r.mode == "host"
+        && r.destination == pangolin_site_resource.jellyfin.destination
+        && r.tcp_port_range == pangolin_site_resource.jellyfin.tcp_port_range
+        && r.udp_port_range == "*"
+        && r.disable_icmp == true
+        && r.ssl == false
+        && r.enabled == true
+      ])
+      && pangolin_site_resource.prowlarr.alias == "prowlarr.sylvain.cloud"
+      && pangolin_site_resource.qbittorrent.alias == "qbittorrent.sylvain.cloud"
+      && strcontains(file("${path.module}/../dns/prowlarr.tf"), "subdomain = \"prowlarr\"")
+      && strcontains(file("${path.module}/../dns/qbittorrent.tf"), "subdomain = \"qbittorrent\"")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_prowlarr_domain: prowlarr.sylvain.cloud\n")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_qbittorrent_domain: qbittorrent.sylvain.cloud\n")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_prowlarr_url: http://mediamanager-gluetun:9696\n")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_qbittorrent_url: http://mediamanager-gluetun:8080\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/templates/compose.yaml"), "\n    container_name: mediamanager-gluetun\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_prowlarr_port: 9696\n")
+      && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "\nmediamanager_qbittorrent_webui_port: 8080\n")
+      && pangolin_site_resource_role.prowlarr.site_resource_id == pangolin_site_resource.prowlarr.id
+      && pangolin_site_resource_role.qbittorrent.site_resource_id == pangolin_site_resource.qbittorrent.id
+      && pangolin_site_resource_role.prowlarr.role_id == pangolin_role.mediamanager_admin.id
+      && pangolin_site_resource_role.qbittorrent.role_id == pangolin_role.mediamanager_admin.id
+      && pangolin_role.mediamanager_admin.name == "mediamanager-admin"
+      && pangolin_role.mediamanager_admin.id != pangolin_role.mediamanager.id
+      && !contains(keys(local.websites), "prowlarr")
+      && !contains(keys(local.websites), "qbittorrent")
+    )
+    error_message = "prowlarr. et qbittorrent.sylvain.cloud (tofu/dns/prowlarr.tf et qbittorrent.tf, nas_proxy_*_domain) doivent viser nas-proxy sur le site nas, en TCP 443 et 8443 comme media.sylvain.cloud, ouvertes au seul rôle mediamanager-admin, sans ressource publique ; nas_proxy_prowlarr_url et nas_proxy_qbittorrent_url doivent viser le conteneur mediamanager-gluetun sur les ports de Prowlarr et de qBittorrent."
+  }
+
   # ansible/pc-nas.yml monte un partage SMB du NAS (IP de l'entrée nas de
   # l'inventaire) : client Pangolin connecté, ce montage passe par la ressource
   # nas, qui doit viser la même IP et laisser passer TCP 445 (SMB). Elle laisse
@@ -3168,7 +3225,7 @@ run "app_roles_open_no_ssh" {
 
   assert {
     condition = alltrue([
-      for role in concat(values(pangolin_role.apps), [pangolin_role.jellyfin, pangolin_role.mediamanager]) :
+      for role in concat(values(pangolin_role.apps), [pangolin_role.jellyfin, pangolin_role.mediamanager, pangolin_role.mediamanager_admin]) :
       role.allow_ssh == false && role.ssh_sudo_mode == "none" && role.require_device_approval == false
     ])
     error_message = "Aucun rôle d'app n'ouvre de session SSH : chacun déclare local.role_pins."
@@ -3231,7 +3288,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && contains(split(" ", pangolin_idp.pocket_id.scopes), "groups")
       && startswith(pangolin_idp_org.pocket_id.role_mapping, "groups[?contains(`")
       && endswith(pangolin_idp_org.pocket_id.role_mapping, "`, @)]")
-      && toset(jsondecode(regex("`(.*)`", pangolin_idp_org.pocket_id.role_mapping)[0])) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
+      && toset(jsondecode(regex("`(.*)`", pangolin_idp_org.pocket_id.role_mapping)[0])) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name, pangolin_role.mediamanager_admin.name]))
       && !contains(local.pocket_id_role_groups, "Admin")
       && !contains(local.pocket_id_role_groups, "Member")
       && pangolin_idp_org.pocket_id.org_id == "homelab"
@@ -3248,8 +3305,8 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       toset(concat(
         [for group in pocketid_group.pangolin_role : group.name],
         [pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name],
-      )) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name]))
-      && length(pocketid_group.pangolin_role) + 5 == length(pangolin_role.apps) + 2
+      )) == toset(concat([for role in pangolin_role.apps : role.name], [pangolin_role.jellyfin.name, pangolin_role.mediamanager.name, pangolin_role.mediamanager_admin.name]))
+      && length(pocketid_group.pangolin_role) + 5 == length(pangolin_role.apps) + 3
       && toset([pocketid_group.homebox.name, pocketid_group.trek.name, pocketid_group.healthlog.name, pocketid_group.beszel.name, pocketid_group.dawarich.name]) == local.pocket_id_app_groups
     )
     error_message = "Chaque rôle Pangolin d'appli doit avoir son groupe Pocket ID du même nom, et inversement (local.pocket_id_role_groups, pocket_id.tf)."

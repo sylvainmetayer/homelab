@@ -122,7 +122,7 @@ coupe-circuit, dans son propre dossier de `media`, lu par deux bibliothèques Je
 `https://mediamanager.sylvain.cloud` (A public vers l'IP LAN du NAS,
 `tofu/dns/mediamanager.tf`), ressource privée du même nom sur le site `nas`
 (rôle `mediamanager`), qui vise `nas-proxy` en TCP 443 et 8443 ; Traefik
-joint MediaManager par le réseau Docker `mediamanager_proxy`.
+joint MediaManager par le réseau Docker `mediamanager_proxy`. Prowlarr et qBittorrent (`prowlarr.sylvain.cloud`, `qbittorrent.sylvain.cloud`) suivent le même chemin, par gluetun, pour le seul rôle `mediamanager-admin`.
 L'Uptime Kuma de PikaPods ne joint pas ces trois noms : le NAS vérifie
 lui-même chaque matin l'échéance de leurs certificats
 (`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur

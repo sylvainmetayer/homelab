@@ -132,14 +132,22 @@ services:
       HTTP_CONTROL_SERVER_ADDRESS: "127.0.0.1:8000"
     volumes:
       - ./gluetun:/gluetun
-    # Interfaces web de qBittorrent et Prowlarr, sur le 127.0.0.1 du NAS
-    # seulement : tunnel SSH (README), jamais le LAN ni Pangolin.
+    # Interfaces web de qBittorrent et Prowlarr, aussi sur le 127.0.0.1 du NAS
+    # (tunnel SSH, repli du README) : jamais publiées sur le LAN. HTTPS par le
+    # réseau proxy plus bas.
     ports:
       - "127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}:{{ mediamanager_qbittorrent_webui_port }}"
       - "127.0.0.1:{{ mediamanager_prowlarr_port }}:{{ mediamanager_prowlarr_port }}"
     restart: unless-stopped
+    # proxy : le Traefik du NAS (rôle nas_proxy) joint Prowlarr (9696) et
+    # qBittorrent (8080) par mediamanager-gluetun, dont ils partagent l'espace
+    # réseau. Le pare-feu de gluetun admet l'entrant vers le sous-réseau de
+    # chaque interface Ethernet (internal/firewall/enable.go) et ne laisse
+    # sortir, de cette interface, que vers ce sous-réseau, interne et sans
+    # passerelle : le kill switch (sortie par le tunnel seul) ne change pas.
     networks:
       - default
+      - proxy
 
   qbittorrent:
     mem_limit: {{ mediamanager_qbittorrent_mem_limit }}
@@ -220,7 +228,7 @@ networks:
   # La base et MediaManager seuls, sans sortie.
   db:
     internal: true
-  # MediaManager et le Traefik du NAS seuls, sans sortie : créé par
+  # MediaManager, gluetun et le Traefik du NAS seuls, sans sortie : créé par
   # dc@nas_proxy sous ce nom (interne), d'où mediamanager après nas_proxy.
   proxy:
     name: {{ mediamanager_network }}

@@ -34,7 +34,7 @@
       - -CAkey
       - "{{ nas_proxy_verify_tls_dir }}/ca.key"
       - -addext
-      - subjectAltName=DNS:media.sylvain.cloud,DNS:nas.sylvain.cloud,DNS:mediamanager.sylvain.cloud
+      - subjectAltName=DNS:media.sylvain.cloud,DNS:nas.sylvain.cloud,DNS:mediamanager.sylvain.cloud,DNS:prowlarr.sylvain.cloud,DNS:qbittorrent.sylvain.cloud
       - -addext
       - basicConstraints=critical,CA:FALSE
       - -addext
@@ -99,5 +99,7 @@
       - "'media.sylvain.cloud: ' in nas_proxy_verify_push"
       - "'nas.sylvain.cloud: ' in nas_proxy_verify_push"
       - "'mediamanager.sylvain.cloud: ' in nas_proxy_verify_push"
+      - "'prowlarr.sylvain.cloud: ' in nas_proxy_verify_push"
+      - "'qbittorrent.sylvain.cloud: ' in nas_proxy_verify_push"
       - cert_check_case_status == 'up' or 'seuil 14 j' in nas_proxy_verify_push
     fail_msg: "{{ nas_proxy_verify_push }}"
