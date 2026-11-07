@@ -11,10 +11,12 @@ donc tenir ni derrière le SSO, ni derrière le FR/DE de [0002](0002-pangolin-se
 
 ## Décision
 
-- **Exception à 0002** : sans SSO, `ACCEPT /*` en priorité 2, avant les règles de
-  pays. La signature HMAC (`LINKX_SECRET`) de chaque POST, vérifiée par l'appli,
-  est la seule garde (`/health` répond sans, et ne révèle rien). Seule appli ouverte
-  en entier, inscrite dans les invariants du module.
+- **Exception à 0002** : sans SSO, `ACCEPT /coup` et `/health` en priorité 2, avant
+  les règles de pays. La signature HMAC (`LINKX_SECRET`) de chaque POST, vérifiée par
+  l'appli, est la seule garde (`/health` répond sans, et ne révèle rien). Tout autre
+  chemin : `DROP /*` en priorité 3 (`promptoramix_drop`). Pangolin ne filtre pas la
+  méthode : `GET /coup` passe, l'appli répond 405. (Décision d'origine du 16/10 :
+  `ACCEPT /*`, restreinte le 07/11/2026 aux routes réellement appelées.)
 - **Sur flip**, un conteneur à 256 Mio, sans base ; raison de ce choix plutôt
   que la VM docker non écrite, à confirmer.
 - **Automerge de chaque digest de `main`**, sauf le jeudi de 0 h à 12 h : un
