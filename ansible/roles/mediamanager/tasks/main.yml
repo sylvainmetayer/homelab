@@ -32,7 +32,8 @@
 # lui-même : l'import d'une bibliothèque existante renomme ses dossiers.
 - name: Assert the MediaManager folder is its own folder of the media share
   vars:
-    mediamanager_collection_folders: "{{ (jellyfin_media_folders | default([])) | union(['films', 'series', 'musique', 'livres', 'livres-audio', 'games-clips']) }}"
+    mediamanager_known_folders: [films, series, musique, livres, livres-audio, games-clips]
+    mediamanager_collection_folders: "{{ jellyfin_media_folders | default([]) | union(mediamanager_known_folders) }}"
   ansible.builtin.assert:
     that:
       - mediamanager_sandbox_path | dirname == mediamanager_media_path
