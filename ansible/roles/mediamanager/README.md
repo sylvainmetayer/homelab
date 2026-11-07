@@ -256,7 +256,10 @@ restauration pour un essai.
    passe **`admin`**, créé au premier démarrage : **le changer aussitôt**.
 4. Avec la clé WireGuard posée et le rôle relancé : `https://prowlarr.sylvain.cloud`
    (ou le tunnel SSH, plus haut),
-   Prowlarr demande de créer son compte à la première visite ; y ajouter des
+   se connecter avec le compte créé par `ssh -t sylvain@192.168.1.137 sudo
+   prowlarr-user` (Prowlarr n'en a aucun au départ et ne propose pas d'en
+   créer : le formulaire est imposé par le compose ; le même script change le
+   mot de passe) ; y ajouter des
    indexeurs publics, en laissant **« Redirect » décoché** sur chacun :
    Prowlarr télécharge alors lui-même le `.torrent` (par le VPN) au lieu de
    renvoyer MediaManager vers le tracker, qui le chercherait par la connexion

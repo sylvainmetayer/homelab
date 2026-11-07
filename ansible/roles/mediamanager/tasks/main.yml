@@ -140,6 +140,19 @@
     path: "{{ mediamanager_base_path }}/qbittorrent/qBittorrent/qBittorrent.conf"
   register: mediamanager_qbittorrent_conf
 
+# Prowlarr n'a aucun compte au départ et le formulaire est imposé
+# (PROWLARR__AUTH__REQUIRED) : sudo prowlarr-user le crée ou le change par
+# son API, mot de passe saisi sur le NAS, jamais passé en argument.
+- name: Install the Prowlarr account helper
+  when: mediamanager_vpn_enabled | bool
+  become: true
+  ansible.builtin.copy:
+    src: prowlarr-user.py
+    dest: /usr/local/bin/prowlarr-user
+    owner: root
+    group: root
+    mode: "0755"
+
 # Empreinte PBKDF2 du mot de passe de l'interface web de qBittorrent, au
 # format de son qBittorrent.conf (PBKDF2-HMAC-SHA512, 100 000 tours, sel de
 # 16 octets) : sel dérivé du mot de passe, donc la même à chaque passage. Le
