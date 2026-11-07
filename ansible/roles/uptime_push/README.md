@@ -24,7 +24,7 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 | `monica_v4` | `ExecStartPost` of `monica_v4_cron.service` | `--strict` |
 | `blocky` | `blocky-check.sh`, config on stdin | default (the check's own exit code) |
 | `ntfy` | `ntfy-subscribers-check.sh`, config on stdin | default |
-| `nas_proxy` | `health_check.sh` (`nas-health-check.service`, NAS), one `<name>.curl` per app | default (the check's own exit code) |
+| `nas_proxy` | `health_check.sh` (`nas-health-check.service`, NAS), one `nas.curl` for all apps | default (the check's own exit code) |
 | `ssh_login_notify` | the PAM hook, config on stdin, in the background | `--strict` (logs success or failure) |
 | `ci_key_audit` | `ci_key_audit.py` (`subprocess`), config on stdin | `--strict` (the unit fails) |
 

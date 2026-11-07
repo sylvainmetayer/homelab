@@ -20,5 +20,4 @@
     - role: nas_proxy
       vars:
         nas_proxy_cert_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-cert # NOSONAR
-        # Jellyfin seul : MediaManager sans moniteur, vérifié sans push.
-        nas_proxy_jellyfin_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-jellyfin # NOSONAR
+        nas_proxy_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-nas # NOSONAR

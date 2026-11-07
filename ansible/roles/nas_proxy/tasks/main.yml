@@ -136,28 +136,33 @@
     group: root
     mode: "0700"
 
-# Chaque URL push porte le jeton de son moniteur : 0600, diff: false et
-# no_log (la boucle afficherait l'élément, URL comprise, sous -v).
-- name: Write the push URL of each app health monitor
+# L'URL push porte le jeton du moniteur : 0600, diff: false et no_log. Vide
+# (sortie absente du state), rien à pousser : pas d'ancien jeton.
+- name: Write the push URL of the NAS health monitor
   become: true
   diff: false
   no_log: true
-  loop: "{{ nas_proxy_health_checks | selectattr('push_url') }}"
+  when: nas_proxy_healthcheck_url | length > 0
   ansible.builtin.copy:
-    content: "url = \"{{ item.push_url }}\"\n"
-    dest: "{{ nas_proxy_health_dir }}/{{ item.name }}.curl"
+    content: "url = \"{{ nas_proxy_healthcheck_url }}\"\n"
+    dest: "{{ nas_proxy_health_dir }}/nas.curl"
     owner: root
     group: root
     mode: "0600"
 
-# Sans moniteur (sortie absente du state), rien à pousser : pas d'ancien jeton.
-- name: Remove the push URL of an app health check without monitor
+- name: Remove the push URL of the NAS health monitor without monitor
   become: true
-  loop: "{{ nas_proxy_health_checks | rejectattr('push_url') }}"
-  loop_control:
-    label: "{{ item.name }}"
+  when: nas_proxy_healthcheck_url | length == 0
   ansible.builtin.file:
-    path: "{{ nas_proxy_health_dir }}/{{ item.name }}.curl"
+    path: "{{ nas_proxy_health_dir }}/nas.curl"
+    state: absent
+
+# Un .curl par appli : l'ancien schéma (un moniteur par appli).
+- name: Remove the per-app push URLs of the former health monitors
+  become: true
+  loop: [jellyfin, mediamanager]
+  ansible.builtin.file:
+    path: "{{ nas_proxy_health_dir }}/{{ item }}.curl"
     state: absent
 
 - name: Install the app health check service and timer

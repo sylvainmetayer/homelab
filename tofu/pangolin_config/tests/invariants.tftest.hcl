@@ -711,13 +711,8 @@ override_resource {
 }
 
 override_resource {
-  target = uptimekuma_monitor_push.health_nas["jellyfin"]
-  values = { push_token = "push-health-jellyfin" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.health_nas["mediamanager"]
-  values = { push_token = "push-health-mediamanager" }
+  target = uptimekuma_monitor_push.health_nas
+  values = { push_token = "push-health-nas" }
 }
 
 override_resource {
@@ -2127,11 +2122,10 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_geoip_url       = output.uptime_cron_geoip_url
         uptime_backup_pocket_id_url = output.uptime_backup_pocket_id_url
         # nas.yml
-        uptime_backup_jellyfin_url     = output.uptime_backup_jellyfin_url
-        uptime_cron_nas_cert_url       = output.uptime_cron_nas_cert_url
-        uptime_cron_kdrive_sync_url    = output.uptime_cron_kdrive_sync_url
-        uptime_health_jellyfin_url     = output.uptime_health_jellyfin_url
-        uptime_health_mediamanager_url = output.uptime_health_mediamanager_url
+        uptime_backup_jellyfin_url  = output.uptime_backup_jellyfin_url
+        uptime_cron_nas_cert_url    = output.uptime_cron_nas_cert_url
+        uptime_cron_kdrive_sync_url = output.uptime_cron_kdrive_sync_url
+        uptime_health_nas_url       = output.uptime_health_nas_url
         # pve.yml
         uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
@@ -2675,30 +2669,22 @@ run "monitors_are_filed_and_alert" {
     error_message = "kDrive vers NAS : timer quotidien entre 03:00 et 07:00, copie bornée sous 24 h, intervalle de deux à trois jours, rangé avec les healthchecks et notifié sur Telegram et ntfy."
   }
 
-  # Santé des applis du NAS (nas-health-check.timer, rôle nas_proxy) : un
-  # moniteur par entrée de nas_proxy_health_checks, et réciproquement (une
-  # appli retirée d'un côté seulement laisserait un moniteur muet, donc
-  # rouge, ou une vérification sans moniteur) ; fenêtre de deux périodes du
-  # timer, un essai d'une période ; nas.yml donne à chaque entrée l'URL push
-  # de SON moniteur.
+  # Santé des applis du NAS (nas-health-check.timer, rôle nas_proxy) : UN
+  # moniteur pour toutes les entrées de nas_proxy_health_checks (retirer une
+  # appli ne touche plus Tofu) ; fenêtre de deux périodes du timer, un essai
+  # d'une période ; nas.yml lui donne son URL push.
   assert {
     condition = (
-      toset(keys(uptimekuma_monitor_push.health_nas)) == toset([
-        for c in yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_health_checks : c.name
-      ])
-      && alltrue([
-        for key, m in uptimekuma_monitor_push.health_nas :
-        m.parent == uptimekuma_monitor_group.self_hosted.id
-        && toset(m.notification_ids) == toset(local.alert_notification_ids)
-        && m.active == true
-        && m.upside_down == false
-        && m.max_retries == 1
-        && m.interval == 2 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_health_check_schedule)[0])
-        && m.retry_interval == m.interval / 2
-        && strcontains(file("${path.module}/../../ansible/nas.yml"), "nas_proxy_${key}_healthcheck_url: \"{{ terraform_outputs.uptime_health_${key}_url.value | default('') }}\"")
-      ])
+      uptimekuma_monitor_push.health_nas.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.health_nas.notification_ids) == toset(local.alert_notification_ids)
+      && uptimekuma_monitor_push.health_nas.active == true
+      && uptimekuma_monitor_push.health_nas.upside_down == false
+      && uptimekuma_monitor_push.health_nas.max_retries == 1
+      && uptimekuma_monitor_push.health_nas.interval == 2 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml")).nas_proxy_health_check_schedule)[0])
+      && uptimekuma_monitor_push.health_nas.retry_interval == uptimekuma_monitor_push.health_nas.interval / 2
+      && strcontains(file("${path.module}/../../ansible/nas.yml"), "nas_proxy_healthcheck_url: \"{{ terraform_outputs.uptime_health_nas_url.value | default('') }}\"")
     )
-    error_message = "Santé des applis du NAS : un moniteur par entrée de nas_proxy_health_checks, rangé avec les healthchecks, Telegram et ntfy, fenêtre de deux périodes de nas_proxy_health_check_schedule (*:0/N), un essai d'une période ; nas.yml lit uptime_health_<clé>_url dans nas_proxy_<clé>_healthcheck_url."
+    error_message = "Santé des applis du NAS : un seul moniteur, rangé avec les healthchecks, Telegram et ntfy, fenêtre de deux périodes de nas_proxy_health_check_schedule (*:0/N), un essai d'une période ; nas.yml lit uptime_health_nas_url dans nas_proxy_healthcheck_url."
   }
 
   # Le vérificateur de mises à jour (rôle update_notify) passe une fois par

@@ -390,12 +390,10 @@
       loop:
         - "{{ nas_proxy_verify_path }}/health_check.sh"
         - "{{ nas_proxy_verify_path }}/health"
-        - "{{ nas_proxy_verify_path }}/health/jellyfin.curl"
-        - "{{ nas_proxy_verify_path }}/health/mediamanager.curl"
+        - "{{ nas_proxy_verify_path }}/health/nas.curl"
       register: nas_proxy_verify_health_files
 
-    # Le .curl porte l'URL push (jeton du moniteur) ; aucun pour MediaManager,
-    # sans URL dans la converge.
+    # Le .curl porte l'URL push (jeton du moniteur).
     - name: Assert the health check script and its push URL are root-only
       vars:
         nas_proxy_verify_health: "{{ nas_proxy_verify_health_files.results }}"
@@ -408,7 +406,6 @@
           - nas_proxy_verify_health[1].stat.mode == '0700'
           - nas_proxy_verify_health[2].stat.pw_name == 'root'
           - nas_proxy_verify_health[2].stat.mode == '0600'
-          - not nas_proxy_verify_health[3].stat.exists
         fail_msg: "Fichiers de santé : {{ nas_proxy_verify_health | map(attribute='stat') | list | to_json }}"
 
     - name: Verify the app health check units
@@ -440,7 +437,7 @@
           - nas_proxy_verify_health_timer.status.ActiveState == 'active'
           - ('health_check.sh 8443 ' ~ nas_proxy_verify_path ~ '/health '
             ~ 'jellyfin media.sylvain.cloud /health mediamanager mediamanager.sylvain.cloud /api/v1/health ') in nas_proxy_verify_exec
-          - "'molecule-jellyfin' not in nas_proxy_verify_exec"
+          - "'molecule-nas' not in nas_proxy_verify_exec"
           - nas_proxy_verify_health_unit.status.NoNewPrivileges == 'yes'
           - nas_proxy_verify_health_unit.status.ProtectSystem == 'strict'
         fail_msg: "{{ nas_proxy_verify_exec }}"
