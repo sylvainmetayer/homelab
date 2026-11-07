@@ -23,9 +23,8 @@
 # reposés : rien dans SOPS pour un POC. grdctl les lit sur son entrée standard,
 # jamais en argument, que `ps` montrerait.
 #
-# Démontage : systemctl disable --now newt gnome-remote-desktop ;
-# systemctl --user disable --now gnome-remote-desktop ; grdctl vnc disable ;
-# firewall-cmd --permanent --zone=<zone> --remove-rich-rule=... puis --reload.
+# Mise en place, tests et démontage complet (poste puis Pangolin) :
+# docs/runbooks/support-a-distance.md.
 - name: Remote support on this workstation (Newt, GNOME Remote Desktop)
   hosts: localhost
   connection: local
