@@ -98,8 +98,8 @@ puis `http://localhost:8080` (compte `mediamanager`) et
 **Liens physiques.**
 
 ```bash
-stat -c '%h %i %n' "/volume1/media/.mediamanager-test/films/<Titre (année)>/"*.mkv \
-  "/volume1/media/.mediamanager-test/torrents/<nom du torrent>/"*.mkv
+stat -c '%h %i %n' "/volume1/media/mediamanager/films/<Titre (année)>/"*.mkv \
+  "/volume1/media/mediamanager/torrents/<nom du torrent>/"*.mkv
 ```
 
 Attendu : `2` et le même inode sur les deux lignes. `1` : copie au lieu
@@ -138,7 +138,7 @@ partagé `media` (autre sous-volume btrfs).
   par UGOS : décocher la redirection dans UGOS, puis
   `sudo docker restart nas-proxy-443`.
 - **Liens physiques** : ne jamais monter `media/films` ou `media/series`
-  dans MediaManager ; le bac à sable `/volume1/media/.mediamanager-test`
+  dans MediaManager ; le dossier `/volume1/media/mediamanager`
   monté une seule fois en `/data` des deux côtés. Relancer le rôle remet le
   compose du dépôt.
 

@@ -26,16 +26,19 @@
       jellyfin), puis relancer nas.yml --tags mediamanager.
     quiet: true
 
-# Le bac à sable reste dans media (même sous-volume btrfs, liens physiques
-# possibles) sans jamais être une bibliothèque de Jellyfin, ni media lui-même.
-- name: Assert the sandbox is a hidden folder of the media share
+# Le dossier de MediaManager reste dans media (même sous-volume btrfs, liens
+# physiques possibles) sans jamais être un dossier de la collection
+# (jellyfin_media_folders du rôle jellyfin, plus games-clips), ni media
+# lui-même : l'import d'une bibliothèque existante renomme ses dossiers.
+- name: Assert the MediaManager folder is its own folder of the media share
   ansible.builtin.assert:
     that:
       - mediamanager_sandbox_path | dirname == mediamanager_media_path
-      - (mediamanager_sandbox_path | basename) is match('^\.')
+      - (mediamanager_sandbox_path | basename) not in ['films', 'series', 'musique', 'livres', 'livres-audio', 'games-clips']
     fail_msg: >-
       mediamanager_sandbox_path ({{ mediamanager_sandbox_path }}) doit être un
-      dossier caché directement sous {{ mediamanager_media_path }}.
+      dossier à lui directement sous {{ mediamanager_media_path }}, jamais un
+      dossier de la collection.
     quiet: true
 
 # nas.yml ne collecte pas de faits : uid et gid sont lus ici (getent échoue
