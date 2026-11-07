@@ -62,6 +62,10 @@ pangolin_geoipupdate_config_dir: /etc/geoipupdate
 pangolin_geoip_dir: /opt/geoip
 pangolin_geoip_healthcheck_url: ""
 
+# Copies de la base que Pangolin fait avant chaque migration
+# (config/db/backups) : purgées au-delà de ce nombre de jours (tmpfiles.d).
+pangolin_db_copies_retention_days: 30
+
 # Backup (borgmatic)
 pangolin_backup_enabled: true
 pangolin_backup_borgmatic_target: "{{ backup_storage_box_url }}/pangolin"

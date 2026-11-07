@@ -613,6 +613,18 @@
           - borgmatic_config.source_directories == [pangolin_dir ~ '/compose.yaml', pangolin_dir ~ '/config']
           # Journal d'accès exclu ; CrowdSec (hors de config/) jamais sauvegardé.
           - (pangolin_dir ~ '/config/traefik/logs') in borgmatic_config.exclude_patterns
+          # Copies de la base avant migration : exclues, la base vivante est dumpée.
+          - (pangolin_dir ~ '/config/db/backups') in borgmatic_config.exclude_patterns
+
+    - name: Read the tmpfiles rule purging the database copies
+      ansible.builtin.slurp:
+        src: /etc/tmpfiles.d/pangolin-db-copies.conf
+      register: pangolin_db_copies_tmpfiles
+
+    - name: Assert the database copies are purged by age
+      ansible.builtin.assert:
+        that:
+          - (pangolin_db_copies_tmpfiles.content | b64decode) is search('^e ' ~ pangolin_dir ~ '/config/db/backups - - - 30d$')
 
     - name: Verify the Uptime Kuma push of the Pangolin backup
       ansible.builtin.include_tasks: ../_shared/tasks/verify_borgmatic_push.yml

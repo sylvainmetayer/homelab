@@ -146,6 +146,20 @@
     owner: root
     group: root
 
+# Pangolin copie sa base avant chaque migration (config/db/backups, ~2 Gio
+# pièce) sans jamais purger : systemd-tmpfiles-clean.timer (quotidien) supprime
+# les copies plus vieilles que pangolin_db_copies_retention_days.
+# shortcut: l'âge seul, la copie la plus récente n'est pas gardée si elle est
+# vieille ; à reprendre avec un timer si cela gêne.
+- name: Purge the old Pangolin database copies
+  become: true
+  ansible.builtin.copy:
+    content: "e {{ pangolin_dir }}/config/db/backups - - - {{ pangolin_db_copies_retention_days }}d\n"
+    dest: /etc/tmpfiles.d/pangolin-db-copies.conf
+    mode: "0644"
+    owner: root
+    group: root
+
 # Données gardées quand pangolin_crowdsec_enabled passe à false : seul le
 # conteneur disparaît (compose.yaml).
 - name: Create the CrowdSec directories
@@ -365,6 +379,9 @@
     # lu par CrowdSec, inutile à une restauration.
     borgmatic_app_exclude_patterns:
       - "{{ pangolin_dir }}/config/traefik/logs"
+      # Copies de la base avant migration (~2 Gio chacune) : la base vivante
+      # est déjà dumpée ci-dessous.
+      - "{{ pangolin_dir }}/config/db/backups"
     # Base SQLite de Pangolin (ressources, utilisateurs, SSO) :
     # /app/config/db/db.sqlite dans le conteneur.
     borgmatic_app_sqlite_databases:
