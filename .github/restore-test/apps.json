@@ -15,7 +15,6 @@
   "nextcloud": {"host": "docker", "repo": "nextcloud", "role": "nextcloud", "databases": ["mysql"], "expected_tables": {"nextcloud": ["oc_appconfig", "oc_storages", "oc_filecache"]}},
   "ntfy": {"host": "docker", "repo": "ntfy", "role": "ntfy", "databases": ["sqlite"], "expected_tables": {"user.db": ["user", "user_token"]}},
   "pangolin": {"host": "pangolin", "repo": "pangolin", "role": "pangolin", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["user", "orgs", "sites", "resources"]}},
-  "paperless": {"host": "docker", "repo": "paperless", "role": "paperless_ngx", "databases": ["postgresql"], "paused": true, "expected_tables": {"paperless": ["auth_user", "documents_document"]}},
   "papra": {"host": "docker", "repo": "papra", "role": "papra", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["users", "documents"]}, "allow_empty_databases": ["tasks.sqlite"]},
   "pocket_id": {"host": "pangolin", "repo": "pocket_id", "role": "pocket_id", "databases": ["sqlite"], "expected_tables": {"pocket-id.db": ["users", "oidc_clients"]}},
   "rss": {"host": "docker", "repo": "rss", "role": "rss", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["category", "feed"]}},

@@ -69,8 +69,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Nextcloud | 1 (par prudence : calendriers Perso et Top nous nommés dans le dépôt, contenu des fichiers non précisé) | Borg : `compose`, `config`, `data`, `redis` + dump MariaDB | oui | quelques heures (est.), plus long si `data` est gros (taille non relevée) | CI | rien hors du dernier jour |
 | Dawarich (historique de position) | 1 | Borg : `storage`, `public`, `watched`, `redis` + dump PostgreSQL | oui | ~1 h (est.) | CI | clés dérivées de `backup_passphrase` (voir « Secrets ») |
 | HealthLog (poids, tension, sommeil, analyses) | 1 | Borg : dump PostgreSQL + `compose.yaml` + `.env` | oui | ~1 h (est.) | CI ; la clé de chiffrement de l'appli n'y est pas éprouvée | dump interne de l'appli coupé ; `healthlog_backups` hors Borg ; `ENCRYPTION_KEY` dérivée de `backup_passphrase` |
-| Papra (essai, documents scannés) | 1 | Borg : `app-data` (SQLite + originaux), `.env` | oui | ~10 min pour 795 Mo (mesuré le 02/11 : extraction 21 s) | CI | à l'essai, remplaçant possible de Paperless |
-| Paperless-ngx (**en pause** depuis 10/2026) | 1 | données et dépôt Borg gardés ; plus de nouvelle sauvegarde | oui, mais figé à la date de la pause (non trouvée dans le dépôt) | ~1 h (est.) | sauté par le run complet (`paused`) | rien n'entre tant que l'appli est arrêtée ; les données de la pause n'ont qu'une copie hors site, figée |
+| Papra (documents scannés) | 1 | Borg : `app-data` (SQLite + originaux), `.env` | oui | ~10 min pour 795 Mo (mesuré le 02/11 : extraction 21 s) | CI | a remplacé Paperless-ngx (retiré le 07/11/2026, dépôt Borg détruit) |
 | Monica | 2 | Borg : `data` + dump MariaDB | oui | ~30 min (est.) | CI | — |
 | Karakeep (marque-pages) | 2 | Borg : `data` + copies SQLite | oui | ~30 min (est.) | CI | `queue.db` (file de jobs) copiée aussi, vide par nature ; jobs en cours perdus avec le dernier jour |
 | Homebox (inventaire, factures, garanties) | 2 | Borg : `data` + copie SQLite | oui | ~30 min (est.) | CI | — |
@@ -200,8 +199,7 @@ proposé ici.
    les colonnes chiffrées de HealthLog et Dawarich.
 7. **Données sans sauvegarde** : démo Keycloak et vitrine de flip (en pause,
    données gardées sur le disque), journal de Promptoramix, base PostgreSQL
-   de MediaManager (essai), miroir kDrive (hors Borg), Paperless (figé à sa
-   pause).
+   de MediaManager (essai), miroir kDrive (hors Borg).
 8. **Le test de restauration ne prouve pas l'appli** : pas de démarrage, pas
    de comparaison au vivant, échantillon de 20 fichiers ≤ 5 Mio, aucun
    contrôle de tous les blocs ; la clé de chiffrement de HealthLog n'est pas

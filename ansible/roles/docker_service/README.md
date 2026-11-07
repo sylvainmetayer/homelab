@@ -20,7 +20,7 @@ On user-scope hosts (docker, pi, flip), the role also installs `docker-image-pru
 /usr/bin/docker image prune --all --force --filter until=168h
 ```
 
-- `--all` removes every image **no container uses, running or stopped**, dangling or tagged. Never volumes, containers, networks or build cache (no `system prune`, no `--volumes`). A paused app keeps its images: `dc@` stops with `docker compose stop`, its containers stay (Paperless-ngx: unit stopped and disabled, containers kept).
+- `--all` removes every image **no container uses, running or stopped**, dangling or tagged. Never volumes, containers, networks or build cache (no `system prune`, no `--volumes`). A paused app keeps its images: `dc@` stops with `docker compose stop`, its containers stay.
 - `until=` (`docker_service_image_prune_until`, default `168h`) filters on the image's **creation** (build) time, not on its last use: it only spares images *built* less than 7 days ago. An older upstream image goes at the first run after its last container is removed (a Renovate bump, a decommissioned app).
 - What goes is what Renovate's digest bumps left behind: the next `dc@` start of the app only pulls what is missing, and an app whose image was removed under it (only possible if its container was deleted too) re-pulls it on start.
 - Output (deleted images, `Total reclaimed space`) goes to the user journal: `journalctl --user -u docker-image-prune`. No ntfy message.

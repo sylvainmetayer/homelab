@@ -28,7 +28,6 @@
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
-        paperless_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_paperless_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_docker_updates_url.value | default('') }}"
@@ -95,8 +94,6 @@
       tags: wiki,app
     - role: nextcloud
       tags: nextcloud,app
-    - role: paperless_ngx
-      tags: paperless,app
     - role: dawarich
       tags: dawarich,app
     - role: trek

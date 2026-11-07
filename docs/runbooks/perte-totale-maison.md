@@ -57,8 +57,7 @@ GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
   été sur le NAS par ce rôle : ils restent chez kDrive.
 - **La base PostgreSQL de MediaManager** (essai), les journaux VictoriaLogs,
   les réglages faits dans l'interface d'UGOS (dossiers partagés, comptes,
-  droits) et l'installation de base du NAS et du Pi. Paperless n'est **pas**
-  perdu : figé à sa pause, son dépôt Borg se restaure.
+  droits) et l'installation de base du NAS et du Pi.
 - **Les données écrites depuis la dernière nuit** : Borg tourne à 01:00 (NAS
   02:30), donc au plus une journée, deux si une nuit manquait. Les photos
   prises depuis ne sont que sur les téléphones : **ne rien supprimer sur les
@@ -198,8 +197,7 @@ branches, déployer depuis le poste (`ansible-playbook`), merger après l'étage
 
 ### Étage 5. Les applis du foyer (étage 1 de la matrice)
 
-La matrice classe en étage 1 : Immich, Nextcloud, Dawarich, HealthLog, Papra
-(essai) et Paperless (en pause, donnée figée). Pour chacune, la restauration
+La matrice classe en étage 1 : Immich, Nextcloud, Dawarich, HealthLog, Papra. Pour chacune, la restauration
 appli par appli de [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md),
 en **arrêtant l'appli avant** de rejouer son dump. Proposition d'ordre :
 
@@ -228,8 +226,6 @@ calendriers : le dire.
 
 Par ordre de valeur, sans urgence :
 
-- Paperless, si on le sort de sa pause
-  ([app-en-pause.md](app-en-pause.md)), depuis son dépôt Borg figé.
 - Les applis d'étage 2 et 3 de la matrice (Monica, Karakeep, Homebox, Grocy,
   TREK, BookStack, Wishlist, FreshRSS, Beszel, ntfy…), depuis Borg.
 - **Le NAS**, si un nouveau est acheté : [disque-nas-mort.md](disque-nas-mort.md),

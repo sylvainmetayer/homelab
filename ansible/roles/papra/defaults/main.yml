@@ -1,7 +1,7 @@
 ---
-# Papra, à l'essai comme remplaçant léger de Paperless-ngx (en pause) : un
-# seul conteneur Node, base SQLite et fichiers sous app-data/, sur le disque
-# local de la VM. S'il ne convainc pas : skill remove-app.
+# Papra, l'appli de documents (a remplacé Paperless-ngx) : un seul
+# conteneur Node, base SQLite et fichiers sous app-data/, sur le disque
+# local de la VM.
 papra_base_path: "{{ docker_base_path }}/papra"
 papra_domain: papra.sylvain.cloud
 

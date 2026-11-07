@@ -4,7 +4,7 @@
 # d'un groupe que homepage_groups ne connaît pas, qui doit venir après les
 # autres ; ceux qui portent un widget (Beszel, Speedtest Tracker, Homebox,
 # Karakeep, Immich, FreshRSS, Grocy, Papra, Dawarich) ; des liens de la VM docker (internal_url et
-# site_monitor remplis), un sans adresse interne (Paperless) et l'Immich du
+# site_monitor remplis), un sans adresse interne (Archives) et l'Immich du
 # Pi (vide dans l'output, pastille du rôle).
 homepage_molecule_links:
   wiki:
@@ -15,9 +15,9 @@ homepage_molecule_links:
     icon: bookstack
     internal_url: http://bookstack:80 # NOSONAR (réseau newt, sans TLS)
     site_monitor: http://bookstack:80/login # NOSONAR
-  paperless:
-    name: Paperless-ngx
-    href: https://papiers.sylvain.cloud
+  archives:
+    name: Archives
+    href: https://archives.sylvain.cloud
     group: Documents
     description: Documents numérisés, avec OCR
     icon: ""

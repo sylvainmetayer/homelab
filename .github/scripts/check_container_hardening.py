@@ -49,10 +49,6 @@ EXCEPTIONS = {
         "chemin d'accès à tout le reste, non analysé",
         ["pangolin", "gerbil", "traefik", "crowdsec"],
     ),
-    "paperless_ngx": (
-        "en pause",
-        ["broker", "db", "webserver", "gotenberg", "tika"],
-    ),
 }
 
 

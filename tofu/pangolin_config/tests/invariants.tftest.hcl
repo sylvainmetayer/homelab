@@ -274,14 +274,13 @@ override_data {
         {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
         {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 40, "niceId": "paperless", "name": "Paperless-ngx", "fullDomain": "papiers.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 83, "niceId": "promptoramix", "name": "Promptoramix", "fullDomain": "promptoramix.sylvain.cloud", "sso": false, "enabled": true},
         {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
-      ], "pagination": {"total": 18, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 17, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -548,11 +547,6 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource.website["paperless"]
-  values = { id = 40 }
-}
-
-override_resource {
   target = pangolin_resource.website["promptoramix"]
   values = { id = 83, full_domain = "promptoramix.sylvain.cloud" }
 }
@@ -794,11 +788,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.cron_ci_key_audit
   values = { push_token = "push-cron-ci-key-audit" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["paperless"]
-  values = { push_token = "push-paperless" }
 }
 
 override_resource {
@@ -1325,7 +1314,6 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /github",
       "ntfy /canary",
       "ntfy /healthlog",
-      "Paperless-ngx /share/*",
       "Promptoramix /coup",
       "Promptoramix /health",
       "TREK /.well-known/oauth-protected-resource/mcp",
@@ -1849,19 +1837,8 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "exemple_planning", "paperless"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "exemple_planning"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
-  }
-
-  # L'interrupteur Ansible bouge avec celui de Tofu : une ressource reprise
-  # sur une app encore arrêtée ferait sonner ses moniteurs, une app reprise
-  # derrière une ressource désactivée sauvegarderait sans moniteur actif.
-  assert {
-    condition = lookup(
-      yamldecode(file("${path.module}/../../ansible/host_vars/docker/variables.yaml")),
-      "paperless_enabled", true
-    ) == pangolin_resource.website["paperless"].enabled
-    error_message = "paperless_enabled (ansible/host_vars/docker/variables.yaml) et enabled de l'entrée paperless (website_paperless.tf) doivent être égaux."
   }
 
   # Même chose pour le banc Keycloak, dont l'interrupteur est un paramètre de
@@ -2125,7 +2102,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_ntfy_url              = output.uptime_backup_ntfy_url
         uptime_backup_wishlist_url          = output.uptime_backup_wishlist_url
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
-        uptime_backup_paperless_url         = output.uptime_backup_paperless_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url
         uptime_backup_grocy_url             = output.uptime_backup_grocy_url
         uptime_backup_jellystat_url         = output.uptime_backup_jellystat_url
@@ -2176,7 +2152,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 
   # Dans l'autre sens : un moniteur push dont aucun playbook ne lit l'URL ne
-  # reçoit jamais de battement et reste rouge (searxng et paperless jusqu'à
+  # reçoit jamais de battement et reste rouge (searxng jusqu'à
   # leur ajout dans docker.yml, echo qui n'a pas de sauvegarde).
   assert {
     condition = alltrue([

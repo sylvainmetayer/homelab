@@ -48,7 +48,7 @@ folder. Seen from the main account (each subaccount sees its own folder as
 
 ```
 backup/
-├── docker/      wiki/, nextcloud/, rss/, paperless/, trek/, karakeep/, …
+├── docker/      wiki/, nextcloud/, rss/, trek/, karakeep/, …
 ├── pi/          immich/
 ├── pangolin/    pangolin/
 ├── flip/        flip_planning/, demo_planning/

@@ -70,7 +70,7 @@ rule, an entry in `declared_extra_rules`. Secrets are per-environment too (`demo
 
 ## Pausing an app
 
-An app kept but unused (Paperless-ngx, Flip Planning's Keycloak demo and its
+An app kept but unused (Flip Planning's Keycloak demo and its
 public showcase today) is paused, not removed: `docs/runbooks/app-en-pause.md`. Four switches
 move together — the role's `<service>_enabled: false` in `host_vars` (unit stopped and disabled, restart
 handler skipped, borgmatic config removed so the nightly dump cannot fail;
@@ -80,7 +80,7 @@ paused, its targets' Pangolin probes off), the list of paused apps in `pangolin_
 `"paused": true` in `.github/restore-test/apps.json` (skipped by the scheduled
 restore test; `tofu test` requires it exactly on the apps whose backup monitor
 is paused). Renovate's « Paused apps » rules also disable the role's files and
-its `path_bypass_images.json` entry (`enabled: false`, no update PR) while it is paused. `paperless_ngx` and `flip_planning` have the switch so far; each
+its `path_bypass_images.json` entry (`enabled: false`, no update PR) while it is paused. `flip_planning` has the switch so far; each
 Molecule `side_effect.yml` goes through both states. For a role applied more
 than once (`flip_planning`), the switch is a role parameter of the instance's
 `roles:` entry (`flip_planning_enabled: false` on `demo_planning_kc` in
