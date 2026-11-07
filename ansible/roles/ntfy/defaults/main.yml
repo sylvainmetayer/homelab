@@ -6,8 +6,9 @@ ntfy_port: 8080
 
 # Durée de vie des messages dans cache.db : ce que les applis rattrapent
 # (since=, poll=1) après une coupure ou à la réception d'un poll_request.
+# 30 jours : un téléphone éteint ou parti en voyage retrouve ses alertes.
 # Le cache n'est pas sauvegardé (tasks/main.yml).
-ntfy_cache_duration: 12h
+ntfy_cache_duration: 720h
 
 # Relais vers ntfy.sh pour les notifications instantanées d'Android (FCM) et
 # d'iOS (APNs) : ntfy.sh ne reçoit qu'un poll_request (identifiant du

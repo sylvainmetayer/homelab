@@ -22,6 +22,10 @@ Ordre à suivre :
 3. Supprimer l'ACCEPT du topic, encore actif dans Pangolin : sinon l'audit `terraform_data.rule_inventory` (`rules.tf`) arrête chaque plan complet de `pangolin_config`. Une fois : `tofu apply -target='pangolin_resource_rule.path_bypass["ntfy /<topic>"]'`, puis un plan normal.
 4. Vérifier que les téléphones Android sont reconnectés : `docker logs --since 2m ntfy | grep "Server stats"` doit montrer `subscribers` égal au nombre de topics abonnés par les téléphones Android (un par topic et par téléphone ; l'interface web ouverte en ajoute, un iPhone n'en compte aucun), jamais 0 avec un Android abonné.
 
+## Cache des messages
+
+`cache-duration: 720h` (`ntfy_cache_duration`, 30 jours) : `cache.db` garde les messages que les applis rattrapent après une coupure ou un téléphone éteint. Mesuré le 07/11/2026 : 73 messages en cache pour 12 h, `cache.db` de 135 Kio, soit environ 8 Mio à 30 jours au même rythme (négligeable sur le disque de la VM). Le cache n'est pas sauvegardé. Le changement redémarre ntfy au déploiement : les applis se reconnectent seules (voir « Retirer un topic », étape 4, pour vérifier les abonnés).
+
 ## Alerte : aucun abonné
 
 Le healthcheck de ntfy reste vert quand les téléphones ne reçoivent plus rien (29/10/2026). ntfy écrit chaque minute une ligne `INFO Server stats (…, subscribers=N, …)` ; toutes les 10 minutes (`ntfy_subscribers_check_schedule`), le timer `ntfy-subscribers-check` de la VM docker lance `files/ntfy-subscribers-check.sh` (installé en `/usr/local/libexec/ntfy-subscribers-check.sh`), qui relit les 8 dernières heures de `docker logs ntfy` (`ntfy_subscribers_check_window_minutes: 480`) et pousse **up** si un relevé compte au moins un abonné, **down** sinon (zéro partout, aucune ligne : ntfy arrêté, `docker logs` en échec). Sur un down, l'unité sort en échec (`systemctl --failed`).
