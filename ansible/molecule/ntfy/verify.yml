@@ -83,6 +83,7 @@
           - ntfy_server['enable-login'] == true
           - ntfy_server['require-login'] == true
           - ntfy_server['attachment-cache-dir'] is not defined
+          - ntfy_server['cache-duration'] == '720h'
           - ntfy_server['auth-users'] | sort == ([
               'sylvain:' ~ ntfy_sylvain_password_hash ~ ':user',
               'uptime-kuma:' ~ ntfy_publisher_password_hash ~ ':user',
@@ -107,7 +108,7 @@
       register: ntfy_borgmatic_raw
 
     # prepare.yml a posé user.db : copiée par « .backup », sa copie vivante
-    # hors de l'archive. Ni data/ (cache.db : des messages de 12 h au plus)
+    # hors de l'archive. Ni data/ (cache.db : des messages de 30 jours au plus)
     # ni sqlite_databases de borgmatic.
     - name: Assert the ntfy user database is copied by .backup and the cache is left out
       vars:

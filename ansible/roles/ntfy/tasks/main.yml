@@ -159,7 +159,7 @@
 # copiée par « .backup » : les comptes et jetons déclarés se recréent seuls
 # depuis server.yml, mais pas les réglages et abonnements de l'interface web
 # ni les abonnements Web Push. cache.db n'est pas sauvegardé : des messages de
-# 12 h au plus, déjà reçus. data/ n'est donc pas une source.
+# 30 jours au plus, déjà reçus. data/ n'est donc pas une source.
 - name: Configure borgmatic backup for ntfy
   when: ntfy_backup_enabled
   tags: backup
