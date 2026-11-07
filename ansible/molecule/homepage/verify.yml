@@ -256,7 +256,7 @@
       ansible.builtin.assert:
         that:
           - homepage_group_names == ['Documents', 'Lecture', 'Photos et médias', 'Vie perso', 'Administration', 'Supervision', 'Hôtes', 'Groupe hors liste']
-          - homepage_card_names['Documents'] == ['BookStack', 'Paperless-ngx', 'Papra']
+          - homepage_card_names['Documents'] == ['Archives', 'BookStack', 'Papra']
           - homepage_card_names['Lecture'] == ['FreshRSS', 'Karakeep']
           - homepage_card_names['Photos et médias'] == ['Immich', 'Jellyfin', 'MediaManager']
           - homepage_card_names['Vie perso'] == ['Agenda', 'Bus 31 à CREPS', 'Dawarich', 'Grocy', 'Homebox']
@@ -264,19 +264,19 @@
           - homepage_cards['Documents']['BookStack'].href == 'https://wiki.sylvain.cloud'
           - homepage_cards['Documents']['BookStack'].icon == 'bookstack'
           - homepage_cards['Documents']['BookStack'].widget is not defined
-          - homepage_cards['Documents']['Paperless-ngx'].icon is not defined
+          - homepage_cards['Documents']['Archives'].icon is not defined
           - homepage_cards['Photos et médias']['Jellyfin'].href == 'https://media.sylvain.cloud:8443'
           - homepage_cards['Groupe hors liste']['Betisier'].description == 'Bêtisier, application de TP'
         fail_msg: "services.yaml inattendu : {{ homepage_cards }}"
 
     # Pastille d'état : la cible de Pangolin et sa sonde (output), l'adresse
     # LAN du rôle pour l'Immich du Pi, Jellyfin et Proxmox ; aucune sans
-    # adresse (Paperless ici, flip et immich_swipe en vrai).
+    # adresse (Archives ici, flip et immich_swipe en vrai).
     - name: Assert the site monitors
       ansible.builtin.assert:
         that:
           - homepage_cards['Documents']['BookStack'].siteMonitor == 'http://bookstack:80/login' # NOSONAR
-          - homepage_cards['Documents']['Paperless-ngx'].siteMonitor is not defined
+          - homepage_cards['Documents']['Archives'].siteMonitor is not defined
           - homepage_cards['Photos et médias']['Immich'].siteMonitor == 'http://192.168.1.96:2283/api/server/ping' # NOSONAR
           - homepage_cards['Photos et médias']['Jellyfin'].siteMonitor == 'http://192.168.1.137:8096/health' # NOSONAR
           - homepage_cards['Administration']['Proxmox'].siteMonitor == 'https://192.168.1.26:8006'

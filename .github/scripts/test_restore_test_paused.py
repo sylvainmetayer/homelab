@@ -7,25 +7,25 @@ import unittest
 
 import restore_test as rt
 
-ENTRY = {"host": "docker", "repo": "paperless", "role": "paperless_ngx"}
+ENTRY = {"host": "docker", "repo": "papra", "role": "papra"}
 OLD = rt.MAX_ARCHIVE_AGE + datetime.timedelta(days=30)
 FRESH = rt.MAX_ARCHIVE_AGE - datetime.timedelta(hours=1)
 
 
 class CheckAge(unittest.TestCase):
     def test_fresh_archive_passes(self):
-        rt.check_age(ENTRY, "paperless-1", FRESH)
+        rt.check_age(ENTRY, "papra-1", FRESH)
 
     def test_old_archive_fails(self):
         with self.assertRaisesRegex(rt.RestoreError, "ne tourne plus"):
-            rt.check_age(ENTRY, "paperless-1", OLD)
+            rt.check_age(ENTRY, "papra-1", OLD)
 
     def test_old_archive_of_a_paused_app_passes(self):
-        rt.check_age({**ENTRY, "paused": True}, "paperless-1", OLD)
+        rt.check_age({**ENTRY, "paused": True}, "papra-1", OLD)
 
     def test_paused_false_still_checks_the_age(self):
         with self.assertRaises(rt.RestoreError):
-            rt.check_age({**ENTRY, "paused": False}, "paperless-1", OLD)
+            rt.check_age({**ENTRY, "paused": False}, "papra-1", OLD)
 
 
 class Manifest(unittest.TestCase):

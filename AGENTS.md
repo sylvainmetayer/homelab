@@ -75,7 +75,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 ## Current state worth knowing
 
 - `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.3`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
-- Papra (role `papra`, `papra.sylvain.cloud`) is on trial as Paperless-ngx's replacement (Paperless is paused): whichever loses is removed with `remove-app`. Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
+- Papra (role `papra`, `papra.sylvain.cloud`) is the document app (it replaced Paperless-ngx, removed 2026-11-07). Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
 - MediaManager (role `mediamanager`, NAS, `https://mediamanager.sylvain.cloud` private, via `nas_proxy` like Jellyfin) is on trial, in a sandbox of the `media` share; qBittorrent/Prowlarr behind gluetun (ProtonVPN, NL/CH), rendered because `mediamanager_wireguard_private_key` is set (its certificate expires yearly); its PostgreSQL is not backed up yet. → `ansible/roles/mediamanager/README.md`
 
@@ -123,7 +123,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Canary traps (Canarytokens AWS keys, trap file, fake SSH account) | `ansible/roles/canary/README.md`, `docs/runbooks/jeton-piege.md` |
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin); hardening (sshd, PVE firewall, repos, SDN) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md`, `ansible/roles/pve_hardening/README.md` |
 | Pocket ID (identity provider, setup order, rescue) | `ansible/roles/pocket_id/README.md`, `docs/runbooks/pocket-id.md` |
-| Papra trial | `ansible/roles/papra/README.md` |
+| Papra (document app) | `ansible/roles/papra/README.md` |
 | MediaManager trial (NAS, VPN, sandbox) | `ansible/roles/mediamanager/README.md` |
 | Docs site (docs.sylvain.cloud, Zensical): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |
 | Proxmox VM, LXC, vzdump job | `tofu/proxmox/README.md` |

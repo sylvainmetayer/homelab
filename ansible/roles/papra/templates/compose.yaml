@@ -5,7 +5,7 @@ services:
     # image et d'un PDF scanné de trois pages, en local : à recaler sur le
     # pic réel après quelques jours. L'OCR (tesseract.js, dans des worker
     # threads du même processus Node) est un batch, d'où le plafond CPU et le
-    # poids réduit, comme le webserver de Paperless (doctrine dans AGENTS.md).
+    # poids réduit, (doctrine dans AGENTS.md).
     mem_limit: 1100m
     cpus: 2.00
     cpu_shares: 512

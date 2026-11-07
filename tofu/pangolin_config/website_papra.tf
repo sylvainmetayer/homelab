@@ -1,7 +1,7 @@
 # Resource, target and monitors: local.websites (websites.tf).
 #
-# Papra: scanned documents with OCR, on trial as a lighter replacement of
-# Paperless-ngx (paused, website_paperless.tf). Behind the SSO, with no path
+# Papra: scanned documents with OCR (the document app, it replaced
+# Paperless-ngx in November 2026). Behind the SSO, with no path
 # opened around it: no share link (it would need a path ACCEPT, see
 # local.path_bypasses in rules.tf).
 locals {

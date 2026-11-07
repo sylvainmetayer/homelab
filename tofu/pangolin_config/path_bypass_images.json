@@ -55,14 +55,6 @@
     "reread": "server/server.go (handleInternal and the path regexes above it: every route answering /, /<topic>, /<topic>/json|ws|auth, and which of them skip authorizeTopic*), server/server_middleware.go (authorizeTopicRead/Write), server/server_account.go and server/server_admin.go (nothing under /v1 opened), user/manager.go (auth-default-access deny-all, provisioned users and tokens); the clients: ntfy-android ApiService.kt, WsConnection.kt and util/Util.kt, ntfy-ios ntfy/Utils/ApiService.swift and Helpers.swift, Uptime Kuma server/notification-providers/ntfy.js, HealthLog src/lib/notifications/senders/ntfy.ts, shoutrrr pkg/services/push/ntfy",
     "releases": "https://github.com/binwiederhier/ntfy/releases"
   },
-  "Paperless-ngx": {
-    "image": "ghcr.io/paperless-ngx/paperless-ngx",
-    "version": "3.3",
-    "compose": "ansible/roles/paperless_ngx/templates/compose.yaml",
-    "paths": "tofu/pangolin_config/website_paperless.tf (paperless_share_paths)",
-    "reread": "src/paperless/urls.py, src/documents/views.py (SharedLinkView)",
-    "releases": "https://github.com/paperless-ngx/paperless-ngx/releases"
-  },
   "TREK": {
     "image": "docker.io/mauriceboe/trek",
     "version": "5.1.0",

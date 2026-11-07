@@ -17,7 +17,6 @@ locals {
     "homepage",
     "rss",
     "wiki",
-    "paperless",
     "papra",
     "flip-planning",
     "demo-planning",

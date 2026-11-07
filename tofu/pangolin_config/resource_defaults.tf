@@ -49,7 +49,7 @@
 # They are applied once, by pangolin_resource.website (websites.tf). A resource
 # that has to differ from a pin says so in its local.websites entry, with the
 # reason next to it; `enabled` is the only pin an entry can override, to pause
-# an app (paperless today).
+# an app (demo_planning_kc, exemple_planning today).
 # ---------------------------------------------------------------------------
 
 locals {

@@ -76,12 +76,6 @@ victoria_logs_publish_addresses:
   - 127.0.0.1
   - 192.168.1.216
 
-# --- Paperless-ngx en pause (docs/runbooks/app-en-pause.md) ---
-# Arrêté durablement depuis octobre 2026, pas supprimé : unité dc@paperless
-# arrêtée et désactivée, sauvegarde retirée, données et dépôt borg gardés.
-# Reprise : true ici, `enabled` et `"paused"` retirés côté Tofu et apps.json.
-paperless_enabled: false
-
 # Relève e-mail de Papra (rôle papra, README « Mail intake ») : la boîte
 # dédiée, adresse et mot de passe d'application dans SOPS
 # (papra_intake_imap_user, papra_intake_imap_password), jamais en clair ici :

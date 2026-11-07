@@ -39,7 +39,6 @@ session quand son mot de passe change), seules les nouvelles échouent.
 | HealthLog (`healthlog`) | docker, `docker.yml`, `healthlog` | `healthlog-db` (`postgres:18.6-alpine`) | `healthlog`, base `healthlog` | **dérivé** : `sha256(backup_passphrase ~ '-healthlog-db')` (`defaults/main.yml`) | `.env` (`DATABASE_URL`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
 | Jellystat (`jellystat`) | docker, `docker.yml`, `jellystat` | `jellystat-db` (`postgres:18.6-alpine`) | `jellystat`, base `jellystat` | **dérivé** : `sha256(backup_passphrase ~ '-jellystat-db')` (`defaults/main.yml`) | `.env` (`POSTGRES_PASSWORD`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
 | MediaManager (`mediamanager`), **à l'essai** | NAS, `nas.yml` (à la main), `mediamanager` | `mediamanager-db` (`postgres:17.11`) | `mediamanager`, base `mediamanager` | **dérivé** : `sha256(backup_passphrase ~ '-mediamanager-db')` (`defaults/main.yml`) | `config/config.toml` (`[database] password`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement). **Pas de dump** : borgmatic en conteneur sur le NAS (`ansible/roles/mediamanager/README.md`) |
-| Paperless-ngx (`paperless_ngx`) | docker, `docker.yml`, `paperless` | `paperless_db` (`postgres:18`) | `paperless`, base `paperless` | SOPS `paperless_db_password` | compose (`PAPERLESS_DBPASS`). **En pause** : voir plus bas |
 | Flip Planning, production (`flip_planning`) | flip, `flip.yml`, `flip_planning` | `flip-planning-db` (`postgres:18.6`) | `festival`, base `festival` | SOPS `prod_planning_db_password` (`vars:` de l'entrée de `flip.yml`) | `.env` (`DB_PASSWORD`, templaté) |
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
 | Flip Planning, démo Keycloak | flip, `flip.yml`, `demo_planning_kc` | `demo-planning-kc-db` et `demo-planning-kc-keycloak-db` | `festival` (base `festival`) et `keycloak` (base `keycloak`) | SOPS `demo_planning_kc_db_password` et `demo_planning_kc_keycloak_db_password` | `.env` ; compose (`KC_DB_PASSWORD` de Keycloak) |
@@ -76,7 +75,7 @@ l'image :
 - Ne pas merger, pendant l'opération, de PR qui touche le rôle de l'appli :
   `deploy-docker-app` redéploierait depuis `main`, donc avec l'ancien
   mot de passe.
-- Une appli en pause (Paperless-ngx aujourd'hui) n'a pas sa base démarrée :
+- Une appli en pause n'a pas sa base démarrée :
   ne pas tourner son mot de passe pendant la pause. Le faire après la reprise
   ([app-en-pause.md](app-en-pause.md)), appli de nouveau en marche.
 
@@ -118,7 +117,7 @@ ssh_hote() {  # ssh_hote <docker|pi|flip> '<commande distante>'
 
 ### 1. Postgres : `ALTER ROLE` dans le conteneur
 
-Immich, Dawarich, HealthLog, Jellystat, Paperless-ngx, Flip Planning (chaque instance, et la base
+Immich, Dawarich, HealthLog, Jellystat, Flip Planning (chaque instance, et la base
 Keycloak de la démo Keycloak). Exemple Immich :
 
 ```bash

@@ -1,9 +1,7 @@
 # Role `papra`
 
-Papra (`papra.sylvain.cloud`, Docker VM) is **on trial** as the replacement of
-Paperless-ngx (paused, `docs/runbooks/app-en-pause.md`). Whichever of the two
-loses the trial is removed with the `remove-app` skill. App description:
-`docs/apps.md`.
+Papra (`papra.sylvain.cloud`, Docker VM) is the document app: it replaced
+Paperless-ngx (removed in November 2026). App description: `docs/apps.md`.
 
 - OCR: tesseract.js inside the image. The container runs as the host uid
   (`user:` in `templates/compose.yaml`, as Papra's documentation advises), so
@@ -157,8 +155,8 @@ Logs: `journalctl -u papra-intake`.
    `sudo systemctl start papra-intake.service && journalctl -u papra-intake -n 20`.
 
 With `papra_intake_enabled: false` again, the role stops the timer and deletes
-the units, the script and the configuration (the folders stay). If Papra loses
-its trial, run that once before `remove-app`: the decommission knows nothing of
+the units, the script and the configuration (the folders stay). Before a
+`remove-app` of Papra, run that once: the decommission knows nothing of
 `/etc/papra-intake.json` and the units.
 
 Follow-up, not wired: an Uptime Kuma push monitor (like

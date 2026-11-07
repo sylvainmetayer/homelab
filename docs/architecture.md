@@ -302,7 +302,7 @@ flowchart LR
   - « weekly stateless automerged updates » **fusionne seule** (auto-merge
     GitHub, une fois les quatre checks du ruleset verts, donc déployée dans la
     foulée) : les images sans base ni migration de données, sur liste
-    blanche (`gotenberg`, `tika`, `homepage`, `nginx`,
+    blanche (`homepage`, `nginx`,
     `karakeep-chrome`, `rclone`, et `debian`, la base de l'image Molecule),
     hors du rôle `flip_planning` (le redémarrage emporterait le planning de
     production et sa base), et les correctifs des GitHub Actions
