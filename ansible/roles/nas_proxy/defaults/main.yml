@@ -2,8 +2,9 @@
 # Traefik du NAS (nas.yml), sous dc@nas_proxy en unité système
 # (docker_service_scope: system, host_vars/nas) : le TLS des noms du NAS,
 # https://media.sylvain.cloud (Jellyfin), https://nas.sylvain.cloud
-# (interface d'UGOS) https://mediamanager.sylvain.cloud (MediaManager), plus prowlarr. et
-# qbittorrent.sylvain.cloud (ses outils, rôle mediamanager).
+# (interface d'UGOS), https://mediamanager.sylvain.cloud (MediaManager) et
+# https://prowlarr.sylvain.cloud / https://qbittorrent.sylvain.cloud (ses outils,
+# rôle mediamanager).
 # Chaque nom a un A public vers l'IP LAN du NAS (tofu/dns/media.tf, nas.tf,
 # mediamanager.tf) et un certificat Let's Encrypt par DNS-01 OVH : rien n'a
 # besoin d'être joignable depuis Internet.
@@ -113,6 +114,7 @@ nas_proxy_prowlarr_domain: prowlarr.sylvain.cloud
 nas_proxy_prowlarr_url: http://mediamanager-gluetun:9696
 nas_proxy_qbittorrent_domain: qbittorrent.sylvain.cloud
 nas_proxy_qbittorrent_url: http://mediamanager-gluetun:8080
+
 # --- Échéance des certificats (nas-proxy-cert-check.timer) ---
 # Le NAS n'est joignable que du LAN et par le client Pangolin : l'Uptime Kuma
 # de PikaPods ne peut pas lire ses certificats. Chaque jour, files/cert_check.py
