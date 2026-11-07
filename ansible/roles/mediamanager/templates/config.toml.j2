@@ -24,6 +24,9 @@ dbname = "mediamanager"
 token_secret = {{ mediamanager_token_secret | to_json }}
 session_lifetime = 86400
 email_password_resets = false
+# Pas d'inscription, ni par la page ni par OIDC (défaut de master) : les
+# comptes existants marchent, un nouveau s'ajoute dans Settings → Users.
+registration_enabled = false
 # Le premier compte, créé au premier démarrage avec le mot de passe « admin »
 # (à changer aussitôt), et tout compte inscrit avec cette adresse.
 admin_emails = [{{ mediamanager_admin_email | to_json }}]

@@ -6,7 +6,11 @@
 services:
   mediamanager:
     mem_limit: {{ mediamanager_mem_limit }}
-    image: quay.io/maxdorninger/mediamanager:1.12.3@sha256:83b80dce26f8cdbbf8afec06784a85e7eedcba05ad4be57d2f70b006304d7a8c
+    # Image de développement (commit 98f2532 du 05/07/2026) : la 1.12.3 prend
+    # la réponse JSON de qBittorrent 5 à l'ajout d'un torrent pour un échec
+    # (#547, corrigé par #558) et n'importe rien. Revenir à une version dès la
+    # première sortie après la 1.12.3 (sans retour : migrations de base).
+    image: quay.io/maxdorninger/mediamanager:master@sha256:4ea37ca4c4fa8ff02d3f03fc90e81f1c585a564c963a01e9dc4dc1ee11f031d4
     container_name: mediamanager
     # Non root : le script de démarrage de l'image, lancé en root, ferait un
     # chown -R de /data, c'est-à-dire du bac à sable entier.
