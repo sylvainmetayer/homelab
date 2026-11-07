@@ -74,7 +74,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 
 ## Current state worth knowing
 
-- `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.3`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
+- `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.5`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
 - Papra (role `papra`, `papra.sylvain.cloud`) is the document app (it replaced Paperless-ngx, removed 2026-11-07). Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
 - MediaManager (role `mediamanager`, NAS, `https://mediamanager.sylvain.cloud` private, via `nas_proxy` like Jellyfin) is on trial, in its own folder of the `media` share (`media/mediamanager`, read by the Jellyfin libraries « Nouveautés films/séries », never a collection folder); qBittorrent/Prowlarr behind gluetun (ProtonVPN, NL/CH), their UIs at `https://qbittorrent.sylvain.cloud` / `https://prowlarr.sylvain.cloud` the same way for the Pangolin role `mediamanager-admin` only, rendered because `mediamanager_wireguard_private_key` is set (its certificate expires yearly); its PostgreSQL is dumped by a `borgmatic.service` drop-in before each NAS run (the borgmatic container has no docker). → `ansible/roles/mediamanager/README.md`
