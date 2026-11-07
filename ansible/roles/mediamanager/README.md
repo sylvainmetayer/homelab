@@ -164,9 +164,14 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   avec son IP de réseau `proxy`, et `ReverseProxySupportEnabled` reste à son
   défaut (faux), donc `X-Forwarded-For` n'est jamais cru et personne n'est pris
   pour `localhost` ; seul le sous-réseau du réseau `proxy` (Traefik, gluetun,
-  MediaManager) est dispensé de mot de passe. Conséquence : le tunnel SSH
-  ci-dessous et ce réseau sont les deux seuls chemins sans login, et le
-  premier demande déjà une clé SSH du NAS. Les défauts de
+  MediaManager) est dispensé de mot de passe. Sans login aussi : Prowlarr
+  (`External`) pour tout ce qui joint son port, soit le `127.0.0.1` du NAS
+  (tunnel SSH ci-dessous, comptes du NAS) et les réseaux de la pile (`default`,
+  `proxy`). Rien de cela n'est joignable depuis le LAN sans passer par Traefik,
+  donc par Pocket ID. `nas.yml` déploie `nas_proxy` avant `mediamanager` :
+  lancer `--tags mediamanager` seul quand l'oauth2-proxy n'est pas (encore)
+  déployé ouvrirait les deux interfaces sans login au LAN, toujours
+  `--tags nas_proxy,mediamanager`. Les défauts de
   qBittorrent suffisent derrière Traefik (`HostHeaderValidation` actif mais
   `ServerDomains=*`, Traefik garde l'en-tête `Host`, la vérification CSRF
   compare `Origin` et `Host`) : `qBittorrent.conf` n'est pas modifié. Repli,

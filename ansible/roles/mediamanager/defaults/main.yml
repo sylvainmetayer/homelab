@@ -87,9 +87,15 @@ mediamanager_prowlarr_api_key: "{{ ((backup_passphrase ~ '-mediamanager-prowlarr
 # Pocket ID seul : quand l'oauth2-proxy du Traefik du NAS est actif (client
 # mediamanager-tools dans le state, rôle nas_proxy), Prowlarr passe en
 # authentification « External » et qBittorrent dispense de mot de passe le
-# réseau mediamanager_proxy (Traefik seul y parle à gluetun). Sans le client,
+# réseau mediamanager_proxy (Traefik, gluetun et MediaManager). Sans le client,
 # ou avec le secours ci-dessous, chacun redemande son propre login.
-mediamanager_sso_proxy: "{{ terraform_outputs.pocket_id_mediamanager_tools_client_id.value | default('') | length > 0 }}"
+# Les trois sorties dont dépend nas_proxy_oidc_enabled (rôle nas_proxy) : sans
+# l'une d'elles Traefik ne met pas l'oauth2-proxy devant, et retirer les logins
+# laisserait Prowlarr et qBittorrent ouverts.
+mediamanager_sso_proxy: >-
+  {{ (terraform_outputs.pocket_id_mediamanager_tools_client_id.value | default('') | length > 0)
+     and (terraform_outputs.pocket_id_mediamanager_tools_client_secret.value | default('') | length > 0)
+     and (terraform_outputs.pocket_id_issuer.value | default('') | length > 0) }}
 # Secours (README, « Login local de secours ») : true remet le formulaire de
 # Prowlarr (compte de sudo prowlarr-user) et le mot de passe de qBittorrent.
 mediamanager_local_login: false
