@@ -104,7 +104,7 @@ services:
       # Port entrant du fournisseur (NAT-PMP chez ProtonVPN), renouvelé à
       # chaque connexion : gluetun le donne à qBittorrent par son API, sur le
       # 127.0.0.1 qu'ils partagent (WebUI\LocalHostAuth=false dans
-      # qBittorrent.conf), et le retire quand le tunnel tombe. Commandes de la
+      # qBittorrent.conf), et le retire quand la redirection tombe. Commandes de la
       # doc de gluetun (setup/advanced/vpn-port-forwarding.md), sauf la bascule
       # sur « lo » à la descente : ProtonVPN refuse parfois un renouvellement
       # NAT-PMP (toutes les 2 à 5 min), et « lo » coupait alors les transferts.
