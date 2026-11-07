@@ -128,8 +128,8 @@ lui-même chaque matin l'échéance de leurs certificats
 (`nas-proxy-cert-check.timer`) et pousse le résultat au moniteur
 « Certificats NAS », rouge sous 14 jours restants ou sans nouvelles depuis
 deux jours ; et toutes les 5 minutes la santé de Jellyfin et de MediaManager
-par ce même Traefik (`nas-health-check.timer`), poussée aux moniteurs
-« Healthcheck Jellyfin » et « Healthcheck MediaManager ».
+par ce même Traefik (`nas-health-check.timer`), poussée à un seul moniteur,
+« Healthcheck NAS » (le message nomme l'appli en échec).
 
 - En LAN : `https://media.sylvain.cloud`, sans port, ou en `:8443`. Repli :
   `http://192.168.1.137:8096`.

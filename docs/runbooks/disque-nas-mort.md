@@ -13,7 +13,7 @@ tout ce qui touche l'interface d'UGOS est marqué « à vérifier ».
 - Alerte du RAID dans UGOS (volume « dégradé », « défaillant » : intitulé à
   vérifier), page S.M.A.R.T. de `nas` dans Beszel rouge (disques `sda`, `sdb`,
   `sdc` suivis, `host_vars/nas`).
-- Ou le NAS ne répond plus : moniteurs « Healthcheck Jellyfin », « Certificats
+- Ou le NAS ne répond plus : moniteurs « Healthcheck NAS », « Certificats
   NAS », « kDrive vers NAS » et « Backup Jellyfin » rouges ensemble, agent
   Beszel `nas` hors ligne.
 
@@ -120,7 +120,7 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 ## Vérification
 
 - `https://media.sylvain.cloud` et `https://nas.sylvain.cloud` répondent ;
-  moniteurs « Healthcheck Jellyfin », « Certificats NAS » (le certificat est
+  moniteurs « Healthcheck NAS », « Certificats NAS » (le certificat est
   redemandé par DNS-01 : limites de Let's Encrypt à vérifier si on enchaîne les
   essais), « Backup Jellyfin » (après 02:30), « kDrive vers NAS » verts.
 - Depuis l'hôte Proxmox : `showmount -e 192.168.1.137` liste

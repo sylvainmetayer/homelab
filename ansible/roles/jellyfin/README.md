@@ -10,7 +10,7 @@ Quick Sync (N100 iGPU, `i915`): the compose passes `jellyfin_render_device` (`/d
 
 Backup (tag `backup`, `jellyfin_backup_enabled`, default true): `config/` and the compose through the shared borgmatic template, run by the NAS's containerised borgmatic (02:30, `ansible/roles/borgmatic/README.md`); the SQLite databases `config/data/*.db` are copied by `sqlite3` (`VACUUM INTO` in WAL, `.backup` otherwise), their live copy excluded. Push monitor « Backup Jellyfin » (`tofu/pangolin_config/backup_jellyfin.tf`, outside `local.websites`: Jellyfin is no public resource), restore-tested (`.github/restore-test/apps.json`). The media are not in borg.
 
-Health: push monitor « Healthcheck Jellyfin » (`tofu/pangolin_config/health_nas.tf`), fed every 5 minutes by the NAS itself through its Traefik (`nas-health-check.timer`, role `nas_proxy`, `ansible/roles/nas_proxy/README.md`): the PikaPods Uptime Kuma cannot reach `media.sylvain.cloud`.
+Health: push monitor « Healthcheck NAS » (Jellyfin and MediaManager, one monitor) (`tofu/pangolin_config/health_nas.tf`), fed every 5 minutes by the NAS itself through its Traefik (`nas-health-check.timer`, role `nas_proxy`, `ansible/roles/nas_proxy/README.md`): the PikaPods Uptime Kuma cannot reach `media.sylvain.cloud`.
 
 Connexion par Pocket ID (tag `sso`, `tasks/sso.yml`, ADR 0030) : greffon « SSO Authentication » du fork K0lin de jellyfin-plugin-sso (v5.1.1, `targetAbi` 12.0.0.0, chargé par Jellyfin 12.4, testé le 2026-11-06 : « Loaded plugin: SSO Authentication 5.1.1 »). Posé seulement si `terraform_outputs` porte `pocket_id_jellyfin_client_id`/`_secret` et `pocket_id_issuer` (client `jellyfin` de `tofu/pangolin_config/pocket_id.tf`, à appliquer d'abord) ; sinon Jellyfin reste tel quel.
 
