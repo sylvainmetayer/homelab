@@ -1,0 +1,57 @@
+---
+# Un passage de la vraie unité sur un scénario, puis ce que les faux services ont
+# reçu : log_alerts_verify_requests, les requêtes de ce passage seulement.
+- name: "Write the scenario of the step: {{ log_alerts_verify_step }}"
+  ansible.builtin.copy:
+    content: "{{ log_alerts_verify_scenario | to_json }}"
+    dest: "{{ log_alerts_verify_tmp }}/scenario.json"
+    mode: "0600"
+
+- name: "Empty the requests log: {{ log_alerts_verify_step }}"
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ log_alerts_verify_tmp }}/requests.jsonl"
+    mode: "0600"
+
+- name: "Run the unit: {{ log_alerts_verify_step }}"
+  ansible.builtin.systemd:
+    name: log-alerts.service
+    state: started
+  failed_when: false
+
+- name: "Read the result of the unit: {{ log_alerts_verify_step }}"
+  ansible.builtin.systemd:
+    name: log-alerts.service
+  register: log_alerts_verify_start
+
+- name: "Read the requests: {{ log_alerts_verify_step }}"
+  ansible.builtin.slurp:
+    path: "{{ log_alerts_verify_tmp }}/requests.jsonl"
+  register: log_alerts_verify_received
+
+# Dans le message de l'assert : sans lui, un échec de l'unité ne dit pas pourquoi.
+- name: "Read the journal of the unit: {{ log_alerts_verify_step }}"
+  ansible.builtin.command: journalctl -u log-alerts.service -n 15 --no-pager -o cat
+  register: log_alerts_verify_journal
+  changed_when: false
+  failed_when: false
+
+- name: "Assert what happened: {{ log_alerts_verify_step }}"
+  vars:
+    log_alerts_verify_requests: "{{ (log_alerts_verify_received.content | b64decode).splitlines() | map('from_json') | list }}"
+    log_alerts_verify_ntfy: "{{ log_alerts_verify_requests | selectattr('route', 'equalto', 'ntfy') | map(attribute='body') | list }}"
+    log_alerts_verify_pushes: "{{ log_alerts_verify_requests | selectattr('route', 'equalto', 'push') | map(attribute='status') | list }}"
+  ansible.builtin.assert:
+    that:
+      - log_alerts_verify_start.status.Result == (log_alerts_verify_result | default('success'))
+      - log_alerts_verify_pushes == log_alerts_verify_expected_pushes
+      - log_alerts_verify_ntfy | map(attribute='title') | list == log_alerts_verify_expected_titles
+      - log_alerts_verify_ntfy | map(attribute='priority') | list == log_alerts_verify_expected_priorities
+      - log_alerts_verify_ntfy | map(attribute='message') | join('\n') == log_alerts_verify_expected_messages | join('\n')
+      - >-
+        log_alerts_verify_requests | selectattr('route', 'equalto', 'ntfy') | map(attribute='authorization')
+        | reject('equalto', 'Bearer ' ~ ntfy_scripts_token) | list | length == 0
+      - >-
+        log_alerts_verify_requests | selectattr('route', 'equalto', 'vl') | length
+        == (log_alerts_verify_queries | default(log_alerts_verify_defaults.log_alerts_rules | length))
+    fail_msg: "{{ log_alerts_verify_requests }} {{ log_alerts_verify_journal.stdout }}"

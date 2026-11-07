@@ -1,0 +1,8 @@
+---
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer.
+- name: Restart log-alerts timer
+  become: true
+  ansible.builtin.systemd:
+    name: log-alerts.timer
+    state: restarted
+    daemon_reload: true

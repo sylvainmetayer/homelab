@@ -1,0 +1,99 @@
+---
+# Sans ces jetons, le contrôle tournerait sans jamais pouvoir conclure ni
+# alerter : échec franc au déploiement. Pas de no_log : il cacherait fail_msg.
+- name: Check the settings of the log alerts
+  ansible.builtin.assert:
+    that:
+      - log_alerts_vl_password | length > 0
+      - log_alerts_ntfy_token | length > 0
+      - log_alerts_rules | length > 0
+    fail_msg: >-
+      victoria_logs_ui_password et ntfy_scripts_token (secrets/ansible.sops.yaml)
+      ne doivent pas être vides, ni log_alerts_rules.
+    quiet: true
+
+- name: Warn when the log alerts have no monitor
+  when: log_alerts_push_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      Pas d'URL push : uptime_cron_log_alerts_url vide (tofu/pangolin_config pas
+      appliqué). Le contrôle alerte sur ntfy mais rien ne verrait sa panne.
+
+- name: Ensure the log alerts folders exist
+  become: true
+  loop:
+    - "{{ log_alerts_script | dirname }}"
+    - "{{ log_alerts_config_dir }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    # Traversés par le compte de l'unité ; secrets.env reste en 0600.
+    mode: "0755" # NOSONAR
+
+- name: Install the log alerts script
+  become: true
+  ansible.builtin.copy:
+    src: log_alerts.py
+    dest: "{{ log_alerts_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Sans secret.
+- name: Write the log alerts configuration
+  become: true
+  ansible.builtin.copy:
+    content: >-
+      {{ {
+        'vl_url': log_alerts_vl_url,
+        'vl_user': log_alerts_vl_user,
+        'ntfy_url': log_alerts_ntfy_url,
+        'ntfy_topic': log_alerts_ntfy_topic,
+        'uptime_push_bin': uptime_push_bin,
+        'rules': log_alerts_rules,
+      } | to_nice_json(ensure_ascii=False) }}
+    dest: "{{ log_alerts_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart log-alerts timer
+
+# Mot de passe de lecture, jeton ntfy, URL push (jeton du moniteur) : 0600 root,
+# jamais sur la ligne de commande de l'unité.
+- name: Write the log alerts secrets
+  become: true
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: |
+      LOG_ALERTS_VL_PASSWORD={{ log_alerts_vl_password | to_json(ensure_ascii=False) }}
+      LOG_ALERTS_NTFY_TOKEN={{ log_alerts_ntfy_token | to_json(ensure_ascii=False) }}
+      LOG_ALERTS_PUSH_URL={{ log_alerts_push_url | to_json(ensure_ascii=False) }}
+    dest: "{{ log_alerts_config_dir }}/secrets.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the log alerts service and timer
+  become: true
+  loop:
+    - log-alerts.service
+    - log-alerts.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart log-alerts timer
+
+# Le timer seul : le service, oneshot, n'est jamais lancé par Ansible.
+- name: Enable the log alerts timer
+  become: true
+  ansible.builtin.systemd:
+    name: log-alerts.timer
+    state: started
+    enabled: true
+    daemon_reload: true

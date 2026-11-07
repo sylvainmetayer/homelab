@@ -1,0 +1,83 @@
+---
+# Alertes sur les journaux VictoriaLogs (README du rôle) : log-alerts.timer lance
+# files/log_alerts.py, qui rejoue chaque règle de log_alerts_rules sur une fenêtre
+# glissante, alerte sur ntfy (topic scripts) et pousse up à un moniteur Uptime
+# Kuma. Tourne sur la VM docker, qui porte VictoriaLogs.
+
+# Moniteur Uptime Kuma du contrôle : sortie uptime_cron_log_alerts_url de
+# tofu/pangolin_config, donnée par l'entrée du rôle dans docker.yml. Vide avant
+# l'apply : le contrôle alerte sur ntfy, sans battement (avertissement).
+log_alerts_push_url: ""
+
+log_alerts_vl_url: http://127.0.0.1:9428 # NOSONAR
+log_alerts_vl_user: "{{ victoria_logs_ui_user | default('sylvain') }}"
+log_alerts_vl_password: "{{ victoria_logs_ui_password | default('') }}"
+
+# Producteur scripts du rôle ntfy, comme ci_key_audit, mem_report et cost_report.
+log_alerts_ntfy_url: https://ntfy.sylvain.cloud
+log_alerts_ntfy_topic: scripts
+log_alerts_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
+
+# Toutes les 5 minutes (*:0/N : le test de tofu/pangolin_config en déduit
+# l'intervalle du moniteur, trois périodes).
+log_alerts_schedule: "*:0/5"
+log_alerts_first_run_delay: 2min
+
+# Hôtes dont borgmatic.service doit écrire au moins une ligne par jour.
+log_alerts_borgmatic_hosts: [docker, pangolin, pi, flip, nas]
+
+# Une règle : name (clé de dédup), title et priority (ntfy), query (LogsQL, finit
+# par `stats by (...) count() n`), window_seconds, threshold (compte par groupe) ou
+# expect_hosts (hôtes qui doivent apparaître), repeat_seconds (dédup d'un groupe).
+# Seuils mesurés sur 10 jours de journaux (07/11/2026, étude q-logalert).
+# session.scope : les commandes tapées en SSH (ce qu'on cherche y est cité).
+log_alerts_rules:
+  # Rafale de 502/503/504 : un backend arrêté un instant en donne quelques-uns
+  # (un déploiement), dix en 5 minutes sur un routeur est plus qu'un redémarrage.
+  - name: traefik-5xx
+    title: "Traefik : rafale de 5xx"
+    priority: 3
+    query: 'source:traefik status:in(502,503,504) | stats by (router) count() n'
+    window_seconds: 300
+    threshold: 10
+    repeat_seconds: 3600
+  # Un conteneur tué par sa limite mémoire (cgroup) ou par SIGKILL. homepage,
+  # déjà connu pour sa limite, a sa règle à part.
+  - name: oom-kill
+    title: "Processus tué (OOM, code 137)"
+    priority: 4
+    query: >-
+      (_msg:~"OOMKilled" OR _msg:"exited with code 137" OR _msg:"status=9/KILL")
+      -unit:in("session.scope","dc@homepage.service")
+      | stats by (host, unit) count() n
+    window_seconds: 900
+    threshold: 1
+    repeat_seconds: 3600
+  - name: oom-kill-homepage
+    title: "homepage : kills répétés (OOM, code 137)"
+    priority: 3
+    query: >-
+      (_msg:~"OOMKilled" OR _msg:"exited with code 137" OR _msg:"status=9/KILL")
+      unit:"dc@homepage.service"
+      | stats by (host, unit) count() n
+    window_seconds: 3600
+    threshold: 3
+    repeat_seconds: 21600
+  # Le journal ne montre pas toujours l'échec : l'absence de ligne est le filet.
+  - name: borgmatic-absent
+    title: "borgmatic : aucune ligne en 26 h"
+    priority: 5
+    query: 'unit:"borgmatic.service" | stats by (host) count() n'
+    window_seconds: 93600
+    expect_hosts: "{{ log_alerts_borgmatic_hosts }}"
+    repeat_seconds: 86400
+  - name: borgmatic-failed
+    title: "borgmatic : échec de l'unité"
+    priority: 5
+    query: 'unit:"borgmatic.service" _msg:"Failed with result" | stats by (host) count() n'
+    window_seconds: 93600
+    threshold: 1
+    repeat_seconds: 86400
+
+log_alerts_script: /usr/local/libexec/log_alerts.py
+log_alerts_config_dir: /etc/log-alerts
