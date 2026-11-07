@@ -243,9 +243,8 @@ resource "pangolin_site_resource_role" "jellyfin" {
 # newt ni joignable par Pangolin. Traefik choisit l'appli au nom (SNI, Host) :
 # un membre du rôle jellyfin qui viserait l'alias media.sylvain.cloud avec ce
 # nom atteindrait la page de connexion de MediaManager, comme n'importe quel
-# appareil du LAN ; le compte de MediaManager reste la barrière. Ni
-# qBittorrent ni Prowlarr : leurs interfaces restent sur le 127.0.0.1 du NAS
-# (tunnel SSH, README du rôle). UDP à "*" comme ailleurs (le provider ne sait
+# appareil du LAN ; le compte de MediaManager reste la barrière. Prowlarr et
+# qBittorrent ont leurs propres ressources, plus bas (rôle mediamanager-admin). UDP à "*" comme ailleurs (le provider ne sait
 # pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "mediamanager" {
   site_ids       = [pangolin_site.nas.id]
@@ -277,6 +276,67 @@ resource "pangolin_role" "mediamanager" {
 resource "pangolin_site_resource_role" "mediamanager" {
   role_id          = pangolin_role.mediamanager.id
   site_resource_id = pangolin_site_resource.mediamanager.id
+}
+
+# Prowlarr et qBittorrent (ansible/roles/mediamanager, derrière gluetun), comme
+# mediamanager ci-dessus : https://prowlarr.sylvain.cloud et
+# https://qbittorrent.sylvain.cloud, à la maison comme dehors par un client
+# Pangolin, par le même nas-proxy et les mêmes ports (443, 8443) ; les A sont
+# dans tofu/dns (prowlarr.tf, qbittorrent.tf). Traefik choisit l'appli au nom (SNI, Host) ;
+# gluetun rejoint mediamanager_proxy (nas_proxy_prowlarr_url,
+# nas_proxy_qbittorrent_url). Ouvertes au seul rôle mediamanager-admin
+# (Sylvain), pas au rôle mediamanager : même réserve que pour les autres noms du
+# NAS, un membre d'un autre rôle qui enverrait ce Host à nas-proxy atteindrait la
+# page de connexion de l'appli, dont le compte reste la barrière (ni l'une ni
+# l'autre ne fait d'OIDC). UDP à "*" comme ailleurs.
+resource "pangolin_site_resource" "prowlarr" {
+  site_ids       = [pangolin_site.nas.id]
+  name           = "Prowlarr"
+  mode           = "host"
+  alias          = "prowlarr.sylvain.cloud"
+  destination    = "nas-proxy"
+  disable_icmp   = true
+  tcp_port_range = "443,8443"
+  udp_port_range = "*"
+  ssl            = false
+  enabled        = true
+}
+
+resource "pangolin_site_resource" "qbittorrent" {
+  site_ids       = [pangolin_site.nas.id]
+  name           = "qBittorrent"
+  mode           = "host"
+  alias          = "qbittorrent.sylvain.cloud"
+  destination    = "nas-proxy"
+  disable_icmp   = true
+  tcp_port_range = "443,8443"
+  udp_port_range = "*"
+  ssl            = false
+  enabled        = true
+}
+
+# Sylvain seul (ajouté dans l'UI de Pangolin ou, par l'IdP, au groupe Pocket ID
+# du même nom : les utilisateurs ne sont pas gérés ici). Hors de local.apps
+# (roles.tf), comme jellyfin et mediamanager.
+resource "pangolin_role" "mediamanager_admin" {
+  name                    = "mediamanager-admin"
+  description             = "Role for prowlarr and qbittorrent.sylvain.cloud (MediaManager's tools on the NAS, private, Sylvain only)"
+  allow_ssh               = local.role_pins.allow_ssh
+  ssh_sudo_mode           = local.role_pins.ssh_sudo_mode
+  ssh_sudo_commands       = local.role_pins.ssh_sudo_commands
+  ssh_create_home_dir     = local.role_pins.ssh_create_home_dir
+  ssh_unix_groups         = local.role_pins.ssh_unix_groups
+  require_device_approval = local.role_pins.require_device_approval
+}
+
+resource "pangolin_site_resource_role" "prowlarr" {
+  role_id          = pangolin_role.mediamanager_admin.id
+  site_resource_id = pangolin_site_resource.prowlarr.id
+}
+
+resource "pangolin_site_resource_role" "qbittorrent" {
+  role_id          = pangolin_role.mediamanager_admin.id
+  site_resource_id = pangolin_site_resource.qbittorrent.id
 }
 
 resource "pangolin_client" "ci_runner" {

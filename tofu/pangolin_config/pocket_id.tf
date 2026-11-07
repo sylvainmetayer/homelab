@@ -19,7 +19,7 @@ locals {
 
   # Les rôles Pangolin repris des groupes Pocket ID : tous ceux d'applis
   # (roles.tf), plus ceux des ressources privées (private_resources.tf).
-  pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager"]))
+  pocket_id_role_groups = toset(concat(local.apps, ["jellyfin", "mediamanager", "mediamanager-admin"]))
   # Ceux dont l'appli est branchée sur Pocket ID ont leur propre ressource
   # pocketid_group (plus bas) : pas de second groupe du même nom, que Pocket
   # ID refuserait à l'apply.
@@ -828,6 +828,7 @@ resource "pocketid_group" "pangolin_role" {
     pairdrop           = "PairDrop"
     "demo-planning-kc" = "Demo Planning KC"
     mediamanager       = "MediaManager"
+    mediamanager-admin = "MediaManager admin"
     "victoria-logs"    = "VictoriaLogs"
   }, each.key, title(replace(each.key, "-", " ")))
 }

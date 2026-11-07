@@ -5,7 +5,7 @@
 # Qui délivre quoi (inventaire du 2026-10-28, openssl s_client et dig ; aucun
 # CAA n'existait encore, rien à importer) :
 # - Let's Encrypt : Traefik de Pangolin (HTTP-01, un certificat par nom, aucun
-#   joker), Traefik du NAS (DNS-01, media, nas et mediamanager.sylvain.cloud),
+#   joker), Traefik du NAS (DNS-01, media, nas, mediamanager, prowlarr et qbittorrent.sylvain.cloud),
 #   et PikaPods pour budget.sylvain.cloud (CNAME posé hors Tofu vers
 #   *.pikapod.net, qui ne publie aucun CAA : c'est donc celui de sylvain.cloud
 #   qui s'applique ;

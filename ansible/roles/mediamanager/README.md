@@ -18,7 +18,7 @@ toutes les applis du NAS : `ansible/roles/docker_service/README.md`), dans
 |---|---|---|---|
 | `mediamanager` | `mediamanager` | `default`, `db`, `proxy` | l'appli, en `sylvain` (jamais root : lancé en root, son script ferait un `chown -R` de `/data`) |
 | `db` | `mediamanager-db` | `db` (interne, sans sortie) | PostgreSQL 17 |
-| `gluetun` | `mediamanager-gluetun` | `default` | tunnel WireGuard, kill switch |
+| `gluetun` | `mediamanager-gluetun` | `default`, `proxy` | tunnel WireGuard, kill switch ; `proxy` pour que le Traefik du NAS joigne Prowlarr et qBittorrent |
 | `qbittorrent` | `mediamanager-qbittorrent` | celui de gluetun | téléchargements |
 | `prowlarr` | `mediamanager-prowlarr` | celui de gluetun | indexeurs (trackers publics) |
 
@@ -137,8 +137,30 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   du LAN et tout membre du rôle `jellyfin` (par l'alias
   `media.sylvain.cloud`) peut atteindre la page de connexion ; le compte de
   MediaManager est le seul verrou.
-- **qBittorrent et Prowlarr** : publiés sur le `127.0.0.1` du NAS seulement
-  (ports 8080 et 9696, sur gluetun), jamais sur le LAN ni par Pangolin. Depuis
+- **qBittorrent et Prowlarr** : `https://qbittorrent.sylvain.cloud` et
+  `https://prowlarr.sylvain.cloud` (ou `:8443`), de la même façon que
+  MediaManager (routeurs `qbittorrent` et `prowlarr` de `nas_proxy`, A publics
+  de `tofu/dns/prowlarr.tf` et `qbittorrent.tf`, laissés passer par Blocky, ressources
+  privées Pangolin `Prowlarr` et `qBittorrent` du site `nas`), mais ouvertes
+  au seul rôle Pangolin **`mediamanager-admin`** (Sylvain, ajouté à ce rôle ou
+  au groupe Pocket ID du même nom, dans l'UI), pas au rôle `mediamanager`.
+  Ni l'un ni l'autre ne fait d'OIDC : chacun garde son compte (Prowlarr en
+  `Forms`, qBittorrent `mediamanager`), seul verrou comme pour MediaManager (le
+  Traefik choisit l'appli au nom demandé). Le Traefik du NAS les joint par
+  `http://mediamanager-gluetun:9696` et `:8080` : gluetun est aussi sur le
+  réseau `proxy` (interne, sans passerelle). Le pare-feu de gluetun admet
+  l'entrant vers le sous-réseau de chaque interface Ethernet locale et n'y
+  laisse sortir que vers ce sous-réseau : le kill switch (sortie par le tunnel
+  seul) est inchangé, et rien d'autre que le réseau `proxy` ne voit ces deux
+  ports. `WebUI\LocalHostAuth=false` ne vaut que pour la boucle locale
+  (`127.0.0.1` de l'espace réseau de gluetun) : la requête de Traefik arrive
+  avec son IP de réseau `proxy`, et `ReverseProxySupportEnabled` reste à son
+  défaut (faux), donc `X-Forwarded-For` n'est jamais cru et personne n'est pris
+  pour `localhost` ; `AuthSubnetWhitelist` n'est pas posé. Les défauts de
+  qBittorrent suffisent derrière Traefik (`HostHeaderValidation` actif mais
+  `ServerDomains=*`, Traefik garde l'en-tête `Host`, la vérification CSRF
+  compare `Origin` et `Host`) : `qBittorrent.conf` n'est pas modifié. Repli,
+  toujours là, les ports sur le `127.0.0.1` du NAS (jamais sur le LAN). Depuis
   le PC, à la maison (ou dehors, client Pangolin connecté, ressource `nas`) :
 
   ```bash
@@ -226,7 +248,8 @@ restauration pour un essai.
 3. `https://mediamanager.sylvain.cloud` (client Pangolin connecté, dehors) : le compte
    à l'adresse de `pangolin_le_email` (`mediamanager_admin_email`), mot de
    passe **`admin`**, créé au premier démarrage : **le changer aussitôt**.
-4. Avec la clé WireGuard posée et le rôle relancé : tunnel SSH (plus haut),
+4. Avec la clé WireGuard posée et le rôle relancé : `https://prowlarr.sylvain.cloud`
+   (ou le tunnel SSH, plus haut),
    Prowlarr demande de créer son compte à la première visite ; y ajouter des
    indexeurs publics, en laissant **« Redirect » décoché** sur chacun :
    Prowlarr télécharge alors lui-même le `.torrent` (par le VPN) au lieu de

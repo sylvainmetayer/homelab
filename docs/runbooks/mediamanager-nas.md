@@ -13,7 +13,7 @@ jamais par la CI** : tout déploiement est à la main. Détail :
 |---|---|
 | `mediamanager` | l'appli, réseaux `default`, `db`, `proxy` |
 | `mediamanager-db` | PostgreSQL 17, réseau `db` interne |
-| `mediamanager-gluetun` | tunnel WireGuard, kill switch |
+| `mediamanager-gluetun` | tunnel WireGuard, kill switch (aussi sur `mediamanager_proxy` pour Traefik) |
 | `mediamanager-qbittorrent`, `mediamanager-prowlarr` | dans le réseau de gluetun (`network_mode: service:gluetun`) |
 
 Les trois derniers n'existent qu'avec la clé SOPS
@@ -86,7 +86,9 @@ dans Options → Connexion. Différent ou 0 : la commande
 `VPN_PORT_FORWARDING_UP_COMMAND` de gluetun n'a pas atteint qBittorrent
 (`WebUI\LocalHostAuth=false` retiré du `qBittorrent.conf`, par exemple).
 
-Interfaces de qBittorrent et Prowlarr, depuis le PC :
+Interfaces de qBittorrent et Prowlarr : `https://qbittorrent.sylvain.cloud` et
+`https://prowlarr.sylvain.cloud` (rôle Pangolin `mediamanager-admin` dehors).
+Repli, le tunnel SSH depuis le PC :
 
 ```bash
 ssh -N -L 8080:127.0.0.1:8080 -L 9696:127.0.0.1:9696 sylvain@192.168.1.137

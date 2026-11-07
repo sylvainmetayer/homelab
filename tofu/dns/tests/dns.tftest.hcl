@@ -276,6 +276,19 @@ run "mediamanager_vers_le_nas" {
   }
 }
 
+# prowlarr. et qbittorrent.sylvain.cloud (prowlarr.tf, qbittorrent.tf) : même cible.
+run "prowlarr_qbittorrent_vers_le_nas" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for r in [ovh_domain_zone_record.prowlarr, ovh_domain_zone_record.qbittorrent] :
+      r.zone == "sylvain.cloud" && r.fieldtype == "A" && r.target == ovh_domain_zone_record.media.target
+    ]) && ovh_domain_zone_record.prowlarr.subdomain == "prowlarr" && ovh_domain_zone_record.qbittorrent.subdomain == "qbittorrent"
+    error_message = "prowlarr. et qbittorrent.sylvain.cloud doivent être des A vers l'IP LAN du NAS, comme mediamanager.sylvain.cloud."
+  }
+}
+
 # Authentification des e-mails (mail.tf, docs/runbooks/dmarc.md).
 run "dmarc_sur_chaque_zone" {
   command = plan
