@@ -16,5 +16,7 @@ ExecStart=/bin/sh {{ thin_pool_check_dir }}/thin-pool-check.sh {{ thin_pool_chec
 TimeoutStartSec=2min
 NoNewPrivileges=yes
 ProtectSystem=strict
+# lvs pose son verrou dans /run/lock/lvm : sans lui, « File locking initialisation failed ».
+ReadWritePaths=-/run/lock/lvm
 ProtectHome=yes
 PrivateTmp=yes
