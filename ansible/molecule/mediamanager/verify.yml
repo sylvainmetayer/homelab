@@ -179,6 +179,7 @@
         mm_verify_qbt: "{{ mm_verify_model.services.qbittorrent }}"
         mm_verify_prowlarr: "{{ mm_verify_model.services.prowlarr }}"
         mm_verify_up: "{{ mm_verify_gluetun.environment.VPN_PORT_FORWARDING_UP_COMMAND }}"
+        mm_verify_down: "{{ mm_verify_gluetun.environment.VPN_PORT_FORWARDING_DOWN_COMMAND }}"
       ansible.builtin.assert:
         that:
           - mm_verify_model.services.keys() | sort == ['db', 'gluetun', 'mediamanager', 'prowlarr', 'qbittorrent']
@@ -204,6 +205,10 @@
           - mm_verify_up is search('listen_port.{1,3}\{\{PORT\}\},')
           - mm_verify_up is search('\{\{VPN_INTERFACE\}\}')
           - mm_verify_up is search('http://127\.0\.0\.1:8080/api/v2/app/setPreferences') # NOSONAR
+          # Descente : port à 0 seulement, jamais de bascule sur lo (coupait
+          # tous les transferts à chaque renouvellement NAT-PMP refusé).
+          - mm_verify_down is search('listen_port.{1,3}:0')
+          - mm_verify_down is not search('current_network_interface')
           - mm_verify_gluetun.cap_add == ['NET_ADMIN']
           # Interfaces web sur la boucle locale du NAS seulement.
           - mm_verify_gluetun.ports | map(attribute='host_ip') | unique | list == ['127.0.0.1']
