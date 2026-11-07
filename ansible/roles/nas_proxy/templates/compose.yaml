@@ -134,6 +134,8 @@ services:
       - --insecure-oidc-allow-unverified-email=true
       - --http-address=0.0.0.0:4180
       - --upstream=static://202
+      # Pas de page intermédiaire : redirection directe vers Pocket ID.
+      - --skip-provider-button=true
       - --silence-ping-logging=true
       # X-Forwarded-Host/-Proto de Traefik fixent le rappel (443 comme 8443) ;
       # seul Traefik joint ce conteneur (réseau newt, rien de publié).
@@ -142,7 +144,7 @@ services:
       - --cookie-name=__Host-oauth2
       - --cookie-secure=true
       - --cookie-samesite=lax
-      # {url} de l'errors middleware est l'URL complète : le retour n'est admis
+      # Le retour après connexion (rd, bâti sur X-Forwarded-Host) n'est admis
       # que vers ces noms, sur n'importe quel port.
 {% for domain in nas_proxy_oauth2_domains %}
       - --whitelist-domain={{ domain }}
