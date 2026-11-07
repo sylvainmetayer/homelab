@@ -1,11 +1,12 @@
 ---
 services:
   app:
-    # Pas encore mesuré : un serveur Next.js qui sert des liens et leurs
-    # widgets (Beszel, Uptime Kuma, Proxmox, applications, pastilles d'état),
-    # interrogés côté serveur à l'affichage. À recaler sur memory.peak après
-    # quelques jours (rapport mem_report du lundi).
-    mem_limit: 256m
+    # Un serveur Next.js qui sert des liens et leurs widgets (Beszel, Uptime
+    # Kuma, Proxmox, applications, pastilles d'état), interrogés côté serveur
+    # à l'affichage. memory.peak mesuré le 2026-11-07 : 228 MiB (depuis le
+    # démarrage du 06/11, page cache compris, aucun oom_kill), donc 256m
+    # collait au plafond ; 2 x 228 MiB arrondis à 512m.
+    mem_limit: 512m
     image: ghcr.io/gethomepage/homepage:v2.7.0@sha256:19c5c09184458a41b7b5915e71463a39f36cd33540f41bdbed008791b8182d5f
     container_name: homepage
     # L'entrypoint démarre en root, vérifie les propriétaires puis passe à
