@@ -1,7 +1,7 @@
 # Rôle `mediamanager`
 
 MediaManager ([maxdorninger/MediaManager](https://github.com/maxdorninger/MediaManager),
-1.12.3) **à l'essai** sur le NAS : on y demande un film ou une série,
+image `master` du 05/07/2026, voir « Version ») **à l'essai** sur le NAS : on y demande un film ou une série,
 Prowlarr cherche sur des trackers publics, qBittorrent télécharge par le VPN,
 MediaManager range le fichier. Tout se passe dans un bac à sable : les
 bibliothèques de Jellyfin ne sont jamais touchées. S'il ne convainc pas : skill
@@ -320,10 +320,23 @@ Client `mediamanager` de `tofu/pangolin_config/pocket_id.tf` (groupe
 `mediamanager`). Les `mediamanager_oidc_*` de `defaults/main.yml` lisent les
 sorties Tofu ; tant qu'elles manquent, `[auth.openid_connect]` reste coupé.
 Déploiement à la main (`nas.yml --tags mediamanager`). Pas de PKCE
-(httpx-oauth). MediaManager 1.12.3 lie par e-mail sans regarder
-`email_verified` et n'a **aucun interrupteur d'inscription** : le groupe Pocket
-ID est la seule barrière, tout membre peut se créer un compte. Admin :
-l'adresse de `mediamanager_admin_email`, appliquée à l'inscription seulement.
+(httpx-oauth). MediaManager lie par e-mail sans regarder `email_verified`.
+Depuis l'image `master` (07/11, voir « Version »), `registration_enabled = false`
+: ni la page d'inscription ni OIDC ne créent de compte, un membre du groupe
+Pocket ID sans compte est refusé ; un admin l'ajoute dans Settings → Users
+(mot de passe vide pour un compte OIDC seul, lié par e-mail). Admin :
+l'adresse de `mediamanager_admin_email`.
 Le rappel est bâti depuis la requête : `FORWARDED_ALLOW_IPS: "*"` fait croire
 à uvicorn le `X-Forwarded-Proto` de nas-proxy (joint seulement par lui), et les
 deux origines (443, 8443) sont déclarées. Le mot de passe reste.
+
+## Version
+
+Image `master` épinglée par digest (commit `98f2532`, 05/07/2026), pas une
+version : la 1.12.3, dernière sortie, prend la réponse JSON de qBittorrent 5
+(`TorrentsAddedMetadata`, `pending_count`) à l'ajout d'un torrent pour un échec
+(#547, corrigé par #558), lève `API-Answer isn't 'Ok.'` et n'enregistre rien :
+le torrent se télécharge mais n'est jamais importé (vu le 07/11). Le passage
+fait 4 migrations de base (dont la suppression des « requests ») : pas de
+retour à la 1.12.3 sans repartir d'une base vide. Revenir à une version
+semver dès la suivante.

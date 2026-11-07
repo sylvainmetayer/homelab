@@ -57,10 +57,10 @@ mediamanager_admin_email: "{{ pangolin_le_email }}"
 
 # Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
 # mediamanager), rendue seulement quand l'émetteur, l'identifiant et le
-# secret sont dans le state. MediaManager 1.12.3 lie par e-mail, sans
-# vérifier email_verified, et n'a pas d'interrupteur d'inscription : tout
-# membre du groupe Pocket ID mediamanager peut se créer un compte. Admin :
-# l'adresse de mediamanager_admin_email, à l'inscription seulement.
+# secret sont dans le state. MediaManager lie par e-mail, sans vérifier
+# email_verified ; registration_enabled = false (config.toml.j2) : OIDC ne
+# crée aucun compte, un admin l'ajoute dans Settings → Users. Admin :
+# l'adresse de mediamanager_admin_email.
 mediamanager_oidc_client_id: "{{ terraform_outputs.pocket_id_mediamanager_client_id.value | default('') }}"
 mediamanager_oidc_client_secret: "{{ terraform_outputs.pocket_id_mediamanager_client_secret.value | default('') }}"
 mediamanager_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
