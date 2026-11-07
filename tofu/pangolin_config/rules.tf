@@ -42,7 +42,8 @@ locals {
   #              the three PASS, the only standalone path rules: they skip the
   #              country rules but keep the authentication;
   #            - exemple_planning_drop, the DROPs of the public showcase
-  #              (website_exemple_planning.tf);
+  #              (website_exemple_planning.tf), and promptoramix_drop, its
+  #              catch-all DROP behind the two ACCEPTs;
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, immich_kiosk_home_ip,
   #              dawarich_home_ip, trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
@@ -516,6 +517,7 @@ locals {
       pangolin_resource_rule.dawarich_home_ip,
       pangolin_resource_rule.immich_home_ip,
       pangolin_resource_rule.immich_kiosk_home_ip,
+      pangolin_resource_rule.promptoramix_drop,
       pangolin_resource_rule.trek_home_ip,
       pangolin_resource_rule.trek_mcp,
       pangolin_resource_rule.victoria_logs_insert,

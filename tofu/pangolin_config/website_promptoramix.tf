@@ -33,14 +33,30 @@ locals {
 
 # The callers are Supabase edge functions, which run in whichever region is
 # closest and publish no stable egress range: behind the FR/DE country rules
-# most moves would be dropped by the catch-all `DROP COUNTRY ALL`. So the whole
-# resource answers from anywhere: `/*` (which also matches `/`) is accepted in
-# front of the country rules. A deliberate exception to "no bypass of a whole
-# application" (path_bypasses_open_exactly_the_reviewed_paths): the HMAC check
-# of every POST is what protects it, and /health discloses nothing. Turned into
-# a rule by local.path_bypasses (rules.tf).
+# most moves would be dropped by the catch-all `DROP COUNTRY ALL`. So the one
+# route the platform calls, `POST /coup` (the URL registered on Linkx), is
+# accepted from anywhere in front of the country rules, and so is `/health`
+# (Uptime Kuma, which discloses nothing). Pangolin matches the path only, not
+# the HTTP method: `GET /coup` is let through too, the application answers 405.
+# Turned into rules by local.path_bypasses (rules.tf).
+#
+# The resource has no SSO, so a path matching no ACCEPT would fall through the
+# country rules and reach the application from FR and DE. Everything else is
+# therefore dropped (promptoramix_drop, priority 3, right behind the ACCEPTs at
+# 2: first match wins, ascending). Changing the URL registered on the platform
+# means changing `/coup` here in the same apply.
 locals {
   promptoramix_public_paths = {
-    "/*" = 2
+    "/coup"   = 2
+    "/health" = 2
   }
+}
+
+resource "pangolin_resource_rule" "promptoramix_drop" {
+  resource_id = pangolin_resource.website["promptoramix"].id
+  action      = "DROP"
+  match       = "PATH"
+  value       = "/*"
+  priority    = 3
+  enabled     = true
 }

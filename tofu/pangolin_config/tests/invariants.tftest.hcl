@@ -1321,7 +1321,8 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /canary",
       "ntfy /healthlog",
       "Paperless-ngx /share/*",
-      "Promptoramix /*",
+      "Promptoramix /coup",
+      "Promptoramix /health",
       "TREK /.well-known/oauth-protected-resource/mcp",
       "TREK /.well-known/oauth-protected-resource",
       "TREK /.well-known/oauth-authorization-server",
@@ -1376,15 +1377,14 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
   }
 
   # Aucune ouverture ne doit rendre une interface d'administration ou d'API
-  # entière : ni racine, ni `/api/*`, ni `/i/*` de FreshRSS. Seule exception,
-  # décidée et validée par l'utilisateur : Promptoramix, ouverte en entier
-  # (`/*`) aux fonctions Supabase du tournoi Linkx, de n'importe quel pays,
-  # sans interface ni compte, et dont chaque requête est signée en HMAC
-  # (website_promptoramix.tf).
+  # entière : ni racine, ni `/api/*`, ni `/i/*` de FreshRSS. Promptoramix
+  # n'ouvre que `/coup` (fonctions Supabase du tournoi Linkx, requêtes signées
+  # en HMAC) et `/health` ; le reste est coupé par promptoramix_drop
+  # (website_promptoramix.tf, run promptoramix_opens_only_coup_and_health).
   assert {
     condition = alltrue([
       for key, rule in pangolin_resource_rule.path_bypass :
-      key == "Promptoramix /*" || !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
+      !contains(["/*", "/api/*", "/api/v1/*", "/i/*", "/p/*"], rule.value)
     ])
     error_message = "Une ouverture par chemin couvre toute l'application ou toute son API."
   }
@@ -1431,6 +1431,7 @@ run "backslash_guard_covers_every_path_rule" {
       for rule in concat(
         [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
         values(pangolin_resource_rule.exemple_planning_drop),
+        [pangolin_resource_rule.promptoramix_drop],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
@@ -1488,6 +1489,29 @@ run "public_showcase_drops_what_its_shared_admin_must_not_reach" {
   assert {
     condition     = !contains(keys(local.path_bypasses), "Exemple Planning")
     error_message = "La vitrine ne doit avoir aucun ACCEPT de chemin : il passerait avant ses DROP ou à côté d'eux."
+  }
+}
+
+# Promptoramix est sans SSO : sans DROP, tout chemin hors ACCEPT atteindrait
+# l'application depuis FR et DE. `/coup` (plateforme Linkx) et `/health` (sonde
+# Kuma) sont ouverts à 2, le DROP `/*` vient à 3, devant les règles pays.
+run "promptoramix_opens_only_coup_and_health" {
+  command = plan
+
+  assert {
+    condition     = local.promptoramix_public_paths == { "/coup" = 2, "/health" = 2 }
+    error_message = "Promptoramix n'ouvre que /coup et /health, à la priorité 2."
+  }
+
+  assert {
+    condition = (
+      pangolin_resource_rule.promptoramix_drop.action == "DROP"
+      && pangolin_resource_rule.promptoramix_drop.match == "PATH"
+      && pangolin_resource_rule.promptoramix_drop.value == "/*"
+      && pangolin_resource_rule.promptoramix_drop.enabled == true
+      && pangolin_resource_rule.promptoramix_drop.priority == 3
+    )
+    error_message = "Le DROP /* de Promptoramix doit être actif, à la priorité 3, derrière les ACCEPT (2) et devant les règles pays (10)."
   }
 }
 
