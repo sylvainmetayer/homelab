@@ -203,10 +203,11 @@ services:
       PUID: "{{ mediamanager_uid }}"
       PGID: "{{ mediamanager_gid }}"
       TZ: Europe/Paris
-      # Clé d'API dérivée (defaults), la même que dans config.toml ; compte de
-      # l'interface créé à la première visite (README).
+      # Clé d'API dérivée (defaults), la même que dans config.toml. External :
+      # aucun login, Pocket ID devant (oauth2-proxy du NAS) ; Forms : compte de
+      # sudo prowlarr-user (mediamanager_local_login, README).
       PROWLARR__AUTH__APIKEY: {{ mediamanager_prowlarr_api_key | to_json }}
-      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__METHOD: {{ 'External' if mediamanager_ui_sso_only | bool else 'Forms' }}
       PROWLARR__AUTH__REQUIRED: Enabled
     volumes:
       - ./prowlarr:/config

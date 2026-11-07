@@ -222,6 +222,50 @@
 - name: Restart MediaManager now if its configuration changed
   ansible.builtin.meta: flush_handlers
 
+# qBittorrent sans mot de passe pour le seul réseau mediamanager_proxy (Traefik,
+# derrière l'oauth2-proxy), réglé par son API à chaque passage : le
+# qBittorrent.conf n'est posé qu'une fois. Sous-réseau lu ici (attribué par
+# Docker) : s'il change sans redéploiement, le mot de passe revient, rien ne
+# s'ouvre. Appel depuis la boucle locale de qBittorrent (LocalHostAuth=false).
+- name: Read the subnet of the network Traefik reaches gluetun on
+  when:
+    - mediamanager_vpn_enabled | bool
+    - mediamanager_live_api | bool
+  become: true
+  changed_when: false
+  ansible.builtin.command:
+    argv: [docker, network, inspect, "{{ mediamanager_network }}", --format, "{{ '{{' }}(index .IPAM.Config 0).Subnet{{ '}}' }}"]
+  register: mediamanager_proxy_subnet
+
+- name: Set qBittorrent's web UI authentication bypass
+  when:
+    - mediamanager_vpn_enabled | bool
+    - mediamanager_live_api | bool
+  become: true
+  vars:
+    mediamanager_bypass_wanted:
+      bypass_auth_subnet_whitelist_enabled: "{{ mediamanager_ui_sso_only | bool }}"
+      bypass_auth_subnet_whitelist: "{{ mediamanager_proxy_subnet.stdout if mediamanager_ui_sso_only | bool else '' }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    api=http://127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}/api/v2/app
+    for _ in $(seq 30); do
+      prefs=$(docker exec mediamanager-qbittorrent curl -fsS "$api/preferences") && break
+      sleep 2
+    done
+    want='{{ mediamanager_bypass_wanted | to_json }}'
+    same='import json,sys; p=json.loads(sys.argv[1]); w=json.loads(sys.argv[2]); sys.exit(any(p.get(k)!=v for k,v in w.items()))'
+    if python3 -c "$same" "$prefs" "$want"; then
+      echo unchanged
+    else
+      docker exec mediamanager-qbittorrent curl -fsS --data-urlencode "json=$want" "$api/setPreferences"
+      echo changed
+    fi
+  args:
+    executable: /bin/bash
+  register: mediamanager_qbittorrent_bypass
+  changed_when: "'changed' in mediamanager_qbittorrent_bypass.stdout"
+
 # Fichiers seulement : la base PostgreSQL n'est pas dumpée (README,
 # « Sauvegarde »). Bases SQLite de Prowlarr copiées par sqlite3.
 - name: Configure borgmatic backup for MediaManager
