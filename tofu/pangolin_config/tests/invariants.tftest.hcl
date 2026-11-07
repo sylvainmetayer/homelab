@@ -3315,7 +3315,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3414,8 +3414,24 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && contains(pocketid_client.jellyfin.allowed_user_groups, pocketid_group.pangolin_role["jellyfin"].id)
       && pocketid_group.jellyfin_admin.name == "jellyfin-admin"
       && strcontains(file("${path.module}/../../ansible/roles/jellyfin/defaults/main.yml"), "terraform_outputs.pocket_id_jellyfin_client_secret.value")
+      # Prowlarr et qBittorrent : oauth2-proxy du NAS, un client pour les deux
+      # noms (443 et 8443), PKCE, groupe mediamanager-admin seul, secret lu par
+      # nas_proxy ; son --allowed-group suit ce groupe.
+      && pocketid_client.mediamanager_tools.is_public == false
+      && pocketid_client.mediamanager_tools.pkce_enabled == true
+      && pocketid_client.mediamanager_tools.client_id == "mediamanager-tools"
+      && toset(pocketid_client.mediamanager_tools.callback_urls) == toset([
+        "https://prowlarr.sylvain.cloud/oauth2/callback",
+        "https://prowlarr.sylvain.cloud:8443/oauth2/callback",
+        "https://qbittorrent.sylvain.cloud/oauth2/callback",
+        "https://qbittorrent.sylvain.cloud:8443/oauth2/callback",
+      ])
+      && toset(pocketid_client.mediamanager_tools.allowed_user_groups) == toset([pocketid_group.pangolin_role["mediamanager-admin"].id])
+      && pocketid_group.pangolin_role["mediamanager-admin"].name == "mediamanager-admin"
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_tools_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_oauth2_group: mediamanager-admin\n")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox, VictoriaLogs et Jellyfin de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin et Prowlarr/qBittorrent de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,

@@ -208,6 +208,12 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      fois : le bouton dans Tableau de bord, Général, Branding (README du rôle)
      et `sylvain` dans `jellyfin-admin`. Mots de passe et Quick Connect
      gardés : secours.
+   - **Prowlarr et qBittorrent** (NAS, groupe `mediamanager-admin`) : aucun
+     OIDC natif, oauth2-proxy (rôle `nas_proxy`, `nas.yml --tags nas_proxy`, à
+     la main) en forwardAuth du Traefik du NAS ; rien à saisir, `sylvain` dans
+     le groupe suffit. Comptes des applis gardés ; secours si Pocket ID ou le
+     proxy tombe : tunnel SSH vers `127.0.0.1:8080` / `9696` (README de
+     `mediamanager`).
    - **Immich Power Tools** (le foyer, groupe `immich-power-tools`, et
      `immich` pour passer le client Immich) : plus de clé d'API, chacun se
      connecte par « Se connecter avec Pocket ID » (OAuth d'Immich, rappel

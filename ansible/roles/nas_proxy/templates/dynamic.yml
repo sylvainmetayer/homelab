@@ -47,6 +47,10 @@ http:
         - websecure-forwarded
       service: prowlarr
       middlewares:
+{% if nas_proxy_oidc_enabled | bool %}
+        - oauth2-signin
+        - oauth2-auth
+{% endif %}
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
@@ -59,10 +63,31 @@ http:
         - websecure-forwarded
       service: qbittorrent
       middlewares:
+{% if nas_proxy_oidc_enabled | bool %}
+        - oauth2-signin
+        - oauth2-auth
+{% endif %}
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
 
+{% if nas_proxy_oidc_enabled | bool %}
+    # Pocket ID : /oauth2/ de chacun de ces deux noms va à oauth2-proxy (start,
+    # callback, sign_in), avant le routeur de l'appli (priorité explicite).
+{% for domain in nas_proxy_oauth2_domains %}
+    {{ domain.split('.')[0] }}-oauth2:
+      rule: "Host(`{{ domain }}`) && PathPrefix(`/oauth2/`)"
+      priority: 1000
+      entryPoints:
+        - websecure
+        - websecure-lan
+        - websecure-forwarded
+      service: oauth2-proxy
+      tls:
+        certResolver: letsencrypt
+
+{% endfor %}
+{% endif %}
     # Interface d'UGOS (nginx sur 9999 de l'hôte), en LAN et par la ressource
     # privée Pangolin nas.sylvain.cloud, qui vise l'IP LAN du NAS : le 8443 et
     # le 443 de l'hôte (relais, websecure-forwarded) ; le 443 du conteneur
@@ -100,6 +125,23 @@ http:
         contentTypeNosniff: true
         customFrameOptionsValue: SAMEORIGIN
         referrerPolicy: same-origin
+{% if nas_proxy_oidc_enabled | bool %}
+    # forwardAuth : 202 si la session est valide et du groupe, sinon 401, que
+    # oauth2-signin (en amont dans la chaîne) remplace par la page
+    # /oauth2/sign_in?rd=<URL d'origine> de oauth2-proxy, servie en 401 : le
+    # bouton « Pocket ID » mène à /oauth2/start. Les en-têtes X-Forwarded-* sont
+    # ceux que Traefik vient de poser (aliasHeadersStrategy: delete).
+    oauth2-auth:
+      forwardAuth:
+        address: http://{{ nas_proxy_oauth2_container_name }}:4180/oauth2/auth
+        trustForwardHeader: true
+    oauth2-signin:
+      errors:
+        status:
+          - "401"
+        service: oauth2-proxy
+        query: "/oauth2/sign_in?rd={url}"
+{% endif %}
     # HSTS seul : UGOS pose sa propre CSP (frame-src calé sur le Host reçu),
     # et ses fenêtres sont des iframes de même origine.
     ugos-headers:
@@ -129,6 +171,12 @@ http:
       loadBalancer:
         servers:
           - url: "{{ nas_proxy_prowlarr_url }}"
+{% if nas_proxy_oidc_enabled | bool %}
+    oauth2-proxy:
+      loadBalancer:
+        servers:
+          - url: "http://{{ nas_proxy_oauth2_container_name }}:4180"
+{% endif %}
     qbittorrent:
       loadBalancer:
         servers:

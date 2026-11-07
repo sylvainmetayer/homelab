@@ -14,6 +14,16 @@
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  vars:
+    # Sorties fictives du state pangolin_config : le client Pocket ID de
+    # Prowlarr et qBittorrent, donc oauth2-proxy et ses middlewares rendus.
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_mediamanager_tools_client_id:
+        value: molecule-pocket-id-tools-client-id
+      pocket_id_mediamanager_tools_client_secret:
+        value: molecule-pocket-id-tools-client-secret
   roles:
     # nas.yml lit l'URL push dans le state de pangolin_config : ici un
     # serveur HTTP local du verify, qui journalise ce qu'il reçoit.

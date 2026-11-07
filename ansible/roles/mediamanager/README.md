@@ -144,8 +144,12 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   privées Pangolin `Prowlarr` et `qBittorrent` du site `nas`), mais ouvertes
   au seul rôle Pangolin **`mediamanager-admin`** (Sylvain, ajouté à ce rôle ou
   au groupe Pocket ID du même nom, dans l'UI), pas au rôle `mediamanager`.
-  Ni l'un ni l'autre ne fait d'OIDC : chacun garde son compte (Prowlarr en
-  `Forms`, qBittorrent `mediamanager`), seul verrou comme pour MediaManager (le
+  Ni l'un ni l'autre ne fait d'OIDC : le Traefik du NAS les met derrière
+  Pocket ID avec oauth2-proxy (forwardAuth, rôle `nas_proxy`), qui exige le
+  groupe `mediamanager-admin` sur tout chemin (LAN, 443, 8443, Pangolin) ; sans
+  les sorties Tofu du client `mediamanager-tools`, rien n'est rendu et les
+  routeurs restent comme avant. Chacun garde en plus son compte (Prowlarr en
+  `Forms`, qBittorrent `mediamanager`), la seconde barrière et le secours (le
   Traefik choisit l'appli au nom demandé). Le Traefik du NAS les joint par
   `http://mediamanager-gluetun:9696` et `:8080` : gluetun est aussi sur le
   réseau `proxy` (interne, sans passerelle). Le pare-feu de gluetun admet
@@ -168,7 +172,9 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   ```
 
   puis `http://localhost:8080` (qBittorrent, compte `mediamanager`) et
-  `http://localhost:9696` (Prowlarr).
+  `http://localhost:9696` (Prowlarr). C'est le secours quand Pocket ID ou
+  oauth2-proxy (`nas-proxy-oauth2`) est en panne : ce chemin ne passe pas par
+  Traefik, donc pas par la porte Pocket ID.
 
 ### Secrets
 
