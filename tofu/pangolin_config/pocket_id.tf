@@ -93,7 +93,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools"])
 
   length  = 48
   special = false
@@ -392,6 +392,41 @@ resource "pocketid_client" "mediamanager" {
   logo_url            = "https://cdn.jsdelivr.net/gh/maxdorninger/MediaManager@v1.12.3/web/static/logo.svg"
   pkce_enabled        = false
   is_public           = false
+}
+
+# Prowlarr et qBittorrent (NAS) : aucun des deux ne fait d'OIDC, c'est
+# oauth2-proxy (forwardAuth du Traefik du NAS, ansible/roles/nas_proxy) qui le
+# parle, un seul client pour les deux noms. Groupe mediamanager-admin, déjà
+# celui du rôle Pangolin des deux ressources privées (double barrière : ce
+# filtre et --allowed-group). PKCE S256 (oauth2-proxy, client confidentiel).
+# Rappel /oauth2/callback bâti depuis X-Forwarded-Host : les deux origines de
+# chaque nom (443 et 8443). Les comptes propres des applis restent.
+resource "pocketid_client" "mediamanager_tools" {
+  name          = "Prowlarr et qBittorrent"
+  client_id     = "mediamanager-tools"
+  client_secret = random_password.pocket_id_client["mediamanager-tools"].result
+  callback_urls = [
+    "https://prowlarr.sylvain.cloud/oauth2/callback",
+    "https://prowlarr.sylvain.cloud:8443/oauth2/callback",
+    "https://qbittorrent.sylvain.cloud/oauth2/callback",
+    "https://qbittorrent.sylvain.cloud:8443/oauth2/callback",
+  ]
+  allowed_user_groups = [pocketid_group.pangolin_role["mediamanager-admin"].id]
+  launch_url          = "https://prowlarr.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/prowlarr.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+output "pocket_id_mediamanager_tools_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Prowlarr et qBittorrent (oauth2-proxy du NAS)"
+  value       = pocketid_client.mediamanager_tools.client_id
+}
+
+output "pocket_id_mediamanager_tools_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Prowlarr et qBittorrent (oauth2-proxy du NAS)"
+  value       = random_password.pocket_id_client["mediamanager-tools"].result
+  sensitive   = true
 }
 
 # Jellyfin (NAS, https://media.sylvain.cloud, ressource privée Pangolin) : le

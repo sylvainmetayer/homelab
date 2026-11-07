@@ -109,11 +109,42 @@ nas_proxy_mediamanager_network: mediamanager_proxy
 # (site nas) sont liées au seul rôle mediamanager-admin. Les deux vivent dans
 # l'espace réseau de gluetun (kill switch) : Traefik joint gluetun sur
 # mediamanager_proxy, par son nom de conteneur.
-# Leur propre compte reste la barrière (ni l'un ni l'autre ne fait d'OIDC).
+# Ni l'un ni l'autre ne fait d'OIDC : leur propre compte reste la barrière
+# du secours, et oauth2-proxy (section suivante) la première, devant Traefik.
 nas_proxy_prowlarr_domain: prowlarr.sylvain.cloud
 nas_proxy_prowlarr_url: http://mediamanager-gluetun:9696
 nas_proxy_qbittorrent_domain: qbittorrent.sylvain.cloud
 nas_proxy_qbittorrent_url: http://mediamanager-gluetun:8080
+
+# --- Pocket ID devant Prowlarr et qBittorrent (oauth2-proxy) ---
+# forwardAuth de Traefik vers oauth2-proxy sur les deux routeurs : tout chemin
+# (LAN, 443, 8443, Pangolin) exige une session Pocket ID du groupe
+# mediamanager-admin. Rien n'est rendu sans les trois sorties de
+# tofu/pangolin_config (client pas encore appliqué) : routeurs inchangés.
+# Les comptes propres des applis restent ; si Pocket ID ou oauth2-proxy tombe,
+# secours = tunnel SSH vers 127.0.0.1:9696 / 8080 (contourne Traefik, README).
+nas_proxy_oidc_client_id: "{{ terraform_outputs.pocket_id_mediamanager_tools_client_id.value | default('') }}"
+nas_proxy_oidc_client_secret: "{{ terraform_outputs.pocket_id_mediamanager_tools_client_secret.value | default('') }}"
+nas_proxy_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+nas_proxy_oidc_enabled: >-
+  {{ nas_proxy_oidc_client_id | length > 0
+     and nas_proxy_oidc_client_secret | length > 0
+     and nas_proxy_oidc_issuer | length > 0 }}
+nas_proxy_oauth2_image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.6@sha256:c3415e8660af553f5e18f5d90db050614c02493c0ac6260ac59442f6d9b12048
+nas_proxy_oauth2_container_name: nas-proxy-oauth2
+nas_proxy_oauth2_group: mediamanager-admin
+# Estimé, pas mesuré : un proxy Go sans état, ~15 à 30 Mo de RSS au repos ;
+# 2x le haut de la fourchette. À recaler sur memory.peak après une semaine.
+nas_proxy_oauth2_mem_limit: 64m
+# Exactement 32 octets (32 caractères hexadécimaux), dérivés comme les clés des
+# autres rôles ; pas de clé SOPS. Change seulement si backup_passphrase change :
+# les sessions ouvertes tomberaient, sans autre dégât.
+nas_proxy_oauth2_cookie_secret: "{{ ((backup_passphrase ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32] }}"
+# Les noms protégés : un cookie propre à chacun (préfixe __Host-, sans Domain).
+# Le premier label sert de nom au routeur /oauth2/.
+nas_proxy_oauth2_domains:
+  - "{{ nas_proxy_prowlarr_domain }}"
+  - "{{ nas_proxy_qbittorrent_domain }}"
 
 # --- Échéance des certificats (nas-proxy-cert-check.timer) ---
 # Le NAS n'est joignable que du LAN et par le client Pangolin : l'Uptime Kuma

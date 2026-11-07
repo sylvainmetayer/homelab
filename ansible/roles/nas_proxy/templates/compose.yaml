@@ -97,6 +97,66 @@ services:
     # vérification du 443 (tasks/host_https_port.yml).
     restart: unless-stopped
 
+{% if nas_proxy_oidc_enabled | bool %}
+  # Pocket ID devant prowlarr. et qbittorrent.sylvain.cloud : forwardAuth de
+  # Traefik (dynamic.yml, /oauth2/auth), aucun upstream (static://202). Sur
+  # newt seul : Traefik le joint, et il sort vers id.sylvain.cloud (découverte,
+  # jeton) par la sortie normale du NAS, jamais par gluetun. Image distroless
+  # sans shell ni wget : pas de healthcheck (/ping existe, mais rien dans
+  # l'image pour l'appeler) ; un proxy à l'arrêt se voit au 5xx de Traefik, et
+  # Pocket ID injoignable au démarrage le fait sortir puis redémarrer.
+  oauth2-proxy:
+    image: {{ nas_proxy_oauth2_image }}
+    container_name: {{ nas_proxy_oauth2_container_name }}
+    mem_limit: {{ nas_proxy_oauth2_mem_limit }}
+    user: "65532:65532"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    command:
+      - --provider=oidc
+      - --oidc-issuer-url={{ nas_proxy_oidc_issuer }}
+      - --client-id={{ nas_proxy_oidc_client_id }}
+      - --scope=openid email profile groups
+      - --oidc-groups-claim=groups
+      - --allowed-group={{ nas_proxy_oauth2_group }}
+      - --code-challenge-method=S256
+      # Le groupe est la barrière, pas l'e-mail : Pocket ID ne le marque pas
+      # toujours vérifié, et le refus serait muet pour l'utilisateur.
+      - --email-domain=*
+      - --insecure-oidc-allow-unverified-email=true
+      - --http-address=0.0.0.0:4180
+      - --upstream=static://202
+      - --silence-ping-logging=true
+      # X-Forwarded-Host/-Proto de Traefik fixent le rappel (443 comme 8443) ;
+      # seul Traefik joint ce conteneur (réseau newt, rien de publié).
+      - --reverse-proxy=true
+      # Cookie propre à chaque nom : __Host- impose Secure, Path=/, pas de Domain.
+      - --cookie-name=__Host-oauth2
+      - --cookie-secure=true
+      - --cookie-samesite=lax
+      # {url} de l'errors middleware est l'URL complète : le retour n'est admis
+      # que vers ces noms, sur n'importe quel port.
+{% for domain in nas_proxy_oauth2_domains %}
+      - --whitelist-domain={{ domain }}
+      - --whitelist-domain={{ domain }}:*
+{% endfor %}
+    environment:
+      - TZ=Europe/Paris
+      - OAUTH2_PROXY_CLIENT_SECRET={{ nas_proxy_oidc_client_secret }}
+      - OAUTH2_PROXY_COOKIE_SECRET={{ nas_proxy_oauth2_cookie_secret }}
+    restart: unless-stopped
+    networks:
+      newt: {}
+
+{% endif %}
 networks:
   newt:
     external: true
