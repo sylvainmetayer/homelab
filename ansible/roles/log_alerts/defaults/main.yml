@@ -77,7 +77,7 @@ log_alerts_rules:
     query: 'unit:"borgmatic.service" _msg:"Failed with result" | stats by (host) count() n'
     window_seconds: 93600
     threshold: 1
-    repeat_seconds: 86400
+    repeat_seconds: 93600
 
 log_alerts_script: /usr/local/libexec/log_alerts.py
 log_alerts_config_dir: /etc/log-alerts
