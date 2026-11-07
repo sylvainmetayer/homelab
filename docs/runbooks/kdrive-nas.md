@@ -179,8 +179,14 @@ plus). La protection est :
    protègent même d'un root du NAS compromis ou d'une suppression à la main.
 
 `kdrive_sync_backup_enabled` reste à `false`. Les instantanés ne sont pas dans
-le dépôt : UGOS les règle dans son interface, **à faire par Sylvain**, une
-fois, puis à relire de temps en temps.
+le dépôt : UGOS les règle dans son interface, puis on les relit de temps en
+temps.
+
+**Réglage en place** (relevé le 2026-11-07) : un instantané par jour à 00:00
+du dossier partagé `kdrive`, gardé 14 jours, depuis le 2026-11-04. Ils sont
+visibles sur le NAS par `btrfs subvolume list -s /volume1`
+(`@snapshot/share_folder/kdrive/`). Celui de 00:00 contient la copie de 04:00
+de la nuit d'avant.
 
 ### Régler les instantanés (UGOS)
 
