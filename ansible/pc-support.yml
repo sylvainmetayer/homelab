@@ -17,7 +17,7 @@
 #   - Pare-feu : la zone FedoraWorkstation ouvre 1025-65535 au LAN et grd
 #     n'écoute pas que sur la boucle locale ; un REJECT dans chaque zone active
 #     garde 5900 et 3389 pour Newt, qui vise 127.0.0.1 (lo n'est dans aucune
-#     zone).
+#     zone). firewalld arrêté : sauté, avec un avertissement.
 #
 # Les mots de passe sont demandés à chaque passage (à garder dans KeePass), et
 # reposés : rien dans SOPS pour un POC. grdctl les lit sur son entrée standard,
@@ -74,8 +74,28 @@
       tags: newt
 
   tasks:
+    # firewalld arrêté : rien à poser (firewall-cmd échouerait), mais grd
+    # écoute sur toutes les interfaces, d'où l'avertissement.
+    - name: Check whether firewalld is running
+      tags: firewall
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      ansible.builtin.command: firewall-cmd --state
+      register: pc_support_firewalld
+
+    - name: Warn that VNC and RDP stay open to the LAN without firewalld
+      tags: firewall
+      when: pc_support_firewalld.rc != 0
+      ansible.builtin.debug:
+        msg: >-
+          firewalld n'est pas actif ({{ pc_support_firewalld.stdout | default('?') }}) : règles du
+          pare-feu non posées, 5900 et 3389 joignables depuis le réseau local. Relancer
+          avec --tags firewall une fois firewalld démarré.
+
     - name: List the active firewalld zones
       tags: firewall
+      when: pc_support_firewalld.rc == 0
       become: true
       check_mode: false
       changed_when: false
@@ -88,6 +108,7 @@
     # absent du venv d'ansible-playbook que localhost prend par défaut.
     - name: Keep the VNC and RDP ports to the loopback
       tags: firewall
+      when: pc_support_firewalld.rc == 0
       become: true
       vars:
         ansible_python_interpreter: /usr/bin/python3
@@ -98,7 +119,7 @@
         immediate: true
         state: enabled
       loop: >-
-        {{ pc_support_zones.stdout_lines | reject('match', ' ') | map('split') | map('first')
+        {{ pc_support_zones.stdout_lines | default([]) | reject('match', ' ') | map('split') | map('first')
            | product([pc_support_vnc_port, pc_support_rdp_port]) | list }}
 
     - name: Create the TLS directory of the RDP system daemon
