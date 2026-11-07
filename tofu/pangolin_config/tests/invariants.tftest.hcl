@@ -2397,7 +2397,7 @@ run "nas_newt_credentials_and_media" {
 
   # Prowlarr et qBittorrent (rôle mediamanager, derrière gluetun) : même
   # nas-proxy et mêmes ports que MediaManager, un alias qui est le nom public de
-  # tofu/dns (mediamanager.tf), le même que sert le routeur de Traefik ; liés au
+  # tofu/dns (prowlarr.tf, qbittorrent.tf), le même que sert le routeur de Traefik ; liés au
   # seul rôle mediamanager-admin (jamais mediamanager), sans ressource publique.
   # L'URL du service de Traefik suit le conteneur de gluetun et les ports de
   # l'interface web de chacun, sur le réseau que crée nas_proxy.

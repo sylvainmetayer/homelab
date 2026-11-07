@@ -344,16 +344,19 @@ puis `sudo rm -rf /volume1/media/mediamanager`.
 Puis, dans le dépôt : ce rôle, `ansible/molecule/mediamanager/`, l'entrée de
 `nas.yml`, dans `nas_proxy` le routeur, le service et les en-têtes
 `mediamanager` (`templates/dynamic.yml`), le réseau `mediamanager` du compose,
-les `nas_proxy_mediamanager_*`, le nom de `nas_proxy_cert_check_names` et
+les `nas_proxy_mediamanager_*`, `nas_proxy_prowlarr_*` et `nas_proxy_qbittorrent_*`
+(routeurs, services, noms de `nas_proxy_cert_check_names`) et
 l'entrée `mediamanager` de `nas_proxy_health_checks` (et leurs assertions dans
 `ansible/molecule/nas_proxy/`) (puis `--tags nas_proxy` ; le réseau
 `mediamanager_proxy`, vide, reste dans Docker : `docker network rm
 mediamanager_proxy` ; le moniteur « Healthcheck NAS » reste, un seul pour
-toutes les applis), le A `tofu/dns/mediamanager.tf` et son test,
-`mediamanager.sylvain.cloud` de `blocky_rebinding_allowed_domains`, la
-ressource, le rôle et la liaison `mediamanager` de
-`tofu/pangolin_config/private_resources.tf` (et `pangolin_role.mediamanager`
-dans `access_inventory.tf`, son test dans `tests/invariants.tftest.hcl`),
+toutes les applis), les A `tofu/dns/mediamanager.tf`, `prowlarr.tf` et `qbittorrent.tf` et leur test,
+`mediamanager.`, `prowlarr.` et `qbittorrent.sylvain.cloud` de
+`blocky_rebinding_allowed_domains`, les ressources, les rôles (`mediamanager`,
+`mediamanager-admin`) et les liaisons de
+`tofu/pangolin_config/private_resources.tf` (et les deux rôles dans
+`access_inventory.tf` et `pocket_id.tf`, leur test dans
+`tests/invariants.tftest.hcl`), le réseau `proxy` de gluetun dans `compose.yaml`,
 les clés SOPS `mediamanager_wireguard_*` et leurs entrées de rotation,
 `docs/apps.md`, `docs/conventions/ansible.md`, `AGENTS.md` ; puis
 `grep -rn mediamanager` sur tout le dépôt.

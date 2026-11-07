@@ -84,8 +84,9 @@ certificatesResolvers:
       # Repris de l'ancien Traefik du compose de jellyfin (même résolveur).
       storage: /letsencrypt/acme.json
       # DNS-01 par l'API OVH (identifiants OVH_* du compose) : les A de
-      # {{ nas_proxy_media_domain }}, {{ nas_proxy_ugos_domain }} et
-      # {{ nas_proxy_mediamanager_domain }} visent une IP privée, aucun HTTP-01
+      # {{ nas_proxy_media_domain }}, {{ nas_proxy_ugos_domain }},
+      # {{ nas_proxy_mediamanager_domain }}, {{ nas_proxy_prowlarr_domain }} et
+      # {{ nas_proxy_qbittorrent_domain }} visent une IP privée, aucun HTTP-01
       # possible.
       # Résolveurs publics pour la vérification de propagation : pas de cache
       # de la Bbox entre l'ajout du TXT et la vérification.
