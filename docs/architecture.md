@@ -117,7 +117,7 @@ du NAS, `tofu/dns/nas.tf`), à la maison comme avec le client Pangolin
 du NAS en TCP 22, 443, 445, 8443 et 9999). Secours : `http://192.168.1.137:9999`.
 Et MediaManager, à l'essai (on demande un film, Prowlarr cherche, qBittorrent
 télécharge, tous deux dans le réseau de `gluetun`, tunnel WireGuard avec
-coupe-circuit, dans un bac à sable que Jellyfin ne voit pas :
+coupe-circuit, dans son propre dossier de `media`, lu par deux bibliothèques Jellyfin à part :
 [README du rôle](../ansible/roles/mediamanager/README.md)), exactement comme Jellyfin :
 `https://mediamanager.sylvain.cloud` (A public vers l'IP LAN du NAS,
 `tofu/dns/mediamanager.tf`), ressource privée du même nom sur le site `nas`

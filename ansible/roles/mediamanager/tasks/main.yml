@@ -34,7 +34,7 @@
   ansible.builtin.assert:
     that:
       - mediamanager_sandbox_path | dirname == mediamanager_media_path
-      - (mediamanager_sandbox_path | basename) not in ['films', 'series', 'musique', 'livres', 'livres-audio', 'games-clips']
+      - (mediamanager_sandbox_path | basename) not in (jellyfin_media_folders | default([])) | union(['films', 'series', 'musique', 'livres', 'livres-audio', 'games-clips'])
     fail_msg: >-
       mediamanager_sandbox_path ({{ mediamanager_sandbox_path }}) doit être un
       dossier à lui directement sous {{ mediamanager_media_path }}, jamais un

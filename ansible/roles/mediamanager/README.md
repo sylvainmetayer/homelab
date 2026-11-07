@@ -46,6 +46,17 @@ lecture seule, le lit par deux bibliothèques à lui, créées à la main
 | Nouveautés films | Films | `/media/mediamanager/films` |
 | Nouveautés séries | Séries | `/media/mediamanager/series` |
 
+**Migration depuis `.mediamanager-test`** (une fois, avant de relancer le rôle) :
+le rôle ne déplace rien et créerait un dossier vide, alors que la base de
+MediaManager et l'état de qBittorrent pointent sur des fichiers qui seraient
+restés dans l'ancien dossier. Sur le NAS : `sudo systemctl stop dc@mediamanager`,
+`sudo mv /volume1/media/.mediamanager-test /volume1/media/mediamanager`, puis
+`nas.yml --tags mediamanager`.
+
+Le dossier est en `0750` au compte `sylvain` : Jellyfin le lit parce qu'il
+tourne sous le même compte (`jellyfin_user`, `1000:10`) ; le changer couperait
+ces deux bibliothèques.
+
 `torrents` n'est jamais une bibliothèque : il garde les noms du tracker et,
 pour un film, le même fichier une seconde fois (lien physique).
 
