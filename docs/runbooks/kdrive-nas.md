@@ -40,9 +40,9 @@ part dans `versions/`.
 ## Mise en place (une fois)
 
 1. **Dossier partagé** : UGOS, Fichiers, Dossier partagé, Créer, `kdrive` sur
-   le volume 1, lecture/écriture pour `sylvain`. Activer ses **instantanés**
-   (Btrfs) : ils protègent même d'un root du NAS compromis, ce que la copie
-   seule ne fait pas.
+   le volume 1, lecture/écriture pour `sylvain`. Régler ses **instantanés**
+   (Btrfs) comme dans « Protection » plus bas : ils protègent même d'un root du
+   NAS compromis, ce que la copie seule ne fait pas.
 2. **Mot de passe d'application** : Manager Infomaniak, profil, « Mots de
    passe d'application » ([doc](https://www.infomaniak.com/fr/support/faq/2855)),
    nommé `nas-kdrive-sync`. Jamais le mot de passe du compte. Il ouvre tout le
@@ -167,16 +167,53 @@ rallumerait le timer). L'ancien miroir suit ensuite le ménage de `versions/`.
 Jamais automatique. Une fois les fichiers vérifiés, supprimer les dossiers
 datés devenus inutiles, à la main (`du -sh /volume1/kdrive/versions/*`).
 
-## Sauvegarde borg
+## Protection : pas de Borg, des instantanés
 
-Désactivée (`kdrive_sync_backup_enabled: false`) : le NAS est la deuxième
-copie, kDrive garde son propre historique (versions, corbeille, retour
-arrière), et la Storage Box (~49 % d'1 Tio) devrait recevoir toute la copie
-(~0,95 To), versions du NAS comprises. Pour l'activer : ajouter
-`/volume1/kdrive` à `borgmatic_container_source_paths` (`host_vars/nas`, ce
-que le rôle vérifie), déclarer un moniteur « Backup » dans
-`tofu/pangolin_config` et son URL dans `nas.yml`
-(`kdrive_sync_backup_healthcheck_url`), puis vérifier la place restante.
+Décision du 07/11 : **pas de sauvegarde Borg de kDrive**. Elle ne tient pas
+sur la Storage Box (~49 % d'1 Tio, pour ~0,95 To de miroir, versions du NAS en
+plus). La protection est :
+
+1. kDrive lui-même (versions, corbeille, retour arrière jusqu'à 3 mois) ;
+2. le miroir `miroir/` + `versions/` sur le NAS (plus haut) ;
+3. des **instantanés Btrfs d'UGOS** sur le dossier partagé `kdrive`, qui
+   protègent même d'un root du NAS compromis ou d'une suppression à la main.
+
+`kdrive_sync_backup_enabled` reste à `false`. Les instantanés ne sont pas dans
+le dépôt : UGOS les règle dans son interface, **à faire par Sylvain**, une
+fois, puis à relire de temps en temps.
+
+### Régler les instantanés (UGOS)
+
+Les menus changent d'une version d'UGOS à l'autre : les noms ci-dessous sont
+à vérifier à l'écran.
+
+1. Ouvrir, selon la version, le « Gestionnaire de stockage » puis les
+   « instantanés » (ou l'équivalent), et choisir le dossier partagé `kdrive`
+   du volume 1.
+2. Créer une planification d'instantanés de ce seul dossier. Un point de
+   départ à ajuster : un par jour, après la copie de 04:00 (par exemple
+   06:00), gardés quelques semaines.
+3. Fixer la rétention. Les instantanés prennent de la place quand `versions/`
+   et `miroir/` changent : surveiller `df -h /volume1` après les premières
+   semaines.
+4. Vérifier : un instantané apparaît le lendemain, et un fichier d'essai
+   supprimé dans `miroir/` se récupère depuis lui. Noter ici la fréquence et
+   la rétention réellement choisies (le dépôt ne les connaît pas).
+
+### Angles morts
+
+- **Même maison** : le NAS et ses instantanés sont chez Sylvain. Incendie,
+  vol ou surtension perdent le miroir et ses instantanés d'un coup.
+- **Perte simultanée** : si kDrive est perdu (compte fermé, compromis) *et*
+  le NAS en même temps, il ne reste rien. Le cas est peu probable, mais
+  aucune troisième copie n'existe.
+- Les instantanés sont sur les mêmes disques que le miroir : une panne des
+  deux disques emporte les deux ([disque-nas-mort.md](disque-nas-mort.md)).
+- Films et `Videos/` sont hors miroir (plus haut) : kDrive seul les garde.
+- Si un jour une troisième copie est voulue : Borg exige de la place sur la
+  Storage Box (`/volume1/kdrive` dans `borgmatic_container_source_paths`,
+  moniteur « Backup », `kdrive_sync_backup_healthcheck_url`), ou un autre
+  stockage distant.
 
 ## Échecs fréquents
 

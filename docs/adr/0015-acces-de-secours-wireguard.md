@@ -1,7 +1,7 @@
 # 0015. Accès de secours au LAN par WireGuard, sans Pangolin
 
-- **Statut** : proposée (non mise en œuvre : #948 fermée le 2026-10-29, besoin à établir, un port entrant est peut-être excessif)
-- **Date** : 2026-10-28
+- **Statut** : rejetée (2026-11-07 ; proposée le 2026-10-28, #948 fermée le 2026-10-29)
+- **Date** : 2026-11-07
 
 ## Contexte
 
@@ -34,6 +34,26 @@ porte de secours, la plus petite possible, qui n'en dépende pas.
 - Il tombe avec le LXC, Proxmox ou un changement de `home_ip` ; la
   redirection de la Bbox ne se vérifie qu'à la main.
 - Un réseau distant en 192.168.1.0/24 masque le LAN : se connecter en 4G/5G.
+
+## Pourquoi rejetée
+
+Décision de Sylvain, le 2026-11-07. Le besoin est déjà couvert par les
+runbooks, sans port entrant :
+
+- Pangolin ou flip hors d'atteinte : la console Hetzner
+  ([pangolin-injoignable.md](../runbooks/pangolin-injoignable.md),
+  [flip-injoignable.md](../runbooks/flip-injoignable.md)).
+- Proxmox verrouillé : session root, Shell web, console physique
+  ([proxmox-injoignable-apres-durcissement.md](../runbooks/proxmox-injoignable-apres-durcissement.md)).
+- Box remplacée, Pi mort, maison perdue : écran et clavier sur place, puis
+  la console Hetzner ([bbox-remplacee.md](../runbooks/bbox-remplacee.md),
+  [pi-mort.md](../runbooks/pi-mort.md),
+  [perte-totale-maison.md](../runbooks/perte-totale-maison.md)).
+
+Une porte d'entrée de plus serait une surface à maintenir (clés, redirection
+de la Bbox, rôle, moniteur) pour un besoin rare. La maison garde zéro port
+entrant. Reste : sans Pangolin, rien n'atteint le LAN de dehors ; il faut
+être sur place.
 
 ## Liens
 

@@ -75,7 +75,7 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    fixe d'UGOS : à vérifier, [bbox-remplacee.md](bbox-remplacee.md)), compte
    `sylvain` avec la clé SSH, volume RAID 1, application Docker d'UGOS (elle
    crée le dossier partagé `docker`), puis les dossiers partagés `media`,
-   `kdrive` (instantanés activés), `pve-backup` (corbeille décochée, ni SMB ni
+   `kdrive` (instantanés réglés à la main), `pve-backup` (corbeille décochée, ni SMB ni
    autre utilisateur). Détails : [README de nas_storage](../../ansible/roles/nas_storage/README.md),
    [kdrive-nas.md](kdrive-nas.md), [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md).
    Autre IP : `grep -rn 192.168.1.137` dans le dépôt (DNS `tofu/dns`,

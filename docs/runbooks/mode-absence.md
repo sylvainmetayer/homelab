@@ -8,9 +8,9 @@ existent déjà ; ce qui manque est dit à la fin (« Ce que le dépôt ne fait 
 
 Les commandes `gh` ci-dessous qui ne viennent pas d'une page du dépôt sont
 marquées « à vérifier ». Pendant l'absence, le seul chemin vers la maison est
-Pangolin (le client Pangolin, puis le LXC newt) : l'accès de secours WireGuard
-de l'[ADR 0015](../adr/0015-acces-de-secours-wireguard.md) n'est pas mis en
-œuvre. Pangolin tombé, il reste la console Hetzner.
+Pangolin (le client Pangolin, puis le LXC newt) : aucun accès de secours
+WireGuard n'existe ([ADR 0015](../adr/0015-acces-de-secours-wireguard.md),
+rejetée). Pangolin tombé, il reste la console Hetzner.
 
 ## Ce qui bouge sans personne
 
@@ -186,6 +186,6 @@ maison et tiennent ; ce qui dépend de la maison attend.
   faits pour Sylvain. Un simple message hebdomadaire de santé (digest ntfy, comme
   celui de Renovate le lundi) manque ; à vérifier si Homepage répond à ce besoin.
 - **Pas d'accès de secours** si Pangolin tombe pendant l'absence
-  ([ADR 0015](../adr/0015-acces-de-secours-wireguard.md) non mise en œuvre).
+  (choix assumé, [ADR 0015](../adr/0015-acces-de-secours-wireguard.md) rejetée).
 - **Pas de second administrateur** : personne d'autre que Sylvain n'a les clés
   ni la procédure ([matrice des données](../matrice-des-donnees.md), trou 10).
