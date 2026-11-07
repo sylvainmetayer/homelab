@@ -148,9 +148,12 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   Pocket ID avec oauth2-proxy (forwardAuth, rôle `nas_proxy`), qui exige le
   groupe `mediamanager-admin` sur tout chemin (LAN, 443, 8443, Pangolin) ; sans
   les sorties Tofu du client `mediamanager-tools`, rien n'est rendu et les
-  routeurs restent comme avant. Chacun garde en plus son compte (Prowlarr en
-  `Forms`, qBittorrent `mediamanager`), la seconde barrière et le secours (le
-  Traefik choisit l'appli au nom demandé). Le Traefik du NAS les joint par
+  routeurs restent comme avant. **Pocket ID seul** quand ce client existe
+  (`mediamanager_ui_sso_only`) : Prowlarr en authentification `External` (aucun
+  login), qBittorrent dispense de mot de passe le sous-réseau du réseau `proxy`
+  (`bypass_auth_subnet_whitelist`, réglé par son API à chaque déploiement, le
+  sous-réseau étant attribué par Docker). Sans le client, ou en secours (plus
+  bas), chacun redemande son propre login. Le Traefik du NAS les joint par
   `http://mediamanager-gluetun:9696` et `:8080` : gluetun est aussi sur le
   réseau `proxy` (interne, sans passerelle). Le pare-feu de gluetun admet
   l'entrant vers le sous-réseau de chaque interface Ethernet locale et n'y
@@ -160,7 +163,10 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   (`127.0.0.1` de l'espace réseau de gluetun) : la requête de Traefik arrive
   avec son IP de réseau `proxy`, et `ReverseProxySupportEnabled` reste à son
   défaut (faux), donc `X-Forwarded-For` n'est jamais cru et personne n'est pris
-  pour `localhost` ; `AuthSubnetWhitelist` n'est pas posé. Les défauts de
+  pour `localhost` ; seul le sous-réseau du réseau `proxy` (Traefik, gluetun,
+  MediaManager) est dispensé de mot de passe. Conséquence : le tunnel SSH
+  ci-dessous et ce réseau sont les deux seuls chemins sans login, et le
+  premier demande déjà une clé SSH du NAS. Les défauts de
   qBittorrent suffisent derrière Traefik (`HostHeaderValidation` actif mais
   `ServerDomains=*`, Traefik garde l'en-tête `Host`, la vérification CSRF
   compare `Origin` et `Host`) : `qBittorrent.conf` n'est pas modifié. Repli,
@@ -171,10 +177,40 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   ssh -N -L 8080:127.0.0.1:8080 -L 9696:127.0.0.1:9696 sylvain@192.168.1.137
   ```
 
-  puis `http://localhost:8080` (qBittorrent, compte `mediamanager`) et
-  `http://localhost:9696` (Prowlarr). C'est le secours quand Pocket ID ou
-  oauth2-proxy (`nas-proxy-oauth2`) est en panne : ce chemin ne passe pas par
-  Traefik, donc pas par la porte Pocket ID.
+  puis `http://localhost:8080` (qBittorrent) et `http://localhost:9696`
+  (Prowlarr), sans login (boucle locale de qBittorrent, `External` de
+  Prowlarr). C'est le premier secours quand Pocket ID ou oauth2-proxy
+  (`nas-proxy-oauth2`) est en panne : ce chemin ne passe pas par Traefik, donc
+  pas par la porte Pocket ID.
+
+#### Login local de secours
+
+Pour rouvrir `prowlarr.sylvain.cloud` et `qbittorrent.sylvain.cloud` avec le
+login de chaque appli (Pocket ID durablement en panne, oauth2-proxy retiré, ou
+pour tester sans lui) :
+
+1. Dans `ansible/host_vars/nas/variables.yaml`, `mediamanager_local_login:
+   true` (PR, ou à la main pour la durée de la panne : `-e
+   mediamanager_local_login=true`).
+2. `ansible-playbook nas.yml --tags mediamanager` (depuis `ansible/`) :
+   Prowlarr repasse en `Forms` (redémarre), qBittorrent perd sa dispense par
+   son API (sans redémarrer).
+3. **Prowlarr** : `ssh -t sylvain@192.168.1.137 sudo prowlarr-user` crée ou
+   change le compte (identifiant et mot de passe saisis sur le NAS ; Prowlarr
+   n'en a aucun au départ et le formulaire n'en propose pas).
+4. **qBittorrent** : compte `mediamanager`, mot de passe dérivé de
+   `backup_passphrase`, lu sur le NAS :
+
+   ```bash
+   ssh sylvain@192.168.1.137 "sudo sed -n '/^\[torrents.qbittorrent\]/,/^\[/p' /volume1/docker/mediamanager/config/config.toml | grep '^password'"
+   ```
+
+5. Retour à Pocket ID seul : `mediamanager_local_login: false` (ou sans le
+   `-e`), même commande. Le compte de Prowlarr reste dans sa base, inutilisé.
+
+Si oauth2-proxy est retiré sans passer par là, les sorties Tofu du client
+`mediamanager-tools` disparaissent avec lui et le rôle remet les logins tout
+seul au déploiement suivant (`mediamanager_sso_proxy` faux).
 
 ### Secrets
 

@@ -164,6 +164,11 @@
         mediamanager_backup_enabled: false
         mediamanager_wireguard_private_key: molecule-wireguard-key
         mediamanager_vpn_server_countries: Switzerland
+        # Aucun conteneur lancé : pas de réglage par l'API de qBittorrent.
+        mediamanager_live_api: false
+        # Comme si le client Pocket ID de l'oauth2-proxy existait : Prowlarr en
+        # External.
+        mediamanager_sso_proxy: true
 
     - name: Render the compose model with VPN
       ansible.builtin.command: docker compose config --format json
@@ -218,6 +223,8 @@
           - mm_verify_gluetun.ports | map(attribute='host_ip') | unique | list == ['127.0.0.1']
           - mm_verify_gluetun.ports | map(attribute='published') | map('string') | sort == ['8080', '9696']
           - mm_verify_prowlarr.environment.PROWLARR__AUTH__APIKEY | length == 32
+          # Client de l'oauth2-proxy présent, pas de secours : aucun login dans Prowlarr.
+          - mm_verify_prowlarr.environment.PROWLARR__AUTH__METHOD == 'External'
         fail_msg: "Compose avec VPN inattendu : {{ mm_verify_model.services }}"
 
     - name: Read the qBittorrent seed

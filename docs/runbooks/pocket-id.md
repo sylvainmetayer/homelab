@@ -211,9 +211,11 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    - **Prowlarr et qBittorrent** (NAS, groupe `mediamanager-admin`) : aucun
      OIDC natif, oauth2-proxy (rôle `nas_proxy`, `nas.yml --tags nas_proxy`, à
      la main) en forwardAuth du Traefik du NAS ; rien à saisir, `sylvain` dans
-     le groupe suffit. Comptes des applis gardés ; secours si Pocket ID ou le
-     proxy tombe : tunnel SSH vers `127.0.0.1:8080` / `9696` (README de
-     `mediamanager`).
+     le groupe suffit. Pocket ID seul (Prowlarr en `External`, qBittorrent
+     sans mot de passe pour le réseau du proxy) ; secours si Pocket ID ou le
+     proxy tombe : tunnel SSH vers `127.0.0.1:8080` / `9696`, ou
+     `mediamanager_local_login: true` (README de `mediamanager`, « Login local
+     de secours »).
    - **Immich Power Tools** (le foyer, groupe `immich-power-tools`, et
      `immich` pour passer le client Immich) : plus de clé d'API, chacun se
      connecte par « Se connecter avec Pocket ID » (OAuth d'Immich, rappel
