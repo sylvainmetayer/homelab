@@ -1,0 +1,168 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    log_alerts_verify_tmp: /root/molecule-log-alerts
+    log_alerts_verify_defaults: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../roles/log_alerts/defaults/main.yml') | from_yaml }}"
+    # Chaque hôte de borgmatic a écrit ; un routeur sous le seuil.
+    log_alerts_verify_quiet:
+      vl:
+        source:traefik: [{router: r1, n: "9"}]
+        'Failed with result': []
+        'borgmatic.service" | stats':
+          - {host: docker, n: "9"}
+          - {host: pangolin, n: "9"}
+          - {host: pi, n: "9"}
+          - {host: flip, n: "9"}
+          - {host: nas, n: "9"}
+    # Une rafale (et un routeur sous le seuil), un kill, pi muet.
+    log_alerts_verify_noisy:
+      vl:
+        source:traefik:
+          - {router: a-router@file, n: "12"}
+          - {router: b-router@file, n: "9"}
+        session.scope: [{host: docker, unit: dc@trek.service, n: "1"}]
+        'Failed with result': []
+        'borgmatic.service" | stats':
+          - {host: docker, n: "9"}
+          - {host: pangolin, n: "9"}
+          - {host: flip, n: "9"}
+          - {host: nas, n: "9"}
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    - name: Read the environment file and the service unit
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      register: log_alerts_verify_files
+      loop:
+        - /etc/log-alerts/config.json
+        - /etc/systemd/system/log-alerts.service
+
+    - name: Stat the secrets file
+      ansible.builtin.stat:
+        path: /etc/log-alerts/secrets.env
+      register: log_alerts_verify_env_stat
+
+    - name: Verify the units as systemd parses them
+      ansible.builtin.command: systemd-analyze verify /etc/systemd/system/log-alerts.service /etc/systemd/system/log-alerts.timer
+      changed_when: false
+
+    - name: Read the loaded timer
+      ansible.builtin.systemd:
+        name: log-alerts.timer
+      register: log_alerts_verify_timer
+
+    - name: Assert the rules reached the configuration as lists, the secrets stay off the command line
+      vars:
+        log_alerts_verify_config: "{{ log_alerts_verify_files.results[0].content | b64decode | from_json }}"
+        log_alerts_verify_service: "{{ log_alerts_verify_files.results[1].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - log_alerts_verify_env_stat.stat.mode == '0600'
+          - log_alerts_verify_env_stat.stat.pw_name == 'root'
+          - log_alerts_verify_config.rules | map(attribute='name') | list == log_alerts_verify_defaults.log_alerts_rules | map(attribute='name') | list
+          - >-
+            log_alerts_verify_config.rules | selectattr('name', 'equalto', 'borgmatic-absent')
+            | map(attribute='expect_hosts') | first == ['docker', 'pangolin', 'pi', 'flip', 'nas']
+          - "'molecule-log-alerts' not in log_alerts_verify_service"
+          - "'Bearer' not in log_alerts_verify_service"
+          - log_alerts_verify_timer.status.UnitFileState == 'enabled'
+          - log_alerts_verify_timer.status.ActiveState == 'active'
+        fail_msg: "{{ log_alerts_verify_service }}"
+
+    - name: Create the folder of the fake services
+      ansible.builtin.file:
+        path: "{{ log_alerts_verify_tmp }}"
+        state: directory
+        mode: "0700"
+
+    - name: Copy the fake services
+      ansible.builtin.copy:
+        src: files/fake_api.py
+        dest: "{{ log_alerts_verify_tmp }}/fake_api.py"
+        mode: "0600"
+
+    # Un `molecule verify` relancé repart de zéro, l'état compris.
+    - name: Forget what an earlier verify left
+      ansible.builtin.file:
+        path: /var/lib/private/log-alerts/state.json
+        state: absent
+
+    - name: Write the scenario the fake services start with
+      ansible.builtin.copy:
+        content: "{{ log_alerts_verify_quiet | to_json }}"
+        dest: "{{ log_alerts_verify_tmp }}/scenario.json"
+        mode: "0600"
+
+    - name: Start the fake services
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --unit=molecule-log-alerts-api
+          - --collect
+          - python3
+          - -I
+          - "{{ log_alerts_verify_tmp }}/fake_api.py"
+          - "18084"
+          - "{{ log_alerts_verify_tmp }}/scenario.json"
+          - "{{ log_alerts_verify_tmp }}/requests.jsonl"
+      changed_when: true
+
+    - name: Wait for the fake services to listen
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18084
+        timeout: 30
+
+    - name: Nothing over a threshold
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        log_alerts_verify_step: quiet
+        log_alerts_verify_scenario: "{{ log_alerts_verify_quiet }}"
+        log_alerts_verify_expected_pushes: [up]
+        log_alerts_verify_expected_titles: []
+        log_alerts_verify_expected_priorities: []
+        log_alerts_verify_expected_messages: []
+
+    - name: A burst, a kill and a silent host
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        log_alerts_verify_step: noisy
+        log_alerts_verify_scenario: "{{ log_alerts_verify_noisy }}"
+        log_alerts_verify_expected_pushes: [up]
+        log_alerts_verify_expected_titles:
+          - "Traefik : rafale de 5xx"
+          - "Processus tué (OOM, code 137)"
+          - "borgmatic : aucune ligne en 26 h"
+        log_alerts_verify_expected_priorities: [3, 4, 5]
+        log_alerts_verify_expected_messages:
+          - "a-router@file : 12 en 5 min"
+          - "docker, dc@trek.service : 1 en 15 min"
+          - "pi : aucune ligne en 26 h"
+
+    - name: The same alerts again, inside their repeat delay
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        log_alerts_verify_step: deduplicated
+        log_alerts_verify_scenario: "{{ log_alerts_verify_noisy }}"
+        log_alerts_verify_expected_pushes: [up]
+        log_alerts_verify_expected_titles: []
+        log_alerts_verify_expected_priorities: []
+        log_alerts_verify_expected_messages: []
+
+    # Aveugle : aucun push, l'unité échoue, le moniteur tomberait à l'expiration.
+    - name: VictoriaLogs answers 500
+      ansible.builtin.include_tasks: tasks/run.yml
+      vars:
+        log_alerts_verify_step: blind
+        log_alerts_verify_scenario: {vl_status: 500}
+        log_alerts_verify_result: exit-code
+        log_alerts_verify_queries: "{{ log_alerts_verify_defaults.log_alerts_rules | length }}"
+        log_alerts_verify_expected_pushes: []
+        log_alerts_verify_expected_titles: []
+        log_alerts_verify_expected_priorities: []
+        log_alerts_verify_expected_messages: []

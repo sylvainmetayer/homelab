@@ -171,6 +171,12 @@
       tags: ci_key_audit
       vars:
         ci_key_audit_push_url: "{{ terraform_outputs.uptime_cron_ci_key_audit_url.value | default('') }}"
+    # Alertes sur les journaux VictoriaLogs (rafales de 5xx, kills OOM, borgmatic
+    # absent) : ntfy, et un moniteur push qui tombe si le contrôle devient aveugle.
+    - role: log_alerts
+      tags: log_alerts
+      vars:
+        log_alerts_push_url: "{{ terraform_outputs.uptime_cron_log_alerts_url.value | default('') }}"
     # Rapport des coûts (Hetzner, OVH, abonnements), chaque 1er du mois sur
     # ntfy (topic scripts) ; son costs.json, relu chaque jour, nourrit la
     # carte Coûts de Homepage. Avant homepage, qui monte son dossier.

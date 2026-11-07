@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Alertes sur les journaux VictoriaLogs (rôle log_alerts). Secrets dans
+# l'EnvironmentFile, 0600 root, jamais sur la ligne de commande : systemctl show
+# et ps la montreraient.
+[Unit]
+Description=Alerts on the VictoriaLogs logs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ log_alerts_config_dir }}/secrets.env
+# Compte éphémère ; n'écrit que son état (StateDirectory).
+DynamicUser=yes
+StateDirectory=log-alerts
+ExecStart=/usr/bin/python3 -I {{ log_alerts_script }}
+# Une requête de 30 s au plus par règle, sans nouvel essai : borné pour que
+# l'unité ne reste pas « activating ».
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+CapabilityBoundingSet=
+# AF_UNIX : la résolution DNS par systemd-resolved (nss).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Compte de quelques lignes par requête : un interpréteur Python et rien de plus.
+MemoryMax=64M

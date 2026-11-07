@@ -791,6 +791,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_log_alerts
+  values = { push_token = "push-cron-log-alerts" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup["papra"]
   values = { push_token = "push-papra" }
 }
@@ -2108,6 +2113,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_yamtrack_url          = output.uptime_backup_yamtrack_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
+        uptime_cron_log_alerts_url          = output.uptime_cron_log_alerts_url
         # flip.yml (production, démo, vitrine)
         uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
@@ -2789,6 +2795,22 @@ run "monitors_are_filed_and_alert" {
       && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.uptime_cron_ci_key_audit_url.value")
     )
     error_message = "Clé de CI : rangé avec les healthchecks, Telegram et ntfy, actif, sans PENDING, intervalle de trois périodes de ci_key_audit_schedule (*:0/N), lu par docker.yml."
+  }
+
+  # Alertes sur les journaux (rôle log_alerts) : la VM docker pousse toutes les N
+  # minutes ; deux passages manqués passent, pas trois. Sans max_retries : le
+  # moniteur ne tombe que sans battement (le contrôle est aveugle), les alertes
+  # elles-mêmes passent par ntfy. docker.yml lit la sortie dans l'entrée du rôle.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_log_alerts.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_log_alerts.notification_ids) == toset(local.alert_notification_ids)
+      && uptimekuma_monitor_push.cron_log_alerts.active == true
+      && uptimekuma_monitor_push.cron_log_alerts.max_retries == 0
+      && uptimekuma_monitor_push.cron_log_alerts.interval == 3 * 60 * tonumber(regex("^\\*:0/([0-9]+)$", yamldecode(file("${path.module}/../../ansible/roles/log_alerts/defaults/main.yml")).log_alerts_schedule)[0])
+      && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.uptime_cron_log_alerts_url.value")
+    )
+    error_message = "Alertes sur les journaux : rangé avec les healthchecks, Telegram et ntfy, actif, intervalle de trois périodes de log_alerts_schedule (*:0/N), lu par docker.yml."
   }
 
   # Abonnés ntfy (rôle ntfy) : la VM docker pousse toutes les N minutes

@@ -682,6 +682,12 @@ flowchart LR
   `ci-key-audit.timer` compare les connexions de cette clé, lues dans
   VictoriaLogs, aux runs GitHub du déploiement ; hors de tout run, ntfy urgent et
   Telegram, après coup (ADR 0027). Moniteur « Clé de CI : contrôle ».
+- **Alertes sur les journaux** (rôle `log_alerts`, docker) : toutes les
+  5 minutes, `log-alerts.timer` rejoue des requêtes LogsQL sur VictoriaLogs
+  (rafale de 5xx de Traefik par routeur, kill OOM ou code 137, borgmatic
+  muet 26 h ou en échec) et alerte sur ntfy (topic `scripts`). Moniteur
+  « Alertes sur les journaux » : tombe si le contrôle devient aveugle.
+  Seuils et détail : `ansible/roles/log_alerts/README.md`.
 - **Rapport mémoire hebdomadaire** (rôle `mem_report`, docker, pi et flip,
   hors Beszel) : chaque lundi à 09:00, `mem-report.timer` lit le cgroup v2 de
   chaque conteneur (`memory.max`, `memory.peak`, `memory.current`,
@@ -726,7 +732,7 @@ seul, ni Grafana ni métriques. Rôle `victoria_logs` sur la VM docker, interfac
 sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le SSO de
 vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
 (sops `victoria_logs_ui_password`) ne sert plus qu'aux requêtes des scripts
-(`ci_key_audit`, par `127.0.0.1`).
+(`ci_key_audit` et `log_alerts`, par `127.0.0.1`).
 
 - **Deux conteneurs** : `victoria-logs` (le stockage) n'est que sur un réseau
   interne ; `victoria-logs-auth` (vmauth) est seul à le joindre, sur `newt`
