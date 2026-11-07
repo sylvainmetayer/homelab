@@ -253,6 +253,7 @@
       prefs=$(docker exec mediamanager-qbittorrent curl -fsS "$api/preferences") && break
       sleep 2
     done
+    [ -n "${prefs:-}" ] || { echo "API de qBittorrent injoignable" >&2; exit 1; }
     want='{{ mediamanager_bypass_wanted | to_json }}'
     same='import json,sys; p=json.loads(sys.argv[1]); w=json.loads(sys.argv[2]); sys.exit(any(p.get(k)!=v for k,v in w.items()))'
     if python3 -c "$same" "$prefs" "$want"; then
@@ -264,7 +265,7 @@
   args:
     executable: /bin/bash
   register: mediamanager_qbittorrent_bypass
-  changed_when: "'changed' in mediamanager_qbittorrent_bypass.stdout"
+  changed_when: mediamanager_qbittorrent_bypass.stdout_lines | last == 'changed'
 
 # Fichiers seulement : la base PostgreSQL n'est pas dumpée (README,
 # « Sauvegarde »). Bases SQLite de Prowlarr copiées par sqlite3.
