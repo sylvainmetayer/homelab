@@ -1,39 +1,106 @@
 ---
-# Connexion à l'API du hub (PocketBase) en tant que compte administrateur
-# Beszel (collection users, pas le superuser) : les alertes et les réglages de
-# notification appartiennent à un utilisateur, l'API les rattache au compte
-# connecté. Le jeton reste dans beszel_api_token (no_log) : chaque appel qui
-# le porte est no_log aussi, sinon -v l'écrit dans ansible/run.log.
+# Connexion à l'API du hub (PocketBase) en superuser dédié (beszel_api_email),
+# jamais en compte Beszel : celui de l'administrateur n'ouvre plus que par
+# Pocket ID, son mot de passe ne sert plus. Un superuser lit et écrit les
+# enregistrements de n'importe quel utilisateur (les règles des collections ne
+# le retiennent pas) : alertes et réglages sont donc rattachés explicitement à
+# l'administrateur, retrouvé par son adresse (beszel_api_user_id).
+#
+# Le compte est créé (ou son mot de passe remis) par `beszel superuser upsert`
+# dans le conteneur quand le hub refuse la connexion, comme celui de Homepage
+# (homepage_superuser.yml, mêmes réserves sur l'argument de `docker exec`).
+# Son mot de passe est dérivé de la clé privée du hub : rien de plus en sops.
+#
+# Le hub n'admet un superuser que depuis ses « superuser IPs » (réglage de
+# l'interface, vérifié à la connexion seulement) : l'API publiée sur
+# 127.0.0.1 voit la passerelle du réseau newt (172.19.0.1), à y ajouter une
+# fois à la main.
+#
+# Le jeton reste dans beszel_api_token (no_log) : chaque appel qui le porte
+# est no_log aussi, sinon -v l'écrit dans ansible/run.log.
 - name: Wait for the Beszel hub API
   ansible.builtin.import_tasks: api_wait.yml
 
-- name: Log in to the Beszel hub as the admin account
+- name: Log in to the Beszel hub as the API superuser
   no_log: true
   ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/collections/users/auth-with-password"
+    url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
     method: POST
     body_format: json
     body:
-      identity: "{{ beszel_admin_email }}"
-      password: "{{ beszel_admin_password }}"
-    status_code: [200, 400]
+      identity: "{{ beszel_api_email }}"
+      password: "{{ beszel_api_password }}"
+    status_code: [200, 400, 403]
   register: beszel_api_login
   check_mode: false
 
-# USER_PASSWORD ne sert qu'au premier démarrage : un mot de passe changé dans
-# l'interface ne correspond plus à la clé sops.
-- name: Refuse a beszel_admin_password that no longer opens the account
+- name: Create the API superuser or reset its password
+  when: beszel_api_login.status == 400
+  block:
+    - name: Run the superuser upsert
+      no_log: true
+      ansible.builtin.command:
+        argv: "{{ beszel_superuser_command + ['upsert', beszel_api_email, beszel_api_password] }}"
+      changed_when: true
+
+    - name: Log in again as the API superuser
+      when: not ansible_check_mode
+      no_log: true
+      ansible.builtin.uri:
+        url: "{{ beszel_api_url }}/api/collections/_superusers/auth-with-password"
+        method: POST
+        body_format: json
+        body:
+          identity: "{{ beszel_api_email }}"
+          password: "{{ beszel_api_password }}"
+        status_code: [200, 400, 403]
+      register: beszel_api_login_retry
+
+# Le résultat qui compte : la seconde connexion si le compte vient d'être créé.
+- name: Pick the login result
+  no_log: true
+  ansible.builtin.set_fact:
+    beszel_api_auth: "{{ beszel_api_login_retry if beszel_api_login.status == 400 and beszel_api_login_retry is not skipped else beszel_api_login }}"
+
+- name: Refuse an API superuser the hub does not open
   ansible.builtin.assert:
     that:
-      - beszel_api_login.status == 200
+      - beszel_api_auth.status == 200
     fail_msg: >-
-      Connexion refusée par le hub pour {{ beszel_admin_email }} : le mot de
-      passe du compte Beszel n'est plus beszel_admin_password (sops).
-      Réaligner l'un sur l'autre.
+      Connexion du superuser {{ beszel_api_email }} refusée par le hub (statut
+      {{ beszel_api_auth.status }}).
+      {{ 'Ajouter l''adresse source du rôle (passerelle du réseau newt, 172.19.0.1) aux « superuser IPs » du hub (interface /_/, Settings).'
+         if beszel_api_auth.status == 403
+         else 'Compte absent : le créer demande un run sans --check.' if ansible_check_mode
+         else 'Mot de passe encore refusé après `beszel superuser upsert`.' }}
     quiet: true
 
 - name: Keep the Beszel API token
   no_log: true
   ansible.builtin.set_fact:
-    beszel_api_token: "{{ beszel_api_login.json.token }}"
-    beszel_api_user_id: "{{ beszel_api_login.json.record.id }}"
+    beszel_api_token: "{{ beszel_api_auth.json.token }}"
+
+# Le compte administrateur, par son adresse ; le filtre est celui de l'API
+# (email="…"), encodé dans l'URL.
+- name: Look up the Beszel admin user
+  no_log: true
+  ansible.builtin.uri:
+    url: "{{ beszel_api_url }}/api/collections/users/records?perPage=2&skipTotal=1&fields=id&filter={{ ('email=\"' ~ beszel_admin_email ~ '\"') | urlencode }}"
+    headers:
+      Authorization: "{{ beszel_api_token }}"
+  register: beszel_api_admin
+  check_mode: false
+
+- name: Refuse a hub without exactly one account for beszel_admin_email
+  ansible.builtin.assert:
+    that:
+      - beszel_api_admin.json['items'] | length == 1
+    fail_msg: "Aucun compte Beszel (ou plusieurs) à l'adresse beszel_admin_email : alertes et réglages n'ont pas de propriétaire."
+    quiet: true
+
+- name: Keep the admin user id
+  no_log: true
+  ansible.builtin.set_fact:
+    beszel_api_user_id: "{{ beszel_api_admin.json['items'][0].id }}"
+    beszel_api_user_filter: >-
+      {{ ("user='" ~ beszel_api_admin.json['items'][0].id ~ "'") | urlencode }}

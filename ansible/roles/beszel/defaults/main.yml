@@ -16,9 +16,18 @@ beszel_publish_addresses:
   - 127.0.0.1
 
 # Compte administrateur, créé au premier démarrage seulement (USER_EMAIL /
-# USER_PASSWORD) : changer le mot de passe ensuite se fait dans l'interface.
-# Mot de passe : clé sops beszel_admin_password.
+# USER_PASSWORD, clé sops beszel_admin_password) : il ouvre ensuite par Pocket
+# ID, et le rôle ne s'en sert plus que pour retrouver son identifiant
+# (propriétaire des alertes).
 beszel_admin_email: "{{ pangolin_le_email }}"
+
+# Superuser PocketBase du rôle (tasks/api_login.yml) : alertes et réglages de
+# notification par l'API. Créé ou remis à niveau par `beszel superuser upsert` ;
+# mot de passe dérivé de la clé privée du hub (64 caractères, PocketBase en
+# accepte 72) : pas de clé sops de plus. Sa source (passerelle du réseau newt)
+# doit figurer dans les « superuser IPs » du hub.
+beszel_api_email: "beszel-api@{{ beszel_domain }}"
+beszel_api_password: "{{ (beszel_hub_private_key ~ ':beszel-api-superuser') | hash('sha256') }}"
 
 # Systèmes déclarés dans beszel_data/config.yml, qui fait autorité : un
 # système absent de cette liste est supprimé du hub, historique compris, au
@@ -28,9 +37,9 @@ beszel_systems: "{{ beszel_agent_tokens | dict2items | sort(attribute='key') }}"
 
 # Alertes (tasks/alerts.yml, tag beszel_alerts). config.yml ne déclare que les
 # systèmes : alertes et canaux de notification vivent dans PocketBase, par
-# utilisateur. Le rôle les pose par l'API du hub, connecté au compte
-# administrateur (beszel_admin_email / beszel_admin_password : ce mot de passe
-# doit rester celui du compte, sinon la tâche échoue). Elles font autorité,
+# utilisateur. Le rôle les pose par l'API du hub, au nom du compte
+# administrateur (beszel_admin_email), connecté en superuser (beszel_api_email).
+# Elles font autorité,
 # comme config.yml : une alerte du compte absente d'ici est supprimée.
 beszel_alerts_enabled: true
 beszel_api_url: "http://127.0.0.1:{{ beszel_port }}"

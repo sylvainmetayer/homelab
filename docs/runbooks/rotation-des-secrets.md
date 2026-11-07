@@ -358,9 +358,10 @@ Mots de passe des comptes admin (`*_admin_password`, `*_pgadmin_password`,
 applis ne lisent ce mot de passe qu'à la création du compte : changer
 d'abord le mot de passe **dans l'appli** (son interface, ou sa commande
 d'administration), puis `sops set`, puis le playbook du rôle pour que le
-compose et le SOPS disent la même chose. `beszel_admin_password` doit rester
-le mot de passe du compte admin : le rôle s'en sert pour écrire les alertes
-par l'API du hub.
+compose et le SOPS disent la même chose. `beszel_admin_password` ne sert
+plus qu'au premier démarrage du hub : le compte ouvre par Pocket ID, et le
+rôle écrit les alertes en superuser (mot de passe dérivé de
+`beszel_hub_private_key`, qui le fait suivre à sa rotation).
 
 ### ntfy
 
