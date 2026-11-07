@@ -374,10 +374,11 @@ resource "pocketid_client" "yamtrack" {
 }
 
 # MediaManager (essai, NAS) : [auth.openid_connect] du rôle mediamanager. Pas
-# de PKCE (httpx-oauth 1.12.3 n'en envoie pas). Liaison par e-mail sans
-# contrôle de vérification et AUCUN interrupteur d'inscription : ce groupe est
-# la seule barrière, tout membre peut se créer un compte. Rappel bâti depuis
-# la requête : les deux origines servies par nas_proxy (443 et 8443).
+# de PKCE (httpx-oauth n'en envoie pas). Liaison par e-mail sans contrôle de
+# vérification ; registration_enabled = false (image master) : OIDC ne crée
+# aucun compte, un admin l'ajoute dans Settings → Users, ce groupe n'est donc
+# plus la seule barrière. Rappel bâti depuis la requête : les deux origines
+# servies par nas_proxy (443 et 8443).
 resource "pocketid_client" "mediamanager" {
   name          = "MediaManager"
   client_id     = "mediamanager"

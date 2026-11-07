@@ -28,7 +28,8 @@ email_password_resets = false
 # comptes existants marchent, un nouveau s'ajoute dans Settings → Users.
 registration_enabled = false
 # Le premier compte, créé au premier démarrage avec le mot de passe « admin »
-# (à changer aussitôt), et tout compte inscrit avec cette adresse.
+# (à changer aussitôt) ; les comptes suivants, ajoutés par un admin, prennent
+# le rôle admin s'ils ont cette adresse.
 admin_emails = [{{ mediamanager_admin_email | to_json }}]
 
 [auth.openid_connect]
