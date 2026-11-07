@@ -93,12 +93,14 @@
       vars:
         beszel_api_mock_config:
           email: "{{ pangolin_le_email }}"
-          password: "{{ beszel_admin_password }}"
           user_id: usr000000000001
           # Comme le vrai hub : une seule IP publique admise pour les
           # superusers, pas 127.0.0.1. Le rôle doit prendre le 403 qui en
           # résulte pour un compte valide, sans échouer ni recréer le compte.
           superuser_ips: ["{{ home_ip }}"]
+          # Le compte de l'API du rôle, dont l'adresse source est ajoutée à la
+          # main aux « superuser IPs » du vrai hub (cf. api_login.yml).
+          superuser_exempt: ["beszel-api@monitoring.sylvain.cloud"]
           alerts:
             - { system: docker, name: CPU, value: 80, min: 5 }
             - { system: flip, name: Status, value: 0, min: 5 }

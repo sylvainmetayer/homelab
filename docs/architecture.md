@@ -598,7 +598,7 @@ flowchart LR
   `HUB_HEADERS`). Sans jeton, rien n'atteint le hub.
 - **Hôtes du LAN** : par le port publié sur la VM docker. Docker publie avant
   ufw, donc **l'interface du hub répond sans SSO à tout le LAN** : le compte
-  Beszel (mot de passe `beszel_admin_password`) y est la seule barrière.
+  Beszel (connexion par Pocket ID) y est la seule barrière.
 - **Authentification d'un agent** : son jeton (`beszel_agent_tokens`, un par
   hôte, déclaré dans le `config.yml` du hub), la clé du hub
   (`beszel_hub_public_key`, le hub signe avec `beszel_hub_private_key`), puis
@@ -659,8 +659,9 @@ flowchart LR
   d'I/O wait au-delà de 20 % sur 15 min, où se lit la lenteur de son disque.
   Le S.M.A.R.T. (passage de PASSED à FAILED) prévient d'office, sans alerte à déclarer ; usure et secteurs en attente sont vus par le rôle `smart_check` (script hebdomadaire, ntfy sur une hausse) et non par Beszel ([runbooks/sante-des-disques.md](runbooks/sante-des-disques.md)). `config.yml` ne sait déclarer que les systèmes : alertes et
   canaux vivent dans la base du hub, par utilisateur, et le rôle les pose par
-  l'API du hub (`127.0.0.1:8090`, connecté au compte administrateur avec
-  `beszel_admin_password`, qui doit donc rester son mot de passe). Elles font
+  l'API du hub (`127.0.0.1:8090`, connecté en superuser PocketBase
+  `beszel_api_email`, que le rôle crée par `beszel superuser upsert`, le
+  compte de l'administrateur n'ouvrant plus que par Pocket ID). Elles font
   autorité : une alerte ajoutée dans l'interface est supprimée au déploiement
   suivant. Envoi par e-mail (SMTP Infomaniak réglé dans l'interface du hub),
   et par Telegram dès que les clés sops `beszel_telegram_bot_token` et

@@ -126,7 +126,7 @@
         fail_msg: "Configuration borgmatic de beszel inattendue : {{ beszel_borgmatic }}"
 
     # Alertes et canaux posés par l'API (tasks/alerts.yml), contre le mock de
-    # prepare.yml. Ids des systèmes du mock : « sys » + nom, complété à 15.
+    # prepare.yml, le rôle connecté en superuser. Ids des systèmes du mock : « sys » + nom, complété à 15.
     - name: Read the alert state of the mocked hub
       ansible.builtin.uri:
         url: http://127.0.0.1:8090/mock/state
@@ -142,7 +142,7 @@
       vars:
         beszel_mock: "{{ beszel_mock_state.json }}"
         beszel_mock_writes: "{{ beszel_mock_writes_raw.content | b64decode | trim | split('\n') | map('from_json') | list }}"
-        beszel_mock_status_write: "{{ beszel_mock_writes | selectattr('body.name', 'defined') | selectattr('body.name', 'eq', 'Status') | first }}"
+        beszel_mock_status_writes: "{{ beszel_mock_writes | selectattr('body.name', 'defined') | selectattr('body.name', 'eq', 'Status') | list }}"
         beszel_mock_settings: "{{ beszel_mock.user_settings[0].settings }}"
         beszel_mock_telegram_url: "telegram://{{ beszel_telegram_bot_token }}@telegram?chats={{ beszel_telegram_chat_id }}"
       ansible.builtin.assert:
@@ -171,18 +171,22 @@
           - >-
             beszel_mock.alerts | selectattr('name', 'eq', 'Temperature') | map(attribute='system') | sort
             == ['sysnas000000000', 'syspi0000000000', 'syspve000000000']
-          # Neuf POST groupés (un par type et seuil), la LoadAvg5 et la
-          # Temperature de docker supprimées (cette dernière par système : le
-          # type reste sur nas, pi et pve), un PATCH des réglages ; rien au
-          # second passage (idempotence), et la Status de flip, déjà juste,
-          # jamais réécrite.
-          - beszel_mock_writes | map(attribute='method') | list == ['POST'] * 9 + ['DELETE', 'DELETE', 'PATCH']
-          - "'sysflip00000000' not in beszel_mock_status_write.body.systems"
-          - beszel_mock_status_write.body.systems | length == 6
-          - beszel_mock_writes[9].body.name == 'LoadAvg5'
-          - beszel_mock_writes[9].body.systems == ['sysdocker000000']
-          - beszel_mock_writes[10].body.name == 'Temperature'
-          - beszel_mock_writes[10].body.systems == ['sysdocker000000']
+          # Tous rattachés à l'administrateur (champ user posé par le rôle,
+          # connecté en superuser).
+          - beszel_mock.alerts | map(attribute='user') | unique | list == ['usr000000000001']
+          # Un enregistrement par écriture : 30 créations et le PATCH de la
+          # CPU de docker (rec...1), la LoadAvg5 et la Temperature de docker
+          # supprimées (rec...3 et rec...4 : le type reste sur nas, pi et
+          # pve), un PATCH des réglages ; rien au second passage
+          # (idempotence), et la Status de flip, déjà juste, jamais réécrite.
+          - beszel_mock_writes | map(attribute='method') | select('eq', 'POST') | list | length == 30
+          - beszel_mock_writes | map(attribute='method') | list | length == 34
+          - beszel_mock_writes[:31] | selectattr('method', 'eq', 'PATCH') | map(attribute='path') | list == ['/api/collections/alerts/records/rec000000000001']
+          - beszel_mock_writes[31:] | map(attribute='method') | list == ['DELETE', 'DELETE', 'PATCH']
+          - beszel_mock_writes[31].path == '/api/collections/alerts/records/rec000000000003'
+          - beszel_mock_writes[32].path == '/api/collections/alerts/records/rec000000000004'
+          - beszel_mock_status_writes | length == 6
+          - beszel_mock_status_writes | map(attribute='body.system') | list | select('eq', 'sysflip00000000') | list | length == 0
           - beszel_mock_settings.webhooks == [beszel_mock_telegram_url]
           - beszel_mock_settings.emails == [pangolin_le_email]
         fail_msg: "Alertes Beszel inattendues : {{ beszel_mock }}, écritures {{ beszel_mock_writes }}"
@@ -246,11 +250,18 @@
         beszel_superusers: "{{ beszel_superuser_mock_files.results[1].content | b64decode | from_json }}"
         # L'adresse que converge.yml passe au rôle (vide dans host_vars/docker).
         beszel_verify_homepage_email: homepage@monitoring.sylvain.cloud
+        beszel_verify_api_email: beszel-api@monitoring.sylvain.cloud
       ansible.builtin.assert:
         that:
-          - beszel_superuser_calls == [beszel_verify_homepage_email]
+          # Celui de l'API du rôle (alertes, lu en premier), puis celui de
+          # Homepage : chacun une seule fois sur les deux passages.
+          - beszel_superuser_calls == [beszel_verify_api_email, beszel_verify_homepage_email]
           - beszel_superusers[beszel_verify_homepage_email] == homepage_beszel_password
-        fail_msg: "Superuser Homepage inattendu : appels {{ beszel_superuser_calls }}"
+          # Dérivé de la clé du hub (sha256 hexadécimal), jamais de la clé sops
+          # du compte administrateur.
+          - beszel_superusers[beszel_verify_api_email] | length == 64
+          - beszel_superusers[beszel_verify_api_email] != beszel_admin_password
+        fail_msg: "Superuser inattendu : appels {{ beszel_superuser_calls }}"
 
     # Un compte que le hub ne peut pas créer (upsert en échec) : avertissement
     # et widget omis, jamais une play en échec.

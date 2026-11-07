@@ -3,6 +3,10 @@
 # hub : config.yml ne sait déclarer que les systèmes (internal/hub/config de
 # Beszel). Toutes les lectures se font, même en --check ; une écriture
 # seulement quand l'état diffère de beszel_alerts / beszel_alerts_webhooks.
+# Connecté en superuser (api_login.yml), on écrit les enregistrements des
+# collections alerts et user_settings, avec le champ « user » posé à la main :
+# les routes /api/beszel/user-alerts rattachent l'alerte au compte connecté,
+# qui serait ici le superuser.
 - name: Log in to the Beszel hub
   ansible.builtin.import_tasks: api_login.yml
 
@@ -14,7 +18,7 @@
       Authorization: "{{ beszel_api_token }}"
   loop:
     - systems/records?perPage=500&skipTotal=1&fields=id,name
-    - alerts/records?perPage=500&skipTotal=1&fields=id,system,name,value,min
+    - alerts/records?perPage=500&skipTotal=1&fields=id,system,name,value,min&filter={{ beszel_api_user_filter }}
   register: beszel_api_lists
   check_mode: false
 
@@ -41,9 +45,8 @@
       {{ beszel_alerts_names | difference(beszel_api_system_ids.keys() | list) }}.
     quiet: true
 
-# État voulu, une entrée par (système, type), puis ce qui diffère : les
-# écritures sont groupées comme l'API les prend (un type, un seuil, une
-# durée, plusieurs systèmes).
+# État voulu, une entrée par (système, type), puis ce qui diffère : une
+# écriture par enregistrement (id vide : à créer).
 - name: Index the declared and current Beszel alerts
   ansible.builtin.set_fact:
     beszel_alerts_desired: >-
@@ -76,71 +79,64 @@
 - name: Compute the Beszel alert changes
   ansible.builtin.set_fact:
     beszel_alerts_upserts: >-
-      {%- set groups = {} -%}
+      {%- set out = [] -%}
       {%- for alert in beszel_alerts_desired -%}
       {%- set current = beszel_alerts_current[alert.key] | default({}) -%}
       {%- if current.value | default(none) is none or current.value | float != alert.value
             or current.min | int != alert.min -%}
-      {%- set group = alert.name ~ '|' ~ alert.value ~ '|' ~ alert.min -%}
-      {%- if group not in groups -%}
-      {%- set _ = groups.update({group: {'name': alert.name, 'value': alert.value, 'min': alert.min,
-                                         'systems': [], 'hosts': []}}) -%}
-      {%- endif -%}
-      {%- set _ = groups[group]['systems'].append(alert.system) -%}
-      {%- set _ = groups[group]['hosts'].append(alert.host) -%}
+      {%- set _ = out.append(dict(alert, id=current.id | default(''))) -%}
       {%- endif -%}
       {%- endfor -%}
-      {{ groups.values() | list }}
+      {{ out }}
     beszel_alerts_deletes: >-
       {%- set wanted = beszel_alerts_desired | map(attribute='key') | list -%}
-      {%- set groups = {} -%}
+      {%- set out = [] -%}
       {%- for key, alert in beszel_alerts_current.items() if key not in wanted -%}
-      {%- set _ = groups.setdefault(alert.name, {'name': alert.name, 'systems': []}) -%}
-      {%- set _ = groups[alert.name]['systems'].append(alert.system) -%}
+      {%- set _ = out.append(alert) -%}
       {%- endfor -%}
-      {{ groups.values() | list }}
+      {{ out }}
 
 # Lisible en --check, où les écritures sont sautées.
 - name: Show the Beszel alert changes
   ansible.builtin.debug:
     msg:
-      upserts: "{{ beszel_alerts_upserts | map(attribute='name') | zip(beszel_alerts_upserts | map(attribute='hosts')) | list }}"
+      upserts: "{{ beszel_alerts_upserts | map(attribute='host') | zip(beszel_alerts_upserts | map(attribute='name')) | list }}"
       deletes: "{{ beszel_alerts_deletes | map(attribute='name') | list }}"
   when: beszel_alerts_upserts | length > 0 or beszel_alerts_deletes | length > 0
 
-# POST /api/beszel/user-alerts (internal/alerts/alerts_api.go) : crée ou,
-# avec overwrite, remet value et min sur chaque système de la liste.
+# Collection alerts : PATCH de value et min d'un enregistrement existant, ou
+# POST d'un nouveau (index unique user, system, name).
 - name: Write the Beszel alerts
   when: not ansible_check_mode
   no_log: true
   ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/beszel/user-alerts"
-    method: POST
+    url: "{{ beszel_api_url }}/api/collections/alerts/records{{ '/' ~ item.id if item.id else '' }}"
+    method: "{{ 'PATCH' if item.id else 'POST' }}"
     headers:
       Authorization: "{{ beszel_api_token }}"
     body_format: json
-    body:
-      name: "{{ item.name }}"
-      value: "{{ item.value }}"
-      min: "{{ item.min }}"
-      systems: "{{ item.systems }}"
-      overwrite: true
+    body: >-
+      {{ {'value': item.value, 'min': item.min}
+         if item.id else
+         {'user': beszel_api_user_id, 'system': item.system, 'name': item.name,
+          'value': item.value, 'min': item.min} }}
   loop: "{{ beszel_alerts_upserts }}"
+  loop_control:
+    label: "{{ item.host }}/{{ item.name }}"
   changed_when: true
 
 - name: Delete the Beszel alerts that are no longer declared
   when: not ansible_check_mode
   no_log: true
   ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/beszel/user-alerts"
+    url: "{{ beszel_api_url }}/api/collections/alerts/records/{{ item.id }}"
     method: DELETE
     headers:
       Authorization: "{{ beszel_api_token }}"
-    body_format: json
-    body:
-      name: "{{ item.name }}"
-      systems: "{{ item.systems }}"
+    status_code: 204
   loop: "{{ beszel_alerts_deletes }}"
+  loop_control:
+    label: "{{ item.id }}"
   changed_when: true
 
 - name: Warn that Beszel has no notification channel to declare
@@ -160,7 +156,7 @@
     - name: Read the account notification settings
       no_log: true
       ansible.builtin.uri:
-        url: "{{ beszel_api_url }}/api/collections/user_settings/records?perPage=1&skipTotal=1"
+        url: "{{ beszel_api_url }}/api/collections/user_settings/records?perPage=1&skipTotal=1&filter={{ beszel_api_user_filter }}"
         headers:
           Authorization: "{{ beszel_api_token }}"
       register: beszel_api_user_settings

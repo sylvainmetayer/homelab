@@ -3,12 +3,12 @@
 
 The scenario never pulls the hub image, so this answers on 127.0.0.1:8090 the
 few PocketBase / Beszel routes the role calls, with the semantics of
-internal/alerts/alerts_api.go and internal/users/users.go: auth-with-password
-on the users collection (and on _superusers, with the hub's superuser IP
-allowlist: 403 for a valid superuser from elsewhere), the systems listed from
-config.yml (as the hub syncs them at start), alerts upserted and deleted per
-user through /api/beszel/user-alerts, user_settings whose emails the hub
-fills on create, and test-notification. Every write is appended to WRITES_LOG, and
+internal/users/users.go: auth-with-password on _superusers (with the hub's
+superuser IP allowlist: 403 for a valid superuser from elsewhere), the admin
+user looked up by e-mail, the systems listed from config.yml (as the hub
+syncs them at start), alert records created, patched and deleted through the
+alerts collection (the superuser sets the user field), user_settings whose
+emails the hub fills on create, and test-notification. Every write is appended to WRITES_LOG, and
 GET /mock/state dumps the state for verify.yml.
 
 Reads its seed from CONFIG_JSON (written by prepare.yml).
@@ -19,7 +19,7 @@ import re
 import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 CONFIG_YML = "/opt/apps/beszel/beszel_data/config.yml"
 CONFIG_JSON = "/etc/beszel-api-mock/config.json"
@@ -48,15 +48,18 @@ def declared_systems():
 class State:
     def __init__(self, config):
         self.email = config["email"]
-        self.password = config["password"]
         self.user_id = config["user_id"]
         # The hub's Settings.SuperuserIPs (empty: no restriction).
         self.superuser_ips = config.get("superuser_ips", [])
+        # Superusers the allowlist does not apply to: the real hub sees the
+        # role's address in its list (added by hand), the Homepage client's
+        # address too, but this mock sees one address for both.
+        self.superuser_exempt = config.get("superuser_exempt", [])
         self.token = secrets.token_hex(16)
         self.next_id = 0
         self.alerts = []
         for alert in config.get("alerts", []):
-            self.add_alert(system_id(alert["system"]), alert["name"], alert["value"], alert["min"])
+            self.add_alert(self.user_id, system_id(alert["system"]), alert["name"], alert["value"], alert["min"])
         self.settings = [
             {"id": record["id"], "user": self.user_id, "settings": record["settings"]}
             for record in config.get("user_settings", [])
@@ -66,11 +69,11 @@ class State:
         self.next_id += 1
         return "rec%012d" % self.next_id
 
-    def add_alert(self, system, name, value, minutes):
-        self.alerts.append(
-            {"id": self.new_id(), "user": self.user_id, "system": system,
-             "name": name, "value": value, "min": minutes}
-        )
+    def add_alert(self, user, system, name, value, minutes):
+        record = {"id": self.new_id(), "user": user, "system": system,
+                  "name": name, "value": value, "min": minutes}
+        self.alerts.append(record)
+        return record
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -107,12 +110,6 @@ class Handler(BaseHTTPRequestHandler):
     def get_state(self, _path):
         return self.reply(200, {"alerts": self.state.alerts, "user_settings": self.state.settings})
 
-    def post_login(self, _path):
-        data, st = self.body(), self.state
-        if data.get("identity") == st.email and data.get("password") == st.password:
-            return self.reply(200, {"token": st.token, "record": {"id": st.user_id, "email": st.email}})
-        return self.reply(400, {"message": "Failed to authenticate."})
-
     def post_superuser_login(self, _path):
         data = self.body()
         try:
@@ -127,14 +124,21 @@ class Handler(BaseHTTPRequestHandler):
         # against the request's real IP (apis/record_helpers.go): a valid
         # superuser from an address off the list gets a bare 403.
         allowed = self.state.superuser_ips
-        if allowed and self.client_address[0] not in allowed:
+        if allowed and data.get("identity") not in self.state.superuser_exempt \
+                and self.client_address[0] not in allowed:
             return self.reply(403, {"message": "You are not allowed to perform this request."})
         # Nothing of the request echoed back: the role only reads the status.
-        return self.reply(200, {"token": secrets.token_hex(16), "record": {"collectionName": "_superusers"}})
+        return self.reply(200, {"token": self.state.token, "record": {"collectionName": "_superusers"}})
 
     # Authenticated reads.
     def get_systems(self, _path):
         return self.reply(200, {"items": declared_systems()})
+
+    def get_users(self, _path):
+        # The role filters on email="<admin address>".
+        wanted = parse_qs(urlparse(self.path).query).get("filter", [""])[0]
+        found = f'email="{self.state.email}"' == wanted
+        return self.reply(200, {"items": [{"id": self.state.user_id}] if found else []})
 
     def get_alerts(self, _path):
         return self.reply(200, {"items": self.state.alerts})
@@ -143,30 +147,31 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(200, {"items": self.state.settings})
 
     # Authenticated writes: each one is appended to WRITES_LOG first.
-    def post_alerts(self, data):
-        if not data.get("name") or not data.get("systems"):
-            return self.reply(400, {"message": "Bad data"})
+    def post_alert(self, data):
         known = {s["id"] for s in declared_systems()}
-        for system in data["systems"]:
-            if system in known:
-                self.upsert_alert(system, data)
-        return self.reply(200, {"success": True})
+        if not (data.get("user") and data.get("name") and data.get("system") in known):
+            return self.reply(400, {"message": "Failed to create record."})
+        # The collection's unique index on (user, system, name).
+        if any(a["user"] == data["user"] and a["system"] == data["system"] and a["name"] == data["name"]
+               for a in self.state.alerts):
+            return self.reply(400, {"message": "Failed to create record."})
+        return self.reply(200, self.state.add_alert(
+            data["user"], data["system"], data["name"], float(data["value"]), int(data["min"])))
 
-    def upsert_alert(self, system, data):
-        st = self.state
-        match = [a for a in st.alerts if a["system"] == system and a["name"] == data["name"]]
-        value, minutes = float(data.get("value", 0)), int(data.get("min", 0))
-        if not match:
-            st.add_alert(system, data["name"], value, minutes)
-        elif data.get("overwrite"):
-            match[0].update(value=value, min=minutes)
+    def patch_alert(self, data, record_id):
+        for alert in self.state.alerts:
+            if alert["id"] == record_id:
+                alert.update({k: data[k] for k in ("value", "min") if k in data})
+                return self.reply(200, alert)
+        return self.reply(404, {"message": "The requested resource wasn't found."})
 
-    def delete_alerts(self, data):
-        st = self.state
-        before = len(st.alerts)
-        st.alerts = [a for a in st.alerts
-                     if not (a["name"] == data.get("name") and a["system"] in data.get("systems", []))]
-        return self.reply(200, {"success": True, "count": before - len(st.alerts)})
+    def delete_alert(self, record_id):
+        before = len(self.state.alerts)
+        self.state.alerts = [a for a in self.state.alerts if a["id"] != record_id]
+        if len(self.state.alerts) == before:
+            return self.reply(404, {"message": "The requested resource wasn't found."})
+        self.send_response(204)
+        self.end_headers()
 
     def post_settings(self, data):
         st = self.state
@@ -191,21 +196,21 @@ class Handler(BaseHTTPRequestHandler):
     PUBLIC = {
         ("GET", "/api/health"): "get_health",
         ("GET", "/mock/state"): "get_state",
-        ("POST", "/api/collections/users/auth-with-password"): "post_login",
         ("POST", "/api/collections/_superusers/auth-with-password"): "post_superuser_login",
     }
     READS = {
+        ("GET", "/api/collections/users/records"): "get_users",
         ("GET", "/api/collections/systems/records"): "get_systems",
         ("GET", "/api/collections/alerts/records"): "get_alerts",
         ("GET", "/api/collections/user_settings/records"): "get_settings",
     }
     WRITES = {
-        ("POST", "/api/beszel/user-alerts"): "post_alerts",
-        ("DELETE", "/api/beszel/user-alerts"): "delete_alerts",
+        ("POST", "/api/collections/alerts/records"): "post_alert",
         ("POST", "/api/collections/user_settings/records"): "post_settings",
         ("POST", "/api/beszel/test-notification"): "post_test_notification",
     }
     SETTINGS_PREFIX = "/api/collections/user_settings/records/"
+    ALERTS_PREFIX = "/api/collections/alerts/records/"
 
     def handle_any(self):
         path = urlparse(self.path).path
@@ -220,6 +225,10 @@ class Handler(BaseHTTPRequestHandler):
         self.record_write(data)
         if key in self.WRITES:
             return getattr(self, self.WRITES[key])(data)
+        if self.command == "PATCH" and path.startswith(self.ALERTS_PREFIX):
+            return self.patch_alert(data, path[len(self.ALERTS_PREFIX):])
+        if self.command == "DELETE" and path.startswith(self.ALERTS_PREFIX):
+            return self.delete_alert(path[len(self.ALERTS_PREFIX):])
         if self.command == "PATCH" and path.startswith(self.SETTINGS_PREFIX):
             return self.patch_settings(data, path[len(self.SETTINGS_PREFIX):])
         return self.reply(404, {"message": "Not found."})
