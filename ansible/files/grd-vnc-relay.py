@@ -21,8 +21,8 @@ RFB_38 = b"RFB 003.008\n"
 SEC_TLS = 18
 
 # TLS anonyme (ADH/AECDH) imposé par grd : pas de certificat, rien à vérifier,
-# sur la boucle locale seulement (NOSONAR : le seul TLS que grd accepte).
-TLS = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+# sur la boucle locale seulement : le seul TLS que grd accepte.
+TLS = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)  # NOSONAR
 TLS.check_hostname = False  # NOSONAR
 TLS.verify_mode = ssl.CERT_NONE  # NOSONAR
 TLS.maximum_version = ssl.TLSVersion.TLSv1_2
