@@ -11,7 +11,10 @@
 #
 #   - VNC : partage de la session ouverte (service grd utilisateur), mot de
 #     passe VNC (seuls ses 8 premiers caractères comptent). Lecture seule par
-#     défaut chez grd : désactivée ici.
+#     défaut chez grd : désactivée ici. grd n'offre que le TLS anonyme (type
+#     18), que le client VNC du navigateur ne négocie pas : Newt vise le relais
+#     files/grd-vnc-relay.py (127.0.0.1:5901, service utilisateur), qui ouvre ce
+#     TLS vers grd et passe l'authentification VNC classique telle quelle.
 #   - RDP : connexion à distance du service grd système, dès le boot, à l'écran
 #     de GDM, identifiants propres à grd (pas ceux du compte).
 #   - Pare-feu : la zone FedoraWorkstation ouvre 1025-65535 au LAN et grd
@@ -20,8 +23,8 @@
 #     zone). firewalld arrêté : sauté, avec un avertissement.
 #
 # Les mots de passe sont demandés à chaque passage (à garder dans KeePass), et
-# reposés : rien dans SOPS pour un POC. grdctl les lit sur son entrée standard,
-# jamais en argument, que `ps` montrerait.
+# reposés : rien dans SOPS pour un POC. Le mot de passe VNC passe par l'entrée
+# standard de grdctl ; les identifiants RDP en argument (voir leur tâche).
 #
 # Mise en place, tests et démontage complet (poste puis Pangolin) :
 # docs/runbooks/support-a-distance.md.
@@ -33,6 +36,7 @@
     # Python, jamais écrits dans un AnsiballZ_*.py de ~/.ansible/tmp.
     ansible_pipelining: true
     pc_support_vnc_port: 5900
+    pc_support_vnc_relay_port: 5901
     pc_support_rdp_port: 3389
     pc_support_grd_dir: /var/lib/gnome-remote-desktop/.local/share/gnome-remote-desktop
   vars_prompt:
@@ -185,9 +189,11 @@
       tags: rdp
       become: true
       no_log: true
+      # shortcut: en argument, visibles un instant dans `ps` aux comptes locaux
+      # (grdctl --system ignore l'entrée standard sans terminal : identifiants
+      # restés vides au premier passage) ; à revoir avant un PC partagé.
       ansible.builtin.command:
-        argv: [grdctl, --system, rdp, set-credentials]
-        stdin: "{{ pc_support_rdp_username }}\n{{ pc_support_rdp_password }}"
+        argv: [grdctl, --system, rdp, set-credentials, "{{ pc_support_rdp_username }}", "{{ pc_support_rdp_password }}"]
       changed_when: true
 
     - name: Start the RDP system daemon at boot
@@ -229,5 +235,48 @@
       ansible.builtin.systemd:
         name: gnome-remote-desktop.service
         scope: user
+        state: restarted
+        enabled: true
+
+    - name: Create the user directories of the VNC relay
+      tags: vnc
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: .local/bin, mode: "0755"}
+        - {path: .config/systemd/user, mode: "0700"}
+
+    - name: Install the VNC relay in front of GNOME Remote Desktop
+      tags: vnc
+      ansible.builtin.copy:
+        src: files/grd-vnc-relay.py
+        dest: "{{ lookup('env', 'HOME') }}/.local/bin/grd-vnc-relay"
+        mode: "0755"
+
+    - name: Declare the VNC relay user service
+      tags: vnc
+      ansible.builtin.copy:
+        dest: "{{ lookup('env', 'HOME') }}/.config/systemd/user/grd-vnc-relay.service"
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Relais VNC local devant GNOME Remote Desktop (ansible/pc-support.yml)
+          After=gnome-remote-desktop.service
+
+          [Service]
+          ExecStart=/usr/bin/python3 -I %h/.local/bin/grd-vnc-relay {{ pc_support_vnc_relay_port }} {{ pc_support_vnc_port }}
+          Restart=on-failure
+
+          [Install]
+          WantedBy=default.target
+
+    - name: Start the VNC relay with the session
+      tags: vnc
+      ansible.builtin.systemd:
+        name: grd-vnc-relay.service
+        scope: user
+        daemon_reload: true
         state: restarted
         enabled: true

@@ -7,6 +7,20 @@ Pangolin : `tofu/pangolin_config/remote_support.tf`. Côté poste :
 [`ansible/pc-support.yml`](../../ansible/pc-support.yml), **jamais lancé par la
 CI** (procédure, pas un incident).
 
+## Limites de GNOME devant le navigateur
+
+- **VNC** : GNOME Remote Desktop n'offre que le type de sécurité 18 (TLS
+  anonyme), que le client VNC du navigateur ne négocie pas (« Connexion fermée
+  avant que l'authentification soit terminée »). Le playbook installe donc un
+  relais local, `grd-vnc-relay` (service utilisateur, `127.0.0.1:5901`), qui
+  ouvre ce TLS vers grd (5900) et passe l'authentification VNC classique
+  telle quelle ; la cible Pangolin vise 5901.
+- **RDP** : grd ferme toute connexion d'un client sans pipeline graphique
+  (RDPGFX) : « Client did not advertise support for the Graphics Pipeline »
+  dans `journalctl -u gnome-remote-desktop`. Le client RDP du navigateur
+  (IronRDP) ne l'annonce pas : la ressource RDP ne mène nulle part sur un
+  GNOME récent, seul un client natif (Remmina, mstsc) y arrive.
+
 ## Mise en place
 
 1. Apply de `tofu/pangolin_config` depuis `main` : il crée le site, les deux
@@ -28,10 +42,12 @@ démarré, relancer avec `--tags firewall`.
 
 - Le site `pc-sylvain` est en ligne dans Pangolin, et `systemctl status newt`
   est actif.
-- La ressource VNC ouvre la session en cours, souris et clavier compris (le
-  client VNC du navigateur n'a pas de presse-papiers).
-- La ressource RDP ouvre l'écran de connexion de GDM, y compris juste après
-  un redémarrage du poste, avant toute connexion locale.
+- `systemctl --user status grd-vnc-relay` actif. La ressource VNC ouvre la
+  session en cours, souris et clavier compris (le client VNC du navigateur
+  n'a pas de presse-papiers). Un refus du relais s'écrit dans
+  `journalctl --user -u grd-vnc-relay`.
+- `sudo grdctl --system status` : `Username` renseigné sous `RDP:`. Le
+  navigateur n'ira pas plus loin (section précédente).
 - Depuis un autre appareil du réseau local, `nc -zv <ip du poste> 5900` et
   `nc -zv <ip du poste> 3389` sont refusés.
 - Poste éteint une heure : aucune alerte « Site hors ligne ». Les règles
@@ -49,6 +65,11 @@ Le poste d'abord : sinon Newt réessaie en boucle de joindre un site supprimé.
 sudo systemctl disable --now newt
 sudo rm -rf /etc/systemd/system/newt.service /usr/local/bin/newt /etc/newt
 sudo systemctl daemon-reload
+
+# Relais VNC
+systemctl --user disable --now grd-vnc-relay
+rm -f ~/.config/systemd/user/grd-vnc-relay.service ~/.local/bin/grd-vnc-relay
+systemctl --user daemon-reload
 
 # GNOME Remote Desktop : VNC (service utilisateur), RDP (service système)
 grdctl vnc disable
@@ -72,8 +93,8 @@ plus à rien.
 
 ### 2. Côté Pangolin
 
-Une PR qui revient sur les commits du POC (`feat(support)` et les deux
-`fix(support)`), **pas sur le bump du provider** en `1.7.0-sylvain.5` arrivé
+Une PR qui revient sur les commits du POC (`feat(support)`, `fix(support)`,
+`docs(support)`), **pas sur le bump du provider** en `1.7.0-sylvain.5` arrivé
 dans la même PR. Après le merge, un plan depuis `main` doit annoncer
 **15 destructions et 6 modifications** (l'alerte « Site hors ligne » revient à
 tous les sites, le `role_mapping` de Pocket ID perd `support`, quatre compteurs
@@ -87,8 +108,8 @@ le code de `main` le recréerait au plan suivant.
 - Plus de site `pc-sylvain` ni de ressource « PC Sylvain » dans Pangolin ;
   le plan suivant est vide.
 - Sur le poste : `systemctl status newt gnome-remote-desktop` et
-  `systemctl --user status gnome-remote-desktop` inactifs ; `sudo ss -ltnp`
-  ne montre plus rien sur 5900 ni 3389.
+  `systemctl --user status gnome-remote-desktop grd-vnc-relay` inactifs ;
+  `sudo ss -ltnp` ne montre plus rien sur 5900, 5901 ni 3389.
 
 Les sous-domaines `d-tyl53u` et `d-nb335s` restent dans les journaux
 Certificate Transparency. Ils sont neutres et ne disent rien du poste.
