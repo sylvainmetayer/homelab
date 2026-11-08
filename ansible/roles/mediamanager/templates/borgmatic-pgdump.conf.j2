@@ -1,0 +1,7 @@
+# Généré par le rôle mediamanager : dump de la base de MediaManager juste
+# avant borgmatic. Le conteneur borgmatic du NAS n'a pas docker, il ne peut
+# pas lancer pg_dump lui-même (README, « Sauvegarde »). « - » : un dump raté
+# ne bloque pas les sauvegardes des autres applis ; le hook before de
+# mediamanager.yaml refuse alors le dump resté d'avant (périmé).
+[Service]
+ExecStartPre=-/bin/sh -c 'umask 077 && /usr/bin/docker exec mediamanager-db pg_dump -U mediamanager -Fc mediamanager > {{ mediamanager_db_dump_path }}.tmp && mv {{ mediamanager_db_dump_path }}.tmp {{ mediamanager_db_dump_path }}'

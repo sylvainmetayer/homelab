@@ -5,3 +5,8 @@
     name: "dc@{{ mediamanager_service }}"
     scope: "{{ mediamanager_dc_scope }}"
     state: restarted
+
+- name: Reload systemd for the MediaManager dump
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true

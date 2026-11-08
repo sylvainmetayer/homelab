@@ -134,8 +134,9 @@
         src: "{{ mm_verify_borgmatic_path }}"
       register: mm_verify_borgmatic_raw
 
-    # Fichiers seuls (pas de dump PostgreSQL : borgmatic en conteneur), la
-    # base de Prowlarr copiée par sqlite3, la copie vivante exclue.
+    # Fichiers et dump PostgreSQL posé par l'hôte (borgmatic en conteneur,
+    # sans hook de base), la base de Prowlarr copiée par sqlite3, la copie
+    # vivante exclue, le dump refusé s'il est périmé.
     - name: Assert the MediaManager backup
       vars:
         mm_verify_borgmatic: "{{ mm_verify_borgmatic_raw.content | b64decode | from_yaml }}"
@@ -146,13 +147,29 @@
           - mm_verify_borgmatic.source_directories == [
               mm_verify_path ~ '/config', mm_verify_path ~ '/qbittorrent',
               mm_verify_path ~ '/prowlarr', mm_verify_path ~ '/compose.yaml',
-              '/var/lib/borgmatic-sqlite/mediamanager']
+              mm_verify_path ~ '/db-dump', '/var/lib/borgmatic-sqlite/mediamanager']
+          - mm_verify_borgmatic.commands | map(attribute='run') | flatten
+            | select('search', 'db-dump/mediamanager.dump -mmin -180') | length == 1
           - mm_verify_live_db in mm_verify_borgmatic.exclude_patterns
           - (mm_verify_path ~ '/prowlarr/logs') in mm_verify_borgmatic.exclude_patterns
           - (mm_verify_path ~ '/prowlarr/*.db*') in mm_verify_borgmatic.exclude_patterns
           - mm_verify_borgmatic.repositories[0].path
             == 'ssh://' ~ backup_storage_box_subaccounts.nas.username ~ '@' ~ backup_storage_box_subaccounts.nas.server ~ '/./mediamanager'
         fail_msg: "Configuration borgmatic de MediaManager inattendue : {{ mm_verify_borgmatic }}"
+
+    - name: Read the MediaManager dump drop-in
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/borgmatic.service.d/mediamanager-pgdump.conf
+      register: mm_verify_pgdump_raw
+
+    - name: Assert the dump runs before borgmatic without blocking it
+      vars:
+        mm_verify_pgdump: "{{ mm_verify_pgdump_raw.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'ExecStartPre=-/bin/sh -c ' in mm_verify_pgdump"
+          - "'docker exec mediamanager-db pg_dump -U mediamanager -Fc mediamanager > ' ~ mm_verify_path ~ '/db-dump/mediamanager.dump.tmp' in mm_verify_pgdump"
+        fail_msg: "Drop-in de dump inattendu : {{ mm_verify_pgdump }}"
 
     # La variante avec VPN, dans un autre projet (son compose seul est
     # vérifié, l'unité de test ne lance aucun conteneur).

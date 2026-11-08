@@ -267,8 +267,35 @@
   register: mediamanager_qbittorrent_bypass
   changed_when: mediamanager_qbittorrent_bypass.stdout_lines | last == 'changed'
 
-# Fichiers seulement : la base PostgreSQL n'est pas dumpée (README,
-# « Sauvegarde »). Bases SQLite de Prowlarr copiées par sqlite3.
+# Base PostgreSQL dumpée par l'hôte avant borgmatic (drop-in de
+# borgmatic.service), le dump archivé avec les fichiers. Bases SQLite de
+# Prowlarr copiées par sqlite3.
+- name: Dump the MediaManager database before each borgmatic run
+  when: mediamanager_backup_enabled
+  tags: backup
+  become: true
+  block:
+    - name: Create the folder of the MediaManager database dump
+      ansible.builtin.file:
+        path: "{{ mediamanager_db_dump_path | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create the borgmatic.service drop-in folder
+      ansible.builtin.file:
+        path: /etc/systemd/system/borgmatic.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Template the MediaManager dump drop-in
+      ansible.builtin.template:
+        src: templates/borgmatic-pgdump.conf.j2
+        dest: /etc/systemd/system/borgmatic.service.d/mediamanager-pgdump.conf
+        mode: "0644"
+      notify: Reload systemd for the MediaManager dump
+
 - name: Configure borgmatic backup for MediaManager
   when: mediamanager_backup_enabled
   tags: backup
@@ -287,6 +314,13 @@
       - "{{ mediamanager_base_path }}/qbittorrent"
       - "{{ mediamanager_base_path }}/prowlarr"
       - "{{ mediamanager_base_path }}/compose.yaml"
+      - "{{ mediamanager_db_dump_path | dirname }}"
+    # Un dump de plus de 3 h : celui du drop-in a raté, ne pas archiver
+    # l'ancien comme s'il était du jour (seule cette sauvegarde échoue).
+    borgmatic_app_before_commands:
+      - >-
+        find {{ mediamanager_db_dump_path | quote }} -mmin -180 | grep -q .
+        || { echo "Dump PostgreSQL de MediaManager absent ou périmé" >&2; exit 1; }
     borgmatic_app_exclude_patterns:
       - "{{ mediamanager_base_path }}/prowlarr/logs"
       - "{{ mediamanager_base_path }}/prowlarr/Backups"

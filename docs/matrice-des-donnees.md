@@ -86,7 +86,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Speedtest Tracker | 3 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | Homepage, Enclosed, MkDocs (`docs_site`), Neonova | 3 | aucune ; sans état ou jetable, redéployés par Ansible | sans objet | < 30 min chacune (est.) | non | notes d'Enclosed éphémères exprès |
 | VictoriaLogs (journaux, 30 jours) | 3 | aucune, « reproductibles » | non | sans objet | non | tous les journaux |
-| MediaManager (essai, NAS) | 3 | config en Borg (NAS) **sans** sa base PostgreSQL | partiel | sans objet | exclu du test (raison écrite dans `check_restore_coverage.py`) | base PostgreSQL |
+| MediaManager (essai, NAS) | 3 | config en Borg (NAS) et dump PostgreSQL (`pg_dump -Fc` par l'hôte juste avant, 02:30) | oui | ~30 min (est.) | exclu du test (raison écrite dans `check_restore_coverage.py`) | rien hors du dernier jour |
 
 ### Raspberry Pi (`pi`)
 
@@ -108,7 +108,7 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
 | Jellyfin : config et base | 2 | Borg `jellyfin` à 02:30 (conteneur borgmatic), copies SQLite | oui | ~30 min (est.) | CI | médias (ligne précédente) |
 | **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main, fréquence non relevée dans le dépôt ([kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier modifié à taille égale n'est pas recopié |
 | **Archives vzdump** (`pve-backup`) | 3 | voir la VM docker | non | — | voir la VM docker | non chiffrées, sans partage SMB, export réservé à l'IP de l'hôte |
-| Config de MediaManager, qBittorrent, Prowlarr | 3 | Borg (sans la base) | partiel | sans objet | exclu | voir plus haut |
+| Config de MediaManager, qBittorrent, Prowlarr | 3 | Borg (avec le dump de la base) | oui | ~30 min (est.) | exclu | voir plus haut |
 | Système UGOS (dossiers partagés, comptes, droits) | 2 | `nas.yml` pose les exports NFS ; dossiers partagés créés dans l'interface | sans objet | non trouvé dans le dépôt, à vérifier sur l'hôte | non | réglages faits dans l'interface UGOS |
 
 ### Pangolin (Hetzner, nbg1)
@@ -148,7 +148,7 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
 |---|---|---|
 | Panne de la VM docker ou de l'hôte Proxmox | l'état entre 01:00 et la panne ; la config `/etc/pve` (non trouvée sauvegardée) | Borg de chaque appli ; image vzdump si le NAS tient |
 | Panne du Pi | Immich en ligne tant que le Pi est absent | Borg `immich` ; le disque USB peut survivre |
-| Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager sans sa base) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
+| Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager avec le dump de sa base) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
 | Panne de Pangolin ou flip | accès public ; flip n'a pas d'image Hetzner | Borg ; images Hetzner de Pangolin ; ~45 min pour Pangolin (mesuré) |
 | **Maison sinistrée** | VM docker, Pi, NAS (médias, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule), config Proxmox | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
 | **Compromission** d'un hôte | ce que root de cet hôte efface de ses dépôts | les 9 instantanés (aucun sous-compte ne peut les effacer) ; les dépôts des autres hôtes. Un jeton Hetzner en écriture volé peut lever la protection de la box ([storage_box.tf](../tofu/pangolin/storage_box.tf)) |
@@ -198,8 +198,8 @@ proposé ici.
 6. **`backup_passphrase` unique** : sa perte ferme tous les dépôts Borg et
    les colonnes chiffrées de HealthLog et Dawarich.
 7. **Données sans sauvegarde** : démo Keycloak et vitrine de flip (en pause,
-   données gardées sur le disque), journal de Promptoramix, base PostgreSQL
-   de MediaManager (essai), miroir kDrive (hors Borg).
+   données gardées sur le disque), journal de Promptoramix, miroir kDrive
+   (hors Borg).
 8. **Le test de restauration ne prouve pas l'appli** : pas de démarrage, pas
    de comparaison au vivant, échantillon de 20 fichiers ≤ 5 Mio, aucun
    contrôle de tous les blocs ; la clé de chiffrement de HealthLog n'est pas
