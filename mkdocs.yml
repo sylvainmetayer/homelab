@@ -121,6 +121,7 @@ nav:
       - runbooks/pocket-id.md
       - runbooks/support-a-distance.md
       - runbooks/support-a-distance-famille.md
+      - runbooks/support-a-distance-famille-sans-tofu.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
