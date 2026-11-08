@@ -386,6 +386,8 @@
           # aucune dans Traefik, sauf le service worker de retrait de sylvain.dev.
           - dynamic_config.http.middlewares.keys() | select('match', 'redirect-') | reject('equalto', 'redirect-to-https') | list | length == 0
           - dynamic_config.http.routers['sw-retire-sylvain-dev'].rule == 'Host(`sylvain.dev`) && Path(`/service-worker.js`)'
+          # Au-dessus des routeurs de redirection de Pangolin (priorité 100 à 115).
+          - dynamic_config.http.routers['sw-retire-sylvain-dev'].priority > 115
           - dynamic_config.http.middlewares['sw-retire-sylvain-dev'].replacePath.path == '/service-worker-retired.js'
           - dynamic_config.http.services['sw-retire-sylvain-dev'].loadBalancer.servers[0].url == 'https://www.sylvain.dev'
           # HSTS sur toutes les réponses HTTPS, sans includeSubDomains (le NAS
