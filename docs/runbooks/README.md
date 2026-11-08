@@ -48,6 +48,7 @@ choix dans [../adr/](../adr/README.md).
 | Intrusion supposée, la première heure : isoler, garder les traces, reconstruire, secrets à tourner, dépôts Borg, clé de CI, prévenir les utilisateurs de Flip Planning | [intrusion-premiere-heure.md](intrusion-premiere-heure.md) |
 | Partir plusieurs jours (procédure, pas un incident) : couper l'automerge Renovate et les déploiements, contrôle de santé, ce que le foyer peut faire et ne pas faire, retour | [mode-absence.md](mode-absence.md) |
 | Support à distance du poste (POC VNC/RDP par Pangolin) : mise en place, test, démontage complet (procédure, pas un incident) | [support-a-distance.md](support-a-distance.md) |
+| Support à distance des PC de la famille (Debian GNOME ou X11, Windows Home), installation entièrement à la main sans Ansible : site et ressource Tofu, identifiants Newt, Newt au démarrage, GNOME Remote Desktop + relais, x11vnc, UltraVNC, consentement, tests, démontage (procédure, pas un incident) | [support-a-distance-famille.md](support-a-distance-famille.md) |
 | Pannes passées, ce qui s'est passé (symptôme, cause, ce qui a manqué, action) | [../incidents/README.md](../incidents/README.md) |
 | Perte totale de la maison (NAS, Proxmox, Pi et poste ensemble) : reprise par étages avec critère de passage, où reconstruire, ce qui est perdu sans recours, feuille d'exercice « PC vierge » | [perte-totale-maison.md](perte-totale-maison.md) |
 

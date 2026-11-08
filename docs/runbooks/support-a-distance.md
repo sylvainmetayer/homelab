@@ -5,7 +5,9 @@ les ressources Pangolin « PC Sylvain (VNC) » et « PC Sylvain (RDP) ». Newt
 tourne sur le poste (site `pc-sylvain`) et vise la boucle locale. Côté
 Pangolin : `tofu/pangolin_config/remote_support.tf`. Côté poste :
 [`ansible/pc-support.yml`](../../ansible/pc-support.yml), **jamais lancé par la
-CI** (procédure, pas un incident).
+CI** (procédure, pas un incident). Pour un autre PC (Debian, Windows), sans
+Ansible : [support-a-distance-famille.md](support-a-distance-famille.md) ;
+sa section 2a est aussi l'équivalent manuel du playbook pour ce poste.
 
 ## Limites de GNOME devant le navigateur
 
