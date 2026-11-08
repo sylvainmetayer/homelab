@@ -160,6 +160,8 @@ partagé `media` (autre sous-volume btrfs).
 - Après toute mise à jour d'UGOS : `nas.yml` (voir
   [mises-a-jour-hotes.md](mises-a-jour-hotes.md)) et le contrôle de fuite
   ci-dessus.
-- La base de MediaManager **n'est pas sauvegardée** (borgmatic en conteneur
-  sans `docker exec`) : une restauration repart d'une base vide avec la
-  configuration restaurée.
+- La base de MediaManager est archivée par un dump que l'hôte fait juste avant
+  borgmatic (drop-in `borgmatic.service.d/mediamanager-pgdump.conf`) : si la
+  sauvegarde `mediamanager` échoue sur « Dump PostgreSQL de MediaManager absent
+  ou périmé », le dump du soir a raté (conteneur `mediamanager-db` arrêté).
+  Restauration : README du rôle, « Sauvegarde ».
