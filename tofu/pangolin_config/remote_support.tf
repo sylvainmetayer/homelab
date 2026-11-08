@@ -16,13 +16,15 @@
 # sont publics, le nom ne doit pas dire qu'il y a un bureau derrière.
 locals {
   remote_desktops = {
-    # Partage de la session ouverte (gnome-remote-desktop, service utilisateur).
+    # Partage de la session ouverte (gnome-remote-desktop, service utilisateur),
+    # par le relais local de pc-support.yml : grd n'offre que le TLS anonyme,
+    # que le client VNC du navigateur ne négocie pas.
     pc_sylvain_vnc = {
       name      = "PC Sylvain (VNC)"
       mode      = "vnc"
       subdomain = "d-tyl53u"
       site_id   = pangolin_site.pc_sylvain.id
-      port      = 5900
+      port      = 5901
     }
     # Connexion à distance dès le boot, écran de connexion GDM
     # (gnome-remote-desktop, service système).
