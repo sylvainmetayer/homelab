@@ -253,13 +253,13 @@
       ansible.builtin.copy:
         src: files/grd-vnc-relay.py
         dest: "{{ lookup('env', 'HOME') }}/.local/bin/grd-vnc-relay"
-        mode: "0755"
+        mode: "0700"
 
     - name: Declare the VNC relay user service
       tags: vnc
       ansible.builtin.copy:
         dest: "{{ lookup('env', 'HOME') }}/.config/systemd/user/grd-vnc-relay.service"
-        mode: "0644"
+        mode: "0600"
         content: |
           [Unit]
           Description=Relais VNC local devant GNOME Remote Desktop (ansible/pc-support.yml)

@@ -20,12 +20,13 @@ UPSTREAM = ("127.0.0.1", int(sys.argv[2]) if len(sys.argv) > 2 else 5900)
 RFB_38 = b"RFB 003.008\n"
 SEC_TLS = 18
 
-# TLS anonyme (ADH/AECDH) : pas de certificat chez grd, rien à vérifier.
+# TLS anonyme (ADH/AECDH) imposé par grd : pas de certificat, rien à vérifier,
+# sur la boucle locale seulement (NOSONAR : le seul TLS que grd accepte).
 TLS = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-TLS.check_hostname = False
-TLS.verify_mode = ssl.CERT_NONE
+TLS.check_hostname = False  # NOSONAR
+TLS.verify_mode = ssl.CERT_NONE  # NOSONAR
 TLS.maximum_version = ssl.TLSVersion.TLSv1_2
-TLS.set_ciphers("aNULL:@SECLEVEL=0")
+TLS.set_ciphers("aNULL:@SECLEVEL=0")  # NOSONAR
 
 
 async def pipe(reader, writer):
@@ -64,7 +65,7 @@ async def handle(client_reader, client_writer):
         # La suite du tunnel suppose un client en 3.8 (types de sécurité en liste).
         if await asyncio.wait_for(client_reader.readexactly(12), 10) != RFB_38:
             raise ConnectionError("client autre que RFB 3.8")
-    except (OSError, EOFError, ssl.SSLError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:
+    except (OSError, EOFError) as err:
         print(f"connexion refusée : {err!r}", file=sys.stderr, flush=True)
         client_writer.close()
         if upstream_writer:
