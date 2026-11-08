@@ -226,12 +226,13 @@ http:
     # {{ sw.host }} est redirigé par Pangolin (redirects.tf), mais un
     # navigateur refuse de mettre à jour un service worker derrière une
     # redirection : ce chemin sert à la place un worker qui se désinstalle.
-    # Priorité explicite : Pangolin pose la sienne sur ses routeurs de
-    # redirection (100, et jusqu'à 115 avec un chemin : computeRoutePriority,
-    # server/lib/traefik/rule.ts), qui bat la longueur de règle par défaut.
+    # Priorité explicite : Pangolin place ses routeurs de redirection dans la
+    # bande 1001-2000 (computeRedirectPriority = priorité de route, plafonnée
+    # à 1000, + REDIRECT_PRIORITY_OFFSET 1000 : server/lib/traefik/rule.ts en
+    # 1.25.3), au-dessus de toute ressource. Le worker passe au-dessus.
     sw-retire-{{ sw.name }}:
       rule: "Host(`{{ sw.host }}`) && Path(`{{ sw.path }}`)"
-      priority: 500
+      priority: 3000
       service: sw-retire-{{ sw.name }}
       entryPoints:
         - websecure
