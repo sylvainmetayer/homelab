@@ -17,7 +17,7 @@ flowchart LR
     traefik["Traefik<br/>certificats Let's Encrypt"]
     bouncer["bouncer CrowdSec (plugin Traefik)<br/>IP bannies : 403"]
     crowdsec["CrowdSec<br/>journal d'accès, AppSec (alertes)"]
-    badger["Badger (plugin Traefik)<br/>règles pays/chemins, SSO"]
+    badger["Badger (plugin Traefik)<br/>redirections, règles pays/chemins, SSO"]
     pangolin_app["Pangolin<br/>config, SQLite, API"]
     gerbil["Gerbil<br/>WireGuard 51820/21820 UDP"]
     traefik --> bouncer --> badger --> pangolin_app
@@ -29,6 +29,7 @@ flowchart LR
   gerbil == tunnel ==> newt_pi
   gerbil == tunnel ==> newt_flip
   gerbil == tunnel ==> newt_lxc
+  gerbil == tunnel ==> newt_pc
 
   subgraph home["Maison (réseau local)"]
     subgraph docker_vm["VM docker (Proxmox, id 100)"]
@@ -38,6 +39,10 @@ flowchart LR
       newt_pi[newt] --> immich["immich,<br/>immich-swipe (clé d'API côté serveur)"]
     end
     newt_lxc["LXC newt (Proxmox, id 200)<br/>site proxmox-lxc"] --> lan["ressources privées :<br/>docker-apps.internal, pi.internal,<br/>NAS, Proxmox"]
+    subgraph pc["PC de Sylvain (Fedora, GNOME), POC support à distance"]
+      newt_pc["newt (newt.service)<br/>site pc-sylvain"] -- "127.0.0.1:5901" --> relay_vnc["grd-vnc-relay<br/>(ouvre le TLS anonyme de GNOME)"]
+      relay_vnc -- "127.0.0.1:5900" --> grd["GNOME Remote Desktop<br/>VNC de la session ouverte"]
+    end
     subgraph nas["NAS Ugreen (192.168.1.137)"]
       newt_nas["newt (dc@newt)<br/>site nas"] -- "réseau docker newt, 443 et 8443" --> traefik_nas["nas-proxy (dc@nas_proxy)<br/>media. et nas.sylvain.cloud, privés"]
       relay_nas["nas-proxy-443 (dc@nas_proxy)<br/>443 de l'hôte, réseau hôte"] -- "TCP + PROXY v2, 8444" --> traefik_nas
@@ -100,6 +105,30 @@ son `website_<app>.tf` :
   `/api/` à Immich en y posant la clé d'API de Sylvain, jamais envoyée au
   navigateur ; d'où un rôle Pangolin à lui, `immich-swipe`, distinct de celui
   d'Immich ([README d'immich](../ansible/roles/immich/README.md)).
+
+Les **redirections de domaine** sont aussi faites par Pangolin
+(`pangolin_redirect`, `tofu/pangolin_config/redirects.tf`, Pangolin 1.25 et
+Badger v1.8.0) : `sylvain.dev` vers `https://www.sylvain.dev` (permanente,
+chemin conservé) et `memoire.epsi.sylvainmetayer.fr` vers le PDF du mémoire
+(temporaire). Elles passent avant toute ressource et avant le SSO, sans
+règles de pays. Seul reste dans Traefik le service worker de retrait de
+`sylvain.dev` (`pangolin_service_worker_retirements`, à retirer après le
+04/01/2027), en priorité 3000, au-dessus de la bande 1001-2000 des
+redirections de Pangolin.
+
+**Support à distance** (POC du 08/11/2026) : prendre la main sur un PC depuis
+un navigateur, par une ressource Pangolin publique en mode `vnc` (client web
+servi par Pangolin, pont fait par le Newt du site), derrière le SSO, le rôle
+`support` et les règles FR/DE (`tofu/pangolin_config/remote_support.tf`).
+Le PC n'ouvre aucun port : son Newt vise la boucle locale. Sur le poste de
+Sylvain (`ansible/pc-support.yml`), GNOME Remote Desktop n'offre que le TLS
+anonyme, que le client du navigateur ne négocie pas : un relais local
+(`grd-vnc-relay`) l'ouvre à sa place. Le RDP du navigateur est refusé par
+GNOME (pas de pipeline graphique). Ces sites ne sont pas dans l'alerte
+« Site hors ligne ». Mise en place et démontage :
+[runbooks/support-a-distance.md](runbooks/support-a-distance.md) ; PC de la
+famille (Debian, Windows), à la main :
+[runbooks/support-a-distance-famille.md](runbooks/support-a-distance-famille.md).
 
 Hors Pangolin : `planning.sylvain.dev` (la page produit de Planning Équipes,
 `tofu/planning`), comme `tofu/ref`, `tofu/site` et `tofu/1y`, est servi par
@@ -182,6 +211,7 @@ gérés dans Pangolin. Procédure et secours :
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, MediaManager (à l'essai), borgmatic en conteneur ; stockage des sauvegardes vzdump |
 | `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour, durcissement (rôle `pve_hardening` : SSH par clé seule, pare-feu PVE de l'hôte en DROP sauf le LAN sur 22 et 8006, dépôt sans abonnement, zone SDN inutile retirée ; secours : [runbook](runbooks/proxmox-injoignable-apres-durcissement.md)) |
+| PC de Sylvain | poste Fedora, réseau local | à la main | `ansible/pc-support.yml`, à la main seulement (localhost, `-K`) | POC support à distance : Newt du site `pc-sylvain` (`newt.service`, au boot), GNOME Remote Desktop (VNC de la session, RDP de GDM), relais `grd-vnc-relay` (service utilisateur), règles firewalld qui gardent 5900 et 3389 hors du LAN |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 | Cloudflare Pages | Cloudflare | `tofu/planning`, `tofu/ref`, `tofu/site`, `tofu/1y` | le dépôt de chaque site | sites statiques (`planning.sylvain.dev`…), hors Pangolin |
 
