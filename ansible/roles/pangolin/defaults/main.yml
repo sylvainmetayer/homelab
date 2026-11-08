@@ -12,18 +12,19 @@ pangolin_secret: ""
 # Let's Encrypt email
 pangolin_le_email: ""
 
-# Domaines entièrement redirigés par Traefik (301, chemin conservé par défaut), hors des
-# ressources Pangolin : routeurs du fichier dynamique. Le domaine doit pointer
-# vers Pangolin pour obtenir son certificat (défi HTTP).
-#   - name: identifiant des routeurs/middleware (lettres, chiffres, tirets)
-#     host: domaine redirigé
-#     target: origine cible, sans slash final (URL complète si keep_path: false)
-#     keep_path: false           # optionnel : redirige tout vers target tel quel
-#     permanent: false           # optionnel : 302 au lieu de 301, cible appelée à changer
-#     service_worker:            # optionnel, si l'ancien site en installait un
-#       path: chemin du worker sur l'ancien site, servi sans redirection
-#       replacement: chemin, sur target, d'un worker qui se désinstalle
-pangolin_domain_redirects: []
+# Les redirections de domaine sont faites par Pangolin (pangolin_redirect,
+# tofu/pangolin_config/redirects.tf). Une redirection ne sert aucun fichier :
+# reste ici le service worker de retrait d'un domaine redirigé, qu'un
+# navigateur refuse de mettre à jour derrière une redirection (l'ancien
+# resterait actif et servirait son cache). Routeur Host + Path, plus long donc
+# prioritaire sur celui de la redirection Pangolin.
+#   - name: identifiant du routeur, du middleware et du service
+#     host: domaine redirigé (par Pangolin)
+#     path: chemin du worker installé par l'ancien site
+#     target: origine qui sert le worker de retrait, sans slash final
+#     replacement: chemin, sur target, du worker qui se désinstalle
+#     remove_after: date (AAAA-MM-JJ) après laquelle retirer l'entrée
+pangolin_service_worker_retirements: []
 
 # Fournisseur d'identité public (rôle pocket_id, ADR 0030) : un routeur Traefik
 # direct vers son conteneur, JAMAIS une ressource Pangolin (derrière le mur SSO

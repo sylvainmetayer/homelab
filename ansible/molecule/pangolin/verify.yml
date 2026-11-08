@@ -367,7 +367,6 @@
       vars:
         traefik_config: "{{ pangolin_traefik.results[0].content | b64decode | from_yaml }}"
         dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
-        memoire_epsi_pdf: https://github.com/sylvainmetayer/epsi-memoire/releases/download/v1.1.1/M19_SYLVAINMETAYER.pdf
       ansible.builtin.assert:
         that:
           - traefik_config.certificatesResolvers.letsencrypt.acme.email == pangolin_le_email
@@ -383,12 +382,12 @@
           - dynamic_config.tls.options.default.cipherSuites | length == 6
           - dynamic_config.tls.options.default.cipherSuites | select('search', 'CBC|_SHA$') | list | length == 0
           - dynamic_config.http.middlewares['int-api-allowlist'].ipAllowList.sourceRange == pangolin_api_allowed_ips.split(',')
-          # Redirection vers un fichier : chemin ignoré, 302 (host_vars, keep_path / permanent)
-          - dynamic_config.http.middlewares['redirect-memoire-epsi'].redirectRegex.replacement == memoire_epsi_pdf
-          - not dynamic_config.http.middlewares['redirect-memoire-epsi'].redirectRegex.permanent
-          - dynamic_config.http.middlewares['redirect-sylvain-dev-apex'].redirectRegex.replacement == 'https://www.sylvain.dev${1}'
-          - dynamic_config.http.middlewares['redirect-sylvain-dev-apex'].redirectRegex.permanent
-          - dynamic_config.http.routers['redirect-memoire-epsi'].rule == 'Host(`memoire.epsi.sylvainmetayer.fr`)'
+          # Redirections de domaine faites par Pangolin (redirects.tf) : plus
+          # aucune dans Traefik, sauf le service worker de retrait de sylvain.dev.
+          - dynamic_config.http.middlewares.keys() | select('match', 'redirect-') | reject('equalto', 'redirect-to-https') | list | length == 0
+          - dynamic_config.http.routers['sw-retire-sylvain-dev'].rule == 'Host(`sylvain.dev`) && Path(`/service-worker.js`)'
+          - dynamic_config.http.middlewares['sw-retire-sylvain-dev'].replacePath.path == '/service-worker-retired.js'
+          - dynamic_config.http.services['sw-retire-sylvain-dev'].loadBalancer.servers[0].url == 'https://www.sylvain.dev'
           # HSTS sur toutes les réponses HTTPS, sans includeSubDomains (le NAS
           # sert nas., media. et mediamanager. hors de ce proxy) ; bannières
           # Server et X-Powered-By retirées.

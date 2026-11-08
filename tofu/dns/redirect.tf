@@ -5,9 +5,9 @@ resource "ovh_domain_zone_redirection" "betisier" {
   target    = "https://betisier.sylvain.dev"
 }
 
-# Mémoire EPSI : redirigé par le Traefik de Pangolin (pangolin_domain_redirects
-# dans ansible/host_vars/pangolin), qui répond aussi en HTTPS, contrairement à
-# une redirection OVH.
+# Mémoire EPSI : redirigé par Pangolin (pangolin_redirect,
+# tofu/pangolin_config/redirects.tf), qui répond aussi en HTTPS, contrairement
+# à une redirection OVH.
 resource "ovh_domain_zone_record" "memoire_epsi" {
   zone      = "sylvainmetayer.fr"
   subdomain = "memoire.epsi"

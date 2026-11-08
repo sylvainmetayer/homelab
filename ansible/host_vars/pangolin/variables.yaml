@@ -11,21 +11,16 @@ pangolin_api_url: "pangolin-api.{{ pangolin_base_domain }}"
 
 # sylvain.dev est servi par Cloudflare Pages sur www (tofu/site) : Pages
 # n'accepte pas un apex hors zone Cloudflare, l'apex pointe donc ici.
-pangolin_domain_redirects:
-  - name: sylvain-dev-apex
+# Redirections de domaine : tofu/pangolin_config/redirects.tf (Pangolin).
+# Service worker de l'ancien site de sylvain.dev (src/service-worker-retired.js
+# du dépôt site), servi malgré la redirection de l'apex vers www.
+pangolin_service_worker_retirements:
+  - name: sylvain-dev
     host: sylvain.dev
+    path: /service-worker.js
     target: https://www.sylvain.dev
-    # Retire l'ancien service worker (src/service-worker-retired.js du dépôt site)
-    service_worker:
-      path: /service-worker.js
-      replacement: /service-worker-retired.js
-  # Mémoire EPSI, lien publié sur le site (articles, CV) : vers le PDF de la
-  # dernière version, en 302 pour suivre une nouvelle release.
-  - name: memoire-epsi
-    host: memoire.epsi.sylvainmetayer.fr
-    target: https://github.com/sylvainmetayer/epsi-memoire/releases/download/v1.1.1/M19_SYLVAINMETAYER.pdf
-    keep_path: false
-    permanent: false
+    replacement: /service-worker-retired.js
+    remove_after: "2027-01-04"
 
 # Pangolin secret (should be in secrets.sops.yaml)
 pangolin_secret: "{{ pangolin_server_secret }}"
