@@ -38,8 +38,8 @@ locals {
   #    2 -  9  app-specific rules evaluated before the geo-filter:
   #            - path ACCEPTs, every one of them from local.path_bypasses
   #              (pangolin_resource_rule.path_bypass);
-  #            - trek_mcp, beszel_agent_connect and victoria_logs_insert,
-  #              the three PASS, the only standalone path rules: they skip the
+  #            - trek_mcp, beszel_agent_connect, victoria_logs_insert and
+  #              rss_opml, the four PASS, the only standalone path rules: they skip the
   #              country rules but keep the authentication;
   #            - exemple_planning_drop, the DROPs of the public showcase
   #              (website_exemple_planning.tf), and promptoramix_drop, its
@@ -255,11 +255,12 @@ locals {
   ]...)
 
   # Resources with a path rule that lives in a standalone resource rather than
-  # in local.path_bypasses: the three PASS: TREK's `/mcp` (pangolin_resource_rule.
+  # in local.path_bypasses: the four PASS: TREK's `/mcp` (pangolin_resource_rule.
   # trek_mcp, website_trek.tf), Beszel's agent endpoint
-  # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf) and
+  # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf),
   # VictoriaLogs' (pangolin_resource_rule.victoria_logs_insert,
-  # website_victoria_logs.tf), and the showcase's DROPs
+  # website_victoria_logs.tf) and FreshRSS's OPML export
+  # (pangolin_resource_rule.rss_opml, website_rss.tf), and the showcase's DROPs
   # (pangolin_resource_rule.exemple_planning_drop, website_exemple_planning.tf),
   # the only path rules that are not ACCEPTs.
   # Listed by hand for the same reason as local.declared_extra_rules below, so
@@ -267,6 +268,7 @@ locals {
   standalone_path_rule_resources = [
     "Beszel",
     "Exemple Planning",
+    "RSS",
     "TREK",
     "VictoriaLogs",
   ]
@@ -522,6 +524,7 @@ locals {
       pangolin_resource_rule.immich_home_ip,
       pangolin_resource_rule.immich_kiosk_home_ip,
       pangolin_resource_rule.promptoramix_drop,
+      pangolin_resource_rule.rss_opml,
       pangolin_resource_rule.trek_home_ip,
       pangolin_resource_rule.trek_mcp,
       pangolin_resource_rule.victoria_logs_insert,

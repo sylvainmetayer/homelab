@@ -21,6 +21,12 @@ override_data {
   }
 }
 
+# State de tofu/pangolin_config : sans le jeton de l'export OPML par défaut.
+override_data {
+  target = data.terraform_remote_state.pangolin_config
+  values = { outputs = {} }
+}
+
 # Le sous-domaine pages.dev est attribué par Cloudflare (<nom>-xxx.pages.dev
 # si le nom est pris) : une valeur réaliste pour que la cible du CNAME soit
 # connue au plan.
@@ -406,5 +412,67 @@ run "app_cloudflare_en_mode_depots_choisis" {
       github_app_installation_repository.cloudflare[0].repository == github_repository.site.name
     )
     error_message = "Avec cloudflare_github_installation_id, l'app GitHub Cloudflare doit recevoir l'accès au dépôt site."
+  }
+}
+
+# Avec l'URL OPML (SOPS) et le jeton Pangolin (tofu/pangolin_config), les trois
+# variables FRESHRSS_* existent en production seulement, en secret ; l'URL
+# seule n'en crée aucune.
+run "export_opml_en_production_seulement" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        CLOUDFLARE_API_TOKEN   = "fake-cloudflare-token"
+        CLOUDFLARE_ACCOUNT_ID  = "0123456789abcdef0123456789abcdef"
+        SITE_PAGES_DEPLOY_HOOK = "https://example.invalid/fake-deploy-hook"
+        SITE_FRESHRSS_OPML_URL = "https://rss.example.invalid/api/query.php?f=opml"
+      }
+    }
+  }
+
+  override_data {
+    target = data.terraform_remote_state.pangolin_config
+    values = {
+      outputs = {
+        rss_site_build_access_token = { "P-Access-Token-Id" = "fake-id", "P-Access-Token" = "fake-token" }
+      }
+    }
+  }
+
+  assert {
+    condition = alltrue([
+      for name in ["FRESHRSS_OPML_URL", "FRESHRSS_ACCESS_TOKEN_ID", "FRESHRSS_ACCESS_TOKEN"] :
+      cloudflare_pages_project.site.deployment_configs.production.env_vars[name].type == "secret_text"
+    ]) && cloudflare_pages_project.site.deployment_configs.production.env_vars["FRESHRSS_ACCESS_TOKEN"].value == "fake-token"
+    error_message = "La production doit recevoir FRESHRSS_OPML_URL, FRESHRSS_ACCESS_TOKEN_ID et FRESHRSS_ACCESS_TOKEN en secret."
+  }
+
+  assert {
+    condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
+    error_message = "Les previews ne doivent recevoir aucun jeton FreshRSS."
+  }
+}
+
+run "url_opml_sans_jeton_pangolin" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        CLOUDFLARE_API_TOKEN   = "fake-cloudflare-token"
+        CLOUDFLARE_ACCOUNT_ID  = "0123456789abcdef0123456789abcdef"
+        SITE_PAGES_DEPLOY_HOOK = "https://example.invalid/fake-deploy-hook"
+        SITE_FRESHRSS_OPML_URL = "https://rss.example.invalid/api/query.php?f=opml"
+      }
+    }
+  }
+
+  assert {
+    condition     = local.production_env_vars == {}
+    error_message = "Sans le jeton Pangolin, aucune variable FRESHRSS_*."
   }
 }

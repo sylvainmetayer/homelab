@@ -25,4 +25,12 @@ locals {
   # Jeton d'analyse SonarCloud (My Account → Security). Absent = pas de secret
   # GitHub Actions, le workflow sonarcloud du dépôt site saute l'analyse (github.tf).
   sonar_token = try(data.sops_file.secrets.data["SITE_SONAR_TOKEN"], null)
+
+  # Export OPML des abonnements FreshRSS (page « following » du site,
+  # src/_data/freshrss.js) : l'URL porte le jeton de requête utilisateur de
+  # FreshRSS (t=), les en-têtes Pangolin viennent de tofu/pangolin_config
+  # (rss_site_build_access_token). L'un des deux absent = pas de variables
+  # FRESHRSS_*, le build ne publie pas following.opml (cloudflare.tf).
+  freshrss_opml_url     = try(data.sops_file.secrets.data["SITE_FRESHRSS_OPML_URL"], null)
+  freshrss_access_token = try(data.terraform_remote_state.pangolin_config.outputs.rss_site_build_access_token, null)
 }
