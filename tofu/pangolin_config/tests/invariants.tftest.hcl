@@ -3537,3 +3537,26 @@ run "org_domains_are_the_imported_wildcards" {
     error_message = "Changer base_domain ou type recrée le domaine : sylvain.cloud et sylvain.dev restent en wildcard."
   }
 }
+
+# Redirections de domaine (redirects.tf), autrefois dans le Traefik du rôle
+# pangolin : sylvain.dev en permanente avec son chemin, le mémoire en
+# temporaire vers le PDF quel que soit le chemin.
+run "domain_redirects_keep_their_behaviour" {
+  command = plan
+
+  assert {
+    condition = (
+      pangolin_redirect.domain["sylvain_dev_apex"].destination_host == "https://www.sylvain.dev"
+      && pangolin_redirect.domain["sylvain_dev_apex"].permanent
+      && pangolin_redirect.domain["sylvain_dev_apex"].rewrite_path_type == null
+      && pangolin_redirect.domain["memoire_epsi"].destination_host == "https://github.com"
+      && !pangolin_redirect.domain["memoire_epsi"].permanent
+      && pangolin_redirect.domain["memoire_epsi"].rewrite_path_type == "exact"
+      && endswith(pangolin_redirect.domain["memoire_epsi"].rewrite_path, ".pdf")
+      && pangolin_domain.memoire_epsi.base_domain == "memoire.epsi.sylvainmetayer.fr"
+      && pangolin_domain.memoire_epsi.type == "wildcard"
+      && alltrue([for r in pangolin_redirect.domain : r.enabled && r.ssl])
+    )
+    error_message = "Redirections de domaine : sylvain.dev en 301 vers www avec le chemin, le mémoire en 302 vers son PDF, toutes actives en HTTPS."
+  }
+}

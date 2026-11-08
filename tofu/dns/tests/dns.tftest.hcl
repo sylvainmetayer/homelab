@@ -196,8 +196,8 @@ run "memoire_epsi_vers_pangolin" {
   }
 
   assert {
-    condition     = strcontains(file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"), "host: memoire.epsi.sylvainmetayer.fr")
-    error_message = "La redirection de memoire.epsi.sylvainmetayer.fr doit être déclarée dans pangolin_domain_redirects (ansible/host_vars/pangolin)."
+    condition     = strcontains(file("${path.module}/../pangolin_config/redirects.tf"), "base_domain          = \"memoire.epsi.sylvainmetayer.fr\"")
+    error_message = "La redirection de memoire.epsi.sylvainmetayer.fr doit être déclarée dans tofu/pangolin_config/redirects.tf (pangolin_redirect)."
   }
 }
 

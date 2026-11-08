@@ -121,22 +121,12 @@ http:
 {% endfor %}
 {% endif %}
 {% endif %}
-{% for redirect in pangolin_domain_redirects %}
+{% for sw in pangolin_service_worker_retirements %}
 
-    # {{ redirect.host }} -> {{ redirect.target }} ({{ '301' if redirect.permanent | default(true) else '302' }}, chemin {{ 'conservé' if redirect.keep_path | default(true) else 'ignoré' }}). Le
-    # routeur choisit déjà l'hôte : la regex accepte n'importe lequel (casse,
-    # port explicite, point final), sinon la requête tomberait sur noop@internal.
-    redirect-{{ redirect.name }}:
-      redirectRegex:
-        regex: '^https?://[^/]+(/.*)?$'
-        replacement: "{{ redirect.target }}{{ '${1}' if redirect.keep_path | default(true) else '' }}"
-        permanent: {{ redirect.permanent | default(true) | bool | lower }}
-{% if redirect.service_worker is defined %}
-
-    redirect-{{ redirect.name }}-sw:
+    # Service worker de retrait de {{ sw.host }} (à retirer après {{ sw.remove_after }}).
+    sw-retire-{{ sw.name }}:
       replacePath:
-        path: "{{ redirect.service_worker.replacement }}"
-{% endif %}
+        path: "{{ sw.replacement }}"
 {% endfor %}
 
   routers:
@@ -232,42 +222,20 @@ http:
         certResolver: letsencrypt
 
 {% endif %}
-{% for redirect in pangolin_domain_redirects %}
-    # Redirection de domaine entier (pangolin_domain_redirects) : HTTP et HTTPS
-    # vont directement vers la cible, sans passer par redirect-to-https.
-    redirect-{{ redirect.name }}-web:
-      rule: "Host(`{{ redirect.host }}`)"
-      service: noop@internal
-      entryPoints:
-        - web
-      middlewares:
-        - redirect-{{ redirect.name }}
-
-    redirect-{{ redirect.name }}:
-      rule: "Host(`{{ redirect.host }}`)"
-      service: noop@internal
+{% for sw in pangolin_service_worker_retirements %}
+    # {{ sw.host }} est redirigé par Pangolin (redirects.tf), mais un
+    # navigateur refuse de mettre à jour un service worker derrière une
+    # redirection : ce chemin sert à la place un worker qui se désinstalle
+    # (règle plus longue, donc prioritaire sur le routeur de Pangolin).
+    sw-retire-{{ sw.name }}:
+      rule: "Host(`{{ sw.host }}`) && Path(`{{ sw.path }}`)"
+      service: sw-retire-{{ sw.name }}
       entryPoints:
         - websecure
       middlewares:
-        - redirect-{{ redirect.name }}
+        - sw-retire-{{ sw.name }}
       tls:
         certResolver: letsencrypt
-{% if redirect.service_worker is defined %}
-
-    # Un navigateur refuse de mettre à jour un service worker derrière une
-    # redirection : celui que l'ancien site a installé sur ce domaine
-    # resterait actif et servirait son cache. Ce chemin sert à la place un
-    # worker qui se désinstalle (règle plus longue, donc prioritaire).
-    redirect-{{ redirect.name }}-sw:
-      rule: "Host(`{{ redirect.host }}`) && Path(`{{ redirect.service_worker.path }}`)"
-      service: redirect-{{ redirect.name }}-sw
-      entryPoints:
-        - websecure
-      middlewares:
-        - redirect-{{ redirect.name }}-sw
-      tls:
-        certResolver: letsencrypt
-{% endif %}
 
 {% endfor %}
   services:
@@ -292,13 +260,13 @@ http:
         servers:
           - url: "{{ pangolin_idp_upstream }}"
 {% endif %}
-{% for redirect in pangolin_domain_redirects if redirect.service_worker is defined %}
+{% for sw in pangolin_service_worker_retirements %}
 
-    redirect-{{ redirect.name }}-sw:
+    sw-retire-{{ sw.name }}:
       loadBalancer:
         passHostHeader: false
         servers:
-          - url: "{{ redirect.target }}"
+          - url: "{{ sw.target }}"
 {% endfor %}
 
 # Option TLS « default » : valable pour tous les noms publics (ressources

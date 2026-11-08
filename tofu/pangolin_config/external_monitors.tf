@@ -87,8 +87,8 @@ resource "uptimekuma_monitor_http" "blog" {
   tags                       = [local.tofu_tag]
 }
 
-# L'apex pointe vers Pangolin, dont Traefik redirige en 301 vers www
-# (pangolin_domain_redirects) : le moniteur suit la redirection.
+# L'apex pointe vers Pangolin, qui redirige en permanente vers www
+# (pangolin_redirect, redirects.tf) : le moniteur suit la redirection.
 resource "uptimekuma_monitor_http" "blog_apex" {
   name   = "Blog (apex)"
   parent = uptimekuma_monitor_group.cloudflare.id
