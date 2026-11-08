@@ -133,10 +133,14 @@
 
     # Auto-signé : Newt ne vérifie pas le certificat du serveur RDP (paquet
     # browsergateway). creates : jamais régénéré.
+    # Interpréteur du système : gnome-remote-desktop ne traverse pas le $HOME
+    # en 0700 où vit le venv d'ansible-playbook (Permission non accordée).
     - name: Generate the TLS key and certificate of the RDP system daemon
       tags: rdp
       become: true
       become_user: gnome-remote-desktop
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
       ansible.builtin.command:
         argv:
           - openssl
