@@ -79,6 +79,7 @@ locals {
     [for token in pangolin_resource_access_token.papra_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.trek_mcp_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.log_agents : tostring(token.id)],
+    [tostring(pangolin_resource_access_token.rss_site_build.id)],
   ))
 
   declared_role_ids = toset(concat(

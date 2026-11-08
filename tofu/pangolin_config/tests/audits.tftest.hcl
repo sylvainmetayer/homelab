@@ -211,6 +211,16 @@ override_resource {
   values = { id = 2013 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.rss_opml
+  values = { id = 2014 }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.rss_site_build
+  values = { id = "tok-rss-build", token = "jeton-rss-build" }
+}
+
 # Identifiants des cibles, des jetons d'accès et des rôles, lus par les audits
 # target_inventory (rules.tf) et access_inventory (access_inventory.tf) : sans
 # valeur fixe, le mock leur donne une valeur que les réponses simulées

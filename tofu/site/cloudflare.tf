@@ -7,7 +7,7 @@ locals {
 #
 # Le site déduit ELEVENTY_ENV de CF_PAGES_BRANCH (eleventy.config.js). Variables
 # d'environnement, en production uniquement : WEBMENTION_IO_TOKEN et
-# CF_ANALYTICS_* (locals.production_env_vars, plus bas).
+# CF_ANALYTICS_* et FRESHRSS_* (locals.production_env_vars, plus bas).
 resource "cloudflare_pages_project" "site" {
   account_id        = local.cloudflare_account_id
   name              = var.project_name
@@ -53,6 +53,11 @@ locals {
       CF_ANALYTICS_TOKEN    = { type = "secret_text", value = local.cf_analytics_token }
       CF_ACCOUNT_ID         = { type = "plain_text", value = local.cloudflare_account_id }
       CF_ANALYTICS_SITE_TAG = { type = "plain_text", value = cloudflare_web_analytics_site.site.site_tag }
+    },
+    nonsensitive(local.freshrss_opml_url == null || local.freshrss_access_token == null) ? {} : {
+      FRESHRSS_OPML_URL        = { type = "secret_text", value = local.freshrss_opml_url }
+      FRESHRSS_ACCESS_TOKEN_ID = { type = "secret_text", value = local.freshrss_access_token["P-Access-Token-Id"] }
+      FRESHRSS_ACCESS_TOKEN    = { type = "secret_text", value = local.freshrss_access_token["P-Access-Token"] }
     },
   )
 }

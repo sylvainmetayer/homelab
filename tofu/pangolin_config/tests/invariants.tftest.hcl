@@ -171,6 +171,16 @@ override_resource {
   values = { id = 2013 }
 }
 
+override_resource {
+  target = pangolin_resource_rule.rss_opml
+  values = { id = 2014 }
+}
+
+override_resource {
+  target = pangolin_resource_access_token.rss_site_build
+  values = { id = "tok-rss-build", token = "jeton-rss-build" }
+}
+
 # Identifiants des cibles, des jetons d'accès et des rôles, lus par les audits
 # target_inventory (rules.tf) et access_inventory (access_inventory.tf) : sans
 # valeur fixe, le mock leur donne une valeur que les réponses simulées
@@ -1226,21 +1236,21 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "Aucun joker sous /api/trpc/ : tRPC regroupe plusieurs procédures dans un seul segment."
   }
 
-  # Les trois règles par chemin autonomes (/mcp de TREK, les points d'entrée
-  # des agents Beszel et de journaux) sont des PASS : elles sautent les règles
+  # Les quatre règles par chemin autonomes (/mcp de TREK, les points d'entrée
+  # des agents Beszel et de journaux, l'export OPML de FreshRSS) sont des PASS : elles sautent les règles
   # pays mais gardent l'authentification Pangolin (SSO ou jeton d'accès).
   # Jamais un ACCEPT ni un joker, toujours avant les règles pays ; Beszel et
   # VictoriaLogs n'ont aucune ouverture par chemin.
   assert {
     condition = alltrue([
-      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert] :
+      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml] :
       rule.action == "PASS" && rule.match == "PATH" && rule.enabled == true
       && !strcontains(rule.value, "*")
       && rule.priority >= 2 && rule.priority < 10
       ]) && [
-      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert] : rule.value
-    ] == ["/mcp", "/api/beszel/agent-connect", "/insert/jsonline"] && !contains(keys(local.path_bypasses), "Beszel") && !contains(keys(local.path_bypasses), "VictoriaLogs")
-    error_message = "/mcp de TREK, /api/beszel/agent-connect et /insert/jsonline doivent être des PASS (pas des ACCEPT) sur ces chemins exacts, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
+      for rule in [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml] : rule.value
+    ] == ["/mcp", "/api/beszel/agent-connect", "/insert/jsonline", "/api/query.php"] && !contains(keys(local.path_bypasses), "Beszel") && !contains(keys(local.path_bypasses), "VictoriaLogs")
+    error_message = "/mcp de TREK, /api/beszel/agent-connect et /insert/jsonline doivent être des PASS (pas des ACCEPT) et /api/query.php (RSS) sur ces chemins exacts, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
   }
 
   # L'override donne le même identifiant à toutes les instances d'une règle
@@ -1251,7 +1261,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       for rule in concat(
         values(pangolin_resource_rule.path_bypass),
         values(pangolin_resource_rule.backslash_guard),
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml],
       ) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
@@ -1469,7 +1479,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = alltrue([
       for rule in concat(
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml],
         values(pangolin_resource_rule.exemple_planning_drop),
         [pangolin_resource_rule.promptoramix_drop],
         values(pangolin_resource_rule.path_bypass),
@@ -2129,6 +2139,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
         pangolin_resource_rule.trek_mcp.resource_id == pangolin_resource.website["trek"].id,
         pangolin_resource_rule.beszel_agent_connect.resource_id == pangolin_resource.website["beszel"].id,
         pangolin_resource_rule.victoria_logs_insert.resource_id == pangolin_resource.website["victoria_logs"].id,
+        pangolin_resource_rule.rss_opml.resource_id == pangolin_resource.website["rss"].id,
       ],
     ))
     error_message = "Une règle spécifique est rattachée à la mauvaise ressource."
