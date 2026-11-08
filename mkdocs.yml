@@ -120,6 +120,7 @@ nav:
       - runbooks/perte-totale-maison.md
       - runbooks/pocket-id.md
       - runbooks/support-a-distance.md
+      - runbooks/support-a-distance-famille.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
