@@ -12,8 +12,7 @@
 #     Pangolin at plan time and fail the rule inventory audit (rules.tf), and a
 #     disabled one keeps its id, its backslash guard and path_bypass_images.json
 #     as they are. FreshRSS's (Google Reader and Fever APIs) are gone for good:
-#     it is read in the browser only, its API is off (website_rss.tf, which
-#     gives the targeted apply their deletion needs).
+#     it is read in the browser only, its API is off (website_rss.tf).
 #
 # BookStack was already behind the SSO with no bypass.
 #

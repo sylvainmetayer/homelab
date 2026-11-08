@@ -77,13 +77,14 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
 ## Secrets du dépôt site
 
-Quatre clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
+Cinq clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
 
 | Clé sops | Ce que l'apply en fait | Utilisée par |
 |---|---|---|
 | `SITE_PAGES_DEPLOY_HOOK` | secret GitHub `CLOUDFLARE_PAGES_DEPLOY_HOOK` | workflow *Daily Build* (articles programmés, nouvelles webmentions) |
 | `SITE_WEBMENTION_IO_TOKEN` | variable `WEBMENTION_IO_TOKEN` (secret, production) du projet Pages | `src/_data/webmentions.js` au build |
 | `SITE_SONAR_TOKEN` | secret GitHub `SONAR_TOKEN` | workflow *SonarCloud* |
+| `SITE_FRESHRSS_OPML_URL` | variables `FRESHRSS_OPML_URL`, `FRESHRSS_ACCESS_TOKEN_ID` et `FRESHRSS_ACCESS_TOKEN` (secrets, production) du projet Pages ; les deux dernières viennent de la sortie `rss_site_build_access_token` de `tofu/pangolin_config` (appliquer celle-ci d'abord), sans elle aucune des trois n'est créée | `src/_data/freshrss.js` au build (export OPML des abonnements, page « following ») |
 | `SITE_CF_ANALYTICS_TOKEN` | variables `CF_ANALYTICS_TOKEN` (secret), `CF_ACCOUNT_ID` et `CF_ANALYTICS_SITE_TAG` (production) du projet Pages | `src/_data/popularPaths.js` au build (« les plus lus ») |
 
 ### 1. Obtenir les valeurs

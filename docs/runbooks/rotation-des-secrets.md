@@ -538,6 +538,15 @@ du site d'aide (`tofu/pangolin_config/website_neonova.tf`), donné au client : n
 SonarCloud (My Account → Security, puis révoquer l'ancien). `sops set`,
 `tofu apply` de `tofu/site`, et le build quotidien suivant doit passer.
 
+`SITE_FRESHRSS_OPML_URL` (fichier racine, `tofu/site` : secret Pages
+`FRESHRSS_OPML_URL` de production, l'export OPML de FreshRSS lu par la page
+« following ») : l'URL porte le jeton de requête de l'utilisateur FreshRSS
+(`t=`), à régénérer dans FreshRSS (Configuration → Partage), `sops set`, puis
+`apply` de `tofu/site` et un nouveau déploiement Pages. Le jeton d'accès
+Pangolin (`rss_site_build_access_token`) se renouvelle à part : `tofu apply
+-replace=pangolin_resource_access_token.rss_site_build` dans
+`tofu/pangolin_config`, puis `apply` de `tofu/site` (il lit cette sortie).
+
 ### Mot de passe de sylvain sur les hôtes
 
 `host_user_password_hash` (le mot de passe sudo de `sylvain`) :
