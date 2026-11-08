@@ -270,17 +270,30 @@ journaux ni ses sauvegardes internes) et le compose, dans le dépôt
 `backup/nas/mediamanager` de la Storage Box. Ni le bac à sable, ni les
 affiches (`images/`), ni le dossier de PostgreSQL.
 
-**La base PostgreSQL de MediaManager n'est pas sauvegardée.** Le gabarit
-dumpe une base par `docker exec <conteneur> pg_dump`, et le conteneur
-borgmatic du NAS n'a ni CLI ni socket Docker : `tasks/app.yml` du rôle
-borgmatic refuse toute `borgmatic_app_postgresql_databases` en mode conteneur.
-Vérifié le 01/11/2026 : l'image borgmatic (2.1.10, Alpine) a `pg_dump` 18.6
-mais pas `docker` ; le `docker` d'UGOS est lié à la glibc et ne tournerait pas
-dans cette image ; le conteneur borgmatic est sur le pont par défaut, sans
-accès au réseau `db` du projet. Les options sont dans la PR ; d'ici là, une
-restauration repart d'une base vide (MediaManager recrée son schéma) avec la
-configuration restaurée. Pas de moniteur « Backup MediaManager » ni de test de
-restauration pour un essai.
+**La base PostgreSQL** est archivée en dump, `db-dump/mediamanager.dump`
+(`pg_dump -Fc`, ~100 Ko le 08/11/2026). Le gabarit dumpe une base par
+`docker exec <conteneur> pg_dump`, et le conteneur borgmatic du NAS n'a ni
+CLI ni socket Docker (`tasks/app.yml` du rôle borgmatic refuse toute
+`borgmatic_app_postgresql_databases` en mode conteneur) : c'est l'hôte qui
+dumpe, par un drop-in de `borgmatic.service`
+(`/etc/systemd/system/borgmatic.service.d/mediamanager-pgdump.conf`,
+`ExecStartPre=-`), juste avant le run de 02:30. Un dump raté ne bloque pas
+les autres applis du NAS ; le hook `before` de `mediamanager.yaml` refuse un
+dump de plus de 3 h, donc seule la sauvegarde de MediaManager échoue (au
+journal de `borgmatic.service`, pas de moniteur). Le dossier `postgres/`
+(copie vivante) n'est jamais archivé. Le drop-in survit à un retrait de
+l'appli : l'effacer avec elle (sans quoi son `docker exec` échoue, sans
+effet, à chaque nuit).
+
+Restauration, base vide recréée par le compose :
+
+```bash
+# dump extrait de l'archive (borgmatic extract), puis sur le NAS :
+docker exec -i mediamanager-db pg_restore -U mediamanager -d mediamanager --clean --if-exists < mediamanager.dump
+```
+
+Pas de moniteur « Backup MediaManager » ni de test de restauration pour un
+essai.
 
 ## Premier démarrage
 

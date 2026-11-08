@@ -38,8 +38,8 @@ ONE_VARIABLE = re.compile(r"^\{\{\s*(\w+)\s*\}\}$")
 # Repository (borgmatic_app_name) -> why its restore is not tested.
 EXCLUDED = {
     "mediamanager": (
-        "à l'essai : ni moniteur Backup ni test de restauration tant que l'essai dure, "
-        "et sa base PostgreSQL n'est pas sauvegardée (ansible/roles/mediamanager/README.md)"
+        "à l'essai : ni moniteur Backup ni test de restauration tant que l'essai dure "
+        "(ansible/roles/mediamanager/README.md)"
     ),
 }
 

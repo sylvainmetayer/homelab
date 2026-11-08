@@ -22,8 +22,8 @@ et le client Pangolin) et déployé à la main (`nas.yml`). Deux choix possibles
   la CI. Le trafic Jellystat vers Jellyfin ne sort pas du LAN.
 - NAS : il faudrait un rôle de plus dans `nas.yml` (à la main), un routeur et un
   nom privés dans `nas_proxy` (DNS, certificat, ressource privée Pangolin),
-  et PostgreSQL ne serait pas sauvegardé (le borgmatic du NAS n'a pas de
-  `docker exec`, voir `mediamanager`). Écarté.
+  et PostgreSQL demanderait un dump par l'hôte avant borgmatic (le borgmatic
+  du NAS n'a pas de `docker exec`, voir le drop-in de `mediamanager`). Écarté.
 
 Contrepartie : si le NAS est éteint ou si le port 8096 n'est plus publié,
 Jellystat n'a plus de données fraîches (il garde l'historique). Si ce port
