@@ -25,7 +25,7 @@ tout ce qui touche l'interface d'UGOS est marqué « à vérifier ».
 | Jellyfin : configuration et base | Jellyfin et `media.sylvain.cloud` tombent | Borg, `backup/nas/jellyfin` |
 | Médias (`/volume1/media`) | perdus avec les deux disques | **aucune dans le dépôt** : Borg ne les prend pas, le miroir kDrive exclut films et séries ; instantanés d'UGOS sur les mêmes disques. Copie éventuelle ailleurs : à vérifier |
 | Copie de kDrive (`/volume1/kdrive`) | le miroir et `versions/` disparaissent | kDrive lui-même (hors films et séries exclus, `host_vars/nas`) |
-| MediaManager (essai) | tombe | configuration dans Borg ; **base PostgreSQL jamais sauvegardée** ([README du rôle](../../ansible/roles/mediamanager/README.md)) |
+| MediaManager (essai) | tombe | configuration et dump de la base dans Borg ([README du rôle](../../ansible/roles/mediamanager/README.md)) |
 | Traefik du NAS (`nas_proxy`), Newt du site `nas` | `media.`, `nas.` et `mediamanager.sylvain.cloud` tombent | rien à sauver : certificats redemandés, identifiants Newt dans le state de `pangolin_config` |
 | Borgmatic du NAS (02:30) | plus de sauvegarde Jellyfin | clé et configs sous `/volume1/docker/borgmatic`, refaites par `nas.yml` |
 
@@ -113,7 +113,8 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 7. **kDrive** : la première copie se refait à la main
    ([kdrive-nas.md](kdrive-nas.md), `kdrive_sync_timer_enabled`). L'historique
    `versions/` est perdu.
-8. **MediaManager** repart d'une base vide ; la clé WireGuard vient de SOPS
+8. **MediaManager** : base à restaurer depuis le dump de Borg (README du rôle,
+   « Sauvegarde ») ; la clé WireGuard vient de SOPS
    (`mediamanager_wireguard_private_key`). Voir
    [mediamanager-nas.md](mediamanager-nas.md).
 

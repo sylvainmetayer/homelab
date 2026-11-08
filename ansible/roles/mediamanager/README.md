@@ -277,13 +277,14 @@ CLI ni socket Docker (`tasks/app.yml` du rôle borgmatic refuse toute
 `borgmatic_app_postgresql_databases` en mode conteneur) : c'est l'hôte qui
 dumpe, par un drop-in de `borgmatic.service`
 (`/etc/systemd/system/borgmatic.service.d/mediamanager-pgdump.conf`,
-`ExecStartPre=-`), juste avant le run de 02:30. Un dump raté ne bloque pas
+`ExecStartPre=-`, qui attend jusqu'à 5 min que la base réponde : rattrapage
+au boot), juste avant le run de 02:30. Un dump raté ne bloque pas
 les autres applis du NAS ; le hook `before` de `mediamanager.yaml` refuse un
-dump de plus de 3 h, donc seule la sauvegarde de MediaManager échoue (au
+dump de plus de 12 h, donc seule la sauvegarde de MediaManager échoue (au
 journal de `borgmatic.service`, pas de moniteur). Le dossier `postgres/`
-(copie vivante) n'est jamais archivé. Le drop-in survit à un retrait de
-l'appli : l'effacer avec elle (sans quoi son `docker exec` échoue, sans
-effet, à chaque nuit).
+(copie vivante) n'est jamais archivé. `mediamanager_backup_enabled: false`
+retire le drop-in ; `decommission_app` ne le connaît pas : l'effacer avec
+l'appli (sinon son `docker exec` échoue, sans effet, chaque nuit).
 
 Restauration, base vide recréée par le compose :
 

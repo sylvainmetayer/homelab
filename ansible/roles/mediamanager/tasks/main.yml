@@ -270,6 +270,15 @@
 # Base PostgreSQL dumpée par l'hôte avant borgmatic (drop-in de
 # borgmatic.service), le dump archivé avec les fichiers. Bases SQLite de
 # Prowlarr copiées par sqlite3.
+- name: Remove the MediaManager dump drop-in when its backup is off
+  when: not mediamanager_backup_enabled
+  tags: backup
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/borgmatic.service.d/mediamanager-pgdump.conf
+    state: absent
+  notify: Reload systemd for the MediaManager dump
+
 - name: Dump the MediaManager database before each borgmatic run
   when: mediamanager_backup_enabled
   tags: backup
@@ -315,11 +324,13 @@
       - "{{ mediamanager_base_path }}/prowlarr"
       - "{{ mediamanager_base_path }}/compose.yaml"
       - "{{ mediamanager_db_dump_path | dirname }}"
-    # Un dump de plus de 3 h : celui du drop-in a raté, ne pas archiver
-    # l'ancien comme s'il était du jour (seule cette sauvegarde échoue).
+    # Un dump de plus de 12 h : celui du drop-in a raté, ne pas archiver
+    # celui de la veille comme s'il était du jour (seule cette sauvegarde
+    # échoue). 12 h : les configurations passées avant et un relancement à la
+    # main dans la journée tiennent dedans.
     borgmatic_app_before_commands:
       - >-
-        find {{ mediamanager_db_dump_path | quote }} -mmin -180 | grep -q .
+        find {{ mediamanager_db_dump_path | quote }} -mmin -720 | grep -q .
         || { echo "Dump PostgreSQL de MediaManager absent ou périmé" >&2; exit 1; }
     borgmatic_app_exclude_patterns:
       - "{{ mediamanager_base_path }}/prowlarr/logs"

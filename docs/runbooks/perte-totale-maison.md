@@ -55,7 +55,7 @@ GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
   de fichiers remplacés, absentes de kDrive) : le miroir se recopie depuis
   kDrive, pas `versions/`. Les films et séries exclus de la copie n'ont jamais
   été sur le NAS par ce rôle : ils restent chez kDrive.
-- **La base PostgreSQL de MediaManager** (essai), les journaux VictoriaLogs,
+- Les journaux VictoriaLogs,
   les réglages faits dans l'interface d'UGOS (dossiers partagés, comptes,
   droits) et l'installation de base du NAS et du Pi.
 - **Les données écrites depuis la dernière nuit** : Borg tourne à 01:00 (NAS
