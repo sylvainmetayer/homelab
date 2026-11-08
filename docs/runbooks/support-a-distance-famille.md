@@ -39,6 +39,10 @@ du commit `ed9d923d`. Ce qui n'a été essayé que sur le poste de Sylvain
 
 ### 0.1 Créer le site et la ressource du PC (Tofu)
 
+Pas moyen de faire un `tofu apply` (sur place, sans le dépôt) : créer site et
+ressource à la main avec [support-a-distance-famille-sans-tofu.md](support-a-distance-famille-sans-tofu.md),
+qui remplace 0.1 et 0.2 et dit comment rattraper le state au retour.
+
 Une PR sur `tofu/pangolin_config/remote_support.tf`, sur le modèle de
 `pc_sylvain` (à faire faire par Claude : il faut aussi les surcharges des
 tests, `tests/invariants.tftest.hcl`) :
