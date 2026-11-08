@@ -16,8 +16,8 @@ pangolin_le_email: ""
 # tofu/pangolin_config/redirects.tf). Une redirection ne sert aucun fichier :
 # reste ici le service worker de retrait d'un domaine redirigé, qu'un
 # navigateur refuse de mettre à jour derrière une redirection (l'ancien
-# resterait actif et servirait son cache). Routeur Host + Path, plus long donc
-# prioritaire sur celui de la redirection Pangolin.
+# resterait actif et servirait son cache). Routeur Host + Path en priorité 500,
+# au-dessus des routeurs de redirection de Pangolin (100 à 115).
 #   - name: identifiant du routeur, du middleware et du service
 #     host: domaine redirigé (par Pangolin)
 #     path: chemin du worker installé par l'ancien site
