@@ -249,16 +249,6 @@
       "allowedVersions": "<8.3"
     },
     {
-      "description": "Badger v1.8.0 fails Traefik's plugin integrity check (traefik/traefik#14115): Traefik disables the plugin, the badger@file middleware vanishes and every Pangolin router returns 404. Upstream says to stay on v1.7.0; drop this rule once Traefik fixes it",
-      "matchDatasources": [
-        "github-releases"
-      ],
-      "matchPackageNames": [
-        "fosrl/badger"
-      ],
-      "allowedVersions": "!/^v1\\.8\\.0$/"
-    },
-    {
       "description": "The Hetzner Storage Box only runs a borg 1.x server (ansible/roles/borgmatic/tasks/host.yml): a borg 2 client cannot talk to it",
       "matchDatasources": [
         "github-releases"
