@@ -1,7 +1,7 @@
 # Passerelle IA (ia.sylvain.cloud)
 
 Procédure, pas un incident. La passerelle IA de Pangolin relaie les appels des
-applis vers Anthropic, une clé virtuelle et un budget par appli. Tout est en
+applis vers Anthropic, une clé virtuelle et des budgets par appli. Tout est en
 Tofu : `tofu/pangolin_config/ai_gateway.tf` (détail dans le README du module).
 
 ## Tester une clé
@@ -32,7 +32,7 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 |---|---|
 | 200 | La clé, le modèle et le fournisseur marchent |
 | 401 `Invalid API key` | Clé incomplète (secret seul, sans `pangolin-key-<id>.`), ou clé remplacée |
-| 429 | Budget de la clé ou de l'organisation dépassé (pas encore constaté, voir « Points ouverts ») |
+| 429 | Budget en tokens de la clé ou de l'organisation dépassé |
 | 4xx sur le modèle | Modèle absent de `local.ai_models` (liste d'autorisation) |
 
 Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
@@ -40,8 +40,9 @@ Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
 
 ## Brancher une appli
 
-1. Une entrée dans `local.ai_keys` (`ai_gateway.tf`) : description, budget en
-   dollars (5 par défaut). PR, plan, apply : une clé et son budget créés.
+1. Une entrée dans `local.ai_keys` (`ai_gateway.tf`) : description,
+   `budget_tokens` (bloquant, 2 M par défaut) et `budget_usd` (suivi seul, 5
+   par défaut). PR, plan, apply : une clé et ses deux budgets créés.
 2. Format de l'appli :
    - Anthropic : URL de base `https://ia.sylvain.cloud`.
    - OpenAI : `https://ia.sylvain.cloud/v1`. Anthropic sert un point
@@ -60,7 +61,7 @@ La conso par clé se lit dans l'interface de Pangolin (AI Gateway).
 
 ## Remplacer une clé (fuite)
 
-Lire le plan affiché avant de répondre `yes` : une clé remplacée, son budget,
+Lire le plan affiché avant de répondre `yes` : une clé remplacée, ses budgets,
 rien d'autre. Pas de fichier `-out` : un plan enregistré contient les secrets en
 clair.
 
@@ -68,8 +69,8 @@ clair.
 mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_api_key.ai["<clé>"]'
 ```
 
-- Le budget de la clé est recréé avec elle (`replace_triggered_by`) :
-  Pangolin le supprime avec l'ancienne clé.
+- Les budgets de la clé sont recréés avec elle (`replace_triggered_by`) :
+  Pangolin les supprime avec l'ancienne clé.
 - Redéployer ensuite l'hôte de l'appli, qui garde sinon l'ancienne clé (401).
 - La clé Anthropic elle-même (`pangolin_ai_anthropic_api_key`) :
   [rotation-des-secrets.md](rotation-des-secrets.md#clé-api-anthropic-passerelle-ia).
@@ -83,11 +84,13 @@ prompts et les réponses en entier, sans masquage.
 
 ## Points ouverts
 
-- **Le budget n'a pas bloqué à l'essai du 2026-11-09.** Clé `essai` à 1 $ :
-  12 appels Opus 5.5 de 8 000 tokens en sortie sont passés (200), bien
-  au-delà d'1 $, sans 429. À comprendre avant de compter sur les budgets :
-  conso enregistrée par clé dans l'interface, prix des modèles `*-5-5` dans le
-  catalogue de Pangolin (un modèle sans prix compterait 0 $). D'ici là, la
-  seule limite sûre est celle du workspace Anthropic.
+- **Les budgets en dollars ne bloquent pas.** Essai du 2026-11-09 : clé
+  `essai` à 1 $ en `hard`, 12 appels Opus 5.5 de 8 000 tokens passés (200),
+  sans 429. Ils ne comptent que les modèles du catalogue de prix de Pangolin
+  (`/v1/org/<org>/ai-catalog-models`), où les `claude-*-5-5` manquent. Les
+  budgets qui bloquent sont donc en tokens (`hard`), ceux en dollars en suivi
+  (`soft`), en attendant que le catalogue suive. Les tokens comptent tous les
+  modèles pareil (un token d'Opus coûte cinq fois un token de Haiku) : la
+  limite du workspace Anthropic reste le dernier filet.
 - **Pas de filtre France/Allemagne** : Pangolin refuse les règles sur une
   ressource `inference` (`local.unruled_resources`, `rules.tf`).
