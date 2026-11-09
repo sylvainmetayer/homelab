@@ -1,0 +1,123 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the openwebui deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: openwebui
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/openwebui.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-openwebui-backup
+
+    - name: Read the openwebui files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/openwebui/.env
+        - /opt/apps/openwebui/compose.yaml
+        - "{{ borgmatic_config_dir }}/openwebui.yaml"
+      register: openwebui_files
+
+    - name: Stat the openwebui environment and borgmatic files
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/openwebui/.env
+        - "{{ borgmatic_config_dir }}/openwebui.yaml"
+      register: openwebui_stats
+
+    - name: Parse the openwebui files
+      ansible.builtin.set_fact:
+        openwebui_env: >-
+          {{ dict((openwebui_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        openwebui_compose: "{{ openwebui_files.results[1].content | b64decode | from_yaml }}"
+        openwebui_borgmatic: "{{ openwebui_files.results[2].content | b64decode | from_yaml }}"
+
+    # Le .env porte la clé de session, le secret OIDC et la clé de la passerelle.
+    - name: Assert the openwebui secret files are private
+      ansible.builtin.assert:
+        that:
+          - openwebui_stats.results[0].stat.mode == '0600'
+          - openwebui_stats.results[0].stat.pw_name == ansible_facts['user_id']
+          - openwebui_stats.results[1].stat.mode == '0600'
+          - openwebui_stats.results[1].stat.pw_name == 'root'
+        fail_msg: "{{ openwebui_stats.results | map(attribute='stat.mode') | list }} : .env et config borgmatic doivent être 0600"
+
+    # Pocket ID (sorties fictives du converge), sans inscription locale, mot de
+    # passe gardé (secours), clé de session dérivée de backup_passphrase.
+    - name: Assert the openwebui sign-in comes from Pocket ID and keeps the break glass
+      ansible.builtin.assert:
+        that:
+          - openwebui_env.WEBUI_SECRET_KEY is match('^[0-9a-f]{64}$')
+          - openwebui_env.ENABLE_PERSISTENT_CONFIG == 'false'
+          - openwebui_env.ENABLE_SIGNUP == 'false'
+          - openwebui_env.ENABLE_LOGIN_FORM == 'true'
+          - openwebui_env.ENABLE_OAUTH_SIGNUP == 'true'
+          - openwebui_env.OAUTH_MERGE_ACCOUNTS_BY_EMAIL == 'true'
+          - openwebui_env.OAUTH_CLIENT_ID == 'molecule-pocket-id-openwebui-client-id'
+          - openwebui_env.OAUTH_CLIENT_SECRET == 'molecule-pocket-id-openwebui-client-secret'
+          - openwebui_env.OPENID_PROVIDER_URL == 'https://idp.example.invalid/.well-known/openid-configuration'
+          - openwebui_env.OPENID_REDIRECT_URI == 'https://openwebui.sylvain.cloud/oauth/oidc/callback'
+          - openwebui_env.OAUTH_CODE_CHALLENGE_METHOD == 'S256'
+          - openwebui_env.DEFAULT_USER_ROLE == 'user'
+        fail_msg: "Environnement d'Open WebUI inattendu : {{ openwebui_env.keys() | list }}"
+
+    # IA : la passerelle seulement, ni Ollama, ni RAG local, télémétrie coupée.
+    # La liste des modèles est dans compose.yaml (JSON dans une chaîne YAML).
+    - name: Assert openwebui talks to the AI gateway only, with no local AI nor telemetry
+      ansible.builtin.assert:
+        that:
+          - openwebui_env.OPENAI_API_BASE_URL == 'https://ia.sylvain.cloud/v1'
+          - openwebui_env.OPENAI_API_KEY == 'molecule-openwebui-ai-gateway-key'
+          - openwebui_env.ENABLE_OLLAMA_API == 'false'
+          - openwebui_env.ENABLE_OPENAI_API is not defined
+          - openwebui_env.BYPASS_EMBEDDING_AND_RETRIEVAL == 'true'
+          - openwebui_env.ANONYMIZED_TELEMETRY == 'false'
+          - openwebui_env.SCARF_NO_ANALYTICS == 'true'
+          - openwebui_env.DO_NOT_TRACK == 'true'
+          - openwebui_models.keys() | list == ['0']
+          - openwebui_models['0'].model_ids == ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5']
+          - openwebui_env.DEFAULT_MODELS in openwebui_models['0'].model_ids
+          - openwebui_env.TASK_MODEL_EXTERNAL in openwebui_models['0'].model_ids
+        fail_msg: "Configuration IA d'Open WebUI inattendue : {{ openwebui_compose.services.openwebui.environment | default({}) }}"
+      vars:
+        openwebui_models: "{{ openwebui_compose.services.openwebui.environment.OPENAI_API_CONFIGS | from_json }}"
+
+    # Molecule ne démarre pas les images : seul le compose peut être vérifié.
+    - name: Assert the openwebui container stays hardened and joins newt only
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges:true' in openwebui_compose.services.openwebui.security_opt"
+          - openwebui_compose.services.openwebui.cap_drop == ['ALL']
+          - openwebui_compose.services.openwebui.user == (ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid'])
+          - openwebui_compose.services.openwebui.mem_limit == '1200m'
+          - openwebui_compose.services.openwebui.image is search(':v[0-9.]+-slim@sha256:[0-9a-f]{64}$')
+          - openwebui_compose.networks.newt.external
+          - openwebui_compose.services.openwebui.networks == ['newt']
+          - openwebui_compose.services.openwebui.container_name == 'openwebui'
+        fail_msg: "Compose d'Open WebUI inattendu (durcissement, image slim, réseau) : {{ openwebui_compose.services.openwebui }}"
+
+    - name: Assert the openwebui backup covers its data, dumps the SQLite file and pushes to Uptime Kuma
+      ansible.builtin.assert:
+        that:
+          - "'/opt/apps/openwebui/data' in openwebui_borgmatic.source_directories"
+          - "'/opt/apps/openwebui/.env' in openwebui_borgmatic.source_directories"
+        fail_msg: "Configuration borgmatic d'Open WebUI inattendue : {{ openwebui_borgmatic.source_directories }}"
+
+    - name: Stat the repo-create marker of the borgmatic stub for openwebui
+      become: true
+      ansible.builtin.stat:
+        path: "{{ molecule_borgmatic_state_dir }}/_etc_borgmatic.d_openwebui.yaml"
+      register: openwebui_repo_marker
+
+    - name: Assert the openwebui borg repository was initialised
+      ansible.builtin.assert:
+        that:
+          - openwebui_repo_marker.stat.exists
+        fail_msg: repo-create n'a pas été appelé pour openwebui

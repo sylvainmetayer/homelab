@@ -1,0 +1,30 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  vars:
+    # Sorties de tofu/pangolin_config (pocket_id.tf) : le client OIDC d'Open WebUI.
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_openwebui_client_id:
+        value: molecule-pocket-id-openwebui-client-id
+      pocket_id_openwebui_client_secret:
+        value: molecule-pocket-id-openwebui-client-secret
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # docker.yml lit ces valeurs dans les outputs du state pangolin_config :
+    # un set_fact (absentes de secrets/ansible.sops.yaml, donc de fake_secrets.yml).
+    # La clé de la passerelle IA est factice : jamais une vraie forme de clé.
+    - name: Load healthcheck URL and AI key as docker.yml does from the Terraform state
+      no_log: true
+      ansible.builtin.set_fact:
+        openwebui_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-openwebui-backup
+        openwebui_ai_api_key: molecule-openwebui-ai-gateway-key
+  roles:
+    - role: docker_service
+    - role: openwebui

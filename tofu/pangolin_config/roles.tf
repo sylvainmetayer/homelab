@@ -37,6 +37,7 @@ locals {
     "bentopdf",
     "jellystat",
     "yamtrack",
+    "openwebui",
     "healthlog"
   ]
 

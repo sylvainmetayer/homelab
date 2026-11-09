@@ -421,8 +421,8 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   secret dans l'admin PocketBase du hub (`pocket-id.md`), aucun rôle ne le
   relit. Immich (`["immich"]`) et Wishlist (`["wishlist"]`) : idem, ressaisir
   le secret (`tofu output -raw pocket_id_<appli>_client_secret`) dans leur
-  interface. Karakeep (`["karakeep"]`), Papra (`["papra"]`) et Yamtrack
-  (`["yamtrack"]`) : `docker.yml --tags <appli>`, le rôle relit la sortie.
+  interface. Karakeep (`["karakeep"]`), Papra (`["papra"]`), Yamtrack
+  (`["yamtrack"]`) et Open WebUI (`["openwebui"]`) : `docker.yml --tags <appli>`, le rôle relit la sortie.
   MediaManager (`["mediamanager"]`) : `nas.yml --tags mediamanager`, à la main
   (jamais par la CI). Jellyfin (`["jellyfin"]`) : `nas.yml --tags jellyfin`, à la
   main (le XML du greffon est réécrit, liens des comptes gardés). Nextcloud (`["nextcloud"]`) : `docker.yml --tags

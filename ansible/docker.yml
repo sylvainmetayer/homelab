@@ -25,6 +25,7 @@
         grocy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_grocy_url.value | default('') }}"
         jellystat_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_jellystat_url.value | default('') }}"
         yamtrack_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_yamtrack_url.value | default('') }}"
+        openwebui_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_openwebui_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
         ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
@@ -32,6 +33,8 @@
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_docker_updates_url.value | default('') }}"
         ntfy_subscribers_check_push_url: "{{ terraform_outputs.uptime_cron_ntfy_subscribers_url.value | default('') }}"
+        # Clé virtuelle de la passerelle IA (tofu/pangolin_config/ai_gateway.tf).
+        openwebui_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).openwebui | default('') }}"
 
     # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token de
     # secrets/secrets.sops.yaml, que tofu/pangolin_config donne à sa
@@ -135,6 +138,10 @@
     # SQLite sauvegardée (rôle yamtrack, README.md).
     - role: yamtrack
       tags: yamtrack,app
+    # Interface de chat (openwebui.sylvain.cloud), modèles par la passerelle IA
+    # de Pangolin, base SQLite sauvegardée (rôle openwebui, README.md).
+    - role: openwebui
+      tags: openwebui,app
     # Hub de supervision, puis l'agent de cet hôte, qui lui parle par
     # 127.0.0.1 (le hub publie aussi son port sur le LAN pour les agents du
     # Pi, du NAS et du LXC newt).

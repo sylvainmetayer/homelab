@@ -174,6 +174,14 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      Réglages, Comptes, « Manage Account Connections », Pocket ID.
      `REGISTRATION=False` ferme aussi l'inscription par OIDC. Mot de passe
      gardé.
+   - **Open WebUI** (le foyer, groupe `openwebui`) : rien à saisir, le rôle
+     `openwebui` pose `OAUTH_*` et `OPENID_PROVIDER_URL` depuis les sorties
+     Tofu (PKCE S256, rappel `/oauth/oidc/callback`). **Sylvain se connecte le
+     premier** : le premier compte de la base est administrateur, les
+     suivants sont créés au premier login avec le rôle `user`
+     (`ENABLE_OAUTH_SIGNUP`). Liaison par e-mail sans contrôle de
+     vérification (comme Karakeep : sûr tant que `ALLOW_OWN_ACCOUNT_EDIT` reste
+     à `false`). Mot de passe gardé (secours : README du rôle).
    - **MediaManager** (essai, NAS, groupe `mediamanager`) : rien à saisir, le
      rôle pose `[auth.openid_connect]` ; **déploiement à la main**
      (`nas.yml --tags mediamanager`, jamais par la CI). Pas de PKCE.
