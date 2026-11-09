@@ -12,7 +12,8 @@ de versions décalées.
 
 Ce contrôle (workflow Lint, requis par le ruleset de main) échoue donc si
 les tags de ces deux images diffèrent dans les fichiers qui les citent
-(le rôle immich du Pi, le compose du worker distant compose/immich/). Le
+(le rôle immich du Pi, le rôle immich_ml du NAS, le compose du worker distant
+compose/immich/). Le
 digest n'est pas comparé, il diffère par image ; un suffixe d'accélération
 matérielle (`v3.3.5-cuda`, `-openvino`…) est ignoré.
 

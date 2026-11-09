@@ -10,13 +10,16 @@ container stays as the fallback when the NAS is off.
   The API has no authentication: never a Pangolin resource. UGOS's firewall
   lets the LAN in today (`b-ugos-fw` in the QG): when it is tightened, allow
   the Pi (`192.168.1.96`) to `3003`.
-- The whole `/dev/dri`, `c 189:* rmw` and the render device's group, as in
-  Immich's `hwaccel.ml.yml` (`openvino` service), without `/dev/bus/usb`.
+- The whole `/dev/dri` and the render device's group, as in Immich's
+  `hwaccel.ml.yml` (`openvino` service), without `/dev/bus/usb` nor its
+  `c 189:*` cgroup rule (USB Neural Compute stick only).
   The container stays root (owner of the device), with `cap_drop: ALL` and
   `no-new-privileges`.
 - Models are downloaded from Hugging Face on first use into the `model-cache`
   volume: nothing to back up.
-- `mem_limit` is provisional (2x the Pi's ML peak); measure after a week.
+- `mem_limit` is 4g like the Pi's ML (a large import loads every model at
+  once), provisional with OpenVINO: measure after a week. A crash or an OOM
+  kill is silent, Immich falls back to the Pi: no monitor yet.
 
 ## Turning it on (once, by hand)
 

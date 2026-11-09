@@ -13,6 +13,7 @@ immich_ml_render_device: /dev/dri/renderD128
 immich_ml_bind_address: "{{ ansible_host }}"
 immich_ml_port: 3003
 
-# Provisoire : 2x le pic du ML du Pi (1,4 Gio), à recaler après une semaine
-# (docs/conventions/resource-limits.md).
-immich_ml_mem_limit: 3g
+# Comme le ML du Pi (rôle immich) : pic mesuré 1,4 Gio, mais un gros import
+# charge CLIP, visages et OCR ensemble, d'où plus que 2x. Provisoire avec
+# OpenVINO, à recaler après une semaine (docs/conventions/resource-limits.md).
+immich_ml_mem_limit: 4g
