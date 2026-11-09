@@ -52,6 +52,36 @@ certificatesResolvers:
       email: "{{ pangolin_le_email }}"
       storage: "/letsencrypt/acme.json"
       caServer: "https://acme-v02.api.letsencrypt.org/directory"
+{% if pangolin_wildcard_cert | bool %}
+  # Jokers *.sylvain.cloud et *.sylvain.dev (ADR 0031) : choisi par le domaine
+  # dans Pangolin (cert_resolver, prefer_wildcard_cert) et par les routeurs
+  # fichier. DNS-01 par l'API OVH (OVH_* du compose). Même acme.json, compte
+  # ACME propre au résolveur (son URI est dans le CAA issuewild, tofu/dns).
+  # Résolveurs publics pour la vérification de propagation, comme au NAS.
+  {{ pangolin_wildcard_resolver }}:
+    acme:
+      email: "{{ pangolin_le_email }}"
+      storage: "/letsencrypt/acme.json"
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      dnsChallenge:
+        provider: ovh
+        resolvers:
+          - "1.1.1.1:53"
+          - "9.9.9.9:53"
+{% endif %}
+{% if pangolin_wildcard_staging | bool %}
+  # Essai du joker sur l'autorité de test (pangolin_wildcard_staging, à la main).
+  letsencrypt-dns-staging:
+    acme:
+      email: "{{ pangolin_le_email }}"
+      storage: "/letsencrypt/acme-staging.json"
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      dnsChallenge:
+        provider: ovh
+        resolvers:
+          - "1.1.1.1:53"
+          - "9.9.9.9:53"
+{% endif %}
 
 entryPoints:
   web:

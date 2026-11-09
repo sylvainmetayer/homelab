@@ -45,6 +45,33 @@ pangolin_idp_allowed_ips: ""
 pangolin_idp_rate_average: 50
 pangolin_idp_rate_burst: 300
 
+# Certificat joker par domaine (ADR 0031) : *.sylvain.cloud et *.sylvain.dev
+# par DNS-01 (résolveur letsencrypt-dns, API OVH), au lieu d'un certificat par
+# nom en HTTP-01 (letsencrypt, gardé pour les autres noms). Clé OVH dédiée,
+# restreinte aux deux zones, créée sur
+# https://eu.api.ovh.com/createToken/?POST=/domain/zone/sylvain.cloud/record&POST=/domain/zone/sylvain.cloud/refresh&DELETE=/domain/zone/sylvain.cloud/record/*&POST=/domain/zone/sylvain.dev/record&POST=/domain/zone/sylvain.dev/refresh&DELETE=/domain/zone/sylvain.dev/record/*
+# Clés SOPS pangolin_ovh_* : jamais le nom d'une variable du rôle.
+pangolin_acme_ovh_endpoint: ovh-eu
+pangolin_acme_ovh_application_key: "{{ pangolin_ovh_application_key | default('') }}"
+pangolin_acme_ovh_application_secret: "{{ pangolin_ovh_application_secret | default('') }}"
+pangolin_acme_ovh_consumer_key: "{{ pangolin_ovh_consumer_key | default('') }}"
+# Vrai dès que la clé existe : résolveur letsencrypt-dns, domain1 (config de
+# Pangolin) et les routeurs fichier (tableau de bord, API, Pocket ID) passent
+# au joker. Tofu règle le même résolveur sur pangolin_domain.org (domains.tf).
+# Retour arrière : false (-e ou host_vars), et prefer_wildcard_cert = false
+# dans domains.tf.
+pangolin_wildcard_cert: "{{ pangolin_acme_ovh_consumer_key | length > 0 }}"
+pangolin_wildcard_resolver: letsencrypt-dns
+# Essai sur l'autorité de test de Let's Encrypt, à la main seulement :
+# ansible-playbook pangolin.yaml --tags pangolin -e pangolin_wildcard_staging=true
+# -e pangolin_wildcard_cert=false. Résolveur letsencrypt-dns-staging
+# (acme-staging.json à part) et un routeur sur pangolin_wildcard_test_host,
+# qu'aucun certificat par nom ne masque. Le relancer sans -e retire les deux :
+# un joker de test resté dans le magasin de Traefik empêcherait la commande
+# du vrai (le domaine paraîtrait déjà couvert).
+pangolin_wildcard_staging: false
+pangolin_wildcard_test_host: "acme-test.{{ pangolin_base_domain }}"
+
 # SMTP configuration
 pangolin_smtp_user: ""
 pangolin_smtp_pass: ""

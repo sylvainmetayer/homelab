@@ -66,6 +66,15 @@ services:
         condition: service_healthy
     command:
       - --configFile=/etc/traefik/traefik_config.yml
+{% if pangolin_wildcard_cert | bool or pangolin_wildcard_staging | bool %}
+    # DNS-01 des jokers (lego) : clé OVH restreinte aux zones sylvain.cloud et
+    # sylvain.dev. Ce fichier est en 0600, sans diff.
+    environment:
+      OVH_ENDPOINT: "{{ pangolin_acme_ovh_endpoint }}"
+      OVH_APPLICATION_KEY: "{{ pangolin_acme_ovh_application_key }}"
+      OVH_APPLICATION_SECRET: "{{ pangolin_acme_ovh_application_secret }}"
+      OVH_CONSUMER_KEY: "{{ pangolin_acme_ovh_consumer_key }}"
+{% endif %}
     volumes:
       - ./config/traefik:/etc/traefik:ro
       - ./config/letsencrypt:/letsencrypt

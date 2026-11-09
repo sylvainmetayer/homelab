@@ -465,10 +465,12 @@ run "caa_sur_chaque_zone" {
     condition = alltrue([
       for z in keys(ovh_domain_zone_record.dmarc) :
       ovh_domain_zone_record.caa["${z} issue letsencrypt.org"].target == "0 issue \"letsencrypt.org\""
-      && ovh_domain_zone_record.caa["${z} issuewild"].target == "0 issuewild \";\""
       && ovh_domain_zone_record.caa["${z} iodef"].target == "0 iodef \"mailto:dmarc@sylvainmetayer.fr\""
+      && ovh_domain_zone_record.caa["${z} issuewild"].target == (
+        contains(["sylvain.cloud", "sylvain.dev"], z) ? ovh_domain_zone_record.caa["${z} issuewild"].target : "0 issuewild \";\""
+      )
     ])
-    error_message = "Chaque zone : issue letsencrypt.org, issuewild \";\" (aucun joker) et iodef vers dmarc_report_address."
+    error_message = "Chaque zone : issue letsencrypt.org et iodef vers dmarc_report_address ; issuewild \";\" (aucun joker) hors sylvain.cloud et sylvain.dev."
   }
 
   # Seul sylvain.dev porte des noms Cloudflare Pages : ailleurs, Let's Encrypt seul.
@@ -492,11 +494,15 @@ run "caa_sur_chaque_zone" {
     error_message = "La zone des domaines Cloudflare Pages (tofu/ref, site, 1y) doit autoriser letsencrypt.org, pki.goog et ssl.com, sinon leurs certificats ne se renouvellent plus."
   }
 
-  # issuewild ";" suppose qu'aucun joker n'est demandé : Pangolin n'en
-  # demande que si prefer_wildcard_cert est activé.
+  # Jokers de Pangolin et du NAS (ADR 0031) : Let's Encrypt en DNS-01 seulement,
+  # chaque issuewild de ces deux zones.
   assert {
-    condition     = !can(regex("prefer_wildcard_cert:\\s*true", file("${path.module}/../../ansible/roles/pangolin/templates/pangolin_config.yml.j2")))
-    error_message = "Pangolin demanderait un certificat joker, que le CAA issuewild \";\" refuse : autoriser letsencrypt.org en issuewild sur sa zone (caa.tf)."
+    condition = alltrue([
+      for k, r in ovh_domain_zone_record.caa :
+      startswith(r.target, "0 issuewild \"letsencrypt.org; validationmethods=dns-01")
+      if strcontains(k, "issuewild") && contains(["sylvain.cloud", "sylvain.dev"], r.zone)
+    ]) && contains(keys(ovh_domain_zone_record.caa), "sylvain.cloud issuewild") && contains(keys(ovh_domain_zone_record.caa), "sylvain.dev issuewild")
+    error_message = "Les jokers de sylvain.cloud et sylvain.dev (prefer_wildcard_cert, rôle pangolin et nas_proxy) demandent un issuewild letsencrypt.org en DNS-01 (caa.tf)."
   }
 }
 

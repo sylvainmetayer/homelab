@@ -1,6 +1,11 @@
 # Les deux domaines de l'organisation, faits hors de Tofu, importés (voir README).
-# prefer_wildcard_cert vaut déjà false : déclaré, un changement dans l'UI se voit
-# au plan. cert_resolver est null partout : un null ne s'épingle pas.
+# Un certificat joker par domaine (ADR 0031) : prefer_wildcard_cert et le
+# résolveur DNS-01 letsencrypt-dns du Traefik de Pangolin (rôle pangolin,
+# traefik_config.yml.j2). Déclarés tous deux (optionnels et calculés) : un
+# changement dans l'UI se voit au plan. sylvain.cloud est réécrit à chaque
+# démarrage de Pangolin depuis domain1 de sa configuration (copyInConfig.ts) :
+# les deux valeurs y sont les mêmes (pangolin_wildcard_cert). Retour arrière :
+# prefer_wildcard_cert = false ici ET pangolin_wildcard_cert: false (Ansible).
 #
 # local.domain_ids reste lu par data.pangolin_domains.all (nodes.tf), pour ne pas
 # faire dépendre chaque ressource publique de ces imports.
@@ -15,5 +20,6 @@ resource "pangolin_domain" "org" {
 
   base_domain          = each.value
   type                 = "wildcard"
-  prefer_wildcard_cert = false
+  cert_resolver        = "letsencrypt-dns"
+  prefer_wildcard_cert = true
 }

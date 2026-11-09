@@ -19,6 +19,10 @@ http:
         - jellyfin-headers
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
     # MediaManager (essai), sur le réseau mediamanager_proxy que crée
     # dc@mediamanager. Ouvert comme Jellyfin : la ressource privée Pangolin
@@ -34,6 +38,10 @@ http:
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
     # Prowlarr et qBittorrent (rôle mediamanager) : leurs ports sont ceux de
     # gluetun, dont ils partagent l'espace réseau. Même ouverture que
@@ -53,6 +61,10 @@ http:
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
     qbittorrent:
       rule: "Host(`{{ nas_proxy_qbittorrent_domain }}`)"
@@ -68,6 +80,10 @@ http:
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
 {% if nas_proxy_oidc_enabled | bool %}
     # Pocket ID : /oauth2/ de chacun de ces deux noms va à oauth2-proxy (start,
@@ -83,6 +99,10 @@ http:
       service: oauth2-proxy
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
 {% endfor %}
 {% endif %}
@@ -106,6 +126,10 @@ http:
         - ugos-headers
       tls:
         certResolver: letsencrypt
+{% if nas_proxy_wildcard_domain | length > 0 %}
+        domains:
+          - main: "{{ nas_proxy_wildcard_domain }}"
+{% endif %}
 
   middlewares:
     jellyfin-headers:

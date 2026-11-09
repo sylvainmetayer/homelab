@@ -112,7 +112,7 @@ depuis son ajout porte donc la date de son ajout.
 
 ### OVH
 
-Trois applications d'API distinctes, chacune un triplet
+Quatre applications d'API distinctes, chacune un triplet
 application key / application secret / consumer key :
 
 - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
@@ -122,6 +122,15 @@ application key / application secret / consumer key :
 - `nas_ovh_application_key`, `nas_ovh_application_secret`,
   `nas_ovh_consumer_key` (fichier Ansible) : le défi DNS-01 de Let's Encrypt
   du Traefik du NAS (`nas_proxy`).
+- `pangolin_ovh_application_key`, `pangolin_ovh_application_secret`,
+  `pangolin_ovh_consumer_key` (fichier Ansible) : le défi DNS-01 des jokers
+  `*.sylvain.cloud` et `*.sylvain.dev` du Traefik de Pangolin (ADR 0031),
+  restreinte à `POST record`, `POST refresh` et `DELETE record/*` des deux
+  zones (lien `createToken` prérempli dans `ansible/roles/pangolin/defaults/main.yml`).
+  Après la rotation : `ansible-playbook pangolin.yaml --tags pangolin`
+  (redémarre la pile), puis révoquer l'ancienne. Elle ne sert qu'à l'émission
+  et au renouvellement : une clé cassée ne se voit qu'au renouvellement suivant
+  (`docker logs traefik 2>&1 | grep -i acme`).
 - `costs_ovh_application_key`, `costs_ovh_application_secret`,
   `costs_ovh_consumer_key` (fichier Ansible, optionnelles) : le rapport des
   coûts (rôle `cost_report`, VM docker), en lecture seule des factures et

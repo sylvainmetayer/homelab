@@ -60,6 +60,11 @@ nas_proxy_ovh_endpoint: ovh-eu
 nas_proxy_ovh_application_key: "{{ nas_ovh_application_key }}"
 nas_proxy_ovh_application_secret: "{{ nas_ovh_application_secret }}"
 nas_proxy_ovh_consumer_key: "{{ nas_ovh_consumer_key }}"
+# Joker commandé par chaque routeur (ADR 0031) : un seul certificat pour les
+# noms du NAS au lieu d'un par nom dans les journaux Certificate Transparency.
+# Le CAA issuewild de sylvain.cloud (tofu/dns/caa.tf) porte l'URI du compte
+# ACME de ce Traefik. Vide : un certificat par nom, comme avant.
+nas_proxy_wildcard_domain: "*.sylvain.cloud"
 nas_proxy_mem_limit: 256m
 
 # --- Jellyfin : https://media.sylvain.cloud ---
