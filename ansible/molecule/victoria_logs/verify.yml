@@ -109,8 +109,8 @@
       ansible.builtin.assert:
         that:
           - victoria_logs_accounts.keys() | list == ['users']
-          - victoria_logs_accounts.users | selectattr('username', 'eq', 'sylvain') | map(attribute='password') | list == [victoria_logs_ui_password]
-          - victoria_logs_accounts.users | selectattr('username', 'eq', 'sylvain') | map(attribute='url_prefix') | list == ['http://victoria-logs:9428']
+          - victoria_logs_named_users | selectattr('username', 'eq', 'sylvain') | map(attribute='password') | list == [victoria_logs_ui_password]
+          - victoria_logs_named_users | selectattr('username', 'eq', 'sylvain') | map(attribute='url_prefix') | list == ['http://victoria-logs:9428']
           - victoria_logs_agent_users | map(attribute='username') | sort == victoria_logs_agent_passwords.keys() | sort
           - victoria_logs_agent_users | selectattr('url_prefix', 'defined') | list == []
           - victoria_logs_agent_users | map(attribute='url_map') | map('map', attribute='src_paths') | map('flatten') | unique == [['/insert/jsonline']]
@@ -132,7 +132,7 @@
     - name: Assert the Homepage account can only count in the CrowdSec and Blocky streams
       vars:
         victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
-        victoria_logs_homepage: "{{ victoria_logs_accounts.users | selectattr('username', 'eq', 'homepage') | list }}"
+        victoria_logs_homepage: "{{ victoria_logs_accounts.users | selectattr('username', 'defined') | selectattr('username', 'eq', 'homepage') | list }}"
       ansible.builtin.assert:
         that:
           - victoria_logs_homepage | length == 1
