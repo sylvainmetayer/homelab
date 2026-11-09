@@ -42,11 +42,23 @@ locals {
     "sylvain.cloud"     = ["letsencrypt.org"]
   }
 
+  # Comptes ACME (Registration.uri d'acme.json) : résolveur letsencrypt-dns de
+  # Pangolin, résolveur letsencrypt du NAS. Un compte recréé (acme.json perdu)
+  # est refusé tant que son URI n'est pas ici.
+  acme_accounts = {
+    pangolin = "https://acme-v02.api.letsencrypt.org/acme/acct/3975811502"
+    nas      = "https://acme-v02.api.letsencrypt.org/acme/acct/3917830522"
+  }
+  wildcard_by_dns = "letsencrypt.org; validationmethods=dns-01; accounturi="
+
   caa_issuewild = {
     "sylvainmetayer.fr" = [";"]
-    "sylvain.dev"       = ["letsencrypt.org; validationmethods=dns-01"]
+    "sylvain.dev"       = ["${local.wildcard_by_dns}${local.acme_accounts.pangolin}"]
     "metayer.dev"       = [";"]
-    "sylvain.cloud"     = ["letsencrypt.org; validationmethods=dns-01"]
+    "sylvain.cloud" = [
+      "${local.wildcard_by_dns}${local.acme_accounts.pangolin}",
+      "${local.wildcard_by_dns}${local.acme_accounts.nas}",
+    ]
   }
 
   caa_records = merge(
