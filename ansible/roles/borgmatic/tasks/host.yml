@@ -145,6 +145,7 @@
     dest: "/etc/systemd/system/{{ item }}"
     state: link
     force: true
+  notify: Reload systemd daemon
   loop:
     - borgmatic.timer
     - borgmatic.service

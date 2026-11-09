@@ -8,7 +8,7 @@ trous écrits : « VM jamais restaurée » ([matrice des données](../matrice-de
 et « hébergeur provisoire : non préparé » (perte-totale-maison, étage 2).
 
 Statut : **joué une fois, le 09/11/2026** : 37 min de la création du serveur
-aux contrôles, 17 applis sur 19 restaurées et vérifiées (feuille de temps plus
+aux contrôles, 15 applis restaurées et vérifiées sur les 17 dépôts Borg joués (beszel et healthlog exclus) (feuille de temps plus
 bas). Les deux trous restants sont dans « Constats de l'exercice ».
 
 **Données personnelles réelles sur le disque d'un hébergeur** (Nextcloud, photos
@@ -165,10 +165,8 @@ connexion locale de l'appli, avec le compte du foyer, suffit pour voir ses donn�
 
 ### Feuille de temps
 
-À remplir pendant l'exercice (hh:mm, durées en minutes) ; noter ce qui a bloqué.
+À remplir pendant chaque exercice (hh:mm, durées en minutes) ; noter ce qui a bloqué.
 
-| Étape | Début | Fin | Durée | Remarque |
-|---|---|---|---|---|
 Exercice du 09/11/2026 (cpx42, fsn1 ; durées par appli en secondes, tirées des
 lignes `RESTORE-RESULT`) :
 

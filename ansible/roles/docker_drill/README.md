@@ -51,7 +51,8 @@ dans le runbook.
   dernière archive dans `/var/restore/<appli>` (jamais sur `/` : l'archive porte
   les configurations borgmatic de production), met en place chaque dossier source
   par `mv`, remet les copies SQLite, rejoue les dumps PostgreSQL / MariaDB
-  (conteneur de la base seul démarré, `borgmatic restore`), relance l'appli, et
+  (conteneur de la base seul démarré, base PostgreSQL recréée vide avant le
+  dump pour qu'une extension comme PostGIS ne bloque pas le `DROP`, `borgmatic restore`), relance l'appli, et
   écrit une ligne `RESTORE-RESULT` pour la feuille de temps.
 - `/usr/local/sbin/drill-check [appli…]` : sonde HTTP sur l'IP du conteneur
   (réseau `newt`, sans suivre de redirection) et tables attendues non vides, d'après
