@@ -1,7 +1,0 @@
----
-globalping_probe_base_path: "{{ docker_base_path }}/globalping_probe"
-globalping_probe_container_name: globalping-probe
-
-# Pas de sauvegarde, exprès : sans état, aucun volume (README.md).
-# Jeton d'adoption : aucune variable, l'adoption se fait dans le tableau de
-# bord (README.md), donc pas de secret SOPS.
