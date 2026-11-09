@@ -214,6 +214,15 @@ de leurs politiques d'organisation, plus « voir une organisation » (la sonde
 de démarrage du provider la lit, 403 sinon) ; une clé d'organisation ne peut
 pas créer d'IdP.
 
+### Clé API Anthropic (passerelle IA)
+
+`pangolin_ai_anthropic_api_key` (fichier racine, lue par
+`tofu/pangolin_config/ai_gateway.tf`) : console Anthropic, workspace de la
+passerelle, nouvelle clé. `sops set`, monter le sous-module, `plan` de
+`tofu/pangolin_config` (seul `pangolin_ai_provider.anthropic` change), `apply`,
+un appel avec une clé virtuelle, puis révoquer l'ancienne clé. Les clés
+virtuelles des applis ne changent pas.
+
 ## Secrets d'application (tous les deux ans)
 
 ### Secret d'appli lu par Ansible
