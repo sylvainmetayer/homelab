@@ -1845,7 +1845,8 @@ run "every_public_resource_applies_its_rules" {
 
   # Toutes les ressources publiques sont des instances de
   # pangolin_resource.website, de pangolin_resource.remote_desktop (support
-  # à distance, remote_support.tf) ou de pangolin_resource.ai_gateway : aucune
+  # à distance, remote_support.tf) ou de pangolin_resource.ai_gateway (sans règle
+  # possible, local.unruled_resources) : aucune
   # n'échappe aux épinglages, à la page de maintenance ni à
   # local.managed_resources, qui en est dérivée.
   assert {
@@ -1857,10 +1858,10 @@ run "every_public_resource_applies_its_rules" {
       && toset(concat(
         [for r in pangolin_resource.website : r.name],
         [for r in pangolin_resource.remote_desktop : r.name],
-        [for r in pangolin_resource.ai_gateway : r.name],
       )) == toset(keys(local.managed_resources))
+      && toset([for r in pangolin_resource.ai_gateway : r.name]) == toset(local.unruled_resources)
     )
-    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), pangolin_resource.remote_desktop (remote_support.tf) et pangolin_resource.ai_gateway (ai_gateway.tf), ou manque à local.managed_resources."
+    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), pangolin_resource.remote_desktop (remote_support.tf) et pangolin_resource.ai_gateway (ai_gateway.tf), ou manque à local.managed_resources (local.unruled_resources pour la passerelle IA)."
   }
 
   # Prendre la main sur un PC : derrière le SSO, réservé au rôle support, en
@@ -1984,7 +1985,7 @@ run "resources_have_unique_fqdns" {
     condition = length(distinct([
       for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop), values(pangolin_resource.ai_gateway)) :
       "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
-    ])) == length(local.managed_resources)
+    ])) == length(local.managed_resources) + length(local.unruled_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
   }
 }
@@ -2136,7 +2137,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # sans ses règles fait aussi échouer le run.
   assert {
     condition = length([
-      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop), values(pangolin_resource.ai_gateway)) :
+      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop)) :
       r.name if try(
         pangolin_resource_rule.block_country[r.name].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-FR"].resource_id == r.id
