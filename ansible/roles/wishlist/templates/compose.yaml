@@ -1,9 +1,10 @@
 ---
 services:
   app:
-    # Pas encore mesuré : Node (SvelteKit + sharp) et le Caddy interne de
-    # l'image. À recaler sur memory.peak après quelques jours.
-    mem_limit: 512m
+    # Node (SvelteKit + sharp) et le Caddy interne de l'image. memory.peak à
+    # 396 Mio sur 5 jours (2026-11-09), moyenne de 2 h à 254 Mio au plus :
+    # plafond à ~2× le pic.
+    mem_limit: 800m
     image: ghcr.io/cmintey/wishlist:v0.69.0@sha256:a3c0482c5d55155a3aa96c4cbb63d2aa379f02ae3bbeb76909ffed2b15980f36
     container_name: wishlist
     # Ni read_only ni cap_drop : l'entrypoint lance Caddy, applique les

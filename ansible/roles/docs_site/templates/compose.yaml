@@ -1,9 +1,9 @@
 ---
 services:
   nginx:
-    # Fichiers statiques seulement : ~8 Mio mesurés en local (podman, au
-    # repos après quelques pages). Plafond large, à recaler sur memory.peak.
-    mem_limit: 64m
+    # Fichiers statiques seulement : memory.peak à 14 Mio sur 4 jours
+    # (2026-11-09), tmpfs de 16 Mio compris. Plafond à ~2×.
+    mem_limit: 32m
     image: docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
     container_name: docs-site
     # Sous l'uid de l'utilisateur plutôt que le 101 de l'image : le site et la

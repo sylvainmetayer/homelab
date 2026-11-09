@@ -757,7 +757,7 @@ flowchart LR
 Beszel montre les 200 dernières lignes d'un conteneur, à la demande ;
 VictoriaLogs garde tous les journaux de tous les hôtes **30 jours** et les
 interroge en LogsQL. Version légère, à l'essai (#79,
-[ADR 0011](adr/0011-journaux-victorialogs.md), « proposée ») : VictoriaLogs
+[ADR 0011](adr/0011-journaux-victorialogs.md), « acceptée ») : VictoriaLogs
 seul, ni Grafana ni métriques. Rôle `victoria_logs` sur la VM docker, interface (vmui)
 sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le SSO de
 vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
@@ -834,7 +834,7 @@ vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
   socket (`MemoryMax=128M` en binaire) ; pas de `cpus`. Volume attendu : quelques centaines de Mio de
   journaux bruts par jour, tous hôtes compris, qu'il compresse d'un facteur
   10 environ, soit de l'ordre de 1 à 2 Gio pour 30 jours, sous le plafond.
-- **Mesure, une semaine après le déploiement** : `memory.peak` du stockage, de
+- **Mesure, faite le 2026-11-09** (tableau dans l'ADR 0011) : `memory.peak` du stockage, de
   vmauth et des agents (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`),
   puis l'I/O wait de la VM docker dans Beszel, avant et après ; la place
   prise (`du -sh /opt/apps/victoria_logs/data`). Recaler les `mem_limit` à
