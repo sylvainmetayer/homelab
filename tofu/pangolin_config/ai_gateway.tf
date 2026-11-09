@@ -3,8 +3,8 @@
 #
 # Les applis du homelab appellent les modèles par cette ressource `inference`,
 # chacune avec sa clé virtuelle et son budget, au lieu d'une clé Anthropic par
-# appli. Phase d'essai : la clé « essai » et celle d'Immich Power Tools ; les
-# autres (Papra, HealthLog, MCP) viendront après l'essai et l'ADR 0031.
+# appli. Phase d'essai : la clé « essai » et celles des applis (local.ai_keys) ;
+# MCP viendra après l'essai et l'ADR 0031.
 #
 # Allumée par local.ai_gateway_enabled, jamais par la seule présence de sa
 # clé : une clé SOPS perdue (fusion ratée dans le sous-module) détruirait sans
@@ -38,8 +38,9 @@ locals {
     opus   = { key = "claude-opus-5-5", name = "Claude Opus 5.5" }
   }
 
-  # Une clé virtuelle par appli, deux budgets mensuels chacune : en tokens,
-  # bloquant (hard), et en dollars, en suivi seul (soft). Les budgets en
+  # Une clé virtuelle par appli, deux budgets chacune : en tokens, bloquant
+  # (hard, sur `lifetime` : voir pangolin_ai_budget.total_tokens), et en
+  # dollars, mensuel, en suivi seul (soft). Les budgets en
   # dollars ne comptent que les modèles du catalogue de prix de Pangolin, où les
   # claude-*-5-5 manquaient le 2026-11-09 : la clé essai, plafonnée à 1 $, a
   # passé plusieurs dollars d'Opus sans un refus. Les tokens ne demandent aucun

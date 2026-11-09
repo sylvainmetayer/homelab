@@ -3625,7 +3625,7 @@ run "domain_redirects_keep_their_behaviour" {
 }
 
 # Passerelle IA (ai_gateway.tf) : fournisseur Anthropic seul, modèles en liste
-# d'autorisation, budgets durs mensuels, chaque clé limitée à la passerelle et
+# d'autorisation, budgets en tokens durs (sur `lifetime`), chaque clé limitée à la passerelle et
 # plafonnée, journal hors de Tofu.
 run "ai_gateway_keys_are_scoped_and_capped" {
   command = apply
