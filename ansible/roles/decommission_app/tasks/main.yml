@@ -10,8 +10,8 @@
       -e decommission_app_confirm=true -e decommission_app_service=<service>
       -e decommission_app_base_path=<docker_base_path>/<service> to proceed.
 
-# kdrive_sync n'a ni dc@, ni dossier d'application, ni compose, et sa
-# configuration borgmatic s'appelle kdrive.yaml (borgmatic_app_name) : ce rôle
+# kdrive_sync n'a pas d'unité dc@ (un timer lance son compose à la demande) et
+# sa configuration borgmatic s'appelle kdrive.yaml (borgmatic_app_name) : ce rôle
 # ne la retrouverait pas, et repo-delete échouerait. Refus net plutôt qu'un
 # retrait à moitié.
 - name: Refuse kdrive_sync, which this role does not cover
@@ -20,7 +20,7 @@
       - decommission_app_service not in ['kdrive_sync', 'kdrive']
     fail_msg: >-
       decommission_app ne retire pas kdrive_sync (config borgmatic kdrive.yaml,
-      ni dc@ ni compose) : voir le README du rôle.
+      pas d'unité dc@) : voir le README du rôle.
     quiet: true
 
 # Effacé en root et compose y est lancé : l'unité dc@<service> a pour dossier
