@@ -43,7 +43,7 @@
     dest: /usr/local/bin/borg-readonly
     owner: root
     group: root
-    mode: "0755"
+    mode: "0700"
 
 - name: Install the restore and check tools
   become: true
@@ -52,7 +52,7 @@
     dest: "{{ item.dest }}"
     owner: root
     group: root
-    mode: "0755"
+    mode: "0700"
   loop:
     - { src: drill-restore-app, dest: /usr/local/sbin/drill-restore-app }
     - { src: drill-check.py, dest: /usr/local/sbin/drill-check }
@@ -66,7 +66,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0700"
 
 - name: Install apps.json of the restore test
   become: true
@@ -75,7 +75,7 @@
     dest: /usr/local/share/drill/apps.json
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"
 
 # drill-check lit les configurations borgmatic et parle à Docker.
 - name: Install python3-yaml for drill-check
