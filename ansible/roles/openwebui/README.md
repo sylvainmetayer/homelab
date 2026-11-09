@@ -12,8 +12,8 @@ Pocket ID.
 Pas d'Ollama (`ENABLE_OLLAMA_API=false`, image sans), pas de RAG ni
 d'embeddings locaux (image `-slim` sans torch, `BYPASS_EMBEDDING_AND_RETRIEVAL`:
 un fichier joint est lu en entier dans le contexte), recherche web par un
-SearXNG privé (section suivante), pas de génération d'images, exécution de code ni partage communautaire, télémétrie
-coupée (`ANONYMIZED_TELEMETRY`, `SCARF_NO_ANALYTICS`, `DO_NOT_TRACK`, pas de
+SearXNG privé (section suivante), pas de génération d'images, exécution de code
+ni partage communautaire, télémétrie coupée (`ANONYMIZED_TELEMETRY`, `SCARF_NO_ANALYTICS`, `DO_NOT_TRACK`, pas de
 recherche de version).
 
 - `OPENAI_API_BASE_URL=https://ia.sylvain.cloud/v1`, `OPENAI_API_KEY` = la clé
