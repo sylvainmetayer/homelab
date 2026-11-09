@@ -73,7 +73,7 @@ mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_a
   Pangolin les supprime avec l'ancienne clé.
 - Redéployer ensuite l'hôte de l'appli, qui garde sinon l'ancienne clé (401).
 - La clé Anthropic elle-même (`pangolin_ai_anthropic_api_key`) :
-  [rotation-des-secrets.md](rotation-des-secrets.md#clé-api-anthropic-passerelle-ia).
+  [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-anthropic-passerelle-ia).
 
 ## Journal des appels
 
