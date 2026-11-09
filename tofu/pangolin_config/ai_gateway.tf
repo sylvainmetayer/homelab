@@ -30,8 +30,8 @@ locals {
   ai_gateway           = local.ai_gateway_enabled ? toset(["ia"]) : toset([])
   ai_anthropic_api_key = try(data.sops_file.secrets.data["pangolin_ai_anthropic_api_key"], "")
 
-  # Liste d'autorisation du fournisseur : seuls ces modèles passent, et seuls
-  # eux sont comptés en dollars par les budgets (catalogue de Pangolin).
+  # Liste d'autorisation du fournisseur : seuls ces modèles passent (les
+  # budgets en dollars ne comptent que ceux du catalogue de prix de Pangolin).
   ai_models = {
     haiku  = { key = "claude-haiku-5-5", name = "Claude Haiku 5.5" }
     sonnet = { key = "claude-sonnet-5-5", name = "Claude Sonnet 5.5" }
