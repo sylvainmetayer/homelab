@@ -452,6 +452,40 @@ jobs:
       # A failed run never becomes the base of the next one, so the changes of
       # a host that stays down come back in every run: stopping at the first
       # failure would block the other hosts' deployments until it is back.
+      #
+      # Order (58 min with the four one after the other, 2026-11-09): pi is
+      # started in the background just before docker, so the two run at once
+      # ("Deploy pi" below waits for it and prints its buffered log), then
+      # pangolin, then flip, in sequence and alone. docker and pi are
+      # different hosts reached through the OLM tunnel, sharing nothing (facts
+      # cache: one file per host; ControlPath sockets: per host; run.log:
+      # appended line by line, lines may interleave; docs_site builds in a
+      # fresh tempfile; no play reads another host's hostvars). pangolin is
+      # the OLM server and flip's ProxyJump: its handlers restart sshd, ufw,
+      # fail2ban, nat-gateway (flip's egress), docker and the Pangolin stack,
+      # which would cut the tunnel or the jump under a play still running (it
+      # was third before, with only flip after it); flip follows it for the
+      # same reason. The step names stay "Deploy <host>", which ci_key_audit
+      # reads in the jobs API to know which hosts saw the CI key.
+      - name: Start the pi deploy in the background
+        if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.pi_tags != '' }}
+        working-directory: ansible
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+          TAGS: ${{ steps.resolve-tags.outputs.pi_tags }}
+        run: |
+          # The exit code goes to a file: "Deploy pi" is another step, so the
+          # subshell is not its child and `wait` cannot give it.
+          (
+            rc=0
+            ansible-playbook pi.yml \
+              -i ci-inventory.ini \
+              --tags "$TAGS" \
+              -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}" \
+              > "$RUNNER_TEMP/deploy-pi.log" 2>&1 || rc=$?
+            echo "$rc" > "$RUNNER_TEMP/deploy-pi.rc"
+          ) > /dev/null 2>&1 &
+
       - name: Deploy docker
         if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.docker_tags != '' }}
         working-directory: ansible
@@ -472,14 +506,13 @@ jobs:
       - name: Deploy pi
         if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.pi_tags != '' }}
         working-directory: ansible
-        env:
-          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-          TAGS: ${{ steps.resolve-tags.outputs.pi_tags }}
         run: |
-          ansible-playbook pi.yml \
-            -i ci-inventory.ini \
-            --tags "$TAGS" \
-            -e "{\"ansible_ssh_private_key_file\": \"$HOME/.ssh/ci_deploy_key\", \"ansible_ssh_common_args\": \"\"}"
+          # Started by "Start the pi deploy in the background": wait for its
+          # exit code file, print the buffered log, fail with its code.
+          while [ ! -s "$RUNNER_TEMP/deploy-pi.rc" ]; do sleep 5; done
+          rc="$(cat "$RUNNER_TEMP/deploy-pi.rc")"
+          cat "$RUNNER_TEMP/deploy-pi.log"
+          exit "$rc"
 
       - name: Deploy pangolin
         if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.pangolin_tags != '' }}

@@ -32,7 +32,7 @@ que `ping.yaml` utilisait déjà. Motif non écrit (`a25a5447` dit le comment se
   Renovate ([0008](0008-renovate-hebdomadaire.md)) déploie sans personne.
 - La clé age de la CI déchiffre tout `ansible.sops.yaml` ([0009](0009-sops-age-deux-fichiers.md)).
 - Un `tofu apply` doit parfois précéder le merge (URL push vide sinon, #1044).
-- Runs en série (OLM refuse une seconde connexion) ; `nas`, `pve` et `lxc`
+- Runs en série (OLM refuse une seconde connexion) ; dans un run, docker et pi en parallèle, puis pangolin, puis flip (pangolin redémarre le tunnel et le rebond de flip) ; `nas`, `pve` et `lxc`
   restent en retard sur `main` jusqu'au passage à la main.
 
 ## Liens
