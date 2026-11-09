@@ -118,6 +118,15 @@
     - "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml"
     - "{{ borgmatic_config_dir }}/uptime-kuma/{{ decommission_app_service }}.curl"
 
+# Le marqueur de repo-create (rôle borgmatic, tasks/app.yml) part aussi quand le
+# dépôt distant est détruit config gardée : resté, il empêcherait de le recréer.
+- name: Remove the borgmatic repository marker
+  become: true
+  when: decommission_app_remove_borgmatic_config | bool or decommission_app_destroy_remote_backup | bool
+  ansible.builtin.file:
+    path: "{{ borgmatic_config_dir }}/{{ decommission_app_service }}.repo-created"
+    state: absent
+
 - name: Remove app data directory
   become: true
   when: decommission_app_remove_data | bool

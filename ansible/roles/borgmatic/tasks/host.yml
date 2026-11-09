@@ -13,6 +13,7 @@
       - curl
     state: present
     update_cache: true
+    cache_valid_time: 3600
 
 - name: Ensure pipx path for root
   become: true
@@ -138,6 +139,7 @@
       - sqlite3
     state: present
     update_cache: true
+    cache_valid_time: 3600
 
 # Client de dump MySQL/MariaDB lancé dans le conteneur de la base, sa sortie
 # écrite dans le --result-file que borgmatic 2.1 impose côté hôte.

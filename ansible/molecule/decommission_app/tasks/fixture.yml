@@ -42,3 +42,10 @@
     mode: "0600"
     content: |
       url = https://uptime.example.invalid/api/push/fixture
+
+- name: Write the repository marker of {{ fixture_service }}
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ borgmatic_config_dir }}/{{ fixture_service }}.repo-created"
+    mode: "0600"
+    content: "ssh://fixture.invalid/{{ fixture_service }}"

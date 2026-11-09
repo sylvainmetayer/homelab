@@ -10,7 +10,7 @@ In `docker.yml`, `pi.yml`, `flip.yml` and `nas.yml`, `tags: [decommission, never
 2. With `decommission_app_destroy_remote_backup` (default `false`): `borgmatic --config <service>.yaml repo-delete --force`. **Irreversible.** A failure stops the run there, with the app still running and nothing removed: fix the cause and run again. A repository already absent is not a failure (`ok`, not `changed`).
 3. Stops and disables `dc@<service>`. A failure stops the run there, with the unit already disabled (`systemd` disables first): the app keeps running but would not come back after a reboot. Only a unit that cannot be found is tolerated.
 4. `docker compose down --volumes --remove-orphans` in the base path. A failure stops the run there (data and borgmatic config stay); only a missing folder or compose file is tolerated.
-5. Removes `<service>.yaml` and `uptime-kuma/<service>.curl` from `borgmatic_config_dir` (switch: `decommission_app_remove_borgmatic_config`).
+5. Removes `<service>.yaml` and `uptime-kuma/<service>.curl` from `borgmatic_config_dir` (switch: `decommission_app_remove_borgmatic_config`), and the `<service>.repo-created` marker of the `borgmatic` role (same switch, or `decommission_app_destroy_remote_backup`: a destroyed repository must be recreated by the next deploy).
 6. Removes the base path and the extra paths as root (switch: `decommission_app_remove_data`).
 7. Removes the `dc@<service>.service.d` drop-ins, then reloads systemd.
 

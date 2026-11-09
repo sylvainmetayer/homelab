@@ -115,6 +115,10 @@
   when: security_auditd_enabled | bool
   ansible.builtin.stat:
     path: "{{ item }}"
+    # Sans checksum : sinon un sha1 de dockerd, containerd et runc (~12 s sur le Pi).
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
   register: security_auditd_docker_stat
   loop: "{{ security_auditd_docker_watches }}"
 
