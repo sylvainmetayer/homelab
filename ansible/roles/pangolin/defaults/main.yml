@@ -55,14 +55,18 @@ pangolin_acme_ovh_endpoint: ovh-eu
 pangolin_acme_ovh_application_key: "{{ pangolin_ovh_application_key | default('') }}"
 pangolin_acme_ovh_application_secret: "{{ pangolin_ovh_application_secret | default('') }}"
 pangolin_acme_ovh_consumer_key: "{{ pangolin_ovh_consumer_key | default('') }}"
-# Vrai dès que la clé existe : résolveur letsencrypt-dns, domain1 (config de
+# Vrai dès que la clé existe (ses trois valeurs) : résolveur letsencrypt-dns, domain1 (config de
 # Pangolin) et les routeurs fichier (tableau de bord, API, Pocket ID) passent
 # au joker. Tofu règle le même résolveur sur pangolin_domain.org (domains.tf).
 # Retour arrière : false (-e ou host_vars), et prefer_wildcard_cert = false
 # dans domains.tf.
-pangolin_wildcard_cert: "{{ pangolin_acme_ovh_consumer_key | length > 0 }}"
+pangolin_wildcard_cert: >-
+  {{ [pangolin_acme_ovh_application_key, pangolin_acme_ovh_application_secret,
+  pangolin_acme_ovh_consumer_key] | select | list | length == 3 }}
 pangolin_wildcard_resolver: letsencrypt-dns
-# Essai sur l'autorité de test de Let's Encrypt, à la main seulement :
+# Essai sur l'autorité de test de Let's Encrypt, à la main seulement, AVANT
+# l'apply de domains.tf : il retire letsencrypt-dns, que sylvain.dev désigne
+# ensuite (ses routeurs tomberaient le temps de l'essai) :
 # ansible-playbook pangolin.yaml --tags pangolin -e pangolin_wildcard_staging=true
 # -e pangolin_wildcard_cert=false. Résolveur letsencrypt-dns-staging
 # (acme-staging.json à part) et un routeur sur pangolin_wildcard_test_host,
