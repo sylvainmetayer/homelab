@@ -77,3 +77,4 @@ au plus :
 | [0030](0030-pocket-id-fournisseur-identite-pilote.md) | Pocket ID, fournisseur d'identité (remplace 0016 ; pilote clos le 2026-11-07), public hors du filtre FR/DE : exception à 0002 | acceptée |
 | [0031](0031-certificats-jokers.md) | Un certificat joker par domaine (DNS-01) au lieu d'un certificat par nom | acceptée |
 | [0032](0032-passerelle-ia-pangolin.md) | Passerelle IA de Pangolin : une clé et un budget par appli, sans filtre FR/DE (exception à 0002) | acceptée |
+| [0033](0033-postgresql-partage-sur-la-vm-docker.md) | Un PostgreSQL partagé sur la VM docker : pas maintenant, 30 à 160 Mio gagnés pour une isolation perdue | proposée |
