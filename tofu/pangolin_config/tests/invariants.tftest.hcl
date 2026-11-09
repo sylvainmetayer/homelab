@@ -1845,8 +1845,9 @@ run "every_public_resource_applies_its_rules" {
 
   # Toutes les ressources publiques sont des instances de
   # pangolin_resource.website, de pangolin_resource.remote_desktop (support
-  # à distance, remote_support.tf) ou de pangolin_resource.ai_gateway : aucune n'échappe aux épinglages, à la page
-  # de maintenance ni à local.managed_resources, qui en est dérivée.
+  # à distance, remote_support.tf) ou de pangolin_resource.ai_gateway : aucune
+  # n'échappe aux épinglages, à la page de maintenance ni à
+  # local.managed_resources, qui en est dérivée.
   assert {
     condition = (
       length(flatten([
@@ -1908,6 +1909,21 @@ run "every_resource_declares_the_pinned_attributes" {
       && r.resource_policy_id == local.resource_pins.resource_policy_id
     ])
     error_message = "Une ressource Pangolin ne suit pas local.resource_pins (mode, ssl, enabled...)."
+  }
+
+  # La passerelle IA a son propre `mode` (inference) ; le reste suit les épingles.
+  assert {
+    condition = alltrue([
+      for r in pangolin_resource.ai_gateway :
+      r.mode == "inference"
+      && r.ssl == local.resource_pins.ssl
+      && r.enabled == local.resource_pins.enabled
+      && r.block_access == local.resource_pins.block_access
+      && r.email_whitelist_enabled == local.resource_pins.email_whitelist_enabled
+      && r.sticky_session == local.resource_pins.sticky_session
+      && r.resource_policy_id == local.resource_pins.resource_policy_id
+    ])
+    error_message = "La passerelle IA ne suit pas local.resource_pins (ssl, enabled...)."
   }
 
   # Côté privé, chaque ressource déclare les siens, à la main : relu dans le
@@ -3640,9 +3656,11 @@ run "ai_gateway_keys_are_scoped_and_capped" {
   }
 }
 
-# Sans la clé SOPS, rien de la passerelle n'est créé (et le plan passe).
-run "ai_gateway_waits_for_its_sops_key" {
+# Passerelle allumée sans sa clé SOPS : le plan échoue au lieu de tout détruire.
+run "ai_gateway_without_its_sops_key_fails_plan" {
   command = plan
+
+  expect_failures = [terraform_data.ai_gateway_key]
 
   override_data {
     target = data.sops_file.secrets
@@ -3664,14 +3682,5 @@ run "ai_gateway_waits_for_its_sops_key" {
         uptimekuma_telegram_chat_id   = "-100123456789"
       }
     }
-  }
-
-  assert {
-    condition = (
-      length(pangolin_resource.ai_gateway) == 0 && length(pangolin_ai_provider.anthropic) == 0
-      && length(pangolin_virtual_api_key.ai) == 0 && length(pangolin_ai_budget.total) == 0
-      && !contains(keys(local.managed_resources), "Passerelle IA")
-    )
-    error_message = "Sans la clé SOPS pangolin_ai_anthropic_api_key, la passerelle IA ne doit rien créer."
   }
 }

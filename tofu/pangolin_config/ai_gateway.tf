@@ -6,11 +6,14 @@
 # appli. Phase d'essai : une seule clé, « essai » ; les clés des applis
 # (Papra, HealthLog, MCP) viendront après l'essai et l'ADR 0031.
 #
-# Rien n'est créé tant que la clé SOPS `pangolin_ai_anthropic_api_key`
-# (secrets/secrets.sops.yaml) n'existe pas : une clé de l'API Anthropic dans un
-# workspace dédié, avec sa propre limite de dépense chez Anthropic, en plus des
-# budgets ci-dessous. Sa présence est lue au plan (nonsensitive : seul le fait
-# qu'elle existe sert de for_each, jamais sa valeur).
+# Allumée par local.ai_gateway_enabled, jamais par la seule présence de sa
+# clé : une clé SOPS perdue (fusion ratée dans le sous-module) détruirait sans
+# un mot la passerelle et les clés virtuelles des applis, irrécupérables. Le
+# plan échoue donc si l'interrupteur est vrai et que la clé
+# `pangolin_ai_anthropic_api_key` (secrets/secrets.sops.yaml) manque : une clé
+# de l'API Anthropic dans un workspace dédié, avec sa propre limite de dépense
+# chez Anthropic, en plus des budgets ci-dessous (lue ici, pas dans secrets.tf,
+# avec cette passerelle).
 #
 # Journal des appels (« AI Gateway Session Log Retention », réglage de
 # l'organisation, hors du provider) : laissé à 0 jour, soit éteint ; les
@@ -23,8 +26,9 @@
 # ---------------------------------------------------------------------------
 
 locals {
+  ai_gateway_enabled   = true
+  ai_gateway           = local.ai_gateway_enabled ? toset(["ia"]) : toset([])
   ai_anthropic_api_key = try(data.sops_file.secrets.data["pangolin_ai_anthropic_api_key"], "")
-  ai_gateway           = nonsensitive(local.ai_anthropic_api_key != "") ? toset(["ia"]) : toset([])
 
   # Liste d'autorisation du fournisseur : seuls ces modèles passent, et seuls
   # eux sont comptés en dollars par les budgets (catalogue de Pangolin).
@@ -44,6 +48,17 @@ locals {
 
   # Plafond de toute l'organisation, toutes clés confondues.
   ai_budget_total_usd = 20
+}
+
+resource "terraform_data" "ai_gateway_key" {
+  input = local.ai_gateway_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !local.ai_gateway_enabled || nonsensitive(local.ai_anthropic_api_key != "")
+      error_message = "Passerelle IA allumée (local.ai_gateway_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_anthropic_api_key dans secrets/secrets.sops.yaml. L'ajouter (et son entrée dans secrets-rotation.yaml), ou passer l'interrupteur à false pour tout retirer."
+    }
+  }
 }
 
 resource "pangolin_ai_provider" "anthropic" {
@@ -82,6 +97,7 @@ resource "pangolin_resource" "ai_gateway" {
   subdomain       = each.key
   domain_id       = local.domain_ids["sylvain.cloud"]
   sso             = true
+  skip_to_idp_id  = pangolin_idp.pocket_id.id
   apply_rules     = true
   ai_provider_ids = [pangolin_ai_provider.anthropic[each.key].id]
 
@@ -131,7 +147,7 @@ resource "pangolin_ai_budget" "key" {
 }
 
 output "ai_gateway_url" {
-  description = "URL de la passerelle IA (vide tant que la clé SOPS pangolin_ai_anthropic_api_key manque)"
+  description = "URL de la passerelle IA (vide si local.ai_gateway_enabled est faux)"
   value       = try("https://${pangolin_resource.ai_gateway["ia"].full_domain}", "")
 }
 

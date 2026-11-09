@@ -24,6 +24,12 @@ mock_provider "pangolin" {
       id = 1
     }
   }
+  # Et pour ai_provider_ids de la passerelle IA (ai_gateway.tf).
+  mock_resource "pangolin_ai_provider" {
+    defaults = {
+      id = 1
+    }
+  }
 }
 # L'IdP passe par la clé root (pocket_id.tf) ; pocketid_client.pangolin valide
 # son URL de rappel, qu'un mock tire au hasard.
@@ -66,6 +72,9 @@ override_data {
 
       pocket_id_static_api_key = "fake-pocket-id-static-api-key"
       pangolin_root_api_key    = "fake-pangolin-root-api-key"
+
+      # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
+      pangolin_ai_anthropic_api_key = "fake-anthropic-api-key"
 
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"
