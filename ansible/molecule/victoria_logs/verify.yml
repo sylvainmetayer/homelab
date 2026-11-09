@@ -17,8 +17,11 @@
         verify_compose_service: victoria_logs
         verify_compose_healthchecks:
           - auth
+          - mcp
         verify_compose_internal_networks:
           - victoria-logs
+          - mcp-auth
+          - mcp
 
     - name: Render the victoria_logs compose model
       ansible.builtin.command: docker compose config --format json
@@ -36,17 +39,29 @@
         victoria_logs_compose: "{{ victoria_logs_compose_raw.stdout | from_json }}"
         victoria_logs_storage: "{{ victoria_logs_compose.services['victoria-logs'] }}"
         victoria_logs_auth: "{{ victoria_logs_compose.services.auth }}"
+        victoria_logs_mcp: "{{ victoria_logs_compose.services.mcp }}"
       ansible.builtin.assert:
         that:
           - victoria_logs_storage.container_name == 'victoria-logs'
           - victoria_logs_storage.networks.keys() | list == ['victoria-logs']
           - victoria_logs_storage.ports is not defined
           - victoria_logs_auth.container_name == 'victoria-logs-auth'
-          - victoria_logs_auth.networks.keys() | sort == ['newt', 'victoria-logs']
+          - victoria_logs_auth.networks.keys() | sort == ['mcp-auth', 'newt', 'victoria-logs']
           - victoria_logs_auth.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
           - victoria_logs_auth.ports | map(attribute='target') | unique == [8427]
           - victoria_logs_auth.ports | map(attribute='published') | map('string') | unique == ['9428']
           - victoria_logs_auth.command | select('match', '^-(metrics|flags|pprof|reload)AuthKey=[0-9a-f]{64}$') | list | length == 4
+          # Serveur MCP : deux réseaux internes (vmauth, Open WebUI), ni newt ni
+          # port publié ; le réseau partagé a un nom fixe, Open WebUI le déclare external.
+          - victoria_logs_mcp.container_name == 'mcp-victorialogs'
+          - victoria_logs_mcp.networks.keys() | sort == ['mcp', 'mcp-auth']
+          - victoria_logs_mcp.ports is not defined
+          - victoria_logs_mcp.read_only
+          - victoria_logs_mcp.environment.VL_INSTANCE_ENTRYPOINT == 'http://victoria-logs-auth:8427'
+          - victoria_logs_mcp.environment.VL_INSTANCE_BEARER_TOKEN is match('^[0-9a-f]{64}$')
+          - victoria_logs_compose.networks.mcp.name == 'victoria-logs-mcp'
+          - victoria_logs_compose.networks.mcp.internal
+          - victoria_logs_compose.networks['mcp-auth'].internal
           - victoria_logs_compose.services.values() | map(attribute='cap_drop') | unique == [['ALL']]
           - victoria_logs_compose.services.values() | map(attribute='user') | unique == [ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']]
         fail_msg: "Compose victoria_logs inattendu : {{ victoria_logs_compose.services }}"
@@ -88,7 +103,8 @@
     - name: Assert the agents can only write and the interface has its own account
       vars:
         victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
-        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | rejectattr('username', 'in', ['sylvain', 'homepage']) | list }}"
+        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | selectattr('username', 'defined') | rejectattr('username', 'in', ['sylvain', 'homepage']) | list }}"
+        victoria_logs_mcp_users: "{{ victoria_logs_accounts.users | selectattr('bearer_token', 'defined') | list }}"
       ansible.builtin.assert:
         that:
           - victoria_logs_accounts.keys() | list == ['users']
@@ -100,6 +116,12 @@
           - >-
             victoria_logs_agent_users | items2dict(key_name='username', value_name='password')
             == victoria_logs_agent_passwords
+          # Serveur MCP : un jeton Bearer, la lecture LogsQL seulement, ni
+          # interface ni écriture.
+          - victoria_logs_mcp_users | length == 1
+          - victoria_logs_mcp_users[0].bearer_token is match('^[0-9a-f]{64}$')
+          - victoria_logs_mcp_users[0].url_prefix is not defined
+          - victoria_logs_mcp_users[0].url_map | map(attribute='src_paths') | flatten == ['/select/logsql/.*']
         fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_accounts.users | map(attribute='username') | list }}"
 
     # Cartes CrowdSec et Blocky de Homepage (clé de fake_secrets.yml) : la
@@ -134,6 +156,8 @@
     - ../../group_vars/all/variables.yml
     - ../../roles/victoria_logs/defaults/main.yml
   vars:
+    # Dérive le jeton du compte du serveur MCP (defaults/main.yml).
+    backup_passphrase: molecule-backup-passphrase
     victoria_logs_ui_password: molecule-victoria-logs-ui-password-0000
     victoria_logs_agent_passwords:
       docker: molecule-victoria-logs-agent-docker-000
@@ -161,7 +185,7 @@
         that:
           - >-
             (victoria_logs_auth_without_homepage_raw.content | b64decode | from_yaml).users
-            | map(attribute='username') | sort == ['docker', 'sylvain']
+            | selectattr('username', 'defined') | map(attribute='username') | sort == ['docker', 'sylvain']
 
     - name: Remove the scratch directory
       ansible.builtin.file:
