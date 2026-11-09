@@ -49,11 +49,13 @@ Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
      compatible OpenAI (capacité `openai_chat` du fournisseur), sortie JSON
      structurée (`response_format`) comprise.
    - Ni l'un ni l'autre (Gemini…) : la passerelle ne traduit pas.
-3. Le playbook de l'hôte lit la clé dans le state :
+3. Le rôle lit la clé dans le state :
    `(terraform_outputs.ai_gateway_keys.value | default({})).<clé> | default('')`,
-   dans un `set_fact` en `no_log: true`. Le rôle ne rend la config IA que si la
-   clé est non vide. Modèle d'exemple : `immich_power_tools` (`pi.yml`, rôle
-   `immich`, PR #1319).
+   dans ses `defaults` (Karakeep, Papra, comme leurs secrets OIDC) ou dans un
+   `set_fact` en `no_log: true` du playbook (`immich_power_tools`, `pi.yml`).
+   Le fichier qui la porte est rendu en `0600` avec `diff: false`, et la config
+   IA n'est rendue que si la clé est non vide. Réglée dans l'interface de
+   l'appli (Nextcloud, HealthLog) : README du rôle.
 4. Merge (déploiement CI, sauf `nas.yml`, `pve.yml`, `lxc.yml` : à la main),
    puis un essai dans l'appli elle-même.
 
