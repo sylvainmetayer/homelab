@@ -27,6 +27,7 @@ choix dans [../adr/](../adr/README.md).
 | Copie de kDrive vers le NAS : mise en place, premier passage, moniteur « kDrive vers NAS » rouge, retrouver un fichier supprimé ou chiffré dans kDrive | [kdrive-nas.md](kdrive-nas.md) |
 | Sauvegarde des bases KeePass du poste (notification « Sauvegarde KeePass en échec », première exécution, restaurer une base, test trimestriel, rétention annuelle) | [sauvegarde-keepass.md](sauvegarde-keepass.md) |
 | Clients Nextcloud : qui est encore sur le mot de passe de connexion, créer un mot de passe d'application (procédure, pas un incident) | [nextcloud-mots-de-passe-application.md](nextcloud-mots-de-passe-application.md) |
+| Passerelle IA (ia.sylvain.cloud) : tester une clé virtuelle, brancher une appli, remplacer une clé, journal des appels (procédure, pas un incident) | [passerelle-ia.md](passerelle-ia.md) |
 | Pocket ID (fournisseur d'identité) : étapes de mise en place, secours si l'IdP tombe ou si tous les passkeys sont perdus, claims lus par Pangolin | [pocket-id.md](pocket-id.md) |
 | Commits signés sur `main` : signature SSH du poste, clé de signature GitHub, bascule en squash (procédure, pas un incident) | [commits-signes.md](commits-signes.md) |
 | Tester la clé age `secours` hors ligne (chaque trimestre), la remplacer (procédure, pas un incident) | [test-cle-secours.md](test-cle-secours.md) |
