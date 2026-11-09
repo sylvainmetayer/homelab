@@ -113,6 +113,12 @@ borgmatic ; les images se tirent ici : c'est le temps de téléchargement, mesur
 ansible-playbook docker.yml -e drill_target=drill -e docker_drill_key_file="$XDG_RUNTIME_DIR/drill_borg_key"
 ```
 
+Puis **une seconde fois, même commande avec `--tags app`**, une fois les applis
+démarrées : Ansible ne repère une base SQLite (à exclure, à copier avant
+sauvegarde) que sur le disque ; au premier passage elle n'existe pas encore, et
+la configuration de l'appli ne la liste pas. Sans ce second passage,
+`drill-restore-app` s'arrête sur ce constat plutôt que de relancer l'appli à vide.
+
 **T4. Restaurer chaque appli**, sur la copie (`ssh sylvain@<drill_ipv4>`, en root).
 Étage 1 d'abord (Nextcloud, Dawarich, Papra), puis le reste ; la durée de chaque
 appli est dans sa ligne `RESTORE-RESULT` :

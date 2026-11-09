@@ -13,6 +13,7 @@ Par appli (dépôt borgmatic, /etc/borgmatic.d/<dépôt>.yaml) :
 Sortie : une ligne OK / FAIL / SKIP par contrôle, code 1 au moindre FAIL.
 Lecture seule : aucune écriture dans une base, aucun accès à la production.
 """
+import http.client
 import json
 import sqlite3
 import subprocess
@@ -100,7 +101,7 @@ def check_http(app, container, port, path, host):
                 code = opener.open(request, timeout=10).status
             except urllib.error.HTTPError as error:
                 code = error.code
-            except OSError as error:
+            except (OSError, http.client.HTTPException) as error:
                 code, detail = None, type(error).__name__
             if code is not None:
                 if 200 <= code < 400:

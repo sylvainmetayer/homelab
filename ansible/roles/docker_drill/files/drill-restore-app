@@ -81,6 +81,14 @@ s=$(now)
 extract_s=$(($(now) - s))
 lap "archive extraite ($extract_s s)"
 
+# La configuration ne connaît une base SQLite qu'une fois l'appli démarrée puis
+# redéployée (tasks/app.yml la cherche sur le disque) : sans cela, sa copie
+# resterait dans l'archive et l'appli repartirait avec une base vide.
+if [ -n "$(ls -A "$work/var/lib/borgmatic-sqlite/$app" 2>/dev/null)" ] && ! grep -q '^Q ' <<<"$plan"; then
+  echo "l'archive porte des copies SQLite mais $cfg n'en liste aucune : relancer docker.yml (--tags app) une fois l'appli démarrée, puis $0 $app." >&2
+  exit 1
+fi
+
 while read -r kind path; do
   [ "$kind" = S ] || continue
   src="$work$path"
