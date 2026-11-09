@@ -153,7 +153,8 @@ output "ai_gateway_url" {
 }
 
 output "ai_gateway_keys" {
-  description = "Clés virtuelles de la passerelle IA, par appli (tofu output -json ai_gateway_keys)"
-  value       = { for k, v in pangolin_virtual_api_key.ai : k => v.secret }
-  sensitive   = true
+  description = "Clés virtuelles de la passerelle IA, par appli, prêtes à l'emploi (tofu output -json ai_gateway_keys)"
+  # Le provider ne rend que le secret ; la passerelle attend pangolin-key-<id>.<secret>.
+  value     = { for k, v in pangolin_virtual_api_key.ai : k => "pangolin-key-${v.id}.${v.secret}" }
+  sensitive = true
 }
