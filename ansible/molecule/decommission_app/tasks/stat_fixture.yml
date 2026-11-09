@@ -5,6 +5,7 @@
     fixture_own_paths:
       - "{{ docker_base_path }}/{{ fixture_service }}"
       - "{{ borgmatic_config_dir }}/{{ fixture_service }}.yaml"
+      - "{{ borgmatic_config_dir }}/{{ fixture_service }}.repo-created"
       - "{{ borgmatic_config_dir }}/uptime-kuma/{{ fixture_service }}.curl"
   ansible.builtin.stat:
     path: "{{ item }}"

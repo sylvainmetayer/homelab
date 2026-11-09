@@ -102,8 +102,22 @@
   vars:
     borgmatic_app_sqlite_paths: "{{ borgmatic_app_sqlite_found.stdout_lines | default([]) | sort }}"
 
+# repo-create joint la Storage Box par SSH (~14 s à chaque passage sur le Pi) :
+# un marqueur local, nommé d'après l'URL du dépôt, l'évite une fois le dépôt
+# créé. Compromis : un dépôt supprimé à la main sur la Storage Box n'est plus
+# recréé par Ansible tant que le marqueur existe (README du rôle).
+- name: Look for the repository marker of {{ borgmatic_app_title }}
+  become: true
+  ansible.builtin.stat:
+    path: "{{ borgmatic_config_dir }}/{{ borgmatic_app_name }}.repo-created"
+    get_mime: false
+  register: borgmatic_app_repo_marker
+
 - name: Initialize borg repository for {{ borgmatic_app_title }}
   become: true
+  when: >-
+    not borgmatic_app_repo_marker.stat.exists or
+    borgmatic_app_repo_marker.stat.checksum != (borgmatic_app_target | hash('sha1'))
   ansible.builtin.command:
     cmd: >-
       {{ borgmatic_bin }} --verbosity 1
@@ -117,3 +131,14 @@
   failed_when: >
     borgmatic_app_repo_create.rc != 0 and
     'already exists' not in (borgmatic_app_repo_create.stderr | lower)
+
+# Contenu = l'URL du dépôt : changer de cible relance repo-create.
+- name: Record the repository marker of {{ borgmatic_app_title }}
+  become: true
+  when: borgmatic_app_repo_create is not skipped
+  ansible.builtin.copy:
+    content: "{{ borgmatic_app_target }}"
+    dest: "{{ borgmatic_config_dir }}/{{ borgmatic_app_name }}.repo-created"
+    owner: root
+    group: root
+    mode: "0600"
