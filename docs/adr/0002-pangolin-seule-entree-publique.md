@@ -1,6 +1,6 @@
 # 0002. Pangolin, seule entrée publique ; FR/DE seulement ; chemins ouverts relus
 
-- **Statut** : acceptée ; exception FR/DE et SSO de Promptoramix : [0025](0025-promptoramix-ouverte-sur-flip.md) ; exception FR/DE et SSO de Pocket ID (routeur Traefik direct) : [0030](0030-pocket-id-fournisseur-identite-pilote.md)
+- **Statut** : acceptée ; exception FR/DE et SSO de Promptoramix : [0025](0025-promptoramix-ouverte-sur-flip.md) ; exception FR/DE et SSO de Pocket ID (routeur Traefik direct) : [0030](0030-pocket-id-fournisseur-identite-pilote.md) ; exception FR/DE de la passerelle IA (ressource `inference`, aucune règle possible) : [0032](0032-passerelle-ia-pangolin.md)
 - **Date** : 2026-01 (reprise du dépôt), 2026-08-30 (pays), 2026-10-16 (relecture)
 
 ## Contexte
