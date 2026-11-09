@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+scenario:
+  name: immich_ml
+
+# Prepare du scénario nas : dc@ système et périphérique de rendu.
+ansible:
+  playbooks:
+    prepare: prepare.yml

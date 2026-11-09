@@ -1,0 +1,5 @@
+---
+# Dérivé, pas un réglage (comme jellyfin) : sous un dc@ système (NAS), projet
+# et compose à root ; sous un dc@ user, à l'utilisateur de déploiement.
+immich_ml_dc_scope: "{{ docker_service_scope | default('user') }}"
+immich_ml_as_root: "{{ immich_ml_dc_scope == 'system' }}"

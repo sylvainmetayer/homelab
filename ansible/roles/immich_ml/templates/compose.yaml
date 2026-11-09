@@ -1,0 +1,39 @@
+services:
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    # Même version que immich-server du Pi (check_immich_versions.py) ; une
+    # montée Renovate déploie le Pi au merge, ce NAS seulement à la main :
+    # ansible-playbook nas.yml --tags immich_ml juste après (README).
+    image: ghcr.io/immich-app/immich-machine-learning:v3.3.6-openvino@sha256:035c30de002da9d4d4ae3872107bb9d8e195ead1c1f9fd470a2b0149ed37aec1
+    mem_limit: {{ immich_ml_mem_limit }}
+    # Pas de cpus: : la reconnaissance d'un gros import doit pouvoir prendre
+    # les quatre cœurs du N100 (Jellyfin transcode par Quick Sync).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # hwaccel.ml.yml d'Immich, service openvino, sans /dev/bus/usb (pas de
+    # clé Neural Compute) : root du conteneur, propriétaire du périphérique,
+    # plus son groupe pour l'iGPU.
+    device_cgroup_rules:
+      - 'c 189:* rmw'
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "{{ immich_ml_render_gid }}"
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      # Modèles téléchargés depuis Hugging Face au premier appel : un cache,
+      # rien à sauvegarder.
+      - model-cache:/cache
+    # API sans authentification : IP LAN du NAS seulement, lue par le serveur
+    # Immich du Pi.
+    ports:
+      - "{{ immich_ml_bind_address }}:{{ immich_ml_port }}:3003"
+    restart: unless-stopped
+    healthcheck:
+      disable: false
+
+volumes:
+  model-cache:

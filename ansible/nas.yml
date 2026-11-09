@@ -87,6 +87,12 @@
     # tournent que sous ce tag : un --tags beszel_agent n'en dépend pas.
     - role: jellyfin
       tags: jellyfin,app
+    # Machine learning d'Immich (OpenVINO sur l'iGPU du N100) sous
+    # dc@immich_ml : le serveur Immich du Pi l'appelle en premier par le LAN
+    # (port 3003, sans authentification, jamais dans Pangolin), son propre ML
+    # en secours. Une montée d'Immich se déploie ici aussi, à la main.
+    - role: immich_ml
+      tags: immich_ml,app
     # Traefik du NAS sous dc@nas_proxy (unité système) : TLS (Let's Encrypt,
     # DNS-01 OVH) de media.sylvain.cloud, nas.sylvain.cloud (interface
     # d'UGOS) et mediamanager.sylvain.cloud, sur le 443 de l'hôte (relais
