@@ -1,7 +1,0 @@
----
-- name: Restart globalping_probe
-  ansible.builtin.systemd:
-    name: dc@globalping_probe
-    scope: user
-    state: restarted
-    daemon_reload: true

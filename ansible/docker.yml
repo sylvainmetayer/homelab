@@ -160,15 +160,6 @@
     # Sans état, pas de sauvegarde (rôle pairdrop, README.md).
     - role: pairdrop
       tags: pairdrop,app
-    # Sondes de mesure Internet depuis la connexion de la maison, sortantes
-    # seulement, sans route Pangolin (rôles ripe_atlas et globalping_probe,
-    # README.md). Pas de sauvegarde : rien qui ne se refasse.
-    - role: ripe_atlas
-      tags: ripe_atlas,app
-      when: not (drill_mode | default(false) | bool)
-    - role: globalping_probe
-      tags: globalping_probe,app
-      when: not (drill_mode | default(false) | bool)
     # Outils PDF dans le navigateur (bentopdf.sylvain.cloud). Sans état, pas de
     # sauvegarde (rôle bentopdf, README.md).
     - role: bentopdf
