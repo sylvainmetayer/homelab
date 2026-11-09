@@ -99,7 +99,12 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    système sur le NAS), extraire avec l'enrobage
    `/volume1/docker/borgmatic/borgmatic --config
    /volume1/docker/borgmatic/borgmatic.d/jellyfin.yaml extract --archive latest
-   --destination /volume1/docker/borgmatic/restore`, recopier `config/` sous
+   --destination /volume1/docker/borgmatic/restore` (le conteneur n'a ni
+   `CHOWN` ni `FOWNER` : borg ne rend alors pas les propriétaires et tout sort
+   en `root:root`. Pour les garder, lancer à la main `docker compose --file
+   /volume1/docker/borgmatic/compose.yaml run --rm --cap-add CHOWN --cap-add
+   FOWNER borgmatic --config … extract …`, ou `chown -R 1000:10` sous
+   `config/` avant le redémarrage), recopier `config/` sous
    `/volume1/docker/jellyfin/`, remettre les copies SQLite
    (`find /volume1/docker/borgmatic/restore -name '*.db'` : emplacement en
    mode conteneur à vérifier, procédure SQLite dans
