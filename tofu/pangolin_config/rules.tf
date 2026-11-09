@@ -92,10 +92,13 @@ locals {
   # Derived rather than listed, so a new app cannot be left out of it; every
   # one of them gets the country rules, and the coverage precondition below
   # still fails the plan on a live, enabled resource that no entry declares.
-  # Plus les bureaux à distance (remote_support.tf), hors de local.websites.
+  # Plus les bureaux à distance (remote_support.tf) et la passerelle IA
+  # (ai_gateway.tf), hors de local.websites.
   managed_resources = merge(
     { for key, website in local.websites : website.name => pangolin_resource.website[key].id },
     { for key, desktop in local.remote_desktops : desktop.name => pangolin_resource.remote_desktop[key].id },
+    # Et la passerelle IA (ai_gateway.tf), une fois sa clé SOPS posée.
+    { for key, gateway in pangolin_resource.ai_gateway : gateway.name => gateway.id },
   )
 
 

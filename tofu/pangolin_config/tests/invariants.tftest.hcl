@@ -56,6 +56,9 @@ override_data {
       pocket_id_static_api_key = "fake-pocket-id-static-api-key"
       pangolin_root_api_key    = "fake-pangolin-root-api-key"
 
+      # Passerelle IA (ai_gateway.tf) : présente, donc la passerelle est créée.
+      pangolin_ai_anthropic_api_key = "fake-anthropic-api-key"
+
       uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
       uptimekuma_telegram_chat_id   = "-100123456789"
     }
@@ -423,6 +426,22 @@ override_resource {
 override_resource {
   target = pangolin_role.support
   values = { id = 97 }
+}
+
+# Passerelle IA (ai_gateway.tf).
+override_resource {
+  target = pangolin_ai_provider.anthropic["ia"]
+  values = { id = 41 }
+}
+
+override_resource {
+  target = pangolin_resource.ai_gateway["ia"]
+  values = { id = 3201, full_domain = "ia.sylvain.cloud" }
+}
+
+override_resource {
+  target = pangolin_virtual_api_key.ai["essai"]
+  values = { id = "vk-essai", secret = "pangolin-key-essai.not-a-secret" }
 }
 
 override_resource {
@@ -1825,21 +1844,22 @@ run "every_public_resource_applies_its_rules" {
   }
 
   # Toutes les ressources publiques sont des instances de
-  # pangolin_resource.website, ou de pangolin_resource.remote_desktop (support
-  # à distance, remote_support.tf) : aucune n'échappe aux épinglages, à la page
+  # pangolin_resource.website, de pangolin_resource.remote_desktop (support
+  # à distance, remote_support.tf) ou de pangolin_resource.ai_gateway : aucune n'échappe aux épinglages, à la page
   # de maintenance ni à local.managed_resources, qui en est dérivée.
   assert {
     condition = (
       length(flatten([
         for f in fileset(path.module, "*.tf") :
         regexall("resource\\s+\"pangolin_resource\"\\s+\"", file("${path.module}/${f}"))
-      ])) == 2
+      ])) == 3
       && toset(concat(
         [for r in pangolin_resource.website : r.name],
         [for r in pangolin_resource.remote_desktop : r.name],
+        [for r in pangolin_resource.ai_gateway : r.name],
       )) == toset(keys(local.managed_resources))
     )
-    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf) et pangolin_resource.remote_desktop (remote_support.tf), ou manque à local.managed_resources."
+    error_message = "Une ressource Pangolin est déclarée hors de pangolin_resource.website (websites.tf), pangolin_resource.remote_desktop (remote_support.tf) et pangolin_resource.ai_gateway (ai_gateway.tf), ou manque à local.managed_resources."
   }
 
   # Prendre la main sur un PC : derrière le SSO, réservé au rôle support, en
@@ -1946,7 +1966,7 @@ run "resources_have_unique_fqdns" {
 
   assert {
     condition = length(distinct([
-      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop)) :
+      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop), values(pangolin_resource.ai_gateway)) :
       "${r.subdomain == null ? "@" : r.subdomain}.${r.domain_id}"
     ])) == length(local.managed_resources)
     error_message = "Deux ressources Pangolin partagent le même sous-domaine sur le même domaine."
@@ -2100,7 +2120,7 @@ run "country_rules_attach_to_the_resource_named_by_their_key" {
   # sans ses règles fait aussi échouer le run.
   assert {
     condition = length([
-      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop)) :
+      for r in concat(values(pangolin_resource.website), values(pangolin_resource.remote_desktop), values(pangolin_resource.ai_gateway)) :
       r.name if try(
         pangolin_resource_rule.block_country[r.name].resource_id == r.id
         && pangolin_resource_rule.allow_countries["${r.name}-FR"].resource_id == r.id
@@ -3579,5 +3599,79 @@ run "domain_redirects_keep_their_behaviour" {
       && alltrue([for r in pangolin_redirect.domain : r.enabled && r.ssl])
     )
     error_message = "Redirections de domaine : sylvain.dev en 301 vers www avec le chemin, le mémoire en 302 vers son PDF, toutes actives en HTTPS."
+  }
+}
+
+# Passerelle IA (ai_gateway.tf) : fournisseur Anthropic seul, modèles en liste
+# d'autorisation, budgets durs mensuels, chaque clé limitée à la passerelle et
+# plafonnée, journal hors de Tofu.
+run "ai_gateway_keys_are_scoped_and_capped" {
+  command = apply
+
+  assert {
+    condition = (
+      pangolin_resource.ai_gateway["ia"].mode == "inference"
+      && pangolin_resource.ai_gateway["ia"].subdomain == "ia"
+      && pangolin_resource.ai_gateway["ia"].apply_rules
+      && length(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == 1 && contains(pangolin_resource.ai_gateway["ia"].ai_provider_ids, pangolin_ai_provider.anthropic["ia"].id)
+      && pangolin_ai_provider.anthropic["ia"].type == "anthropic"
+      && pangolin_ai_provider.anthropic["ia"].upstream_url == "https://api.anthropic.com"
+      && alltrue([for m in pangolin_ai_model.anthropic : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.anthropic["ia"].id])
+    )
+    error_message = "La passerelle IA doit rester en mode inference sur ia, filtrée par les règles, branchée au seul fournisseur Anthropic et à ses modèles autorisés."
+  }
+
+  assert {
+    condition = (
+      alltrue([
+        for k, key in pangolin_virtual_api_key.ai :
+        !key.all_resources && length(key.resource_ids) == 1 && contains(key.resource_ids, pangolin_resource.ai_gateway["ia"].id)
+        && pangolin_ai_budget.key[k].virtual_api_key_id == key.id
+        && pangolin_ai_budget.key[k].amount <= pangolin_ai_budget.total["ia"].amount
+      ])
+      && alltrue([
+        for b in concat(values(pangolin_ai_budget.key), values(pangolin_ai_budget.total)) :
+        b.unit == "usd" && b.period == "monthly" && b.enforcement == "hard" && b.enabled
+      ])
+      && pangolin_ai_budget.total["ia"].amount == 20
+      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key)
+    )
+    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA et porter son budget dur mensuel, sous le plafond de 20 $ de l'organisation."
+  }
+}
+
+# Sans la clé SOPS, rien de la passerelle n'est créé (et le plan passe).
+run "ai_gateway_waits_for_its_sops_key" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        pangolin_org_id               = "homelab"
+        pangolin_url                  = "https://api.pangolin.example.test"
+        pangolin_api_key              = "fake-pangolin-api-key"
+        UPTIMEKUMA_ENDPOINT           = "https://uptime.example.test"
+        UPTIMEKUMA_USERNAME           = "admin"
+        UPTIMEKUMA_PASSWORD           = "fake-uptimekuma-pass"
+        home_ip                       = "203.0.113.10"
+        immich_pin                    = "123456"
+        neonova_pin                   = "123456"
+        ntfy_uptime_kuma_token        = "fake-ntfy-uptime-kuma-token"
+        pocket_id_static_api_key      = "fake-pocket-id-static-api-key"
+        pangolin_root_api_key         = "fake-pangolin-root-api-key"
+        uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
+        uptimekuma_telegram_chat_id   = "-100123456789"
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      length(pangolin_resource.ai_gateway) == 0 && length(pangolin_ai_provider.anthropic) == 0
+      && length(pangolin_virtual_api_key.ai) == 0 && length(pangolin_ai_budget.total) == 0
+      && !contains(keys(local.managed_resources), "Passerelle IA")
+    )
+    error_message = "Sans la clé SOPS pangolin_ai_anthropic_api_key, la passerelle IA ne doit rien créer."
   }
 }
