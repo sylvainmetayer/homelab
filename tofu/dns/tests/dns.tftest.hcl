@@ -466,8 +466,10 @@ run "caa_sur_chaque_zone" {
       for z in keys(ovh_domain_zone_record.dmarc) :
       ovh_domain_zone_record.caa["${z} issue letsencrypt.org"].target == "0 issue \"letsencrypt.org\""
       && ovh_domain_zone_record.caa["${z} iodef"].target == "0 iodef \"mailto:dmarc@sylvainmetayer.fr\""
-      && ovh_domain_zone_record.caa["${z} issuewild"].target == (
-        contains(["sylvain.cloud", "sylvain.dev"], z) ? ovh_domain_zone_record.caa["${z} issuewild"].target : "0 issuewild \";\""
+      && (
+        contains(["sylvain.cloud", "sylvain.dev"], z)
+        ? startswith(ovh_domain_zone_record.caa["${z} issuewild"].target, "0 issuewild \"letsencrypt.org; validationmethods=dns-01")
+        : ovh_domain_zone_record.caa["${z} issuewild"].target == "0 issuewild \";\""
       )
     ])
     error_message = "Chaque zone : issue letsencrypt.org et iodef vers dmarc_report_address ; issuewild \";\" (aucun joker) hors sylvain.cloud et sylvain.dev."
