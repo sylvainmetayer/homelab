@@ -38,23 +38,31 @@ locals {
     opus   = { key = "claude-opus-5-5", name = "Claude Opus 5.5" }
   }
 
-  # Une clé virtuelle par appli, chacune plafonnée chaque mois (en dollars).
+  # Une clé virtuelle par appli, deux budgets mensuels chacune : en tokens,
+  # bloquant (hard), et en dollars, en suivi seul (soft). Les budgets en
+  # dollars ne comptent que les modèles du catalogue de prix de Pangolin, où les
+  # claude-*-5-5 manquaient le 2026-11-09 : la clé essai, plafonnée à 1 $, a
+  # passé plusieurs dollars d'Opus sans un refus. Les tokens ne demandent aucun
+  # prix ; tous modèles confondus (un token d'Opus en vaut cinq de Haiku).
   ai_keys = {
     essai = {
-      description = "Essai de la passerelle (appel, puis refus au-delà du budget)"
-      budget_usd  = 1
+      description   = "Essai de la passerelle (appel, puis refus au-delà du budget)"
+      budget_usd    = 1
+      budget_tokens = 20000
     }
     # Recherche « Find » (analyse de la requête), format OpenAI, Haiku. Clé
     # lue par ansible/pi.yml (terraform_outputs.ai_gateway_keys) pour le rôle
     # immich ; une clé remplacée (-replace) se redéploie par pi.yml.
     immich_power_tools = {
-      description = "Immich Power Tools : recherche Find"
-      budget_usd  = 5
+      description   = "Immich Power Tools : recherche Find"
+      budget_usd    = 5
+      budget_tokens = 2000000
     }
   }
 
-  # Plafond de toute l'organisation, toutes clés confondues.
-  ai_budget_total_usd = 20
+  # Plafonds de toute l'organisation, toutes clés confondues.
+  ai_budget_total_usd    = 20
+  ai_budget_total_tokens = 10000000
 }
 
 resource "terraform_data" "ai_gateway_key" {
@@ -135,11 +143,22 @@ resource "pangolin_virtual_api_key" "ai" {
   resource_ids  = [pangolin_resource.ai_gateway["ia"].id]
 }
 
+# En dollars : suivi seul (soft), voir local.ai_keys.
 resource "pangolin_ai_budget" "total" {
   for_each = local.ai_gateway
 
   amount      = local.ai_budget_total_usd
   unit        = "usd"
+  period      = "monthly"
+  enforcement = "soft"
+  enabled     = true
+}
+
+resource "pangolin_ai_budget" "total_tokens" {
+  for_each = local.ai_gateway
+
+  amount      = local.ai_budget_total_tokens
+  unit        = "tokens"
   period      = "monthly"
   enforcement = "hard"
   enabled     = true
@@ -152,11 +171,26 @@ resource "pangolin_ai_budget" "key" {
   amount             = each.value.budget_usd
   unit               = "usd"
   period             = "monthly"
-  enforcement        = "hard"
+  enforcement        = "soft"
   enabled            = true
 
   # Pangolin supprime le budget avec sa clé : une clé remplacée (-replace après
   # une fuite) laissait le provider tenter une mise à jour d'un budget disparu.
+  lifecycle {
+    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
+  }
+}
+
+resource "pangolin_ai_budget" "key_tokens" {
+  for_each = length(local.ai_gateway) > 0 ? local.ai_keys : {}
+
+  virtual_api_key_id = pangolin_virtual_api_key.ai[each.key].id
+  amount             = each.value.budget_tokens
+  unit               = "tokens"
+  period             = "monthly"
+  enforcement        = "hard"
+  enabled            = true
+
   lifecycle {
     replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
   }
