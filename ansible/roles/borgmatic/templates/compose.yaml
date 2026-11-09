@@ -36,7 +36,10 @@ services:
     # (config de Jellyfin en 1000:10, bases de MediaManager) : DAC_OVERRIDE
     # seul, de l'ensemble par défaut de Docker (jamais DAC_READ_SEARCH, hors
     # de cet ensemble). Sans lui : « Permission denied » sur ces dossiers.
-    # Rien n'est changé de propriétaire, rien n'est écrit chez un autre compte.
+    # Sans CHOWN ni FOWNER (retirés avec ALL) : borg ne change aucun
+    # propriétaire et ouvre sans O_NOATIME (repli de borg sur EPERM), mais le
+    # sqlite3 des hooks before ne redonne plus au propriétaire de la base les
+    # -wal/-shm qu'il crée : à revoir pour une base lue application arrêtée.
     security_opt:
       - no-new-privileges:true
     cap_drop:
