@@ -85,9 +85,10 @@ resource "pangolin_ai_model" "anthropic" {
   enabled     = true
 }
 
-# Une ressource publique comme les autres : dans local.managed_resources
-# (rules.tf), donc filtrée FR/DE et auditée. L'authentification ne se coupe pas
-# (clé virtuelle ou SSO) ; sans liaison de rôle, seuls les administrateurs de
+# Hors de local.managed_resources : Pangolin refuse les règles (pays, chemins)
+# sur une ressource `inference`, elle n'est donc pas filtrée FR/DE
+# (local.unruled_resources, rules.tf). L'authentification ne se coupe pas (clé
+# virtuelle ou SSO) ; sans liaison de rôle, seuls les administrateurs de
 # l'organisation y obtiennent une clé d'identité par le navigateur.
 resource "pangolin_resource" "ai_gateway" {
   for_each = local.ai_gateway

@@ -92,13 +92,18 @@ locals {
   # Derived rather than listed, so a new app cannot be left out of it; every
   # one of them gets the country rules, and the coverage precondition below
   # still fails the plan on a live, enabled resource that no entry declares.
-  # Plus les bureaux à distance (remote_support.tf) et la passerelle IA
-  # (ai_gateway.tf), hors de local.websites.
+  # Plus les bureaux à distance (remote_support.tf), hors de local.websites.
   managed_resources = merge(
     { for key, website in local.websites : website.name => pangolin_resource.website[key].id },
     { for key, desktop in local.remote_desktops : desktop.name => pangolin_resource.remote_desktop[key].id },
-    { for key, gateway in pangolin_resource.ai_gateway : gateway.name => gateway.id },
   )
+
+  # Ressources publiques sans règle possible : Pangolin refuse toute règle sur
+  # une ressource `inference` (400 « Cannot create rule for non-http
+  # resource »). La passerelle IA (ai_gateway.tf) n'est donc pas filtrée FR/DE ;
+  # chaque appel y porte une clé virtuelle plafonnée. Exception nommée de
+  # l'audit de couverture ci-dessous, pas un trou.
+  unruled_resources = [for gateway in pangolin_resource.ai_gateway : gateway.name]
 
 
   # Trip countries share the resource and the key format of the permanent ones
@@ -164,7 +169,7 @@ locals {
 
   # Enabled in Pangolin but with no entry above: publicly reachable with no
   # geo-filtering at all. This is the failure that went unnoticed for months.
-  uncovered_resources = setsubtract(local.pangolin_live_enabled, keys(local.managed_resources))
+  uncovered_resources = setsubtract(local.pangolin_live_enabled, concat(keys(local.managed_resources), local.unruled_resources))
 }
 
 # A `check` block would only emit a warning and let the apply proceed, which is
