@@ -258,7 +258,7 @@ mediamanager`, puis `last_rotated` à la date du jour et `estimated: false`.
 Provisoires, celles de l'évaluation : MediaManager 512 Mo, PostgreSQL 256 Mo
 (`mem_reservation` 128 Mo), qBittorrent 1 Go avec `cpus: 2.00` et
 `cpu_shares: 512` (job par lots), Prowlarr 256 Mo, gluetun 256 Mo (remesuré le 2026-11-09 : pic de 118 Mio
-pour 128). **À
+pour 128). **Les autres, à
 remesurer** après une semaine d'essai (`memory.peak` de chaque conteneur,
 `docs/conventions/resource-limits.md`) et à recaler à ~2x le pic.
 
