@@ -148,8 +148,17 @@ http:
         - websecure
       middlewares:
         - int-api-allowlist
-      tls:
+      # Ancre reprise par les routeurs fichier de sylvain.cloud (tableau de
+      # bord, Pocket ID) : le joker du domaine quand pangolin_wildcard_cert
+      # (ADR 0031), sinon un certificat par nom en HTTP-01.
+      tls: &tls-base-domain
+{% if pangolin_wildcard_cert | bool %}
+        certResolver: {{ pangolin_wildcard_resolver }}
+        domains:
+          - main: "*.{{ pangolin_base_domain }}"
+{% else %}
         certResolver: letsencrypt
+{% endif %}
 
     # HTTP to HTTPS redirect router
     main-app-router-redirect:
@@ -169,8 +178,7 @@ http:
         - websecure
       middlewares:
         - badger
-      tls:
-        certResolver: letsencrypt
+      tls: *tls-base-domain
 
     # API router (handles /api/v1 paths)
     api-router:
@@ -180,8 +188,7 @@ http:
         - websecure
       middlewares:
         - badger
-      tls:
-        certResolver: letsencrypt
+      tls: *tls-base-domain
 
     # WebSocket router
     ws-router:
@@ -191,8 +198,7 @@ http:
         - websecure
       middlewares:
         - badger
-      tls:
-        certResolver: letsencrypt
+      tls: *tls-base-domain
 
 {% if pangolin_idp_host | length > 0 %}
     # Fournisseur d'identité (rôle pocket_id) : ni badger ni mur SSO, il sert
@@ -218,8 +224,22 @@ http:
 {% endif %}
         - pocket-id-ratelimit
         - pocket-id-headers
+      tls: *tls-base-domain
+
+{% endif %}
+{% if pangolin_wildcard_staging | bool %}
+    # Essai du joker sur l'autorité de test (pangolin_wildcard_staging) : la
+    # commande part de ce routeur ; aucun certificat par nom ne couvre ce nom,
+    # le joker de test est donc celui servi (émetteur « (STAGING) »).
+    acme-staging-test:
+      rule: "Host(`{{ pangolin_wildcard_test_host }}`)"
+      service: noop@internal
+      entryPoints:
+        - websecure
       tls:
-        certResolver: letsencrypt
+        certResolver: letsencrypt-dns-staging
+        domains:
+          - main: "*.{{ pangolin_base_domain }}"
 
 {% endif %}
 {% for sw in pangolin_service_worker_retirements %}

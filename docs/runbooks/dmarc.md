@@ -188,8 +188,14 @@ laquelle pouvait.
 Les `*.talks.sylvain.dev` (GitHub Pages) n'en dépendent pas : CNAME vers
 `sylvainmetayer.github.io`, dont le CAA s'applique à leur place.
 
-Partout : `0 issuewild ";"` (aucun joker n'est délivré : Pangolin et le NAS
-demandent un certificat par nom) et `0 iodef "mailto:<dmarc_report_address>"`.
+Partout `0 iodef "mailto:<dmarc_report_address>"`. `issuewild` (ADR 0031) :
+`0 issuewild ";"` (aucun joker) sur sylvainmetayer.fr et metayer.dev ;
+`0 issuewild "letsencrypt.org; validationmethods=dns-01"` sur sylvain.cloud
+(jokers de Pangolin et du NAS) et sylvain.dev (Pangolin), un par compte ACME
+avec `; accounturi=<URI>` une fois les comptes créés (`local.caa_issuewild`).
+L'URI d'un compte se lit dans `acme.json` (`jq -r '."letsencrypt-dns".Account.Registration.uri'`
+sur Pangolin, `.letsencrypt.Account.Registration.uri` au NAS) ; un compte
+recréé (`acme.json` perdu) bloque le joker jusqu'à la mise à jour du CAA.
 
 Pourquoi trois CA sur sylvain.dev : Cloudflare Pages choisit seul l'autorité
 de ses domaines personnalisés, entre Let's Encrypt, Google Trust Services

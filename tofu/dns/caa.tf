@@ -4,8 +4,8 @@
 #
 # Qui délivre quoi (inventaire du 2026-10-28, openssl s_client et dig ; aucun
 # CAA n'existait encore, rien à importer) :
-# - Let's Encrypt : Traefik de Pangolin (HTTP-01, un certificat par nom, aucun
-#   joker), Traefik du NAS (DNS-01, media, nas, mediamanager, prowlarr et qbittorrent.sylvain.cloud),
+# - Let's Encrypt : Traefik de Pangolin (HTTP-01 par nom hors jokers, DNS-01
+#   pour les jokers), Traefik du NAS (DNS-01, media, nas, mediamanager, prowlarr et qbittorrent.sylvain.cloud),
 #   et PikaPods pour budget.sylvain.cloud (CNAME posé hors Tofu vers
 #   *.pikapod.net, qui ne publie aucun CAA : c'est donc celui de sylvain.cloud
 #   qui s'applique ;
@@ -24,8 +24,11 @@
 #   (CNAME vers infomaniak.com, certificat au nom d'Infomaniak) ne demandent
 #   de certificat pour nos noms.
 #
-# Aucun joker n'est délivré nulle part : issuewild ";" les interdit sur chaque
-# zone (sans issuewild, les issue s'appliqueraient aussi aux jokers).
+# Jokers (ADR 0031) : *.sylvain.cloud (Traefik de Pangolin et du NAS) et
+# *.sylvain.dev (Pangolin), Let's Encrypt en DNS-01 seulement
+# (validationmethods, RFC 8657) ; accounturi les réserve aux comptes ACME de
+# ces Traefik une fois créés (un issuewild par compte). Ailleurs, issuewild ";"
+# les interdit (sans issuewild, les issue s'appliqueraient aussi aux jokers).
 
 locals {
   # Valeurs CAA documentées par Cloudflare
@@ -39,6 +42,13 @@ locals {
     "sylvain.cloud"     = ["letsencrypt.org"]
   }
 
+  caa_issuewild = {
+    "sylvainmetayer.fr" = [";"]
+    "sylvain.dev"       = ["letsencrypt.org; validationmethods=dns-01"]
+    "metayer.dev"       = [";"]
+    "sylvain.cloud"     = ["letsencrypt.org; validationmethods=dns-01"]
+  }
+
   caa_records = merge(
     {
       for pair in flatten([
@@ -48,7 +58,15 @@ locals {
         target = "0 issue \"${pair.ca}\""
       }
     },
-    { for zone in keys(local.caa_issuers) : "${zone} issuewild" => { zone = zone, target = "0 issuewild \";\"" } },
+    # Clé du premier sans indice : celle des issuewild ";" d'avant les jokers.
+    merge([
+      for zone, values in local.caa_issuewild : {
+        for i, value in values : (i == 0 ? "${zone} issuewild" : "${zone} issuewild ${i}") => {
+          zone   = zone
+          target = "0 issuewild \"${value}\""
+        }
+      }
+    ]...),
     # Même alias que les rapports DMARC (mail.tf) : déjà public, dédié aux
     # rapports automatiques. Peu de CA l'utilisent, aucun ne s'en sert pour
     # refuser.

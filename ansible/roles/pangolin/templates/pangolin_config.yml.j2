@@ -15,6 +15,12 @@ app:
 domains:
   domain1:
     base_domain: {{ pangolin_base_domain }}
+{% if pangolin_wildcard_cert | bool %}
+    # Réécrits en base à chaque démarrage (copyInConfig.ts) : la valeur de
+    # pangolin_domain.org["sylvain.cloud"] (Tofu, domains.tf) doit être la même.
+    cert_resolver: {{ pangolin_wildcard_resolver }}
+    prefer_wildcard_cert: true
+{% endif %}
 
 server:
   secret: {{ pangolin_secret }}

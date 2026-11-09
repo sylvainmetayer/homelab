@@ -3547,6 +3547,16 @@ run "org_domains_are_the_imported_wildcards" {
     )
     error_message = "Changer base_domain ou type recrée le domaine : sylvain.cloud et sylvain.dev restent en wildcard."
   }
+
+  # Le résolveur doit exister dans le Traefik de Pangolin (rôle pangolin,
+  # pangolin_wildcard_resolver) : un nom inconnu, et aucun certificat n'est commandé.
+  assert {
+    condition = alltrue([
+      for domain in pangolin_domain.org :
+      domain.prefer_wildcard_cert && domain.cert_resolver == "letsencrypt-dns"
+    ])
+    error_message = "Un joker par domaine (ADR 0031) : prefer_wildcard_cert et cert_resolver letsencrypt-dns, le résolveur DNS-01 du rôle pangolin."
+  }
 }
 
 # Redirections de domaine (redirects.tf), autrefois dans le Traefik du rôle

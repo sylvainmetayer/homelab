@@ -363,6 +363,38 @@
         - traefik_config.yml
         - dynamic_config.yml
 
+    # Joker par domaine (ADR 0031), actif dès que la clé OVH existe (secrets
+    # factices) : résolveur DNS-01 et clé OVH pour Traefik, domain1 et les
+    # routeurs fichier de sylvain.cloud sur le joker ; le service worker de
+    # l'apex sylvain.dev reste en HTTP-01 ; pas de résolveur de test.
+    - name: Assert the wildcard certificate is wired end to end
+      vars:
+        traefik_service: "{{ (pangolin_wireguard.results[1].content | b64decode | from_yaml).services.traefik }}"
+        traefik_config: "{{ pangolin_traefik.results[0].content | b64decode | from_yaml }}"
+        dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
+        pangolin_config: "{{ pangolin_config_raw.content | b64decode | from_yaml }}"
+        wildcard_acme: "{{ traefik_config.certificatesResolvers['letsencrypt-dns'].acme }}"
+        file_routers: [int-api-router, next-router, api-router, ws-router, pocket-id-router]
+        wildcard_tls:
+          certResolver: letsencrypt-dns
+          domains:
+            - main: "*.sylvain.cloud"
+      ansible.builtin.assert:
+        that:
+          - wildcard_acme.dnsChallenge.provider == 'ovh'
+          - wildcard_acme.storage == '/letsencrypt/acme.json'
+          - wildcard_acme.caServer is search('acme-v02')
+          - traefik_config.certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint == 'web'
+          - "'letsencrypt-dns-staging' not in traefik_config.certificatesResolvers"
+          - traefik_service.environment.OVH_CONSUMER_KEY == pangolin_ovh_consumer_key
+          - traefik_service.environment.OVH_APPLICATION_KEY == pangolin_ovh_application_key
+          - traefik_service.environment.OVH_APPLICATION_SECRET == pangolin_ovh_application_secret
+          - pangolin_config.domains.domain1.cert_resolver == 'letsencrypt-dns'
+          - pangolin_config.domains.domain1.prefer_wildcard_cert
+          - file_routers | map('extract', dynamic_config.http.routers) | map(attribute='tls') | unique | list == [wildcard_tls]
+          - "dynamic_config.http.routers['sw-retire-sylvain-dev'].tls == {'certResolver': 'letsencrypt'}"
+          - "'acme-staging-test' not in dynamic_config.http.routers"
+
     - name: Assert Traefik routes the dashboard and the integration API
       vars:
         traefik_config: "{{ pangolin_traefik.results[0].content | b64decode | from_yaml }}"
@@ -414,7 +446,7 @@
           - idp_routers['pocket-id-router'].rule == 'Host(`id.sylvain.cloud`)'
           - idp_routers['pocket-id-router'].service == 'pocket-id-service'
           - idp_routers['pocket-id-router'].entryPoints == ['websecure']
-          - idp_routers['pocket-id-router'].tls.certResolver == 'letsencrypt'
+          - idp_routers['pocket-id-router'].tls.certResolver == 'letsencrypt-dns'
           # Jamais Badger : ce serait le mur SSO devant le fournisseur du mur.
           - idp_routers['pocket-id-router'].middlewares == ['pocket-id-ratelimit', 'pocket-id-headers']
           - idp_routers['pocket-id-router-redirect'].middlewares == ['redirect-to-https']

@@ -84,7 +84,13 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
 
 5. **Restaurer `/opt/pangolin` avant de lancer la pile.** Le rôle `pangolin`
    crée les dossiers et la config, mais la base SQLite (ressources,
-   utilisateurs, sites, SSO) et `acme.json` viennent de Borg. Il faut que
+   utilisateurs, sites, SSO) et `acme.json` (jokers compris, ADR 0031)
+   viennent de Borg. La clé OVH `pangolin_ovh_*` doit être dans
+   `secrets/ansible.sops.yaml` avant le premier démarrage : sans elle, le rôle
+   ne rend ni le résolveur `letsencrypt-dns` ni ses variables, et
+   sylvain.dev (réglé par Tofu sur ce résolveur) n'a plus de certificat
+   renouvelable. Un `acme.json` perdu recrée le compte ACME : mettre son URI
+   dans le CAA `issuewild` (`tofu/dns/caa.tf`), sinon le joker est refusé. Il faut que
    `borgmatic` ait sa config `/etc/borgmatic.d/pangolin.yaml` : la déposer
    avec `ansible-playbook pangolin.yaml --tags backup`. Puis, en root :
 
