@@ -1,0 +1,15 @@
+---
+# Le ML d'Immich ne tourne que sur le NAS (nas.yml) : ses host_vars, dc@ système.
+- name: Converge
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    # ansible_host du conteneur Molecule n'est pas une IP : celle du LAN du
+    # NAS vient de l'inventaire en vrai.
+    immich_ml_bind_address: 127.0.0.1
+  roles:
+    - role: docker_service
+    - role: immich_ml

@@ -1,0 +1,46 @@
+---
+# become : /dev/dri peut être fermé au compte de connexion (0750 root).
+- name: Check the render device
+  become: true
+  ansible.builtin.stat:
+    path: "{{ immich_ml_render_device }}"
+  register: immich_ml_render_stat
+
+# Le groupe ajouté au conteneur est celui du périphérique ; un périphérique
+# resté root:root (pas de règle udev) ferait ajouter le gid 0.
+- name: Assert the render device exists and is not owned by the root group
+  ansible.builtin.assert:
+    that:
+      - immich_ml_render_stat.stat.ischr | default(false)
+      - immich_ml_render_stat.stat.gid | int != 0
+    fail_msg: >-
+      {{ immich_ml_render_device }} absent ou au groupe root : pas d'iGPU
+      utilisable pour OpenVINO.
+    quiet: true
+
+- name: Ensure the immich_ml folder exists
+  become: "{{ immich_ml_as_root }}"
+  ansible.builtin.file:
+    path: "{{ immich_ml_base_path }}"
+    state: directory
+    mode: "0700"
+
+- name: Template the immich_ml compose configuration
+  become: "{{ immich_ml_as_root }}"
+  diff: false
+  notify: Restart immich_ml
+  vars:
+    immich_ml_render_gid: "{{ immich_ml_render_stat.stat.gid }}"
+  ansible.builtin.template:
+    src: templates/compose.yaml
+    dest: "{{ immich_ml_base_path }}/compose.yaml"
+    mode: "0600"
+
+- name: Make sure the immich_ml service is running
+  become: "{{ immich_ml_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ immich_ml_service }}"
+    scope: "{{ immich_ml_dc_scope }}"
+    state: started
+    enabled: true
+    daemon_reload: true

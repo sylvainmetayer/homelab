@@ -1,0 +1,7 @@
+---
+- name: Restart immich_ml
+  become: "{{ immich_ml_as_root }}"
+  ansible.builtin.systemd:
+    name: "dc@{{ immich_ml_service }}"
+    scope: "{{ immich_ml_dc_scope }}"
+    state: restarted

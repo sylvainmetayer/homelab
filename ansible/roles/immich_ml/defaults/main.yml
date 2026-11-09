@@ -1,0 +1,18 @@
+---
+# Machine learning d'Immich sur le NAS (N100, OpenVINO) : le serveur Immich du
+# Pi l'appelle en premier, son propre conteneur ML reste en secours (README).
+immich_ml_service: immich_ml
+immich_ml_base_path: "{{ docker_base_path }}/{{ immich_ml_service }}"
+
+# Tout /dev/dri, comme hwaccel.ml.yml d'Immich (service openvino) ; le groupe
+# ajouté est celui de ce périphérique de rendu.
+immich_ml_render_device: /dev/dri/renderD128
+
+# L'API du ML n'a aucune authentification : publiée sur l'IP LAN du NAS
+# seulement, jamais derrière Pangolin.
+immich_ml_bind_address: "{{ ansible_host }}"
+immich_ml_port: 3003
+
+# Provisoire : 2x le pic du ML du Pi (1,4 Gio), à recaler après une semaine
+# (docs/conventions/resource-limits.md).
+immich_ml_mem_limit: 3g

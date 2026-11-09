@@ -1,0 +1,60 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/nas/variables.yaml
+  vars:
+    immich_ml_verify_path: "{{ docker_base_path }}/immich_ml"
+  tasks:
+    # Compose à root en 0600, valide, sous dc@immich_ml en unité système.
+    - name: Verify the immich_ml deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: immich_ml
+        verify_app_borgmatic_config: ""
+
+    - name: Read the render group of the host
+      ansible.builtin.getent:
+        database: group
+        key: render
+
+    - name: Render the immich_ml compose model
+      ansible.builtin.command: docker compose config --format json
+      args:
+        chdir: "{{ immich_ml_verify_path }}"
+      register: immich_ml_verify_compose
+      changed_when: false
+
+    - name: Assert the machine learning has the iGPU, no capability and a LAN-only port
+      vars:
+        immich_ml_verify_model: "{{ immich_ml_verify_compose.stdout | from_json }}"
+        immich_ml_verify_service: "{{ immich_ml_verify_model.services['immich-machine-learning'] }}"
+      ansible.builtin.assert:
+        that:
+          - immich_ml_verify_model.services.keys() | list == ['immich-machine-learning']
+          - immich_ml_verify_service.image is search(':v[0-9.]+-openvino@sha256:')
+          - immich_ml_verify_service.group_add | map('string') | list == [ansible_facts['getent_group']['render'][1]]
+          - immich_ml_verify_service.devices | map(attribute='source') | list == ['/dev/dri']
+          - immich_ml_verify_service.cap_drop == ['ALL']
+          - "'no-new-privileges:true' in immich_ml_verify_service.security_opt"
+          - immich_ml_verify_service.ports | length == 1
+          - immich_ml_verify_service.ports[0].host_ip == '127.0.0.1'
+          - immich_ml_verify_service.ports[0].published | string == '3003'
+          - immich_ml_verify_service.ports[0].target == 3003
+          - immich_ml_verify_service.volumes | map(attribute='target') | list == ['/cache']
+        fail_msg: "Service immich-machine-learning inattendu : {{ immich_ml_verify_service }}"
+
+    - name: Stat the immich_ml folder
+      ansible.builtin.stat:
+        path: "{{ immich_ml_verify_path }}"
+      register: immich_ml_verify_dir
+
+    - name: Assert the immich_ml folder is closed and owned by root
+      ansible.builtin.assert:
+        that:
+          - immich_ml_verify_dir.stat.isdir
+          - immich_ml_verify_dir.stat.mode == '0700'
+          - immich_ml_verify_dir.stat.pw_name == 'root'
