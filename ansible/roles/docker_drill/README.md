@@ -25,6 +25,7 @@ groupe). `-e docker_drill_key_file=<fichier>` donne la clé du sous-compte
 | `borg-readonly` (`borgmatic_borg_bin`) | refuse `create`, `prune`, `compact`, `delete`, `recreate`, `rename`, `init`, `key`, `upgrade`, `serve`, `break-lock`, `with-lock`, `import-tar`, `transfer`, `config`, `--repair` | deuxième verrou après le système de fichiers de la Storage Box ; pose `--bypass-lock` (borg 1.x verrouille même pour lire) |
 | `beszel`, `beszel_agent` | **exclus** | le hub restauré alerterait sur chaque agent injoignable, vers le ntfy de production |
 | `victoria_logs`, `log_agent` | **exclus** | pas de journaux vers la production, pas de comptes vmauth en clair sur la copie |
+| `ripe_atlas`, `globalping_probe` | **exclus** | sondes de mesure de la connexion de la maison : un serveur Hetzner les ferait mesurer ailleurs, sous le compte de la production |
 | `homepage` | **exclu** | ses widgets interrogent Beszel, Uptime Kuma, Pangolin et Proxmox avec leurs comptes |
 | `healthlog` | **exclu** | sa synchronisation horaire rafraîchirait les jetons Withings de la base restaurée ; ces jetons tournent à chaque usage, la production perdrait les siens. Sa restauration se prouve par le test de la CI et la restauration d'essai de `healthlog.md` |
 | `mem_report`, `update_notify`, `cost_report` | **exclus** | rapports ntfy et carte Homepage, sans objet sur une copie |

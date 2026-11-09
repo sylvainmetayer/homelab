@@ -11,9 +11,9 @@ Pocket ID.
 
 Pas d'Ollama (`ENABLE_OLLAMA_API=false`, image sans), pas de RAG ni
 d'embeddings locaux (image `-slim` sans torch, `BYPASS_EMBEDDING_AND_RETRIEVAL`:
-un fichier joint est lu en entier dans le contexte), pas de recherche web,
-génération d'images, exécution de code ni partage communautaire, télémétrie
-coupée (`ANONYMIZED_TELEMETRY`, `SCARF_NO_ANALYTICS`, `DO_NOT_TRACK`, pas de
+un fichier joint est lu en entier dans le contexte), recherche web par un
+SearXNG privé (section suivante), pas de génération d'images, exécution de code
+ni partage communautaire, télémétrie coupée (`ANONYMIZED_TELEMETRY`, `SCARF_NO_ANALYTICS`, `DO_NOT_TRACK`, pas de
 recherche de version).
 
 - `OPENAI_API_BASE_URL=https://ia.sylvain.cloud/v1`, `OPENAI_API_KEY` = la clé
@@ -89,6 +89,32 @@ un compte créé par OIDC a un mot de passe aléatoire inconnu.
 3. Pangolin lui-même : le compte propriétaire interne de l'organisation
    (`docs/runbooks/pocket-id.md`, « Secours »).
 
+## Outil « journaux » : MCP de VictoriaLogs, pour Sylvain seul
+
+Open WebUI interroge les journaux du homelab en langage naturel par le serveur
+MCP officiel de VictoriaLogs (conteneur `mcp-victorialogs`, rôle
+`victoria_logs`, README du rôle). Le rôle ne fait que déclarer la connexion :
+`TOOL_SERVER_CONNECTIONS` (compose.yaml, comme les modèles ; `type: mcp`, URL
+`http://mcp-victorialogs:8081/mcp`, sans authentification) et rejoindre le
+réseau interne `victoria-logs-mcp`, créé par le compose de `victoria_logs`
+(rôle placé avant celui-ci dans `docker.yml`, pour que le réseau existe).
+
+- **Administrateurs seulement** : la connexion n'a pas de `access_grants`, et
+  `has_connection_access` (v0.13.3, `utils/access_control`) réserve alors la
+  connexion aux comptes `admin`. Le foyer (rôle `user`) ne la voit ni ne
+  l'appelle.
+- Le conteneur est sur un réseau interne partagé avec Open WebUI seul : `/mcp`
+  n'a aucune authentification, c'est ce réseau qui la tient. Il lit par vmauth,
+  avec un compte à jeton limité à `/select/logsql/.*`.
+- Désactiver : `openwebui_mcp_victorialogs_enabled: false` **et**
+  `victoria_logs_mcp_enabled: false` ensemble (le réseau n'existe plus sinon,
+  Open WebUI ne démarre pas).
+- **Pas de réglage dans l'interface** (`ENABLE_PERSISTENT_CONFIG=false`) : la
+  connexion vient du compose, et reste en lecture seule dans
+  Admin → Paramètres → Intégrations.
+- À faire une fois : dans un chat, menu « + » (outils) → activer « Journaux
+  (VictoriaLogs) » ; un modèle à appel d'outils fiable (Sonnet ou Opus).
+
 ## Sauvegarde
 
 Borgmatic par le modèle partagé : `data/` (uploads ; `cache/` exclu, il se
@@ -106,6 +132,45 @@ suivant du rôle, et le test de restauration échoue « aucun dump ni copie
 sqlite » d'ici là, puis « table attendue absente » tant que personne ne s'est
 connecté (table `user` vide). Se connecter, puis relancer
 `docker.yml --tags openwebui`.
+
+## Recherche web : SearXNG privé, dans ce compose
+
+Un second conteneur `searxng` (image officielle, étiquette + condensat dans
+`openwebui_searxng_image`), **sans aucune exposition** : pas de ressource
+Pangolin, pas de port publié, pas de réseau `newt`. Il ne sert qu'à Open WebUI.
+Sans état : pas de sauvegarde (réglages dans `searxng/settings.yml` rendu par le
+rôle, cache en tmpfs).
+
+- Réseaux : `searxng` (`internal: true`, Open WebUI + SearXNG, aucune sortie) et
+  `searxng-egress` (SearXNG seul, la sortie vers les moteurs). SearXNG n'est pas
+  sur `newt` : ce réseau est partagé avec toutes les apps publiées.
+- `settings.yml` : `search.formats` avec `json` (Open WebUI interroge
+  `/search?format=json`), `server.limiter: false` (le limiteur exige Valkey ;
+  un seul client interne, aucun besoin), `secret_key` dérivée de
+  `backup_passphrase` (pas d'entrée SOPS), langue `fr`, `safe_search: 1`,
+  moteurs `openwebui_searxng_engines` (peu, une seule IP domestique).
+- Variables Open WebUI (relevées dans `config.py` v0.13.3 ; `ENABLE_RAG_WEB_SEARCH`
+  est l'ancien nom) : `ENABLE_WEB_SEARCH=true`, `WEB_SEARCH_ENGINE=searxng`,
+  `SEARXNG_QUERY_URL=http://searxng:8080/search`, `SEARXNG_LANGUAGE=fr`,
+  `WEB_SEARCH_RESULT_COUNT`, `WEB_SEARCH_CONCURRENT_REQUESTS=1`.
+  **Sans embeddings (image slim)** : `BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL=true`
+  (`routers/retrieval.py`, `process_web_search` : les documents sont rendus tels
+  quels au contexte au lieu d'être vectorisés) ; `BYPASS_WEB_SEARCH_WEB_LOADER=true`
+  tant que `openwebui_web_search_load_pages` vaut false : seuls les extraits de
+  SearXNG vont au modèle, Open WebUI ne télécharge aucune page (moins de tokens
+  dans le plafond de la clé IA). Passer la variable à true pour lire les pages
+  entières.
+- La requête est le message de la conversation tel quel
+  (`ENABLE_SEARCH_QUERY_GENERATION=false`, un appel IA de moins par recherche).
+- À faire à la main : dans une conversation, activer le bouton « Recherche web »
+  (ou le laisser par défaut dans les réglages du modèle). Les moteurs
+  (`duckduckgo`, `google`, `startpage`, `wikipedia`) peuvent limiter ou bloquer
+  une IP : si les résultats se vident, `docker logs searxng` et ajuster la liste
+  (Brave était cassé à l'essai du 2026-11-09, d'où son absence).
+- Renovate : image montée à la main comme le reste du rôle (pas d'automerge).
+  Le conteneur tourne sous l'uid de déploiement, `read_only`, `cap_drop: ALL` : l'entrypoint
+  ne change de propriétaire qu'en root et se contente d'un avertissement
+  (« not owned by searxng ») dans les journaux.
 
 ## Durcissement et limites
 

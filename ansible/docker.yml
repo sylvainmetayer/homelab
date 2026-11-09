@@ -160,6 +160,15 @@
     # Sans état, pas de sauvegarde (rôle pairdrop, README.md).
     - role: pairdrop
       tags: pairdrop,app
+    # Sondes de mesure Internet depuis la connexion de la maison, sortantes
+    # seulement, sans route Pangolin (rôles ripe_atlas et globalping_probe,
+    # README.md). Pas de sauvegarde : rien qui ne se refasse.
+    - role: ripe_atlas
+      tags: ripe_atlas,app
+      when: not (drill_mode | default(false) | bool)
+    - role: globalping_probe
+      tags: globalping_probe,app
+      when: not (drill_mode | default(false) | bool)
     # Outils PDF dans le navigateur (bentopdf.sylvain.cloud). Sans état, pas de
     # sauvegarde (rôle bentopdf, README.md).
     - role: bentopdf
@@ -173,6 +182,12 @@
     # SQLite sauvegardée (rôle yamtrack, README.md).
     - role: yamtrack
       tags: yamtrack,app
+    # Journaux centralisés (VictoriaLogs derrière vmauth). Pas de sauvegarde :
+    # des journaux se reproduisent, chaque hôte garde son journald. Avant
+    # openwebui : il crée le réseau interne de son outil MCP (victoria-logs-mcp).
+    - role: victoria_logs
+      tags: victoria_logs,app
+      when: not (drill_mode | default(false) | bool)
     # Interface de chat (openwebui.sylvain.cloud), modèles par la passerelle IA
     # de Pangolin, base SQLite sauvegardée (rôle openwebui, README.md).
     - role: openwebui
@@ -201,11 +216,6 @@
       when: not (drill_mode | default(false) | bool)
       vars:
         update_notify_schedule: "Mon *-*-* 08:30:00"
-    # Journaux centralisés (VictoriaLogs derrière vmauth). Pas de sauvegarde :
-    # des journaux se reproduisent, chaque hôte garde son journald.
-    - role: victoria_logs
-      tags: victoria_logs,app
-      when: not (drill_mode | default(false) | bool)
     # L'agent de journaux de cet hôte, vers vmauth par 127.0.0.1.
     - role: log_agent
       tags: log_agent,monitoring

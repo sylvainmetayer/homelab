@@ -1,0 +1,6 @@
+---
+ripe_atlas_base_path: "{{ docker_base_path }}/ripe_atlas"
+ripe_atlas_container_name: ripe-atlas
+
+# Pas de sauvegarde, exprès : la clé SSH de la sonde se ré-enregistre
+# (README.md). Pas de variable ripe_atlas_backup_* : rien à activer.

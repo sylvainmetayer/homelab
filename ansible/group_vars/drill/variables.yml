@@ -27,6 +27,9 @@ security_ufw_allowed_ports:
 security_filesystem_whitelist:
   - vfat
 
+# victoria_logs n'est pas joué : Open WebUI perd son outil « journaux » (réseau victoria-logs-mcp absent).
+openwebui_mcp_victorialogs_enabled: false
+
 # Omis exprès, parmi ceux de host_vars/docker : newt_* (pas de Newt, il volerait
 # le trafic du site docker), beszel_*, victoria_logs_*, homepage_* (rôles
 # exclus, docker.yml), papra_intake_* (la relève IMAP de la vraie boîte, qui
