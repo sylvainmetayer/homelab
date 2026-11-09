@@ -254,6 +254,13 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: "{{ immich_db_password }}"
       DB_DATABASE_NAME: immich
+{% if immich_power_tools_ai_api_key | length > 0 %}
+      # Recherche « Find » : passerelle IA de Pangolin, format OpenAI, une clé
+      # virtuelle et un budget à Power Tools (README du rôle).
+      AI_BASE_URL: {{ immich_power_tools_ai_base_url }}
+      AI_API_KEY: "{{ immich_power_tools_ai_api_key }}"
+      AI_MODEL: {{ immich_power_tools_ai_model }}
+{% endif %}
     restart: unless-stopped
     healthcheck:
       # curl est dans l'image ; 127.0.0.1 comme son propre HEALTHCHECK.

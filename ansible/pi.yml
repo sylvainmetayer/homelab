@@ -14,6 +14,8 @@
         blocky_check_push_url: "{{ terraform_outputs.uptime_cron_dns_pi_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pi_updates_url.value | default('') }}"
         smart_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pi_smart_url.value | default('') }}"
+        # Clé virtuelle de la passerelle IA (tofu/pangolin_config/ai_gateway.tf).
+        immich_power_tools_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).immich_power_tools | default('') }}"
 
   roles:
     - role: geerlingguy.docker
