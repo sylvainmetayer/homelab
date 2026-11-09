@@ -3651,16 +3651,25 @@ run "ai_gateway_keys_are_scoped_and_capped" {
         for k, key in pangolin_virtual_api_key.ai :
         !key.all_resources && length(key.resource_ids) == 1 && contains(key.resource_ids, pangolin_resource.ai_gateway["ia"].id)
         && pangolin_ai_budget.key[k].virtual_api_key_id == key.id
+        && pangolin_ai_budget.key_tokens[k].virtual_api_key_id == key.id
         && pangolin_ai_budget.key[k].amount <= pangolin_ai_budget.total["ia"].amount
+        && pangolin_ai_budget.key_tokens[k].amount <= pangolin_ai_budget.total_tokens["ia"].amount
       ])
+      # Les dollars en suivi (soft) : le catalogue de prix de Pangolin ne
+      # connaît pas tous les modèles ; les tokens bloquent (hard).
       && alltrue([
         for b in concat(values(pangolin_ai_budget.key), values(pangolin_ai_budget.total)) :
-        b.unit == "usd" && b.period == "monthly" && b.enforcement == "hard" && b.enabled
+        b.unit == "usd" && b.period == "monthly" && b.enforcement == "soft" && b.enabled
+      ])
+      && alltrue([
+        for b in concat(values(pangolin_ai_budget.key_tokens), values(pangolin_ai_budget.total_tokens)) :
+        b.unit == "tokens" && b.period == "monthly" && b.enforcement == "hard" && b.enabled
       ])
       && pangolin_ai_budget.total["ia"].amount == 20
       && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key)
+      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key_tokens)
     )
-    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA et porter son budget dur mensuel, sous le plafond de 20 $ de l'organisation."
+    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA et porter deux budgets mensuels : en tokens, bloquant, sous le plafond en tokens de l'organisation ; en dollars, en suivi seul, sous les 20 $ de l'organisation."
   }
 }
 
