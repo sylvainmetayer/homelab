@@ -528,6 +528,18 @@
     },
     {
       "customType": "regex",
+      "description": "Compose templates whose Jinja blocks ({% if %}, {% for %}) make them invalid YAML: the docker-compose manager skips them in silence (Pangolin's from 2026-10-28 to 2026-11-09, ee-1.26.0 never offered). Only images written in full with a digest match; an `image: {{ var }}` is tracked where the variable is defined. A new template with a Jinja block goes in this list",
+      "managerFilePatterns": [
+        "/^ansible/roles/(pangolin|nas_proxy|beszel)/templates/compose\\.yaml$/",
+        "/^ansible/roles/nas_proxy/defaults/main\\.yml$/"
+      ],
+      "matchStrings": [
+        "image:\\s*\"?(?<depName>[a-z0-9][a-z0-9./_-]*):(?<currentValue>[^@\"\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
       "description": "Images pinned by tag and digest in plain vars of the pangolin role defaults: geoipupdate (weekly GeoLite2 update) and crowdsec (agent + LAPI + AppSec of the pangolin stack)",
       "managerFilePatterns": [
         "/^ansible/roles/pangolin/defaults/main\\.yml$/"
