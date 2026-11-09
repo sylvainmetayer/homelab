@@ -94,6 +94,7 @@ PATH_ONLY = [
     "ansible/ansible.cfg",
     "ansible/inventory/**",
     "ansible/known_hosts",
+    "ansible/strategy_plugins/**",
     "ansible/tasks/**",
     "keys/**",
 ]

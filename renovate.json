@@ -435,6 +435,22 @@
       "allowedVersions": "<3.15"
     },
     {
+      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and only deploy-docker-app runs playbooks with ansible.cfg (Molecule stays linear). Never automerged nor grouped (the weekly digest and patch PR would hide the note); the PR note says what to check",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible",
+        "ansible-core",
+        "mitogen"
+      ],
+      "groupName": null,
+      "automerge": false,
+      "prBodyNotes": [
+        "**Mitogen** : avant de merger, vérifier dans le changelog de Mitogen (https://mitogen.networkgenomics.com/changelog.html) que la version verrouillée prend en charge cet ansible-core, puis lancer un `ansible-playbook pi.yml --check --tags monitoring` sur cette branche. Sinon, attendre une version de Mitogen, ou merger avec `strategy = linear` dans `ansible/ansible.cfg`."
+      ]
+    },
+    {
       "description": "Mermaid of the docs site build (custom manager below): its own PR, never grouped (the weekly digest and patch PR would stay red until the hand-made sha256 commit) and never automerged. allowedVersions keeps the major Zensical 0.0.x expects (12); a new major waits for a Zensical that loads it. The PR note says what to commit before the merge",
       "matchDepNames": [
         "mermaid"
