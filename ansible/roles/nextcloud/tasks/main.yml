@@ -203,6 +203,22 @@
     argv: [docker, exec, -u, abc, nextcloud, php, /app/www/public/occ, "{{ nextcloud_user_oidc_action }}", user_oidc]
   changed_when: true
 
+# Assistant de Nextcloud par la passerelle IA de Pangolin : les applis
+# seulement. URL de base et clé virtuelle nextcloud se saisissent dans
+# l'administration (« Intelligence artificielle ») : integration_openai garde
+# ses services en JSON chiffré, sans commande occ pour les écrire (README).
+- name: Install and enable the Nextcloud Assistant apps
+  when:
+    - nextcloud_oidc_ready | bool
+    - nextcloud_ai_apps_enabled | bool
+    - item not in (nextcloud_apps_raw.stdout | from_json).enabled
+  loop: "{{ nextcloud_ai_apps }}"
+  vars:
+    nextcloud_ai_app_action: "{{ 'app:enable' if item in (nextcloud_apps_raw.stdout | from_json).disabled else 'app:install' }}"
+  ansible.builtin.command:
+    argv: [docker, exec, -u, abc, nextcloud, php, /app/www/public/occ, "{{ nextcloud_ai_app_action }}", "{{ item }}"]
+  changed_when: true
+
 - name: Declare the Pocket ID provider in user_oidc
   when: nextcloud_oidc_ready | bool
   no_log: true

@@ -178,3 +178,14 @@ ID : `email_verified=1` dans `app-data/db/db.sqlite` (commande dans
 `docs/runbooks/pocket-id.md`, copie de la base avant). L'inscription fermée
 empêche d'en créer un. Le mot de passe et les clés d'API restent (secours,
 appli mobile).
+
+## IA (passerelle de Pangolin)
+
+Le module IA de Papra passe par la passerelle IA de Pangolin
+(`https://ia.sylvain.cloud/v1`, `tofu/pangolin_config/ai_gateway.tf`), par son
+adaptateur compatible OpenAI (`AI_DEFAULT_MODEL=openai://claude-haiku-5-5`) :
+clé virtuelle `papra`, lue dans le state (`papra_ai_api_key`, `defaults/main.yml`).
+Sans clé, rien n'est rendu et l'IA reste coupée. Pas de compteur de crédits
+(`AI_CREDITS_IS_ENABLED`, fait pour les instances facturées). Les documents
+envoyés au modèle partent chez Anthropic ; journal des appels de la passerelle
+éteint (`docs/runbooks/passerelle-ia.md`).
