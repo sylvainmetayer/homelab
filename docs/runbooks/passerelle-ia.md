@@ -32,7 +32,7 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 |---|---|
 | 200 | La clé, le modèle et le fournisseur marchent |
 | 401 `Invalid API key` | Clé incomplète (secret seul, sans `pangolin-key-<id>.`), ou clé remplacée |
-| 429 | Budget de la clé ou de l'organisation dépassé |
+| 429 | Budget de la clé ou de l'organisation dépassé (pas encore constaté, voir « Points ouverts ») |
 | 4xx sur le modèle | Modèle absent de `local.ai_models` (liste d'autorisation) |
 
 Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
@@ -52,7 +52,7 @@ Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
    `(terraform_outputs.ai_gateway_keys.value | default({})).<clé> | default('')`,
    dans un `set_fact` en `no_log: true`. Le rôle ne rend la config IA que si la
    clé est non vide. Modèle d'exemple : `immich_power_tools` (`pi.yml`, rôle
-   `immich`).
+   `immich`, PR #1319).
 4. Merge (déploiement CI, sauf `nas.yml`, `pve.yml`, `lxc.yml` : à la main),
    puis un essai dans l'appli elle-même.
 
@@ -60,9 +60,12 @@ La conso par clé se lit dans l'interface de Pangolin (AI Gateway).
 
 ## Remplacer une clé (fuite)
 
+Lire le plan affiché avant de répondre `yes` : une clé remplacée, son budget,
+rien d'autre. Pas de fichier `-out` : un plan enregistré contient les secrets en
+clair.
+
 ```bash
-mise exec -- tofu -chdir=tofu/pangolin_config plan -replace='pangolin_virtual_api_key.ai["<clé>"]' -out=/tmp/ia.tfplan
-mise exec -- tofu -chdir=tofu/pangolin_config apply /tmp/ia.tfplan
+mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_api_key.ai["<clé>"]'
 ```
 
 - Le budget de la clé est recréé avec elle (`replace_triggered_by`) :
