@@ -3666,6 +3666,8 @@ run "ai_gateway_keys_are_scoped_and_capped" {
         b.unit == "tokens" && b.period == "monthly" && b.enforcement == "hard" && b.enabled
       ])
       && pangolin_ai_budget.total["ia"].amount == 20
+      && pangolin_ai_budget.total_tokens["ia"].amount == local.ai_budget_total_tokens
+      && alltrue([for b in values(pangolin_ai_budget.key_tokens) : b.amount > 0])
       && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key)
       && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key_tokens)
     )
