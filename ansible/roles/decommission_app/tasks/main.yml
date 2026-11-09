@@ -173,7 +173,7 @@
   ansible.builtin.shell:
     cmd: |
       set -eo pipefail
-      docker ps -aq --filter label=com.docker.compose.project={{ decommission_app_service }} | xargs -r docker rm -f
+      docker ps -aq --filter label=com.docker.compose.project={{ decommission_app_service }} | xargs -r docker rm -fv
       docker volume ls -q --filter label=com.docker.compose.project={{ decommission_app_service }} | xargs -r docker volume rm
     executable: /bin/bash
   register: decommission_app_orphans

@@ -418,8 +418,9 @@
       become: true
       ansible.builtin.replace:
         path: "{{ borgmatic_config_dir }}/unreachable_app.yaml"
-        regexp: 'path: .*'
-        replace: 'path: ssh://nobody@127.0.0.1:1/./unreachable_app'
+        # Ancré : `path: .*` toucherait aussi `local_path:` (le binaire borg).
+        regexp: '^(\s+- path): .*'
+        replace: '\1: ssh://nobody@127.0.0.1:1/./unreachable_app'
 
     - name: Run the role on the unreachable repository
       ansible.builtin.include_tasks: tasks/expect_failure.yml
