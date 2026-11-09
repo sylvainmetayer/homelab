@@ -3629,13 +3629,14 @@ run "ai_gateway_keys_are_scoped_and_capped" {
     condition = (
       pangolin_resource.ai_gateway["ia"].mode == "inference"
       && pangolin_resource.ai_gateway["ia"].subdomain == "ia"
-      && pangolin_resource.ai_gateway["ia"].apply_rules
+      && !contains(keys(local.managed_resources), pangolin_resource.ai_gateway["ia"].name)
+      && contains(local.unruled_resources, pangolin_resource.ai_gateway["ia"].name)
       && length(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == 1 && contains(pangolin_resource.ai_gateway["ia"].ai_provider_ids, pangolin_ai_provider.anthropic["ia"].id)
       && pangolin_ai_provider.anthropic["ia"].type == "anthropic"
       && pangolin_ai_provider.anthropic["ia"].upstream_url == "https://api.anthropic.com"
       && alltrue([for m in pangolin_ai_model.anthropic : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.anthropic["ia"].id])
     )
-    error_message = "La passerelle IA doit rester en mode inference sur ia, filtrée par les règles, branchée au seul fournisseur Anthropic et à ses modèles autorisés."
+    error_message = "La passerelle IA doit rester en mode inference sur ia (sans règle possible, donc hors filtre FR/DE : local.unruled_resources), branchée au seul fournisseur Anthropic et à ses modèles autorisés."
   }
 
   assert {
