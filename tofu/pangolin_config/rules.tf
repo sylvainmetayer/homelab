@@ -97,7 +97,6 @@ locals {
   managed_resources = merge(
     { for key, website in local.websites : website.name => pangolin_resource.website[key].id },
     { for key, desktop in local.remote_desktops : desktop.name => pangolin_resource.remote_desktop[key].id },
-    # Et la passerelle IA (ai_gateway.tf), une fois sa clé SOPS posée.
     { for key, gateway in pangolin_resource.ai_gateway : gateway.name => gateway.id },
   )
 
