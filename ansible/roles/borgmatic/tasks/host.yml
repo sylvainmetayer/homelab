@@ -134,16 +134,17 @@
     daemon_reload: true
 
 # Masqué (lien vers /dev/null) : même un `systemctl start borgmatic` à la main
-# ou un déploiement d'un autre rôle ne peut pas lancer une sauvegarde.
+# ou un déploiement d'un autre rôle ne peut pas lancer une sauvegarde. Le lien
+# à la main, comme `systemctl mask` : sur la copie les unités n'existent pas
+# (tâches sautées plus haut), et le module systemd refuse une unité absente.
 - name: Mask the borgmatic timer and service on a drill copy
   when: drill_mode | default(false) | bool
   become: true
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    masked: true
-    enabled: false
-    state: stopped
-    daemon_reload: true
+  ansible.builtin.file:
+    src: /dev/null
+    dest: "/etc/systemd/system/{{ item }}"
+    state: link
+    force: true
   loop:
     - borgmatic.timer
     - borgmatic.service
