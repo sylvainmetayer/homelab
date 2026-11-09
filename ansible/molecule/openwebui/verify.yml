@@ -99,7 +99,7 @@
           - openwebui_compose.services.openwebui.mem_limit == '1200m'
           - openwebui_compose.services.openwebui.image is search(':v[0-9.]+-slim@sha256:[0-9a-f]{64}$')
           - openwebui_compose.networks.newt.external
-          - openwebui_compose.services.openwebui.networks == ['newt', 'victoria-logs-mcp']
+          - openwebui_compose.services.openwebui.networks == ['newt', 'victoria-logs-mcp', 'searxng']
           - openwebui_compose.networks['victoria-logs-mcp'].external
           - openwebui_compose.services.openwebui.container_name == 'openwebui'
         fail_msg: "Compose d'Open WebUI inattendu (durcissement, image slim, réseau) : {{ openwebui_compose.services.openwebui }}"
@@ -117,6 +117,52 @@
           - openwebui_tool_servers[0].auth_type == 'none'
           - openwebui_tool_servers[0].config.access_grants == []
         fail_msg: "Connexion MCP des journaux inattendue : {{ openwebui_tool_servers }}"
+
+    # SearXNG : privé, jamais exposé (ni port, ni newt), seul à sortir sur Internet
+    # par son réseau de sortie ; le lien avec Open WebUI est un réseau interne.
+    - name: Slurp the SearXNG settings
+      become: true
+      ansible.builtin.slurp:
+        src: /opt/apps/openwebui/searxng/settings.yml
+      register: searxng_settings_file
+
+    - name: Stat the SearXNG settings
+      become: true
+      ansible.builtin.stat:
+        path: /opt/apps/openwebui/searxng/settings.yml
+      register: searxng_settings_stat
+
+    - name: Assert SearXNG is private, hardened and answers Open WebUI in JSON
+      vars:
+        searxng: "{{ openwebui_compose.services.searxng }}"
+        searxng_settings: "{{ searxng_settings_file.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - searxng_settings_stat.stat.mode == '0600'
+          - "'json' in searxng_settings.search.formats"
+          - searxng_settings.server.limiter == false
+          - searxng_settings.server.secret_key is match('^[0-9a-f]{64}$')
+          - searxng_settings.search.default_lang == 'fr'
+          - searxng_settings.search.safe_search == 1
+          - searxng_settings.use_default_settings.engines.keep_only | length > 0
+          - searxng.ports is not defined
+          - searxng.networks == ['searxng', 'searxng-egress']
+          - "'newt' not in searxng.networks"
+          - openwebui_compose.networks.searxng.internal
+          - openwebui_compose.networks['searxng-egress'].get('internal', false) == false
+          - searxng.image is search('^docker.io/searxng/searxng:[0-9.]+-[0-9a-f]+@sha256:[0-9a-f]{64}$')
+          - "'no-new-privileges:true' in searxng.security_opt"
+          - searxng.cap_drop == ['ALL']
+          - searxng.read_only
+          - searxng.mem_limit == '300m'
+          - searxng.volumes == ['./searxng/settings.yml:/etc/searxng/settings.yml:ro']
+          - openwebui_env.ENABLE_WEB_SEARCH == 'true'
+          - openwebui_env.WEB_SEARCH_ENGINE == 'searxng'
+          - openwebui_env.SEARXNG_QUERY_URL == 'http://searxng:8080/search'
+          - openwebui_env.BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL == 'true'
+          - openwebui_env.BYPASS_WEB_SEARCH_WEB_LOADER == 'true'
+          - openwebui_env.WEB_SEARCH_RESULT_COUNT == '5'
+        fail_msg: "SearXNG inattendu : {{ searxng }}"
 
     - name: Assert the openwebui backup covers its data and compose files and leaves out the cache
       ansible.builtin.assert:
