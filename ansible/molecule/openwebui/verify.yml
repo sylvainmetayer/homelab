@@ -90,7 +90,7 @@
         openwebui_models: "{{ openwebui_compose.services.openwebui.environment.OPENAI_API_CONFIGS | from_json }}"
 
     # Molecule ne démarre pas les images : seul le compose peut être vérifié.
-    - name: Assert the openwebui container stays hardened and joins newt only
+    - name: Assert the openwebui container stays hardened and joins newt and the MCP network only
       ansible.builtin.assert:
         that:
           - "'no-new-privileges:true' in openwebui_compose.services.openwebui.security_opt"
@@ -99,9 +99,24 @@
           - openwebui_compose.services.openwebui.mem_limit == '1200m'
           - openwebui_compose.services.openwebui.image is search(':v[0-9.]+-slim@sha256:[0-9a-f]{64}$')
           - openwebui_compose.networks.newt.external
-          - openwebui_compose.services.openwebui.networks == ['newt']
+          - openwebui_compose.services.openwebui.networks == ['newt', 'victoria-logs-mcp']
+          - openwebui_compose.networks['victoria-logs-mcp'].external
           - openwebui_compose.services.openwebui.container_name == 'openwebui'
         fail_msg: "Compose d'Open WebUI inattendu (durcissement, image slim, réseau) : {{ openwebui_compose.services.openwebui }}"
+
+    # L'outil « journaux » : une connexion MCP sans access_grants (administrateurs
+    # seulement), sans authentification (le réseau interne la tient).
+    - name: Assert the VictoriaLogs MCP tool is declared for administrators only
+      vars:
+        openwebui_tool_servers: "{{ openwebui_compose.services.openwebui.environment.TOOL_SERVER_CONNECTIONS | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - openwebui_tool_servers | length == 1
+          - openwebui_tool_servers[0].type == 'mcp'
+          - openwebui_tool_servers[0].url == 'http://mcp-victorialogs:8081/mcp'
+          - openwebui_tool_servers[0].auth_type == 'none'
+          - openwebui_tool_servers[0].config.access_grants == []
+        fail_msg: "Connexion MCP des journaux inattendue : {{ openwebui_tool_servers }}"
 
     - name: Assert the openwebui backup covers its data and compose files and leaves out the cache
       ansible.builtin.assert:
