@@ -103,7 +103,8 @@
     - name: Assert the agents can only write and the interface has its own account
       vars:
         victoria_logs_accounts: "{{ victoria_logs_auth_raw.content | b64decode | from_yaml }}"
-        victoria_logs_agent_users: "{{ victoria_logs_accounts.users | selectattr('username', 'defined') | rejectattr('username', 'in', ['sylvain', 'homepage']) | list }}"
+        victoria_logs_named_users: "{{ victoria_logs_accounts.users | selectattr('username', 'defined') | list }}"
+        victoria_logs_agent_users: "{{ victoria_logs_named_users | rejectattr('username', 'in', ['sylvain', 'homepage']) | list }}"
         victoria_logs_mcp_users: "{{ victoria_logs_accounts.users | selectattr('bearer_token', 'defined') | list }}"
       ansible.builtin.assert:
         that:
@@ -122,7 +123,7 @@
           - victoria_logs_mcp_users[0].bearer_token is match('^[0-9a-f]{64}$')
           - victoria_logs_mcp_users[0].url_prefix is not defined
           - victoria_logs_mcp_users[0].url_map | map(attribute='src_paths') | flatten == ['/select/logsql/.*']
-        fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_accounts.users | map(attribute='username') | list }}"
+        fail_msg: "Comptes vmauth inattendus (mots de passe masqués) : {{ victoria_logs_named_users | map(attribute='username') | list }}"
 
     # Cartes CrowdSec et Blocky de Homepage (clé de fake_secrets.yml) : la
     # seule route des comptes LogsQL, et les flux imposés par vmauth (CrowdSec
