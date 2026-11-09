@@ -45,7 +45,8 @@ locals {
       budget_usd  = 1
     }
     # Recherche « Find » (analyse de la requête), format OpenAI, Haiku. Clé
-    # créée ici ; le rôle immich (ansible/pi.yml) ne la lit pas encore.
+    # lue par ansible/pi.yml (terraform_outputs.ai_gateway_keys) pour le rôle
+    # immich ; une clé remplacée (-replace) se redéploie par pi.yml.
     immich_power_tools = {
       description = "Immich Power Tools : recherche Find"
       budget_usd  = 5
