@@ -3,7 +3,7 @@ services:
   app:
     # Pic mesuré à 409 Mio sous l'ancien plafond de 512m.
     mem_limit: 768m
-    image: docker.io/mauriceboe/trek:5.1.0@sha256:23bf3fa6a134dc38a3b4f40ef8f7e8040abc96965105dffdcfcf5f202fb5d0b7
+    image: docker.io/mauriceboe/trek:5.1.1@sha256:7068cc86c0d4d5aa9b55aeffd03966f7458352bcb3e010721e3d7d6899ac60bd
     container_name: trek
     read_only: true
     security_opt:
