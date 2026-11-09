@@ -114,8 +114,8 @@ run "docker_vm_matches_inventory" {
   }
 
   assert {
-    condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "hosts: ${proxmox_virtual_environment_vm.docker.name}")
-    error_message = "Le nom de la VM Docker doit être celui que vise ansible/docker.yml."
+    condition     = strcontains(file("${path.module}/../../ansible/docker.yml"), "hosts: \"{{ drill_target | default('${proxmox_virtual_environment_vm.docker.name}') }}\"")
+    error_message = "Le nom de la VM Docker doit être celui que vise ansible/docker.yml par défaut (drill_target vise la copie jetable)."
   }
 
   assert {

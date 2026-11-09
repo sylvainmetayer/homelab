@@ -1,0 +1,6 @@
+---
+# Chemin, sur le contrôleur, de la clé privée SSH du sous-compte restore-test de
+# la Storage Box (lecture seule), extraite du state de tofu/pangolin dans un
+# fichier hors dépôt : -e docker_drill_key_file=… (runbook reconstruction-vm-docker.md).
+# drill_borg_user et drill_borg_server viennent de hetzner.py (variables d'inventaire).
+docker_drill_key_file: ""

@@ -1,0 +1,96 @@
+---
+# Copie jetable de la VM docker seulement (docker.yml : when: drill_mode). Passe
+# après docker, docker_service et borgmatic, avant les applis. README du rôle.
+- name: Refuse to run outside a drill copy
+  ansible.builtin.assert:
+    that:
+      - drill_mode | default(false) | bool
+      - inventory_hostname in groups.get('drill', [])
+      - docker_drill_key_file | length > 0
+      - drill_borg_user | default("") | length > 0
+    fail_msg: >-
+      docker_drill ne tourne que sur la copie jetable (groupe drill), avec
+      -e docker_drill_key_file=<clé du sous-compte restore-test> (runbook
+      reconstruction-vm-docker.md).
+    quiet: true
+
+# Les applis rejoignent le réseau `newt` (external: true dans leurs compose) :
+# le conteneur Newt le crée en production, et il n'y en a pas ici.
+- name: Create the newt Docker network, without any Newt container
+  become: true
+  ansible.builtin.command: docker network create --driver bridge newt
+  register: docker_drill_newt_network
+  changed_when: docker_drill_newt_network.rc == 0
+  failed_when: docker_drill_newt_network.rc != 0 and 'already exists' not in docker_drill_newt_network.stderr
+
+# Le sous-compte en lecture seule du test de restauration : sa clé privée vient
+# du state de tofu/pangolin, hors dépôt (runbook), au chemin que lisent les
+# configurations borgmatic.
+- name: Install the read-only Storage Box key of root
+  become: true
+  no_log: true
+  ansible.builtin.copy:
+    src: "{{ docker_drill_key_file }}"
+    dest: "{{ backup_storage_box_ssh_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install borg-readonly
+  become: true
+  ansible.builtin.copy:
+    src: borg-readonly
+    dest: /usr/local/bin/borg-readonly
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the restore and check tools
+  become: true
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - { src: drill-restore-app, dest: /usr/local/sbin/drill-restore-app }
+    - { src: drill-check.py, dest: /usr/local/sbin/drill-check }
+
+# La liste des dépôts et des tables attendues du test de restauration de la CI :
+# drill-check s'y aligne, une seule source.
+- name: Create the shared data directory of the drill tools
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/share/drill
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install apps.json of the restore test
+  become: true
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../.github/restore-test/apps.json"
+    dest: /usr/local/share/drill/apps.json
+    owner: root
+    group: root
+    mode: "0600"
+
+# drill-check lit les configurations borgmatic et parle à Docker.
+- name: Install python3-yaml for drill-check
+  become: true
+  ansible.builtin.apt:
+    name: python3-yaml
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the extraction directory
+  become: true
+  ansible.builtin.file:
+    path: /var/restore
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"

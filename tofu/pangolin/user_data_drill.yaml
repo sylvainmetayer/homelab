@@ -1,0 +1,21 @@
+#cloud-config
+# Copie jetable de la VM docker (drill.tf). Uniquement de quoi laisser Ansible
+# se connecter, avec la clé d'hôte ed25519 générée par Tofu : son empreinte est
+# connue avant le premier SSH, aucun ssh-keyscan.
+users:
+  - name: sylvain
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${public_ssh_key}
+
+ssh_pwauth: false
+disable_root: true
+ssh_deletekeys: true
+ssh_genkeytypes: [ed25519]
+ssh_keys:
+  ed25519_private: |
+    ${indent(4, host_private_key)}
+  ed25519_public: ${host_public_key}
