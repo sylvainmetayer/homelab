@@ -2,6 +2,9 @@
 
 Immich sur le Raspberry Pi (`pi.yml`), avec des outils qui s'en servent :
 Immich Swipe, Immich Kiosk, Immich Power Tools et Immich Selfie Timelapse (`docs/apps.md`).
+Son machine learning tourne d'abord sur le NAS (rôle `immich_ml`, OpenVINO) ; le conteneur
+`immich-machine-learning` d'ici reste en secours, et une montée d'Immich se déploie aussi
+là-bas à la main (`ansible/roles/immich_ml/README.md`).
 
 ## Immich Kiosk (`kiosk.sylvain.cloud`)
 
