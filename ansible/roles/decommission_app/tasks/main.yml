@@ -10,6 +10,19 @@
       -e decommission_app_confirm=true -e decommission_app_service=<service>
       -e decommission_app_base_path=<docker_base_path>/<service> to proceed.
 
+# kdrive_sync n'a ni dc@, ni dossier d'application, ni compose, et sa
+# configuration borgmatic s'appelle kdrive.yaml (borgmatic_app_name) : ce rôle
+# ne la retrouverait pas, et repo-delete échouerait. Refus net plutôt qu'un
+# retrait à moitié.
+- name: Refuse kdrive_sync, which this role does not cover
+  ansible.builtin.assert:
+    that:
+      - decommission_app_service not in ['kdrive_sync', 'kdrive']
+    fail_msg: >-
+      decommission_app ne retire pas kdrive_sync (config borgmatic kdrive.yaml,
+      ni dc@ ni compose) : voir le README du rôle.
+    quiet: true
+
 # Effacé en root et compose y est lancé : l'unité dc@<service> a pour dossier
 # {{ docker_base_path }}/<service> (dc@.service, WorkingDirectory), un autre
 # chemin n'est donc jamais celui de cette application. L'égalité écarte /, les
@@ -43,6 +56,43 @@
     quiet: true
   loop: "{{ decommission_app_extra_paths }}"
 
+# Rien n'est encore arrêté ni effacé : ce que la suite va supprimer est dit ici.
+- name: Announce what will be removed
+  ansible.builtin.debug:
+    msg: >-
+      {{ decommission_app_service }} : conteneurs et volumes compose
+      (+ ceux du label com.docker.compose.project si le compose manque),
+      {{ decommission_app_base_path }}{{ decommission_app_extra_paths | map('regex_replace', '^', ', ') | join }}
+      {{ 'supprimés' if decommission_app_remove_data | bool else 'GARDÉS (decommission_app_remove_data=false)' }},
+      configuration borgmatic dans {{ borgmatic_config_dir }}
+      {{ 'SUPPRIMÉE' if decommission_app_remove_borgmatic_config | bool else 'gardée' }}.
+      Dépôt Borg distant :
+      {{ 'DÉTRUIT (irréversible)' if decommission_app_destroy_remote_backup | bool else 'conservé' }}.
+      {{ 'La configuration part sans que le dépôt soit détruit : repo-delete ne sera plus possible ensuite.'
+         if (decommission_app_remove_borgmatic_config | bool and not decommission_app_destroy_remote_backup | bool) else '' }}
+  register: decommission_app_plan
+
+- name: Check whether the app folder exists
+  become: true
+  ansible.builtin.stat:
+    path: "{{ decommission_app_base_path }}"
+  register: decommission_app_base_path_stat
+
+# Avant repo-delete : un compose invalide ferait échouer l'arrêt plus bas, le
+# dépôt serait déjà détruit. Un compose absent est toléré (le balayage par label
+# plus bas prend le relais), comme à l'arrêt.
+- name: Check the compose file before anything is destroyed
+  become: "{{ decommission_app_as_root }}"
+  when: decommission_app_base_path_stat.stat.exists
+  ansible.builtin.command:
+    cmd: docker compose config --quiet
+    chdir: "{{ decommission_app_base_path }}"
+  register: decommission_app_compose_check
+  changed_when: false
+  failed_when:
+    - decommission_app_compose_check.rc | default(0) != 0
+    - decommission_app_compose_check.stderr | default('') is not search('no configuration file provided')
+
 # Avant l'arrêt et le `down --volumes` : un échec laisse l'application tourner,
 # volumes compris, et rien à reconstruire pour réessayer.
 - name: Destroy the remote Borg repository (irreversible, no more restore points)
@@ -66,6 +116,18 @@
       (decommission_app_repo_delete.stderr | default('') ~ decommission_app_repo_delete.stdout | default(''))
       is not search('(?s)Repository \\S+ does not exist\\..*non-zero exit status 13\\.')
 
+# Un dépôt absent passe pour « déjà détruit » : si l'URL de la configuration est
+# fausse, rien n'a été supprimé, et seule cette ligne le dit.
+- name: Warn that the repository was not there
+  when: decommission_app_repo_delete.rc | default(0) != 0
+  ansible.builtin.debug:
+    msg: >-
+      ATTENTION, dépôt absent, rien supprimé :
+      {{ (decommission_app_repo_delete.stderr | default('') ~ decommission_app_repo_delete.stdout | default(''))
+         | regex_search('Repository \\S+ does not exist\\.') }}
+      Vérifier l'URL de {{ borgmatic_config_dir }}/{{ decommission_app_service }}.yaml.
+  register: decommission_app_repo_absent
+
 # Unité user, ou système sur le NAS (docker_service_scope: system) : root
 # la pilote et lance son compose (sylvain n'y est pas dans le groupe docker).
 - name: Stop and disable the app's systemd unit
@@ -84,12 +146,6 @@
     - decommission_app_unit_stop.failed | default(false)
     - decommission_app_unit_stop.msg | default('') is not search('Could not find the requested service')
 
-- name: Check whether the app folder still exists
-  become: true
-  ansible.builtin.stat:
-    path: "{{ decommission_app_base_path }}"
-  register: decommission_app_base_path_stat
-
 # Dossier absent (2e passage) : rien à arrêter. Dossier sans compose : toléré
 # aussi, compose sort alors en 1 ou 14 selon sa version, seul le message est
 # stable (relevé sur 2.26 et 2.40). Tout autre échec (démon injoignable, compose
@@ -105,6 +161,23 @@
   failed_when:
     - decommission_app_compose_down.rc | default(1) != 0
     - decommission_app_compose_down.stderr | default('') is not search('no configuration file provided')
+
+# Sans compose (dossier ou fichier perdu), `down` n'a rien retiré : conteneurs
+# et volumes restent sous le label de projet compose, qui est le nom du dossier.
+# Derrière le même interrupteur que les données : ce sont des données.
+- name: Remove containers and volumes left under the compose project label
+  become: "{{ decommission_app_as_root }}"
+  when:
+    - decommission_app_remove_data | bool
+    - decommission_app_compose_down.rc | default(1) != 0
+  ansible.builtin.shell:
+    cmd: |
+      set -eo pipefail
+      docker ps -aq --filter label=com.docker.compose.project={{ decommission_app_service }} | xargs -r docker rm -f
+      docker volume ls -q --filter label=com.docker.compose.project={{ decommission_app_service }} | xargs -r docker volume rm
+    executable: /bin/bash
+  register: decommission_app_orphans
+  changed_when: decommission_app_orphans.stdout | length > 0
 
 # La configuration et le fichier de son URL push Uptime Kuma (rôle borgmatic,
 # tasks/app.yml).
