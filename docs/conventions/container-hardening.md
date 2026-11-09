@@ -34,7 +34,35 @@ cap_drop:
 
 `check_container_hardening.py` (Lint) enforces the `no-new-privileges` column: its `EXCEPTIONS` list and this table move together. Nothing checks `cap_drop`.
 
-## Docker Bench findings left as they are
+## Docker Bench : écarts assumés
+
+Triage of the 2026-11-05 report, redone on 2026-11-10 (docker-bench-security from GitHub, run read-only as root on docker, pi, pangolin and flip; the `docker/docker-bench-security` image fails against a recent daemon, « Error connecting to docker daemon »: use the script). Classes: (a) upstream image or the benchmark does not fit, (b) accepted, reason written in the repo, (c) small and safe to fix, (d) Sylvain to decide. **No (c) was left**: what remained is either tied to an image or touches the daemon. A WARN below is not to be fixed again without a new reason.
+
+| Check | Where | Class | Why |
+|---|---|---|---|
+| 1.1.1 separate partition for `/var/lib/docker` | all | b | Single-disk VMs; the volumes are the data. |
+| 1.1.8, 1.1.10, 1.1.11 auditd on `containerd.sock`, `/etc/default/docker`, `daemon.json` | all | b | `security` role: sockets left out (one event per client connection), `/etc/default/docker` absent on Debian, `/etc/docker` already watched (`ansible/roles/security/README.md`). |
+| 2.2 `icc` on the default bridge | all | b | Compose services run on their own networks, not the default bridge (not re-checked container by container); DBs sit on internal networks. |
+| 2.9 userns-remap | all | d | Daemon change, restarts every container, breaks bind mounts owned by the deploy user and `network_mode: host` agents. |
+| 2.12 authorization plugin | all | a | No plugin worth running for one operator; the socket is reached through `wollomatic/socket-proxy` (Newt, Beszel, log agent). |
+| 2.13 remote logging | all | b | Logs go to VictoriaLogs through the log agent reading the socket proxy, not through a logging driver. |
+| 2.14 daemon-wide `no-new-privileges` | all | d | Daemon change; per service it is already enforced by `check_container_hardening.py`. A daemon default would hit the exceptions below. |
+| 2.15 live-restore | all | b | Decided 2026-11-05, see below. |
+| 2.16 userland proxy | all | d | Daemon change (`userland-proxy: false`), a restart of Docker; published ports of the Pi (Immich, Blocky) and Pangolin (80, 443) would then rely on hairpin NAT. |
+| 4.1 containers running as root | docker, pi, pangolin, flip | b | s6 images, databases, `newt`, agents on `network_mode: host`: see the table above; every one has `cap_drop` or a row there. |
+| 4.5 content trust | all | a | Images are pinned by digest instead (Renovate), a stronger guarantee for registries without Notary. |
+| 4.6 image without `HEALTHCHECK`, 5.27 no health check at runtime | all | a | Most services declare `healthcheck:` in compose; what is left (socket proxies, `victoria-logs`, `newt`, log agent, `gerbil`, `traefik`) are images with no shell nor `wget`, or the monitored path is the public route (Uptime Kuma). |
+| 5.2 AppArmor profile | pi | a | Raspberry Pi OS kernel without AppArmor; the docker VM, pangolin and flip show no WARN. |
+| 5.3 SELinux | docker (Monica), pangolin, flip | a | Debian, no SELinux. |
+| 5.4 `CAP_SYS_RAWIO` | pi (beszel-agent) | b | S.M.A.R.T. reading, see the `beszel_agent` defaults. |
+| 5.4 `CAP_NET_ADMIN` | pangolin (gerbil) | a | WireGuard interface, upstream requirement. |
+| 5.8, 5.9, 5.14 privileged ports, open ports, wildcard bind | pangolin (gerbil 80, 443, 51820, 21820), pi (blocky 53, immich 2283) | b | The public entry points and the LAN services by design; `ufw` filters them, `5.9` also lists ports the image `EXPOSE`s (`vmauth` 9428, `beszel` 8090). |
+| 5.10 host network | `beszel-agent`, `log-agent` | b | They read the host's disks, network and journal. |
+| 5.12 CPU restriction | all | b | Doctrine: no `cpus:` except batch workers (`resource-limits.md`). |
+| 5.13 root filesystem read-write | most services | d | Per-app work, each needs a test of the writes it does (`/tmp`, caches, s6 and `/run`); services that support it already have `read_only: true`. One PR per app when Sylvain picks one. |
+| 5.26 no-new-privileges | docker (Monica), pangolin, flip (`flip_planning` stack) | b for Monica and Pangolin, d for flip | Rows of the exceptions table. The flip stack (production, mailpit, pgadmin, assets, DB) has no row: lifting it is an analysis of the images, then a deploy on production. |
+| 5.29 PIDs limit | all | b | `resource-limits.md`, decision of 2026-11-05: none without a measure. |
+| 5.32 Docker socket mounted | the three `*-socket-proxy` | b | The point of those containers: read-only filtered API for Newt, Beszel and the log agent; no other container mounts it. |
 
 `live-restore` stays off (Docker Bench 2.13). Units `dc@` would not benefit: `compose up` exits when the daemon stops, then `ExecStop` stops the containers. Turning it on gains nothing there, and enabling it by a daemon restart would restart every container of the host once (a `SIGHUP` reload would not). Only the Pangolin stack, outside `dc@`, would gain, and restarting it cuts every public route. Decided on 05/11/2026.
 
