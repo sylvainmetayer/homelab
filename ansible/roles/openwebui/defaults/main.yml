@@ -47,6 +47,15 @@ openwebui_default_model: claude-sonnet-5-5
 # plafond en tokens de la clé).
 openwebui_task_model: claude-haiku-5-5
 
+# Outil « journaux » : le serveur MCP de VictoriaLogs (rôle victoria_logs,
+# conteneur mcp-victorialogs, réseau victoria-logs-mcp créé par ce rôle, qui
+# passe avant celui-ci dans docker.yml). Connexion déclarée par
+# TOOL_SERVER_CONNECTIONS, sans access_grants : réservée aux administrateurs
+# (has_connection_access), donc à Sylvain, jamais au foyer. À garder
+# synchronisé avec victoria_logs_mcp_enabled.
+openwebui_mcp_victorialogs_enabled: true
+openwebui_mcp_victorialogs_url: http://mcp-victorialogs:8081/mcp
+
 # Borgmatic backup configuration
 openwebui_backup_enabled: true
 openwebui_backup_borgmatic_target: "{{ backup_storage_box_url }}/openwebui"
