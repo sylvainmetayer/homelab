@@ -756,7 +756,7 @@ flowchart LR
 
 Beszel montre les 200 dernières lignes d'un conteneur, à la demande ;
 VictoriaLogs garde tous les journaux de tous les hôtes **30 jours** et les
-interroge en LogsQL. Version légère, à l'essai (#79,
+interroge en LogsQL. Version légère (#79,
 [ADR 0011](adr/0011-journaux-victorialogs.md), « acceptée ») : VictoriaLogs
 seul, ni Grafana ni métriques. Rôle `victoria_logs` sur la VM docker, interface (vmui)
 sur `https://logs.sylvain.cloud/select/vmui/`, derrière le SSO puis le SSO de
@@ -829,17 +829,17 @@ vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
   pas le stockage, dont l'image (distroless) n'a aucun binaire de
   healthcheck.
 - **Poids** : stockage plafonné à 320 Mio (`mem_limit`, caches à 60 %), vmauth
-  à 64 Mio ; chaque agent conteneur à 256 Mio (relevé après un jour à
-  112 Mio de pic sur docker, 97 sur flip), plus 32 Mio pour son proxy du
+  à 64 Mio ; chaque agent conteneur à 256 Mio (pics de 105 à 163 Mio, tableau de l'ADR 0011), plus 32 Mio pour son proxy du
   socket (`MemoryMax=128M` en binaire) ; pas de `cpus`. Volume attendu : quelques centaines de Mio de
   journaux bruts par jour, tous hôtes compris, qu'il compresse d'un facteur
   10 environ, soit de l'ordre de 1 à 2 Gio pour 30 jours, sous le plafond.
-- **Mesure, faite le 2026-11-09** (tableau dans l'ADR 0011) : `memory.peak` du stockage, de
-  vmauth et des agents (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`),
-  puis l'I/O wait de la VM docker dans Beszel, avant et après ; la place
-  prise (`du -sh /opt/apps/victoria_logs/data`). Recaler les `mem_limit` à
-  ~2× le pic ; trop lourd pour la VM : retour arrière ci-dessous, et l'ADR
-  passe en « rejetée ».
+- **Mesure, faite le 2026-11-09** (tableau et réserves dans l'ADR 0011) :
+  `memory.peak` du stockage, de vmauth et des agents
+  (`/sys/fs/cgroup/system.slice/docker-<id>.scope/memory.peak`), l'I/O wait de
+  la VM docker dans Beszel, la place prise
+  (`du -sh /opt/apps/victoria_logs/data`). Plafonds gardés ; à relire si un
+  événement `max` apparaît. Trop lourd pour la VM : retour arrière
+  ci-dessous, et l'ADR passe en « rejetée ».
 - **Retour arrière** : d'abord les agents, `log_agent` retiré des playbooks
   puis, sur chaque hôte, `dc@log_agent` arrêté et `/opt/apps/log_agent` (ou
   `/volume1/docker/log_agent`) supprimé par le même `decommission_app`
