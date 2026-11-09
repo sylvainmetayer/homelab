@@ -1,0 +1,25 @@
+---
+services:
+  probe:
+    # Pas encore mesuré : un processus Node qui lance ping, traceroute, mtr,
+    # dig et curl à la demande. Valeur prudente, à recaler sur memory.peak
+    # (rapport mem_report) après quelques semaines.
+    mem_limit: 256m
+    image: docker.io/globalping/globalping-probe:0.54.0@sha256:3f2bf882673296f5ffcc7bf82c5e9a5810e5c8b55ccfa285d759940c757d68af
+    container_name: {{ globalping_probe_container_name }}
+    # Réseau de l'hôte, comme le demande la doc amont : la sonde mesure la
+    # connexion de la maison, pas le NAT de Docker. Rien n'écoute (sortant
+    # seulement : connexion WebSocket vers api.globalping.io).
+    network_mode: host
+    # Root dans l'image (tini puis entrypoint.sh) ; ping, traceroute et mtr
+    # n'ont besoin que de NET_RAW.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    tmpfs:
+      - /tmp:noexec,nosuid,size=32m
+    restart: unless-stopped

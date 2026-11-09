@@ -45,6 +45,10 @@ EXCEPTIONS = {
         ["app", "postgres", "mailpit", "assets", "keycloak", "keycloak-db", "pgadmin"],
     ),
     "monica_v4": ("gelée jusqu'à la version de décembre 2026", ["crm", "monica_v4_db"]),
+    "ripe_atlas": (
+        "logiciel amont à exécutables setuid et capacités de fichier",
+        ["probe"],
+    ),
     "pangolin": (
         "chemin d'accès à tout le reste, non analysé",
         ["pangolin", "gerbil", "traefik", "crowdsec"],

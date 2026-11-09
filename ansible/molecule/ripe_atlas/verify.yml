@@ -1,0 +1,43 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    # Pas de sauvegarde : la clé se ré-enregistre, exprès (README du rôle).
+    - name: Verify the ripe_atlas deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: ripe_atlas
+        verify_app_borgmatic_config: ""
+
+    - name: Verify the ripe_atlas compose services
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: ripe_atlas
+
+    - name: Stat the ripe_atlas borgmatic configuration
+      become: true
+      ansible.builtin.stat:
+        path: "{{ borgmatic_config_dir }}/ripe_atlas.yaml"
+      register: ripe_atlas_borgmatic
+
+    - name: Assert ripe_atlas is not backed up
+      ansible.builtin.assert:
+        that:
+          - not ripe_atlas_borgmatic.stat.exists
+
+    - name: Assert the probe has the least capabilities, one key volume and no port
+      vars:
+        atlas_probe: "{{ (verify_compose_raw.stdout | from_json).services.probe }}"
+      ansible.builtin.assert:
+        that:
+          - atlas_probe.cap_drop == ['ALL']
+          - "'NET_RAW' in atlas_probe.cap_add"
+          - "'NET_ADMIN' not in atlas_probe.cap_add"
+          - atlas_probe.mem_limit is defined
+          - atlas_probe.volumes | length == 1
+          - atlas_probe.volumes[0].target == '/etc/ripe-atlas'
+          - "'ports' not in atlas_probe"
+          - atlas_probe.network_mode | default('') != 'host'
+        fail_msg: "Compose de ripe_atlas inattendu : {{ atlas_probe }}"
