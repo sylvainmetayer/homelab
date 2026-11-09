@@ -32,9 +32,9 @@ openwebui_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default(''
 openwebui_oidc_enabled: "{{ openwebui_oidc_client_id | length > 0 and openwebui_oidc_client_secret | length > 0 and openwebui_oidc_issuer | length > 0 }}"
 
 # Passerelle IA de Pangolin (tofu/pangolin_config/ai_gateway.tf), format OpenAI.
-# La clé virtuelle « openwebui » est lue dans le state par docker.yml (pre_tasks,
-# set_fact no_log) ; vide, aucune connexion IA n'est rendue (OpenAI coupé).
-openwebui_ai_api_key: ""
+# La clé virtuelle « openwebui » est lue dans le state, comme celles de Karakeep
+# et de Papra ; vide, aucune connexion IA n'est rendue (OpenAI coupé).
+openwebui_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).openwebui | default('') }}"
 openwebui_ai_base_url: https://ia.sylvain.cloud/v1
 # Liste déclarée à la main (OPENAI_API_CONFIGS, model_ids) : Open WebUI ne
 # demande alors pas /v1/models, que la passerelle ne liste pas forcément.
