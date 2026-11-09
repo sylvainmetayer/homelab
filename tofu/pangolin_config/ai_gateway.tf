@@ -44,6 +44,12 @@ locals {
       description = "Essai de la passerelle (appel, puis refus au-delà du budget)"
       budget_usd  = 1
     }
+    # Recherche « Find » (analyse de la requête), format OpenAI, Haiku
+    # (ansible/pi.yml, rôle immich).
+    immich_power_tools = {
+      description = "Immich Power Tools : recherche Find"
+      budget_usd  = 5
+    }
   }
 
   # Plafond de toute l'organisation, toutes clés confondues.
@@ -64,12 +70,14 @@ resource "terraform_data" "ai_gateway_key" {
 resource "pangolin_ai_provider" "anthropic" {
   for_each = local.ai_gateway
 
-  name                  = "anthropic"
-  type                  = "anthropic"
-  upstream_url          = "https://api.anthropic.com"
-  api_key               = local.ai_anthropic_api_key
-  auth_type             = "x-api-key"
-  capabilities          = ["anthropic_messages", "v1_models"]
+  name         = "anthropic"
+  type         = "anthropic"
+  upstream_url = "https://api.anthropic.com"
+  api_key      = local.ai_anthropic_api_key
+  auth_type    = "x-api-key"
+  # openai_chat : le point compatible OpenAI d'Anthropic (/v1/chat/completions),
+  # pour les applis qui ne parlent qu'OpenAI (Immich Power Tools).
+  capabilities          = ["anthropic_messages", "openai_chat", "v1_models"]
   routing_mode          = "url"
   enabled               = true
   skip_tls_verification = false
@@ -145,6 +153,12 @@ resource "pangolin_ai_budget" "key" {
   period             = "monthly"
   enforcement        = "hard"
   enabled            = true
+
+  # Pangolin supprime le budget avec sa clé : une clé remplacée (-replace après
+  # une fuite) laissait le provider tenter une mise à jour d'un budget disparu.
+  lifecycle {
+    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key]]
+  }
 }
 
 output "ai_gateway_url" {
