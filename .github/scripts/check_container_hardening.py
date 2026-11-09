@@ -36,10 +36,6 @@ OPTION = re.compile(
 # Owner (role, or compose/ directory) -> why it is left
 # out, and its services. The reasons are detailed in the doctrine.
 EXCEPTIONS = {
-    "borgmatic": (
-        "NAS, nas.yml lancé à la main, pas encore essayé",
-        ["borgmatic"],
-    ),
     "flip_planning": (
         "production, non analysé",
         ["app", "postgres", "mailpit", "assets", "keycloak", "keycloak-db", "pgadmin"],
