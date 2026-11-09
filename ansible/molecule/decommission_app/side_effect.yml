@@ -48,6 +48,9 @@
         - {service: "{{ molecule_up }}/wiki", base_path: "/opt/apps/{{ molecule_up }}/wiki", fails_on: Refuse}
         - {service: "wiki/{{ molecule_up }}/{{ molecule_up }}", base_path: "/opt/apps/wiki/{{ molecule_up }}/{{ molecule_up }}", fails_on: Refuse}
         - {service: wiki, base_path: /opt/apps/wiki, extra_paths: [/mnt/nas/apps], fails_on: Refuse}
+        # kdrive_sync n'est pas couvert : refus net, même avec destroy.
+        - {service: kdrive_sync, base_path: /opt/apps/kdrive_sync, destroy: true, fails_on: Refuse}
+        - {service: kdrive, base_path: /opt/apps/kdrive, fails_on: Refuse}
       loop_control:
         loop_var: decommission_case
 
@@ -131,6 +134,13 @@
         decommission_app_remove_borgmatic_config: "true"
         decommission_app_remove_data: "true"
 
+    # Configuration supprimée sans destruction du dépôt : dit avant de le faire.
+    - name: Assert the plan announced the removal and the lost repo-delete
+      ansible.builtin.assert:
+        that:
+          - decommission_app_plan.msg is search('SUPPRIMÉE')
+          - decommission_app_plan.msg is search('repo-delete ne sera plus possible')
+
     - name: Assert the string true removed everything
       ansible.builtin.include_tasks: tasks/stat_fixture.yml
       vars:
@@ -159,7 +169,9 @@
         decommission_case:
           service: broken_compose_app
           base_path: "{{ docker_base_path }}/broken_compose_app"
-          fails_on: Tear down
+          # destroy: le contrôle précède repo-delete (qui échouerait ici, borg absent).
+          destroy: true
+          fails_on: Check the compose
 
     - name: Assert the failed compose kept the config and the data
       ansible.builtin.include_tasks: tasks/stat_fixture.yml
@@ -230,6 +242,14 @@
         path: "{{ docker_base_path }}/no_compose_app/compose.yaml"
         state: absent
 
+    # Conteneur-less : un volume compose resté sans compose, et celui d'une autre
+    # application, qui doit survivre.
+    - name: Create orphan volumes, one of this app and one of another project
+      become: true
+      ansible.builtin.command: "docker volume create --label com.docker.compose.project={{ item }} {{ item }}_vol"
+      loop: [no_compose_app, neighbor_project]
+      changed_when: true
+
     - name: Run the role on the folder with no compose file
       ansible.builtin.include_role:
         name: decommission_app
@@ -249,6 +269,19 @@
       vars:
         fixture_service: no_compose_app
         fixture_present: false
+
+    - name: List the volumes left
+      become: true
+      ansible.builtin.command: docker volume ls -q
+      register: orphan_volumes
+      changed_when: false
+
+    - name: Assert the orphan volume went and the neighbour's stayed
+      ansible.builtin.assert:
+        that:
+          - decommission_app_orphans is changed
+          - "'no_compose_app_vol' not in orphan_volumes.stdout_lines"
+          - "'neighbor_project_vol' in orphan_volumes.stdout_lines"
 
     # Le scope système, celui du NAS : aucun modèle dc@ n'y est installé ici,
     # l'unité est donc vraiment introuvable.
@@ -358,6 +391,7 @@
     - name: Assert the absent repository was tolerated, not reported as deleted
       ansible.builtin.assert:
         that:
+          - decommission_app_repo_absent.msg is search('dépôt absent')
           - decommission_app_repo_delete.rc == 1
           - decommission_app_repo_delete is not changed
           - decommission_app_repo_delete is not failed
@@ -373,6 +407,34 @@
       ansible.builtin.include_tasks: tasks/expect_failure.yml
       vars:
         decommission_case: *retry_case
+
+    # Dépôt injoignable (connexion refusée) : ce n'est pas « absent », échec franc.
+    - name: Create the app whose repository is unreachable
+      ansible.builtin.include_tasks: tasks/fixture.yml
+      vars:
+        fixture_service: unreachable_app
+
+    - name: Point its configuration at a closed port
+      become: true
+      ansible.builtin.replace:
+        path: "{{ borgmatic_config_dir }}/unreachable_app.yaml"
+        regexp: 'path: .*'
+        replace: 'path: ssh://nobody@127.0.0.1:1/./unreachable_app'
+
+    - name: Run the role on the unreachable repository
+      ansible.builtin.include_tasks: tasks/expect_failure.yml
+      vars:
+        decommission_case:
+          service: unreachable_app
+          base_path: "{{ docker_base_path }}/unreachable_app"
+          destroy: true
+          fails_on: Destroy
+
+    - name: Assert the unreachable repository kept the config and the data
+      ansible.builtin.include_tasks: tasks/stat_fixture.yml
+      vars:
+        fixture_service: unreachable_app
+        fixture_present: true
 
     - name: Create the app whose repository gets deleted
       ansible.builtin.include_tasks: tasks/fixture.yml
