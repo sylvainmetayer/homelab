@@ -1,0 +1,54 @@
+---
+# Open WebUI (interface de chat), image slim : ni Ollama, ni modèles
+# d'embeddings locaux. Un seul conteneur Python, base SQLite et fichiers sous
+# data/, sur le disque local de la VM. Le modèle vient de la passerelle IA de
+# Pangolin (ia.sylvain.cloud), jamais d'un fournisseur en direct.
+openwebui_base_path: "{{ docker_base_path }}/openwebui"
+openwebui_domain: openwebui.sylvain.cloud
+
+# Clé de signature des sessions, obligatoire. Dérivée de backup_passphrase comme
+# celles de Karakeep et Papra : pas d'entrée SOPS. La changer déconnecte tout le
+# monde (et rend illisibles les secrets d'intégrations que l'appli chiffre avec
+# elle : aucun ici).
+openwebui_secret_key: "{{ (backup_passphrase ~ '-openwebui-secret-key') | hash('sha256') }}"
+
+# Inscription locale fermée : un compte ne naît que d'une connexion Pocket ID
+# (ENABLE_OAUTH_SIGNUP, groupe openwebui). Le formulaire de connexion par mot
+# de passe reste (secours, README « Secours »).
+openwebui_enable_signup: false
+
+# Rôle d'un compte créé par Pocket ID. Le premier compte de la base est
+# administrateur quoi qu'il arrive : Sylvain se connecte donc le premier.
+openwebui_default_user_role: user
+
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
+# openwebui), rendue seulement quand l'émetteur, l'identifiant et le secret
+# sont dans le state. Liaison d'un compte existant par e-mail
+# (OAUTH_MERGE_ACCOUNTS_BY_EMAIL) : sûr ici, seul l'administrateur crée les
+# comptes Pocket ID, avec leur e-mail (ALLOW_OWN_ACCOUNT_EDIT=false).
+openwebui_oidc_client_id: "{{ terraform_outputs.pocket_id_openwebui_client_id.value | default('') }}"
+openwebui_oidc_client_secret: "{{ terraform_outputs.pocket_id_openwebui_client_secret.value | default('') }}"
+openwebui_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+openwebui_oidc_enabled: "{{ openwebui_oidc_client_id | length > 0 and openwebui_oidc_client_secret | length > 0 and openwebui_oidc_issuer | length > 0 }}"
+
+# Passerelle IA de Pangolin (tofu/pangolin_config/ai_gateway.tf), format OpenAI.
+# La clé virtuelle « openwebui » est lue dans le state par docker.yml (pre_tasks,
+# set_fact no_log) ; vide, aucune connexion IA n'est rendue (OpenAI coupé).
+openwebui_ai_api_key: ""
+openwebui_ai_base_url: https://ia.sylvain.cloud/v1
+# Liste déclarée à la main (OPENAI_API_CONFIGS, model_ids) : Open WebUI ne
+# demande alors pas /v1/models, que la passerelle ne liste pas forcément.
+openwebui_ai_models:
+  - claude-haiku-5-5
+  - claude-sonnet-5-5
+  - claude-opus-5-5
+openwebui_default_model: claude-sonnet-5-5
+# Titres des conversations : le plus petit modèle (chaque appel compte dans le
+# plafond en tokens de la clé).
+openwebui_task_model: claude-haiku-5-5
+
+# Borgmatic backup configuration
+openwebui_backup_enabled: true
+openwebui_backup_borgmatic_target: "{{ backup_storage_box_url }}/openwebui"
+openwebui_backup_encryption_passphrase: "{{ backup_passphrase }}"
+openwebui_backup_healthcheck_url: ""

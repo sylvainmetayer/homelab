@@ -1,0 +1,56 @@
+---
+services:
+  openwebui:
+    # Mesuré en local (podman, image slim, premier démarrage avec toutes les
+    # migrations de la base) : memory.peak 563 Mio, 340 Mio au repos, sans
+    # conversation. Une conversation n'ajoute que du JSON et des flux vers la
+    # passerelle (aucun modèle local). À recaler sur le pic réel après
+    # quelques jours.
+    mem_limit: 1200m
+    # Variante -slim : sans torch ni modèles d'embeddings, sans Ollama ni CUDA
+    # (RAG local inutile ici, BYPASS_EMBEDDING_AND_RETRIEVAL du .env).
+    image: ghcr.io/open-webui/open-webui:v0.13.3-slim@sha256:8faf917243afee55e042b10ddc08ed6ae6fa9c62522c7e14d81e7cf2922325ae
+    container_name: openwebui
+    # L'uid de l'hôte : les bind mounts lui appartiennent (tasks/main.yml). Image
+    # construite pour root (UID=0) : l'appli ne peut alors pas recopier ses
+    # fichiers de personnalisation de /app/backend/open_webui/static, et le
+    # journal porte une dizaine de lignes « Permission denied » à chaque
+    # démarrage (BRANDING.md, favicon...). Sans effet : aucune personnalisation
+    # ici (vu en local, tout le reste marche : migrations, connexion,
+    # modèles). Écrit sous data/ seulement.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - .env
+{% if openwebui_ai_api_key | length > 0 %}
+    environment:
+      # Modèles déclarés à la main (connexion 0 = OPENAI_API_BASE_URL du .env) :
+      # Open WebUI ne demande alors pas /v1/models, que la passerelle ne liste
+      # pas forcément. Un JSON dans un .env dépend du lecteur (compose retire
+      # les apostrophes, podman non) : ici, en chaîne YAML.
+      OPENAI_API_CONFIGS: {{ {'0': {'enable': true, 'model_ids': openwebui_ai_models}} | to_json | to_json }}
+{% endif %}
+    volumes:
+      # webui.db (SQLite, WAL), uploads/ et cache/.
+      - ./data:/app/backend/data
+    restart: unless-stopped
+    # Celle de l'image (curl et jq y sont), avec une période de démarrage
+    # large : les migrations d'une montée de version ou du premier démarrage
+    # tiennent la sonde au rouge un moment.
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://127.0.0.1:8080/health | jq -ne 'input.status == true'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    # Seul conteneur du projet : pas de réseau privé, newt suffit. Il sort sur
+    # Internet par newt (passerelle IA).
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

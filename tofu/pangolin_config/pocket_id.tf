@@ -94,7 +94,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools"])
 
   length  = 48
   special = false
@@ -374,6 +374,23 @@ resource "pocketid_client" "yamtrack" {
   is_public           = false
 }
 
+# Open WebUI (le foyer) : OPENID_PROVIDER_URL & co du rôle openwebui, fournisseur
+# « oidc » (rappel /oauth/oidc/callback, celui que le rôle fixe ; le second est
+# le chemin que l'appli sait aussi servir). PKCE (S256) envoyé par l'appli.
+# Liaison par e-mail (OAUTH_MERGE_ACCOUNTS_BY_EMAIL), compte créé au premier
+# login (ENABLE_OAUTH_SIGNUP) : le groupe est la barrière.
+resource "pocketid_client" "openwebui" {
+  name                = "Open WebUI"
+  client_id           = "openwebui"
+  client_secret       = random_password.pocket_id_client["openwebui"].result
+  callback_urls       = ["https://openwebui.sylvain.cloud/oauth/oidc/callback", "https://openwebui.sylvain.cloud/oauth/oidc/login/callback"]
+  allowed_user_groups = [pocketid_group.pangolin_role["openwebui"].id]
+  launch_url          = "https://openwebui.sylvain.cloud"
+  logo_url            = "${local.pocket_id_logo_base}/open-webui.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
 # MediaManager (essai, NAS) : [auth.openid_connect] du rôle mediamanager. Pas
 # de PKCE (httpx-oauth n'en envoie pas). Liaison par e-mail sans contrôle de
 # vérification ; registration_enabled = false (image master) : OIDC ne crée
@@ -505,6 +522,17 @@ output "pocket_id_yamtrack_client_id" {
 output "pocket_id_yamtrack_client_secret" {
   description = "POCKET ID - secret du client OIDC de Yamtrack"
   value       = random_password.pocket_id_client["yamtrack"].result
+  sensitive   = true
+}
+
+output "pocket_id_openwebui_client_id" {
+  description = "POCKET ID - identifiant du client OIDC d'Open WebUI"
+  value       = pocketid_client.openwebui.client_id
+}
+
+output "pocket_id_openwebui_client_secret" {
+  description = "POCKET ID - secret du client OIDC d'Open WebUI"
+  value       = random_password.pocket_id_client["openwebui"].result
   sensitive   = true
 }
 
@@ -701,7 +729,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "nextcloud", "victoria-logs", "rss", "wiki",
+    "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki",
   ])
 
   pocket_id_launchers = {

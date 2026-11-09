@@ -14,6 +14,7 @@
   "monica": {"host": "docker", "repo": "monica_v4", "role": "monica_v4", "databases": ["mysql"], "expected_tables": {"monica": ["users", "accounts"]}},
   "nextcloud": {"host": "docker", "repo": "nextcloud", "role": "nextcloud", "databases": ["mysql"], "expected_tables": {"nextcloud": ["oc_appconfig", "oc_storages", "oc_filecache"]}},
   "ntfy": {"host": "docker", "repo": "ntfy", "role": "ntfy", "databases": ["sqlite"], "expected_tables": {"user.db": ["user", "user_token"]}},
+  "openwebui": {"host": "docker", "repo": "openwebui", "role": "openwebui", "databases": ["sqlite"], "expected_tables": {"webui.db": ["user", "auth"]}},
   "pangolin": {"host": "pangolin", "repo": "pangolin", "role": "pangolin", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["user", "orgs", "sites", "resources"]}},
   "papra": {"host": "docker", "repo": "papra", "role": "papra", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["users", "documents"]}, "allow_empty_databases": ["tasks.sqlite"]},
   "pocket_id": {"host": "pangolin", "repo": "pocket_id", "role": "pocket_id", "databases": ["sqlite"], "expected_tables": {"pocket-id.db": ["users", "oidc_clients"]}},

@@ -126,6 +126,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Proxmox host: vzdump restore test; pending apt updates notices (pve, docker, pi, flip, pangolin); hardening (sshd, PVE firewall, repos, SDN) | `ansible/roles/vzdump_restore_test/README.md`, `ansible/roles/update_notify/README.md`, `ansible/roles/pve_hardening/README.md` |
 | Pocket ID (identity provider, setup order, rescue) | `ansible/roles/pocket_id/README.md`, `docs/runbooks/pocket-id.md` |
 | Papra (document app) | `ansible/roles/papra/README.md` |
+| Open WebUI (chat, AI Gateway key, Pocket ID, break glass) | `ansible/roles/openwebui/README.md` |
 | MediaManager trial (NAS, VPN, sandbox) | `ansible/roles/mediamanager/README.md` |
 | Docs site (docs.sylvain.cloud, Zensical): build, deploy, links out of `docs/` | `ansible/roles/docs_site/README.md` |
 | Proxmox VM, LXC, vzdump job | `tofu/proxmox/README.md` |

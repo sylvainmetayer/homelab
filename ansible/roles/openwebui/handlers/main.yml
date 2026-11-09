@@ -1,0 +1,6 @@
+---
+- name: Restart openwebui
+  ansible.builtin.systemd:
+    name: dc@openwebui
+    scope: user
+    state: restarted

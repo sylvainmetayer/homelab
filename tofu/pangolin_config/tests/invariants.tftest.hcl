@@ -628,6 +628,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["openwebui"]
+  values = { id = 194 }
+}
+
+override_resource {
   target = pangolin_resource.website["promptoramix"]
   values = { id = 83, full_domain = "promptoramix.sylvain.cloud" }
 }
@@ -939,6 +944,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["yamtrack"]
   values = { push_token = "push-yamtrack" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup["openwebui"]
+  values = { push_token = "push-openwebui" }
 }
 
 override_resource {
@@ -2224,6 +2234,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_grocy_url             = output.uptime_backup_grocy_url
         uptime_backup_jellystat_url         = output.uptime_backup_jellystat_url
         uptime_backup_yamtrack_url          = output.uptime_backup_yamtrack_url
+        uptime_backup_openwebui_url         = output.uptime_backup_openwebui_url
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         uptime_cron_log_alerts_url          = output.uptime_cron_log_alerts_url
@@ -3435,7 +3446,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3483,17 +3494,22 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_client.karakeep.callback_urls == tolist(["https://keep.sylvain.cloud/api/auth/callback/custom"])
       && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_karakeep_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/karakeep/defaults/main.yml"), "terraform_outputs.pocket_id_issuer.value")
-      # Papra, Yamtrack : PKCE ; MediaManager n'en envoie pas, et son groupe
+      # Papra, Yamtrack, Open WebUI : PKCE ; MediaManager n'en envoie pas, et son groupe
       # est sa seule barrière (pas d'interrupteur d'inscription).
-      && alltrue([for c in [pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.mediamanager] : c.is_public == false && length(c.allowed_user_groups) == 1])
+      && alltrue([for c in [pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager] : c.is_public == false && length(c.allowed_user_groups) == 1])
       && pocketid_client.papra.pkce_enabled == true
       && pocketid_client.yamtrack.pkce_enabled == true
+      && pocketid_client.openwebui.pkce_enabled == true
       && pocketid_client.mediamanager.pkce_enabled == false
       && pocketid_client.papra.callback_urls == tolist(["https://papra.sylvain.cloud/api/auth/oauth2/callback/pocket-id"])
       && pocketid_client.yamtrack.callback_urls == tolist(["https://yamtrack.sylvain.cloud/accounts/oidc/pocket-id/login/callback/"])
+      && contains(pocketid_client.openwebui.callback_urls, "https://openwebui.sylvain.cloud/oauth/oidc/callback")
+      && contains(pocketid_client.openwebui.allowed_user_groups, pocketid_group.pangolin_role["openwebui"].id)
       && contains(pocketid_client.mediamanager.callback_urls, "https://mediamanager.sylvain.cloud/api/v1/auth/oauth/callback")
       && strcontains(file("${path.module}/../../ansible/roles/papra/defaults/main.yml"), "terraform_outputs.pocket_id_papra_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/yamtrack/defaults/main.yml"), "terraform_outputs.pocket_id_yamtrack_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/openwebui/defaults/main.yml"), "terraform_outputs.pocket_id_openwebui_client_secret.value")
+      && strcontains(file("${path.module}/../../ansible/roles/openwebui/templates/env.j2"), "OAUTH_CODE_CHALLENGE_METHOD=S256")
       && strcontains(file("${path.module}/../../ansible/roles/mediamanager/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/papra/templates/env.j2"), "\"providerId\": \"pocket-id\"")
       && strcontains(file("${path.module}/../../ansible/roles/yamtrack/templates/env.j2"), "\"provider_id\": \"pocket-id\"")
@@ -3551,7 +3567,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_tools_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_oauth2_group: mediamanager-admin\n")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin et Prowlarr/qBittorrent de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin et Prowlarr/qBittorrent de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,
