@@ -1,10 +1,36 @@
 ---
 - name: Configure Proxmox VMs
-  hosts: docker
+  # `-e drill_target=drill` : la copie jetable de la VM (groupe drill de
+  # hetzner.py), jamais la VM de production (docs/runbooks/reconstruction-vm-docker.md).
+  hosts: "{{ drill_target | default('docker') }}"
   pre_tasks:
+    # Le mode « exercice » (drill_mode, group_vars/drill/) ne se pose que sur la
+    # copie, et la copie est toujours en mode exercice : un seul des deux, et
+    # rien ne tourne (un hôte de production sans le mode, ou la copie sans lui,
+    # parlerait à la production).
+    - name: Check that drill mode and the drill group go together
+      tags: always
+      ansible.builtin.assert:
+        that: (inventory_hostname in groups.get('drill', [])) == (drill_mode | default(false) | bool)
+        fail_msg: >-
+          {{ inventory_hostname }} : drill_mode et groupe drill doivent aller ensemble
+          (docs/runbooks/reconstruction-vm-docker.md).
+        quiet: true
+
     # Secrets SOPS et sorties du state de tofu/pangolin_config (terraform_outputs).
     - name: Load secrets and the pangolin_config state outputs
       ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # Exercice : aucune sortie du state. Chaque URL push Uptime Kuma, chaque
+    # client OIDC et chaque clé de la passerelle IA que lisent les rôles
+    # ci-dessous tombe alors sur son default('') : rien ne rapporte à la
+    # production, aucune appli ne s'y authentifie ni n'y consomme de budget.
+    - name: Drill mode, forget the pangolin_config state outputs
+      tags: always
+      no_log: true
+      when: drill_mode | default(false) | bool
+      ansible.builtin.set_fact:
+        terraform_outputs: {}
 
     - name: Load healthcheck URLs from Terraform state outputs
       tags: always
@@ -79,10 +105,20 @@
       tags: security,setup
     - role: borgmatic
       tags: backup,setup
+    # Copie jetable seulement : réseau `newt` sans Newt, borg en lecture seule,
+    # outils de restauration et de contrôle. Avant les applis.
+    - role: docker_drill
+      tags: drill,setup
+      when: drill_mode | default(false) | bool
     - role: decommission_app
       tags: [decommission, never]
+    # Les rôles marqués `when: not (drill_mode …)` plus bas ne tournent pas sur
+    # la copie jetable : ils rapporteraient à la production (Newt, Uptime Kuma,
+    # ntfy, VictoriaLogs, Beszel) ou la liraient (Homepage). README de
+    # docker_drill.
     - role: newt
       tags: newt,setup
+      when: not (drill_mode | default(false) | bool)
     - role: rss
       tags: rss,app
     - role: betisier
@@ -101,6 +137,7 @@
       tags: trek,app
     - role: healthlog
       tags: healthlog,app
+      when: not (drill_mode | default(false) | bool)
     - role: karakeep
       tags: karakeep,app
     - role: wishlist
@@ -128,8 +165,10 @@
     # README.md). Pas de sauvegarde : rien qui ne se refasse.
     - role: ripe_atlas
       tags: ripe_atlas,app
+      when: not (drill_mode | default(false) | bool)
     - role: globalping_probe
       tags: globalping_probe,app
+      when: not (drill_mode | default(false) | bool)
     # Outils PDF dans le navigateur (bentopdf.sylvain.cloud). Sans état, pas de
     # sauvegarde (rôle bentopdf, README.md).
     - role: bentopdf
@@ -148,6 +187,7 @@
     # openwebui : il crée le réseau interne de son outil MCP (victoria-logs-mcp).
     - role: victoria_logs
       tags: victoria_logs,app
+      when: not (drill_mode | default(false) | bool)
     # Interface de chat (openwebui.sylvain.cloud), modèles par la passerelle IA
     # de Pangolin, base SQLite sauvegardée (rôle openwebui, README.md).
     - role: openwebui
@@ -157,24 +197,29 @@
     # Pi, du NAS et du LXC newt).
     - role: beszel
       tags: beszel,app
+      when: not (drill_mode | default(false) | bool)
     - role: beszel_agent
       tags: beszel_agent,monitoring
+      when: not (drill_mode | default(false) | bool)
       vars:
         beszel_agent_hub_url: "http://127.0.0.1:8090"
     # Rapport mémoire des conteneurs, chaque lundi sur ntfy (topic scripts).
     - role: mem_report
       tags: mem_report,monitoring
+      when: not (drill_mode | default(false) | bool)
     # Mises à jour apt en attente, chaque lundi sur ntfy (topic scripts) :
     # unattended-upgrades n'installe que Debian-Security. Docker reste à la
     # main, exprès : redémarrer dockerd redémarre toutes les applis
     # (docs/runbooks/mises-a-jour-hotes.md).
     - role: update_notify
       tags: update_notify,monitoring
+      when: not (drill_mode | default(false) | bool)
       vars:
         update_notify_schedule: "Mon *-*-* 08:30:00"
     # L'agent de journaux de cet hôte, vers vmauth par 127.0.0.1.
     - role: log_agent
       tags: log_agent,monitoring
+      when: not (drill_mode | default(false) | bool)
       vars:
         log_agent_url: "http://127.0.0.1:9428"
     # Connexions de la clé de CI hors de tout run GitHub : alerte (ADR 0027).
@@ -182,12 +227,14 @@
     # merge ne déploie que ce tag, pas tous les rôles de supervision.
     - role: ci_key_audit
       tags: ci_key_audit
+      when: not (drill_mode | default(false) | bool)
       vars:
         ci_key_audit_push_url: "{{ terraform_outputs.uptime_cron_ci_key_audit_url.value | default('') }}"
     # Alertes sur les journaux VictoriaLogs (rafales de 5xx, kills OOM, borgmatic
     # absent) : ntfy, et un moniteur push qui tombe si le contrôle devient aveugle.
     - role: log_alerts
       tags: log_alerts
+      when: not (drill_mode | default(false) | bool)
       vars:
         log_alerts_push_url: "{{ terraform_outputs.uptime_cron_log_alerts_url.value | default('') }}"
     # Rapport des coûts (Hetzner, OVH, abonnements), chaque 1er du mois sur
@@ -195,8 +242,10 @@
     # carte Coûts de Homepage. Avant homepage, qui monte son dossier.
     - role: cost_report
       tags: cost_report,monitoring
+      when: not (drill_mode | default(false) | bool)
     - role: homepage
       tags: homepage,app
+      when: not (drill_mode | default(false) | bool)
       vars:
         # Le StateDirectory de cost-report.service (rôle cost_report).
         homepage_costs_dir: /var/lib/cost-report

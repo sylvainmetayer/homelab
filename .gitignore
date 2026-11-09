@@ -54,3 +54,6 @@ __pycache__/
 
 # Provider Pangolin du fork, téléchargé par mise run provider-fork (ADR 0021)
 **/terraform.d/
+
+# Clé d'hôte de la copie jetable de la VM docker (exercice de reconstruction)
+ansible/known_hosts.drill

@@ -98,7 +98,12 @@
 # Unités sans secret (l'URL push est dans les configs de /etc/borgmatic.d) :
 # 0644. Fermées à "others", systemd journalise « marked world-inaccessible »
 # à chaque daemon-reload, sans rien protéger (l'API D-Bus les publie).
+#
+# Copie jetable (drill_mode) : ni service ni minuteur, et les deux masqués
+# plus bas. Elle ne fait que lire les dépôts de production (restauration), la
+# sauvegarde de 01:00 n'y doit jamais partir.
 - name: Create borgmatic systemd service
+  when: not (drill_mode | default(false) | bool)
   become: true
   ansible.builtin.template:
     src: borgmatic.service.j2
@@ -109,6 +114,7 @@
   notify: Reload systemd daemon
 
 - name: Create borgmatic systemd timer
+  when: not (drill_mode | default(false) | bool)
   become: true
   ansible.builtin.template:
     src: borgmatic.timer.j2
@@ -119,12 +125,28 @@
   notify: Reload systemd daemon
 
 - name: Enable and start borgmatic timer
+  when: not (drill_mode | default(false) | bool)
   become: true
   ansible.builtin.systemd:
     name: borgmatic.timer
     enabled: true
     state: started
     daemon_reload: true
+
+# Masqué (lien vers /dev/null) : même un `systemctl start borgmatic` à la main
+# ou un déploiement d'un autre rôle ne peut pas lancer une sauvegarde.
+- name: Mask the borgmatic timer and service on a drill copy
+  when: drill_mode | default(false) | bool
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  loop:
+    - borgmatic.timer
+    - borgmatic.service
 
 # Les clients MariaDB et PostgreSQL de l'hôte servent à restaurer (mysql,
 # psql, pg_restore, vers l'IP du conteneur : les dumps, eux, tournent dans le
@@ -173,7 +195,12 @@
 
 # Une clé par hôte, qui ne quitte pas l'hôte : ansible/backup.yaml dépose sa
 # partie publique chez le sous-compte de l'hôte, qui ne voit que ses dépôts.
+#
+# Copie jetable : pas de clé propre (backup.yaml ne l'autoriserait jamais chez
+# un sous-compte de production, et ne doit pas) ; le rôle docker_drill dépose
+# à ce chemin la clé du sous-compte en lecture seule restore-test.
 - name: Generate the SSH key of root for its Storage Box subaccount
+  when: not (drill_mode | default(false) | bool)
   become: true
   community.crypto.openssh_keypair:
     path: "{{ backup_storage_box_ssh_key_path }}"

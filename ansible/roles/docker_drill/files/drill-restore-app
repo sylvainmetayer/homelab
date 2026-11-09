@@ -1,0 +1,146 @@
+#!/bin/bash
+# Restaure une appli de la VM docker depuis son dépôt Borg (lecture seule), sur
+# la copie jetable. À lancer en root :  drill-restore-app <appli>
+#
+# L'appli doit avoir été déployée (docker.yml : compose, unité dc@, configuration
+# /etc/borgmatic.d/<appli>.yaml) ; elle a démarré à vide. Étapes :
+#   1. arrêt de dc@<appli> (les conteneurs restent créés) ;
+#   2. borgmatic extract de la dernière archive dans /var/restore/<appli>, jamais
+#      sur / : l'archive porte aussi etc/borgmatic.d/*.yaml de la production ;
+#   3. chaque dossier source de la configuration est remplacé par celui de
+#      l'archive (mv : même système de fichiers, pas de recopie) ;
+#   4. bases SQLite : la copie de /var/lib/borgmatic-sqlite/<appli> reprend la
+#      place de la base vivante (propriétaire et mode WAL de la base neuve gardés) ;
+#   5. bases PostgreSQL / MariaDB : conteneur de la base seul démarré, borgmatic
+#      restore, arrêt ;
+#   6. démarrage de dc@<appli>.
+# Chaque étape écrit sa durée ; la dernière ligne, RESTORE-RESULT, va dans la
+# feuille de temps du runbook. Jamais borgmatic create : borg-readonly le refuse.
+set -euo pipefail
+
+app=${1:?usage: drill-restore-app <appli>}
+cfg=/etc/borgmatic.d/$app.yaml
+bm=/root/.local/bin/borgmatic
+work=/var/restore/$app
+owner=sylvain
+
+[ -f "$cfg" ] || { echo "pas de configuration borgmatic pour $app ($cfg)" >&2; exit 1; }
+grep -q '^local_path: /usr/local/bin/borg-readonly$' "$cfg" || {
+  echo "$cfg ne passe pas par borg-readonly : ce n'est pas la copie jetable, on s'arrête." >&2
+  exit 1
+}
+
+sctl() { systemctl --user --machine="$owner@.host" "$@"; }
+t0=$(date +%s)
+lap() { echo "[$app] $(($(date +%s) - t0)) s : $*"; }
+now() { date +%s; }
+
+# Dossiers sources (S), bases SQLite d'origine (Q : les chemins absolus des
+# exclusions qui ne sont pas un motif ni un -wal/-shm/-journal), conteneurs
+# PostgreSQL (P) et MariaDB (M).
+plan=$(python3 - "$cfg" <<'PY'
+import sys, yaml
+c = yaml.safe_load(open(sys.argv[1]))
+for s in sorted(c.get("source_directories", []), key=len):
+    print("S", s)
+excluded = set(c.get("exclude_patterns", []))
+for e in sorted(excluded):
+    # Le gabarit exclut chaque base SQLite trouvée avec ses -wal, -shm et -journal.
+    if e.startswith("/") and e + "-wal" in excluded:
+        print("Q", e)
+for d in c.get("postgresql_databases", []):
+    print("P", d["container"])
+for d in c.get("mysql_databases", []):
+    print("M", d["container"])
+PY
+)
+
+lap "arrêt de dc@$app"
+sctl stop "dc@$app" || true
+
+# Avant de remplacer les dossiers : propriétaire et mode de journal des bases
+# que l'appli a créées à son premier démarrage à vide.
+declare -A q_owner q_wal
+while read -r kind path; do
+  [ "$kind" = Q ] || continue
+  if [ -f "$path" ]; then
+    q_owner[$path]=$(stat -c %u:%g "$path")
+    q_wal[$path]=$(sqlite3 -readonly "$path" 'PRAGMA journal_mode' 2>/dev/null || echo delete)
+  else
+    q_owner[$path]=$(stat -c %u:%g "$(dirname "$path")" 2>/dev/null || echo 0:0)
+    q_wal[$path]=delete
+  fi
+done <<<"$plan"
+
+rm -rf "$work"
+install -d -m 0700 "$work"
+[ "$(stat -c %d "$work")" = "$(stat -c %d /opt/apps)" ] || echo "AVERTISSEMENT : $work et /opt/apps ne sont pas sur le même système de fichiers, mv recopiera." >&2
+
+s=$(now)
+"$bm" --config "$cfg" extract --archive latest --destination "$work"
+extract_s=$(($(now) - s))
+lap "archive extraite ($extract_s s)"
+
+# La configuration ne connaît une base SQLite qu'une fois l'appli démarrée puis
+# redéployée (tasks/app.yml la cherche sur le disque) : sans cela, sa copie
+# resterait dans l'archive et l'appli repartirait avec une base vide.
+if [ -n "$(ls -A "$work/var/lib/borgmatic-sqlite/$app" 2>/dev/null)" ] && ! grep -q '^Q ' <<<"$plan"; then
+  echo "l'archive porte des copies SQLite mais $cfg n'en liste aucune : relancer docker.yml (--tags app) une fois l'appli démarrée, puis $0 $app." >&2
+  exit 1
+fi
+
+while read -r kind path; do
+  [ "$kind" = S ] || continue
+  src="$work$path"
+  [ -e "$src" ] || continue # déjà déplacé avec un dossier parent, ou absent de l'archive
+  if [ -e "$path" ]; then
+    rm -rf "$path.drill-fresh"
+    mv "$path" "$path.drill-fresh"
+  fi
+  mkdir -p "$(dirname "$path")"
+  mv "$src" "$path"
+  rm -rf "$path.drill-fresh"
+done <<<"$plan"
+lap "dossiers sources en place"
+
+staging=/var/lib/borgmatic-sqlite/$app
+while read -r kind path; do
+  [ "$kind" = Q ] || continue
+  name=${path#/}
+  copy=$staging/${name//\//_}
+  if [ ! -f "$copy" ]; then
+    echo "AVERTISSEMENT : pas de copie SQLite de $path dans l'archive ($copy)" >&2
+    continue
+  fi
+  [ "$(sqlite3 -readonly "$copy" 'PRAGMA integrity_check')" = ok ] || { echo "integrity_check de $copy : échec" >&2; exit 1; }
+  rm -f "$path" "$path-wal" "$path-shm" "$path-journal"
+  mkdir -p "$(dirname "$path")"
+  cp "$copy" "$path"
+  chown "${q_owner[$path]}" "$path"
+  [ "${q_wal[$path]}" != wal ] || sqlite3 "$path" 'PRAGMA journal_mode=WAL' >/dev/null
+done <<<"$plan"
+lap "bases SQLite remises"
+
+db_s=0
+dbs=$(awk '$1 == "P" || $1 == "M" {print $2}' <<<"$plan" | sort -u)
+if [ -n "$dbs" ]; then
+  s=$(now)
+  for c in $dbs; do
+    docker start "$c" >/dev/null
+    for _ in $(seq 60); do
+      status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c")
+      [ "$status" = healthy ] && break
+      [ "$status" = none ] && { sleep 20; break; }
+      sleep 5
+    done
+  done
+  "$bm" --config "$cfg" restore --archive latest
+  # shellcheck disable=SC2086
+  docker stop $dbs >/dev/null
+  db_s=$(($(now) - s))
+  lap "bases PostgreSQL / MariaDB rejouées ($db_s s)"
+fi
+
+rm -rf "$work"
+sctl start "dc@$app"
+echo "RESTORE-RESULT app=$app total_s=$(($(now) - t0)) extract_s=$extract_s db_s=$db_s"

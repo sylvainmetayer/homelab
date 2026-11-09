@@ -17,6 +17,7 @@ choix dans [../adr/](../adr/README.md).
 | Déploiement CI cassé, PR Renovate qui casse une appli | [deploiement-ci-casse.md](deploiement-ci-casse.md) |
 | Perte de la clé age, d'une clé SSH ou d'un poste | [perte-cle-ou-poste.md](perte-cle-ou-poste.md) |
 | Reconstruction complète de Pangolin depuis Borg | [reconstruction-pangolin.md](reconstruction-pangolin.md) |
+| Reconstruction de la VM docker depuis Borg, sur un serveur Hetzner Cloud jetable : exercice chronométré, et hébergeur provisoire d'un sinistre | [reconstruction-vm-docker.md](reconstruction-vm-docker.md) |
 | Un hôte a changé de clé d'hôte SSH | [cle-hote-ssh-changee.md](cle-hote-ssh-changee.md) |
 | Mettre une appli en pause durablement, la reprendre (procédure, pas un incident) | [app-en-pause.md](app-en-pause.md) |
 | Connexion SSH refusée après durcissement (« no matching key exchange ») | [ssh-refuse-apres-durcissement.md](ssh-refuse-apres-durcissement.md) |
