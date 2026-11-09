@@ -5,8 +5,13 @@
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
   vars:
-    # Sorties de tofu/pangolin_config (pocket_id.tf) : le client OIDC d'Open WebUI.
+    # Sorties de tofu/pangolin_config : le client OIDC d'Open WebUI (pocket_id.tf)
+    # et sa clé virtuelle de la passerelle IA (ai_gateway.tf), factice : jamais
+    # une vraie forme de clé.
     terraform_outputs:
+      ai_gateway_keys:
+        value:
+          openwebui: molecule-openwebui-ai-gateway-key
       pocket_id_issuer:
         value: https://idp.example.invalid
       pocket_id_openwebui_client_id:
@@ -17,14 +22,12 @@
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
-    # docker.yml lit ces valeurs dans les outputs du state pangolin_config :
-    # un set_fact (absentes de secrets/ansible.sops.yaml, donc de fake_secrets.yml).
-    # La clé de la passerelle IA est factice : jamais une vraie forme de clé.
-    - name: Load healthcheck URL and AI key as docker.yml does from the Terraform state
+    # docker.yml lit cette valeur dans les outputs du state pangolin_config :
+    # un set_fact (absente de secrets/ansible.sops.yaml, donc de fake_secrets.yml).
+    - name: Load healthcheck URL as docker.yml does from the Terraform state
       no_log: true
       ansible.builtin.set_fact:
         openwebui_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-openwebui-backup
-        openwebui_ai_api_key: molecule-openwebui-ai-gateway-key
   roles:
     - role: docker_service
     - role: openwebui

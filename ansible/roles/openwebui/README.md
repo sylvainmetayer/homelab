@@ -18,8 +18,8 @@ recherche de version).
 
 - `OPENAI_API_BASE_URL=https://ia.sylvain.cloud/v1`, `OPENAI_API_KEY` = la clé
   virtuelle `openwebui` de `tofu/pangolin_config/ai_gateway.tf`
-  (`terraform_outputs.ai_gateway_keys`), lue par `docker.yml` (`pre_tasks`,
-  `set_fact` en `no_log`, comme `ansible/pi.yml` pour Immich Power Tools).
+  (`terraform_outputs.ai_gateway_keys`), lue par le rôle (`defaults/main.yml`),
+  comme Karakeep et Papra.
   **Clé absente du state** (avant l'apply de la clé) : le rôle rend
   `ENABLE_OPENAI_API=false`, aucune connexion IA, l'appli démarre quand même.
   Une rotation de la clé (`tofu apply -replace`, voir `ai_gateway.tf`) : relancer
@@ -31,7 +31,9 @@ recherche de version).
   forcément. Modèle par défaut Sonnet ; titres des conversations par Haiku
   (`TASK_MODEL_EXTERNAL`) ; étiquettes, suites proposées et requêtes de
   recherche automatiques coupées : chaque génération compte dans les plafonds
-  **en tokens** de la clé (2 M par mois, bloquants).
+  **en tokens** de la clé (5 M au total sur `lifetime`, bloquants : une fois
+  atteints, le chat s'arrête jusqu'à ce qu'on relève le plafond à la main,
+  `ai_gateway.tf`).
   Un dépassement se voit côté appli comme une erreur 429 de la passerelle.
 - `ENABLE_PERSISTENT_CONFIG=false` : le `.env` est la source de vérité. Sans lui,
   Open WebUI garde en base ce qu'il a lu au premier démarrage (clé, modèles,

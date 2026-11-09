@@ -103,11 +103,13 @@
           - openwebui_compose.services.openwebui.container_name == 'openwebui'
         fail_msg: "Compose d'Open WebUI inattendu (durcissement, image slim, réseau) : {{ openwebui_compose.services.openwebui }}"
 
-    - name: Assert the openwebui backup covers its data, dumps the SQLite file and pushes to Uptime Kuma
+    - name: Assert the openwebui backup covers its data and compose files and leaves out the cache
       ansible.builtin.assert:
         that:
           - "'/opt/apps/openwebui/data' in openwebui_borgmatic.source_directories"
+          - "'/opt/apps/openwebui/compose.yaml' in openwebui_borgmatic.source_directories"
           - "'/opt/apps/openwebui/.env' in openwebui_borgmatic.source_directories"
+          - "'/opt/apps/openwebui/data/cache' in openwebui_borgmatic.exclude_patterns"
         fail_msg: "Configuration borgmatic d'Open WebUI inattendue : {{ openwebui_borgmatic.source_directories }}"
 
     - name: Stat the repo-create marker of the borgmatic stub for openwebui
