@@ -32,6 +32,17 @@ services:
     mem_limit: {{ borgmatic_container_mem_limit }}
     cpus: 2.00
     cpu_shares: 512
+    # Root dans le conteneur, qui lit les dossiers 0700 d'autres comptes
+    # (config de Jellyfin en 1000:10, bases de MediaManager) : DAC_OVERRIDE
+    # seul, de l'ensemble par défaut de Docker (jamais DAC_READ_SEARCH, hors
+    # de cet ensemble). Sans lui : « Permission denied » sur ces dossiers.
+    # Rien n'est changé de propriétaire, rien n'est écrit chez un autre compte.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
     volumes:
       # Sources, configurations et clé SSH, aux chemins de l'hôte.
 {% for path in borgmatic_container_source_paths %}
