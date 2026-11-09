@@ -197,6 +197,23 @@ se rafraîchissent plus. Vérifier avec **Tester le fournisseur actif**
 défaut de la liste retombe sur le défaut de l'amont, `claude-sonnet-4-6`.
 Rotation : `docs/runbooks/rotation-des-secrets.md`.
 
+### Par la passerelle IA (depuis le 2026-11-09)
+
+HealthLog accepte une URL de base : tout hôte qui n'est pas `anthropic.com`
+passe par son client OpenAI (`src/lib/ai/anthropic-host.ts`). Pour passer par
+la passerelle de Pangolin (une clé et un budget à HealthLog, sans clé
+Anthropic dans l'appli) : dans `/settings/ai`, URL de base
+`https://ia.sylvain.cloud/v1`, clé = clé virtuelle `healthlog`, lue depuis un
+worktree à jour de `main`, sans l'afficher ailleurs que dans le champ :
+
+```bash
+mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq -r .healthlog | wl-copy
+```
+
+puis **Tester le fournisseur actif**, et révoquer l'ancienne clé Anthropic
+personnelle. Le modèle reste celui du champ personnalisé (`claude-opus-5-5`).
+Le journal des appels de la passerelle reste éteint (données de santé).
+
 ## Clé de chiffrement
 
 `ENCRYPTION_KEY` chiffre les jetons Withings, les identifiants des
