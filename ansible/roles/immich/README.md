@@ -73,6 +73,18 @@ du même nom (le foyer). Le jeton d'accès du healthcheck (`websites.tf`)
 franchit le SSO mais ne donne plus aucun droit sur la photothèque : sans
 session Immich, l'appli n'agit pas.
 
+**Recherche « Find » par la passerelle IA** (depuis le 2026-11-09). Power Tools
+n'appelle l'IA qu'au format OpenAI (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`,
+`src/helpers/ai.helper.ts`, sortie structurée par `response_format`) et
+seulement pour analyser la requête : les photos restent chez Immich (Smart
+Search). Il passe par la passerelle de Pangolin (`https://ia.sylvain.cloud/v1`,
+`tofu/pangolin_config/ai_gateway.tf`), qui sert le point compatible OpenAI
+d'Anthropic (capacité `openai_chat`) : Haiku 5.5, clé virtuelle
+`immich_power_tools` à 5 $/mois (conso visible par clé dans Pangolin). La clé
+est lue par `pi.yml` dans le state (`terraform_outputs.ai_gateway_keys`) ;
+absente, les trois variables ne sont pas rendues et Find tourne sans IA. Essai
+du 09/11 par curl : JSON structuré correct.
+
 **Accès direct à la base d'Immich.** L'appli se connecte à PostgreSQL
 (`immich_postgres:5432`, réseau `immich`, base `immich`) avec les identifiants
 d'Immich lui-même : utilisateur `postgres`, mot de passe `immich_db_password`
