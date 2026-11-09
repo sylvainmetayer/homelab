@@ -46,7 +46,7 @@ au plus :
 | N° | Décision | Statut |
 |---|---|---|
 | [0001](0001-sauvegardes-borgmatic.md) | Sauvegardes Borgmatic + Borg, un sous-compte par hôte, restauration testée en CI | acceptée (check trimestriel remplacé par 0017) |
-| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée (exceptions : 0025, 0030) |
+| [0002](0002-pangolin-seule-entree-publique.md) | Pangolin seule entrée publique, FR/DE seulement, chemins ouverts relus | acceptée (exceptions : 0025, 0030, 0032) |
 | [0003](0003-crowdsec-sur-pangolin.md) | CrowdSec sur Pangolin, plugin Traefik, AppSec en détection seule | acceptée |
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
 | [0005](0005-retention-journaux-pangolin.md) | Base de Pangolin : rétention des journaux 30/90 jours | acceptée (VACUUM à confirmer) |
@@ -76,3 +76,4 @@ au plus :
 | [0029](0029-fenetre-de-calme-du-deploiement.md) | Fenêtre de calme : pas de déploiement automatique de 19:00 à 08:00 (Paris), rattrapage au matin | acceptée |
 | [0030](0030-pocket-id-fournisseur-identite-pilote.md) | Pocket ID, fournisseur d'identité (remplace 0016 ; pilote clos le 2026-11-07), public hors du filtre FR/DE : exception à 0002 | acceptée |
 | [0031](0031-certificats-jokers.md) | Un certificat joker par domaine (DNS-01) au lieu d'un certificat par nom | acceptée |
+| [0032](0032-passerelle-ia-pangolin.md) | Passerelle IA de Pangolin : une clé et un budget par appli, sans filtre FR/DE (exception à 0002) | acceptée |
