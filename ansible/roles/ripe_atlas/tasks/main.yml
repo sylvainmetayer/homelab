@@ -1,0 +1,31 @@
+---
+# Pas de sauvegarde borgmatic, exprès : perdre la clé revient à ré-enregistrer
+# la sonde (README.md).
+- name: Ensure RIPE Atlas app folders exist
+  loop:
+    - "{{ ripe_atlas_base_path }}"
+    - "{{ ripe_atlas_base_path }}/etc"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0700"
+
+- name: Template compose configuration
+  diff: false
+  notify: Restart ripe_atlas
+  ansible.builtin.template:
+    src: compose.yaml
+    dest: "{{ ripe_atlas_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Make sure ripe_atlas service is running
+  ansible.builtin.systemd:
+    name: dc@ripe_atlas
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true
