@@ -150,13 +150,14 @@ mediamanager_subnet: 172.30.97.0/24
 
 # --- Limites (docs/conventions/resource-limits.md) -----------------------------
 # Provisoires, tirées de l'évaluation : à recaler à ~2x memory.peak après une
-# semaine d'essai (README).
+# semaine d'essai (README). gluetun remesuré le 2026-11-09 : memory.peak à
+# 118 Mio pour 128, d'où 256m ; les autres restent à remesurer.
 mediamanager_mem_limit: 512m
 mediamanager_db_mem_limit: 256m
 mediamanager_db_mem_reservation: 128m
 mediamanager_qbittorrent_mem_limit: 1g
 mediamanager_prowlarr_mem_limit: 256m
-mediamanager_gluetun_mem_limit: 128m
+mediamanager_gluetun_mem_limit: 256m
 
 # --- Sauvegarde (rôle borgmatic, tasks/app.yml ; borgmatic en conteneur sur
 # le NAS) : configuration de MediaManager, celles de qBittorrent et Prowlarr

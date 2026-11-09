@@ -2,10 +2,10 @@
 services:
   app:
     # nginx et php-fpm (5 enfants au plus) dans un seul conteneur s6, base
-    # SQLite. Pas encore mesuré : même pile que speedtest-tracker
-    # (memory.peak à 285 Mio sur la VM, surtout du page cache), plafond à ~2×
-    # ce pic, comme lui. À relire après une semaine.
-    mem_limit: 640m
+    # SQLite. Mesuré le 2026-11-09 : memory.peak à 52 Mio, moyenne de 2 h à
+    # 76 Mio au plus sur 7 jours (le 640m d'avant venait de speedtest-tracker,
+    # pas de Grocy) ; plafond à ~2,5× pour les pics de php-fpm.
+    mem_limit: 192m
     # L'image linuxserver : son init démarre en root, rend config/ à
     # PUID/PGID et lie /app/www/data à config/data (grocy.db, config.php,
     # images), puis tourne en abc.
