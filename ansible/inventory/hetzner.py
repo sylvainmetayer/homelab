@@ -10,6 +10,14 @@ bastion's sshd must allow local forwarding (security_ssh_allow_tcp_forwarding
 in host_vars/pangolin). The CI does the same with its own inventory, see
 .github/workflows/deploy-docker-app.yaml.
 
+A server labelled role=drill (the throwaway copy of the docker VM, tofu/pangolin/
+drill.tf) goes into the group `drill` and nowhere else: not in `hetzner`, never
+pangolin or flip. It gets drill_borg_user / drill_borg_server (the read-only
+restore-test subaccount of the Storage Box, from the state outputs) and its host
+key through GlobalKnownHostsFile=ansible/known_hosts.drill, a git-ignored file
+written from the drill_known_hosts_line output (docs/runbooks/reconstruction-vm-docker.md).
+StrictHostKeyChecking stays on: no ssh-keyscan.
+
 Environment:
   HETZNER_BASTION   name of the server to jump through (default: pangolin)
 """
@@ -22,6 +30,8 @@ import sys
 BASTION = os.environ.get("HETZNER_BASTION", "pangolin")
 # Clés d'hôte versionnées (ansible/known_hosts), aussi pour le saut par le bastion.
 KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts")
+# Clé d'hôte de la copie jetable, hors dépôt (ligne tirée du state de tofu/pangolin).
+DRILL_KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts.drill")
 
 
 def get_tofu_state():
@@ -53,9 +63,12 @@ def get_inventory():
             "hostvars": {}
         },
         "all": {
-            "children": ["hetzner"]
+            "children": ["hetzner", "drill"]
         },
         "hetzner": {
+            "hosts": []
+        },
+        "drill": {
             "hosts": []
         }
     }
@@ -96,7 +109,22 @@ def get_inventory():
             # Get IPv4 address from Hetzner server
             ipv4_address = values.get("ipv4_address")
 
-            if ipv4_address and ipv4_address != "127.0.0.1":
+            if (values.get("labels") or {}).get("role") == "drill":
+                # Copie jetable : son seul groupe est `drill` (ni hetzner, ni
+                # pangolin, ni flip), voir tofu/pangolin/drill.tf.
+                outputs = state.get("values", {}).get("outputs", {})
+                inventory["drill"]["hosts"].append(name)
+                inventory["_meta"]["hostvars"][name] = {
+                    "ansible_host": ipv4_address,
+                    "ansible_user": "sylvain",
+                    # En plus de known_hosts : la clé de l'hôte vient du state.
+                    "ansible_ssh_common_args": f"-o GlobalKnownHostsFile={DRILL_KNOWN_HOSTS}",
+                    "drill_borg_user": outputs.get("storage_box_restore_test_username", {}).get("value"),
+                    "drill_borg_server": outputs.get("storage_box_restore_test_server", {}).get("value"),
+                    "server_type": values.get("server_type"),
+                    "location": values.get("location")
+                }
+            elif ipv4_address and ipv4_address != "127.0.0.1":
                 inventory["hetzner"]["hosts"].append(name)
                 inventory["_meta"]["hostvars"][name] = {
                     "ansible_host": ipv4_address,

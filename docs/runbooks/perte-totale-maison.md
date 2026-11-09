@@ -122,11 +122,12 @@ Où reconstruire, si la maison n'existe plus : le dépôt suppose un LAN
   Box, DHCP, DNS annoncés, `home_ip`, Wi-Fi : [bbox-remplacee.md](bbox-remplacee.md).
   Garder la plage ; en changer touche `tofu/proxmox`, l'inventaire, Blocky,
   Pangolin et `known_hosts`.
-- **Un hébergeur provisoire** (serveur Hetzner Cloud, par exemple) : **non
-  préparé**. Le dépôt n'a de module cloud que pour Pangolin et flip ; la VM
-  docker est décrite pour Proxmox (`tofu/proxmox`) et l'inventaire des
-  hôtes de la maison est lu dans ce state. Faisable à la main, hors dépôt, à
-  décider le jour venu.
+- **Un hébergeur provisoire** (serveur Hetzner Cloud) : la VM docker a sa copie
+  jetable, `tofu/pangolin/drill.tf` (éteinte par défaut), reconstruite depuis
+  Borg par [reconstruction-vm-docker.md](reconstruction-vm-docker.md). Préparée
+  pour l'exercice, **jamais jouée** ; la bascule en production (Newt, sauvegardes)
+  n'y est pas rédigée. Le reste de la maison (NAS, Pi, Blocky) n'a pas
+  d'équivalent.
 
 En attendant, Pangolin et flip tiennent : Flip Planning reste en ligne.
 
@@ -168,6 +169,10 @@ par Tofu).
 @192.168.1.200 example.com` répond.
 
 ### Étage 4. VM docker
+
+Sans machine Proxmox, la VM se reconstruit sur un serveur Hetzner Cloud jetable :
+[reconstruction-vm-docker.md](reconstruction-vm-docker.md) (procédure, feuille de
+temps, vérification par appli). Ce qui suit vaut pour une VM sur Proxmox.
 
 1. Depuis `ansible/`, avec `--check --diff` d'abord : `ansible-playbook
    00-setup.yaml --limit docker`, puis `docker.yml --tags setup` (Docker,

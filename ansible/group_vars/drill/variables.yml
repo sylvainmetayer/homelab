@@ -1,0 +1,33 @@
+---
+# Copie jetable de la VM docker sur Hetzner Cloud (tofu/pangolin/drill.tf,
+# docs/runbooks/reconstruction-vm-docker.md). Ce que host_vars/docker pose pour
+# la production est ici repris ou volontairement omis ; hetzner.py met l'hôte
+# dans ce seul groupe et lui donne drill_borg_user / drill_borg_server.
+
+# L'interrupteur unique : docker.yml, les rôles borgmatic et docker_drill le lisent.
+drill_mode: true
+
+# --- Borg : les dépôts de production, en lecture seule ---
+# Le sous-compte restore-test (tofu/pangolin/storage_box.tf), dossier racine
+# backup/ : ses dépôts sont sous docker/<appli>. Le système de fichiers de la
+# Storage Box lui refuse toute écriture, quel que soit le client ; borg-readonly
+# (rôle docker_drill) refuse en plus toute commande qui écrit.
+backup_storage_box_subaccount:
+  username: "{{ drill_borg_user }}"
+  server: "{{ drill_borg_server }}"
+backup_storage_box_url: "ssh://{{ drill_borg_user }}@{{ drill_borg_server }}/./docker"
+borgmatic_borg_bin: /usr/local/bin/borg-readonly
+
+# --- Durcissement (rôle security) ---
+# SSH vient d'Internet ici : le pare-feu Hetzner (drill.tf) ne le laisse passer
+# que depuis les adresses du poste. Pas de relais de courrier (security_mta_enabled
+# reste à false) : la copie n'envoie rien.
+security_ufw_allowed_ports:
+  - { port: "22", proto: tcp }
+security_filesystem_whitelist:
+  - vfat
+
+# Omis exprès, parmi ceux de host_vars/docker : newt_* (pas de Newt, il volerait
+# le trafic du site docker), beszel_*, victoria_logs_*, homepage_* (rôles
+# exclus, docker.yml), papra_intake_* (la relève IMAP de la vraie boîte, qui
+# déplace des courriels : l'intake de Papra reste coupé, c'est son défaut).

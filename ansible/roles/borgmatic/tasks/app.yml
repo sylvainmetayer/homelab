@@ -115,9 +115,13 @@
 
 - name: Initialize borg repository for {{ borgmatic_app_title }}
   become: true
-  when: >-
-    not borgmatic_app_repo_marker.stat.exists or
-    borgmatic_app_repo_marker.stat.checksum != (borgmatic_app_target | hash('sha1'))
+  # Copie jetable (drill_mode) : jamais de repo-create, les dépôts sont ceux de
+  # la production, lus en lecture seule.
+  when:
+    - not (drill_mode | default(false) | bool)
+    - >-
+      not borgmatic_app_repo_marker.stat.exists or
+      borgmatic_app_repo_marker.stat.checksum != (borgmatic_app_target | hash('sha1'))
   ansible.builtin.command:
     cmd: >-
       {{ borgmatic_bin }} --verbosity 1

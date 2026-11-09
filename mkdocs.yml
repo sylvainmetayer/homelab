@@ -88,6 +88,7 @@ nav:
       - runbooks/deploiement-ci-casse.md
       - runbooks/perte-cle-ou-poste.md
       - runbooks/reconstruction-pangolin.md
+      - runbooks/reconstruction-vm-docker.md
       - runbooks/cle-hote-ssh-changee.md
       - runbooks/ssh-refuse-apres-durcissement.md
       - runbooks/proxmox-injoignable-apres-durcissement.md

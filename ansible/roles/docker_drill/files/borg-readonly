@@ -1,0 +1,17 @@
+#!/bin/sh
+# borg en lecture seule, pour la copie jetable de la VM docker (borgmatic_borg_bin
+# de group_vars/drill) : borgmatic le lance comme local_path, et il refuse toute
+# commande qui écrit dans un dépôt de production. Deuxième verrou après le
+# sous-compte restore-test, que la Storage Box empêche d'écrire.
+#
+# --bypass-lock : borg 1.x pose un verrou même pour lire, ce que le sous-compte
+# en lecture seule ne peut pas faire (comme le test de restauration de la CI).
+for arg in "$@"; do
+  case "$arg" in
+    create | prune | compact | delete | recreate | rename | init | key | upgrade | serve | break-lock | with-lock | import-tar | transfer | config | --repair)
+      echo "borg-readonly : '$arg' refusé, la copie jetable ne doit rien écrire dans un dépôt." >&2
+      exit 2
+      ;;
+  esac
+done
+exec /root/.local/bin/borg --bypass-lock "$@"
