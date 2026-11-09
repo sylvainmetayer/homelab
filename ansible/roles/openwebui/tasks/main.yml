@@ -5,6 +5,7 @@
   loop:
     - "{{ openwebui_base_path }}"
     - "{{ openwebui_base_path }}/data"
+    - "{{ openwebui_base_path }}/searxng"
   ansible.builtin.file:
     mode: "0700"
     path: "{{ item }}"
@@ -28,6 +29,19 @@
   ansible.builtin.template:
     src: "templates/env.j2"
     dest: "{{ openwebui_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Réglages de SearXNG, lus en lecture seule par le conteneur (sous l'uid de
+# déploiement) : la clé de signature y est, d'où 0600 et diff: false.
+- name: Template SearXNG settings
+  when: openwebui_searxng_enabled | bool
+  diff: false
+  notify: Restart openwebui
+  ansible.builtin.template:
+    src: "templates/searxng-settings.yml.j2"
+    dest: "{{ openwebui_base_path }}/searxng/settings.yml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"

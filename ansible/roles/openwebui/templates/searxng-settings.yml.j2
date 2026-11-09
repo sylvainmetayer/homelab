@@ -1,0 +1,29 @@
+# SearXNG privé d'Open WebUI (rôle openwebui) : les réglages par défaut de
+# l'image, surchargés ici. Référence : https://docs.searxng.org/admin/settings/
+use_default_settings:
+  engines:
+    keep_only:
+{% for engine in openwebui_searxng_engines %}
+      - {{ engine }}
+{% endfor %}
+
+general:
+  instance_name: SearXNG (Open WebUI)
+  debug: false
+
+search:
+  safe_search: {{ openwebui_searxng_safe_search }}
+  autocomplete: ""
+  default_lang: {{ openwebui_searxng_language }}
+  # json : Open WebUI lit /search?format=json (403 sans lui).
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "{{ openwebui_searxng_secret_key }}"
+  # Un seul client, interne : pas de limiteur, donc pas de Valkey/Redis (le
+  # limiteur de SearXNG en exige un ; désactivé par défaut, gardé explicite).
+  limiter: false
+  public_instance: false
+  image_proxy: false

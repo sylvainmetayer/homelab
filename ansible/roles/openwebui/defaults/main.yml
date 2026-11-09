@@ -56,6 +56,31 @@ openwebui_task_model: claude-haiku-5-5
 openwebui_mcp_victorialogs_enabled: true
 openwebui_mcp_victorialogs_url: http://mcp-victorialogs:8081/mcp
 
+# Recherche web : un SearXNG privé dans le compose d'Open WebUI, sans aucune
+# exposition (ni ressource Pangolin, ni port publié, ni réseau newt) : il ne
+# sert qu'à Open WebUI, par un réseau interne partagé avec lui seul. Sans état :
+# pas de sauvegarde. Image épinglée par étiquette et condensat.
+openwebui_searxng_enabled: true
+openwebui_searxng_image: docker.io/searxng/searxng:2026.11.9-57ff753ad@sha256:287af61f1a13e86d02974fcde91a3413a9945788de38b61ffbc491d81a19bcc2
+# Clé de signature de SearXNG (jetons de formulaire), dérivée comme les autres :
+# pas d'entrée SOPS.
+openwebui_searxng_secret_key: "{{ (backup_passphrase ~ '-searxng') | hash('sha256') }}"
+# Moteurs interrogés (noms de settings.yml de SearXNG). Peu, pour rester sous
+# les limites de débit des moteurs depuis une seule IP domestique.
+openwebui_searxng_engines:
+  - duckduckgo
+  - google
+  - startpage
+  - wikipedia
+# 0 aucun filtre, 1 modéré, 2 strict : modéré pour un foyer.
+openwebui_searxng_safe_search: 1
+openwebui_searxng_language: fr
+# Résultats rendus à Open WebUI, et pages lues ou non : snippets seuls (le
+# chargeur de pages d'Open WebUI téléchargerait chaque page et la mettrait
+# dans le contexte, donc dans le plafond de tokens de la clé IA).
+openwebui_web_search_result_count: 5
+openwebui_web_search_load_pages: false
+
 # Borgmatic backup configuration
 openwebui_backup_enabled: true
 openwebui_backup_borgmatic_target: "{{ backup_storage_box_url }}/openwebui"

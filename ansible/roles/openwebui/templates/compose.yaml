@@ -54,12 +54,51 @@ services:
       timeout: 10s
       retries: 3
       start_period: 180s
-    # newt : l'entrée (Pangolin) et la sortie vers la passerelle IA ; le réseau
-    # interne du MCP des journaux pour cet outil seulement.
+    # newt : l'entrée (Pangolin) et la sortie vers la passerelle IA ; les réseaux
+    # internes du MCP des journaux et de SearXNG pour ces deux services seuls.
     networks:
       - newt
 {% if openwebui_mcp_victorialogs_enabled | bool %}
       - victoria-logs-mcp
+{% endif %}
+{% if openwebui_searxng_enabled | bool %}
+      - searxng
+
+  # Recherche web d'Open WebUI, sans aucune exposition : pas de port publié, pas
+  # de réseau newt, aucune ressource Pangolin. Sans état (les réglages viennent
+  # de searxng/settings.yml, le cache est en tmpfs) : pas de sauvegarde.
+  searxng:
+    # Estimation, non mesurée : Granian (WSGI) et Python, quelques requêtes par
+    # jour. À recaler sur memory.peak après quelques jours.
+    mem_limit: 300m
+    image: {{ openwebui_searxng_image }}
+    container_name: searxng
+    # L'uid de l'hôte, comme Open WebUI : l'entrypoint ne change alors aucun
+    # propriétaire (il ne le fait qu'en root) et n'a besoin d'aucune capacité.
+    user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Sticky bit : le cache (créé sous l'uid de déploiement) est à ce conteneur seul.
+      - /var/cache/searxng:rw,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/searxng/.venv/bin/python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8080/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # searxng : le lien avec Open WebUI, interne. searxng-egress : la sortie vers
+    # les moteurs, pour lui seul (newt est partagé avec les apps publiées).
+    networks:
+      - searxng
+      - searxng-egress
 {% endif %}
 
 networks:
@@ -69,4 +108,11 @@ networks:
   # Interne, créé par le compose de victoria_logs : lui et le MCP seuls.
   victoria-logs-mcp:
     external: true
+{% endif %}
+{% if openwebui_searxng_enabled | bool %}
+  # Interne : Open WebUI et SearXNG seuls, aucune sortie par ce réseau.
+  searxng:
+    internal: true
+  # Sortie Internet de SearXNG (les moteurs), rien d'autre dessus.
+  searxng-egress: {}
 {% endif %}
