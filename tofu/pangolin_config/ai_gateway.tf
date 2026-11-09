@@ -3,8 +3,8 @@
 #
 # Les applis du homelab appellent les modèles par cette ressource `inference`,
 # chacune avec sa clé virtuelle et son budget, au lieu d'une clé Anthropic par
-# appli. Phase d'essai : une seule clé, « essai » ; les clés des applis
-# (Papra, HealthLog, MCP) viendront après l'essai et l'ADR 0031.
+# appli. Phase d'essai : la clé « essai » et celle d'Immich Power Tools ; les
+# autres (Papra, HealthLog, MCP) viendront après l'essai et l'ADR 0031.
 #
 # Allumée par local.ai_gateway_enabled, jamais par la seule présence de sa
 # clé : une clé SOPS perdue (fusion ratée dans le sous-module) détruirait sans
@@ -44,8 +44,8 @@ locals {
       description = "Essai de la passerelle (appel, puis refus au-delà du budget)"
       budget_usd  = 1
     }
-    # Recherche « Find » (analyse de la requête), format OpenAI, Haiku
-    # (ansible/pi.yml, rôle immich).
+    # Recherche « Find » (analyse de la requête), format OpenAI, Haiku. Clé
+    # créée ici ; le rôle immich (ansible/pi.yml) ne la lit pas encore.
     immich_power_tools = {
       description = "Immich Power Tools : recherche Find"
       budget_usd  = 5
@@ -157,7 +157,7 @@ resource "pangolin_ai_budget" "key" {
   # Pangolin supprime le budget avec sa clé : une clé remplacée (-replace après
   # une fuite) laissait le provider tenter une mise à jour d'un budget disparu.
   lifecycle {
-    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key]]
+    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
   }
 }
 

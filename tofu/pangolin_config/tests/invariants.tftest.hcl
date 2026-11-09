@@ -445,6 +445,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_virtual_api_key.ai["immich_power_tools"]
+  values = { id = "vk-ipt", secret = "pangolin-key-ipt.not-a-secret" }
+}
+
+override_resource {
   target = pangolin_resource.remote_desktop["pc_sylvain_vnc"]
   values = { id = 3101 }
 }
@@ -3634,6 +3639,7 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && length(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == 1 && contains(pangolin_resource.ai_gateway["ia"].ai_provider_ids, pangolin_ai_provider.anthropic["ia"].id)
       && pangolin_ai_provider.anthropic["ia"].type == "anthropic"
       && pangolin_ai_provider.anthropic["ia"].upstream_url == "https://api.anthropic.com"
+      && contains(pangolin_ai_provider.anthropic["ia"].capabilities, "openai_chat")
       && alltrue([for m in pangolin_ai_model.anthropic : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.anthropic["ia"].id])
     )
     error_message = "La passerelle IA doit rester en mode inference sur ia (sans règle possible, donc hors filtre FR/DE : local.unruled_resources), branchée au seul fournisseur Anthropic et à ses modèles autorisés."
