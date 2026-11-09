@@ -58,11 +58,46 @@ locals {
       budget_usd    = 5
       budget_tokens = 2000000
     }
+    # Tags et résumés des favoris, format OpenAI, Haiku (rôle karakeep,
+    # docker.yml).
+    karakeep = {
+      description   = "Karakeep : tags et résumés"
+      budget_usd    = 5
+      budget_tokens = 2000000
+    }
+    # Assistant de Nextcloud (appli integration_openai), format OpenAI, Haiku
+    # (rôle nextcloud, docker.yml).
+    nextcloud = {
+      description   = "Nextcloud Assistant"
+      budget_usd    = 5
+      budget_tokens = 2000000
+    }
+    # Coach et analyses, format OpenAI ; URL de base et clé saisies à la main
+    # dans /settings/ai (README du rôle healthlog). Données de santé : journal
+    # des appels éteint.
+    healthlog = {
+      description   = "HealthLog : coach et analyses"
+      budget_usd    = 5
+      budget_tokens = 2000000
+    }
+    # Module IA de Papra (adaptateur openai-compatible), Haiku (rôle papra,
+    # docker.yml).
+    papra = {
+      description   = "Papra : classement des documents"
+      budget_usd    = 5
+      budget_tokens = 2000000
+    }
+    # Chat du foyer (openwebui.sylvain.cloud), Haiku, Sonnet et Opus.
+    openwebui = {
+      description   = "Open WebUI : chat du foyer"
+      budget_usd    = 10
+      budget_tokens = 5000000
+    }
   }
 
   # Plafonds de toute l'organisation, toutes clés confondues.
-  ai_budget_total_usd    = 20
-  ai_budget_total_tokens = 10000000
+  ai_budget_total_usd    = 30
+  ai_budget_total_tokens = 20000000
 }
 
 resource "terraform_data" "ai_gateway_key" {
@@ -154,12 +189,18 @@ resource "pangolin_ai_budget" "total" {
   enabled     = true
 }
 
+# Les budgets en tokens bloquants sont sur `lifetime`, pas `monthly` : en
+# 1.26.0, l'usage est enregistré en secondes et comparé à une fenêtre en
+# millisecondes (server/lib/aiBudgetEnforcement.ts), si bien que toute période
+# compte 0 et ne bloque jamais ; seul `lifetime` (sans borne basse) marche
+# (fosrl/pangolin#4077). Sans remise à zéro : relever les plafonds à la main
+# s'ils bloquent, et revenir à `monthly` quand la correction sera publiée.
 resource "pangolin_ai_budget" "total_tokens" {
   for_each = local.ai_gateway
 
   amount      = local.ai_budget_total_tokens
   unit        = "tokens"
-  period      = "monthly"
+  period      = "lifetime"
   enforcement = "hard"
   enabled     = true
 }
@@ -187,7 +228,7 @@ resource "pangolin_ai_budget" "key_tokens" {
   virtual_api_key_id = pangolin_virtual_api_key.ai[each.key].id
   amount             = each.value.budget_tokens
   unit               = "tokens"
-  period             = "monthly"
+  period             = "lifetime"
   enforcement        = "hard"
   enabled            = true
 
