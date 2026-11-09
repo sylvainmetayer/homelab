@@ -72,7 +72,6 @@ nextcloud_oidc_provider: Pocket ID
 
 # Assistant (texte : résumés, reformulation, traduction) par la passerelle IA
 # de Pangolin : les applis installées par le rôle, réglées à la main (README).
-nextcloud_ai_apps_enabled: true
 nextcloud_ai_apps:
   - integration_openai
   - assistant

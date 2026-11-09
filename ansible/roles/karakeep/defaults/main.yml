@@ -21,12 +21,12 @@ karakeep_disable_signups: true
 karakeep_oidc_client_id: "{{ terraform_outputs.pocket_id_karakeep_client_id.value | default('') }}"
 karakeep_oidc_client_secret: "{{ terraform_outputs.pocket_id_karakeep_client_secret.value | default('') }}"
 karakeep_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+karakeep_oidc_enabled: "{{ karakeep_oidc_client_id | length > 0 and karakeep_oidc_client_secret | length > 0 and karakeep_oidc_issuer | length > 0 }}"
 # Inférence (tags et résumés) par la passerelle IA de Pangolin, format OpenAI
 # (tofu/pangolin_config/ai_gateway.tf) ; clé virtuelle vide : inférence coupée.
 karakeep_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).karakeep | default('') }}"
 karakeep_ai_base_url: https://ia.sylvain.cloud/v1
 karakeep_ai_model: claude-haiku-5-5
-karakeep_oidc_enabled: "{{ karakeep_oidc_client_id | length > 0 and karakeep_oidc_client_secret | length > 0 and karakeep_oidc_issuer | length > 0 }}"
 
 # Téléchargement des vidéos au crawl (yt-dlp), plafond en Mo par vidéo.
 karakeep_video_download: true
