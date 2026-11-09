@@ -124,8 +124,8 @@ Où reconstruire, si la maison n'existe plus : le dépôt suppose un LAN
   Pangolin et `known_hosts`.
 - **Un hébergeur provisoire** (serveur Hetzner Cloud) : la VM docker a sa copie
   jetable, `tofu/pangolin/drill.tf` (éteinte par défaut), reconstruite depuis
-  Borg par [reconstruction-vm-docker.md](reconstruction-vm-docker.md). Préparée
-  pour l'exercice, **jamais jouée** ; la bascule en production (Newt, sauvegardes)
+  Borg par [reconstruction-vm-docker.md](reconstruction-vm-docker.md). Jouée une
+  fois le 09/11/2026 (37 min, 17 applis sur 19) ; la bascule en production (Newt, sauvegardes)
   n'y est pas rédigée. Le reste de la maison (NAS, Pi, Blocky) n'a pas
   d'équivalent.
 

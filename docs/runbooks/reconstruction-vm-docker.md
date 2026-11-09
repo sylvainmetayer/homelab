@@ -7,8 +7,9 @@ quand ni l'hôte Proxmox ni l'archive vzdump n'existent plus). Elle ferme deux
 trous écrits : « VM jamais restaurée » ([matrice des données](../matrice-des-donnees.md))
 et « hébergeur provisoire : non préparé » (perte-totale-maison, étage 2).
 
-Statut : **préparé, jamais joué.** La feuille de temps plus bas est vide ; la
-matrice garde « inconnue » tant qu'elle l'est.
+Statut : **joué une fois, le 09/11/2026** : 37 min de la création du serveur
+aux contrôles, 17 applis sur 19 restaurées et vérifiées (feuille de temps plus
+bas). Les deux trous restants sont dans « Constats de l'exercice ».
 
 **Données personnelles réelles sur le disque d'un hébergeur** (Nextcloud, photos
 de lieux de Dawarich, documents de Papra, bases de toutes les applis) pendant
@@ -55,13 +56,21 @@ URL push, clés IA vides). Un webhook HTTPS déjà enregistré dans une base par
 
 ## Coût
 
-Serveur `cx53` (16 vCPU, 32 Gio, 320 Go ; la VM de production a 3 cœurs, 12 Gio et
-190 Gio dont ~105 Gio écrits : le `cx43`, 160 Go, serait trop juste avec les
-images Docker) à Falkenstein (`fsn1`, le datacenter de la Storage Box). Prix
+Serveur `cx53` par défaut (16 vCPU, 32 Gio, 320 Go ; la VM de production a 3
+cœurs, 12 Gio et 190 Gio dont ~105 Gio écrits : le `cx43`, 160 Go, serait trop
+juste avec les images Docker) à Falkenstein (`fsn1`, le datacenter de la Storage Box). Prix
 horaire : **à confirmer dans la console ou par `hcloud server-type describe cx53`
 avant l'`apply`** : l'ordre de grandeur est de quelques centimes l'heure, donc
 moins de 1 € pour l'exercice. Une IPv4 publique à 0,50 €/mois au prorata.
 Aucun volume, aucune sauvegarde Hetzner.
+
+Le 09/11/2026, le `cx53` était indisponible à fsn1 (`resource_unavailable` à
+l'`apply`, pare-feu et clé déjà créés). Les types disponibles se lisent dans
+`GET /v1/server_types` (champ `locations[].available` ; l'ancien
+`/v1/datacenters` est retiré). L'exercice a tourné sur un `cpx42` (8 vCPU AMD,
+16 Gio, 320 Go, 0,13 €/h TTC), passé par `server_type="cpx42"` dans le `-var
+drill` : largement assez, la restauration ne monte jamais au-dessus du disque
+et du réseau.
 
 ## Diagnostic : prérequis
 
@@ -93,6 +102,7 @@ le réseau ; la clé de borg va dans un fichier privé, jamais affichée :
 mise exec -- tofu -chdir=tofu/pangolin output -raw drill_known_hosts_line > ansible/known_hosts.drill
 ( umask 077; mise exec -- tofu -chdir=tofu/pangolin output -raw storage_box_restore_test_ssh_private_key > "$XDG_RUNTIME_DIR/drill_borg_key" )
 cd ansible
+ansible-galaxy install -r requirements.yml   # worktree neuf : sans, « role geerlingguy.docker was not found »
 ansible-inventory --graph            # docker-drill sous @drill, et nulle part ailleurs
 ansible drill -m ping
 ```
@@ -159,18 +169,49 @@ connexion locale de l'appli, avec le compte du foyer, suffit pour voir ses donn�
 
 | Étape | Début | Fin | Durée | Remarque |
 |---|---|---|---|---|
-| T0 création du serveur (apply + SSH joignable) | | | | |
-| T1 clé d'hôte, inventaire, ping | | | | |
-| T2 base (`--tags setup`) | | | | |
-| T3 applis à vide (dont tirage des images) | | | | |
-| T4 Nextcloud (extraction / base) | | | | |
-| T4 Dawarich | | | | |
-| T4 Papra | | | | |
-| T4 les autres, une ligne par appli | | | | |
-| T5 reconvergence | | | | |
-| T6 contrôles (`drill-check` + trois applis à l'œil) | | | | |
-| **Total T0 à T6** | | | | |
-| T7 destruction vérifiée | | | | |
+Exercice du 09/11/2026 (cpx42, fsn1 ; durées par appli en secondes, tirées des
+lignes `RESTORE-RESULT`) :
+
+| Étape | Début | Fin | Durée | Remarque |
+|---|---|---|---|---|
+| T0 création du serveur (apply + SSH joignable) | 21:50 | 21:52 | 2 | `cx53` indisponible : `cpx42` |
+| T1 clé d'hôte, inventaire, ping | 21:52 | 21:52 | < 1 | `tofu -chdir=tofu/proxmox init` nécessaire pour que l'inventaire se charge |
+| T2 base (`--tags setup`) | 21:52 | 21:57 | 5 | dont deux échecs : rôles Galaxy absents ; masque de `borgmatic.timer` (corrigé) |
+| T3 applis à vide (dont tirage des images) | 21:57 | 22:06 | 9 | 8 min le premier passage, 1 min le second (`--tags app`) |
+| T4 Nextcloud (extraction / base) | 22:06 | 22:08 | 1,6 | 98 s : extraction 47, MariaDB 45 |
+| T4 Dawarich | 22:10 | 22:11 | 1,5 | 92 s (base 60, 2,4 M points) ; échec au premier essai : PostGIS (corrigé) |
+| T4 Papra | 22:09 | 22:09 | 0,2 | 11 s |
+| T4 les autres | 22:11 | 22:20 | 9 | betisier 36, grocy 14, homebox 5, jellystat 33, karakeep 84, monica_v4 37, ntfy 4, speedtest_tracker 16, trek 35, wiki 44, wishlist 5, yamtrack 8 ; grocy relancée (base créée à la première requête) ; openwebui et rss : voir Constats |
+| T5 reconvergence | 22:20 | 22:22 | 2 | |
+| T6 contrôles (`drill-check`) | 22:22 | 22:27 | 5 | 4 échecs : Nextcloud (sonde, corrigée), Open WebUI ×2, rss ; contrôle à l'œil par tunnel non fait |
+| **Total T0 à T6** | 21:50 | 22:27 | **37** | dont ~10 min de corrections ; les restaurations seules : ~13 min |
+| T7 destruction vérifiée | 22:25 | 22:27 | 2 | 3 destructions, API : 0 serveur, volume, pare-feu, image `role=drill` |
+
+### Constats de l'exercice (09/11/2026)
+
+- **FreshRSS (`rss`) non restaurée.** Sur une installation vide, FreshRSS ne
+  crée sa base `data/users/<compte>/db.sqlite` qu'au bout de son assistant
+  d'installation : Ansible ne la voit pas, la configuration borgmatic n'en
+  liste aucune, et `drill-restore-app` refuse de remettre les copies de
+  l'archive (il ne sait pas où). À faire : déclarer le chemin de la base dans
+  le rôle `rss` plutôt que de le découvrir sur le disque. D'ici là, en sinistre :
+  extraire l'archive à la main et copier `db.sqlite` à sa place.
+- **Open WebUI : pas d'archive.** L'appli venait d'être déployée, sa première
+  sauvegarde n'avait pas tourné : rien à restaurer, base vide. Attendu.
+- **Applis dont la base SQLite naît à la première requête** (Grocy) : le second
+  passage `--tags app` ne suffit pas tant que personne n'a ouvert l'appli. Faire
+  une requête HTTP sur chaque appli avant ce passage (ce qu'a fait l'exercice
+  pour Grocy).
+- **PostgreSQL avec extension** (Dawarich, PostGIS) : le dump ne peut pas
+  supprimer l'extension dont dépend une table créée au démarrage à vide.
+  `drill-restore-app` recrée désormais chaque base PostgreSQL vide avant de
+  rejouer le dump.
+- **Nextcloud** refuse une sonde par IP (`Trusted domain error`, 400) :
+  `drill-check` envoie maintenant `Host: nextcloud`. Données vérifiées
+  (`installed: true`, 35.0.2, 25 864 fichiers).
+- Débit de la Storage Box, même datacenter : 47 s pour l'archive de Nextcloud,
+  79 s pour celle de Karakeep. Un sinistre réel reconstruirait sans doute
+  ailleurs, plus lentement.
 
 Ce qui change la lecture : le débit de la Storage Box (même datacenter que la
 copie, alors qu'un sinistre réel reconstruirait ailleurs) ; le disque NVMe du

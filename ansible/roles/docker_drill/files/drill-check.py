@@ -46,8 +46,9 @@ HTTP = {
     "jellystat": ("jellystat", 3000, "/auth/isconfigured", None),
     "karakeep": ("karakeep", 3000, HEALTH, None),
     "monica_v4": ("monica_v4", 80, "/", None),
-    # /status.php répond sans vérifier le domaine de confiance de Nextcloud.
-    "nextcloud": ("nextcloud", 80, "/status.php", None),
+    # Nextcloud répond 400 (« Trusted domain error ») à une IP : « nextcloud »
+    # est dans ses trusted_domains (constaté à l'exercice du 09/11/2026).
+    "nextcloud": ("nextcloud", 80, "/status.php", "nextcloud"),
     "ntfy": ("ntfy", 8080, "/v1/health", None),
     "openwebui": ("openwebui", 8080, "/health", None),
     "papra": ("papra", 1221, HEALTH, None),
