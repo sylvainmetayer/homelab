@@ -89,6 +89,32 @@ un compte créé par OIDC a un mot de passe aléatoire inconnu.
 3. Pangolin lui-même : le compte propriétaire interne de l'organisation
    (`docs/runbooks/pocket-id.md`, « Secours »).
 
+## Outil « journaux » : MCP de VictoriaLogs, pour Sylvain seul
+
+Open WebUI interroge les journaux du homelab en langage naturel par le serveur
+MCP officiel de VictoriaLogs (conteneur `mcp-victorialogs`, rôle
+`victoria_logs`, README du rôle). Le rôle ne fait que déclarer la connexion :
+`TOOL_SERVER_CONNECTIONS` (compose.yaml, comme les modèles ; `type: mcp`, URL
+`http://mcp-victorialogs:8081/mcp`, sans authentification) et rejoindre le
+réseau interne `victoria-logs-mcp`, créé par le compose de `victoria_logs`
+(rôle placé avant celui-ci dans `docker.yml`, pour que le réseau existe).
+
+- **Administrateurs seulement** : la connexion n'a pas de `access_grants`, et
+  `has_connection_access` (v0.13.3, `utils/access_control`) réserve alors la
+  connexion aux comptes `admin`. Le foyer (rôle `user`) ne la voit ni ne
+  l'appelle.
+- Le conteneur est sur un réseau interne partagé avec Open WebUI seul : `/mcp`
+  n'a aucune authentification, c'est ce réseau qui la tient. Il lit par vmauth,
+  avec un compte à jeton limité à `/select/logsql/.*`.
+- Désactiver : `openwebui_mcp_victorialogs_enabled: false` **et**
+  `victoria_logs_mcp_enabled: false` ensemble (le réseau n'existe plus sinon,
+  Open WebUI ne démarre pas).
+- **Pas de réglage dans l'interface** (`ENABLE_PERSISTENT_CONFIG=false`) : la
+  connexion vient du compose, et reste en lecture seule dans
+  Admin → Paramètres → Intégrations.
+- À faire une fois : dans un chat, menu « + » (outils) → activer « Journaux
+  (VictoriaLogs) » ; un modèle à appel d'outils fiable (Sonnet ou Opus).
+
 ## Sauvegarde
 
 Borgmatic par le modèle partagé : `data/` (uploads ; `cache/` exclu, il se

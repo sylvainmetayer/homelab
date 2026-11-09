@@ -25,13 +25,21 @@ services:
       - ALL
     env_file:
       - .env
-{% if openwebui_ai_api_key | length > 0 %}
+{% if openwebui_ai_api_key | length > 0 or openwebui_mcp_victorialogs_enabled | bool %}
     environment:
+{% endif %}
+{% if openwebui_ai_api_key | length > 0 %}
       # Modèles déclarés à la main (connexion 0 = OPENAI_API_BASE_URL du .env) :
       # Open WebUI ne demande alors pas /v1/models, que la passerelle ne liste
       # pas forcément. Un JSON dans un .env dépend du lecteur (compose retire
       # les apostrophes, podman non) : ici, en chaîne YAML.
       OPENAI_API_CONFIGS: {{ {'0': {'enable': true, 'model_ids': openwebui_ai_models}} | to_json | to_json }}
+{% endif %}
+{% if openwebui_mcp_victorialogs_enabled | bool %}
+      # Outil MCP des journaux, réservé aux administrateurs : sans access_grants,
+      # has_connection_access refuse tout compte non admin. Ici et non dans le
+      # .env, comme les modèles (un JSON dépend du lecteur de .env).
+      TOOL_SERVER_CONNECTIONS: {{ [{'type': 'mcp', 'url': openwebui_mcp_victorialogs_url, 'path': '', 'auth_type': 'none', 'key': '', 'config': {'enable': true, 'access_grants': []}, 'info': {'id': 'victorialogs', 'name': 'Journaux (VictoriaLogs)', 'description': 'Interroger les journaux du homelab en LogsQL'}}] | to_json | to_json }}
 {% endif %}
     volumes:
       # webui.db (SQLite, WAL), uploads/ et cache/.
@@ -46,11 +54,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 180s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit. Il sort sur
-    # Internet par newt (passerelle IA).
+    # newt : l'entrée (Pangolin) et la sortie vers la passerelle IA ; le réseau
+    # interne du MCP des journaux pour cet outil seulement.
     networks:
       - newt
+{% if openwebui_mcp_victorialogs_enabled | bool %}
+      - victoria-logs-mcp
+{% endif %}
 
 networks:
   newt:
     external: true
+{% if openwebui_mcp_victorialogs_enabled | bool %}
+  # Interne, créé par le compose de victoria_logs : lui et le MCP seuls.
+  victoria-logs-mcp:
+    external: true
+{% endif %}

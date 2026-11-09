@@ -99,6 +99,18 @@ victoria_logs_homepage_streams:
   - 'host="newt-lxc",unit="blocky-check.service"'
 victoria_logs_homepage_stream_filter: "{{ '{' ~ (victoria_logs_homepage_streams | join(' or ')) ~ '}' }}"
 
+# Serveur MCP de VictoriaLogs (conteneur mcp-victorialogs) pour Open WebUI :
+# Sylvain interroge les journaux en langage naturel. Compte de vmauth à jeton
+# Bearer, limité à la lecture LogsQL ; jeton dérivé de backup_passphrase (comme
+# les autres secrets d'appli, pas de clé sops). Open WebUI n'en a pas besoin :
+# il ne parle qu'au MCP, sans authentification (réseau interne partagé). Le
+# réseau victoria-logs-mcp est créé ici : ce rôle passe avant openwebui dans
+# docker.yml, qui le déclare external.
+victoria_logs_mcp_enabled: true
+victoria_logs_mcp_token: "{{ (backup_passphrase ~ '-victoria-logs-mcp') | hash('sha256') }}"
+victoria_logs_mcp_paths:
+  - /select/logsql/.*
+
 # Routes internes de vmauth (/metrics, /flags, /debug/pprof/*, /-/reload) :
 # la bibliothèque HTTP de VictoriaMetrics les sert sans compte tant que
 # -metricsAuthKey, -flagsAuthKey, -pprofAuthKey et -reloadAuthKey sont vides
