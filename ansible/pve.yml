@@ -40,13 +40,15 @@
     # Configuration de l'hôte (config.db de pmxcfs, réseau) vers la Storage
     # Box, hors de la maison (ansible/roles/pve_config_backup/README.md).
     # Sautés tant que le sous-compte de pve n'est pas dans SOPS ; une
-    # première fois --tags setup (clé de root), puis backup.yaml.
+    # première fois --tags setup (clé de root), puis backup.yaml, puis
+    # --tags backup (le tag du gabarit inclus : celui de l'entrée ne passe
+    # pas l'include_role).
     - role: borgmatic
-      tags: backup,setup,pve_config_backup
-      when: backup_storage_box_subaccounts.pve is defined
+      tags: backup,setup
+      when: (backup_storage_box_subaccounts | default({})).pve is defined
     - role: pve_config_backup
-      tags: backup,pve_config_backup
-      when: backup_storage_box_subaccounts.pve is defined
+      tags: backup
+      when: (backup_storage_box_subaccounts | default({})).pve is defined
     - role: beszel_agent
       tags: beszel_agent,monitoring
       vars:
