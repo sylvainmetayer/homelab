@@ -113,7 +113,7 @@
           - healthlog_compose.services.app.container_name == 'healthlog'
           - healthlog_compose.services.app.read_only
           - healthlog_compose.services.app.tmpfs is not defined
-          - "'tmp:/tmp' in healthlog_compose.services.app.volumes"
+          - healthlog_compose.services.app.volumes | selectattr('target', 'equalto', '/tmp') | map(attribute='type') | list == ['volume']
           - healthlog_newt_services == ['app']
           - healthlog_compose.services['healthlog-db'].networks.keys() | list == ['healthlog']
         fail_msg: "Services sur newt : {{ healthlog_newt_services }}"
