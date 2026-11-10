@@ -1,6 +1,11 @@
 ---
 rss_base_path: "{{ docker_base_path }}/rss"
 
+# Compte FreshRSS créé à l'installation (FRESHRSS_INSTALL / FRESHRSS_USER du
+# compose), le preferred_username Pocket ID de Sylvain : sa base
+# users/<compte>/db.sqlite existe dès le premier démarrage à vide.
+rss_default_user: sylvain
+
 # Extension « Karakeep Button » (bouton « envoyer à Karakeep » sur chaque
 # article) : code tiers (github.com/veverkap/xExtension-karakeep-button), ni
 # FreshRSS ni Karakeep, exécuté dans FreshRSS avec ses droits. Pas de release

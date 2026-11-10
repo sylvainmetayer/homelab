@@ -36,6 +36,13 @@ services:
       # Actualisation toutes les heures, à la minute 17 : un flux en erreur est
       # retenté à chaque passage quel que soit son TTL (README.md).
       - CRON_MIN=17
+      # Installation sans assistant au premier démarrage d'un dossier vide
+      # (copie de l'exercice de reconstruction) : la base du compte existe
+      # alors, borgmatic la connaît et drill-restore-app y remet sa copie.
+      # Déjà installé (applied_migrations.txt), compte existant : l'image ne
+      # change rien (code 3 des scripts cli/).
+      - FRESHRSS_INSTALL=--default-user {{ rss_default_user }}
+      - FRESHRSS_USER=--user {{ rss_default_user }}
 {% if rss_oidc_enabled | bool %}
       # Pocket ID (defaults/main.yml) : /i/ derrière mod_auth_openidc, rappel
       # /i/oidc/ ; nom d'utilisateur = preferred_username. En-têtes de Traefik
