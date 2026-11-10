@@ -40,21 +40,85 @@ basculent ([dns-blocky.md](dns-blocky.md)).
    `tofu/proxmox/terraform.tfvars`), système de fichiers par défaut
    (LVM-thin `local-lvm` attendu : à vérifier). Nom du nœud **`proxmox`**,
    IP `192.168.1.26/24`, passerelle `192.168.1.254`.
-2. Clés SSH : mettre les `keys/*.pub` utiles dans `/etc/pve/priv/authorized_keys`
-   (console de l'hôte). Le certificat de `pve.sylvain.cloud` (ACME DNS-01 OVH)
-   est un réglage de l'interface, absent du dépôt : à refaire à la main.
+2. Remettre la configuration de l'ancien hôte depuis Borg (section A bis) :
+   elle ramène `authorized_keys`, le certificat ACME de `pve.sylvain.cloud`,
+   le jeton de Tofu, le storage `nas-backup` et le job vzdump. Sans archive
+   utilisable : mettre les `keys/*.pub` utiles dans
+   `/etc/pve/priv/authorized_keys` (console de l'hôte) et refaire le
+   certificat (ACME DNS-01 OVH) dans l'interface.
 3. **Clé d'hôte** : la lire sur l'hôte (console), jamais par `ssh-keyscan`,
    et remplacer la ligne `pve,…` d'`ansible/known_hosts` par PR
    ([cle-hote-ssh-changee.md](cle-hote-ssh-changee.md)). Les clés des invités
    restaurés ne changent pas.
-4. Jeton d'API pour Tofu : en créer un (`PROXMOX_TOKEN` dans
-   `secrets/secrets.sops.yaml`, [rotation-des-secrets.md](rotation-des-secrets.md),
-   « Proxmox »). Les droits de l'ancien ne sont écrits nulle part : à noter cette
-   fois.
+4. Jeton d'API pour Tofu : revenu avec la configuration (A bis), le
+   `PROXMOX_TOKEN` de `secrets/secrets.sops.yaml` marche encore. Sinon en créer
+   un ([rotation-des-secrets.md](rotation-des-secrets.md), « Proxmox ») : ses
+   droits sont dans le `user.cfg` de l'archive.
+
+### A bis. Remettre la configuration de l'hôte (Borg)
+
+**Jamais essayé** : la sauvegarde existe depuis le 10/11/2026, la
+restauration n'a pas été jouée. `/etc/pve` est la vue FUSE de la base
+`/var/lib/pve-cluster/config.db` : c'est elle qu'on remet, en entier, sur
+l'hôte neuf, avant de restaurer les invités. Dépôt `backup/pve/pve_config`
+(rôle `pve_config_backup`, [README](../../ansible/roles/pve_config_backup/README.md)),
+une archive par nuit à 01:00.
+
+1. **Depuis le poste**, par le sous-compte en lecture seule `restore-test`
+   (clé, utilisateur et serveur : « Diagnostic » de
+   [reconstruction-pangolin.md](reconstruction-pangolin.md) ; la clé de
+   root de l'ancien hôte est morte avec lui), `BORG_PASSPHRASE` =
+   `backup_passphrase` :
+
+   ```bash
+   D=ssh://<user>@<server>:23/./pve/pve_config
+   cd "$(mktemp -d)"
+   borg list --bypass-lock --last 3 "$D"
+   borg extract --bypass-lock "$D::<archive>" var/lib/borgmatic-sqlite/pve_config etc
+   sqlite3 var/lib/borgmatic-sqlite/pve_config/var_lib_pve-cluster_config.db 'PRAGMA integrity_check'   # ok
+   scp var/lib/borgmatic-sqlite/pve_config/var_lib_pve-cluster_config.db root@192.168.1.26:/root/config.db.restaure
+   ```
+
+   L'hôte neuf n'a encore que le mot de passe root de l'installation : `scp`
+   par mot de passe, ou une clé USB et la console.
+2. **Sur l'hôte neuf** (installé avec le nom de nœud `proxmox` : la base
+   range tout sous `nodes/proxmox`), sans invité créé :
+
+   ```bash
+   systemctl stop pve-cluster
+   cp -a /var/lib/pve-cluster/config.db /root/config.db.neuf
+   # Un -wal resté là serait rejoué sur la base remise.
+   rm -f /var/lib/pve-cluster/config.db-wal /var/lib/pve-cluster/config.db-shm
+   install -m 0600 -o root -g root /root/config.db.restaure /var/lib/pve-cluster/config.db
+   systemctl start pve-cluster
+   ls /etc/pve/storage.cfg /etc/pve/nodes/proxmox
+   # Les configs des invités reviennent aussi : sans leurs disques, elles
+   # bloqueraient qmrestore/pct restore (et Tofu en route C). De côté.
+   mkdir -p /root/invites-anciens
+   mv /etc/pve/qemu-server/100.conf /etc/pve/lxc/200.conf /root/invites-anciens/
+   pvecm updatecerts
+   systemctl restart pvedaemon pveproxy pvestatd pve-firewall
+   ```
+
+   Échec (pmxcfs ne démarre pas, interface vide) : remettre
+   `/root/config.db.neuf` de la même façon et passer à l'étape A.2 « sans
+   archive ».
+3. **Ne jamais écraser sur l'hôte neuf** : `/etc/fstab`, `/etc/lvm` et
+   `/boot` (propres au disque, absents de l'archive) ; `/etc/network/interfaces`
+   de l'archive ne se copie pas tel quel : le nom de la carte réseau change
+   d'une machine à l'autre (`ip -br link`). N'en reprendre que ce qui manque
+   (adresse et passerelle de `vmbr0`, en gardant le `bridge-ports` de
+   l'installeur), puis `ifreload -a`. `/etc/hosts`, `/etc/hostname`,
+   `/etc/resolv.conf` : comparer avec ceux de l'installeur, mêmes nom et IP
+   attendus.
+4. Contrôle : interface web sur `https://192.168.1.26:8006` avec le
+   certificat de `pve.sylvain.cloud`, les utilisateurs et le realm
+   `pocketid` présents, `pvesm status` montre `nas-backup` (alors
+   l'étape B.1 est déjà faite), `cat /etc/pve/jobs.cfg` montre le job vzdump.
 
 ### B. Restaurer depuis le NAS
 
-1. Le storage : `pvesm add nfs nas-backup --server 192.168.1.137 --export
+1. Le storage (déjà là si A bis a marché) : `pvesm add nfs nas-backup --server 192.168.1.137 --export
    /volume1/pve-backup --content backup --options vers=3` (valeurs de
    `tofu/proxmox/backup.tf` ; syntaxe de la doc Proxmox, à vérifier). Le NAS
    n'exporte qu'à l'IP 192.168.1.26 : une autre IP demande `nas_nfs_exports`
@@ -97,7 +161,8 @@ restaurée ramène aussi l'intrus.
 ### D. Remettre Tofu et Ansible d'accord
 
 1. `tofu -chdir=tofu/proxmox plan` : stockage `nas-backup` (déjà créé) et
-   job vzdump à recréer, jamais un `must be replaced` sur la VM ou le LXC (les
+   job vzdump à recréer (rien à faire pour les deux si A bis les a remis : à
+   vérifier), jamais un `must be replaced` sur la VM ou le LXC (les
    invités restaurés sont retrouvés par leur id). Le storage créé à la main
    s'importe par la CLI (`tofu import`, identifiant à vérifier dans la doc du
    provider), le job se crée.
@@ -105,7 +170,10 @@ restaurée ramène aussi l'intrus.
    `ansible-playbook pve.yml` (agent Beszel, `/etc/vzdump.conf`, test de
    restauration, avis de mises à jour, puis `pve_hardening` en dernier, une
    session root de secours ouverte), et `lxc.yml` (à la main) si le LXC doit être
-   remis d'équerre.
+   remis d'équerre. La sauvegarde de la configuration repart avec une clé
+   neuve : `ansible-playbook pve.yml --tags setup`, puis `backup.yaml`, puis
+   `pve.yml` complet (sinon le `repo-create` de `pve_config_backup` est refusé
+   par le sous-compte).
 
 ## Vérification
 
@@ -122,6 +190,8 @@ restaurée ramène aussi l'intrus.
 ## Prévention
 
 - Ne garder qu'une copie des archives sur le NAS est un risque accepté (ADR 0026).
-- Consigner les droits du jeton Proxmox et la configuration de l'ACME.
+- Droits du jeton Proxmox et configuration de l'ACME : dans l'archive Borg
+  `pve_config` (A bis), pas encore écrits dans le dépôt.
+- Jouer A bis une fois sur un Proxmox jetable (VM imbriquée) : jamais fait.
 - Une restauration complète de la VM, essayée une fois, vaut mieux qu'une
   archive seulement vérifiée ([test-restauration-vm.md](test-restauration-vm.md)).

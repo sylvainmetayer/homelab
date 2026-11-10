@@ -767,6 +767,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup_pve_config
+  values = { push_token = "push-pve-config" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_geoip
   values = { push_token = "push-cron-geoip" }
 }
@@ -2258,6 +2263,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         # pve.yml
         uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
+        uptime_backup_pve_config_url        = output.uptime_backup_pve_config_url
         # update_notify : docker.yml, pi.yml, flip.yml, pangolin.yaml
         uptime_cron_docker_updates_url   = output.uptime_cron_docker_updates_url
         uptime_cron_pi_updates_url       = output.uptime_cron_pi_updates_url
@@ -2680,7 +2686,7 @@ run "monitors_are_filed_and_alert" {
   # .github/restore-test/apps.json, plus bas.
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin]) :
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin, uptimekuma_monitor_push.backup_pve_config]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 26 * 3600
       && m.max_retries == 0
@@ -2760,8 +2766,8 @@ run "monitors_are_filed_and_alert" {
   # moniteur de sauvegarde, Pangolin et Jellyfin compris. Une app ajoutée avec
   # `backup = true` doit y entrer, une app retirée en sortir.
   assert {
-    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "pocket_id", "jellyfin"]))
-    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin et Jellyfin compris."
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "pocket_id", "jellyfin", "pve_config"]))
+    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin, Jellyfin et la config Proxmox compris."
   }
 
   # Une app en pause n'écrit plus d'archive : le test planifié la saute

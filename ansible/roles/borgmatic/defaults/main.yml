@@ -16,6 +16,11 @@ borgmatic_borg_sha256:
 # renovate: datasource=pypi depName=borgmatic
 borgmatic_version: "2.2.0"
 
+# /root/.ssh/config écrit en entier (alias backup_storage_box, commodité :
+# borgmatic n'en a pas besoin, son ssh_command donne clé et port). false sur
+# un hôte dont root a déjà un fichier à lui (pve : celui de Proxmox).
+borgmatic_ssh_config: true
+
 # Borg repository encryption mode (for repo-create)
 # Common values: repokey-blake2, repokey-chacha20-poly1305, none
 borgmatic_encryption_mode: repokey-blake2
