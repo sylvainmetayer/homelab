@@ -8,6 +8,11 @@ services:
     # Sous l'utilisateur de déploiement, sans capacité : il écoute sur
     # {{ ntfy_port }} (pas 80) et n'écrit que dans /var/lib/ntfy, qui est à lui.
     user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"
+    # docker diff du 10/11/2026 : rien hors des montages. /tmp pour les
+    # fichiers temporaires de SQLite et de Go.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
     security_opt:
       - no-new-privileges:true
     cap_drop:

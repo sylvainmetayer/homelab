@@ -46,6 +46,8 @@
           - ntfy_compose.services.app.networks.keys() | list == ['newt']
           - ntfy_compose.networks.keys() | list == ['newt']
           - ntfy_compose.services.app.cap_drop == ['ALL']
+          - ntfy_compose.services.app.read_only
+          - ntfy_compose.services.app.tmpfs == ['/tmp:noexec,nosuid,size=16m']
           - ntfy_compose.services.app.cap_add is not defined
           - ntfy_compose.services.app.ports is not defined
           - ntfy_compose.services.app.volumes | selectattr('target', 'equalto', '/etc/ntfy/server.yml') | map(attribute='read_only') | list == [true]
