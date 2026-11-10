@@ -97,7 +97,7 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    l'étape 5.
 5. **Jellyfin depuis Borg** : `sudo systemctl stop dc@jellyfin` (unité
    système sur le NAS), extraire avec l'enrobage
-   `/volume1/docker/borgmatic/borgmatic --config
+   `sudo /volume1/docker/borgmatic/borgmatic --config
    /volume1/docker/borgmatic/borgmatic.d/jellyfin.yaml extract --archive latest
    --destination /volume1/docker/borgmatic/restore` (le conteneur n'a ni
    `CHOWN` ni `FOWNER` : borg ne rend alors pas les propriétaires et tout sort
