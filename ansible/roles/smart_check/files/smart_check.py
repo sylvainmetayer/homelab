@@ -138,7 +138,8 @@ def load_state(path):
 
 def save_state(path, state):
     tmp = f"{path}.tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:  # NOSONAR (même --state-file)
+    # Même --state-file que load_state.
+    with open(tmp, "w", encoding="utf-8") as handle:  # NOSONAR
         json.dump(state, handle)
     os.replace(tmp, path)  # NOSONAR
 
