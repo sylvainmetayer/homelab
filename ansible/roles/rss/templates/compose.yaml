@@ -40,9 +40,11 @@ services:
       # (copie de l'exercice de reconstruction) : la base du compte existe
       # alors, borgmatic la connaît et drill-restore-app y remet sa copie.
       # Déjà installé (applied_migrations.txt), compte existant : l'image ne
-      # change rien (code 3 des scripts cli/).
+      # change rien (code 3 des scripts cli/). Sans mot de passe (connexion par
+      # le formulaire impossible jusqu'à cli/update-user.php) et sans flux par
+      # défaut (l'entrypoint actualiserait freshrss.org avant Apache).
       - FRESHRSS_INSTALL=--default-user {{ rss_default_user }}
-      - FRESHRSS_USER=--user {{ rss_default_user }}
+      - FRESHRSS_USER=--user {{ rss_default_user }} --no-default-feeds
 {% if rss_oidc_enabled | bool %}
       # Pocket ID (defaults/main.yml) : /i/ derrière mod_auth_openidc, rappel
       # /i/oidc/ ; nom d'utilisateur = preferred_username. En-têtes de Traefik

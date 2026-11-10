@@ -91,6 +91,13 @@ l'OIDC : l'API (Google Reader, Fever, mots de passe d'API, Homepage) n'est pas
 touchée. Le moniteur d'Uptime Kuma sonde `/api/` (`website_rss.tf`). Pas de
 PKCE (l'Apache de l'image n'en règle pas).
 
+Installation : le compose porte `FRESHRSS_INSTALL` / `FRESHRSS_USER`
+(`rss_default_user`, `sylvain`), pour qu'un dossier vide (reconstruction,
+exercice) ait sa base `users/<compte>/db.sqlite` dès le premier démarrage ;
+déjà installé, rien ne change. Ce compte neuf n'a ni mot de passe ni flux :
+sans l'archive Borg, le secours par le formulaire ci-dessous demande d'abord
+`cli/update-user.php --user <compte> --password ...` dans le conteneur.
+
 Secours (Pocket ID en panne, ou mauvais nom d'utilisateur) : sur l'hôte docker,
 `sed -i "s/'auth_type' => 'http_auth',/'auth_type' => 'form',/"
 /opt/apps/rss/freshrss_data/config.php` rend le formulaire tout de suite
