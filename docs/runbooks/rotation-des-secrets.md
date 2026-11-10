@@ -153,6 +153,70 @@ de certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
 « en erreur » ni « non configurée » dans `journalctl -u cost-report`.
 Révoquer ensuite l'ancienne application (`DELETE /me/api/application/{id}`).
 
+#### Consumer key de Tofu : `ovh_credentials.py`
+
+Pour `OVH_CONSUMER_KEY`, `.github/scripts/ovh_credentials.py` fait le
+travail. Il lit `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`,
+`OVH_CONSUMER_KEY`, `OVH_CLOUD_PROJECT_ID` et `home_ip` dans l'environnement
+que mise charge depuis le fichier racine. Il n'affiche, n'écrit sur disque
+ni ne passe en argument aucun secret. La nouvelle consumer key va de la
+réponse de l'API à l'entrée standard de `sops set --value-stdin`, sans
+passer par le terminal. Les règles demandées sont dans `access_rules()` du
+script, relues en PR :
+
+- `GET /domain/zone/<zone>` et `GET`/`POST`/`PUT`/`DELETE /domain/zone/<zone>/*`
+  des quatre zones écrites par les modules (`sylvain.cloud`, `sylvain.dev`,
+  `sylvainmetayer.fr`, `metayer.dev`). Le test échoue si un module en
+  touche une autre.
+- `GET /cloud/project/<OVH_CLOUD_PROJECT_ID>` et
+  `GET`/`POST`/`PUT`/`DELETE /cloud/project/<OVH_CLOUD_PROJECT_ID>/*`
+  (buckets et utilisateurs S3 de `s3_state` et `keepass_backup`).
+- `GET /auth/currentCredential`, `GET /me/api/credential`,
+  `GET`/`DELETE /me/api/credential/*`, pour que le script tourne encore à
+  la rotation suivante. Le jeton de Tofu peut donc révoquer les autres
+  identifiants du compte : c'est un déni de service possible, pas une
+  élévation (ni `POST` ni `PUT`).
+
+Le jeton est restreint à l'IP de la maison (`allowedIPs`, `home_ip/32`) :
+Tofu ne tourne jamais en CI avec cette clé, mais un `plan` lancé hors de la
+maison échouera. Dans ce cas, utiliser `--allowed-ip <bloc>`, option
+répétable.
+
+Depuis la racine de `homelab`, sous-module `secrets/` sur `main` à jour :
+
+1. `mise exec -- python3 -I .github/scripts/ovh_credentials.py list` liste
+   les identifiants de l'application avec leur état, leurs dates, leurs IP
+   et leurs règles. `*` marque celui qui est en cours ; noter son id.
+2. `mise exec -- python3 -I .github/scripts/ovh_credentials.py renew`
+   demande l'identifiant (`POST /auth/credential`), range la consumer key
+   dans `secrets/secrets.sops.yaml` (`OVH_CONSUMER_KEY`), puis affiche
+   l'URL de validation. Si `sops` échoue, l'URL n'est pas affichée :
+   l'identifiant reste en attente puis expire seul. Relancer `renew`.
+3. Ouvrir l'URL, se connecter au compte OVH, choisir la durée de validité
+   proposée et valider. Aucune API ne fait cette étape. Tant qu'elle n'est pas faite, Tofu échoue avec la
+   clé rangée ; l'ancienne reste valide chez OVH et dans l'historique de
+   `secrets/`.
+4. Relancer `list` : le nouvel identifiant doit porter `*` et être
+   `validated`.
+5. Vérifier qu'un plan est vide dans chaque module : `mise run plan`
+   (`tofu/pangolin` déclare le provider), `mise run plan-ref`,
+   `mise run plan-planning`, puis
+   `mise exec -- tofu -chdir=tofu/<module> plan` pour `dns`, `s3_state`,
+   `keepass_backup`, `site` et `1y`.
+6. `mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke <ancien id>`
+   demande de taper l'id pour confirmer (`--yes` saute cette étape).
+   L'identifiant en cours est refusé sans `--force-current`.
+7. Mettre la date de `OVH_CONSUMER_KEY` dans `secrets-rotation.yaml`, puis
+   faire le commit et le bump comme dans « Règles communes ».
+
+Reste manuel : `OVH_APPLICATION_KEY` et `OVH_APPLICATION_SECRET`. L'API ne
+crée pas d'application (`/me/api/application` ne fait que `GET` et
+`DELETE`). Pour les tourner, créer une application sur
+`https://eu.api.ovh.com/createApp/`, passer les deux valeurs par `sops set`,
+lancer `renew`, faire les étapes 3 à 5, puis supprimer l'ancienne
+application dans la console OVH. Cette suppression révoque tous ses
+identifiants.
+
 ### Clés S3 des states
 
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (fichier racine, utilisateur
