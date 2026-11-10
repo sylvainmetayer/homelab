@@ -15,6 +15,13 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # docker diff du 10/11/2026 : rien hors de /data, sauf un
+    # ~/.cache/goimports vide dont l'absence ne gêne pas. /tmp reçoit les
+    # parties d'un envoi que Go ne garde pas en mémoire
+    # (homebox_max_upload_size, 25 Mo).
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     env_file:
       - .env
     volumes:
