@@ -104,14 +104,16 @@
           - healthlog_env.keys() | select('match', '^BACKUP_S3_') | list | length == 0
 
     # Nom du conteneur = cible de Pangolin (website_healthlog.tf) ; la base
-    # reste sur le réseau interne. L'appli tourne en lecture seule.
+    # reste sur le réseau interne. L'appli tourne en lecture seule, /tmp sur
+    # disque (l'import Health Connect y écrit des centaines de Mo).
     - name: Assert only the app joins the newt network
       ansible.builtin.assert:
         that:
           - healthlog_compose.networks.newt.external
           - healthlog_compose.services.app.container_name == 'healthlog'
           - healthlog_compose.services.app.read_only
-          - healthlog_compose.services.app.tmpfs == ['/tmp:noexec,nosuid,size=64m']
+          - healthlog_compose.services.app.tmpfs is not defined
+          - "'tmp:/tmp' in healthlog_compose.services.app.volumes"
           - healthlog_newt_services == ['app']
           - healthlog_compose.services['healthlog-db'].networks.keys() | list == ['healthlog']
         fail_msg: "Services sur newt : {{ healthlog_newt_services }}"
