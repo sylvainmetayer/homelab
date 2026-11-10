@@ -209,7 +209,8 @@ def main() -> int:
     cache = Cache(feeds, ttl)
     server = ThreadingHTTPServer(("", port), make_handler(cache))
     log(f"ical-filter : {', '.join(sorted(feeds)) or 'aucun agenda'} sur le port {port}")
-    server.serve_forever()
+    # HTTP sur le réseau privé du projet (Homepage seul, aucun port publié).
+    server.serve_forever()  # NOSONAR
     return 0
 
 

@@ -477,7 +477,8 @@ def check_flow(admin):
         record("client inconnu : pas de code", "PASS" if not code else "FAIL", where[:120])
 
         for variant in ("https://evil.example/callback", "https://audit.invalid.evil.example/callback", "https://audit.invalid@evil.example/callback",
-                        "https://evil.example\\@audit.invalid/callback", CALLBACK.replace("https://", "http://", 1), "https://AUDIT.invalid/callback",
+                        # Variante http : on vérifie que Pocket ID la refuse.
+                        "https://evil.example\\@audit.invalid/callback", CALLBACK.replace("https://", "http://", 1), "https://AUDIT.invalid/callback",  # NOSONAR
                         "https://audit.invalid/callback/autre", "https://audit.invalid/callback?x=1", "https://audit.invalid/callback/",
                         "https://audit.invalid/callback/../evil", "https://audit.invalid:8443/callback"):
             code, where, *_ = authorize(sess, cid_a, variant)
