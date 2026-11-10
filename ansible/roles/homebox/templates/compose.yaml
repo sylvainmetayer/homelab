@@ -16,9 +16,11 @@ services:
     cap_drop:
       - ALL
     # docker diff du 10/11/2026 : rien hors de /data, sauf un
-    # ~/.cache/goimports vide dont l'absence ne gêne pas. /tmp reçoit les
-    # parties d'un envoi que Go ne garde pas en mémoire
-    # (homebox_max_upload_size, 25 Mo).
+    # ~/.cache/goimports vide dont l'absence ne gêne pas. Une pièce jointe
+    # passe par la mémoire (seuil = homebox_max_upload_size) puis s'écrit
+    # dans /data (no_tmp_dir, lu dans le code de la 0.27.1) ; /tmp ne sert
+    # qu'à l'import d'une archive au-delà de 64 Mo (max_parse_memory) : Go
+    # l'y écrirait entière, et le tmpfs de 64 Mo la refuserait.
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
