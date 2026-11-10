@@ -36,10 +36,6 @@ OPTION = re.compile(
 # Owner (role, or compose/ directory) -> why it is left
 # out, and its services. The reasons are detailed in the doctrine.
 EXCEPTIONS = {
-    "flip_planning": (
-        "production, non analysé",
-        ["app", "postgres", "mailpit", "assets", "keycloak", "keycloak-db", "pgadmin"],
-    ),
     "monica_v4": ("gelée jusqu'à la version de décembre 2026", ["crm", "monica_v4_db"]),
     "pangolin": (
         "chemin d'accès à tout le reste, non analysé",

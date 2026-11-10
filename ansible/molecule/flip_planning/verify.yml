@@ -171,6 +171,24 @@
           pull_policy du banc Keycloak :
           {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.pull_policy', default='-') | list }}
 
+    # Le banc Keycloak rend les sept services du modèle : tous sous
+    # no-new-privileges, et pgAdmin reste sur le port 80 de la cible Pangolin
+    # (son entrypoint passerait sinon sur 8080 sous cette option).
+    - name: Assert every Flip Planning service runs under no-new-privileges
+      vars:
+        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
+        flip_planning_kc_unhardened: >-
+          {{ flip_planning_kc_compose.services | dict2items
+             | rejectattr('value.security_opt', 'defined') | map(attribute='key') | list
+             + (flip_planning_kc_compose.services | dict2items | selectattr('value.security_opt', 'defined')
+                | rejectattr('value.security_opt', 'contains', 'no-new-privileges:true') | map(attribute='key') | list) }}
+      ansible.builtin.assert:
+        that:
+          - flip_planning_kc_compose.services | length == 7
+          - flip_planning_kc_unhardened == []
+          - flip_planning_kc_compose.services.pgadmin.environment.PGADMIN_LISTEN_PORT == '80'
+        fail_msg: "Services sans no-new-privileges : {{ flip_planning_kc_unhardened }}"
+
     # Quatrième instance de flip.yml : la vitrine publique, sans SSO, remise à
     # zéro chaque nuit. Ce qui la distingue des autres est ce qui la protège :
     # pas de pgAdmin, webhooks coupés, plafonds et quota du solveur, poids CPU
