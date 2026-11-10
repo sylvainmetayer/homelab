@@ -203,13 +203,15 @@ marque **introuvable** dans Papra arrête le passage avant tout envoi : c'est la
 garde des pièces d'identité, tant que `Identite` n'existe pas, rien ne part.
 
 Seuls les champs vides sont remplis, jamais une valeur saisie ; les tags sont
-pris dans la liste existante, hors exclus, jamais créés. Puis la marque est
-posée (un document sans réponse utile aussi : il n'est pas renvoyé). Les plus
+pris dans la liste existante, hors exclus, jamais créés. La marque est posée
+avant les champs, un document sans réponse utile compris : jamais renvoyé au
+modèle, même si Papra refuse ensuite une écriture (journalisé, le passage
+continue). Les plus
 anciens d'abord, `papra_enrich_batch_size` (20) documents par passage :
 l'arriéré (~400) en une vingtaine d'heures, puis les nouveaux au fil de l'eau.
 Un document sans texte ou trop long n'est pas marqué (un OCR refait le
-reprendra) et ne compte pas dans le lot. Toute erreur HTTP (429 de budget,
-5xx) arrête le passage, sans nouvel essai : le suivant reprend.
+reprendra) et ne compte pas dans le lot. Une erreur de la passerelle, un 429
+ou un 5xx arrête le passage, sans nouvel essai : le suivant reprend.
 
 Journal (`journalctl -u papra-enrich`) : une ligne par document, son
 identifiant, les champs remplis, le nombre de tags ajoutés et les tokens ;

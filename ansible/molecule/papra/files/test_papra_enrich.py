@@ -94,7 +94,7 @@ class Fake(BaseHTTPRequestHandler):
             if path == f"{ORG}/documents/{doc['id']}":
                 return self.reply(200, {"document": doc})
             if self.command != "GET" and path.startswith(f"{ORG}/documents/{doc['id']}/"):
-                return self.reply(204)
+                return self.reply(state["write_status"].get(doc["id"], 204))
         return self.reply(404, {"error": "not found"})
 
     do_GET = do_POST = do_PUT = handle_any
@@ -104,7 +104,7 @@ class EnrichTest(unittest.TestCase):
     def setUp(self):
         self.server = HTTPServer(("127.0.0.1", 0), Fake)
         self.server.state = {"requests": [], "ai_status": 200, "tags": copy.deepcopy(TAGS),
-                             "documents": copy.deepcopy(DOCUMENTS)}
+                             "documents": copy.deepcopy(DOCUMENTS), "write_status": {}}
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
@@ -154,13 +154,14 @@ class EnrichTest(unittest.TestCase):
         self.run_pass()
         writes = [(r[0], r[1].removeprefix(ORG), r[2]) for r in self.requests() if r[0] != "GET" and r[1].startswith(ORG)]
         self.assertEqual(writes, [
+            # La marque d'abord.
+            ("POST", "/documents/doc_ok/tags", {"tagId": "tag_ia-faite"}),
+            ("POST", "/documents/doc_ok/tags", {"tagId": "tag_energie"}),
             ("PUT", "/documents/doc_ok/custom-properties/cpd_montant", {"value": 42.5}),
             ("PUT", "/documents/doc_ok/custom-properties/cpd_fin", {"value": "2028-01-31"}),
-            ("POST", "/documents/doc_ok/tags", {"tagId": "tag_energie"}),
-            ("POST", "/documents/doc_ok/tags", {"tagId": "tag_ia-faite"}),
-            # Montant et Fin de validité déjà saisis : rien d'écrasé, seulement le tag et la marque.
-            ("POST", "/documents/doc_saisi/tags", {"tagId": "tag_energie"}),
+            # Montant et Fin de validité déjà saisis : rien d'écrasé, seulement la marque et le tag.
             ("POST", "/documents/doc_saisi/tags", {"tagId": "tag_ia-faite"}),
+            ("POST", "/documents/doc_saisi/tags", {"tagId": "tag_energie"}),
         ])
         self.assertEqual({r[3] for r in self.requests(prefix=ORG)}, {"Bearer papra-test-key"})
         self.assertEqual({r[3] for r in self.ai_calls()}, {"Bearer gateway-test-key"})
@@ -189,6 +190,13 @@ class EnrichTest(unittest.TestCase):
             self.run_pass()
         self.assertEqual(len(self.ai_calls()), 1)
         self.assertEqual([r for r in self.requests() if r[0] != "GET" and r[1].startswith(ORG)], [])
+
+    def test_a_document_papra_refuses_does_not_stop_the_pass(self):
+        self.server.state["write_status"] = {"doc_ok": 400}
+        self.run_pass()
+        self.assertEqual(len(self.ai_calls()), 2)
+        self.assertIn(("POST", f"{ORG}/documents/doc_saisi/tags", {"tagId": "tag_ia-faite"}),
+                      [r[:3] for r in self.requests()])
 
     def test_main_exits_cleanly_on_gateway_error(self):
         self.server.state["ai_status"] = 429

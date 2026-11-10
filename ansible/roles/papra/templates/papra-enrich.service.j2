@@ -13,7 +13,8 @@ User={{ ansible_user }}
 # docker inspect : l'IP de Papra sur le réseau newt (aucun port publié).
 SupplementaryGroups=docker
 ExecStart=/usr/bin/python3 -I {{ papra_enrich_script }} --config {{ papra_enrich_config_file }}
-TimeoutStartSec=30min
+# 20 documents à 120 s au pire par appel : large.
+TimeoutStartSec=90min
 # Lecture seule partout : le script n'écrit que par l'API de Papra.
 NoNewPrivileges=yes
 ProtectSystem=strict

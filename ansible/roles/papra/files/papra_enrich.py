@@ -10,9 +10,10 @@ Papra arrête le passage avant tout envoi : la liste d'exclusion est la garde
 des pièces sensibles, un tag pas encore créé n'en protégerait aucune.
 
 Seuls les champs vides sont remplis ; les tags ajoutés sont pris parmi ceux
-qui existent, hors exclus, jamais créés ; puis la marque est posée. Journal :
-identifiant, champs remplis, tokens, jamais le nom ni le contenu. Toute erreur
-HTTP (429 de budget, 5xx) arrête le passage, sans nouvel essai.
+qui existent, hors exclus, jamais créés ; la marque est posée en premier. Journal :
+identifiant, champs remplis, tokens, jamais le nom ni le contenu. Une erreur
+de la passerelle, un 429 ou un 5xx arrête le passage, sans nouvel essai ; un
+document que Papra refuse (4xx) est journalisé et laissé.
 
 Bibliothèque standard seule. Configuration (clés Papra et passerelle) : un
 fichier JSON 0600 du compte de l'unité, jamais la ligne de commande.
@@ -144,10 +145,11 @@ def enrich(ctx, doc_id):
         names = [ctx["tags"][name]["name"] for name in new_tags]
         log(f"Document {doc_id} (à blanc) : {shown}, tags {names}, {tokens} tokens")
         return True
+    # La marque d'abord : une écriture refusée ensuite ne renvoie pas le document au modèle.
+    for name in [ctx["done"]] + new_tags:
+        call(f"{base}/documents/{doc_id}/tags", key, {"tagId": ctx["tags"][name]["id"]})
     for definition_id, value in fields.values():
         call(f"{base}/documents/{doc_id}/custom-properties/{definition_id}", key, {"value": value}, "PUT")
-    for name in new_tags + [ctx["done"]]:
-        call(f"{base}/documents/{doc_id}/tags", key, {"tagId": ctx["tags"][name]["id"]})
     filled = ", ".join(fields) or "aucun champ"
     log(f"Document {doc_id} : {filled} rempli(s), {len(new_tags)} tag(s) ajouté(s), {tokens} tokens")
     return True
@@ -182,8 +184,16 @@ def run(config, dry_run, limit):
         if not docs:
             break
         for doc in docs:
-            if sent < limit and eligible(doc, ctx) and enrich(ctx, doc["id"]):
-                sent += 1
+            if sent >= limit or not eligible(doc, ctx):
+                continue
+            try:
+                sent += enrich(ctx, doc["id"])
+            except urllib.error.HTTPError as e:
+                # Un document que Papra refuse (404, 400) ne bloque pas les suivants ;
+                # la passerelle, un 429 ou un 5xx arrêtent le passage.
+                if not str(e.filename).startswith(base) or e.code == 429 or e.code >= 500:
+                    raise
+                log(f"Document {doc['id']} : HTTP {e.code} de Papra, laissé")
         page += 1
     log(f"Passage terminé : {sent} document(s) envoyé(s) au modèle")
 
@@ -198,7 +208,7 @@ def main():
     with open(args.config, encoding="utf-8") as f:  # NOSONAR
         config = json.load(f)
     try:
-        run(config, args.dry_run, args.limit or config["batch_size"])
+        run(config, args.dry_run, config["batch_size"] if args.limit is None else args.limit)
     except urllib.error.HTTPError as e:
         # Jamais le corps de la réponse : il pourrait reprendre le document.
         log(f"Passage arrêté : HTTP {e.code} sur {str(e.filename).split('?')[0]}")
