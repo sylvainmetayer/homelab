@@ -17,7 +17,8 @@ AK, AS, CK, NEW_CK = "ak-fake-0001", "as-secret-fake-0002", "ck-current-fake-000
 ENV = {"OVH_APPLICATION_KEY": AK, "OVH_APPLICATION_SECRET": AS, "OVH_CONSUMER_KEY": CK,
        "OVH_CLOUD_PROJECT_ID": "proj123", "home_ip": "203.0.113.7"}
 SECRETS = (AS, CK, NEW_CK)
-CURRENT, OLD = 222, 111
+CURRENT, OLD, OTHER = 222, 111, 333  # OTHER: credential of another application (e.g. DNS-01 of the NAS)
+APPS = {CURRENT: 7, OLD: 7, OTHER: 9}
 VALIDATION = "https://www.ovh.com/auth/sso/api?credentialToken=tok"
 
 
@@ -50,11 +51,17 @@ class FakeOvh(BaseHTTPRequestHandler):
             return self._reply(403, {"errorCode": "INVALID_CREDENTIAL", "message": "bad"})
         if path == "/auth/currentCredential":
             return self._reply(200, {"credentialId": CURRENT, "applicationId": 7})
-        if path == "/me/api/credential?applicationId=7":
-            return self._reply(200, [CURRENT, OLD])
+        if path == "/me/api/credential":
+            return self._reply(200, [CURRENT, OTHER, OLD])
+        app = re.fullmatch(r"/me/api/credential/(\d+)/application", path)
+        if app:
+            app_id = APPS[int(app[1])]
+            return self._reply(200, {"applicationId": app_id, "applicationKey": AK, "name": f"app-{app_id}",
+                                     "description": "nas-proxy DNS-01" if app_id == 9 else "tofu", "status": "active"})
         match = re.fullmatch(r"/me/api/credential/(\d+)", path)
         if match and self.command == "GET":
-            return self._reply(200, {"credentialId": int(match[1]), "status": "validated", "creation": "2025-11-01T10:00:00+01:00",
+            return self._reply(200, {"credentialId": int(match[1]), "applicationId": APPS[int(match[1])], "status": "validated",
+                                     "creation": "2025-11-01T10:00:00+01:00",
                                      "lastUse": "2026-11-09T08:00:00+01:00", "expiration": None, "allowedIPs": ["203.0.113.7/32"],
                                      "rules": [{"method": "GET", "path": "/domain/zone/sylvain.dev/*"}]})
         if match and self.command == "DELETE":
@@ -104,9 +111,11 @@ class List(Base):
     def test_lists_credentials_marks_current_and_signs(self):
         self.assertEqual(self.main(["list"]), 0)
         self.assertRegex(self.out, rf"\* {CURRENT} validated")
-        self.assertRegex(self.out, rf"(?m)^  {OLD} validated")
+        self.assertRegex(self.out, rf"(?m)^  {OLD} validated application 7 « app-7 » \(tofu\) \[rotation\]")
+        self.assertRegex(self.out, rf"(?m)^  {OTHER} validated application 9 « app-9 » \(nas-proxy DNS-01\) \[AUTRE APPLICATION")
         self.assertIn("GET /domain/zone/sylvain.dev/*", self.out)
         self.assertIn("IP 203.0.113.7/32", self.out)
+        self.assertNotIn(AK, self.out)  # the application's applicationKey is never printed
         _, path, headers, body = FakeOvh.requests[0]
         expected = oc.signature(AS, CK, "GET", f"http://127.0.0.1:{self.server.server_port}{path}", body, headers["X-Ovh-Timestamp"])
         self.assertEqual(headers["X-Ovh-Signature"], expected)
@@ -166,6 +175,11 @@ class Revoke(Base):
 
     def test_wrong_confirmation_aborts(self):
         self.assertEqual(self.main(["revoke", str(OLD)], ask=lambda _: "y"), 1)
+        self.assertNotIn("DELETE", [m for m, _ in self.methods()])
+
+    def test_refuses_another_application_even_with_every_option(self):
+        self.assertEqual(self.main(["revoke", str(OTHER), "--force-current", "--yes"]), 1)
+        self.assertIn("autre application", self.out)
         self.assertNotIn("DELETE", [m for m, _ in self.methods()])
 
     def test_force_current(self):

@@ -182,11 +182,34 @@ Tofu ne tourne jamais en CI avec cette clé, mais un `plan` lancé hors de la
 maison échouera. Dans ce cas, utiliser `--allowed-ip <bloc>`, option
 répétable.
 
+##### Ne jamais révoquer
+
+Le compte OVH porte d'autres applications que celle de Tofu. Leurs
+identifiants n'ont rien à voir avec cette rotation :
+
+- `pangolin_ovh_*` : DNS-01 des jokers sur Pangolin (jeton du 09/11/2026) ;
+- `nas_ovh_*` : DNS-01 du Traefik du NAS (jeton du 10/11/2026, PR #1355),
+  aussi saisi dans le plugin ACME de Proxmox (certificat de
+  `pve.sylvain.cloud`, configuré dans l'interface, hors SOPS) ;
+- l'application `proxmox-acme` du plugin ACME de Proxmox, si elle est
+  distincte ;
+- `costs_ovh_*` : rapport des coûts.
+
+`list` affiche tous les identifiants du compte, chacun avec le nom et la
+description de son application. Ceux des autres applications sont marqués
+`[AUTRE APPLICATION, hors rotation]`. `revoke` refuse tout identifiant qui
+n'appartient pas à l'application de `OVH_APPLICATION_KEY`, et aucune option
+ne lève ce refus. Il ne révoque qu'un identifiant à la fois. Ces jetons se
+tournent à la main, comme décrit plus haut.
+
+##### Pas à pas
+
 Depuis la racine de `homelab`, sous-module `secrets/` sur `main` à jour :
 
 1. `mise exec -- python3 -I .github/scripts/ovh_credentials.py list` liste
-   les identifiants de l'application avec leur état, leurs dates, leurs IP
-   et leurs règles. `*` marque celui qui est en cours ; noter son id.
+   les identifiants avec leur application, leur état, leurs dates, leurs
+   IP et leurs règles. `*` marque celui qui est en cours ; noter son id.
+   Seuls les identifiants `[rotation]` sont concernés.
 2. `mise exec -- python3 -I .github/scripts/ovh_credentials.py renew`
    demande l'identifiant (`POST /auth/credential`), range la consumer key
    dans `secrets/secrets.sops.yaml` (`OVH_CONSUMER_KEY`), puis affiche
@@ -205,7 +228,8 @@ Depuis la racine de `homelab`, sous-module `secrets/` sur `main` à jour :
    `keepass_backup`, `site` et `1y`.
 6. `mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke <ancien id>`
    demande de taper l'id pour confirmer (`--yes` saute cette étape).
-   L'identifiant en cours est refusé sans `--force-current`.
+   L'identifiant en cours est refusé sans `--force-current`. Un identifiant
+   d'une autre application est toujours refusé (« Ne jamais révoquer »).
 7. Mettre la date de `OVH_CONSUMER_KEY` dans `secrets-rotation.yaml`, puis
    faire le commit et le bump comme dans « Règles communes ».
 

@@ -2,15 +2,19 @@
 """Rotation de la consumer key OVH de Tofu (docs/runbooks/rotation-des-secrets.md, « OVH »).
 
 Trois sous-commandes, sur l'application de OVH_APPLICATION_KEY :
-  list          les identifiants (credentials) de l'application : id, état,
-                création, dernière utilisation, expiration, IP autorisées,
-                règles ; `*` devant celui de OVH_CONSUMER_KEY ;
+  list          les identifiants (credentials) du compte : id, état,
+                application (nom, description), création, dernière
+                utilisation, expiration, IP autorisées, règles ; `*` devant
+                celui de OVH_CONSUMER_KEY ;
   renew         demande un identifiant aux règles de ACCESS_RULES, restreint
                 aux IP de --allowed-ip (défaut : home_ip), range la nouvelle
                 consumer key dans le fichier SOPS racine par l'entrée standard
                 de `sops set`, puis affiche l'URL de validation à ouvrir ;
-  revoke <id>   supprime un identifiant, après confirmation ; refuse celui en
-                cours sans --force-current.
+  revoke <id>   supprime UN identifiant, après confirmation ; refuse, sans
+                option pour passer outre, ceux d'une autre application que
+                celle de OVH_APPLICATION_KEY (docs/runbooks/rotation-des-secrets.md,
+                « Ne jamais révoquer ») ; refuse celui en cours sans
+                --force-current.
 
 Les identifiants viennent de l'environnement que mise charge depuis
 secrets/secrets.sops.yaml (OVH_APPLICATION_KEY, OVH_APPLICATION_SECRET,
@@ -147,24 +151,27 @@ def _api_message(error):
         return ""
 
 
-def current_id(client):
-    return client.call("GET", "/auth/currentCredential").get("credentialId")
-
-
 def cmd_list(client, out):
+    """Tous les identifiants du compte, chacun avec son application : ceux des
+    autres applications (DNS-01 du NAS et de Pangolin, ACME de Proxmox, coûts…)
+    restent visibles pour être reconnus, jamais révocables par revoke."""
     current = client.call("GET", "/auth/currentCredential")
-    ids = client.call("GET", f"/me/api/credential?applicationId={int(current['applicationId'])}")
-    for credential_id in sorted(ids):
+    for credential_id in sorted(client.call("GET", "/me/api/credential")):
         c = client.call("GET", f"/me/api/credential/{int(credential_id)}")
+        app = client.call("GET", f"/me/api/credential/{int(credential_id)}/application")
         mark = "*" if credential_id == current["credentialId"] else " "
+        scope = "rotation" if c.get("applicationId") == current["applicationId"] else "AUTRE APPLICATION, hors rotation"
         out(
-            f"{mark} {credential_id} {c.get('status')} création {c.get('creation')} "
-            f"dernier usage {c.get('lastUse')} expiration {c.get('expiration')} "
+            f"{mark} {credential_id} {c.get('status')} application {c.get('applicationId')} "
+            f"« {app.get('name')} » ({app.get('description')}) [{scope}]"
+        )
+        out(
+            f"      création {c.get('creation')} dernier usage {c.get('lastUse')} expiration {c.get('expiration')} "
             f"IP {','.join(c.get('allowedIPs') or []) or 'toutes'}"
         )
         for rule in c.get("rules") or []:
             out(f"      {rule.get('method')} {rule.get('path')}")
-    out("* : l'identifiant de OVH_CONSUMER_KEY (en cours)")
+    out("* : l'identifiant de OVH_CONSUMER_KEY (en cours) ; seuls les [rotation] sont révocables")
     return 0
 
 
@@ -202,7 +209,16 @@ def cmd_renew(client, allowed_ips, project, sops, out, run=subprocess.run):
 
 
 def cmd_revoke(client, credential_id, force_current, assume_yes, out, ask=input):
-    if credential_id == current_id(client) and not force_current:
+    """Un seul identifiant, de l'application de OVH_APPLICATION_KEY ; aucune option ne lève ce refus."""
+    current = client.call("GET", "/auth/currentCredential")
+    target = client.call("GET", f"/me/api/credential/{credential_id}")
+    if target.get("applicationId") != current["applicationId"]:
+        out(
+            f"{credential_id} appartient à une autre application ({target.get('applicationId')}) : refusé. "
+            "Ses identifiants (DNS-01, ACME de Proxmox, coûts…) se gèrent à la main, voir le runbook."
+        )
+        return 1
+    if credential_id == current["credentialId"] and not force_current:
         out(f"{credential_id} est l'identifiant en cours (OVH_CONSUMER_KEY) : refusé sans --force-current.")
         return 1
     if not assume_yes and ask(f"Révoquer l'identifiant {credential_id} ? Taper son id pour confirmer : ").strip() != str(credential_id):
