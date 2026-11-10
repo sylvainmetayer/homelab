@@ -14,10 +14,14 @@ cette page sur GitHub ou dans un clone local.
   les alertes ne viennent plus que de Telegram** (Uptime Kuma est chez PikaPods).
 
 Ne tombent pas : Immich (Newt du Pi), Flip Planning, Pangolin, les sites
-Cloudflare Pages. Le DNS tient : le Pi garde son Blocky (secondaire du DHCP), les clients
-basculent ([dns-blocky.md](dns-blocky.md)), si la Bbox annonce bien Blocky
-(bascule non constatée au 05/11, [ADR 0012](../adr/0012-filtrage-dns-blocky.md) ;
-« À vérifier sur place »).
+Cloudflare Pages. Le DNS dépend de ce que le DHCP de la Bbox annonce
+(bascule vers Blocky non constatée au 05/11, [ADR 0012](../adr/0012-filtrage-dns-blocky.md) ;
+« À vérifier sur place ») :
+
+- `192.168.1.200` puis `192.168.1.96` : il tient, les clients basculent sur
+  le Blocky du Pi ([dns-blocky.md](dns-blocky.md)) ;
+- la Bbox elle-même : il tient, sans filtrage ([bbox-remplacee.md](bbox-remplacee.md), étape 3) ;
+- `192.168.1.200` seul : il tombe avec le LXC.
 
 ## Diagnostic
 
@@ -39,8 +43,10 @@ basculent ([dns-blocky.md](dns-blocky.md)), si la Bbox annonce bien Blocky
 ### A. Réinstaller l'hôte
 
 1. Proxmox VE depuis l'ISO officielle sur un disque assez grand (VM de 190 Gio,
-   `tofu/proxmox/terraform.tfvars`), système de fichiers par défaut
-   (LVM-thin `local-lvm` attendu : « À vérifier sur place »). Nom du nœud **`proxmox`**,
+   `tofu/proxmox/terraform.tfvars`), système de fichiers par défaut : un
+   LVM-thin nommé `local-lvm`, que le dépôt attend (`storage = "local-lvm"`
+   dans `terraform.tfvars`, `vzdump_restore_test_restore_storage`, commentaire
+   de `pve.yml`). Nom du nœud **`proxmox`**,
    IP `192.168.1.26/24`, passerelle `192.168.1.254`.
 2. Remettre la configuration de l'ancien hôte depuis Borg (section A bis) :
    elle ramène `authorized_keys`, le certificat ACME de `pve.sylvain.cloud`,
@@ -136,7 +142,25 @@ une archive par nuit à 01:00.
    ```
 
 4. **Puis la VM** (190 Gio de disque : le test bimensuel ne fait que vérifier
-   l'archive, la restauration complète n'a **jamais été essayée**, durée à vérifier) :
+   l'archive, la restauration complète n'a **jamais été essayée**, durée à vérifier).
+   La VM démarre sur deux fichiers cloud-init `snippets` du storage `local`
+   (`user_data_file_id` et `vendor_data_file_id`,
+   `tofu/proxmox/proxmox_docker_vm.tf`), absents de vzdump comme de
+   l'archive `pve_config` : sur un hôte réinstallé, **`qm start` échoue
+   tant qu'ils ne sont pas recréés**. Les recréer d'abord, depuis le poste,
+   par un apply ciblé sur ces deux fichiers seulement (un apply complet
+   verrait leur id inconnu et remplacerait la VM, `tofu/proxmox/README.md`) :
+
+   ```bash
+   tofu -chdir=tofu/proxmox apply \
+     -target=proxmox_virtual_environment_file.docker_user_config \
+     -target=proxmox_virtual_environment_file.docker_vendor_config
+   ```
+
+   Le storage `local` doit accepter le contenu `snippets` : A bis le remet
+   avec `storage.cfg` ; sans A bis, si l'apply échoue sur le type de
+   contenu, l'ajouter au storage `local` (Datacenter → Storage) puis
+   relancer (comportement non décrit dans le dépôt). Ensuite :
 
    ```bash
    qmrestore /mnt/pve/nas-backup/dump/<archive VM> 100 --storage local-lvm
@@ -144,10 +168,6 @@ une archive par nuit à 01:00.
    qm start 100
    ```
 
-   Si le démarrage se plaint d'un volume `snippets` ou cloud-init manquant
-   (fichiers de `tofu/proxmox` sur `local`) : `qm set 100 --delete cicustom`
-   ou recréer les fichiers par Tofu (relire le plan) : à vérifier (savoir
-   d'avance si la VM en dépend : « À vérifier sur place »).
 5. L'archive date de 21:00 au plus tard la veille : les données écrites depuis
    n'y sont pas. Pour une appli importante, remettre ensuite son dump Borg de
    01:00 ([sauvegarde-et-restauration.md](sauvegarde-et-restauration.md)).
@@ -174,13 +194,13 @@ restaurée ramène aussi l'intrus.
    invités restaurés sont retrouvés par leur id). Le storage créé à la main
    s'importe par la CLI (`tofu import`, identifiant à vérifier dans la doc du
    provider). Le job a un id fixe : si l'apply le refuse comme déjà pris
-   (remis par A bis), `tofu import proxmox_backup_job.nightly
-   backup-cbfcde61-8413` (commande de `tofu/proxmox/backup.tf`).
+   (remis par A bis), `tofu -chdir=tofu/proxmox import
+   proxmox_backup_job.nightly backup-cbfcde61-8413` (commande de `tofu/proxmox/backup.tf`).
 2. Depuis `ansible/`, avec `--check --diff` d'abord :
-   `ansible-playbook pve.yml` (sauvegarde de la configuration, agent Beszel,
-   `/etc/vzdump.conf`, test de restauration, avis de mises à jour,
-   `smart_check`, `thin_pool_check`, puis `pve_hardening` en dernier, une
-   session root de secours ouverte), et `lxc.yml` (à la main) si le LXC doit être
+   `ansible-playbook pve.yml` (dans cet ordre : sauvegarde de la
+   configuration, agent Beszel, test de restauration, avis de mises à jour,
+   `smart_check`, `thin_pool_check`, `pve_hardening` (une session root de
+   secours ouverte), puis la tâche `/etc/vzdump.conf`), et `lxc.yml` (à la main) si le LXC doit être
    remis d'équerre. La sauvegarde de la configuration repart avec une clé
    neuve : `ansible-playbook pve.yml --tags setup`, puis `backup.yaml`, puis
    `pve.yml` complet (sinon le `repo-create` de `pve_config_backup` est refusé
@@ -215,19 +235,15 @@ restaurée ramène aussi l'intrus.
 Sur l'hôte actuel, tant qu'il marche : ce que la réparation suppose et que le
 dépôt ne dit pas.
 
-- **Shell de l'hôte** : `pvesm status` et `lvs` montrent `local-lvm` de type
-  `lvmthin` (le défaut de l'installeur à reproduire en A.1).
-- **Shell de l'hôte** : `qm config 100 | grep -E 'cicustom|ide'`. Une ligne
-  `cicustom` qui vise `local:snippets/…` annonce l'erreur de B.4 après une
-  réinstallation (ces fichiers sont sur `local`, absents de l'archive
-  `pve_config`).
+- **Shell de l'hôte** : `pvesm status` liste `local` avec le contenu
+  `snippets` (ce que l'apply ciblé de B.4 suppose sans A bis).
 - **BIOS du mini PC** : « Restore on AC Power Loss », attendu « Power On »
   ou « Last State », pas « Off »
   ([coupure-de-courant.md](coupure-de-courant.md)) ; à reporter sur une
   machine neuve.
-- **Interface de la Bbox** : DNS annoncés par le DHCP = `192.168.1.200` puis
-  `192.168.1.96` ; sinon la phrase « le DNS tient » du Symptôme est fausse
-  ([bbox-remplacee.md](bbox-remplacee.md)).
+- **Interface de la Bbox** : les DNS annoncés par le DHCP, attendus
+  `192.168.1.200` puis `192.168.1.96` ; lequel des trois cas du Symptôme
+  s'applique ([bbox-remplacee.md](bbox-remplacee.md)).
 - **Uptime Kuma** : « Backup Proxmox config » vert chaque matin depuis le
   10/11 ; depuis le poste, `borg list --bypass-lock --last 3` de A bis
   (étape 1) liste des archives récentes.

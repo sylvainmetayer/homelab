@@ -103,7 +103,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 ### NAS Ugreen (UGOS, RAID 1)
 
 Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir `host_vars/nas` ;
-par `smart_check` (alerte hebdomadaire) : `sda` et `sdb`, `sdc` retiré depuis son décrochage du 05/11 (`nas.yml`).
+par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la main à vérifier) : `sda` et `sdb`, `sdc` retiré depuis son décrochage du 05/11 (`nas.yml`).
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
@@ -173,8 +173,9 @@ par `smart_check` (alerte hebdomadaire) : `sda` et `sdb`, `sdc` retiré depuis s
    « Scrub Btrfs du NAS ») ; au relevé du 05/11, aucun scrub n'avait tourné
    (`btrfs scrub status` : « no stats available »). Un scrub planifié dans
    UGOS : à vérifier sur l'hôte. Le S.M.A.R.T. des disques est lu par Beszel
-   (verdict global) et, chaque lundi, par `smart_check` (secteurs et usure,
-   alerte sur une hausse, #1207).
+   (verdict global) ; le code prévoit en plus `smart_check` chaque lundi
+   (secteurs et usure, alerte sur une hausse, #1207), déployé à la main
+   par `pve.yml` et `nas.yml` : déploiement effectif à vérifier.
 
 ## Limites décidées (faits, pas des manques)
 
@@ -198,7 +199,7 @@ proposé ici.
 3. **Hôte Proxmox** : l'installation de l'hôte n'est pas décrite ; la
    restauration de `/etc/pve` depuis Borg n'a jamais été jouée ; la VM n'a
    jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11 ; planification dans UGOS à vérifier ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main).
+4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11 ; planification dans UGOS à vérifier ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main ; déploiement effectif à vérifier, le Pi le reçoit par la CI).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

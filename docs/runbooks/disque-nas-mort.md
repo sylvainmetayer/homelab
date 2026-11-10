@@ -16,7 +16,8 @@ sur place ».
   rouge (disques `sda`, `sdb`, `sdc` suivis, `host_vars/nas`).
 - Ou, plus tôt, le lundi : moniteur « S.M.A.R.T. NAS » et message ntfy
   (topic `scripts`) de `smart_check` sur une hausse des secteurs de `sda` ou
-  `sdb` ([sante-des-disques.md](sante-des-disques.md)).
+  `sdb` ([sante-des-disques.md](sante-des-disques.md)), si `smart_check`
+  est déployé sur le NAS (`nas.yml`, à la main : « À vérifier sur place »).
 - Ou le NAS ne répond plus : moniteurs « Healthcheck NAS », « Certificats
   NAS », « kDrive vers NAS » et « Backup Jellyfin » rouges ensemble, agent
   Beszel `nas` hors ligne.
@@ -40,7 +41,8 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 
 ## Diagnostic
 
-1. Un disque ou deux ? Dans UGOS (gestionnaire de stockage) et
+1. Un disque ou deux ? Dans UGOS (gestionnaire de stockage : nom du menu « À vérifier sur
+   place ») et
    dans Beszel. Noter le **numéro de série** du disque fautif : c'est lui
    qu'on retire, pas le voisin. D'après `host_vars/nas`, `sda` et `sdb`
    (4 To) sont la paire du RAID (`md1` en raid1 sur `sda2` et `sdb2`, relevé du
@@ -161,6 +163,7 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 
 **Interface d'UGOS** (une séance, NAS sain) :
 
+- Le nom du menu de stockage (gestionnaire de stockage, Diagnostic 1).
 - Stockage, volume `volume1` : l'intitulé exact de l'alerte d'un RAID
   dégradé, le nom de l'assistant de réparation (A.3), et s'il existe un
   scrub planifié ([sante-des-disques.md](sante-des-disques.md), « Scrub
@@ -180,6 +183,10 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
   ([coupure-de-courant.md](coupure-de-courant.md)).
 
 **Hors du NAS** :
+
+- Uptime Kuma : le moniteur « S.M.A.R.T. NAS » reçoit des pushes, preuve que
+  `smart_check` est déployé sur le NAS (`nas.yml --tags smart_check`, à la
+  main, [sante-des-disques.md](sante-des-disques.md)).
 
 - Existe-t-il une copie des médias ailleurs (disque, autre lieu) ? Sinon,
   B.5 n'a rien à remettre pour eux.
