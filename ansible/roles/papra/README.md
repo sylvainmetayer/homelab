@@ -244,5 +244,8 @@ copie d'exercice n'a pas de state (`terraform_outputs = {}`) : jamais installé.
 4. Après le merge : `ansible-playbook docker.yml --tags papra` depuis
    `ansible/` (un bump de `secrets/` seul ne déploie rien).
 5. Premier essai à blanc, 5 documents, dans un terminal (le modèle est
-   appelé, rien n'est écrit, les valeurs proposées s'affichent) :
-   `sudo -u sylvain sg docker -c 'python3 -I /usr/local/libexec/papra_enrich.py --config /etc/papra-enrich.json --dry-run --limit 5'`.
+   appelé, rien n'est écrit, les valeurs proposées s'affichent), en SSH
+   sous `sylvain` (propriétaire de la configuration, membre de `docker`) :
+   `python3 -I /usr/local/libexec/papra_enrich.py --config /etc/papra-enrich.json --dry-run --limit 5`.
+   Puis `sudo systemctl start papra-enrich.service` et
+   `journalctl -u papra-enrich -n 30` pour un vrai passage.

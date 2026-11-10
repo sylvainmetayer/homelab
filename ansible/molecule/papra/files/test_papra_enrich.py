@@ -8,6 +8,7 @@ python3 -I -m unittest discover -s . -p 'test_*.py'.
 import copy
 import datetime
 import json
+import tempfile
 import threading
 import unittest
 import urllib.error
@@ -188,6 +189,18 @@ class EnrichTest(unittest.TestCase):
             self.run_pass()
         self.assertEqual(len(self.ai_calls()), 1)
         self.assertEqual([r for r in self.requests() if r[0] != "GET" and r[1].startswith(ORG)], [])
+
+    def test_main_exits_cleanly_on_gateway_error(self):
+        self.server.state["ai_status"] = 429
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as f:
+            json.dump(self.config, f)
+            f.flush()
+            with mock.patch("sys.argv", ["papra_enrich.py", "--config", f.name]), \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(pe.main(), 1)
+        self.assertIn("HTTP 429", printed.call_args.args[0])
+        self.assertNotIn("Texte de", printed.call_args.args[0])
+        self.assertEqual(len(self.ai_calls()), 1)
 
     def test_dry_run_writes_nothing(self):
         self.run_pass(dry_run=True)

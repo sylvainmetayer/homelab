@@ -201,9 +201,9 @@ def main():
         run(config, args.dry_run, args.limit or config["batch_size"])
     except urllib.error.HTTPError as e:
         # Jamais le corps de la réponse : il pourrait reprendre le document.
-        log(f"Passage arrêté : HTTP {e.code} sur {e.url.split('?')[0]}")
+        log(f"Passage arrêté : HTTP {e.code} sur {str(e.filename).split('?')[0]}")
         return 1
-    except (OSError, RuntimeError, ValueError, KeyError, subprocess.CalledProcessError) as e:
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as e:
         log(f"Passage arrêté : {type(e).__name__}: {e}")
         return 1
     return 0
