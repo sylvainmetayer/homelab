@@ -191,12 +191,12 @@ lignes `RESTORE-RESULT`) :
   crée sa base `data/users/<compte>/db.sqlite` qu'au bout de son assistant
   d'installation : Ansible ne la voit pas, la configuration borgmatic n'en
   liste aucune, et `drill-restore-app` refuse de remettre les copies de
-  l'archive (il ne sait pas où). Corrigé : le rôle `rss` déclare le compte
-  (`rss_default_user`) et l'image s'installe seule au premier démarrage
-  (`FRESHRSS_INSTALL`, `FRESHRSS_USER`) ; la base existe avant le second
-  passage `--tags app`, comme pour les autres applis. À confirmer au prochain
-  exercice (l'archive du 10/11 porte bien la copie
-  `opt_apps_rss_freshrss_data_users_sylvain_db.sqlite`).
+  l'archive (il ne sait pas où). Corrigé, à confirmer au prochain exercice :
+  le rôle `rss` déclare le compte (`rss_default_user`) et l'image s'installe
+  seule au premier démarrage (`FRESHRSS_INSTALL`, `FRESHRSS_USER`) ; la base
+  existe au second passage `--tags app`, comme pour les autres applis (le
+  premier peut passer avant la fin de l'installation). L'archive du 10/11
+  porte bien la copie `opt_apps_rss_freshrss_data_users_sylvain_db.sqlite`.
 - **Open WebUI : pas d'archive.** L'appli venait d'être déployée, sa première
   sauvegarde n'avait pas tourné : rien à restaurer, base vide. Attendu.
 - **Applis dont la base SQLite naît à la première requête** (Grocy) : le second

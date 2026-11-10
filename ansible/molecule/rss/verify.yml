@@ -181,7 +181,7 @@
       ansible.builtin.assert:
         that:
           - "'FRESHRSS_INSTALL=--default-user sylvain' in rss_compose.services.freshrss.environment"
-          - "'FRESHRSS_USER=--user sylvain' in rss_compose.services.freshrss.environment"
+          - "'FRESHRSS_USER=--user sylvain --no-default-feeds' in rss_compose.services.freshrss.environment"
         fail_msg: "Installation automatique de FreshRSS absente : {{ rss_compose.services.freshrss.environment }}"
 
 # Avec les sorties Tofu du client Pocket ID (fictives) : le compose porte
