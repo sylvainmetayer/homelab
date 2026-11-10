@@ -26,6 +26,13 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # docker diff du 10/11/2026 : rien hors des montages sauf /tmp, où tsx
+    # et Node mettent leurs caches de compilation (3,5 Mo). L'OCR passe en
+    # lecture seule (essai local) : ses modèles, déjà non mis en cache (plus
+    # haut), restent en mémoire.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
     env_file:
       - .env
     volumes:
