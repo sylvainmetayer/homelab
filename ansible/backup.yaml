@@ -31,6 +31,9 @@
 - name: Authorize each host on its Storage Box subaccount
   hosts: backups
   gather_facts: false
+  # La Storage Box n'a pas de Python : Mitogen (ansible.cfg) y échoue dès le
+  # premier raw (« EOF on stream »), la stratégie ordinaire passe.
+  strategy: linear
   tasks:
     # Un hôte injoignable à la première play n'a pas de clé lue : le dire
     # plutôt qu'une variable indéfinie au milieu des boucles.
