@@ -81,12 +81,13 @@ locals {
       budget_usd    = 5
       budget_tokens = 2000000
     }
-    # Module IA de Papra (adaptateur openai-compatible), Haiku (rôle papra,
-    # docker.yml).
+    # papra-enrich.timer (rôle papra, docker.yml), format OpenAI, Haiku :
+    # Montant, Fin de validité et tags. ~3 650 tokens par document, ~400 en
+    # arriéré (mesure du 2026-11-10) : 5 M.
     papra = {
       description   = "Papra : classement des documents"
       budget_usd    = 5
-      budget_tokens = 2000000
+      budget_tokens = 5000000
     }
     # Chat du foyer (openwebui.sylvain.cloud), Haiku, Sonnet et Opus.
     openwebui = {

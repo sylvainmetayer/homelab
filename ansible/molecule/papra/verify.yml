@@ -395,6 +395,105 @@
         path: "{{ item }}"
         state: absent
 
+    # --- Remplissage par l'IA (papra-enrich.timer : clé SOPS et clé de la
+    # passerelle fournies par converge.yml) ---
+    - name: Assert the papra AI module stays off
+      vars:
+        papra_env_lines: "{{ (papra_env_content.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - papra_env_lines | select('match', '^(AI_|OPENAI_)') | list | length == 0
+
+    - name: Stat the papra enrichment files
+      become: true
+      loop:
+        - /usr/local/libexec/papra_enrich.py
+        - /etc/papra-enrich.json
+        - /etc/systemd/system/papra-enrich.service
+        - /etc/systemd/system/papra-enrich.timer
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: papra_enrich_files
+
+    - name: Assert the papra enrichment files have the expected owners and modes
+      loop: "{{ papra_enrich_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == ('sylvain' if item.item.endswith('.json') else 'root')
+          - item.stat.mode == ('0600' if item.item.endswith('.json') else '0644')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+
+    - name: Read the papra enrichment configuration
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/papra-enrich.json
+      register: papra_enrich_config_raw
+
+    - name: Assert the papra enrichment configuration carries both keys and the exclusions
+      vars:
+        papra_enrich_config: "{{ papra_enrich_config_raw.content | b64decode | from_json }}"
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - papra_enrich_config.papra_api_key == papra_enrich_api_key
+          - papra_enrich_config.ai_api_key == 'molecule-papra-ai-gateway-key'
+          - papra_enrich_config.excluded_tags == ['Sante', 'Identite', 'Banque-Finances', 'Impots', 'Travail-RH']
+          - papra_enrich_config.batch_size == 20
+
+    - name: Verify the papra enrichment units
+      become: true
+      ansible.builtin.command: systemd-analyze verify papra-enrich.service papra-enrich.timer
+      register: papra_enrich_analyze
+      changed_when: false
+      failed_when: >-
+        papra_enrich_analyze.rc != 0
+        or (papra_enrich_analyze.stderr_lines | select('search', 'papra-enrich') | list | length > 0)
+
+    - name: Read the papra enrichment timer
+      ansible.builtin.systemd:
+        name: papra-enrich.timer
+      register: papra_enrich_timer
+
+    - name: Read the papra enrichment service
+      ansible.builtin.systemd:
+        name: papra-enrich.service
+      register: papra_enrich_unit
+
+    - name: Assert the papra enrichment runs unprivileged
+      ansible.builtin.assert:
+        that:
+          - papra_enrich_timer.status.UnitFileState == 'enabled'
+          - papra_enrich_timer.status.ActiveState == 'active'
+          - papra_enrich_unit.status.User == 'sylvain'
+          - papra_enrich_unit.status.SupplementaryGroups == 'docker'
+          - papra_enrich_unit.status.ProtectSystem == 'strict'
+          - papra_enrich_unit.status.ExecStart is search('/usr/local/libexec/papra_enrich.py --config /etc/papra-enrich.json ')
+
+    # Sans la clé SOPS (cas de la production tant qu'elle n'est pas posée) :
+    # le passage retire tout. Les vars d'un include_role passent devant les
+    # secrets.
+    - name: Run the papra enrichment tasks without the SOPS key
+      ansible.builtin.include_role:
+        name: papra
+        tasks_from: enrich.yml
+      vars:
+        papra_enrich_api_key: ""
+
+    - name: Stat the papra enrichment files after the removal
+      loop: "{{ papra_enrich_files.results | map(attribute='item') | list }}"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: papra_enrich_removed
+
+    - name: Assert nothing of the papra enrichment is left without the key
+      ansible.builtin.assert:
+        that:
+          - papra_enrich_removed.results | selectattr('stat.exists') | list | length == 0
+
     # --- tests unitaires du script ---
     - name: Create a scratch directory for the script tests
       ansible.builtin.tempfile:
@@ -408,6 +507,10 @@
           dest: papra_intake.py
         - src: "{{ playbook_dir }}/files/test_papra_intake.py"
           dest: test_papra_intake.py
+        - src: "{{ playbook_dir }}/../../roles/papra/files/papra_enrich.py"
+          dest: papra_enrich.py
+        - src: "{{ playbook_dir }}/files/test_papra_enrich.py"
+          dest: test_papra_enrich.py
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ papra_unit_tests_dir.path }}/{{ item.dest }}"
@@ -415,7 +518,8 @@
 
     # Expéditeur autorisé, noms de fichier sûrs, pièces jointes, dépôt sans
     # écrasement, sort d'un message contre un faux IMAP ; le verify ci-dessus ne
-    # joue que --eml, sans IMAP.
+    # joue que --eml, sans IMAP. Remplissage par l'IA contre un faux Papra et
+    # une fausse passerelle : exclusions, champs saisis gardés, arrêts.
     - name: Run the script tests
       ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
       args:

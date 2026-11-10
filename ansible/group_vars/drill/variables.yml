@@ -34,3 +34,5 @@ openwebui_mcp_victorialogs_enabled: false
 # le trafic du site docker), beszel_*, victoria_logs_*, homepage_* (rôles
 # exclus, docker.yml), papra_intake_* (la relève IMAP de la vraie boîte, qui
 # déplace des courriels : l'intake de Papra reste coupé, c'est son défaut).
+# papra_enrich (papra-enrich.timer) ne s'installe pas : sans state, la clé de
+# la passerelle IA est vide.

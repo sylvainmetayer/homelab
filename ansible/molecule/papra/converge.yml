@@ -13,6 +13,11 @@
         value: molecule-pocket-id-papra-client-id
       pocket_id_papra_client_secret:
         value: molecule-pocket-id-papra-client-secret
+      # Avec la clé SOPS papra_enrich_api_key (fake_secrets.yml) : le
+      # remplissage par l'IA est installé.
+      ai_gateway_keys:
+        value:
+          papra: molecule-papra-ai-gateway-key
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
@@ -29,3 +34,5 @@
         papra_intake_imap_host: imap.example.invalid
         papra_intake_allowed_senders:
           - "@example.org"
+        # Si le timer du remplissage se déclenche pendant le test.
+        papra_ai_base_url: https://ia.example.invalid/v1

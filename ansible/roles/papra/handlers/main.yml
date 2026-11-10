@@ -14,3 +14,11 @@
     name: papra-intake.timer
     state: restarted
     daemon_reload: true
+
+- name: Restart papra-enrich timer
+  become: true
+  when: not (ansible_check_mode and papra_enrich_units is changed)
+  ansible.builtin.systemd:
+    name: papra-enrich.timer
+    state: restarted
+    daemon_reload: true
