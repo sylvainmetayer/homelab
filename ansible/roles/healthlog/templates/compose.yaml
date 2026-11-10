@@ -58,10 +58,11 @@ services:
       - ALL
     # docker diff du 10/11/2026 : hors du volume, seulement les caches de la
     # CLI Prisma (migrations) sous ~ ; l'essai en lecture seule montre
-    # qu'elle s'en passe. /tmp pour tsx (scripts du démarrage).
+    # qu'elle s'en passe. /tmp sert à tsx (scripts du démarrage), mais aussi
+    # à l'import Health Connect : le zip (jusqu'à 1 Gio, quelques centaines
+    # de Mo d'ordinaire) y est écrit puis sa base extraite. Volume sur disque
+    # et non tmpfs, qui compterait dans mem_limit ; hors sauvegarde.
     read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=64m
     env_file:
       - .env
     # Dumps que HealthLog prend avant chaque migration (le nocturne est coupé,
@@ -69,6 +70,7 @@ services:
     # reprend le propriétaire du dossier de l'image (nextjs, uid 1001).
     volumes:
       - backups:/var/lib/healthlog/backups
+      - tmp:/tmp
     # Au `compose stop`, laisse finir les requêtes et 30 s aux jobs en cours.
     stop_grace_period: 45s
     healthcheck:
@@ -89,6 +91,7 @@ services:
 volumes:
   postgres_data:
   backups:
+  tmp:
 
 networks:
   # Interne : la base n'a pas besoin d'Internet, l'appli garde le sien par
