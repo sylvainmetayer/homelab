@@ -10,7 +10,7 @@ instead of adding. **The `photoprism` removal (commit `7e848ed`) got this
 wrong** — it deleted the role directory but left `photoprism` behind in
 `host_vars/backups/variables.yaml`, `host_vars/pi/variables.yaml`, and
 the SOPS file for months, until a later clean-up. Don't repeat that: grep the whole
-repo for the service name at the end (step 6) before calling this done.
+repo for the service name at the end (step 7) before calling this done.
 
 Pick up the service's slug the same way `new-app` assigns it: `snake_case`
 Ansible name, `kebab-case` Pangolin slug.
@@ -35,18 +35,33 @@ alongside this skill, registered in `docker.yml`, `pi.yml`, `flip.yml` and `nas.
 
 1. Asserts `decommission_app_confirm: true` plus service/base_path are set,
    and that base_path is exactly `{{ docker_base_path }}/<service>` —
-   refuses to run otherwise, before anything is stopped.
-2. Optionally (`decommission_app_destroy_remote_backup: true`) runs
+   refuses to run otherwise, before anything is stopped. It also refuses
+   `kdrive_sync` / `kdrive` (no `dc@` unit, config named `kdrive.yaml`):
+   remove it by hand, `kdrive.yaml` and `uptime-kuma/kdrive.curl` in
+   `borgmatic_config_dir`.
+2. Announces the plan (containers and volumes, paths, borgmatic config,
+   remote repository), with a warning when the config goes without the
+   repository (`decommission_app_destroy_remote_backup: false`: `repo-delete`
+   is then no longer possible). It then runs `docker compose config --quiet`:
+   an invalid compose file stops the run before `repo-delete`, a missing one
+   is tolerated.
+3. Optionally (`decommission_app_destroy_remote_backup: true`) runs
    `borgmatic repo-delete --force` against the Storage Box repo — irreversible.
-   A real failure stops the run with the app still running and nothing removed,
-   so it can be run again; a repository already absent is tolerated.
-3. Stops + disables the `dc@<service>` systemd unit.
-4. Runs `docker compose down --volumes --remove-orphans` in the app's base
-   path (removes containers, networks, and named volumes). If step 3 or 4
+   A real failure (connection, authentication) stops the run with the app
+   still running and nothing removed, so it can be run again. An absent
+   repository is tolerated with a warning that shows the URL borg looked at:
+   check it, borg cannot tell a wrong path from an absent repository.
+4. Stops + disables the `dc@<service>` systemd unit.
+5. Runs `docker compose down --volumes --remove-orphans` in the app's base
+   path (removes containers, networks, and named volumes). If step 4 or 5
    really fails the run stops and no data is deleted; a missing unit, folder
-   or compose file is tolerated.
-5. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
-6. Removes the app's data directory (`<service>_base_path`), plus every path
+   or compose file is tolerated. Without a compose file, containers (with
+   their anonymous volumes) and volumes labelled
+   `com.docker.compose.project=<service>` are removed instead, behind
+   `decommission_app_remove_data`; a compose file with its own `name:` (or a
+   folder name compose normalises) is not covered.
+6. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
+7. Removes the app's data directory (`<service>_base_path`), plus every path
    in `decommission_app_extra_paths`, and its `dc@<service>.service.d`
    drop-ins.
 
