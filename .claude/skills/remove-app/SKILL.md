@@ -60,10 +60,14 @@ alongside this skill, registered in `docker.yml`, `pi.yml`, `flip.yml` and `nas.
    `com.docker.compose.project=<service>` are removed instead, behind
    `decommission_app_remove_data`; a compose file with its own `name:` (or a
    folder name compose normalises) is not covered.
-6. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`).
-7. Removes the app's data directory (`<service>_base_path`), plus every path
-   in `decommission_app_extra_paths`, and its `dc@<service>.service.d`
-   drop-ins.
+6. Removes the borgmatic config (`{{ borgmatic_config_dir }}/<service>.yaml`)
+   and its Uptime Kuma push file (`uptime-kuma/<service>.curl`), behind
+   `decommission_app_remove_borgmatic_config`. The `<service>.repo-created`
+   marker goes when either the config is removed or the remote repository
+   is destroyed (the next `repo-create` then runs again).
+7. Removes, behind `decommission_app_remove_data`, the app's data directory
+   (`<service>_base_path`) plus every path in `decommission_app_extra_paths`;
+   then its `dc@<service>.service.d` drop-ins, and reloads systemd.
 
 **App with its data on the NAS** (role depends on `nas_storage`): its data
 lives in `<service>_data_path` (`/mnt/nas/apps/<service>`), outside
