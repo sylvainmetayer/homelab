@@ -71,7 +71,10 @@ changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
 7. **Autres** : ressource privée `bbox-internal.sylvain.cloud` (interface de
    la box, `192.168.1.254` dans `private_resources.tf`) et celle de l'imprimante :
    à retester. Jetons d'API OVH ou Hetzner restreints par IP, s'il y en a : à
-   vérifier chez eux.
+   vérifier chez eux. Le jeton OVH de Tofu (`OVH_CONSUMER_KEY`) l'est, à
+   `home_ip` : une nouvelle IP coupe Tofu. `ovh_credentials.py renew` en
+   refait un de n'importe où ([rotation-des-secrets.md](rotation-des-secrets.md),
+   « Consumer key de Tofu »).
 
 ## Vérification
 

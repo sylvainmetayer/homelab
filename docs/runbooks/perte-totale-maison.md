@@ -109,6 +109,11 @@ facteur sur le **téléphone**.
    l'étage 6. Retirer la clé SSH `perso` des hôtes et du compte GitHub, et
    commencer la rotation (jetons Hetzner et OVH d'abord) dès que l'étage 1
    passe ([perte-cle-ou-poste.md](perte-cle-ou-poste.md), « Clé age volée, ou poste volé »).
+8. Hors de la maison, le jeton OVH de Tofu (`OVH_CONSUMER_KEY`), restreint à
+   `home_ip`, refuse tout `plan` : en refaire un depuis le nouveau réseau par
+   `ovh_credentials.py renew --allowed-ip <bloc>`, qui ne demande que la clé
+   d'application ([rotation-des-secrets.md](rotation-des-secrets.md),
+   « Consumer key de Tofu »).
 
 **Critère de passage** : `sops decrypt` ouvre les deux fichiers SOPS ;
 `borg list --bypass-lock <dépôt>` répond sur un dépôt d'appli
