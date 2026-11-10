@@ -22,8 +22,8 @@ disque plein ou une VM docker lente (disque rotatif, 12 Gio).
 
 ## Alternatives écartées
 
-- **node_exporter + VictoriaMetrics/VictoriaLogs + Grafana** (piste du
-  `TODO.md`) : trop lourde pour une VM de 12 Gio sur disque rotatif (#79).
+- **node_exporter + VictoriaMetrics/VictoriaLogs + Grafana** : trop lourde
+  pour une VM de 12 Gio sur disque rotatif (#79).
 - **Hub → agent en SSH (port 45876)** à travers une ressource privée : ne
   publie rien, mais plus compliqué que le PASS à jeton.
 
