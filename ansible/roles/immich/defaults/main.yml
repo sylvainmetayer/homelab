@@ -24,6 +24,14 @@ immich_power_tools_ai_base_url: https://ia.sylvain.cloud/v1
 immich_power_tools_ai_model: claude-haiku-5-5
 # Rotation : docs/runbooks/mot-de-passe-base.md (Postgres ignore POSTGRES_PASSWORD une fois initialisé).
 immich_db_password: ""
+# Compte et base d'Immich (.env, dump borgmatic, rôle de Power Tools).
+immich_db_username: postgres
+immich_db_name: immich
+# Rôle PostgreSQL de Power Tools : SELECT seulement, transactions en lecture
+# seule (tasks/main.yml). Mot de passe dérivé de celui de la base, comme
+# Valkey : pas de clé SOPS de plus, la tâche le repose à chaque déploiement.
+immich_power_tools_db_username: power_tools
+immich_power_tools_db_password: "{{ (immich_db_password ~ ':immich-power-tools') | hash('sha256') }}"
 # Mot de passe de Valkey (requirepass), dérivé du mot de passe de la base :
 # pas de clé SOPS de plus. Hex SHA-256, sans caractère à échapper dans le .env
 # ni dans la commande du conteneur. Change avec immich_db_password (sa rotation

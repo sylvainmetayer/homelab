@@ -165,6 +165,17 @@
       vars:
         conf: "{{ immich_swipe_conf.content | b64decode }}"
 
+    - name: Assert Immich Swipe is hardened and probed
+      ansible.builtin.assert:
+        that:
+          - swipe.cap_drop == ['ALL']
+          - swipe.cap_add | sort == ['CHOWN', 'DAC_OVERRIDE', 'SETGID', 'SETUID']
+          - swipe.security_opt == ['no-new-privileges:true']
+          - swipe.healthcheck.test[0] == 'CMD'
+        fail_msg: "Immich Swipe inattendu : {{ swipe }}"
+      vars:
+        swipe: "{{ immich_compose.services['immich-swipe'] }}"
+
     # Mode aléatoire : GET /api/assets/random (retiré d'Immich v3) réécrit en
     # POST /api/search/random {"size": N, ...} avec le filtre de l'ancien
     # endpoint, N tiré de `count` par une map qui n'y laisse passer qu'un nombre.
@@ -228,7 +239,12 @@
           - power_tools.environment.SECURE_COOKIE == 'true'
           - power_tools.environment.POWER_TOOLS_ENDPOINT_URL == 'https://power-tools.sylvain.cloud'
           - power_tools.environment.DB_HOST == immich_compose.services.database.container_name
-          - power_tools.environment.DB_PASSWORD == immich_env.DB_PASSWORD
+          # Son rôle en lecture seule, jamais le compte d'Immich.
+          - power_tools.environment.DB_USERNAME == 'power_tools'
+          - power_tools.environment.DB_USERNAME != immich_env.DB_USERNAME
+          - power_tools.environment.DB_PASSWORD is match('^[0-9a-f]{64}$')
+          - power_tools.environment.DB_PASSWORD != immich_env.DB_PASSWORD
+          - power_tools.environment.DB_DATABASE_NAME == immich_env.DB_DATABASE_NAME
           - "'JWT_SECRET' not in power_tools.environment"
           - power_tools.networks | sort == ['immich', 'newt']
           - "'ports' not in power_tools"
@@ -241,3 +257,55 @@
           - power_tools.image is match('^ghcr.io/immich-power-tools/immich-power-tools:[0-9.]+@sha256:[0-9a-f]{64}$')
       vars:
         power_tools: "{{ immich_compose.services['immich-power-tools'] }}"
+
+# Sans les clés de Kiosk et de Swipe, Power Tools coupé : ni immich-kiosk ni
+# immich-power-tools dans le compose (le redémarrage de dc@immich, en
+# --remove-orphans, retire alors leurs conteneurs), Swipe sans sa
+# configuration. Rendu hors de /opt/apps : le déploiement convergé n'est pas
+# touché.
+- name: Verify the compose without the optional services
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/immich/defaults/main.yml
+  tasks:
+    - name: Create a scratch directory for the reduced compose
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: immich
+      register: immich_reduced_scratch
+
+    # Variables de tâche : celles de la pièce perdraient face aux defaults
+    # (vars_files).
+    - name: Render the compose without the optional services
+      diff: false
+      vars:
+        immich_timelapse_api_key: ""
+        immich_kiosk_api_key: ""
+        immich_swipe_api_key: ""
+        immich_power_tools_enabled: false
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/immich/templates/compose.yaml"
+        dest: "{{ immich_reduced_scratch.path }}/compose.yaml"
+        mode: "0600"
+
+    - name: Read the reduced compose
+      ansible.builtin.slurp:
+        src: "{{ immich_reduced_scratch.path }}/compose.yaml"
+      register: immich_reduced_raw
+
+    - name: Assert Kiosk and Power Tools are absent and Swipe is unconfigured
+      vars:
+        immich_reduced: "{{ immich_reduced_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'immich-kiosk' not in immich_reduced.services"
+          - "'immich-power-tools' not in immich_reduced.services"
+          - "'volumes' not in immich_reduced.services['immich-swipe']"
+          - "'immich-server' in immich_reduced.services"
+        fail_msg: "Services du compose réduit : {{ immich_reduced.services.keys() | list }}"
+
+    - name: Remove the reduced compose scratch directory
+      ansible.builtin.file:
+        path: "{{ immich_reduced_scratch.path }}"
+        state: absent

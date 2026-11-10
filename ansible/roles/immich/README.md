@@ -17,8 +17,10 @@ Immich reste sur le Pi ([ADR 0020](../../../docs/adr/0020-garder-le-raspberry-pi
 **Rendu seulement si la clé SOPS `immich_kiosk_api_key` existe**
 (`immich_kiosk_enabled`, dérivée, comme `immich_swipe_preconfigured`). La clé
 est dans le `compose.yaml` (`0600`, `diff: false`), en `KIOSK_IMMICH_API_KEY`.
-Retirer la clé ne supprime pas le conteneur : `docker compose up -d
---remove-orphans` dans `immich/`, ou `docker rm -f immich-kiosk`.
+Retirer la clé supprime le conteneur au déploiement suivant : le compose
+change, le handler redémarre `dc@immich`, dont le `docker compose up
+--remove-orphans` retire le service disparu (rôle `docker_service`). De même
+pour Power Tools (`immich_power_tools_enabled: false`).
 
 Clé : compte de Sylvain, Account Settings → API Keys, nom `immich-kiosk`,
 **lecture seule**. Permissions (doc amont, « Installation »), sans les
@@ -62,7 +64,7 @@ depuis le Pi par l'IP de la maison), le rappel
 `https://power-tools.sylvain.cloud/api/auth/oauth/callback` est déclaré sur le
 client `immich` de Pocket ID, et le cookie de session porte le jeton Immich de
 la personne. Sans cookie, les routes protégées échouent fermées. Les requêtes
-directes à la base d'Immich (compte `postgres`, lecture) filtrent sur
+directes à la base d'Immich (rôle `power_tools`, lecture seule) filtrent sur
 l'utilisateur connecté, sauf `albums/[id]/public-info` (sans authentification)
 et `albums/[id]/assets` (sans contrôle d'appartenance) : qui connaît l'UUID
 d'un album en lit les métadonnées, pas les photos (elles passent par le proxy,
@@ -86,15 +88,16 @@ absente, les trois variables ne sont pas rendues et Find tourne sans IA. Essai
 du 09/11 par curl : JSON structuré correct.
 
 **Accès direct à la base d'Immich.** L'appli se connecte à PostgreSQL
-(`immich_postgres:5432`, réseau `immich`, base `immich`) avec les identifiants
-d'Immich lui-même : utilisateur `postgres`, mot de passe `immich_db_password`
-(posé dans le `compose.yaml`, `0600`). Lu dans les sources (0.25.0) :
+(`immich_postgres:5432`, réseau `immich`, base `immich`) avec un rôle à elle,
+`power_tools` (`immich_power_tools_db_username`), mot de passe dérivé de
+`immich_db_password` (`immich_power_tools_db_password`, posé dans le
+`compose.yaml`, `0600` ; pas de clé SOPS). Lu dans les sources (0.25.0, revu le
+10/11 : `src/config/db.ts` n'est appelé qu'en `select` et en `db.execute` de
+`SELECT`, les `insert`/`update`/`delete` visent tous `appDb`, le SQLite) :
 
 - **lit** (`SELECT` par drizzle et SQL brut, pour les analyses, la carte
   thermique, les lieux manquants, les albums potentiels, les visages
-  similaires) : assets, exif, personnes et visages, albums, et tout ce que le
-  compte `postgres` voit, dont les hachages des mots de passe et des clés
-  d'API d'Immich, les sessions et les liens de partage ;
+  similaires) : assets, exif, personnes et visages, albums ;
 - **n'écrit pas** : aucun `INSERT`, `UPDATE`, `DELETE` ni DDL contre cette base
   dans le code (recherche de `db.insert|update|delete` et de SQL d'écriture :
   rien) ; toutes les modifications de la photothèque passent par l'API d'Immich
@@ -102,11 +105,18 @@ d'Immich lui-même : utilisateur `postgres`, mot de passe `immich_db_password`
 - **écrit** seulement dans son propre SQLite (`/app/data`, workflows, imports,
   réglages), jamais dans la base d'Immich.
 
-Un compte `postgres` donne pourtant à l'appli le droit d'écrire et de lire tout
-le serveur PostgreSQL : un défaut ou une compromission de l'appli ouvrirait la
-base d'Immich en entier. Un rôle PostgreSQL en lecture seule dédié
-(`GRANT SELECT`) réduirait cela ; non fait, il demande une étape Ansible qui
-s'exécute dans `immich_postgres` après son démarrage, non testable ici.
+Le rôle (tâche « Give Power Tools a read-only PostgreSQL role », `docker exec
+psql` dans `immich_postgres` une fois healthy, SQL par stdin) a `SELECT` sur
+les tables du schéma `public`, celles des migrations futures comprises
+(`ALTER DEFAULT PRIVILEGES`), et ses transactions sont en lecture seule
+(`default_transaction_read_only`) : une écriture échoue deux fois. Il lit
+encore toute la base d'Immich, hachages des mots de passe et des clés d'API,
+sessions et liens de partage compris : une compromission de l'appli les
+expose, sans pouvoir les modifier. Le mot de passe est reposé à chaque
+déploiement : une rotation de `immich_db_password` le suit. SQL essayé le
+10/11 contre un `postgres:14` local (création une seule fois, tables futures
+lisibles, `INSERT` refusé) ; non essayé contre la base du Pi avant le
+déploiement. Molecule ne démarre pas la base : la tâche y est sautée.
 
 Pas de `JWT_SECRET` : sans lui, les liens de partage publics de l'appli
 (`/api/share-link/*`, qui se passent de session) ne peuvent pas être générés.
@@ -198,3 +208,13 @@ clé et mêmes en-têtes retirés que `/api/`. Forme `filter` (Immich ≥ 3.2,
 Seulement en mode préconfiguré (sans la clé, l'image d'origine garde l'appel
 cassé). Le vrai correctif irait dans l'appli : appeler `/search/random` dans
 le fork `sylvainmetayer/immich-swipe`, puis retirer ce `location`.
+
+**Durcissement** (depuis le 10/11, Docker Bench) : `cap_drop: ALL` et
+`cap_add` `CHOWN`, `DAC_OVERRIDE`, `SETGID`, `SETUID` (le pourquoi de chacune
+dans `compose.yaml`), `no-new-privileges`, healthcheck par `curl` sur la page
+servie (toutes les 2 min). Lu sur le Pi : nginx maître en root, workers en
+`nginx` (101), port 80. Essayé en local (podman, `--userns=keep-id --user
+0:0`, configuration `0600` d'un autre uid) : sans `DAC_OVERRIDE`, nginx ne lit
+plus `immich-swipe.conf` ; sans `CHOWN`, il ne démarre pas ; sans `SETUID` ou
+`SETGID`, ses workers échouent. `KILL` n'est pas nécessaire : le maître arrête
+ses workers par son canal, l'arrêt reste immédiat.
