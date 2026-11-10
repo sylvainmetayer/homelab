@@ -100,8 +100,10 @@
           - "'no-new-privileges:true' in karakeep_compose.services.chrome.security_opt"
           - karakeep_compose.services.chrome.user == '65534:65534'
           - karakeep_compose.services.chrome.cap_drop == ['ALL']
+          - karakeep_compose.services.chrome.read_only
+          - karakeep_compose.services.chrome.tmpfs == ['/tmp:noexec,nosuid,size=512m']
           - "'--no-sandbox' in karakeep_compose.services.chrome.command"
-        fail_msg: web ou chrome de karakeep n'est plus durci (no-new-privileges, user, cap_drop, --no-sandbox).
+        fail_msg: web ou chrome de karakeep n'est plus durci (no-new-privileges, user, cap_drop, --no-sandbox, read_only).
 
     # Seul le web est joignable par Pangolin ; chrome et Meilisearch restent
     # sur le réseau du projet.
