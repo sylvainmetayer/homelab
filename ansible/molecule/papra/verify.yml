@@ -25,13 +25,15 @@
       register: papra_compose_raw
       changed_when: false
 
-    - name: Assert papra drops every capability
+    - name: Assert papra drops every capability and runs read-only
       vars:
         papra_compose: "{{ papra_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - papra_compose.services.app.cap_drop == ['ALL']
           - papra_compose.services.app.cap_add is not defined
+          - papra_compose.services.app.read_only
+          - papra_compose.services.app.tmpfs == ['/tmp:noexec,nosuid,size=64m']
 
     - name: Stat the papra bind mounts
       ansible.builtin.stat:
