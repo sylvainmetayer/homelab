@@ -59,7 +59,7 @@
     dest: "{{ homepage_base_path }}/{{ item }}"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
-    mode: "0644"
+    mode: "0644" # NOSONAR
 
 - name: Template compose configuration
   diff: false

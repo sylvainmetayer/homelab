@@ -151,7 +151,8 @@
     dest: /usr/local/bin/prowlarr-user
     owner: root
     group: root
-    mode: "0755"
+    # Commande du PATH, sans secret (la clé est lue dans le conteneur).
+    mode: "0755" # NOSONAR
 
 # Empreinte PBKDF2 du mot de passe de l'interface web de qBittorrent, au
 # format de son qBittorrent.conf (PBKDF2-HMAC-SHA512, 100 000 tours, sel de
