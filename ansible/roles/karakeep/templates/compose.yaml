@@ -42,6 +42,13 @@ services:
     # Sans privilège dès l'entrypoint : aucune capacité à perdre.
     cap_drop:
       - ALL
+    # Chromium n'écrit que son profil (--user-data-dir de l'entrypoint) et ~,
+    # tous deux sous /tmp : 150 Mo dès le démarrage (composants téléchargés),
+    # 185 Mo après 18 h (docker diff du 10/11/2026). Le tmpfs compte dans
+    # mem_limit et se vide à chaque redémarrage.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=512m
     restart: unless-stopped
     init: true
     command:
