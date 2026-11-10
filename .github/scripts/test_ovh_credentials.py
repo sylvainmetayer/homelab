@@ -71,6 +71,11 @@ class FakeOvh(BaseHTTPRequestHandler):
     do_GET = do_POST = do_DELETE = _handle
 
 
+def sent():
+    """(method, path) of every request the fake API received."""
+    return [(m, p.removeprefix("/1.0")) for m, p, _, _ in FakeOvh.requests]
+
+
 class Base(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -102,9 +107,6 @@ class Base(unittest.TestCase):
         for secret in SECRETS:
             self.assertNotIn(secret, self.out + self.err)
         return rc
-
-    def methods(self):
-        return [(m, p.removeprefix("/1.0")) for m, p, _, _ in FakeOvh.requests]
 
 
 class List(Base):
@@ -167,24 +169,24 @@ class Revoke(Base):
     def test_refuses_current(self):
         self.assertEqual(self.main(["revoke", str(CURRENT), "--yes"]), 1)
         self.assertIn("en cours", self.out)
-        self.assertNotIn("DELETE", [m for m, _ in self.methods()])
+        self.assertNotIn("DELETE", [m for m, _ in sent()])
 
     def test_revokes_old_after_typed_confirmation(self):
         self.assertEqual(self.main(["revoke", str(OLD)], ask=lambda _: f"{OLD}\n"), 0)
-        self.assertIn(("DELETE", f"/me/api/credential/{OLD}"), self.methods())
+        self.assertIn(("DELETE", f"/me/api/credential/{OLD}"), sent())
 
     def test_wrong_confirmation_aborts(self):
         self.assertEqual(self.main(["revoke", str(OLD)], ask=lambda _: "y"), 1)
-        self.assertNotIn("DELETE", [m for m, _ in self.methods()])
+        self.assertNotIn("DELETE", [m for m, _ in sent()])
 
     def test_refuses_another_application_even_with_every_option(self):
         self.assertEqual(self.main(["revoke", str(OTHER), "--force-current", "--yes"]), 1)
         self.assertIn("autre application", self.out)
-        self.assertNotIn("DELETE", [m for m, _ in self.methods()])
+        self.assertNotIn("DELETE", [m for m, _ in sent()])
 
     def test_force_current(self):
         self.assertEqual(self.main(["revoke", str(CURRENT), "--force-current", "--yes"]), 0)
-        self.assertIn(("DELETE", f"/me/api/credential/{CURRENT}"), self.methods())
+        self.assertIn(("DELETE", f"/me/api/credential/{CURRENT}"), sent())
 
     def test_api_error_message_and_exception_carry_no_secret(self):
         FakeOvh.fail = (403, {"errorCode": "INVALID_CREDENTIAL", "message": f"consumer {CK} unknown"})

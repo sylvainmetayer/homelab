@@ -45,6 +45,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ENDPOINT = "https://eu.api.ovh.com/1.0"
 SOPS_FILE = "secrets/secrets.sops.yaml"
 SOPS_KEY = '["OVH_CONSUMER_KEY"]'
+CURRENT_CREDENTIAL = "/auth/currentCredential"
 ENV_KEYS = ("OVH_APPLICATION_KEY", "OVH_APPLICATION_SECRET", "OVH_CONSUMER_KEY")
 TIMEOUT = 30
 MAX_BYTES = 4 * 1024 * 1024
@@ -67,7 +68,7 @@ def access_rules(project):
     rules += [{"method": m, "path": f"/cloud/project/{project}/*"} for m in WRITE]
     # Ce script, à la rotation suivante : lister et révoquer (pas de PUT, pas de POST).
     rules += [
-        {"method": "GET", "path": "/auth/currentCredential"},
+        {"method": "GET", "path": CURRENT_CREDENTIAL},
         {"method": "GET", "path": "/me/api/credential"},
         {"method": "GET", "path": "/me/api/credential/*"},
         {"method": "DELETE", "path": "/me/api/credential/*"},
@@ -155,7 +156,7 @@ def cmd_list(client, out):
     """Tous les identifiants du compte, chacun avec son application : ceux des
     autres applications (DNS-01 du NAS et de Pangolin, ACME de Proxmox, coûts…)
     restent visibles pour être reconnus, jamais révocables par revoke."""
-    current = client.call("GET", "/auth/currentCredential")
+    current = client.call("GET", CURRENT_CREDENTIAL)
     for credential_id in sorted(client.call("GET", "/me/api/credential")):
         c = client.call("GET", f"/me/api/credential/{int(credential_id)}")
         app = client.call("GET", f"/me/api/credential/{int(credential_id)}/application")
@@ -210,7 +211,7 @@ def cmd_renew(client, allowed_ips, project, sops, out, run=subprocess.run):
 
 def cmd_revoke(client, credential_id, force_current, assume_yes, out, ask=input):
     """Un seul identifiant, de l'application de OVH_APPLICATION_KEY ; aucune option ne lève ce refus."""
-    current = client.call("GET", "/auth/currentCredential")
+    current = client.call("GET", CURRENT_CREDENTIAL)
     target = client.call("GET", f"/me/api/credential/{credential_id}")
     if target.get("applicationId") != current["applicationId"]:
         out(
@@ -255,8 +256,10 @@ def main(argv=None, env=None, endpoint=ENDPOINT, out=print, err=None, run=subpro
         if args.command == "revoke":
             return cmd_revoke(client, args.credential_id, args.force_current, args.yes, out, ask)
         project = env.get("OVH_CLOUD_PROJECT_ID", "")
+        ips = args.allowed_ip or []
         home = env.get("home_ip", "")
-        ips = args.allowed_ip or ([home if "/" in home else f"{home}/32"] if home else [])
+        if not ips and home:
+            ips = [home if "/" in home else f"{home}/32"]
         if not project or not ips or not args.sops:
             err("renew : OVH_CLOUD_PROJECT_ID, une IP (--allowed-ip ou home_ip) et sops sont requis.")
             return 2
