@@ -17,7 +17,7 @@ Trois sous-commandes, sur l'application de OVH_APPLICATION_KEY :
                 l'identifiant en cours sans --ignore-recent-use.
 
 Le jeton de Tofu ne peut ni lister ni révoquer : list et revoke demandent un
-identifiant TEMPORAIRE (TEMP_RULES), à valider dans le navigateur avec la durée
+identifiant TEMPORAIRE (TEMP_RULES, revoke_rules()), limité à home_ip, à valider dans le navigateur avec la durée
 la plus courte, gardé en mémoire le temps de la commande, puis expiré par
 POST /auth/logout dans un finally (erreur et Ctrl-C compris).
 
@@ -92,10 +92,10 @@ COVERED_RESOURCES = {
     "ovh_cloud_project_storage",
     "ovh_cloud_project_storage_object_bucket_lifecycle_configuration",
 }
-# Identifiant temporaire de list et revoke : lire les identifiants, s'expirer
-# lui-même ; DELETE seulement pour revoke.
-TEMP_RULES = (("GET", CURRENT_CREDENTIAL), ("GET", CREDENTIALS), ("GET", f"{CREDENTIALS}/*"), ("POST", "/auth/logout"))
-TEMP_DELETE = ("DELETE", f"{CREDENTIALS}/*")
+# Identifiant temporaire de list : lire les identifiants, s'expirer lui-même.
+# Celui de revoke est plus étroit (revoke_rules) : le seul identifiant visé.
+LOGOUT = ("POST", "/auth/logout")
+TEMP_RULES = (("GET", CURRENT_CREDENTIAL), ("GET", CREDENTIALS), ("GET", f"{CREDENTIALS}/*"), LOGOUT)
 
 
 def _rules(pairs):
@@ -268,41 +268,56 @@ def ip_block(value):
 
 
 @contextlib.contextmanager
-def temporary(base, pairs, out, ask):
-    """Un client sur un identifiant temporaire, expiré à la sortie quoi qu'il arrive."""
-    answer = _dict(base.call("POST", "/auth/credential", {"accessRules": _rules(pairs)}, signed=False), AUTH_CREDENTIAL)
+def temporary(base, pairs, allowed_ips, out, ask):
+    """(client, credentialId, applicationId) d'un identifiant temporaire, expiré à la sortie quoi qu'il arrive."""
+    body = {"accessRules": _rules(pairs)}
+    if allowed_ips:
+        body["allowedIPs"] = allowed_ips
+    answer = _dict(base.call("POST", "/auth/credential", body, signed=False), AUTH_CREDENTIAL)
     temp = base.with_consumer(_str(answer, "consumerKey", AUTH_CREDENTIAL))
     url = _str(answer, "validationUrl", AUTH_CREDENTIAL)
-    out(f"Identifiant temporaire ({', '.join(f'{m} {p}' for m, p in pairs)}).")
+    out(f"Identifiant temporaire ({', '.join(f'{m} {p}' for m, p in pairs)}), IP {', '.join(allowed_ips) or 'toutes'}.")
     out(f"Le valider avec la durée la plus courte proposée : {url}")
+    temp_id = None
     try:
         ask("Entrée une fois validé (Ctrl-C pour abandonner) : ")
-        yield temp
+        temp_id, temp_app, _ = current(temp)
+        yield temp, temp_id, temp_app
     finally:
         try:
             temp.call("POST", "/auth/logout")
             out("Identifiant temporaire expiré (POST /auth/logout).")
         except OvhError as error:
-            out(
-                f"ATTENTION identifiant temporaire non expiré ({error}). Jamais validé : il expire seul. "
-                "Validé : il vit jusqu'à la fin de la durée choisie, `list` le montre (`t`), "
-                "le supprimer dans la console OVH (identifiants d'API)."
-            )
+            if temp_id is None:
+                out(
+                    f"ATTENTION identifiant temporaire non expiré, id inconnu ({error}). Jamais validé : il expire seul. "
+                    "Validé : le repérer dans `list` (créé à l'instant, règles /me/api seulement), "
+                    "puis `revoke <id> --ignore-recent-use`."
+                )
+            else:
+                out(
+                    f"ATTENTION identifiant temporaire {temp_id} non expiré ({error}). Le révoquer : "
+                    f"mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke {temp_id} --ignore-recent-use"
+                )
 
 
-def _scope(c, tofu_app, what):
-    if tofu_app is None:
-        return "?"
-    return "rotation" if _int(c, "applicationId", what) == tofu_app else "AUTRE APPLICATION, hors rotation"
+def _scope(c, app_id, what):
+    return "rotation" if _int(c, "applicationId", what) == app_id else "AUTRE APPLICATION, hors rotation"
 
 
-def cmd_list(base, temp, out):
+def cmd_list(base, temporary_credential, out):
+    temp, temp_id, temp_app = temporary_credential
     try:
-        tofu_id, tofu_app, _ = current(base)
+        tofu_id = current(base)[0]
     except OvhError as error:
-        out(f"Identifiant de OVH_CONSUMER_KEY inconnu ({error}) : application de la rotation non marquée.")
-        tofu_id = tofu_app = None
-    temp_id = current(temp)[0]
+        out(
+            f"Identifiant en cours NON MARQUÉ : OVH_CONSUMER_KEY ne peut pas lire son propre identifiant ({error}). "
+            "Ancien jeton sans la règle GET /auth/currentCredential (première rotation) ? Le reconnaître à la main "
+            "parmi les [rotation] : règles des zones et du projet, IP autorisées, création la plus ancienne, "
+            "dernier usage au dernier plan (runbook, « Première rotation »)."
+        )
+        tofu_id = None
+    # Le temporaire est demandé avec OVH_APPLICATION_KEY : son application est celle de la rotation.
     for credential_id in _ids(temp.call("GET", CREDENTIALS)):
         what = f"GET {CREDENTIALS}/{credential_id}"
         c = _dict(temp.call("GET", f"{CREDENTIALS}/{credential_id}"), what)
@@ -310,7 +325,7 @@ def cmd_list(base, temp, out):
         mark = {tofu_id: "*", temp_id: "t"}.get(credential_id, " ")
         out(
             f"{mark} {credential_id} {c.get('status')} application {c.get('applicationId')} "
-            f"« {app.get('name')} » ({app.get('description')}) [{_scope(c, tofu_app, what)}]"
+            f"« {app.get('name')} » ({app.get('description')}) [{_scope(c, temp_app, what)}]"
         )
         out(
             f"      création {c.get('creation')} dernier usage {c.get('lastUse')} expiration {c.get('expiration')} "
@@ -353,9 +368,12 @@ def cmd_renew(client, allowed_ips, project, sops, out, run=subprocess.run):
     return 0
 
 
-def _refusal(tofu, temp_id, credential_id, target, options, what):
-    """La raison de refuser la révocation, ou None."""
+def _refusal(tofu, temporary_credential, credential_id, target, options, what):
+    """La raison de refuser la révocation, ou None. Ne lit que l'identifiant visé et l'identifiant en cours."""
     tofu_id, tofu_app, tofu_created = tofu
+    _, temp_id, temp_app = temporary_credential
+    if tofu_app != temp_app:
+        return f"OVH_CONSUMER_KEY ({tofu_app}) et OVH_APPLICATION_KEY ({temp_app}) ne sont pas de la même application : refusé."
     target_app = _int(target, "applicationId", what)
     if target_app != tofu_app:
         return (
@@ -377,12 +395,12 @@ def _refusal(tofu, temp_id, credential_id, target, options, what):
     return None
 
 
-def cmd_revoke(tofu, temp, credential_id, options, out, ask):
+def cmd_revoke(tofu, temporary_credential, credential_id, options, out, ask):
     """Un seul identifiant, de l'application de OVH_APPLICATION_KEY ; jamais d'un autre système."""
-    temp_id = current(temp)[0]
+    temp = temporary_credential[0]
     what = f"GET {CREDENTIALS}/{credential_id}"
     target = _dict(temp.call("GET", f"{CREDENTIALS}/{credential_id}"), what)
-    refusal = _refusal(tofu, temp_id, credential_id, target, options, what)
+    refusal = _refusal(tofu, temporary_credential, credential_id, target, options, what)
     if refusal:
         out(refusal)
         return 1
@@ -394,7 +412,13 @@ def cmd_revoke(tofu, temp, credential_id, options, out, ask):
     return 0
 
 
-def _renew_ips(args, env):
+def revoke_rules(credential_id):
+    """Le temporaire de revoke : son propre identifiant, l'identifiant visé, rien d'autre."""
+    target = f"{CREDENTIALS}/{credential_id}"
+    return (("GET", CURRENT_CREDENTIAL), ("GET", target), ("DELETE", target), LOGOUT)
+
+
+def _allowed_ips(args, env):
     ips = [ip_block(value) for value in args.allowed_ip or []]
     if not ips and env.get("home_ip"):
         ips = [ip_block(env["home_ip"])]
@@ -404,13 +428,14 @@ def _renew_ips(args, env):
 def main(argv=None, env=None, endpoint=ENDPOINT, out=print, err=None, run=subprocess.run, ask=input):
     env = os.environ if env is None else env
     err = err or (lambda text: print(text, file=sys.stderr))
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--allowed-ip", action="append", help="bloc IP autorisé, répétable (défaut : home_ip, /32 ou /128)")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("list", help="lister les identifiants du compte (identifiant temporaire)")
-    renew = sub.add_parser("renew", help="demander un nouvel identifiant et le ranger dans SOPS")
-    renew.add_argument("--allowed-ip", action="append", help="bloc IP autorisé, répétable (défaut : home_ip, /32 ou /128)")
+    sub.add_parser("list", parents=[common], help="lister les identifiants du compte (identifiant temporaire)")
+    renew = sub.add_parser("renew", parents=[common], help="demander un nouvel identifiant et le ranger dans SOPS")
     renew.add_argument("--sops", default=shutil.which("sops"), help="binaire sops (défaut : celui du PATH)")
-    revoke = sub.add_parser("revoke", help="révoquer un identifiant (identifiant temporaire)")
+    revoke = sub.add_parser("revoke", parents=[common], help="révoquer un identifiant (identifiant temporaire)")
     revoke.add_argument("credential_id", type=int)
     revoke.add_argument("--force-current", action="store_true", help="accepter de révoquer l'identifiant en cours")
     revoke.add_argument("--ignore-recent-use", action="store_true", help="accepter un identifiant utilisé après la création de l'actuel")
@@ -424,15 +449,21 @@ def main(argv=None, env=None, endpoint=ENDPOINT, out=print, err=None, run=subpro
         return 2
     base = Client(*(env[name] for name in ENV_KEYS), endpoint=endpoint)
     try:
+        ips = _allowed_ips(args, env)
         if args.command == "list":
-            with temporary(base, TEMP_RULES, out, ask) as temp:
+            with temporary(base, TEMP_RULES, ips, out, ask) as temp:
                 return cmd_list(base, temp, out)
         if args.command == "revoke":
-            tofu = current(base)  # avant la demande temporaire : rien à valider si ceci échoue
-            with temporary(base, (*TEMP_RULES, TEMP_DELETE), out, ask) as temp:
+            try:
+                tofu = current(base)  # avant la demande temporaire : rien à valider si ceci échoue
+            except OvhError as error:
+                raise OvhError(
+                    f"{error} : identifiant en cours illisible, garde-fous impossibles. "
+                    "Révoquer depuis la console OVH (runbook, « Première rotation »)."
+                ) from None
+            with temporary(base, revoke_rules(args.credential_id), ips, out, ask) as temp:
                 return cmd_revoke(tofu, temp, args.credential_id, args, out, ask)
         project = env.get("OVH_CLOUD_PROJECT_ID", "")
-        ips = _renew_ips(args, env)
         if not project or not ips or not args.sops:
             err("renew : OVH_CLOUD_PROJECT_ID, une IP (--allowed-ip ou home_ip) et sops sont requis.")
             return 2
