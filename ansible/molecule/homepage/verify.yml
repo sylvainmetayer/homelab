@@ -199,7 +199,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ homepage_filter_test_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Molecule ne lance aucun conteneur (_shared/prepare.yml) : les scripts
     # sont testés avec le python3 de l'hôte de test. ical-filter : filtre
