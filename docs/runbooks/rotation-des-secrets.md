@@ -199,19 +199,31 @@ version.
 Le jeton de Tofu n'a aucune route `/me/api/…` : il ne peut ni lister ni
 révoquer d'identifiant, donc ni ceux du NAS, de Pangolin ou de Proxmox. Pour
 cela, `list` et `revoke` demandent un **identifiant temporaire**
-(`POST /auth/credential`, non signé : la clé d'application suffit). Il est
-limité à `GET /auth/currentCredential`, `GET /me/api/credential`,
-`GET /me/api/credential/*` et `POST /auth/logout`, plus
-`DELETE /me/api/credential/*` pour `revoke`. L'outil affiche son URL de
-validation : la valider avec la durée la plus courte proposée, puis appuyer
-sur Entrée. La clé reste en mémoire le temps de la commande. Elle n'est
+(`POST /auth/credential`, non signé : la clé d'application suffit),
+restreint à `home_ip` comme le jeton (`--allowed-ip` vaut pour les trois
+sous-commandes). Ses règles :
+- pour `list` : `GET /auth/currentCredential`, `GET /me/api/credential`,
+  `GET /me/api/credential/*` et `POST /auth/logout` ;
+- pour `revoke <id>` : `GET /auth/currentCredential`, `GET` et `DELETE` du
+  seul `/me/api/credential/<id>`, et `POST /auth/logout`. Les garde-fous ne
+  lisent que l'identifiant visé et l'identifiant en cours.
+
+L'outil affiche l'URL de validation : la valider avec la durée la plus
+courte proposée, puis appuyer sur Entrée. L'outil lit alors l'id du
+temporaire. La clé reste en mémoire le temps de la commande. Elle n'est
 écrite ni dans SOPS ni sur disque. À la fin, l'outil l'expire par
-`POST /auth/logout`, même après une erreur ou un Ctrl-C. Si l'outil est tué
-avant :
+`POST /auth/logout`, même après une erreur ou un Ctrl-C.
+
+Si ce logout échoue, l'outil affiche l'id du temporaire et la commande qui
+le supprime : `revoke <id> --ignore-recent-use`. L'option est nécessaire
+parce qu'il vient de servir. Dans une exécution suivante, `list` montre cet
+orphelin **sans marque**, comme un identifiant ordinaire : `t` ne désigne
+que le temporaire de la commande en cours. Si l'outil est tué avant d'avoir
+lu l'id :
 - un identifiant jamais validé expire seul ;
-- un identifiant validé vit jusqu'à la fin de la durée choisie. `list` le
-  montre (marque `t` quand c'est le sien) ; le supprimer dans la console
-  OVH.
+- un identifiant validé vit jusqu'à la fin de la durée choisie. Le repérer
+  dans `list` : création à l'heure de la commande, règles `/me/api`
+  seulement. Puis le supprimer par `revoke <id> --ignore-recent-use`.
 
 **Restriction par IP.** Le jeton est limité à l'IP de la maison
 (`allowedIPs`, `home_ip` en `/32`, ou `/128` en IPv6). Tofu ne tourne
@@ -241,6 +253,14 @@ identifiants n'ont rien à voir avec cette rotation :
   relever `OVH_AK`, l'application key : ce n'est pas le secret, mais ne
   rien copier hors du poste. Dans la console OVH (identifiants d'API), la
   comparer aux applications que `list` marque hors rotation.
+  **Si c'est l'application de Tofu** (`OVH_APPLICATION_KEY`), le
+  garde-fou « usage récent » ne protège pas Proxmox. L'ACME n'appelle l'API
+  qu'au renouvellement, environ tous les 60 jours : son dernier usage
+  précède la création du nouvel identifiant, donc `revoke` accepterait de
+  le révoquer, et le certificat de l'hôte casserait au renouvellement
+  suivant. Dans ce cas, ne révoquer **aucun** ancien identifiant tant que
+  celui de Proxmox n'est pas identifié et que Proxmox n'est pas passé sur
+  un identifiant dédié (application séparée, droits DNS-01 seulement).
 - `costs_ovh_*` : rapport des coûts.
 
 Garde-fous de l'outil :
@@ -267,7 +287,7 @@ sans modification (`git -C secrets status`) :
    et valider l'identifiant temporaire. La liste donne l'application, l'état,
    les dates, les IP et les règles de chaque identifiant. `*` marque celui
    en cours : noter son id. Seuls les identifiants `[rotation]` sont
-   concernés.
+   concernés. Sans `*`, voir « Première rotation » plus bas.
 2. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py renew`.
    L'outil demande l'identifiant, range la consumer key dans
    `secrets/secrets.sops.yaml` (`OVH_CONSUMER_KEY`, non commitée), puis
@@ -281,32 +301,76 @@ sans modification (`git -C secrets status`) :
    - `mise run plan-ref` et `mise run plan-planning` ;
    - `mise exec -- tofu -chdir=tofu/<module> plan` pour `dns`, `s3_state`,
      `keepass_backup`, `site` et `1y`.
-5. **Retour arrière** si un plan échoue (droit manquant, IP) :
-   1. Lancer `git -C secrets restore secrets.sops.yaml`. Rien n'est encore
+5. Prouver les écritures avant de toucher à l'ancien identifiant : un plan
+   ne teste que les lectures, pas `PUT`, `DELETE` ni le rafraîchissement de
+   zone. Faire un `apply` anodin et réversible dans `tofu/dns`, par exemple
+   le `ttl` de `ovh_domain_zone_record.memoire_epsi` (`redirect.tf`) passé
+   de 300 à 301, apply, puis remis à 300, apply, sans commit. Cela prouve
+   `PUT record/*` et `POST refresh`. `DELETE` et les écritures du projet
+   cloud ne sont prouvés qu'au prochain changement réel.
+6. **Retour arrière** si un plan ou l'apply échoue (droit manquant, IP) :
+   1. Toujours avec la nouvelle clé dans le fichier, lancer `list`. Le
+      nouvel identifiant porte `*` : noter son id.
+   2. Lancer `revoke <nouvel id> --force-current`, avant de toucher au
+      fichier. C'est la nouvelle clé qui lit l'identifiant en cours, et elle
+      en a la règle, ce que l'ancienne n'a peut-être pas. Si elle est
+      refusée (IP fausse), `list` n'a pas de `*` et `revoke` s'arrête : le
+      nouvel identifiant est le `[rotation]` créé à l'heure du `renew`. Le
+      supprimer dans la console OVH.
+   3. Lancer `git -C secrets restore secrets.sops.yaml`. Rien n'est encore
       commité, donc le fichier revient à l'ancienne clé, toujours valide
       chez OVH. Vérifier qu'un plan repasse.
-   2. Révoquer le nouvel identifiant :
-      `revoke <nouvel id> --ignore-recent-use`. Il vient de servir, d'où
-      l'option.
-   3. Corriger `access_rules()` par PR avant de recommencer.
-6. Relancer `list` : le nouvel identifiant doit porter `*` et être
+   4. Corriger `access_rules()` par PR avant de recommencer.
+7. Relancer `list` : le nouvel identifiant doit porter `*` et être
    `validated`.
-7. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke <ancien id>`,
+8. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke <ancien id>`,
    valider l'identifiant temporaire (avec `DELETE`), puis taper l'id pour
    confirmer (`--yes` saute cette confirmation). L'outil refuse :
    - l'identifiant en cours, sans `--force-current` ;
    - un identifiant utilisé après la création de l'actuel, sans
      `--ignore-recent-use` ;
    - un identifiant d'une autre application, toujours (« Ne jamais
-     révoquer »).
-8. Mettre la date de `OVH_CONSUMER_KEY` dans `secrets-rotation.yaml`, puis
+     révoquer »). Si l'application de Proxmox est celle de Tofu, ne rien
+     révoquer : voir « Ne jamais révoquer ».
+9. Mettre la date de `OVH_CONSUMER_KEY` dans `secrets-rotation.yaml`, puis
    faire le commit et le bump comme dans « Règles communes ».
+
+##### Première rotation
+
+Le jeton actuel a été créé à la main avant cet outil. Rien n'établit qu'il
+a la règle `GET /auth/currentCredential`. S'il ne l'a pas, `list` affiche
+« Identifiant en cours NON MARQUÉ » et aucun `*`. La portée `[rotation]`
+reste juste, puisqu'elle vient de l'application du temporaire. Reconnaître
+l'ancien identifiant parmi les `[rotation]` :
+- ses règles portent sur les zones DNS et le projet cloud, sans
+  `/me/api` ;
+- ses IP autorisées (probablement « toutes ») ;
+- sa création est la plus ancienne ;
+- son dernier usage correspond au dernier `plan`. Lancer un plan juste avant
+  `list` pour le rendre évident.
+
+Noter son id. Ce cas ne change que l'étape 1. Les étapes 6.2 et 8
+s'appuient sur la **nouvelle** clé, qui a la règle. `revoke` lancé avec
+l'ancienne clé s'arrête avant toute demande (« garde-fous impossibles »).
+
+À contrôler à la première rotation, faute d'avoir pu le vérifier sans l'API
+réelle :
+- les durées proposées sur la page de validation (la plus courte pour le
+  temporaire) ;
+- qu'un identifiant jamais validé expire bien seul ;
+- que `POST /auth/logout` expire bien le temporaire : il doit disparaître
+  du `list` suivant ;
+- qu'une règle sans chaîne de requête couvre une requête qui en porte une :
+  le provider appelle par exemple `…/region/<r>/storage/<b>?…` et
+  `…/object?withVersions=true` sous la règle `…/region/*` ;
+- qu'un `*` couvre plusieurs segments de chemin (`/me/api/credential/*`
+  pour `…/<id>/application`, `…/region/*` pour les buckets).
 
 Reste manuel : `OVH_APPLICATION_KEY` et `OVH_APPLICATION_SECRET`. L'API ne
 crée pas d'application (`/me/api/application` ne fait que `GET` et
 `DELETE`). Pour les tourner, créer une application sur
 `https://eu.api.ovh.com/createApp/`, passer les deux valeurs par `sops set`,
-lancer `renew`, faire les étapes 3 et 4, puis supprimer l'ancienne
+lancer `renew`, faire les étapes 3 à 5, puis supprimer l'ancienne
 application dans la console OVH. Cette suppression révoque tous ses
 identifiants.
 

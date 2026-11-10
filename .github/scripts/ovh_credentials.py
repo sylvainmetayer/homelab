@@ -362,7 +362,7 @@ def cmd_renew(client, allowed_ips, project, sops, out, run=subprocess.run):
     out(f"Nouvelle consumer key rangée dans {SOPS_FILE} (OVH_CONSUMER_KEY), sous-module non commité.")
     out("Suite, dans cet ordre (docs/runbooks/rotation-des-secrets.md, « OVH ») :")
     out(f"  1. ouvrir et valider (compte OVH, durée de validité) : {url}")
-    out("  2. un plan vide dans chaque module OVH ; sinon retour arrière (runbook) ;")
+    out("  2. un plan vide dans chaque module OVH, puis un apply anodin réversible ; sinon retour arrière (runbook) ;")
     out("  3. `list` : le nouvel identifiant doit être `*` et « validated » ;")
     out("  4. `revoke <id de l'ancien>`, commit dans secrets/, date dans secrets-rotation.yaml.")
     return 0
