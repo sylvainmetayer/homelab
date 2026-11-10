@@ -51,7 +51,8 @@ def log(message):
 def papra_url(container):
     """Papra par l'IP de son conteneur sur le réseau newt : aucun port publié
     sur l'hôte, et l'URL publique passe par le mur SSO."""
-    out = subprocess.run(
+    # container : configuration 0600 écrite par Ansible, pas une entrée extérieure.
+    out = subprocess.run(  # NOSONAR
         ["docker", "inspect", "-f", '{{(index .NetworkSettings.Networks "newt").IPAddress}}', container],
         capture_output=True, text=True, check=True,
     )
@@ -62,13 +63,13 @@ def papra_url(container):
 
 
 def call(url, key, body=None, method=None):
-    request = urllib.request.Request(
+    # URL faite de la configuration (0600, écrite par Ansible) et d'identifiants rendus par Papra.
+    request = urllib.request.Request(  # NOSONAR
         url,
         data=None if body is None else json.dumps(body).encode(),
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         method=method,
     )
-    # URL faite de la configuration (0600, écrite par Ansible) et d'identifiants rendus par Papra.
     with urllib.request.urlopen(request, timeout=120) as response:  # NOSONAR
         payload = response.read()
     return json.loads(payload) if payload else None
@@ -178,7 +179,8 @@ def run(config, dry_run, limit):
     }
     sent, page = 0, 0
     # Les plus anciens d'abord : l'arriéré, puis les nouveaux au fil de l'eau.
-    while sent < limit:
+    # limit : batch_size de la configuration (Ansible) ou --limit ; la boucle s'arrête à la page vide.
+    while sent < limit:  # NOSONAR
         query = f"pageIndex={page}&pageSize=100&sortField=createdAt&sortOrder=asc"
         docs = call(f"{base}/documents?{query}", key)["documents"]
         if not docs:
