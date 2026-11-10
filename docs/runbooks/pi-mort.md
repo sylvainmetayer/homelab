@@ -11,15 +11,18 @@ vzdump, pas d'image.
 - `photos.sylvain.cloud` répond 503, le moniteur Immich est rouge, le Newt du
   site `pi` est hors ligne.
 - Moniteur « DNS Raspberry Pi » rouge : le LXC répond encore, les clients
-  basculent sur lui, rien d'urgent ([dns-blocky.md](dns-blocky.md)).
+  basculent sur lui, rien d'urgent ([dns-blocky.md](dns-blocky.md)), si la
+  Bbox annonce bien Blocky (non constaté au 05/11,
+  [ADR 0012](../adr/0012-filtrage-dns-blocky.md)).
 - Le Pi ne répond plus au ping ; `mise run ssh_pi` échoue.
 
 ## Diagnostic
 
 1. Courant, câble, voyants. Brancher écran et clavier : le Pi démarre-t-il ?
 2. Le SSD : un NVMe derrière un pont USB (Beszel ne remonte peut-être pas son
-   S.M.A.R.T., `host_vars/pi`). Un Pi qui boote sur un autre SSD de test
-   dit si c'est le Pi ou le disque.
+   S.M.A.R.T., `host_vars/pi` ; le moniteur « S.M.A.R.T. Raspberry Pi » de
+   `smart_check` passe `down` s'il est illisible). Un Pi qui boote sur un
+   autre SSD de test dit si c'est le Pi ou le disque.
 3. **Les photos prises depuis la dernière sauvegarde de 01:00 ne sont que sur
    les téléphones.** Ne rien supprimer sur les téléphones avant le premier
    passage de borgmatic après la restauration.
@@ -31,8 +34,9 @@ vzdump, pas d'image.
 
 1. **Système** : Raspberry Pi OS (Debian 13, `docs/conventions/ansible.md`) sur
    le SSD avec l'outil officiel Raspberry Pi Imager : nom d'hôte `pi`, compte
-   `sylvain`, clé SSH. Version exacte de l'image, démarrage sur USB et
-   réglages d'usine : à vérifier (le Pi est « à la main », hors Tofu).
+   `sylvain`, clé SSH. Version exacte de l'image, démarrage sur USB et nom
+   d'hôte actuel : « À vérifier sur place » (le Pi est « à la main », hors
+   Tofu).
 2. **Réseau** : IP `192.168.1.96`. Le bail est réservé dans la Bbox, par
    adresse MAC : un **nouveau Pi a une nouvelle MAC**, mettre la réservation à
    jour ([bbox-remplacee.md](bbox-remplacee.md)). C'est l'IP que le DHCP
@@ -52,7 +56,9 @@ vzdump, pas d'image.
    ```
 
    (même méthode que [reconstruction-pangolin.md](reconstruction-pangolin.md),
-   étapes 4 et 5 ; que `--tags backup` pose bien la config d'Immich : à vérifier.)
+   étapes 4 et 5. `--tags backup` pose bien la config d'Immich : la tâche
+   « Configure borgmatic backup for immich » porte le tag `backup` et le
+   passe à l'`include_role`, `ansible/roles/immich/tasks/main.yml`.)
    Le Newt du site `pi` reprend ses identifiants de SOPS
    (`newt_pi_client_id`) : le site Pangolin n'est pas recréé.
 5. **Restaurer avant de lancer Immich**, en root sur le Pi :
@@ -116,3 +122,29 @@ vzdump, pas d'image.
 - La photothèque n'a qu'une copie hors du Pi (Borg). Le Pi n'est pas dans
   vzdump et ne le sera pas (ADR 0020) ; la durée d'une restauration complète
   n'a pas été mesurée : à faire une fois, sur un SSD de rechange.
+
+## À vérifier sur place
+
+**Sur le Pi actuel**, tant qu'il marche :
+
+- `cat /etc/os-release` : la version de Raspberry Pi OS à réinstaller
+  (Debian 13 attendu).
+- `hostnamectl` : le nom d'hôte. [docs/conventions/ansible.md](../conventions/ansible.md)
+  le dit encore `reese`, l'étape 1 installe `pi` : choisir, puis vérifier
+  le nom du bail dans la Bbox (`pi.lan` est servi par la Bbox, pas par
+  Blocky).
+- `sudo rpi-eeprom-config` : l'ordre de démarrage (`BOOT_ORDER`) qui fait
+  démarrer le Pi sur le SSD USB ; à reporter sur un Pi neuf.
+- `du -sh /opt/apps/immich/library` et `df -h /` : la taille de la
+  photothèque, et la place pour la recevoir deux fois (étape 5).
+
+**Interface de la Bbox** :
+
+- Le bail réservé `192.168.1.96` : la MAC qu'il vise, à changer pour un Pi
+  neuf ([bbox-remplacee.md](bbox-remplacee.md)).
+- DNS annoncés par le DHCP : `192.168.1.200` puis `192.168.1.96`.
+
+**Beszel et Uptime Kuma** : page S.M.A.R.T. du Pi non vide, moniteur
+« S.M.A.R.T. Raspberry Pi » vert ; sinon le pont USB ne remonte rien et le
+contrôle trimestriel à la main est le seul
+([sante-des-disques.md](sante-des-disques.md)).

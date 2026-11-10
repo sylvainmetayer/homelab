@@ -20,7 +20,12 @@ dans le conteneur) ; clé et `known_hosts` dans
 l'accès au sous-compte. Le conteneur disparaît après chaque commande :
 extraire vers un dossier monté (`--destination
 /volume1/docker/borgmatic/restore`), jamais vers un chemin du seul conteneur.
-`sqlite3` est celui de l'image.
+`sqlite3` est celui de l'image. Le conteneur n'a ni `CHOWN` ni `FOWNER` :
+un `extract` par l'enrobage sort tout en `root:root`, sans erreur. Pour
+garder les propriétaires, `sudo docker compose --file
+/volume1/docker/borgmatic/compose.yaml run --rm --cap-add CHOWN --cap-add
+FOWNER borgmatic --config … extract …`
+([disque-nas-mort.md](disque-nas-mort.md), étape B.5).
 
 ## Symptôme
 

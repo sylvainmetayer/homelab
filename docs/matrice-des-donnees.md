@@ -8,7 +8,8 @@ Ce n'est pas une procédure : pour restaurer, voir
 [sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md) et
 [backup-restore.md](backup-restore.md).
 
-Rien ici n'a été lu sur les hôtes : tout vient du dépôt (état au 05/11/2026).
+Rien ici n'a été lu sur les hôtes : tout vient du dépôt (état au 05/11/2026,
+revu le 10/11/2026).
 Ce que le dépôt ne dit pas est écrit « non trouvé dans le dépôt, à vérifier
 sur l'hôte », ce qui ne veut pas dire que c'est absent.
 
@@ -101,13 +102,14 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 
 ### NAS Ugreen (UGOS, RAID 1)
 
-Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir `host_vars/nas`.
+Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir `host_vars/nas` ;
+par `smart_check` (alerte hebdomadaire) : `sda` et `sdb`, `sdc` retiré depuis son décrochage du 05/11 (`nas.yml`).
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
 | **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS ; **pas dans Borg** | non | sans objet : à ré-obtenir ; origine non précisée dans le dépôt | non | panne des deux disques, vol, incendie, suppression au-delà des instantanés (fréquence non trouvée dans le dépôt) |
 | Jellyfin : config et base | 2 | Borg `jellyfin` à 02:30 (conteneur borgmatic), copies SQLite | oui | ~30 min (est.) | CI | médias (ligne précédente) |
-| **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main, fréquence non relevée dans le dépôt ([kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier modifié à taille égale n'est pas recopié |
+| **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main : un par jour à 00:00, gardés 14 jours (relevé du 07/11, [kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier modifié à taille égale n'est pas recopié |
 | **Archives vzdump** (`pve-backup`) | 3 | voir la VM docker | non | — | voir la VM docker | non chiffrées, sans partage SMB, export réservé à l'IP de l'hôte |
 | Config de MediaManager, qBittorrent, Prowlarr | 3 | Borg (avec le dump de la base) | oui | ~30 min (est.) | exclu | voir plus haut |
 | Système UGOS (dossiers partagés, comptes, droits) | 2 | `nas.yml` pose les exports NFS ; dossiers partagés créés dans l'interface | sans objet | non trouvé dans le dépôt, à vérifier sur l'hôte | non | réglages faits dans l'interface UGOS |
@@ -166,9 +168,13 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
    et un échantillon ([restore-test/README.md](../.github/restore-test/README.md)).
 2. **`/etc/pve` : sauvegardé depuis le 10/11/2026** (relevé sur l'hôte : rien
    ne le sauvegardait avant). Borg `pve_config`, rôle `pve_config_backup` ;
-   restauration écrite, jamais jouée. **Scrub Btrfs du NAS : non trouvé
-   dans le dépôt, à vérifier sur l'hôte** (aucune occurrence de « scrub » dans le code ; procédure à vérifier dans UGOS : [sante-des-disques.md](runbooks/sante-des-disques.md)).
-   Le dépôt n'a que le S.M.A.R.T. des trois disques, lu par Beszel (verdict global seulement, pas l'usure).
+   restauration écrite, jamais jouée. **Scrub Btrfs du NAS : aucun planifié
+   par le dépôt, par choix** (UGOS n'est pas géré par Ansible : [sante-des-disques.md](runbooks/sante-des-disques.md),
+   « Scrub Btrfs du NAS ») ; au relevé du 05/11, aucun scrub n'avait tourné
+   (`btrfs scrub status` : « no stats available »). Un scrub planifié dans
+   UGOS : à vérifier sur l'hôte. Le S.M.A.R.T. des disques est lu par Beszel
+   (verdict global) et, chaque lundi, par `smart_check` (secteurs et usure,
+   alerte sur une hausse, #1207).
 
 ## Limites décidées (faits, pas des manques)
 
@@ -192,7 +198,7 @@ proposé ici.
 3. **Hôte Proxmox** : l'installation de l'hôte n'est pas décrite ; la
    restauration de `/etc/pve` depuis Borg n'a jamais été jouée ; la VM n'a
    jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt ; à vérifier dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main).
+4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11 ; planification dans UGOS à vérifier ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

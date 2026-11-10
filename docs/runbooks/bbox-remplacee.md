@@ -19,10 +19,10 @@ Ce que le dépôt suppose de la box :
 |---|---|---|
 | Réseau local | `192.168.1.0/24`, passerelle et DHCP en `192.168.1.254` | **tous** les hôtes (`tofu/proxmox` : VM et LXC à IP fixe avec cette passerelle) |
 | DNS annoncés par le DHCP | `192.168.1.200` puis `192.168.1.96` | filtrage Blocky ([dns-blocky.md](dns-blocky.md)) ; bascule non constatée au 05/11 ([ADR 0012](../adr/0012-filtrage-dns-blocky.md)), à relire dans la Bbox |
-| Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (à vérifier), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
-| Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (à vérifier) |
+| Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (bail ou IP fixe d'UGOS : « À vérifier sur place »), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
+| Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (« À vérifier sur place ») |
 | Redirections de ports | **aucune** | (accès de secours WireGuard rejeté : [ADR 0015](../adr/0015-acces-de-secours-wireguard.md)) |
-| IP publique | stable ou non : à vérifier chez l'opérateur | `home_ip`, plus bas |
+| IP publique | stable ou non : « À vérifier sur place » | `home_ip`, plus bas |
 
 Si la nouvelle box ne sait pas servir un autre réseau que le sien, ne pas
 changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
@@ -83,6 +83,31 @@ changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
 ## Prévention
 
 - Noter, hors du dépôt public, la liste des baux réservés (MAC et IP) et un
-  export de la configuration de la box si elle le permet (à vérifier).
+  export de la configuration de la box si elle le permet (« À vérifier sur
+  place »).
 - L'aide-mémoire de ce que le dépôt suppose est le tableau « Diagnostic » :
   le tenir à jour quand un hôte change d'IP.
+
+## À vérifier sur place
+
+**Interface de la Bbox actuelle** (une séance, tant qu'elle marche ; relever
+hors du dépôt public) :
+
+- Serveur DHCP : la plage distribuée, qui doit exclure `.26`, `.200` et
+  `.216` ; les DNS annoncés, attendus `192.168.1.200` puis `192.168.1.96`
+  (ADR 0012 ne voyait aucun client sur Blocky au 05/11) ; l'IPv6 et le DNS
+  qu'il annonce (étape 4 de « Bascule du DHCP de la Bbox »,
+  [dns-blocky.md](dns-blocky.md)).
+- Baux réservés : Pi `192.168.1.96`, imprimante, et le NAS : bail réservé
+  `192.168.1.137`, ou rien parce qu'UGOS a une IP fixe (alors le dire dans le
+  tableau). Relever chaque MAC.
+- Noms des appareils : celui du Pi (`pi.lan`) et du NAS (`data.lan`), que
+  Blocky renvoie à la box (rôle `blocky`).
+- Sauvegarde ou export de la configuration : le menu existe-t-il ? Si oui,
+  en garder un export hors du dépôt.
+
+**Chez l'opérateur** : l'IP publique est-elle fixe (contrat, option) ?
+Sinon `home_ip` (étape 5) est à refaire à chaque changement.
+
+**Chez OVH et Hetzner** : un jeton d'API restreint à l'IP de la maison
+(étape 7) ?
