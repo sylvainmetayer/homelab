@@ -36,6 +36,8 @@
           - homebox_compose.networks.keys() | list == ['newt']
           - homebox_compose.services.app.cap_drop == ['ALL']
           - homebox_compose.services.app.cap_add is not defined
+          - homebox_compose.services.app.read_only
+          - homebox_compose.services.app.tmpfs == ['/tmp:noexec,nosuid,size=64m']
         fail_msg: "Service homebox inattendu : {{ homebox_compose.services.app }}"
 
     - name: Read the homebox borgmatic configuration
