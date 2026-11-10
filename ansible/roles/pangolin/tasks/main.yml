@@ -156,7 +156,8 @@
   ansible.builtin.copy:
     content: "e {{ pangolin_dir }}/config/db/backups - - - {{ pangolin_db_copies_retention_days }}d\n"
     dest: /etc/tmpfiles.d/pangolin-db-copies.conf
-    mode: "0644"
+    # systemd-tmpfiles tourne en root, comme logrotate plus haut.
+    mode: "0600"
     owner: root
     group: root
 

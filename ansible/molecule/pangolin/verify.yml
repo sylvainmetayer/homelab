@@ -650,6 +650,7 @@
           - (pangolin_dir ~ '/config/db/backups') in borgmatic_config.exclude_patterns
 
     - name: Read the tmpfiles rule purging the database copies
+      become: true
       ansible.builtin.slurp:
         src: /etc/tmpfiles.d/pangolin-db-copies.conf
       register: pangolin_db_copies_tmpfiles
