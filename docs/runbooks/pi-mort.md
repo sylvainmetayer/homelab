@@ -75,6 +75,10 @@ vzdump, pas d'image.
 
    ```bash
    cd /opt/apps/immich && docker compose up -d database
+   # Le dump porte les droits du rôle de Power Tools : pg_restore s'arrête
+   # sur un rôle absent. Créé ici vide, pi.yml lui donne connexion et mot de
+   # passe à l'étape 7.
+   docker compose exec database sh -c 'until pg_isready -h 127.0.0.1 -U postgres; do sleep 2; done; psql -U postgres -c "CREATE ROLE power_tools"'
    $borgmatic restore --config $config --archive latest
    ```
 

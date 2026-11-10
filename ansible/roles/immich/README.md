@@ -116,7 +116,11 @@ expose, sans pouvoir les modifier. Le mot de passe est reposé à chaque
 déploiement : une rotation de `immich_db_password` le suit. SQL essayé le
 10/11 contre un `postgres:14` local (création une seule fois, tables futures
 lisibles, `INSERT` refusé) ; non essayé contre la base du Pi avant le
-déploiement. Molecule ne démarre pas la base : la tâche y est sautée.
+déploiement. Base absente ou pas healthy (Molecule, premier déploiement) : la
+tâche est sautée et un message le dit, relancer `pi.yml --tags immich`. Le dump
+d'Immich porte les droits du rôle : `pg_restore` s'arrête si le rôle manque,
+une restauration le crée d'abord ([pi-mort.md](../../../docs/runbooks/pi-mort.md),
+étape 6).
 
 Pas de `JWT_SECRET` : sans lui, les liens de partage publics de l'appli
 (`/api/share-link/*`, qui se passent de session) ne peuvent pas être générés.
