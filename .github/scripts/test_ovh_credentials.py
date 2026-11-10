@@ -97,6 +97,14 @@ def sent():
     return [(m, p, c) for m, p, c, _ in FakeOvh.requests]
 
 
+def temp_expired():
+    return ("POST", "/auth/logout", TEMP_CK) in sent()
+
+
+def nothing_deleted():
+    return "DELETE" not in [m for m, _, _ in sent()]
+
+
 class Base(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -137,12 +145,6 @@ class Base(unittest.TestCase):
             self.assertNotIn(secret, self.out + self.err)
         return rc
 
-    def assert_temp_expired(self):
-        self.assertIn(("POST", "/auth/logout", TEMP_CK), sent())
-
-    def assert_nothing_deleted(self):
-        self.assertNotIn("DELETE", [m for m, _, _ in sent()])
-
 
 class List(Base):
     def test_lists_every_credential_with_a_temporary_one_then_expires_it(self):
@@ -157,7 +159,7 @@ class List(Base):
         self.assertNotIn("DELETE", [r["method"] for r in temp_rules])
         self.assertIsNone(FakeOvh.requests[0][2])  # credential request: unsigned
         self.assertTrue(all(c == TEMP_CK for _, p, c in sent() if p.startswith("/me/")))
-        self.assert_temp_expired()
+        self.assertTrue(temp_expired())
 
     def test_signature(self):
         oc.Client(AK, AS, CK, endpoint=self.endpoint, clock=lambda: 1700000000).call("GET", "/auth/currentCredential")
@@ -171,11 +173,11 @@ class List(Base):
         FakeOvh.shapes["/me/api/credential"] = {"ids": [1]}
         self.assertEqual(self.main(["list"]), 1)
         self.assertIn("liste d'entiers attendue", self.err)
-        self.assert_temp_expired()
+        self.assertTrue(temp_expired())
 
     def test_interrupted_at_validation_still_tries_to_expire(self):
         self.assertEqual(self.main(["list"], answers=(KeyboardInterrupt(),)), 130)
-        self.assert_temp_expired()
+        self.assertTrue(temp_expired())
         self.assertNotIn(("GET", "/me/api/credential", TEMP_CK), sent())
 
     def test_missing_env_stops_before_any_call(self):
@@ -246,35 +248,35 @@ class Revoke(Base):
         self.assertIn(("DELETE", f"/me/api/credential/{OLD}", TEMP_CK), sent())
         temp_rules = json.loads(FakeOvh.requests[1][3])["accessRules"]
         self.assertIn({"method": "DELETE", "path": "/me/api/credential/*"}, temp_rules)
-        self.assert_temp_expired()
+        self.assertTrue(temp_expired())
 
     def test_refuses_current(self):
         self.assertEqual(self.main(["revoke", str(CURRENT), "--yes"]), 1)
         self.assertIn("en cours", self.out)
-        self.assert_nothing_deleted()
-        self.assert_temp_expired()
+        self.assertTrue(nothing_deleted())
+        self.assertTrue(temp_expired())
 
     def test_refuses_another_application_even_with_every_option(self):
         argv = ["revoke", str(OTHER), "--force-current", "--ignore-recent-use", "--yes"]
         self.assertEqual(self.main(argv), 1)
         self.assertIn("autre application", self.out)
-        self.assert_nothing_deleted()
+        self.assertTrue(nothing_deleted())
 
     def test_refuses_recently_used_unless_told(self):
         self.assertEqual(self.main(["revoke", str(RECENT), "--yes"]), 1)
         self.assertIn("un autre système s'en sert encore", self.out)
-        self.assert_nothing_deleted()
+        self.assertTrue(nothing_deleted())
         FakeOvh.requests = []
         self.assertEqual(self.main(["revoke", str(RECENT), "--yes", "--ignore-recent-use"]), 0)
         self.assertIn(("DELETE", f"/me/api/credential/{RECENT}", TEMP_CK), sent())
 
     def test_refuses_the_temporary_credential(self):
         self.assertEqual(self.main(["revoke", str(TEMP), "--yes", "--ignore-recent-use"]), 1)
-        self.assert_nothing_deleted()
+        self.assertTrue(nothing_deleted())
 
     def test_wrong_confirmation_aborts(self):
         self.assertEqual(self.main(["revoke", str(OLD)], answers=("", "y")), 1)
-        self.assert_nothing_deleted()
+        self.assertTrue(nothing_deleted())
 
     def test_force_current(self):
         self.assertEqual(self.main(["revoke", str(CURRENT), "--force-current", "--yes"]), 0)
@@ -288,13 +290,13 @@ class Revoke(Base):
         self.assertNotIn(("POST", "/auth/credential", None), sent())  # stopped before asking a temporary one
         FakeOvh.requests, FakeOvh.shapes = [], {f"/me/api/credential/{OLD}": {"credentialId": OLD, "status": "validated"}}
         self.assertEqual(self.main(["revoke", str(OLD), "--yes"]), 1)
-        self.assert_nothing_deleted()
-        self.assert_temp_expired()
+        self.assertTrue(nothing_deleted())
+        self.assertTrue(temp_expired())
 
     def test_bad_dates_fail_closed(self):
         FakeOvh.shapes[f"/me/api/credential/{RECENT}"] = {**credential(RECENT), "lastUse": "hier"}
         self.assertEqual(self.main(["revoke", str(RECENT), "--yes"]), 1)
-        self.assert_nothing_deleted()
+        self.assertTrue(nothing_deleted())
 
     def test_api_error_message_and_exception_carry_no_secret(self):
         FakeOvh.fail = (403, {"errorCode": "INVALID_CREDENTIAL", "message": f"consumer {CK} unknown"})
@@ -318,8 +320,9 @@ class Headers(Base):
         self.assertEqual(self.main(["list"], env={**ENV, "OVH_CONSUMER_KEY": bad}), 2)
         self.assertIn("OVH_CONSUMER_KEY", self.err)
         self.assertEqual(FakeOvh.requests, [])
+        client = oc.Client(AK, AS, bad, endpoint=self.endpoint)
         with self.assertRaises(oc.OvhError) as caught:
-            oc.Client(AK, AS, bad, endpoint=self.endpoint).call("GET", "/auth/currentCredential")
+            client.call("GET", "/auth/currentCredential")
         self.assertNotIn(CK, str(caught.exception))
         self.assertIn("X-Ovh-Consumer", str(caught.exception))
 
