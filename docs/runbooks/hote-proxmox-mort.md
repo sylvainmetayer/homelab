@@ -15,7 +15,9 @@ cette page sur GitHub ou dans un clone local.
 
 Ne tombent pas : Immich (Newt du Pi), Flip Planning, Pangolin, les sites
 Cloudflare Pages. Le DNS tient : le Pi garde son Blocky (secondaire du DHCP), les clients
-basculent ([dns-blocky.md](dns-blocky.md)).
+basculent ([dns-blocky.md](dns-blocky.md)), si la Bbox annonce bien Blocky
+(bascule non constatée au 05/11, [ADR 0012](../adr/0012-filtrage-dns-blocky.md) ;
+« À vérifier sur place »).
 
 ## Diagnostic
 
@@ -38,7 +40,7 @@ basculent ([dns-blocky.md](dns-blocky.md)).
 
 1. Proxmox VE depuis l'ISO officielle sur un disque assez grand (VM de 190 Gio,
    `tofu/proxmox/terraform.tfvars`), système de fichiers par défaut
-   (LVM-thin `local-lvm` attendu : à vérifier). Nom du nœud **`proxmox`**,
+   (LVM-thin `local-lvm` attendu : « À vérifier sur place »). Nom du nœud **`proxmox`**,
    IP `192.168.1.26/24`, passerelle `192.168.1.254`.
 2. Remettre la configuration de l'ancien hôte depuis Borg (section A bis) :
    elle ramène `authorized_keys`, le certificat ACME de `pve.sylvain.cloud`,
@@ -144,7 +146,8 @@ une archive par nuit à 01:00.
 
    Si le démarrage se plaint d'un volume `snippets` ou cloud-init manquant
    (fichiers de `tofu/proxmox` sur `local`) : `qm set 100 --delete cicustom`
-   ou recréer les fichiers par Tofu (relire le plan) : à vérifier.
+   ou recréer les fichiers par Tofu (relire le plan) : à vérifier (savoir
+   d'avance si la VM en dépend : « À vérifier sur place »).
 5. L'archive date de 21:00 au plus tard la veille : les données écrites depuis
    n'y sont pas. Pour une appli importante, remettre ensuite son dump Borg de
    01:00 ([sauvegarde-et-restauration.md](sauvegarde-et-restauration.md)).
@@ -154,7 +157,12 @@ une archive par nuit à 01:00.
 Pas d'archive : recréer la VM par Tofu (`mise run init-proxmox`, `plan-proxmox`,
 relire, `apply-proxmox`), puis `ansible-playbook docker.yml` et chaque appli
 depuis Borg, une à une (`backup/docker/<app>`). Long : tout est hors site, rien
-n'est perdu, mais rien n'est rapide. Même chose si la VM est suspecte
+n'est perdu, mais rien n'est rapide. Tofu ne fixe pas l'id de la VM :
+`proxmox_docker_vm.tf` ne lit pas `vm_id` (le `300` de `terraform.tfvars`
+n'est lu par aucune ressource), la VM d'origine a reçu le 100 à sa création
+(`ansible/roles/vzdump_restore_test/defaults/main.yml`). Après l'apply,
+`qm list` doit donner 100 ; sinon `vzdump_restore_test_vm_source` et les
+commandes de cette page sont à adapter. Même chose si la VM est suspecte
 ([intrusion-premiere-heure.md](intrusion-premiere-heure.md)) : une archive
 restaurée ramène aussi l'intrus.
 
@@ -165,10 +173,13 @@ restaurée ramène aussi l'intrus.
    vérifier), jamais un `must be replaced` sur la VM ou le LXC (les
    invités restaurés sont retrouvés par leur id). Le storage créé à la main
    s'importe par la CLI (`tofu import`, identifiant à vérifier dans la doc du
-   provider), le job se crée.
+   provider). Le job a un id fixe : si l'apply le refuse comme déjà pris
+   (remis par A bis), `tofu import proxmox_backup_job.nightly
+   backup-cbfcde61-8413` (commande de `tofu/proxmox/backup.tf`).
 2. Depuis `ansible/`, avec `--check --diff` d'abord :
-   `ansible-playbook pve.yml` (agent Beszel, `/etc/vzdump.conf`, test de
-   restauration, avis de mises à jour, puis `pve_hardening` en dernier, une
+   `ansible-playbook pve.yml` (sauvegarde de la configuration, agent Beszel,
+   `/etc/vzdump.conf`, test de restauration, avis de mises à jour,
+   `smart_check`, `thin_pool_check`, puis `pve_hardening` en dernier, une
    session root de secours ouverte), et `lxc.yml` (à la main) si le LXC doit être
    remis d'équerre. La sauvegarde de la configuration repart avec une clé
    neuve : `ansible-playbook pve.yml --tags setup`, puis `backup.yaml`, puis
@@ -185,6 +196,9 @@ restaurée ramène aussi l'intrus.
   moniteurs Uptime Kuma verts ; ntfy reçoit un message.
 - Une sauvegarde à la main (`vzdump 100 200 --storage nas-backup --mode
   snapshot --compress zstd`) réussit, et le prochain run de 21:00 aussi.
+- Après 01:00, le moniteur « Backup Proxmox config » est vert
+  (`tofu/pangolin_config/backup_pve_config.tf`) : la configuration de l'hôte
+  neuf est de nouveau sauvegardée.
 - Un merge de test qui déploie passe (la CI joint la maison par le LXC).
 
 ## Prévention
@@ -195,3 +209,25 @@ restaurée ramène aussi l'intrus.
 - Jouer A bis une fois sur un Proxmox jetable (VM imbriquée) : jamais fait.
 - Une restauration complète de la VM, essayée une fois, vaut mieux qu'une
   archive seulement vérifiée ([test-restauration-vm.md](test-restauration-vm.md)).
+
+## À vérifier sur place
+
+Sur l'hôte actuel, tant qu'il marche : ce que la réparation suppose et que le
+dépôt ne dit pas.
+
+- **Shell de l'hôte** : `pvesm status` et `lvs` montrent `local-lvm` de type
+  `lvmthin` (le défaut de l'installeur à reproduire en A.1).
+- **Shell de l'hôte** : `qm config 100 | grep -E 'cicustom|ide'`. Une ligne
+  `cicustom` qui vise `local:snippets/…` annonce l'erreur de B.4 après une
+  réinstallation (ces fichiers sont sur `local`, absents de l'archive
+  `pve_config`).
+- **BIOS du mini PC** : « Restore on AC Power Loss », attendu « Power On »
+  ou « Last State », pas « Off »
+  ([coupure-de-courant.md](coupure-de-courant.md)) ; à reporter sur une
+  machine neuve.
+- **Interface de la Bbox** : DNS annoncés par le DHCP = `192.168.1.200` puis
+  `192.168.1.96` ; sinon la phrase « le DNS tient » du Symptôme est fausse
+  ([bbox-remplacee.md](bbox-remplacee.md)).
+- **Uptime Kuma** : « Backup Proxmox config » vert chaque matin depuis le
+  10/11 ; depuis le poste, `borg list --bypass-lock --last 3` de A bis
+  (étape 1) liste des archives récentes.

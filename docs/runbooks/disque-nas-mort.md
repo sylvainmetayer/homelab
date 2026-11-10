@@ -6,13 +6,17 @@ Un RAID 1 n'est pas une sauvegarde : un disque mort se remplace, deux disques
 (ou le boîtier) morts font perdre ce qui n'a pas de copie ailleurs.
 
 Les noms de menus d'UGOS et le matériel ne sont pas décrits dans le dépôt :
-tout ce qui touche l'interface d'UGOS est marqué « à vérifier ».
+ce qui se relève sur le NAS ou dans UGOS est regroupé à la fin, « À vérifier
+sur place ».
 
 ## Symptôme
 
 - Alerte du RAID dans UGOS (volume « dégradé », « défaillant » : intitulé à
-  vérifier), page S.M.A.R.T. de `nas` dans Beszel rouge (disques `sda`, `sdb`,
-  `sdc` suivis, `host_vars/nas`).
+  relever, « À vérifier sur place »), page S.M.A.R.T. de `nas` dans Beszel
+  rouge (disques `sda`, `sdb`, `sdc` suivis, `host_vars/nas`).
+- Ou, plus tôt, le lundi : moniteur « S.M.A.R.T. NAS » et message ntfy
+  (topic `scripts`) de `smart_check` sur une hausse des secteurs de `sda` ou
+  `sdb` ([sante-des-disques.md](sante-des-disques.md)).
 - Ou le NAS ne répond plus : moniteurs « Healthcheck NAS », « Certificats
   NAS », « kDrive vers NAS » et « Backup Jellyfin » rouges ensemble, agent
   Beszel `nas` hors ligne.
@@ -23,18 +27,20 @@ tout ce qui touche l'interface d'UGOS est marqué « à vérifier ».
 |---|---|---|
 | Archives vzdump (VM docker, LXC newt), `/volume1/pve-backup` | le job de 21:00 échoue ; **plus aucune image** des deux invités | aucune ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md)) ; Borg garde les applis |
 | Jellyfin : configuration et base | Jellyfin et `media.sylvain.cloud` tombent | Borg, `backup/nas/jellyfin` |
-| Médias (`/volume1/media`) | perdus avec les deux disques | **aucune dans le dépôt** : Borg ne les prend pas, le miroir kDrive exclut films et séries ; instantanés d'UGOS sur les mêmes disques. Copie éventuelle ailleurs : à vérifier |
+| Médias (`/volume1/media`) | perdus avec les deux disques | **aucune dans le dépôt** : Borg ne les prend pas, le miroir kDrive exclut films et séries ; instantanés d'UGOS sur les mêmes disques. Copie éventuelle ailleurs : « À vérifier sur place » |
 | Copie de kDrive (`/volume1/kdrive`) | le miroir et `versions/` disparaissent | kDrive lui-même (hors films et séries exclus, `host_vars/nas`) |
 | MediaManager (essai) | tombe | configuration et dump de la base dans Borg ([README du rôle](../../ansible/roles/mediamanager/README.md)) |
+| Machine learning d'Immich (`immich_ml`, [README](../../ansible/roles/immich_ml/README.md)) | Immich retombe sur le ML du Pi, plus lent | rien à sauver : modèles retéléchargés ; l'URL du NAS vit dans les réglages d'Immich |
 | Traefik du NAS (`nas_proxy`), Newt du site `nas` | `media.`, `nas.` et `mediamanager.sylvain.cloud` tombent | rien à sauver : certificats redemandés, identifiants Newt dans le state de `pangolin_config` |
 | Borgmatic du NAS (02:30) | plus de sauvegarde Jellyfin | clé et configs sous `/volume1/docker/borgmatic`, refaites par `nas.yml` |
 
-Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
-(aucune appli n'utilise le rôle `nas_storage` aujourd'hui).
+Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi (hors le ML
+d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
+`nas_storage` aujourd'hui).
 
 ## Diagnostic
 
-1. Un disque ou deux ? Dans UGOS (gestionnaire de stockage, à vérifier) et
+1. Un disque ou deux ? Dans UGOS (gestionnaire de stockage) et
    dans Beszel. Noter le **numéro de série** du disque fautif : c'est lui
    qu'on retire, pas le voisin. D'après `host_vars/nas`, `sda` et `sdb`
    (4 To) sont la paire du RAID (`md1` en raid1 sur `sda2` et `sdb2`, relevé du
@@ -55,9 +61,9 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    pas lancer de nouveau vzdump pour cela : `keep-last=2` ferait élaguer la
    plus ancienne.
 2. Remplacer le disque (même capacité ou plus, modèle pour NAS ; le modèle
-   actuel est dans `host_vars/nas`). Échange à chaud ou NAS éteint : à vérifier
-   dans la notice du boîtier.
-3. Lancer la réparation du volume dans UGOS (assistant : à vérifier). Compter
+   actuel est dans `host_vars/nas`). Échange à chaud ou NAS éteint : notice
+   du boîtier (« À vérifier sur place »).
+3. Lancer la réparation du volume dans UGOS (assistant : « À vérifier sur place »). Compter
    des heures. Les tâches de 21:00 (vzdump), 02:30 (borgmatic) et 04:00
    (kDrive) ralentissent la reconstruction et en sont ralenties ; un échec
    isolé de l'une d'elles pendant ce temps n'est pas grave.
@@ -69,10 +75,10 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 
 1. **Constater ce qui est perdu** avec le tableau ci-dessus. Si les disques
    sont sains et seul le boîtier est mort : essayer de les monter dans un
-   boîtier Ugreen identique (reprise du RAID par UGOS : à vérifier chez
-   Ugreen) avant de les formater.
+   boîtier Ugreen identique (reprise du RAID par UGOS : « À vérifier sur
+   place ») avant de les formater.
 2. **NAS neuf, dans UGOS** : IP `192.168.1.137` (réservation de la Bbox ou IP
-   fixe d'UGOS : à vérifier, [bbox-remplacee.md](bbox-remplacee.md)), compte
+   fixe d'UGOS : « À vérifier sur place », [bbox-remplacee.md](bbox-remplacee.md)), compte
    `sylvain` avec la clé SSH, volume RAID 1, application Docker d'UGOS (elle
    crée le dossier partagé `docker`), puis les dossiers partagés `media`,
    `kdrive` (instantanés réglés à la main), `pve-backup` (corbeille décochée, ni SMB ni
@@ -82,7 +88,7 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    ressources privées de `pangolin_config`, `nas_backup` de `tofu/proxmox`,
    `known_hosts`, Blocky), à changer partout.
 3. **Clé d'hôte** : la relever sur le NAS par un canal sûr (écran branché ou
-   terminal d'UGOS : à vérifier), jamais par `ssh-keyscan`, puis remplacer la
+   terminal d'UGOS : « À vérifier sur place »), jamais par `ssh-keyscan`, puis remplacer la
    ligne `nas` d'`ansible/known_hosts` par PR
    ([cle-hote-ssh-changee.md](cle-hote-ssh-changee.md)).
 4. **Dans l'ordre**, depuis `ansible/`, toujours `--check --diff` d'abord :
@@ -108,20 +114,23 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
    ou `chown -R 1000:10` sous
    `config/` avant le redémarrage), recopier `config/` sous
    `/volume1/docker/jellyfin/`, remettre les copies SQLite
-   (`find /volume1/docker/borgmatic/restore -name '*.db'` : emplacement en
-   mode conteneur à vérifier, procédure SQLite dans
+   (`find /volume1/docker/borgmatic/restore -name '*.db'` : sous
+   `var/lib/borgmatic-sqlite/jellyfin/`, monté au même chemin dans le
+   conteneur, [README de borgmatic](../../ansible/roles/borgmatic/README.md) ; procédure SQLite dans
    [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md)), redémarrer.
-   Médias : à remettre depuis la copie que Sylvain aura (à vérifier).
+   Médias : à remettre depuis la copie que Sylvain aura (« À vérifier sur place »).
 6. **vzdump** : sur l'hôte Proxmox, `pvesm status` doit montrer `nas-backup`
-   actif (un montage resté bloqué se reprend quand le NAS répond : à vérifier).
+   actif (un montage resté bloqué se reprend quand le NAS répond : « À vérifier sur place »).
    Tant qu'aucune archive n'existe, **les invités n'ont aucune image** : lancer
    tout de suite
    `vzdump 100 200 --storage nas-backup --mode snapshot --compress zstd`.
 7. **kDrive** : la première copie se refait à la main
    ([kdrive-nas.md](kdrive-nas.md), `kdrive_sync_timer_enabled`). L'historique
    `versions/` est perdu.
-8. **MediaManager** : base à restaurer depuis le dump de Borg (README du rôle,
-   « Sauvegarde ») ; la clé WireGuard vient de SOPS
+8. **MediaManager** : configuration et dump extraits comme Jellyfin à
+   l'étape 5 (`mediamanager.yaml`, avec `--cap-add CHOWN --cap-add FOWNER`
+   pour garder les propriétaires), base rejouée depuis le dump (README du
+   rôle, « Sauvegarde ») ; la clé WireGuard vient de SOPS
    (`mediamanager_wireguard_private_key`). Voir
    [mediamanager-nas.md](mediamanager-nas.md).
 
@@ -147,3 +156,32 @@ Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi, Pangolin, flip
 - Les médias n'ont qu'une copie : décider d'une sauvegarde ou l'assumer.
 - Ce site de documentation tourne sur la VM docker : si elle est touchée, lire
   ce fichier sur GitHub ou dans un clone local.
+
+## À vérifier sur place
+
+**Interface d'UGOS** (une séance, NAS sain) :
+
+- Stockage, volume `volume1` : l'intitulé exact de l'alerte d'un RAID
+  dégradé, le nom de l'assistant de réparation (A.3), et s'il existe un
+  scrub planifié ([sante-des-disques.md](sante-des-disques.md), « Scrub
+  Btrfs du NAS » : aucun n'avait tourné au relevé du 05/11).
+- Instantanés : planification du dossier `media` (le dépôt n'en donne ni
+  l'existence ni la fréquence ; `kdrive` : un par jour, 14 jours,
+  [kdrive-nas.md](kdrive-nas.md)).
+- Réseau : IP `192.168.1.137` fixe dans UGOS, ou en DHCP (alors réservée
+  dans la Bbox, à relever avec sa MAC).
+- Terminal ou SSH d'UGOS : un moyen de lire la clé d'hôte sans réseau (B.3).
+
+**Boîtier et disques** :
+
+- Notice du DXP2800 : échange à chaud des disques, ou NAS éteint (A.2) ;
+  reprise d'un RAID d'UGOS dans un boîtier identique (B.1).
+- BIOS : « Restore on AC Power Loss », attendu « Power On » ou « Last State »
+  ([coupure-de-courant.md](coupure-de-courant.md)).
+
+**Hors du NAS** :
+
+- Existe-t-il une copie des médias ailleurs (disque, autre lieu) ? Sinon,
+  B.5 n'a rien à remettre pour eux.
+- Hôte Proxmox, une fois le NAS revenu après une coupure : `pvesm status`
+  montre `nas-backup` actif sans intervention (montage resté bloqué, B.6).
