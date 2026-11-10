@@ -34,7 +34,7 @@ services:
       retries: 15
 
   gerbil:
-    image: docker.io/fosrl/gerbil:1.5.2@sha256:1f6e64eaba7997282c7067ba19922fc7e46b5f73e1a27add3dd66a591d50512f
+    image: docker.io/fosrl/gerbil:1.6.0@sha256:420f5210b6d1a6d3035f15c3938b5289fee5aeff51ffdcb9b217838338908885
     container_name: gerbil
     mem_limit: 128m
     restart: unless-stopped
@@ -56,7 +56,7 @@ services:
       - 80:80
 
   traefik:
-    image: docker.io/traefik:v3.7.16@sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65
+    image: docker.io/traefik:v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
     container_name: traefik
     mem_limit: 768m
     restart: unless-stopped
