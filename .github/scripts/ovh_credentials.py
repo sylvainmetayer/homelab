@@ -85,7 +85,8 @@ def redact(text, secrets):
 def signature(secret, consumer, method, url, body, timestamp):
     """$1$ + SHA-1 de « secret+consumer+méthode+url+corps+horodatage » (protocole de l'API OVH)."""
     payload = "+".join((secret, consumer, method, url, body, str(timestamp)))
-    return "$1$" + hashlib.sha1(payload.encode()).hexdigest()  # NOSONAR SHA-1 imposé par le protocole OVH
+    # SHA-1 imposé par le protocole de l'API OVH, pas un choix.
+    return "$1$" + hashlib.sha1(payload.encode()).hexdigest()  # NOSONAR
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -119,9 +120,10 @@ class Client:
             headers["X-Ovh-Signature"] = signature(self.application_secret, self.consumer_key, method, url, data, timestamp)
         if not url.startswith(("https://", "http://127.0.0.1:")):
             raise OvhError("schéma d'URL refusé")
-        request = urllib.request.Request(url, data=data.encode() or None, headers=headers, method=method)  # NOSONAR schéma vérifié juste au-dessus
+        # Endpoint fixe (ENDPOINT, ou 127.0.0.1 en test), schéma vérifié, aucune redirection suivie.
+        request = urllib.request.Request(url, data=data.encode() or None, headers=headers, method=method)  # NOSONAR
         try:
-            with _OPENER.open(request, timeout=TIMEOUT) as response:  # NOSONAR schéma vérifié, aucune redirection suivie
+            with _OPENER.open(request, timeout=TIMEOUT) as response:  # NOSONAR
                 raw = response.read(MAX_BYTES + 1)
         except urllib.error.HTTPError as error:
             raise OvhError(redact(f"{method} {path} : HTTP {error.code} {_api_message(error)}", self.secrets)) from None
