@@ -10,10 +10,11 @@ vzdump, pas d'image.
 
 - `photos.sylvain.cloud` répond 503, le moniteur Immich est rouge, le Newt du
   site `pi` est hors ligne.
-- Moniteur « DNS Raspberry Pi » rouge : le LXC répond encore, les clients
-  basculent sur lui, rien d'urgent ([dns-blocky.md](dns-blocky.md)), si la
-  Bbox annonce bien Blocky (non constaté au 05/11,
-  [ADR 0012](../adr/0012-filtrage-dns-blocky.md)).
+- Moniteur « DNS Raspberry Pi » rouge : rien d'urgent pour le DNS, selon ce
+  que le DHCP de la Bbox annonce (bascule vers Blocky non constatée au 05/11,
+  [ADR 0012](../adr/0012-filtrage-dns-blocky.md)) : `.200` puis `.96`, les
+  clients basculent sur le LXC ([dns-blocky.md](dns-blocky.md)) ; la Bbox
+  elle-même, le DNS tient sans filtrage ; `.96` seul, il tombe avec le Pi.
 - Le Pi ne répond plus au ping ; `mise run ssh_pi` échoue.
 
 ## Diagnostic
