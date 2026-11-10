@@ -257,7 +257,7 @@
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ blocky_stats_test_dir.path }}/{{ item.dest }}"
-        mode: "0644"
+        mode: "0600"
 
     # Lecture des métriques (labels à espaces, notation e+06), deltas et
     # redémarrages, état illisible, Blocky injoignable.
