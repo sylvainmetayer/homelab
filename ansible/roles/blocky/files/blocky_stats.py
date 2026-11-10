@@ -111,7 +111,8 @@ def compute(totals, state):
 def fetch(url):
     # Pas de proxy : l'adresse est locale.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(url, timeout=5) as response:
+    # url : argument de l'ExecStart de blocky-check.service, écrit par Ansible.
+    with opener.open(url, timeout=5) as response:  # NOSONAR
         body = response.read(MAX_BYTES + 1)
     if len(body) > MAX_BYTES:
         raise ValueError("métriques de plus de 4 Mio")
