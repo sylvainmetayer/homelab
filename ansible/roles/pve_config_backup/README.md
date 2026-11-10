@@ -48,7 +48,7 @@ rôles tant que la clé SOPS `backup_storage_box_subaccounts` n'a pas d'entrée
 Mise en place (une fois, dans l'ordre) : sous-compte (`tofu/pangolin`),
 entrée SOPS, `ansible-playbook pve.yml --tags setup` (clé de root),
 `ansible-playbook backup.yaml`, puis `ansible-playbook pve.yml --tags
-pve_config_backup`.
+backup`.
 
 Restauration sur un hôte réinstallé : `docs/runbooks/hote-proxmox-mort.md`,
 « Remettre la configuration de l'hôte ».

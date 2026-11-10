@@ -354,7 +354,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  subgraph host["Chaque hôte (docker, pi, pangolin, flip, nas)"]
+  subgraph host["Chaque hôte (docker, pi, pangolin, flip, nas, pve)"]
     timer["borgmatic.timer<br/>01:00"] --> bm["borgmatic (root)<br/>/etc/borgmatic.d/app.yaml"]
     bm -- "dump dans le conteneur" --> db[("Postgres / MariaDB")]
     bm -- "sqlite3 VACUUM INTO / .backup" --> sq["/var/lib/borgmatic-sqlite/app"]

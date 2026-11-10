@@ -95,7 +95,7 @@ une archive par nuit à 01:00.
    # Les configs des invités reviennent aussi : sans leurs disques, elles
    # bloqueraient qmrestore/pct restore (et Tofu en route C). De côté.
    mkdir -p /root/invites-anciens
-   mv /etc/pve/qemu-server/100.conf /etc/pve/lxc/200.conf /root/invites-anciens/
+   mv /etc/pve/qemu-server/*.conf /etc/pve/lxc/*.conf /root/invites-anciens/
    pvecm updatecerts
    systemctl restart pvedaemon pveproxy pvestatd pve-firewall
    ```
