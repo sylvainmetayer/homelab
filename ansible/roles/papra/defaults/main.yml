@@ -25,8 +25,10 @@ papra_oidc_client_id: "{{ terraform_outputs.pocket_id_papra_client_id.value | de
 papra_oidc_client_secret: "{{ terraform_outputs.pocket_id_papra_client_secret.value | default('') }}"
 papra_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 papra_oidc_enabled: "{{ papra_oidc_client_id | length > 0 and papra_oidc_client_secret | length > 0 and papra_oidc_issuer | length > 0 }}"
-# Module IA de Papra par la passerelle IA de Pangolin, adaptateur
-# openai-compatible (tofu/pangolin_config/ai_gateway.tf) ; clé vide : IA coupée.
+# Clé virtuelle papra de la passerelle IA de Pangolin
+# (tofu/pangolin_config/ai_gateway.tf), format OpenAI. Elle ne sert qu'au
+# remplissage par l'IA ci-dessous : le module IA de Papra reste coupé
+# (README). Vide (pas de state, copie d'exercice) : remplissage retiré.
 papra_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).papra | default('') }}"
 papra_ai_base_url: https://ia.sylvain.cloud/v1
 papra_ai_model: claude-haiku-5-5
@@ -114,6 +116,37 @@ papra_intake_schedule: "*:0/15"
 # Compte de l'unité : celui du conteneur (user: du compose), pour que Papra
 # puisse lire puis supprimer les fichiers déposés.
 papra_intake_service_user: "{{ ansible_user }}"
+
+# Remplissage par l'IA (tasks/enrich.yml, files/papra_enrich.py) : Montant,
+# Fin de validité et tags des documents, toutes les heures, par lots. Installé
+# seulement quand la clé SOPS papra_enrich_api_key (clé d'API Papra :
+# documents:read, documents:update, tags:read, custom-properties:read ; lue
+# telle quelle, aucune variable du rôle ne porte son nom) et la clé de la
+# passerelle sont là ; sinon retiré. Procédure : README.md du rôle.
+papra_enrich_enabled: "{{ papra_enrich_api_key | default('') | length > 0 and papra_ai_api_key | length > 0 }}"
+# Un document portant l'un de ces tags ne part jamais au modèle. Un tag de la
+# liste introuvable dans Papra arrête tout passage avant envoi : le créer
+# d'abord (et sa règle de classement).
+papra_enrich_excluded_tags:
+  - Sante
+  - Identite
+  - Banque-Finances
+  - Impots
+  - Travail-RH
+# Marque des documents traités (tag à créer dans Papra), jamais retraités.
+papra_enrich_done_tag: IA-faite
+# Propriétés personnalisées remplies (nombre, date), seulement vides.
+papra_enrich_amount_property: Montant
+papra_enrich_expiry_property: Fin de validité
+# Documents envoyés au modèle par passage (~3 650 tokens chacun, mesure du
+# 2026-11-10) ; l'arriéré (~400) passe en une vingtaine d'heures.
+papra_enrich_batch_size: 20
+# Texte envoyé tronqué à max_chars caractères ; au-delà de skip_chars, le
+# document est sauté (un manuel, pas une facture).
+papra_enrich_max_chars: 12000
+papra_enrich_skip_chars: 100000
+papra_enrich_schedule: "*:20"
+papra_enrich_organization_id: "{{ papra_intake_organization_id }}"
 
 # Borgmatic backup configuration
 papra_backup_enabled: true

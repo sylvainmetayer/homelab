@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Periodic AI fill of the Papra documents
+
+[Timer]
+OnCalendar={{ papra_enrich_schedule }}
+RandomizedDelaySec=120s
+
+[Install]
+WantedBy=timers.target

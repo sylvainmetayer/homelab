@@ -8,3 +8,7 @@ papra_intake_config_file: /etc/papra-intake.json
 # lien dur, jamais un fichier à moitié écrit).
 papra_intake_dest_dir: "{{ papra_base_path }}/ingestion/{{ papra_intake_organization_id }}"
 papra_intake_tmp_dir: "{{ papra_base_path }}/intake-tmp"
+# Remplissage par l'IA : clés Papra et passerelle en clair, 0600 au compte de
+# l'unité.
+papra_enrich_script: /usr/local/libexec/papra_enrich.py
+papra_enrich_config_file: /etc/papra-enrich.json

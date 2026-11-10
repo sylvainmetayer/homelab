@@ -1,0 +1,113 @@
+---
+# Remplissage par l'IA (defaults, papra_enrich_*). La clé d'API Papra est la
+# clé SOPS papra_enrich_api_key, lue telle quelle : aucune variable du rôle ne
+# porte son nom (précédence de SOPS, docs/conventions/secrets.md).
+- name: Install the Papra AI enrichment
+  when: papra_enrich_enabled | bool
+  block:
+    # /usr/local/libexec n'existe pas partout (rôle mem_report).
+    - name: Ensure the Papra enrichment script folder exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ papra_enrich_script | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        # Dossier système standard, traversé par le compte de l'unité.
+        mode: "0755" # NOSONAR
+
+    - name: Install the Papra enrichment script
+      become: true
+      ansible.builtin.copy:
+        src: papra_enrich.py
+        dest: "{{ papra_enrich_script }}"
+        owner: root
+        group: root
+        # Lu par le compte de l'unité ; rien de secret.
+        mode: "0644" # NOSONAR
+
+    # Les clés Papra et passerelle en clair : 0600 au compte de l'unité,
+    # diff: false (un --diff les écrirait dans run.log).
+    - name: Write the Papra enrichment configuration
+      become: true
+      diff: false
+      ansible.builtin.copy:
+        content: "{{ papra_enrich_config | to_nice_json }}\n"
+        dest: "{{ papra_enrich_config_file }}"
+        owner: "{{ ansible_user }}"
+        group: root
+        mode: "0600"
+      vars:
+        papra_enrich_config:
+          container: papra
+          organization_id: "{{ papra_enrich_organization_id }}"
+          papra_api_key: "{{ papra_enrich_api_key }}"
+          ai_api_key: "{{ papra_ai_api_key }}"
+          ai_base_url: "{{ papra_ai_base_url }}"
+          model: "{{ papra_ai_model }}"
+          excluded_tags: "{{ papra_enrich_excluded_tags }}"
+          done_tag: "{{ papra_enrich_done_tag }}"
+          amount_property: "{{ papra_enrich_amount_property }}"
+          expiry_property: "{{ papra_enrich_expiry_property }}"
+          batch_size: "{{ papra_enrich_batch_size | int }}"
+          max_chars: "{{ papra_enrich_max_chars | int }}"
+          skip_chars: "{{ papra_enrich_skip_chars | int }}"
+
+    # 0644 : les clés sont dans le fichier de configuration (0600).
+    - name: Install the Papra enrichment service and timer
+      become: true
+      loop:
+        - papra-enrich.service
+        - papra-enrich.timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644" # NOSONAR
+      notify: Restart papra-enrich timer
+      register: papra_enrich_units
+
+    # Le timer seul : le service, oneshot, n'est jamais lancé par Ansible.
+    - name: Enable the Papra enrichment
+      become: true
+      when: not (ansible_check_mode and papra_enrich_units is changed)
+      ansible.builtin.systemd:
+        name: papra-enrich.timer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+- name: Check whether a Papra enrichment timer is installed
+  when: not papra_enrich_enabled | bool
+  ansible.builtin.stat:
+    path: /etc/systemd/system/papra-enrich.timer
+  register: papra_enrich_timer
+
+# Les fichiers partent même sans timer (installation interrompue avant lui) :
+# la configuration porte les clés.
+- name: Remove the Papra AI enrichment
+  when: not papra_enrich_enabled | bool
+  become: true
+  block:
+    - name: Stop the Papra enrichment
+      when: papra_enrich_timer.stat.exists
+      ansible.builtin.systemd:
+        name: papra-enrich.timer
+        state: stopped
+        enabled: false
+
+    - name: Delete the Papra enrichment files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/papra-enrich.timer
+        - /etc/systemd/system/papra-enrich.service
+        - "{{ papra_enrich_script }}"
+        - "{{ papra_enrich_config_file }}"
+
+    - name: Forget the Papra enrichment units
+      when: papra_enrich_timer.stat.exists
+      ansible.builtin.systemd:
+        daemon_reload: true

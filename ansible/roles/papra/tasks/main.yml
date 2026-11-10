@@ -75,3 +75,7 @@
 # Relève par e-mail (defaults, papra_intake_*) : installée ou retirée.
 - name: Configure the Papra mail intake
   ansible.builtin.import_tasks: intake.yml
+
+# Remplissage par l'IA (defaults, papra_enrich_*) : installé ou retiré.
+- name: Configure the Papra AI enrichment
+  ansible.builtin.import_tasks: enrich.yml

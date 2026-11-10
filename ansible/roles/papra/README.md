@@ -179,13 +179,70 @@ ID : `email_verified=1` dans `app-data/db/db.sqlite` (commande dans
 empêche d'en créer un. Le mot de passe et les clés d'API restent (secours,
 appli mobile).
 
-## IA (passerelle de Pangolin)
+## Remplissage par l'IA (`papra-enrich.timer`)
 
-Le module IA de Papra passe par la passerelle IA de Pangolin
-(`https://ia.sylvain.cloud/v1`, `tofu/pangolin_config/ai_gateway.tf`), par son
-adaptateur compatible OpenAI (`AI_DEFAULT_MODEL=openai://claude-haiku-5-5`) :
-clé virtuelle `papra`, lue dans le state (`papra_ai_api_key`, `defaults/main.yml`).
-Sans clé, rien n'est rendu et l'IA reste coupée. Pas de compteur de crédits
-(`AI_CREDITS_IS_ENABLED`, fait pour les instances facturées). Les documents
-envoyés au modèle partent chez Anthropic ; journal des appels de la passerelle
-éteint (`docs/runbooks/passerelle-ia.md`).
+Le module IA de Papra reste **coupé** (`AI_IS_ENABLED` n'est plus rendu, faux
+par défaut) : il ne sait que les tags, n'exclut rien et envoie tout document
+(étude du 2026-11-10). À sa place, `files/papra_enrich.py` (Python stdlib),
+lancé toutes les heures (`papra_enrich_schedule`) sous le compte du conteneur,
+remplit le **Montant** (total TTC à payer, frais compris), la **Fin de
+validité** (fin de garantie, de contrat ou expiration écrite, jamais une
+échéance de paiement ni une date d'émission) et des **tags existants**, par la
+passerelle IA de Pangolin (`https://ia.sylvain.cloud/v1`, format OpenAI, clé
+virtuelle `papra` lue dans le state, `papra_ai_model`). Il parle à Papra par
+l'IP du conteneur sur le réseau `newt` (`docker inspect`, groupe `docker` de
+l'unité) : aucun port publié, et l'URL publique passe par le mur SSO.
+
+Un document part au modèle seulement s'il porte **au moins un tag**, **aucun**
+de `papra_enrich_excluded_tags` (`Sante`, `Identite`, `Banque-Finances`,
+`Impots`, `Travail-RH`), pas la marque `papra_enrich_done_tag` (`IA-faite`),
+s'il a été importé il y a plus de 24 h et s'il a du texte. Le texte part
+tronqué à `papra_enrich_max_chars` (12 000) ; au-delà de
+`papra_enrich_skip_chars` (100 000), le document est sauté. Un tag exclu ou la
+marque **introuvable** dans Papra arrête le passage avant tout envoi : c'est la
+garde des pièces d'identité, tant que `Identite` n'existe pas, rien ne part.
+
+Seuls les champs vides sont remplis, jamais une valeur saisie ; les tags sont
+pris dans la liste existante, hors exclus, jamais créés. Puis la marque est
+posée (un document sans réponse utile aussi : il n'est pas renvoyé). Les plus
+anciens d'abord, `papra_enrich_batch_size` (20) documents par passage :
+l'arriéré (~400) en une vingtaine d'heures, puis les nouveaux au fil de l'eau.
+Un document sans texte ou trop long n'est pas marqué (un OCR refait le
+reprendra) et ne compte pas dans le lot. Toute erreur HTTP (429 de budget,
+5xx) arrête le passage, sans nouvel essai : le suivant reprend.
+
+Journal (`journalctl -u papra-enrich`) : une ligne par document, son
+identifiant, les champs remplis, le nombre de tags ajoutés et les tokens ;
+jamais le nom ni le contenu. Budget : clé `papra` à 5 M tokens à vie
+(`tofu/pangolin_config/ai_gateway.tf`), ~3 650 tokens par document (mesure du
+2026-11-10). Les textes envoyés partent chez Anthropic ; journal des appels de
+la passerelle éteint (`docs/runbooks/passerelle-ia.md`).
+
+Rendu seulement si la clé SOPS `papra_enrich_api_key` (une clé d'API Papra,
+lue telle quelle) **et** la clé de la passerelle existent ; sinon le passage
+retire script, unités et `/etc/papra-enrich.json` (`0600`, `diff: false`). La
+copie d'exercice n'a pas de state (`terraform_outputs = {}`) : jamais installé.
+
+### Mise en route
+
+1. Dans Papra, créer les tags `Identite` (avec sa règle de classement) et
+   `IA-faite`. Vérifier que `Sante`, `Banque-Finances`, `Impots`, `Travail-RH`
+   et les propriétés `Montant` (nombre) et `Fin de validité` (date) existent.
+2. Paramètres > Clés d'API : une clé avec `documents:read`,
+   `documents:update`, `tags:read`, `custom-properties:read`, rien d'autre.
+3. La poser sans écho, depuis la racine d'une branche :
+
+   ```bash
+   read -rs valeur
+   printf '%s' "$valeur" | python3 -Ic 'import json, sys; print(json.dumps(sys.stdin.read()))' \
+     | sops set --value-stdin secrets/ansible.sops.yaml '["papra_enrich_api_key"]'
+   unset valeur
+   ```
+
+   avec son entrée de `secrets/secrets-rotation.yaml` dans le même commit du
+   sous-module, puis le bump de `secrets/` en PR.
+4. Après le merge : `ansible-playbook docker.yml --tags papra` depuis
+   `ansible/` (un bump de `secrets/` seul ne déploie rien).
+5. Premier essai à blanc, 5 documents, dans un terminal (le modèle est
+   appelé, rien n'est écrit, les valeurs proposées s'affichent) :
+   `sudo -u sylvain sg docker -c 'python3 -I /usr/local/libexec/papra_enrich.py --config /etc/papra-enrich.json --dry-run --limit 5'`.
