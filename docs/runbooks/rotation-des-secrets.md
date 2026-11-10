@@ -153,6 +153,163 @@ de certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
 « en erreur » ni « non configurée » dans `journalctl -u cost-report`.
 Révoquer ensuite l'ancienne application (`DELETE /me/api/application/{id}`).
 
+#### Consumer key de Tofu : `ovh_credentials.py`
+
+Pour `OVH_CONSUMER_KEY`, `.github/scripts/ovh_credentials.py` fait le
+travail. Il lit `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`,
+`OVH_CONSUMER_KEY`, `OVH_CLOUD_PROJECT_ID` et `home_ip` dans
+l'environnement que mise charge depuis le fichier racine. Il n'affiche,
+n'écrit sur disque ni ne passe en argument aucun secret. La nouvelle
+consumer key va de la réponse de l'API à l'entrée standard de
+`sops set --value-stdin`, sans passer par le terminal. Toute réponse de
+forme inattendue fait échouer la commande sans rien révoquer.
+
+**Règles du jeton de Tofu.** Elles sont dans `access_rules()` du script,
+relues en PR. Ce sont les routes que le provider `ovh` 2.24.0 appelle pour
+les ressources des modules, lues dans son source :
+
+- `GET /auth/details`, appelée au démarrage du provider (`ovh/config.go`,
+  `authenticate()`). Si elle est refusée, chaque `plan` échoue.
+  `GET /auth/time` est sans authentification et ne demande pas de règle.
+- `GET /auth/currentCredential` : le jeton lit son propre identifiant, et
+  le script sait ainsi lequel est en cours. Il ne lit rien d'autre.
+- Pour chacune des quatre zones (`sylvain.cloud`, `sylvain.dev`,
+  `sylvainmetayer.fr`, `metayer.dev`) :
+  - `/domain/zone/<zone>/record` en `GET` et `POST`, `record/*` en `GET`,
+    `PUT` et `DELETE` ;
+  - `POST /domain/zone/<zone>/refresh` ;
+  - `/domain/zone/<zone>/redirection` et `redirection/*`, mêmes méthodes.
+- Pour le projet Public Cloud :
+  - `GET /cloud/project/<projet>/role` ;
+  - `/cloud/project/<projet>/user` en `GET` et `POST`, `user/*` en `GET`,
+    `POST`, `PUT` et `DELETE` (utilisateurs S3, leurs clés, leurs
+    politiques) ;
+  - `/cloud/project/<projet>/region/*` en `GET`, `POST`, `PUT` et `DELETE`
+    (buckets et cycle de vie). C'est un joker par région : le projet n'a
+    pas de route plus étroite pour les buckets.
+
+  Le jeton n'a aucun droit sur le reste du projet (instances, réseau,
+  facturation).
+
+Le test échoue si un module touche une autre zone, prend une autre
+ressource ou data source `ovh`, ou change de version de provider : dans ce
+cas, relire les routes dans le source du provider avant de monter la
+version.
+
+Le jeton de Tofu n'a aucune route `/me/api/…` : il ne peut ni lister ni
+révoquer d'identifiant, donc ni ceux du NAS, de Pangolin ou de Proxmox. Pour
+cela, `list` et `revoke` demandent un **identifiant temporaire**
+(`POST /auth/credential`, non signé : la clé d'application suffit). Il est
+limité à `GET /auth/currentCredential`, `GET /me/api/credential`,
+`GET /me/api/credential/*` et `POST /auth/logout`, plus
+`DELETE /me/api/credential/*` pour `revoke`. L'outil affiche son URL de
+validation : la valider avec la durée la plus courte proposée, puis appuyer
+sur Entrée. La clé reste en mémoire le temps de la commande. Elle n'est
+écrite ni dans SOPS ni sur disque. À la fin, l'outil l'expire par
+`POST /auth/logout`, même après une erreur ou un Ctrl-C. Si l'outil est tué
+avant :
+- un identifiant jamais validé expire seul ;
+- un identifiant validé vit jusqu'à la fin de la durée choisie. `list` le
+  montre (marque `t` quand c'est le sien) ; le supprimer dans la console
+  OVH.
+
+**Restriction par IP.** Le jeton est limité à l'IP de la maison
+(`allowedIPs`, `home_ip` en `/32`, ou `/128` en IPv6). Tofu ne tourne
+jamais en CI avec cette clé. Un `plan` lancé ailleurs est refusé : il n'y a
+rien à passer au plan. Pour travailler depuis un autre réseau, refaire un
+jeton par `renew --allowed-ip <bloc>` (option répétable), puis valider,
+vérifier et révoquer comme ci-dessous. Si l'IP de la maison change (box
+remplacée, opérateur, maison perdue), Tofu est coupé. `renew` marche alors
+de n'importe où, puisqu'il ne demande que la clé d'application : mettre
+`home_ip` à jour, ou passer `--allowed-ip`, puis suivre le pas à pas.
+([bbox-remplacee.md](bbox-remplacee.md),
+[perte-totale-maison.md](perte-totale-maison.md) renvoient ici.)
+
+##### Ne jamais révoquer
+
+Le compte OVH porte d'autres applications que celle de Tofu. Leurs
+identifiants n'ont rien à voir avec cette rotation :
+
+- `pangolin_ovh_*` : DNS-01 des jokers sur Pangolin (jeton du 09/11/2026) ;
+- `nas_ovh_*` : DNS-01 du Traefik du NAS (jeton du 10/11/2026, PR #1355) ;
+- le plugin ACME de Proxmox (certificat de `pve.sylvain.cloud`, « ACME
+  DNS-01 OVH, configuré sur le nœud », `tofu/proxmox/provider.tf`), hors
+  SOPS. Le suivi du mainteneur cite une application `proxmox-acme`, et
+  aussi l'usage de `nas_ovh_*` par ce plugin. Le dépôt ne dit pas quel
+  jeton il utilise : **à vérifier sur le nœud avant toute révocation.**
+  Dans Datacenter → ACME → Challenge Plugins, ouvrir le plugin OVH et
+  relever `OVH_AK`, l'application key : ce n'est pas le secret, mais ne
+  rien copier hors du poste. Dans la console OVH (identifiants d'API), la
+  comparer aux applications que `list` marque hors rotation.
+- `costs_ovh_*` : rapport des coûts.
+
+Garde-fous de l'outil :
+- `list` affiche tous les identifiants du compte, chacun avec le nom et la
+  description de son application. Ceux des autres applications sont
+  marqués `[AUTRE APPLICATION, hors rotation]`.
+- `revoke` refuse tout identifiant qui n'appartient pas à l'application de
+  `OVH_APPLICATION_KEY`. Les deux `applicationId` doivent être des
+  entiers, et aucune option ne lève ce refus.
+- `revoke` refuse aussi, sans `--ignore-recent-use`, un identifiant dont la
+  dernière utilisation est postérieure à la création de l'identifiant en
+  cours : un autre système s'en sert encore.
+- `revoke` ne révoque qu'un identifiant à la fois.
+
+Les jetons des autres applications se tournent à la main, comme décrit plus
+haut.
+
+##### Pas à pas
+
+Depuis la racine de `homelab`, sous-module `secrets/` sur `main` à jour et
+sans modification (`git -C secrets status`) :
+
+1. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py list`
+   et valider l'identifiant temporaire. La liste donne l'application, l'état,
+   les dates, les IP et les règles de chaque identifiant. `*` marque celui
+   en cours : noter son id. Seuls les identifiants `[rotation]` sont
+   concernés.
+2. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py renew`.
+   L'outil demande l'identifiant, range la consumer key dans
+   `secrets/secrets.sops.yaml` (`OVH_CONSUMER_KEY`, non commitée), puis
+   affiche l'URL de validation. Si `sops` échoue, l'URL n'est pas affichée :
+   l'identifiant reste en attente puis expire seul. Relancer `renew`.
+3. Ouvrir l'URL, se connecter au compte OVH, choisir la durée de validité
+   proposée et valider. Aucune API ne fait cette étape. Tant qu'elle n'est
+   pas faite, Tofu échoue avec la clé rangée.
+4. Vérifier qu'un plan est vide dans chaque module :
+   - `mise run plan` (`tofu/pangolin` déclare le provider) ;
+   - `mise run plan-ref` et `mise run plan-planning` ;
+   - `mise exec -- tofu -chdir=tofu/<module> plan` pour `dns`, `s3_state`,
+     `keepass_backup`, `site` et `1y`.
+5. **Retour arrière** si un plan échoue (droit manquant, IP) :
+   1. Lancer `git -C secrets restore secrets.sops.yaml`. Rien n'est encore
+      commité, donc le fichier revient à l'ancienne clé, toujours valide
+      chez OVH. Vérifier qu'un plan repasse.
+   2. Révoquer le nouvel identifiant :
+      `revoke <nouvel id> --ignore-recent-use`. Il vient de servir, d'où
+      l'option.
+   3. Corriger `access_rules()` par PR avant de recommencer.
+6. Relancer `list` : le nouvel identifiant doit porter `*` et être
+   `validated`.
+7. Lancer `mise exec -- python3 -I .github/scripts/ovh_credentials.py revoke <ancien id>`,
+   valider l'identifiant temporaire (avec `DELETE`), puis taper l'id pour
+   confirmer (`--yes` saute cette confirmation). L'outil refuse :
+   - l'identifiant en cours, sans `--force-current` ;
+   - un identifiant utilisé après la création de l'actuel, sans
+     `--ignore-recent-use` ;
+   - un identifiant d'une autre application, toujours (« Ne jamais
+     révoquer »).
+8. Mettre la date de `OVH_CONSUMER_KEY` dans `secrets-rotation.yaml`, puis
+   faire le commit et le bump comme dans « Règles communes ».
+
+Reste manuel : `OVH_APPLICATION_KEY` et `OVH_APPLICATION_SECRET`. L'API ne
+crée pas d'application (`/me/api/application` ne fait que `GET` et
+`DELETE`). Pour les tourner, créer une application sur
+`https://eu.api.ovh.com/createApp/`, passer les deux valeurs par `sops set`,
+lancer `renew`, faire les étapes 3 et 4, puis supprimer l'ancienne
+application dans la console OVH. Cette suppression révoque tous ses
+identifiants.
+
 ### Clés S3 des states
 
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (fichier racine, utilisateur
