@@ -65,7 +65,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 |---|---|---|---|---|---|---|
 | **VM docker entière** (disque ~190 Gio virtuels, ~105 Gio écrits) | 3 | vzdump nocturne 21:00 sur le NAS, 2 dernières archives, seule copie ([ADR 0026](adr/0026-vzdump-sur-le-nas-seul.md)) | non (même maison que le NAS) | VM elle-même jamais restaurée ; reconstruite depuis Borg sur un serveur jetable le 09/11/2026 en **37 min** ([exercice](runbooks/reconstruction-vm-docker.md) : 15 dépôts Borg sur 17, FreshRSS non restaurée alors (rôle corrigé depuis, à confirmer au prochain exercice), Open WebUI sans archive alors) | archive lue en entier (`vma verify`) le 2 et le 16, **pas restaurée** : l'hôte n'a pas la mémoire | archives non chiffrées (secrets des applis dedans) ; perte max 1 jour |
 | **LXC newt** (id 200 : Newt du site `proxmox-lxc`, Blocky) | 3 | vzdump (NAS) ; recréable par `tofu/proxmox` + `lxc.yml` | non | < 1 h (est.) | restauré sur un id jetable, démarré sans réseau, le 2 et le 16 | `lxc.yml` ne tourne jamais en CI |
-| **Configuration de l'hôte Proxmox** (`/etc/pve` : storage, tokens, pare-feu, configs d'invités) | 2 | Rien de trouvé qui la sauvegarde. Reproduisibles par le dépôt : invités (`tofu/proxmox`), pare-feu et SSH (`pve_hardening`), `vzdump.conf` (`pve.yml`) | sans objet | non trouvé dans le dépôt, à vérifier sur l'hôte | non | installation de l'hôte « à la main » ([architecture.md](architecture.md#ou-tourne-quoi)), pas de procédure trouvée |
+| **Configuration de l'hôte Proxmox** (`/etc/pve` = base `config.db` de pmxcfs : storages, utilisateurs, realm OpenID, jetons, pare-feu, SDN, jobs, ACME ; plus `/etc/network/interfaces`, `hosts`, `hostname`, `resolv.conf`) | 2 | Borg `pve_config` à 01:00 (sous-compte `pve`, copie `VACUUM INTO` de la base, rôle `pve_config_backup`). Reproduisibles par le dépôt : invités (`tofu/proxmox`), pare-feu et SSH (`pve_hardening`), `vzdump.conf` (`pve.yml`) | oui (Borg) | < 1 h après l'installation (est.), [hote-proxmox-mort.md](runbooks/hote-proxmox-mort.md) « A bis » : **jamais jouée** | CI (copie SQLite, table `tree`) | installation de l'hôte « à la main » ; `fstab`, LVM, clés d'hôte SSH exprès hors archive |
 | Nextcloud | 1 (par prudence : calendriers Perso et Top nous nommés dans le dépôt, contenu des fichiers non précisé) | Borg : `compose`, `config`, `data`, `redis` + dump MariaDB | oui | quelques heures (est.), plus long si `data` est gros (taille non relevée) | CI | rien hors du dernier jour |
 | Dawarich (historique de position) | 1 | Borg : `storage`, `public`, `watched`, `redis` + dump PostgreSQL | oui | ~1 h (est.) | CI | clés dérivées de `backup_passphrase` (voir « Secrets ») |
 | HealthLog (poids, tension, sommeil, analyses) | 1 | Borg : dump PostgreSQL + `compose.yaml` + `.env` | oui | ~1 h (est.) | CI ; la clé de chiffrement de l'appli n'y est pas éprouvée | dump interne de l'appli coupé ; `healthlog_backups` hors Borg ; `ENCRYPTION_KEY` dérivée de `backup_passphrase` |
@@ -147,11 +147,11 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
 
 | Sinistre | Perdu | Reste |
 |---|---|---|
-| Panne de la VM docker ou de l'hôte Proxmox | l'état entre 01:00 et la panne ; la config `/etc/pve` (non trouvée sauvegardée) | Borg de chaque appli ; image vzdump si le NAS tient |
+| Panne de la VM docker ou de l'hôte Proxmox | l'état entre 01:00 et la panne | Borg de chaque appli et de la config de l'hôte (`pve_config`) ; image vzdump si le NAS tient |
 | Panne du Pi | Immich en ligne tant que le Pi est absent | Borg `immich` ; le disque USB peut survivre |
 | Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager avec le dump de sa base) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
 | Panne de Pangolin ou flip | accès public ; flip n'a pas d'image Hetzner | Borg ; images Hetzner de Pangolin ; ~45 min pour Pangolin (mesuré) |
-| **Maison sinistrée** | VM docker, Pi, NAS (médias, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule), config Proxmox | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
+| **Maison sinistrée** | VM docker, Pi, NAS (médias, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule) | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
 | **Compromission** d'un hôte | ce que root de cet hôte efface de ses dépôts | les 9 instantanés (aucun sous-compte ne peut les effacer) ; les dépôts des autres hôtes. Un jeton Hetzner en écriture volé peut lever la protection de la box ([storage_box.tf](../tofu/pangolin/storage_box.tf)) |
 | Compromission du poste ou d'une clé age | rien d'immédiat | l'historique git garde les anciens secrets : il faut les changer ([perte-cle-ou-poste.md](runbooks/perte-cle-ou-poste.md)) |
 
@@ -164,10 +164,9 @@ Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir 
    Seules exclusions : `*.log` et `*.tmp` (défauts de `borgmatic`). Ce que le
    test de restauration en prouve est mince : la liste de l'archive, le dump
    et un échantillon ([restore-test/README.md](../.github/restore-test/README.md)).
-2. **`/etc/pve` : non trouvé dans le dépôt, à vérifier sur l'hôte.** Aucun
-   fichier ne sauvegarde `/etc/pve` ; le job vzdump ne couvre que la VM 100 et
-   le LXC 200 (`tofu/proxmox/backup.tf`), et le dépôt n'écrit dans `/etc/pve`
-   que pour le pare-feu (`pve_hardening`). **Scrub Btrfs du NAS : non trouvé
+2. **`/etc/pve` : sauvegardé depuis le 10/11/2026** (relevé sur l'hôte : rien
+   ne le sauvegardait avant). Borg `pve_config`, rôle `pve_config_backup` ;
+   restauration écrite, jamais jouée. **Scrub Btrfs du NAS : non trouvé
    dans le dépôt, à vérifier sur l'hôte** (aucune occurrence de « scrub » dans le code ; procédure à vérifier dans UGOS : [sante-des-disques.md](runbooks/sante-des-disques.md)).
    Le dépôt n'a que le S.M.A.R.T. des trois disques, lu par Beszel (verdict global seulement, pas l'usure).
 
@@ -190,8 +189,9 @@ proposé ici.
 2. **Immich, seule copie hors site** : une archive Borg par nuit ; taille et
    durée d'extraction complète jamais relevées ; aucun test n'extrait les
    originaux en entier.
-3. **Hôte Proxmox** : `/etc/pve` et l'installation de l'hôte, non trouvés
-   dans le dépôt ; la VM n'a jamais été restaurée en test, seulement lue.
+3. **Hôte Proxmox** : l'installation de l'hôte n'est pas décrite ; la
+   restauration de `/etc/pve` depuis Borg n'a jamais été jouée ; la VM n'a
+   jamais été restaurée en test, seulement lue.
 4. **Scrub Btrfs du NAS** : non trouvé dans le dépôt ; à vérifier dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le

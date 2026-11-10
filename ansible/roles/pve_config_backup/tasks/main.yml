@@ -1,0 +1,27 @@
+---
+# /etc/pve est le FUSE de pmxcfs : sa vraie source est la base SQLite
+# config.db (en WAL), copiée par « VACUUM INTO » avant borg, jamais lue
+# vivante. Plus les fichiers réseau que l'installeur écrit et que ni Ansible
+# ni Tofu ne régénèrent.
+- name: Configure borgmatic backup for the Proxmox host configuration
+  when: pve_config_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: pve_config
+    borgmatic_app_title: Proxmox config
+    borgmatic_app_target: "{{ pve_config_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ pve_config_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ pve_config_backup_healthcheck_url }}"
+    borgmatic_app_source_directories:
+      - /etc/network/interfaces
+      - /etc/network/interfaces.d
+      - /etc/hosts
+      - /etc/hostname
+      - /etc/resolv.conf
+    borgmatic_app_sqlite_databases:
+      - /var/lib/pve-cluster/config.db

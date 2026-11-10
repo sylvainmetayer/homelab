@@ -1,0 +1,7 @@
+---
+# Sauvegarde Borg de la configuration de l'hôte Proxmox (pve.yml), vers le
+# sous-compte Storage Box de pve. Ce qui y est et ce qui n'y est pas : README.
+pve_config_backup_enabled: true
+pve_config_backup_borgmatic_target: "{{ backup_storage_box_url }}/pve_config"
+pve_config_backup_encryption_passphrase: "{{ backup_passphrase }}"
+pve_config_backup_healthcheck_url: ""

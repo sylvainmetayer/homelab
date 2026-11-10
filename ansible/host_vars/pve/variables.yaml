@@ -6,3 +6,12 @@
 # `become: true` des rôles.
 ansible_user: root
 ansible_become: false
+
+# Sous-compte Storage Box de pve (sauvegarde de sa configuration, rôle
+# pve_config_backup) : clé SOPS backup_storage_box_subaccounts, recopiée de
+# l'output storage_box_subaccounts de tofu/pangolin. Tant qu'elle n'a pas
+# d'entrée pve, pve.yml saute borgmatic et pve_config_backup.
+backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.pve }}"
+# /root/.ssh/config appartient à Proxmox (Ciphers de la migration) : le rôle
+# borgmatic ne l'écrase pas.
+borgmatic_ssh_config: false

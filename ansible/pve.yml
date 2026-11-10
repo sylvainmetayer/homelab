@@ -5,7 +5,8 @@
 # (pve_hardening : sshd par clé, pare-feu PVE de l'hôte, dépôt
 # pve-enterprise et SDN inutilisé retirés) et le tmpdir de
 # /etc/vzdump.conf. Le reste de l'hôte appartient à Proxmox (paquets) et à
-# tofu/proxmox : ni 00-setup, ni security (devsec et ufw se battraient avec
+# tofu/proxmox, sauf sa configuration, sauvegardée par borgmatic
+# (pve_config_backup) : ni 00-setup, ni security (devsec et ufw se battraient avec
 # pve-firewall). Lancé à la main seulement (ansible-playbook pve.yml), jamais par
 # la CI : aucune clé de l'hôte dans les secrets GitHub. Connexion en root,
 # sans become (inventory/hosts).
@@ -34,7 +35,18 @@
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}"
         smart_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_smart_url.value | default('') }}"
         thin_pool_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_thin_pool_url.value | default('') }}"
+        pve_config_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pve_config_url.value | default('') }}"
   roles:
+    # Configuration de l'hôte (config.db de pmxcfs, réseau) vers la Storage
+    # Box, hors de la maison (ansible/roles/pve_config_backup/README.md).
+    # Sautés tant que le sous-compte de pve n'est pas dans SOPS ; une
+    # première fois --tags setup (clé de root), puis backup.yaml.
+    - role: borgmatic
+      tags: backup,setup,pve_config_backup
+      when: backup_storage_box_subaccounts.pve is defined
+    - role: pve_config_backup
+      tags: backup,pve_config_backup
+      when: backup_storage_box_subaccounts.pve is defined
     - role: beszel_agent
       tags: beszel_agent,monitoring
       vars:
