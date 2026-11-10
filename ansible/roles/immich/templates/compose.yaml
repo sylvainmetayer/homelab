@@ -150,9 +150,22 @@ services:
   # Avec immich_swipe_api_key, son nginx passe /api/ à immich-server et pose
   # la clé côté serveur : pas de CORS ni d'écran de connexion (README du
   # rôle). Sans, l'image telle quelle : URL et clé saisies dans le navigateur.
+  # nginx maître en root, workers en nginx (101). CHOWN : les dossiers de
+  # /var/cache/nginx donnés à nginx au démarrage ; SETUID, SETGID : les
+  # workers ; DAC_OVERRIDE : lire immich-swipe.conf, 0600 au compte de
+  # déploiement. Essayé en local le 10/11 (podman, utilisateur distinct de
+  # root), chaque capacité retirée tour à tour : nginx refuse de démarrer ou
+  # garde ses workers en root.
   immich-swipe:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
     image: ghcr.io/sylvainmetayer/immich-swipe:sha-a9644ff@sha256:f7546236c6350c401ffd0172f5fdd5808f9cae4c5f2eaa5a7cfa5c010f6abaf3
     container_name: immich-swipe
     mem_limit: 64m
@@ -161,6 +174,15 @@ services:
       - ./immich-swipe.conf:/etc/nginx/conf.d/default.conf:ro
 {% endif %}
     restart: unless-stopped
+    # La page servie par nginx (curl est dans l'image). Chaque passage laisse
+    # une ligne dans le journal d'accès, d'où 2 min en régime établi.
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "-s", "-o", "/dev/null", "http://127.0.0.1/"]
+      interval: 2m
+      start_interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - newt
       - immich
@@ -169,8 +191,8 @@ services:
   # Cadre photo plein écran (damongolding/immich-kiosk), lu avec une clé
   # d'API Immich en lecture seule. Pas de port publié : sa seule entrée est la
   # route Pangolin derrière le SSO (rôle immich-kiosk, sans membre). Rendu
-  # seulement si immich_kiosk_api_key existe ; la clé retirée, le conteneur
-  # reste jusqu'à un `docker compose up --remove-orphans` (README du rôle).
+  # seulement si immich_kiosk_api_key existe ; la clé retirée, le compose
+  # change et le redémarrage de dc@immich (up --remove-orphans) le supprime.
   immich-kiosk:
     image: ghcr.io/damongolding/immich-kiosk:0.47.0@sha256:bc6a7c629fdf709467bdfac84b8077e0e3d08d4781166546d929e5c9cf2290ad
     container_name: immich-kiosk
@@ -246,14 +268,15 @@ services:
       OAUTH_BUTTON_TEXT: "Se connecter avec Pocket ID"
       POWER_TOOLS_ENDPOINT_URL: https://{{ immich_power_tools_domain }}
       SECURE_COOKIE: "true"
-      # La base d'Immich, par le réseau immich (le compte postgres de .env :
-      # l'appli ne fait que lire, README du rôle). Pas de JWT_SECRET: sans lui
-      # les liens de partage publics de l'appli restent désactivés.
+      # La base d'Immich, par le réseau immich, avec un rôle en lecture seule
+      # (tasks/main.yml : l'appli ne fait que lire, README du rôle). Pas de
+      # JWT_SECRET: sans lui les liens de partage publics de l'appli restent
+      # désactivés.
       DB_HOST: immich_postgres
       DB_PORT: "5432"
-      DB_USERNAME: postgres
-      DB_PASSWORD: "{{ immich_db_password }}"
-      DB_DATABASE_NAME: immich
+      DB_USERNAME: "{{ immich_power_tools_db_username }}"
+      DB_PASSWORD: "{{ immich_power_tools_db_password }}"
+      DB_DATABASE_NAME: "{{ immich_db_name }}"
 {% if immich_power_tools_ai_api_key | length > 0 %}
       # Recherche « Find » : passerelle IA de Pangolin, format OpenAI, une clé
       # virtuelle et un budget à Power Tools (README du rôle).

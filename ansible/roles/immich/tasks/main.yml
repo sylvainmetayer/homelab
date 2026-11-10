@@ -68,6 +68,47 @@
     enabled: true
     daemon_reload: true
 
+# Rôle PostgreSQL de Power Tools, avant le redémarrage du handler qui lui
+# donne ce compte. Conteneur absent (Molecule) : rien ; présent mais pas
+# healthy au bout de 5 min : échec, plutôt qu'un Power Tools sans base.
+- name: Wait for the Immich database
+  when: immich_power_tools_enabled | bool
+  ansible.builtin.command:
+    argv: [docker, inspect, --format, "{{ '{{' }}.State.Health.Status{{ '}}' }}", immich_postgres]
+  register: immich_db_health
+  until: immich_db_health.rc != 0 or immich_db_health.stdout == 'healthy'
+  retries: 30
+  delay: 10
+  changed_when: false
+  failed_when: immich_db_health.rc == 0 and immich_db_health.stdout != 'healthy'
+  check_mode: false
+
+# SQL par stdin : le mot de passe n'est ni dans la commande ni dans le
+# journal. Les privilèges par défaut couvrent les tables que les migrations
+# d'Immich créeront ; le GRANT, celles d'aujourd'hui.
+- name: Give Power Tools a read-only PostgreSQL role
+  when:
+    - immich_power_tools_enabled | bool
+    - immich_db_health.rc == 0
+  no_log: true
+  ansible.builtin.command:
+    argv: [docker, exec, -i, immich_postgres, psql, -X, -q, -v, ON_ERROR_STOP=1, -U, "{{ immich_db_username }}", -d, "{{ immich_db_name }}"]
+    stdin: |
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ immich_power_tools_db_username }}') THEN
+          CREATE ROLE {{ immich_power_tools_db_username }};
+          RAISE NOTICE 'role created';
+        END IF;
+      END
+      $$;
+      ALTER ROLE {{ immich_power_tools_db_username }} WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '{{ immich_power_tools_db_password }}';
+      ALTER ROLE {{ immich_power_tools_db_username }} SET default_transaction_read_only = on;
+      GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ immich_power_tools_db_username }};
+      ALTER DEFAULT PRIVILEGES FOR ROLE {{ immich_db_username }} IN SCHEMA public GRANT SELECT ON TABLES TO {{ immich_power_tools_db_username }};
+  register: immich_power_tools_db_role
+  changed_when: "'role created' in immich_power_tools_db_role.stderr"
+
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for immich
   when: immich_backup_enabled
@@ -90,6 +131,6 @@
       - "{{ immich_base_path }}/timelapse_config"
     borgmatic_app_postgresql_databases:
       - container: immich_postgres
-        name: immich
-        username: postgres
+        name: "{{ immich_db_name }}"
+        username: "{{ immich_db_username }}"
         password: "{{ immich_db_password }}"
