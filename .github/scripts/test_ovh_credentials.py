@@ -39,7 +39,10 @@ class FakeOvh(BaseHTTPRequestHandler):
     """The /auth and /me/api routes the script calls; records every request.
 
     requests: (method, path, consumer key, body) of each request; fail: (code,
-    body) returned to all; shapes: path -> payload overriding the normal answer.
+    body) returned to all; shapes: path -> payload overriding the normal answer;
+    validated: the temporary credential was validated in the browser (else it
+    is pendingValidation and refused); logout_fails; tofu_refused: Tofu's key
+    may not read /auth/currentCredential (an old token without that rule).
     Set by Base.setUp."""
 
     def log_message(self, *args):
@@ -66,15 +69,22 @@ class FakeOvh(BaseHTTPRequestHandler):
         if self.command == "POST" and path == "/auth/credential":
             rules = json.loads(body)["accessRules"]
             key = NEW_CK if any(r["path"].startswith("/domain/") for r in rules) else TEMP_CK
+            FakeOvh.validated = key != TEMP_CK
             return self._reply(200, {"consumerKey": key, "state": "pendingValidation", "validationUrl": VALIDATION})
-        if consumer not in CONSUMERS:
-            return self._reply(403, {"errorCode": "INVALID_CREDENTIAL", "message": "bad"})
+        if consumer not in CONSUMERS or (consumer == TEMP_CK and not FakeOvh.validated):
+            return self._reply(403, {"errorCode": "INVALID_CREDENTIAL", "message": f"This credential is not valid: {consumer}"})
+        if path == "/auth/currentCredential" and consumer == CK and FakeOvh.tofu_refused:
+            return self._reply(403, {"errorCode": "NOT_GRANTED_CALL", "message": "This call has not been granted"})
         if path == "/auth/currentCredential":
             return self._reply(200, credential(CONSUMERS[consumer]))
         if consumer != TEMP_CK:  # Tofu's token reads nothing else
             return self._reply(403, {"errorCode": "NOT_GRANTED_CALL", "message": "not granted"})
         if path == "/auth/logout":
+            if FakeOvh.logout_fails:
+                return self._reply(500, {"errorCode": "INTERNAL", "message": f"logout failed for {consumer}"})
             return self._reply(200, None)
+        if path == "/me/api/credential" and FakeOvh.fail_listing:
+            return self._reply(500, {"message": f"listing failed for {consumer} {AK}"})
         if path == "/me/api/credential":
             return self._reply(200, [CURRENT, OTHER, OLD, TEMP, RECENT])
         app = re.fullmatch(r"/me/api/credential/(\d+)/application", path)
@@ -119,6 +129,7 @@ class Base(unittest.TestCase):
 
     def setUp(self):
         FakeOvh.requests, FakeOvh.fail, FakeOvh.shapes = [], None, {}
+        FakeOvh.validated = FakeOvh.logout_fails = FakeOvh.tofu_refused = FakeOvh.fail_listing = False
         self.sops_calls = []
 
     def sops(self, rc=0, stderr=""):
@@ -127,11 +138,15 @@ class Base(unittest.TestCase):
             return subprocess.CompletedProcess(cmd, rc, stdout="", stderr=stderr)
         return run
 
-    def main(self, argv, run=None, answers=("",), env=ENV):
-        """Runs main with the real print, stdout and stderr captured; checks nothing is logged or leaked."""
+    def main(self, argv, run=None, answers=("",), env=ENV, validate=True):
+        """Runs main with the real print, stdout and stderr captured; checks nothing is logged or leaked.
+
+        The first prompt is the validation one: answering it validates the
+        temporary credential, unless validate=False."""
         replies = iter(answers)
 
         def ask(_prompt):
+            FakeOvh.validated = FakeOvh.validated or validate
             reply = next(replies, "")
             if isinstance(reply, BaseException):
                 raise reply
@@ -157,6 +172,7 @@ class List(Base):
         temp_rules = json.loads(FakeOvh.requests[0][3])["accessRules"]
         self.assertEqual(temp_rules, oc._rules(oc.TEMP_RULES))
         self.assertNotIn("DELETE", [r["method"] for r in temp_rules])
+        self.assertEqual(json.loads(FakeOvh.requests[0][3])["allowedIPs"], ["203.0.113.7/32"])
         self.assertIsNone(FakeOvh.requests[0][2])  # credential request: unsigned
         self.assertTrue(all(c == TEMP_CK for _, p, c in sent() if p.startswith("/me/")))
         self.assertTrue(temp_expired())
@@ -179,6 +195,32 @@ class List(Base):
         self.assertEqual(self.main(["list"], answers=(KeyboardInterrupt(),)), 130)
         self.assertTrue(temp_expired())
         self.assertNotIn(("GET", "/me/api/credential", TEMP_CK), sent())
+
+    def test_tofu_key_without_current_credential_rule_is_said_explicitly(self):
+        FakeOvh.tofu_refused = True
+        self.assertEqual(self.main(["list"]), 0)
+        self.assertIn("Identifiant en cours NON MARQUÉ", self.out)
+        self.assertIn("Première rotation", self.out)
+        self.assertNotRegex(self.out, r"(?m)^\* \d")
+        self.assertRegex(self.out, rf"(?m)^  {CURRENT} validated .*\[rotation\]")  # still scoped, by the temporary's application
+
+    def test_pending_validation_fails_and_says_it_expires_alone(self):
+        FakeOvh.logout_fails = True
+        self.assertEqual(self.main(["list"], validate=False), 1)
+        self.assertIn("This credential is not valid", self.err)
+        self.assertIn("id inconnu", self.out)
+        self.assertIn("Jamais validé : il expire seul", self.out)
+
+    def test_failed_logout_names_the_orphan_and_the_command(self):
+        FakeOvh.logout_fails = True
+        self.assertEqual(self.main(["list"]), 0)
+        self.assertIn(f"identifiant temporaire {TEMP} non expiré", self.out)
+        self.assertIn(f"ovh_credentials.py revoke {TEMP} --ignore-recent-use", self.out)
+
+    def test_temporary_key_is_masked(self):
+        FakeOvh.fail_listing = True
+        self.assertEqual(self.main(["list"]), 1)
+        self.assertIn("listing failed for *** ***", self.err)
 
     def test_missing_env_stops_before_any_call(self):
         self.assertEqual(self.main(["list"], env={}), 2)
@@ -247,8 +289,17 @@ class Revoke(Base):
         self.assertEqual(self.main(["revoke", str(OLD)], answers=("", f"{OLD}\n")), 0)
         self.assertIn(("DELETE", f"/me/api/credential/{OLD}", TEMP_CK), sent())
         temp_rules = json.loads(FakeOvh.requests[1][3])["accessRules"]
-        self.assertIn({"method": "DELETE", "path": "/me/api/credential/*"}, temp_rules)
+        self.assertEqual(temp_rules, oc._rules(oc.revoke_rules(OLD)))
+        self.assertFalse([r for r in temp_rules if r["path"].endswith("*") or r["path"] == "/me/api/credential"])
+        self.assertEqual(json.loads(FakeOvh.requests[1][3])["allowedIPs"], ["203.0.113.7/32"])
+        self.assertNotIn(("GET", "/me/api/credential", TEMP_CK), sent())
         self.assertTrue(temp_expired())
+
+    def test_tofu_key_without_current_credential_rule_stops_before_any_temporary(self):
+        FakeOvh.tofu_refused = True
+        self.assertEqual(self.main(["revoke", str(OLD), "--yes"]), 1)
+        self.assertIn("garde-fous impossibles", self.err)
+        self.assertNotIn(("POST", "/auth/credential", None), sent())
 
     def test_refuses_current(self):
         self.assertEqual(self.main(["revoke", str(CURRENT), "--yes"]), 1)
