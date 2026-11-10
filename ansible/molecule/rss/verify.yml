@@ -172,6 +172,18 @@
           - "'CRON_MIN=17' in rss_compose.services.freshrss.environment"
         fail_msg: "CRON_MIN inattendu : {{ rss_compose.services.freshrss.environment }}"
 
+    # Sans assistant, un dossier vide (exercice de reconstruction) a la base
+    # users/sylvain/db.sqlite dès le premier démarrage : borgmatic la liste,
+    # drill-restore-app y remet la copie de l'archive.
+    - name: Assert FreshRSS installs itself with the account of its backed-up database
+      vars:
+        rss_compose: "{{ rss_compose_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - "'FRESHRSS_INSTALL=--default-user sylvain' in rss_compose.services.freshrss.environment"
+          - "'FRESHRSS_USER=--user sylvain' in rss_compose.services.freshrss.environment"
+        fail_msg: "Installation automatique de FreshRSS absente : {{ rss_compose.services.freshrss.environment }}"
+
 # Avec les sorties Tofu du client Pocket ID (fictives) : le compose porte
 # l'OIDC de l'image. Rendu hors de /opt/apps, le déploiement convergé (sans
 # sorties, formulaire) n'est pas touché.
