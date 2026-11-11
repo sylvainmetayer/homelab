@@ -208,9 +208,9 @@ gérés dans Pangolin. Procédure et secours :
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak, vitrine publique `exemple-planning` remise à zéro chaque nuit), Promptoramix |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
-| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
+| LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent`, `update_notify` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
 | NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, MediaManager (à l'essai), borgmatic en conteneur ; stockage des sauvegardes vzdump |
-| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, test de restauration vzdump, avis de mises à jour, durcissement (rôle `pve_hardening` : SSH par clé seule, pare-feu PVE de l'hôte en DROP sauf le LAN sur 22 et 8006, dépôt sans abonnement, zone SDN inutile retirée ; secours : [runbook](runbooks/proxmox-injoignable-apres-durcissement.md)) |
+| `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, agent de journaux, alerte de connexion SSH, test de restauration vzdump, avis de mises à jour, durcissement (rôle `pve_hardening` : SSH par clé seule, pare-feu PVE de l'hôte en DROP sauf le LAN sur 22 et 8006, dépôt sans abonnement, zone SDN inutile retirée ; secours : [runbook](runbooks/proxmox-injoignable-apres-durcissement.md)) |
 | PC de Sylvain | poste Fedora, réseau local | à la main | `ansible/pc-support.yml`, à la main seulement (localhost, `-K`) | POC support à distance : Newt du site `pc-sylvain` (`newt.service`, au boot), GNOME Remote Desktop (VNC de la session, RDP de GDM), relais `grd-vnc-relay` (service utilisateur), règles firewalld qui gardent 5900 et 3389 hors du LAN |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
 | Cloudflare Pages | Cloudflare | `tofu/planning`, `tofu/ref`, `tofu/site`, `tofu/1y` | le dépôt de chaque site | sites statiques (`planning.sylvain.dev`…), hors Pangolin |
@@ -418,7 +418,10 @@ WebSocket vers le hub : aucun n'écoute de port.
 Chaque moniteur Uptime Kuma de `tofu/pangolin_config` alerte sur Telegram et
 ntfy (`local.alert_notification_ids`, `notifications.tf`) : Telegram ne passe
 pas par Pangolin, ntfy si. Les moniteurs de connexion SSH n'alertent que sur
-Telegram. Plus de mail depuis le 2026-10-29. ntfy qui ne joint plus les
+Telegram ; ils couvrent tous les hôtes (`local.ssh_login_hosts`) sauf le NAS,
+dont UGOS garde le système (ni `00-setup`, ni hook PAM : une connexion SSH au
+NAS ne sonne pas, elle n'est que dans son journal). Plus de mail
+depuis le 2026-10-29. ntfy qui ne joint plus les
 téléphones (abonnement refusé, le 2026-10-29) ne se voit pas à son
 healthcheck : toutes les 10 minutes, la VM docker relit les relevés « Server
 stats » de ntfy (`ntfy-subscribers-check.timer`, rôle `ntfy`) et pousse au
@@ -671,14 +674,16 @@ flowchart LR
   main) et sur l'hôte Proxmox (`pve.yml`, à la main, en root sans become :
   pas de sudo sur l'hôte), qui lit aussi le S.M.A.R.T. de `sda`, le SSD M.2
   SATA qui porte toutes les VM et le LXC (`CAP_SYS_RAWIO`, groupe `disk` et
-  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent, le vérificateur des mises à
-  jour (ci-dessous) et son propre durcissement (`pve_hardening`) : ni `00-setup`, ni `security`.
+  `DeviceAllow=/dev/sda r` dans l'unité). L'hôte Proxmox n'a que cet agent, l'agent de journaux, l'alerte de
+  connexion SSH (`ssh_login_notify`, un moniteur « SSH pve »), le vérificateur
+  des mises à jour (ci-dessous) et son propre durcissement (`pve_hardening`) :
+  ni `00-setup`, ni `security`.
 - **Mises à jour** : ni l'hôte Proxmox ni UGOS ne se mettent à jour seuls ;
-  la VM docker, le Pi, flip et Pangolin n'installent seuls que
+  la VM docker, le Pi, flip, Pangolin et le LXC newt n'installent seuls que
   Debian-Security (`unattended-upgrades`), Docker restant à la main exprès
   (redémarrer `dockerd` redémarre toutes les applis de l'hôte). Le rôle
   `update_notify` (`pve.yml`, `docker.yml`, `pi.yml`, `flip.yml`,
-  `pangolin.yaml`) publie chaque lundi sur le topic `scripts` de ntfy ce qui
+  `pangolin.yaml`, `lxc.yml`) publie chaque lundi sur le topic `scripts` de ntfy ce qui
   attend sur chacun de ces hôtes, et seulement s'il y a quelque chose
   (sécurité d'abord, puis Docker, Proxmox et noyaux ; priorité haute s'il y
   a de la sécurité) ; un moniteur push « Mises à jour <hôte> » par hôte pour
@@ -808,6 +813,7 @@ vmauth par Pocket ID (groupe `victoria-logs`) ; le compte vmauth `sylvain`
   | pi | `dc@log_agent` | le LAN, `192.168.1.216:9428` |
   | NAS | `dc@log_agent` (unité système), journal d'UGOS en lecture seule | le LAN |
   | newt-lxc | binaire Vector, service systemd (`DynamicUser`, groupe `systemd-journal`), journal seulement | le LAN |
+  | pve | le même binaire (`pve.yml`, à la main, sauté tant que son compte vmauth n'est pas dans SOPS) | le LAN |
   | pangolin | `docker compose up -d` (pas de `docker_service`) | `https://logs.sylvain.cloud` |
   | flip | `dc@log_agent` | `https://logs.sylvain.cloud`, par le NAT de Pangolin |
 

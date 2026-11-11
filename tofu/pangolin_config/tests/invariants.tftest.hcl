@@ -964,6 +964,11 @@ override_resource {
   values = { push_token = "push-ssh-newt-lxc" }
 }
 
+override_resource {
+  target = uptimekuma_monitor_push.ssh_login["pve"]
+  values = { push_token = "push-ssh-pve" }
+}
+
 # ===========================================================================
 # Runs `plan` : valeurs issues de la configuration
 # ===========================================================================
@@ -3168,6 +3173,7 @@ run "ssh_login_monitors_alert_on_every_login" {
       "newt-lxc" = "https://uptime.example.test/api/push/push-ssh-newt-lxc"
       pangolin   = "https://uptime.example.test/api/push/push-ssh-pangolin"
       pi         = "https://uptime.example.test/api/push/push-ssh-pi"
+      pve        = "https://uptime.example.test/api/push/push-ssh-pve"
     }
     error_message = "uptime_ssh_login_urls doit donner à chaque hôte l'URL de SON moniteur push."
   }
@@ -3178,8 +3184,10 @@ run "ssh_login_monitors_alert_on_every_login" {
     condition = (
       strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname]")
       && strcontains(file("${path.module}/../../ansible/00-setup.yaml"), "role: ssh_login_notify")
+      && strcontains(file("${path.module}/../../ansible/pve.yml"), "terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname]")
+      && strcontains(file("${path.module}/../../ansible/pve.yml"), "role: ssh_login_notify")
     )
-    error_message = "00-setup.yaml doit lire terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] et appliquer le rôle ssh_login_notify."
+    error_message = "00-setup.yaml et pve.yml (l'hôte Proxmox, exclu de 00-setup) doivent lire terraform_outputs.uptime_ssh_login_urls.value[inventory_hostname] et appliquer le rôle ssh_login_notify."
   }
 
   # Seul le setup de base tolère un state illisible (terraform_outputs = {}) :
