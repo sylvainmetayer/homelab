@@ -8,10 +8,16 @@ l'espace occupé (données et snapshots, stats.size) et la taille de l'offre
 dessous, il reçoit « up ». Une API injoignable ou une réponse inattendue
 pousse « down » aussi : un contrôle muet ne protège de rien.
 
+Les snapshots quotidiens (GET /v1/storage_boxes/{id}/snapshots, tous ceux de la
+box, manuels compris) sont contrôlés dans le même run : le moniteur passe
+« down » si le plus récent a plus de 48 h ou s'il y en a moins de 7 (plan
+désactivé ou en panne : plus de filet contre un hôte qui efface ses dépôts).
+
 Le jeton et l'URL push arrivent par l'environnement, jamais affichés.
 """
 
 import argparse
+import datetime
 import http.client
 import json
 import os
@@ -22,6 +28,8 @@ import urllib.request
 
 API = "https://api.hetzner.com/v1/storage_boxes"
 GIB = 1024**3
+MAX_SNAPSHOT_AGE = datetime.timedelta(hours=48)
+MIN_SNAPSHOTS = 7
 
 
 class QuotaError(Exception):
@@ -53,6 +61,36 @@ def usage(payload, name):
     return used, quota, detail
 
 
+def box_id(payload, name):
+    """Identifiant de la Storage Box `name` (usage() a déjà vérifié qu'elle est unique)."""
+    try:
+        return next(box["id"] for box in payload["storage_boxes"] if box["name"] == name)
+    except (KeyError, StopIteration, TypeError) as error:
+        raise QuotaError(f"identifiant de la Storage Box absent de la réponse de l'API : {error!r}") from error
+
+
+def evaluate_snapshots(payload, now):
+    """(status Uptime Kuma, message) pour la liste des snapshots."""
+    try:
+        created = [
+            datetime.datetime.fromisoformat(snapshot["created"].replace("Z", "+00:00"))
+            for snapshot in payload["snapshots"]
+        ]
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
+        raise QuotaError(f"liste snapshots absente ou invalide dans la réponse de l'API : {error!r}") from error
+    if not created:
+        return "down", "aucun snapshot"
+    hours = (now - max(created)).total_seconds() / 3600
+    problems = []
+    if len(created) < MIN_SNAPSHOTS:
+        problems.append(f"{len(created)} snapshot(s), {MIN_SNAPSHOTS} attendus au moins")
+    if hours > MAX_SNAPSHOT_AGE.total_seconds() / 3600:
+        problems.append(f"dernier snapshot vieux de {hours:.0f} h (max 48 h)")
+    if problems:
+        return "down", "; ".join(problems)
+    return "up", f"{len(created)} snapshots, le dernier vieux de {hours:.0f} h"
+
+
 def evaluate(payload, name, threshold):
     """(status Uptime Kuma, message) pour un seuil en pourcentage."""
     used, quota, detail = usage(payload, name)
@@ -78,6 +116,12 @@ def fetch(token, name):
         return json.load(response)
 
 
+def fetch_snapshots(token, box):
+    request = urllib.request.Request(f"{API}/{int(box)}/snapshots", headers={"Authorization": f"Bearer {token}"})
+    with _OPENER.open(request, timeout=30) as response:
+        return json.load(response)
+
+
 def push(url, status, msg):
     query = urllib.parse.urlencode({"status": status, "msg": msg, "ping": ""})
     separator = "&" if "?" in url else "?"
@@ -97,7 +141,14 @@ def main(argv=None):
         status, msg = "down", "HCLOUD_READONLY_TOKEN vide (secret de l'environnement storage-box-quota)"
     else:
         try:
-            status, msg = evaluate(fetch(token, args.name), args.name, args.threshold)
+            boxes = fetch(token, args.name)
+            status, msg = evaluate(boxes, args.name, args.threshold)
+            snap_status, snap_msg = evaluate_snapshots(
+                fetch_snapshots(token, box_id(boxes, args.name)), datetime.datetime.now(datetime.timezone.utc)
+            )
+            msg += f" ; {snap_msg}"
+            if snap_status == "down":
+                status = "down"
         except QuotaError as error:
             status, msg = "down", str(error)
         except urllib.error.HTTPError as error:

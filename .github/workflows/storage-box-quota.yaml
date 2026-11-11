@@ -3,7 +3,8 @@ name: Storage Box quota
 # Remplissage de la Storage Box des sauvegardes (tofu/pangolin, storage_box.tf),
 # chaque lundi : au-delà de 80 % (données et snapshots), le run échoue et le
 # moniteur Uptime Kuma « Storage Box » passe « down » avec le pourcentage
-# (.github/scripts/storage_box_quota.py). Sans push pendant 8 jours (workflow
+# (.github/scripts/storage_box_quota.py). Même run : « down » si le dernier
+# snapshot a plus de 48 h ou s'il y en a moins de 7. Sans push pendant 8 jours (workflow
 # désactivé, jeton révoqué sans réponse), il passe « down » aussi.
 #
 # Lundi 06:00 UTC : loin des sauvegardes (01:00 Paris), des snapshots (03:00
