@@ -2,6 +2,10 @@
 # Cloudflare Pages + domaine, et le CNAME OVH qui court-circuite le joker
 # *.sylvain.dev vers Pangolin (tofu/dns/pangolin.tf).
 
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "github" {}
 mock_provider "cloudflare" {}
 mock_provider "ovh" {}
