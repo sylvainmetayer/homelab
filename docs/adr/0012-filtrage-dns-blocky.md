@@ -15,10 +15,10 @@ dépôt et déployé par Ansible ; un DNS réglé dans une UI y ferait exception
 
 **Blocky**, parce que sa configuration est un fichier YAML : un rôle Ansible
 le template, Molecule le valide, une PR le relit, comme le reste du dépôt.
-Deux instances, que le DHCP de la Bbox annonce toutes les deux : le Pi
+Deux instances, que le DHCP de la Bbox doit annoncer toutes les deux : le Pi
 (conteneur) et le LXC newt (binaire, pas de Docker). Listes HaGeZi Pro et
-TIF medium ; amont en DoT chez Quad9 et Mullvad. Bascule du DHCP faite à la
-main dans la Bbox ([runbook](../runbooks/dns-blocky.md)).
+TIF medium ; amont en DoT chez Quad9 et Mullvad. Bascule du DHCP à faire à la
+main dans la Bbox ([runbook](../runbooks/dns-blocky.md)), pas encore faite.
 
 Relevé du 2026-11-05 (lecture seule) : depuis leur démarrage (01/11, soit
 près de quatre jours, bien plus que les 24 h), le compteur de requêtes de
@@ -29,7 +29,7 @@ n'a interrogé le Pi ni le LXC, alors que tous deux répondent depuis le LAN
 (requête de test depuis un poste). Un poste du LAN, en DHCP, a la Bbox pour
 DNS. Ce que le relevé ne dit pas : si la Bbox annonce Blocky sans que les baux
 aient été renouvelés. architecture.md, dns-blocky.md, bbox-remplacee.md et
-coupure-de-courant.md affirment la bascule faite : ce relevé ne la voit pas.
+coupure-de-courant.md affirmaient la bascule faite : elle ne l'est pas (confirmé le 2026-11-11).
 
 ## Alternatives écartées
 
