@@ -1,0 +1,3 @@
+- name: Task reached through include_tasks
+  ansible.builtin.set_fact:
+    probe_included_ran: true
