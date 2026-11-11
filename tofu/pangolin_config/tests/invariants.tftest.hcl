@@ -3470,12 +3470,14 @@ run "homepage_links_cover_every_public_app" {
 
   # Adresse interne (widgets, pastille siteMonitor du rôle homepage) : la
   # cible de Pangolin et sa sonde, pour les seules cibles de la VM docker,
-  # que Homepage joint par leur nom sur newt. Vide pour le Pi et flip.
+  # que Homepage joint par leur nom sur newt. Vide pour le Pi, flip et les
+  # applis sans SSO (Bêtisier, sur newt-public, hors de portée de Homepage).
   assert {
     condition = (
       output.homepage_links["trek"].internal_url == "http://trek:3000"
       && output.homepage_links["trek"].site_monitor == "http://trek:3000/api/health"
-      && output.homepage_links["betisier"].site_monitor == "http://betisier:80/"
+      && output.homepage_links["betisier"].internal_url == ""
+      && output.homepage_links["betisier"].site_monitor == ""
       && output.homepage_links["immich"].internal_url == ""
       && output.homepage_links["immich"].site_monitor == ""
       && output.homepage_links["flip_planning"].site_monitor == ""
