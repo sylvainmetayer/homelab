@@ -12,9 +12,8 @@ regex = '''AGE-SECRET-KEY-PQ-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}'''
 keywords = ["age-secret-key-pq-1"]
 
 [[allowlists]]
-description = "Fichiers chiffrés par SOPS et valeurs factices des tests"
+description = "Valeurs factices des tests (aucun fichier SOPS dans ce dépôt, ADR 0018 : un contrôle du Lint le garantit)"
 paths = [
-  '''(^|/)[^/]*\.sops\.yaml$''',
   '''^ansible/molecule/_shared/vars/fake_secrets\.yml$''',
   '''^tofu/[^/]+/tests/[^/]+\.tftest\.hcl$''',
 ]
