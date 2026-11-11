@@ -18,7 +18,7 @@
   "pangolin": {"host": "pangolin", "repo": "pangolin", "role": "pangolin", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["user", "orgs", "sites", "resources"]}, "expected_path": "opt/pangolin/config"},
   "papra": {"host": "docker", "repo": "papra", "role": "papra", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["users", "documents"]}, "allow_empty_databases": ["tasks.sqlite"], "expected_path": "opt/apps/papra/app-data"},
   "pocket_id": {"host": "pangolin", "repo": "pocket_id", "role": "pocket_id", "databases": ["sqlite"], "expected_tables": {"pocket-id.db": ["users", "oidc_clients"]}, "expected_path": "opt/pocket-id/data"},
-  "postiz": {"host": "flip", "repo": "postiz", "role": "postiz", "databases": ["postgresql"], "expected_tables": {"postiz": ["User", "Organization"], "temporal": ["namespaces"]}, "allow_empty_databases": ["temporal_visibility"]},
+  "postiz": {"host": "flip", "repo": "postiz", "role": "postiz", "databases": ["postgresql"], "expected_tables": {"postiz": ["User", "Organization"], "temporal": ["namespaces"]}, "allow_empty_databases": ["temporal_visibility"], "paused": true},
   "pve_config": {"host": "pve", "repo": "pve_config", "role": "pve_config_backup", "databases": ["sqlite"], "expected_tables": {"config.db": ["tree"]}, "expected_path": "etc/network/interfaces"},
   "rss": {"host": "docker", "repo": "rss", "role": "rss", "databases": ["sqlite"], "expected_tables": {"db.sqlite": ["category", "feed"]}, "expected_path": "opt/apps/rss/freshrss_data"},
   "speedtest_tracker": {"host": "docker", "repo": "speedtest_tracker", "role": "speedtest_tracker", "databases": ["sqlite"], "expected_tables": {"database.sqlite": ["users", "results"]}, "expected_path": "opt/apps/speedtest_tracker/config"},

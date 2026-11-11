@@ -3,8 +3,9 @@
 Une appli qu'on n'utilise plus pour l'instant, sans vouloir la supprimer
 (pour la supprimer : skill `remove-app`). En pause, rien n'est détruit :
 compose, données, volumes, dépôt borg et ses archives, ressource Pangolin,
-jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Deux apps
-sont en pause : le banc Keycloak de Flip Planning
+jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Trois apps
+sont en pause : Postiz (`postiz_enabled: false` dans `host_vars/flip`, depuis
+le 2026-11-11 : flip n'a pas la mémoire, voir le README du rôle), le banc Keycloak de Flip Planning
 (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)) depuis
 octobre 2026, la vitrine publique (`exemple_planning`, voir
 [plus bas](#la-vitrine-publique-de-flip-planning)) depuis novembre 2026. Paperless-ngx a été en pause d'octobre à novembre 2026, puis
@@ -17,14 +18,14 @@ dernier à avoir suivi la voie `host_vars` étant Paperless.
 |---|---|---|
 | `ansible/host_vars/docker/variables.yaml` | `<app>_enabled: false` | `dc@<app>` arrêtée et désactivée, aucun handler de redémarrage ; `/etc/borgmatic.d/<app>.yaml` retiré. Le compose reste templaté |
 | `tofu/pangolin_config/website_<app>.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, moniteurs « Healthcheck » et « Backup » en pause, sonde Pangolin de ses cibles coupée (`hc_enabled`, `websites.tf`) |
-| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"<app>"` dans la liste des apps en pause (`["demo_planning_kc", "exemple_planning"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
+| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"<app>"` dans la liste des apps en pause (`["demo_planning_kc", "exemple_planning", "postiz"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
 | `.github/restore-test/apps.json` | `"paused": true` | le test de restauration du 1er et du 15 saute l'app ; un run manuel qui la nomme restaure sa dernière archive sans en exiger l'âge |
 
 Hors de ces quatre endroits, `renovate.json` porte une règle « Paused apps »
 (`enabled: false` sur `ansible/roles/<app>/**`, plus une seconde
 sur l'image de l'app dans `path_bypass_images.json` si elle y figure, que
 Renovate monterait sinon seule, PR que le test
-`path_bypasses_follow_their_image` refuse ; aucune n'existe aujourd'hui) :
+`path_bypasses_follow_their_image` refuse ; les deux existent pour Postiz) :
 aucune PR de mise à jour pour une appli qui ne tourne pas. La reprise retire les règles dans la
 même PR ; Renovate propose alors les versions parues entre-temps. Le banc
 Keycloak n'en a pas besoin : ses images sont écrites dans `flip.yml` sur le

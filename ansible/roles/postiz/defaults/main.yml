@@ -2,6 +2,11 @@
 postiz_base_path: "{{ docker_base_path }}/postiz"
 postiz_domain: posts.sylvain.cloud
 
+# false : appli en pause (docs/runbooks/app-en-pause.md), dc@postiz arrêtée et
+# désactivée, configuration borgmatic retirée, plus aucun redémarrage.
+postiz_enabled: true
+postiz_restart_handlers: "{{ ['Restart postiz'] if postiz_enabled | bool else [] }}"
+
 # Dérivés de app_secrets_seed comme ceux de karakeep : pas d'entrée SOPS.
 # Changer JWT_SECRET déconnecte les sessions ; le mot de passe de la base n'est
 # lu par PostgreSQL qu'à la création du volume.
