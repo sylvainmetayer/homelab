@@ -45,7 +45,9 @@ resource "uptimekuma_monitor_push" "cron_monica" {
   # Not a backup: grouped with the healthchecks. See uptime_globals.tf.
   parent = uptimekuma_monitor_group.self_hosted.id
 
-  interval = 60 * 15
+  # Three periods of the 10 minute timer (monica_v4.cron.timer.j2): two missed
+  # runs pass, a restart of the VM or a redeploy does not page.
+  interval = 60 * 30
 
   retry_interval = 20
   active         = true
