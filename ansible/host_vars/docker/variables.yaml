@@ -97,3 +97,8 @@ papra_intake_allowed_senders:
   - contact@sylvainmetayer.fr
   - factures@sylvainmetayer.fr
   - "@sylvain.dev"
+
+# Bêtisier (public, sans SSO) sur un réseau Docker à part, `newt-public`, que
+# Newt rejoint aussi : il ne voit plus Grocy ni Homepage sur `newt`. Lu par les
+# rôles newt et betisier ; jamais sur le drill (host_vars/docker ne s'y applique pas).
+newt_public_network_enabled: true
