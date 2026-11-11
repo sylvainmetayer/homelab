@@ -4,7 +4,7 @@
     {
       "label": "Mise: Plan Pangolin",
       "type": "shell",
-      "command": "mise run plan",
+      "command": "mise run plan-pangolin",
       "options": { "cwd": "${workspaceFolder}" },
       "group": "build",
       "problemMatcher": [],
@@ -13,7 +13,7 @@
     {
       "label": "Mise: Init Pangolin",
       "type": "shell",
-      "command": "mise run init",
+      "command": "mise run init-pangolin",
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
