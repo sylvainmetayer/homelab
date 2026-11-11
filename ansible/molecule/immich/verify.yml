@@ -237,7 +237,7 @@
     # Avec la clé (fake_secrets) : agit sur la photothèque avec elle, sans
     # connexion ; joint par Pangolin seul (newt, derrière le SSO), jamais
     # publié sur le LAN, durci, sans volume (SQLite de l'appli en tmpfs). La
-    # base d'Immich est lue par le réseau immich ; pas de JWT_SECRET (liens de
+    # base d'Immich est lue par le réseau db ; pas de JWT_SECRET (liens de
     # partage publics désactivés).
     - name: Assert Immich Power Tools is rendered, private and hardened
       no_log: true
@@ -256,7 +256,7 @@
           - power_tools.environment.DB_PASSWORD != immich_env.DB_PASSWORD
           - power_tools.environment.DB_DATABASE_NAME == immich_env.DB_DATABASE_NAME
           - "'JWT_SECRET' not in power_tools.environment"
-          - power_tools.networks | sort == ['immich', 'newt']
+          - power_tools.networks | sort == ['db', 'immich', 'newt']
           - "'ports' not in power_tools"
           - "'volumes' not in power_tools"
           - power_tools.read_only
