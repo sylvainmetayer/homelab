@@ -2957,7 +2957,10 @@ run "monitors_are_filed_and_alert" {
   # joue le rôle avec l'URL du moniteur.
   assert {
     condition = (
-      can(regex("^\\*-\\*-\\* 00/6:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/thin_pool_check/defaults/main.yml")).thin_pool_check_schedule))
+      can(regex("^\\*-\\*-\\* [0-9]{2}/6:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/thin_pool_check/defaults/main.yml")).thin_pool_check_schedule))
+      # Un passage pendant le vzdump de 21:00 (tofu/proxmox/backup.tf), quand le
+      # fleecing remplit le pool : l'heure de départ est congrue à 21 modulo 6.
+      && (21 - tonumber(regex("^\\*-\\*-\\* ([0-9]{2})/6:", yamldecode(file("${path.module}/../../ansible/roles/thin_pool_check/defaults/main.yml")).thin_pool_check_schedule)[0])) % 6 == 0
       && uptimekuma_monitor_push.cron_thin_pool.interval == 60 * 60 * 24
       && uptimekuma_monitor_push.cron_thin_pool.max_retries == 0
       && uptimekuma_monitor_push.cron_thin_pool.parent == uptimekuma_monitor_group.self_hosted.id
