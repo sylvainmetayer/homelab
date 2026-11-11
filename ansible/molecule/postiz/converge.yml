@@ -1,0 +1,27 @@
+---
+# Reproduit l'entrée postiz de flip.yml (aucun paramètre de rôle).
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/flip/variables.yaml
+  vars:
+    # Sorties de tofu/pangolin_config (pocket_id.tf) : le client OIDC de Postiz.
+    terraform_outputs:
+      pocket_id_issuer:
+        value: https://idp.example.invalid
+      pocket_id_postiz_client_id:
+        value: molecule-pocket-id-postiz-client-id
+      pocket_id_postiz_client_secret:
+        value: molecule-pocket-id-postiz-client-secret
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # flip.yml lit cette URL dans les outputs du state pangolin_config.
+    - name: Load healthcheck URLs as flip.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        postiz_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-postiz-backup
+  roles:
+    - role: docker_service
+    - role: postiz

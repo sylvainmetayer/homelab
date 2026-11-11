@@ -182,6 +182,11 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      (`ENABLE_OAUTH_SIGNUP`). Liaison par e-mail sans contrôle de
      vérification (comme Karakeep : sûr tant que `ALLOW_OWN_ACCOUNT_EDIT` reste
      à `false`). Mot de passe gardé (secours : README du rôle).
+   - **Postiz** (le foyer, groupe `postiz`, sur flip) : rien à saisir, le rôle
+     `postiz` pose `POSTIZ_OAUTH_*` depuis les sorties Tofu (sans PKCE, rappel
+     `/settings`). **Sylvain se connecte le premier.** Compte créé au premier
+     login, lié par e-mail ; pas de mot de passe local, donc pas de secours
+     dans l'appli (README du rôle).
    - **MediaManager** (essai, NAS, groupe `mediamanager`) : rien à saisir, le
      rôle pose `[auth.openid_connect]` ; **déploiement à la main**
      (`nas.yml --tags mediamanager`, jamais par la CI). Pas de PKCE.

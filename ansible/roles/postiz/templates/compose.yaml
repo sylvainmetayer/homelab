@@ -1,0 +1,136 @@
+---
+# D'après https://github.com/gitroomhq/postiz-docker-compose (docker-compose.yaml),
+# allégé pour les 4 Gio de flip : pas d'Elasticsearch (visibilité Temporal en
+# SQL), pas de temporal-ui ni d'admin-tools, et Temporal dans le PostgreSQL de
+# Postiz (bases temporal et temporal_visibility) au lieu d'un second serveur.
+services:
+  postiz:
+    # Pas encore mesuré : nginx, backend NestJS, frontend Next.js et
+    # orchestrateur Temporal dans le même conteneur (pm2). À recaler sur
+    # memory.peak (mem_report) après quelques jours.
+    mem_limit: 2g
+    # Derrière la production de Flip Planning quand les 2 vCPU sont disputés
+    # (poids par défaut 1024) ; sans effet tant que l'hôte est au repos.
+    cpu_shares: 512
+    image: ghcr.io/gitroomhq/postiz-app:v2.25.3
+    container_name: postiz
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/uploads
+    # Celui du compose amont : nginx (5000) répond, quel que soit le code < 500.
+    healthcheck:
+      test: ["CMD", "node", "-e", "const r=require('http').get('http://localhost:5000/',res=>process.exit(res.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(4000,()=>{r.destroy();process.exit(1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    networks:
+      - internal
+      - newt
+
+  postgres:
+    mem_limit: 384m
+    mem_reservation: 128m
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
+    # La même image que flip_planning, déjà sur l'hôte (amont : 17-alpine).
+    image: postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+    container_name: postiz-db
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ postiz_db_name }}
+      POSTGRES_USER: {{ postiz_db_user }}
+      POSTGRES_PASSWORD: {{ postiz_db_password }}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ postiz_db_user }} -d {{ postiz_db_name }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - internal
+
+  redis:
+    mem_limit: 128m
+    image: redis:8.2-alpine@sha256:fe9daae35cd4fd6ec22416aa4fe0cf6b3e36741e06ff45b9986253fe2a81c041
+    container_name: postiz-redis
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # Cache et limites de débit seulement (les publications planifiées vivent
+    # dans Temporal) : rien sur disque, pas de volume.
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - internal
+
+  # Les publications planifiées sont des workflows Temporal : ses deux bases
+  # sont sauvegardées avec celle de Postiz.
+  temporal:
+    # Pas encore mesuré : les quatre services de Temporal dans un processus.
+    mem_limit: 768m
+    cpu_shares: 512
+    # La version du compose amont, celle que Postiz essaie.
+    image: temporalio/auto-setup:1.28.1
+    container_name: postiz-temporal
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: {{ postiz_db_user }}
+      POSTGRES_PWD: {{ postiz_db_password }}
+      # Visibilité en SQL : Postiz n'ajoute que deux attributs de recherche de
+      # type texte (temporal.register.ts : organizationId, postId), PostgreSQL
+      # en accepte trois. Jamais essayé avec ES coupé avant ce déploiement.
+      ENABLE_ES: "false"
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/postiz.yaml
+      TEMPORAL_NAMESPACE: default
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig:ro
+    # Par le nom du service : Temporal écoute sur l'IP du conteneur, pas sur
+    # 127.0.0.1.
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+
+# `internal: true` : ni la base, ni redis, ni Temporal n'ont de sortie ; Postiz
+# garde la sienne (API des réseaux sociaux) par `newt`.
+networks:
+  internal:
+    internal: true
+  newt:
+    external: true
