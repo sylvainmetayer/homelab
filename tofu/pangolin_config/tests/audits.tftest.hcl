@@ -62,6 +62,7 @@ variables {
   home_ip                = "203.0.113.10"
   immich_pin             = "123456"
   neonova_pin            = "123456"
+  flip_planning_pin      = "123456"
   ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
   pocket_id_api_token    = "fake-pocket-id-static-api-key"
   telegram_bot_token     = "fake-telegram-bot-token"

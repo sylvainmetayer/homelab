@@ -541,6 +541,12 @@ fournisseur actif**, puis révoquer l'ancienne. Détail :
 puis `tofu apply` de `pangolin_config`. C'est la seule copie : celle du
 fichier Ansible, lue par rien, a été retirée le 2026-10-28.
 
+### Code PIN Flip Planning
+
+`flip_planning_pin` du fichier racine est le PIN de la ressource Pangolin de
+Flip Planning (`tofu/pangolin_config/website_flip_planning.tf`) : nouveau PIN
+par `sops set`, puis `tofu apply` de `pangolin_config`.
+
 ### Code PIN Neonova
 
 `neonova_pin` du fichier racine est le PIN des ressources Pangolin de la démo et
