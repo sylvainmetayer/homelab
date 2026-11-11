@@ -186,6 +186,13 @@ commandes de cette page sont à adapter. Même chose si la VM est suspecte
 ([intrusion-premiere-heure.md](intrusion-premiere-heure.md)) : une archive
 restaurée ramène aussi l'intrus.
 
+Une fois les données de chaque appli restaurées, **second passage**
+`ansible-playbook docker.yml --tags backup` (même chose pour `pi.yml` et
+`nas.yml`) : Ansible ne repère une base SQLite que si le fichier existe, donc
+sans ce passage les configs borgmatic copient les bases vivantes à chaud
+chaque nuit. Vérifier que l'archive suivante contient
+`var/lib/borgmatic-sqlite`.
+
 ### D. Remettre Tofu et Ansible d'accord
 
 1. `tofu -chdir=tofu/proxmox plan` : stockage `nas-backup` (déjà créé) et
