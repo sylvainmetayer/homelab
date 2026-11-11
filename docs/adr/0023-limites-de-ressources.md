@@ -26,7 +26,8 @@ cache évincé, disque sollicité ; services monothread freinés (`4cef7c44`).
 - **Plafonds serrés** : un conteneur à son plafond n'est pas toujours tué (gramps
   l'était) : il perd son cache et sollicite le disque, le goulot de cette VM.
 - **Aucune limite** (avant `65c73419`, 2026-08-03, dawarich seul ; ailleurs jusqu'au
-  2026-08-29) : raison non écrite, à confirmer.
+  2026-08-29) : pas un choix, rien ne l'imposait avant l'incident d'août 2026 qui
+  a déclenché les limites (confirmé par Sylvain le 2026-11-11).
 
 ## Conséquences
 
