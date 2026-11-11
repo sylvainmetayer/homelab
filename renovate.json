@@ -532,6 +532,29 @@
     },
     {
       "customType": "regex",
+      "description": "Tool versions of the workflows and composite actions with a `# renovate: datasource=... depName=...` comment on the line above (actionlint, hadolint, zizmor, Trivy, sops). Renovate bumps the version only: the sha256 of actionlint, hadolint, Trivy and sops is updated by hand on the PR branch (the release lists it; Lint fails on actionlint and hadolint until then, Trivy's and sops's only fail when they run, so never merge those blind). zizmor has no sum (uvx installs it from PyPI)",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/",
+        "/^\\.github/actions/[^/]+/action\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z0-9_]+_VERSION:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "uv installed by pip in the workflows (`pip install uv==X`), kept equal to mise.toml's: the uv of the venv that runs ansible in CI",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "uv==(?<currentValue>[0-9][0-9.]*)"
+      ],
+      "depNameTemplate": "uv",
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
       "description": "OLM image started by `docker run` in the composite action olm-tunnel (used by deploy-docker-app), pinned by tag and digest; the github-actions manager only reads `uses:`",
       "managerFilePatterns": [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/",

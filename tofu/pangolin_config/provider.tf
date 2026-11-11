@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = "~> 1.13"
 
   required_providers {
     # Build du fork, pas une version de l'amont : `mise run provider-fork` le pose

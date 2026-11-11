@@ -258,7 +258,7 @@ jobs:
       # secondes même quand rien n'est à déployer.
       - name: Install ansible + deps
         run: |
-          pip install --quiet --only-binary :all: uv==0.12.23
+          pip install --quiet --only-binary :all: uv==0.13.7
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
@@ -343,6 +343,7 @@ jobs:
         # pas recalculer le sha256, et ce workflow ne tourne qu'après le merge) :
         # sha256 de sops-<version>.linux.amd64 dans sops-<version>.checksums.txt.
         env:
+          # renovate: datasource=github-releases depName=getsops/sops
           SOPS_VERSION: v3.13.3
           SOPS_SHA256: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
         run: |
