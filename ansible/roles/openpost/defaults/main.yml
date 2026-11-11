@@ -24,9 +24,10 @@ openpost_oidc_client_secret: "{{ terraform_outputs.pocket_id_openpost_client_sec
 openpost_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
 openpost_oidc_enabled: "{{ openpost_oidc_client_id | length > 0 and openpost_oidc_client_secret | length > 0 and openpost_oidc_issuer | length > 0 }}"
 
-# Le premier compte créé est administrateur de l'instance. Derrière le mur
-# Pangolin, seul le groupe `openpost` atteint la page d'inscription : passer à
-# true une fois le compte créé (README), les logins Pocket ID créent le leur.
+# Le premier compte créé est administrateur de l'instance. Laissée ouverte :
+# true ferme aussi la création de compte par un premier login Pocket ID
+# (insertJITUser), et derrière le mur Pangolin seul le groupe `openpost`
+# atteint la page d'inscription.
 openpost_disable_registrations: false
 
 # Réseaux d'où Traefik (par Newt) joint le conteneur : le pool d'adresses par

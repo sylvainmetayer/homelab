@@ -24,9 +24,12 @@ retour arrière autre que la sauvegarde.
    https://posts.sylvain.cloud et **créer le premier compte** : il est
    administrateur de l'instance. Utiliser la même adresse e-mail que ton
    compte Pocket ID.
-3. Passer `openpost_disable_registrations: true` dans `host_vars/flip` et
-   redéployer : plus d'inscription locale, les logins Pocket ID créent encore
-   leur compte.
+3. Laisser l'inscription ouverte (`openpost_disable_registrations: false`) :
+   `OPENPOST_DISABLE_REGISTRATIONS` ferme aussi la création de compte par un
+   premier login Pocket ID (`identity/service.go`, `insertJITUser`, v7.38.6),
+   pas seulement l'inscription par mot de passe. La page n'est atteinte que
+   derrière le mur Pangolin, donc par le groupe `openpost` (décidé le
+   2026-11-11).
 4. `ansible-playbook docker.yml --tags homepage` pour le lien sur Homepage.
 
 ## Connexion par Pocket ID
