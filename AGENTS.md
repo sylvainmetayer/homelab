@@ -25,7 +25,7 @@ mise run init           # tofu/pangolin; then plan, apply
 mise run init-proxmox   # tofu/proxmox; then plan-proxmox, apply-proxmox
 mise run init-ref       # tofu/ref (GITHUB_TOKEN exporté avant); then plan-ref, apply-ref
 mise run init-planning  # tofu/planning (GITHUB_TOKEN exporté avant); then plan-planning, apply-planning
-mise run provider-fork # fetch the Pangolin provider fork; needed before any `tofu init` of tofu/pangolin_config (lint and tofu-test run it)
+mise run provider-fork # fetch the Pangolin provider fork and the trozz/pocketid 2.5.0 mirror; needed before any `tofu init` of tofu/pangolin_config (lint and tofu-test run it)
 mise run lint        # tofu fmt -check -recursive + init -backend=false && validate of every module
 mise run fix-lint    # tofu fmt -recursive
 mise run ansible-lint
@@ -76,6 +76,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 ## Current state worth knowing
 
 - `tofu/pangolin_config` runs a build of the fork of the Pangolin provider (`1.7.0-sylvain.5`), source still `stackopshq/pangolin`, until upstream takes the fixes. → `docs/adr/0021-provider-pangolin-du-fork.md`
+- `trozz/pocketid` 2.5.0 lost its upstream releases and tags on 2026-11-10: the same script serves its linux_amd64 package from the release `provider-pocketid-2.5.0` of this repo (lock file unchanged, `tofu init` checks the h1 hashes). Never accept a republished upstream build whose hashes differ from the lock file. → `tofu/pangolin_config/README.md`
 - Certificates: one Let's Encrypt wildcard per zone (`*.sylvain.cloud`, `*.sylvain.dev`) by DNS-01 on Pangolin (resolver `letsencrypt-dns`, OVH key `pangolin_ovh_*`, set in both `domain1` of the `pangolin` role and `tofu/pangolin_config/domains.tf`) and on the NAS (`nas_proxy_wildcard_domain`); CAA `issuewild` in `tofu/dns/caa.tf`. Traefik serves a per-name certificate still in `acme.json` before the wildcard. → ADR 0031, `ansible/roles/pangolin/README.md`
 - Papra (role `papra`, `papra.sylvain.cloud`) is the document app (it replaced Paperless-ngx, removed 2026-11-07). Its OCR fetches models from `cdn.jsdelivr.net` per document. → `ansible/roles/papra/README.md`
 - `tofu/1y`: its `import` block was removed on 2026-10-29, its tests are back.
