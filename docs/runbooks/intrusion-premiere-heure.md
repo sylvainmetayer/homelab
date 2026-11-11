@@ -127,11 +127,13 @@ première trace n'est pas fiable.
 **La limite de temps est de 9 jours** : la Storage Box garde 9 snapshots
 quotidiens (03:00 UTC, après borgmatic), qu'aucun sous-compte ne peut effacer.
 Plus ancien, un effacement ne se prouve ni ne se défait. Restauration d'un
-snapshot : console Hetzner, Storage Box, Snapshots, compte principal
-(procédure exacte : à vérifier). **Ne pas « revenir » à un snapshot sur toute la
-Storage Box** : cela écraserait les sauvegardes plus récentes de tous les hôtes.
-Lire le snapshot en lecture seule (dossier `.zfs/snapshot` : à vérifier) et n'en
-recopier que le dépôt effacé. Le test de la CI (1er et 15 du mois) ne
+snapshot depuis le compte principal (`ls -a` doit y montrer `.zfs`, sinon
+l'accès est à activer) : procédure en 6 de
+[sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), **jamais
+essayée**. **Ne pas « revenir » à un snapshot sur toute la Storage Box** (le
+« Rollback » de la console) : cela écraserait les sauvegardes plus récentes de
+tous les hôtes. Lire `.zfs/snapshot/<snapshot>/backup/<hôte>/<app>` en lecture
+seule et n'en recopier que le dépôt effacé. Le test de la CI (1er et 15 du mois) ne
 remplace pas ce contrôle.
 
 ### 6. La clé de CI (ADR 0028)
