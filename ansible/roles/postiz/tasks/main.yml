@@ -4,7 +4,12 @@
   ansible.builtin.assert:
     that:
       - postiz_social_env.keys() | reject('match', '^[A-Z][A-Z0-9_]*$') | list | length == 0
-    fail_msg: "postiz_social_env : noms de variables attendus en MAJUSCULES_ET_SOULIGNÉS."
+      # Le lecteur dotenv de compose interpole `$` et coupe sur ` #` ou une
+      # apostrophe : une clé tronquée ne se verrait qu'au branchement du réseau.
+      - postiz_social_env.values() | map('string') | select('search', '[\\s$#''"\\\\]') | list | length == 0
+    fail_msg: >-
+      postiz_social_env : noms en MAJUSCULES_ET_SOULIGNÉS, valeurs sans espace,
+      $, #, apostrophe, guillemet ni barre oblique inverse.
     quiet: true
 
 - name: Ensure Postiz app folders exist

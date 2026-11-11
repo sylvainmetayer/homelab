@@ -16,6 +16,9 @@ services:
     container_name: postiz
     security_opt:
       - no-new-privileges:true
+    # Pas de cap_drop (docs/conventions/container-hardening.md) : l'image démarre
+    # en root (pm2, nginx qui passe à `www`, backend root qui écrit /uploads) et
+    # les capacités dont son entrée a besoin n'ont pas été relevées.
     restart: unless-stopped
     env_file:
       - .env
@@ -95,6 +98,7 @@ services:
     container_name: postiz-temporal
     security_opt:
       - no-new-privileges:true
+    # Pas de cap_drop : image non analysée (docs/conventions/container-hardening.md).
     restart: unless-stopped
     environment:
       DB: postgres12
