@@ -7,6 +7,10 @@
 # Les valeurs calculées d'un provider mocké sont inconnues au plan : les
 # assertions ne portent que sur des valeurs issues de la configuration.
 
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 # Le provider valide dès le plan que les file_id référencés ont la forme
 # `datastore:type/fichier` : les identifiants aléatoires du mock ne passent pas.
 mock_provider "proxmox" {
