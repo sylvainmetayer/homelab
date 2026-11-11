@@ -42,6 +42,9 @@ resource "hcloud_storage_box" "backups" {
   access_settings = {
     reachable_externally = true
     ssh_enabled          = true
+    # Dossier .zfs/snapshot visible du compte principal : la restauration d'un
+    # dépôt depuis un snapshot en dépend (sauvegarde-et-restauration.md).
+    zfs_enabled = true
   }
 
   # Les sous-comptes (un par hôte, storage_box_subaccounts.tf) ne peuvent pas
