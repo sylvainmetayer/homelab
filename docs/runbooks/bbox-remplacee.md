@@ -60,6 +60,10 @@ changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
    le SSO. Pire : **l'ancienne IP, réattribuée, garde l'accès sans SSO**.
    Rien ne met `home_ip` à jour tout seul (pas de DNS dynamique dans le
    dépôt) : une IP qui change à chaque coupure ne convient pas à cette règle.
+   Le compromis est accepté parce que l'IPv4 publique de la Bbox est fixe par
+   contrat (décision du 2026-11-11) : aucun contrôle ne compare l'IP réelle à
+   `home_ip`. **À revoir si l'offre change** (autre opérateur, box ou IP non
+   garantie fixe).
 6. **Wi-Fi** : nom et mot de passe sont à retaper sur chaque appareil (rien
    dans le dépôt). Garder le même nom et le même mot de passe évite de tout
    reconfigurer. Attention au Wi-Fi invité : tout appareil derrière la box,
