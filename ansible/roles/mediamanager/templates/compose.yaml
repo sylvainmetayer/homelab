@@ -159,10 +159,14 @@ services:
       - ./gluetun:/gluetun
     # Interfaces web de qBittorrent et Prowlarr, aussi sur le 127.0.0.1 du NAS
     # (tunnel SSH, repli du README) : jamais publiées sur le LAN. HTTPS par le
-    # réseau proxy plus bas.
+    # réseau proxy plus bas. Pas celle de Prowlarr en Pocket ID seul
+    # (mediamanager_ui_sso_only) : `External`, elle ouvrirait son administration
+    # sans login à tout compte du NAS ; le secours est mediamanager_local_login.
     ports:
       - "127.0.0.1:{{ mediamanager_qbittorrent_webui_port }}:{{ mediamanager_qbittorrent_webui_port }}"
+{% if not (mediamanager_ui_sso_only | bool) %}
       - "127.0.0.1:{{ mediamanager_prowlarr_port }}:{{ mediamanager_prowlarr_port }}"
+{% endif %}
     restart: unless-stopped
     # proxy : le Traefik du NAS (rôle nas_proxy) joint Prowlarr (9696) et
     # qBittorrent (8080) par mediamanager-gluetun, dont ils partagent l'espace

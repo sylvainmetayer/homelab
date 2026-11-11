@@ -165,28 +165,30 @@ l'interface de qBittorrent, ou repartir du modèle (plus bas).
   défaut (faux), donc `X-Forwarded-For` n'est jamais cru et personne n'est pris
   pour `localhost` ; seul le sous-réseau du réseau `proxy` (Traefik, gluetun,
   MediaManager) est dispensé de mot de passe. Sans login aussi : Prowlarr
-  (`External`) pour tout ce qui joint son port, soit le `127.0.0.1` du NAS
-  (tunnel SSH ci-dessous, comptes du NAS) et les réseaux de la pile (`default`,
-  `proxy`). Rien de cela n'est joignable depuis le LAN sans passer par Traefik,
-  donc par Pocket ID. `nas.yml` déploie `nas_proxy` avant `mediamanager` :
+  (`External`) pour tout ce qui joint son port, soit les réseaux de la pile
+  (`default`, `proxy`). Son port n'est **pas** publié sur le `127.0.0.1` du NAS
+  en Pocket ID seul (aucun compte du NAS ne l'administre sans login) ; il l'est
+  avec `mediamanager_local_login: true`, où Prowlarr a son login. Rien de cela
+  n'est joignable depuis le LAN sans passer par Traefik, donc par Pocket ID. `nas.yml` déploie `nas_proxy` avant `mediamanager` :
   lancer `--tags mediamanager` seul quand l'oauth2-proxy n'est pas (encore)
   déployé ouvrirait les deux interfaces sans login au LAN, toujours
   `--tags nas_proxy,mediamanager`. Les défauts de
   qBittorrent suffisent derrière Traefik (`HostHeaderValidation` actif mais
   `ServerDomains=*`, Traefik garde l'en-tête `Host`, la vérification CSRF
-  compare `Origin` et `Host`) : `qBittorrent.conf` n'est pas modifié. Repli,
-  toujours là, les ports sur le `127.0.0.1` du NAS (jamais sur le LAN). Depuis
-  le PC, à la maison (ou dehors, client Pangolin connecté, ressource `nas`) :
+  compare `Origin` et `Host`) : `qBittorrent.conf` n'est pas modifié. Repli, le
+  port de qBittorrent sur le `127.0.0.1` du NAS (jamais sur le LAN), et celui
+  de Prowlarr seulement avec `mediamanager_local_login: true`. Depuis le PC, à
+  la maison (ou dehors, client Pangolin connecté, ressource `nas`) :
 
   ```bash
-  ssh -N -L 8080:127.0.0.1:8080 -L 9696:127.0.0.1:9696 sylvain@192.168.1.137
+  ssh -N -L 8080:127.0.0.1:8080 sylvain@192.168.1.137
   ```
 
-  puis `http://localhost:8080` (qBittorrent) et `http://localhost:9696`
-  (Prowlarr), sans login (boucle locale de qBittorrent, `External` de
-  Prowlarr). C'est le premier secours quand Pocket ID ou oauth2-proxy
+  puis `http://localhost:8080` (qBittorrent), sans login (boucle locale de
+  qBittorrent). C'est le premier secours quand Pocket ID ou oauth2-proxy
   (`nas-proxy-oauth2`) est en panne : ce chemin ne passe pas par Traefik, donc
-  pas par la porte Pocket ID.
+  pas par la porte Pocket ID. Prowlarr n'a pas ce secours : le login local
+  ci-dessous (`-L 9696:127.0.0.1:9696` en plus, une fois le login posé).
 
 #### Login local de secours
 

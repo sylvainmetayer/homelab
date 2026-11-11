@@ -221,7 +221,8 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      la main) en forwardAuth du Traefik du NAS ; rien à saisir, `sylvain` dans
      le groupe suffit. Pocket ID seul (Prowlarr en `External`, qBittorrent
      sans mot de passe pour le réseau du proxy) ; secours si Pocket ID ou le
-     proxy tombe : tunnel SSH vers `127.0.0.1:8080` / `9696`, ou
+     proxy tombe : tunnel SSH vers `127.0.0.1:8080` (qBittorrent ; Prowlarr
+     seulement avec le login local), ou
      `mediamanager_local_login: true` (README de `mediamanager`, « Login local
      de secours »).
    - **Immich Power Tools** (le foyer, groupe `immich-power-tools`, et
