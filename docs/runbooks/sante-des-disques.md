@@ -14,9 +14,14 @@ vérifier ».
 
 | Hôte | Disques lus par l'agent Beszel | Déclaré dans |
 |---|---|---|
-| `nas` | `sda` et `sdb` (WD40EFZZ, la paire du RAID 1), `sdc` (WD30EZRX en USB) | `host_vars/nas` |
+| `nas` | `sda` et `sdb` (WD40EFZZ, la paire du RAID 1) ; `sdc` (WD30EZRX en USB) retiré depuis son décrochage du 05/11 | `host_vars/nas` |
 | `pve` | `sda`, le SSD M.2 SATA qui porte l'hôte, `local-lvm` et donc **tout** le disque de la VM docker | `pve.yml` |
 | `pi` | le NVMe derrière un pont USB : peut ne rien remonter | `host_vars/pi` |
+
+Un disque listé qui disparaît (USB débranché ou décroché) empêche la
+recréation du conteneur de l'agent (`devices:` du compose : Docker refuse un
+périphérique absent, vécu au NAS le 11/11) : le retirer de la liste avant le
+prochain déploiement, le remettre une fois rebranché.
 
 La VM docker, flip, Pangolin et le LXC ne voient qu'un disque virtuel : leur
 usure se lit sur `pve` (ou chez Hetzner). Les autres hôtes n'ont rien à lire.

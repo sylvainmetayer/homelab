@@ -13,7 +13,7 @@ sur place ».
 
 - Alerte du RAID dans UGOS (volume « dégradé », « défaillant » : intitulé à
   relever, « À vérifier sur place »), page S.M.A.R.T. de `nas` dans Beszel
-  rouge (disques `sda`, `sdb`, `sdc` suivis, `host_vars/nas`).
+  rouge (disques `sda` et `sdb` suivis, `host_vars/nas` ; `sdc` retiré depuis son décrochage du 05/11).
 - Ou, plus tôt, le lundi : moniteur « S.M.A.R.T. NAS » et message ntfy
   (topic `scripts`) de `smart_check` sur une hausse des secteurs de `sda` ou
   `sdb` ([sante-des-disques.md](sante-des-disques.md)), si `smart_check`
