@@ -22,7 +22,7 @@ commit, issue) est marqué « à confirmer ».
 
 ## Modèle
 
-Fichier `NNNN-titre-court.md` (numéro suivant, minuscules, tirets), 40 lignes
+Fichier `NNNN-titre-court.md` (numéro suivant, minuscules, tirets), 60 lignes
 au plus :
 
 ```markdown
@@ -51,13 +51,13 @@ au plus :
 | [0004](0004-nextcloud-derriere-le-sso.md) | Nextcloud derrière le SSO, mots de passe d'application obligatoires | acceptée |
 | [0005](0005-retention-journaux-pangolin.md) | Base de Pangolin : rétention des journaux 30/90 jours | acceptée (VACUUM à confirmer) |
 | [0006](0006-objets-faits-main-audites.md) | Objets faits main dans Pangolin et Uptime Kuma audités au plan | acceptée (passerelles VPN déclarées depuis 0021) |
-| [0007](0007-donnees-sur-le-nas.md) | Données d'applis sur le NAS en NFSv3, Jellyfin sur le NAS, relais du 443 | acceptée |
+| [0007](0007-donnees-sur-le-nas.md) | Données d'applis sur le NAS en NFSv3, Jellyfin sur le NAS, relais du 443 | acceptée (volet NFS non appliqué depuis le 2026-11-04) |
 | [0008](0008-renovate-hebdomadaire.md) | Renovate : PR hebdomadaires, images à état manuelles, automerge ciblé | acceptée |
 | [0009](0009-sops-age-deux-fichiers.md) | SOPS + age, deux fichiers, clés nommées contre le masquage | acceptée (emplacement des fichiers remplacé par 0018) |
 | [0010](0010-supervision-beszel-uptime-kuma.md) | Supervision : Beszel et Uptime Kuma (PikaPods) | acceptée (journaux : voir 0011) |
 | [0011](0011-journaux-victorialogs.md) | Journaux centralisés dans VictoriaLogs | acceptée |
 | [0012](0012-filtrage-dns-blocky.md) | Filtrage DNS du réseau local par Blocky | acceptée (bascule du DHCP non constatée au 05/11, à confirmer) |
-| [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | proposée |
+| [0013](0013-kubernetes-pas-maintenant.md) | Pas de Kubernetes en prod ; k3s + Flux pour apprendre | acceptée (pas de Kubernetes ; volet apprentissage écarté le 2026-11-04) |
 | [0014](0014-homebox.md) | Homebox sur disque local, derrière le SSO, inscription fermée | acceptée |
 | [0015](0015-acces-de-secours-wireguard.md) | Accès de secours au LAN par WireGuard sur le LXC newt, sans Pangolin | rejetée (couvert par les runbooks) |
 | [0016](0016-login-unifie-oidc.md) | Login unifié : Authelia (passkey + mot de passe, ou mot de passe + TOTP), IdP OIDC du mur Pangolin et des applis, login local gardé en secours | remplacée par 0030 |

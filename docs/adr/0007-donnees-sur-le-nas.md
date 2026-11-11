@@ -1,6 +1,6 @@
 # 0007. NAS : données d'applis en NFSv3, Jellyfin sur le NAS, relais du 443
 
-- **Statut** : acceptée
+- **Statut** : acceptée (volet NFS non appliqué depuis le 2026-11-04 : le rôle `nas_storage` est gardé, aucune appli n'en dépend ; Jellyfin et le relais du 443 sont en place)
 - **Date** : 2026-10-26 (NFS), 2026-10-27 (Jellyfin), 2026-10-28 (relais du 443)
 
 ## Contexte

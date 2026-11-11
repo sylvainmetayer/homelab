@@ -1,6 +1,6 @@
 # 0013. Kubernetes : pas pour la prod maintenant ; k3s + Flux pour apprendre, plus tard
 
-- **Statut** : proposée
+- **Statut** : acceptée (pas de Kubernetes ; le volet k3s + Flux pour apprendre a été écarté le 2026-11-04)
 - **Date** : 2026-10-28
 
 ## Contexte
