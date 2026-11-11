@@ -304,6 +304,21 @@ class RealPlaybooks(unittest.TestCase):
         result, _ = self.run_script("ansible/host_vars/flip/variables.yaml")
         self.assertEqual(result, {p: ("all" if p == "ansible/flip.yml" else "") for p in DEPLOYED_PLAYBOOKS})
 
+    def test_host_vars_of_every_deployed_host_deploy_its_playbook(self):
+        # On the real playbooks: docker.yml's `hosts:` is a Jinja expression
+        # with a default, which once matched no host_vars directory.
+        for host, playbook in (("docker", "ansible/docker.yml"), ("pi", "ansible/pi.yml"),
+                               ("flip", "ansible/flip.yml"), ("pangolin", "ansible/pangolin.yaml")):
+            result, stderr = self.run_script(f"ansible/host_vars/{host}/variables.yaml")
+            self.assertEqual(result, {p: ("all" if p == playbook else "") for p in DEPLOYED_PLAYBOOKS}, host)
+            self.assertIn(f"-> whole {playbook}", stderr)
+
+    def test_default_host_reads_the_default_of_a_templated_pattern(self):
+        self.assertEqual(rdt.default_host("{{ drill_target | default('docker') }}"), "docker")
+        self.assertEqual(rdt.default_host('{{ target|default("pi") }}'), "pi")
+        self.assertEqual(rdt.default_host("flip"), "flip")
+        self.assertEqual(rdt.default_host("{{ target }}"), "{{ target }}")
+
     def test_host_vars_of_a_manual_host_deploy_nothing(self):
         for host in ("nas", "pve", "newt-lxc"):
             result, _ = self.run_script(f"ansible/host_vars/{host}/variables.yaml")
