@@ -296,9 +296,10 @@ flowchart LR
   `pro` et `secours` pour les deux fichiers ; `github-actions` pour `secrets/ansible.sops.yaml` seulement
   (la CI n'a pas les jetons cloud).
 - **States OpenTofu** : tous dans le bucket S3 `homelab-tf-state-sylvain`
-  (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Ceux de `pangolin`, `github`,
-  `s3_state` et `keepass_backup` sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
-  `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`, sans repli en clair).
+  (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Tous sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
+  `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`) sauf celui de `pangolin_config` ;
+  sept modules (`proxmox`, `site`, `ref`, `1y`, `planning`, `keycloak_demo_planning_kc`, `dns`) gardent un repli en clair
+  jusqu'à leur premier apply.
   Celui de `pangolin_config` reste en clair parce qu'Ansible le lit : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
   lire cet objet. Pour cette raison il ne lit ni `data sops_file` ni le state

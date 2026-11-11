@@ -16,7 +16,7 @@ variable "sylvain_dev_apex_to_pangolin" {
 # TF_VAR_state_encryption_passphrase : clé de secrets/secrets.sops.yaml, que
 # mise charge dans l'environnement. Les tests en donnent une factice.
 variable "state_encryption_passphrase" {
-  description = "Passphrase PBKDF2 du chiffrement des states tofu/pangolin (lu par terraform_remote_state)"
+  description = "Passphrase PBKDF2 du chiffrement du state de ce module et de celui de tofu/pangolin (lu par terraform_remote_state)"
   type        = string
   sensitive   = true
 }
