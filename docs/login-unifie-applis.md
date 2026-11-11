@@ -8,10 +8,10 @@
 > Pocket ID n'a ni mot de passe ni TOTP.
 
 Détail de l'[ADR 0016](adr/0016-login-unifie-oidc.md) (remplacée par 0030) : support
-OIDC de chaque appli à la version déployée le 2026-10-29, effort, et ce qui
+OIDC de chaque appli à la version étudiée (le tableau date du 2026-10-29, quelques lignes ont été mises à jour depuis ; les versions déployées avancent avec Renovate, la vraie est dans le rôle de l'appli), effort, et ce qui
 reste en dehors. Ce qui n'a pu être sourcé est marqué « à confirmer ».
 
-| Appli (version) | OIDC | Source | Effort | Login local gardé |
+| Appli (version étudiée) | OIDC | Source | Effort | Login local gardé |
 |---|---|---|---|---|
 | Homebox 0.27.1 (branché, Sylvain seul) | natif, liaison par e-mail | [conf.go](https://github.com/sysadminsmedia/homebox/blob/v0.27.1/backend/internal/sys/config/conf.go) | faible | oui (`ALLOW_LOCAL_LOGIN`) ; chaque nouveau compte a son propre foyer, hors de l'invitation de groupe de [0014](adr/0014-homebox.md) : allowed groups, et effet de l'inscription fermée sur la création OIDC à confirmer |
 | Immich v3.3.5 (branché, le foyer) | natif, réglé dans l'UI ; rôle par claim `immich_role` (groupe `immich-admin`), liaison par e-mail sans vérification, auto-register coupé ; mobile `app.immich:///oauth-callback` | [doc](https://docs.immich.app/administration/oauth) | faible | oui (`passwordLogin`) |
