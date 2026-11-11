@@ -72,6 +72,19 @@ class CronTest(unittest.TestCase):
         # A schedule event has no `after`: reading it would empty the catch-up.
         self.assertNotIn("github.event.after", WORKFLOW.read_text())
 
+    def test_dispatch_without_tags_catches_main_up(self):
+        # Only a dispatch with forced tags skips the diff; without tags it is
+        # a catch-up like schedule (ci.md), not a green "nothing to deploy".
+        steps = yaml.safe_load(WORKFLOW.read_text())["jobs"]["deploy"]["steps"]
+        step = next(s for s in steps if s.get("name") == "Determine changed files")
+        self.assertIn("INPUT_TAGS", step["env"])
+        self.assertIn('"$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$INPUT_TAGS"', step["run"])
+        self.assertIn('"$EVENT_NAME" != "push"', step["run"])
+
+    def test_jobs_have_a_timeout(self):
+        for name, job in yaml.safe_load(WORKFLOW.read_text())["jobs"].items():
+            self.assertIn("timeout-minutes", job, name)
+
     def test_a_cron_hits_the_opening_summer_and_winter(self):
         for d in (utc(2026, 1, 15), utc(2026, 7, 15)):
             hours = [d.replace(hour=h, minute=m).astimezone(PARIS).hour for h, m in self.slots()]

@@ -74,6 +74,7 @@ jobs:
   window:
     name: window
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: write # gh run cancel
@@ -106,6 +107,10 @@ jobs:
     name: deploy-docker-app
     needs: window
     runs-on: ubuntu-26.04
+    # 58 min mesurées avec les quatre hôtes à la suite (09/11) : sans borne, un
+    # ansible-playbook figé garderait le groupe de concurrence, le tunnel OLM
+    # et les secrets de production jusqu'aux 6 h de GitHub.
+    timeout-minutes: 120
     # Secrets de déploiement (clé age, clé SSH, OLM) : environnement lisible
     # depuis main seulement (tofu/github/environments.tf).
     environment: production
@@ -146,6 +151,7 @@ jobs:
         id: changed-files
         env:
           EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAGS: ${{ inputs.tags }}
           BEFORE_SHA: ${{ github.event.before }}
           # github.sha, not event.after: a schedule event has no `after`, and an
           # empty AFTER_SHA would make every catch-up "nothing to deploy".
@@ -153,7 +159,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          # Dispatch with forced tags: they replace the detection (Resolve ansible
+          # tags). Dispatch without tags catches main up like a schedule run.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$INPUT_TAGS" ]; then
             echo "files=" >> "$GITHUB_OUTPUT"
             echo "base=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -184,11 +192,12 @@ jobs:
             fi
           fi
 
-          if [ "$EVENT_NAME" = "schedule" ]; then
-            # The morning catch-up of the quiet window: main since the last
-            # success, or nothing. Never "this push only" (there is no push).
+          if [ "$EVENT_NAME" != "push" ]; then
+            # The morning catch-up of the quiet window (schedule), or a dispatch
+            # without tags: main since the last success, or nothing. Never "this
+            # push only" (there is no push).
             if [ -z "$base" ]; then
-              echo "::notice::schedule: nothing to catch up (main is already deployed, or no usable last successful run)"
+              echo "::notice::$EVENT_NAME: nothing to catch up (main is already deployed, or no usable last successful run)"
               echo "files=" >> "$GITHUB_OUTPUT"
               echo "base=" >> "$GITHUB_OUTPUT"
               exit 0
@@ -298,6 +307,13 @@ jobs:
           pi_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/pi.yml"])' "$result")"
           pangolin_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/pangolin.yaml"])' "$result")"
           flip_tags="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ansible/flip.yml"])' "$result")"
+          # A dispatch without tags still honours the playbook choice.
+          case "$INPUT_PLAYBOOK" in
+            docker) pi_tags=""; pangolin_tags=""; flip_tags="" ;;
+            pi) docker_tags=""; pangolin_tags=""; flip_tags="" ;;
+            pangolin) docker_tags=""; pi_tags=""; flip_tags="" ;;
+            flip) docker_tags=""; pi_tags=""; pangolin_tags="" ;;
+          esac
 
           {
             echo "docker_tags=$docker_tags"
@@ -485,6 +501,7 @@ jobs:
               > "$RUNNER_TEMP/deploy-pi.log" 2>&1 || rc=$?
             echo "$rc" > "$RUNNER_TEMP/deploy-pi.rc"
           ) > /dev/null 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/deploy-pi.pid"
 
       - name: Deploy docker
         if: ${{ !cancelled() && steps.ci-inventory.outcome == 'success' && steps.resolve-tags.outputs.docker_tags != '' }}
@@ -509,7 +526,17 @@ jobs:
         run: |
           # Started by "Start the pi deploy in the background": wait for its
           # exit code file, print the buffered log, fail with its code.
-          while [ ! -s "$RUNNER_TEMP/deploy-pi.rc" ]; do sleep 5; done
+          # Bounded: a subshell killed before writing its code would otherwise
+          # leave this loop waiting for the job timeout.
+          while [ ! -s "$RUNNER_TEMP/deploy-pi.rc" ]; do
+            if ! kill -0 "$(cat "$RUNNER_TEMP/deploy-pi.pid")" 2>/dev/null; then
+              [ -s "$RUNNER_TEMP/deploy-pi.rc" ] && break
+              echo "::error::the pi deploy process is gone without an exit code"
+              cat "$RUNNER_TEMP/deploy-pi.log" || true
+              exit 1
+            fi
+            sleep 5
+          done
           rc="$(cat "$RUNNER_TEMP/deploy-pi.rc")"
           cat "$RUNNER_TEMP/deploy-pi.log"
           exit "$rc"
