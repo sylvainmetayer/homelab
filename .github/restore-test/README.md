@@ -71,7 +71,8 @@ ce workflow ne puisse lire ni la clé age ni la clé de déploiement :
   la Storage Box est celle des hôtes (`backup_storage_box_host_key`,
   `ansible/group_vars/all/variables.yml`) ;
 - `RESTORE_TEST_BORG_PASSPHRASE` : `backup_passphrase`, commune à tous les
-  dépôts ;
+  dépôts, et rien d'autre : la graine des secrets d'appli (`app_secrets_master`,
+  ADR 0034) n'y va pas, `restore_test.py` ne dérive aucun secret ;
 - `RESTORE_TEST_PUSH_URL` : le moniteur.
 
 ## `apps.json`

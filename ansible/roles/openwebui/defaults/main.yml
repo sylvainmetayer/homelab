@@ -10,7 +10,7 @@ openwebui_domain: openwebui.sylvain.cloud
 # celles de Karakeep et Papra : pas d'entrée SOPS. La changer déconnecte tout le
 # monde (et rend illisibles les secrets d'intégrations que l'appli chiffre avec
 # elle : aucun ici).
-openwebui_secret_key: "{{ (backup_passphrase ~ '-openwebui-secret-key') | hash('sha256') }}"
+openwebui_secret_key: "{{ (app_secrets_seed ~ '-openwebui-secret-key') | hash('sha256') }}"
 
 # Inscription locale fermée : un compte ne naît que d'une connexion Pocket ID
 # (ENABLE_OAUTH_SIGNUP, groupe openwebui). Le formulaire de connexion par mot
@@ -64,7 +64,7 @@ openwebui_searxng_enabled: true
 openwebui_searxng_image: docker.io/searxng/searxng:2026.11.9-57ff753ad@sha256:287af61f1a13e86d02974fcde91a3413a9945788de38b61ffbc491d81a19bcc2
 # Clé de signature de SearXNG (jetons de formulaire), dérivée comme les autres :
 # pas d'entrée SOPS.
-openwebui_searxng_secret_key: "{{ (backup_passphrase ~ '-searxng') | hash('sha256') }}"
+openwebui_searxng_secret_key: "{{ (app_secrets_seed ~ '-searxng') | hash('sha256') }}"
 # Moteurs interrogés (noms de settings.yml de SearXNG). Peu, pour rester sous
 # les limites de débit des moteurs depuis une seule IP domestique.
 openwebui_searxng_engines:

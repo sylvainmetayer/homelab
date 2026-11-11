@@ -10,12 +10,12 @@ jellystat_timezone: Europe/Paris
 jellystat_db_name: jellystat
 jellystat_db_user: jellystat
 
-# Dérivés de backup_passphrase, comme ceux de HealthLog et Dawarich : pas de
+# Dérivés de app_secrets_seed, comme ceux de HealthLog et Dawarich : pas de
 # clé SOPS, un sel distinct par secret. Le mot de passe de la base n'est lu
 # que par le dump borgmatic et l'appli ; JWT_SECRET signe les sessions de
 # Jellystat (le changer déconnecte tout le monde, rien d'autre).
-jellystat_db_password: "{{ (backup_passphrase ~ '-jellystat-db') | hash('sha256') }}"
-jellystat_jwt_secret: "{{ (backup_passphrase ~ '-jellystat-jwt') | hash('sha256') }}"
+jellystat_db_password: "{{ (app_secrets_seed ~ '-jellystat-db') | hash('sha256') }}"
+jellystat_jwt_secret: "{{ (app_secrets_seed ~ '-jellystat-jwt') | hash('sha256') }}"
 
 # La clé d'API de Jellyfin est la clé SOPS `jellystat_jellyfin_api_key`
 # (secrets/ansible.sops.yaml), jamais définie ici : une valeur de rôle serait

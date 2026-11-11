@@ -78,3 +78,4 @@ au plus :
 | [0031](0031-certificats-jokers.md) | Un certificat joker par domaine (DNS-01) au lieu d'un certificat par nom | acceptée |
 | [0032](0032-passerelle-ia-pangolin.md) | Passerelle IA de Pangolin : une clé et un budget par appli, sans filtre FR/DE (exception à 0002) | acceptée |
 | [0033](0033-postgresql-partage-sur-la-vm-docker.md) | Un PostgreSQL partagé sur la VM docker : pas maintenant, 30 à 160 Mio gagnés pour une isolation perdue | proposée |
+| [0034](0034-graine-des-secrets-d-appli.md) | Graine dédiée pour les secrets d'appli dérivés, séparée de `backup_passphrase` | acceptée (séparation réelle après création de la clé et rotation) |
