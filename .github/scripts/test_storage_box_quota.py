@@ -134,7 +134,9 @@ class MainTest(unittest.TestCase):
         with (
             mock.patch.dict(os.environ, environ, clear=True),
             mock.patch.object(storage_box_quota, "fetch", side_effect=fetched),
-            mock.patch.object(storage_box_quota, "fetch_snapshots", side_effect=lambda *a: snaps or fresh()),
+            mock.patch.object(
+                storage_box_quota, "fetch_snapshots", side_effect=snaps if callable(snaps) else lambda *a: snaps or fresh()
+            ),
             mock.patch.object(storage_box_quota, "push", side_effect=lambda *a: pushes.append(a)),
             mock.patch("sys.stdout", new_callable=io.StringIO) as stdout,
         ):
@@ -157,6 +159,16 @@ class MainTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertEqual(pushes[0][1], "down")
         self.assertIn("aucun snapshot", pushes[0][2])
+
+    def test_snapshot_api_error_is_named_and_keeps_the_quota(self):
+        def fail(*_):
+            raise urllib.error.HTTPError("https://api.hetzner.com", 403, "Forbidden", {}, io.BytesIO())
+
+        rc, pushes, _ = self.run_main(lambda *a: payload(TIB // 4), snaps=fail)
+        self.assertEqual(rc, 1)
+        self.assertEqual(pushes[0][1], "down")
+        self.assertIn("25.0 % occupés", pushes[0][2])
+        self.assertIn("snapshots illisibles : API Hetzner : HTTP 403", pushes[0][2])
 
     def test_api_error_pushes_down_without_the_token(self):
         def fail(*_):
