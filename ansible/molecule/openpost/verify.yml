@@ -1,0 +1,97 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the openpost deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: openpost
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/openpost.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-openpost-backup
+
+    - name: Verify the healthcheck of openpost
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: openpost
+        verify_compose_healthchecks:
+          - openpost
+
+    - name: Read the openpost files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/openpost/.env
+        - /opt/apps/openpost/compose.yaml
+        - "{{ borgmatic_config_dir }}/openpost.yaml"
+      register: openpost_files
+      no_log: true
+
+    - name: Stat the openpost environment file and data folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/openpost/.env
+        - /opt/apps/openpost/data
+      register: openpost_stats
+
+    - name: Parse the openpost files
+      no_log: true
+      ansible.builtin.set_fact:
+        openpost_env: >-
+          {{ dict((openpost_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        openpost_compose: "{{ openpost_files.results[1].content | b64decode | from_yaml }}"
+        openpost_borgmatic: "{{ openpost_files.results[2].content | b64decode | from_yaml }}"
+
+    # Le .env porte les deux secrets et le mot de passe SMTP ; ./data est au
+    # seul utilisateur du conteneur.
+    - name: Assert the openpost secret file is private and the data belongs to the container user
+      ansible.builtin.assert:
+        that:
+          - openpost_stats.results[0].stat.mode == '0600'
+          - openpost_stats.results[0].stat.pw_name == ansible_facts['user_id']
+          - openpost_stats.results[1].stat.mode == '0700'
+          - openpost_stats.results[1].stat.uid == 1000
+        fail_msg: "{{ openpost_stats.results | map(attribute='stat.mode') | list }} : .env en 0600, data en 0700 à l'uid 1000"
+
+    # Deux secrets distincts, 32 octets en base64 ; médias sous /media du même
+    # hôte ; SMTP Infomaniak du compte partagé (fake_secrets.yml).
+    - name: Assert the openpost environment comes from the role and the secrets
+      ansible.builtin.assert:
+        that:
+          - openpost_env.OPENPOST_APP_URL == 'https://posts.sylvain.cloud'
+          - openpost_env.OPENPOST_PUBLIC_URL == 'https://posts.sylvain.cloud'
+          - openpost_env.OPENPOST_MEDIA_URL == 'https://posts.sylvain.cloud/media'
+          - (openpost_env.OPENPOST_JWT_SECRET | b64decode | length) == 32
+          - (openpost_env.OPENPOST_ENCRYPTION_KEY | b64decode | length) == 32
+          - openpost_env.OPENPOST_JWT_SECRET != openpost_env.OPENPOST_ENCRYPTION_KEY
+          - openpost_env.OPENPOST_TRUSTED_PROXY_CIDRS == '172.16.0.0/12'
+          - openpost_env.OPENPOST_EMAIL_PROVIDER == 'smtp'
+          - openpost_env.OPENPOST_SMTP_HOST == 'mail.infomaniak.com'
+          - openpost_env.OPENPOST_SMTP_USERNAME == pangolin_smtp_user
+          - openpost_env.OPENPOST_SMTP_PASSWORD == pangolin_smtp_pass
+        fail_msg: "Environnement d'openpost inattendu : {{ openpost_env.keys() | list }}"
+
+    # Cible Pangolin : conteneur `openpost`, port 8080, sur newt seulement.
+    - name: Assert the openpost container joins newt and stays hardened
+      ansible.builtin.assert:
+        that:
+          - openpost_compose.networks.newt.external
+          - openpost_compose.services.openpost.container_name == 'openpost'
+          - openpost_compose.services.openpost.networks == ['newt']
+          - openpost_compose.services.openpost.user == '1000:1000'
+          - openpost_compose.services.openpost.cap_drop == ['ALL']
+          - "'no-new-privileges:true' in openpost_compose.services.openpost.security_opt"
+        fail_msg: Réseau ou durcissement d'openpost inattendu.
+
+    - name: Assert the openpost backup covers its data, its key and its database
+      ansible.builtin.assert:
+        that:
+          - "'/opt/apps/openpost/data' in openpost_borgmatic.source_directories"
+          - "'/opt/apps/openpost/.env' in openpost_borgmatic.source_directories"
+        fail_msg: "Configuration borgmatic d'openpost inattendue : {{ openpost_borgmatic.source_directories }}"

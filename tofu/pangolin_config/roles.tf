@@ -39,7 +39,7 @@ locals {
     "yamtrack",
     "openwebui",
     "healthlog",
-    "postiz"
+    "openpost"
   ]
 
   # Optional+computed : non déclarés, un changement dans l'UI ne se voit pas au

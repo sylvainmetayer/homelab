@@ -18,7 +18,7 @@ instantanés de la Storage Box).
 
 Le serveur `flip` est perdu ou irrécupérable (disque corrompu, compromission,
 suppression) et [flip-injoignable.md](flip-injoignable.md) n'a pas suffi : Flip
-Planning, Postiz et Promptoramix sont hors ligne. flip n'a pas d'IP publique : la console
+Planning, OpenPost et Promptoramix sont hors ligne. flip n'a pas d'IP publique : la console
 Hetzner est le seul accès hors réseau.
 
 ## Diagnostic
@@ -30,7 +30,7 @@ Hetzner est le seul accès hors réseau.
   [reconstruction-pangolin.md](reconstruction-pangolin.md).
 - Les dépôts Borg se lisent depuis n'importe quel hôte avec le sous-compte en
   lecture seule `restore-test` (même méthode que pour Pangolin) : vérifier que
-  `flip_planning`, `demo_planning` et `postiz` ont une archive récente avant de détruire
+  `flip_planning`, `demo_planning` et `openpost` ont une archive récente avant de détruire
   quoi que ce soit.
 - Ce qui n'est **pas** dans Borg : Promptoramix (journal de coups, hors
   sauvegarde, `docs/matrice-des-donnees.md`), la démo Keycloak et la vitrine
@@ -110,10 +110,9 @@ Hetzner est le seul accès hors réseau.
      `pg_restore` ; `compose.yaml` et `pgadmin` sont déjà reposés par
      l'étape 4, ne pas les recopier de l'archive ;
    - redémarrer l'appli, puis vérifier avec les animateurs et le planning réels.
-   - **Postiz** : rejouer les trois dumps (`postiz`, `temporal`,
-     `temporal_visibility`) dans le PostgreSQL seul, **avant** de démarrer
-     `temporal`, et remettre `uploads/` (`ansible/roles/postiz/README.md`,
-     « Sauvegarde »).
+   - **OpenPost** : remettre `data/` et la copie SQLite d'`openpost.db`
+     (`data/db/`), avec le `.env` de l'archive si `app_secrets_seed` a changé
+     (`ansible/roles/openpost/README.md`, « Sauvegarde »).
 
    Les sauvegardes de la nuit n'ont pas encore été reposées : la dernière
    archive saine reste celle d'avant la panne.

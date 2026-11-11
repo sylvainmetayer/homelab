@@ -44,7 +44,7 @@
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
         exemple_planning_reset_healthcheck_url: "{{ terraform_outputs.uptime_cron_exemple_planning_reset_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_flip_updates_url.value | default('') }}"
-        postiz_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_postiz_url.value | default('') }}"
+        openpost_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_openpost_url.value | default('') }}"
         newt_client_id: "{{ terraform_outputs.flip_newt_id.value | default('') }}"
         newt_client_secret: "{{ terraform_outputs.flip_newt_secret.value | default('') }}"
         # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
@@ -129,8 +129,8 @@
     - role: flip_planning
       tags: demo_planning,app
       vars:
-        # PAUSED since 2026-11-11 (docs/runbooks/app-en-pause.md), to give its
-        # memory to Postiz: demo_planning_enabled, host_vars/flip. Moves with
+        # PAUSED since 2026-11-11 (docs/runbooks/app-en-pause.md), stopped for the
+        # Postiz trial and left so: demo_planning_enabled, host_vars/flip. Moves with
         # `enabled = false` in tofu/pangolin_config/website_demo_planning.tf.
         flip_planning_enabled: "{{ demo_planning_enabled }}"
         flip_planning_service: demo_planning
@@ -304,12 +304,11 @@
     # checked with promptoramix_linkx_secret is its only guard.
     - role: promptoramix
       tags: promptoramix,app
-    # Postiz, planification de publications sur les réseaux sociaux
-    # (posts.sylvain.cloud, SSO puis Pocket ID) : l'appli, son PostgreSQL,
-    # redis et Temporal. Rien de Flip Planning : elle cède le CPU à la
-    # production (cpu_shares, compose du rôle).
-    - role: postiz
-      tags: postiz,app
+    # OpenPost, planification de publications sur les réseaux sociaux
+    # (posts.sylvain.cloud, SSO puis son propre login, Pocket ID compris) : un
+    # conteneur, SQLite et médias sous ./data.
+    - role: openpost
+      tags: openpost,app
     # Agent de supervision, vers le hub par sa ressource publique (PASS sur
     # /api/beszel/agent-connect, jeton d'accès Pangolin en en-têtes), à
     # travers le NAT de Pangolin.

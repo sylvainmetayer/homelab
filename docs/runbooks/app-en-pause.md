@@ -6,12 +6,12 @@ compose, données, volumes, dépôt borg et ses archives, ressource Pangolin,
 jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Trois apps
 sont en pause : la démo de Flip Planning (`demo_planning_enabled: false` dans
 `host_vars/flip`, lu par son entrée de `flip.yml`, depuis le 2026-11-11 : sa
-mémoire va à Postiz, flip n'a pas la place pour les deux), le banc Keycloak de Flip Planning
+mémoire avait été libérée pour l'essai de Postiz, retiré depuis ; laissée en pause), le banc Keycloak de Flip Planning
 (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)) depuis
 octobre 2026, la vitrine publique (`exemple_planning`, voir
 [plus bas](#la-vitrine-publique-de-flip-planning)) depuis novembre 2026. Paperless-ngx a été en pause d'octobre à novembre 2026, puis
 supprimé (remplacé par Papra) : les exemples ci-dessous disent `<app>` et
-supposent la voie `host_vars` (Paperless, Postiz le 2026-11-11 ; la démo de Flip
+supposent la voie `host_vars` (Paperless, Postiz le 2026-11-11, retiré depuis ; la démo de Flip
 Planning la suit par une variable propre, `demo_planning_enabled`, que son
 entrée de `flip.yml` passe à `flip_planning_enabled`).
 

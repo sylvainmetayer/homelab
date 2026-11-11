@@ -1,0 +1,84 @@
+---
+- name: Ensure OpenPost app folder exists
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ openpost_base_path }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+
+# Le conteneur tourne en uid 1000 (utilisateur `openpost` de l'image) : seul
+# écrivain de la base et des médias.
+- name: Ensure the OpenPost data folder belongs to the container user
+  become: true
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ openpost_base_path }}/data"
+    state: directory
+    owner: "1000"
+    group: "1000"
+
+- name: Template compose configuration
+  diff: false
+  notify: "{{ openpost_restart_handlers }}"
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ openpost_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template environment configuration
+  diff: false
+  no_log: true
+  notify: "{{ openpost_restart_handlers }}"
+  ansible.builtin.template:
+    src: "templates/env.j2"
+    dest: "{{ openpost_base_path }}/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
+- name: Configure borgmatic backup for OpenPost
+  when: openpost_enabled | bool and openpost_backup_enabled | bool
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: openpost
+    borgmatic_app_title: OpenPost
+    borgmatic_app_target: "{{ openpost_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ openpost_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ openpost_backup_healthcheck_url }}"
+    # Le .env porte OPENPOST_ENCRYPTION_KEY, sans laquelle les identifiants
+    # des réseaux enregistrés dans la base ne se relisent pas.
+    borgmatic_app_source_directories:
+      - "{{ openpost_base_path }}/data"
+      - "{{ openpost_base_path }}/compose.yaml"
+      - "{{ openpost_base_path }}/.env"
+    # openpost.db, en WAL (database.go).
+    borgmatic_app_sqlite_databases:
+      - "{{ openpost_base_path }}/data/db/*.db"
+
+- name: Remove the borgmatic configuration of the paused openpost
+  when: not openpost_enabled | bool
+  tags: backup
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ borgmatic_config_dir }}/openpost.yaml"
+    - "{{ borgmatic_config_dir }}/uptime-kuma/openpost.curl"
+
+- name: Make sure openpost service is running, or stopped when paused
+  ansible.builtin.systemd:
+    state: "{{ 'started' if openpost_enabled | bool else 'stopped' }}"
+    daemon_reload: true
+    name: dc@openpost
+    scope: user
+    enabled: "{{ openpost_enabled | bool }}"
