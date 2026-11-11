@@ -29,22 +29,28 @@ retour arrière autre que la sauvegarde.
    leur compte.
 4. `ansible-playbook docker.yml --tags homepage` pour le lien sur Homepage.
 
-## Connexion par Pocket ID (à la main, une fois)
+## Connexion par Pocket ID
 
-OpenPost règle son SSO dans son interface, pas par variables, et ne le
-documente pas : lu dans le code (`identity/service.go`, v7.38.6), **jamais
-essayé ici**.
+Bouton « Pocket ID » sur la page de login : le fournisseur OIDC « d'instance »
+d'OpenPost, posé par le rôle (`OPENPOST_OIDC_*`) depuis les sorties Tofu du
+client `openpost` (`pocket_id.tf`). Rien à saisir. Rappel
+`https://posts.sylvain.cloud/api/v1/auth/oidc/instance/callback`, PKCE,
+e-mail vérifié exigé. Non documenté en amont : lu dans le code
+(`config.go`, `identity/service.go`, v7.38.6).
 
-1. Lire le secret : `mise exec -- tofu -chdir=tofu/pangolin_config output -raw pocket_id_openpost_client_secret`.
-2. Dans OpenPost, réglages de l'organisation, section SSO : ajouter un
-   fournisseur OIDC, émetteur `https://id.sylvain.cloud`, client `openpost`,
-   le secret, scopes `openid profile email`, création de compte à la première
-   connexion (« JIT ») cochée pour le foyer.
-3. Le rappel est `https://posts.sylvain.cloud/api/v1/auth/oidc/<id>/callback`,
-   `<id>` étant créé par OpenPost à cette étape. Le client Pocket ID
-   (`pocket_id.tf`) l'accepte par un joker (`/oidc/*/callback`). Si Pocket ID
-   refuse le rappel, remplacer le joker par l'URL exacte et appliquer.
-4. OpenPost exige un e-mail vérifié : c'est le cas des comptes Pocket ID.
+- **Compte existant** (le tien, créé par mot de passe) : OpenPost ne relie pas
+  par e-mail. Connecté en local, lier l'identité depuis le profil (sécurité,
+  identités liées) ; ensuite le bouton ouvre ce compte.
+- **Nouveau venu du foyer** : son premier login Pocket ID crée son compte
+  (`OPENPOST_OIDC_JIT_ENABLED`), le groupe `openpost` est la barrière.
+- **Ne pas passer le SSO en « obligatoire »** dans les réglages de
+  l'organisation sans identité liée : tout l'espace de travail répond alors 403
+  (vécu le 2026-11-11). Sortie : sur flip,
+  `docker exec openpost sqlite3 /data/db/openpost.db "update organization_sso_policies set mode = 'disabled'"`.
+  `OPENPOST_SSO_BREAK_GLASS_EMAILS` (non posé) exempte des comptes de cette
+  obligation.
+- Les fournisseurs créés à la main dans l'organisation (SSO d'organisation)
+  sont un autre mécanisme, sans bouton sur la page de login : inutiles ici.
 
 Le mot de passe local (et les passkeys d'OpenPost) restent : c'est le secours
 si Pocket ID est en panne, avec « mot de passe oublié » par mail.

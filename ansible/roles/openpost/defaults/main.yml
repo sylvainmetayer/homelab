@@ -14,6 +14,16 @@ openpost_restart_handlers: "{{ ['Restart openpost'] if openpost_enabled | bool e
 openpost_jwt_secret: "{{ ((app_secrets_seed ~ '-openpost-jwt') | hash('sha256'))[:32] | b64encode }}"
 openpost_encryption_key: "{{ ((app_secrets_seed ~ '-openpost-enc') | hash('sha256'))[:32] | b64encode }}"
 
+# Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client openpost) :
+# le fournisseur OIDC « d'instance » d'OpenPost (OPENPOST_OIDC_*), celui qui
+# met un bouton sur la page de login. Rendu seulement quand l'émetteur,
+# l'identifiant et le secret sont dans le state. Un login Pocket ID sans
+# identité liée crée un compte (JIT) : le groupe Pocket ID est la barrière.
+openpost_oidc_client_id: "{{ terraform_outputs.pocket_id_openpost_client_id.value | default('') }}"
+openpost_oidc_client_secret: "{{ terraform_outputs.pocket_id_openpost_client_secret.value | default('') }}"
+openpost_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
+openpost_oidc_enabled: "{{ openpost_oidc_client_id | length > 0 and openpost_oidc_client_secret | length > 0 and openpost_oidc_issuer | length > 0 }}"
+
 # Le premier compte créé est administrateur de l'instance. Derrière le mur
 # Pangolin, seul le groupe `openpost` atteint la page d'inscription : passer à
 # true une fois le compte créé (README), les logins Pocket ID créent le leur.

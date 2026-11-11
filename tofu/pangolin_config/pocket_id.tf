@@ -344,17 +344,17 @@ output "pocket_id_immich_client_secret" {
   sensitive   = true
 }
 
-# OpenPost (le foyer, sur flip) : fournisseur OIDC saisi à la main dans son
-# interface (Organisation, SSO), comme Immich et Wishlist. Rappel
-# /api/v1/auth/oidc/<id du fournisseur>/callback, l'id étant créé par OpenPost
-# à la saisie (identity/service.go, v7.38.6) : d'où le joker. PKCE S256
-# envoyé ; e-mail vérifié exigé ; compte créé au premier login si « JIT » est
-# coché. Pas de logo amont stable : icône mdi, comme sur Homepage.
+# OpenPost (le foyer, sur flip) : OPENPOST_OIDC_* du rôle openpost, son
+# fournisseur OIDC « d'instance » (id fixe `instance`, d'où le rappel ;
+# identity/service.go, v7.38.6). PKCE S256 envoyé ; e-mail vérifié exigé ;
+# pas de liaison par e-mail : un compte existant lie son identité depuis son
+# profil, sinon le login crée un compte (JIT). Pas de logo amont stable :
+# icône mdi, comme sur Homepage.
 resource "pocketid_client" "openpost" {
   name                = "OpenPost"
   client_id           = "openpost"
   client_secret       = random_password.pocket_id_client["openpost"].result
-  callback_urls       = ["https://posts.sylvain.cloud/api/v1/auth/oidc/*/callback"]
+  callback_urls       = ["https://posts.sylvain.cloud/api/v1/auth/oidc/instance/callback"]
   allowed_user_groups = [pocketid_group.pangolin_role["openpost"].id]
   launch_url          = "https://posts.sylvain.cloud"
   logo_url            = "${local.pocket_id_mdi_base}/send-clock.svg"
@@ -521,8 +521,13 @@ output "pocket_id_karakeep_client_secret" {
   sensitive   = true
 }
 
+output "pocket_id_openpost_client_id" {
+  description = "POCKET ID - identifiant du client OIDC d'OpenPost"
+  value       = pocketid_client.openpost.client_id
+}
+
 output "pocket_id_openpost_client_secret" {
-  description = "POCKET ID - secret du client OIDC d'OpenPost (saisi dans son interface)"
+  description = "POCKET ID - secret du client OIDC d'OpenPost"
   value       = random_password.pocket_id_client["openpost"].result
   sensitive   = true
 }
