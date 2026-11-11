@@ -138,7 +138,7 @@ class Handler(BaseHTTPRequestHandler):
         # The role filters on role="admin" (one admin account).
         wanted = parse_qs(urlparse(self.path).query).get("filter", [""])[0]
         found = wanted == 'role="admin"'
-        return self.reply(200, {"items": [{"id": self.state.user_id}] if found else []})
+        return self.reply(200, {"items": [{"id": self.state.user_id, "email": self.state.email}] if found else []})
 
     def get_alerts(self, _path):
         return self.reply(200, {"items": self.state.alerts})
