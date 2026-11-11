@@ -8,6 +8,21 @@ sociaux, pour le foyer. Hôte **flip**, `dc@postiz`, quatre conteneurs : `postiz
 sans sortie). Derrière le SSO de Pangolin (rôle `postiz`, groupe Pocket ID du
 même nom), puis la connexion à l'appli par Pocket ID.
 
+## En pause depuis le 2026-11-11
+
+Premier déploiement sur flip le 2026-11-11 : `postiz` 1,1 Gio, `postiz-temporal`
+224 Mio, `postiz-db` 68 Mio, `postiz-redis` 8 Mio, **alors que le backend
+bouclait encore** (attributs de recherche, corrigé depuis : voir plus bas).
+flip est tombée à 479 Mio disponibles et 1,1 Gio de swap ; Flip Planning est
+resté sain. Arrêtée et mise en pause (`postiz_enabled: false` dans
+`host_vars/flip`, `docs/runbooks/app-en-pause.md`). Jamais vue fonctionner.
+
+Reprendre demande d'abord de la place : la VM docker (déplacer l'entrée de
+`flip.yml` vers `docker.yml` et `site_id` vers `pangolin_site.proxmox_docker`),
+ou une flip plus grosse. Sur flip, les bases `temporal*` déjà créées portent
+les attributs d'exemple : supprimer le volume (`docker compose down -v` dans
+`/opt/apps/postiz`, rien à garder) avant de redémarrer.
+
 ## Écarts avec le compose amont
 
 Le [compose amont](https://github.com/gitroomhq/postiz-docker-compose) lance
@@ -15,9 +30,11 @@ neuf conteneurs ; flip a 4 Gio, partagés avec la production de Flip Planning.
 
 - **Pas d'Elasticsearch** : `ENABLE_ES=false`, la visibilité de Temporal est en
   SQL. Postiz n'ajoute que deux attributs de recherche de type texte
-  (`temporal.register.ts`), PostgreSQL en accepte trois. **Lu dans le code,
-  jamais essayé avant le premier déploiement** : si `postiz` boucle au démarrage
-  sur `addSearchAttributes`, c'est ici qu'il faut regarder.
+  (`temporal.register.ts`), PostgreSQL en accepte trois, à condition
+  qu'auto-setup ne crée pas ses attributs d'exemple
+  (`SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES`). Sans ce réglage, `postiz` bouclait sur
+  « cannot have more than 3 search attribute of type Text » (flip,
+  2026-11-11). **Le réglage lui-même n'a pas encore été essayé.**
 - **Un seul PostgreSQL** : Temporal crée ses bases `temporal` et
   `temporal_visibility` dans celui de Postiz (même utilisateur, superutilisateur
   de l'instance).

@@ -110,6 +110,11 @@ services:
       # type texte (temporal.register.ts : organizationId, postId), PostgreSQL
       # en accepte trois. Jamais essayé avec ES coupé avant ce déploiement.
       ENABLE_ES: "false"
+      # Sans lui, auto-setup crée ses attributs d'exemple (CustomTextField,
+      # CustomStringField…) et prend les trois emplacements texte : Postiz
+      # boucle alors sur « cannot have more than 3 search attribute of type
+      # Text » (vu sur flip le 2026-11-11).
+      SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES: "true"
       DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/postiz.yaml
       TEMPORAL_NAMESPACE: default
     volumes:

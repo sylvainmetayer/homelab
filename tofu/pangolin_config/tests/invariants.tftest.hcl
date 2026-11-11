@@ -2176,8 +2176,15 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "exemple_planning"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "exemple_planning", "postiz"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
+  }
+
+  # Postiz : son interrupteur est dans host_vars/flip (le rôle n'y est
+  # appliqué qu'une fois).
+  assert {
+    condition     = lookup(yamldecode(file("${path.module}/../../ansible/host_vars/flip/variables.yaml")), "postiz_enabled", true) == pangolin_resource.website["postiz"].enabled
+    error_message = "postiz_enabled (ansible/host_vars/flip/variables.yaml) et enabled de l'entrée postiz (website_postiz.tf) doivent être égaux."
   }
 
   # Même chose pour le banc Keycloak, dont l'interrupteur est un paramètre de
