@@ -9,6 +9,13 @@ services:
     # expression nue après `image:` devient `image: null` pour Renovate.
     image: "{{ beszel_agent_image_smart if beszel_agent_smart_devices | length > 0 else beszel_agent_image }}"
     container_name: beszel-agent
+{% if beszel_agent_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     # Les statistiques des interfaces réseau de l'hôte.
     network_mode: host
     read_only: true
@@ -57,6 +64,13 @@ services:
     mem_limit: 32m
     image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: beszel-socket-proxy
+{% if beszel_agent_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     user: "65534:{{ beszel_agent_docker_gid }}"
     network_mode: none
     read_only: true

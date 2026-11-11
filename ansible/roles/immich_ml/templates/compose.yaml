@@ -1,6 +1,13 @@
 services:
   immich-machine-learning:
     container_name: immich_machine_learning
+{% if immich_ml_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     # Même version que immich-server du Pi (check_immich_versions.py) ; une
     # montée Renovate déploie le Pi au merge, ce NAS seulement à la main :
     # ansible-playbook nas.yml --tags immich_ml juste après (README).

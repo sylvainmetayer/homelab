@@ -11,6 +11,13 @@ services:
     # des hôtes), que lance la source journald.
     image: docker.io/timberio/vector:0.61.0-debian@sha256:f6c23b5a7e16fb2838d33619ef7acf4bad2289a7cf22bc90efc2371f520c4ea2
     container_name: log-agent
+{% if log_agent_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     # Rien en écoute (API coupée) ; le réseau de l'hôte pour joindre vmauth
     # sur 127.0.0.1 depuis la VM docker elle-même.
     network_mode: host
@@ -55,6 +62,13 @@ services:
     mem_limit: 32m
     image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: log-agent-socket-proxy
+{% if log_agent_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     user: "65534:{{ log_agent_docker_gid }}"
     network_mode: none
     read_only: true
