@@ -17,6 +17,7 @@
     # Jamais lues comme variables : seulement les ancres des plays suivants,
     # comparées en texte brut à flip.yml.
     side_effect_demo_vars: &demo_vars
+      flip_planning_enabled: "{{ demo_planning_enabled }}"
       flip_planning_service: demo_planning
       flip_planning_container_prefix: demo-planning
       flip_planning_domain: demo-planning.sylvain.dev
@@ -123,6 +124,12 @@
   hosts: all
   vars_files: *flip_vars_files
   pre_tasks:
+    # host_vars/flip met la démo en pause ; ici elle tourne, comme dans le
+    # converge : c'est elle qui doit redémarrer.
+    - name: Keep the demo instance running in this scenario
+      ansible.builtin.set_fact:
+        demo_planning_enabled: true
+
     - name: Read when dc@demo_planning last started
       ansible.builtin.systemd:
         name: dc@demo_planning
