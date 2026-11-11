@@ -15,6 +15,8 @@ thin_pool_check_dir: /usr/local/lib/thin-pool-check
 # tofu/pangolin_config, lue par pve.yml) : vide, rien n'est poussé.
 thin_pool_check_healthcheck_url: ""
 
-# Toutes les 6 heures. Le moniteur tolère trois passages manqués
-# (cron_thin_pool.tf).
-thin_pool_check_schedule: "*-*-* 00/6:15:00"
+# Toutes les 6 heures, à :15 de 03, 09, 15 et 21 h : le passage de 21:15 tombe
+# pendant le vzdump de 21:00 (tofu/proxmox/backup.tf), quand le fleecing remplit
+# le pool, le seul moment où il peut approcher du plein. Le moniteur tolère
+# trois passages manqués (cron_thin_pool.tf).
+thin_pool_check_schedule: "*-*-* 03/6:15:00"
