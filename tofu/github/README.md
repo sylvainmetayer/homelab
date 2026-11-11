@@ -192,6 +192,53 @@ dépôt n'en publie pas) ni check requis.
   qui porte son `renovate.json`.
 - [ ] **Installer GitGuardian** sur le dépôt, comme sur les autres.
 
+## Dépôt `homelab`
+
+`repository_homelab.tf` **décrit** les réglages du dépôt qui déploie, relevés
+le 11/11/2026 : public, fusion en rebase seulement (squash et merge commit
+désactivés), branche supprimée après fusion, scan de secrets et protection à
+la poussée actifs, alertes et mises à jour Dependabot désactivées, Actions
+actif (toutes actions permises), `GITHUB_TOKEN` en lecture seule sans droit
+d'approbation de PR. Le dépôt existe : rien ne se crée, tout s'importe. Un
+changement fait ensuite dans l'interface (fusion, jeton, scan) apparaît dans
+le plan.
+
+Import, une fois, depuis `tofu/github` (jeton `GITHUB_TOKEN` exporté ; le
+ruleset `main` et les environnements sont déjà dans l'état, ne pas les
+réimporter) :
+
+```bash
+tofu -chdir=tofu/github import github_repository.homelab homelab
+tofu -chdir=tofu/github import github_repository_vulnerability_alerts.homelab homelab
+tofu -chdir=tofu/github import github_repository_dependabot_security_updates.homelab homelab
+tofu -chdir=tofu/github import github_actions_repository_permissions.homelab homelab
+tofu -chdir=tofu/github import github_workflow_repository_permissions.homelab homelab
+tofu -chdir=tofu/github plan
+```
+
+Pas de bloc `import` : il fait paniquer `tofu test` (docs/conventions/tests.md).
+Le plan qui suit doit être vide, à une exception près : `auto_init` et
+`archive_on_destroy`, attributs du provider sans équivalent côté API,
+s'affichent en « update in-place » ; l'apply les inscrit dans l'état sans
+appeler GitHub. Tout autre écart (fusion, sujets, description, `has_*`) est un
+réglage que l'interface a changé depuis le relevé : trancher avant d'appliquer.
+
+Ce que le provider ne lit ni ne pose, donc **hors Tofu** :
+
+- **Approbation des workflows de PR de fork** (Settings → Actions → General) ;
+  `github_workflow_repository_permissions` ne couvre que le jeton.
+- **Signalement privé de vulnérabilité**, **secret PANGOLIN_ENDPOINT** (posé à
+  la main), l'environnement **`copilot`** (créé par l'agent Copilot, sans
+  règle), les sujets (aucun) et la description (aucune) : non déclarés.
+- **`integration_id` des checks requis** du ruleset `main` : l'API n'en
+  renvoie aucun (source « n'importe quelle app »), en déclarer un modifierait
+  la règle.
+
+Passer au squash pour les commits signés se fait ici
+(`allow_squash_merge`, `allow_rebase_merge`), avant d'activer
+`homelab_require_signed_commits`
+([runbook](../../docs/runbooks/commits-signes.md)).
+
 ## Dépôt `homelab-secrets`
 
 `repository_homelab_secrets.tf` crée le dépôt **privé** qui porte
