@@ -434,7 +434,7 @@
       "allowedVersions": "<3.15"
     },
     {
-      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and only deploy-docker-app runs playbooks with ansible.cfg (Molecule stays linear). Never automerged nor grouped (the weekly digest and patch PR would hide the note); the PR note says what to check",
+      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and Molecule reads no ansible.cfg, so the Tests workflow replays the docker_service scenario with ANSIBLE_STRATEGY=mitogen_linear (a bump that breaks Mitogen fails it). The three move in one PR, never automerged (the PR note says what to check)",
       "matchDatasources": [
         "pypi"
       ],
@@ -443,7 +443,7 @@
         "ansible-core",
         "mitogen"
       ],
-      "groupName": null,
+      "groupName": "ansible-mitogen",
       "automerge": false,
       "prBodyNotes": [
         "**Mitogen** : avant de merger, vérifier dans le changelog de Mitogen (https://mitogen.networkgenomics.com/changelog.html) que la version verrouillée prend en charge cet ansible-core, puis lancer un `ansible-playbook pi.yml --check --tags monitoring` sur cette branche. Sinon, attendre une version de Mitogen, ou merger avec `strategy = linear` dans `ansible/ansible.cfg`."
