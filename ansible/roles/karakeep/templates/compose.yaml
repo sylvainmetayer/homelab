@@ -24,7 +24,9 @@ services:
       - ./data:/data
     # /api/health (« Web app is working », essayé en local sur 0.34.1) ne
     # couvre que Next.js : les workers (crawler, recherche), sous s6 dans le
-    # même conteneur, n'ont pas de route. curl est dans l'image.
+    # même conteneur, n'ont pas de route. curl est dans l'image. Remplace le
+    # HEALTHCHECK de l'image (même route, wget toutes les 30 s), invisible
+    # dans le modèle compose.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 60s

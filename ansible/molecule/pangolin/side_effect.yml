@@ -65,7 +65,8 @@
           - traefik_config.entryPoints.websecure.http.middlewares == ['security-headers@file']
           - dynamic_config.http.middlewares['security-headers'].headers.stsSeconds == 31536000
           - dynamic_config.http.middlewares['security-headers'].headers.contentTypeNosniff
-          - dynamic_config.http.middlewares['security-headers'].headers.referrerPolicy == 'strict-origin-when-cross-origin'
+          # Pas de Referrer-Policy global : il écraserait celui, plus strict, des applis.
+          - "'referrerPolicy' not in dynamic_config.http.middlewares['security-headers'].headers"
           - not dynamic_config.http.middlewares['security-headers'].headers.frameDeny | default(false)
           # Le même nom, sans plugin : l'entrypoint que Traefik garde jusqu'à
           # son redémarrage désigne encore crowdsec@file.

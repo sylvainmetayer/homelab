@@ -281,7 +281,7 @@ services:
       OAUTH_BUTTON_TEXT: "Se connecter avec Pocket ID"
       POWER_TOOLS_ENDPOINT_URL: https://{{ immich_power_tools_domain }}
       SECURE_COOKIE: "true"
-      # La base d'Immich, par le réseau immich, avec un rôle en lecture seule
+      # La base d'Immich, par le réseau db, avec un rôle en lecture seule
       # (tasks/main.yml : l'appli ne fait que lire, README du rôle). Pas de
       # JWT_SECRET: sans lui les liens de partage publics de l'appli restent
       # désactivés.
