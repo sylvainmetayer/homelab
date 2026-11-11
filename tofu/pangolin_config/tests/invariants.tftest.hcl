@@ -2795,6 +2795,14 @@ run "monitors_are_filed_and_alert" {
     error_message = "Le cron de Monica n'est pas une sauvegarde : il est rangé avec les healthchecks et notifié sur Telegram et ntfy."
   }
 
+  # Le cron de Monica (monica_v4.cron.timer, toutes les N minutes) : trois
+  # périodes, donc deux passages manqués (redémarrage de la VM, redéploiement)
+  # sans fausse alerte, comme les abonnés ntfy plus haut.
+  assert {
+    condition     = uptimekuma_monitor_push.cron_monica.interval == 3 * 60 * tonumber(regex("(?m)^OnCalendar=\\*:0/([0-9]+)$", file("${path.module}/../../ansible/roles/monica_v4/templates/monica_v4.cron.timer.j2"))[0])
+    error_message = "Cron Monica : l'intervalle doit valoir trois périodes du timer (OnCalendar=*:0/N de monica_v4.cron.timer.j2)."
+  }
+
   # Le reset du bêtisier tourne une fois par jour (betisier-reset.timer) : une
   # nuit manquée passe, pas deux.
   assert {
