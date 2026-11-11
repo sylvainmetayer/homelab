@@ -490,7 +490,7 @@ homepage_tbm_card:
 # Coûts (groupe Administration) : total du mois dernier et du mois en cours
 # à date, sources à compléter, date du relevé, depuis le costs.json qu'écrit
 # chaque jour le rôle cost_report (même hôte). apps-summary monte ce dossier
-# en lecture seule et ne fait aucun appel : les clés Hetzner et OVH restent
+# en lecture seule et ne fait aucun appel : le jeton Hetzner reste
 # à cost_report. Vide (défaut) : pas de carte ; docker.yml le donne. Tout
 # conteneur de newt peut lire ces totaux (des montants, aucun secret).
 homepage_costs_dir: ""
@@ -498,7 +498,7 @@ homepage_costs_mount: /data/costs
 homepage_costs_card:
   name: Coûts
   group: Administration
-  description: Hetzner, OVH et abonnements (rapport mensuel sur ntfy)
+  description: Hetzner et abonnements (rapport mensuel sur ntfy)
   icon: mdi-cash-multiple
   widget:
     type: customapi

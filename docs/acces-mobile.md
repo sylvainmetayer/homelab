@@ -138,8 +138,8 @@ la page de login du mur, qui saute désormais vers Pocket ID (les comptes
 internes se connectent par le tableau de bord) ; aucun jeton ni chemin n'est
 ajouté ou retiré. Seul le login du navigateur a changé (PWA comprises) ;
 les en-têtes `P-Access-Token-*`, les clés d'API et les chemins ouverts ne
-bougent pas. Homebox n'a pas d'appli mobile ; son compte local (Homepage s'en
-sert) reste.
+bougent pas. Homebox n'a pas d'appli mobile ; son compte local
+reste.
 
 ## L'IP de la maison
 
