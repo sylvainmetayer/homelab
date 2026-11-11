@@ -618,7 +618,8 @@ déconnexion, et n'apporte rien sans fuite.
   cours).
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de tous
   les modules sauf `tofu/pangolin_config` (dont le state reste en clair,
-  Ansible le lit). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
+  Ansible le lit) et `tofu/keycloak_demo_planning_kc` (en clair jusqu'à sa
+  migration, `docs/conventions/opentofu.md`). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
   `tofu/pangolin` avec la même passphrase (leur `encryption.tf`) : leur lecture
   doit suivre la rotation, sinon leur plan échoue. Changer de passphrase passe par une
   méthode `fallback` du bloc `encryption` le temps d'un apply par module
