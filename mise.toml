@@ -110,7 +110,7 @@ dir = "tofu/planning"
 depends = ["init-planning"]
 
 [tasks.provider-fork]
-description = "Fetch the fork of the Pangolin provider into tofu/pangolin_config's local mirror (ADR 0021)"
+description = "Fetch the fork of the Pangolin provider and the trozz/pocketid mirror into tofu/pangolin_config's local mirror (ADR 0021)"
 run = ".github/scripts/fetch_pangolin_provider.sh"
 
 # Mêmes modules que le job « OpenTofu lint » (lint.yaml), sans accès au
