@@ -35,7 +35,7 @@ cat ~/Documents/homelab/compose/immich/.env
 # REDIS_PASSWORD (Valkey requires it) are those of the Pi's .env:
 ssh sylvain@192.168.1.96 "grep -E '^(DB|REDIS)_PASSWORD=' /opt/apps/immich/.env"
 docker compose -f compose/immich/compose.yaml up -d
-docker logs -f immich_server_remote
+docker logs -f immich_server
 ```
 
 In [immich settings](https://my.immich.app/admin/system-settings?isOpen=job), increase settings (ex: 50 thumbnails concurrently).
