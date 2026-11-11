@@ -17,7 +17,7 @@ donc tenir ni derrière le SSO, ni derrière le FR/DE de [0002](0002-pangolin-se
   chemin : `DROP /*` en priorité 3 (`promptoramix_drop`). Pangolin ne filtre pas la
   méthode : `GET /coup` passe, l'appli répond 405. (Décision d'origine du 16/10 :
   `ACCEPT /*`, restreinte le 07/11/2026 aux routes réellement appelées.)
-- **Sur flip**, un conteneur à 256 Mio, sans base ; choisie plutôt que la VM
+- **Sur flip**, un conteneur à 256 Mio, sans base ; choisi plutôt que la VM
   docker parce qu'elle avait de la place, la VM docker étant déjà chargée
   (confirmé par Sylvain le 2026-11-11).
 - **Automerge de chaque digest de `main`**, sauf le jeudi de 0 h à 12 h : un
