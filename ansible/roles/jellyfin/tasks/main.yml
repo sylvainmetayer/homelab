@@ -102,7 +102,7 @@
     group: "{{ omit if jellyfin_as_root else jellyfin_gid }}"
     mode: "0600"
 
-# Connexion par Pocket ID : greffon épinglé (version + md5 du manifeste) et sa
+# Connexion par Pocket ID : greffon épinglé (version + sha256 de l'archive) et sa
 # configuration. Sans les sorties de pangolin_config, rien n'est touché.
 - name: Install and configure the Jellyfin SSO plugin
   when: jellyfin_sso_enabled | bool

@@ -522,9 +522,9 @@
     },
     {
       "customType": "regex",
-      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary, the Vector binary of log_agent, the Blocky binary): no built-in manager reads plain vars. A borg, newt, Beszel agent, Vector or Blocky bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
+      "description": "Versions pinned in Ansible role defaults with a `# renovate: datasource=... depName=...` comment on the line above (borg, borgmatic, newt, the Beszel agent binary, the Vector binary of log_agent, the Blocky binary, the Jellyfin SSO plugin): no built-in manager reads plain vars. A borg, newt, Beszel agent, Vector, Blocky or Jellyfin SSO plugin bump also needs its sha256 updated by hand (the release lists them), or get_url refuses the download",
       "managerFilePatterns": [
-        "/^ansible/roles/(borgmatic|newt_service|beszel_agent|log_agent|blocky)/defaults/main\\.yml$/"
+        "/^ansible/roles/(borgmatic|newt_service|beszel_agent|log_agent|blocky|jellyfin)/defaults/main\\.yml$/"
       ],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[a-z_]+:\\s*\"(?<currentValue>[^\"]+)\""
