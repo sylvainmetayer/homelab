@@ -319,22 +319,22 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"resources": [
-        {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
-        {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "enabled": true},
-        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": true},
-        {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "enabled": false}
+        {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
+        {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 62, "niceId": "karakeep", "name": "Karakeep", "fullDomain": "keep.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 31, "niceId": "monica", "name": "Monica CRM", "fullDomain": "crm.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 32, "niceId": "rss", "name": "RSS", "fullDomain": "rss.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 61, "niceId": "trek", "name": "TREK", "fullDomain": "travels.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": false}
       ], "pagination": {"total": 16, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
@@ -396,6 +396,223 @@ override_data {
   }
 }
 
+# --- Liaisons et authentification faite main (binding_inventory.tf) ---------
+
+# Identifiants des ressources privées et du client OLM de la CI : sans valeur
+# fixe, le mock leur donne la même à toutes. Immich porte 10 dans la liste
+# simulée des ressources publiques, avec un PIN.
+override_resource {
+  target = pangolin_resource.website["immich"]
+  values = { id = 10 }
+}
+
+override_resource {
+  target = pangolin_client.ci_runner
+  values = { id = 4001 }
+}
+
+override_resource {
+  target = pangolin_site_resource.app_proxy
+  values = { id = 501 }
+}
+
+override_resource {
+  target = pangolin_site_resource.nas_web
+  values = { id = 502 }
+}
+
+override_resource {
+  target = pangolin_site_resource.printer
+  values = { id = 503 }
+}
+
+override_resource {
+  target = pangolin_site_resource.docker_apps
+  values = { id = 504 }
+}
+
+override_resource {
+  target = pangolin_site_resource.pi
+  values = { id = 505 }
+}
+
+override_resource {
+  target = pangolin_site_resource.proxmox
+  values = { id = 506 }
+}
+
+override_resource {
+  target = pangolin_site_resource.nas
+  values = { id = 507 }
+}
+
+override_resource {
+  target = pangolin_site_resource.dns
+  values = { id = 508 }
+}
+
+override_resource {
+  target = pangolin_site_resource.flip
+  values = { id = 509 }
+}
+
+override_resource {
+  target = pangolin_site_resource.jellyfin
+  values = { id = 91 }
+}
+
+override_resource {
+  target = pangolin_site_resource.mediamanager
+  values = { id = 93 }
+}
+
+override_resource {
+  target = pangolin_site_resource.prowlarr
+  values = { id = 95 }
+}
+
+override_resource {
+  target = pangolin_site_resource.qbittorrent
+  values = { id = 96 }
+}
+
+override_resource {
+  target = pangolin_site_resource.vpn
+  values = { id = 514 }
+}
+
+override_resource {
+  target = pangolin_site_resource.vpn_flip
+  values = { id = 515 }
+}
+
+# GET /v1/org/{org}/site-resources?pageSize=1000 : les quinze ressources
+# privées déclarées, avec les identifiants fixés plus haut.
+override_data {
+  target = data.http.pangolin_site_resources
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"siteResources": [
+        {"siteResourceId": 501, "name": "BBOX", "mode": "http"},
+        {"siteResourceId": 502, "name": "00-NTF-nas", "mode": "http"},
+        {"siteResourceId": 503, "name": "Imprimante", "mode": "http"},
+        {"siteResourceId": 504, "name": "Docker Apps", "mode": "host"},
+        {"siteResourceId": 505, "name": "Raspberry PI", "mode": "host"},
+        {"siteResourceId": 506, "name": "Proxmox", "mode": "host"},
+        {"siteResourceId": 507, "name": "NAS", "mode": "host"},
+        {"siteResourceId": 508, "name": "DNS", "mode": "host"},
+        {"siteResourceId": 509, "name": "Flip", "mode": "host"},
+        {"siteResourceId": 91, "name": "Jellyfin", "mode": "host"},
+        {"siteResourceId": 93, "name": "MediaManager", "mode": "host"},
+        {"siteResourceId": 95, "name": "Prowlarr", "mode": "host"},
+        {"siteResourceId": 96, "name": "qBittorrent", "mode": "host"},
+        {"siteResourceId": 514, "name": "vpn", "mode": "gateway"},
+        {"siteResourceId": 515, "name": "vpn-flip", "mode": "gateway"}
+      ], "pagination": {"total": 15, "pageSize": 1000, "page": 1}},
+      "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+# GET /v1/resource/{id}/roles : Admin seul sur toutes les ressources publiques
+# (une surcharge sans clé vise toutes les instances du for_each) ; Immich porte
+# en plus le rôle de ses ressources déclarées (3001), qui ne doit pas être
+# reproché.
+override_data {
+  target = data.http.pangolin_resource_roles
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"roles": [
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true}
+      ]}, "success": true, "error": false, "message": "Resource roles retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+override_data {
+  target = data.http.pangolin_resource_roles["10"]
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"roles": [
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+        {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null}
+      ]}, "success": true, "error": false, "message": "Resource roles retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+# Aucun utilisateur lié, nulle part.
+override_data {
+  target = data.http.pangolin_resource_users
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"users": []}, "success": true, "error": false, "message": "Resource users retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+override_data {
+  target = data.http.pangolin_site_resource_users
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"users": []}, "success": true, "error": false, "message": "Site resource users retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+# Admin seul sur les ressources privées, sauf Jellyfin (rôle 90) ; le client de
+# la CI (4001) sur Docker Apps, aucun ailleurs.
+override_data {
+  target = data.http.pangolin_site_resource_roles
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"roles": [
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true}
+      ]}, "success": true, "error": false, "message": "Site resource roles retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+override_data {
+  target = data.http.pangolin_site_resource_roles["91"]
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"roles": [
+        {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+        {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+      ]}, "success": true, "error": false, "message": "Site resource roles retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+override_data {
+  target = data.http.pangolin_site_resource_clients
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"clients": []}, "success": true, "error": false, "message": "Site resource clients retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
+override_data {
+  target = data.http.pangolin_site_resource_clients["504"]
+  values = {
+    status_code   = 200
+    response_body = <<-EOT
+      {"data": {"clients": [{"clientId": 4001, "name": "ci-runner", "subnet": "100.90.128.2/32"}]},
+      "success": true, "error": false, "message": "Site resource clients retrieved successfully", "status": 200}
+    EOT
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Cas nominal
 # ---------------------------------------------------------------------------
@@ -427,10 +644,11 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 6 jetons et 4 rôles dans les réponses simulées, aucune exception périmée.
+  # 6 jetons, 4 rôles, 15 ressources privées, 17 + 16 + 1 liaisons (Admin sur
+  # chacune, plus Immich, Jellyfin et le client de la CI), aucune exception périmée.
   assert {
-    condition     = terraform_data.access_inventory.output == 10 && length(local.stale_inventory_exceptions) == 0
-    error_message = "access_inventory doit lire les 6 jetons et les 4 rôles de la réponse simulée, et toutes les exceptions y être vivantes."
+    condition     = terraform_data.access_inventory.output == 59 && length(local.stale_inventory_exceptions) == 0
+    error_message = "access_inventory doit lire les 6 jetons, les 4 rôles, les 15 ressources privées et les 34 liaisons de la réponse simulée, et toutes les exceptions y être vivantes."
   }
 }
 
@@ -450,9 +668,9 @@ run "enabled_resource_missing_from_managed_resources_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"resources": [
-          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
-          {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true},
-          {"resourceId": 95, "niceId": "nouvelle-app", "name": "Nouvelle App", "fullDomain": "nouvelle.sylvain.cloud", "sso": true, "enabled": true}
+          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+          {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+          {"resourceId": 95, "niceId": "nouvelle-app", "name": "Nouvelle App", "fullDomain": "nouvelle.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true}
         ], "pagination": {"total": 3, "pageSize": 1000, "page": 1}},
         "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
       EOT
@@ -475,8 +693,8 @@ run "truncated_resource_list_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"resources": [
-          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true},
-          {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "enabled": true}
+          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+          {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true}
         ], "pagination": {"total": 22, "pageSize": 20, "page": 1}},
         "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
       EOT
@@ -570,8 +788,8 @@ run "unhealthy_target_only_warns" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"resources": [
-          {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "enabled": true},
-          {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "enabled": false}
+          {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+          {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": false}
         ], "pagination": {"total": 2, "pageSize": 1000, "page": 1}},
         "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
       EOT
@@ -925,4 +1143,288 @@ run "unreadable_rules_response_fails_plan" {
   expect_failures = [
     terraform_data.rule_inventory,
   ]
+}
+
+# ---------------------------------------------------------------------------
+# access_inventory : liaisons et authentification faite main
+# (binding_inventory.tf)
+# ---------------------------------------------------------------------------
+
+# Un rôle large lié à la main à une ressource publique : le plan reste vide
+# sans cet audit. La même réponse pour toutes les ressources (une surcharge de
+# run vise toute la table) : le rôle déclaré d'Immich (3001) n'est pas reproché,
+# celui de Betisier, qui n'en porte aucun, l'est.
+run "hand_bound_role_on_public_resource_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_resource_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+          {"roleId": 3001, "name": "immich", "description": "", "isAdmin": null}
+        ]}, "success": true, "error": false, "message": "Resource roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition = (
+      contains(local.undeclared_resource_roles, "Betisier <- role 3001 (immich)")
+      && !contains(local.undeclared_resource_roles, "Immich <- role 3001 (immich)")
+    )
+    error_message = "Le rôle 3001 lié à Betisier (qui n'en a aucun de déclaré) doit être signalé, pas celui d'Immich (déclaré)."
+  }
+}
+
+# Un utilisateur lié directement, à une ressource publique comme à une privée.
+run "hand_bound_user_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_resource_users
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"users": [{"userId": "u1", "username": "invite", "type": "internal", "idpName": null, "idpId": null, "email": "i@example.test"}]},
+        "success": true, "error": false, "message": "Resource users retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  override_data {
+    target = data.http.pangolin_site_resource_users
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"users": [{"userId": "u2", "username": "autre", "type": "internal", "idpName": null, "idpId": null, "email": "a@example.test"}]},
+        "success": true, "error": false, "message": "Site resource users retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = contains(local.live_user_bindings, "Wiki (Bookstack) <- user u1 (invite)") && contains(local.live_user_bindings, "Proxmox <- user u2 (autre)")
+    error_message = "Un utilisateur lié à une ressource publique (Wiki) ou privée (Proxmox) doit être signalé."
+  }
+}
+
+# Un mot de passe, un PIN et un header auth posés dans l'UI : le PIN d'Immich
+# (7) est celui que la configuration déclare, les autres non.
+run "hand_set_authentication_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"resources": [
+          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
+          {"resourceId": 11, "niceId": "nextcloud", "name": "nextcloud", "fullDomain": "sylvain.cloud", "sso": true, "passwordId": 5, "pincodeId": null, "headerAuthId": null, "enabled": true},
+          {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 8, "headerAuthId": 9, "enabled": true}
+        ], "pagination": {"total": 3, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.undeclared_resource_auth == ["nextcloud: password", "Wiki (Bookstack): PIN", "Wiki (Bookstack): header auth"]
+    error_message = "Le mot de passe de Nextcloud, le PIN et le header auth de Wiki doivent être signalés, pas le PIN déclaré d'Immich."
+  }
+}
+
+# Une liste de ressources sans les identifiants d'authentification : l'audit
+# lirait « aucune » partout, il s'arrête.
+run "resource_list_without_auth_ids_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"resources": [
+          {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "enabled": true}
+        ], "pagination": {"total": 1, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.resources_without_auth_ids == ["Immich"]
+    error_message = "Une liste sans passwordId, pincodeId ni headerAuthId doit être signalée."
+  }
+}
+
+# Une ressource privée faite dans l'UI.
+run "hand_made_private_resource_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 501, "name": "BBOX", "mode": "http"},
+          {"siteResourceId": 502, "name": "00-NTF-nas", "mode": "http"},
+          {"siteResourceId": 503, "name": "Imprimante", "mode": "http"},
+          {"siteResourceId": 504, "name": "Docker Apps", "mode": "host"},
+          {"siteResourceId": 505, "name": "Raspberry PI", "mode": "host"},
+          {"siteResourceId": 506, "name": "Proxmox", "mode": "host"},
+          {"siteResourceId": 507, "name": "NAS", "mode": "host"},
+          {"siteResourceId": 508, "name": "DNS", "mode": "host"},
+          {"siteResourceId": 509, "name": "Flip", "mode": "host"},
+          {"siteResourceId": 91, "name": "Jellyfin", "mode": "host"},
+          {"siteResourceId": 93, "name": "MediaManager", "mode": "host"},
+          {"siteResourceId": 95, "name": "Prowlarr", "mode": "host"},
+          {"siteResourceId": 96, "name": "qBittorrent", "mode": "host"},
+          {"siteResourceId": 514, "name": "vpn", "mode": "gateway"},
+          {"siteResourceId": 515, "name": "vpn-flip", "mode": "gateway"},
+          {"siteResourceId": 600, "name": "Test à la main", "mode": "host"}
+        ], "pagination": {"total": 16, "pageSize": 1000, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.undeclared_site_resources == ["600 (Test à la main)"]
+    error_message = "Seule la ressource privée faite main (600) doit être signalée."
+  }
+}
+
+run "hand_bound_role_on_private_resource_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resource_roles
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"roles": [
+          {"roleId": 1, "name": "Admin", "description": "", "isAdmin": true},
+          {"roleId": 90, "name": "jellyfin", "description": "", "isAdmin": null}
+        ]}, "success": true, "error": false, "message": "Site resource roles retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition = (
+      contains(local.undeclared_site_resource_roles, "NAS <- role 90 (jellyfin)")
+      && !contains(local.undeclared_site_resource_roles, "Jellyfin <- role 90 (jellyfin)")
+      && !anytrue([for label in local.undeclared_site_resource_roles : strcontains(label, "(Admin)")])
+    )
+    error_message = "Le rôle jellyfin lié au NAS doit être signalé, pas celui de la ressource Jellyfin (déclaré) ni Admin."
+  }
+}
+
+# Le client de la CI est déclaré sur Docker Apps et sur le Pi, pas sur le NAS.
+run "hand_bound_client_on_private_resource_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resource_clients
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"clients": [{"clientId": 4001, "name": "ci-runner", "subnet": "100.90.128.2/32"}]},
+        "success": true, "error": false, "message": "Site resource clients retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition = (
+      contains(local.undeclared_site_resource_clients, "NAS <- client 4001 (ci-runner)")
+      && !contains(local.undeclared_site_resource_clients, "Docker Apps <- client 4001 (ci-runner)")
+      && !contains(local.undeclared_site_resource_clients, "Raspberry PI <- client 4001 (ci-runner)")
+    )
+    error_message = "Le client de la CI lié au NAS doit être signalé, pas ses deux liaisons déclarées (Docker Apps, Pi)."
+  }
+}
+
+# Un 500 sur l'une des lectures par ressource : l'audit le dit, il ne lit pas
+# « aucune liaison ».
+run "unreadable_bindings_response_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_resource_roles
+    values = {
+      status_code   = 500
+      response_body = <<-EOT
+        <html><body><h1>500 Internal Server Error</h1></body></html>
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = contains(local.binding_lookup_failures, "roles of public resource Betisier (HTTP 500)")
+    error_message = "La lecture illisible (rôles de Betisier) doit être signalée."
+  }
+}
+
+run "truncated_private_resource_list_fails_plan" {
+  command = plan
+
+  override_data {
+    target = data.http.pangolin_site_resources
+    values = {
+      status_code   = 200
+      response_body = <<-EOT
+        {"data": {"siteResources": [
+          {"siteResourceId": 501, "name": "BBOX", "mode": "http"}
+        ], "pagination": {"total": 15, "pageSize": 1, "page": 1}},
+        "success": true, "error": false, "message": "Site resources retrieved successfully", "status": 200}
+      EOT
+    }
+  }
+
+  expect_failures = [
+    terraform_data.access_inventory,
+  ]
+
+  assert {
+    condition     = local.site_resources_truncated
+    error_message = "Une liste de ressources privées plus courte que pagination.total doit être refusée."
+  }
 }
