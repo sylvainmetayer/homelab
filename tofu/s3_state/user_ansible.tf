@@ -1,5 +1,6 @@
 # Utilisateur S3 d'Ansible : lit le seul state de tofu/pangolin_config
-# (ansible/tasks/pangolin_config_outputs.yml, URL push et identifiants Newt),
+# (`tofu output` du module, ansible/tasks/pangolin_config_outputs.yml : URL push
+# et identifiants Newt),
 # sans pouvoir écrire ni lire les autres states. Ses clés vont dans
 # state_s3_access_key / state_s3_secret_key de secrets/ansible.sops.yaml, que
 # la CI de déploiement déchiffre : une fuite ne donne plus que ce state-là.
@@ -25,7 +26,7 @@ resource "ovh_cloud_project_user_s3_policy" "ansible_state_reader" {
         "Action" : ["s3:GetObject"],
         "Resource" : ["arn:aws:s3:::${ovh_cloud_project_storage.tf_state.name}/homelab/pangolin_config.tfstate"],
       },
-      # amazon.aws.s3_object vérifie que le bucket existe avant de lire.
+      # `tofu init` et le backend S3 listent le bucket avant de lire.
       {
         "Sid" : "SeeTheBucket",
         "Effect" : "Allow",

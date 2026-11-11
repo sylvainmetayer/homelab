@@ -381,7 +381,7 @@ identifiants.
 - `state_s3_access_key`, `state_s3_secret_key` (fichier Ansible, utilisateur
   `ansible_state_reader`, lecture du seul state de `pangolin_config`) : même
   méthode sur `tofu/s3_state/user_ansible.tf`, puis un playbook en
-  `--check --tags setup` qui lit le state (`ansible/tasks/pangolin_config_outputs.yml`).
+  `--check --tags setup` qui lit les sorties de `pangolin_config` (`tofu output`, `ansible/tasks/pangolin_config_outputs.yml` : module initialisé requis).
 
 ### Proxmox
 
@@ -897,8 +897,8 @@ déconnexion, et n'apporte rien sans fuite.
   tourner `backup_passphrase` les change tous : créer la clé d'abord, avec
   l'ancienne valeur.
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de tous
-  les modules sauf `tofu/pangolin_config` (dont le state reste en clair,
-  Ansible le lit, `docs/conventions/opentofu.md`). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
+  les modules sauf `tofu/pangolin_config` (dont le state reste en clair
+  pour l'instant ; Ansible en lit les sorties par `tofu output`, `docs/conventions/opentofu.md`). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
   `tofu/pangolin` avec la même passphrase (leur `encryption.tf`) : leur lecture
   doit suivre la rotation, sinon leur plan échoue. Changer de passphrase passe par une
   méthode `fallback` du bloc `encryption` le temps d'un apply par module
