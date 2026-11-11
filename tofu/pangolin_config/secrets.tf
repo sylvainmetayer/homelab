@@ -12,6 +12,20 @@
 # recréés...) : chaque variable obligatoire refuse la chaîne vide, ce qui
 # attrape un mapping de mise.toml qui ne passerait plus.
 
+# Passphrase DÉDIÉE du chiffrement du state de ce module (encryption.tf), la
+# même valeur que `tofu_state_passphrase` de secrets/ansible.sops.yaml (lue par
+# Ansible et la CI). Clé SOPS TF_VAR_pangolin_config_state_passphrase de
+# secrets/secrets.sops.yaml, que mise exporte telle quelle.
+variable "pangolin_config_state_passphrase" {
+  description = "Passphrase PBKDF2 du chiffrement du state de ce module (clé SOPS TF_VAR_pangolin_config_state_passphrase)."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = nonsensitive(var.pangolin_config_state_passphrase) != ""
+    error_message = "TF_VAR_pangolin_config_state_passphrase est vide : lancer tofu par `mise exec --` (clé de secrets/secrets.sops.yaml)."
+  }
+}
+
 variable "pangolin_org_id" {
   description = "Identifiant de l'organisation Pangolin (clé SOPS pangolin_org_id)."
   type        = string

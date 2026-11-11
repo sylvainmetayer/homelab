@@ -1,5 +1,6 @@
-# Outputs of tofu/pangolin_config (plaintext state, read the same way by
-# Ansible): the Pangolin access token of the OPML export (website_rss.tf).
+# Outputs of tofu/pangolin_config (state encrypted with its own passphrase, see
+# encryption.tf; Ansible reads it with tofu output): the Pangolin access token
+# of the OPML export (website_rss.tf).
 # try() in secrets.tf: absent, the FRESHRSS_* variables are just left out.
 data "terraform_remote_state" "pangolin_config" {
   backend = "s3"

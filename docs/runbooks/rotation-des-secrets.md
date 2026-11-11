@@ -897,13 +897,27 @@ déconnexion, et n'apporte rien sans fuite.
   tourner `backup_passphrase` les change tous : créer la clé d'abord, avec
   l'ancienne valeur.
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de tous
-  les modules sauf `tofu/pangolin_config` (dont le state reste en clair
-  pour l'instant ; Ansible en lit les sorties par `tofu output`, `docs/conventions/opentofu.md`). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
+  les modules sauf `tofu/pangolin_config` (qui a la sienne, ci-dessous ;
+  `docs/conventions/opentofu.md`). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
   `tofu/pangolin` avec la même passphrase (leur `encryption.tf`) : leur lecture
   doit suivre la rotation, sinon leur plan échoue. Changer de passphrase passe par une
   méthode `fallback` du bloc `encryption` le temps d'un apply par module
   (documentation OpenTofu,
   « State encryption, key rotation »).
+- `TF_VAR_pangolin_config_state_passphrase` (`secrets/secrets.sops.yaml`) et
+  `tofu_state_passphrase` (`secrets/ansible.sops.yaml`) : **une seule valeur
+  sous deux clés**, à tourner ensemble (la première est lue par tofu et mise,
+  la seconde par Ansible et la CI), sinon la lecture des sorties échoue d'un
+  côté ou de l'autre. Elle chiffre le state de `tofu/pangolin_config` et le
+  déchiffrement qu'en font `tofu/site` et `tofu/github` (leur `encryption.tf`) ;
+  la clé age de la CI la lit, d'où une passphrase distincte de la commune.
+  Procédure par `fallback` : dans `tofu/pangolin_config`, `tofu/site` et
+  `tofu/github`, mettre l'ancienne valeur en méthode de repli
+  (`state`, `plan`, et `remote_state_data_source "pangolin_config"`), poser la
+  nouvelle dans les deux clés SOPS (commit dans `secrets/`, bump du
+  sous-module), `apply -refresh-only` de `pangolin_config` (réécrit le state
+  avec la nouvelle clé), plans de `site` et `github`, puis retirer les replis.
+  Mettre à jour `last_rotated` des deux entrées de `secrets-rotation.yaml`.
 - `github_actions_sops_age_key` : voir
   [perte-cle-ou-poste.md](perte-cle-ou-poste.md) ; une nouvelle clé age ne
   protège que les versions futures du fichier, l'historique git reste

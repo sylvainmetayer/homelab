@@ -41,11 +41,13 @@
     # `terraform_outputs.<nom>.value`.
     # Environnement, jamais un argument de ligne de commande : identifiants S3
     # du state (clés de secrets/ansible.sops.yaml, lecture seule sur ce seul
-    # state) et passphrase de chiffrement. Elle vient de `tofu_state_passphrase`
-    # (secrets/ansible.sops.yaml : la clé Age de la CI ne déchiffre pas le
-    # fichier racine secrets.sops.yaml), sinon de TF_VAR_state_encryption_passphrase
-    # que mise exporte sur un poste. Absente, la commande marche tant que le
-    # state est en clair.
+    # state) et passphrase DÉDIÉE du state (encryption.tf du module). Elle vient
+    # de `tofu_state_passphrase` (secrets/ansible.sops.yaml : la clé Age de la
+    # CI ne déchiffre pas le fichier racine secrets.sops.yaml), sinon de
+    # TF_VAR_pangolin_config_state_passphrase que mise exporte sur un poste.
+    # Le repli `unencrypted` du module fait marcher la lecture que le state soit
+    # encore en clair ou déjà chiffré ; sans repli, une passphrase absente ou
+    # fausse échoue.
     # no_log : `stdout` est l'ensemble des sorties, secrets compris (identifiants
     # Newt, jetons d'accès Pangolin), qu'un -v écrirait dans run.log.
     # run_once : une lecture par run, le résultat enregistré vaut pour tous les
@@ -65,7 +67,7 @@
       environment:
         AWS_ACCESS_KEY_ID: "{{ state_s3_access_key }}"
         AWS_SECRET_ACCESS_KEY: "{{ state_s3_secret_key }}"
-        TF_VAR_state_encryption_passphrase: "{{ tofu_state_passphrase | default(lookup('ansible.builtin.env', 'TF_VAR_state_encryption_passphrase'), true) }}"
+        TF_VAR_pangolin_config_state_passphrase: "{{ tofu_state_passphrase | default(lookup('ansible.builtin.env', 'TF_VAR_pangolin_config_state_passphrase'), true) }}"
         TF_INPUT: "0"
         # Le state lu est celui du workspace default, pas celui qu'un shell
         # aurait choisi (un autre workspace se lirait vide, sans erreur).
@@ -98,7 +100,7 @@
           ou provider du fork absent : lancer `mise run provider-fork` puis
           `tofu -chdir=tofu/pangolin_config init`. Sinon identifiants S3
           (state_s3_*), passphrase du state (tofu_state_passphrase ou
-          TF_VAR_state_encryption_passphrase, donc `mise exec --`) ou binaire
+          TF_VAR_pangolin_config_state_passphrase, donc `mise exec --`) ou binaire
           tofu absent du PATH. rc 0 sans aucune sortie : state vide ou absent
           sur S3. Début de l'erreur de tofu :
           {{ (terraform_state_raw.stderr | default(terraform_state_raw.msg | default('')))[:400] }}

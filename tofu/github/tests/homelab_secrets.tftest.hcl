@@ -8,7 +8,8 @@
 
 # Passphrase factice du chiffrement du state (encryption.tf).
 variables {
-  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+  state_encryption_passphrase      = "tofu-test-passphrase-not-a-secret"
+  pangolin_config_state_passphrase = "tofu-test-passphrase-pangolin-config"
 }
 
 mock_provider "github" {}

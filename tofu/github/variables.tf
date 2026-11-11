@@ -76,3 +76,12 @@ variable "state_encryption_passphrase" {
   type        = string
   sensitive   = true
 }
+
+# Passphrase DÉDIÉE du state de tofu/pangolin_config, que ce module lit par
+# terraform_remote_state (encryption.tf) : TF_VAR_pangolin_config_state_passphrase,
+# clé de secrets/secrets.sops.yaml que mise charge. Tests : valeur factice.
+variable "pangolin_config_state_passphrase" {
+  description = "Passphrase PBKDF2 du chiffrement du state de tofu/pangolin_config (lu par terraform_remote_state)"
+  type        = string
+  sensitive   = true
+}
