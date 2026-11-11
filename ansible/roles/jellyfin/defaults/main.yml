@@ -61,11 +61,13 @@ jellyfin_sso_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') 
 jellyfin_sso_enabled: "{{ jellyfin_sso_client_id != '' and jellyfin_sso_client_secret != '' and jellyfin_sso_issuer != '' }}"
 # Télécharger et extraire le greffon : faux en Molecule (pas de réseau).
 jellyfin_sso_install: true
-jellyfin_sso_version: 5.1.1
-# md5 du manifeste du greffon (manifest-release/manifest.json), pas celui d'un
-# autre fichier : get_url compare l'archive avant de l'extraire. targetAbi du
-# greffon 12.0.0.0, chargé par Jellyfin 12.4 (testé le 2026-11-06).
-jellyfin_sso_checksum: "md5:844bcd039954994abdef9ec4f08ce434"
+# renovate: datasource=github-releases depName=K0lin/jellyfin-plugin-sso
+jellyfin_sso_version: "5.1.1"
+# sha256 de l'archive sso-authentication_<version>.zip de la release : curl -sL
+# <jellyfin_sso_url> | sha256sum, à refaire à la main sur la PR de Renovate,
+# sinon get_url refuse l'archive.
+# targetAbi du greffon 12.0.0.0, chargé par Jellyfin 12.4 (testé le 2026-11-06).
+jellyfin_sso_checksum: "sha256:db126b4763bda3a3754fa2103232fc03ef1bf929cfeda35f2e9af39c875233b1"
 jellyfin_sso_url: "https://github.com/K0lin/jellyfin-plugin-sso/releases/download/v{{ jellyfin_sso_version }}/sso-authentication_{{ jellyfin_sso_version }}.zip"
 # Nom du fournisseur : fait partie du rappel /sso/OID/redirect/<nom> déclaré
 # dans Pocket ID (pocket_id.tf) et de l'adresse /sso/OID/start/<nom> du bouton.
