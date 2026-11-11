@@ -67,3 +67,12 @@ variable "docker_vm" {
   })
   default = {}
 }
+
+# Passphrase du chiffrement du state (encryption.tf), fournie par
+# TF_VAR_state_encryption_passphrase : clé de secrets/secrets.sops.yaml, que
+# mise charge dans l'environnement. Les tests en donnent une factice.
+variable "state_encryption_passphrase" {
+  description = "Passphrase PBKDF2 du chiffrement du state de ce module"
+  type        = string
+  sensitive   = true
+}
