@@ -41,12 +41,11 @@ grocy_backup_healthcheck_url: ""
 # l'en-tête Remote-User que badger pose après sa vérification (nom
 # d'utilisateur Pangolin = nom Pocket ID, `sylvain`), et crée le compte s'il
 # manque. badger v1.7.0 efface tout Remote-User venu du client avant de poser
-# le sien (main.go). Mais Grocy n'est pas joint que par Pangolin : tout conteneur
-# du réseau `newt` l'atteint sans passer par badger, donc sans SSO. Ce réseau
-# est commun aux applis derrière le SSO ; une appli publique sans SSO (Bêtisier)
-# ne doit pas y être : elle rejoint `newt-public` quand `newt_public_network_enabled`
-# est vrai pour l'hôte (rôle newt). Résultat : plus de
-# formulaire de connexion ; l'API (appli Android) garde sa clé
+# le sien (main.go). Réserve : tout conteneur du réseau `newt` atteint Grocy
+# sans passer par badger, donc sans SSO. Une appli publique sans SSO ne doit
+# donc pas y être : elle rejoint `newt-public` quand `newt_public_network_enabled`
+# est vrai pour l'hôte (rôle newt ; pas encore sur docker, où Bêtisier reste sur
+# `newt`). Plus de formulaire de connexion ; l'API (appli Android) garde sa clé
 # (GROCY-API-KEY, essayée d'abord). Secours : passer à false et relancer le
 # rôle (login local de nouveau).
 grocy_proxy_auth_enabled: true

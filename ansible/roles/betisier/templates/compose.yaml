@@ -63,7 +63,7 @@ services:
       start_period: 60s
 
 # `internal: true` : pas de sortie vers Internet par ce réseau. betisier la garde
-# par le réseau de newt ; la base n'en a pas besoin.
+# par newt ; la base n'en a pas besoin.
 networks:
   betisier:
     internal: true
