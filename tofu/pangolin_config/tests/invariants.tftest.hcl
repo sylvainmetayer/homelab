@@ -1930,6 +1930,17 @@ run "every_resource_declares_the_pinned_attributes" {
     error_message = "La passerelle IA ne suit pas local.resource_pins (ssl, enabled...)."
   }
 
+  # Sa sonde appelle sans clé et attend le 401 (curl du 11/11 : toutes les
+  # routes), sur le FQDN de la passerelle, alertée comme les autres.
+  assert {
+    condition = (
+      uptimekuma_monitor_http.ai_gateway["ia"].url == "https://${pangolin_resource.ai_gateway["ia"].full_domain}/v1/models"
+      && toset(uptimekuma_monitor_http.ai_gateway["ia"].accepted_status_codes) == toset(["401"])
+      && toset(uptimekuma_monitor_http.ai_gateway["ia"].notification_ids) == toset(local.alert_notification_ids)
+    )
+    error_message = "La sonde de la passerelle IA doit appeler https://<FQDN>/v1/models sans clé, n'accepter que le 401 et alerter sur Telegram et ntfy."
+  }
+
   # Côté privé, chaque ressource déclare les siens, à la main : relu dans le
   # source, un attribut absent ne se voit pas dans le mock.
   assert {

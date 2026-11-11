@@ -249,3 +249,32 @@ output "ai_gateway_keys" {
   value     = { for k, v in pangolin_virtual_api_key.ai : k => "pangolin-key-${v.id}.${v.secret}" }
   sensitive = true
 }
+
+# Sonde de la passerelle : un GET sans clé, qui doit répondre 401 (constaté sur
+# toutes les routes : Pangolin refuse l'appel avant tout appel amont). Elle voit
+# la ressource, Traefik et la passerelle vivants, sans clé de sonde ni appel
+# facturé ; une clé Anthropic révoquée ne se voit pas ici. Pas de mot-clé de
+# maintenance : la page de maintenance répond 200, hors des codes acceptés, donc
+# DOWN comme il faut.
+resource "uptimekuma_monitor_http" "ai_gateway" {
+  for_each = local.ai_gateway
+
+  name = "Passerelle IA"
+
+  # Grouped under the Self-hosted folder. See uptime_globals.tf.
+  parent          = uptimekuma_monitor_group.self_hosted.id
+  url             = "https://${pangolin_resource.ai_gateway[each.key].full_domain}/v1/models"
+  interval        = local.http_probe.interval
+  timeout         = 30
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
+  active          = true
+  method          = "GET"
+
+  accepted_status_codes = ["401"]
+  expiry_notification   = true
+  tags                  = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = local.alert_notification_ids
+}
