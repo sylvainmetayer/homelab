@@ -113,6 +113,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I .github/scripts/check_age_recipients.py
 
+      # ADR 0018 : aucun fichier SOPS dans ce dépôt public (ils vivent dans le
+      # sous-module secrets/). Le .sops.yaml de la racine est la configuration.
+      - name: Check that no SOPS file is tracked outside the secrets submodule
+        if: ${{ !cancelled() }}
+        run: |
+          found="$(git ls-files | grep -E '[^/]\.sops\.ya?ml$' || true)"
+          if [ -n "$found" ]; then echo "::error::SOPS file tracked in the public repository (ADR 0018): $found"; exit 1; fi
+
       # Renovate monte immich-server et immich-machine-learning dans un même
       # groupe, mais une recherche de tags en échec le fait partir avec une
       # seule image (#753) : la PR échoue ici au lieu de décaler les versions.
