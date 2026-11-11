@@ -2010,11 +2010,14 @@ run "maintenance_page_and_inverted_keyword_monitors" {
     error_message = "Chaque ressource doit servir la page de maintenance de local.maintenance (maintenance.tf), en mode automatic."
   }
 
-  # Un healthcheck par application, sauf le banc KC (healthcheck = false) :
-  # une application ajoutée l'a d'office, en retirer un est une décision.
+  # Un healthcheck par application, sauf le banc KC, Immich Kiosk et Homepage
+  # (healthcheck = false) : une application ajoutée l'a d'office, en retirer un
+  # est une décision. Kiosk et Homepage n'ont pas de connexion propre : leur
+  # jeton de sonde (sans expiration, dans un moniteur chez PikaPods) ouvrirait
+  # le mur SSO ; leur panne se lit sur la santé de la cible Pangolin.
   assert {
-    condition     = toset(keys(uptimekuma_monitor_http_keyword.healthcheck)) == setsubtract(toset(keys(local.websites)), ["demo_planning_kc"])
-    error_message = "Chaque application a son healthcheck, sauf demo_planning_kc."
+    condition     = toset(keys(uptimekuma_monitor_http_keyword.healthcheck)) == setsubtract(toset(keys(local.websites)), ["demo_planning_kc", "immich_kiosk", "homepage"])
+    error_message = "Chaque application a son healthcheck, sauf demo_planning_kc, immich_kiosk et homepage."
   }
 
   assert {

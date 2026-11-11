@@ -37,6 +37,8 @@
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and Promptoramix have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
+#                false (demo_planning_kc, immich_kiosk, homepage): neither; the
+#                target probe (hc_*) and check.target_health still show a failure.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
 #                resource URL. For an app whose root answers no 2xx GET
 #                (Promptoramix only takes POSTs there, and a 405 is DOWN for

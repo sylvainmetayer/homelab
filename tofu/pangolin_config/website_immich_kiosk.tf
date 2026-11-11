@@ -18,6 +18,13 @@ locals {
     domain_id = local.domain_ids["sylvain.cloud"]
     role      = "immich-kiosk"
 
+    # No healthcheck access token nor Uptime Kuma monitor: the token passes
+    # the SSO wall from anywhere and sits in a monitor hosted at PikaPods,
+    # and Kiosk has no login of its own behind it. A failure still shows:
+    # the Pangolin probe of the target (hc_*, websites.tf) serves the
+    # maintenance page and raises check.target_health at the next plan.
+    healthcheck = false
+
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
       group       = "Photos et médias"
