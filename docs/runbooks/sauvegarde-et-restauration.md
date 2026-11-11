@@ -138,8 +138,7 @@ restore` des dumps SQL, cas SQLite) est dans
      est un sous-dossier, ils ne voient pas `.zfs`) :
      `sftp -P 23 <uXXXXXX>@<uXXXXXX>.your-storagebox.de`, puis `ls -a`
      (`.zfs` attendu), `ls .zfs/snapshot` (un dossier par snapshot, nommé
-     d'après sa date). `.zfs` absent : l'accès n'est pas activé, voir
-     « À épingler dans Tofu » ci-dessous.
+     d'après sa date). `.zfs` absent : voir le dernier point.
    - *Ne pas faire « Rollback »* (console ou `rollback_snapshot`) : il efface
      les snapshots plus récents et tout ce qui a été écrit depuis, pour tous
      les hôtes.
@@ -155,14 +154,11 @@ restore` des dumps SQL, cas SQLite) est dans
      du snapshot. Puis `mv` de l'ancien dépôt en `.efface` et de `.restaure` à
      sa place, relancer une sauvegarde (`systemctl start borgmatic.service`) et
      `borg check --repository-only`.
-   - *À épingler dans Tofu selon le résultat du `ls -a`* : `.zfs` visible, rien
-     (ajouter quand même `zfs_enabled = true` dans `access_settings` de
-     `hcloud_storage_box.backups`, `tofu/pangolin/storage_box.tf`, pour que le
-     plan voie une désactivation) ; absent, activer « Afficher le dossier des
-     snapshots » dans la console (champ `access_settings.zfs_enabled` de
-     l'API, « Whether the ZFS snapshot folder is visible »), relire `ls -a`,
-     puis épingler la même ligne. Le nom d'attribut du provider hcloud est à
-     confirmer par un `tofu plan` sans changement.
+   - *Dossier `.zfs` absent* : il dépend de `zfs_enabled = true` dans
+     `access_settings` de `hcloud_storage_box.backups`
+     (`tofu/pangolin/storage_box.tf`). Le réglage était **éteint** jusqu'au
+     11/11/2026 (vu au plan, audit sv6) : épinglé depuis, un plan de
+     `tofu/pangolin` signale toute désactivation.
 
 ## Restauration d'essai (sans toucher à l'appli)
 

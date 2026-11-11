@@ -144,7 +144,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 | Code, runbooks, Tofu, Ansible | 1 | dépôt GitHub public ; docs aussi sur `docs.sylvain.cloud` | clones locaux | oui | CI | le site de docs passe par le SSO de Pangolin : GitHub sert quand Pangolin tombe |
 | DNS (`tofu/dns`), sites Pages (Cloudflare) | 3 | enregistrements dans le dépôt ; sites dans leurs dépôts | — | oui | non | — |
 | Uptime Kuma (PikaPods) | 3 | moniteurs déclarés dans `tofu/pangolin_config` ; dix moniteurs créés à la main et les réglages de notification sont hors Tofu | partiellement recréables : le déclaré revient par `tofu apply`, le reste est à refaire à la main | oui | non | les moniteurs manuels et les notifications ; historique des mesures : non trouvé dans le dépôt |
-| Actual Budget (`budget.sylvain.cloud`, PikaPods, comptes du foyer) | 2 | chez PikaPods ; aucune sauvegarde ni export décrit dans le dépôt | à vérifier : **sauvegarde à vérifier par Sylvain** (option Backups de PikaPods ? export local récent ?) | à vérifier | non | tout, tant que la sauvegarde n'est pas confirmée |
+| Actual Budget (`budget.sylvain.cloud`, PikaPods, comptes du foyer) | 2 | chez PikaPods | option Backups du pod, active (confirmé par Sylvain le 11/11/2026 ; destination et rétention réglées dans PikaPods, hors dépôt) | oui si la destination n'est pas à la maison (non relevé) | non : restauration jamais essayée | ce qui a été saisi depuis la dernière sauvegarde du pod |
 
 ## Par sinistre
 
