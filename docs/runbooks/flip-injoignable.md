@@ -61,7 +61,7 @@ Si toutes les applis du homelab tombent : [pangolin-injoignable.md](pangolin-inj
    ```bash
    systemctl --user status dc@newt
    docker logs --tail 100 newt
-   systemctl --user status dc@flip_planning dc@demo_planning dc@demo_planning_kc dc@exemple_planning dc@promptoramix dc@postiz
+   systemctl --user status dc@flip_planning dc@demo_planning dc@demo_planning_kc dc@exemple_planning dc@promptoramix dc@openpost
    ```
 
    `dc@demo_planning_kc` est arrêtée et désactivée exprès : le banc Keycloak

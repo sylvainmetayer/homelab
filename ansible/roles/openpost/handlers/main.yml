@@ -1,6 +1,6 @@
 ---
-- name: Restart postiz
+- name: Restart openpost
   ansible.builtin.systemd:
-    name: dc@postiz
+    name: dc@openpost
     scope: user
     state: restarted

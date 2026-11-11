@@ -94,7 +94,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools", "postiz"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools", "openpost"])
 
   length  = 48
   special = false
@@ -344,19 +344,21 @@ output "pocket_id_immich_client_secret" {
   sensitive   = true
 }
 
-# Postiz (le foyer, sur flip) : POSTIZ_OAUTH_* du rôle postiz. Rappel :
-# FRONTEND_URL + /settings ; sans PKCE (oauth.provider.ts, v2.25.3, n'en envoie
-# pas). Compte créé au premier login, lié par e-mail : le groupe est la
-# barrière. Logo en PNG : dashboard-icons n'a pas de postiz.svg.
-resource "pocketid_client" "postiz" {
-  name                = "Postiz"
-  client_id           = "postiz"
-  client_secret       = random_password.pocket_id_client["postiz"].result
-  callback_urls       = ["https://posts.sylvain.cloud/settings"]
-  allowed_user_groups = [pocketid_group.pangolin_role["postiz"].id]
+# OpenPost (le foyer, sur flip) : fournisseur OIDC saisi à la main dans son
+# interface (Organisation, SSO), comme Immich et Wishlist. Rappel
+# /api/v1/auth/oidc/<id du fournisseur>/callback, l'id étant créé par OpenPost
+# à la saisie (identity/service.go, v7.38.6) : d'où le joker. PKCE S256
+# envoyé ; e-mail vérifié exigé ; compte créé au premier login si « JIT » est
+# coché. Pas de logo amont stable : icône mdi, comme sur Homepage.
+resource "pocketid_client" "openpost" {
+  name                = "OpenPost"
+  client_id           = "openpost"
+  client_secret       = random_password.pocket_id_client["openpost"].result
+  callback_urls       = ["https://posts.sylvain.cloud/api/v1/auth/oidc/*/callback"]
+  allowed_user_groups = [pocketid_group.pangolin_role["openpost"].id]
   launch_url          = "https://posts.sylvain.cloud"
-  logo_url            = "${replace(local.pocket_id_logo_base, "/svg", "/png")}/postiz.png"
-  pkce_enabled        = false
+  logo_url            = "${local.pocket_id_mdi_base}/send-clock.svg"
+  pkce_enabled        = true
   is_public           = false
 }
 
@@ -519,14 +521,9 @@ output "pocket_id_karakeep_client_secret" {
   sensitive   = true
 }
 
-output "pocket_id_postiz_client_id" {
-  description = "POCKET ID - identifiant du client OIDC de Postiz"
-  value       = pocketid_client.postiz.client_id
-}
-
-output "pocket_id_postiz_client_secret" {
-  description = "POCKET ID - secret du client OIDC de Postiz"
-  value       = random_password.pocket_id_client["postiz"].result
+output "pocket_id_openpost_client_secret" {
+  description = "POCKET ID - secret du client OIDC d'OpenPost (saisi dans son interface)"
+  value       = random_password.pocket_id_client["openpost"].result
   sensitive   = true
 }
 
@@ -759,7 +756,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki", "postiz",
+    "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki", "openpost",
   ])
 
   pocket_id_launchers = {

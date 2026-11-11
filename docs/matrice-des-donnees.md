@@ -128,7 +128,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 | Flip Planning, démo (**en pause**) | 3 | Borg `demo_planning` (sa propre archive, figée au 2026-11-11) | oui | ~1 h (est.) | CI | — |
 | Démo Keycloak (**en pause**), vitrine publique (**en pause**) | 3 | aucune (`flip_planning_backup_enabled: false`) | non | sans objet | non | toutes leurs données, gardées sur le disque de flip |
 | Promptoramix | 3 | aucune ; son volume est un journal de coups, hors sauvegarde | non | sans objet | non | ce journal |
-| Postiz (publications planifiées) | 3 | Borg `postiz` : `uploads`, `compose.yaml`, `.env` + dumps PostgreSQL (`postiz`, `temporal`, `temporal_visibility`) | oui | ~1 h (est.) | CI | publications planifiées depuis la dernière nuit |
+| OpenPost (publications planifiées) | 3 | Borg `openpost` : `data` (médias), `compose.yaml`, `.env` + copie SQLite | oui | ~30 min (est.) | CI | publications planifiées depuis la dernière nuit |
 
 ## Hors de la maison, mentionné dans le dépôt
 

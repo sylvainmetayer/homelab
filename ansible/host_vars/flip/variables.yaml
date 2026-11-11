@@ -33,8 +33,8 @@ flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 # applied a second time in flip.yml, which maps these onto its flip_planning_*
 # parameters; its own Borg repository, so restoring the demo can never touch the
 # production archives.
-# En pause depuis le 2026-11-11 (docs/runbooks/app-en-pause.md) : sa mémoire
-# (~540 Mio) va à Postiz, flip n'a pas la place pour les deux. Va avec
+# En pause depuis le 2026-11-11 (docs/runbooks/app-en-pause.md) : arrêtée pour
+# l'essai de Postiz (retiré depuis), laissée en pause. Va avec
 # `enabled = false` de tofu/pangolin_config/website_demo_planning.tf (test
 # invariants).
 demo_planning_enabled: false

@@ -54,7 +54,7 @@ flowchart LR
 
   subgraph hetzner_priv["Hetzner, réseau privé 10.0.0.0/16"]
     subgraph flip["flip (10.0.1.10, sans IP publique)"]
-      newt_flip[newt] --> fp["flip_planning, demo_planning,<br/>demo_planning_kc, exemple_planning (vitrine publique),<br/>promptoramix, postiz"]
+      newt_flip[newt] --> fp["flip_planning, demo_planning,<br/>demo_planning_kc, exemple_planning (vitrine publique),<br/>promptoramix, openpost"]
     end
   end
 ```
@@ -205,7 +205,7 @@ gérés dans Pangolin. Procédure et secours :
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
-| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak, vitrine publique `exemple-planning` remise à zéro chaque nuit), Promptoramix, Postiz |
+| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak, vitrine publique `exemple-planning` remise à zéro chaque nuit), Promptoramix, OpenPost |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent`, `update_notify` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |

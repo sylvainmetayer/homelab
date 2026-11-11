@@ -1,0 +1,42 @@
+---
+# D'après https://github.com/getopenpost/openpost (docker-compose.yml) : un
+# conteneur, SQLite et médias sous ./data.
+services:
+  openpost:
+    # Pas encore mesuré : un binaire Go, plus ffmpeg quand il traite une vidéo.
+    # À recaler sur memory.peak (mem_report) après quelques jours.
+    mem_limit: 768m
+    image: ghcr.io/getopenpost/openpost:v7.38.6
+    container_name: openpost
+    # Déjà l'utilisateur de l'image (uid 1000), répété ici : cap_drop en dépend.
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    # Sans privilège dès le démarrage, écoute sur 8080 : aucune capacité.
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    # Celui du compose amont.
+    stop_grace_period: 15s
+    env_file:
+      - .env
+    environment:
+      OPENPOST_PORT: "8080"
+      OPENPOST_DATABASE_PATH: /data/db/openpost.db
+      OPENPOST_MEDIA_PATH: /data/media
+    volumes:
+      - ./data:/data
+    # Celui de l'image, écrit ici pour le voir dans le modèle compose.
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    # Seul conteneur du projet : pas de réseau privé, le réseau de newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

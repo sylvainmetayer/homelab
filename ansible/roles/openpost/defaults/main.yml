@@ -1,0 +1,31 @@
+---
+openpost_base_path: "{{ docker_base_path }}/openpost"
+openpost_domain: posts.sylvain.cloud
+
+# false : appli en pause (docs/runbooks/app-en-pause.md), dc@openpost arrêtée
+# et désactivée, configuration borgmatic retirée, plus aucun redémarrage.
+openpost_enabled: true
+openpost_restart_handlers: "{{ ['Restart openpost'] if openpost_enabled | bool else [] }}"
+
+# Dérivés de app_secrets_seed comme ceux de karakeep : pas d'entrée SOPS. Au
+# format de `openssl rand -base64 32` (la doc amont) : 32 octets en base64.
+# Changer le premier déconnecte les sessions ; changer le second rend
+# illisibles les identifiants des réseaux enregistrés dans la base.
+openpost_jwt_secret: "{{ ((app_secrets_seed ~ '-openpost-jwt') | hash('sha256'))[:32] | b64encode }}"
+openpost_encryption_key: "{{ ((app_secrets_seed ~ '-openpost-enc') | hash('sha256'))[:32] | b64encode }}"
+
+# Le premier compte créé est administrateur de l'instance. Derrière le mur
+# Pangolin, seul le groupe `openpost` atteint la page d'inscription : passer à
+# true une fois le compte créé (README), les logins Pocket ID créent le leur.
+openpost_disable_registrations: false
+
+# Réseaux d'où Traefik (par Newt) joint le conteneur : le pool d'adresses par
+# défaut de Docker, dont le bridge `newt`. Sans lui, OpenPost ignore
+# X-Forwarded-Proto et croit servir en http.
+openpost_trusted_proxy_cidrs: 172.16.0.0/12
+
+# Borgmatic backup configuration
+openpost_backup_enabled: true
+openpost_backup_borgmatic_target: "{{ backup_storage_box_url }}/openpost"
+openpost_backup_encryption_passphrase: "{{ backup_passphrase }}"
+openpost_backup_healthcheck_url: ""

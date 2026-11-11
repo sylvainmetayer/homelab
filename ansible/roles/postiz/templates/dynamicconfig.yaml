@@ -1,8 +1,0 @@
-# dynamicconfig/development-sql.yaml du dépôt gitroomhq/postiz-docker-compose.
-limit.maxIDLength:
-  - value: 255
-    constraints: {}
-# Postiz ajoute ses attributs de recherche au démarrage et s'en sert aussitôt.
-system.forceSearchAttributesCacheRefreshOnRead:
-  - value: true
-    constraints: {}

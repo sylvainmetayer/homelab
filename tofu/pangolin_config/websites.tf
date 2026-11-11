@@ -88,7 +88,7 @@ locals {
     openwebui               = local.openwebui_website
     pairdrop                = local.pairdrop_website
     papra                   = local.papra_website
-    postiz                  = local.postiz_website
+    openpost                = local.openpost_website
     promptoramix            = local.promptoramix_website
     rss                     = local.rss_website
     speedtest_tracker       = local.speedtest_tracker_website
