@@ -90,7 +90,7 @@ nouveau, basculer, vérifier, puis révoquer l'ancien
 1. **Les accès** : clés SSH et `host_user_password_hash` si une clé a pu fuir
    ([perte-cle-ou-poste.md](perte-cle-ou-poste.md)) ; la clé de CI (étape 6).
 2. **Les jetons de fournisseurs lisibles depuis l'hôte ou par la CI** : ceux du
-   fichier Ansible (rapport des coûts Hetzner et OVH, clé OVH du Traefik du
+   fichier Ansible (rapport des coûts Hetzner, clé OVH du Traefik du
    NAS…). Ceux du fichier racine (Hetzner, OVH, S3 des states, Proxmox)
    seulement si la clé age ou le poste est en cause.
 3. **Le tunnel** de l'hôte : ses identifiants Newt (« Identifiants Newt »),

@@ -112,7 +112,7 @@ depuis son ajout porte donc la date de son ajout.
 
 ### OVH
 
-Quatre applications d'API distinctes, chacune un triplet
+Trois applications d'API distinctes, chacune un triplet
 application key / application secret / consumer key :
 
 - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
@@ -131,16 +131,6 @@ application key / application secret / consumer key :
   (redémarre la pile), puis révoquer l'ancienne. Elle ne sert qu'à l'émission
   et au renouvellement : une clé cassée ne se voit qu'au renouvellement suivant
   (`docker logs traefik 2>&1 | grep -i acme`).
-- `costs_ovh_application_key`, `costs_ovh_application_secret`,
-  `costs_ovh_consumer_key` (fichier Ansible, optionnelles) : le rapport des
-  coûts (rôle `cost_report`, VM docker), en lecture seule des factures et
-  de la consommation Public Cloud : `GET /me/bill`, `GET /me/bill/*`,
-  `GET /cloud/project/<projet>/usage/current`, rien d'autre. Création (lien
-  `createToken` prérempli) et vérification :
-  [ansible/roles/cost_report/README.md](../../ansible/roles/cost_report/README.md),
-  section « OVH ».
-  Avec `costs_ovh_cloud_project_id` (`identifier`, jamais tournée :
-  l'identifiant du projet, le même que `OVH_CLOUD_PROJECT_ID`).
 
 Créer une nouvelle application avec les **mêmes droits** que l'ancienne
 (les relire avant : console OVH, ou `GET /me/api/credential` dans la
@@ -148,9 +138,8 @@ console d'API), basculer les trois clés ensemble par `sops set`, puis :
 pour la première, un `plan` vide dans chacun des modules cités ; pour la
 seconde, `ansible-playbook nas.yml --tags nas_proxy` et un renouvellement
 de certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
-`ansible-playbook docker.yml --tags cost_report`, puis
-`sudo systemctl start cost-report` sur la VM docker : OVH ne doit être ni
-« en erreur » ni « non configurée » dans `journalctl -u cost-report`.
+`ansible-playbook pangolin.yaml --tags pangolin` et un renouvellement
+réussi (voir plus haut).
 Révoquer ensuite l'ancienne application (`DELETE /me/api/application/{id}`).
 
 ### Clés S3 des states
@@ -316,7 +305,6 @@ valeur dans l'application une fois la carte vérifiée.
 | `homepage_speedtest_tracker_token` | Speedtest Tracker : dernier test | interface de Speedtest Tracker, API Tokens : capacité **results:read** seule | `application` |
 | `homepage_immich_api_key` | Immich : utilisateurs, photos, vidéos, stockage | Immich, compte **admin** (l'API `/api/server/statistics` l'exige), Account Settings → API Keys : permission **server.statistics** seule | `application` |
 | `homepage_jellyfin_api_key` | Jellyfin : médiathèque, lectures en cours | Jellyfin, Tableau de bord → Avancé → Clés API (clé d'administration : risque accepté, `docs/architecture.md`) | `application` |
-| `homepage_homebox_password` | Homebox : objets, emplacements, valeur | Homebox : inviter le compte `homepage_homebox_username` (`host_vars/docker`) dans le groupe de Sylvain, mot de passe `openssl rand -base64 32` (le compte peut écrire : risque accepté) | `application` |
 | `homepage_karakeep_api_key` | Karakeep : favoris, listes, étiquettes | Karakeep, compte dont on veut les compteurs, User Settings → API Keys (tous ses droits : risque accepté) | `application` |
 | `homepage_calendar_ics_url`, `homepage_calendar_top_nous_ics_url` | Agenda (iCal) : Perso, Top nous | Nextcloud, Agenda → l'agenda → Partager → lien public en lecture seule, puis « Copier le lien d'abonnement » : `webcal://…/remote.php/dav/public-calendars/<jeton>?export`, à enregistrer en `https://` | `application` |
 | `homepage_uptimekuma_api_key` | Supervision : Sondes en panne, Sauvegardes, Maintenance (lues par `kuma-summary` dans `/metrics`) | Uptime Kuma, Paramètres → Clés d'API → Ajouter : nom `homepage`, sans expiration ; la clé (`uk<id>_…`) n'est affichée qu'une fois. Une clé d'Uptime Kuma n'ouvre que `/metrics`, en lecture ; tant qu'il en existe une active, `/metrics` refuse le compte administrateur. Rotation : nouvelle clé, `sops set`, déploiement, puis désactiver et supprimer l'ancienne | `application` |

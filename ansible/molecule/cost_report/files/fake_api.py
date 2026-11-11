@@ -1,16 +1,13 @@
 """Fausses API du scénario cost_report, sur 127.0.0.1 : Hetzner Cloud
-(/cloud), Hetzner (/api, Storage Box), OVH (/ovh) et ntfy (POST /). Chaque
+(/cloud), Hetzner (/api, Storage Box) et ntfy (POST /). Chaque
 requête ajoute une ligne JSON (méthode, chemin, en-têtes d'authentification,
-corps) au fichier donné. La facture OVH est datée du 15 du mois dernier."""
+corps) au fichier donné."""
 
-import datetime
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 LOG = sys.argv[2]
-today = datetime.date.today()
-last_month = (today.replace(day=1) - datetime.timedelta(days=1)).replace(day=15)
 
 
 def price(gross):
@@ -38,13 +35,8 @@ ROUTES = {
     "/api/storage_boxes": {"storage_boxes": [
         {"name": "backups", "location": {"name": "fsn1"}, "storage_box_type": {"name": "bx11", "prices": price("3.8100000000")}},
     ]},
-    "/ovh/me/bill": ["FR1"],
-    "/ovh/me/bill/FR1": {"billId": "FR1", "date": f"{last_month.isoformat()}T10:00:00+02:00",
-                         "priceWithTax": {"currencyCode": "EUR", "value": 11.99, "text": "11.99 €"}},
-    "/ovh/cloud/project/molecule-project/usage/current": {
-        "totalPrice": {"currencyCode": "EUR", "value": 0.25, "text": "0.25 €"}},
 }
-AUTH_HEADERS = ("Authorization", "X-Ovh-Application", "X-Ovh-Consumer", "X-Ovh-Signature")
+AUTH_HEADERS = ("Authorization",)
 
 
 class Handler(BaseHTTPRequestHandler):

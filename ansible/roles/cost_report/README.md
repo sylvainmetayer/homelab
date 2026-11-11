@@ -33,7 +33,6 @@ durcie qui n'écrit que dans son `StateDirectory` (`/var/lib/cost-report`).
 | Source | Ce qui est compté | Mois dernier | Mois en cours | Clé |
 |---|---|---|---|---|
 | Hetzner | serveurs Cloud, leurs sauvegardes (pourcentage de `/pricing`), IP primaires payantes, volumes, Storage Box | prix mensuel TTC des ressources **actuelles** (l'API n'a pas de facture : estimation au tarif courant ; trafic excédentaire non compté) | même montant au prorata du mois écoulé | `hcloud_readonly_token` (existante) |
-| OVH | factures du compte (domaines, Public Cloud du mois précédent, tout le reste), consommation Public Cloud pas encore facturée | factures **datées** du mois (TTC) | factures du mois à date + consommation en cours (HT dans l'API, + `cost_report_ovh_vat_percent` %) | `costs_ovh_*` (à créer) |
 | Abonnements | `defaults/main/abonnements.yml` : PikaPods (pas d'API publique), kDrive, abonnement IA… | montant mensuel, ou annuel / 12 | prorata | aucune |
 
 - Une source sans clé est « non configurée », un abonnement à `amount: 0`
@@ -42,10 +41,6 @@ durcie qui n'écrit que dans son `StateDirectory` (`/var/lib/cost-report`).
   jamais l'URL ni le jeton) marque sa seule source « en erreur ».
 - Pas de conversion de devise : les totaux s'additionnent par devise
   (« 30,32 € + 6,00 USD »).
-- OVH compte ce qui est **facturé** dans le mois : la consommation Public
-  Cloud d'octobre est sur la facture datée de début novembre. Le Public
-  Cloud n'est donc jamais compté deux fois (en cours tant qu'il n'est pas
-  facturé, puis facture).
 - Les abonnements se changent dans `defaults/main/abonnements.yml` (le rôle
   refuse au déploiement un montant non numérique, une devise qui n'est pas
   un code ISO, une période autre que `monthly`/`yearly`) ; un merge ne
@@ -67,47 +62,8 @@ Storage Box est dans le même projet (`hcloud_storage_box`), lue par la même
 API (`api.hetzner.com/v1/storage_boxes`). Sa rotation (runbook, « Hetzner »)
 redéploie aussi ce rôle.
 
-### OVH : une application dédiée, en lecture des factures seulement
-
-1. Connecté au compte OVH, ouvrir (remplacer `<projet>` par l'identifiant
-   du projet Public Cloud, `OVH_CLOUD_PROJECT_ID` du fichier racine :
-   `sops decrypt --extract '["OVH_CLOUD_PROJECT_ID"]' secrets/secrets.sops.yaml`) :
-
-   ```
-   https://eu.api.ovh.com/createToken/?GET=/me/bill&GET=/me/bill/*&GET=/cloud/project/<projet>/usage/current
-   ```
-
-   Nom `homelab-cost-report`, description « Rapport des coûts (lecture des
-   factures) », validité **Unlimited** ; dans « Restricted IPs », l'IP
-   publique de la maison (clé `home_ip`) si elle est fixe : la VM docker
-   sort par elle. Vérifier que la page liste ces trois droits, `GET`
-   seulement, et rien d'autre.
-2. `sops set` dans `secrets/ansible.sops.yaml` : `costs_ovh_application_key`,
-   `costs_ovh_application_secret`, `costs_ovh_consumer_key` (les trois
-   valeurs affichées), et `costs_ovh_cloud_project_id` (l'identifiant du
-   projet ; sans elle, les factures seules).
-3. Entrées de `secrets/secrets-rotation.yaml` :
-
-   ```yaml
-     - key: costs_ovh_application_key
-       file: secrets/ansible.sops.yaml
-       kind: provider
-       last_rotated: AAAA-MM-JJ
-       estimated: false
-       how: docs/runbooks/rotation-des-secrets.md#ovh
-     # idem pour costs_ovh_application_secret et costs_ovh_consumer_key
-     - key: costs_ovh_cloud_project_id
-       file: secrets/ansible.sops.yaml
-       kind: identifier
-       last_rotated: AAAA-MM-JJ
-       estimated: false
-       how: docs/runbooks/rotation-des-secrets.md#ovh
-   ```
-
-4. Vérifier : `GET /me/api/credential` dans la console d'API montre les
-   seules règles ci-dessus ; après le déploiement,
-   `sudo systemctl start cost-report && journalctl -u cost-report -n 30` :
-   OVH n'est plus « non configurée ».
+OVH n'est pas interrogé : pas d'API de facturation lue, pas de clé. Un abonnement
+OVH à montant fixe se déclare dans `defaults/main/abonnements.yml`.
 
 ## Pas de moniteur Uptime Kuma
 
@@ -121,13 +77,13 @@ déjà.
 ## Tests
 
 - `ansible/molecule/cost_report/files/test_cost_report.py` : analyse des
-  réponses Hetzner et OVH (enregistrées, aucun appel réel), signature OVH,
+  réponses Hetzner (enregistrées, aucun appel réel),
   abonnements, rapport, découpage sous la limite de ntfy, publication une
   fois par mois. À la main : copier le script à côté et lancer
   `python3 -I -m unittest discover -s . -p 'test_*.py'`.
 - Scénario Molecule `cost_report` : droits des fichiers, jetons dans le seul
   fichier d'environnement, unités (`systemd-analyze verify`), tests
-  unitaires, puis la vraie unité deux fois contre de fausses API Hetzner,
-  OVH et ntfy (`files/fake_api.py`) : une seule publication, montants
+  unitaires, puis la vraie unité deux fois contre de fausses API Hetzner
+  et ntfy (`files/fake_api.py`) : une seule publication, montants
   attendus.
 - La source `costs` d'`apps-summary` : `ansible/molecule/homepage/files/test_apps_summary.py`.
