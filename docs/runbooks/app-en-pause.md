@@ -10,8 +10,10 @@ mémoire va à Postiz, flip n'a pas la place pour les deux), le banc Keycloak de
 (`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)) depuis
 octobre 2026, la vitrine publique (`exemple_planning`, voir
 [plus bas](#la-vitrine-publique-de-flip-planning)) depuis novembre 2026. Paperless-ngx a été en pause d'octobre à novembre 2026, puis
-supprimé (remplacé par Papra) : les exemples ci-dessous disent `<app>`, le
-dernier à avoir suivi la voie `host_vars` étant Paperless.
+supprimé (remplacé par Papra) : les exemples ci-dessous disent `<app>` et
+supposent la voie `host_vars` (Paperless, Postiz le 2026-11-11 ; la démo de Flip
+Planning la suit par une variable propre, `demo_planning_enabled`, que son
+entrée de `flip.yml` passe à `flip_planning_enabled`).
 
 ## Les quatre endroits
 
