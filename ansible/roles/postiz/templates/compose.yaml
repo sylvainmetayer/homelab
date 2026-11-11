@@ -94,7 +94,7 @@ services:
     mem_limit: 768m
     cpu_shares: 512
     # La version du compose amont, celle que Postiz essaie.
-    image: temporalio/auto-setup:1.28.1
+    image: temporalio/auto-setup:1.28.1@sha256:607d68caa111338d754771efb876c92dfcdae06d056e4530bb31cd0f37406e6a
     container_name: postiz-temporal
     security_opt:
       - no-new-privileges:true
