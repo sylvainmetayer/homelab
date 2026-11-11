@@ -49,8 +49,11 @@ GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
 - **Les archives vzdump** (images de la VM docker et du LXC) : seule copie sur
   le NAS ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md)). La VM se
   reconstruit **depuis Borg appli par appli**, pas depuis une image.
-- **La configuration de l'hôte Proxmox** (`/etc/pve` : storage, jetons, droits)
-  et l'installation de l'hôte : aucune sauvegarde trouvée dans le dépôt.
+- **L'installation de l'hôte Proxmox** (système, réseau, disques). Sa
+  configuration (`/etc/pve` : storages, realm OpenID, jetons, ACME) n'est pas
+  perdue : elle est dans Borg (dépôt `pve_config`, depuis le 10/11/2026), à
+  remettre à l'étage 3 ([hote-proxmox-mort.md](hote-proxmox-mort.md), partie
+  **A bis**, jamais jouée).
 - **Le miroir kDrive du NAS et son historique `versions/`** (anciennes versions
   de fichiers remplacés, absentes de kDrive) : le miroir se recopie depuis
   kDrive, pas `versions/`. Les films et séries exclus de la copie n'ont jamais
@@ -146,7 +149,8 @@ sont annoncés qu'une fois ces deux résolveurs revenus (étage 3 et Immich).
 Une machine x86 capable de la VM docker (3 cœurs, 12 Gio, disque de 190 Gio
 virtuels dont ~105 Gio écrits, `tofu/proxmox/terraform.tfvars`). Pas d'archive
 vzdump : [hote-proxmox-mort.md](hote-proxmox-mort.md), parties **A** (installer
-l'hôte, jeton d'API, clé d'hôte en PR) et **C** (« NAS aussi perdu » : recréer
+l'hôte, jeton d'API, clé d'hôte en PR), **A bis** (remettre `/etc/pve` depuis
+Borg, avant de recréer quoi que ce soit) et **C** (« NAS aussi perdu » : recréer
 par Tofu).
 
 1. `mise run init-proxmox`, `mise run plan-proxmox`, relire, puis
@@ -181,7 +185,7 @@ temps, vérification par appli). Ce qui suit vaut pour une VM sur Proxmox.
    son sous-compte (même mécanique que
    [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), « Clé non
    autorisée »). Le playbook lit la clé de `docker`, `pi`, `pangolin`, `flip` et
-   `nas` et refuse tout si l'une manque : Pi et NAS absents, le limiter aux
+   `nas` et `pve` et refuse tout si l'une manque : Pi et NAS absents, le limiter aux
    hôtes présents avec `-e '{"backup_storage_box_hosts": ["docker"]}'` (à vérifier
    en `--check`), et refaire de même pour le Pi à l'étage 5.
 3. `ansible-playbook docker.yml` pour le reste de la pile. Les applis démarrent
@@ -220,6 +224,14 @@ en **arrêtant l'appli avant** de rejouer son dump. Proposition d'ordre :
    chiffrées ne s'ouvrent pas), **Dawarich**, **Papra**.
 3. Le **site de documentation** (`docs_site`) et ntfy reviennent avec la pile :
    les alertes ntfy recommencent à ce moment, pas avant.
+4. **Second passage Ansible, une fois les données restaurées** :
+   `ansible-playbook docker.yml --tags backup` (idem `pi.yml --tags backup`
+   pour le Pi et `nas.yml --tags backup` pour le NAS, à la main). Ansible ne
+   repère une base SQLite (copie cohérente avant sauvegarde, exclusion du
+   fichier vivant) que si le fichier existe : au premier passage les bases
+   n'étaient pas là, et sans ce passage les bases vivantes partent à chaud
+   chaque nuit. Vérifier ensuite que l'archive suivante contient
+   `var/lib/borgmatic-sqlite`.
 
 **Critère de passage**, par appli : l'adresse répond derrière le SSO, les
 données attendues sont là (une photo récente, un calendrier, une mesure), le
