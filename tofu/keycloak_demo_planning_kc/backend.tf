@@ -9,5 +9,7 @@ terraform {
     skip_region_validation      = true
     skip_credentials_validation = true
     use_path_style              = true
+    # Verrou natif (écritures conditionnelles, objet <key>.tflock) : un seul apply à la fois.
+    use_lockfile = true
   }
 }
