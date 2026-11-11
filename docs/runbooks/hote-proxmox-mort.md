@@ -254,3 +254,18 @@ dépôt ne dit pas.
 - **Uptime Kuma** : « Backup Proxmox config » vert chaque matin depuis le
   10/11 ; depuis le poste, `borg list --bypass-lock --last 3` de A bis
   (étape 1) liste des archives récentes.
+
+**Relevé du 11/11/2026** (lecture seule, en SSH sur l'hôte) :
+
+- `pvesm status` : `local` (dir, actif, contenu `snippets,vztmpl,backup,iso`),
+  `local-lvm` (lvmthin, actif), `nas-backup` (nfs, actif). L'apply ciblé de
+  B.4 trouve donc bien `snippets` sur `local`.
+- Identifiants : la VM docker a le VMID **100**, le LXC newt le **200**
+  (`qm list`, `pct list`), pve-manager 9.2.26.
+- Réseau : `vmbr0` en IP fixe `192.168.1.26/24`, passerelle `192.168.1.254`
+  (`/etc/network/interfaces`).
+- Timers : `borgmatic.timer` (01:00, dernier passage la nuit du 11/11),
+  `vzdump-freshness.timer` (07:30), `vzdump-restore-test.timer` (lundi 10:00).
+
+Restent à voir sur place : le BIOS (« Restore on AC Power Loss »), les DNS
+annoncés par la Bbox, le moniteur « Backup Proxmox config ».

@@ -149,3 +149,22 @@ vzdump, pas d'image.
 « S.M.A.R.T. Raspberry Pi » vert ; sinon le pont USB ne remonte rien et le
 contrôle trimestriel à la main est le seul
 ([sante-des-disques.md](sante-des-disques.md)).
+
+**Relevé du 11/11/2026** (lecture seule, en SSH sur le Pi) :
+
+- Système : Debian GNU/Linux 13 (trixie), comme attendu.
+- Nom d'hôte : `reese` (`hostnamectl --static`). L'étape 1 installe `pi` :
+  le choix reste à faire.
+- EEPROM : `rpi-eeprom-config` ne porte aucun `BOOT_ORDER` (seul
+  `POWER_OFF_ON_HALT=0` y figure) : le Pi démarre sur le SSD USB avec l'ordre
+  par défaut du chargeur. Un Pi neuf fera de même sans carte SD insérée.
+- Disque : SSD USB de 931,5 Go (WD_BLACK SN770), `/` à 518 Go sur 918 Go,
+  353 Go libres. Photothèque : 494 Go (`/opt/apps/immich/library`) : **le
+  disque ne peut pas la recevoir deux fois** (étape 5).
+- Réseau : `192.168.1.96` est obtenue **par DHCP** (bail dynamique, connexion
+  « Wired connection 1 ») : sans bail réservé dans la Bbox, un Pi neuf ou une
+  Bbox neuve lui donneront une autre adresse. MAC à relever sur place, hors du
+  dépôt.
+
+Restent à voir sur place : le bail réservé et les DNS annoncés dans la Bbox,
+la page S.M.A.R.T. du Pi dans Beszel.

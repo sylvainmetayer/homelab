@@ -192,3 +192,23 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
   B.5 n'a rien à remettre pour eux.
 - Hôte Proxmox, une fois le NAS revenu après une coupure : `pvesm status`
   montre `nas-backup` actif sans intervention (montage resté bloqué, B.6).
+
+**Relevé du 11/11/2026** (lecture seule, en SSH sur le NAS, UGOS 1.21.1.0016) :
+
+- RAID : `md1`, RAID 1 sur `sda2` et `sdb2`, `[2/2] [UU]`, sain.
+- Scrub Btrfs : un scrub de `/volume1` a tourné le 07/11 (3 h 18 pour
+  1,93 Tio, terminé). Rien ne dit dans le système qu'il est planifié
+  (`e2scrub_all.timer` ne concerne pas Btrfs) : planification à lire dans
+  UGOS.
+- Instantanés : 35 au total, un par jour à 00:00 pour `media`, `pve-backup`
+  et `kdrive` (`@snapshot/share_folder/<dossier>/GMT+01_<date>`). Le dossier
+  `media` en a donc bien, sur les mêmes disques.
+- Réseau : `192.168.1.137` est obtenue **par DHCP** (bail dynamique sur
+  `eth0`), pas fixée dans UGOS : elle dépend d'un bail réservé dans la Bbox.
+  MAC à relever sur place, hors du dépôt.
+- `smart-check.timer` est déployé (dernier passage le 09/11), ainsi que
+  `borgmatic.timer` (02:30) et `kdrive-sync.timer` (04:00).
+- Hôte Proxmox : `nas-backup` actif au relevé (`pvesm status`).
+
+Restent à voir sur place : les menus d'UGOS, la notice du boîtier, le BIOS,
+le bail réservé dans la Bbox, une copie éventuelle des médias ailleurs.
