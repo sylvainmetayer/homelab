@@ -357,9 +357,8 @@ pveum acl modify / --tokens 'homepage@pve!homepage' --roles PVEAuditor
 `homepage@pve!homepage`, `homepage_proxmox_token_secret` = la valeur
 affichée. Rotation : `pveum user token remove homepage@pve homepage`, puis
 les deux dernières commandes et `sops set` du nouveau secret (l'identifiant
-ne change pas). Pas dans `tofu/proxmox` : son state n'est pas chiffré, il y
-garderait le secret en clair, et Ansible ne lit que celui de
-`pangolin_config`.
+ne change pas). Pas dans `tofu/proxmox` : son state, même chiffré, ne sert qu'à
+l'inventaire et au plan, et Ansible ne lit que celui de `pangolin_config`.
 
 Pangolin : le widget appelle `https://pangolin-api.sylvain.cloud/v1` depuis
 la VM docker, donc depuis l'IP publique de la maison ; l'API d'intégration
@@ -617,12 +616,11 @@ déconnexion, et n'apporte rien sans fuite.
   change avec elle : Déconnecter Withings dans HealthLog avant le
   déploiement, Connecter après (la déconnexion désabonne l'URL du secret en
   cours).
-- `TF_VAR_state_encryption_passphrase` : chiffre les states de
-  `tofu/pangolin`, `tofu/github`, `tofu/s3_state` et `tofu/keepass_backup`.
-  `tofu/dns` et `tofu/pangolin_config`, dont le state reste en clair,
-  déchiffrent celui de `tofu/pangolin` avec la même passphrase (leur
-  `encryption.tf`) : rien à rechiffrer chez eux, mais leur lecture doit suivre
-  la rotation, sinon leur plan échoue. Changer de passphrase passe par une
+- `TF_VAR_state_encryption_passphrase` : chiffre les states de tous
+  les modules sauf `tofu/pangolin_config` (dont le state reste en clair,
+  Ansible le lit). `tofu/dns` et `tofu/github` déchiffrent aussi celui de
+  `tofu/pangolin` avec la même passphrase (leur `encryption.tf`) : leur lecture
+  doit suivre la rotation, sinon leur plan échoue. Changer de passphrase passe par une
   méthode `fallback` du bloc `encryption` le temps d'un apply par module
   (documentation OpenTofu,
   « State encryption, key rotation »).
