@@ -9,14 +9,15 @@ Chaque règle est une requête LogsQL finissant par `stats by (...) count() n`, 
 | Règle | Requête (extrait) | Fenêtre | Seuil | ntfy | Répétition |
 |---|---|---|---|---|---|
 | `traefik-5xx` | `source:traefik status:in(502,503,504)`, par `router` | 5 min | >= 10 | 3 | 1 h par routeur |
-| `oom-kill` | `OOMKilled`, `exited with code 137` ou `status=9/KILL`, hors `session.scope` et `dc@homepage.service`, par `host, unit` | 15 min | >= 1 | 4 | 1 h |
+| `oom-kill` | `OOMKilled`, `exited with code 137`, `status=9/KILL` ou la ligne du noyau `out of memory: Killed process` (seule trace sous `compose up -d`, Pangolin ; `unit` vide), hors `session.scope` et `dc@homepage.service`, par `host, unit` | 15 min | >= 1 | 4 | 1 h |
 | `oom-kill-homepage` | idem pour `dc@homepage.service` (sa limite mémoire est déjà un sujet connu : 37 kills en 10 jours) | 1 h | >= 3 | 3 | 6 h |
 | `borgmatic-absent` | `unit:"borgmatic.service"`, par `host` ; alerte pour chaque hôte de `log_alerts_borgmatic_hosts` (docker, pangolin, pi, flip, nas) sans aucune ligne | 26 h | absence | 5 | 24 h |
-| `borgmatic-failed` | `unit:"borgmatic.service" _msg:"Failed with result"`, par `host` | 26 h | >= 1 | 5 | 24 h |
+| `borgmatic-failed` | `_msg:"borgmatic.service: Failed with result"`, par `host` (la ligne vient de systemd : son `unit` vaut `init.scope`, le nom de l'unité n'est que dans le message) | 26 h | >= 1 | 5 | 24 h |
+| `unit-failed` | `_msg:"Failed with result"`, nom de l'unité extrait du message, par `host, u`, hors borgmatic (règle ci-dessus), `tmp.mount` (le LXC l'échoue toutes les 5 min), `dc@*.service` (échec à chaque redémarrage de déploiement), le NAS (unités UGOS bruyantes) et `session.scope` | 15 min | >= 1 | 4 | 6 h par unité |
 
 - `session.scope` est exclu : les commandes tapées en SSH (une requête comme celle-ci) citent les mots cherchés.
 - `borgmatic-absent` est un filet : le moniteur push de chaque sauvegarde (`uptime_push`) reste la première alerte. Un nouvel hôte sauvegardé s'ajoute à `log_alerts_borgmatic_hosts`.
-- Seuils mesurés sur 10 jours seulement (rétention récente de VictoriaLogs) : à rejouer dans un mois. Sur ces 10 jours, `traefik-5xx` aurait sonné 6 fois (fenêtres fixes de 5 min), `oom-kill` une dizaine de fois, `oom-kill-homepage` 7 fois, les deux borgmatic jamais.
+- Seuils mesurés sur 10 jours seulement (rétention récente de VictoriaLogs) : à rejouer dans un mois. Sur ces 10 jours, `traefik-5xx` aurait sonné 6 fois (fenêtres fixes de 5 min), `oom-kill` une dizaine de fois, `oom-kill-homepage` 7 fois, les deux borgmatic jamais. Rejeu du 11/11 sur les 14 jours de journaux : `oom-kill` avec la ligne du noyau en gagne 10 (9 au 09-10/11 sur docker, 1 sur pangolin), `unit-failed` aurait sonné 10 fois (6 unités ; 5 fois `log-alerts.service` lui-même, qui échoue vers 02:16 chaque nuit), `borgmatic-failed` jamais.
 - Une alerte ne se répète qu'après `repeat_seconds`, par règle et par groupe (état local). Un message ntfy par règle et par passage, 20 lignes au plus.
 
 ## Moniteur « Alertes sur les journaux »

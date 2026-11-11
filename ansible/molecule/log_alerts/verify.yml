@@ -23,8 +23,9 @@
         source:traefik:
           - {router: a-router@file, n: "12"}
           - {router: b-router@file, n: "9"}
-        session.scope: [{host: docker, unit: dc@trek.service, n: "1"}]
+        # Avant session.scope : la requête d'unit-failed le cite aussi (le premier gagne).
         'Failed with result': []
+        session.scope: [{host: docker, unit: dc@trek.service, n: "1"}]
         'borgmatic.service" | stats':
           - {host: docker, n: "9"}
           - {host: pangolin, n: "9"}
