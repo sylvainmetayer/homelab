@@ -21,6 +21,14 @@ beszel_publish_addresses:
 # (propriétaire des alertes).
 beszel_admin_email: "{{ pangolin_le_email }}"
 
+# Adresse du compte Beszel propriétaire des systèmes de config.yml. Elle doit
+# être celle d'un compte existant : sinon le hub sort au démarrage (« User …
+# not found », « users: cannot be blank ») et redémarre en boucle. Depuis la
+# liaison Pocket ID, le compte admin porte l'adresse de la personne, plus
+# beszel_admin_email : la fixer dans host_vars (incident du 2026-11-11, hub
+# tombé au redémarrage de 05:00).
+beszel_systems_user_email: "{{ beszel_admin_email }}"
+
 # Superuser PocketBase du rôle (tasks/api_login.yml) : alertes et réglages de
 # notification par l'API. Créé ou remis à niveau par `beszel superuser upsert` ;
 # mot de passe dérivé de la clé privée du hub (64 caractères, PocketBase en

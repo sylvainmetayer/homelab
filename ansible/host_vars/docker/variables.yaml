@@ -43,6 +43,10 @@ security_mta_enabled: true
 beszel_publish_addresses:
   - 127.0.0.1
   - 192.168.1.216
+# Compte propriétaire des systèmes de config.yml : l'adresse que le compte admin
+# porte depuis la liaison Pocket ID (lue dans la base du hub le 2026-11-11). À
+# changer ici si elle change dans Pocket ID, avant le prochain redémarrage.
+beszel_systems_user_email: contact@sylvainmetayer.fr
 # Superuser PocketBase du widget Beszel de Homepage : créé par le rôle beszel,
 # utilisé par le rôle homepage (mot de passe : clé sops
 # homepage_beszel_password). Jamais une adresse qui reçoit du courrier :
