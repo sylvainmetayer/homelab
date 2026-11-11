@@ -9,5 +9,5 @@ systems:
     port: 45876
     token: {{ system.value | to_json }}
     users:
-      - {{ beszel_admin_email | to_json }}
+      - {{ beszel_systems_user_email | to_json }}
 {% endfor %}
