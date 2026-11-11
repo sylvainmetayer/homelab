@@ -1,6 +1,6 @@
 # Vérificateur des mises à jour apt en attente (rôle update_notify), un par
 # hôte Debian : Proxmox VE (pve.yml), la VM docker (docker.yml), le Pi
-# (pi.yml), flip (flip.yml) et Pangolin (pangolin.yaml). Il publie sur ntfy
+# (pi.yml), flip (flip.yml), Pangolin (pangolin.yaml) et le LXC newt (lxc.yml). Il publie sur ntfy
 # (topic scripts) quand quelque chose attend et pousse ici à chaque passage
 # hebdomadaire : up avec un résumé, down si apt-get ou ntfy échouent. Sans
 # battement (timer arrêté, hôte éteint), le moniteur passe au rouge : un
@@ -21,6 +21,7 @@ locals {
     pi       = "Raspberry Pi"
     flip     = "flip"
     pangolin = "Pangolin"
+    lxc      = "LXC newt"
   }
 }
 
@@ -71,6 +72,12 @@ output "uptime_cron_pi_updates_url" {
 output "uptime_cron_flip_updates_url" {
   description = "flip - URL push du vérificateur des mises à jour en attente (update_notify, flip.yml)"
   value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.cron_updates["flip"].push_token}"
+  sensitive   = true
+}
+
+output "uptime_cron_lxc_updates_url" {
+  description = "LXC newt - URL push du vérificateur des mises à jour en attente (update_notify, lxc.yml)"
+  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.cron_updates["lxc"].push_token}"
   sensitive   = true
 }
 

@@ -1,11 +1,11 @@
-# Mises à jour des hôtes : Proxmox, VM docker, Pi, flip, Pangolin, NAS
+# Mises à jour des hôtes : Proxmox, VM docker, Pi, flip, Pangolin, LXC newt, NAS
 
 Procédure, pas un incident. Rien ne met ces hôtes entièrement à jour seul, et
 ce n'est pas un oubli :
 
 - l'hôte Proxmox VE n'a pas de mises à jour automatiques : un paquet `pve-*`,
   `qemu-server` ou un noyau se met à jour VM arrêtées ;
-- la VM docker, le Pi, flip et Pangolin ont `unattended-upgrades` (rôle
+- la VM docker, le Pi, flip, Pangolin et le LXC newt ont `unattended-upgrades` (rôle
   `security`), qui n'installe que Debian-Security (plus le noyau et le
   firmware de Raspberry Pi sur le Pi) et redémarre l'hôte la nuit si un
   noyau le demande. Le reste attend, Docker compris, exprès : mettre à jour
@@ -14,7 +14,7 @@ ce n'est pas un oubli :
 - une mise à jour d'UGOS redémarre le NAS sous la VM docker, sous Jellyfin
   et sous les sauvegardes vzdump.
 
-Pour les cinq hôtes Debian, le rôle `update_notify` prévient, Sylvain
+Pour les six hôtes Debian, le rôle `update_notify` prévient, Sylvain
 applique ; pour UGOS, rien ne prévient (voir plus bas).
 
 ## Ce qui prévient
@@ -29,6 +29,7 @@ hôte après l'autre (le timer ajoute jusqu'à un quart d'heure au hasard) :
 | `pi` | `pi.yml` | 08:45 | « Mises à jour Raspberry Pi » |
 | `flip` | `flip.yml` | 09:00 | « Mises à jour flip » |
 | `pangolin` | `pangolin.yaml` | 09:15 | « Mises à jour Pangolin » |
+| `newt-lxc` (LXC newt) | `lxc.yml` (à la main) | 09:30 | « Mises à jour LXC newt » |
 
 Il publie sur le topic `scripts` de ntfy et pousse au moniteur de l'hôte
 (`tofu/pangolin_config/cron_updates.tf`, intervalle de 15 jours). Message
@@ -69,7 +70,7 @@ sudo systemctl start update-notify.service   # un passage tout de suite (root su
 
 Unités absentes : rejouer le playbook de l'hôte avec `--tags update_notify`.
 
-## VM docker, Pi, flip et Pangolin
+## VM docker, Pi, flip, Pangolin et LXC newt
 
 Toujours de jour et à la main, jamais pendant les sauvegardes (borgmatic à
 01:00) ni pendant la fenêtre de redémarrage d'`unattended-upgrades` (04:00 à
@@ -88,6 +89,12 @@ Toujours de jour et à la main, jamais pendant les sauvegardes (borgmatic à
   sortie Internet de flip (NAT) et l'accès distant à la maison, donc la CI :
   ne rien merger qui déploie pendant ce temps. Le faire depuis le LAN ou avec
   une console Hetzner sous la main.
+- **LXC newt** (`ssh sylvain@192.168.1.200`) : le Newt du site `proxmox-lxc`
+  (la CI et les ressources privées du LAN passent par lui : ne rien merger
+  qui déploie pendant ce temps) et le second Blocky (le Pi prend le relais).
+  Son redémarrage automatique est à 04:45 (`unattended-upgrades`, juste avant
+  la VM docker) ; ses connexions sonnent toutes sur Telegram (aucune clé
+  connue), la tienne aussi.
 
 ### Avant
 
