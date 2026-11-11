@@ -26,9 +26,8 @@
 # ---------------------------------------------------------------------------
 
 locals {
-  ai_gateway_enabled   = true
-  ai_gateway           = local.ai_gateway_enabled ? toset(["ia"]) : toset([])
-  ai_anthropic_api_key = try(data.sops_file.secrets.data["pangolin_ai_anthropic_api_key"], "")
+  ai_gateway_enabled = true
+  ai_gateway         = local.ai_gateway_enabled ? toset(["ia"]) : toset([])
 
   # Liste d'autorisation du fournisseur : seuls ces modèles passent (les
   # budgets en dollars ne comptent que ceux du catalogue de prix de Pangolin).
@@ -108,7 +107,7 @@ resource "terraform_data" "ai_gateway_key" {
   lifecycle {
     precondition {
       condition     = !local.ai_gateway_enabled || nonsensitive(local.ai_anthropic_api_key != "")
-      error_message = "Passerelle IA allumée (local.ai_gateway_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_anthropic_api_key dans secrets/secrets.sops.yaml. L'ajouter (et son entrée dans secrets-rotation.yaml), ou passer l'interrupteur à false pour tout retirer."
+      error_message = "Passerelle IA allumée (local.ai_gateway_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_anthropic_api_key dans secrets/secrets.sops.yaml (ou son TF_VAR_ai_anthropic_api_key absent de mise.toml). La mettre (et son entrée dans secrets-rotation.yaml), ou passer l'interrupteur à false pour tout retirer."
     }
   }
 }

@@ -279,7 +279,7 @@ flowchart LR
   ans["secrets/ansible.sops.yaml<br/>mots de passe des applis,<br/>passphrase Borg, sous-comptes,<br/>clés S3 de lecture du state"]
   agekey --> root
   agekey --> ans
-  root -- "mise (_.file) + data sops_file" --> tofu[OpenTofu]
+  root -- "mise (_.file) : variables d'environnement et TF_VAR_*" --> tofu[OpenTofu]
   ans -- "community.sops.load_vars" --> ansible[Playbooks]
   ans -- "data sops_file (tofu/github)" --> gh["Secrets GitHub<br/>environnement production"]
   gh -- "SOPS_AGE_KEY, SSH_PRIVATE_KEY,<br/>OLM_ID/SECRET" --> ci[CI de déploiement]
@@ -301,7 +301,9 @@ flowchart LR
   `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`, sans repli en clair).
   Celui de `pangolin_config` reste en clair parce qu'Ansible le lit : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
-  lire cet objet.
+  lire cet objet. Pour cette raison il ne lit ni `data sops_file` ni le state
+  de `tofu/pangolin` (une data source est écrite en entier dans le state) : ses
+  secrets arrivent en variables `TF_VAR_*` que `mise.toml` tire des clés SOPS.
 - **Ordre d'application** : `tofu/pangolin` d'abord (`pangolin_config` et
   `dns` lisent son state), puis `tofu/pangolin_config`, puis les playbooks.
 

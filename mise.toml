@@ -29,6 +29,26 @@ _.file = { path = "secrets/secrets.sops.yaml", redact = true}
 # Use the project name derived from the current directory
 PROJECT_NAME = "{{ config_root | basename }}"
 
+# Variables d'entrée de tofu/pangolin_config (secrets.tf), tirées des clés que
+# _.file vient de charger : le module ne lit plus secrets.sops.yaml par un data
+# source, qui aurait rangé tout le fichier dans son state en clair. Une clé
+# absente donne une chaîne vide, que les variables obligatoires refusent.
+TF_VAR_pangolin_org_id = "{{ env.pangolin_org_id | default(value='') }}"
+TF_VAR_pangolin_url = "{{ env.pangolin_url | default(value='') }}"
+TF_VAR_pangolin_api_key = "{{ env.pangolin_api_key | default(value='') }}"
+TF_VAR_pangolin_root_api_key = "{{ env.pangolin_root_api_key | default(value='') }}"
+TF_VAR_telegram_bot_token = "{{ env.uptimekuma_telegram_bot_token | default(value='') }}"
+TF_VAR_telegram_chat_id = "{{ env.uptimekuma_telegram_chat_id | default(value='') }}"
+TF_VAR_uptimekuma_endpoint = "{{ env.UPTIMEKUMA_ENDPOINT | default(value='') }}"
+TF_VAR_uptimekuma_username = "{{ env.UPTIMEKUMA_USERNAME | default(value='') }}"
+TF_VAR_uptimekuma_password = "{{ env.UPTIMEKUMA_PASSWORD | default(value='') }}"
+TF_VAR_home_ip = "{{ env.home_ip | default(value='') }}"
+TF_VAR_immich_pin = "{{ env.immich_pin | default(value='') }}"
+TF_VAR_neonova_pin = "{{ env.neonova_pin | default(value='') }}"
+TF_VAR_ntfy_uptime_kuma_token = "{{ env.ntfy_uptime_kuma_token | default(value='') }}"
+TF_VAR_pocket_id_api_token = "{{ env.pocket_id_static_api_key | default(value='') }}"
+TF_VAR_ai_anthropic_api_key = "{{ env.pangolin_ai_anthropic_api_key | default(value='') }}"
+
 [tasks.generate_password]
 description = "Hash a host password (prompted, kept out of the shell history) for host_user_password_hash"
 # raw : stdin relié au terminal, sinon mkpasswd attend une invite jamais affichée.

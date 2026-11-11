@@ -41,7 +41,6 @@ mock_provider "pangolin" {
     }
   }
 }
-mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
 mock_provider "pocketid" {}
@@ -50,46 +49,25 @@ mock_provider "pocketid" {}
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
 # Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
 variables {
-  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
-  travel_countries            = {}
-}
+  travel_countries = {}
 
-# Toutes les clés lues dans secrets.tf (data.sops_file.secrets.data[...]).
-override_data {
-  target = data.sops_file.secrets
-  values = {
-    data = {
-      pangolin_org_id        = "homelab"
-      pangolin_url           = "https://api.pangolin.example.test"
-      pangolin_api_key       = "fake-pangolin-api-key"
-      UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
-      UPTIMEKUMA_USERNAME    = "admin"
-      UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
-      home_ip                = "203.0.113.10"
-      immich_pin             = "123456"
-      neonova_pin            = "123456"
-      ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
-
-      pocket_id_static_api_key = "fake-pocket-id-static-api-key"
-      pangolin_root_api_key    = "fake-pangolin-root-api-key"
-
-      # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
-      pangolin_ai_anthropic_api_key = "fake-anthropic-api-key"
-
-      uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
-      uptimekuma_telegram_chat_id   = "-100123456789"
-    }
-  }
-}
-
-# Sortie de tofu/pangolin lue pour flip.internal (remote_state.tf).
-override_data {
-  target = data.terraform_remote_state.pangolin
-  values = {
-    outputs = {
-      flip_private_ip = "10.0.1.10"
-    }
-  }
+  # Les secrets arrivent par variables (secrets.tf) : des valeurs factices.
+  pangolin_org_id        = "homelab"
+  pangolin_url           = "https://api.pangolin.example.test"
+  pangolin_api_key       = "fake-pangolin-api-key"
+  pangolin_root_api_key  = "fake-pangolin-root-api-key"
+  uptimekuma_endpoint    = "https://uptime.example.test"
+  uptimekuma_username    = "admin"
+  uptimekuma_password    = "fake-uptimekuma-pass"
+  home_ip                = "203.0.113.10"
+  immich_pin             = "123456"
+  neonova_pin            = "123456"
+  ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
+  pocket_id_api_token    = "fake-pocket-id-static-api-key"
+  telegram_bot_token     = "fake-telegram-bot-token"
+  telegram_chat_id       = "-100123456789"
+  # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
+  ai_anthropic_api_key = "fake-anthropic-api-key"
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
