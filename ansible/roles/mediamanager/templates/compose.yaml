@@ -85,6 +85,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      # Premier démarrage : initdb avant le premier pg_isready qui répond.
+      start_period: 30s
+    # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     # Jamais sur proxy ni sur un réseau qui sort.
     networks:
       - db
