@@ -6,7 +6,7 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - newt
+      - {{ betisier_newt_network }}
       - betisier
     image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:8732f3365c7065e9b94587b5bef7a439caa438bc3206dec71eaff97308f89ef9
     environment:
@@ -63,9 +63,9 @@ services:
       start_period: 60s
 
 # `internal: true` : pas de sortie vers Internet par ce réseau. betisier la garde
-# par newt ; la base n'en a pas besoin.
+# par le réseau de newt ; la base n'en a pas besoin.
 networks:
   betisier:
     internal: true
-  newt:
+  {{ betisier_newt_network }}:
     external: true

@@ -41,6 +41,11 @@
           - newt_compose.networks.newt.name == 'newt'
           - not (newt_compose.networks.newt.external | default(false))
           - "'newt' in newt_compose.services.newt.networks"
+          # Newt sert aussi les applis sans SSO : il rejoint leur réseau, qu'il
+          # crée (non externe) comme `newt`.
+          - newt_compose.networks['newt-public'].name == 'newt-public'
+          - not (newt_compose.networks['newt-public'].external | default(false))
+          - "'newt-public' in newt_compose.services.newt.networks"
           - newt_compose.services.newt.volumes == ['./socket:/run/socket-proxy:ro']
           - newt_compose.services.newt.hostname == 'newt'
           - "'DOCKER_SOCKET=unix:///run/socket-proxy/docker.sock' in newt_env"

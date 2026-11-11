@@ -49,3 +49,8 @@ flip_planning_horloge_simulee_autorisee: true
 # backup_storage_box_subaccounts, recopiée de l'output storage_box_subaccounts
 # de tofu/pangolin.
 backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.flip }}"
+
+# Promptoramix (public, sans SSO) sur un réseau Docker à part, `newt-public`,
+# que Newt rejoint aussi : il ne voit plus Flip Planning ni pgAdmin sur `newt`.
+# Lu par les rôles newt et promptoramix.
+newt_public_network_enabled: true

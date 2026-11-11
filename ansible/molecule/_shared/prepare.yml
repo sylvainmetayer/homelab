@@ -53,6 +53,18 @@
       when: molecule_newt_network.rc != 0
       changed_when: true
 
+    # Idem pour newt-public (newt_public_network_enabled, host_vars/flip).
+    - name: Check the newt-public network
+      ansible.builtin.command: docker network inspect newt-public
+      register: molecule_newt_public_network
+      changed_when: false
+      failed_when: false
+
+    - name: Create the newt-public network
+      ansible.builtin.command: docker network create --driver bridge newt-public
+      when: molecule_newt_public_network.rc != 0
+      changed_when: true
+
     - name: Ensure the dc@ drop-in directory exists
       ansible.builtin.file:
         path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service.d"

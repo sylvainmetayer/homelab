@@ -43,14 +43,19 @@
         src: /opt/apps/betisier/compose.yaml
       register: betisier_compose_raw
 
-    # La base ne doit jamais être sur newt, seulement sur le réseau interne.
-    - name: Assert only the betisier front is exposed on newt
+    # Sans SSO : sur newt-public, jamais sur `newt` (Grocy, Homepage…). La base
+    # ne doit jamais être sur l'un ni l'autre, seulement sur le réseau interne.
+    - name: Assert only the betisier front is exposed on newt-public
       vars:
         betisier_compose: "{{ betisier_compose_raw.content | b64decode | from_yaml }}"
       ansible.builtin.assert:
         that:
-          - "'newt' in betisier_compose.services.betisier.networks"
+          - "'newt-public' in betisier_compose.services.betisier.networks"
+          - "'newt' not in betisier_compose.services.betisier.networks"
+          - betisier_compose.networks['newt-public'].external
+          - "'newt' not in betisier_compose.networks"
           - "'newt' not in betisier_compose.services.betisier_db.networks"
+          - "'newt-public' not in betisier_compose.services.betisier_db.networks"
           - "'betisier' in betisier_compose.services.betisier_db.networks"
           - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
           - "'no-new-privileges:true' in betisier_compose.services.betisier.security_opt"

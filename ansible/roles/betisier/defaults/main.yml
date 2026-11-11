@@ -1,5 +1,8 @@
 ---
 betisier_base_path: "{{ docker_base_path }}/betisier"
+# Public sans SSO : sur `newt-public` quand le rôle newt le crée (host_vars),
+# pour ne pas voir Grocy, Homepage… sur `newt` (README du rôle newt).
+betisier_newt_network: "{{ 'newt-public' if newt_public_network_enabled | default(false) else 'newt' }}"
 betisier_db_password: ""
 # URL push du moniteur « Reset Betisier » (sortie uptime_cron_betisier_reset_url
 # de tofu/pangolin_config, lue par docker.yml) : betisier-reset.service y pousse
