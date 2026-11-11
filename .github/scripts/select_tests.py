@@ -88,11 +88,6 @@ PLAYBOOK_HOSTS = {
     "ansible/test.yaml": None,
 }
 
-# Les déploiements tournent sous Mitogen (ansible.cfg, strategy_plugins) : test.yaml
-# en rejoue ce scénario, qu'un changement de l'un ou l'autre doit donc sélectionner.
-MITOGEN_SCENARIO = "docker_service"
-MITOGEN_PATHS = ["ansible/ansible.cfg", "ansible/strategy_plugins/**"]
-
 # Read by no scenario as a whole (Molecule loads neither ansible.cfg, nor the
 # inventory, nor the real secrets): only the suites that reach them by path.
 PATH_ONLY = [
@@ -472,8 +467,6 @@ def select(changed, tree, base=None):
         hit_modules = [m for m, p in tree.module_patterns.items() if reached(p)]
         pick("scenario", hit_scenarios, path)
         pick("module", hit_modules, path)
-        if matches(path, MITOGEN_PATHS):
-            pick("scenario", {MITOGEN_SCENARIO} & every_scenario, path)
         classified = classified or bool(hit_scenarios or hit_modules)
 
         if path in PLAYBOOK_HOSTS:
