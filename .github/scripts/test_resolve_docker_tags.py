@@ -236,7 +236,7 @@ class RealPlaybooks(unittest.TestCase):
         # ssh_login_notify has an entry in 00-setup.yaml only, run by hand.
         result, stderr = self.run_script("ansible/roles/ssh_login_notify/tasks/main.yml")
         self.assertEqual(set(result.values()), {""})
-        self.assertIn("::notice::role 'ssh_login_notify' changed, deployed by hand only (00-setup.yaml), not by CI", stderr)
+        self.assertIn("::notice::role 'ssh_login_notify' changed, deployed by hand only (pve.yml, 00-setup.yaml), not by CI", stderr)
         self.assertNotIn("::warning::", stderr)
 
     def test_role_of_pve_and_of_deployed_hosts_deploys_on_those_hosts(self):
