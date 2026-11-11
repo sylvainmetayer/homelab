@@ -24,7 +24,6 @@ mock_provider "pangolin" {
     }
   }
 }
-mock_provider "sops" {}
 mock_provider "uptimekuma" {}
 mock_provider "http" {}
 mock_provider "pocketid" {}
@@ -33,46 +32,25 @@ mock_provider "pocketid" {}
 # valeur, le nombre de règles pays changerait le jour où un voyage se termine.
 # Les runs qui les testent fixent la leur, avec des dates hors d'atteinte.
 variables {
-  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
-  travel_countries            = {}
-}
+  travel_countries = {}
 
-# Toutes les clés lues dans secrets.tf (data.sops_file.secrets.data[...]).
-override_data {
-  target = data.sops_file.secrets
-  values = {
-    data = {
-      pangolin_org_id        = "homelab"
-      pangolin_url           = "https://api.pangolin.example.test"
-      pangolin_api_key       = "fake-pangolin-api-key"
-      UPTIMEKUMA_ENDPOINT    = "https://uptime.example.test"
-      UPTIMEKUMA_USERNAME    = "admin"
-      UPTIMEKUMA_PASSWORD    = "fake-uptimekuma-pass"
-      home_ip                = "203.0.113.10"
-      immich_pin             = "123456"
-      neonova_pin            = "123456"
-      ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
-
-      pocket_id_static_api_key = "fake-pocket-id-static-api-key"
-      pangolin_root_api_key    = "fake-pangolin-root-api-key"
-
-      # Passerelle IA (ai_gateway.tf) : présente, donc la passerelle est créée.
-      pangolin_ai_anthropic_api_key = "fake-anthropic-api-key"
-
-      uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
-      uptimekuma_telegram_chat_id   = "-100123456789"
-    }
-  }
-}
-
-# Sortie de tofu/pangolin lue pour flip.internal (remote_state.tf).
-override_data {
-  target = data.terraform_remote_state.pangolin
-  values = {
-    outputs = {
-      flip_private_ip = "10.0.1.10"
-    }
-  }
+  # Les secrets arrivent par variables (secrets.tf) : des valeurs factices.
+  pangolin_org_id        = "homelab"
+  pangolin_url           = "https://api.pangolin.example.test"
+  pangolin_api_key       = "fake-pangolin-api-key"
+  pangolin_root_api_key  = "fake-pangolin-root-api-key"
+  uptimekuma_endpoint    = "https://uptime.example.test"
+  uptimekuma_username    = "admin"
+  uptimekuma_password    = "fake-uptimekuma-pass"
+  home_ip                = "203.0.113.10"
+  immich_pin             = "123456"
+  neonova_pin            = "123456"
+  ntfy_uptime_kuma_token = "fake-ntfy-uptime-kuma-token"
+  pocket_id_api_token    = "fake-pocket-id-static-api-key"
+  telegram_bot_token     = "fake-telegram-bot-token"
+  telegram_chat_id       = "-100123456789"
+  # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
+  ai_anthropic_api_key = "fake-anthropic-api-key"
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
@@ -3711,25 +3689,31 @@ run "ai_gateway_without_its_sops_key_fails_plan" {
 
   expect_failures = [terraform_data.ai_gateway_key]
 
-  override_data {
-    target = data.sops_file.secrets
-    values = {
-      data = {
-        pangolin_org_id               = "homelab"
-        pangolin_url                  = "https://api.pangolin.example.test"
-        pangolin_api_key              = "fake-pangolin-api-key"
-        UPTIMEKUMA_ENDPOINT           = "https://uptime.example.test"
-        UPTIMEKUMA_USERNAME           = "admin"
-        UPTIMEKUMA_PASSWORD           = "fake-uptimekuma-pass"
-        home_ip                       = "203.0.113.10"
-        immich_pin                    = "123456"
-        neonova_pin                   = "123456"
-        ntfy_uptime_kuma_token        = "fake-ntfy-uptime-kuma-token"
-        pocket_id_static_api_key      = "fake-pocket-id-static-api-key"
-        pangolin_root_api_key         = "fake-pangolin-root-api-key"
-        uptimekuma_telegram_bot_token = "fake-telegram-bot-token"
-        uptimekuma_telegram_chat_id   = "-100123456789"
-      }
-    }
+  variables {
+    ai_anthropic_api_key = ""
+  }
+}
+
+# Une variable obligatoire vide (mapping TF_VAR_ de mise.toml perdu) refuse le
+# plan au lieu de recréer les PIN avec une valeur vide.
+run "empty_required_secret_variable_is_refused" {
+  command = plan
+
+  expect_failures = [var.immich_pin]
+
+  variables {
+    immich_pin = ""
+  }
+}
+
+# flip.internal vise l'adresse privée de flip : la valeur en dur reste égale au
+# défaut de tofu/pangolin (flip_server.private_ip), que ce module ne lit plus
+# dans son state.
+run "flip_private_ip_matches_tofu_pangolin_default" {
+  command = plan
+
+  assert {
+    condition     = can(regex("private_ip\\s*=\\s*optional\\(string, \"${var.flip_private_ip}\"\\)", file("${path.module}/../pangolin/variables.tf")))
+    error_message = "var.flip_private_ip doit valoir le défaut de flip_server.private_ip dans tofu/pangolin/variables.tf."
   }
 }

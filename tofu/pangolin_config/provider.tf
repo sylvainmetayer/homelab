@@ -8,10 +8,6 @@ terraform {
       source  = "stackopshq/pangolin"
       version = "= 1.7.0-sylvain.5"
     }
-    sops = {
-      source  = "carlpett/sops"
-      version = "~> 1.3"
-    }
     uptimekuma = {
       source  = "breml/uptimekuma"
       version = "~> 0.5.0"

@@ -175,7 +175,7 @@ resource "pangolin_site_resource" "flip" {
   name           = "Flip"
   mode           = "host"
   alias          = "flip.internal"
-  destination    = data.terraform_remote_state.pangolin.outputs.flip_private_ip
+  destination    = var.flip_private_ip
   disable_icmp   = true
   tcp_port_range = "22"
   # "*" et non "" : le provider omet une chaîne vide, Pangolin garde alors sa
