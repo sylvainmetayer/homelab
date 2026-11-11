@@ -17,7 +17,7 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 
 | Role | Call | Mode |
 |---|---|---|
-| `borgmatic` | `commands:` hooks of every config (`app.yaml.j2`), `<file> up start` / `up finish` / `down fail` | `\|\| true` (a missing helper never fails a backup) |
+| `borgmatic` | `commands:` hooks of every config (`app.yaml.j2`), `<file> up finish` / `down fail` | `\|\| true` (a missing helper never fails a backup) |
 | `betisier` | `ExecStartPost` of `betisier-reset.service` | `--strict` (the unit fails) |
 | `flip_planning` | `ExecStartPost` of `<service>-reset.service` (instances with `flip_planning_reset_dump`: `exemple_planning`) | `--strict` |
 | `pangolin` | `ExecStartPost` of `geoipupdate.service` | `--strict` |

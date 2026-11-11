@@ -65,22 +65,21 @@
           - (verify_borgmatic_push_file_raw.content | b64decode) == 'url = ' ~ (verify_borgmatic_push_url | to_json) ~ '\n'
         fail_msg: "{{ verify_borgmatic_push_file }} : mode {{ verify_borgmatic_push_stat.stat.mode | default('absent') }} ou contenu inattendu."
 
-    # Mêmes moments que l'ancien hook uptime_kuma : début de la
-    # configuration, puis fin ou échec, pour create, prune, compact, check.
-    - name: Assert the configuration pushes start, finish and fail
+    # Fin ou échec de la configuration, pour create, prune, compact, check ;
+    # pas de push au début (un borgmatic tué garderait le moniteur vert).
+    - name: Assert the configuration pushes finish and fail
       vars:
         verify_borgmatic_push_runs: "{{ verify_borgmatic_push_hooks | map(attribute='run') | flatten }}"
       ansible.builtin.assert:
         that:
-          - verify_borgmatic_push_hooks | length == 3
-          - verify_borgmatic_push_hooks | selectattr('before', 'defined') | map(attribute='before') | list == ['configuration']
+          - verify_borgmatic_push_hooks | length == 2
+          - verify_borgmatic_push_hooks | selectattr('before', 'defined') | list | length == 0
           - verify_borgmatic_push_hooks | selectattr('after', 'defined') | map(attribute='after') | list == ['configuration', 'configuration']
           - verify_borgmatic_push_hooks | selectattr('states', 'defined') | map(attribute='states') | list == [['finish'], ['fail']]
           - verify_borgmatic_push_hooks | map(attribute='when') | unique | list == [['create', 'prune', 'compact', 'check']]
-          - verify_borgmatic_push_runs | select('search', ' up start ') | list | length == 1
           - verify_borgmatic_push_runs | select('search', ' up finish ') | list | length == 1
           - verify_borgmatic_push_runs | select('search', ' down fail ') | list | length == 1
-          - verify_borgmatic_push_runs | length == 3
+          - verify_borgmatic_push_runs | length == 2
           - verify_borgmatic_push_runs | reject('search', '^' ~ (verify_borgmatic_push_prefix | regex_escape)) | list | length == 0
           - verify_borgmatic_push_runs | reject('search', '\|\| true$') | list | length == 0
         fail_msg: "Hooks de push de {{ verify_borgmatic_push_config }} : {{ verify_borgmatic_push_hooks }}"
