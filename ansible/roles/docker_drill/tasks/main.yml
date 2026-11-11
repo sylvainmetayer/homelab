@@ -68,10 +68,11 @@
     group: root
     mode: "0700"
 
+# role_path et non playbook_dir : Molecule joue le rôle depuis son dossier de scénario.
 - name: Install apps.json of the restore test
   become: true
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../.github/restore-test/apps.json"
+    src: "{{ role_path }}/../../../.github/restore-test/apps.json"
     dest: /usr/local/share/drill/apps.json
     owner: root
     group: root

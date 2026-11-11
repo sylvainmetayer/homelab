@@ -1,0 +1,37 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Validate and read the Proxmox config borgmatic configuration
+      become: true
+      block:
+        - name: Validate the configuration with the real borgmatic
+          ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config /etc/borgmatic.d/pve_config.yaml"
+          changed_when: false
+
+        - name: Read the configuration
+          ansible.builtin.slurp:
+            src: /etc/borgmatic.d/pve_config.yaml
+          register: pve_config_raw
+
+    # config.db est copiée par « VACUUM INTO » (base en WAL), sa copie vivante
+    # n'entre pas dans l'archive, et rien ne passe par sqlite_databases.
+    - name: Assert the pmxcfs database is copied by VACUUM INTO and the network files are saved
+      vars:
+        pve_config: "{{ pve_config_raw.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - pve_config.sqlite_databases is not defined
+          - "'/etc/network/interfaces' in pve_config.source_directories"
+          - "'/etc/hosts' in pve_config.source_directories"
+          - "'/var/lib/borgmatic-sqlite/pve_config' in pve_config.source_directories"
+          - "'/var/lib/pve-cluster/config.db' in pve_config.exclude_patterns"
+          - "'/var/lib/pve-cluster/config.db-wal' in pve_config.exclude_patterns"
+          - >-
+            pve_config.commands[0].run
+            | select('search', 'VACUUM INTO .*var_lib_pve-cluster_config\\.db')
+            | list | length == 1
+          - pve_config.repositories[0].path == 'ssh://u000000-sub6@u000000-sub6.your-storagebox.example.invalid/./pve_config'
+        fail_msg: "Configuration borgmatic de pve_config inattendue : {{ pve_config }}"
