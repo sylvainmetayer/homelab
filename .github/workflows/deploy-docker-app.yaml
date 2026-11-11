@@ -414,7 +414,9 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
-          AWS_ACCESS_KEY_ID="$(sops -d --extract '["state_s3_access_key"]' secrets/ansible.sops.yaml)"
+          # NOSONAR below (yaml:S2068): "passphrase" is the name of a SOPS key and
+          # of the Tofu variable it feeds, read at run time; nothing is hard-coded.
+          AWS_ACCESS_KEY_ID="$(sops -d --extract '["state_s3_access_key"]' secrets/ansible.sops.yaml)" # NOSONAR
           AWS_SECRET_ACCESS_KEY="$(sops -d --extract '["state_s3_secret_key"]' secrets/ansible.sops.yaml)"
           echo "::add-mask::$AWS_ACCESS_KEY_ID"
           echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
