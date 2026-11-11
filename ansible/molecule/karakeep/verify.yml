@@ -16,7 +16,10 @@
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
       vars:
         verify_compose_service: karakeep
+        verify_compose_internal_networks:
+          - internal
         verify_compose_healthchecks:
+          - web
           - chrome
           - meilisearch
         verify_compose_healthy_dependencies:
@@ -116,7 +119,6 @@
           - "'newt' not in karakeep_compose.services.meilisearch.networks"
           - karakeep_compose.services.web.container_name == 'karakeep'
           # Meilisearch n'est que sur le réseau interne, sans sortie ni chrome.
-          - karakeep_compose.networks.internal.internal
           - karakeep_compose.services.meilisearch.networks == ['internal']
           - "'internal' in karakeep_compose.services.web.networks"
           - "'internal' not in karakeep_compose.services.chrome.networks"
