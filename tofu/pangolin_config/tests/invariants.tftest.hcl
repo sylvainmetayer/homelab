@@ -2344,9 +2344,9 @@ run "flip_newt_credentials_come_from_the_flip_site" {
       && pangolin_site_resource.flip.alias == "flip.internal"
       && pangolin_site_resource.flip.mode == "host"
       && pangolin_site_resource.flip.tcp_port_range == "22"
-      && pangolin_site_resource.flip.udp_port_range == "*"
+      && pangolin_site_resource.flip.udp_port_range == ""
     )
-    error_message = "flip.internal doit viser l'IP privée de flip (remote state), sur le site flip, en TCP 22 (UDP à \"*\" : le provider ne sait pas envoyer une plage vide, ufw sur flip ne laisse entrer que 22/tcp)."
+    error_message = "flip.internal doit viser l'IP privée de flip (remote state), sur le site flip, en TCP 22 (aucun UDP : plage vide, ufw sur flip ne laisse entrer que 22/tcp)."
   }
 }
 
@@ -2392,6 +2392,26 @@ run "pangolin_alerts_publish_to_a_known_topic" {
   assert {
     condition     = alltrue([for probe in pangolin_health_check.lan : probe.unhealthy_threshold == 3 && probe.healthy_threshold == 2])
     error_message = "Les sondes LAN doivent garder leurs seuils : au défaut de 1, un seul paquet perdu alerterait."
+  }
+}
+
+# Aucune ressource privée en mode host n'ouvre tout l'UDP (audit ex5 du 11/11) :
+# plage vide, sauf 53 pour le DNS (Blocky du Pi et du LXC). Un « * » revient si
+# le provider cesse d'envoyer la chaîne vide ; une ressource qui a vraiment
+# besoin d'UDP le déclare ici, avec sa raison.
+run "host_resources_open_no_udp_but_dns" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for r in [
+        pangolin_site_resource.docker_apps, pangolin_site_resource.proxmox,
+        pangolin_site_resource.nas, pangolin_site_resource.flip,
+        pangolin_site_resource.jellyfin, pangolin_site_resource.mediamanager,
+        pangolin_site_resource.prowlarr, pangolin_site_resource.qbittorrent,
+      ] : r.udp_port_range == ""
+    ]) && pangolin_site_resource.pi.udp_port_range == "53" && pangolin_site_resource.dns.udp_port_range == "53"
+    error_message = "Les ressources privées en mode host n'ouvrent aucun UDP (plage vide), sauf le Pi et le DNS en 53 : un \"*\" ouvre tout l'UDP du serveur à ses clients."
   }
 }
 
@@ -2492,7 +2512,7 @@ run "nas_newt_credentials_and_media" {
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/templates/compose.yaml"), "container_name: {{ nas_proxy_container_name }}\n")
       && pangolin_site_resource.jellyfin.tcp_port_range == "443,8443"
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_https_port: 8443\n")
-      && pangolin_site_resource.jellyfin.udp_port_range == "*"
+      && pangolin_site_resource.jellyfin.udp_port_range == ""
       && pangolin_site_resource.jellyfin.disable_icmp == true
     )
     error_message = "media.sylvain.cloud doit viser le conteneur nas-proxy (nas_proxy_container_name), sur le site nas, en TCP 443 et 8443 (nas_proxy_https_port) seuls, ICMP coupé."
@@ -2531,7 +2551,7 @@ run "nas_newt_credentials_and_media" {
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_mediamanager_network: mediamanager_proxy\n")
       && pangolin_site_resource.mediamanager.destination == pangolin_site_resource.jellyfin.destination
       && pangolin_site_resource.mediamanager.tcp_port_range == pangolin_site_resource.jellyfin.tcp_port_range
-      && pangolin_site_resource.mediamanager.udp_port_range == "*"
+      && pangolin_site_resource.mediamanager.udp_port_range == ""
       && pangolin_site_resource.mediamanager.disable_icmp == true
       && pangolin_site_resource_role.mediamanager.site_resource_id == pangolin_site_resource.mediamanager.id
       && pangolin_site_resource_role.mediamanager.role_id == pangolin_role.mediamanager.id
@@ -2555,7 +2575,7 @@ run "nas_newt_credentials_and_media" {
         && r.mode == "host"
         && r.destination == pangolin_site_resource.jellyfin.destination
         && r.tcp_port_range == pangolin_site_resource.jellyfin.tcp_port_range
-        && r.udp_port_range == "*"
+        && r.udp_port_range == ""
         && r.disable_icmp == true
         && r.ssl == false
         && r.enabled == true

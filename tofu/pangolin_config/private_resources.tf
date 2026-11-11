@@ -70,7 +70,7 @@ resource "pangolin_site_resource" "docker_apps" {
   destination    = "192.168.1.216"
   disable_icmp   = true
   tcp_port_range = "22"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -83,7 +83,8 @@ resource "pangolin_site_resource" "pi" {
   destination    = "192.168.1.96"
   disable_icmp   = false
   tcp_port_range = "22"
-  udp_port_range = "*"
+  # 53/UDP seul : Blocky, le DNS secondaire (docs/runbooks/dns-blocky.md).
+  udp_port_range = "53"
   ssl            = false
   enabled        = true
 }
@@ -101,7 +102,7 @@ resource "pangolin_site_resource" "proxmox" {
   destination    = "192.168.1.26"
   disable_icmp   = true
   tcp_port_range = "22,8006"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -134,7 +135,7 @@ resource "pangolin_site_resource" "nas" {
   destination    = "192.168.1.137"
   disable_icmp   = true
   tcp_port_range = "22,443,445,8443,9999"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -147,7 +148,7 @@ resource "pangolin_site_resource" "nas" {
 # buildOlmDnsConfig is undefined), hence the manual setting. Served by the
 # newt of this same LXC: a restart of blocky.service never touches the tunnel.
 # The Pi's Blocky, the secondary, already answers through the `pi` resource
-# (UDP "*"); its TCP 53 is not opened, so only this primary takes DNS over
+# (UDP 53); its TCP 53 is not opened, so only this primary takes DNS over
 # TCP (large answers). No binding: Admin only, like the NAS.
 resource "pangolin_site_resource" "dns" {
   site_ids       = [pangolin_site.proxmox_lxc.id]
@@ -178,10 +179,9 @@ resource "pangolin_site_resource" "flip" {
   destination    = var.flip_private_ip
   disable_icmp   = true
   tcp_port_range = "22"
-  # "*" et non "" : le provider omet une chaîne vide, Pangolin garde alors sa
-  # valeur et l'apply échoue (inconsistent result). ufw sur flip ne laisse de
-  # toute façon entrer que 22/tcp.
-  udp_port_range = "*"
+  # "" : aucun UDP (le fork envoie la chaîne vide, que le 1.6.1 omettait).
+  # ufw sur flip ne laisse de toute façon entrer que 22/tcp.
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -197,8 +197,8 @@ resource "pangolin_site_resource" "flip" {
 # ressource publique. TCP 443 et 8443 seuls (Jellyfin n'est plus joignable en
 # direct par Pangolin) : 8443, l'entrée LAN de Traefik (nas_proxy_https_port),
 # y est ouvert aussi, pour qu'une appli réglée sur https://media.sylvain.cloud:8443 à
-# la maison marche encore dehors. UDP à "*" comme ailleurs (le provider ne
-# sait pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
+# la maison marche encore dehors. UDP à "" (aucun : le fork envoie la chaîne vide), rien
+# n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "jellyfin" {
   site_ids       = [pangolin_site.nas.id]
   name           = "Jellyfin"
@@ -207,7 +207,7 @@ resource "pangolin_site_resource" "jellyfin" {
   destination    = "nas-proxy"
   disable_icmp   = true
   tcp_port_range = "443,8443"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -244,8 +244,8 @@ resource "pangolin_site_resource_role" "jellyfin" {
 # un membre du rôle jellyfin qui viserait l'alias media.sylvain.cloud avec ce
 # nom atteindrait la page de connexion de MediaManager, comme n'importe quel
 # appareil du LAN ; le compte de MediaManager reste la barrière. Prowlarr et
-# qBittorrent ont leurs propres ressources, plus bas (rôle mediamanager-admin). UDP à "*" comme ailleurs (le provider ne sait
-# pas envoyer une plage vide), rien n'écoute en UDP derrière Traefik.
+# qBittorrent ont leurs propres ressources, plus bas (rôle mediamanager-admin). UDP à "" (aucun), rien
+# n'écoute en UDP derrière Traefik.
 resource "pangolin_site_resource" "mediamanager" {
   site_ids       = [pangolin_site.nas.id]
   name           = "MediaManager"
@@ -254,7 +254,7 @@ resource "pangolin_site_resource" "mediamanager" {
   destination    = "nas-proxy"
   disable_icmp   = true
   tcp_port_range = "443,8443"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -288,7 +288,7 @@ resource "pangolin_site_resource_role" "mediamanager" {
 # (Sylvain), pas au rôle mediamanager : même réserve que pour les autres noms du
 # NAS, un membre d'un autre rôle qui enverrait ce Host à nas-proxy atteindrait la
 # page de connexion de l'appli, dont le compte reste la barrière (ni l'une ni
-# l'autre ne fait d'OIDC). UDP à "*" comme ailleurs.
+# l'autre ne fait d'OIDC). UDP à "" (aucun).
 resource "pangolin_site_resource" "prowlarr" {
   site_ids       = [pangolin_site.nas.id]
   name           = "Prowlarr"
@@ -297,7 +297,7 @@ resource "pangolin_site_resource" "prowlarr" {
   destination    = "nas-proxy"
   disable_icmp   = true
   tcp_port_range = "443,8443"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
@@ -310,7 +310,7 @@ resource "pangolin_site_resource" "qbittorrent" {
   destination    = "nas-proxy"
   disable_icmp   = true
   tcp_port_range = "443,8443"
-  udp_port_range = "*"
+  udp_port_range = ""
   ssl            = false
   enabled        = true
 }
