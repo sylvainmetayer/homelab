@@ -596,6 +596,9 @@ resource "pocketid_client" "proxmox" {
   logo_url            = "${local.pocket_id_logo_base}/proxmox.svg"
   pkce_enabled        = false
   is_public           = false
+  # Le groupe proxmox-admin donne Administrator sur « / » : le passkey à
+  # chaque connexion, même avec une session Pocket ID ouverte (comme Beszel).
+  requires_reauthentication = true
 }
 
 # VictoriaLogs (groupe victoria-logs) : SSO de vmauth (rôle victoria_logs,
