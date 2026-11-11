@@ -114,7 +114,36 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
    au changement en contiennent encore (~10 Go) : compter ~3 min
    d'extraction et ~20 Go libres sur le disque.
 
-6. **Le reste de la play** (pile, NAT, sécurité) :
+   **Pocket ID aussi, avant l'étape 6.** Il tourne sur cette VM
+   (`/opt/pocket-id`, rôle `pocket_id`) et a son propre dépôt Borg
+   (`pocket_id`) : comptes, passkeys, clients OIDC et groupes y sont. Sans
+   cette restauration, l'étape 6 le démarre sur un dossier vide, et le mur
+   de Pangolin saute vers un fournisseur d'identité sans aucun compte : plus
+   personne ne se connecte aux applis. Le `--tags backup` ci-dessus a déposé
+   sa config en même temps que celle de Pangolin. En root :
+
+   ```bash
+   config=/etc/borgmatic.d/pocket_id.yaml
+   $borgmatic list --config $config
+   mkdir -p /root/restore/pocket_id
+   $borgmatic extract --config $config --archive latest --destination /root/restore/pocket_id
+   mkdir -p /opt/pocket-id/data
+   cp -a /root/restore/pocket_id/opt/pocket-id/data/. /opt/pocket-id/data/
+   cp /root/restore/pocket_id/var/lib/borgmatic-sqlite/pocket_id/opt_pocket-id_data_pocket-id.db /opt/pocket-id/data/pocket-id.db
+   chown -R 65532:65532 /opt/pocket-id/data
+   ```
+
+   La base vivante est exclue de l'archive : seule la copie de
+   `borgmatic-sqlite` est cohérente, d'où le second `cp`. Le conteneur tourne
+   en `65532:65532` (`pocket_id_uid`, `pocket_id_gid`) : il ne peut pas
+   écrire dans une base restée `root:root`. `compose.yaml` et
+   `.env` sont rendus par le rôle à l'étape 6, inutile de les recopier ; la
+   clé `pocket_id_encryption_key` de SOPS doit être celle d'avant, elle
+   déchiffre les secrets de la base. Cette partie n'a pas été jouée à la
+   répétition du 2026-10-28 (Pocket ID n'existait pas) : à faire à la
+   prochaine.
+
+6. **Le reste de la play** (pile, Pocket ID, NAT, sécurité) :
 
    ```bash
    ansible-playbook pangolin.yaml --check --diff
@@ -136,6 +165,10 @@ curl -sSI https://pangolin.sylvain.cloud | head -1
   (docker, pi, flip, LXC) se reconnecte seul (même endpoint
   `https://pangolin.sylvain.cloud`, mêmes identifiants, puisque la base est
   restaurée).
+- Pocket ID a retrouvé ses comptes : `https://id.sylvain.cloud` ouvre la
+  connexion par passkey (pas l'écran de création du premier compte), et une
+  appli derrière le mur s'ouvre après cette connexion
+  ([pocket-id.md](pocket-id.md)).
 - `tofu plan` dans `tofu/pangolin_config` ne montre pas de dérive importante.
 - flip sort de nouveau sur Internet ([flip-injoignable.md](flip-injoignable.md)).
 - Le lendemain, le moniteur de sauvegarde de Pangolin est UP.
