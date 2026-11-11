@@ -123,6 +123,7 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
    sa config en même temps que celle de Pangolin. En root :
 
    ```bash
+   borgmatic=/root/.local/bin/borgmatic
    config=/etc/borgmatic.d/pocket_id.yaml
    $borgmatic list --config $config
    mkdir -p /root/restore/pocket_id
