@@ -19,6 +19,9 @@ knowledge, it will be wrong in specific ways for this repo.
 | Remove/decommission a self-hosted app | `.claude/skills/remove-app/SKILL.md` | `/remove-app` |
 | Add/fix Pangolin routing, healthchecks, or SSO (`tofu/pangolin_config/**`) | `.claude/skills/pangolin-route/SKILL.md` | `/pangolin-route` |
 | Add/fix a Borgmatic backup for a service | `.claude/skills/borgmatic-backup/SKILL.md` | `/borgmatic-backup` |
+| Plan (and, within delegated rules, apply) `tofu/pangolin_config` | `.claude/skills/pangolin-config-plan/SKILL.md` | `/pangolin-config-plan` |
+| Connect an app to Pocket ID (OIDC, groups, break glass) | `.claude/skills/pocket-id-app/SKILL.md` | `/pocket-id-app` |
+| Fix or release the Pangolin provider fork, bump the homelab to it | `.claude/skills/provider-fork-release/SKILL.md` | `/provider-fork-release` |
 | Review a homelab diff before `tofu apply` / `ansible-playbook` | `.claude/agents/homelab-reviewer.md` | the **homelab-reviewer** chat mode |
 
 The procedures live once, in `.claude/skills/*/SKILL.md` (the reviewer in
