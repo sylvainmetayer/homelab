@@ -1,0 +1,67 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../group_vars/drill/variables.yml
+  tasks:
+    - name: Stat what docker_drill installs
+      become: true
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop:
+        - { path: "{{ backup_storage_box_ssh_key_path }}", mode: "0600" }
+        - { path: /usr/local/bin/borg-readonly, mode: "0700" }
+        - { path: /usr/local/sbin/drill-restore-app, mode: "0700" }
+        - { path: /usr/local/sbin/drill-check, mode: "0700" }
+        - { path: /usr/local/share/drill, mode: "0700" }
+        - { path: /usr/local/share/drill/apps.json, mode: "0600" }
+        - { path: /var/restore, mode: "0700" }
+      loop_control:
+        label: "{{ item.path }}"
+      register: drill_stat
+
+    - name: Assert the files are root's and private
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == item.item.mode
+        fail_msg: "{{ item.item.path }} absent, pas à root ou pas en {{ item.item.mode }}"
+      loop: "{{ drill_stat.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    # Deuxième verrou de l'exercice : borg-readonly refuse tout ce qui écrit
+    # dans un dépôt avant même d'appeler borg (absent ici).
+    - name: Run borg-readonly with commands that write
+      become: true
+      ansible.builtin.command: "/usr/local/bin/borg-readonly {{ item }} some-repo"
+      loop: [create, prune, compact, delete, break-lock, --repair]
+      register: drill_borg
+      changed_when: false
+      failed_when: false
+
+    - name: Assert borg-readonly refuses each of them
+      ansible.builtin.assert:
+        that:
+          - item.rc == 2
+          - "'refusé' in item.stderr"
+        fail_msg: "borg-readonly {{ item.item }} : rc {{ item.rc }}, {{ item.stderr }}"
+      loop: "{{ drill_borg.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # group_vars/drill : les configurations borgmatic de la copie lancent
+    # borg-readonly, jamais le borg qui écrit.
+    - name: Assert the drill group variables keep the isolation switches
+      ansible.builtin.assert:
+        that:
+          - borgmatic_borg_bin == '/usr/local/bin/borg-readonly'
+          - drill_mode | bool
+        fail_msg: "group_vars/drill ne pose plus borg-readonly ou drill_mode"
+
+    - name: Check the newt network exists
+      become: true
+      ansible.builtin.command: docker network inspect newt
+      changed_when: false

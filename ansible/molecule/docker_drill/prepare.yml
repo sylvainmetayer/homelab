@@ -1,0 +1,15 @@
+---
+- name: Shared prepare
+  ansible.builtin.import_playbook: ../_shared/prepare.yml
+
+- name: Prepare docker_drill
+  hosts: all
+  gather_facts: false
+  tasks:
+    # Créé sur un vrai hôte par le rôle borgmatic, qui passe avant docker_drill.
+    - name: Ensure the .ssh folder of root exists
+      become: true
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        mode: "0700"

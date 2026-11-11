@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    # Ce que hetzner.py et group_vars/drill posent sur la copie jetable.
+    - ../../group_vars/drill/variables.yml
+  vars:
+    drill_borg_user: u000000-sub9
+    drill_borg_server: u000000-sub9.your-storagebox.example.invalid
+    docker_drill_key_file: "{{ playbook_dir }}/fake-borg-key.txt"
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    # hetzner.py met la copie dans ce groupe : le rôle refuse tout autre hôte.
+    - name: Put the host in the drill group
+      ansible.builtin.group_by:
+        key: drill
+
+  roles:
+    - role: docker_drill

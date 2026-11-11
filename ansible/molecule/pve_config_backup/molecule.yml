@@ -1,0 +1,9 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Prepare propre : la base pmxcfs (config.db, en WAL) que la sauvegarde doit
+# trouver (cf. prepare.yml).
+scenario:
+  name: pve_config_backup
+ansible:
+  playbooks:
+    prepare: prepare.yml
