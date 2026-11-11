@@ -244,7 +244,9 @@
           - nas_proxy_verify_routers['qbittorrent-oauth2'].priority > 100
           - nas_proxy_verify_routers['prowlarr-oauth2'].service == 'oauth2-proxy'
           - nas_proxy_verify_routers['qbittorrent-oauth2'].service == 'oauth2-proxy'
-          - nas_proxy_verify_routers['prowlarr-oauth2'].middlewares is not defined
+          # Même filtre de source : /oauth2/ n'est pas joignable d'où l'appli ne l'est pas.
+          - nas_proxy_verify_routers['prowlarr-oauth2'].middlewares == ['nas-apps-lan']
+          - nas_proxy_verify_routers['qbittorrent-oauth2'].middlewares == ['nas-apps-lan']
           - nas_proxy_verify_routers['prowlarr-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_routers['qbittorrent-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.address == 'http://nas-proxy-oauth2:4180/'

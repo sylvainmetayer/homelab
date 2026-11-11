@@ -85,8 +85,9 @@ mediamanager_vpn_server_countries: "Netherlands,Switzerland"
 # Vide, donc éteint : Docker choisit le sous-réseau de `newt` (172.18.0.0/16 au
 # relevé du 11/11) et les routeurs media, mediamanager, prowlarr et
 # qbittorrent n'ont pas de filtre de source. Posé (172.30.98.0/24, à côté de
-# jellyfin_media 172.30.96 et mediamanager_default 172.30.97, hors du pool de
-# Docker), le réseau est recréé et ces quatre routeurs n'admettent plus que le
-# LAN, ce sous-réseau et la sonde de l'hôte. Le recréer demande d'arrêter
-# dc@nas_proxy avant : procédure dans roles/nas_proxy/README.md.
+# jellyfin_media 172.30.96 et mediamanager_default 172.30.97 ; dans la plage
+# 172.30.0.0/16 que ces deux réseaux retirent déjà à l'allocation automatique
+# de Docker), ces quatre routeurs n'admettent plus que le LAN, ce sous-réseau
+# et la sonde de l'hôte. Le réseau doit être supprimé à la main, dc@nas_proxy
+# et dc@newt arrêtés : procédure dans roles/nas_proxy/README.md.
 newt_subnet: ""

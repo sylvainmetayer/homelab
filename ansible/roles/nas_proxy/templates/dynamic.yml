@@ -109,6 +109,10 @@ http:
         - websecure-lan
         - websecure-forwarded
       service: oauth2-proxy
+{% if nas_proxy_newt_subnet | length > 0 %}
+      middlewares:
+        - nas-apps-lan
+{% endif %}
       tls:
         certResolver: letsencrypt
 {% if nas_proxy_wildcard_domain | length > 0 %}
