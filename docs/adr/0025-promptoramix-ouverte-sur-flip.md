@@ -17,8 +17,9 @@ donc tenir ni derrière le SSO, ni derrière le FR/DE de [0002](0002-pangolin-se
   chemin : `DROP /*` en priorité 3 (`promptoramix_drop`). Pangolin ne filtre pas la
   méthode : `GET /coup` passe, l'appli répond 405. (Décision d'origine du 16/10 :
   `ACCEPT /*`, restreinte le 07/11/2026 aux routes réellement appelées.)
-- **Sur flip**, un conteneur à 256 Mio, sans base ; raison de ce choix plutôt
-  que la VM docker non écrite, à confirmer.
+- **Sur flip**, un conteneur à 256 Mio, sans base ; choisie plutôt que la VM
+  docker parce qu'elle avait de la place, la VM docker étant déjà chargée
+  (confirmé par Sylvain le 2026-11-11).
 - **Automerge de chaque digest de `main`**, sauf le jeudi de 0 h à 12 h : un
   redémarrage pendant la vague du tournoi ferait perdre les parties en cours.
 
@@ -35,7 +36,8 @@ donc tenir ni derrière le SSO, ni derrière le FR/DE de [0002](0002-pangolin-se
 - Chaque push sur `main` de l'appli part en production sur flip, à côté du planning.
 - Journal des coups sur un volume (`./journal`, #771), non sauvegardé : fichier
   d'appoint. L'appli n'est donc pas tout à fait « sans état ».
-- Aucune date de fin écrite : retrait après le tournoi, à confirmer.
+- Retrait à la fin du tournoi (confirmé par Sylvain le 2026-11-11) ; la date
+  n'est pas connue ici.
 
 ## Liens
 

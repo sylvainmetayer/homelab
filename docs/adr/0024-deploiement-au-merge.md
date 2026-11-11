@@ -6,7 +6,10 @@
 ## Contexte
 
 La maison n'a aucun port entrant : un runner GitHub l'atteint par un tunnel OLM,
-que `ping.yaml` utilisait déjà. Motif non écrit (`a25a5447` dit le comment seulement) : à confirmer.
+que `ping.yaml` utilisait déjà. Motif (confirmé par Sylvain le
+2026-11-11, `a25a5447` ne dit que le comment) : `main` vaut la prod, sans
+déploiement oublié ni écart entre le dépôt et les hôtes, et un déploiement ne
+demande plus le poste (téléphone, automerge de Renovate).
 
 ## Décision
 

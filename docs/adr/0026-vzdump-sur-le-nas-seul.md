@@ -14,8 +14,10 @@ du 30/09 au 27/10/2026 (« No space left on device »), celle du LXC passait.
 
 - **Storage NFS `nas-backup`** (`/volume1/pve-backup`, RAID1), job déclaré dans
   `tofu/proxmox/backup.tf`, 21:00, `keep-last=2`, seule copie des archives.
-- **Pas de copie hors site des archives** : accepté le 2026-11-02 ; le motif n'est
-  pas écrit, à confirmer. Le hors site reste Borg ([0001](0001-sauvegardes-borgmatic.md)).
+- **Pas de copie hors site des archives** : accepté le 2026-11-02 ; motif (confirmé par
+  Sylvain le 2026-11-11) : Borg met déjà les données hors site, les VM se
+  refont par Tofu et Ansible, et des archives de cette taille coûteraient trop
+  sur la Storage Box. Le hors site reste Borg ([0001](0001-sauvegardes-borgmatic.md)).
 
 ## Alternatives écartées
 

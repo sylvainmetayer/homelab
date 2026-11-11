@@ -7,7 +7,10 @@
 
 Certains services portaient déjà ces options, sans règle écrite. Molecule ne
 démarre aucune image : une option perdue ne se voit pas, un conteneur cassé par
-une option ne se voit qu'en prod. Motif du chantier non écrit : à confirmer.
+une option ne se voit qu'en prod. Motif du chantier
+(confirmé par Sylvain le 2026-11-11) : la suite d'un audit de sécurité, une règle
+unique là où les options variaient d'un service à l'autre, et une défense en
+profondeur contre une image compromise.
 
 ## Décision
 
