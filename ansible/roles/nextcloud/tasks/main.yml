@@ -1,4 +1,14 @@
 ---
+- name: Check nextcloud secrets
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - nextcloud_db_password | length > 0
+      - nextcloud_redis_password | length > 0
+    fail_msg: >-
+      nextcloud_db_password ou nextcloud_redis_password vide : clé absente de
+      secrets/ansible.sops.yaml ?
+
 - name: Ensure Nextcloud app folder exists
   become: true
   ansible.builtin.file:

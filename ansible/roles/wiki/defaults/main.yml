@@ -1,7 +1,8 @@
 ---
 wiki_base_path: "{{ docker_base_path }}/wiki"
 wiki_domain: "wiki.sylvain.cloud"
-wiki_db_password: "wiki"
+# Sensitive: must be set in secrets/ansible.sops.yaml
+wiki_db_password: ""
 wiki_backup_enabled: true
 wiki_backup_borgmatic_target: "{{ backup_storage_box_url }}/wiki"
 # Ancien nom de la passphrase, encore lu s'il est défini (host_vars).

@@ -1,4 +1,11 @@
 ---
+- name: Check betisier secrets
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - betisier_db_password | length > 0
+    fail_msg: betisier_db_password vide : clé absente de secrets/ansible.sops.yaml ?
+
 - name: Ensure Betisier app folder exists
   loop:
     - "{{ betisier_base_path }}"

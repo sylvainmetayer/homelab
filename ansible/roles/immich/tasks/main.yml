@@ -1,4 +1,13 @@
 ---
+# Les mots de passe de Valkey et de Power Tools en dérivent : vide, ils
+# seraient le hash d'une chaîne connue.
+- name: Check immich secrets
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - immich_db_password | length > 0
+    fail_msg: immich_db_password vide : clé absente de secrets/ansible.sops.yaml ?
+
 - name: Ensure immich app folders exist
   loop:
     - "{{ immich_base_path }}"
