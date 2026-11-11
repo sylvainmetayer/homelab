@@ -82,6 +82,11 @@ networks:
   newt:
     name: newt
     driver: bridge
+{% if newt_subnet | length > 0 %}
+    ipam:
+      config:
+        - subnet: {{ newt_subnet }}
+{% endif %}
 {% if newt_public_network_enabled %}
   # Applis publiques sans SSO (README du rôle) : créé ici, comme `newt`, avant
   # qu'elles ne démarrent (newt est avant elles dans chaque playbook).

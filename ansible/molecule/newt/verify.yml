@@ -39,6 +39,8 @@
       ansible.builtin.assert:
         that:
           - newt_compose.networks.newt.name == 'newt'
+          # Sous-réseau libre à Docker tant que newt_subnet est vide (hors NAS).
+          - newt_compose.networks.newt.ipam is not defined
           - not (newt_compose.networks.newt.external | default(false))
           - "'newt' in newt_compose.services.newt.networks"
           # Newt sert aussi les applis sans SSO : il rejoint leur réseau, qu'il

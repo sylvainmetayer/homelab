@@ -31,5 +31,8 @@
       vars:
         # Adresse de documentation : ansible_host n'est pas une IP ici.
         nas_proxy_bind_address: 192.0.2.10
+        # Le filtre de source des quatre routeurs, éteint tant que newt_subnet
+        # (host_vars/nas) est vide : ici posé, pour que le verify le lise.
+        nas_proxy_newt_subnet: 172.30.98.0/24
         nas_proxy_cert_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-cert # NOSONAR
         nas_proxy_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-nas # NOSONAR

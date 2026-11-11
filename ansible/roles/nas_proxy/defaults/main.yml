@@ -101,8 +101,21 @@ nas_proxy_ugos_url: "http://{{ ansible_host }}:9999" # NOSONAR
 nas_proxy_ugos_source_ranges:
   - 192.168.1.0/24
 
+# Filtre de source des routeurs jellyfin, mediamanager, prowlarr et qbittorrent
+# (middleware nas-apps-lan, ipAllowList) : sans lui, tout ce qui joint un port
+# de Traefik les atteint, l'IPv6 globale de la Bbox comprise (audit ex9 du
+# 11/11). Admis : le LAN, le réseau Docker newt (d'où arrive le Newt du site
+# nas, pour les ressources privées Pangolin), et la passerelle du réseau media
+# (nas_proxy_forward_trusted_ip), source de la sonde de santé et de la
+# vérification des certificats sur 127.0.0.1:8443 (docker-proxy, relevé le
+# 11/11 : 172.30.96.1 vers 172.30.96.10). Éteint tant que newt_subnet (rôle
+# newt) est vide : le sous-réseau de newt n'est pas épinglé, aucun filtre ne
+# peut le nommer. Mise en route : README du rôle.
+nas_proxy_newt_subnet: "{{ newt_subnet | default('') }}"
+
 # --- MediaManager (essai) : https://mediamanager.sylvain.cloud ---
-# Comme Jellyfin, sur les trois entrées, sans filtre de source : la ressource
+# Comme Jellyfin, sur les trois entrées, sans filtre de source (sauf
+# le middleware nas-apps-lan, quand newt_subnet est posé) : la ressource
 # privée Pangolin du même nom (site nas, rôle mediamanager) passe par le Newt
 # du NAS comme celle de Jellyfin. Le compte de MediaManager est la barrière
 # (README).
