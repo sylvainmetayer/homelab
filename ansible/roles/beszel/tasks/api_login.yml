@@ -86,7 +86,7 @@
 - name: Look up the Beszel admin user
   no_log: true
   ansible.builtin.uri:
-    url: "{{ beszel_api_url }}/api/collections/users/records?perPage=2&skipTotal=1&fields=id&filter=role%3D%22admin%22"
+    url: "{{ beszel_api_url }}/api/collections/users/records?perPage=2&skipTotal=1&fields=id,email&filter=role%3D%22admin%22"
     headers:
       Authorization: "{{ beszel_api_token }}"
   register: beszel_api_admin
@@ -97,6 +97,22 @@
     that:
       - beszel_api_admin.json['items'] | length == 1
     fail_msg: "Aucun compte Beszel de rôle admin (ou plusieurs) : alertes et réglages n'ont pas de propriétaire."
+    quiet: true
+
+# config.yml (templates/config.yml.j2) nomme ce compte par son adresse : si elle
+# a changé (liaison Pocket ID, renommage), le hub ne démarre plus au prochain
+# redémarrage (boucle du 2026-11-11 depuis 05:00). Sans admin (premier
+# déploiement), l'assertion ci-dessus a déjà répondu.
+- name: Refuse a config.yml that names another address than the admin account
+  when: beszel_api_admin.json['items'] | length == 1
+  ansible.builtin.assert:
+    that:
+      - beszel_api_admin.json['items'][0].email == beszel_systems_user_email
+    fail_msg: >-
+      Le compte Beszel de rôle admin a l'adresse {{ beszel_api_admin.json['items'][0].email }},
+      config.yml nomme {{ beszel_systems_user_email }} (beszel_systems_user_email) :
+      le hub refuserait de démarrer. Aligner beszel_systems_user_email sur
+      l'adresse du compte (host_vars/docker).
     quiet: true
 
 - name: Keep the admin user id
