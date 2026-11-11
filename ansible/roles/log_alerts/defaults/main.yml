@@ -42,12 +42,15 @@ log_alerts_rules:
     threshold: 10
     repeat_seconds: 3600
   # Un conteneur tué par sa limite mémoire (cgroup) ou par SIGKILL. homepage,
-  # déjà connu pour sa limite, a sa règle à part.
+  # déjà connu pour sa limite, a sa règle à part. La ligne du noyau (« out of
+  # memory: Killed process », unit vide) est la seule trace d'un kill sous
+  # `compose up -d` (Pangolin) ou d'un processus fils tué.
   - name: oom-kill
     title: "Processus tué (OOM, code 137)"
     priority: 4
     query: >-
-      (_msg:~"OOMKilled" OR _msg:"exited with code 137" OR _msg:"status=9/KILL")
+      (_msg:~"OOMKilled" OR _msg:"exited with code 137" OR _msg:"status=9/KILL"
+      OR _msg:"out of memory: Killed process")
       -unit:in("session.scope","dc@homepage.service")
       | stats by (host, unit) count() n
     window_seconds: 900
@@ -74,10 +77,29 @@ log_alerts_rules:
   - name: borgmatic-failed
     title: "borgmatic : échec de l'unité"
     priority: 5
-    query: 'unit:"borgmatic.service" _msg:"Failed with result" | stats by (host) count() n'
+    # La ligne vient de systemd (PID 1) : son champ unit vaut init.scope, le nom
+    # de l'unité n'est que dans le message.
+    query: '_msg:"borgmatic.service: Failed with result" | stats by (host) count() n'
     window_seconds: 93600
     threshold: 1
     repeat_seconds: 93600
+  # Toute autre unité en échec (rapports, timers, ci-key-audit, log-alerts...) ;
+  # `extract` met le nom de l'unité dans le groupe. Exclus : borgmatic (règle
+  # ci-dessus), tmp.mount du LXC (échoue toutes les 5 min, en continu), les
+  # dc@*.service (échec à chaque redémarrage de déploiement ; leurs crashs
+  # passent par oom-kill), le NAS (unités UGOS bruyantes : taskmgr_serv, smbftpd...)
+  # et session.scope (commandes tapées en SSH). Rejouée sur 14 jours (28/10 au
+  # 11/11) : 6 unités distinctes, 10 alertes après dédup (5 sont log-alerts lui-même).
+  - name: unit-failed
+    title: "Unité systemd en échec"
+    priority: 4
+    query: >-
+      _msg:"Failed with result" -_msg:"borgmatic.service: Failed" -_msg:"tmp.mount: Failed"
+      -_msg:~"dc@" -host:"nas" -unit:"session.scope"
+      | extract "<u>: Failed with result" | stats by (host, u) count() n
+    window_seconds: 900
+    threshold: 1
+    repeat_seconds: 21600
 
 log_alerts_script: /usr/local/libexec/log_alerts.py
 log_alerts_config_dir: /etc/log-alerts
