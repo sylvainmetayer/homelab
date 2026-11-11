@@ -157,6 +157,15 @@ def playbook_at(base, playbook):
         return None
 
 
+def default_host(pattern):
+    """The host a `hosts:` pattern targets in CI. docker.yml's is templated,
+    `{{ drill_target | default('docker') }}`: the CI never sets the variable,
+    so the default is the host. Read literally, the pattern matched no
+    host_vars directory and a change to host_vars/docker deployed nothing."""
+    templated = re.fullmatch(r"""\s*\{\{.*\|\s*default\(\s*(['"])([^'"]+)\1\s*\)\s*\}\}\s*""", pattern)
+    return templated.group(2) if templated else pattern
+
+
 def playbook_change_tags(playbook_path, changed_files, base):
     """Tags a change to the playbook itself or to its host's host_vars deploys:
     a set, {WHOLE_PLAYBOOK} for the whole playbook, empty when neither changed."""
@@ -171,7 +180,7 @@ def playbook_change_tags(playbook_path, changed_files, base):
     hosts = set()
     for play in new:
         play_hosts = play.get("hosts", []) if isinstance(play, dict) else []
-        hosts.update([play_hosts] if isinstance(play_hosts, str) else play_hosts)
+        hosts.update(default_host(h) for h in ([play_hosts] if isinstance(play_hosts, str) else play_hosts))
     for path in changed_files:
         parts = path.split("/")
         if len(parts) > 3 and parts[:2] == ["ansible", "host_vars"] and parts[2] in hosts:
