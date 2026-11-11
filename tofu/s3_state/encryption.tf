@@ -1,6 +1,6 @@
 # Chiffrement du state de ce module (OpenTofu, AES-GCM, clé dérivée par
 # PBKDF2 de var.state_encryption_passphrase) : il contient des secrets
-# (clés S3 des utilisateurs tf_state et ansible_state_reader). Le state de tofu/pangolin_config reste en clair, Ansible le lit sur S3.
+# (clés S3 des utilisateurs tf_state et ansible_state_reader).
 #
 # Sans fallback : un state en clair (ou chiffré avec une autre clé) est
 # refusé. Migré le 23/10/2026.
