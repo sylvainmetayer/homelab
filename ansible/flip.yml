@@ -129,6 +129,10 @@
     - role: flip_planning
       tags: demo_planning,app
       vars:
+        # PAUSED since 2026-11-11 (docs/runbooks/app-en-pause.md), to give its
+        # memory to Postiz: demo_planning_enabled, host_vars/flip. Moves with
+        # `enabled = false` in tofu/pangolin_config/website_demo_planning.tf.
+        flip_planning_enabled: "{{ demo_planning_enabled }}"
         flip_planning_service: demo_planning
         flip_planning_container_prefix: demo-planning
         flip_planning_domain: demo-planning.sylvain.dev

@@ -8,20 +8,19 @@ sociaux, pour le foyer. Hôte **flip**, `dc@postiz`, quatre conteneurs : `postiz
 sans sortie). Derrière le SSO de Pangolin (rôle `postiz`, groupe Pocket ID du
 même nom), puis la connexion à l'appli par Pocket ID.
 
-## En pause depuis le 2026-11-11
+## Mémoire : flip est juste
 
-Premier déploiement sur flip le 2026-11-11 : `postiz` 1,1 Gio, `postiz-temporal`
-224 Mio, `postiz-db` 68 Mio, `postiz-redis` 8 Mio, **alors que le backend
-bouclait encore** (attributs de recherche, corrigé depuis : voir plus bas).
-flip est tombée à 479 Mio disponibles et 1,1 Gio de swap ; Flip Planning est
-resté sain. Arrêtée et mise en pause (`postiz_enabled: false` dans
-`host_vars/flip`, `docs/runbooks/app-en-pause.md`). Jamais vue fonctionner.
+Premier déploiement le 2026-11-11 : flip (4 Gio) est tombée à 479 Mio
+disponibles et 1,1 Gio de swap, Postiz a été arrêté. La démo de Flip Planning
+(~540 Mio) est depuis en pause pour lui laisser la place
+(`demo_planning_enabled: false`, `host_vars/flip`). Mesuré ensuite, quatre
+minutes après le démarrage, sans compte ni publication : `postiz` 1,26 Gio,
+`postiz-db` 161 Mio, `postiz-temporal` 172 Mio, `postiz-redis` 15 Mio ;
+768 Mio disponibles sur l'hôte, production à 366 Mio.
 
-Reprendre demande d'abord de la place : la VM docker (déplacer l'entrée de
-`flip.yml` vers `docker.yml` et `site_id` vers `pangolin_site.proxmox_docker`),
-ou une flip plus grosse. Sur flip, les bases `temporal*` déjà créées portent
-les attributs d'exemple : supprimer le volume (`docker compose down -v` dans
-`/opt/apps/postiz`, rien à garder) avant de redémarrer.
+**Les deux ne tiennent pas ensemble** : reprendre la démo demande d'arrêter
+Postiz (`postiz_enabled: false`), ou de le déplacer sur la VM docker. Un
+solveur de production monte vers 1 Gio : flip passera alors par le swap.
 
 ## Écarts avec le compose amont
 
@@ -34,7 +33,7 @@ neuf conteneurs ; flip a 4 Gio, partagés avec la production de Flip Planning.
   qu'auto-setup ne crée pas ses attributs d'exemple
   (`SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES`). Sans ce réglage, `postiz` bouclait sur
   « cannot have more than 3 search attribute of type Text » (flip,
-  2026-11-11). **Le réglage lui-même n'a pas encore été essayé.**
+  2026-11-11) ; avec, le backend démarre (vu le même jour).
 - **Un seul PostgreSQL** : Temporal crée ses bases `temporal` et
   `temporal_visibility` dans celui de Postiz (même utilisateur, superutilisateur
   de l'instance).

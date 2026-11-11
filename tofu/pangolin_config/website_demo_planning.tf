@@ -12,6 +12,10 @@ locals {
     role      = "demo-planning"
     backup    = true
 
+    # Paused since 2026-11-11 (docs/runbooks/app-en-pause.md): its memory goes
+    # to Postiz. Moves with demo_planning_enabled in ansible/host_vars/flip.
+    enabled = false
+
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
       title       = "Démo planning"
