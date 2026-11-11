@@ -67,7 +67,9 @@
       environment:
         AWS_ACCESS_KEY_ID: "{{ state_s3_access_key }}"
         AWS_SECRET_ACCESS_KEY: "{{ state_s3_secret_key }}"
-        TF_VAR_pangolin_config_state_passphrase: "{{ tofu_state_passphrase | default(lookup('ansible.builtin.env', 'TF_VAR_pangolin_config_state_passphrase'), true) }}"
+        TF_VAR_pangolin_config_state_passphrase: >-
+          {{ tofu_state_passphrase
+             | default(lookup('ansible.builtin.env', 'TF_VAR_pangolin_config_state_passphrase'), true) }}
         TF_INPUT: "0"
         # Le state lu est celui du workspace default, pas celui qu'un shell
         # aurait choisi (un autre workspace se lirait vide, sans erreur).
