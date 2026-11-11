@@ -610,8 +610,11 @@ n'existe pas, ou qu'elle égale `backup_passphrase`, aucune valeur ne change.
 2. Créer `app_secrets_master` dans `secrets/ansible.sops.yaml` avec **la même
    valeur** que `backup_passphrase`, et son entrée dans
    `secrets/secrets-rotation.yaml` (`kind: database`, sans échéance : sur
-   incident seulement). Puis un `ansible-playbook docker.yml --check --diff` :
-   aucune différence ; idem pour `flip.yml`, `pangolin.yaml` et `pi.yml`.
+   incident seulement). Puis `ansible-playbook docker.yml --check` et
+   `ansible-playbook nas.yml --check` (les deux seuls qui dérivent ; `nas.yml`
+   ne passe jamais par la CI) : aucune tâche `changed` sur les `.env`,
+   `compose.yaml` et `config.toml` (rendus en `diff: false`, `--diff` n'en
+   montre rien).
 3. Plus tard, sur incident ou à la prochaine rotation de `backup_passphrase` :
    tourner celle-ci (section suivante) **sans toucher** `app_secrets_master`.
    Les dérivés ne bougent pas, la passphrase Borg change seule. Tourner la

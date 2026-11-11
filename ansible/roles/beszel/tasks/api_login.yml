@@ -102,12 +102,14 @@
 # config.yml (templates/config.yml.j2) nomme ce compte par son adresse : si elle
 # a changé (liaison Pocket ID, renommage), le hub ne démarre plus au prochain
 # redémarrage (boucle du 2026-11-11 depuis 05:00). Sans admin (premier
-# déploiement), l'assertion ci-dessus a déjà répondu.
+# déploiement), l'assertion ci-dessus a déjà répondu. Limite : ce contrôle passe
+# après le rendu de config.yml et le redémarrage (main.yml) ; une mauvaise
+# adresse posée dans le même run fait boucler le hub avant (api_wait expire).
 - name: Refuse a config.yml that names another address than the admin account
   when: beszel_api_admin.json['items'] | length == 1
   ansible.builtin.assert:
     that:
-      - beszel_api_admin.json['items'][0].email == beszel_systems_user_email
+      - beszel_api_admin.json['items'][0].email | lower == beszel_systems_user_email | lower
     fail_msg: >-
       Le compte Beszel de rôle admin a l'adresse {{ beszel_api_admin.json['items'][0].email }},
       config.yml nomme {{ beszel_systems_user_email }} (beszel_systems_user_email) :
