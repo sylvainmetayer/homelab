@@ -19,8 +19,11 @@
         verify_compose_service: immich
         verify_compose_databases:
           - database
+        verify_compose_internal_networks:
+          - db
         verify_compose_healthchecks:
           - redis
+          - immich-selfie-timelapse
         verify_compose_healthy_dependencies:
           - { service: immich-server, dependency: redis }
           - { service: immich-server, dependency: database }
@@ -100,7 +103,6 @@
         that:
           - "'ports' not in immich_compose.services.database"
           - "'ports' not in immich_compose.services.redis"
-          - immich_compose.networks.db.internal
           - immich_compose.services.database.networks == ['db']
           - immich_compose.services.redis.networks == ['db']
           - "'db' in immich_compose.services['immich-server'].networks"

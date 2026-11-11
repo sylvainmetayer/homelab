@@ -22,6 +22,16 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/data
+    # /api/health (« Web app is working », essayé en local sur 0.34.1) ne
+    # couvre que Next.js : les workers (crawler, recherche), sous s6 dans le
+    # même conteneur, n'ont pas de route. curl est dans l'image.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 60s
+      start_interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - karakeep
       - internal

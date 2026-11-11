@@ -328,6 +328,17 @@ services:
       - ./timelapse_config:/app/config
       - ./timelapse_output:/app/output
     restart: unless-stopped
+    # Binaire Rust, 5000 : `/` répond 200 dès que le serveur écoute (essayé en
+    # local sur 2.3, le modèle de visages est chargé en ~4 s). Aucune route
+    # de santé propre : toutes répondent 200, la sonde ne dit que « le serveur
+    # HTTP écoute ». curl est dans l'image.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:5000/"]
+      interval: 60s
+      start_interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - newt
       - immich
