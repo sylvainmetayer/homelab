@@ -101,7 +101,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 
 ### NAS Ugreen (UGOS, RAID 1)
 
-Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB), voir `host_vars/nas` ;
+Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), voir `host_vars/nas` (`sdc`, USB, retiré depuis son décrochage du 05/11) ;
 par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la main à vérifier) : `sda` et `sdb`, `sdc` retiré depuis son décrochage du 05/11 (`nas.yml`).
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
