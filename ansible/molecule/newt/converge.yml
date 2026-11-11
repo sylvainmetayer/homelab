@@ -3,10 +3,6 @@
 # teste l'hôte docker et ses identifiants (host_vars/docker).
 - name: Converge
   hosts: all
-  # Le second réseau (host_vars/flip l'active, host_vars/docker non) : le
-  # scénario le teste allumé, les assertions sur `newt` valent dans les deux cas.
-  vars:
-    newt_public_network_enabled: true
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml

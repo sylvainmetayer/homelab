@@ -44,8 +44,7 @@ grocy_backup_healthcheck_url: ""
 # le sien (main.go). Réserve : tout conteneur du réseau `newt` atteint Grocy
 # sans passer par badger, donc sans SSO. Une appli publique sans SSO ne doit
 # donc pas y être : elle rejoint `newt-public` quand `newt_public_network_enabled`
-# est vrai pour l'hôte (rôle newt ; pas encore sur docker, où Bêtisier reste sur
-# `newt`). Plus de formulaire de connexion ; l'API (appli Android) garde sa clé
+# est vrai pour l'hôte (rôle newt ; sur docker, Bêtisier y est). Plus de formulaire de connexion ; l'API (appli Android) garde sa clé
 # (GROCY-API-KEY, essayée d'abord). Secours : passer à false et relancer le
 # rôle (login local de nouveau).
 grocy_proxy_auth_enabled: true
