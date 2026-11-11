@@ -226,6 +226,7 @@ homepage_kuma_maintenance_monitors:
   - Mises à jour Raspberry Pi
   - Mises à jour flip
   - Mises à jour Pangolin
+  - Mises à jour LXC newt
   - Storage Box
   - Restore test
   - Test restauration vzdump
