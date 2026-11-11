@@ -117,8 +117,9 @@ application key / application secret / consumer key :
 
 - `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
   (fichier racine) : le provider ovh de `tofu/dns`, `tofu/s3_state`,
-  `tofu/keepass_backup`, `tofu/ref`, `tofu/site`, `tofu/1y` et
-  `tofu/planning`.
+  `tofu/keepass_backup`, `tofu/pangolin` (déclaré, sans ressource),
+  `tofu/ref`, `tofu/site`, `tofu/1y` et `tofu/planning`. Pour
+  `OVH_CONSUMER_KEY`, voir « Consumer key de Tofu » ci-dessous.
 - `nas_ovh_application_key`, `nas_ovh_application_secret`,
   `nas_ovh_consumer_key` (fichier Ansible) : le défi DNS-01 de Let's Encrypt
   du Traefik du NAS (`nas_proxy`).
@@ -250,7 +251,8 @@ identifiants n'ont rien à voir avec cette rotation :
   suivant. Dans ce cas, ne révoquer **aucun** ancien identifiant tant que
   celui de Proxmox n'est pas identifié et que Proxmox n'est pas passé sur
   un identifiant dédié (application séparée, droits DNS-01 seulement).
-- `costs_ovh_*` : rapport des coûts.
+- le rapport des coûts (rôle `cost_report`) n'utilise plus OVH (clés
+  `costs_ovh_*` retirées) : rien à y chercher.
 
 Garde-fous de l'outil :
 - `list` affiche tous les identifiants du compte, chacun avec le nom et la
