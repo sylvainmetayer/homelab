@@ -151,13 +151,15 @@ http:
     # forwardAuth « à upstream statique » (doc d'oauth2-proxy) : la racine
     # répond 202 si la session est valide et du groupe, sinon 302 vers Pocket ID
     # (--skip-provider-button), retour bâti sur X-Forwarded-Host/-Uri. Pas
-    # d'errors middleware : un 401 de l'appli elle-même passe tel quel. Les
-    # en-têtes X-Forwarded-* sont ceux que Traefik vient de poser
-    # (aliasHeadersStrategy: delete).
+    # d'errors middleware : un 401 de l'appli elle-même passe tel quel.
     oauth2-auth:
       forwardAuth:
         address: http://{{ nas_proxy_oauth2_container_name }}:4180/
-        trustForwardHeader: true
+        # Faux : Traefik recalcule X-Forwarded-Host/-Proto/-Uri/-For de la requête
+        # reçue (le Host d'origine, le TLS terminé ici), au lieu de croire ceux
+        # d'un client. Rien n'est en amont de ce Traefik qui les pose : Pangolin
+        # ne fait que tunneler le TCP (ressources privées).
+        trustForwardHeader: false
 {% endif %}
     # HSTS seul : UGOS pose sa propre CSP (frame-src calé sur le Host reçu),
     # et ses fenêtres sont des iframes de même origine.
@@ -198,3 +200,18 @@ http:
       loadBalancer:
         servers:
           - url: "{{ nas_proxy_qbittorrent_url }}"
+
+# Option TLS « default » : tous les noms du NAS. Même liste que Pangolin
+# (traefik_dynamic_config.yml.j2) : en TLS 1.2, ECDHE + AEAD seulement, pas de
+# CBC ; TLS 1.3 n'est pas concerné par cipherSuites.
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256

@@ -41,7 +41,8 @@ services:
     # n'est pas publié ici mais tenu par le service forward : pris par le nginx
     # d'UGOS, il ferait échouer la création de ce conteneur, 8443 compris.
     ports:
-      - "{{ nas_proxy_https_port }}:{{ nas_proxy_https_port }}"
+      - "{{ nas_proxy_bind_address }}:{{ nas_proxy_https_port }}:{{ nas_proxy_https_port }}"
+      - "127.0.0.1:{{ nas_proxy_https_port }}:{{ nas_proxy_https_port }}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--configFile=/etc/traefik/traefik.yml"]

@@ -20,6 +20,11 @@ nas_proxy_container_name: nas-proxy
 # Il ne dépend que de Docker : c'est le secours quand le 443 de l'hôte est
 # repris par le nginx d'UGOS.
 nas_proxy_https_port: 8443
+# Adresse d'écoute du 8443 sur l'hôte : l'IP LAN du NAS (comme immich_ml), pas
+# toutes les interfaces, IPv6 globale de la Bbox comprise (ss -ltn du 11/11 :
+# 0.0.0.0 et [::]). S'y ajoute 127.0.0.1, où tournent la sonde de santé et la
+# vérification des certificats (nas_proxy_cert_check_host).
+nas_proxy_bind_address: "{{ ansible_host }}"
 # Le 443 de l'hôte, sans port dans l'URL. Le nginx d'UGOS le tient tant que
 # la redirection HTTPS de son interface est cochée (« defaultHttpsRedirectEnable »
 # de /etc/nginx/config.json, simple 307 vers son 9443) : décochée, il est
