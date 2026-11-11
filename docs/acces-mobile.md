@@ -249,8 +249,8 @@ jamais une appli entière (Promptoramix est l'exception assumée).
    `path_bypasses_open_exactly_the_reviewed_paths`, et, pour une appli PHP,
    l'état attendu de `php_lockdown_closes_every_public_php_path`. Puis
    `mise run tofu-test` (ou `tofu test` dans `tofu/pangolin_config`).
-5. **PR**, puis `tofu plan` et `tofu apply` dans `tofu/pangolin_config` (pas
-   `mise run plan`, qui vise `tofu/pangolin`) : c'est Sylvain qui applique.
+5. **PR**, puis `mise run tofu pangolin_config plan` et `apply` (pas
+   `mise run plan-pangolin`, qui vise `tofu/pangolin`) : c'est Sylvain qui applique.
    Mettre ce document à jour dans la même PR.
 
 Un client qui doit garder l'authentification Pangolin (un serveur, un

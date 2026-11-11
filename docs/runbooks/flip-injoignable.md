@@ -84,7 +84,7 @@ Si toutes les applis du homelab tombent : [pangolin-injoignable.md](pangolin-inj
 - **MASQUERADE absent sur Pangolin** : `sudo systemctl restart nat-gateway`,
   ou `ansible-playbook pangolin.yaml --tags nat`.
 - **Route Hetzner absente ou pointant vers une ancienne IP** (après une
-  reconstruction de Pangolin) : `mise run plan` puis `mise run apply`
+  reconstruction de Pangolin) : `mise run plan-pangolin` puis `mise run apply-pangolin`
   (`tofu/pangolin`) recrée `hcloud_network_route.nat`.
 - **Newt de flip en panne** : `systemctl --user restart dc@newt`, depuis une
   session `mise run ssh_flip`. Jamais depuis `flip.internal` : cette

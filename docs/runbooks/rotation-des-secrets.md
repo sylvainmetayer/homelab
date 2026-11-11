@@ -97,7 +97,7 @@ depuis son ajout porte donc la date de son ajout.
 - `HCLOUD_TOKEN` (fichier racine, lu par le provider hcloud de
   `tofu/pangolin` et par `ansible/inventory/hetzner.py`) : Console Hetzner,
   projet du homelab, Security → API tokens, nouveau jeton **Read & Write**.
-  `sops set`, puis `mise run plan` : le plan doit être vide, et
+  `sops set`, puis `mise run plan-pangolin` : le plan doit être vide, et
   `ansible-inventory --graph` (depuis `ansible/`) doit toujours lister
   pangolin et flip. Supprimer l'ancien jeton dans la Console.
 - `hcloud_readonly_token` (fichier Ansible, secret

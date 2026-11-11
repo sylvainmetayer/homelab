@@ -21,10 +21,11 @@ Pour les humains : la carte du homelab est dans `docs/architecture.md`, les proc
 All commands run through **mise** (not make). Tool versions are pinned in `mise.toml`; run `mise install` once, then `uv sync` for the Python venv.
 
 ```bash
-mise run init           # tofu/pangolin; then plan, apply
+mise run init-pangolin  # tofu/pangolin; then plan-pangolin, apply-pangolin
 mise run init-proxmox   # tofu/proxmox; then plan-proxmox, apply-proxmox
 mise run init-ref       # tofu/ref (GITHUB_TOKEN exporté avant); then plan-ref, apply-ref
 mise run init-planning  # tofu/planning (GITHUB_TOKEN exporté avant); then plan-planning, apply-planning
+mise run tofu <module> <command…>  # any other module: mise run tofu pangolin_config plan (no init, no provider-fork before)
 mise run provider-fork # fetch the Pangolin provider fork and the trozz/pocketid 2.5.0 mirror; needed before any `tofu init` of tofu/pangolin_config (lint and tofu-test run it)
 mise run lint        # tofu fmt -check -recursive + init -backend=false && validate of every module
 mise run fix-lint    # tofu fmt -recursive
