@@ -2176,8 +2176,21 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning_kc", "exemple_planning", "postiz"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning", "demo_planning_kc", "exemple_planning"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
+  }
+
+  # La démo : son entrée de flip.yml lit demo_planning_enabled de host_vars/flip.
+  assert {
+    condition = (
+      yamldecode(file("${path.module}/../../ansible/host_vars/flip/variables.yaml")).demo_planning_enabled == pangolin_resource.website["demo_planning"].enabled
+      && [
+        for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
+        entry.vars.flip_planning_enabled
+        if entry.role == "flip_planning" && try(entry.vars.flip_planning_service, "") == "demo_planning"
+      ] == ["{{ demo_planning_enabled }}"]
+    )
+    error_message = "demo_planning_enabled (ansible/host_vars/flip/variables.yaml), lu par l'entrée demo_planning de flip.yml, et enabled de l'entrée demo_planning (website_demo_planning.tf) doivent être égaux."
   }
 
   # Postiz : son interrupteur est dans host_vars/flip (le rôle n'y est

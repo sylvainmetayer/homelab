@@ -494,23 +494,6 @@
       ]
     },
     {
-      "description": "Paused apps (docs/runbooks/app-en-pause.md): no update PR for an app that does not run. Postiz, paused since 2026-11-11; removed with the pause",
-      "matchFileNames": [
-        "ansible/roles/postiz/**"
-      ],
-      "enabled": false
-    },
-    {
-      "description": "Paused apps, their image in path_bypass_images.json: Renovate would otherwise bump it alone, a PR the path_bypasses_follow_their_image test refuses. Removed with the pause",
-      "matchFileNames": [
-        "tofu/pangolin_config/path_bypass_images.json"
-      ],
-      "matchPackageNames": [
-        "ghcr.io/gitroomhq/postiz-app"
-      ],
-      "enabled": false
-    },
-    {
       "description": "Guard, kept last: an update of path_bypass_images.json never automerges, and its PR says what to re-read before the manual merge. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the re-read",
       "matchFileNames": [
         "tofu/pangolin_config/path_bypass_images.json"

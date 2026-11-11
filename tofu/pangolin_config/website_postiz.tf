@@ -8,10 +8,6 @@ locals {
     role      = "postiz"
     backup    = true
 
-    # Paused since 2026-11-11 (docs/runbooks/app-en-pause.md): flip (4 GiB) has
-    # no room for it. Moves with postiz_enabled in ansible/host_vars/flip.
-    enabled = false
-
     # Its link on Homepage (homepage_links output, website_homepage.tf).
     homepage = {
       group       = "Divers"

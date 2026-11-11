@@ -16,6 +16,13 @@
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
+    # host_vars/flip met la démo en pause ; le scénario la garde en service :
+    # c'est sa seconde instance active, celle qui prouve le cloisonnement avec
+    # la production. Un set_fact l'emporte sur vars_files.
+    - name: Keep the demo instance running in this scenario
+      ansible.builtin.set_fact:
+        demo_planning_enabled: true
+
     - name: Assert this converge applies flip_planning exactly as flip.yml does
       ansible.builtin.assert:
         that:
@@ -113,6 +120,7 @@
         flip_planning_mem_reservation: 1g
     - role: flip_planning
       vars:
+        flip_planning_enabled: "{{ demo_planning_enabled }}"
         flip_planning_service: demo_planning
         flip_planning_container_prefix: demo-planning
         flip_planning_domain: demo-planning.sylvain.dev

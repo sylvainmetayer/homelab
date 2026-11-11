@@ -33,6 +33,11 @@ flip_planning_cloudflare_web_analytics_token: "987d563a0f264bbbb484df80ab2ab0f8"
 # applied a second time in flip.yml, which maps these onto its flip_planning_*
 # parameters; its own Borg repository, so restoring the demo can never touch the
 # production archives.
+# En pause depuis le 2026-11-11 (docs/runbooks/app-en-pause.md) : sa mémoire
+# (~540 Mio) va à Postiz, flip n'a pas la place pour les deux. Va avec
+# `enabled = false` de tofu/pangolin_config/website_demo_planning.tf (test
+# invariants).
+demo_planning_enabled: false
 demo_planning_backup_enabled: true
 demo_planning_backup_borgmatic_target: "{{ backup_storage_box_url }}/demo_planning"
 demo_planning_backup_encryption_passphrase: "{{ backup_passphrase }}"
@@ -54,8 +59,3 @@ backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.flip }}"
 # que Newt rejoint aussi : il ne voit plus Flip Planning ni pgAdmin sur `newt`.
 # Lu par les rôles newt et promptoramix.
 newt_public_network_enabled: true
-
-# Postiz en pause depuis le 2026-11-11 (docs/runbooks/app-en-pause.md) : ses
-# 1,4 Gio ne tiennent pas dans les 4 Gio de flip. Va avec `enabled = false` de
-# tofu/pangolin_config/website_postiz.tf (test invariants).
-postiz_enabled: false

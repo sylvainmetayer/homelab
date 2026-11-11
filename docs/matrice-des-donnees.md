@@ -125,7 +125,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
 | Flip Planning, production | 2 | Borg `flip_planning` : `compose.yaml`, `pgadmin` + dump PostgreSQL ; pas d'image Hetzner (`backups = false`) | oui | ~1 h (est.), plus la reconstruction de la VM | CI | — |
-| Flip Planning, démo | 3 | Borg `demo_planning` (sa propre archive) | oui | ~1 h (est.) | CI | — |
+| Flip Planning, démo (**en pause**) | 3 | Borg `demo_planning` (sa propre archive, figée au 2026-11-11) | oui | ~1 h (est.) | CI | — |
 | Démo Keycloak (**en pause**), vitrine publique (**en pause**) | 3 | aucune (`flip_planning_backup_enabled: false`) | non | sans objet | non | toutes leurs données, gardées sur le disque de flip |
 | Promptoramix | 3 | aucune ; son volume est un journal de coups, hors sauvegarde | non | sans objet | non | ce journal |
 | Postiz (publications planifiées) | 3 | Borg `postiz` : `uploads`, `compose.yaml`, `.env` + dumps PostgreSQL (`postiz`, `temporal`, `temporal_visibility`) | oui | ~1 h (est.) | CI | publications planifiées depuis la dernière nuit |
