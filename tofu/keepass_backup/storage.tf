@@ -27,6 +27,11 @@ resource "ovh_cloud_project_storage" "keepass_backup" {
   encryption = {
     sse_algorithm = "AES256"
   }
+
+  # Les sauvegardes des KeePass : un remplacement du bucket les emporterait.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Sans cycle de vie, le versioning garderait tout pour toujours : chaque verrou
