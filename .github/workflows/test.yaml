@@ -56,7 +56,7 @@ jobs:
       # pyyaml (lu par select_tests.py) à la version d'uv.lock.
       - name: Install the selection dependencies
         run: |
-          pip install --quiet --only-binary :all: uv==0.12.23
+          pip install --quiet --only-binary :all: uv==0.13.7
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
@@ -216,7 +216,7 @@ jobs:
 
       - name: Install ansible + molecule
         run: |
-          pip install --quiet --only-binary :all: uv==0.12.23
+          pip install --quiet --only-binary :all: uv==0.13.7
           uv sync --locked --no-build --group test
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
