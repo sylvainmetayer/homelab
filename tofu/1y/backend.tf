@@ -9,5 +9,9 @@ terraform {
     skip_region_validation      = true
     skip_credentials_validation = true
     use_path_style              = true
+    # Essai du verrou natif (écritures conditionnelles, que la doc d'OVH Object
+    # Storage annonce) : un objet homelab/1y.tfstate.tflock. Si l'essai tient,
+    # le mettre sur les autres backends ; sinon retirer cette ligne.
+    use_lockfile = true
   }
 }
