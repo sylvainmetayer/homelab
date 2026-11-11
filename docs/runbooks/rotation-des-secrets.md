@@ -288,8 +288,9 @@ sans modification (`git -C secrets status`) :
    proposée et valider. Aucune API ne fait cette étape. Tant qu'elle n'est
    pas faite, Tofu échoue avec la clé rangée.
 4. Vérifier qu'un plan est vide dans chaque module :
-   - `mise run plan` (`tofu/pangolin` déclare le provider) ;
-   - `mise run plan-ref` et `mise run plan-planning` ;
+   - `mise run plan-pangolin` (`tofu/pangolin` déclare le provider) ;
+   - `mise run plan-ref` et `mise run plan-planning`, `GITHUB_TOKEN`
+     exporté avant (`export GITHUB_TOKEN="$(gh auth token)"`) ;
    - `mise exec -- tofu -chdir=tofu/<module> plan` pour `dns`, `s3_state`,
      `keepass_backup`, `site` et `1y`.
 5. Prouver les écritures avant de toucher à l'ancien identifiant : un plan
