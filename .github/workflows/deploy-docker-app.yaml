@@ -418,7 +418,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY="$(sops -d --extract '["state_s3_secret_key"]' secrets/ansible.sops.yaml)"
           echo "::add-mask::$AWS_ACCESS_KEY_ID"
           echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
-          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+          # init validates the state encryption block, whose key is a variable.
+          TF_VAR_pangolin_config_state_passphrase="$(sops -d --extract '["tofu_state_passphrase"]' secrets/ansible.sops.yaml)"
+          echo "::add-mask::$TF_VAR_pangolin_config_state_passphrase"
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TF_VAR_pangolin_config_state_passphrase
           # The registry may drop a connection: same retry as test.yaml.
           for attempt in 1 2 3; do
             tofu -chdir=tofu/pangolin_config init -input=false -lockfile=readonly -no-color && exit 0

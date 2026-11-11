@@ -297,10 +297,10 @@ flowchart LR
   (la CI n'a pas les jetons cloud).
 - **States OpenTofu** : tous dans le bucket S3 `homelab-tf-state-sylvain`
   (OVH, `s3.eu-west-par.io.cloud.ovh.net`). Tous sont **chiffrés** (`encryption.tf`, AES-GCM, passphrase
-  `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`) sauf celui de `pangolin_config`
+  `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`) sauf celui de `pangolin_config` (migration en cours, passphrase dédiée `TF_VAR_pangolin_config_state_passphrase`, repli `unencrypted` gardé)
   ([opentofu.md](conventions/opentofu.md)). Verrou natif
   (`use_lockfile`) sur tous : un seul plan ou apply à la fois par module.
-  Celui de `pangolin_config` reste en clair pour l'instant (Ansible en lit les sorties par `tofu output`, le chiffrement vient à la PR suivante) : un
+  Celui de `pangolin_config` est en cours de chiffrement avec une passphrase dédiée (Ansible et la CI la lisent dans `secrets/ansible.sops.yaml`, clé `tofu_state_passphrase`) ; Ansible en lit les sorties par `tofu output` : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
   lire cet objet. Pour cette raison il ne lit ni `data sops_file` ni le state
   de `tofu/pangolin` (une data source est écrite en entier dans le state) : ses
