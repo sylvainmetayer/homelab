@@ -72,6 +72,8 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8427/health"]
       interval: 30s
+      # Le MCP attend vmauth (service_healthy) : sondé toutes les 5 s au démarrage.
+      start_interval: 5s
       timeout: 5s
       retries: 3
       start_period: 10s
@@ -112,7 +114,8 @@ services:
       # /flags n'est pas routé par vmauth : l'outil ne ferait qu'échouer.
       MCP_DISABLED_TOOLS: flags
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
     restart: unless-stopped
     # Image Alpine : le wget de busybox.
     healthcheck:

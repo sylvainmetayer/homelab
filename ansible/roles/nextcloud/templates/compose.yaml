@@ -104,6 +104,10 @@ services:
 
   cache:
     mem_limit: 256m
+    # Verrous et sessions : réservation (memory.low) modeste, du même ordre que
+    # Redis de Dawarich et de Yamtrack (~24 Mio au repos). Non mesuré ici : à
+    # recaler sur memory.peak (mem_report).
+    mem_reservation: 64m
     restart: unless-stopped
     image: redis:8.2.11-bookworm@sha256:b0b01167ff47bc3868e56a967895a26be4230891a1f42a78ab61cdd227accc8d
     container_name: nextcloud_redis

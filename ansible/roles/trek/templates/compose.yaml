@@ -10,6 +10,11 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # L'image démarre en root (/usr/local/bin/trek-entrypoint, lu dans 5.1.1) :
+    # CHOWN rend data/ et uploads/ à l'utilisateur node (au premier démarrage,
+    # puis seulement si un fichier n'est pas à lui), SETUID et SETGID pour
+    # `gosu node` qui lance ensuite Node sans capacité. Sans l'une des trois,
+    # le chown ou le gosu échoue : le conteneur ne démarre pas.
     cap_add:
       - CHOWN
       - SETUID
