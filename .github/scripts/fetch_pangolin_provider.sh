@@ -14,15 +14,17 @@ set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 plugins="$root/tofu/pangolin_config/terraform.d/plugins/registry.opentofu.org"
+# Un seul trap pour tous les appels de fetch : tmp, global, désigne le
+# téléchargement en cours (déjà déplacé, rm -f n'y trouve rien).
+tmp=""
+trap 'rm -f "$tmp"' EXIT
 
 # fetch <source du registre> <zip> <sha256> <URL>
 fetch() {
-  local mirror="$plugins/$1" target="$plugins/$1/$2" tmp
+  local mirror="$plugins/$1" target="$plugins/$1/$2"
   if ! echo "$3  $target" | sha256sum --check --status 2>/dev/null; then
     mkdir -p "$mirror"
     tmp=$(mktemp "$mirror/.download.XXXXXX")
-    # shellcheck disable=SC2064 # le chemin est figé maintenant, tmp est local
-    trap "rm -f '$tmp'" EXIT
     curl --proto '=https' --fail --silent --show-error --location --retry 3 --retry-all-errors --output "$tmp" "$4"
     echo "$3  $tmp" | sha256sum --check --quiet
     mv "$tmp" "$target"
