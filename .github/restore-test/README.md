@@ -106,6 +106,13 @@ dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive
   version épinglée, sans lire les vraies archives : à revoir si une montée de
   version renomme une table, l'app échoue alors avec « table attendue absente ». `test_restore_test_content.py`
   (job Lint) vérifie la forme et l'exige sur chaque app qui a une base ;
+- `expected_path` (facultatif, chemin tel que borg l'archive, sans `/` initial :
+  `opt/apps/immich/library`) : l'archive doit contenir au moins un fichier
+  dessous. Avec `source_directories_must_exist: true` (gabarit borgmatic) une
+  source absente fait échouer la sauvegarde ; ce contrôle attrape l'archive qui
+  n'a plus les données alors que le dump et `compose.yaml` passent. Posé là où
+  le dossier de données porte des fichiers autres que la base SQLite (dont la
+  copie vivante est exclue) ;
 - `allow_empty_databases` (facultatif, liste de bases, mêmes noms) : une base
   listée peut n'avoir aucune table ou aucune ligne sans faire échouer l'app ;
   ses `expected_tables` éventuelles restent exigées, et les autres bases de

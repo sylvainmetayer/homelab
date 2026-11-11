@@ -47,7 +47,7 @@ its export (`host_vars/nas`). The rules:
 - Borgmatic (`borgmatic` role, `tasks_from: app.yml`): NAS file dirs in
   `borgmatic_app_source_directories`, the DB data dir **not** (dumped through
   `borgmatic_app_postgresql_databases`),
-  `borgmatic_app_extra_options: {source_directories_must_exist: true}`, and
+  (`source_directories_must_exist: true` is now the shared template's default), and
   `borgmatic_app_before_commands: ["{{ nas_storage_wait_command }} 30"]`
   (runs before borg reads the NAS): without it a dead NAS blocks the single
   `borgmatic.service`, hence every app's backup.
@@ -189,8 +189,6 @@ data directory is dumped, never copied):
         password: "{{ <service>_db_password }}"
     borgmatic_app_before_commands:
       - "{{ nas_storage_wait_command }} 30"  # a dead NAS fails this config only
-    borgmatic_app_extra_options:
-      source_directories_must_exist: true  # an unmounted export fails, no empty archive
 ```
 
 `templates/compose.yaml`, on every container whose data is on the NAS:
