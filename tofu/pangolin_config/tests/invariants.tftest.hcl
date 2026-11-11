@@ -4044,3 +4044,17 @@ run "state_readers_share_the_key_provider_name" {
     error_message = "tofu/pangolin_config, tofu/site et tofu/github doivent déclarer key_provider \"pbkdf2\" \"pangolin_config\" sur var.pangolin_config_state_passphrase (même nom : le sel est rangé sous ce nom)."
   }
 }
+
+# Plus de repli : un state en clair doit être refusé (audit sc1, migré le
+# 12/11/2026). Lecture statique des trois encryption.tf, comme ci-dessus.
+run "state_encryption_has_no_fallback" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for f in ["encryption.tf", "../site/encryption.tf", "../github/encryption.tf"] :
+      length(regexall("method\\s+\"unencrypted\"|fallback\\s*\\{", file("${path.module}/${f}"))) == 0
+    ])
+    error_message = "Aucun encryption.tf (pangolin_config, site, github) ne doit plus déclarer method \"unencrypted\" ni de bloc fallback."
+  }
+}

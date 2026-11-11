@@ -45,9 +45,7 @@
     # de `tofu_state_passphrase` (secrets/ansible.sops.yaml : la clé Age de la
     # CI ne déchiffre pas le fichier racine secrets.sops.yaml), sinon de
     # TF_VAR_pangolin_config_state_passphrase que mise exporte sur un poste.
-    # Le repli `unencrypted` du module fait marcher la lecture que le state soit
-    # encore en clair ou déjà chiffré ; sans repli, une passphrase absente ou
-    # fausse échoue.
+    # Le state est chiffré sans repli : une passphrase absente ou fausse échoue.
     # no_log : `stdout` est l'ensemble des sorties, secrets compris (identifiants
     # Newt, jetons d'accès Pangolin), qu'un -v écrirait dans run.log.
     # run_once : une lecture par run, le résultat enregistré vaut pour tous les
