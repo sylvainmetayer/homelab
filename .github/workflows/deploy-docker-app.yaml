@@ -381,6 +381,52 @@ jobs:
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
 
+      # Les playbooks lisent les sorties de tofu/pangolin_config par
+      # `tofu output -json` (ansible/tasks/pangolin_config_outputs.yml) : le
+      # module doit être initialisé sur le runner, avec la version d'OpenTofu
+      # de mise.toml, le provider du fork (absent du registre) et les
+      # identifiants S3 en lecture seule du state (clés de ansible.sops.yaml).
+      # Avant le tunnel OLM : init joint le registre et GitHub par le DNS normal.
+      # tofu_wrapper: false : le wrapper de l'action ajouterait ses lignes à la
+      # sortie JSON que lit Ansible.
+      - name: Read the OpenTofu version pinned in mise.toml
+        id: tofu-version
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        run: |
+          version="$(sed -n "s/^opentofu = '\(.*\)'$/\1/p" mise.toml)"
+          # Empty would make setup-opentofu install the latest, silently.
+          [ -n "$version" ] || { echo "::error::opentofu version not found in mise.toml"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up OpenTofu
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: ${{ steps.tofu-version.outputs.version }}
+          tofu_wrapper: false
+
+      - name: Fetch the fork of the Pangolin provider
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        run: .github/scripts/fetch_pangolin_provider.sh
+
+      - name: Init tofu/pangolin_config to read its outputs
+        if: steps.resolve-tags.outputs.any_tags == 'true'
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          AWS_ACCESS_KEY_ID="$(sops -d --extract '["state_s3_access_key"]' secrets/ansible.sops.yaml)"
+          AWS_SECRET_ACCESS_KEY="$(sops -d --extract '["state_s3_secret_key"]' secrets/ansible.sops.yaml)"
+          echo "::add-mask::$AWS_ACCESS_KEY_ID"
+          echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+          # The registry may drop a connection: same retry as test.yaml.
+          for attempt in 1 2 3; do
+            tofu -chdir=tofu/pangolin_config init -input=false -lockfile=readonly -no-color && exit 0
+            echo "tofu init failed (attempt $attempt), retrying in $((attempt * 10))s"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
       - name: Install network tools
         if: steps.resolve-tags.outputs.any_tags == 'true'
         run: |

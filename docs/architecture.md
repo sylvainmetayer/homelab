@@ -285,7 +285,7 @@ flowchart LR
   gh -- "SOPS_AGE_KEY, SSH_PRIVATE_KEY,<br/>OLM_ID/SECRET" --> ci[CI de déploiement]
   ci --> ansible
   tofu -- "states sur S3 OVH" --> s3[("homelab-tf-state-sylvain")]
-  s3 -- "state pangolin_config (en clair) :<br/>URL push, identifiants Newt de flip" --> ansible
+  s3 -- "sorties de pangolin_config (tofu output) :<br/>URL push, identifiants Newt de flip" --> ansible
 ```
 
 - **Où** : les deux fichiers SOPS et l'inventaire de rotation vivent dans le
@@ -300,7 +300,7 @@ flowchart LR
   `TF_VAR_state_encryption_passphrase` de `secrets/secrets.sops.yaml`) sauf celui de `pangolin_config`
   ([opentofu.md](conventions/opentofu.md)). Verrou natif
   (`use_lockfile`) sur tous : un seul plan ou apply à la fois par module.
-  Celui de `pangolin_config` reste en clair parce qu'Ansible le lit : un
+  Celui de `pangolin_config` reste en clair pour l'instant (Ansible en lit les sorties par `tofu output`, le chiffrement vient à la PR suivante) : un
   utilisateur S3 dédié (`tofu/s3_state/user_ansible.tf`) n'a le droit que de
   lire cet objet. Pour cette raison il ne lit ni `data sops_file` ni le state
   de `tofu/pangolin` (une data source est écrite en entier dans le state) : ses
