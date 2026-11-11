@@ -30,4 +30,4 @@ newt_endpoint: https://pangolin.sylvain.cloud
 # n'est réelle qu'une fois la clé créée puis `backup_passphrase` tournée
 # (ADR 0034, docs/runbooks/rotation-des-secrets.md). La clé SOPS ne porte pas le
 # nom de cette variable, que check_sops_shadowing.py refuse.
-app_secrets_seed: "{{ app_secrets_master | default(backup_passphrase) }}"
+app_secrets_seed: "{{ app_secrets_master | default(backup_passphrase, true) }}"

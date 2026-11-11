@@ -64,8 +64,8 @@ def usage(payload, name):
 def box_id(payload, name):
     """Identifiant de la Storage Box `name` (usage() a déjà vérifié qu'elle est unique)."""
     try:
-        return next(box["id"] for box in payload["storage_boxes"] if box["name"] == name)
-    except (KeyError, StopIteration, TypeError) as error:
+        return int(next(box["id"] for box in payload["storage_boxes"] if box["name"] == name))
+    except (KeyError, StopIteration, TypeError, ValueError) as error:
         raise QuotaError(f"identifiant de la Storage Box absent de la réponse de l'API : {error!r}") from error
 
 
@@ -129,6 +129,19 @@ def push(url, status, msg):
         response.read()
 
 
+API_ERRORS = (QuotaError, OSError, ValueError, http.client.HTTPException)
+
+
+def api_error(error):
+    """Message d'une erreur d'API, sans le jeton ni l'URL."""
+    if isinstance(error, QuotaError):
+        return str(error)
+    if isinstance(error, urllib.error.HTTPError):
+        return f"API Hetzner : HTTP {error.code}"
+    # Le message d'une erreur réseau peut citer l'URL : sa classe seule.
+    return f"API Hetzner injoignable : {type(error).__name__}"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--name", default="backups")
@@ -143,19 +156,20 @@ def main(argv=None):
         try:
             boxes = fetch(token, args.name)
             status, msg = evaluate(boxes, args.name, args.threshold)
-            snap_status, snap_msg = evaluate_snapshots(
-                fetch_snapshots(token, box_id(boxes, args.name)), datetime.datetime.now(datetime.timezone.utc)
-            )
+        except API_ERRORS as error:
+            boxes, status, msg = None, "down", api_error(error)
+        if boxes is not None:
+            # Erreur à part : le message dit que ce sont les snapshots (jeton
+            # sans ce droit, 404), et le pourcentage mesuré reste affiché.
+            try:
+                snap_status, snap_msg = evaluate_snapshots(
+                    fetch_snapshots(token, box_id(boxes, args.name)), datetime.datetime.now(datetime.timezone.utc)
+                )
+            except API_ERRORS as error:
+                snap_status, snap_msg = "down", f"snapshots illisibles : {api_error(error)}"
             msg += f" ; {snap_msg}"
             if snap_status == "down":
                 status = "down"
-        except QuotaError as error:
-            status, msg = "down", str(error)
-        except urllib.error.HTTPError as error:
-            status, msg = "down", f"API Hetzner : HTTP {error.code}"
-        except (OSError, ValueError, http.client.HTTPException) as error:
-            # Le message d'une erreur réseau peut citer l'URL : sa classe seule.
-            status, msg = "down", f"API Hetzner injoignable : {type(error).__name__}"
 
     print(f"{'::error::' if status == 'down' else ''}Storage Box {args.name} : {msg}")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")

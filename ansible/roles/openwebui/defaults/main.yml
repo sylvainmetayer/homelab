@@ -6,7 +6,7 @@
 openwebui_base_path: "{{ docker_base_path }}/openwebui"
 openwebui_domain: openwebui.sylvain.cloud
 
-# Clé de signature des sessions, obligatoire. Dérivée de backup_passphrase comme
+# Clé de signature des sessions, obligatoire. Dérivée de app_secrets_seed comme
 # celles de Karakeep et Papra : pas d'entrée SOPS. La changer déconnecte tout le
 # monde (et rend illisibles les secrets d'intégrations que l'appli chiffre avec
 # elle : aucun ici).

@@ -18,7 +18,8 @@ rendraient leurs données illisibles (audit du 11/11, constat sc4).
 ## Décision
 
 Une variable commune `app_secrets_seed` (`group_vars/all/variables.yml`) :
-`{{ app_secrets_master | default(backup_passphrase) }}`. Chaque dérivation
+`{{ app_secrets_master | default(backup_passphrase, true) }}` (une clé vide
+retombe aussi sur `backup_passphrase`). Chaque dérivation
 lit cette variable, étiquette inchangée. La clé SOPS s'appelle
 `app_secrets_master` : elle ne porte pas le nom de la variable, qu'elle
 masquerait (précédence SOPS, `check_sops_shadowing.py`).
