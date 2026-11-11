@@ -11,6 +11,10 @@
 # vérifie que les entrées passées par main.tf (URL publique, SMTP, secrets de
 # client) sont acceptées par le module à cette révision.
 
+variables {
+  state_encryption_passphrase = "tofu-test-passphrase-not-a-secret"
+}
+
 mock_provider "keycloak" {}
 mock_provider "sops" {}
 
