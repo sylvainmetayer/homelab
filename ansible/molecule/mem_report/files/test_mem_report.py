@@ -365,6 +365,25 @@ class BuildReportTest(unittest.TestCase):
         self.assertIn("Rien à signaler", report["message"])
         self.assertIn("1 conteneur(s) lu(s), 1 comparé(s)", report["message"])
 
+    def test_footer_sums_peaks_and_limits_against_the_ram(self):
+        ram = (12 * GIB, 100 * 1024 * 1024)
+        report, _ = mr.build_report(
+            "docker", [measure(), measure(limit=1 * GIB)], 0, self.ARGS, [], [], 2, ram
+        )
+        self.assertIn("pour 12.0 Gio de RAM (swap utilisé 100 Mio)", report["message"])
+        self.assertIn("Somme des pics", report["message"])
+
+    def test_footer_without_ram_has_no_sum(self):
+        report, _ = self.report([measure()], compared=1)
+        self.assertNotIn("Somme des pics", report["message"])
+
+    def test_read_ram(self):
+        with tempfile.NamedTemporaryFile("w") as meminfo:
+            meminfo.write("MemTotal:       12288 kB\nSwapTotal:       2048 kB\nSwapFree:        1024 kB\n")
+            meminfo.flush()
+            self.assertEqual(mr.read_ram(meminfo.name), (12288 * 1024, 1024 * 1024))
+        self.assertIsNone(mr.read_ram("/nonexistent"))
+
     def test_grow_is_high(self):
         report, _ = self.report([measure(peak=1 * GIB)])
         self.assertEqual((report["priority"], report["tags"]), (4, ["warning"]))

@@ -126,6 +126,19 @@ def read_events(path):
     return events
 
 
+def read_ram(path):
+    """(RAM totale, swap utilisé) en octets d'un meminfo, ou None s'il est illisible."""
+    values = {}
+    for line in (read_text(Path(path)) or "").splitlines():
+        key, _, rest = line.partition(":")
+        fields = rest.split()
+        if fields and fields[0].isdigit():
+            values[key] = int(fields[0]) * 1024
+    if "MemTotal" not in values:
+        return None
+    return values["MemTotal"], max(0, values.get("SwapTotal", 0) - values.get("SwapFree", 0))
+
+
 def find_scopes(root):
     """{id du conteneur: dossier de son cgroup}, sous toute la hiérarchie."""
     scopes = {}
@@ -379,7 +392,7 @@ def fit(sections, footer):
     return message, full
 
 
-def build_report(host, measures, missing, args, drifts, unread, compared):
+def build_report(host, measures, missing, args, drifts, unread, compared, ram=None):
     grow, shrink, unlimited = classify(measures, args.high, args.low, args.min_saving_mb * MIB)
     sections = [
         (
@@ -398,8 +411,17 @@ def build_report(host, measures, missing, args, drifts, unread, compared):
     if missing:
         counted += f", {missing} sans cgroup trouvé"
     counted += f", {compared} comparé(s) à leur compose"
+    totals = ""
+    if ram:
+        # Les plafonds par conteneur ne protègent pas l'hôte : leur somme face
+        # à la RAM dit s'il peut swapper quand plusieurs pics coïncident.
+        limits = [m["limit"] for m in measures if m["limit"] is not None]
+        totals = (
+            f" Somme des pics {human(sum(m['peak'] for m in measures))}, des mem_limit {human(sum(limits))} "
+            f"pour {human(ram[0])} de RAM (swap utilisé {human(ram[1])})."
+        )
     footer = (
-        f"{counted}. Limite suggérée : 2x le pic, arrondie. memory.peak et "
+        f"{counted}.{totals} Limite suggérée : 2x le pic, arrondie. memory.peak et "
         "memory.events repartent de zéro à chaque redémarrage du conteneur "
         "(et du serveur) : un pic mesuré sur peu de jours sous-estime le besoin."
     )
@@ -474,6 +496,7 @@ def main(argv=None):
     parser.add_argument("--low", type=int, default=25)
     parser.add_argument("--min-saving-mb", type=int, default=64)
     parser.add_argument("--cgroup-root", default="/sys/fs/cgroup")
+    parser.add_argument("--meminfo", default="/proc/meminfo")
     parser.add_argument("--docker", default="/usr/bin/docker")
     args = parser.parse_args(argv)
 
@@ -483,7 +506,9 @@ def main(argv=None):
         declared, unread = read_declared(args.docker, containers)
         measures, drifts, missing, compared = measure(containers, find_scopes(args.cgroup_root), now, declared)
         # Le journal garde le texte complet, lignes coupées du message comprises.
-        report, journal = build_report(args.host, measures, missing, args, drifts, unread, compared)
+        report, journal = build_report(
+            args.host, measures, missing, args, drifts, unread, compared, read_ram(args.meminfo)
+        )
         failed = False
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         # Publié quand même : un rapport qui ne vient plus ne se remarque pas.
