@@ -31,6 +31,10 @@ source reste `stackopshq/pangolin` : l'état ne change pas.
 - Une étape de plus avant `tofu init` dans ce module, en local comme en CI.
 - linux_amd64 seulement, binaire non signé : la confiance tient au SHA-256
   épinglé dans `.github/scripts/fetch_pangolin_provider.sh`.
+- Le zip du provider `trozz/pocketid` 2.5.0, dont l'amont a perdu les
+  releases, vit dans la release `provider-pocketid-2.5.0` de ce dépôt, posée à
+  la main, sans seconde copie (une reste dans le cache de plugins du poste) :
+  la supprimer casse `tofu init` de `pangolin_config`.
 - Renovate ne suit plus ce provider : une version amont ne se verra pas seule.
 - Retour à l'amont dès qu'il a repris ce que la config utilise : la procédure
   est au README du module.
