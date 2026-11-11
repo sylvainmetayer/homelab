@@ -13,16 +13,17 @@ http:
     # hors de ce proxy, et une entrée preload ne se retire pas. Server et
     # X-Powered-By vidés : Betisier y annonçait nginx et PHP à la version
     # près, Immich et le tableau de bord leur framework. Les applis qui posent
-    # leur propre HSTS le voient remplacé par celui-ci. nosniff et le
-    # Referrer-Policy aussi, sur le mur d'authentification et le tableau de
-    # bord (qui n'en posent pas) comme sur les applis ; pas de frameDeny, qui
-    # casserait les applis embarquées (Pocket ID a ses propres en-têtes,
-    # pocket-id-headers).
+    # leur propre HSTS le voient remplacé par celui-ci. nosniff aussi, sur le
+    # mur d'authentification et le tableau de bord (qui n'en posent pas) comme
+    # sur les applis ; pas de frameDeny, qui casserait les applis embarquées
+    # (Pocket ID a ses propres en-têtes, pocket-id-headers). Pas de
+    # referrerPolicy : posé ici, il remplacerait celui, plus strict, des applis
+    # (same-origin de docs_site, no-referrer de Nextcloud), et sans en-tête le
+    # navigateur applique déjà strict-origin-when-cross-origin.
     security-headers:
       headers:
         stsSeconds: 31536000
         contentTypeNosniff: true
-        referrerPolicy: strict-origin-when-cross-origin
         customResponseHeaders:
           Server: ""
           X-Powered-By: ""

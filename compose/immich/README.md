@@ -5,8 +5,8 @@ Source <https://github.com/immich-app/immich/discussions/15085#discussioncomment
 ## Prérequis
 
 - On immich server :
-  - publish DB, redis ports on the LAN: they are on `127.0.0.1` only by
-    default. From `ansible/`:
+  - publish DB, redis ports on the LAN: by default they publish no port at
+    all (internal `db` network). From `ansible/`:
     `ansible-playbook pi.yml --tags immich -e immich_remote_worker=true -e immich_remote_worker_ip=<IP LAN du poste>`,
     and the same run without `-e` once the worker is done, to close them again
     (a merge that redeploys `immich` closes them too). Only that IP gets

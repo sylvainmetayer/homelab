@@ -132,7 +132,8 @@ nas_proxy_qbittorrent_url: http://mediamanager-gluetun:8080
 # mediamanager-admin. Rien n'est rendu sans les trois sorties de
 # tofu/pangolin_config (client pas encore appliqué) : routeurs inchangés.
 # Les comptes propres des applis restent ; si Pocket ID ou oauth2-proxy tombe,
-# secours = tunnel SSH vers 127.0.0.1:9696 / 8080 (contourne Traefik, README).
+# secours = tunnel SSH vers 127.0.0.1:8080 (contourne Traefik, README) ; 9696
+# seulement avec mediamanager_local_login (Prowlarr non publié en SSO seul).
 nas_proxy_oidc_client_id: "{{ terraform_outputs.pocket_id_mediamanager_tools_client_id.value | default('') }}"
 nas_proxy_oidc_client_secret: "{{ terraform_outputs.pocket_id_mediamanager_tools_client_secret.value | default('') }}"
 nas_proxy_oidc_issuer: "{{ terraform_outputs.pocket_id_issuer.value | default('') }}"
