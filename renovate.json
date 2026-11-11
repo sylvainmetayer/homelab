@@ -186,7 +186,7 @@
       ]
     },
     {
-      "description": "newt only reaches Docker through the allowlist of newt-socket-proxy (ansible/roles/newt/defaults/main.yml, #853), read off newt 1.19.0's docker/docker.go: a bump that calls another endpoint empties Pangolin's container list",
+      "description": "newt only reaches Docker through the allowlist of newt-socket-proxy (ansible/roles/newt/defaults/main.yml, #853), read off newt 1.19.0's docker/docker.go (proxy logs under 1.20.0 checked 2026-11-11): a bump that calls another endpoint empties Pangolin's container list",
       "matchPackageNames": [
         "fosrl/newt"
       ],

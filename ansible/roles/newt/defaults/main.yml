@@ -9,8 +9,9 @@ newt_endpoint: ""
 newt_mem_limit: 256m
 
 # Proxy du socket Docker (wollomatic/socket-proxy, #853) : newt ne voit que
-# son socket unix, qui ne laisse passer que les appels de newt 1.19.0
-# (docker/docker.go de fosrl/newt, client moby v0.6.2) :
+# son socket unix, qui ne laisse passer que les appels de newt (liste lue dans
+# docker/docker.go de fosrl/newt 1.19.0, client moby v0.6.2 ; sous 1.20.0, les
+# refus du proxy relevés le 11/11/2026 ne sont que containers/<id>/json, attendu) :
 #   - HEAD /_ping, puis GET /_ping si le HEAD échoue : négociation de version ;
 #   - GET containers/json : liste, filtrée sur les réseaux de newt ;
 #   - GET containers/<hostname>/json : inspect de newt lui-même, pour trouver
