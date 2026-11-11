@@ -2,7 +2,7 @@
 """S.M.A.R.T. des disques de l'hôte : usure et secteurs, publiés sur ntfy.
 
 Lancé chaque semaine par smart-check.timer (rôle smart_check), en root. Lit
-chaque disque par `smartctl -j -H -A` et applique les seuils de
+chaque disque par `smartctl -j -i -H -A` et applique les seuils de
 docs/runbooks/sante-des-disques.md : verdict FAILED ; disque dur, secteurs
 réalloués (5), en attente (197), non corrigeables (198), erreurs CRC (199) ;
 SSD SATA, valeur normalisée de l'attribut d'usure sous 20 puis sous 10 ;
@@ -55,7 +55,8 @@ def read_disk(smartctl, spec):
     masque de bits (un disque mal en point en met), il ne dit rien de la
     lisibilité : seule la présence des données compte."""
     path, _, kind = spec.partition(":")
-    argv = [smartctl, "-j", "-H", "-A"] + (["-d", kind] if kind else []) + [path]
+    # -i : rotation_rate, model_name et serial_number ne sortent que de la section d'identité.
+    argv = [smartctl, "-j", "-i", "-H", "-A"] + (["-d", kind] if kind else []) + [path]
     try:
         # Chemins et binaire viennent de l'ExecStart de l'unité (root, écrit par Ansible), pas d'une entrée extérieure.
         result = subprocess.run(argv, capture_output=True, text=True, check=False)  # NOSONAR
@@ -120,7 +121,7 @@ def inspect(data):
 
 
 def disk_name(data):
-    # Le smartctl d'UGOS ne donne ni modèle ni numéro de série : le chemin seul
+    # Un disque sans modèle ni numéro de série (pont USB sans passthrough) : le chemin seul
     # sert alors de nom et de clé d'état (shortcut: stable tant que sda reste sda).
     return f"{data.get('model_name', 'disque')} {data.get('device', {}).get('name', '?')}"
 
