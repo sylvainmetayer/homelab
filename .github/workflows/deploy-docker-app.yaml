@@ -413,24 +413,7 @@ jobs:
         if: steps.resolve-tags.outputs.any_tags == 'true'
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-        run: |
-          # NOSONAR below (yaml:S2068): "passphrase" is the name of a SOPS key and
-          # of the Tofu variable it feeds, read at run time; nothing is hard-coded.
-          AWS_ACCESS_KEY_ID="$(sops -d --extract '["state_s3_access_key"]' secrets/ansible.sops.yaml)" # NOSONAR
-          AWS_SECRET_ACCESS_KEY="$(sops -d --extract '["state_s3_secret_key"]' secrets/ansible.sops.yaml)"
-          echo "::add-mask::$AWS_ACCESS_KEY_ID"
-          echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
-          # init validates the state encryption block, whose key is a variable.
-          TF_VAR_pangolin_config_state_passphrase="$(sops -d --extract '["tofu_state_passphrase"]' secrets/ansible.sops.yaml)"
-          echo "::add-mask::$TF_VAR_pangolin_config_state_passphrase"
-          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TF_VAR_pangolin_config_state_passphrase
-          # The registry may drop a connection: same retry as test.yaml.
-          for attempt in 1 2 3; do
-            tofu -chdir=tofu/pangolin_config init -input=false -lockfile=readonly -no-color && exit 0
-            echo "tofu init failed (attempt $attempt), retrying in $((attempt * 10))s"
-            sleep $((attempt * 10))
-          done
-          exit 1
+        run: .github/scripts/init_pangolin_config.sh
 
       - name: Install network tools
         if: steps.resolve-tags.outputs.any_tags == 'true'
