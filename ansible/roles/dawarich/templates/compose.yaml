@@ -2,6 +2,9 @@
 services:
   dawarich-redis:
     mem_limit: 256m
+    # Réservation (memory.low) au-dessus de l'occupation au repos mesurée (~23 Mio), très
+    # en dessous du plafond ; pic non mesuré, à recaler sur memory.peak (mem_report).
+    mem_reservation: 64m
     # L'entrypoint de l'image charge d'office RediSearch, RedisJSON,
     # RedisTimeSeries et RedisBloom, que Dawarich n'utilise pas : RSS au repos
     # ~23 Mio contre ~9 en 7.4 (mesuré le 2026-11-04, à vide). 7.4 et 8.2

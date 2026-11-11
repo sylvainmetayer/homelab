@@ -18,6 +18,8 @@
         verify_compose_healthchecks:
           - auth
           - mcp
+        verify_compose_healthy_dependencies:
+          - { service: mcp, dependency: auth }
         verify_compose_internal_networks:
           - victoria-logs
           - mcp-auth
