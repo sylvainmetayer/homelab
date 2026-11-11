@@ -78,7 +78,8 @@ log_agent_journal_dirs:
   - /run/log/journal
 # Proxy du socket Docker (wollomatic/socket-proxy), en sidecar, comme
 # beszel_agent : l'agent ne voit que le socket unix du proxy, qui ne laisse
-# passer que les GET de la source docker_logs de Vector 0.60
+# passer que les GET de la source docker_logs de Vector (lue sur 0.60, aucun
+# refus sous 0.61.0 aux journaux du proxy du 11/11/2026)
 # (src/sources/docker_logs/mod.rs : events, liste des conteneurs, inspect et
 # logs d'un conteneur), plus version et _ping. Ni écriture, ni exec, ni
 # images. L'inspect est nécessaire (nom, image, date de création du
