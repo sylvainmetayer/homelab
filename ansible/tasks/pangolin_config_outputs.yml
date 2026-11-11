@@ -67,6 +67,9 @@
         AWS_SECRET_ACCESS_KEY: "{{ state_s3_secret_key }}"
         TF_VAR_state_encryption_passphrase: "{{ tofu_state_passphrase | default(lookup('ansible.builtin.env', 'TF_VAR_state_encryption_passphrase'), true) }}"
         TF_INPUT: "0"
+        # Le state lu est celui du workspace default, pas celui qu'un shell
+        # aurait choisi (un autre workspace se lirait vide, sans erreur).
+        TF_WORKSPACE: default
       ansible.builtin.command:
         argv:
           - tofu
@@ -79,9 +82,13 @@
     # pangolin_config_outputs_optional (00-setup.yaml seulement) : un state
     # illisible n'arrête pas la play, terraform_outputs vaut alors {} et chaque
     # sortie lue retombe sur son default('').
+    # rc 0 et aucune sortie (`{}`) : state absent ou vide (clé ou workspace
+    # erroné), traité comme un échec, sinon chaque rôle retomberait en silence
+    # sur ses default('').
     - name: Fail when the pangolin_config outputs cannot be read
       when:
         - terraform_state_raw.rc | default(1) != 0
+          or terraform_state_raw.stdout | default('') | trim in ['', '{}']
         - not (pangolin_config_outputs_optional | default(false) | bool)
       run_once: true
       ansible.builtin.fail:
@@ -92,11 +99,14 @@
           `tofu -chdir=tofu/pangolin_config init`. Sinon identifiants S3
           (state_s3_*), passphrase du state (tofu_state_passphrase ou
           TF_VAR_state_encryption_passphrase, donc `mise exec --`) ou binaire
-          tofu absent du PATH. Début de l'erreur de tofu :
+          tofu absent du PATH. rc 0 sans aucune sortie : state vide ou absent
+          sur S3. Début de l'erreur de tofu :
           {{ (terraform_state_raw.stderr | default(terraform_state_raw.msg | default('')))[:400] }}
 
     - name: Warn that the pangolin_config state could not be read
-      when: terraform_state_raw.rc | default(1) != 0
+      when: >-
+        terraform_state_raw.rc | default(1) != 0
+        or terraform_state_raw.stdout | default('') | trim in ['', '{}']
       run_once: true
       ansible.builtin.debug:
         msg: >-
