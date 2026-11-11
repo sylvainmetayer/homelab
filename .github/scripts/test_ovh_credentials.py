@@ -384,7 +384,9 @@ ZONE_REFS = {"each.key", "each.value.zone", "pair.zone", "zone", "var.domain_zon
 
 
 def ovh_modules():
-    return sorted(d for d in TOFU.iterdir() if any('source  = "ovh/ovh"' in f.read_text(encoding="utf-8") for f in d.glob("*.tf")))
+    # \s* : tofu fmt n'aligne `source  =` que si le bloc a aussi `version`.
+    source = re.compile(r'source\s*=\s*"ovh/ovh"')
+    return sorted(d for d in TOFU.iterdir() if any(source.search(f.read_text(encoding="utf-8")) for f in d.glob("*.tf")))
 
 
 class Repository(unittest.TestCase):
