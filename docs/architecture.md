@@ -396,7 +396,9 @@ flowchart LR
   le 16 du mois, `vzdump-restore-test.timer` (rôle `vzdump_restore_test`,
   `pve.yml`) restaure le LXC sur un id jetable, sans réseau, le démarre puis
   le détruit, et vérifie l'archive entière de la VM ; résultat sur ntfy et au
-  moniteur « Test restauration vzdump » :
+  moniteur « Test restauration vzdump » ; chaque matin,
+  `vzdump-freshness.timer` vérifie que l'archive de la nuit existe et pousse
+  au moniteur « Sauvegarde vzdump » (26 h), seule alerte d'un job en échec :
   [runbooks/test-restauration-vm.md](runbooks/test-restauration-vm.md).
 - Restauration : [runbooks/sauvegarde-et-restauration.md](runbooks/sauvegarde-et-restauration.md)
   et [backup-restore.md](backup-restore.md).

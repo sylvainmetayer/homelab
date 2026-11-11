@@ -32,6 +32,7 @@
       no_log: true
       ansible.builtin.set_fact:
         vzdump_restore_test_healthcheck_url: "{{ terraform_outputs.uptime_cron_vzdump_restore_test_url.value | default('') }}"
+        vzdump_restore_test_freshness_healthcheck_url: "{{ terraform_outputs.uptime_backup_vzdump_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_updates_url.value | default('') }}"
         smart_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_smart_url.value | default('') }}"
         thin_pool_check_healthcheck_url: "{{ terraform_outputs.uptime_cron_pve_thin_pool_url.value | default('') }}"

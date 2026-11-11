@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Chaque matin (defaults/main.yml, vzdump_restore_test_freshness_schedule),
+# sans rattrapage : au boot, le NFS du NAS n'est pas encore monté. Un passage
+# manqué se voit au moniteur « Sauvegarde vzdump » (26 h).
+[Unit]
+Description=Daily check of last night's vzdump backups
+
+[Timer]
+OnCalendar={{ vzdump_restore_test_freshness_schedule }}
+
+[Install]
+WantedBy=timers.target

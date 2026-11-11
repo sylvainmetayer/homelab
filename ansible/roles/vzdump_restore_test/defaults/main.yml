@@ -62,5 +62,20 @@ vzdump_restore_test_ntfy_topic: scripts
 vzdump_restore_test_ntfy_token: "{{ ntfy_scripts_token | default('') }}"
 vzdump_restore_test_healthcheck_url: ""
 
+# Contrôle quotidien de la sauvegarde de la nuit (vzdump-freshness.timer, le
+# même script avec --freshness) : âge (vzdump_restore_test_max_age_hours) et
+# taille plancher de la dernière archive de chaque invité, sans rien
+# restaurer. Le job de 21:00 n'alerte personne lui-même
+# (notification-system, aucune cible déclarée) : sans ce contrôle, un échec
+# restait muet jusqu'au test du 2 ou du 16. 07:30 : le job est fini depuis
+# dix heures, loin des redémarrages de 04:00-05:30. Pas de rattrapage au
+# boot, comme le test : le NFS du NAS n'est pas encore monté. Moniteur push
+# « Sauvegarde vzdump » (26 h, sortie uptime_backup_vzdump_url de
+# tofu/pangolin_config, lue par pve.yml) ; vide, le contrôle ne va qu'au
+# journal.
+vzdump_restore_test_freshness_enabled: true
+vzdump_restore_test_freshness_schedule: "*-*-* 07:30:00"
+vzdump_restore_test_freshness_healthcheck_url: ""
+
 vzdump_restore_test_script_dir: /usr/local/lib/vzdump-restore-test
 vzdump_restore_test_config_dir: /etc/vzdump-restore-test

@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Contrôle quotidien de la sauvegarde vzdump de la nuit (rôle
+# vzdump_restore_test, vzdump_restore_test.py --freshness) : âge et taille de
+# la dernière archive de chaque invité, lus dans l'index du storage. Rien
+# n'est restauré. L'URL push est dans l'EnvironmentFile, 0600 root, jamais
+# sur la ligne de commande.
+[Unit]
+Description=Daily check that last night's vzdump backups exist
+Wants=network-online.target
+After=network-online.target pve-cluster.service pvestatd.service
+
+[Service]
+Type=oneshot
+EnvironmentFile={{ vzdump_restore_test_config_dir }}/env
+ExecStart=/usr/bin/python3 -I {{ vzdump_restore_test_script_dir }}/vzdump_restore_test.py --config {{ vzdump_restore_test_config_dir }}/config.json --freshness
+# Deux lectures pvesh (180 s chacune au pire) et un push (30 s).
+TimeoutStartSec=10min
