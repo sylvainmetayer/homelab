@@ -108,6 +108,85 @@ class CheckTest(unittest.TestCase):
         self.assertIn("absent", errors[0])
 
 
+RISKY = """services:
+  a:
+    privileged: true
+    network_mode: host
+    pid: "host"
+    devices:
+      - /dev/dri:/dev/dri
+    cap_add:
+      - NET_ADMIN
+      - CAP_CHOWN
+      - SETUID
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /data:/data
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
+  b:
+    network_mode: service:a
+    privileged: false
+    cap_add: [SYS_RAWIO, KILL]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    volumes:
+      - /run/socket-proxy:/run/socket-proxy
+    security_opt: ["apparmor:unconfined"]
+  c:
+    devices:
+      - {{ device.path }}
+"""
+
+
+class FeaturesTest(unittest.TestCase):
+    def test_reads_every_risky_feature(self):
+        self.assertEqual(
+            hardening.features(RISKY),
+            [
+                (
+                    "a",
+                    {
+                        "privileged",
+                        "network_mode: host",
+                        "pid: host",
+                        "device: /dev/dri",
+                        "cap_add: NET_ADMIN",
+                        "docker.sock",
+                        "security_opt: seccomp=unconfined",
+                    },
+                ),
+                (
+                    "b",
+                    {
+                        "cap_add: SYS_RAWIO",
+                        "device: /dev/net/tun",
+                        "security_opt: apparmor:unconfined",
+                    },
+                ),
+                ("c", {"device: {{ device.path }}"}),
+            ],
+        )
+
+    def test_check_features(self):
+        found = {("a", "x"): {"docker.sock", "privileged"}}
+        errors = hardening.check_features(found, {("a", "x"): {"docker.sock": "raison"}})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("privileged non listé", errors[0])
+
+    def test_check_features_stale_or_unexplained_entry_fails(self):
+        allowed = {("a", "x"): {"docker.sock": " "}, ("b", "y"): {"privileged": "raison"}}
+        errors = hardening.check_features({("a", "x"): {"docker.sock"}}, allowed)
+        self.assertEqual(len(errors), 2)
+        self.assertIn("sans raison", errors[0])
+        self.assertIn("absent", errors[1])
+
+    def test_the_repository_passes(self):
+        self.assertEqual(
+            hardening.check_features(hardening.scan_features(hardening.ROOT), hardening.ALLOWED), []
+        )
+
+
 class TreeTest(unittest.TestCase):
     def test_scan_a_service_read_twice_must_have_the_option_each_time(self):
         hardened = "  x:\n    security_opt:\n      - no-new-privileges:true\n"
