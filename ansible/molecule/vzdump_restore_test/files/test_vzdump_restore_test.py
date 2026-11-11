@@ -205,6 +205,108 @@ class LatestBackupTest(Fixture):
         self.pvesh.return_value = [self.item(5, size=3 * 1024 * MIB)]
         self.assertIn("3.0 Gio", self.test.latest_backup("VM", 200, 50)["summary"])
 
+    def test_without_inspection_reads_neither_path_nor_log(self):
+        self.pvesh.return_value = [self.item(5)]
+        backup = self.test.latest_backup("LXC", 200, 50, inspect=False)
+        self.assertNotIn("path", backup)
+        self.pct.assert_not_called()
+        self.check_log.assert_not_called()
+
+
+class FreshnessTest(unittest.TestCase):
+    """Le contrôle quotidien : up avec les deux sauvegardes, down dès qu'une
+    manque, est trop vieille ou trop petite ; rien d'autre que l'index lu."""
+
+    CONFIG = dict(CONFIG, max_age_hours=26, lxc={"source": 200, "min_size_mb": 100},
+                  vm={"source": 100, "min_size_mb": 10240})
+
+    def setUp(self):
+        self.now = 1_800_000_000
+        self.backups = [self.item(200, 10, 300 * MIB), self.item(100, 10, 50 * 1024 * MIB)]
+        self.pushed = []
+        for name, value in (
+            ("pvesh", lambda path, **params: [b for b in self.backups if b["vmid"] == params["vmid"]]),
+            ("run", mock.Mock(side_effect=AssertionError("aucune commande attendue"))),
+            ("push", lambda url, status, msg: self.pushed.append((url, status, msg))),
+        ):
+            patcher = mock.patch.object(vz, name, value)
+            self.addCleanup(patcher.stop)
+            patcher.start()
+        for patcher in (mock.patch.object(vz.time, "time", lambda: self.now),
+                        mock.patch.dict(os.environ, {vz.FRESHNESS_PUSH_URL_VARIABLE: "http://kuma/api/push/x"})):
+            self.addCleanup(patcher.stop)
+            patcher.start()
+
+    def item(self, vmid, hours_ago, size):
+        return {"vmid": vmid, "ctime": self.now - hours_ago * 3600, "size": size, "volid": f"nas-backup:backup/{vmid}"}
+
+    def run_freshness(self):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = vz.freshness(dict(self.CONFIG))
+        return code, out.getvalue(), err.getvalue()
+
+    def test_both_backups_of_the_night_push_up(self):
+        code, out, _ = self.run_freshness()
+        self.assertEqual(code, 0)
+        (url, status, msg), = self.pushed
+        self.assertEqual((url, status), ("http://kuma/api/push/x", "up"))
+        self.assertIn("LXC 200", msg)
+        self.assertIn("VM 100", msg)
+        self.assertNotIn("ÉCHEC", out)
+
+    def test_a_missed_night_pushes_down_and_names_the_guest(self):
+        self.backups[1] = self.item(100, 34, 50 * 1024 * MIB)
+        code, out, _ = self.run_freshness()
+        self.assertEqual(code, 1)
+        (_, status, msg), = self.pushed
+        self.assertEqual(status, "down")
+        self.assertIn("VM 100", msg)
+        self.assertIn("plus vieille que 26 h", msg)
+        self.assertNotIn("LXC 200", msg)
+        self.assertIn("LXC 200", out)
+
+    def test_no_backup_at_all_pushes_down_for_both(self):
+        self.backups.clear()
+        code, _, _ = self.run_freshness()
+        self.assertEqual(code, 1)
+        self.assertEqual(self.pushed[0][1], "down")
+        self.assertEqual(self.pushed[0][2].count("aucune sauvegarde"), 2)
+
+    def test_almost_empty_archive_pushes_down(self):
+        self.backups[0] = self.item(200, 10, 5 * MIB)
+        code, _, _ = self.run_freshness()
+        self.assertEqual((code, self.pushed[0][1]), (1, "down"))
+        self.assertIn("sous 100 Mio", self.pushed[0][2])
+
+    def test_unreadable_storage_pushes_down_without_a_traceback_in_the_push(self):
+        with mock.patch.object(vz, "pvesh", side_effect=vz.TestFailure("pvesh get /nodes : code 255 (storage offline)")):
+            code, _, _ = self.run_freshness()
+        self.assertEqual((code, self.pushed[0][1]), (1, "down"))
+        self.assertIn("storage offline", self.pushed[0][2])
+
+    def test_failed_push_is_exit_2_and_does_not_show_the_url(self):
+        with mock.patch.object(vz, "push", side_effect=OSError("http://kuma/api/push/secret")):
+            code, out, err = self.run_freshness()
+        self.assertEqual(code, 2)
+        self.assertNotIn("secret", out + err)
+        self.assertIn("OSError", err)
+
+    def test_no_url_pushes_nothing(self):
+        with mock.patch.dict(os.environ, {vz.FRESHNESS_PUSH_URL_VARIABLE: ""}):
+            code, _, err = self.run_freshness()
+        self.assertEqual((code, self.pushed), (0, []))
+        self.assertIn("rien n'est poussé", err)
+
+    def test_main_routes_the_flag_and_takes_no_lock(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".json") as handle, \
+                mock.patch.object(vz, "acquire", side_effect=AssertionError("aucun verrou attendu")):
+            json.dump(self.CONFIG, handle)
+            handle.flush()
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(vz.main(["--config", handle.name, "--freshness"]), 0)
+        self.assertEqual(self.pushed[0][1], "up")
+
 
 class CheckLogTest(Fixture):
     def setUp(self):

@@ -127,6 +127,29 @@
           - vzdump_verify_timer.UnitFileState == 'enabled'
           - vzdump_verify_timer.ActiveState == 'active'
 
+    # Le contrôle quotidien de la sauvegarde de la nuit (--freshness) : son
+    # timer armé, jamais lancé par le déploiement, son URL dans le même
+    # fichier 0600 et pas dans l'unité.
+    - name: Read the nightly backup check units
+      loop:
+        - vzdump-freshness.service
+        - vzdump-freshness.timer
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: vzdump_verify_freshness
+
+    - name: Assert the nightly backup check is installed and armed
+      vars:
+        vzdump_verify_env: "{{ vzdump_verify_contents.results[0].content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'VZDUMP_FRESHNESS_PUSH_URL=http://127.0.0.1:18080/api/push/molecule-vzdump-freshness\n' in vzdump_verify_env" # NOSONAR
+          - "'--freshness' in vzdump_verify_freshness.results[0].status.ExecStart"
+          - "'molecule-vzdump' not in vzdump_verify_freshness.results[0].status.ExecStart"
+          - vzdump_verify_freshness.results[0].status.ActiveState == 'inactive'
+          - vzdump_verify_freshness.results[1].status.UnitFileState == 'enabled'
+          - vzdump_verify_freshness.results[1].status.ActiveState == 'active'
+
     - name: Start the fake Uptime Kuma and ntfy
       ansible.builtin.command:
         argv:

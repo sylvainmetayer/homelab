@@ -30,6 +30,18 @@ push **« Test restauration vzdump »** d'Uptime Kuma
 plafonne un push à 24 jours, d'où deux runs par mois). Le moniteur passe
 aussi au rouge si plus rien n'arrive (hôte éteint à 10:00, timer mort).
 
+**Entre deux tests, un contrôle quotidien.** Le job de 21:00 ne prévient
+personne lui-même (`notification_mode = "notification-system"`, aucune
+cible déclarée dans le dépôt) : en octobre 2026 il a échoué un mois sans
+bruit ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md)). Chaque matin à
+07:30, `vzdump-freshness.timer` lance le même script avec `--freshness` :
+il lit dans l'index du storage l'âge (26 h au plus) et la taille plancher
+de la dernière archive de chaque invité, sans rien restaurer ni
+verrouiller, et pousse au moniteur **« Sauvegarde vzdump »**
+(`tofu/pangolin_config/backup_vzdump.tf`, 26 h, dossier Backup) : up, ou
+down avec l'invité en cause. Pas de ntfy propre : Uptime Kuma alerte sur
+Telegram et ntfy.
+
 Garde-fous du script :
 
 - l'id cible est dans 900-999 (réservés à ce test : n'y créer aucun
@@ -56,6 +68,10 @@ Garde-fous du script :
 
 - Notification ntfy « Test de restauration vzdump : ÉCHEC », ou moniteur
   « Test restauration vzdump » rouge.
+- Moniteur « Sauvegarde vzdump » rouge : la sauvegarde de la nuit manque,
+  est trop vieille ou presque vide (`journalctl -u vzdump-freshness.service
+  -n 20 --no-pager` sur pve). C'est le job qui a échoué : même suite que
+  « plus vieille que 26 h » ci-dessous.
 - Un invité 990 visible dans l'interface de Proxmox en dehors du 2 et
   du 16 au matin.
 

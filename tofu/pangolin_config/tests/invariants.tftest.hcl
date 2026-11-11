@@ -772,6 +772,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup_vzdump
+  values = { push_token = "push-vzdump" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_geoip
   values = { push_token = "push-cron-geoip" }
 }
@@ -2264,6 +2269,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_vzdump_restore_test_url = output.uptime_cron_vzdump_restore_test_url
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
         uptime_backup_pve_config_url        = output.uptime_backup_pve_config_url
+        uptime_backup_vzdump_url            = output.uptime_backup_vzdump_url
         # update_notify : docker.yml, pi.yml, flip.yml, pangolin.yaml
         uptime_cron_docker_updates_url   = output.uptime_cron_docker_updates_url
         uptime_cron_pi_updates_url       = output.uptime_cron_pi_updates_url
@@ -2683,10 +2689,12 @@ run "monitors_are_filed_and_alert" {
   # Les moniteurs de sauvegarde sont les instances de
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
   # plus ceux de Pangolin et de Jellyfin (NAS) ; leur liste est tenue par
-  # .github/restore-test/apps.json, plus bas.
+  # .github/restore-test/apps.json, plus bas. « Sauvegarde vzdump » (contrôle
+  # quotidien des archives du NAS, backup_vzdump.tf) suit la même règle sans
+  # être un dépôt Borg : il n'est pas dans apps.json.
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin, uptimekuma_monitor_push.backup_pve_config]) :
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin, uptimekuma_monitor_push.backup_pve_config, uptimekuma_monitor_push.backup_vzdump]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 26 * 3600
       && m.max_retries == 0

@@ -42,6 +42,7 @@
     content: |
       VZDUMP_RESTORE_TEST_PUSH_URL={{ vzdump_restore_test_healthcheck_url }}
       VZDUMP_RESTORE_TEST_NTFY_TOKEN={{ vzdump_restore_test_ntfy_token }}
+      VZDUMP_FRESHNESS_PUSH_URL={{ vzdump_restore_test_freshness_healthcheck_url }}
     dest: "{{ vzdump_restore_test_config_dir }}/env"
     owner: root
     group: root
@@ -55,11 +56,22 @@
       tofu/pangolin_config) ou jeton ntfy (ntfy_scripts_token) vide : le test
       de restauration n'enverra rien de ce côté.
 
+- name: Warn when the nightly backup check will not push
+  when: vzdump_restore_test_freshness_healthcheck_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      AVERTISSEMENT : vzdump_restore_test_freshness_healthcheck_url vide : le
+      contrôle quotidien de la sauvegarde vzdump ne va qu'au journal
+      (journalctl -u vzdump-freshness). Appliquer tofu/pangolin_config (sortie
+      uptime_backup_vzdump_url) avant pve.yml.
+
 - name: Install the vzdump restore test service and timer
   become: true
   loop:
     - vzdump-restore-test.service
     - vzdump-restore-test.timer
+    - vzdump-freshness.service
+    - vzdump-freshness.timer
   ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: "/etc/systemd/system/{{ item }}"
@@ -79,3 +91,13 @@
     name: vzdump-restore-test.timer
     state: "{{ 'started' if vzdump_restore_test_enabled | bool else 'stopped' }}"
     enabled: "{{ vzdump_restore_test_enabled | bool }}"
+
+# Lecture seule de l'index du storage, quelques secondes : aucun risque à le
+# laisser partir à son heure, mais pas ici non plus (le NFS peut manquer
+# pendant un déploiement, et un « down » poussé alerterait à tort).
+- name: Enable or disable the nightly backup check timer
+  become: true
+  ansible.builtin.systemd:
+    name: vzdump-freshness.timer
+    state: "{{ 'started' if vzdump_restore_test_freshness_enabled | bool else 'stopped' }}"
+    enabled: "{{ vzdump_restore_test_freshness_enabled | bool }}"

@@ -55,6 +55,7 @@ LOCK_PATH = "/run/lock/vzdump-restore-test.lock"
 VZDUMP_LOCK_PATH = "/var/run/vzdump.lock"
 PUSH_URL_VARIABLE = "VZDUMP_RESTORE_TEST_PUSH_URL"
 NTFY_TOKEN_VARIABLE = "VZDUMP_RESTORE_TEST_NTFY_TOKEN"
+FRESHNESS_PUSH_URL_VARIABLE = "VZDUMP_FRESHNESS_PUSH_URL"
 # Délai laissé à une commande interrompue (SIGTERM) pour annuler sa tâche.
 STOP_GRACE = 120
 
@@ -212,7 +213,9 @@ class Run:
         if source == target:
             raise TestFailure(f"{kind} : la source et la cible sont le même id")
 
-    def latest_backup(self, kind, vmid, min_size_mb):
+    def latest_backup(self, kind, vmid, min_size_mb, inspect=True):
+        """La dernière sauvegarde de l'invité, refusée si trop vieille ou trop
+        petite. inspect=False (contrôle quotidien) : ni chemin ni journal lus."""
         content = pvesh(
             f"/nodes/{self.node}/storage/{self.backup_storage}/content",
             content="backup",
@@ -233,6 +236,8 @@ class Run:
             )
         if size < min_size_mb * 1024**2:
             raise TestFailure(f"{kind} {vmid} : {backup['summary']}, sous {min_size_mb} Mio")
+        if not inspect:
+            return backup
         backup["path"] = run(["pvesm", "path", backup["volid"]]).stdout.strip()
         self.check_log(kind, vmid, backup["path"])
         return backup
@@ -575,12 +580,57 @@ def notify(config, failures, lines):
     return problems
 
 
+def freshness(config):
+    """Contrôle quotidien (vzdump-freshness.timer) : la sauvegarde de la nuit
+    existe pour chaque invité, à sa taille plancher. Rien n'est restauré ni
+    verrouillé, seul l'index du storage est lu. Le job de 21:00 n'a pas
+    d'autre alerte : sans ce contrôle, un échec restait muet jusqu'au test
+    du 2 ou du 16 (quatre semaines en octobre 2026, ADR 0026).
+
+    Un push raté ne se rattrape pas ici : le moniteur « Sauvegarde vzdump »
+    (26 h) passe au rouge faute de battement."""
+    test = Run(config)
+    lines, failures = [], []
+    for kind, key in (("LXC", "lxc"), ("VM", "vm")):
+        source = config[key]["source"]
+        try:
+            backup = test.latest_backup(kind, source, config[key]["min_size_mb"], inspect=False)
+            lines.append(f"{kind} {source} : {backup['summary']}")
+        except TestFailure as error:
+            failures.append(str(error))
+        except Exception as error:  # NOSONAR : tout échec doit être poussé « down »
+            traceback.print_exc()
+            failures.append(f"{kind} {source} : erreur inattendue ({type(error).__name__})")
+    print("\n".join([f"ÉCHEC : {failure}" for failure in failures] + lines), flush=True)
+
+    problems = 0
+    url = os.environ.get(FRESHNESS_PUSH_URL_VARIABLE, "")
+    if url:
+        try:
+            push(url, "down" if failures else "up", "; ".join(failures) or " ; ".join(lines))
+        except Exception as error:  # NOSONAR : la classe seule, l'erreur cite l'URL donc le jeton
+            print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
+            problems += 1
+    else:
+        print(f"{FRESHNESS_PUSH_URL_VARIABLE} vide : rien n'est poussé.", file=sys.stderr)
+    if failures:
+        return 1
+    return 2 if problems else 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--config", required=True, help="fichier JSON posé par le rôle")
+    parser.add_argument(
+        "--freshness",
+        action="store_true",
+        help="seulement l'âge et la taille de la dernière sauvegarde de chaque invité, sans rien restaurer",
+    )
     args = parser.parse_args(argv)
     with open(args.config, encoding="utf-8") as handle:
         config = json.load(handle)
+    if args.freshness:
+        return freshness(config)
 
     signal.signal(signal.SIGTERM, on_sigterm)
     test = Run(config)
