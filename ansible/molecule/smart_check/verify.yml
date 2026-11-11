@@ -145,8 +145,8 @@
           - smart_check_verify_requests | length == 1
           - smart_check_verify_requests[0].method == 'GET'
           - smart_check_verify_requests[0].path is search('^' ~ smart_check_verify_push ~ '\?status=up&')
-          - "'-j -H -A /dev/sda' in smart_check_verify_argv"
-          - "'-j -H -A -d sntrealtek /dev/nvme0' in smart_check_verify_argv"
+          - "'-j -i -H -A /dev/sda' in smart_check_verify_argv"
+          - "'-j -i -H -A -d sntrealtek /dev/nvme0' in smart_check_verify_argv"
         fail_msg: "{{ smart_check_verify_requests | to_json }} {{ smart_check_verify_argv }}"
 
     - name: Check a disk with pending sectors, first pass
