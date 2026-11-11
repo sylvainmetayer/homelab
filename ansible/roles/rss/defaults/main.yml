@@ -66,4 +66,4 @@ rss_oidc_enabled: >-
      and rss_oidc_issuer | length > 0 }}
 # Chiffre la session de mod_auth_openidc ; dérivée, sans clé sops. La changer
 # ne coupe que les sessions en cours.
-rss_oidc_crypto_key: "{{ (backup_passphrase ~ '-freshrss-oidc') | hash('sha256') }}"
+rss_oidc_crypto_key: "{{ (app_secrets_seed ~ '-freshrss-oidc') | hash('sha256') }}"

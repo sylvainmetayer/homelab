@@ -83,8 +83,9 @@ Withings, du plus probable au moins probable :
 
 `ENCRYPTION_KEY` (jetons Withings, identifiants des intégrations, coffre de
 documents), le mot de passe de la base, la clé HMAC des jetons d'API et le
-secret du webhook sont **dérivés de `backup_passphrase`** (sha256 salé,
-`defaults/main.yml`). Tourner `backup_passphrase` les change tous au
+secret du webhook sont **dérivés de la graine `app_secrets_seed`** (sha256 salé,
+`defaults/main.yml` ; `backup_passphrase` tant que la clé SOPS
+`app_secrets_master` n'existe pas). Tourner la graine les change tous au
 déploiement suivant.
 
 **Avant** la rotation, figer les anciennes valeurs (depuis la racine du

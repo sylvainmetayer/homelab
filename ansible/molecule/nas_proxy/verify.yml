@@ -118,7 +118,7 @@
           # 32 caractères, dérivés de backup_passphrase.
           - nas_proxy_verify_oauth2.environment.OAUTH2_PROXY_COOKIE_SECRET | length == 32
           - nas_proxy_verify_oauth2.environment.OAUTH2_PROXY_COOKIE_SECRET
-            == ((backup_passphrase ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32]
+            == ((app_secrets_seed ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32]
         fail_msg: "Service oauth2-proxy inattendu : {{ nas_proxy_verify_oauth2 }}"
 
     # Relais du 443 de l'hôte : réseau hôte sans port publié (un 443 déjà pris

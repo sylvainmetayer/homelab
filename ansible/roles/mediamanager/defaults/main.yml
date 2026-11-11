@@ -74,17 +74,17 @@ mediamanager_oidc_enabled: >-
 mediamanager_tmdb_primary_languages: ["fr"]
 mediamanager_tmdb_default_language: en
 
-# Secrets dérivés de backup_passphrase, comme ceux de Dawarich ou HealthLog :
+# Secrets dérivés de app_secrets_seed, comme ceux de Dawarich ou HealthLog :
 # aucune clé SOPS à poser. Jamais le nom d'une clé SOPS.
-mediamanager_db_password: "{{ (backup_passphrase ~ '-mediamanager-db') | hash('sha256') }}"
+mediamanager_db_password: "{{ (app_secrets_seed ~ '-mediamanager-db') | hash('sha256') }}"
 # Dump de la base (pg_dump -Fc) que l'hôte pose avant borgmatic, archivé par
 # Borg ; hors de postgres/, jamais archivé (copie vivante).
 mediamanager_db_dump_path: "{{ mediamanager_base_path }}/db-dump/mediamanager.dump"
-mediamanager_token_secret: "{{ (backup_passphrase ~ '-mediamanager-token') | hash('sha256') }}"
+mediamanager_token_secret: "{{ (app_secrets_seed ~ '-mediamanager-token') | hash('sha256') }}"
 mediamanager_qbittorrent_username: mediamanager
-mediamanager_qbittorrent_password: "{{ (backup_passphrase ~ '-mediamanager-qbittorrent') | hash('sha256') }}"
+mediamanager_qbittorrent_password: "{{ (app_secrets_seed ~ '-mediamanager-qbittorrent') | hash('sha256') }}"
 # 32 caractères hexadécimaux, le format des clés d'API de Prowlarr.
-mediamanager_prowlarr_api_key: "{{ ((backup_passphrase ~ '-mediamanager-prowlarr') | hash('sha256'))[:32] }}"
+mediamanager_prowlarr_api_key: "{{ ((app_secrets_seed ~ '-mediamanager-prowlarr') | hash('sha256'))[:32] }}"
 
 # --- Connexion aux interfaces de Prowlarr et qBittorrent ----------------------
 # Pocket ID seul : quand l'oauth2-proxy du Traefik du NAS est actif (client

@@ -24,7 +24,7 @@ homebox_read_timeout: 5m
 
 # Clé HMAC des empreintes de clés d'API (au moins 32 octets, sinon Homebox
 # refuse de démarrer). La changer invalide toutes les clés d'API émises.
-homebox_api_key_pepper: "{{ (backup_passphrase ~ '-homebox-api-key-pepper') | hash('sha256') }}"
+homebox_api_key_pepper: "{{ (app_secrets_seed ~ '-homebox-api-key-pepper') | hash('sha256') }}"
 
 # Connexion OIDC par Pocket ID (pilote, ADR 0030, docs/runbooks/pocket-id.md).
 # Le client est déclaré par tofu/pangolin_config/pocket_id.tf ; ses sorties

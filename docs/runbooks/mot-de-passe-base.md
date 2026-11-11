@@ -35,10 +35,10 @@ session quand son mot de passe change), seules les nouvelles échouent.
 | Appli (rôle) | Hôte, playbook, tag | Conteneur de la base (image) | Utilisateur de l'appli et du dump | Source du mot de passe | Autres lecteurs du mot de passe |
 |---|---|---|---|---|---|
 | Immich (`immich`) | pi, `pi.yml`, `immich` | `immich_postgres` (`ghcr.io/immich-app/postgres:14-…`) | `postgres` (superutilisateur), base `immich` | SOPS `immich_db_password` | `.env` (`DB_PASSWORD`, templaté) ; le worker distant du poste, `compose/immich/.env` (à la main, hors dépôt) : Postgres n'est publié en 5432 sur le LAN que le temps du worker (`immich_remote_worker`, rôle `immich`) |
-| Dawarich (`dawarich`) | docker, `docker.yml`, `dawarich` | `dawarich-db` (`postgis/postgis:17-3.5-alpine`) | `dawarich`, base `dawarich` | **dérivé** : `sha256(backup_passphrase ~ '-dawarich-db')` (`defaults/main.yml`) | `.env` (`DATABASE_PASSWORD`, templaté) |
-| HealthLog (`healthlog`) | docker, `docker.yml`, `healthlog` | `healthlog-db` (`postgres:18.6-alpine`) | `healthlog`, base `healthlog` | **dérivé** : `sha256(backup_passphrase ~ '-healthlog-db')` (`defaults/main.yml`) | `.env` (`DATABASE_URL`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
-| Jellystat (`jellystat`) | docker, `docker.yml`, `jellystat` | `jellystat-db` (`postgres:18.6-alpine`) | `jellystat`, base `jellystat` | **dérivé** : `sha256(backup_passphrase ~ '-jellystat-db')` (`defaults/main.yml`) | `.env` (`POSTGRES_PASSWORD`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
-| MediaManager (`mediamanager`), **à l'essai** | NAS, `nas.yml` (à la main), `mediamanager` | `mediamanager-db` (`postgres:17.11`) | `mediamanager`, base `mediamanager` | **dérivé** : `sha256(backup_passphrase ~ '-mediamanager-db')` (`defaults/main.yml`) | `config/config.toml` (`[database] password`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement). **Pas de dump** : borgmatic en conteneur sur le NAS (`ansible/roles/mediamanager/README.md`) |
+| Dawarich (`dawarich`) | docker, `docker.yml`, `dawarich` | `dawarich-db` (`postgis/postgis:17-3.5-alpine`) | `dawarich`, base `dawarich` | **dérivé** : `sha256(app_secrets_seed ~ '-dawarich-db')` (`defaults/main.yml`) | `.env` (`DATABASE_PASSWORD`, templaté) |
+| HealthLog (`healthlog`) | docker, `docker.yml`, `healthlog` | `healthlog-db` (`postgres:18.6-alpine`) | `healthlog`, base `healthlog` | **dérivé** : `sha256(app_secrets_seed ~ '-healthlog-db')` (`defaults/main.yml`) | `.env` (`DATABASE_URL`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
+| Jellystat (`jellystat`) | docker, `docker.yml`, `jellystat` | `jellystat-db` (`postgres:18.6-alpine`) | `jellystat`, base `jellystat` | **dérivé** : `sha256(app_secrets_seed ~ '-jellystat-db')` (`defaults/main.yml`) | `.env` (`POSTGRES_PASSWORD`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement) |
+| MediaManager (`mediamanager`), **à l'essai** | NAS, `nas.yml` (à la main), `mediamanager` | `mediamanager-db` (`postgres:17.11`) | `mediamanager`, base `mediamanager` | **dérivé** : `sha256(app_secrets_seed ~ '-mediamanager-db')` (`defaults/main.yml`) | `config/config.toml` (`[database] password`, templaté) ; compose (`POSTGRES_PASSWORD`, lu à l'initdb seulement). **Pas de dump** : borgmatic en conteneur sur le NAS (`ansible/roles/mediamanager/README.md`) |
 | Flip Planning, production (`flip_planning`) | flip, `flip.yml`, `flip_planning` | `flip-planning-db` (`postgres:18.6`) | `festival`, base `festival` | SOPS `prod_planning_db_password` (`vars:` de l'entrée de `flip.yml`) | `.env` (`DB_PASSWORD`, templaté) |
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
 | Flip Planning, démo Keycloak | flip, `flip.yml`, `demo_planning_kc` | `demo-planning-kc-db` et `demo-planning-kc-keycloak-db` | `festival` (base `festival`) et `keycloak` (base `keycloak`) | SOPS `demo_planning_kc_db_password` et `demo_planning_kc_keycloak_db_password` | `.env` ; compose (`KC_DB_PASSWORD` de Keycloak) |
@@ -92,7 +92,8 @@ umask 077
 r=/dev/shm/rotation-$appli; mkdir -p "$r"
 sops decrypt --extract "[\"$cle\"]" ../secrets/ansible.sops.yaml > "$r/ancien"   # pour le retour arrière
 # Dawarich n'a pas de clé SOPS (mot de passe dérivé, cf. tableau) : la ligne
-# ci-dessus échoue, l'ancien se recalcule comme le fait le rôle.
+# ci-dessus échoue, l'ancien se recalcule comme le fait le rôle (tant que
+# `app_secrets_master` n'existe pas, la graine est `backup_passphrase`).
 # printf '%s-dawarich-db' "$(sops decrypt --extract '["backup_passphrase"]' ../secrets/ansible.sops.yaml)" | sha256sum | cut -d' ' -f1 > "$r/ancien"
 test -s "$r/ancien" || echo "ancien vide : pas de retour arrière possible, s'arrêter"
 openssl rand -hex 24 > "$r/nouveau"
@@ -189,7 +190,8 @@ git -C ../secrets diff --stat ansible.sops.yaml   # une seule clé change (plus 
 ```
 
 **Dawarich** n'a pas de clé SOPS : son mot de passe est dérivé de
-`backup_passphrase`, qu'on ne change pas pour ça. Créer la clé
+la graine `app_secrets_seed` (`backup_passphrase` tant que la clé SOPS `app_secrets_master`
+n'existe pas), qu'on ne change pas pour ça. Créer la clé
 `dawarich_db_password` (même commande, elle prime sur le défaut du rôle :
 SOPS est dans la couche `include_vars`) et ajouter une valeur factice
 `dawarich_db_password` à `ansible/molecule/_shared/vars/fake_secrets.yml`,

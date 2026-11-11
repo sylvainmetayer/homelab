@@ -15,9 +15,9 @@ yamtrack_timezone: Europe/Paris
 yamtrack_registration_enabled: false
 
 # SECRET_KEY de Django (sessions, jetons signés) : l'image en a une par défaut,
-# publique, d'où ce secret dérivé de backup_passphrase comme ceux de TREK et
+# publique, d'où ce secret dérivé de app_secrets_seed comme ceux de TREK et
 # Papra : pas de clé SOPS. Le changer déconnecte tout le monde.
-yamtrack_secret: "{{ (backup_passphrase ~ '-yamtrack-secret') | hash('sha256') }}"
+yamtrack_secret: "{{ (app_secrets_seed ~ '-yamtrack-secret') | hash('sha256') }}"
 
 # Connexion par Pocket ID (tofu/pangolin_config/pocket_id.tf, client
 # yamtrack), rendue seulement quand l'émetteur, l'identifiant et le secret sont

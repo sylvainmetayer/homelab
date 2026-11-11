@@ -594,6 +594,69 @@ publique refuse le hub.
 `pangolin_crowdsec_bouncer_key` : voir [crowdsec.md](crowdsec.md)
 (« Rotation de la clé du bouncer »).
 
+## Graine des secrets d'appli (`app_secrets_seed`)
+
+26 secrets de 13 rôles ne sont dans aucune clé SOPS : chacun vaut
+`sha256(app_secrets_seed ~ étiquette)` (`defaults/main.yml` du rôle).
+`app_secrets_seed` (`ansible/group_vars/all/variables.yml`) vaut la clé SOPS
+`app_secrets_master` si elle existe, sinon `backup_passphrase`
+([ADR 0034](../adr/0034-graine-des-secrets-d-appli.md)). Tant que la clé
+n'existe pas, ou qu'elle égale `backup_passphrase`, aucune valeur ne change.
+
+**Trois temps** (la séparation n'est réelle qu'au troisième) :
+
+1. *Fait par la PR de l'ADR 0034* : les rôles lisent `app_secrets_seed`. Rien
+   ne change sur les hôtes.
+2. Créer `app_secrets_master` dans `secrets/ansible.sops.yaml` avec **la même
+   valeur** que `backup_passphrase`, et son entrée dans
+   `secrets/secrets-rotation.yaml` (`kind: database`, sans échéance : sur
+   incident seulement). Puis un `ansible-playbook docker.yml --check --diff` :
+   aucune différence ; idem pour `flip.yml`, `pangolin.yaml` et `pi.yml`.
+3. Plus tard, sur incident ou à la prochaine rotation de `backup_passphrase` :
+   tourner celle-ci (section suivante) **sans toucher** `app_secrets_master`.
+   Les dérivés ne bougent pas, la passphrase Borg change seule. Tourner la
+   graine elle-même (`app_secrets_master`) ne se fait qu'après avoir figé
+   HealthLog et TREK dans SOPS (`healthlog_encryption_key`,
+   `trek_encryption_key`, valeur actuelle recalculée comme dans
+   [healthlog.md](healthlog.md)) et prévu les `ALTER USER`.
+
+**Où la graine est absente.** De l'environnement GitHub `restore-test`
+(`tofu/github/environments.tf` ne lit que `backup_passphrase`) :
+`restore_test.py` ne dérive rien, il n'a besoin que de `BORG_PASSPHRASE`. Pas
+des hôtes : un seul `ansible.sops.yaml`, lu en entier par chaque playbook, donc
+flip, Pangolin et le Pi la reçoivent sans en dériver rien (seuls `docker` et le
+NAS, pour MediaManager et nas_proxy, s'en servent). Une séparation par hôte
+demanderait un second fichier SOPS : non fait.
+
+| Rôle | Variable | Étiquette | Effet d'un changement de graine |
+|---|---|---|---|
+| dawarich | `dawarich_db_password` | `-dawarich-db` | mot de passe de base : `ALTER USER` avant le déploiement ([mot-de-passe-base.md](mot-de-passe-base.md)) |
+| dawarich | `dawarich_secret_key_base` | `-dawarich-secret-key-base` | sessions Rails perdues |
+| dawarich | `dawarich_jwt_secret_key` | `-dawarich-jwt-secret` | jetons JWT invalidés (reconnexion) |
+| dawarich | `dawarich_auth_jwt_secret_key` | `-dawarich-auth-jwt-secret` | idem |
+| healthlog | `healthlog_db_password` | `-healthlog-db` | `ALTER USER` avant |
+| healthlog | `healthlog_encryption_key` | `-healthlog-encryption` | **données illisibles** (jetons Withings, intégrations, coffre de documents), HealthLog refuse de démarrer : figer d'abord |
+| healthlog | `healthlog_api_token_hmac_key` | `-healthlog-api-token-hmac` | tous les jetons d'API `hlk_…` invalidés |
+| healthlog | `healthlog_withings_webhook_secret` | `-healthlog-withings-webhook` | URL du webhook changée : déconnecter Withings avant, reconnecter après |
+| homebox | `homebox_api_key_pepper` | `-homebox-api-key-pepper` | clés d'API émises invalidées |
+| jellystat | `jellystat_db_password` | `-jellystat-db` | `ALTER USER` avant |
+| jellystat | `jellystat_jwt_secret` | `-jellystat-jwt` | déconnexion seulement |
+| karakeep | `karakeep_nextauth_secret` | `-karakeep-nextauth` | sessions perdues |
+| karakeep | `karakeep_meili_master_key` | `-karakeep-meili` | clé maîtresse de Meilisearch changée : relue au redémarrage du conteneur (index gardé, effet non éprouvé) |
+| mediamanager | `mediamanager_db_password` | `-mediamanager-db` | `ALTER USER` avant (NAS, à la main) |
+| mediamanager | `mediamanager_token_secret` | `-mediamanager-token` | sessions perdues |
+| mediamanager | `mediamanager_qbittorrent_password` | `-mediamanager-qbittorrent` | le mot de passe de l'interface qBittorrent n'est posé qu'une fois (README du rôle) |
+| mediamanager | `mediamanager_prowlarr_api_key` | `-mediamanager-prowlarr` | suit au déploiement (Prowlarr et `config.toml`) |
+| nas_proxy | `nas_proxy_oauth2_cookie_secret` | `-nas-proxy-oauth2-cookie` | sessions de l'oauth2-proxy perdues |
+| openwebui | `openwebui_secret_key` | `-openwebui-secret-key` | sessions perdues |
+| openwebui | `openwebui_searxng_secret_key` | `-searxng` | jetons de formulaire SearXNG : sans effet visible |
+| papra | `papra_auth_secret` | `-papra-auth-secret` | tout le monde déconnecté |
+| rss | `rss_oidc_crypto_key` | `-freshrss-oidc` | sessions OIDC de FreshRSS perdues |
+| trek | `trek_encryption_key` | `-trek-encryption` | **données illisibles** (clés d'API, secrets MFA, SMTP chiffrés par TREK) : figer d'abord |
+| victoria_logs | `victoria_logs_oidc_cookie_secret` | `-vmauth-sso-cookie` | sessions SSO perdues |
+| victoria_logs | `victoria_logs_mcp_token` | `-victoria-logs-mcp` | jeton du serveur MCP changé (redéployer `victoria_logs` puis `openwebui`) |
+| yamtrack | `yamtrack_secret` | `-yamtrack-secret` | sessions et jetons signés Django invalidés |
+
 ## Mots de passe de base (sur incident)
 
 Pas d'échéance : `kind: database`, la date sert de mémoire. La procédure
@@ -608,14 +671,10 @@ déconnexion, et n'apporte rien sans fuite.
 - `backup_passphrase` : chiffre les clés des dépôts borg. Sur fuite,
   `borg key change-passphrase` sur chaque dépôt, puis la nouvelle valeur
   partout où elle est lue (Ansible, environnement `restore-test` par
-  `tofu/github`, et les mots de passe dérivés d'elle, voir
-  [mot-de-passe-base.md](mot-de-passe-base.md)). Avant de la changer,
-  figer la clé de chiffrement de HealthLog, dérivée d'elle : sans quoi
-  HealthLog ne démarre plus (`ansible/roles/healthlog/README.md`,
-  « Clé de chiffrement »). Le secret du webhook Withings, dérivé aussi,
-  change avec elle : Déconnecter Withings dans HealthLog avant le
-  déploiement, Connecter après (la déconnexion désabonne l'URL du secret en
-  cours).
+  `tofu/github`). Les 26 secrets d'appli dérivés n'en dépendent plus une fois
+  la clé `app_secrets_master` créée (section précédente) ; tant qu'elle manque,
+  tourner `backup_passphrase` les change tous : créer la clé d'abord, avec
+  l'ancienne valeur.
 - `TF_VAR_state_encryption_passphrase` : chiffre les states de tous
   les modules sauf `tofu/pangolin_config` (dont le state reste en clair,
   Ansible le lit) et `tofu/keycloak_demo_planning_kc` (en clair jusqu'à sa

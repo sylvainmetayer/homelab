@@ -2,7 +2,7 @@
 trek_base_path: "{{ docker_base_path }}/trek"
 trek_domain: travels.sylvain.cloud
 trek_timezone: Europe/Paris
-trek_encryption_key: "{{ (backup_passphrase ~ '-trek-encryption') | hash('sha256') }}"
+trek_encryption_key: "{{ (app_secrets_seed ~ '-trek-encryption') | hash('sha256') }}"
 
 # Connexion OIDC par Pocket ID (tofu/pangolin_config/pocket_id.tf, ADR 0030).
 # Client lu dans les sorties du state (terraform_outputs) : rendu seulement
