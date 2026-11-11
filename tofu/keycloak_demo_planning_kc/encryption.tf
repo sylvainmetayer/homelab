@@ -2,9 +2,9 @@
 # PBKDF2 de var.state_encryption_passphrase) : il contient des secrets
 # (data sops_file y range tout ansible.sops.yaml). Même schéma que tofu/pangolin.
 #
-# Migration : le fallback lit l'ancien state en clair ; le premier apply le
-# réécrit chiffré. Après cet apply, retirer method "unencrypted" et les deux
-# blocs fallback pour refuser tout state en clair.
+# Sans fallback : un state en clair (ou chiffré avec une autre clé) est
+# refusé. Migré le 11/11/2026, Keycloak arrêté : taint puis untaint d'une
+# ressource, deux écritures du state sans appel au provider.
 terraform {
   encryption {
     key_provider "pbkdf2" "state" {
@@ -15,20 +15,12 @@ terraform {
       keys = key_provider.pbkdf2.state
     }
 
-    method "unencrypted" "migrate" {}
-
     state {
       method = method.aes_gcm.state
-      fallback {
-        method = method.unencrypted.migrate
-      }
     }
 
     plan {
       method = method.aes_gcm.state
-      fallback {
-        method = method.unencrypted.migrate
-      }
     }
   }
 }
