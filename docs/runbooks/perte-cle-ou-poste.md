@@ -76,7 +76,9 @@ celui, public, de `homelab` jusqu'au 30/10/2026,
 [ADR 0018](../adr/0018-secrets-depot-prive.md)). `sops rotate` ne protège que
 l'avenir. Il faut donc **changer les secrets eux-mêmes** : jetons cloud
 (Hetzner, OVH, Cloudflare, Proxmox, S3, Uptime Kuma), mots de passe des
-applis, `TF_VAR_state_encryption_passphrase`, identifiants Newt. Commencer
+applis, `TF_VAR_state_encryption_passphrase` et celle du state de
+`pangolin_config` (`TF_VAR_pangolin_config_state_passphrase` =
+`tofu_state_passphrase`), identifiants Newt. Commencer
 par ceux qui ouvrent le plus (jetons Hetzner et OVH, clés S3 des states).
 `backup_passphrase` ne se change pas d'un coup : chaque dépôt Borg la
 connaît (`borg key change-passphrase` dépôt par dépôt, à vérifier). Les
