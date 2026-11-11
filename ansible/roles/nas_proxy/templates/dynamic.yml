@@ -16,6 +16,9 @@ http:
         - websecure-forwarded
       service: jellyfin
       middlewares:
+{% if nas_proxy_newt_subnet | length > 0 %}
+        - nas-apps-lan
+{% endif %}
         - jellyfin-headers
       tls:
         certResolver: letsencrypt
@@ -35,6 +38,9 @@ http:
         - websecure-forwarded
       service: mediamanager
       middlewares:
+{% if nas_proxy_newt_subnet | length > 0 %}
+        - nas-apps-lan
+{% endif %}
         - mediamanager-headers
       tls:
         certResolver: letsencrypt
@@ -55,6 +61,9 @@ http:
         - websecure-forwarded
       service: prowlarr
       middlewares:
+{% if nas_proxy_newt_subnet | length > 0 %}
+        - nas-apps-lan
+{% endif %}
 {% if nas_proxy_oidc_enabled | bool %}
         - oauth2-auth
 {% endif %}
@@ -74,6 +83,9 @@ http:
         - websecure-forwarded
       service: qbittorrent
       middlewares:
+{% if nas_proxy_newt_subnet | length > 0 %}
+        - nas-apps-lan
+{% endif %}
 {% if nas_proxy_oidc_enabled | bool %}
         - oauth2-auth
 {% endif %}
@@ -172,6 +184,13 @@ http:
     ugos-lan:
       ipAllowList:
         sourceRange: {{ nas_proxy_ugos_source_ranges | to_json }}
+{% if nas_proxy_newt_subnet | length > 0 %}
+    # Les quatre autres routeurs : le LAN, le réseau newt et la passerelle du
+    # réseau media (sonde de l'hôte). Même lecture de la source que ugos-lan.
+    nas-apps-lan:
+      ipAllowList:
+        sourceRange: {{ (nas_proxy_ugos_source_ranges + [nas_proxy_newt_subnet, nas_proxy_forward_trusted_ip ~ '/32']) | to_json }}
+{% endif %}
 
   services:
     jellyfin:

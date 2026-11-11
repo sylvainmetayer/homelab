@@ -51,3 +51,12 @@ newt_socket_proxy_allow_head: >-
 # info par défaut ; debug journalise chaque requête autorisée (relevé des
 # appels réels, `docker logs newt-socket-proxy`).
 newt_socket_proxy_loglevel: info
+
+# Sous-réseau du réseau Docker `newt`, que rejoignent les applis qu'il sert.
+# Vide : Docker choisit (172.18.0.0/16 sur le NAS aujourd'hui), l'adresse d'où
+# arrive le trafic de Newt n'est pas connue d'avance. Posé (host_vars/nas), il
+# permet à nas_proxy de ne laisser entrer que le LAN et Newt sur ses routeurs
+# (nas_proxy_newt_subnet). Changer le sous-réseau d'un réseau existant le
+# recrée : Compose refuse tant qu'un conteneur d'un autre projet y est
+# connecté (nas-proxy), procédure dans roles/nas_proxy/README.md.
+newt_subnet: ""

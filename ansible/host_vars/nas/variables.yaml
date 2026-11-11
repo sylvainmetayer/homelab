@@ -80,3 +80,13 @@ kdrive_sync_exclude_patterns:
 # Pays des serveurs P2P de ProtonVPN, noms anglais de gluetun. Pas la France :
 # le tunnel sortirait avec une IP française.
 mediamanager_vpn_server_countries: "Netherlands,Switzerland"
+
+# --- Réseau Docker newt et filtre de source de nas_proxy (audit ex9, 11/11) ---
+# Vide, donc éteint : Docker choisit le sous-réseau de `newt` (172.18.0.0/16 au
+# relevé du 11/11) et les routeurs media, mediamanager, prowlarr et
+# qbittorrent n'ont pas de filtre de source. Posé (172.30.98.0/24, à côté de
+# jellyfin_media 172.30.96 et mediamanager_default 172.30.97, hors du pool de
+# Docker), le réseau est recréé et ces quatre routeurs n'admettent plus que le
+# LAN, ce sous-réseau et la sonde de l'hôte. Le recréer demande d'arrêter
+# dc@nas_proxy avant : procédure dans roles/nas_proxy/README.md.
+newt_subnet: ""
