@@ -12,6 +12,13 @@ services:
     # première sortie après la 1.12.3 (sans retour : migrations de base).
     image: quay.io/maxdorninger/mediamanager:master@sha256:4ea37ca4c4fa8ff02d3f03fc90e81f1c585a564c963a01e9dc4dc1ee11f031d4
     container_name: mediamanager
+{% if mediamanager_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     # Non root : le script de démarrage de l'image, lancé en root, ferait un
     # chown -R de /data, c'est-à-dire du bac à sable entier.
     user: "{{ mediamanager_uid }}:{{ mediamanager_gid }}"
@@ -57,6 +64,13 @@ services:
     # PostgreSQL 17, la version que demande MediaManager.
     image: docker.io/library/postgres:17.11@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
     container_name: mediamanager-db
+{% if mediamanager_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     security_opt:
       - no-new-privileges:true
     environment:
@@ -83,6 +97,13 @@ services:
     mem_limit: {{ mediamanager_gluetun_mem_limit }}
     image: docker.io/qmcgaw/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
     container_name: mediamanager-gluetun
+{% if mediamanager_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     cap_add:
       - NET_ADMIN
     devices:
@@ -158,6 +179,13 @@ services:
     cpu_shares: 512
     image: lscr.io/linuxserver/qbittorrent:5.3.0@sha256:3d4c4545d51a690a0df15a2ff99038823a88a9822df8e794526447b9afbd7384
     container_name: mediamanager-qbittorrent
+{% if mediamanager_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     network_mode: service:gluetun
     # Démarré, pas sain : un VPN injoignable ferait sinon échouer le
     # `compose up` de dc@, qui arrêterait tout le projet, MediaManager et sa
@@ -192,6 +220,13 @@ services:
     mem_limit: {{ mediamanager_prowlarr_mem_limit }}
     image: lscr.io/linuxserver/prowlarr:2.7.0@sha256:431d7efebcef466e56adaa40a7a2fa2b0e85159a037b8bf465eaadbf0cf5bedf
     container_name: mediamanager-prowlarr
+{% if mediamanager_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     network_mode: service:gluetun
     depends_on:
       gluetun:

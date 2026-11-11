@@ -6,6 +6,13 @@ services:
     mem_limit: {{ newt_mem_limit }}
     image: fosrl/newt:1.20.0@sha256:2170e673c4c72d905764fa22e83d0ae0aa3239fb1ab3b9fcaefb2b00fffb2d6e
     container_name: newt
+{% if newt_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     # newt s'inspecte sous son hostname (os.Hostname) pour trouver ses
     # réseaux : son nom de conteneur, que la liste blanche du proxy est seule
     # à laisser inspecter.
@@ -37,6 +44,13 @@ services:
     mem_limit: 32m
     image: docker.io/wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: newt-socket-proxy
+{% if newt_dc_scope == 'system' %}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+{% endif %}
     user: "65534:{{ newt_docker_gid }}"
     network_mode: none
     read_only: true
