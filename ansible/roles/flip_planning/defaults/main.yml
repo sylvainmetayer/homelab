@@ -64,7 +64,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 # maps ansible/roles/** changes to tags: a bump of either one redeploys both
 # instances, and the one whose image did not move is a no-op.
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
-flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:2.0.0@sha256:90a4fc956b9eb81959755be54916153f0f8741ce34627030793088636f1eaa90"
+flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:2.1.0@sha256:60b6d9dd09e971e6870845720f8660e80a714caba0c3ca4a7ab0d75ada4e185b"
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
 flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:407cd91262153e13b7da2f6b619ce095cb2f77fe4a04c5e0b976d5210d651f7b"
 # The image this instance runs; the demo overrides it with the main channel.
