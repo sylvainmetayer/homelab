@@ -617,6 +617,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["postiz"]
+  values = { id = 85, full_domain = "posts.sylvain.cloud" }
+}
+
+override_resource {
   target = pangolin_resource.website["rss"]
   values = { id = 32 }
 }
@@ -873,6 +878,11 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["papra"]
   values = { push_token = "push-papra" }
+}
+
+override_resource {
+  target = uptimekuma_monitor_push.backup["postiz"]
+  values = { push_token = "push-postiz" }
 }
 
 override_resource {
@@ -1596,6 +1606,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /github",
       "ntfy /canary",
       "ntfy /healthlog",
+      "Postiz /uploads/*",
       "Promptoramix /coup",
       "Promptoramix /health",
       "TREK /.well-known/oauth-protected-resource/mcp",
@@ -2447,6 +2458,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
         uptime_cron_exemple_planning_reset_url = output.uptime_cron_exemple_planning_reset_url
+        uptime_backup_postiz_url               = output.uptime_backup_postiz_url
         # pi.yml, lxc.yml
         uptime_backup_immich_url = output.uptime_backup_immich_url
         uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
@@ -3701,7 +3713,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools, pocketid_client.postiz] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3821,8 +3833,15 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_group.pangolin_role["mediamanager-admin"].name == "mediamanager-admin"
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_tools_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_oauth2_group: mediamanager-admin\n")
+      # Postiz : confidentiel, sans PKCE (l'appli n'en envoie pas), réservé à
+      # son groupe, rappel FRONTEND_URL/settings, lu par le rôle.
+      && pocketid_client.postiz.is_public == false
+      && pocketid_client.postiz.pkce_enabled == false
+      && pocketid_client.postiz.callback_urls == tolist(["https://posts.sylvain.cloud/settings"])
+      && toset(pocketid_client.postiz.allowed_user_groups) == toset([pocketid_group.pangolin_role["postiz"].id])
+      && strcontains(file("${path.module}/../../ansible/roles/postiz/defaults/main.yml"), "terraform_outputs.pocket_id_postiz_client_secret.value")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin et Prowlarr/qBittorrent de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin, Prowlarr/qBittorrent et Postiz de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,

@@ -55,6 +55,14 @@
     "reread": "server/server.go (handleInternal and the path regexes above it: every route answering /, /<topic>, /<topic>/json|ws|auth, and which of them skip authorizeTopic*), server/server_middleware.go (authorizeTopicRead/Write), server/server_account.go and server/server_admin.go (nothing under /v1 opened), user/manager.go (auth-default-access deny-all, provisioned users and tokens); the clients: ntfy-android ApiService.kt, WsConnection.kt and util/Util.kt, ntfy-ios ntfy/Utils/ApiService.swift and Helpers.swift, Uptime Kuma server/notification-providers/ntfy.js, HealthLog src/lib/notifications/senders/ntfy.ts, shoutrrr pkg/services/push/ntfy",
     "releases": "https://github.com/binwiederhier/ntfy/releases"
   },
+  "Postiz": {
+    "image": "ghcr.io/gitroomhq/postiz-app",
+    "version": "v2.25.3",
+    "compose": "ansible/roles/postiz/templates/compose.yaml",
+    "paths": "tofu/pangolin_config/website_postiz.tf (postiz_upload_paths)",
+    "reread": "var/docker/nginx.conf (location /uploads/ still a plain alias: no autoindex, no proxy to the app, media types only), libraries/nestjs-libraries/src/upload/local.storage.ts (random file names, sniffed type allow-list)",
+    "releases": "https://github.com/gitroomhq/postiz-app/releases"
+  },
   "TREK": {
     "image": "docker.io/mauriceboe/trek",
     "version": "5.1.1",

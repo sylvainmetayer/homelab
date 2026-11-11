@@ -94,7 +94,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools", "postiz"])
 
   length  = 48
   special = false
@@ -344,6 +344,22 @@ output "pocket_id_immich_client_secret" {
   sensitive   = true
 }
 
+# Postiz (le foyer, sur flip) : POSTIZ_OAUTH_* du rôle postiz. Rappel :
+# FRONTEND_URL + /settings ; sans PKCE (oauth.provider.ts, v2.25.3, n'en envoie
+# pas). Compte créé au premier login, lié par e-mail : le groupe est la
+# barrière. Logo en PNG : dashboard-icons n'a pas de postiz.svg.
+resource "pocketid_client" "postiz" {
+  name                = "Postiz"
+  client_id           = "postiz"
+  client_secret       = random_password.pocket_id_client["postiz"].result
+  callback_urls       = ["https://posts.sylvain.cloud/settings"]
+  allowed_user_groups = [pocketid_group.pangolin_role["postiz"].id]
+  launch_url          = "https://posts.sylvain.cloud"
+  logo_url            = "${replace(local.pocket_id_logo_base, "/svg", "/png")}/postiz.png"
+  pkce_enabled        = false
+  is_public           = false
+}
+
 # Papra (le foyer) : AUTH_PROVIDERS_CUSTOMS du rôle papra, fournisseur
 # « pocket-id » (dans le rappel). Liaison par e-mail vérifié (better-auth) ;
 # l'inscription fermée bloque la création d'un compte au premier login.
@@ -500,6 +516,17 @@ output "pocket_id_karakeep_client_id" {
 output "pocket_id_karakeep_client_secret" {
   description = "POCKET ID - secret du client OIDC de Karakeep"
   value       = random_password.pocket_id_client["karakeep"].result
+  sensitive   = true
+}
+
+output "pocket_id_postiz_client_id" {
+  description = "POCKET ID - identifiant du client OIDC de Postiz"
+  value       = pocketid_client.postiz.client_id
+}
+
+output "pocket_id_postiz_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Postiz"
+  value       = random_password.pocket_id_client["postiz"].result
   sensitive   = true
 }
 
@@ -732,7 +759,7 @@ locals {
   # Rôles qui ont leur propre client ci-dessus : pas de vitrine en double.
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
-    "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki",
+    "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki", "postiz",
   ])
 
   pocket_id_launchers = {

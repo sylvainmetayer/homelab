@@ -1,0 +1,113 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../_shared/vars/fake_secrets.yml
+    - ../../group_vars/all/variables.yml
+  tasks:
+    - name: Verify the postiz deployment
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
+      vars:
+        verify_app_service: postiz
+        verify_app_borgmatic_config: "{{ borgmatic_config_dir }}/postiz.yaml"
+        verify_app_borgmatic_push_url: https://uptime.example.invalid/api/push/tofu-postiz-backup
+
+    - name: Verify the supporting services of postiz
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
+      vars:
+        verify_compose_service: postiz
+        verify_compose_databases:
+          - postgres
+        verify_compose_healthchecks:
+          - postiz
+          - redis
+          - temporal
+        verify_compose_healthy_dependencies:
+          - { service: postiz, dependency: postgres }
+          - { service: postiz, dependency: redis }
+          - { service: postiz, dependency: temporal }
+          - { service: temporal, dependency: postgres }
+        verify_compose_internal_networks:
+          - internal
+
+    - name: Read the postiz files
+      become: true
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - /opt/apps/postiz/.env
+        - /opt/apps/postiz/compose.yaml
+        - "{{ borgmatic_config_dir }}/postiz.yaml"
+      register: postiz_files
+      no_log: true
+
+    - name: Stat the postiz environment file and uploads folder
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/apps/postiz/.env
+        - /opt/apps/postiz/uploads
+      register: postiz_stats
+
+    - name: Parse the postiz files
+      no_log: true
+      ansible.builtin.set_fact:
+        postiz_env: >-
+          {{ dict((postiz_files.results[0].content | b64decode).splitlines()
+             | select('match', '^[A-Z_]+=') | map('split', '=', 1)) }}
+        postiz_compose: "{{ postiz_files.results[1].content | b64decode | from_yaml }}"
+        postiz_borgmatic: "{{ postiz_files.results[2].content | b64decode | from_yaml }}"
+
+    # Le .env porte JWT_SECRET, le mot de passe de la base et les clés des
+    # réseaux ; le nginx de l'image (utilisateur www) lit les médias.
+    - name: Assert the postiz secret file is private and the uploads are readable
+      ansible.builtin.assert:
+        that:
+          - postiz_stats.results[0].stat.mode == '0600'
+          - postiz_stats.results[0].stat.pw_name == ansible_facts['user_id']
+          - postiz_stats.results[1].stat.mode == '0755'
+        fail_msg: "{{ postiz_stats.results | map(attribute='stat.mode') | list }} : .env en 0600, uploads en 0755"
+
+    - name: Assert the postiz environment comes from the role, Pocket ID and the social keys
+      ansible.builtin.assert:
+        that:
+          - postiz_env.FRONTEND_URL == 'https://posts.sylvain.cloud'
+          - postiz_env.NEXT_PUBLIC_BACKEND_URL == 'https://posts.sylvain.cloud/api'
+          - postiz_env.JWT_SECRET is match('^[0-9a-f]{64}$')
+          - postiz_env.JWT_SECRET not in postiz_env.DATABASE_URL
+          - postiz_env.DATABASE_URL is match('^postgresql://postiz:[0-9a-f]{64}@postgres:5432/postiz$')
+          - postiz_env.DISABLE_REGISTRATION == 'true'
+          # Pocket ID (sorties fictives du converge).
+          - postiz_env.POSTIZ_GENERIC_OAUTH == 'true'
+          - postiz_env.POSTIZ_OAUTH_AUTH_URL == 'https://idp.example.invalid/authorize'
+          - postiz_env.POSTIZ_OAUTH_TOKEN_URL == 'https://idp.example.invalid/api/oidc/token'
+          - postiz_env.POSTIZ_OAUTH_USERINFO_URL == 'https://idp.example.invalid/api/oidc/userinfo'
+          - postiz_env.POSTIZ_OAUTH_CLIENT_ID == 'molecule-pocket-id-postiz-client-id'
+          - postiz_env.POSTIZ_OAUTH_CLIENT_SECRET == 'molecule-pocket-id-postiz-client-secret'
+          # postiz_social_env (fake_secrets.yml), rendu tel quel.
+          - postiz_env.FACEBOOK_APP_ID == 'molecule-postiz-facebook-app-id'
+          - postiz_env.X_API_KEY == 'molecule-postiz-x-api-key'
+        fail_msg: "Environnement de postiz inattendu : {{ postiz_env.keys() | list }}"
+
+    # Seul Postiz est joignable par Pangolin (cible `postiz`, port 5000) ; la
+    # base, redis et Temporal restent sur le réseau interne.
+    - name: Assert only the postiz container joins newt and every service is hardened
+      ansible.builtin.assert:
+        that:
+          - postiz_compose.networks.newt.external
+          - postiz_compose.services.postiz.container_name == 'postiz'
+          - postiz_compose.services.postiz.networks | sort == ['internal', 'newt']
+          - postiz_compose.services.postgres.networks == ['internal']
+          - postiz_compose.services.redis.networks == ['internal']
+          - postiz_compose.services.temporal.networks == ['internal']
+          - postiz_compose.services.values() | map(attribute='security_opt') | map('first') | unique | list == ['no-new-privileges:true']
+          - postiz_compose.services.temporal.environment.ENABLE_ES == 'false'
+        fail_msg: Réseaux ou durcissement de postiz inattendus.
+
+    - name: Assert the postiz backup covers the uploads and the three databases
+      ansible.builtin.assert:
+        that:
+          - "'/opt/apps/postiz/uploads' in postiz_borgmatic.source_directories"
+          - "'/opt/apps/postiz/.env' in postiz_borgmatic.source_directories"
+          - postiz_borgmatic.postgresql_databases | map(attribute='name') | list == ['postiz', 'temporal', 'temporal_visibility']
+        fail_msg: "Configuration borgmatic de postiz inattendue : {{ postiz_borgmatic.source_directories }}"

@@ -1,0 +1,6 @@
+---
+- name: Restart postiz
+  ansible.builtin.systemd:
+    name: dc@postiz
+    scope: user
+    state: restarted
