@@ -434,7 +434,7 @@
       "allowedVersions": "<3.15"
     },
     {
-      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and Molecule reads no ansible.cfg, so the Tests workflow replays the docker_service scenario with ANSIBLE_STRATEGY=mitogen_linear (a bump that breaks Mitogen fails it). The three move in one PR, never automerged (the PR note says what to check)",
+      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and Molecule reads no ansible.cfg, so the Tests workflow replays the docker_service scenario with ANSIBLE_STRATEGY=mitogen_linear (a bump that breaks Mitogen's strategy fails it; Mitogen keeps Molecule's community.docker.docker connection, so its transport is not exercised and the PR note's --check stays the real test). The three move in one PR, never automerged (the PR note says what to check)",
       "matchDatasources": [
         "pypi"
       ],
@@ -540,6 +540,13 @@
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z0-9_]+_VERSION:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
       ]
+    },
+    {
+      "description": "uv of mise.toml (aqua) and uv of the workflows (`pip install uv==X`, custom manager below) are one tool: one PR moves both, or CI and local drift apart",
+      "matchDepNames": [
+        "uv"
+      ],
+      "groupName": "uv"
     },
     {
       "customType": "regex",
