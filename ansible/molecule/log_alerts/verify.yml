@@ -23,7 +23,10 @@
         source:traefik:
           - {router: a-router@file, n: "12"}
           - {router: b-router@file, n: "9"}
-        # Avant session.scope : la requête d'unit-failed le cite aussi (le premier gagne).
+        # Avant 'Failed with result' et session.scope, que leurs requêtes citent
+        # aussi (le premier gagne) : chaque règle d'échec d'unité reçoit sa ligne.
+        'borgmatic.service: Failed with result': [{host: docker, n: "1"}]
+        '| extract': [{host: docker, u: ci-key-audit.service, n: "1"}]
         'Failed with result': []
         session.scope: [{host: docker, unit: dc@trek.service, n: "1"}]
         'borgmatic.service" | stats':
@@ -139,11 +142,15 @@
           - "Traefik : rafale de 5xx"
           - "Processus tué (OOM, code 137)"
           - "borgmatic : aucune ligne en 26 h"
-        log_alerts_verify_expected_priorities: [3, 4, 5]
+          - "borgmatic : échec de l'unité"
+          - "Unité systemd en échec"
+        log_alerts_verify_expected_priorities: [3, 4, 5, 5, 4]
         log_alerts_verify_expected_messages:
           - "a-router@file : 12 en 5 min"
           - "docker, dc@trek.service : 1 en 15 min"
           - "pi : aucune ligne en 26 h"
+          - "docker : 1 en 1560 min"
+          - "docker, ci-key-audit.service : 1 en 15 min"
 
     - name: The same alerts again, inside their repeat delay
       ansible.builtin.include_tasks: tasks/run.yml

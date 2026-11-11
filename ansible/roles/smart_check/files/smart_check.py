@@ -157,10 +157,17 @@ def check(args):
             unreadable.append(str(error))
             continue
         serial = data.get("serial_number") or disk_name(data)
+        # Avant -i (#1373), l'état était sous « disque <chemin> » : repris une
+        # fois, sinon chaque constat en cours sonnerait de nouveau et la vieille
+        # clé resterait pour toujours (shortcut: à retirer quand pve, pi et nas
+        # ont tous tourné une fois avec -i).
+        legacy = f"disque {data.get('device', {}).get('name', '?')}"
+        levels = state.get(serial) or state.get(legacy, {})
+        new_state.pop(legacy, None)
         risen, kept = [], {}
         for item in inspect(data):
             ongoing.append(f"{disk_name(data)} {item['text']}")
-            before = state.get(serial, {}).get(item["key"], 0)
+            before = levels.get(item["key"], 0)
             kept[item["key"]] = max(before, item["level"])
             if item["level"] > before:
                 if before:

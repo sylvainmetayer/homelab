@@ -152,6 +152,12 @@ class CheckTest(unittest.TestCase):
         notification, _, _, _ = self.run_check(hdd(pending=5, serial="B"))
         self.assertIsNotNone(notification)
 
+    def test_state_from_before_smartctl_i_is_taken_over_once(self):
+        sc.save_state(self.args.state_file, {"disque /dev/sdc": {"attr197": 5}})
+        notification, state, _, _ = self.run_check(hdd(pending=5))
+        self.assertIsNone(notification)
+        self.assertEqual(state, {"HDD1": {"attr197": 5}})
+
     def test_healthy_summary(self):
         notification, state, summary, _ = self.run_check(hdd())
         self.assertIsNone(notification)

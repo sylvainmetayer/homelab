@@ -3,7 +3,7 @@
 # app.yaml.j2) : l'URL, qui porte le jeton du moniteur, n'est jamais dans la
 # configuration (le hook uptime_kuma de borgmatic l'écrit au journal à chaque
 # run, d'où elle partait vers VictoriaLogs), mais dans un fichier de
-# configuration curl 0600 root que passent trois hooks (début, fin, échec) à
+# configuration curl 0600 root que passent deux hooks (fin, échec) à
 # uptime-push (rôle uptime_push). Les hooks sont lancés pour de bon : l'hôte
 # .invalid ne se résout pas, curl échoue donc après avoir lu l'URL dans le
 # fichier, sans l'écrire, et uptime-push sort quand même en 0.
