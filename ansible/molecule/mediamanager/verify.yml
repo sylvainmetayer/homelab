@@ -98,7 +98,7 @@
           - mm_verify_config is search('(?m)^client_id = "molecule-pocket-id-mediamanager-client-id"$')
           - mm_verify_config is search('(?m)^client_secret = "molecule-pocket-id-mediamanager-client-secret"$')
           - mm_verify_config is search('(?m)^configuration_endpoint = "https://idp.example.invalid/.well-known/openid-configuration"$')
-          - mm_verify_config is search('password = "' ~ ((backup_passphrase ~ '-mediamanager-db') | hash('sha256')) ~ '"')
+          - mm_verify_config is search('password = "' ~ ((app_secrets_seed ~ '-mediamanager-db') | hash('sha256')) ~ '"')
         fail_msg: "config.toml inattendu ({{ mm_verify_config_stat.stat.mode | default('absent') }})"
 
     - name: Stat the sandbox folders
@@ -267,7 +267,7 @@
           - mm_verify_seed is search('(?m)^Session\\\\DefaultSavePath=/data/torrents$')
           - mm_verify_seed is search('(?m)^WebUI\\\\LocalHostAuth=false$')
           - mm_verify_seed is search('(?m)^WebUI\\\\Password_PBKDF2="@ByteArray\([A-Za-z0-9+/=]{24}:[A-Za-z0-9+/=]{88}\)"$')
-          - mm_verify_seed is not search((backup_passphrase ~ '-mediamanager-qbittorrent') | hash('sha256'))
+          - mm_verify_seed is not search((app_secrets_seed ~ '-mediamanager-qbittorrent') | hash('sha256'))
           - mm_verify_vpn_config | regex_findall('(?m)^enabled = true$') | length == 2
           - mm_verify_vpn_config is search('(?m)^url = "http://gluetun:9696"$')
           - mm_verify_vpn_config is search('(?m)^host = "http://gluetun"$')

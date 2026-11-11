@@ -144,8 +144,8 @@ nas_proxy_oauth2_mem_limit: 64m
 # 32 caractères hexadécimaux dérivés comme les clés des autres rôles ; pas de
 # clé SOPS. oauth2-proxy les lit en base64 (24 octets, AES-192 valide) : sans
 # conséquence, mais ce ne sont pas 32 octets. Change seulement si
-# backup_passphrase change : les sessions ouvertes tomberaient, sans autre dégât.
-nas_proxy_oauth2_cookie_secret: "{{ ((backup_passphrase ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32] }}"
+# app_secrets_seed change : les sessions ouvertes tomberaient, sans autre dégât.
+nas_proxy_oauth2_cookie_secret: "{{ ((app_secrets_seed ~ '-nas-proxy-oauth2-cookie') | hash('sha256'))[:32] }}"
 # Les noms protégés : un cookie propre à chacun (préfixe __Host-, sans Domain).
 # Le premier label sert de nom au routeur /oauth2/.
 nas_proxy_oauth2_domains:

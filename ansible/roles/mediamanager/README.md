@@ -219,14 +219,14 @@ seul au déploiement suivant (`mediamanager_sso_proxy` faux).
 
 ### Secrets
 
-Dérivés de `backup_passphrase` (aucune clé SOPS) : mot de passe de la base,
+Dérivés de la graine `app_secrets_seed` (`backup_passphrase` tant que la clé SOPS `app_secrets_master` n'existe pas ; aucune clé SOPS par secret) : mot de passe de la base,
 `token_secret` de MediaManager, mot de passe de l'interface de qBittorrent
 (compte `mediamanager`, posé en PBKDF2 dans `qBittorrent.conf`), clé d'API de
 Prowlarr (`PROWLARR__AUTH__APIKEY`, la même dans `config.toml`). Pour les
 lire, sur le NAS : `sudo grep -E 'password|api_key'
 /volume1/docker/mediamanager/config/config.toml`.
 
-**Rotation de `backup_passphrase`** : `config.toml` et Prowlarr suivent au
+**Rotation de la graine** : `config.toml` et Prowlarr suivent au
 déploiement suivant, pas la base ni qBittorrent. PostgreSQL ne lit
 `POSTGRES_PASSWORD` qu'à l'initdb : `ALTER USER` d'abord
 (`docs/runbooks/mot-de-passe-base.md`). `qBittorrent.conf` n'est posé

@@ -53,9 +53,9 @@ papra_max_upload_size: 26214400
 papra_deleted_documents_retention_days: 90
 
 # Secret de session (Better Auth), au moins 32 caractères. Dérivé de
-# backup_passphrase comme les clés de TREK et Homebox : pas de clé SOPS. Le
+# app_secrets_seed comme les clés de TREK et Homebox : pas de clé SOPS. Le
 # changer déconnecte tout le monde.
-papra_auth_secret: "{{ (backup_passphrase ~ '-papra-auth-secret') | hash('sha256') }}"
+papra_auth_secret: "{{ (app_secrets_seed ~ '-papra-auth-secret') | hash('sha256') }}"
 
 # Relève par e-mail (tasks/intake.yml, files/papra_intake.py) : toutes les
 # 15 minutes, un script lit en IMAPS une adresse Infomaniak dédiée et dépose

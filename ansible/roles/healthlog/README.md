@@ -218,8 +218,9 @@ Le journal des appels de la passerelle reste éteint (données de santé).
 
 `ENCRYPTION_KEY` chiffre les jetons Withings, les identifiants des
 intégrations, la clé API d'Anthropic, les canaux de notification (jeton ntfy)
-et le coffre de documents. Elle est dérivée de `backup_passphrase` : **tourner
-`backup_passphrase` change cette clé**, et
+et le coffre de documents. Elle est dérivée de la graine `app_secrets_seed` (`backup_passphrase` tant que
+la clé SOPS `app_secrets_master` n'existe pas) : **tourner la graine
+change cette clé**, et
 HealthLog refuse alors de démarrer (contrôle de clé au démarrage) ou ne lit
 plus ces colonnes. Avant une telle rotation, figer l'ancienne valeur :
 
