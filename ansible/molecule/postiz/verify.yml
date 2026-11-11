@@ -75,7 +75,10 @@
           - postiz_env.NEXT_PUBLIC_BACKEND_URL == 'https://posts.sylvain.cloud/api'
           - postiz_env.JWT_SECRET is match('^[0-9a-f]{64}$')
           - postiz_env.JWT_SECRET not in postiz_env.DATABASE_URL
-          - postiz_env.DATABASE_URL is match('^postgresql://postiz:[0-9a-f]{64}@postgres:5432/postiz$')
+          # Hôte = le service `postgres` du compose, base et utilisateur du rôle.
+          - postiz_env.DATABASE_URL is search('@postgres:5432/postiz$')
+          - (postiz_env.DATABASE_URL | urlsplit('username')) == 'postiz'
+          - (postiz_env.DATABASE_URL | urlsplit('password')) is match('^[0-9a-f]{64}$')
           - postiz_env.DISABLE_REGISTRATION == 'true'
           # SMTP Infomaniak, compte partagé (fake_secrets.yml).
           - postiz_env.EMAIL_PROVIDER == 'nodemailer'
