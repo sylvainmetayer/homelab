@@ -820,6 +820,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_updates["lxc"]
+  values = { push_token = "push-cron-lxc-updates" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_smart["pve"]
   values = { push_token = "push-cron-pve-smart" }
 }
@@ -2267,11 +2272,12 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_pve_updates_url         = output.uptime_cron_pve_updates_url
         uptime_backup_pve_config_url        = output.uptime_backup_pve_config_url
         uptime_backup_vzdump_url            = output.uptime_backup_vzdump_url
-        # update_notify : docker.yml, pi.yml, flip.yml, pangolin.yaml
+        # update_notify : docker.yml, pi.yml, flip.yml, pangolin.yaml, lxc.yml
         uptime_cron_docker_updates_url   = output.uptime_cron_docker_updates_url
         uptime_cron_pi_updates_url       = output.uptime_cron_pi_updates_url
         uptime_cron_flip_updates_url     = output.uptime_cron_flip_updates_url
         uptime_cron_pangolin_updates_url = output.uptime_cron_pangolin_updates_url
+        uptime_cron_lxc_updates_url      = output.uptime_cron_lxc_updates_url
         # smart_check : pve.yml, pi.yml, nas.yml
         uptime_cron_pve_smart_url = output.uptime_cron_pve_smart_url
         uptime_cron_pi_smart_url  = output.uptime_cron_pi_smart_url
@@ -2901,7 +2907,7 @@ run "monitors_are_filed_and_alert" {
   assert {
     condition = (
       can(regex("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \\*-\\*-\\* [0-9]{2}:[0-9]{2}:[0-9]{2}$", yamldecode(file("${path.module}/../../ansible/roles/update_notify/defaults/main.yml")).update_notify_schedule))
-      && toset(keys(local.update_check_hosts)) == toset(["docker", "flip", "pangolin", "pi", "pve"])
+      && toset(keys(local.update_check_hosts)) == toset(["docker", "flip", "lxc", "pangolin", "pi", "pve"])
       && alltrue([
         for host, playbook in {
           pve      = "pve.yml"
@@ -2909,6 +2915,7 @@ run "monitors_are_filed_and_alert" {
           pi       = "pi.yml"
           flip     = "flip.yml"
           pangolin = "pangolin.yaml"
+          lxc      = "lxc.yml"
         } :
         uptimekuma_monitor_push.cron_updates[host].interval > 60 * 60 * 24 * 14
         && uptimekuma_monitor_push.cron_updates[host].interval < 60 * 60 * 24 * 24
@@ -2918,7 +2925,7 @@ run "monitors_are_filed_and_alert" {
         && strcontains(file("${path.module}/../../ansible/${playbook}"), "- role: update_notify\n")
       ])
     )
-    error_message = "Mises à jour (update_notify) : timer hebdomadaire ; un moniteur par hôte (pve, docker, pi, flip, pangolin), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
+    error_message = "Mises à jour (update_notify) : timer hebdomadaire ; un moniteur par hôte (pve, docker, pi, flip, pangolin, lxc), rangé avec les healthchecks, Telegram et ntfy, intervalle de deux semaines à 24 jours ; le playbook de l'hôte joue le rôle et lui donne son URL push."
   }
 
   # Le vérificateur S.M.A.R.T. (rôle smart_check) passe une fois par semaine
