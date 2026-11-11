@@ -5,6 +5,13 @@
 # Country a changé ; Pocket ID surveille le dossier et recharge seul. Un
 # succès est signalé au moniteur push Uptime Kuma (tofu/pangolin_config,
 # « GeoIP Pangolin ») ; sans signal, il passe au rouge.
+# Durci comme le docker run d'enclosed-share, sans --user : le dossier monté est
+# à root (0755), license_key à root (0600) et l'image tourne en root : sans
+# DAC_OVERRIDE, root reste propriétaire des deux. Essayé en
+# local (podman, clé invalide) : l'entrypoint n'écrit que /tmp/geoipupdate
+# (tmpfs) et le verrou du dossier monté ; le téléchargement lui-même (écriture
+# des .mmdb) n'a pas pu être essayé sans clé valide : à vérifier au premier
+# passage du timer (`systemctl start geoipupdate`).
 [Unit]
 Description=GeoLite2 update for Pangolin
 Wants=docker.service network-online.target
@@ -15,6 +22,8 @@ Type=oneshot
 ExecStart=/bin/sh -c '\
   before=$(sha256sum {{ pangolin_geoip_dir }}/GeoLite2-Country.mmdb 2>/dev/null); \
   /usr/bin/docker run --rm \
+    --cap-drop ALL --security-opt no-new-privileges --read-only \
+    --tmpfs /tmp --memory 128m \
     --env-file {{ pangolin_geoipupdate_config_dir }}/env \
     -v {{ pangolin_geoipupdate_config_dir }}/license_key:/run/secrets/license_key:ro \
     -v {{ pangolin_geoip_dir }}:/usr/share/GeoIP \
