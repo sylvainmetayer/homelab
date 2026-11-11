@@ -49,8 +49,10 @@ resource "github_repository" "homelab" {
     }
   }
 
-  # Attributs du provider seul (rien côté API) : ils s'affichent en
-  # « update in-place » au premier plan après l'import, sans appel GitHub.
+  # Attributs du provider seul : l'import inscrit auto_init à false, pas
+  # archive_on_destroy, qui s'affiche en « update in-place » au premier plan.
+  # Cet apply envoie tout le dépôt à GitHub (PATCH), d'où l'exigence que
+  # chaque valeur ci-dessus égale le réel.
   auto_init          = false
   archive_on_destroy = true
 
