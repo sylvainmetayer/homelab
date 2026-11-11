@@ -4,8 +4,8 @@
 # test.yaml :
 #   - charge secrets/ansible.sops.yaml (sous-module secrets/, ADR 0018) dans
 #     l'espace global ;
-#   - lit le state OpenTofu de tofu/pangolin_config dans le bucket S3 et en
-#     pose les sorties dans le fact `terraform_outputs`.
+#   - lit les sorties de tofu/pangolin_config (`tofu output -json`, module
+#     initialisé) et les pose dans le fact `terraform_outputs`.
 #
 # Chaque playbook fait ensuite son propre set_fact
 # `<variable>: "{{ terraform_outputs.<sortie>.value | default('') }}"` : la
@@ -19,10 +19,6 @@
 # sur ce fichier comme sur les pre_tasks de flip.yml.
 - name: Load secrets and the pangolin_config state outputs
   tags: always
-  vars:
-    tfstate_bucket: homelab-tf-state-sylvain
-    tfstate_object_key: homelab/pangolin_config.tfstate
-    tfstate_s3_endpoint: https://s3.eu-west-par.io.cloud.ovh.net
   block:
     # community.sops.load_vars range les secrets dans la couche include_vars
     # (return_method: vars-only, ansible-core 2.21+, qui échoue franchement en
@@ -38,42 +34,75 @@
         expressions: evaluate-on-load
         return_method: vars-only
 
-    # no_log ici comme sur le set_fact qui suit : `contents` est le state
-    # entier, sorties sensibles comprises (identifiants Newt, jetons d'accès
-    # Pangolin), qu'un -v écrirait dans run.log.
-    # run_once : un seul téléchargement par run, le résultat enregistré vaut
-    # pour tous les hôtes de la play.
-    # pangolin_config_outputs_optional (00-setup.yaml seulement) : un state
-    # illisible n'arrête pas la play, terraform_outputs vaut alors {} et chaque
-    # sortie lue retombe sur son default('').
-    # check_mode: false : une lecture, sans effet ; en --check, s3_object ne
-    # télécharge rien et toute la suite tournerait sans terraform_outputs
-    # (URL push vides, assert des identifiants Newt de flip.yml en échec).
-    - name: Read Terraform state from S3 bucket
+    # Lecture par `tofu output -json` dans le vrai module (initialisé : le
+    # backend S3 et, plus tard, le chiffrement du state sont ceux du module,
+    # Ansible ne les connaît pas). La sortie a la forme de l'ancien `.outputs`
+    # du state, {nom: {sensitive, type, value}}, d'où
+    # `terraform_outputs.<nom>.value`.
+    # Environnement, jamais un argument de ligne de commande : identifiants S3
+    # du state (clés de secrets/ansible.sops.yaml, lecture seule sur ce seul
+    # state) et passphrase de chiffrement. Elle vient de `tofu_state_passphrase`
+    # (secrets/ansible.sops.yaml : la clé Age de la CI ne déchiffre pas le
+    # fichier racine secrets.sops.yaml), sinon de TF_VAR_state_encryption_passphrase
+    # que mise exporte sur un poste. Absente, la commande marche tant que le
+    # state est en clair.
+    # no_log : `stdout` est l'ensemble des sorties, secrets compris (identifiants
+    # Newt, jetons d'accès Pangolin), qu'un -v écrirait dans run.log.
+    # run_once : une lecture par run, le résultat enregistré vaut pour tous les
+    # hôtes de la play.
+    # failed_when: false : l'échec est traité par les deux tâches suivantes, sa
+    # cause n'étant pas lisible sous no_log.
+    # check_mode: false : une lecture, sans effet ; en --check, command ne
+    # lancerait rien et toute la suite tournerait sans terraform_outputs (URL
+    # push vides, assert des identifiants Newt de flip.yml en échec).
+    - name: Read the pangolin_config outputs with tofu
       delegate_to: localhost
       run_once: true
       no_log: true
       check_mode: false
-      failed_when:
-        - terraform_state_raw is failed
-        - not (pangolin_config_outputs_optional | default(false) | bool)
-      amazon.aws.s3_object:
-        mode: getstr
-        bucket: "{{ tfstate_bucket }}"
-        object: "{{ tfstate_object_key }}"
-        endpoint_url: "{{ tfstate_s3_endpoint }}"
-        aws_access_key: "{{ state_s3_access_key }}"
-        aws_secret_key: "{{ state_s3_secret_key }}"
+      changed_when: false
+      failed_when: false
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ state_s3_access_key }}"
+        AWS_SECRET_ACCESS_KEY: "{{ state_s3_secret_key }}"
+        TF_VAR_state_encryption_passphrase: "{{ tofu_state_passphrase | default(lookup('ansible.builtin.env', 'TF_VAR_state_encryption_passphrase'), true) }}"
+        TF_INPUT: "0"
+      ansible.builtin.command:
+        argv:
+          - tofu
+          - -chdir={{ playbook_dir }}/../tofu/pangolin_config
+          - output
+          - -json
+          - -no-color
       register: terraform_state_raw
 
+    # pangolin_config_outputs_optional (00-setup.yaml seulement) : un state
+    # illisible n'arrête pas la play, terraform_outputs vaut alors {} et chaque
+    # sortie lue retombe sur son default('').
+    - name: Fail when the pangolin_config outputs cannot be read
+      when:
+        - terraform_state_raw.rc | default(1) != 0
+        - not (pangolin_config_outputs_optional | default(false) | bool)
+      run_once: true
+      ansible.builtin.fail:
+        msg: >-
+          Lecture des sorties de tofu/pangolin_config impossible (rc
+          {{ terraform_state_raw.rc | default('?') }}). Module non initialisé
+          ou provider du fork absent : lancer `mise run provider-fork` puis
+          `tofu -chdir=tofu/pangolin_config init`. Sinon identifiants S3
+          (state_s3_*), passphrase du state (tofu_state_passphrase ou
+          TF_VAR_state_encryption_passphrase, donc `mise exec --`) ou binaire
+          tofu absent du PATH. Début de l'erreur de tofu :
+          {{ (terraform_state_raw.stderr | default(terraform_state_raw.msg | default('')))[:400] }}
+
     - name: Warn that the pangolin_config state could not be read
-      when: terraform_state_raw.contents is not defined
+      when: terraform_state_raw.rc | default(1) != 0
       run_once: true
       ansible.builtin.debug:
         msg: >-
-          AVERTISSEMENT : state de tofu/pangolin_config illisible (S3 ou
-          identifiants), terraform_outputs = {} : les URL qui en viennent
-          sont vides pour ce run.
+          AVERTISSEMENT : sorties de tofu/pangolin_config illisibles (module
+          non initialisé, S3 ou identifiants), terraform_outputs = {} : les
+          URL qui en viennent sont vides pour ce run.
 
     # no_log : les sorties comprennent des secrets (identifiants Newt, jetons
     # d'accès Pangolin), qu'un -v afficherait dans run.log. Un set_fact d'un
@@ -83,5 +112,5 @@
       no_log: true
       ansible.builtin.set_fact:
         terraform_outputs: >-
-          {{ (terraform_state_raw.contents | from_json).outputs | default({})
-             if terraform_state_raw.contents is defined else {} }}
+          {{ (terraform_state_raw.stdout | from_json)
+             if terraform_state_raw.rc | default(1) == 0 else {} }}

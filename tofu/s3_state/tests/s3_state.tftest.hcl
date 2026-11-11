@@ -136,7 +136,7 @@ run "ansible_reads_only_the_pangolin_config_state" {
   }
 
   assert {
-    condition     = strcontains(file("${path.module}/../../ansible/tasks/pangolin_config_outputs.yml"), "tfstate_object_key: homelab/pangolin_config.tfstate") && strcontains(file("${path.module}/../pangolin_config/backend.tf"), "\"homelab/pangolin_config.tfstate\"")
-    error_message = "La clé lue par Ansible doit rester celle du backend de pangolin_config, la seule que sa policy autorise."
+    condition     = strcontains(file("${path.module}/../../ansible/tasks/pangolin_config_outputs.yml"), "tofu/pangolin_config") && strcontains(file("${path.module}/../pangolin_config/backend.tf"), "\"homelab/pangolin_config.tfstate\"")
+    error_message = "Ansible lit les sorties du module pangolin_config, dont la clé de backend doit rester la seule que la policy autorise."
   }
 }
