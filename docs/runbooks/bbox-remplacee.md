@@ -22,7 +22,7 @@ Ce que le dépôt suppose de la box :
 | Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (bail ou IP fixe d'UGOS : « À vérifier sur place »), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
 | Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (« À vérifier sur place ») |
 | Redirections de ports | **aucune** | (accès de secours WireGuard rejeté : [ADR 0015](../adr/0015-acces-de-secours-wireguard.md)) |
-| IP publique | stable ou non : « À vérifier sur place » | `home_ip`, plus bas |
+| IP publique | fixe par contrat (confirmé par Sylvain le 11/11/2026) | `home_ip`, plus bas |
 
 Si la nouvelle box ne sait pas servir un autre réseau que le sien, ne pas
 changer de plage : refaire `192.168.1.0/24` (sinon il faut toucher
@@ -118,3 +118,10 @@ Sinon `home_ip` (étape 5) est à refaire à chaque changement.
 
 **Chez OVH et Hetzner** : un jeton d'API restreint à l'IP de la maison
 (étape 7) ?
+
+**Relevé du 11/11/2026** (lecture seule, en SSH sur les hôtes) : le Pi
+(`192.168.1.96`) et le NAS (`192.168.1.137`) tiennent tous deux leur adresse
+**du DHCP** (bail dynamique), aucun n'a d'IP fixe dans son système. Les deux
+baux réservés sont donc indispensables : à recréer avec les bonnes MAC sur une
+Bbox neuve, avant tout le reste. L'hôte Proxmox est en IP fixe
+(`192.168.1.26`, `/etc/network/interfaces`).
