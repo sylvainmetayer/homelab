@@ -6,7 +6,7 @@
     quiet: true
     that:
       - wiki_db_password | length > 0
-    fail_msg: wiki_db_password vide : clé absente de secrets/ansible.sops.yaml ?
+    fail_msg: "wiki_db_password vide : clé absente de secrets/ansible.sops.yaml ?"
 
 - name: Ensure wiki app folder exists
   loop:

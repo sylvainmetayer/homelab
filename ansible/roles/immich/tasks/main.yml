@@ -6,7 +6,7 @@
     quiet: true
     that:
       - immich_db_password | length > 0
-    fail_msg: immich_db_password vide : clé absente de secrets/ansible.sops.yaml ?
+    fail_msg: "immich_db_password vide : clé absente de secrets/ansible.sops.yaml ?"
 
 - name: Ensure immich app folders exist
   loop:
