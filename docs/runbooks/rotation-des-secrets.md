@@ -917,6 +917,11 @@ déconnexion, et n'apporte rien sans fuite.
   nouvelle dans les deux clés SOPS (commit dans `secrets/`, bump du
   sous-module), `apply -refresh-only` de `pangolin_config` (réécrit le state
   avec la nouvelle clé), plans de `site` et `github`, puis retirer les replis.
+  Piège : le state range le sel PBKDF2 sous le nom du `key_provider`
+  (`key_provider.pbkdf2.pangolin_config`) ; le fournisseur de l'ancienne valeur
+  garde ce nom, celui de la nouvelle en prend un autre, le même dans les trois
+  modules (test `state_readers_share_the_key_provider_name` à suivre) ; essayer
+  d'abord sur un state local factice.
   Mettre à jour `last_rotated` des deux entrées de `secrets-rotation.yaml`.
 - `github_actions_sops_age_key` : voir
   [perte-cle-ou-poste.md](perte-cle-ou-poste.md) ; une nouvelle clé age ne
