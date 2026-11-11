@@ -77,6 +77,11 @@
           - postiz_env.JWT_SECRET not in postiz_env.DATABASE_URL
           - postiz_env.DATABASE_URL is match('^postgresql://postiz:[0-9a-f]{64}@postgres:5432/postiz$')
           - postiz_env.DISABLE_REGISTRATION == 'true'
+          # SMTP Infomaniak, compte partagé (fake_secrets.yml).
+          - postiz_env.EMAIL_PROVIDER == 'nodemailer'
+          - postiz_env.EMAIL_HOST == 'mail.infomaniak.com'
+          - postiz_env.EMAIL_USER == pangolin_smtp_user
+          - postiz_env.EMAIL_PASS == pangolin_smtp_pass
           # Pocket ID (sorties fictives du converge).
           - postiz_env.POSTIZ_GENERIC_OAUTH == 'true'
           - postiz_env.POSTIZ_OAUTH_AUTH_URL == 'https://idp.example.invalid/authorize'

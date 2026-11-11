@@ -38,10 +38,13 @@ premier a sa propre organisation, les suivants aussi : les inviter dans la
 tienne depuis Settings → Team. `DISABLE_REGISTRATION=true` ferme l'inscription
 locale dès qu'une organisation existe : **te connecter le premier**.
 
-**Pas de secours local** : un compte créé par OIDC n'a pas de mot de passe, et
-aucun envoi de mail n'est configuré (« mot de passe oublié » ne part pas). Si
-Pocket ID est en panne, c'est lui qu'on dépanne (`docs/runbooks/pocket-id.md`,
-« Secours »).
+**Pas de secours local éprouvé** : un compte créé par OIDC n'a pas de mot de
+passe. Les mails partent par le compte Infomaniak partagé (`pangolin_smtp_*`,
+`EMAIL_*` du `.env`) : « mot de passe oublié » (`/auth/forgot`) devrait en
+poser un, **non essayé**. Si Pocket ID est en panne, c'est d'abord lui qu'on
+dépanne (`docs/runbooks/pocket-id.md`, « Secours »).
+
+Changer `pangolin_smtp_pass` : relancer aussi `flip.yml --tags postiz`.
 
 ## Médias : `/uploads/*` est public
 
