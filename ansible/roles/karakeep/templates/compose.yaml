@@ -109,6 +109,8 @@ services:
       # propre healthcheck (6 Mo/jour de json-file, recopiés dans journald et
       # VictoriaLogs). Les avertissements et erreurs restent.
       MEILI_LOG_LEVEL: WARN
+    # Le défaut (10 s) tue Meilisearch d'un SIGKILL au `compose stop` de dc@.
+    stop_grace_period: 60s
     volumes:
       - ./meilisearch:/meili_data
     networks:

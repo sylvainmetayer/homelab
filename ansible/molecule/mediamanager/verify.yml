@@ -60,6 +60,8 @@
           # La base : jamais sur proxy ni sur un réseau qui sort.
           - mm_verify_db.networks.keys() | list == ['db']
           - mm_verify_db.ports is not defined
+          - mm_verify_db.stop_grace_period is defined
+          - mm_verify_db.healthcheck.start_period is defined
           - mm_verify_db.mem_limit | int == 268435456
           - mm_verify_db.mem_reservation | int == 134217728
           - mm_verify_db.image is match('docker.io/library/postgres:17\.')
