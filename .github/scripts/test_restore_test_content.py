@@ -168,7 +168,35 @@ class RestoreEngines(unittest.TestCase):
         self.assertNotIn("oc_a", self.shown(printed))
 
 
+class CheckExpectedPath(unittest.TestCase):
+    FILES = [(10, "opt/apps/immich/compose.yaml"), (5, "opt/apps/immich/library/upload/a.jpg")]
+
+    def test_file_under_the_folder(self):
+        rt.check_expected_path({"expected_path": "opt/apps/immich/library"}, self.FILES)
+
+    def test_folder_missing_fails_though_other_files_exist(self):
+        with self.assertRaisesRegex(rt.RestoreError, "aucun fichier sous opt/apps/immich/library"):
+            rt.check_expected_path({"expected_path": "opt/apps/immich/library"}, self.FILES[:1])
+
+    def test_a_sibling_sharing_the_prefix_does_not_count(self):
+        with self.assertRaises(rt.RestoreError):
+            rt.check_expected_path({"expected_path": "opt/apps/immich/lib"}, self.FILES)
+
+    def test_a_single_file_path(self):
+        rt.check_expected_path({"expected_path": "opt/apps/immich/compose.yaml"}, self.FILES)
+
+    def test_no_expected_path(self):
+        rt.check_expected_path({}, [])
+
+
 class Manifest(unittest.TestCase):
+    def test_expected_path_is_a_relative_archive_path(self):
+        for app, entry in MANIFEST.items():
+            with self.subTest(app=app):
+                path = entry.get("expected_path", "x")
+                self.assertIsInstance(path, str)
+                self.assertFalse(path.startswith("/") or path.endswith("/"))
+
     def test_every_app_with_a_database_says_what_it_must_hold(self):
         for app, entry in MANIFEST.items():
             with self.subTest(app=app):

@@ -183,5 +183,3 @@
     borgmatic_app_healthcheck_url: "{{ kdrive_sync_backup_healthcheck_url }}"
     borgmatic_app_source_directories:
       - "{{ kdrive_sync_share_path }}"
-    borgmatic_app_extra_options:
-      source_directories_must_exist: true

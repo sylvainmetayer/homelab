@@ -14,6 +14,9 @@ source_directories:
     # Copies cohérentes des bases SQLite, faites par le hook before plus bas.
     - {{ sqlite_staging | to_json }}
 {% endif %}
+# Une source absente (dossier renommé, export non monté) fait échouer la
+# sauvegarde au lieu de produire une archive sans les données.
+source_directories_must_exist: true
 {% if borgmatic_app_postgresql_databases | length > 0 %}
 
 # pg_dump tourne dans le conteneur de la base : client et serveur toujours de

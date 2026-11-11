@@ -307,6 +307,15 @@ def check_expected_present(entry, names):
         raise RestoreError(f"{', '.join(missing)} : base de expected_tables absente de l'archive")
 
 
+def check_expected_path(entry, files):
+    """The archive holds a file under the app's data folder (apps.json
+    "expected_path"): a renamed or unmounted source is skipped by borg with no
+    error, the dump and compose.yaml alone would still pass."""
+    prefix = entry.get("expected_path")
+    if prefix and not any(path == prefix or path.startswith(prefix.rstrip("/") + "/") for _, path in files):
+        raise RestoreError(f"aucun fichier sous {prefix} dans l'archive (dossier de données absent ou vide)")
+
+
 def check_content(entry, name, label, content):
     """content is {table: holds a row}. Table names here come from apps.json
     (public) or the check's own count, never from a row."""
@@ -348,6 +357,7 @@ def restore(entry, workdir):
     sqlite = [path for _, path in files if path.startswith(SQLITE_STAGING + entry["repo"] + "/")]
     check_databases(entry, dumps, sqlite)
     check_expected_present(entry, [name for _, name, _ in dumps] + [pathlib.PurePosixPath(path).name for path in sqlite])
+    check_expected_path(entry, files)
     candidates = [path for size, path in files
                   if 0 < size <= SAMPLE_MAX_BYTES and not DUMP_RE.search(path)
                   and not path.startswith(SQLITE_STAGING)]
