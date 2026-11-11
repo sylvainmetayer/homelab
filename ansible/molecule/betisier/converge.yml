@@ -1,6 +1,10 @@
 ---
 - name: Converge
   hosts: all
+  # Le réseau public sans SSO, prêt pour la VM docker mais pas encore activé
+  # dans host_vars/docker : testé allumé ; éteint, le compose reste celui d'avant.
+  vars:
+    newt_public_network_enabled: true
   vars_files:
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml

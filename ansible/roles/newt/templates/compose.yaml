@@ -36,6 +36,9 @@ services:
       - socket-proxy
     networks:
       - newt
+{% if newt_public_network_enabled %}
+      - newt-public
+{% endif %}
 
   # Seul à voir le socket Docker. Sortie en socket unix (./socket), aucun
   # réseau : rien d'autre que newt ne peut l'atteindre. Liste blanche dans les
@@ -79,3 +82,10 @@ networks:
   newt:
     name: newt
     driver: bridge
+{% if newt_public_network_enabled %}
+  # Applis publiques sans SSO (README du rôle) : créé ici, comme `newt`, avant
+  # qu'elles ne démarrent (newt est avant elles dans chaque playbook).
+  newt-public:
+    name: newt-public
+    driver: bridge
+{% endif %}

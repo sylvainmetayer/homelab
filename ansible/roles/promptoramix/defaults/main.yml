@@ -1,6 +1,10 @@
 ---
 promptoramix_base_path: "{{ docker_base_path }}/promptoramix"
 
+# Public sans SSO : sur `newt-public` quand le rôle newt le crée (host_vars),
+# pour ne pas voir Flip Planning sur `newt` (README du rôle newt).
+promptoramix_newt_network: "{{ 'newt-public' if newt_public_network_enabled | default(false) else 'newt' }}"
+
 # Secret HMAC partagé avec la plateforme Linkx : l'application rejette toute
 # requête dont la signature ne correspond pas. C'est sa seule protection, la
 # ressource Pangolin étant ouverte à tous (tofu/pangolin_config/website_promptoramix.tf).

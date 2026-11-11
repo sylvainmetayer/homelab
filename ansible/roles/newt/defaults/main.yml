@@ -8,6 +8,17 @@ newt_endpoint: ""
 # host_vars/docker, relais de toutes les applis de la VM.
 newt_mem_limit: 256m
 
+# Second réseau externe, `newt-public`, que Newt rejoint à côté de `newt` : les
+# applis publiques SANS SSO y vont À LA PLACE de `newt` et ne voient plus les
+# autres applis (une exécution de code dans l'une ne donne plus d'accès direct,
+# sans SSO ni filtre pays, à ses voisines). Newt les sert toujours : il est sur
+# les deux réseaux et résout le nom de conteneur de la cible par le DNS Docker.
+# Faux = un seul réseau, `newt`, comme avant. Les rôles des applis sans SSO
+# (promptoramix, betisier) lisent la même variable pour choisir leur réseau :
+# la poser par hôte (host_vars), avant que ces rôles ne tournent, et jamais
+# sur le drill (docker_drill ne crée que `newt`).
+newt_public_network_enabled: false
+
 # Proxy du socket Docker (wollomatic/socket-proxy, #853) : newt ne voit que
 # son socket unix, qui ne laisse passer que les appels de newt (liste lue dans
 # docker/docker.go de fosrl/newt 1.19.0, client moby v0.6.2 ; sous 1.20.0, les

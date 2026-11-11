@@ -20,19 +20,21 @@
       # Le modèle rendu inclut le .env, donc le secret.
       no_log: true
 
-    # Pangolin résout la cible par nom de conteneur sur le réseau newt
-    # (tofu/pangolin_config/website_promptoramix.tf, ip = "promptoramix").
-    # Un seul conteneur : pas de réseau privé.
-    - name: Assert promptoramix is reachable by Pangolin on the newt network only
+    # Pangolin résout la cible par nom de conteneur, par Newt, sur le réseau
+    # newt-public (host_vars/flip) et non `newt` : sans SSO, il ne doit pas voir
+    # les autres applis (tofu/pangolin_config/website_promptoramix.tf,
+    # ip = "promptoramix"). Un seul conteneur : pas de réseau privé.
+    - name: Assert promptoramix is reachable by Pangolin on the newt-public network only
       vars:
         promptoramix_compose: "{{ promptoramix_compose_raw.stdout | from_json }}"
       no_log: true
       ansible.builtin.assert:
         that:
           - promptoramix_compose.services.app.container_name == 'promptoramix'
-          - promptoramix_compose.services.app.networks.keys() | list == ['newt']
-          - promptoramix_compose.networks.newt.external
-        fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt : {{ promptoramix_compose.services.app }}"
+          - promptoramix_compose.services.app.networks.keys() | list == ['newt-public']
+          - promptoramix_compose.networks['newt-public'].external
+          - "'newt' not in promptoramix_compose.networks"
+        fail_msg: "promptoramix doit s'appeler 'promptoramix' et n'être que sur le réseau externe newt-public : {{ promptoramix_compose.services.app }}"
 
     # Exposé à tout Internet sans SSO (signature HMAC seule) : racine en
     # lecture seule, aucune capacité.

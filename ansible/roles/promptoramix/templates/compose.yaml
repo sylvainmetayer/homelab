@@ -37,10 +37,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit.
+    # Seul conteneur du projet : pas de réseau privé, le réseau de newt suffit.
     networks:
-      - newt
+      - {{ promptoramix_newt_network }}
 
 networks:
-  newt:
+  {{ promptoramix_newt_network }}:
     external: true
