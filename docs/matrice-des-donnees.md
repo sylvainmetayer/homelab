@@ -106,7 +106,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS ; **pas dans Borg** | non | sans objet : à ré-obtenir ; origine non précisée dans le dépôt | non | panne des deux disques, vol, incendie, suppression au-delà des instantanés (fréquence non trouvée dans le dépôt) |
+| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS ; **pas dans Borg** | non | sans objet : à ré-obtenir ; origine non précisée dans le dépôt | non | panne des deux disques, vol, incendie, suppression au-delà des instantanés (un par jour à 00:00, relevé du 11/11 ; rétention à lire dans UGOS) |
 | Jellyfin : config et base | 2 | Borg `jellyfin` à 02:30 (conteneur borgmatic), copies SQLite | oui | ~30 min (est.) | CI | médias (ligne précédente) |
 | **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main : un par jour à 00:00, gardés 14 jours (relevé du 07/11, [kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier modifié à taille égale n'est pas recopié |
 | **Archives vzdump** (`pve-backup`) | 3 | voir la VM docker | non | — | voir la VM docker | non chiffrées, sans partage SMB, export réservé à l'IP de l'hôte |
@@ -172,7 +172,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
    restauration écrite, jamais jouée. **Scrub Btrfs du NAS : aucun planifié
    par le dépôt, par choix** (UGOS n'est pas géré par Ansible : [sante-des-disques.md](runbooks/sante-des-disques.md),
    « Scrub Btrfs du NAS ») ; au relevé du 05/11, aucun scrub n'avait tourné
-   (`btrfs scrub status` : « no stats available »). Un scrub planifié dans
+   (`btrfs scrub status` : « no stats available ») ; un a tourné le 07/11 (relevé du 11/11). Un scrub planifié dans
    UGOS : à vérifier sur l'hôte. Le S.M.A.R.T. des disques est lu par Beszel
    (verdict global) ; le code prévoit en plus `smart_check` chaque lundi
    (secteurs et usure, alerte sur une hausse, #1207), déployé à la main
@@ -193,14 +193,14 @@ Ce que la matrice montre et qui n'est ni décidé ni couvert. Aucun achat
 proposé ici.
 
 1. **Médias du NAS** : ni Borg ni copie hors de la maison ; RAID 1 et
-   instantanés Btrfs seulement, dont la fréquence n'est pas dans le dépôt.
+   instantanés Btrfs seulement (un par jour à 00:00 au relevé du 11/11, rétention inconnue).
 2. **Immich, seule copie hors site** : une archive Borg par nuit ; taille et
    durée d'extraction complète jamais relevées ; aucun test n'extrait les
    originaux en entier.
 3. **Hôte Proxmox** : l'installation de l'hôte n'est pas décrite ; la
    restauration de `/etc/pve` depuis Borg n'a jamais été jouée ; la VM n'a
    jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11 ; planification dans UGOS à vérifier ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main ; déploiement effectif à vérifier, le Pi le reçoit par la CI).
+4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11, un le 07/11 ; planification dans UGOS à vérifier ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou une fois déployé (`pve.yml` et `nas.yml` à la main ; déploiement effectif à vérifier, le Pi le reçoit par la CI).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

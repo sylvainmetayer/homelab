@@ -16,8 +16,8 @@ sur place ».
   rouge (disques `sda` et `sdb` suivis, `host_vars/nas` ; `sdc` retiré depuis son décrochage du 05/11).
 - Ou, plus tôt, le lundi : moniteur « S.M.A.R.T. NAS » et message ntfy
   (topic `scripts`) de `smart_check` sur une hausse des secteurs de `sda` ou
-  `sdb` ([sante-des-disques.md](sante-des-disques.md)), si `smart_check`
-  est déployé sur le NAS (`nas.yml`, à la main : « À vérifier sur place »).
+  `sdb` ([sante-des-disques.md](sante-des-disques.md)) : `smart_check` est
+  déployé sur le NAS (`nas.yml`, à la main ; timer présent au relevé du 11/11).
 - Ou le NAS ne répond plus : moniteurs « Healthcheck NAS », « Certificats
   NAS », « kDrive vers NAS » et « Backup Jellyfin » rouges ensemble, agent
   Beszel `nas` hors ligne.
@@ -79,8 +79,8 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
    sont sains et seul le boîtier est mort : essayer de les monter dans un
    boîtier Ugreen identique (reprise du RAID par UGOS : « À vérifier sur
    place ») avant de les formater.
-2. **NAS neuf, dans UGOS** : IP `192.168.1.137` (réservation de la Bbox ou IP
-   fixe d'UGOS : « À vérifier sur place », [bbox-remplacee.md](bbox-remplacee.md)), compte
+2. **NAS neuf, dans UGOS** : IP `192.168.1.137` (en DHCP : réservation de la Bbox,
+   relevé du 11/11, à refaire avec la MAC du NAS neuf, [bbox-remplacee.md](bbox-remplacee.md)), compte
    `sylvain` avec la clé SSH, volume RAID 1, application Docker d'UGOS (elle
    crée le dossier partagé `docker`), puis les dossiers partagés `media`,
    `kdrive` (instantanés réglés à la main), `pve-backup` (corbeille décochée, ni SMB ni
@@ -167,12 +167,11 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 - Stockage, volume `volume1` : l'intitulé exact de l'alerte d'un RAID
   dégradé, le nom de l'assistant de réparation (A.3), et s'il existe un
   scrub planifié ([sante-des-disques.md](sante-des-disques.md), « Scrub
-  Btrfs du NAS » : aucun n'avait tourné au relevé du 05/11).
-- Instantanés : planification du dossier `media` (le dépôt n'en donne ni
-  l'existence ni la fréquence ; `kdrive` : un par jour, 14 jours,
-  [kdrive-nas.md](kdrive-nas.md)).
-- Réseau : IP `192.168.1.137` fixe dans UGOS, ou en DHCP (alors réservée
-  dans la Bbox, à relever avec sa MAC).
+  Btrfs du NAS » : aucun au relevé du 05/11, un terminé le 07/11, planification inconnue).
+- Instantanés : rétention du dossier `media` (un par jour à 00:00 au relevé
+  du 11/11 ; `kdrive` : un par jour, 14 jours, [kdrive-nas.md](kdrive-nas.md)).
+- Réseau : la MAC du NAS, que vise le bail réservé `192.168.1.137` de la
+  Bbox (le NAS est en DHCP, relevé du 11/11).
 - Terminal ou SSH d'UGOS : un moyen de lire la clé d'hôte sans réseau (B.3).
 
 **Boîtier et disques** :
@@ -203,7 +202,7 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 - Instantanés : 35 au total, un par jour à 00:00 pour `media`, `pve-backup`
   et `kdrive` (`@snapshot/share_folder/<dossier>/GMT+01_<date>`). Le dossier
   `media` en a donc bien, sur les mêmes disques.
-- Réseau : `192.168.1.137` est obtenue **par DHCP** (bail dynamique sur
+- Réseau : `192.168.1.137` est obtenue **par DHCP** (sur
   `eth0`), pas fixée dans UGOS : elle dépend d'un bail réservé dans la Bbox.
   MAC à relever sur place, hors du dépôt.
 - `smart-check.timer` est déployé (dernier passage le 09/11), ainsi que

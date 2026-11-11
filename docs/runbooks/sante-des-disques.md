@@ -185,8 +185,9 @@ plus de `/dev/sdc` à 16:48. Il ne porte que 680 Mo. Décision du 05/11/2026 : i
 mais rien ne doit compter sur lui, aucune copie ni sauvegarde (la règle « remplacer
 le disque » du contrôle trimestriel ne s'applique donc pas à lui).
 
-Volume `/volume1` : `btrfs scrub status` répond « no stats available », aucun
-scrub n'a donc tourné ; `btrfs device stats` est à 0 partout. Le RAID 1 est un `md` : `lsblk` montre
+Volume `/volume1`, au 05/11 : `btrfs scrub status` répond « no stats available », aucun
+scrub n'avait donc tourné (au 11/11 : un scrub terminé le 07/11, 3 h 18 pour 1,93 Tio ;
+planification à lire dans UGOS) ; `btrfs device stats` est à 0 partout. Le RAID 1 est un `md` : `lsblk` montre
 `sda2` et `sdb2` en `md1` (raid1, `[UU]` dans `/proc/mdstat`), puis LVM
 (un volume logique `…-volume1`), puis Btrfs monté sur `/volume1`. Un scrub détecte donc
 une corruption des données sans la réparer depuis l'autre disque.
