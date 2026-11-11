@@ -48,6 +48,7 @@ def declared_systems():
 class State:
     def __init__(self, config):
         self.email = config["email"]
+        self.user_email = config.get("user_email", self.email)
         self.user_id = config["user_id"]
         # The hub's Settings.SuperuserIPs (empty: no restriction).
         self.superuser_ips = config.get("superuser_ips", [])
@@ -138,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
         # The role filters on role="admin" (one admin account).
         wanted = parse_qs(urlparse(self.path).query).get("filter", [""])[0]
         found = wanted == 'role="admin"'
-        return self.reply(200, {"items": [{"id": self.state.user_id, "email": self.state.email}] if found else []})
+        return self.reply(200, {"items": [{"id": self.state.user_id, "email": self.state.user_email}] if found else []})
 
     def get_alerts(self, _path):
         return self.reply(200, {"items": self.state.alerts})
