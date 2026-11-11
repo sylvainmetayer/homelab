@@ -71,6 +71,11 @@
           - (openpost_env.OPENPOST_ENCRYPTION_KEY | b64decode | length) == 32
           - openpost_env.OPENPOST_JWT_SECRET != openpost_env.OPENPOST_ENCRYPTION_KEY
           - openpost_env.OPENPOST_TRUSTED_PROXY_CIDRS == '172.16.0.0/12'
+          # Pocket ID (sorties fictives du converge), bouton sur la page de login.
+          - openpost_env.OPENPOST_OIDC_ISSUER == 'https://idp.example.invalid'
+          - openpost_env.OPENPOST_OIDC_CLIENT_ID == 'molecule-pocket-id-openpost-client-id'
+          - openpost_env.OPENPOST_OIDC_CLIENT_SECRET == 'molecule-pocket-id-openpost-client-secret'
+          - openpost_env.OPENPOST_OIDC_JIT_ENABLED == 'true'
           - openpost_env.OPENPOST_EMAIL_PROVIDER == 'smtp'
           - openpost_env.OPENPOST_SMTP_HOST == 'mail.infomaniak.com'
           - openpost_env.OPENPOST_SMTP_USERNAME == pangolin_smtp_user

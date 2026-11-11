@@ -3855,12 +3855,13 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_group.pangolin_role["mediamanager-admin"].name == "mediamanager-admin"
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "terraform_outputs.pocket_id_mediamanager_tools_client_secret.value")
       && strcontains(file("${path.module}/../../ansible/roles/nas_proxy/defaults/main.yml"), "\nnas_proxy_oauth2_group: mediamanager-admin\n")
-      # OpenPost : confidentiel, PKCE, réservé à son groupe ; rappel à joker
-      # (l'id du fournisseur naît dans OpenPost), secret saisi à la main.
+      # OpenPost : confidentiel, PKCE, réservé à son groupe ; rappel du
+      # fournisseur d'instance, lu par le rôle.
       && pocketid_client.openpost.is_public == false
       && pocketid_client.openpost.pkce_enabled == true
-      && pocketid_client.openpost.callback_urls == tolist(["https://posts.sylvain.cloud/api/v1/auth/oidc/*/callback"])
+      && pocketid_client.openpost.callback_urls == tolist(["https://posts.sylvain.cloud/api/v1/auth/oidc/instance/callback"])
       && toset(pocketid_client.openpost.allowed_user_groups) == toset([pocketid_group.pangolin_role["openpost"].id])
+      && strcontains(file("${path.module}/../../ansible/roles/openpost/defaults/main.yml"), "terraform_outputs.pocket_id_openpost_client_secret.value")
     )
     error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin, Prowlarr/qBittorrent et OpenPost de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
