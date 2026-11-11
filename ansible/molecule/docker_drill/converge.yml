@@ -14,9 +14,12 @@
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
     # hetzner.py met la copie dans ce groupe : le rôle refuse tout autre hôte.
+    # changed_when : group_by rend « changed » à chaque play neuve (ajout de
+    # l'hôte au groupe), ce qui faisait échouer l'étape idempotence.
     - name: Put the host in the drill group
       ansible.builtin.group_by:
         key: drill
+      changed_when: false
 
   roles:
     - role: docker_drill

@@ -294,7 +294,10 @@ jobs:
           done
           # Les déploiements tournent sous Mitogen (ansible.cfg) que Molecule ne
           # lit pas : un scénario rejoué avec la même stratégie, pour qu'une
-          # montée d'ansible ou de Mitogen casse ici et non au merge. Repli en
+          # montée d'ansible ou de Mitogen qui casse la stratégie casse ici et
+          # non au merge. Limite : Mitogen ne remplace pas la connexion
+          # community.docker.docker de Molecule (seulement ssh, docker…), son
+          # transport n'est donc pas exercé, seulement son chargement. Repli en
           # production : ANSIBLE_STRATEGY=linear (docs/runbooks/deploiement-ci-casse.md).
           if [[ " $SCENARIOS " == *" docker_service "* ]]; then
             echo "::group::molecule test docker_service (mitogen_linear)"
