@@ -145,7 +145,8 @@ mediamanager_qbittorrent_webui_port: 8080
 mediamanager_prowlarr_port: 9696
 
 # Réseau du projet, à sous-réseau fixe, hors de ceux déjà pris sur le NAS
-# (bridge 172.17, newt 172.18, jellyfin_media 172.30.96, virbr 192.100).
+# (bridge 172.17, newt 172.18 ou 172.30.98 si newt_subnet est posé,
+# jellyfin_media 172.30.96, virbr 192.100).
 mediamanager_subnet: 172.30.97.0/24
 
 # --- Limites (docs/conventions/resource-limits.md) -----------------------------

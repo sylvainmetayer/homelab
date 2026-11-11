@@ -41,7 +41,7 @@ jellyfin_mem_limit: 3g
 # que rejoint le Traefik du NAS (rôle nas_proxy) à IP fixe dans ce sous-réseau
 # (nas_proxy_media_ip, 172.30.96.10, saisie dans les « Proxys connus » de
 # Jellyfin). Créé par ce projet, externe pour nas_proxy. Hors des réseaux déjà
-# pris sur le NAS (bridge 172.17, newt 172.18, virbr 192.100).
+# pris sur le NAS (bridge 172.17, newt 172.18 ou 172.30.98 si newt_subnet est posé, virbr 192.100).
 jellyfin_proxy_subnet: 172.30.96.0/24
 # --- Sauvegarde (rôle borgmatic, tasks/app.yml ; borgmatic en conteneur sur
 # le NAS) : configuration, base SQLite copiée à froid par « .backup », compose.
