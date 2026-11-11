@@ -20,15 +20,6 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.7"
     }
-    # Plus aucun usage dans la configuration, mais le state garde
-    # data.sops_file.secrets jusqu'à l'apply qui le purge : sans cette entrée,
-    # chaque `tofu init` avec backend réinstalle la dernière version et réécrit
-    # .terraform.lock.hcl. À retirer (ici et dans le lock), une fois le state
-    # purgé (README, « Secrets and state »).
-    sops = {
-      source  = "carlpett/sops"
-      version = "~> 1.3"
-    }
     # Clients OIDC et groupes de Pocket ID (pocket_id.tf, ADR 0030).
     pocketid = {
       source  = "trozz/pocketid"
