@@ -4,7 +4,7 @@
 # Les applis du homelab appellent les modèles par cette ressource `inference`,
 # chacune avec sa clé virtuelle et son budget, au lieu d'une clé Anthropic par
 # appli. Phase d'essai : la clé « essai » et celles des applis (local.ai_keys) ;
-# MCP viendra après l'essai et l'ADR 0031.
+# MCP viendra après l'essai et l'ADR 0032.
 #
 # Allumée par local.ai_gateway_enabled, jamais par la seule présence de sa
 # clé : une clé SOPS perdue (fusion ratée dans le sous-module) détruirait sans

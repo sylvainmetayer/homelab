@@ -20,7 +20,8 @@
       - security_devsec_sysctl['net.ipv4.ip_forward'] | int == 1
       - security_devsec_sysctl['net.ipv4.conf.all.rp_filter'] | int != 1
       - security_devsec_sysctl['net.ipv4.conf.default.rp_filter'] | int != 1
-      # Réseau compose `pangolin` en enable_ipv6 : 0 couperait son forward IPv6.
+      # Un réseau compose en enable_ipv6 verrait son forward IPv6 coupé par un 0
+      # (aucun aujourd'hui : voir defaults/main.yml).
       - security_devsec_sysctl['net.ipv6.conf.all.forwarding'] | int == 1
       - security_devsec_sysctl['net.ipv6.conf.default.forwarding'] | int == 1
     fail_msg: >-

@@ -14,7 +14,10 @@ backup_storage_box_subaccount: "{{ backup_storage_box_subaccounts.docker }}"
 # --- Durcissement (rôle security, lot 5 du plan) ---
 # Hôte du LAN, derrière la box : SSH n'est ouvert qu'au réseau local (ton
 # poste, le LXC newt par où passe la CI). Les ports publiés par Docker
-# contournent ufw (leurs règles passent avant) : les applis passent par newt, rien d'autre n'écoute sur le LAN.
+# contournent ufw (leurs règles passent avant) : les applis passent par newt ;
+# sur le LAN n'écoutent aussi, exprès, le hub Beszel (192.168.1.216:8090) et
+# vmauth de VictoriaLogs (192.168.1.216:9428, pour les agents), chacun gardé par
+# son propre compte.
 security_ufw_allowed_ports:
   - { port: "22", proto: tcp, from: 192.168.1.0/24 }
 # Tout le LAN ne doit jamais être banni : la CI arrive par le LXC newt, et un

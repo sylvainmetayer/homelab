@@ -60,7 +60,9 @@ security_ssh_allow_users: sylvain
 
 # Comportement d'avant devsec : l'ancien drop-in ne le fixait pas (sshd
 # l'autorise par défaut), et group_vars/all/devsec.ssh_hardening.yml le voulait
-# à true.
+# à true. Gardé voulu : Sylvain utilise `ssh -A` à la main (git depuis un
+# serveur), décision du 2026-11-11 ; rien dans le dépôt n'en dépend (ProxyJump
+# seul).
 security_ssh_allow_agent_forwarding: true
 
 # 2 (défaut devsec) coupe un agent qui présente plusieurs clés.
@@ -149,9 +151,12 @@ security_devsec_sysctl_overwrite:
   net.ipv4.conf.all.rp_filter: 2
   net.ipv4.conf.default.rp_filter: 2
   # Défaut devsec 0, mais Docker le remet à 1 dès qu'il démarre un réseau
-  # IPv6 (celui de Pangolin, compose `pangolin`) : devsec le rebasculerait à
-  # chaque run (jamais idempotent) et couperait l'IPv6 de ce bridge à chaud.
-  # Sans effet réel : l'IPv6 de l'hôte est désactivé au boot (ci-dessous).
+  # IPv6 : devsec le rebasculerait à chaque run (jamais idempotent) et
+  # couperait l'IPv6 de ce bridge à chaud. Aujourd'hui aucun réseau compose
+  # n'en a (`enable_ipv6: false`, compose `pangolin` compris) et l'IPv6 de
+  # l'hôte est désactivé au boot (ci-dessous) : valeur gardée pour ne rien
+  # changer au comportement, sans effet réel ; à réexaminer avec l'assert de
+  # tasks/devsec.yml si l'on ne veut plus jamais de réseau IPv6.
   net.ipv6.conf.all.forwarding: 1
   net.ipv6.conf.default.forwarding: 1
   # Pas ici, chargés tout de suite, mais au boot dans 99-hardening.conf
