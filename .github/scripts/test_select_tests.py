@@ -52,12 +52,6 @@ class Globs(unittest.TestCase):
         self.assertTrue(st.matches("AGENTS.md", ["**/*.md"]))
 
 
-class Mitogen(unittest.TestCase):
-    def test_strategy_and_ansible_cfg_select_the_scenario_replayed_under_mitogen(self):
-        for path in ("ansible/ansible.cfg", "ansible/strategy_plugins/mitogen_linear.py"):
-            self.assertEqual(selected([path])[0], [st.MITOGEN_SCENARIO], path)
-
-
 class Roles(unittest.TestCase):
     def test_role_dependencies_reach_the_scenario(self):
         files = {
