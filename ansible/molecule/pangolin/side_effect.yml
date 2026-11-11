@@ -64,6 +64,9 @@
           # security-headers ne dépend pas de CrowdSec : il reste seul.
           - traefik_config.entryPoints.websecure.http.middlewares == ['security-headers@file']
           - dynamic_config.http.middlewares['security-headers'].headers.stsSeconds == 31536000
+          - dynamic_config.http.middlewares['security-headers'].headers.contentTypeNosniff
+          - dynamic_config.http.middlewares['security-headers'].headers.referrerPolicy == 'strict-origin-when-cross-origin'
+          - not dynamic_config.http.middlewares['security-headers'].headers.frameDeny | default(false)
           # Le même nom, sans plugin : l'entrypoint que Traefik garde jusqu'à
           # son redémarrage désigne encore crowdsec@file.
           - "'plugin' not in dynamic_config.http.middlewares.crowdsec"
