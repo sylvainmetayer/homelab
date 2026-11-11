@@ -35,10 +35,12 @@ locals {
 # (docs/self-hosting/reverse-proxy: « /media/ must return files without
 # sign-in or an expiring link »).
 #
-# So: a media is public to whoever holds its URL, from the upload on, posted
-# or not. How the files are named was NOT read off the sources at v7.38.6
-# (path_bypass_images.json lists what to read): until then, treat an uploaded
-# media as public. A Renovate bump of the image is never automerged.
+# OpenPost's own authorisation still applies behind it (handlers/media.go,
+# v7.38.6: serveMedia, authorizeMediaAccess): /media/<uuid v4>, its /thumb/*
+# and /poster answer only a session or token with access to the workspace, or
+# a link signed by the server (`sig` and `exp`, HMAC, mediasigner) - the one
+# it hands to the networks. Without either: 401. A Renovate bump of the image
+# is never automerged (path_bypass_images.json): that check is read again.
 locals {
   openpost_media_paths = {
     "/media/*" = 2
