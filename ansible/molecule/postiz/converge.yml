@@ -24,7 +24,4 @@
         postiz_backup_healthcheck_url: https://uptime.example.invalid/api/push/tofu-postiz-backup
   roles:
     - role: docker_service
-    # host_vars/flip met Postiz en pause : le scénario vérifie l'appli en service.
     - role: postiz
-      vars:
-        postiz_enabled: true
