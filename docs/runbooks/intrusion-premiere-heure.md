@@ -127,8 +127,8 @@ première trace n'est pas fiable.
 **La limite de temps est de 9 jours** : la Storage Box garde 9 snapshots
 quotidiens (03:00 UTC, après borgmatic), qu'aucun sous-compte ne peut effacer.
 Plus ancien, un effacement ne se prouve ni ne se défait. Restauration d'un
-snapshot depuis le compte principal (`ls -a` doit y montrer `.zfs`, sinon
-l'accès est à activer) : procédure en 6 de
+snapshot depuis le compte principal (`ls -a` doit y montrer `.zfs`, épinglé par
+`zfs_enabled` dans `tofu/pangolin/storage_box.tf`) : procédure en 6 de
 [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), **jamais
 essayée**. **Ne pas « revenir » à un snapshot sur toute la Storage Box** (le
 « Rollback » de la console) : cela écraserait les sauvegardes plus récentes de

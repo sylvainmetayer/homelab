@@ -378,6 +378,11 @@ run "storage_box_backups" {
   }
 
   assert {
+    condition     = hcloud_storage_box.backups.access_settings.zfs_enabled == true
+    error_message = "Le dossier .zfs/snapshot doit rester visible du compte principal : la restauration d'un dépôt depuis un snapshot en dépend (sauvegarde-et-restauration.md, étape 6)."
+  }
+
+  assert {
     condition     = contains(hcloud_storage_box.backups.ssh_keys, trimspace(file("${path.module}/../../keys/perso.pub")))
     error_message = "La Storage Box doit autoriser keys/perso.pub."
   }
