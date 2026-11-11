@@ -88,7 +88,6 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Speedtest Tracker | 3 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | Homepage, Enclosed, MkDocs (`docs_site`), Neonova | 3 | aucune ; sans état ou jetable, redéployés par Ansible | sans objet | < 30 min chacune (est.) | non | notes d'Enclosed éphémères exprès |
 | VictoriaLogs (journaux, 30 jours) | 3 | aucune, « reproductibles » | non | sans objet | non | tous les journaux |
-| MediaManager (essai, NAS) | 3 | config en Borg (NAS) et dump PostgreSQL (`pg_dump -Fc` par l'hôte juste avant, 02:30) | oui | ~30 min (est.) | exclu du test (raison écrite dans `check_restore_coverage.py`) | rien hors du dernier jour |
 
 ### Raspberry Pi (`pi`)
 
@@ -143,7 +142,8 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 | Mot de passe du dépôt restic des KeePass | 1 | papier + SOPS des dotfiles | — | lieu du papier non trouvé dans le dépôt | trimestriel (test à froid) | — |
 | Code, runbooks, Tofu, Ansible | 1 | dépôt GitHub public ; docs aussi sur `docs.sylvain.cloud` | clones locaux | oui | CI | le site de docs passe par le SSO de Pangolin : GitHub sert quand Pangolin tombe |
 | DNS (`tofu/dns`), sites Pages (Cloudflare) | 3 | enregistrements dans le dépôt ; sites dans leurs dépôts | — | oui | non | — |
-| Uptime Kuma (PikaPods) | 3 | moniteurs déclarés dans `tofu/pangolin_config` | recréables | oui | non | historique des mesures : non trouvé dans le dépôt |
+| Uptime Kuma (PikaPods) | 3 | moniteurs déclarés dans `tofu/pangolin_config`, ; dix moniteurs créés à la main et les réglages de notification sont hors Tofu | partiellement recréables : le déclaré revient par `tofu apply`, le reste est à refaire à la main | oui | non | les moniteurs manuels et les notifications ; historique des mesures : non trouvé dans le dépôt |
+| Actual Budget (`budget.sylvain.cloud`, PikaPods, comptes du foyer) | 2 | chez PikaPods ; aucune sauvegarde ni export décrit dans le dépôt | à vérifier : **sauvegarde à vérifier par Sylvain** (option Backups de PikaPods ? export local récent ?) | à vérifier | non | tout, tant que la sauvegarde n'est pas confirmée |
 
 ## Par sinistre
 
@@ -212,8 +212,12 @@ proposé ici.
    de comparaison au vivant, échantillon de 20 fichiers ≤ 5 Mio, aucun
    contrôle de tous les blocs ; la clé de chiffrement de HealthLog n'est pas
    éprouvée.
-9. **Temps de reprise** : une seule reprise mesurée (Pangolin, 45 min). Aucune
-   reconstruction complète de la VM docker ni du Pi n'est décrite.
+9. **Temps de reprise** : deux reprises mesurées, Pangolin (45 min) et la VM
+   docker reconstruite depuis Borg sur un serveur jetable (09/11/2026, 37 min,
+   [runbook](runbooks/reconstruction-vm-docker.md)). Restent non mesurés : la
+   restauration complète de la VM elle-même (archive vzdump) et la reprise du
+   Pi. flip a son runbook ([reconstruction-flip.md](runbooks/reconstruction-flip.md)),
+   jamais joué.
 10. **Autres que Sylvain** : aucun document du dépôt ne s'adresse au foyer
     ou à la famille pour reprendre quoi que ce soit. Non vérifié ligne à ligne.
 11. **Jours sans nuit réussie** : un dépôt dont le dump échoue chaque nuit
