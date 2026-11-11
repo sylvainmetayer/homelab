@@ -217,11 +217,17 @@ tofu -chdir=tofu/github plan
 ```
 
 Pas de bloc `import` : il fait paniquer `tofu test` (docs/conventions/tests.md).
-Le plan qui suit doit être vide, à une exception près : `auto_init` et
-`archive_on_destroy`, attributs du provider sans équivalent côté API,
-s'affichent en « update in-place » ; l'apply les inscrit dans l'état sans
-appeler GitHub. Tout autre écart (fusion, sujets, description, `has_*`) est un
-réglage que l'interface a changé depuis le relevé : trancher avant d'appliquer.
+Le plan qui suit ne doit montrer qu'un « update in-place » de
+`github_repository.homelab`, sur des attributs du provider seul, que l'import
+ne remplit pas : `+ archive_on_destroy = true` et, attendu d'après le code du
+provider 6.13.0 (défaut jamais relu), `+ ignore_vulnerability_alerts_during_read
+= false`. `auto_init` n'y figure pas : l'import l'inscrit à `false`. Cet apply
+**appelle GitHub** : la mise à jour du provider envoie tout le dépôt
+(`PATCH repos/…/homelab` avec les valeurs déclarées ici, description et page
+d'accueil vides comprises), sans effet tant qu'elles égalent le réel : c'est ce
+que garantit un plan sans autre écart. Tout autre écart (fusion, sujets,
+description, `has_*`) est un réglage que l'interface a changé depuis le
+relevé : trancher avant d'appliquer, jamais appliquer par-dessus.
 
 Ce que le provider ne lit ni ne pose, donc **hors Tofu** :
 
