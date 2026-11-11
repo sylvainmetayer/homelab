@@ -130,9 +130,39 @@ restore` des dumps SQL, cas SQLite) est dans
    d'après ce mode, passe à `.backup`, qui ne finit jamais sur une base
    écrite sans cesse (README du rôle `borgmatic`).
 6. **Dépôt lui-même effacé ou abîmé** : les snapshots de la Storage Box
-   (9 quotidiens, `tofu/pangolin/storage_box.tf`) se restaurent depuis la
-   console Hetzner (Storage Box → Snapshots), avec le compte principal.
-   Procédure exacte : à vérifier dans la console.
+   (9 quotidiens, `tofu/pangolin/storage_box.tf`) se lisent depuis le compte
+   principal. **Procédure jamais essayée** (écrite le 11/11 d'après la
+   documentation et l'API Hetzner, à jouer une fois à blanc : audit sv6) :
+   - *Vérifier d'abord que le dossier est visible* (depuis le poste, clé
+     `perso` ou `pro` du compte principal, jamais un sous-compte : leur racine
+     est un sous-dossier, ils ne voient pas `.zfs`) :
+     `sftp -P 23 <uXXXXXX>@<uXXXXXX>.your-storagebox.de`, puis `ls -a`
+     (`.zfs` attendu), `ls .zfs/snapshot` (un dossier par snapshot, nommé
+     d'après sa date). `.zfs` absent : l'accès n'est pas activé, voir
+     « À épingler dans Tofu » ci-dessous.
+   - *Ne pas faire « Rollback »* (console ou `rollback_snapshot`) : il efface
+     les snapshots plus récents et tout ce qui a été écrit depuis, pour tous
+     les hôtes.
+   - *Arrêter la sauvegarde de l'hôte concerné* (`borgmatic.timer`), puis
+     copier le dépôt **à côté**, sans toucher à l'existant :
+     `ssh -p 23 <compte> cp -a .zfs/snapshot/<snapshot>/backup/<hôte>/<app> backup/<hôte>/<app>.restaure`
+     (si `cp` n'est pas accepté par le shell restreint de la Storage Box :
+     `rsync -a -e 'ssh -p 23'` du dossier du snapshot vers le poste, puis
+     retour, ou `mv` de l'ancien dépôt à la place).
+   - *Prouver la copie* avant de la mettre en place :
+     `borg list --bypass-lock ssh://<compte>@<serveur>:23/./backup/<hôte>/<app>.restaure`
+     avec `backup_passphrase` ; la dernière archive doit dater de la veille
+     du snapshot. Puis `mv` de l'ancien dépôt en `.efface` et de `.restaure` à
+     sa place, relancer une sauvegarde (`systemctl start borgmatic.service`) et
+     `borg check --repository-only`.
+   - *À épingler dans Tofu selon le résultat du `ls -a`* : `.zfs` visible, rien
+     (ajouter quand même `zfs_enabled = true` dans `access_settings` de
+     `hcloud_storage_box.backups`, `tofu/pangolin/storage_box.tf`, pour que le
+     plan voie une désactivation) ; absent, activer « Afficher le dossier des
+     snapshots » dans la console (champ `access_settings.zfs_enabled` de
+     l'API, « Whether the ZFS snapshot folder is visible »), relire `ls -a`,
+     puis épingler la même ligne. Le nom d'attribut du provider hcloud est à
+     confirmer par un `tofu plan` sans changement.
 
 ## Restauration d'essai (sans toucher à l'appli)
 
