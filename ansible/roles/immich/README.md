@@ -88,7 +88,7 @@ absente, les trois variables ne sont pas rendues et Find tourne sans IA. Essai
 du 09/11 par curl : JSON structuré correct.
 
 **Accès direct à la base d'Immich.** L'appli se connecte à PostgreSQL
-(`immich_postgres:5432`, réseau `immich`, base `immich`) avec un rôle à elle,
+(`immich_postgres:5432`, réseau `db`, base `immich`) avec un rôle à elle,
 `power_tools` (`immich_power_tools_db_username`), mot de passe dérivé de
 `immich_db_password` (`immich_power_tools_db_password`, posé dans le
 `compose.yaml`, `0600` ; pas de clé SOPS). Lu dans les sources (0.25.0, revu le
