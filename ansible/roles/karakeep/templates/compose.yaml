@@ -24,6 +24,7 @@ services:
       - ./data:/data
     networks:
       - karakeep
+      - internal
       - newt
 
   chrome:
@@ -101,7 +102,7 @@ services:
     volumes:
       - ./meilisearch:/meili_data
     networks:
-      - karakeep
+      - internal
     # L'image installe curl ; /health répond sans la clé maître.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:7700/health"]
@@ -116,9 +117,13 @@ services:
       retries: 5
       start_period: 30s
 
-# Pas `internal: true` : le crawler (chrome) et le web vont chercher les pages
-# sur Internet.
+# `karakeep`, avec sortie : le crawler (chrome) et le web vont chercher les
+# pages sur Internet. `internal: true` : Meilisearch (root, sans cap_drop) n'a
+# pas de sortie et ne partage pas son réseau avec Chromium, le service le plus
+# exposé au contenu extérieur ; seul le web le joint.
 networks:
   karakeep:
+  internal:
+    internal: true
   newt:
     external: true

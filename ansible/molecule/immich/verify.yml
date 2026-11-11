@@ -92,12 +92,20 @@
           - "'newt' not in immich_compose.services.redis.networks"
           - "'newt' not in immich_compose.services['immich-machine-learning'].networks"
 
-    # Hors worker distant, ni Valkey ni Postgres ne sont publiés sur le LAN.
-    - name: Assert the database and redis ports stay on the loopback
+    # Hors worker distant, ni Valkey ni Postgres ne sont publiés, et ils ne sont
+    # que sur le réseau interne `db`, sans sortie vers Internet (ni timelapse
+    # ni machine learning ne les voient).
+    - name: Assert the database and redis publish nothing and sit on the internal network
       ansible.builtin.assert:
         that:
-          - immich_compose.services.database.ports == ['127.0.0.1:5432:5432']
-          - immich_compose.services.redis.ports == ['127.0.0.1:6379:6379']
+          - "'ports' not in immich_compose.services.database"
+          - "'ports' not in immich_compose.services.redis"
+          - immich_compose.networks.db.internal
+          - immich_compose.services.database.networks == ['db']
+          - immich_compose.services.redis.networks == ['db']
+          - "'db' in immich_compose.services['immich-server'].networks"
+          - "'db' not in immich_compose.services['immich-machine-learning'].networks"
+          - "'db' not in immich_compose.services['immich-selfie-timelapse'].networks"
 
     # Valkey exige le mot de passe du .env, que lit immich-server ; dérivé,
     # jamais vide ni égal à celui de la base.
