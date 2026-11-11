@@ -644,10 +644,17 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 6 jetons, 4 rôles, 15 ressources privées, 17 + 16 + 1 liaisons (Admin sur
-  # chacune, plus Immich, Jellyfin et le client de la CI), aucune exception périmée.
+  # 6 jetons et 4 rôles (l'entrée ne compte pas les liaisons, sans quoi chaque
+  # liaison appliquée laisserait un plan non vide), 15 ressources privées,
+  # 17 + 16 + 1 liaisons (Admin sur chacune, plus Immich, Jellyfin et le client
+  # de la CI), aucune exception périmée.
   assert {
-    condition     = terraform_data.access_inventory.output == 59 && length(local.stale_inventory_exceptions) == 0
+    condition = (
+      terraform_data.access_inventory.output == 10
+      && length(local.live_site_resource_names) == 15
+      && length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings) + length(local.live_site_resource_client_bindings) == 34
+      && length(local.stale_inventory_exceptions) == 0
+    )
     error_message = "access_inventory doit lire les 6 jetons, les 4 rôles, les 15 ressources privées et les 34 liaisons de la réponse simulée, et toutes les exceptions y être vivantes."
   }
 }

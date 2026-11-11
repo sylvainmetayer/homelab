@@ -171,11 +171,9 @@ locals {
 }
 
 resource "terraform_data" "access_inventory" {
-  input = (
-    length(local.live_access_tokens) + length(local.live_roles) + length(local.live_site_resource_names)
-    + length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings)
-    + length(local.live_site_resource_client_bindings) + length(local.live_user_bindings)
-  )
+  # Not the binding counts: each binding applied would change it and leave a
+  # non-empty follow-up plan. The preconditions run on every plan anyway.
+  input = length(local.live_access_tokens) + length(local.live_roles)
 
   lifecycle {
     precondition {
@@ -232,7 +230,8 @@ resource "terraform_data" "access_inventory" {
     }
 
     # Bindings and hand-set authentication (binding_inventory.tf). The message
-    # is the same four times: declare it, or remove it in the Pangolin UI.
+    # is the same each time: declare it, or remove it in the Pangolin UI; a
+    # binding or resource this change stops declaring goes by a targeted apply.
     precondition {
       condition = length(local.undeclared_resource_roles) == 0
       error_message = join(" ", [
@@ -240,6 +239,7 @@ resource "terraform_data" "access_inventory" {
         "${join(", ", local.undeclared_resource_roles)}.",
         "Either declare the binding (a pangolin_resource_role) or remove it in the Pangolin UI",
         "(resource, Authentication tab). Admin is never listed.",
+        local.inventory_destroy_hint,
       ])
     }
 
@@ -262,6 +262,7 @@ resource "terraform_data" "access_inventory" {
         "Either declare it (a pangolin_resource_pincode, pangolin_resource_header_auth or",
         "pangolin_resource_password, plus its line in local.declared_*_resource_ids,",
         "binding_inventory.tf) or remove it in the Pangolin UI.",
+        local.inventory_destroy_hint,
       ])
     }
 
@@ -282,6 +283,7 @@ resource "terraform_data" "access_inventory" {
         "Either declare them (a pangolin_site_resource, plus its line in",
         "local.declared_site_resource_ids, binding_inventory.tf, and `tofu import`, see the",
         "README) or delete them in the Pangolin UI.",
+        local.inventory_destroy_hint,
       ])
     }
 
@@ -292,6 +294,7 @@ resource "terraform_data" "access_inventory" {
         "${join(", ", local.undeclared_site_resource_roles)}.",
         "Either declare the binding (a pangolin_site_resource_role, plus its line in",
         "local.declared_site_resource_role_pairs, binding_inventory.tf) or remove it in the Pangolin UI.",
+        local.inventory_destroy_hint,
       ])
     }
 
@@ -302,6 +305,7 @@ resource "terraform_data" "access_inventory" {
         "${join(", ", local.undeclared_site_resource_clients)}.",
         "Either declare the binding (a pangolin_site_resource_client, plus its line in",
         "local.declared_site_resource_client_pairs, binding_inventory.tf) or remove it in the Pangolin UI.",
+        local.inventory_destroy_hint,
       ])
     }
   }
