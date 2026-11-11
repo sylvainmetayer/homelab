@@ -568,16 +568,23 @@ def notify(config, failures, lines):
     else:
         print(f"{NTFY_TOKEN_VARIABLE} vide : rien n'est envoyé à ntfy.", file=sys.stderr)
 
-    url = os.environ.get(PUSH_URL_VARIABLE, "")
-    if url:
-        try:
-            push(url, "down" if failed else "up", "; ".join(failures) or " ; ".join(lines))
-        except Exception as error:  # NOSONAR : voir notify
-            print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
-            problems += 1
-    else:
-        print(f"{PUSH_URL_VARIABLE} vide : rien n'est poussé.", file=sys.stderr)
-    return problems
+    return problems + push_result(PUSH_URL_VARIABLE, failures, lines)
+
+
+def push_result(variable, failures, lines):
+    """Pousse « up » ou « down » à l'URL de l'environnement `variable` ; rend 1
+    si le push échoue. Seule la classe de l'erreur est montrée : elle cite
+    l'URL, donc le jeton."""
+    url = os.environ.get(variable, "")
+    if not url:
+        print(f"{variable} vide : rien n'est poussé.", file=sys.stderr)
+        return 0
+    try:
+        push(url, "down" if failures else "up", "; ".join(failures) or " ; ".join(lines))
+    except Exception as error:  # NOSONAR : voir notify
+        print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def freshness(config):
@@ -603,16 +610,7 @@ def freshness(config):
             failures.append(f"{kind} {source} : erreur inattendue ({type(error).__name__})")
     print("\n".join([f"ÉCHEC : {failure}" for failure in failures] + lines), flush=True)
 
-    problems = 0
-    url = os.environ.get(FRESHNESS_PUSH_URL_VARIABLE, "")
-    if url:
-        try:
-            push(url, "down" if failures else "up", "; ".join(failures) or " ; ".join(lines))
-        except Exception as error:  # NOSONAR : la classe seule, l'erreur cite l'URL donc le jeton
-            print(f"push vers Uptime Kuma en échec : {type(error).__name__}", file=sys.stderr)
-            problems += 1
-    else:
-        print(f"{FRESHNESS_PUSH_URL_VARIABLE} vide : rien n'est poussé.", file=sys.stderr)
+    problems = push_result(FRESHNESS_PUSH_URL_VARIABLE, failures, lines)
     if failures:
         return 1
     return 2 if problems else 0
