@@ -33,7 +33,7 @@ GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
 | Dépôts Borg de tous les hôtes (applis, Immich, Pangolin, flip, Jellyfin) | Storage Box Hetzner, 9 instantanés quotidiens | `backup_passphrase` + une clé SSH d'un sous-compte (voir étage 1) |
 | Pangolin et flip | VM Hetzner, intactes | clé SSH, ou console Hetzner |
 | Secrets (SOPS) | dépôt privé `homelab-secrets` sur GitHub | compte GitHub + une clé age (`perso`, `pro` ou `secours`) |
-| States Tofu | bucket OVH versionné | clés S3 et phrase de chiffrement, **dans les SOPS** |
+| States Tofu | bucket OVH versionné | clés S3 et phrases de chiffrement (la commune, et celle de `pangolin_config`), **dans les SOPS** |
 | Bases KeePass | kDrive (Infomaniak) et restic horaire sur OVH (Object Lock 30 jours) | compte kDrive, ou compte OVH + mot de passe du dépôt restic |
 | Code et runbooks | GitHub (public) | rien |
 | kDrive (Infomaniak) | envois du téléphone, bases KeePass, et 1,27 To de films et séries hors du miroir du NAS (`Backups/Synology/tv`, `movies`, [kdrive-nas.md](kdrive-nas.md)) | compte Infomaniak |

@@ -916,7 +916,9 @@ déconnexion, et n'apporte rien sans fuite.
   (`state`, `plan`, et `remote_state_data_source "pangolin_config"`), poser la
   nouvelle dans les deux clés SOPS (commit dans `secrets/`, bump du
   sous-module), `apply -refresh-only` de `pangolin_config` (réécrit le state
-  avec la nouvelle clé), plans de `site` et `github`, puis retirer les replis.
+  avec la nouvelle clé), plans de `site` et `github`, puis retirer les replis
+  (le test `state_encryption_has_no_fallback` de `tofu/pangolin_config`
+  échoue tant qu'ils sont là : attendu, ne pas merger avant leur retrait).
   Piège : le state range le sel PBKDF2 sous le nom du `key_provider`
   (`key_provider.pbkdf2.pangolin_config`) ; le fournisseur de l'ancienne valeur
   garde ce nom, celui de la nouvelle en prend un autre, le même dans les trois
