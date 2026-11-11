@@ -49,7 +49,8 @@ locals {
 # ntfy's own authorization first: auth-default-access is deny-all, so nothing
 # answers without a declared account (Basic, the phone) or token (Bearer, the
 # publishers), and each producer token only writes its own topic (role ntfy).
-# Read off the ntfy v2.34.0 sources (server/server.go, handleInternal and the
+# Read off the ntfy v2.34.0 sources (the image has moved to v2.37.2 since, the
+# handlers were not read again) (server/server.go, handleInternal and the
 # path regexes above it) and the clients that call them:
 #
 # - `/`: publishing as JSON, the topic in the body (POST/PUT /, handlePublish

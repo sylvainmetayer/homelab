@@ -1822,8 +1822,8 @@ run "php_lockdown_closes_every_public_php_path" {
   }
 
   # Monica, FreshRSS (rss) et BookStack (wiki). Leur SSO, lui, est tenu par
-  # every_public_resource_applies_its_rules (seules Betisier et Promptoramix
-  # s'en passent).
+  # every_public_resource_applies_its_rules (seules Betisier, Promptoramix
+  # et Exemple Planning s'en passent).
   assert {
     condition = length([
       for key, rule in pangolin_resource_rule.path_bypass : key
