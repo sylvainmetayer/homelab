@@ -129,8 +129,8 @@ quotidiens (03:00 UTC, après borgmatic), qu'aucun sous-compte ne peut effacer.
 Plus ancien, un effacement ne se prouve ni ne se défait. Restauration d'un
 snapshot depuis le compte principal (`ls -a` doit y montrer `.zfs`, épinglé par
 `zfs_enabled` dans `tofu/pangolin/storage_box.tf`) : procédure en 6 de
-[sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), **jamais
-essayée**. **Ne pas « revenir » à un snapshot sur toute la Storage Box** (le
+[sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), jouée à
+blanc le 11/11/2026. **Ne pas « revenir » à un snapshot sur toute la Storage Box** (le
 « Rollback » de la console) : cela écraserait les sauvegardes plus récentes de
 tous les hôtes. Lire `.zfs/snapshot/<snapshot>/backup/<hôte>/<app>` en lecture
 seule et n'en recopier que le dépôt effacé. Le test de la CI (1er et 15 du mois) ne

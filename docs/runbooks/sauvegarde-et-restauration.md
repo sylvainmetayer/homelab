@@ -131,29 +131,54 @@ restore` des dumps SQL, cas SQLite) est dans
    écrite sans cesse (README du rôle `borgmatic`).
 6. **Dépôt lui-même effacé ou abîmé** : les snapshots de la Storage Box
    (9 quotidiens, `tofu/pangolin/storage_box.tf`) se lisent depuis le compte
-   principal. **Procédure jamais essayée** (écrite le 11/11 d'après la
-   documentation et l'API Hetzner, à jouer une fois à blanc : audit sv6) :
+   principal. **Jouée à blanc le 11/11/2026** (audit sv6) sur Homebox puis
+   Nextcloud, depuis le snapshot de 03:36 UTC, jusqu'à l'extraction du dump de
+   la base de Nextcloud (253 Mo, 352 tables, « Dump completed ») ; la mise en
+   place à la place du dépôt vivant (les deux `mv` du dernier pas) n'a pas été
+   jouée.
+   - *Le shell de la Storage Box n'exécute qu'une commande par connexion* :
+     `ssh -p 23 <compte> cmd1; cmd2` ne lance que `cmd1`. Une connexion par
+     commande.
    - *Vérifier d'abord que le dossier est visible* (depuis le poste, clé
      `perso` ou `pro` du compte principal, jamais un sous-compte : leur racine
      est un sous-dossier, ils ne voient pas `.zfs`) :
-     `sftp -P 23 <uXXXXXX>@<uXXXXXX>.your-storagebox.de`, puis `ls -a`
-     (`.zfs` attendu), `ls .zfs/snapshot` (un dossier par snapshot, nommé
-     d'après sa date). `.zfs` absent : voir le dernier point.
+     `ssh -p 23 <uXXXXXX>@<uXXXXXX>.your-storagebox.de ls .zfs/snapshot` (un
+     dossier par snapshot : `Automatic-<date>T<heure>` pour les quotidiens).
+     `.zfs` absent : voir le dernier point.
    - *Ne pas faire « Rollback »* (console ou `rollback_snapshot`) : il efface
      les snapshots plus récents et tout ce qui a été écrit depuis, pour tous
      les hôtes.
-   - *Arrêter la sauvegarde de l'hôte concerné* (`borgmatic.timer`), puis
-     copier le dépôt **à côté**, sans toucher à l'existant :
-     `ssh -p 23 <compte> cp -a .zfs/snapshot/<snapshot>/backup/<hôte>/<app> backup/<hôte>/<app>.restaure`
-     (si `cp` n'est pas accepté par le shell restreint de la Storage Box :
-     `rsync -a -e 'ssh -p 23'` du dossier du snapshot vers le poste, puis
-     retour, ou `mv` de l'ancien dépôt à la place).
-   - *Prouver la copie* avant de la mettre en place :
-     `borg list --bypass-lock ssh://<compte>@<serveur>:23/./backup/<hôte>/<app>.restaure`
-     avec `backup_passphrase` ; la dernière archive doit dater de la veille
-     du snapshot. Puis `mv` de l'ancien dépôt en `.efface` et de `.restaure` à
-     sa place, relancer une sauvegarde (`systemctl start borgmatic.service`) et
-     `borg check --repository-only`.
+   - *Copier le dépôt **à côté***, sans toucher à l'existant (côté serveur :
+     2,1 Go en moins d'une minute) :
+     `ssh -p 23 <compte> cp -a .zfs/snapshot/<snapshot>/backup/<hôte>/<app> backup/<hôte>/<app>.restaure`.
+     La copie est dans le dossier du sous-compte de l'hôte, qui la voit donc
+     comme `./<app>.restaure`.
+   - *Prouver la copie depuis l'hôte, avec un dossier Borg à part.* La copie
+     porte le **même identifiant de dépôt** que l'original : ouverte avec le
+     dossier Borg habituel de root, elle y ferait enregistrer son adresse à la
+     place de celle du vrai dépôt, et la sauvegarde suivante s'arrêterait sur
+     « repository was previously located at… ». D'où `BORG_BASE_DIR` :
+     ```bash
+     R=ssh://<sous-compte>@<serveur du sous-compte>/./<app>.restaure
+     B="sudo env PATH=/root/.local/bin:/usr/bin:/bin BORG_BASE_DIR=/root/restore-drill/borg-base /root/.local/bin/borgmatic -c /etc/borgmatic.d/<app>.yaml borg"
+     sudo mkdir -p -m 700 /root/restore-drill/borg-base
+     $B list --bypass-lock --last 3 $R          # dernière archive : la nuit du snapshot
+     $B check --bypass-lock --repository-only $R
+     $B extract --bypass-lock --dry-run --list $R::<archive>
+     ```
+     (`borgmatic … borg` reprend la passphrase et la clé SSH de la
+     configuration de l'appli ; le message « supported natively » est sans
+     effet). Pour une preuve complète, extraire le dump dans
+     `/root/restore-drill/<app>` (`cd` dedans, `$B extract --bypass-lock
+     $R::<archive> borgmatic/`) et lire son en-tête et sa dernière ligne.
+   - *Mettre en place* (non joué) : arrêter `borgmatic.timer` sur l'hôte,
+     `mv` de l'ancien dépôt en `<app>.efface` puis de `<app>.restaure` à sa
+     place (une connexion par `mv`), relancer une sauvegarde
+     (`systemctl start borgmatic.service`) et `borg check --repository-only`,
+     cette fois avec le dossier Borg habituel.
+   - *Nettoyer un essai* : `sudo rm -rf /root/restore-drill/<app>
+     /root/restore-drill/borg-base` sur l'hôte, puis
+     `ssh -p 23 <compte> rm -r backup/<hôte>/<app>.restaure`.
    - *Dossier `.zfs` absent* : il dépend de `zfs_enabled = true` dans
      `access_settings` de `hcloud_storage_box.backups`
      (`tofu/pangolin/storage_box.tf`). Le réglage était **éteint** jusqu'au
