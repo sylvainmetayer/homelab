@@ -3070,6 +3070,16 @@ run "pushed_down_pages_at_once" {
     error_message = "Les moniteurs des contrôles hebdomadaires et bimensuels qui poussent « down » (mises à jour, tests de restauration, rotation des secrets, Storage Box) doivent avoir max_retries = 0 et une fenêtre d'au moins 7 jours (sinon, revoir la règle)."
   }
 
+  # Les contrôles quotidiens du NAS poussent aussi « down » (raison du rsync,
+  # certificat sous le seuil) : même règle, fenêtre de deux jours.
+  assert {
+    condition = alltrue([
+      for m in [uptimekuma_monitor_push.cron_kdrive_sync, uptimekuma_monitor_push.cron_nas_cert] :
+      m.max_retries == local.push_down_max_retries
+    ])
+    error_message = "« kDrive vers NAS » et « Certificats NAS » poussent « down » : max_retries = local.push_down_max_retries, sinon un échec n'alerte qu'à la fin de la fenêtre de 49 h."
+  }
+
   # Chemins écrits en entier, pas `${f}` : select_tests.py ne relie un fichier
   # à ce module que par un chemin littéral, et une modification d'un de ces
   # contrôles doit relancer ce test dans sa PR.

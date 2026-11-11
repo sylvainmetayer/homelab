@@ -12,6 +12,8 @@ resource "uptimekuma_monitor_push" "cron_kdrive_sync" {
 
   interval = 60 * 60 * 49
 
+  # The job pushes `down` with its reason: page at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
   retry_interval = 20
   active         = true
   tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
