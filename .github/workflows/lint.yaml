@@ -179,7 +179,11 @@ jobs:
       # Même version qu'en local (mise.toml), comme test.yaml.
       - name: Read the OpenTofu version pinned in mise.toml
         id: tofu-version
-        run: echo "version=$(sed -n "s/^opentofu = '\(.*\)'$/\1/p" mise.toml)" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(sed -n "s/^opentofu = '\(.*\)'$/\1/p" mise.toml)"
+          # Empty would make setup-opentofu install the latest, silently.
+          [ -n "$version" ] || { echo "::error::opentofu version not found in mise.toml"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Set up OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2

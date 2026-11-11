@@ -465,6 +465,35 @@
       ]
     },
     {
+      "description": "uv of mise.toml (aqua) and uv of the workflows (`pip install uv==X`, custom manager) are one tool: one PR moves both, or CI and local drift apart",
+      "matchDepNames": [
+        "uv"
+      ],
+      "groupName": "uv"
+    },
+    {
+      "description": "zizmor of lint.yaml and of mise.toml: one PR moves both",
+      "matchDepNames": [
+        "zizmor"
+      ],
+      "groupName": "zizmor"
+    },
+    {
+      "description": "Versions whose sha256 is redone by hand (regex managers of the workflows, actions and the Jellyfin SSO plugin): never in the weekly digest and patch PR, where a stale sum would merge unseen (sops and Trivy only fail when the deploy runs). Their own PR carries the note",
+      "matchDepNames": [
+        "getsops/sops",
+        "aquasecurity/trivy",
+        "rhysd/actionlint",
+        "hadolint/hadolint",
+        "K0lin/jellyfin-plugin-sso"
+      ],
+      "groupName": null,
+      "automerge": false,
+      "prBodyNotes": [
+        "**sha256 à refaire** : Renovate ne monte que la version. Sur cette branche, mettre la somme du binaire (ou de l'archive du greffon Jellyfin) à jour à la main, sinon le téléchargement est refusé au premier usage."
+      ]
+    },
+    {
       "description": "Guard, kept last: an update of path_bypass_images.json never automerges, and its PR says what to re-read before the manual merge. Renovate automerges a branch only if every update in it does, so an image added there later blocks its whole group (compose and json share the depName, hence the group) instead of skipping the re-read",
       "matchFileNames": [
         "tofu/pangolin_config/path_bypass_images.json"
@@ -542,11 +571,16 @@
       ]
     },
     {
-      "description": "uv of mise.toml (aqua) and uv of the workflows (`pip install uv==X`, custom manager below) are one tool: one PR moves both, or CI and local drift apart",
-      "matchDepNames": [
-        "uv"
+      "customType": "regex",
+      "description": "zizmor of the lint-ci task of mise.toml (`uvx zizmor==X`), kept equal to ZIZMOR_VERSION of lint.yaml (same depName, grouped in packageRules): the local lint reads the same linter as the CI",
+      "managerFilePatterns": [
+        "/^mise\\.toml$/"
       ],
-      "groupName": "uv"
+      "matchStrings": [
+        "zizmor==(?<currentValue>[0-9][0-9.]*)"
+      ],
+      "depNameTemplate": "zizmor",
+      "datasourceTemplate": "pypi"
     },
     {
       "customType": "regex",
