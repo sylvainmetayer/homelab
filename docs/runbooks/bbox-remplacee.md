@@ -19,7 +19,7 @@ Ce que le dépôt suppose de la box :
 |---|---|---|
 | Réseau local | `192.168.1.0/24`, passerelle et DHCP en `192.168.1.254` | **tous** les hôtes (`tofu/proxmox` : VM et LXC à IP fixe avec cette passerelle) |
 | DNS annoncés par le DHCP | `192.168.1.200` puis `192.168.1.96` | filtrage Blocky ([dns-blocky.md](dns-blocky.md)) ; bascule pas faite au 11/11, toujours prévue ([ADR 0012](../adr/0012-filtrage-dns-blocky.md)), à relire dans la Bbox |
-| Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (bail ou IP fixe d'UGOS : « À vérifier sur place »), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
+| Baux réservés | Pi `192.168.1.96`, NAS `192.168.1.137` (en DHCP au relevé du 11/11 : bail indispensable), imprimante | DNS, Immich, `known_hosts`, DNS public de `tofu/dns` |
 | Hôtes à IP fixe hors DHCP | VM docker `.216`, LXC `.200`, hôte Proxmox `.26` | à exclure de la plage DHCP (« À vérifier sur place ») |
 | Redirections de ports | **aucune** | (accès de secours WireGuard rejeté : [ADR 0015](../adr/0015-acces-de-secours-wireguard.md)) |
 | IP publique | fixe par contrat (confirmé par Sylvain le 11/11/2026) | `home_ip`, plus bas |
@@ -105,23 +105,19 @@ hors du dépôt public) :
   (ADR 0012 ne voyait aucun client sur Blocky au 05/11) ; l'IPv6 et le DNS
   qu'il annonce (étape 4 de « Bascule du DHCP de la Bbox »,
   [dns-blocky.md](dns-blocky.md)).
-- Baux réservés : Pi `192.168.1.96`, imprimante, et le NAS : bail réservé
-  `192.168.1.137`, ou rien parce qu'UGOS a une IP fixe (alors le dire dans le
-  tableau). Relever chaque MAC.
+- Baux réservés : Pi `192.168.1.96`, NAS `192.168.1.137` (tous deux en
+  DHCP, relevé du 11/11), imprimante. Relever chaque MAC.
 - Noms des appareils : celui du Pi (`pi.lan`) et du NAS (`data.lan`), que
   Blocky renvoie à la box (rôle `blocky`).
 - Sauvegarde ou export de la configuration : le menu existe-t-il ? Si oui,
   en garder un export hors du dépôt.
-
-**Chez l'opérateur** : l'IP publique est-elle fixe (contrat, option) ?
-Sinon `home_ip` (étape 5) est à refaire à chaque changement.
 
 **Chez OVH et Hetzner** : un jeton d'API restreint à l'IP de la maison
 (étape 7) ?
 
 **Relevé du 11/11/2026** (lecture seule, en SSH sur les hôtes) : le Pi
 (`192.168.1.96`) et le NAS (`192.168.1.137`) tiennent tous deux leur adresse
-**du DHCP** (bail dynamique), aucun n'a d'IP fixe dans son système. Les deux
+**du DHCP**, aucun n'a d'IP fixe dans son système. Les deux
 baux réservés sont donc indispensables : à recréer avec les bonnes MAC sur une
 Bbox neuve, avant tout le reste. L'hôte Proxmox est en IP fixe
 (`192.168.1.26`, `/etc/network/interfaces`).

@@ -34,10 +34,12 @@ vzdump, pas d'image.
 ## Réparation
 
 1. **Système** : Raspberry Pi OS (Debian 13, `docs/conventions/ansible.md`) sur
-   le SSD avec l'outil officiel Raspberry Pi Imager : nom d'hôte `pi`, compte
-   `sylvain`, clé SSH. Version exacte de l'image, démarrage sur USB et nom
-   d'hôte actuel : « À vérifier sur place » (le Pi est « à la main », hors
-   Tofu).
+   le SSD avec l'outil officiel Raspberry Pi Imager : nom d'hôte `reese`
+   (celui du Pi actuel, relevé du 11/11 ; passer à `pi` reste un choix à
+   faire), compte `sylvain`, clé SSH. Aucun `BOOT_ORDER` à reporter : le Pi
+   démarre sur le SSD USB avec l'ordre par défaut, sans carte SD insérée.
+   Version exacte de l'image : « À vérifier sur place » (le Pi est « à la
+   main », hors Tofu).
 2. **Réseau** : IP `192.168.1.96`. Le bail est réservé dans la Bbox, par
    adresse MAC : un **nouveau Pi a une nouvelle MAC**, mettre la réservation à
    jour ([bbox-remplacee.md](bbox-remplacee.md)). C'est l'IP que le DHCP
@@ -68,15 +70,15 @@ vzdump, pas d'image.
    borgmatic=/root/.local/bin/borgmatic
    config=/etc/borgmatic.d/immich.yaml
    $borgmatic list --config $config
-   mkdir -p /root/restore/immich
-   $borgmatic extract --config $config --archive latest --destination /root/restore/immich
-   mkdir -p /opt/apps/immich
-   cp -a /root/restore/immich/opt/apps/immich/. /opt/apps/immich/
+   # Directement en place : le SSD ne tient pas la photothèque deux fois.
+   # Forme non essayée : vérifier d'abord le chemin par `borgmatic list`.
+   $borgmatic extract --config $config --archive latest --path opt/apps/immich --destination /
    ```
 
-   Le dossier `library` (les photos) pèse ce que pèse la photothèque : `borg
-   info` donne la taille, le disque du Pi doit l'accueillir deux fois pendant
-   la copie.
+   Le dossier `library` (les photos) pèse ce que pèse la photothèque (494 Go
+   au relevé du 11/11 ; `borg info` donne la taille) : sur le SSD de 931,5 Go
+   elle ne tient pas deux fois, d'où l'extraction directe en place, sans copie
+   intermédiaire.
 6. **La base** : la démarrer seule, puis rejouer le dump, Immich arrêté
    (sinon il migre pendant le rejeu) :
 
@@ -128,16 +130,11 @@ vzdump, pas d'image.
 
 **Sur le Pi actuel**, tant qu'il marche :
 
-- `cat /etc/os-release` : la version de Raspberry Pi OS à réinstaller
-  (Debian 13 attendu).
-- `hostnamectl` : le nom d'hôte. [docs/conventions/ansible.md](../conventions/ansible.md)
-  le dit encore `reese`, l'étape 1 installe `pi` : choisir, puis vérifier
-  le nom du bail dans la Bbox (`pi.lan` est servi par la Bbox, pas par
-  Blocky).
-- `sudo rpi-eeprom-config` : l'ordre de démarrage (`BOOT_ORDER`) qui fait
-  démarrer le Pi sur le SSD USB ; à reporter sur un Pi neuf.
-- `du -sh /opt/apps/immich/library` et `df -h /` : la taille de la
-  photothèque, et la place pour la recevoir deux fois (étape 5).
+- Nom d'hôte : `reese` au relevé du 11/11 ([docs/conventions/ansible.md](../conventions/ansible.md)
+  le dit aussi) ; passer à `pi` reste à choisir, puis vérifier le nom du bail
+  dans la Bbox (`pi.lan` est servi par la Bbox, pas par Blocky).
+- Système, EEPROM, disque : relevés le 11/11 (plus bas) ; à relire après un
+  changement de disque ou de version.
 
 **Interface de la Bbox** :
 
@@ -161,7 +158,7 @@ contrôle trimestriel à la main est le seul
 - Disque : SSD USB de 931,5 Go (WD_BLACK SN770), `/` à 518 Go sur 918 Go,
   353 Go libres. Photothèque : 494 Go (`/opt/apps/immich/library`) : **le
   disque ne peut pas la recevoir deux fois** (étape 5).
-- Réseau : `192.168.1.96` est obtenue **par DHCP** (bail dynamique, connexion
+- Réseau : `192.168.1.96` est obtenue **par DHCP** (connexion
   « Wired connection 1 ») : sans bail réservé dans la Bbox, un Pi neuf ou une
   Bbox neuve lui donneront une autre adresse. MAC à relever sur place, hors du
   dépôt.

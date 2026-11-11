@@ -243,7 +243,8 @@ Sur l'hôte actuel, tant qu'il marche : ce que la réparation suppose et que le
 dépôt ne dit pas.
 
 - **Shell de l'hôte** : `pvesm status` liste `local` avec le contenu
-  `snippets` (ce que l'apply ciblé de B.4 suppose sans A bis).
+  `snippets` (ce que l'apply ciblé de B.4 suppose sans A bis) : vrai au
+  relevé du 11/11, à relire sur une machine neuve.
 - **BIOS du mini PC** : « Restore on AC Power Loss », attendu « Power On »
   ou « Last State », pas « Off »
   ([coupure-de-courant.md](coupure-de-courant.md)) ; à reporter sur une
