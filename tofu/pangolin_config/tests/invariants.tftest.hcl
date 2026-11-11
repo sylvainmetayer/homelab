@@ -3716,4 +3716,10 @@ run "flip_private_ip_matches_tofu_pangolin_default" {
     condition     = can(regex("private_ip\\s*=\\s*optional\\(string, \"${var.flip_private_ip}\"\\)", file("${path.module}/../pangolin/variables.tf")))
     error_message = "var.flip_private_ip doit valoir le défaut de flip_server.private_ip dans tofu/pangolin/variables.tf."
   }
+
+  # La valeur appliquée est celle de terraform.tfvars, qui l'emporte sur le défaut.
+  assert {
+    condition     = can(regex("private_ip\\s*=\\s*\"${var.flip_private_ip}\"", file("${path.module}/../pangolin/terraform.tfvars")))
+    error_message = "var.flip_private_ip doit valoir flip_server.private_ip dans tofu/pangolin/terraform.tfvars."
+  }
 }
