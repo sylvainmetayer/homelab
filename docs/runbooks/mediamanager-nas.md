@@ -91,11 +91,12 @@ Interfaces de qBittorrent et Prowlarr : `https://qbittorrent.sylvain.cloud` et
 Repli, le tunnel SSH depuis le PC :
 
 ```bash
-ssh -N -L 8080:127.0.0.1:8080 -L 9696:127.0.0.1:9696 sylvain@192.168.1.137
+ssh -N -L 8080:127.0.0.1:8080 sylvain@192.168.1.137
 ```
 
-puis `http://localhost:8080` (compte `mediamanager`) et
-`http://localhost:9696`.
+puis `http://localhost:8080` (compte `mediamanager`). Prowlarr n'est pas publié
+sur le `127.0.0.1` du NAS en Pocket ID seul : `mediamanager_local_login: true`
+(README du rôle), puis `-L 9696:127.0.0.1:9696` en plus.
 
 **Liens physiques.**
 

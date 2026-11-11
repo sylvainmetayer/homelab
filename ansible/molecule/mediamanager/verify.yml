@@ -240,7 +240,8 @@
           - mm_verify_gluetun.container_name == 'mediamanager-gluetun'
           # Interfaces web sur la boucle locale du NAS seulement.
           - mm_verify_gluetun.ports | map(attribute='host_ip') | unique | list == ['127.0.0.1']
-          - mm_verify_gluetun.ports | map(attribute='published') | map('string') | sort == ['8080', '9696']
+          # Prowlarr (External, Pocket ID seul) n'y est pas : 9696 reste sur le réseau proxy.
+          - mm_verify_gluetun.ports | map(attribute='published') | map('string') | sort == ['8080']
           - mm_verify_prowlarr.environment.PROWLARR__AUTH__APIKEY | length == 32
           # Client de l'oauth2-proxy présent, pas de secours : aucun login dans Prowlarr.
           - mm_verify_prowlarr.environment.PROWLARR__AUTH__METHOD == 'External'
