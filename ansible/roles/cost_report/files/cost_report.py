@@ -6,11 +6,6 @@ Lancé chaque jour par cost-report.timer. Interroge chaque source configurée :
     sauvegardes, IP primaires, volumes et Storage Box, au tarif mensuel TTC
     de l'API (/pricing, prix du type). L'API n'a pas de facture : c'est une
     estimation au tarif courant des ressources présentes aujourd'hui ;
-  - OVH (application restreinte à GET /me/bill, /me/bill/* et
-    /cloud/project/<id>/usage/current) : les factures du mois (TTC, domaines
-    et Public Cloud du mois d'avant compris), plus, pour le mois en cours, la
-    consommation Public Cloud pas encore facturée (HT dans l'API, TVA
-    ajoutée) ;
   - les abonnements fixes de la configuration (PikaPods, kDrive…), un
     montant par mois ou par an (ramené au mois).
 Une source sans clé est « non configurée », un abonnement à 0 « à
@@ -31,21 +26,16 @@ jamais affichés ; une erreur d'API n'est citée que par son code ou sa classe.
 import argparse
 import calendar
 import datetime
-import hashlib
 import http.client
 import json
 import os
 import sys
-import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from pathlib import Path
 
 NTFY_TOKEN = "COST_REPORT_NTFY_TOKEN"
 HCLOUD_TOKEN = "COST_REPORT_HCLOUD_TOKEN"
-OVH_KEYS = ("COST_REPORT_OVH_APPLICATION_KEY", "COST_REPORT_OVH_APPLICATION_SECRET", "COST_REPORT_OVH_CONSUMER_KEY")
-OVH_PROJECT = "COST_REPORT_OVH_CLOUD_PROJECT"
 
 MAX_BYTES = 4 * 1024 * 1024
 TIMEOUT = 30
@@ -222,71 +212,6 @@ def fetch_hetzner(token, cloud_api, api):
     }
 
 
-# --- OVH -----------------------------------------------------------------
-
-
-def ovh_signature(secret, consumer, method, url, body, timestamp):
-    """Signature des requêtes de l'API OVH : $1$ + SHA-1 des champs joints par « + »."""
-    payload = "+".join((secret, consumer, method, url, body, str(timestamp)))
-    # SHA-1 imposé par le protocole de l'API OVH, pas un choix.
-    return "$1$" + hashlib.sha1(payload.encode()).hexdigest()  # noqa: S324 # NOSONAR
-
-
-class OvhClient:
-    def __init__(self, endpoint, application_key, application_secret, consumer_key, clock=time.time, fetch=fetch_json):
-        self.endpoint = endpoint.rstrip("/")
-        self.application_key = application_key
-        self.application_secret = application_secret
-        self.consumer_key = consumer_key
-        self.clock = clock
-        self.fetch = fetch
-
-    def get(self, path, params=None):
-        url = self.endpoint + path + ("?" + urllib.parse.urlencode(params) if params else "")
-        timestamp = int(self.clock())
-        headers = {
-            "X-Ovh-Application": self.application_key,
-            "X-Ovh-Consumer": self.consumer_key,
-            "X-Ovh-Timestamp": str(timestamp),
-            "X-Ovh-Signature": ovh_signature(self.application_secret, self.consumer_key, "GET", url, "", timestamp),
-        }
-        return self.fetch(url, headers)
-
-
-def fetch_ovh(client, project, since, now):
-    """Les factures depuis le 1er du mois dernier, et la consommation en cours."""
-    ids = client.get("/me/bill", {"date.from": since.isoformat(), "date.to": (now.date() + datetime.timedelta(days=1)).isoformat()})
-    # Seuls la date et le montant sont gardés : une facture porte aussi un
-    # mot de passe et ses URL.
-    bills = []
-    for bill_id in ids:
-        bill = client.get(f"/me/bill/{urllib.parse.quote(str(bill_id), safe='')}")
-        bills.append({"date": bill["date"], "priceWithTax": bill["priceWithTax"]})
-    usage = client.get(f"/cloud/project/{urllib.parse.quote(project, safe='')}/usage/current") if project else None
-    return {"bills": bills, "usage": usage}
-
-
-def ovh_result(data, previous_key, current_key, vat_percent):
-    previous, current, lines, count = {}, {}, [], 0
-    for bill in data["bills"]:
-        price = bill["priceWithTax"]
-        date = str(bill["date"])
-        if date.startswith(previous_key):
-            add(previous, price["currencyCode"], float(price["value"]))
-            count += 1
-        elif date.startswith(current_key):
-            add(current, price["currencyCode"], float(price["value"]))
-    lines.append(f"{count} facture(s) le mois dernier : {money_total(previous)}")
-    usage = data.get("usage")
-    if usage:
-        total = usage["totalPrice"]
-        excluding = float(total["value"])
-        including = excluding * (1 + vat_percent / 100)
-        add(current, total["currencyCode"], including)
-        lines.append(f"Public Cloud du mois en cours : {money(excluding, total['currencyCode'])} HT, pas encore facturé")
-    return result("OVH", OK, previous, current, lines, "factures émises dans le mois, TTC")
-
-
 # --- Abonnements ---------------------------------------------------------
 
 
@@ -309,9 +234,8 @@ def subscription_results(subscriptions, fraction):
 
 
 def collect(config, env, now):
-    """Une entrée par source, dans l'ordre : Hetzner, OVH, puis les abonnements."""
+    """Une entrée par source, dans l'ordre : Hetzner, puis les abonnements."""
     fraction = elapsed_fraction(now)
-    last = previous_month(now.date())
     results = []
 
     token = env.get(HCLOUD_TOKEN, "")
@@ -323,17 +247,6 @@ def collect(config, env, now):
             results.append(hetzner_result(data, fraction))
         except (SourceError, KeyError, TypeError, ValueError, AttributeError) as error:
             results.append(result("Hetzner", FAILED, note=describe(error)))
-
-    keys = [env.get(name, "") for name in OVH_KEYS]
-    if not all(keys):
-        results.append(result("OVH", UNCONFIGURED))
-    else:
-        try:
-            client = OvhClient(config["ovh_endpoint"], *keys)
-            data = fetch_ovh(client, env.get(OVH_PROJECT, ""), last, now)
-            results.append(ovh_result(data, month_key(last), month_key(now), float(config.get("ovh_vat_percent", 20))))
-        except (SourceError, KeyError, TypeError, ValueError, AttributeError) as error:
-            results.append(result("OVH", FAILED, note=describe(error)))
 
     results.extend(subscription_results(config.get("subscriptions") or [], fraction))
     return results

@@ -6,7 +6,6 @@ contient les deux fichiers.
 """
 
 import datetime
-import hashlib
 import io
 import json
 import os
@@ -57,44 +56,11 @@ HETZNER = {
     ],
 }
 
-# GET /me/bill/{id} : une facture d'octobre, une de novembre, une de
-# septembre (hors fenêtre, ignorée) ; mot de passe et URL jamais gardés.
-OVH_BILLS = {
-    "FR1": {"billId": "FR1", "date": "2026-10-01T04:12:00+02:00", "password": "x", "url": "https://example.invalid/1",
-            "priceWithTax": {"currencyCode": "EUR", "value": 1.2, "text": "1.20 €"}},
-    "FR2": {"billId": "FR2", "date": "2026-10-15T10:00:00+02:00", "password": "x", "url": "https://example.invalid/2",
-            "priceWithTax": {"currencyCode": "EUR", "value": 11.99, "text": "11.99 €"}},
-    "FR3": {"billId": "FR3", "date": "2026-11-01T03:00:00+01:00", "password": "x", "url": "https://example.invalid/3",
-            "priceWithTax": {"currencyCode": "EUR", "value": 0.5, "text": "0.50 €"}},
-    "FR0": {"billId": "FR0", "date": "2026-09-30T23:00:00+02:00", "password": "x", "url": "https://example.invalid/0",
-            "priceWithTax": {"currencyCode": "EUR", "value": 100.0, "text": "100.00 €"}},
-}
-OVH_USAGE = {"period": {"from": "2026-11-01T00:00:00+01:00", "to": "2026-11-30T23:59:59+01:00"},
-             "hourlyUsage": {}, "monthlyUsage": {}, "resourcesUsage": [],
-             "totalPrice": {"currencyCode": "EUR", "value": 0.25, "text": "0.25 €"}}
-
 SUBSCRIPTIONS = [
     {"name": "PikaPods", "amount": 6, "currency": "USD", "period": "monthly"},
     {"name": "kDrive", "amount": 60, "currency": "EUR", "period": "yearly"},
     {"name": "Abonnement IA", "amount": 0, "currency": "EUR", "period": "monthly"},
 ]
-
-
-class FakeOvh:
-    """Rejoue l'API OVH et note les chemins demandés."""
-
-    def __init__(self):
-        self.calls = []
-
-    def get(self, path, params=None):
-        self.calls.append((path, params))
-        if path == "/me/bill":
-            return list(OVH_BILLS)
-        if path.startswith("/me/bill/"):
-            return OVH_BILLS[path.rsplit("/", 1)[1]]
-        if path.endswith("/usage/current"):
-            return OVH_USAGE
-        raise AssertionError(path)
 
 
 class MonthsTest(unittest.TestCase):
@@ -153,48 +119,6 @@ class HetznerTest(unittest.TestCase):
         self.assertIn(("https://cloud.invalid/v1/pricing", "Bearer molecule-token"), seen)
 
 
-class OvhTest(unittest.TestCase):
-    def test_signature_follows_the_ovh_protocol(self):
-        expected = "$1$" + hashlib.sha1(b"AS+CK+GET+https://eu.api.ovh.com/1.0/me/bill++1700000000").hexdigest()
-        self.assertEqual(cr.ovh_signature("AS", "CK", "GET", "https://eu.api.ovh.com/1.0/me/bill", "", 1700000000), expected)
-
-    def test_client_signs_the_full_url(self):
-        captured = {}
-
-        def fake_fetch(url, headers):
-            captured.update(url=url, headers=headers)
-            return []
-
-        client = cr.OvhClient("https://eu.api.ovh.com/1.0/", "AK", "AS", "CK", clock=lambda: 1700000000.5, fetch=fake_fetch)
-        client.get("/me/bill", {"date.from": "2026-10-01"})
-        self.assertEqual(captured["url"], "https://eu.api.ovh.com/1.0/me/bill?date.from=2026-10-01")
-        self.assertEqual(captured["headers"]["X-Ovh-Application"], "AK")
-        self.assertEqual(captured["headers"]["X-Ovh-Timestamp"], "1700000000")
-        self.assertEqual(captured["headers"]["X-Ovh-Signature"],
-                         cr.ovh_signature("AS", "CK", "GET", captured["url"], "", 1700000000))
-
-    def test_fetch_keeps_only_date_and_price(self):
-        fake = FakeOvh()
-        data = cr.fetch_ovh(fake, "abc123", datetime.date(2026, 10, 1), NOW)
-        self.assertEqual(fake.calls[0], ("/me/bill", {"date.from": "2026-10-01", "date.to": "2026-11-02"}))
-        self.assertIn(("/cloud/project/abc123/usage/current", None), fake.calls)
-        self.assertTrue(all(set(bill) == {"date", "priceWithTax"} for bill in data["bills"]))
-
-    def test_fetch_without_project_reads_bills_only(self):
-        fake = FakeOvh()
-        data = cr.fetch_ovh(fake, "", datetime.date(2026, 10, 1), NOW)
-        self.assertIsNone(data["usage"])
-        self.assertFalse(any("usage" in path for path, _ in fake.calls))
-
-    def test_result_buckets_bills_by_month(self):
-        data = cr.fetch_ovh(FakeOvh(), "abc123", datetime.date(2026, 10, 1), NOW)
-        entry = cr.ovh_result(data, "2026-10", "2026-11", 20)
-        self.assertAlmostEqual(entry["previous"]["EUR"], 13.19)
-        # Facture de novembre plus la consommation en cours, TVA ajoutée.
-        self.assertAlmostEqual(entry["current"]["EUR"], 0.5 + 0.3)
-        self.assertIn("2 facture(s) le mois dernier : 13,19 €", entry["lines"])
-
-
 class SubscriptionsTest(unittest.TestCase):
     def test_yearly_is_spread_and_zero_is_to_fill(self):
         pika, kdrive, ai = cr.subscription_results(SUBSCRIPTIONS, 0.5)
@@ -209,7 +133,6 @@ class ReportTest(unittest.TestCase):
     def results(self):
         return [
             cr.hetzner_result(HETZNER, 0),
-            cr.result("OVH", cr.UNCONFIGURED),
             *cr.subscription_results(SUBSCRIPTIONS, 0),
         ]
 
@@ -217,10 +140,9 @@ class ReportTest(unittest.TestCase):
         title, message, priority = cr.build_report(self.results(), NOW)
         self.assertEqual(title, "Coûts du homelab : octobre 2026")
         self.assertTrue(message.startswith("Total : 23,33 € + 6,00 USD\n"))
-        self.assertIn("- OVH : non configurée", message)
         self.assertIn("- Abonnement IA : à renseigner", message)
         self.assertIn("    Storage Box backups (bx11) : 3,81 €", message)
-        self.assertIn("Incomplet, sans : OVH, Abonnement IA.", message)
+        self.assertIn("Incomplet, sans : Abonnement IA.", message)
         self.assertEqual(priority, 3)
 
     def test_a_failed_source_raises_the_priority(self):
@@ -242,30 +164,28 @@ class ReportTest(unittest.TestCase):
             "previous_label": "octobre 2026",
             "previous_total": "23,33 € + 6,00 USD",
             "current_total": "0,00 € + 0,00 USD",
-            "missing": 2,
-            "incomplete": "OVH (non configurée), Abonnement IA (à renseigner)",
+            "missing": 1,
+            "incomplete": "Abonnement IA (à renseigner)",
             "updated": "01/11 07:00",
         })
 
 
 class CollectTest(unittest.TestCase):
     CONFIG = {"hetzner_cloud_api": "https://cloud.invalid/v1", "hetzner_api": "https://api.invalid/v1",
-              "ovh_endpoint": "https://ovh.invalid/1.0", "ovh_vat_percent": 20, "subscriptions": SUBSCRIPTIONS}
+              "subscriptions": SUBSCRIPTIONS}
 
-    def test_without_keys_every_api_source_is_unconfigured(self):
+    def test_without_key_the_api_source_is_unconfigured(self):
         with mock.patch.object(cr, "fetch_json", side_effect=AssertionError("aucun appel")):
             results = cr.collect(self.CONFIG, {}, NOW)
-        self.assertEqual([(entry["name"], entry["status"]) for entry in results[:2]],
-                         [("Hetzner", cr.UNCONFIGURED), ("OVH", cr.UNCONFIGURED)])
+        self.assertEqual((results[0]["name"], results[0]["status"]), ("Hetzner", cr.UNCONFIGURED))
 
     def test_an_api_error_marks_its_source_only(self):
-        env = {cr.HCLOUD_TOKEN: "t", **{name: "k" for name in cr.OVH_KEYS}}
+        env = {cr.HCLOUD_TOKEN: "t"}
         with mock.patch.object(cr, "fetch_json", side_effect=cr.SourceError("HTTP 403")):
             results = cr.collect(self.CONFIG, env, NOW)
         self.assertEqual(results[0]["status"], cr.FAILED)
         self.assertEqual(results[0]["note"], "HTTP 403")
-        self.assertEqual(results[1]["status"], cr.FAILED)
-        self.assertEqual(results[2]["status"], cr.OK)
+        self.assertEqual(results[1]["status"], cr.OK)
 
     def test_an_unexpected_shape_is_an_error_not_a_crash(self):
         env = {cr.HCLOUD_TOKEN: "t"}

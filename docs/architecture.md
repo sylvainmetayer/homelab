@@ -590,7 +590,7 @@ retire les tâches et journaux, VTODO et VJOURNAL, que le widget afficherait
 comme des événements datés de l'instant présent, et les lui sert sur le
 réseau privé du projet, cache de 5 minutes ; détail dans le
 [README du rôle](../ansible/roles/homepage/README.md)) ; et Jellyfin,
-Homebox, Karakeep, FreshRSS, Grocy, Papra et Dawarich. Les trois derniers,
+Karakeep, FreshRSS, Grocy, Papra et Dawarich. Les trois derniers,
 comme les prochains passages du bus 31 à l'arrêt CREPS (flux temps réel
 ouvert de Bordeaux Métropole, sans compte), passent par le conteneur
 `apps-summary` du projet, sur newt, qui ramène leurs réponses à quelques
@@ -598,10 +598,9 @@ nombres. Création de chaque jeton, droits minimaux et `sops set` :
 [runbooks/rotation-des-secrets.md](runbooks/rotation-des-secrets.md#widgets-de-homepage).
 
 **Risque accepté** (Sylvain, 2026-10-29) : Jellyfin (clé d'API
-d'administration), Homebox (compte invité dans le groupe, qui peut écrire)
-et Karakeep (clé d'API de l'utilisateur) n'ont pas de jeton en lecture
-seule ; qui lit la configuration de Homepage (`0600`, VM docker) peut donc
-administrer Jellyfin et écrire dans Homebox et Karakeep. Même chose, acceptée
+d'administration) et Karakeep (clé d'API de l'utilisateur) n'ont pas de
+jeton en lecture seule ; qui lit la configuration de Homepage (`0600`, VM
+docker) peut donc administrer Jellyfin et écrire dans Karakeep. Même chose, acceptée
 en posant leurs clés (2026-11-02), pour FreshRSS (le mot de passe d'API marque
 lu et abonne ; l'API, coupée sinon, n'est ouverte qu'avec la clé, et seulement
 sur newt : Pangolin n'ouvre aucun chemin autour du SSO) et Dawarich (une seule

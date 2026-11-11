@@ -406,14 +406,12 @@ homepage_proxmox_guests:
 #   List Resources (homepage_pangolin_api_key).
 # - proxmox : voir plus haut.
 #
-# Risque accepté (Sylvain, 2026-10-29) pour les trois suivants : aucune de
+# Risque accepté (Sylvain, 2026-10-29) pour les deux suivants : aucune de
 # ces applications n'offre de jeton en lecture seule, donc qui lit la
 # configuration de Homepage (VM docker, 0600) peut y écrire.
 # - jellyfin : médiathèque et lectures en cours (version 2, Jellyfin >= 10.12,
 #   ici 12.x), clé d'API d'administration (homepage_jellyfin_api_key), sans
 #   les boutons pause/lecture (enableMediaControl: false).
-# - homebox : compte dédié, invité dans le groupe de Sylvain
-#   (homepage_homebox_username, host_vars/docker, et homepage_homebox_password).
 # - karakeep : clé d'API de l'utilisateur dont on veut les compteurs
 #   (homepage_karakeep_api_key) : elle a tous ses droits.
 homepage_speedtest_widget_token: "{{ homepage_speedtest_tracker_token | default('') }}"
@@ -421,8 +419,6 @@ homepage_immich_widget_key: "{{ homepage_immich_api_key | default('') }}"
 homepage_pangolin_widget_key: "{{ homepage_pangolin_api_key | default('') }}"
 homepage_pangolin_org: ""
 homepage_jellyfin_widget_key: "{{ homepage_jellyfin_api_key | default('') }}"
-homepage_homebox_username: ""
-homepage_homebox_widget_password: "{{ homepage_homebox_password | default('') }}"
 homepage_karakeep_widget_key: "{{ homepage_karakeep_api_key | default('') }}"
 
 # --- apps-summary (files/apps_summary.py) ---
@@ -595,14 +591,6 @@ homepage_link_widgets_extra:
       enableBlocks: true
       enableNowPlaying: true
       enableMediaControl: false
-  homebox:
-    enabled: "{{ homepage_homebox_username | length > 0 and homepage_homebox_widget_password | length > 0 }}"
-    widget:
-      type: homebox
-      url: "{{ homepage_websites.homebox.internal_url | default('') }}"
-      username: "{{ homepage_homebox_username }}"
-      password: "{{ homepage_homebox_widget_password }}"
-      fields: [items, locations, totalValue]
   karakeep:
     enabled: "{{ homepage_karakeep_widget_key | length > 0 }}"
     widget:

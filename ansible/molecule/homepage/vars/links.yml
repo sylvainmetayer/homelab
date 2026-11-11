@@ -2,7 +2,7 @@
 # Ce que docker.yml lit dans l'output homepage_links de pangolin_config,
 # partagé par converge.yml et verify.yml : deux liens d'un même groupe et un
 # d'un groupe que homepage_groups ne connaît pas, qui doit venir après les
-# autres ; ceux qui portent un widget (Beszel, Speedtest Tracker, Homebox,
+# autres ; ceux qui portent un widget (Beszel, Speedtest Tracker,
 # Karakeep, Immich, FreshRSS, Grocy, Papra, Dawarich) ; des liens de la VM docker (internal_url et
 # site_monitor remplis), un sans adresse interne (Archives) et l'Immich du
 # Pi (vide dans l'output, pastille du rôle).
