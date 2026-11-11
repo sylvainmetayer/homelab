@@ -1,4 +1,13 @@
 ---
+# Pas de mot de passe par défaut : une clé SOPS retirée ou renommée
+# déploierait une base au mot de passe prévisible.
+- name: Check wiki secrets
+  ansible.builtin.assert:
+    quiet: true
+    that:
+      - wiki_db_password | length > 0
+    fail_msg: wiki_db_password vide : clé absente de secrets/ansible.sops.yaml ?
+
 - name: Ensure wiki app folder exists
   loop:
     - "{{ wiki_base_path }}"
