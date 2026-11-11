@@ -17,9 +17,12 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
 
+# Épinglé sur le dernier commit qui touche le fichier (identique à master le
+# 11/11/2026) : changer de dump = nouveau commit et nouvelle somme ici.
 - name: Get SQL dump
   ansible.builtin.get_url:
-    url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/refs/heads/master/betisier-mysql/betisier.sql"
+    url: "https://raw.githubusercontent.com/sylvainmetayer/docker-betisier-tp/3e7236e39a692fa4d7a92a0c9c80cfe396a81e4b/betisier-mysql/betisier.sql"
+    checksum: sha256:2c0210a93656c04c527560b7174045dcfad630318263cca0da7067d3758b0101
     dest: "{{ betisier_base_path }}/dump.sql"
     mode: "0600"
 
