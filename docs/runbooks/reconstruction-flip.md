@@ -112,7 +112,9 @@ Hetzner est le seul accès hors réseau.
    - redémarrer l'appli, puis vérifier avec les animateurs et le planning réels.
    - **OpenPost** : remettre `data/` et la copie SQLite d'`openpost.db`
      (`data/db/`), avec le `.env` de l'archive si `app_secrets_seed` a changé
-     (`ansible/roles/openpost/README.md`, « Sauvegarde »).
+     (`ansible/roles/openpost/README.md`, « Sauvegarde »). Base vide (restauration
+     pas encore rejouée) : le premier compte créé devient administrateur,
+     restaurer avant de laisser le foyer s'y connecter.
 
    Les sauvegardes de la nuit n'ont pas encore été reposées : la dernière
    archive saine reste celle d'avant la panne.
