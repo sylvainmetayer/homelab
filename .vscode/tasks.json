@@ -2,106 +2,50 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Tofu: Init Pangolin",
+      "label": "Mise: Plan Pangolin",
       "type": "shell",
-      "command": "tofu init",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/pangolin"
-      },
+      "command": "mise run plan",
+      "options": { "cwd": "${workspaceFolder}" },
       "group": "build",
+      "problemMatcher": [],
+      "dependsOn": ["Mise: Init Pangolin"]
+    },
+    {
+      "label": "Mise: Init Pangolin",
+      "type": "shell",
+      "command": "mise run init",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "Tofu: Plan Pangolin",
+      "label": "Mise: Plan Proxmox",
       "type": "shell",
-      "command": "tofu plan",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/pangolin"
-      },
+      "command": "mise run plan-proxmox",
+      "options": { "cwd": "${workspaceFolder}" },
       "group": "build",
       "problemMatcher": [],
-      "dependsOn": ["Tofu: Init Pangolin"]
+      "dependsOn": ["Mise: Init Proxmox"]
     },
     {
-      "label": "Tofu: Apply Pangolin",
+      "label": "Mise: Init Proxmox",
       "type": "shell",
-      "command": "tofu apply",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/pangolin"
-      },
-      "group": "build",
-      "problemMatcher": [],
-      "dependsOn": ["Tofu: Init Pangolin"]
-    },
-    {
-      "label": "Tofu: Init Proxmox",
-      "type": "shell",
-      "command": "tofu init",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/proxmox"
-      },
-      "group": "build",
+      "command": "mise run init-proxmox",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "Tofu: Plan Proxmox",
+      "label": "Mise: Lint (OpenTofu)",
       "type": "shell",
-      "command": "tofu plan",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/proxmox"
-      },
-      "group": "build",
-      "problemMatcher": [],
-      "dependsOn": ["Tofu: Init Proxmox"]
-    },
-    {
-      "label": "Tofu: Apply Proxmox",
-      "type": "shell",
-      "command": "tofu apply",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu/proxmox"
-      },
-      "group": "build",
-      "problemMatcher": [],
-      "dependsOn": ["Tofu: Init Proxmox"]
-    },
-    {
-      "label": "Tofu: Format & Validate (all)",
-      "type": "shell",
-      "command": "tofu fmt -recursive && tofu validate",
-      "options": {
-        "cwd": "${workspaceFolder}/tofu"
-      },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Ansible: Lint",
-      "type": "shell",
-      "command": "ansible-lint",
-      "options": {
-        "cwd": "${workspaceFolder}/ansible"
-      },
+      "command": "mise run lint",
+      "options": { "cwd": "${workspaceFolder}" },
       "group": "test",
       "problemMatcher": []
     },
     {
-      "label": "Ansible: Run Playbook",
+      "label": "Mise: Ansible Lint",
       "type": "shell",
-      "command": "ansible-playbook -i inventory/hosts site.yml",
-      "options": {
-        "cwd": "${workspaceFolder}/ansible"
-      },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Ansible: Run Playbook (Check Mode)",
-      "type": "shell",
-      "command": "ansible-playbook -i inventory/hosts site.yml --check",
-      "options": {
-        "cwd": "${workspaceFolder}/ansible"
-      },
+      "command": "mise run ansible-lint",
+      "options": { "cwd": "${workspaceFolder}" },
       "group": "test",
       "problemMatcher": []
     }
