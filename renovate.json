@@ -434,7 +434,7 @@
       "allowedVersions": "<3.15"
     },
     {
-      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and Molecule reads no ansible.cfg (it stays linear, no test exercises Mitogen), so the PR note's manual --check is the only test. The three move in one PR, never automerged (the PR note says what to check)",
+      "description": "Mitogen (ansible/ansible.cfg, strategy mitogen_linear) only runs on the ansible-core versions it lists: an ansible bump it does not support yet fails every playbook run, deploys included, and Molecule reads no ansible.cfg (it stays linear): only Lint's `Mitogen strategy` job (local connection, no ssh) tests the strategy, so the PR note's manual --check on a host stays. The three move in one PR, never automerged (the PR note says what to check)",
       "matchDatasources": [
         "pypi"
       ],
@@ -446,7 +446,7 @@
       "groupName": "ansible-mitogen",
       "automerge": false,
       "prBodyNotes": [
-        "**Mitogen** : avant de merger, vérifier dans le changelog de Mitogen (https://mitogen.networkgenomics.com/changelog.html) que la version verrouillée prend en charge cet ansible-core, puis lancer un `ansible-playbook pi.yml --check --tags monitoring` sur cette branche. Sinon, attendre une version de Mitogen, ou merger avec `strategy = linear` dans `ansible/ansible.cfg`."
+        "**Mitogen** : le job Lint « Mitogen strategy » doit être vert (connexion locale, pas ssh). Avant de merger, vérifier dans le changelog de Mitogen (https://mitogen.networkgenomics.com/changelog.html) que la version verrouillée prend en charge cet ansible-core, puis lancer un `ansible-playbook pi.yml --check --tags monitoring` sur cette branche. Sinon, attendre une version de Mitogen, ou merger avec `strategy = linear` dans `ansible/ansible.cfg`."
       ]
     },
     {

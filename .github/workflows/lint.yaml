@@ -164,6 +164,45 @@ jobs:
         if: ${{ !cancelled() }}
         run: python -I -m unittest discover -s .github/scripts -p 'test_*.py'
 
+  # Molecule reste en linear (un rejeu sous Mitogen a figé le destroy du driver
+  # docker, PR #1374) : ce job joue sous la stratégie de production, avec
+  # l'ansible.cfg du dépôt, un playbook de sondes contre deux hôtes locaux, sans
+  # conteneur ni destroy. Il échoue si Mitogen n'est pas chargé.
+  mitogen:
+    name: Mitogen strategy
+    runs-on: ubuntu-26.04
+    timeout-minutes: 8
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      # Versions d'uv.lock (ansible-core, mitogen), comme le job Ansible lint.
+      - name: Install ansible + deps
+        run: |
+          pip install --quiet --only-binary :all: uv==0.13.7
+          uv sync --locked --no-build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Play the probes under Mitogen
+        working-directory: ansible
+        timeout-minutes: 3
+        env:
+          MITOGEN_TEST_DIR: ${{ runner.temp }}/mitogen-test
+        run: |
+          mkdir -p "$MITOGEN_TEST_DIR"
+          ansible-playbook -i ../.github/mitogen-test/hosts.ini --diff \
+            -e mitogen_test_become=true ../.github/mitogen-test/playbook.yml
+
   tofu:
     name: OpenTofu lint
     runs-on: ubuntu-26.04

@@ -1,0 +1,124 @@
+# Test de la stratégie Mitogen de production (docs/conventions/tests.md) : joué
+# depuis ansible/ avec son ansible.cfg (strategy = mitogen_linear), contre deux
+# hôtes en connexion locale. Joue les mécanismes que Mitogen réimplémente et
+# que les rôles utilisent : become, template avec diff, copy, command, boucles,
+# handlers, async, delegate_to, set_fact no_log, include_role/include_tasks.
+# Ne prouve pas la connexion ssh (mitogen_ssh) : seul un --check sur un hôte le fait.
+- name: Mitogen strategy probe
+  hosts: targets
+  gather_facts: false
+  vars:
+    probe_dir: "{{ lookup('ansible.builtin.env', 'MITOGEN_TEST_DIR') }}"
+    probe_value: ok
+  tasks:
+    # Sans Mitogen (repli linear, ansible.cfg changé) tout le reste passerait
+    # au vert sans rien prouver : le parent du shell est le Python d'Ansible
+    # (AnsiballZ) en linear, le processus renommé « (mitogen:user@hôte:pid) »
+    # sous Mitogen.
+    - name: Read the process that runs the module
+      ansible.builtin.command: sh -c 'tr "\0" " " < /proc/$PPID/cmdline'
+      register: probe_parent
+      changed_when: false
+    - name: Assert that the Mitogen strategy is loaded
+      ansible.builtin.assert:
+        that: "'(mitogen:' in probe_parent.stdout"
+        fail_msg: "Mitogen is not running the tasks: {{ probe_parent.stdout }}"
+        quiet: true
+
+    - name: Create the work directory
+      ansible.builtin.file:
+        path: "{{ probe_dir }}/{{ inventory_hostname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Template with a diff
+      ansible.builtin.template:
+        src: probe.j2
+        dest: "{{ probe_dir }}/{{ inventory_hostname }}/probe.txt"
+        mode: "0600"
+      diff: true
+      register: probe_template
+      notify: Probe handler
+    - name: Assert that the template reported a diff
+      ansible.builtin.assert:
+        that:
+          - probe_template.changed
+          - probe_template.diff is defined
+          - "'value=ok' in (probe_template.diff | to_json)"
+        quiet: true
+
+    - name: Copy a file
+      ansible.builtin.copy:
+        content: "{{ probe_value }}\n"
+        dest: "{{ probe_dir }}/{{ inventory_hostname }}/copy.txt"
+        mode: "0600"
+    - name: Loop over command calls
+      ansible.builtin.command: cat "{{ probe_dir }}/{{ inventory_hostname }}/{{ item }}"
+      loop: [copy.txt, probe.txt]
+      register: probe_loop
+      changed_when: false
+    - name: Assert the loop results
+      ansible.builtin.assert:
+        that: probe_loop.results | map(attribute='stdout') | select('search', 'ok') | list | length == 2
+        quiet: true
+
+    - name: Set a fact with no_log
+      ansible.builtin.set_fact:
+        probe_pushed: "{{ probe_value }}"
+      no_log: true
+    - name: Assert that the fact set under no_log is usable
+      ansible.builtin.assert:
+        that: probe_pushed == 'ok'
+        quiet: true
+
+    - name: Delegate to localhost
+      ansible.builtin.command: echo delegated
+      delegate_to: localhost
+      register: probe_delegated
+      changed_when: false
+    - name: Async task
+      ansible.builtin.command: sleep 1
+      async: 30
+      poll: 1
+      changed_when: false
+
+    - name: Include a role
+      ansible.builtin.include_role:
+        name: probe
+    - name: Include tasks
+      ansible.builtin.include_tasks: included.yml
+    - name: Assert the includes and the delegation
+      ansible.builtin.assert:
+        that:
+          - probe_role_ran
+          - probe_included_ran
+          - probe_delegated.stdout == 'delegated'
+        quiet: true
+
+    # Passwordless sudo exists on the CI runner only (-e mitogen_test_become=true).
+    - name: Become root
+      ansible.builtin.command: id -u
+      become: true
+      register: probe_become
+      changed_when: false
+      when: mitogen_test_become | default(false) | bool
+    - name: Assert the become
+      ansible.builtin.assert:
+        that: probe_become.stdout == '0'
+        quiet: true
+      when: mitogen_test_become | default(false) | bool
+
+    - name: Run the handler now
+      ansible.builtin.meta: flush_handlers
+    - name: Read the handler's file
+      ansible.builtin.stat:
+        path: "{{ probe_dir }}/{{ inventory_hostname }}/handled"
+      register: probe_handled
+      failed_when: not probe_handled.stat.exists
+
+  handlers:
+    - name: Probe handler
+      ansible.builtin.copy:
+        content: handled
+        dest: "{{ probe_dir }}/{{ inventory_hostname }}/handled"
+        mode: "0600"
