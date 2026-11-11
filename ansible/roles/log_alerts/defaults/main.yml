@@ -43,14 +43,15 @@ log_alerts_rules:
     repeat_seconds: 3600
   # Un conteneur tué par sa limite mémoire (cgroup) ou par SIGKILL. homepage,
   # déjà connu pour sa limite, a sa règle à part. La ligne du noyau (« out of
-  # memory: Killed process », unit vide) est la seule trace d'un kill sous
+  # memory: Killed process », unit vide ; i() : le noyau écrit « Out of memory »
+  # pour un OOM de l'hôte, « Memory cgroup out of memory » pour un cgroup) est la seule trace d'un kill sous
   # `compose up -d` (Pangolin) ou d'un processus fils tué.
   - name: oom-kill
     title: "Processus tué (OOM, code 137)"
     priority: 4
     query: >-
       (_msg:~"OOMKilled" OR _msg:"exited with code 137" OR _msg:"status=9/KILL"
-      OR _msg:"out of memory: Killed process")
+      OR _msg:i("out of memory: Killed process"))
       -unit:in("session.scope","dc@homepage.service")
       | stats by (host, unit) count() n
     window_seconds: 900
