@@ -91,12 +91,16 @@ log_alerts_rules:
   # passent par oom-kill), le NAS (unités UGOS bruyantes : taskmgr_serv, smbftpd...)
   # et session.scope (commandes tapées en SSH). Rejouée sur 14 jours (28/10 au
   # 11/11) : 6 unités distinctes, 10 alertes après dédup (5 sont log-alerts lui-même).
+  # log-alerts.service est exclu : il échoue presque chaque nuit vers 03:15 sur un
+  # push qui expire (uptime-push 28, Uptime Kuma de PikaPods injoignable, lu au
+  # journal le 11/11), sans rien manquer : le passage suivant pousse, et son
+  # moniteur sonne s'il se tait vraiment.
   - name: unit-failed
     title: "Unité systemd en échec"
     priority: 4
     query: >-
       _msg:"Failed with result" -_msg:"borgmatic.service: Failed" -_msg:"tmp.mount: Failed"
-      -_msg:~"dc@" -host:"nas" -unit:"session.scope"
+      -_msg:"log-alerts.service: Failed" -_msg:~"dc@" -host:"nas" -unit:"session.scope"
       | extract "<u>: Failed with result" | stats by (host, u) count() n
     window_seconds: 900
     threshold: 1
