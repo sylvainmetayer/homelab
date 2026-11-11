@@ -129,6 +129,16 @@ variable "immich_pin" {
   }
 }
 
+variable "flip_planning_pin" {
+  description = "Code PIN de la ressource Flip Planning (clé SOPS flip_planning_pin)."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = nonsensitive(var.flip_planning_pin) != ""
+    error_message = "TF_VAR_flip_planning_pin est vide : lancer tofu par `mise exec --` (mise.toml, section TF_VAR)."
+  }
+}
+
 variable "neonova_pin" {
   description = "Code PIN de la ressource Neonova (clé SOPS neonova_pin)."
   type        = string
@@ -200,6 +210,7 @@ locals {
   home_ip             = var.home_ip
   immich_pin          = var.immich_pin
   neonova_pin         = var.neonova_pin
+  flip_planning_pin   = var.flip_planning_pin
 
   ntfy_uptime_kuma_token = var.ntfy_uptime_kuma_token
   pocket_id_api_token    = var.pocket_id_api_token

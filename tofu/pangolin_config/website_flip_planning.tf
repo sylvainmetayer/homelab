@@ -109,6 +109,13 @@ output "flip_planning_access_token" {
   sensitive   = true
 }
 
+# PIN d'abord posé à la main dans l'interface, déclaré ici le 2026-11-11
+# (audit des authentifications faites main, binding_inventory.tf).
+resource "pangolin_resource_pincode" "flip_planning" {
+  resource_id = pangolin_resource.website["flip_planning"].id
+  pincode     = tostring(local.flip_planning_pin)
+}
+
 output "uptime_backup_flip_planning_url" {
   description = "FLIP_PLANNING - URL pour envoyer les heartbeats push"
   value       = local.backup_push_urls["flip_planning"]

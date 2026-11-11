@@ -154,7 +154,7 @@ locals {
   # Authentication methods set on a public resource, by resource id (the ids of
   # GET .../resources). No password is declared.
   declared_password_resource_ids    = toset([])
-  declared_pincode_resource_ids     = toset([for pin in [pangolin_resource_pincode.immich, pangolin_resource_pincode.neonova, pangolin_resource_pincode.neonova_aide] : tostring(pin.resource_id)])
+  declared_pincode_resource_ids     = toset([for pin in [pangolin_resource_pincode.immich, pangolin_resource_pincode.flip_planning, pangolin_resource_pincode.neonova, pangolin_resource_pincode.neonova_aide] : tostring(pin.resource_id)])
   declared_header_auth_resource_ids = toset([tostring(pangolin_resource_header_auth.grocy_mobile.resource_id)])
 
   # An audit that silently sees nothing is worse than no audit: a response that
