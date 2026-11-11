@@ -60,7 +60,7 @@
     "version": "v7.38.6",
     "compose": "ansible/roles/openpost/templates/compose.yaml",
     "paths": "tofu/pangolin_config/website_openpost.tf (openpost_media_paths)",
-    "reread": "apps/server: the route serving OPENPOST_MEDIA_URL (/media/: files only, no listing, nothing but the media directory), how uploaded files are named (guessable or not), apps/docs/content/docs/self-hosting/reverse-proxy.mdx (what must stay public)",
+    "reread": "apps/server/internal/api/handlers/media.go (the /media/:id, /thumb/:size and /poster routes and authorizeMediaAccess: still a session, a token or a signed unexpired link, 401 otherwise; no new route under /media without it), internal/services/mediasigner/signer.go, apps/docs/content/docs/self-hosting/reverse-proxy.mdx",
     "releases": "https://github.com/getopenpost/openpost/releases"
   },
   "TREK": {

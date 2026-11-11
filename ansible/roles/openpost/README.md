@@ -49,14 +49,16 @@ essayé ici**.
 Le mot de passe local (et les passkeys d'OpenPost) restent : c'est le secours
 si Pocket ID est en panne, avec « mot de passe oublié » par mail.
 
-## Médias : `/media/*` est public
+## Médias : `/media/*` passe le mur, pas le contrôle d'OpenPost
 
 Instagram, Threads, Facebook et TikTok téléchargent le média depuis leurs
 serveurs : Pangolin ouvre `/media/*` sans SSO et depuis tout pays
 (`tofu/pangolin_config/website_openpost.tf`), comme le demande la doc amont.
-Un média est donc lisible par qui connaît son URL, dès l'envoi, publié ou non.
-**La façon dont les fichiers sont nommés n'a pas été relue dans le code** : tant
-que ce n'est pas fait, considérer tout média envoyé comme public.
+OpenPost garde la porte derrière (`handlers/media.go`, v7.38.6) : un média
+(`/media/<uuid>`) ne sort qu'avec une session qui a accès à l'espace de
+travail, ou par un lien signé à durée limitée (`sig`, `exp`), celui qu'il
+remet aux réseaux. Sans l'un ni l'autre : 401. Relu à chaque montée de
+l'image (`path_bypass_images.json`).
 
 ## Réseaux sociaux
 
