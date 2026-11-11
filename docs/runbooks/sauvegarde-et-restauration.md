@@ -160,22 +160,33 @@ restore` des dumps SQL, cas SQLite) est dans
      « repository was previously located at… ». D'où `BORG_BASE_DIR` :
      ```bash
      R=ssh://<sous-compte>@<serveur du sous-compte>/./<app>.restaure
-     B="sudo env PATH=/root/.local/bin:/usr/bin:/bin BORG_BASE_DIR=/root/restore-drill/borg-base /root/.local/bin/borgmatic -c /etc/borgmatic.d/<app>.yaml borg"
-     sudo mkdir -p -m 700 /root/restore-drill/borg-base
+     B="sudo env -C /root/restore-drill/<app> PATH=/root/.local/bin:/usr/bin:/bin BORG_BASE_DIR=/root/restore-drill/borg-base /root/.local/bin/borgmatic -c /etc/borgmatic.d/<app>.yaml borg"
+     sudo mkdir -p -m 700 /root/restore-drill/borg-base /root/restore-drill/<app>
      $B list --bypass-lock --last 3 $R          # dernière archive : la nuit du snapshot
      $B check --bypass-lock --repository-only $R
      $B extract --bypass-lock --dry-run --list $R::<archive>
      ```
      (`borgmatic … borg` reprend la passphrase et la clé SSH de la
      configuration de l'appli ; le message « supported natively » est sans
-     effet). Pour une preuve complète, extraire le dump dans
-     `/root/restore-drill/<app>` (`cd` dedans, `$B extract --bypass-lock
+     effet ; `env -C` : borg extrait dans le dossier courant, où un compte
+     non root ne peut pas `cd`). Pour une preuve complète, extraire le dump
+     dans `/root/restore-drill/<app>` (`$B extract --bypass-lock
      $R::<archive> borgmatic/`) et lire son en-tête et sa dernière ligne.
+     **NAS** (borgmatic en conteneur, README du rôle `borgmatic`) : ni
+     `/root/.local/bin/borgmatic` ni `BORG_BASE_DIR` n'y passent tels quels,
+     passer par le conteneur ; non joué.
    - *Mettre en place* (non joué) : arrêter `borgmatic.timer` sur l'hôte,
      `mv` de l'ancien dépôt en `<app>.efface` puis de `<app>.restaure` à sa
-     place (une connexion par `mv`), relancer une sauvegarde
-     (`systemctl start borgmatic.service`) et `borg check --repository-only`,
-     cette fois avec le dossier Borg habituel.
+     place (une connexion par `mv`). Le dossier Borg habituel de root connaît
+     ce dépôt dans un état plus récent que la copie : borg refuserait de
+     l'ouvrir (« Cache, or information obtained from the security directory
+     is newer than repository »). Effacer ce qu'il en garde, d'après
+     l'identifiant relevé **avant** les `mv` par `$B info --bypass-lock $R`
+     (« Repository ID ») :
+     `sudo rm -rf /root/.config/borg/security/<id> /root/.cache/borg/<id>`.
+     Puis relancer une sauvegarde (`systemctl start borgmatic.service`),
+     `borg check --repository-only` avec le dossier Borg habituel, et
+     **rallumer `borgmatic.timer`** (`systemctl start borgmatic.timer`).
    - *Nettoyer un essai* : `sudo rm -rf /root/restore-drill/<app>
      /root/restore-drill/borg-base` sur l'hôte, puis
      `ssh -p 23 <compte> rm -r backup/<hôte>/<app>.restaure`.
