@@ -43,6 +43,7 @@
   become: true
   vars_files:
     - ../_shared/vars/fake_secrets.yml
+    - ../../host_vars/docker/variables.yaml
   tasks:
     - name: Create the mock directories
       loop:
@@ -93,6 +94,9 @@
       vars:
         beszel_api_mock_config:
           email: "{{ pangolin_le_email }}"
+          # Adresse du compte admin : celle que config.yml nomme (garde-fou de
+          # tasks/api_login.yml), pas forcément celle des notifications.
+          user_email: "{{ beszel_systems_user_email }}"
           user_id: usr000000000001
           # Comme le vrai hub : une seule IP publique admise pour les
           # superusers, pas 127.0.0.1. Le rôle doit prendre le 403 qui en
