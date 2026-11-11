@@ -107,7 +107,7 @@
           - homepage_kuma.environment.KUMA_API_KEY == homepage_uptimekuma_api_key
           # Carte Maintenance : les noms exacts des sondes, accents compris.
           - (homepage_kuma.environment.KUMA_MAINTENANCE_MONITORS | from_json)[0] == 'Mises à jour Proxmox'
-          - (homepage_kuma.environment.KUMA_MAINTENANCE_MONITORS | from_json) | length == 9
+          - (homepage_kuma.environment.KUMA_MAINTENANCE_MONITORS | from_json) | length == 10
           - homepage_compose.services.app.environment.keys() | select('match', 'KUMA_') | list == []
           - homepage_compose.services['ical-filter'].environment.keys() | select('match', 'KUMA_') | list == []
         fail_msg: "Service kuma-summary inattendu : {{ homepage_kuma }}"
