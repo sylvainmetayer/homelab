@@ -76,7 +76,7 @@ et du réseau.
 
 L'étage 1 de [perte-totale-maison.md](perte-totale-maison.md) est passé : poste,
 clé age, SOPS, `HCLOUD_TOKEN` et clés du state dans l'environnement de `mise`,
-`git submodule update --init`, `mise run init`. Pour l'exercice, un poste normal
+`git submodule update --init`, `mise run init-pangolin`. Pour l'exercice, un poste normal
 suffit. Une session où `sops` et `tofu -chdir=tofu/pangolin output` répondent.
 
 ## Réparation : la procédure

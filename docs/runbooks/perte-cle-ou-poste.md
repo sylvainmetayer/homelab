@@ -102,7 +102,7 @@ sonne que sur newt-lxc.
 
    `authorized_key` est exclusif : l'ancienne clé est retirée. Garder une
    session ouverte pendant ce temps.
-4. `tofu/pangolin` : `mise run plan`. `keys/perso.pub` change
+4. `tofu/pangolin` : `mise run plan-pangolin`. `keys/perso.pub` change
    `hcloud_ssh_key.keepassxc` ; si le plan veut **remplacer** le serveur
    Pangolin ou flip (attribut `ssh_keys`), ne pas forcer : `prevent_destroy`
    le bloquera, et la clé posée par Ansible suffit. À vérifier sur le plan.

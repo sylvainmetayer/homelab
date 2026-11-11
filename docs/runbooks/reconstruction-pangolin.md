@@ -43,8 +43,8 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
 ## Réparation
 
 1. **Recréer le serveur** (`tofu/pangolin`).
-   - Serveur déjà supprimé chez Hetzner : `mise run plan` propose de le
-     recréer, `mise run apply`.
+   - Serveur déjà supprimé chez Hetzner : `mise run plan-pangolin` propose de le
+     recréer, `mise run apply-pangolin`.
    - Les sauvegardes Hetzner disparaissent avec le serveur (suppression ou
      `-replace`) : pour garder une image, convertir d'abord la dernière en
      snapshot (console Hetzner → serveur → Backups → Convert to snapshot).

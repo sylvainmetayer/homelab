@@ -50,7 +50,7 @@ You need:
 git submodule update --init    # secrets/
 mise install
 uv sync
-mise run init && mise run plan    # tofu/pangolin
+mise run init-pangolin && mise run plan-pangolin    # tofu/pangolin
 cd ansible
 ansible-playbook pangolin.yaml --check --diff    # dry run (inventory from ansible.cfg)
 ```

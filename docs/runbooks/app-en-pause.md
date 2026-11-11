@@ -58,8 +58,8 @@ indéfiniment ses archives.
    (`resolve_docker_tags.py`). Unité arrêtée, configuration borgmatic
    retirée. Pour le vérifier avant le merge :
    `ansible-playbook docker.yml --tags <app> --check --diff`.
-3. `tofu plan` puis `tofu apply` dans `tofu/pangolin_config` (pas
-   `mise run plan`/`apply`, qui visent `tofu/pangolin`) :
+3. `mise run tofu pangolin_config plan` puis `apply` (pas
+   `mise run plan-pangolin`/`apply-pangolin`, qui visent `tofu/pangolin`) :
    ressource désactivée, deux moniteurs en pause, sonde de la cible coupée
    (4 changements en place, aucune destruction). Avant ou après le merge, peu importe ; après, la
    nuit suivante ne laisse aucun moniteur rouge.

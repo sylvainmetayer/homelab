@@ -55,7 +55,20 @@ description = "Hash a host password (prompted, kept out of the shell history) fo
 raw = true
 run = 'mkpasswd --method=SHA-512 --rounds=4096'
 
-[tasks.init]
+# Un module sans tâche dédiée (pangolin_config, dns, github…) :
+#   mise run tofu pangolin_config plan
+#   mise run tofu pangolin_config plan -target=<adresse>   (les options passent telles quelles)
+# Ne lance ni init ni provider-fork : init d'abord (mise run tofu <module> init), et mise run provider-fork avant celui de pangolin_config.
+[tasks.tofu]
+description = "Run any tofu command in tofu/<module>: mise run tofu <module> <command...>"
+raw = true
+usage = '''
+arg "<module>" help="Directory under tofu/ (pangolin_config, dns, github, site…)"
+arg "<command>" var=#true help="tofu subcommand and its flags"
+'''
+run = 'tofu -chdir="tofu/$usage_module" $usage_command'
+
+[tasks.init-pangolin]
 description = "Tofu Init (Pangolin)"
 run = "tofu init"
 dir = "tofu/pangolin"
@@ -65,11 +78,11 @@ description = "Tofu Init (Proxmox)"
 run = "tofu init"
 dir = "tofu/proxmox"
 
-[tasks.plan]
+[tasks.plan-pangolin]
 description = "Tofu Plan (Pangolin)"
 run = "tofu plan"
 dir = "tofu/pangolin"
-depends = ["init"]
+depends = ["init-pangolin"]
 
 [tasks.plan-proxmox]
 description = "Tofu Plan (Proxmox)"
@@ -77,12 +90,12 @@ run = "tofu plan"
 dir = "tofu/proxmox"
 depends = ["init-proxmox"]
 
-[tasks.apply]
+[tasks.apply-pangolin]
 description = "Tofu Apply (Pangolin)"
 run = "tofu apply"
 raw = true
 dir = "tofu/pangolin"
-depends = ["init"]
+depends = ["init-pangolin"]
 
 [tasks.apply-proxmox]
 description = "Tofu Apply (Proxmox)"
