@@ -4028,3 +4028,19 @@ run "flip_private_ip_matches_tofu_pangolin_default" {
     error_message = "var.flip_private_ip doit valoir flip_server.private_ip dans tofu/pangolin/terraform.tfvars."
   }
 }
+
+# Le state chiffré range le sel PBKDF2 sous `key_provider.pbkdf2.<nom>` : les
+# lecteurs de ce state (terraform_remote_state.pangolin_config de tofu/site et
+# tofu/github) doivent nommer leur key_provider comme ce module, sinon ils
+# dérivent une autre clé et ne le déchiffrent plus (encryption.tf).
+run "state_readers_share_the_key_provider_name" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for f in ["encryption.tf", "../site/encryption.tf", "../github/encryption.tf"] :
+      length(regexall("key_provider\\s+\"pbkdf2\"\\s+\"pangolin_config\"\\s+\\{\\s*passphrase\\s*=\\s*var\\.pangolin_config_state_passphrase\\s*\\}", file("${path.module}/${f}"))) == 1
+    ])
+    error_message = "tofu/pangolin_config, tofu/site et tofu/github doivent déclarer key_provider \"pbkdf2\" \"pangolin_config\" sur var.pangolin_config_state_passphrase (même nom : le sel est rangé sous ce nom)."
+  }
+}

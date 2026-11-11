@@ -9,28 +9,35 @@
 # repli (state et plan) laisse tout marcher, que le state soit encore en clair
 # ou déjà chiffré. La prochaine écriture le chiffre. Une PR suivante retire les
 # replis : un state en clair est alors refusé.
+#
+# Nom du key_provider « pangolin_config », pas « state » : le state chiffré
+# range le sel PBKDF2 sous l'adresse `key_provider.pbkdf2.<nom>`, et tofu/site
+# et tofu/github, qui le déchiffrent, cherchent le sel sous le nom de LEUR
+# key_provider (« state » y est déjà pris par leur passphrase commune). Un nom
+# différent donne « decryption failed for all provided methods » chez eux
+# (essayé le 11/11) ; invariants.tftest.hcl garde les trois noms égaux.
 terraform {
   encryption {
-    key_provider "pbkdf2" "state" {
+    key_provider "pbkdf2" "pangolin_config" {
       passphrase = var.pangolin_config_state_passphrase
     }
 
-    method "aes_gcm" "state" {
-      keys = key_provider.pbkdf2.state
+    method "aes_gcm" "pangolin_config" {
+      keys = key_provider.pbkdf2.pangolin_config
     }
 
     # Retirée avec les replis ci-dessous une fois le state chiffré.
     method "unencrypted" "migrate" {}
 
     state {
-      method = method.aes_gcm.state
+      method = method.aes_gcm.pangolin_config
       fallback {
         method = method.unencrypted.migrate
       }
     }
 
     plan {
-      method = method.aes_gcm.state
+      method = method.aes_gcm.pangolin_config
       fallback {
         method = method.unencrypted.migrate
       }
