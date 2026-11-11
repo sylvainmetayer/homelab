@@ -99,6 +99,7 @@
             == [jellyfin_verify_path ~ '/config', jellyfin_verify_path ~ '/cache', '/volume1/media']
           - jellyfin_verify_service.ports | map(attribute='published') | map('string') | list == ['8096']
           - jellyfin_verify_service.ports | map(attribute='target') | list == [8096]
+          - jellyfin_verify_service.ports | map(attribute='host_ip') | list == ['192.0.2.10']
           # Pas sur newt : Pangolin ne joint que le Traefik du NAS (scénario
           # nas_proxy), sur le réseau media que crée ce projet, à sous-réseau
           # fixe (IP fixe de Traefik dans les « Proxys connus » de Jellyfin).

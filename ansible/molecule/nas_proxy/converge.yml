@@ -29,5 +29,7 @@
     # serveur HTTP local du verify, qui journalise ce qu'il reçoit.
     - role: nas_proxy
       vars:
+        # Adresse de documentation : ansible_host n'est pas une IP ici.
+        nas_proxy_bind_address: 192.0.2.10
         nas_proxy_cert_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-cert # NOSONAR
         nas_proxy_healthcheck_url: http://127.0.0.1:18080/api/push/molecule-nas # NOSONAR

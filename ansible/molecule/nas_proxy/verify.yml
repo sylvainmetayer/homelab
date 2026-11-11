@@ -45,8 +45,10 @@
         that:
           - nas_proxy_verify_model.services.keys() | sort == ['forward', 'oauth2-proxy', 'traefik']
           - nas_proxy_verify_traefik.container_name == 'nas-proxy'
-          - nas_proxy_verify_traefik.ports | map(attribute='published') | map('string') | list == ['8443']
-          - nas_proxy_verify_traefik.ports | map(attribute='target') | list == [8443]
+          - nas_proxy_verify_traefik.ports | map(attribute='published') | map('string') | list == ['8443', '8443']
+          - nas_proxy_verify_traefik.ports | map(attribute='target') | list == [8443, 8443]
+          # IP LAN et boucle locale (sonde de santé), jamais toutes les interfaces.
+          - nas_proxy_verify_traefik.ports | map(attribute='host_ip') | sort | list == ['127.0.0.1', '192.0.2.10']
           - nas_proxy_verify_traefik.volumes | selectattr('source', 'search', 'docker\.sock') | list | length == 0
           - nas_proxy_verify_traefik.volumes | map(attribute='source') | list
             == [nas_proxy_verify_path ~ '/config', nas_proxy_verify_path ~ '/acme']
@@ -246,7 +248,9 @@
           - nas_proxy_verify_routers['prowlarr-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_routers['qbittorrent-oauth2'].entryPoints | sort == ['websecure', 'websecure-forwarded', 'websecure-lan']
           - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.address == 'http://nas-proxy-oauth2:4180/'
-          - nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.trustForwardHeader
+          - not nas_proxy_verify_dynamic.http.middlewares['oauth2-auth'].forwardAuth.trustForwardHeader
+          - nas_proxy_verify_dynamic.tls.options.default.minVersion == 'VersionTLS12'
+          - nas_proxy_verify_dynamic.tls.options.default.cipherSuites | select('search', 'CBC') | list | length == 0
           - nas_proxy_verify_services['oauth2-proxy'].loadBalancer.servers | map(attribute='url') | list == ['http://nas-proxy-oauth2:4180']
           - nas_proxy_verify_services.prowlarr.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:9696']
           - nas_proxy_verify_services.qbittorrent.loadBalancer.servers | map(attribute='url') | list == ['http://mediamanager-gluetun:8080']

@@ -31,6 +31,9 @@ jellyfin_render_device: /dev/dri/renderD128
 # comprise, se règlent sur https://media.sylvain.cloud (ou :8443), servi par le
 # Traefik du NAS (rôle nas_proxy, docs/media.md).
 jellyfin_port: 8096
+# IP LAN du NAS (comme immich_ml_bind_address) : le secours HTTP n'écoute plus
+# sur l'IPv6 globale ni sur d'autres interfaces.
+jellyfin_bind_address: "{{ ansible_host }}"
 # Provisoire : à recaler à ~2x memory.peak après une semaine d'usage.
 jellyfin_mem_limit: 3g
 
