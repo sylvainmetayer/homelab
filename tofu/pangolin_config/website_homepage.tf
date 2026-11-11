@@ -60,13 +60,15 @@ locals {
 # for targets on the Docker VM's site, where Homepage sits on the same newt
 # network and resolves the container by name; empty elsewhere (the Pi, flip):
 # the role sets its own LAN address for the Pi's Immich, published there, and
-# flip's apps get no dot.
+# flip's apps get no dot. Nor do the public apps without SSO (`sso = false`,
+# Betisier): they sit on `newt-public`, not `newt`, so Homepage cannot resolve
+# them (ansible/roles/newt/README.md).
 locals {
   homepage_internal_targets = {
     for key, website in local.websites : key => (
       # Read off the target itself, so the dot requests exactly what
       # Pangolin's probe does, defaults included (websites.tf).
-      try(website.target.site_id == pangolin_site.proxmox_docker.id, false)
+      try(website.target.site_id == pangolin_site.proxmox_docker.id, false) && lookup(website, "sso", true)
       ? {
         internal_url = "http://${pangolin_target.website[key].ip}:${pangolin_target.website[key].port}"
         site_monitor = "http://${pangolin_target.website[key].hc_hostname}:${pangolin_target.website[key].hc_port}${pangolin_target.website[key].hc_path}"
