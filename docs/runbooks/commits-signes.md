@@ -74,12 +74,12 @@ gh api repos/sylvainmetayer/homelab/commits/<sha> --jq .commit.verification
 
 1. Poste et clé de signature GitHub comme ci-dessus ; pousser un commit sur
    une branche de test et vérifier `verification.reason == "valid"`.
-2. Fusion en squash seulement :
-   ```bash
-   gh api -X PATCH repos/sylvainmetayer/homelab \
-     -F allow_squash_merge=true -F allow_rebase_merge=false \
-     -f squash_merge_commit_title=PR_TITLE -f squash_merge_commit_message=COMMIT_MESSAGES
-   ```
+2. Fusion en squash seulement : ces réglages sont dans Tofu
+   (`github_repository.homelab`, `tofu/github/repository_homelab.tf`), un
+   changement fait à la main par `gh api` serait annulé au prochain apply.
+   Par PR : `allow_squash_merge = true`, `allow_rebase_merge = false`,
+   `squash_merge_commit_title = "PR_TITLE"` ; puis `tofu -chdir=tofu/github apply`
+   (avant l'étape 3, dont la précondition lit le dépôt en ligne).
    Les PR déjà en auto-merge (Renovate) gardent la méthode choisie à
    l'activation : les désarmer puis réarmer (`gh pr merge --auto --squash`),
    ou laisser Renovate le refaire à son passage suivant.
