@@ -108,7 +108,7 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      Adresses différentes (cas du 05/11 : compte Beszel créé avec l'adresse
      de service de `beszel_admin_email`) : dans l'admin PocketBase, collection
      `users`, changer l'e-mail de l'enregistrement pour celui de Pocket ID,
-     `verified` coché ; la variable ne sert qu'au premier démarrage du hub.
+     `verified` coché ; `beszel_admin_email` ne sert qu'au premier démarrage du hub, mais reporter la nouvelle adresse dans `beszel_systems_user_email` (host_vars/docker) : `config.yml` la lit, et une adresse inconnue du hub le fait sortir au démarrage, en boucle (incident du 11/11).
      Mot de passe gardé.
    - **Dawarich** (le foyer, groupe `dawarich`) : chaque personne a déjà un
      compte Dawarich, est dans le groupe `dawarich`, et son e-mail Pocket ID
