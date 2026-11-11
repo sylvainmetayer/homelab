@@ -32,7 +32,7 @@ variable "pangolin_url" {
   }
 }
 
-# State : les data "http" de rules.tf et access_inventory.tf la portent dans
+# State : les data "http" de rules.tf, access_inventory.tf et binding_inventory.tf la portent dans
 # leurs en-têtes, que leur state garde.
 variable "pangolin_api_key" {
   description = "Clé d'API de l'organisation Pangolin (clé SOPS pangolin_api_key)."

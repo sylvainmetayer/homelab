@@ -13,6 +13,11 @@
 # Every token and every role Pangolin holds must be one this configuration
 # created, compared on ids, or one of the exceptions below, each with its
 # reason. Both lists are org-wide: one request each.
+#
+# The same resource also holds the audit of bindings and hand-set
+# authentication (roles, users and OLM clients bound to resources, passwords,
+# PINs and header auths, private resources): binding_inventory.tf reads, the
+# preconditions at the end of this block judge.
 # ---------------------------------------------------------------------------
 
 # GET /v1/org/{org}/access-tokens takes `limit`/`offset`, not `pageSize`, and
@@ -114,6 +119,8 @@ locals {
   inventory_lookup_failures = concat(
     local.live_access_tokens_raw == null ? ["access tokens (HTTP ${data.http.pangolin_access_tokens.status_code})"] : [],
     local.live_roles_raw == null ? ["roles (HTTP ${data.http.pangolin_roles.status_code})"] : [],
+    local.live_site_resources_raw == null ? ["private resources (HTTP ${data.http.pangolin_site_resources.status_code})"] : [],
+    local.binding_lookup_failures,
   )
 
   live_access_token_ids = toset([for token in local.live_access_tokens : token.id])
@@ -131,6 +138,7 @@ locals {
       length(local.live_roles) != jsondecode(data.http.pangolin_roles.response_body).data.pagination.total,
       true
     ) ? ["roles"] : [],
+    local.site_resources_truncated ? ["private resources"] : [],
   )
 
   undeclared_access_tokens = [
@@ -163,7 +171,11 @@ locals {
 }
 
 resource "terraform_data" "access_inventory" {
-  input = length(local.live_access_tokens) + length(local.live_roles)
+  input = (
+    length(local.live_access_tokens) + length(local.live_roles) + length(local.live_site_resource_names)
+    + length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings)
+    + length(local.live_site_resource_client_bindings) + length(local.live_user_bindings)
+  )
 
   lifecycle {
     precondition {
@@ -216,6 +228,80 @@ resource "terraform_data" "access_inventory" {
         "Only Admin should: turn it off in the UI. The plan cannot show or fix it",
         "(local.role_pins, roles.tf), and the next update of that role would revoke",
         "it silently.",
+      ])
+    }
+
+    # Bindings and hand-set authentication (binding_inventory.tf). The message
+    # is the same four times: declare it, or remove it in the Pangolin UI.
+    precondition {
+      condition = length(local.undeclared_resource_roles) == 0
+      error_message = join(" ", [
+        "Roles bound to public resources in Pangolin that this configuration did not bind:",
+        "${join(", ", local.undeclared_resource_roles)}.",
+        "Either declare the binding (a pangolin_resource_role) or remove it in the Pangolin UI",
+        "(resource, Authentication tab). Admin is never listed.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.live_user_bindings) == 0
+      error_message = join(" ", [
+        "Users bound directly to resources in Pangolin, which this configuration never declares:",
+        "${join(", ", local.live_user_bindings)}.",
+        "Remove the binding in the Pangolin UI (or bind a role the user holds instead);",
+        "for a binding kept on purpose, declare it with a pangolin_resource_user or",
+        "pangolin_site_resource_user and make this precondition read the declared pairs.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_resource_auth) == 0
+      error_message = join(" ", [
+        "Authentication set on public resources in Pangolin that this configuration did not declare:",
+        "${join(", ", local.undeclared_resource_auth)}.",
+        "Either declare it (a pangolin_resource_pincode, pangolin_resource_header_auth or",
+        "pangolin_resource_password, plus its line in local.declared_*_resource_ids,",
+        "binding_inventory.tf) or remove it in the Pangolin UI.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.resources_without_auth_ids) == 0
+      error_message = join(" ", [
+        "The Pangolin resource list no longer carries passwordId, pincodeId and headerAuthId for:",
+        "${join(", ", local.resources_without_auth_ids)}.",
+        "The authentication audit would read « none » everywhere: an API change, to look at.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_site_resources) == 0
+      error_message = join(" ", [
+        "Private resources live in Pangolin that this configuration did not create:",
+        "${join(", ", local.undeclared_site_resources)}.",
+        "Either declare them (a pangolin_site_resource, plus its line in",
+        "local.declared_site_resource_ids, binding_inventory.tf, and `tofu import`, see the",
+        "README) or delete them in the Pangolin UI.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_site_resource_roles) == 0
+      error_message = join(" ", [
+        "Roles bound to private resources in Pangolin that this configuration did not bind:",
+        "${join(", ", local.undeclared_site_resource_roles)}.",
+        "Either declare the binding (a pangolin_site_resource_role, plus its line in",
+        "local.declared_site_resource_role_pairs, binding_inventory.tf) or remove it in the Pangolin UI.",
+      ])
+    }
+
+    precondition {
+      condition = length(local.undeclared_site_resource_clients) == 0
+      error_message = join(" ", [
+        "OLM clients bound to private resources in Pangolin that this configuration did not bind:",
+        "${join(", ", local.undeclared_site_resource_clients)}.",
+        "Either declare the binding (a pangolin_site_resource_client, plus its line in",
+        "local.declared_site_resource_client_pairs, binding_inventory.tf) or remove it in the Pangolin UI.",
       ])
     }
   }
