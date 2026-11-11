@@ -184,7 +184,7 @@ temps, vérification par appli). Ce qui suit vaut pour une VM sur Proxmox.
 2. `ansible-playbook backup.yaml` : autorise la clé de root de la VM neuve chez
    son sous-compte (même mécanique que
    [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), « Clé non
-   autorisée »). Le playbook lit la clé de `docker`, `pi`, `pangolin`, `flip` et
+   autorisée »). Le playbook lit la clé de `docker`, `pi`, `pangolin`, `flip`,
    `nas` et `pve` et refuse tout si l'une manque : Pi et NAS absents, le limiter aux
    hôtes présents avec `-e '{"backup_storage_box_hosts": ["docker"]}'` (à vérifier
    en `--check`), et refaire de même pour le Pi à l'étage 5.

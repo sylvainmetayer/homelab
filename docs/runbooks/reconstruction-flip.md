@@ -79,7 +79,7 @@ Hetzner est le seul accès hors réseau.
    `flip_newt_secret`, inchangés puisque le site Pangolin existe toujours) et
    se reconnecte seul. `backup.yaml` lit la clé de `docker`, `pi`, `pangolin`,
    `flip`, `nas` et `pve` et refuse tout si l'une manque : limiter aux hôtes
-   présents comme à l'étage 4 de [perte-totale-maison.md](perte-totale-maison.md).
+   présents (pas `--limit` : `-e '{"backup_storage_box_hosts": ["flip"]}'`, comme à l'étage 4 de [perte-totale-maison.md](perte-totale-maison.md)).
 
 4. **Les applis, à vide, sans leur sauvegarde.**
 
@@ -104,9 +104,11 @@ Hetzner est le seul accès hors réseau.
    la restauration faite. Pour chaque instance :
 
    - arrêter l'appli (`systemctl --user stop dc@flip_planning`), démarrer
-     **la base seule** (`docker compose up -d <prefixe>-db` dans
-     `/opt/apps/<instance>`), rejouer le dump PostgreSQL avec `pg_restore`,
-     recopier `compose.yaml` et `pgadmin` de l'archive ;
+     **la base seule** (`docker compose up -d postgres` dans
+     `/opt/apps/<instance>` : `postgres` est le service du compose, son
+     conteneur s'appelle `<prefixe>-db`), rejouer le dump PostgreSQL avec
+     `pg_restore` ; `compose.yaml` et `pgadmin` sont déjà reposés par
+     l'étape 4, ne pas les recopier de l'archive ;
    - redémarrer l'appli, puis vérifier avec les animateurs et le planning réels.
 
    Les sauvegardes de la nuit n'ont pas encore été reposées : la dernière

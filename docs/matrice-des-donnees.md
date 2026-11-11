@@ -142,7 +142,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 | Mot de passe du dépôt restic des KeePass | 1 | papier + SOPS des dotfiles | — | lieu du papier non trouvé dans le dépôt | trimestriel (test à froid) | — |
 | Code, runbooks, Tofu, Ansible | 1 | dépôt GitHub public ; docs aussi sur `docs.sylvain.cloud` | clones locaux | oui | CI | le site de docs passe par le SSO de Pangolin : GitHub sert quand Pangolin tombe |
 | DNS (`tofu/dns`), sites Pages (Cloudflare) | 3 | enregistrements dans le dépôt ; sites dans leurs dépôts | — | oui | non | — |
-| Uptime Kuma (PikaPods) | 3 | moniteurs déclarés dans `tofu/pangolin_config`, ; dix moniteurs créés à la main et les réglages de notification sont hors Tofu | partiellement recréables : le déclaré revient par `tofu apply`, le reste est à refaire à la main | oui | non | les moniteurs manuels et les notifications ; historique des mesures : non trouvé dans le dépôt |
+| Uptime Kuma (PikaPods) | 3 | moniteurs déclarés dans `tofu/pangolin_config` ; dix moniteurs créés à la main et les réglages de notification sont hors Tofu | partiellement recréables : le déclaré revient par `tofu apply`, le reste est à refaire à la main | oui | non | les moniteurs manuels et les notifications ; historique des mesures : non trouvé dans le dépôt |
 | Actual Budget (`budget.sylvain.cloud`, PikaPods, comptes du foyer) | 2 | chez PikaPods ; aucune sauvegarde ni export décrit dans le dépôt | à vérifier : **sauvegarde à vérifier par Sylvain** (option Backups de PikaPods ? export local récent ?) | à vérifier | non | tout, tant que la sauvegarde n'est pas confirmée |
 
 ## Par sinistre
