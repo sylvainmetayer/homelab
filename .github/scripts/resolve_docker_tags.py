@@ -269,10 +269,13 @@ def resolve_tags(role_tags, roles):
 
     # A role tagged `never` (decommission_app) only runs when asked for by
     # name: a change to it must not deploy anything.
-    all_tags = {tag for tags in matched.values() if "never" not in tags for tag in tags}
-    specific = all_tags - GENERIC_TAGS
-
-    resolved = specific if specific else all_tags
+    # Per role: its specific tags, or its generic ones when it has no other
+    # (docker_service: setup). Pooling them would let one role's specific tag
+    # shadow another role's only tag, which then deploys nothing.
+    resolved = set()
+    for tags in matched.values():
+        if "never" not in tags:
+            resolved |= set(tags) - GENERIC_TAGS or set(tags)
     return matched, resolved
 
 
