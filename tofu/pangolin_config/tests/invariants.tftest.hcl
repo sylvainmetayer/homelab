@@ -4058,3 +4058,25 @@ run "state_encryption_has_no_fallback" {
     error_message = "Aucun encryption.tf (pangolin_config, site, github) ne doit plus déclarer method \"unencrypted\" ni de bloc fallback."
   }
 }
+
+# L'organisation Pangolin est dans le state depuis le 12/11/2026 : sa
+# destruction emporterait tout. Lecture statique d'org.tf (un lifecycle ne se
+# lit pas dans le plan), plus les deux rétentions décidées.
+run "org_cannot_be_destroyed" {
+  command = plan
+
+  assert {
+    condition     = length(regexall("lifecycle\\s*\\{\\s*prevent_destroy\\s*=\\s*true", file("${path.module}/org.tf"))) == 1
+    error_message = "pangolin_org.this doit garder lifecycle { prevent_destroy = true } (org.tf)."
+  }
+
+  assert {
+    condition     = pangolin_org.this.log_retention_days_ai_sessions == 0
+    error_message = "Le journal des sessions IA reste à 0 jour : il garderait prompts et réponses en entier (README, AI gateway)."
+  }
+
+  assert {
+    condition     = pangolin_org.this.log_retention_days_request <= 7
+    error_message = "Le journal des requêtes reste à 7 jours au plus : c'est lui qui grossit la base de Pangolin."
+  }
+}
