@@ -87,7 +87,9 @@ def call_immich(method, path, args, base, key, extra_headers=None):
             return json.load(resp)
     except urllib.error.HTTPError as e:
         # le corps d'Immich nomme la permission manquante d'un 403
-        raise RuntimeError("HTTP %d : %s" % (e.code, e.read(500).decode(errors="replace"))) from None
+        # une 3xx n'a pas de corps : sa cible dit où l'on voulait aller (login Pangolin, http -> https)
+        detail = e.read(500).decode(errors="replace") or e.headers.get("Location", "")
+        raise RuntimeError("HTTP %d : %s" % (e.code, detail)) from None
 
 
 def handle(msg, call):
