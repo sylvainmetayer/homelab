@@ -78,10 +78,14 @@
   ([sauvegarde-et-restauration.md](sauvegarde-et-restauration.md), section
   SQLite ; l'appli s'appelle `pangolin`).
 - **VM perdue** : [reconstruction-pangolin.md](reconstruction-pangolin.md).
-- **Certificat expiré** : le défi Let's Encrypt est un défi HTTP sur le port
-  80 (`httpChallenge`, entrée `web`, `traefik_config.yml.j2`). Vérifier que
-  le port 80 est joignable depuis Internet (ufw et pare-feu Hetzner) et que
-  `acme.json` est accessible en écriture, puis `docker restart traefik`.
+- **Certificat expiré** : deux résolveurs dans `traefik_config.yml.j2`, un
+  seul `acme.json`. Les jokers `*.sylvain.cloud` et `*.sylvain.dev` passent par
+  un défi DNS-01 (résolveur `letsencrypt-dns`, clés OVH `pangolin_ovh_*` :
+  vérifier qu'elles sont valides et que `acme.json` est accessible en
+  écriture). Un certificat par nom encore dans `acme.json` passe par le défi
+  HTTP sur le port 80 (`httpChallenge`, résolveur `letsencrypt`, entrée `web`) :
+  vérifier que le port 80 est joignable depuis Internet (ufw et pare-feu
+  Hetzner). Puis `docker restart traefik`.
 - **NAT perdu** : `sudo systemctl restart nat-gateway`.
 
 ## Vérification
