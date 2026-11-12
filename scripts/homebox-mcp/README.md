@@ -45,30 +45,28 @@ Dans le `.mcp.json` du checkout du homelab (exclu de git), ajouter :
   "args": ["/home/sylvain/Documents/homelab/scripts/homebox-mcp/homebox_mcp.py"],
   "env": {
     "HOMEBOX_URL": "https://homebox.sylvain.cloud",
-    "HOMEBOX_API_KEY": "${HOMEBOX_API_KEY}"
+    "HOMEBOX_API_KEY": "${HOMEBOX_API_KEY}",
+    "HOMEBOX_PANGOLIN_TOKEN_ID": "${HOMEBOX_PANGOLIN_TOKEN_ID}",
+    "HOMEBOX_PANGOLIN_TOKEN": "${HOMEBOX_PANGOLIN_TOKEN}"
   }
 }
 ```
 
 Redémarrer Claude Code, approuver le serveur (`/mcp`).
 
-## Joignabilité : une décision d'exposition reste à prendre
+## Joignabilité : jeton d'accès Pangolin
 
 `website_homebox.tf` n'ouvre aucun chemin : tout `homebox.sylvain.cloud`, `/api`
-compris, est derrière le mur SSO de Pangolin (et le filtre FR/DE). Un client
-sans navigateur y reçoit la redirection vers la connexion : **ce serveur ne
-joint pas Homebox tant que rien n'est ouvert**. Rien de tel n'existe encore
-pour Homebox (Immich a `immich_home_ip` et le jeton `mobile`), et cette PR
-ne change pas l'exposition. Deux voies, calquées sur Immich, à choisir :
+compris, est derrière le mur SSO de Pangolin (et le filtre FR/DE). Le serveur
+passe ce mur avec le jeton d'accès Pangolin `claude-code`
+(`pangolin_resource_access_token.homebox_clients`), à lire une fois dans
+`tofu/pangolin_config` :
 
-- règle ACCEPT sur l'IP du domicile (`local.home_ip`, priorité 9) : suffit
-  depuis chez soi, sans variable de plus ;
-- jeton d'accès Pangolin (`pangolin_resource_access_token`), à mettre dans
-  `HOMEBOX_PANGOLIN_TOKEN_ID` et `HOMEBOX_PANGOLIN_TOKEN` (déjà lus par le
-  serveur) : valable hors de chez soi, la clé d'API restant exigée.
+    tofu output -json homebox_client_access_tokens
 
-Dans les deux cas la clé d'API reste obligatoire : c'est elle qui authentifie
-auprès de Homebox.
+et à exporter dans `HOMEBOX_PANGOLIN_TOKEN_ID` (`P-Access-Token-Id`) et
+`HOMEBOX_PANGOLIN_TOKEN` (`P-Access-Token`), là où vit `HOMEBOX_API_KEY`. La clé
+d'API reste obligatoire : c'est elle qui authentifie auprès de Homebox.
 
 ## Non testé contre le vrai service
 
