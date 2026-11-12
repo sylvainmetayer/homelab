@@ -5,5 +5,6 @@ case "$(cat "$(dirname "$0")/case")" in
   data) echo "  pve data 85.00 1.32" ;;
   meta) echo "  pve data 23.85 91.40" ;;
   none) ;;
+  warn) echo "  WARNING: Not using lvmetad" >&2 ;;
   fail) echo "lvs: boom" >&2; exit 5 ;;
 esac

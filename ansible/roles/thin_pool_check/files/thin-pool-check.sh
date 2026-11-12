@@ -11,11 +11,14 @@ set -u
 
 threshold="$1"
 lvs="${THIN_POOL_CHECK_LVS:-lvs}"
+# stderr à part : un WARNING de lvs n'est pas une ligne de pool.
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
 
 # LC_ALL=C : point décimal. Une ligne par pool : « vg pool données métadonnées ».
 if pools=$(LC_ALL=C "$lvs" --noheadings --separator ' ' \
     -o vg_name,lv_name,data_percent,metadata_percent \
-    -S 'lv_layout=thin && lv_layout=pool' 2>&1) && [ -n "$pools" ]; then
+    -S 'lv_layout=thin && lv_layout=pool' 2>"$err") && [ -n "$pools" ]; then
   status=up
   msg=$(printf '%s\n' "$pools" | awk -v t="$threshold" '
     { d = $3 + 0; m = $4 + 0
@@ -27,7 +30,7 @@ if pools=$(LC_ALL=C "$lvs" --noheadings --separator ' ' \
   msg=${msg#* }
 else
   status=down
-  msg="lvs en échec ou aucun thin pool : $(printf '%s' "$pools" | tail -n 1 | head -c 200)"
+  msg="lvs en échec ou aucun thin pool : $(tail -n 1 "$err" | head -c 200)"
 fi
 
 echo "$status: $msg"

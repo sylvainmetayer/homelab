@@ -15,6 +15,7 @@
       meta: [1, down, "métadonnées 91.4 %"]
       none: [1, down, "aucun thin pool"]
       fail: [1, down, "lvs: boom"]
+      warn: [1, down, "WARNING: Not using lvmetad"]
   tasks:
     - name: Read the environment file and the service unit
       ansible.builtin.slurp:
