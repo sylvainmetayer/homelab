@@ -246,6 +246,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.grocy_clients
+  values = { id = "tok-grocy", token = "jeton-grocy" }
+}
+
+override_resource {
   target = pangolin_resource_access_token.papra_clients
   values = { id = "tok-papra", token = "jeton-papra" }
 }

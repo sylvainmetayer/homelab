@@ -2,8 +2,9 @@
 #
 # Grocy: stock, shopping lists, recipes and meal plan, chores, batteries and
 # equipment of the house. Behind the SSO, then Grocy's own login; no path
-# opened around it. The Android app gets through with HTTP Basic credentials
-# (below).
+# opened around it. The Android app gets through with HTTP Basic credentials,
+# Sylvain's local MCP server (scripts/grocy-mcp) with a Pangolin access token
+# (both below).
 locals {
   grocy_website = {
     name      = "Grocy"
@@ -76,6 +77,30 @@ output "grocy_mobile_server_url" {
   description = "GROCY - URL du serveur pour l'appli Android (identifiants Basic de Pangolin)"
   value       = "https://${pangolin_resource_header_auth.grocy_mobile.user}:${random_password.grocy_mobile.result}@${pangolin_resource.website["grocy"].full_domain}"
   sensitive   = true
+}
+
+# Access token of the local MCP server (scripts/grocy-mcp): sent as the
+# P-Access-Token-Id / P-Access-Token headers, on top of the Grocy API key. Not
+# the header authentication above: that one is single per resource and shared
+# with the phone, a token is revoked alone. The resource stays behind the SSO
+# wall and the geo-filter for everything else. Read them with
+# `tofu output -json grocy_client_access_tokens`.
+resource "pangolin_resource_access_token" "grocy_clients" {
+  for_each = toset(["claude-code"])
+
+  resource_id = pangolin_resource.website["grocy"].id
+  title       = "${pangolin_resource.website["grocy"].name} ${each.key}"
+}
+
+output "grocy_client_access_tokens" {
+  description = "GROCY - En-têtes Pangolin des clients (serveur MCP local)"
+  value = {
+    for client, token in pangolin_resource_access_token.grocy_clients : client => {
+      "P-Access-Token-Id" = tostring(token.id)
+      "P-Access-Token"    = token.token
+    }
+  }
+  sensitive = true
 }
 
 output "uptime_backup_grocy_url" {
