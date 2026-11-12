@@ -71,6 +71,10 @@
           - (openpost_env.OPENPOST_ENCRYPTION_KEY | b64decode | length) == 32
           - openpost_env.OPENPOST_JWT_SECRET != openpost_env.OPENPOST_ENCRYPTION_KEY
           - openpost_env.OPENPOST_TRUSTED_PROXY_CIDRS == '172.16.0.0/12'
+          # Rien ne part vers l'amont : les diagnostics sont allumés par défaut.
+          - openpost_env.OPENPOST_TELEMETRY_ENABLED == 'false'
+          - openpost_env.OPENPOST_DIAGNOSTICS_ENABLED == 'false'
+          - openpost_env.OPENPOST_UPDATE_CHECK_ENABLED == 'false'
           # Pocket ID (sorties fictives du converge), bouton sur la page de login.
           - openpost_env.OPENPOST_OIDC_ISSUER == 'https://idp.example.invalid'
           - openpost_env.OPENPOST_OIDC_CLIENT_ID == 'molecule-pocket-id-openpost-client-id'
@@ -95,6 +99,7 @@
           - openpost_compose.services.openpost.networks == ['newt']
           - openpost_compose.services.openpost.user == '1000:1000'
           - openpost_compose.services.openpost.cap_drop == ['ALL']
+          - "'@sha256:' in openpost_compose.services.openpost.image"
           - "'no-new-privileges:true' in openpost_compose.services.openpost.security_opt"
         fail_msg: Réseau ou durcissement d'openpost inattendu.
 

@@ -14,7 +14,10 @@ restée en pause depuis cet essai (`docs/runbooks/app-en-pause.md`).
 Projet jeune (premier commit en mars 2026) qui publie plusieurs versions par
 semaine : Renovate les propose, jamais d'automerge (image de
 `path_bypass_images.json`), et une montée migre la base au démarrage, sans
-retour arrière autre que la sauvegarde.
+retour arrière autre que la sauvegarde. L'image est épinglée par digest (amont
+ni signée ni attestée) et rien ne part vers l'amont : mise à jour, télémétrie et
+diagnostics d'erreurs (`app.openpo.st`, allumés par défaut) sont coupés dans
+`env.j2`.
 
 ## Premier démarrage
 
