@@ -9,3 +9,6 @@
   tasks:
     - name: Verify the security role
       ansible.builtin.import_tasks: tasks/verify_security.yml
+
+    - name: Verify the masked services
+      ansible.builtin.import_tasks: tasks/verify_masked.yml

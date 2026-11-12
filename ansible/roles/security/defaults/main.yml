@@ -48,6 +48,13 @@ security_auditd_docker_watches:
   - /usr/lib/systemd/system/docker.service
   - /usr/lib/systemd/system/docker.socket
 
+# Unités systemd à arrêter et masquer (`systemctl mask --now`), vide par
+# défaut : seul le Pi la remplit (services de poste de travail d'une image
+# desktop, sans usage sur un serveur). Mettre aussi les .socket et .path d'une
+# unité, sinon l'activation par socket la relance ; une unité absente passe
+# sans erreur. Jamais NetworkManager ni wpa_supplicant (réseau du Pi).
+security_masked_services: []
+
 # --- sshd, transmis à devsec ssh_hardening ---
 
 # AllowTcpForwarding de sshd. "local" sur Pangolin, qui sert de bastion
