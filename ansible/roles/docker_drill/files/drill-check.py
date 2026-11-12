@@ -41,7 +41,9 @@ HEALTH = "/api/health"
 HTTP = {
     "betisier": ("betisier", 80, "/", None),
     "dawarich": ("dawarich-app", 3000, "/api/v1/health", None),
-    "grocy": ("grocy", 80, "/robots.txt", None),
+    # Une page PHP (302), pas un fichier statique : Grocy ne crée grocy.db qu'au
+    # premier appel, et le second passage --tags app doit la trouver.
+    "grocy": ("grocy", 80, "/", None),
     "homebox": ("homebox", 7745, "/api/v1/status", None),
     "jellystat": ("jellystat", 3000, "/auth/isconfigured", None),
     "karakeep": ("karakeep", 3000, HEALTH, None),

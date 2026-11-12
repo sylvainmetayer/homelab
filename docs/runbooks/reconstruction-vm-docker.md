@@ -87,7 +87,7 @@ Chaque étape porte un repère (T0…) de la feuille de temps. Démarrer le chro
 **T0. Créer le serveur** (depuis un clone à jour de `main`, hors checkout principal) :
 
 ```bash
-ip=$(curl -s https://ifconfig.me)
+ip=$(curl -4 -s https://ifconfig.me)   # -4 : le pare-feu attend une IPv4 en /32
 mise exec -- tofu -chdir=tofu/pangolin plan  -var "drill={enabled=true,allowed_ssh_cidrs=[\"$ip/32\"]}"
 ```
 
@@ -123,8 +123,10 @@ borgmatic ; les images se tirent ici : c'est le temps de téléchargement, mesur
 ansible-playbook docker.yml -e drill_target=drill -e docker_drill_key_file="$XDG_RUNTIME_DIR/drill_borg_key"
 ```
 
-Puis **une seconde fois, même commande avec `--tags app`**, une fois les applis
-démarrées : Ansible ne repère une base SQLite (à exclure, à copier avant
+Puis `sudo drill-check` sur la copie (ses sondes font naître la base de Grocy,
+créée au premier appel seulement ; les contrôles de données échouent, c'est
+attendu), et **une seconde fois, même commande avec `--tags app`**, une fois les
+applis démarrées : Ansible ne repère une base SQLite (à exclure, à copier avant
 sauvegarde) que sur le disque ; au premier passage elle n'existe pas encore, et
 la configuration de l'appli ne la liste pas. Sans ce second passage,
 `drill-restore-app` s'arrête sur ce constat plutôt que de relancer l'appli à vide.
@@ -185,6 +187,34 @@ lignes `RESTORE-RESULT`) :
 | **Total T0 à T6** | 21:50 | 22:27 | **37** | dont ~10 min de corrections ; les restaurations seules : ~13 min |
 | T7 destruction vérifiée | 22:25 | 22:27 | 2 | 3 destructions, API : 0 serveur, volume, pare-feu, image `role=drill` |
 
+Exercice du 12/11/2026 (cpx42, fsn1 ; mené par Claude, sans correction du rôle
+en cours de route) :
+
+| Étape | Début | Fin | Durée | Remarque |
+|---|---|---|---|---|
+| T0 création du serveur | 18:14 | 18:14 | < 1 | `curl` sans `-4` rendait une IPv6, refusée par le pare-feu (commande corrigée) |
+| T1 clé d'hôte, inventaire, ping | 18:14 | 18:15 | < 1 | |
+| T2 base (`--tags setup`) | 18:15 | 18:17 | 2 | ok=224, aucun échec, `borgmatic.timer` masqué |
+| T3 applis à vide | 18:17 | 18:32 | 15 | 8 min le premier passage, `drill-check` à vide, 2 min le second |
+| T4 Nextcloud | 18:32 | 18:34 | 1,3 | 78 s : extraction 27, MariaDB 44 |
+| T4 Dawarich | 18:34 | 18:35 | 1,4 | 81 s (base 69) |
+| T4 Papra | 18:35 | 18:35 | 0,2 | 9 s |
+| T4 les autres | 18:35 | 18:41 | 6 | betisier 36, homebox 5, jellystat 33, karakeep 68, monica_v4 35, ntfy 5, openwebui 6, rss 9, speedtest_tracker 8, trek 17, wiki 38, wishlist 5, yamtrack 8 ; grocy refusée (voir Constats) |
+| T5 reconvergence | 18:42 | 18:46 | 3 | |
+| T6 contrôles (`drill-check`) | 18:46 | 18:53 | 7 | 2 échecs, Grocy seul ; après un appel HTTP, `--tags grocy` et sa restauration (8 s) : tout passe ; contrôle à l'œil par tunnel non fait |
+| **Total T0 à T6** | 18:14 | 18:53 | **39** | dont ~5 min pour Grocy ; les restaurations seules : 7,5 min pour 17 applis |
+| T7 destruction vérifiée | 18:53 | 18:57 | 4 | 3 destructions, plus aucune ressource `drill` dans le state ; clé borg détruite (`shred`) |
+
+### Constats de l'exercice (12/11/2026)
+
+- **FreshRSS et Open WebUI restaurées** (727 flux, 1 compte) : les deux écarts
+  du 09/11 sont clos.
+- **Grocy, encore** : `drill-check` à vide sondait `/robots.txt`, un fichier
+  statique qui ne fait pas naître `grocy.db` ; le second passage ne trouvait
+  qu'un fichier vide. La sonde vise maintenant `/` (PHP), et la procédure place
+  `drill-check` entre les deux passages du T3. À confirmer au prochain exercice.
+- Beszel et HealthLog restent exclus de la copie, par conception.
+
 ### Constats de l'exercice (09/11/2026)
 
 - **FreshRSS (`rss`) non restaurée.** Sur une installation vide, FreshRSS ne
@@ -232,7 +262,7 @@ le test de restauration de la CI). Les applis sans dépôt Borg (`bentopdf`,
 | beszel | sqlite | exclu (rôle non joué) | non vérifié sur la copie : le test de la CI le fait |
 | betisier | mysql | `betisier:80/` | `betisier` : `personne`, `citation` |
 | dawarich | postgresql | `dawarich-app:3000/api/v1/health` | `dawarich` : `users`, `points` |
-| grocy | sqlite | `grocy:80/robots.txt` | `grocy.db` : `users` |
+| grocy | sqlite | `grocy:80/` (302) | `grocy.db` : `users` |
 | healthlog | postgresql | exclu (jetons Withings) | non vérifié sur la copie : test de la CI et restauration d'essai de [healthlog.md](healthlog.md) |
 | homebox | sqlite | `homebox:7745/api/v1/status` | `homebox.db` : `users`, `groups` |
 | jellystat | postgresql | `jellystat:3000/auth/isconfigured` | `jellystat` : `app_config` |
