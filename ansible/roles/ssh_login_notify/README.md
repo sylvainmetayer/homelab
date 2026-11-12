@@ -2,7 +2,7 @@
 
 Alert on SSH sessions: a `pam_exec` hook in `/etc/pam.d/sshd` pushes the user, the source IP and the key to the host's Uptime Kuma push monitor, which notifies on Telegram (#451). A key of the known list only leaves a low-priority ntfy trace and a journal line. Why, and the accepted risk: [ADR 0027](../../../docs/adr/0027-connexions-ssh-cles-connues.md).
 
-Part of `00-setup.yaml` (`all,!backups,!nas,!pve`, role entry with `become: true`, tags `ssh_login_notify,security`) and of `pve.yml` (by hand: root, no become, the push URL `set_fact`'d in the playbook itself). **By hand only, never by CI**: `resolve_docker_tags.py` prints a notice for this role and deploys nothing. Monitors exist for `local.ssh_login_hosts` of `tofu/pangolin_config/ssh_login_monitors.tf`: docker, flip, newt-lxc, pangolin, pi, pve. The NAS has no hook (UGOS owns its system: a login there does not ring).
+Part of `00-setup.yaml` (`all,!backups,!nas,!pve,!drill`, role entry with `become: true`, tags `ssh_login_notify,security`) and of `pve.yml` (by hand: root, no become, the push URL `set_fact`'d in the playbook itself). **By hand only, never by CI**: `resolve_docker_tags.py` prints a notice for this role and deploys nothing. Monitors exist for `local.ssh_login_hosts` of `tofu/pangolin_config/ssh_login_monitors.tf`: docker, flip, newt-lxc, pangolin, pi, pve. The NAS has no hook (UGOS owns its system: a login there does not ring).
 
 ## Current behaviour
 
