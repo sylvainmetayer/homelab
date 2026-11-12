@@ -118,7 +118,10 @@ sudo apt full-upgrade
 Relire ce qu'apt propose de **retirer**. Avec `docker-ce` ou
 `containerd.io`, `dockerd` redémarre pendant l'installation : les unités
 `dc@` relancent leurs applis (attente bornée du démon, puis `docker compose
-up`), sur Pangolin la restart policy de la stack. Avec un noyau :
+up`), sur Pangolin la restart policy de la stack, puis un drop-in de
+`docker.service` qui démarre gerbil et Traefik (Docker ne relance pas un
+conteneur dont le démarrage a échoué à l'ouverture du démon, incident du
+12/11/2026). Avec un noyau :
 `sudo reboot` (sinon `unattended-upgrades` le fera la nuit suivante, à
 l'heure de l'hôte).
 
@@ -139,17 +142,32 @@ Pas automatique, exprès : `live-restore` est coupé
 (`docs/conventions/container-hardening.md`, décision du 05/11), donc chaque
 mise à jour de `docker-ce` ou `containerd.io` coupe toutes les applis de l'hôte.
 
+Sur Pangolin, **regarder Traefik tout de suite** (`docker ps --format
+'{{.Names}}\t{{.Status}}' | grep -E 'traefik|gerbil'`, les deux « Up ») : le
+12/11/2026 il est resté `Exited (0)` 4 minutes, sans aucun site public
+([incident](../incidents/pangolin-traefik-reste-arrete.md)). Le drop-in
+`docker.service.d/pangolin.conf` est censé le relancer ; s'il ne l'a pas fait :
+
+```bash
+docker start gerbil traefik   # gerbil d'abord : Traefik vit dans son espace réseau
+journalctl -u docker --since '-10min' | grep 'failed to start'   # la cause, à garder
+```
+
+`systemctl restart pangolin` ne vaut que si `docker start` échoue : il recrée
+toute la pile (coupure le temps que Pangolin redevienne sain).
+
 ### Après
 
 ```bash
-docker ps --format '{{.Names}}\t{{.Status}}' | sort   # tout « Up »
+docker ps --format '{{.Names}}\t{{.Status}}' | sort   # tout « Up » (Pangolin : pangolin, gerbil, traefik, crowdsec)
 systemctl --user list-units 'dc@*' --state=failed     # vide (pas sur Pangolin)
 sudo systemctl start update-notify.service && sudo journalctl -u update-notify.service -n 5 --no-pager
 ```
 
 Puis : les moniteurs Uptime Kuma de l'hôte reviennent au vert, l'agent
 Beszel remonte, et le dernier `update-notify` pousse « à jour ». Après
-Pangolin : une appli publique au hasard répond, et `flip` (Beszel, planning)
+Pangolin : **Traefik tourne** (`docker ps` ci-dessus, `curl -sI
+https://pangolin.sylvain.cloud` répond), une appli publique au hasard répond, et `flip` (Beszel, planning)
 est revenu, sa sortie Internet passant par Pangolin.
 
 ## Proxmox VE

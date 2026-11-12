@@ -1,0 +1,12 @@
+# Géré par Ansible (rôle pangolin).
+# Traefik vit dans l'espace réseau de gerbil (network_mode: service:gerbil).
+# Quand Docker échoue à (re)démarrer l'un des deux à l'ouverture du démon
+# (« failed to start container » dans le journal de docker.service), il ne
+# réessaie jamais : le conteneur reste « Exited » et la restart policy ne joue
+# pas (incident du 12/11/2026, docs/incidents/pangolin-traefik-reste-arrete.md).
+# Une fois le démon prêt (Type=notify : la restauration des conteneurs est
+# finie), on démarre ce qui manque. `docker start` ne fait rien sur un
+# conteneur déjà lancé ; « - » : un échec (pile jamais créée, ou supprimée par
+# `docker compose down`) ne doit pas faire échouer docker.service.
+[Service]
+ExecStartPost=-/usr/bin/timeout 60 /usr/bin/docker start gerbil traefik

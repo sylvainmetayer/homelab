@@ -40,6 +40,7 @@ ci-dessous.
 | corrigé le 30/08/2026 | Pangolin : cibles sans schéma de sonde, 503 sur gramps, scanopy et Flip Planning | [pangolin-cibles-sans-sonde-503.md](pangolin-cibles-sans-sonde-503.md) |
 | 30/09 au 27/10/2026 | vzdump de la VM docker en échec chaque soir (disque plein) | [vzdump-disque-plein.md](vzdump-disque-plein.md) |
 | 07/10/2026 | Pangolin figé pendant sa sauvegarde (verrou SQLite) | [pangolin-verrou-sqlite.md](pangolin-verrou-sqlite.md) |
+| 12/11/2026 | Pangolin : Traefik resté arrêté 4 minutes après la mise à jour de Docker | [pangolin-traefik-reste-arrete.md](pangolin-traefik-reste-arrete.md) |
 | 29/10/2026 | Notifications ntfy coupées sur Android après le retrait d'un topic | [ntfy-topic-retire.md](ntfy-topic-retire.md) |
 
 ## Mentionnés, pas assez sourcés pour une page
