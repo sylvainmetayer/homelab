@@ -79,10 +79,11 @@ mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_a
 
 ## Journal des appels
 
-Éteint (« AI Gateway Session Log Retention » = 0, réglage de l'organisation
-dans l'interface, hors Tofu ; le libellé français est différent). Pour
-déboguer : le passer à 1 jour, reproduire, lire, le remettre à 0. Il garde les
-prompts et les réponses en entier, sans masquage.
+Gardé 90 jours (« AI Gateway Session Log Retention », réglage de
+l'organisation : `log_retention_days_ai_sessions` de
+`tofu/pangolin_config/org.tf`, décision du 12/11/2026). Il garde les prompts et
+les réponses en entier, sans masquage, dans la base de Pangolin et ses
+sauvegardes. Pour l'éteindre : `0`, par PR.
 
 ## Points ouverts
 

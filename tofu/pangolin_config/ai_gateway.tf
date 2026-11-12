@@ -16,10 +16,9 @@
 # avec cette passerelle).
 #
 # Journal des appels (« AI Gateway Session Log Retention », réglage de
-# l'organisation, hors du provider) : laissé à 0 jour, soit éteint ; les
-# statistiques d'usage par clé restent. Le rallumer quelques heures pour
-# déboguer, puis le remettre à 0 : il garde les prompts et les réponses en
-# entier, sans masquage (README).
+# l'organisation : log_retention_days_ai_sessions dans org.tf) : 90 jours
+# depuis le 12/11/2026 (décision de Sylvain). Il garde les prompts et les
+# réponses en entier, sans masquage (README) ; 0 l'éteint.
 #
 # Tous les attributs optionnels+calculés sont déclarés (AGENTS.md) : non
 # déclarés, un changement fait dans l'interface passerait inaperçu au plan.

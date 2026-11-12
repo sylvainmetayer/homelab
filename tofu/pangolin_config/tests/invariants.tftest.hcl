@@ -4061,18 +4061,13 @@ run "state_encryption_has_no_fallback" {
 
 # L'organisation Pangolin est dans le state depuis le 12/11/2026 : sa
 # destruction emporterait tout. Lecture statique d'org.tf (un lifecycle ne se
-# lit pas dans le plan), plus les deux rétentions décidées.
+# lit pas dans le plan), plus la rétention du journal des requêtes.
 run "org_cannot_be_destroyed" {
   command = plan
 
   assert {
     condition     = length(regexall("lifecycle\\s*\\{\\s*prevent_destroy\\s*=\\s*true", file("${path.module}/org.tf"))) == 1
     error_message = "pangolin_org.this doit garder lifecycle { prevent_destroy = true } (org.tf)."
-  }
-
-  assert {
-    condition     = pangolin_org.this.log_retention_days_ai_sessions == 0
-    error_message = "Le journal des sessions IA reste à 0 jour : il garderait prompts et réponses en entier (README, AI gateway)."
   }
 
   assert {
