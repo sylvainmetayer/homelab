@@ -5,6 +5,48 @@
     - ../../group_vars/all/variables.yml
     - ../../host_vars/docker/variables.yaml
   pre_tasks:
+    # Installation d'avant le bind mount : volume nommé avec une base factice,
+    # que le rôle migre (tasks/migrate_postgres_volume.yml). Posée une seule
+    # fois : au passage d'idempotence le dossier existe, rien ne change.
+    - name: Look at the healthlog PostgreSQL bind mount folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/healthlog/postgresql"
+      register: healthlog_pg_dir
+
+    - name: Seed a legacy healthlog PostgreSQL named volume
+      when: not healthlog_pg_dir.stat.exists
+      block:
+        - name: Create the named volume
+          ansible.builtin.command: docker volume create healthlog_postgres_data
+          changed_when: true
+
+        - name: Read its mountpoint
+          ansible.builtin.command: docker volume inspect --format '{{ "{{ .Mountpoint }}" }}' healthlog_postgres_data
+          register: healthlog_pg_mountpoint
+          changed_when: false
+
+        - name: Create the cluster folders, owned by the postgres uid
+          become: true
+          ansible.builtin.file:
+            path: "{{ healthlog_pg_mountpoint.stdout }}/{{ item }}"
+            state: directory
+            mode: "0700"
+            owner: "70"
+            group: "70"
+          loop:
+            - "18"
+            - 18/docker
+
+        - name: Put a marker file in the cluster
+          become: true
+          ansible.builtin.copy:
+            content: "18\n"
+            dest: "{{ healthlog_pg_mountpoint.stdout }}/18/docker/PG_VERSION"
+            mode: "0600"
+            owner: "70"
+            group: "70"
+
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 

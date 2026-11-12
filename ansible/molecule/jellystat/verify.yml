@@ -134,3 +134,39 @@
       vars:
         jellystat_db: "{{ jellystat_compose.services['jellystat-db'] }}"
         jellystat_dump: "{{ jellystat_borgmatic.postgresql_databases[0] }}"
+
+    # Migration du volume nommé : la base factice du converge est au bind
+    # mount (uid 70, droits conservés), le compose ne monte plus de volume
+    # nommé pour elle, et l'ancien volume reste (retour arrière).
+    - name: Stat the migrated jellystat PostgreSQL data
+      become: true
+      ansible.builtin.stat:
+        path: "{{ jellystat_path }}/postgresql/18/docker/PG_VERSION"
+      register: jellystat_pg_marker
+
+    - name: Stat the jellystat PostgreSQL folder
+      become: true
+      ansible.builtin.stat:
+        path: "{{ jellystat_path }}/postgresql"
+      register: jellystat_pg_dir_stat
+
+    - name: Check the legacy jellystat volume is still there
+      ansible.builtin.command: docker volume inspect jellystat_postgres_data
+      changed_when: false
+
+    - name: Assert jellystat PostgreSQL lives on a bind mount, data migrated
+      ansible.builtin.assert:
+        that:
+          - jellystat_pg_marker.stat.exists
+          - jellystat_pg_marker.stat.pw_uid == 70
+          - jellystat_pg_marker.stat.mode == '0600'
+          - jellystat_pg_dir_stat.stat.pw_uid == 70
+          - jellystat_pg_dir_stat.stat.mode == '0700'
+          - jellystat_pg_mount | length == 1
+          - jellystat_pg_mount[0].type == 'bind'
+          - jellystat_pg_mount[0].source == jellystat_path ~ '/postgresql'
+          - "'postgres_data' not in (jellystat_compose.volumes | default({}))"
+      vars:
+        jellystat_pg_mount: >-
+          {{ jellystat_compose.services['jellystat-db'].volumes
+             | selectattr('target', 'equalto', '/var/lib/postgresql') | list }}

@@ -22,6 +22,22 @@
         owner: "{{ ansible_facts['user_id'] }}"
         group: "{{ ansible_facts['user_gid'] }}"
 
+    # Avant le compose : un échec laisse l'ancien (volume nommé) en place.
+    - name: Migrate the named PostgreSQL volume to a bind mount
+      ansible.builtin.include_tasks: migrate_postgres_volume.yml
+
+    # Données PostgreSQL : à postgres (uid/gid 70 de l'image alpine) en 0700, ce
+    # que l'entrypoint repose de toute façon à chaque démarrage. Créé avant le
+    # premier démarrage : sans lui, Docker le créerait en root.
+    - name: Ensure Jellystat PostgreSQL folder is owned by the postgres uid
+      become: true
+      ansible.builtin.file:
+        mode: "0700"
+        path: "{{ jellystat_base_path }}/postgresql"
+        state: directory
+        owner: "70"
+        group: "70"
+
     - name: Template compose configuration
       diff: false
       notify: Restart jellystat

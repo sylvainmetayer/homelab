@@ -37,9 +37,11 @@ services:
       retries: 12
       start_period: 10s
     # Postgres 18 range ses données sous /var/lib/postgresql/18/docker et
-    # attend le volume un cran au-dessus.
+    # attend le montage un cran au-dessus. Bind mount sous le dossier de
+    # l'appli, pas un volume nommé : auditd surveille /var/lib/docker en
+    # récursif (README du rôle security).
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - ./postgresql:/var/lib/postgresql
     networks:
       - healthlog
 
@@ -89,7 +91,6 @@ services:
       - newt
 
 volumes:
-  postgres_data:
   backups:
   tmp:
 
