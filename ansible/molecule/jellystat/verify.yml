@@ -158,9 +158,9 @@
       ansible.builtin.assert:
         that:
           - jellystat_pg_marker.stat.exists
-          - jellystat_pg_marker.stat.pw_uid == 70
+          - jellystat_pg_marker.stat.uid == 70
           - jellystat_pg_marker.stat.mode == '0600'
-          - jellystat_pg_dir_stat.stat.pw_uid == 70
+          - jellystat_pg_dir_stat.stat.uid == 70
           - jellystat_pg_dir_stat.stat.mode == '0700'
           - jellystat_pg_mount | length == 1
           - jellystat_pg_mount[0].type == 'bind'

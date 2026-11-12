@@ -172,9 +172,9 @@
       ansible.builtin.assert:
         that:
           - healthlog_pg_marker.stat.exists
-          - healthlog_pg_marker.stat.pw_uid == 70
+          - healthlog_pg_marker.stat.uid == 70
           - healthlog_pg_marker.stat.mode == '0600'
-          - healthlog_pg_dir_stat.stat.pw_uid == 70
+          - healthlog_pg_dir_stat.stat.uid == 70
           - healthlog_pg_dir_stat.stat.mode == '0700'
           - healthlog_pg_mount | length == 1
           - healthlog_pg_mount[0].type == 'bind'
