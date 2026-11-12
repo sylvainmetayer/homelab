@@ -15,12 +15,14 @@
   ansible.builtin.command: docker volume ls --quiet
   register: healthlog_pg_volumes
   changed_when: false
+  check_mode: false
 
 - name: Read the mountpoint of the named PostgreSQL volume
   when: "'healthlog_postgres_data' in healthlog_pg_volumes.stdout_lines"
   ansible.builtin.command: docker volume inspect --format '{{ "{{ .Mountpoint }}" }}' healthlog_postgres_data
   register: healthlog_pg_mountpoint
   changed_when: false
+  check_mode: false
 
 - name: Look at what the named volume holds
   when: "'healthlog_postgres_data' in healthlog_pg_volumes.stdout_lines"
@@ -45,6 +47,8 @@
     - "'healthlog_postgres_data' in healthlog_pg_volumes.stdout_lines"
     - healthlog_pg_volume_content.matched > 0
     - healthlog_pg_dir_content.matched == 0
+    # --check : rien n'est arrêté, le contrôle « plus de conteneur » échouerait.
+    - not ansible_check_mode
   block:
     - name: Stop HealthLog and its database
       ansible.builtin.systemd:

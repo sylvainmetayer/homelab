@@ -15,12 +15,14 @@
   ansible.builtin.command: docker volume ls --quiet
   register: jellystat_pg_volumes
   changed_when: false
+  check_mode: false
 
 - name: Read the mountpoint of the named PostgreSQL volume
   when: "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
   ansible.builtin.command: docker volume inspect --format '{{ "{{ .Mountpoint }}" }}' jellystat_postgres_data
   register: jellystat_pg_mountpoint
   changed_when: false
+  check_mode: false
 
 - name: Look at what the named volume holds
   when: "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
@@ -45,6 +47,8 @@
     - "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
     - jellystat_pg_volume_content.matched > 0
     - jellystat_pg_dir_content.matched == 0
+    # --check : rien n'est arrêté, le contrôle « plus de conteneur » échouerait.
+    - not ansible_check_mode
   block:
     - name: Stop Jellystat and its database
       ansible.builtin.systemd:
