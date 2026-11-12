@@ -195,6 +195,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.homebox_clients
+  values = { id = "tok-homebox", token = "jeton-homebox" }
+}
+
+override_resource {
   target = pangolin_resource_access_token.papra_clients
   values = { id = "tok-papra", token = "jeton-papra" }
 }
@@ -1881,6 +1886,7 @@ run "access_token_outputs_follow_their_reader" {
       for family in [
         { website = "karakeep", tokens = values(pangolin_resource_access_token.karakeep_clients) },
         { website = "immich", tokens = values(pangolin_resource_access_token.immich_clients) },
+        { website = "homebox", tokens = values(pangolin_resource_access_token.homebox_clients) },
         { website = "papra", tokens = values(pangolin_resource_access_token.papra_clients) },
         { website = "trek", tokens = values(pangolin_resource_access_token.trek_mcp_clients) },
         { website = "beszel", tokens = values(pangolin_resource_access_token.beszel_agents) },
@@ -1889,7 +1895,7 @@ run "access_token_outputs_follow_their_reader" {
         for token in family.tokens : token.resource_id == pangolin_resource.website[family.website].id
       ]
     ]))
-    error_message = "Un jeton d'accès client (Karakeep, Immich, Papra, MCP de TREK, agents Beszel ou de journaux) vise une autre ressource que la sienne."
+    error_message = "Un jeton d'accès client (Karakeep, Immich, Homebox, Papra, MCP de TREK, agents Beszel ou de journaux) vise une autre ressource que la sienne."
   }
 
   # `?p_token=<id>.<jeton>` : Pangolin le découpe sur le point
