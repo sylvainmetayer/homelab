@@ -50,6 +50,12 @@ des assets en jeu, noms, drapeau de suppression). Il ne vit nulle part sur
 disque. Le jeton d'une fusion sans suppression ne vaut donc pas pour la même
 fusion avec `deleteDuplicate`.
 
+Limite : le jeton garantit que ce qui s'écrit est ce qui a été prévisualisé,
+pas que Sylvain a dit oui : rien n'empêche techniquement le modèle de
+rappeler l'outil avec le jeton dans le même tour. La vraie barrière humaine est
+l'invite d'autorisation de Claude Code : ne pas mettre les outils
+`immich-ecriture` en « toujours autoriser ».
+
 Fusion : `merge_albums(keepId, duplicateId)` ajoute à l'album gardé les seuls
 assets du doublon qui lui manquent. Avec `deleteDuplicate: true` (à demander
 explicitement à Sylvain), l'objet album doublon est supprimé ensuite, mais
