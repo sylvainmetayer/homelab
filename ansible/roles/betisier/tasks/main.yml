@@ -26,6 +26,19 @@
     dest: "{{ betisier_base_path }}/dump.sql"
     mode: "0600"
 
+# Le mot de passe de démonstration, appliqué à chaque chargement du dump : le
+# tmpfs se vide à chaque arrêt du conteneur (déploiement, redémarrage), pas
+# seulement au reset de la nuit. Le saut de ligne initial protège d'un dump
+# qui finirait par un commentaire sans retour à la ligne.
+- name: Write the SQL that resets the demo password
+  notify: Restart betisier
+  ansible.builtin.copy:
+    content: "\nUPDATE personne SET per_pwd = '{{ betisier_demo_hash }}';\n"
+    dest: "{{ betisier_base_path }}/reset-password.sql"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
 - name: Template compose configuration
   diff: false
   notify: Restart betisier
@@ -118,8 +131,11 @@
         username: betisier
         password: "{{ betisier_db_password }}"
 
-# Rattrapage des volumes anonymes laissés par l'ancien reset (`down` sans
-# `-v`). Ils ne portent aucun label de projet compose : on ne supprime qu'un
+# Rattrapage des volumes anonymes laissés par l'ancien /config de la base
+# (avant le tmpfs). Le conteneur recréé par le premier déploiement les laisse
+# orphelins : ils ne sont supprimés qu'au déploiement suivant. À retirer une
+# fois ce second déploiement passé sur la VM docker (README du rôle).
+# Ils ne portent aucun label de projet compose : on ne supprime qu'un
 # volume anonyme, orphelin (dangling) et dont le contenu est celui de
 # betisier_db (`databases/betisier` et `custom.cnf` de l'image linuxserver).
 # Le volume de la base en cours est attaché, donc jamais dangling. Rien à
