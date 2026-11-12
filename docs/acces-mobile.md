@@ -90,6 +90,11 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   jeton passe aussi le code PIN Pangolin de la ressource. Aucun chemin ouvert :
   hors de la maison, toute la ressource reste derrière le SSO et le filtre
   pays (en voyage hors de ces pays, l'appli est refusée).
+- Homebox : serveur MCP local de Claude Code (`scripts/homebox-mcp`), un
+  jeton (`claude-code`, lu avec `tofu output -json homebox_client_access_tokens`
+  dans `tofu/pangolin_config`), envoyé en en-têtes `P-Access-Token-Id` et
+  `P-Access-Token`, puis la clé d'API de Homebox. Aucun chemin ouvert : la
+  ressource reste derrière le SSO et le filtre pays.
 - Grocy : l'appli Android (patzly/grocy-android) n'envoie pas d'en-tête
   personnalisé, donc pas de jeton d'accès. Elle passe par
   l'**authentification par en-tête** de Pangolin
