@@ -90,6 +90,13 @@ L'inventaire vient de `ansible.cfg` (`inventory = ./inventory`, c'est-à-dire
 LXC newt, NAS, hôte Proxmox), `docker.yml`, `flip.yml` ou `pangolin.yaml`
 n'y trouveraient aucun hôte.
 
+Un `tofu plan` ou un `tofu output` de `tofu/pangolin_config`, cité dans
+plusieurs runbooks, suppose le module initialisé : `mise run provider-fork`
+(télécharge le fork du provider Pangolin et le miroir `trozz/pocketid`) **avant**
+`mise exec -- tofu -chdir=tofu/pangolin_config init`. Son state est chiffré
+comme les autres : l'environnement de mise doit porter la phrase de passe
+(`TF_VAR_pangolin_config_state_passphrase`, [conventions/opentofu.md](../conventions/opentofu.md)).
+
 Deux règles qui valent pour tous les runbooks :
 
 - **Sylvain applique lui-même.** `tofu apply` et `ansible-playbook` sans
