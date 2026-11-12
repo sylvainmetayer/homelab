@@ -1,0 +1,100 @@
+#cloud-config
+# Serveur de mesure du solveur (bench.tf) : de quoi laisser entrer SSH par le
+# bastion, sortir par le NAT de Pangolin, et rien d'autre. Il porte une copie de
+# la base de production : le pare-feu ci-dessous est ce qui empêche l'appli
+# restaurée d'écrire à qui que ce soit, quoi qu'on oublie dans son
+# environnement. Les pare-feu Hetzner ne s'appliquent qu'aux interfaces
+# publiques, il n'en a pas : le filtrage est donc sur l'hôte.
+users:
+  - name: sylvain
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${public_ssh_key}
+
+ssh_pwauth: false
+disable_root: true
+ssh_deletekeys: true
+ssh_genkeytypes: [ed25519]
+ssh_keys:
+  ed25519_private: |
+    ${indent(4, host_private_key)}
+  ed25519_public: ${host_public_key}
+
+write_files:
+  # Entrée : SSH depuis le bastion seul. Sortie, de l'hôte comme des conteneurs
+  # (chaîne forward) : DNS, NTP, HTTP(S) — apt et les images. Ni SMTP, ni IMAP,
+  # ni SSH, et rien vers le réseau privé (flip, les ports privés de Pangolin).
+  - path: /etc/nftables.conf
+    permissions: '0644'
+    content: |
+      #!/usr/sbin/nft -f
+      flush ruleset
+      table inet bench {
+        set egress_tcp { type inet_service; elements = { 53, 80, 443 } }
+        set egress_udp { type inet_service; elements = { 53, 123 } }
+        chain input {
+          type filter hook input priority filter; policy drop;
+          iif lo accept
+          ct state established,related accept
+          ip saddr ${bastion_private_ip} tcp dport 22 accept
+          udp sport 67 udp dport 68 accept
+          icmp type echo-request accept
+        }
+        chain output {
+          type filter hook output priority filter; policy drop;
+          oif lo accept
+          ct state established,related accept
+          udp dport 67 accept
+          oifname "docker0" accept
+          oifname "br-*" accept
+          ip daddr ${private_network} drop
+          tcp dport @egress_tcp accept
+          udp dport @egress_udp accept
+        }
+        chain forward {
+          type filter hook forward priority filter; policy drop;
+          ct state established,related accept
+          oifname "docker0" accept
+          oifname "br-*" accept
+          ip daddr ${private_network} drop
+          tcp dport @egress_tcp accept
+          udp dport @egress_udp accept
+        }
+      }
+  # Route par défaut et résolveurs, ce que le rôle nat_client pose sur flip : le
+  # DHCP du réseau privé ne pousse ni l'un ni l'autre, et un renouvellement de
+  # bail les efface.
+  - path: /usr/local/sbin/bench-nat
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      ip route replace default via ${nat_gateway}
+      grep -q '${dns_servers[0]}' /etc/resolv.conf 2>/dev/null || {
+        rm -f /etc/resolv.conf
+        printf '%s\n' ${join(" ", [for d in dns_servers : "'nameserver ${d}'"])} > /etc/resolv.conf
+      }
+  - path: /etc/systemd/system/bench-nat.service
+    content: |
+      [Unit]
+      Description=Default route and resolvers through the NAT gateway
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/bench-nat
+  - path: /etc/systemd/system/bench-nat.timer
+    content: |
+      [Unit]
+      Description=Keep the NAT route and resolvers in place
+      [Timer]
+      OnBootSec=5s
+      OnUnitActiveSec=30s
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - systemctl enable --now nftables
+  - systemctl daemon-reload
+  - systemctl enable --now bench-nat.timer
+  - /usr/local/sbin/bench-nat

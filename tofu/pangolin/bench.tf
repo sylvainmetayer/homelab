@@ -5,6 +5,10 @@
 #
 # - aucune IP publique, aucune ressource Pangolin, pas de newt : on n'y entre
 #   qu'en SSH par le bastion, et le solveur se lance en curl sur localhost ;
+# - pare-feu sur l'hôte (nftables, user_data_bench.yaml), les pare-feu Hetzner
+#   ne couvrant pas le réseau privé : SSH depuis le bastion seul en entrée ;
+#   DNS, NTP et HTTP(S) seuls en sortie, conteneurs compris — ni SMTP, ni
+#   IMAP, ni SSH, ni le réseau privé (flip, les ports privés de Pangolin) ;
 # - label role=bench : hetzner.py en fait le groupe Ansible `bench`, qui n'est
 #   ni hetzner ni flip, et qu'aucun playbook ne vise ;
 # - la clé d'hôte SSH est générée ici et injectée par cloud-init, comme pour
@@ -28,6 +32,11 @@ variable "bench" {
     first_host = optional(number, 30)
   })
   default = {}
+
+  validation {
+    condition     = length(distinct(var.bench.server_types)) == length(var.bench.server_types)
+    error_message = "bench.server_types : un type au plus une fois, le nom du serveur en dérive."
+  }
 
   validation {
     condition     = var.bench.first_host > 10 && var.bench.first_host + length(var.bench.server_types) <= 255
@@ -74,11 +83,15 @@ resource "hcloud_server" "bench" {
 
   labels = merge(var.labels, { role = "bench" })
 
-  # Le cloud-init de drill : un utilisateur, et la clé d'hôte générée ci-dessus.
-  user_data = templatefile("${path.root}/user_data_drill.yaml", {
-    public_ssh_key   = file("${path.root}/../../keys/perso.pub")
-    host_private_key = tls_private_key.bench_host[count.index].private_key_openssh
-    host_public_key  = trimspace(tls_private_key.bench_host[count.index].public_key_openssh)
+  # Pare-feu de l'hôte, route et résolveurs : voir le fichier.
+  user_data = templatefile("${path.root}/user_data_bench.yaml", {
+    public_ssh_key     = file("${path.root}/../../keys/perso.pub")
+    host_private_key   = tls_private_key.bench_host[count.index].private_key_openssh
+    host_public_key    = trimspace(tls_private_key.bench_host[count.index].public_key_openssh)
+    bastion_private_ip = one(hcloud_server.pangolin.network).ip
+    private_network    = hcloud_network.main.ip_range
+    nat_gateway        = cidrhost(hcloud_network.main.ip_range, 1)
+    dns_servers        = ["185.12.64.1", "185.12.64.2"]
   })
 
   depends_on = [hcloud_network_subnet.main]

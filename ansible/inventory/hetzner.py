@@ -135,6 +135,11 @@ def get_inventory():
                     "server_type": values.get("server_type"),
                     "location": values.get("location")
                 }
+            elif (values.get("labels") or {}).get("role") == "bench" and ipv4_address and ipv4_address != "127.0.0.1":
+                # Un serveur de mesure n'a jamais d'IP publique (bench.tf) : en
+                # voir une, c'est un state qu'on ne reconnaît pas, et il ne doit
+                # tomber dans aucun groupe.
+                print(f"hetzner.py: {name!r} est étiqueté bench et a une IPv4 publique, ignoré", file=sys.stderr)
             elif ipv4_address and ipv4_address != "127.0.0.1":
                 inventory["hetzner"]["hosts"].append(name)
                 inventory["_meta"]["hostvars"][name] = {
