@@ -9,4 +9,4 @@
 # conteneur déjà lancé ; « - » : un échec (pile jamais créée, ou supprimée par
 # `docker compose down`) ne doit pas faire échouer docker.service.
 [Service]
-ExecStartPost=-/usr/bin/timeout 60 /usr/bin/docker start gerbil traefik
+ExecStartPost=-/usr/bin/timeout 30 /usr/bin/docker start pangolin gerbil traefik crowdsec

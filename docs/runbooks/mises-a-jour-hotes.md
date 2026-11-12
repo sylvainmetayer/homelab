@@ -149,8 +149,8 @@ Sur Pangolin, **regarder Traefik tout de suite** (`docker ps --format
 `docker.service.d/pangolin.conf` est censé le relancer ; s'il ne l'a pas fait :
 
 ```bash
-docker start gerbil traefik   # gerbil d'abord : Traefik vit dans son espace réseau
-journalctl -u docker --since '-10min' | grep 'failed to start'   # la cause, à garder
+docker start pangolin gerbil traefik crowdsec   # dans cet ordre : Traefik vit dans l'espace réseau de gerbil
+sudo journalctl -u docker --since '-10min' | grep 'failed to start'   # la cause, à garder
 ```
 
 `systemctl restart pangolin` ne vaut que si `docker start` échoue : il recrée
