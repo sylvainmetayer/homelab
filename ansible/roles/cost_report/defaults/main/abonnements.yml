@@ -8,20 +8,30 @@
 #              s'additionnent par devise ;
 #   period   : monthly ou yearly (ramené au mois : montant / 12).
 # Modifier ce fichier redéploie le seul tag cost_report au merge.
+# Montants de la revue d'octobre 2026, à revoir à chaque échéance.
 cost_report_subscriptions:
-  # Uptime Kuma hébergé chez PikaPods : pas d'API publique, le montant de la
-  # facture mensuelle. PikaPods facture en dollars : vérifier la devise sur
-  # la facture.
+  # Actual Budget et Uptime Kuma hébergés chez PikaPods : pas d'API publique.
   - name: PikaPods
-    amount: 0
-    currency: USD
-    period: monthly
-  # Infomaniak kDrive : vérifier la période (mensuelle ou annuelle).
+    amount: 62
+    currency: EUR
+    period: yearly
+  # Infomaniak kDrive 3 To : 391 € pour 3 ans, échéance 06/2028.
   - name: kDrive
-    amount: 0
+    amount: 130
     currency: EUR
-    period: monthly
-  - name: Abonnement IA
-    amount: 0
+    period: yearly
+  # Infomaniak, 5 boîtes.
+  - name: Mail
+    amount: 22.80
     currency: EUR
-    period: monthly
+    period: yearly
+  - name: Stockage S3
+    amount: 6
+    currency: EUR
+    period: yearly
+  # sylvain.cloud 24,40 € ; sylvain.dev et metayer.dev 31,98 € chacun ;
+  # sylvainmetayer.fr 12,47 €.
+  - name: Domaines
+    amount: 100.83
+    currency: EUR
+    period: yearly
