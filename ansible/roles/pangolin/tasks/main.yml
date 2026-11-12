@@ -1,4 +1,27 @@
 ---
+# Avant les écritures du rôle (la dépendance uptime_push a déjà tourné) : retirer l'ancien nom (pangolin_dashboard_legacy_url vide)
+# alors que l'endpoint WireGuard de gerbil ou celui des Newt le vise encore
+# couperait tous les tunnels, Traefik ne servant plus ce nom
+# (docs/runbooks/renommage-pangolin-hall.md). newt_endpoint vient de
+# group_vars/all (absent ou sans nom d'hôte : non vérifié).
+- name: Refuse to stop serving a name the tunnels still use
+  vars:
+    pangolin_served_hosts: "{{ [pangolin_dashboard_url, pangolin_dashboard_legacy_url] | select | list }}"
+    pangolin_newt_host: "{{ (newt_endpoint | default('')) | urlsplit('hostname') | default('', true) }}"
+  ansible.builtin.assert:
+    that:
+      - pangolin_gerbil_endpoint in pangolin_served_hosts
+      - pangolin_newt_host == '' or pangolin_newt_host in pangolin_served_hosts + [pangolin_api_url]
+    fail_msg: >-
+      Nom retiré alors que les tunnels l'utilisent encore : l'endpoint WireGuard
+      (pangolin_gerbil_endpoint = {{ pangolin_gerbil_endpoint }}) et l'endpoint des Newt
+      (newt_endpoint = {{ newt_endpoint | default('') }}) doivent viser un nom que Traefik
+      sert ({{ pangolin_served_hosts | join(', ') }}). Basculer d'abord
+      pangolin_gerbil_endpoint et newt_endpoint sur {{ pangolin_dashboard_url }}, vérifier
+      chaque Newt en ligne, puis seulement vider pangolin_dashboard_legacy_url
+      (docs/runbooks/renommage-pangolin-hall.md).
+    quiet: true
+
 - name: Create Pangolin directories
   become: true
   ansible.builtin.file:

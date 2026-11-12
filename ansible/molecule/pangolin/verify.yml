@@ -528,6 +528,17 @@
         path: "{{ legacy_scratch.path }}"
         state: absent
 
+    # Retirer l'ancien nom alors que l'endpoint WireGuard ou celui des Newt le
+    # vise encore couperait les tunnels : le rôle refuse avant toute écriture
+    # (le routeur legacy est encore dans le fichier déjà rendu).
+    - name: Assert the role refuses to drop a name the tunnels still use
+      ansible.builtin.include_tasks: tasks/refuse_name.yml
+      loop:
+        - { gerbil: "{{ pangolin_gerbil_endpoint }}", newt: "https://{{ pangolin_dashboard_url }}" }
+        - { gerbil: "{{ pangolin_dashboard_url }}", newt: "https://{{ pangolin_dashboard_legacy_url }}" }
+      loop_control:
+        loop_var: case
+
     # Fournisseur d'identité (rôle pocket_id, ADR 0030) : un routeur direct,
     # sans badger (il sert le login du mur SSO), avec la limite de débit, et
     # sans restriction d'IP depuis la fin de la mise en place (pocket_id_setup_phase

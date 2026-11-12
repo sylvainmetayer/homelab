@@ -2316,6 +2316,12 @@ run "pangolin_dashboard_monitor_follows_host_vars" {
       && uptimekuma_monitor_http.pangolin_dashboard.active == true
       && uptimekuma_monitor_http.pangolin_dashboard_legacy_api.url == "https://pangolin.sylvain.cloud/api/v1/"
       && uptimekuma_monitor_http.pangolin_dashboard_legacy_api.active == true
+      && uptimekuma_monitor_http.pangolin_dashboard.expiry_notification == true
+      && uptimekuma_monitor_http.pangolin_dashboard_legacy_api.expiry_notification == false
+      && strcontains(
+        file("${path.module}/../../ansible/roles/homepage/defaults/main.yml"),
+        "\n    href: https://${local.pangolin_dashboard_host}\n    group: Administration\n"
+      )
       && pocketid_client.pangolin.launch_url == "https://hall.sylvain.cloud"
       && strcontains(
         file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),

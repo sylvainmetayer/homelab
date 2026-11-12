@@ -119,8 +119,12 @@ publique, le mur SSO n'y est pour rien) ; console Hetzner si le SSH ne répond p
    `ansible_host` et ProxyJump du SSH peuvent garder l'ancien nom), les fiches de
    support à distance de la famille (`support-a-distance-famille*.md`, poste
    Windows : endpoint écrit dans un fichier de la famille, à refaire sur place).
-2. `pangolin_gerbil_endpoint` vers hall seulement quand plus rien n'a besoin de
-   l'ancien nom, puis retirer l'ancien : `pangolin_dashboard_legacy_url`, le
+2. `pangolin_gerbil_endpoint` **et** `newt_endpoint` vers hall seulement quand
+   plus rien n'a besoin de l'ancien nom (un déploiement, chaque site Newt
+   vérifié en ligne), **puis, dans une PR suivante**, retirer l'ancien :
+   `pangolin_dashboard_legacy_url` vidé. Dans cet ordre : le rôle `pangolin`
+   refuse de tourner (avant les écritures du rôle) si l'endpoint WireGuard ou
+   `newt_endpoint` vise un nom qu'il ne sert plus. Retirer aussi : le
    moniteur `pangolin_dashboard_legacy_api`, la seconde URL de
    `callback_urls` et `pangolin_dashboard_legacy_host` (`pocket_id.tf`). Un
    enregistrement DNS suffit à garder `pangolin.` pour le SSH et `known_hosts`.

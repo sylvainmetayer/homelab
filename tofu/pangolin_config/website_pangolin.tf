@@ -49,7 +49,9 @@ resource "uptimekuma_monitor_http" "pangolin_dashboard_legacy_api" {
   active          = true
   method          = "GET"
 
-  expiry_notification = true
+  # Même certificat joker (*.sylvain.cloud) que le moniteur du tableau de bord,
+  # qui alerte déjà sur son expiration : pas une seconde alerte pour le même.
+  expiry_notification = false
   tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
 
   notification_ids = local.alert_notification_ids
