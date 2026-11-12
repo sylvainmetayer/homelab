@@ -47,10 +47,16 @@ locals {
 
 resource "pangolin_resource_pincode" "neonova" {
   resource_id = pangolin_resource.website["neonova"].id
-  pincode     = tostring(local.neonova_pin)
+  # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
+  # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
+  pincode_wo         = tostring(local.neonova_pin)
+  pincode_wo_version = 1
 }
 
 resource "pangolin_resource_pincode" "neonova_aide" {
   resource_id = pangolin_resource.website["neonova_aide"].id
-  pincode     = tostring(local.neonova_pin)
+  # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
+  # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
+  pincode_wo         = tostring(local.neonova_pin)
+  pincode_wo_version = 1
 }

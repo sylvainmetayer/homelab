@@ -31,8 +31,8 @@ fetch() {
   fi
 }
 
-version="1.7.0-sylvain.5"
-sha256="14be65972e27d52067ac1b502d29b2db965c5493c11a9ede131bfe35772e437d"
+version="1.7.0-sylvain.6"
+sha256="764b6a4b4e77c444883f1c2237cf7188f60910330861fe8dec9f59d66384a154"
 zip="terraform-provider-pangolin_${version}_linux_amd64.zip"
 fetch stackopshq/pangolin "$zip" "$sha256" \
   "https://github.com/sylvainmetayer/terraform-provider-pangolin/releases/download/v$version/$zip"
