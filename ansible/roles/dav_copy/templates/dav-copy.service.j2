@@ -6,6 +6,9 @@
 Description=One-way copy of Nextcloud calendars and contacts to Infomaniak
 Wants=network-online.target
 After=network-online.target
+# Ceinture du rôle (qui n'allume le timer qu'avec l'état) : sans l'état de la
+# première copie, tout ce qui est déjà copié passerait pour étranger. Passage sauté.
+ConditionPathExists={{ dav_copy_state_file }}
 
 [Service]
 Type=oneshot

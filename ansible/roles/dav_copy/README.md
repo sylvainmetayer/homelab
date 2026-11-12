@@ -29,23 +29,32 @@ Le rôle n'est joué que si les quatre clés existent dans
    `dav_copy_infomaniak_url` (URL d'agenda Infomaniak avec l'identifiant),
    `dav_copy_infomaniak_password`. Commit poussé dans `secrets/`, puis bump du
    sous-module ici (ne déploie rien).
-2. Appliquer le moniteur : `mise run tofu pangolin_config plan`, puis apply (un
-   `-target` sur `uptimekuma_monitor_push.cron_dav_copy` si le plan contient
-   autre chose).
-3. Déployer sans le timer : `docker.yml --tags dav_copy` (depuis `ansible/`).
-   Le rôle pose tout, laisse le timer éteint et affiche ce qui manque.
-4. Copier l'état de la première copie depuis le poste, en `sylvain`, `0600`
-   (le dossier `/var/lib/dav-copy` existe, `0700 sylvain`) :
+2. Déployer sans le timer : `docker.yml --tags dav_copy` (depuis `ansible/`).
+   Le rôle pose tout, laisse le timer éteint et affiche ce qui manque (et
+   l'URL push vide tant que le moniteur n'existe pas).
+3. **Ne plus lancer la copie depuis le poste à partir d'ici** : un passage du
+   poste après la copie de l'état laisserait l'état de l'hôte en retard (objets
+   écrits par le poste vus comme étrangers, conflits en cascade). Puis copier
+   l'état depuis le poste, en `sylvain`, `0600` (le dossier `/var/lib/dav-copy`
+   existe, `0700 sylvain`) :
    `scp ~/.local/state/dav-copy.json docker:/tmp/dav-copy.json && ssh docker 'sudo install -o sylvain -g sylvain -m 0600 /tmp/dav-copy.json /var/lib/dav-copy/state.json && rm /tmp/dav-copy.json'`.
    Sans cet état, l'outil traiterait tous les objets déjà copiés comme
    étrangers (conflits, plus de mises à jour) : le rôle ne crée **jamais** un
-   état vide et n'allume le timer que si le fichier existe.
-5. Rejouer `docker.yml --tags dav_copy` : le timer démarre (premier passage 5
-   minutes après).
+   état vide et n'allume le timer que si le fichier existe, et l'unité
+   elle-même saute le passage sans lui (`ConditionPathExists`).
+4. Appliquer le moniteur **juste avant l'étape 5**, pas plus tôt : un moniteur
+   push qui ne reçoit rien passe DOWN au bout de 3 h et alerte.
+   `mise run tofu pangolin_config plan`, puis apply (un `-target` sur
+   `uptimekuma_monitor_push.cron_dav_copy` si le plan contient autre chose).
+   Un apply complet de `pangolin_config` fait entre le merge et l'étape 5 le
+   crée aussi : son alerte DOWN est alors attendue, il repasse UP au premier
+   passage.
+5. Rejouer `docker.yml --tags dav_copy` : il pose l'URL push et le timer
+   démarre (premier passage 5 minutes après). Une CI qui rejoue `docker.yml`
+   après l'étape 3 l'allume de même.
 
-**Un seul endroit lance la copie : ne plus la lancer depuis le poste une fois
-le timer actif** (deux états divergents, suppressions et conflits en cascade).
-Garder le fichier d'état du poste comme sauvegarde jusqu'à la fin.
+Garder le fichier d'état du poste comme sauvegarde jusqu'à la fin, sans plus
+s'en servir.
 
 ## Contrôle
 
@@ -54,6 +63,12 @@ systemctl status dav-copy.timer dav-copy.service
 journalctl -u dav-copy -n 50          # compte rendu JSON du dernier passage
 sudo systemctl start dav-copy         # un passage tout de suite
 ```
+
+Deux passages ne se chevauchent pas : systemd ne lance pas une seconde
+instance de `dav-copy.service` (timer ou `systemctl start`) tant que la
+première tourne. Arrêtée (`TimeoutStartSec=20min`, `stop`, arrêt de la VM),
+la passe écrit son état avant de sortir (SIGTERM, code 143) ; un SIGKILL ou
+un dépassement de `MemoryMax` perdrait celui de la passe en cours.
 
 Un passage en échec (code 1 : collection en erreur, garde-fou de suppression,
 conflit ; 2 : configuration ou découverte) met le moniteur en DOWN ; le

@@ -16,6 +16,7 @@ import http.client
 import json
 import os
 import re
+import signal
 import sys
 import time
 import urllib.error
@@ -496,6 +497,9 @@ def main(argv=None):
             state = {}
             if o.state and os.path.exists(o.state):
                 state = json.load(open(o.state, encoding="utf-8"))
+            # systemd arrête par SIGTERM (TimeoutStartSec, stop, arrêt de la VM) : sans ce
+            # handler, Python meurt sans passer par le finally et l'état de la passe est perdu.
+            signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
             try:
                 reports = run(src, dst, suser, duser, cfg, o, state)
             finally:  # même sur une exception : perdre l'état, c'est perdre la liste des objets à l'outil
