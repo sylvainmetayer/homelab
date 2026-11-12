@@ -77,6 +77,13 @@ class ResolveTags(unittest.TestCase):
         _, resolved = rdt.resolve_tags(role_tags, {"gone", "app"})
         self.assertEqual(resolved, {"app_tag"})
 
+    def test_setup_only_role_is_not_dropped_by_a_role_with_its_own_tag(self):
+        # docker_service has no tag but `setup`: changed together with an app
+        # role, its tag must still be deployed, not shadowed by the app's.
+        role_tags = {"docker_service": ["setup"], "app": ["app_tag", "app"]}
+        _, resolved = rdt.resolve_tags(role_tags, {"docker_service", "app"})
+        self.assertEqual(resolved, {"setup", "app_tag"})
+
 
 def flip_playbook():
     with open(SCRIPT.parents[2] / "ansible" / "flip.yml") as f:
