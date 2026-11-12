@@ -36,8 +36,8 @@
           - lan.security_unattended_reboot_time == item.value.reboot_time
           - lan.security_devsec_sysctl_host | default({}) == item.value.sysctl
           - lan.security_mta_enabled | bool
-          # Le réseau du Pi (NetworkManager, wpa_supplicant) ne se masque jamais.
-          - lan.security_masked_services | default([]) | select('match', '(?i)^(NetworkManager|wpa_supplicant)') | list == []
+          # Le réseau du Pi, SSH et Docker ne se masquent jamais.
+          - lan.security_masked_services | default([]) | select('match', '(?i)^(NetworkManager|wpa_supplicant|dhcpcd|networking|systemd-(networkd|resolved)|ssh|sshd|docker|containerd)') | list == []
         fail_msg: host_vars/{{ item.key }} ne configure plus {{ item.key }} en hôte du LAN.
       loop: "{{ security_lan_hosts | dict2items }}"
       loop_control:

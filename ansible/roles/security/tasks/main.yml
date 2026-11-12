@@ -142,22 +142,12 @@
     enabled: true
   loop: "{{ ['fail2ban'] + (['auditd'] if security_auditd_enabled | bool else []) + (['ufw'] if security_ufw_enabled | bool else []) }}"
 
-# `mask --now` : arrête l'unité et la masque (lien vers /dev/null), donc ni
-# l'activation par socket, ni D-Bus, ni un paquet ne la relancent. Masquer une
-# unité qui n'existe pas réussit : rien à tester avant, seulement à ne pas
-# refaire (idempotence).
-- name: Read the state of the masked services
-  when: security_masked_services | length > 0
-  ansible.builtin.command: systemctl is-enabled {{ item }}
-  register: security_masked_state
-  loop: "{{ security_masked_services }}"
-  changed_when: false
-  failed_when: false
-
+# `mask --now` : arrête l'unité et la masque (lien /etc/systemd/system/<unité>
+# vers /dev/null), donc ni l'activation par socket, ni D-Bus, ni un paquet ne la
+# relancent. Masquer une unité qui n'existe pas réussit ; `creates` rend la
+# tâche idempotente (le lien existe déjà une fois masquée).
 - name: Stop and mask the unused services
-  when: item.stdout | trim != 'masked'
-  ansible.builtin.command: systemctl mask --now {{ item.item }}
-  loop: "{{ security_masked_state.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item }}"
-  changed_when: true
+  ansible.builtin.command: systemctl mask --now {{ item }}
+  args:
+    creates: /etc/systemd/system/{{ item }}
+  loop: "{{ security_masked_services }}"
