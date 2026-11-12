@@ -159,6 +159,7 @@
         mode: "0700"
 
     - name: Generate a key for sylvain
+      become: true
       become_user: sylvain
       ansible.builtin.command:
         argv: [ssh-keygen, -q, -t, ed25519, -N, "", -C, molecule, -f, /home/sylvain/.ssh/molecule]
