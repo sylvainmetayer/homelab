@@ -6,7 +6,9 @@ services:
     # Pas encore mesuré : un binaire Go, plus ffmpeg quand il traite une vidéo.
     # À recaler sur memory.peak (mem_report) après quelques jours.
     mem_limit: 768m
-    image: ghcr.io/getopenpost/openpost:v7.38.6
+    # Digest : l'image amont n'est ni signée ni attestée, un tag republié ne
+    # doit pas passer.
+    image: ghcr.io/getopenpost/openpost:v7.38.6@sha256:8e796476dbf236dee0da99e584c7c450a75bfe746d57c43a861683c9beaa31ec
     container_name: openpost
     # Déjà l'utilisateur de l'image (uid 1000), répété ici : cap_drop en dépend.
     user: "1000:1000"
