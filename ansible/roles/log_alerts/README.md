@@ -27,7 +27,7 @@ Chaque règle est une requête LogsQL finissant par `stats by (...) count() n`, 
 | Cas | Effet |
 |---|---|
 | Toutes les règles jugées, alertes livrées | `up` avec le résumé |
-| VictoriaLogs injoignable, réponse illisible, ntfy refuse | unité en échec, raison au journal (`journalctl -u log-alerts`), **aucun push** : DOWN à l'expiration. Une alerte non livrée n'est pas mémorisée : elle repart au passage suivant |
+| VictoriaLogs injoignable, réponse illisible, ntfy refuse | unité en échec, raison au journal (`journalctl -u log-alerts`), **aucun push** : DOWN à l'expiration. Une alerte non livrée n'est pas mémorisée : elle repart au passage suivant ; une règle qui plante après des alertes parties (réponse inattendue) n'empêche pas de sauver celles-ci, elles ne repartent pas |
 | URL push vide (Tofu pas appliqué) | avertissement au déploiement, alertes ntfy sans battement |
 
 Le moniteur ne dit donc que la cécité du contrôle : les alertes elles-mêmes passent par ntfy.
@@ -36,4 +36,4 @@ Le moniteur ne dit donc que la cécité du contrôle : les alertes elles-mêmes 
 
 Une entrée de `log_alerts_rules` (`name` unique, `title`, `priority`, `query`, `window_seconds`, `threshold` ou `expect_hosts`, `repeat_seconds`). Valider la requête sur la VM (`docker exec victoria-logs-auth wget -qO- --post-data='query=...&start=1d' http://victoria-logs:9428/select/logsql/query`) avant de la figer. Vient ensuite, selon l'étude : échecs SSH sur les hôtes non exposés, boucles de redémarrage (après avoir masqué `serial-getty@ttyS0` sur la VM docker).
 
-Molecule : scénario `log_alerts` (faux VictoriaLogs, ntfy et Uptime Kuma sur `127.0.0.1:18084`) : seuil, dédup, absence, cécité.
+Molecule : scénario `log_alerts` (faux VictoriaLogs, ntfy et Uptime Kuma sur `127.0.0.1:18084`) : seuil, dédup, absence, cécité, et `files/test_log_alerts.py` (état sauvé quand une règle plante après une alerte partie).

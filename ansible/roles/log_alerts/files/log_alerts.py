@@ -170,8 +170,12 @@ def main():
     }
     state_path = os.path.join(os.environ["STATE_DIRECTORY"], "state.json")
     state = load_state(state_path)
-    delivered, errors = run(config, secrets, state, time.time())
-    save_state(state_path, state)
+    try:
+        delivered, errors = run(config, secrets, state, time.time())
+    finally:
+        # Une règle qui plante après une alerte partie ne doit pas la faire réémettre :
+        # l'état est sauvé quand même, l'exception continue (aucun push, unité en échec).
+        save_state(state_path, state)
     for error in errors:
         print(f"contrôle incomplet : {error}", file=sys.stderr)
     if errors:
