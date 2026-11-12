@@ -122,6 +122,23 @@ up`), sur Pangolin la restart policy de la stack. Avec un noyau :
 `sudo reboot` (sinon `unattended-upgrades` le fera la nuit suivante, à
 l'heure de l'hôte).
 
+### Docker seul
+
+Le cas courant : `unattended-upgrades` a pris le reste, seul Docker attend (le
+12/11/2026 : `docker-ce` 29.9.0 sur la VM docker, 29.9.2 sur le Pi, flip et
+Pangolin, 29.9.3 proposé). Ne monter que lui, un hôte à la fois, de jour :
+
+```bash
+sudo apt install --only-upgrade docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin
+```
+
+Ordre, du moins gênant au plus gênant : Pi (le second Blocky prend le relais),
+flip (hors période d'usage du planning), VM docker, Pangolin en dernier et
+depuis le LAN. Vérifier « Après » sur un hôte avant de passer au suivant.
+Pas automatique, exprès : `live-restore` est coupé
+(`docs/conventions/container-hardening.md`, décision du 05/11), donc chaque
+mise à jour de `docker-ce` ou `containerd.io` coupe toutes les applis de l'hôte.
+
 ### Après
 
 ```bash
