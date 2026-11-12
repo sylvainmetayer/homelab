@@ -33,7 +33,7 @@ durcie qui n'écrit que dans son `StateDirectory` (`/var/lib/cost-report`).
 | Source | Ce qui est compté | Mois dernier | Mois en cours | Clé |
 |---|---|---|---|---|
 | Hetzner | serveurs Cloud, leurs sauvegardes (pourcentage de `/pricing`), IP primaires payantes, volumes, Storage Box | prix mensuel TTC des ressources **actuelles** (l'API n'a pas de facture : estimation au tarif courant ; trafic excédentaire non compté) | même montant au prorata du mois écoulé | `hcloud_readonly_token` (existante) |
-| Abonnements | `defaults/main/abonnements.yml` : PikaPods (pas d'API publique), kDrive, abonnement IA… | montant mensuel, ou annuel / 12 | prorata | aucune |
+| Abonnements | `defaults/main/abonnements.yml` : PikaPods (pas d'API publique), kDrive, mail, S3, domaines | montant mensuel, ou annuel / 12 | prorata | aucune |
 
 - Une source sans clé est « non configurée », un abonnement à `amount: 0`
   « à renseigner » : le rapport sort quand même, partiel, les nomme et ne

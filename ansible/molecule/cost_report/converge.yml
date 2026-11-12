@@ -12,11 +12,15 @@
   roles:
     # Les fausses API du verify (files/fake_api.py), une seule adresse locale.
     # Pas de lancement peu après le déploiement : le verify lance l'unité
-    # lui-même, sans course avec le timer. Les abonnements du dépôt, tels
-    # quels : l'assert du rôle les valide.
+    # lui-même, sans course avec le timer. Abonnements du test, pas ceux du
+    # dépôt (dont les montants bougent) : à 0, pour le cas « à renseigner ».
     - role: cost_report
       vars:
         cost_report_ntfy_url: http://127.0.0.1:18082 # NOSONAR
         cost_report_hetzner_cloud_api: http://127.0.0.1:18082/cloud # NOSONAR
         cost_report_hetzner_api: http://127.0.0.1:18082/api # NOSONAR
         cost_report_first_run_delay: 1d
+        cost_report_subscriptions:
+          - { name: PikaPods, amount: 0, currency: USD, period: monthly }
+          - { name: kDrive, amount: 0, currency: EUR, period: monthly }
+          - { name: Abonnement IA, amount: 0, currency: EUR, period: monthly }
