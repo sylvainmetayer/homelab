@@ -54,7 +54,7 @@ flowchart LR
 
   subgraph hetzner_priv["Hetzner, réseau privé 10.0.0.0/16"]
     subgraph flip["flip (10.0.1.10, sans IP publique)"]
-      newt_flip[newt] --> fp["flip_planning, demo_planning,<br/>demo_planning_kc, exemple_planning (vitrine publique),<br/>promptoramix, openpost"]
+      newt_flip[newt] --> fp["flip_planning (démo, démo Keycloak et vitrine en pause),<br/>promptoramix, openpost"]
     end
   end
 ```
