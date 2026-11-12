@@ -30,7 +30,7 @@ de la ressource.
 
 ## M.1 Le site (interface de Pangolin)
 
-`https://pangolin.sylvain.cloud`, compte administrateur, organisation du
+`https://hall.sylvain.cloud`, compte administrateur, organisation du
 homelab :
 
 1. **Sites → Ajouter un site**, type **Newt**, nom `pc-papa`.
