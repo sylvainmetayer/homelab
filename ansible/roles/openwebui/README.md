@@ -147,7 +147,7 @@ rôle, cache en tmpfs).
 - `settings.yml` : `search.formats` avec `json` (Open WebUI interroge
   `/search?format=json`), `server.limiter: false` (le limiteur exige Valkey ;
   un seul client interne, aucun besoin), `secret_key` dérivée de
-  `backup_passphrase` (pas d'entrée SOPS), langue `fr`, `safe_search: 1`,
+  `app_secrets_seed` (`backup_passphrase` par défaut ; pas d'entrée SOPS), langue `fr`, `safe_search: 1`,
   moteurs `openwebui_searxng_engines` (peu, une seule IP domestique).
 - Variables Open WebUI (relevées dans `config.py` v0.13.3 ; `ENABLE_RAG_WEB_SEARCH`
   est l'ancien nom) : `ENABLE_WEB_SEARCH=true`, `WEB_SEARCH_ENGINE=searxng`,

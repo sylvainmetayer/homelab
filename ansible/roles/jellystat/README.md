@@ -5,8 +5,8 @@ le 2026-09-08) sur **https://jellystat.sylvain.cloud** : statistiques de
 Jellyfin (historique de lecture, plus regardés, par utilisateur et appareil).
 VM docker, `dc@jellystat`, deux conteneurs : `jellystat` (sur `newt` et sur le
 réseau interne `jellystat`) et `jellystat-db` (PostgreSQL 18, réseau interne
-seulement), derrière le SSO de Pangolin (rôle `jellystat`, sans membre :
-administrateurs Pangolin seulement), puis le compte propre à Jellystat.
+seulement), derrière le SSO de Pangolin (rôle `jellystat`, sans membre direct :
+l'accès vient du groupe Pocket ID `jellystat`), puis le compte propre à Jellystat.
 
 ## Où il tourne, et pourquoi
 
@@ -64,8 +64,8 @@ test de restauration (`.github/restore-test/apps.json`, table `app_config`)
 
 | Valeur | Origine |
 |---|---|
-| Mot de passe PostgreSQL | dérivé de `backup_passphrase` (`-jellystat-db`), comme HealthLog |
-| `JWT_SECRET` | dérivé de `backup_passphrase` (`-jellystat-jwt`) ; le changer ne fait que déconnecter |
+| Mot de passe PostgreSQL | dérivé de `app_secrets_seed` (`backup_passphrase` par défaut ; `-jellystat-db`), comme HealthLog |
+| `JWT_SECRET` | dérivé de `app_secrets_seed` (`-jellystat-jwt`) ; le changer ne fait que déconnecter |
 | Clé d'API de Jellyfin | SOPS `jellystat_jellyfin_api_key` |
 | Compte de Jellystat | base (assistant) ; pas de variable `JS_USER`/`JS_PASSWORD` (compte de secours de l'amont, non posé) |
 
