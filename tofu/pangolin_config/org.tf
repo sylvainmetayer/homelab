@@ -30,9 +30,10 @@ resource "pangolin_org" "this" {
   log_retention_days_access     = 90
   log_retention_days_action     = 90
   log_retention_days_ssh        = 0
-  # 0 : le journal des sessions IA garderait prompts et réponses en entier
-  # (README, « AI gateway »). Le monter quelques heures pour déboguer, pas ici.
-  log_retention_days_ai_sessions = 0
+  # Journal des sessions IA : 90 jours, gardé tel que trouvé le 12/11/2026
+  # (décision de Sylvain). Il garde prompts et réponses en entier, sans
+  # masquage (README, « AI gateway ») : 0 l'éteint.
+  log_retention_days_ai_sessions = 90
 
   lifecycle {
     prevent_destroy = true
