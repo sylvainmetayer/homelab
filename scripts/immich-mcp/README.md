@@ -18,7 +18,9 @@ garde-fou. API de la version épinglée (v3.4.0) : `album.controller.ts`,
 | Outils | 9 | 14 |
 
 **Lecture** : `search_smart`, `search_metadata`, `list_albums`, `get_album`,
-`list_people`, `get_asset`, `asset_statistics`, plus deux outils composés,
+`list_people`, `get_asset`, `asset_statistics`, plus trois outils composés,
+`list_albums` (liste compacte triée par nom : id, nom, nombre d'assets, dates de
+début et de fin, partagé ou non ; `contains` filtre sur le nom, casse ignorée),
 `find_duplicate_albums` (albums de même nom à la casse et aux espaces près ;
 avec `minOverlap` entre 0 et 1, aussi ceux dont les assets se recouvrent, en
 part du plus petit album ; au plus 100 albums non vides) et
@@ -148,3 +150,9 @@ essai, en lecture d'abord (`find_duplicate_albums`, `assets_without_album`) :
 ## Test
 
 `cd scripts/immich-mcp && python3 -I -m unittest -v`
+
+Une sortie d'outil de plus de 100 000 caractères est coupée et finit par
+` [... tronqué]` (comme papra-mcp et grocy-mcp) : le JSON n'est alors plus
+valide, mais le modèle est prévenu. Restent à risque : `search_*` et
+`assets_without_album` avec un grand `size`, `list_people` sur une grande
+bibliothèque ; réduire `size` ou paginer.

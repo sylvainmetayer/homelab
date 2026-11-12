@@ -276,6 +276,28 @@ class ImmichMcpTest(unittest.TestCase):
         _, out = tool(two_albums(), "find_duplicate_albums", {"minOverlap": 0.9}, write=False)
         self.assertEqual(out["recouvrement"], [])
 
+    def test_list_albums_is_compact_sorted_and_filterable(self):
+        def call(method, path, args):
+            self.assertEqual((method, path), ("GET", "/albums"))
+            big = {"owner": {"x": "y" * 500}, "albumUsers": [1, 2, 3]}
+            return [dict(id=B, albumName="zèbre", assetCount=3, shared=True, startDate="2024-01-01T00:00:00Z", **big),
+                    dict(id=A, albumName="Alpes été", assetCount=0, **big)]
+
+        _, out = tool(call, "list_albums", {}, write=False)
+        self.assertEqual([r["id"] for r in out["albums"]], [A, B])
+        self.assertEqual(out["albums"][0], {"id": A, "nom": "Alpes été", "assets": 0, "debut": None, "fin": None, "partage": False})
+        self.assertEqual((out["albums"][1]["partage"], out["albums"][1]["debut"], out["total"]), (True, "2024-01-01T00:00:00Z", 2))
+        self.assertNotIn("owner", out["albums"][0])
+        _, out = tool(call, "list_albums", {"contains": " ALPES "}, write=False)
+        self.assertEqual([r["id"] for r in out["albums"]], [A])
+
+    def test_long_output_is_marked_truncated(self):
+        big = lambda *a: {"x": "y" * 200000}
+        r = m.handle({"id": 1, "method": "tools/call", "params": {"name": "get_album", "arguments": {"id": A}}}, big)
+        text = r["result"]["content"][0]["text"]
+        self.assertTrue(text.endswith(" [... tronqué]"))
+        self.assertEqual(len(text), 100000 + len(" [... tronqué]"))
+
     def test_assets_without_album(self):
         seen = []
 
