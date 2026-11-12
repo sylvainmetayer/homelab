@@ -2329,6 +2329,10 @@ run "pangolin_dashboard_monitor_follows_host_vars" {
         file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
         "\npangolin_dashboard_legacy_url: \"pangolin.{{ pangolin_base_domain }}\"\n"
       )
+      && strcontains(
+        file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
+        "\npangolin_gerbil_endpoint: \"pangolin.{{ pangolin_base_domain }}\"\n"
+      )
     )
     error_message = "Le moniteur du dashboard doit sonder pangolin_dashboard_url (ansible/host_vars/pangolin/variables.yaml), soit https://hall.sylvain.cloud, l'ancien nom (pangolin_dashboard_legacy_url) sondé sur /api/v1/ et le lanceur Pocket ID sur hall."
   }
