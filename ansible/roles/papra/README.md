@@ -217,8 +217,9 @@ Journal (`journalctl -u papra-enrich`) : une ligne par document, son
 identifiant, les champs remplis, le nombre de tags ajoutés et les tokens ;
 jamais le nom ni le contenu. Budget : clé `papra` à 5 M tokens à vie
 (`tofu/pangolin_config/ai_gateway.tf`), ~3 650 tokens par document (mesure du
-2026-11-10). Les textes envoyés partent chez Anthropic ; journal des appels de
-la passerelle éteint (`docs/runbooks/passerelle-ia.md`).
+2026-11-10). Les textes envoyés partent chez Anthropic ; le journal des appels
+de la passerelle les garde 90 jours, en clair, dans la base de Pangolin
+(`docs/runbooks/passerelle-ia.md`).
 
 Rendu seulement si la clé SOPS `papra_enrich_api_key` (une clé d'API Papra,
 lue telle quelle) **et** la clé de la passerelle existent ; sinon le passage

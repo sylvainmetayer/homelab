@@ -212,7 +212,9 @@ mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq 
 
 puis **Tester le fournisseur actif**, et révoquer l'ancienne clé Anthropic
 personnelle. Le modèle reste celui du champ personnalisé (`claude-opus-5-5`).
-Le journal des appels de la passerelle reste éteint (données de santé).
+Le journal des appels de la passerelle est gardé 90 jours depuis le 12/11/2026 :
+prompts et réponses (données de santé) en clair dans la base de Pangolin et ses
+sauvegardes (`docs/runbooks/passerelle-ia.md`).
 
 ## Clé de chiffrement
 

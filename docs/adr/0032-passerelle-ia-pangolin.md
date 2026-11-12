@@ -24,6 +24,8 @@ conso par appli ni plafond.
 - **Pas de filtre FR/DE** : Pangolin refuse toute règle sur une ressource
   `inference` ; exception à 0002 (`local.unruled_resources`).
 - **Journal des appels éteint** (prompts en clair), rallumé le temps d'un débogage.
+  Note du 12/11/2026 : l'instance le gardait en fait 90 jours ; gardé ainsi par
+  décision de Sylvain (`log_retention_days_ai_sessions`, `tofu/pangolin_config/org.tf`).
 
 ## Alternatives écartées
 
