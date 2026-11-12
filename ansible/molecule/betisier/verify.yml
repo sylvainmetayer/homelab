@@ -24,7 +24,7 @@
         verify_compose_internal_networks:
           - betisier
 
-    # La base n'a pas de volume : elle est rechargée depuis ce dump à chaque
+    # La base est un tmpfs : elle est rechargée depuis ce dump à chaque
     # démarrage, et sauvegardée avec.
     - name: Stat the betisier SQL dump
       ansible.builtin.stat:
@@ -58,6 +58,10 @@
           - "'newt-public' not in betisier_compose.services.betisier_db.networks"
           - "'betisier' in betisier_compose.services.betisier_db.networks"
           - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
+          # La base ne doit plus avoir de /config sur disque (volume anonyme de l'image).
+          - betisier_compose.services.betisier_db.tmpfs | select('match', '^/config:.*size=256m') | list | length == 1
+          - betisier_compose.services.betisier_db.tmpfs | select('match', '^/config:.*noexec') | list | length == 1
+          - betisier_compose.services.betisier_db.mem_limit == '640m'
           - "'no-new-privileges:true' in betisier_compose.services.betisier.security_opt"
         fail_msg: "Compose de betisier inattendu : {{ betisier_compose.services }}"
 
@@ -126,12 +130,13 @@
           - (betisier_reset_push.content | b64decode) == 'url = "https://uptime.example.invalid/api/push/tofu-betisier-reset"\n'
         fail_msg: "/opt/apps/betisier/reset-push.curl : 0600 sylvain, « url = … » attendu"
 
-    # `down` sans `-v` laissait un volume anonyme de /config à chaque reset.
-    - name: Assert the betisier reset removes the anonymous volume of the database
+    # /config est un tmpfs : le reset n'a plus de volume anonyme à purger.
+    - name: Assert the betisier reset runs a plain compose down
       ansible.builtin.assert:
         that:
-          - "'ExecStart=/usr/bin/docker compose down -v' in (betisier_reset_unit.content | b64decode)"
-        fail_msg: "betisier-reset.service doit lancer « docker compose down -v »"
+          - "'ExecStart=/usr/bin/docker compose down' in (betisier_reset_unit.content | b64decode)"
+          - "'compose down -v' not in (betisier_reset_unit.content | b64decode)"
+        fail_msg: "betisier-reset.service doit lancer « docker compose down » (sans -v)"
 
     - name: List the fake orphan volumes left after converge
       become: true

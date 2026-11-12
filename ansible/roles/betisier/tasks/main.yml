@@ -118,8 +118,10 @@
         username: betisier
         password: "{{ betisier_db_password }}"
 
-# Rattrapage des volumes anonymes laissés par l'ancien reset (`down` sans
-# `-v`). Ils ne portent aucun label de projet compose : on ne supprime qu'un
+# Rattrapage des volumes anonymes laissés par l'ancien /config de la base
+# (avant le tmpfs : le compose ne les monte plus, le conteneur recréé par le
+# premier déploiement les laisse orphelins, ils ne sont supprimés qu'au déploiement
+# suivant). À retirer une fois ce second déploiement passé sur la VM docker. Ils ne portent aucun label de projet compose : on ne supprime qu'un
 # volume anonyme, orphelin (dangling) et dont le contenu est celui de
 # betisier_db (`databases/betisier` et `custom.cnf` de l'image linuxserver).
 # Le volume de la base en cours est attaché, donc jamais dangling. Rien à
