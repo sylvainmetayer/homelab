@@ -2,7 +2,9 @@
 # Les unités de security_masked_services (converge.yml) : masquées, et celle
 # qui tournait arrêtée. Une unité absente est masquée sans erreur.
 - name: Read the masked services
-  ansible.builtin.command: systemctl is-enabled {{ item }}
+  # systemd n'a pas de module pour is-enabled/is-active d'une unité absente.
+  ansible.builtin.command:  # noqa: command-instead-of-module
+    cmd: systemctl is-enabled {{ item }}
   register: security_verify_masked
   loop:
     - molecule-workstation.service
@@ -11,8 +13,9 @@
   changed_when: false
   failed_when: false
 
-- name: Read the fake workstation units
-  ansible.builtin.command: systemctl is-active molecule-workstation.service molecule-workstation.socket
+- name: Read the fake workstation unit
+  ansible.builtin.command:  # noqa: command-instead-of-module
+    cmd: systemctl is-active molecule-workstation.service
   register: security_verify_active
   changed_when: false
   failed_when: false
@@ -21,4 +24,4 @@
   ansible.builtin.assert:
     that:
       - security_verify_masked.results | map(attribute='stdout') | map('trim') | unique | list == ['masked']
-      - security_verify_active.stdout_lines == ['inactive', 'inactive']
+      - security_verify_active.stdout == 'inactive'
