@@ -30,7 +30,7 @@ partagée au-delà du foyer.
 
 Aucune clé SOPS : mot de passe de la base, `ENCRYPTION_KEY`,
 `API_TOKEN_HMAC_KEY` et `WITHINGS_WEBHOOK_SECRET` sont dérivés de
-`backup_passphrase` (sha256, un sel par secret), comme ceux de Dawarich.
+`app_secrets_seed` (`backup_passphrase` par défaut ; sha256, un sel par secret), comme ceux de Dawarich.
 
 ## Premier démarrage
 
@@ -77,7 +77,7 @@ d'accès Pangolin (`tofu/pangolin_config/website_healthlog.tf`).
   `/api/withings/` (callback, connect, credentials, disconnect, status,
   sync), qui restent derrière le SSO. Ce qui protège : le secret dans le
   chemin (`WITHINGS_WEBHOOK_SECRET`, 64 caractères hexadécimaux dérivés de
-  `backup_passphrase`), comparé en temps constant à chaque verbe, 401 sinon,
+  `app_secrets_seed`), comparé en temps constant à chaque verbe, 401 sinon,
   débit limité. Withings ne signe rien et n'envoie aucun en-tête : ce
   secret est le seul contrôle. À la connexion, HealthLog s'abonne
   (`Notify.subscribe`), Withings vérifie l'URL en HEAD/GET (200), puis POSTe

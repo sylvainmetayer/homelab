@@ -183,7 +183,9 @@ Logs: `journalctl -u papra-intake`.
 With `papra_intake_enabled: false` again, the role stops the timer and deletes
 the units, the script and the configuration (the folders stay). Before a
 `remove-app` of Papra, run that once: the decommission knows nothing of
-`/etc/papra-intake.json` and the units.
+`/etc/papra-intake.json` and the units. Same for the AI fill (`papra-enrich`,
+`/etc/papra-enrich.json`, which holds the keys): remove the SOPS key
+`papra_enrich_api_key` and replay the role, which then deletes them.
 
 Follow-up, not wired: an Uptime Kuma push monitor (like
 `ntfy-subscribers-check`) to be told when the run keeps failing (expired app

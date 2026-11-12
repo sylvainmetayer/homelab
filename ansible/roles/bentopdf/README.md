@@ -4,7 +4,7 @@
 **https://bentopdf.sylvain.cloud** : outils PDF (fusion, découpe, compression,
 conversions, signature, OCR...) qui tournent **dans le navigateur**. VM docker,
 `dc@bentopdf`, un conteneur `bentopdf` sur `newt`, derrière le SSO de Pangolin
-(rôle `bentopdf`, sans membre : administrateurs Pangolin seulement).
+(rôle `bentopdf`, sans membre direct : l'accès vient du groupe Pocket ID `bentopdf`, donné par défaut à tout nouveau compte).
 
 Sans état : aucun volume, pas de sauvegarde, pas dans le test de restauration.
 Le serveur ne fait que servir des fichiers statiques (nginx) : les PDF ne
@@ -43,8 +43,8 @@ CSP que sert l'image (vérifiée sur le conteneur) :
   l'image ; la CSP de l'image n'autorise le chargement de scripts que depuis
   ces dossiers précis (les données de langue passent par `connect-src`, tout
   `cdn.jsdelivr.net`) ;
-- aujourd'hui Stirling-PDF fait l'OCR en français et en anglais sur le serveur,
-  sans CDN : **BentoPDF fait la même chose, mais sans hors-ligne** (le
+- Stirling-PDF, que BentoPDF a remplacé, faisait l'OCR en français et en anglais
+  sur le serveur, sans CDN : **BentoPDF fait la même chose, mais sans hors-ligne** (le
   navigateur doit pouvoir joindre jsDelivr) et sur le poste de l'utilisateur.
   Rendre cela hors-ligne exige de reconstruire l'image (arguments de build
   `VITE_TESSERACT_*`, `VITE_WASM_*`, `VITE_OCR_FONT_BASE_URL` vers un hôte

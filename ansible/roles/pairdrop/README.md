@@ -4,7 +4,8 @@
 **https://pairdrop.sylvain.cloud** : envoi de fichiers et de texte d'un
 appareil à l'autre, en WebRTC pair à pair. VM docker, `dc@pairdrop`, un
 conteneur `pairdrop` sur `newt`, derrière le SSO de Pangolin (rôle `pairdrop`,
-sans membre : administrateurs Pangolin seulement).
+sans membre direct : l'accès vient du groupe Pocket ID `pairdrop`, donné par défaut
+à tout nouveau compte).
 
 Sans état : aucun volume, pas de sauvegarde, pas dans le test de restauration.
 

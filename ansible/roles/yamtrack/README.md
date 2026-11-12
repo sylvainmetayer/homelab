@@ -6,7 +6,8 @@ le 2026-08-23) sur **https://yamtrack.sylvain.cloud** : suivi de films, séries
 VM docker, `dc@yamtrack`, deux conteneurs : `yamtrack` (nginx, gunicorn et
 celery sous supervisord, sur `newt` et sur le réseau interne `yamtrack`) et
 `yamtrack-redis` (réseau interne seulement). Derrière le SSO de Pangolin (rôle
-`yamtrack`, sans membre : administrateurs Pangolin seulement), puis le compte
+`yamtrack`, sans membre direct : l'accès vient du groupe Pocket ID `yamtrack`),
+puis le compte
 propre à Yamtrack. Amont actif (dernier envoi le jour de l'ajout).
 
 ## Premier compte
@@ -24,8 +25,8 @@ faire avant. De même la copie SQLite n'existe qu'après le premier démarrage
 (migrations) : elle entre dans la configuration borgmatic au passage suivant du
 rôle, et le test échoue « aucun dump ni copie sqlite » d'ici là.
 
-Pas de clé SOPS : `SECRET` (clé Django) est dérivé de `backup_passphrase`
-(`-yamtrack-secret`), l'image en a une par défaut, publique. Les clés des
+Pas de clé SOPS : `SECRET` (clé Django) est dérivé de `app_secrets_seed`
+(`backup_passphrase` par défaut ; `-yamtrack-secret`), l'image en a une par défaut, publique. Les clés des
 sources de métadonnées (TMDB, MyAnimeList, IGDB, Hardcover, ComicVine) sont
 celles que l'image fournit par défaut, partagées : elles ont des limites de
 débit basses (IGDB surtout). Aucune n'est posée ici ; en cas de refus, créer sa

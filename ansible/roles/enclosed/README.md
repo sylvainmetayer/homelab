@@ -23,7 +23,8 @@ serveur : Enclosed ne stocke que du chiffré.
   chiffré ; une note « supprimée à la lecture » l'est au premier
   `GET /api/notes/<id>`.
 - **Créer** une note : derrière le SSO de Pangolin (rôle `enclosed`, sans
-  membre : administrateurs Pangolin seulement). Le formulaire `/` et
+  membre direct : l'accès vient du groupe Pocket ID `enclosed`, donné par défaut
+  à tout nouveau compte). Le formulaire `/` et
   `POST /api/notes` ne sont dans aucune ouverture : Pangolin compare les
   chemins, pas les méthodes, et ces motifs `0*` ne prennent qu'un segment,
   donc jamais `/api/notes` lui-même (le détail est dans
