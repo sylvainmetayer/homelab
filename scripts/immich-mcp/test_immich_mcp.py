@@ -291,6 +291,15 @@ class ImmichMcpTest(unittest.TestCase):
         _, out = tool(call, "list_albums", {"contains": " ALPES "}, write=False)
         self.assertEqual([r["id"] for r in out["albums"]], [A])
 
+    def test_list_albums_is_paged(self):
+        # 1 000 albums et plus en vrai : la liste entière dépassait la limite de sortie.
+        many = lambda *a: [dict(id=f"{i:08d}-0000-4000-8000-000000000000", albumName=f"album {i:04d}", assetCount=1) for i in range(650)]
+        _, p1 = tool(many, "list_albums", {}, write=False)
+        _, p3 = tool(many, "list_albums", {"page": 3}, write=False)
+        self.assertEqual((len(p1["albums"]), p1["total"], p1["pages"], p1["page"]), (300, 650, 3, 1))
+        self.assertEqual((len(p3["albums"]), p3["albums"][0]["nom"]), (50, "album 0600"))
+        self.assertLess(len(json.dumps(p1, ensure_ascii=False)), 100000)
+
     def test_long_output_is_marked_truncated(self):
         big = lambda *a: {"x": "y" * 200000}
         r = m.handle({"id": 1, "method": "tools/call", "params": {"name": "get_album", "arguments": {"id": A}}}, big)

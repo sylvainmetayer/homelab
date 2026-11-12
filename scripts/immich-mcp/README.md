@@ -20,7 +20,7 @@ garde-fou. API de la version épinglée (v3.4.0) : `album.controller.ts`,
 **Lecture** : `search_smart`, `search_metadata`, `get_album`,
 `list_people`, `get_asset`, `asset_statistics`, plus trois outils composés,
 `list_albums` (liste compacte triée par nom : id, nom, nombre d'assets, dates de
-début et de fin, partagé ou non ; `contains` filtre sur le nom, casse ignorée),
+début et de fin, partagé ou non ; `contains` filtre sur le nom, casse ignorée ; 300 albums par page, `page`),
 `find_duplicate_albums` (albums de même nom à la casse et aux espaces près ;
 avec `minOverlap` entre 0 et 1, aussi ceux dont les assets se recouvrent, en
 part du plus petit album ; au plus 100 albums non vides) et
