@@ -156,6 +156,11 @@ class EnrichTest(unittest.TestCase):
         allowed = json.loads(self.ai_calls()[0][2]["messages"][1]["content"].split("\n")[0].split(" : ", 1)[1])
         self.assertEqual(allowed, ["Energie", "Facture"])
 
+    def test_request_has_no_temperature(self):
+        # Les modèles Claude 5 refusent `temperature` (HTTP 400, 12/11/2026).
+        self.run_pass()
+        self.assertTrue(all("temperature" not in r[2] for r in self.ai_calls()))
+
     def test_fills_empty_fields_and_existing_tags_only(self):
         self.run_pass()
         writes = [(r[0], r[1].removeprefix(ORG), r[2]) for r in self.requests() if r[0] != "GET" and r[1].startswith(ORG)]
