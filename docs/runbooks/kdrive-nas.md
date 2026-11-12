@@ -7,9 +7,10 @@ main seulement). Sens unique, sans suppression :
 - `rclone copy`, jamais `sync` : un fichier supprimé dans kDrive, par erreur
   ou par un rançongiciel, **reste** sur le NAS.
 - Un fichier *remplacé* dans kDrive (modifié, ou chiffré sur place) dont la
-  taille change est recopié, et sa version précédente est **déplacée**, pas
-  écrasée, dans `versions/<date et heure du passage>/` (`--backup-dir`). À
-  taille égale, il n'est pas recopié (plus bas).
+  taille ou la date de modification change est recopié, et sa version
+  précédente est **déplacée**, pas écrasée, dans
+  `versions/<date et heure du passage>/` (`--backup-dir`). Voir plus bas pour
+  les cas non recopiés.
 - Rien n'efface jamais rien côté NAS : `versions/` ne fait que grossir, son
   ménage est manuel (plus bas).
 - Hors copie (`kdrive_sync_exclude_patterns`, `host_vars/nas`) : `Videos/`,
@@ -31,11 +32,14 @@ main seulement). Sens unique, sans suppression :
 rclone parle WebDAV (`https://<id>.connect.kdrive.infomaniak.com`, [doc
 Infomaniak](https://www.infomaniak.com/fr/support/faq/2636)) : il n'a pas de
 backend kDrive, et le jeton API de `kdvc` (kdrive-version-cleaner) n'ouvre
-pas WebDAV. Il ne compare que les tailles : en WebDAV « other », rclone ne
-lit ni date de modification ni somme de contrôle ([doc
-rclone](https://rclone.org/webdav/)). Un fichier modifié dans kDrive **à
-taille égale** n'est pas recopié : le miroir garde l'ancien contenu, rien ne
-part dans `versions/`.
+pas WebDAV. Il compare la taille et la date de modification donnée par le
+serveur (`--update --use-server-modtime`) : en WebDAV « other », rclone ne lit
+aucune somme de contrôle ([doc rclone](https://rclone.org/webdav/)). Un
+fichier modifié dans kDrive à taille égale est recopié si sa date a changé.
+Ne le sont pas : un fichier changé sans que ni la taille ni la date ne
+bougent, et, `--update` ne copiant jamais par-dessus un fichier plus récent
+du miroir, un fichier dont kDrive revient à une version plus ancienne (date
+antérieure à celle du miroir) : le miroir garde alors la version récente.
 
 ## Mise en place (une fois)
 
