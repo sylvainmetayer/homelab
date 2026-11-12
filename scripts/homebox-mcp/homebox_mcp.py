@@ -45,6 +45,16 @@ KEPT = ["archived", "assetId", "fields", "insured", "soldDate", "soldNotes", "so
 CREATABLE = ["name", "description", "quantity", "locationId", "tagIds", "manufacturer", "modelNumber"]
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# urllib rejoue les en-têtes (clé d'API, jeton Pangolin) vers la cible d'une
+# redirection : une 3xx est une erreur, jamais suivie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _obj(props=None, required=()):
     return {"type": "object", "properties": props or {}, "required": list(required)}
 
@@ -128,7 +138,7 @@ def call_homebox(method, path, args, base, key, extra_headers=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with _OPENER.open(req, timeout=30) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
         raise RuntimeError("HTTP %d : %s" % (e.code, e.read(500).decode(errors="replace"))) from None
