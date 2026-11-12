@@ -108,10 +108,12 @@ def expiry(value):
 
 
 def ask(config, allowed, text):
-    """Réponse du modèle (dict, vide si illisible) et tokens consommés."""
+    """Réponse du modèle (dict ; RuntimeError si elle n'en contient pas) et tokens consommés."""
     body = {
         "model": config["model"],
-        "max_tokens": 300,
+        # Large : les modèles Claude 5 réfléchissent avant de répondre, et cette
+        # réflexion compte dans max_tokens (à 300, la réponse revenait vide).
+        "max_tokens": 3000,
         "messages": [
             {"role": "system", "content": PROMPT},
             {"role": "user", "content": f"Tags existants : {json.dumps(allowed, ensure_ascii=False)}\n\nTexte :\n{text}"},
@@ -123,8 +125,13 @@ def ask(config, allowed, text):
     try:
         answer = json.loads(content[content.index("{") : content.rindex("}") + 1])
     except ValueError:
-        answer = {}
-    return (answer if isinstance(answer, dict) else {}), tokens
+        answer = None
+    if not isinstance(answer, dict):
+        # Arrête le passage : continuer marquerait « traité » un document resté
+        # vide, et le renverrait au modèle pour rien s'il ne l'était pas.
+        reason = reply["choices"][0].get("finish_reason")
+        raise RuntimeError(f"réponse du modèle sans objet JSON (fin : {reason}, {tokens} tokens)")
+    return answer, tokens
 
 
 def enrich(ctx, doc_id):
