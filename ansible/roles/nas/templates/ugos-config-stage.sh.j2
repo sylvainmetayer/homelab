@@ -1,0 +1,23 @@
+#!/bin/sh
+# Généré par le rôle nas : copie la configuration système d'UGOS dans le
+# staging lu par borgmatic. Une absence (UGOS déplace un fichier à une mise à
+# jour) ou une copie ratée sort sur stderr, donc dans le journal de
+# borgmatic.service, sans bloquer la sauvegarde (exit 0).
+umask 077
+stage={{ (nas_ugos_config_dir ~ '/staging') | quote }}
+mkdir -p "$stage" && rm -rf "${stage:?}"/* || exit 0
+copy() {
+  mkdir -p "$stage$(dirname "$1")" && cp "$1" "$stage$1" \
+    || echo "UGOS config : copie de $1 échouée" >&2
+}
+for f in {{ nas_ugos_config_files | map('quote') | join(' ') }}; do
+  if [ -f "$f" ]; then copy "$f"; else echo "UGOS config : $f absent, non sauvegardé" >&2; fi
+done
+for d in {{ nas_ugos_config_dirs | map('quote') | join(' ') }}; do
+  if [ -d "$d" ]; then
+    for f in "$d"/*; do [ -f "$f" ] && copy "$f"; done
+  else
+    echo "UGOS config : $d absent, non sauvegardé" >&2
+  fi
+done
+exit 0

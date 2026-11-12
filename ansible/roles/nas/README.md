@@ -18,6 +18,26 @@ d'UGOS, jamais ici. Joué par `ansible/nas.yml`, à la main (jamais en CI).
 - Un contrôle de l'état de `nfs-server` et des exports actifs
   (`nas_manage_services: false` pour Molecule : pas de nfsd en conteneur).
 
+## Sauvegarde de la configuration d'UGOS
+
+Dépôt Borg `ugos_config` (sous-compte `nas`), par le gabarit partagé du rôle
+`borgmatic`. Un drop-in de `borgmatic.service`
+(`/etc/systemd/system/borgmatic.service.d/ugos-config.conf`, même schéma que
+MediaManager) lance `/volume1/docker/ugos-config/stage.sh` avant
+chaque passage : le script copie `/etc/exports`, `/etc/exports.d/*`,
+`/etc/samba/smb.conf`, `/etc/samba/smbshare.conf`, `/etc/crontab` et
+`/etc/ssh/sshd_config` dans `ugos-config/staging` (0700 root, fichiers 0600),
+dossier sous `docker_base_path` que le conteneur borgmatic monte déjà (il ne
+voit pas `/etc` de l'hôte). Le staging est vidé à chaque passage. Un fichier
+absent (UGOS le déplace à une mise à jour) ou une copie ratée n'arrête rien :
+la ligne « UGOS config : … absent » reste dans le journal de
+`borgmatic.service`. Listes : `nas_ugos_config_files` / `_dirs`, coupure :
+`nas_ugos_config_backup_enabled: false`.
+
+Exclus volontairement : `smbpasswd`, `samba.json`, `smbglb.conf`, clés
+d'hôte SSH, `/etc/shadow`. Non sauvegardés, faute de fichier : comptes, droits
+et règles d'instantanés d'UGOS (base interne), configuration de la Bbox.
+
 ## Pourquoi NFSv3
 
 UGOS n'exporte pas de pseudo-racine NFSv4 (`mountd : Cannot export /`), et la
