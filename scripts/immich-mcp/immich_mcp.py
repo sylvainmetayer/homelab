@@ -192,13 +192,19 @@ def _bulk(call, method, aid, ids):
     return {"ok": ok, "erreurs": errors[:20]}
 
 
+ALBUMS_PAGE = 300  # ~190 caractères par album : une page tient sous la limite de sortie
+
+
 def list_albums(call, args):
-    """Liste compacte, triée par nom ; `contains` filtre sur le nom (casse ignorée)."""
+    """Liste compacte, triée par nom, par pages ; `contains` filtre sur le nom (casse ignorée)."""
     q = _norm(args.get("contains"))
+    page = max(1, int(args.get("page") or 1))
     rows = [{"id": a["id"], "nom": a["albumName"], "assets": a["assetCount"], "debut": a.get("startDate"),
              "fin": a.get("endDate"), "partage": bool(a.get("shared"))}
             for a in call("GET", "/albums", {}) if q in _norm(a["albumName"])]
-    return {"albums": sorted(rows, key=lambda r: _norm(r["nom"])), "total": len(rows)}
+    rows.sort(key=lambda r: _norm(r["nom"]))
+    return {"albums": rows[(page - 1) * ALBUMS_PAGE: page * ALBUMS_PAGE], "total": len(rows), "page": page,
+            "pages": max(1, -(-len(rows) // ALBUMS_PAGE))}
 
 
 def find_duplicate_albums(call, args):
@@ -317,8 +323,9 @@ def _w(desc, props, req, fn):
 # nom -> (description, schéma, fonction(call, args), écriture ?)
 LOCAL = {
     "list_albums": ("Liste compacte des albums, triée par nom : id, nom, assets (nombre), debut, fin, partage. "
-                    "`contains` : ne garde que les noms contenant ce texte (casse ignorée). Détail d'un album : get_album.",
-                    _obj({"contains": {"type": "string"}}), list_albums, False),
+                    "`contains` : ne garde que les noms contenant ce texte (casse ignorée). 300 albums par page : "
+                    "`page` (1 par défaut), `pages` et `total` dans la réponse. Détail d'un album : get_album.",
+                    _obj({"contains": {"type": "string"}, "page": {"type": "integer"}}), list_albums, False),
     "find_duplicate_albums": ("Albums en doublon probables : même nom (casse et espaces ignorés) et, si `minOverlap` (0 à 1) est donné, "
                               "recouvrement d'assets (part du plus petit album). Lecture seule ; prépare merge_albums.",
                               _obj({"minOverlap": {"type": "number"}}), find_duplicate_albums, False),
