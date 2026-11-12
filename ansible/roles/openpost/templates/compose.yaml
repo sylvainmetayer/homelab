@@ -24,6 +24,7 @@ services:
       OPENPOST_PORT: "8080"
       OPENPOST_DATABASE_PATH: /data/db/openpost.db
       OPENPOST_MEDIA_PATH: /data/media
+      TZ: Europe/Paris
     volumes:
       - ./data:/data
     # Celui de l'image, écrit ici pour le voir dans le modèle compose.

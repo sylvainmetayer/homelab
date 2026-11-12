@@ -80,6 +80,9 @@
           - openpost_env.OPENPOST_SMTP_HOST == 'mail.infomaniak.com'
           - openpost_env.OPENPOST_SMTP_USERNAME == pangolin_smtp_user
           - openpost_env.OPENPOST_SMTP_PASSWORD == pangolin_smtp_pass
+          - openpost_env.OPENPOST_STOCK_MEDIA_ENABLED == 'true'
+          - openpost_env.OPENPOST_UNSPLASH_ACCESS_KEY == 'molecule-unsplash'
+          - openpost_env.OPENPOST_PIXABAY_API_KEY == ''
         fail_msg: "Environnement d'openpost inattendu : {{ openpost_env.keys() | list }}"
 
     # Cible Pangolin : conteneur `openpost`, port 8080, sur newt seulement.
@@ -88,6 +91,7 @@
         that:
           - openpost_compose.networks.newt.external
           - openpost_compose.services.openpost.container_name == 'openpost'
+          - openpost_compose.services.openpost.environment.TZ == 'Europe/Paris'
           - openpost_compose.services.openpost.networks == ['newt']
           - openpost_compose.services.openpost.user == '1000:1000'
           - openpost_compose.services.openpost.cap_drop == ['ALL']

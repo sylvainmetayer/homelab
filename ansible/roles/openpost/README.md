@@ -100,6 +100,20 @@ Pas à pas de Facebook et d'Instagram (app Meta, permissions, test, dépannage) 
 Bluesky (mot de passe d'application), Mastodon et les autres réseaux fédérés se
 branchent depuis l'espace de travail, sans app développeur.
 
+## Banques d'images
+
+La recherche d'images libres du sélecteur de médias s'allume dès qu'une de ces
+clés SOPS existe (`OPENPOST_STOCK_MEDIA_ENABLED`, `templates/env.j2`) :
+
+| Clé SOPS | Où la créer |
+|---|---|
+| `openpost_unsplash_access_key` | unsplash.com/oauth/applications, l'« Access Key » (pas la Secret key) ; 50 requêtes par heure en mode démo |
+| `openpost_pixabay_api_key` | pixabay.com/api/docs, connecté |
+
+Pexels (`OPENPOST_PEXELS_API_KEY`) n'est pas câblé. Chaque clé posée dans SOPS
+a son entrée dans `secrets/secrets-rotation.yaml` (`docs/conventions/secrets.md`).
+Le conteneur tourne en `TZ: Europe/Paris` (compose), comme les autres rôles.
+
 ## Mails
 
 Compte Infomaniak partagé (`pangolin_smtp_*`, `OPENPOST_SMTP_*` du `.env`) :
