@@ -62,7 +62,9 @@ actif) :
    (onglet Actions de GitHub, la même coupure que
    [intrusion-premiere-heure.md](intrusion-premiere-heure.md), étape 6 ; en
    ligne de commande `gh workflow disable deploy-docker-app.yaml`, à
-   vérifier). Même si une PR fusionne, rien n'atteint les hôtes. Au retour, le
+   vérifier). Même si une PR fusionne, rien n'atteint les hôtes : cela coupe
+   aussi les `schedule` quotidiens du matin (ADR 0029), qui rattrapent sinon
+   `main`. Au retour, le
    premier run déploie tout ce qui a changé depuis le dernier run **réussi**
    (`conventions/ci.md`), rien n'est perdu.
 4. Ne **pas** merger de PR qui touche `docs/**` : cela déploie aussi (tag

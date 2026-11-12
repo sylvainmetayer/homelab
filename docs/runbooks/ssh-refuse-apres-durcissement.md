@@ -127,7 +127,7 @@ revenir en arrière.
 | `pangolin`, `flip` | console Hetzner (Cloud Console → serveur → Console), `sylvain` + son mot de passe |
 | `docker` (VM 100) | interface Proxmox → VM 100 → Console, `sylvain` + son mot de passe |
 | `newt-lxc` (CT 200) | shell du nœud Proxmox : `pct enter 200` (root, sans mot de passe) |
-| `pi` | écran et clavier, ou la carte SD lue sur le poste (`/etc/ssh/sshd_config` sur la partition racine) |
+| `pi` | écran et clavier, ou le SSD USB (le Pi démarre dessus, sans carte SD : [pi-mort.md](pi-mort.md)) lu sur le poste (`/etc/ssh/sshd_config` sur la partition racine) |
 
 1. Repli immédiat, sur la console : commenter les lignes `KexAlgorithms`,
    `Ciphers`, `MACs`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`,

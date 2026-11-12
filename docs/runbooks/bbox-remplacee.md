@@ -9,7 +9,7 @@ ce qui suit est à refaire à la main, avec les valeurs que le dépôt suppose.
 - Box changée (panne, nouvel abonnement) ou réinitialisée.
 - Après : plus d'Internet, ou Internet mais plus de filtrage, des hôtes qui
   changent d'IP, Immich qui redemande le SSO à la maison, `pi.lan` ou
-  `nas.lan` qui ne résolvent plus.
+  `data.lan` (le NAS) qui ne résolvent plus.
 
 ## Diagnostic
 
