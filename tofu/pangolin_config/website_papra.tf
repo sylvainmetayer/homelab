@@ -31,23 +31,24 @@ locals {
   }
 }
 
-# The official mobile app cannot go through the Pangolin SSO wall. As for
-# Karakeep (website_karakeep.tf), it sends a Pangolin access token in the
-# custom headers of its server screen (P-Access-Token-Id / P-Access-Token), on
-# top of its Papra session: no path is opened, the whole API stays behind the
-# SSO wall and the geo-filter.
+# The official mobile app and Sylvain's local MCP server (scripts/papra-mcp)
+# cannot go through the Pangolin SSO wall. As for Karakeep
+# (website_karakeep.tf), they send a Pangolin access token in custom headers
+# (P-Access-Token-Id / P-Access-Token), on top of their Papra session or API
+# key: no path is opened, the whole API stays behind the SSO wall and the
+# geo-filter.
 #
 # One token per client, so a lost phone is revoked without touching the others.
 # Read them with `tofu output -json papra_client_access_tokens`.
 resource "pangolin_resource_access_token" "papra_clients" {
-  for_each = toset(["mobile"])
+  for_each = toset(["mobile", "claude-code"])
 
   resource_id = pangolin_resource.website["papra"].id
   title       = "${pangolin_resource.website["papra"].name} ${each.key}"
 }
 
 output "papra_client_access_tokens" {
-  description = "PAPRA - En-têtes Pangolin des clients (app mobile)"
+  description = "PAPRA - En-têtes Pangolin des clients (app mobile, serveur MCP local)"
   value = {
     for client, token in pangolin_resource_access_token.papra_clients : client => {
       "P-Access-Token-Id" = tostring(token.id)

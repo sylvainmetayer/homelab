@@ -76,8 +76,11 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   chacun (`tofu output -json karakeep_client_access_tokens`), puis la clé
   d'API de Karakeep. Toute l'API, tRPC compris, reste derrière le SSO et le
   filtre pays : en voyage hors de ces pays, l'appli mobile est refusée.
-- Papra : appli mobile officielle, un jeton (`mobile`, lu avec
-  `tofu output -json papra_client_access_tokens` dans `tofu/pangolin_config`).
+- Papra : deux clients, un jeton chacun (`tofu output -json
+  papra_client_access_tokens` dans `tofu/pangolin_config`) : `mobile`, l'appli
+  mobile officielle, et `claude-code`, le serveur MCP local de Claude Code
+  (`scripts/papra-mcp`, jeton en en-têtes `P-Access-Token-Id` et
+  `P-Access-Token`, puis une clé d'API de Papra).
   Dans l'appli (1.1.0 ou plus), écran du serveur : « Auto-hébergement »,
   serveur `https://papra.sylvain.cloud`, puis « En-têtes personnalisés »
   (« Custom headers » en anglais) `P-Access-Token-Id` et `P-Access-Token`

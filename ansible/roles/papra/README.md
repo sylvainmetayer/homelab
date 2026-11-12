@@ -32,7 +32,9 @@ Paperless-ngx (removed in November 2026). App description: `docs/apps.md`.
   access token sent as custom headers (`P-Access-Token-Id` /
   `P-Access-Token`, `tofu output -json papra_client_access_tokens` in
   `tofu/pangolin_config`); no path is opened. → `docs/acces-mobile.md`.
-  Removing Papra also removes this token (`remove-app` skill, step 6).
+  Removing Papra also removes this token (`remove-app` skill, step 6). The
+  same output holds the `claude-code` token of the local MCP server
+  (`scripts/papra-mcp`).
 
 ## Backup and restore
 
