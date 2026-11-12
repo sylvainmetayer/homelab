@@ -133,15 +133,23 @@ application key / application secret / consumer key :
   et au renouvellement : une clé cassée ne se voit qu'au renouvellement suivant
   (`docker logs traefik 2>&1 | grep -i acme`).
 
-Créer une nouvelle application avec les **mêmes droits** que l'ancienne
-(les relire avant : console OVH, ou `GET /me/api/credential` dans la
-console d'API), basculer les trois clés ensemble par `sops set`, puis :
-pour la première, un `plan` vide dans chacun des modules cités ; pour la
-seconde, `ansible-playbook nas.yml --tags nas_proxy` et un renouvellement
-de certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
+Seules la clé et le secret d'application restent à la main : l'API OVH ne
+crée pas d'application (voir « Reste manuel » plus bas). Créer une nouvelle
+application avec les **mêmes droits** que l'ancienne (les relire avant :
+console OVH, ou `GET /me/api/credential` dans la console d'API). La consumer
+key, elle, se renouvelle par `ovh_credentials.py` (« Pas à pas » plus bas), qui
+la range par `sops set`, sans passer par le terminal. Après la bascule : pour
+la première, un `plan` vide dans chacun des modules cités ; pour la seconde,
+`ansible-playbook nas.yml --tags nas_proxy` et un renouvellement de
+certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
 `ansible-playbook pangolin.yaml --tags pangolin` et un renouvellement
 réussi (voir plus haut).
-Révoquer ensuite l'ancienne application (`DELETE /me/api/application/{id}`).
+
+**Ne jamais révoquer** les applications des jokers TLS (`pangolin_ovh_*`,
+`nas_ovh_*`) ni celle du plugin ACME de Proxmox : leur suppression coupe
+l'émission des certificats. N'y toucher qu'en les remplaçant, pas à pas.
+L'ancienne application de Tofu se supprime dans la console OVH une fois la
+nouvelle validée (voir « Reste manuel »).
 
 #### Consumer key de Tofu : `ovh_credentials.py`
 
@@ -378,10 +386,29 @@ identifiants.
   dans le `printf` de `sops set`), un `plan` vide dans chaque module à
   backend S3, puis la suppression de l'ancienne ressource dans un second
   apply (le backend de `tofu/s3_state` écrit son state avec ces clés-là).
+- **Purger les anciennes versions en clair du state de `pangolin_config`.**
+  Le bucket est versionné (`tofu/s3_state/storage.tf`) et ce state n'est
+  chiffré que depuis le 12/11/2026 (`docs/conventions/opentofu.md`) : ses
+  versions d'avant restent lisibles avec n'importe quelle clé S3 du bucket,
+  donc un accès au bucket redonne les anciens secrets. Elles contiennent tout
+  le fichier racine `secrets/secrets.sops.yaml`, que l'ancien
+  `data "sops_file"` y écrivait (commentaire de `mise.toml`, audit sc1) :
+  **tout ce fichier est à tourner**, pas seulement les clés S3. Le geste : lister
+  les versions de l'objet `homelab/pangolin_config.tfstate`
+  (`aws s3api list-object-versions --bucket homelab-tf-state-sylvain
+  --prefix homelab/pangolin_config.tfstate`, endpoint
+  `https://s3.eu-west-par.io.cloud.ovh.net`, avec la clé admin), puis supprimer
+  chaque version antérieure au 12/11/2026 par
+  `aws s3api delete-object --version-id <id>`, **sans** la version courante ni
+  les marqueurs. Commandes non testées ici (calquées sur
+  `tofu/keepass_backup/README.md`, « Restaurer un objet écrasé »). Vérifier
+  ensuite par un nouveau `list-object-versions` : seules des versions
+  chiffrées restent.
 - `state_s3_access_key`, `state_s3_secret_key` (fichier Ansible, utilisateur
   `ansible_state_reader`, lecture du seul state de `pangolin_config`) : même
   méthode sur `tofu/s3_state/user_ansible.tf`, puis un playbook en
-  `--check --tags setup` qui lit les sorties de `pangolin_config` (`tofu output`, `ansible/tasks/pangolin_config_outputs.yml` : module initialisé requis).
+  `--check --tags setup` qui lit les sorties de `pangolin_config` (`tofu output`, `ansible/tasks/pangolin_config_outputs.yml` : module initialisé requis,
+  voir la note de la « Clé API Pangolin »).
 
 ### Proxmox
 
@@ -418,7 +445,10 @@ bot (`beszel_telegram_bot_token`), le mettre à jour aussi, puis
 `pangolin_api_key` (fichier racine, provider de `tofu/pangolin_config`) :
 interface de Pangolin, organisation, API Keys, nouvelle clé avec les mêmes
 permissions. `sops set`, `plan` de `tofu/pangolin_config` vide, puis
-supprimer l'ancienne clé dans l'interface.
+supprimer l'ancienne clé dans l'interface. Avant ce plan, et avant tout
+`plan` de ce module : `mise run provider-fork`, puis
+`mise exec -- tofu -chdir=tofu/pangolin_config init` (le module n'est pas
+initialisé par défaut).
 
 `pangolin_root_api_key` (même fichier, alias `pangolin.root`, servi au seul
 fournisseur d'identité de `pocket_id.tf`) : même chemin dans l'**admin du
@@ -699,14 +729,24 @@ attendre un push « up ».
 
 `UPTIMEKUMA_PASSWORD` (fichier racine, provider de `tofu/pangolin_config`) :
 changer le mot de passe du compte dans Uptime Kuma (Settings → Security),
-`sops set`, puis un `plan` vide de `tofu/pangolin_config`.
+`sops set`, puis un `plan` vide de `tofu/pangolin_config` (après
+`mise run provider-fork` et `tofu init` du module, voir « Clé API Pangolin »).
 
 ### Compte SMTP Infomaniak
 
 `pangolin_smtp_pass` (fichier Ansible : msmtp du rôle `security`, Pangolin
 et les applis qui envoient des mails) : nouveau mot de passe du compte dans
-Infomaniak, `sops set`, puis les playbooks des hôtes (`--tags security`, et
-les rôles qui écrivent ces identifiants, dont `pangolin.yaml --tags pocket_id`). Vérifier par un envoi de test sur
+Infomaniak, `sops set`, puis les playbooks qui réécrivent ces identifiants,
+depuis `ansible/` :
+
+- `security` (msmtp) sur chaque hôte : `docker.yml`, `flip.yml`,
+  `pangolin.yaml`, `pi.yml` et `lxc.yml` avec `--tags security` ;
+- `pangolin.yaml --tags pangolin,pocket_id` (config de Pangolin, Pocket ID) ;
+- `docker.yml --tags monica,dawarich,healthlog,karakeep,wishlist,papra` ;
+- `flip.yml --tags openpost`.
+
+Aucun `apply` de `pangolin_config` n'est nécessaire : aucun `.tf` ne lit
+`pangolin_smtp_pass`. Vérifier par un envoi de test sur
 chaque hôte : `printf 'Subject: test msmtp\n\nok\n' | sudo msmtp root`
 (`--tags beszel_alerts_test` ne teste que le canal Telegram de Beszel, sans
 clés aujourd'hui, et le SMTP de Beszel est réglé dans son interface, pas par

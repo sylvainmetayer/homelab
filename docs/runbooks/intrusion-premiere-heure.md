@@ -91,8 +91,11 @@ nouveau, basculer, vérifier, puis révoquer l'ancien
    ([perte-cle-ou-poste.md](perte-cle-ou-poste.md)) ; la clé de CI (étape 6).
 2. **Les jetons de fournisseurs lisibles depuis l'hôte ou par la CI** : ceux du
    fichier Ansible (rapport des coûts Hetzner, clé OVH du Traefik du
-   NAS…). Ceux du fichier racine (Hetzner, OVH, S3 des states, Proxmox)
-   seulement si la clé age ou le poste est en cause.
+   NAS…). Ceux du fichier racine (Hetzner, OVH, S3 des states, Proxmox) :
+   tout ce fichier a séjourné dans l'ancien state en clair de
+   `pangolin_config` (versions à purger, « Clés S3 des states » de la
+   rotation) ; à tourner si la clé age, le poste ou l'accès au bucket des
+   states est en cause, ou si ces versions n'ont pas encore été purgées.
 3. **Le tunnel** de l'hôte : ses identifiants Newt (« Identifiants Newt »),
    `pangolin_api_key` et `pangolin_root_api_key` (elle crée des fournisseurs
    d'identité : un IdP ajouté ouvrirait le mur) si Pangolin a été touché.
