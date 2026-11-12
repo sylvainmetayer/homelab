@@ -1,0 +1,144 @@
+---
+# Migration unique du volume nommé jellystat_postgres_data vers le dossier
+# /opt/apps/jellystat/postgresql (bind mount) : le volume sous /var/lib/docker était
+# surveillé en récursif par auditd (README du rôle security). À retirer, avec
+# son include, une fois la VM déployée : le volume lui-même reste (filet de
+# retour arrière, README du rôle).
+#
+# Sûreté : on ne copie que si le volume existe, contient des données et que la
+# cible est absente ou vide. La copie se fait dans postgresql.migrating, puis
+# est renommée en place après contrôle : un dossier postgresql non vide est donc
+# toujours une copie complète. Un échec laisse l'ancien compose (volume nommé)
+# en place, relance l'appli dessus et fait échouer le play : jamais de
+# démarrage de PostgreSQL sur un dossier vide ou partiel.
+- name: List the Docker volumes
+  ansible.builtin.command: docker volume ls --quiet
+  register: jellystat_pg_volumes
+  changed_when: false
+
+- name: Read the mountpoint of the named PostgreSQL volume
+  when: "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
+  ansible.builtin.command: docker volume inspect --format '{{ "{{ .Mountpoint }}" }}' jellystat_postgres_data
+  register: jellystat_pg_mountpoint
+  changed_when: false
+
+- name: Look at what the named volume holds
+  when: "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
+  become: true
+  ansible.builtin.find:
+    paths: "{{ jellystat_pg_mountpoint.stdout }}"
+    file_type: any
+    hidden: true
+  register: jellystat_pg_volume_content
+
+- name: Look at what the bind mount folder holds
+  become: true
+  ansible.builtin.find:
+    paths: "{{ jellystat_base_path }}/postgresql"
+    file_type: any
+    hidden: true
+    skip_missing: true
+  register: jellystat_pg_dir_content
+
+- name: Migrate the named PostgreSQL volume to the bind mount
+  when:
+    - "'jellystat_postgres_data' in jellystat_pg_volumes.stdout_lines"
+    - jellystat_pg_volume_content.matched > 0
+    - jellystat_pg_dir_content.matched == 0
+  block:
+    - name: Stop Jellystat and its database
+      ansible.builtin.systemd:
+        name: dc@jellystat
+        scope: user
+        state: stopped
+
+    # `compose stop` rend la main une fois les conteneurs arrêtés ; copier
+    # sous un PostgreSQL encore vivant donnerait une base incohérente.
+    - name: Check no jellystat container still runs
+      ansible.builtin.command: docker ps --quiet --filter label=com.docker.compose.project=jellystat
+      register: jellystat_pg_running
+      changed_when: false
+      failed_when: jellystat_pg_running.stdout | length > 0
+
+    - name: Clear a copy left by an earlier failed run
+      become: true
+      ansible.builtin.file:
+        path: "{{ jellystat_base_path }}/postgresql.migrating"
+        state: absent
+
+    - name: Create the folder receiving the copy
+      become: true
+      ansible.builtin.file:
+        path: "{{ jellystat_base_path }}/postgresql.migrating"
+        state: directory
+        mode: "0700"
+        owner: "70"
+        group: "70"
+
+    # -a : propriétaires, droits, dates et liens conservés (uid 70 de postgres).
+    - name: Copy the volume data, owners and modes preserved
+      become: true
+      ansible.builtin.command: cp -a "{{ jellystat_pg_mountpoint.stdout }}/." "{{ jellystat_base_path }}/postgresql.migrating/"
+      changed_when: true
+
+    - name: Count what the copy holds
+      become: true
+      ansible.builtin.find:
+        paths: "{{ jellystat_base_path }}/postgresql.migrating"
+        file_type: any
+        hidden: true
+        recurse: true
+      register: jellystat_pg_copy_content
+
+    - name: Count what the volume holds
+      become: true
+      ansible.builtin.find:
+        paths: "{{ jellystat_pg_mountpoint.stdout }}"
+        file_type: any
+        hidden: true
+        recurse: true
+      register: jellystat_pg_volume_all
+
+    - name: Check the copy is complete and holds a PostgreSQL cluster
+      become: true
+      ansible.builtin.find:
+        paths: "{{ jellystat_base_path }}/postgresql.migrating"
+        patterns: PG_VERSION
+        recurse: true
+      register: jellystat_pg_version
+      failed_when: >-
+        jellystat_pg_copy_content.matched != jellystat_pg_volume_all.matched
+        or jellystat_pg_version.matched == 0
+
+    # Vide d'après le contrôle du début : sans cela, mv rangerait la copie
+    # dans le dossier au lieu de la mettre à sa place.
+    - name: Remove the empty bind mount folder, if any
+      become: true
+      ansible.builtin.file:
+        path: "{{ jellystat_base_path }}/postgresql"
+        state: absent
+
+    - name: Put the copy in place
+      become: true
+      ansible.builtin.command: mv "{{ jellystat_base_path }}/postgresql.migrating" "{{ jellystat_base_path }}/postgresql"
+      changed_when: true
+  rescue:
+    - name: Drop the unfinished copy
+      become: true
+      ansible.builtin.file:
+        path: "{{ jellystat_base_path }}/postgresql.migrating"
+        state: absent
+
+    # Le compose du disque est encore l'ancien (volume nommé) : sans danger.
+    - name: Start Jellystat back on its named volume
+      ansible.builtin.systemd:
+        name: dc@jellystat
+        scope: user
+        state: started
+
+    - name: Fail the play
+      ansible.builtin.fail:
+        msg: >-
+          Migration de jellystat_postgres_data vers {{ jellystat_base_path }}/postgresql échouée :
+          Jellystat relancé sur son volume nommé, rien n'est perdu. Lire l'erreur
+          ci-dessus, corriger, relancer.

@@ -76,6 +76,45 @@ Borgmatic par le modèle partagé : dump `pg_dump` de la base `jellystat` (via
 la base (copié à chaud) ni `backup-data/` (sauvegardes JSON que Jellystat
 prend à la demande). Moniteur « Backup Jellystat », test de restauration.
 
+## Données PostgreSQL : dossier `postgresql/`, ancien volume gardé
+
+Depuis le 12/11/2026 la base vit dans `/opt/apps/jellystat/postgresql/` (bind mount sur
+`/var/lib/postgresql`, même point de montage qu'avant : PostgreSQL 18 range ses
+fichiers sous `18/docker`), et non plus dans le volume nommé
+`jellystat_postgres_data`. Raison : auditd surveille `/var/lib/docker` en récursif,
+chaque ouverture de fichier de la base y était enregistrée (README du rôle
+`security`). Dossier à `70:70` en `0700` (uid de `postgres` dans l'image
+alpine), créé par Ansible avant le premier démarrage. Pas dans borg : le dump
+reste la sauvegarde (le test de restauration et le mode `drill_mode` ne
+touchent que le dump, rien n'y change).
+
+**Migration au déploiement** (`tasks/migrate_postgres_volume.yml`) : seulement
+si le volume nommé existe et contient des données, et que `postgresql/` est
+absent ou vide. `dc@jellystat` est arrêté (appli et base, `compose stop` puis
+contrôle qu'aucun conteneur du projet ne tourne), le volume est copié avec
+`cp -a` dans `postgresql.migrating/`, comparé (même nombre d'entrées, un
+`PG_VERSION` présent), puis renommé en `postgresql/`. Le nouveau compose est
+posé ensuite et le service redémarre dessus. Un échec relance l'appli sur
+l'ancien compose et son volume, supprime la copie partielle et fait échouer
+le play : PostgreSQL ne démarre jamais sur un dossier vide ou à moitié copié.
+Un deuxième passage ne fait rien. Arrêt attendu : la durée de la copie (base
+de quelques dizaines de Mo : quelques secondes) plus l'arrêt et le démarrage
+des deux conteneurs, de l'ordre de la minute.
+
+**L'ancien volume n'est pas supprimé** : c'est le filet de retour arrière.
+
+- Retour arrière : remettre l'ancien compose (revert du commit, déployer :
+  le compose rend de nouveau `jellystat_postgres_data`) ; le volume porte les
+  données d'avant la migration, celles écrites depuis sont perdues (ou à
+  rejouer depuis `postgresql/`). Si `postgresql/` est non vide et qu'il faut
+  refaire la migration : `systemctl --user stop dc@jellystat`, `sudo rm -rf
+  /opt/apps/jellystat/postgresql`, redéployer le rôle migré.
+- Suppression, à lancer à la main une fois la base vérifiée (quelques jours,
+  une sauvegarde borg passée) : `docker volume rm jellystat_postgres_data`. Le
+  volume est sous `/var/lib/docker/volumes` : tant qu'il existe il n'est plus
+  écrit, donc sans effet sur auditd. Retirer ensuite
+  `tasks/migrate_postgres_volume.yml` et son `include_tasks` (PR à part).
+
 ## Durcissement
 
 Image Docker Hub `cyfershepard/jellystat`, tag et digest épinglés ; base

@@ -17,8 +17,8 @@ partagée au-delà du foyer.
   `healthlog-db` (`postgres:18.6-alpine`) sur le réseau interne seul. Repris
   du `docker-compose.yml` amont de la v1.46.5, sans `db-upgrade` (passage
   Postgres 16 → 18 d'une ancienne installation) ni `db-restore` (profil
-  `restore`, voir plus bas). Volumes nommés `healthlog_postgres_data` et
-  `healthlog_backups` (dumps d'avant migration).
+  `restore`, voir plus bas). Base dans le dossier `postgresql/` (bind mount, voir plus bas) ; volumes
+  nommés `healthlog_backups` (dumps d'avant migration) et `healthlog_tmp`.
 - `.env` (0600) : URL publique, clés dérivées, SMTP Infomaniak, appels
   sortants coupés (géolocalisation des IP de connexion chez ipwho.is,
   vérification de version sur GitHub).
@@ -245,6 +245,45 @@ en 401.
 
 Le `.env` est dans l'archive borg avec le dump : une restauration retrouve
 la clé qui ouvre ce dump.
+
+## Données PostgreSQL : dossier `postgresql/`, ancien volume gardé
+
+Depuis le 12/11/2026 la base vit dans `/opt/apps/healthlog/postgresql/` (bind mount sur
+`/var/lib/postgresql`, même point de montage qu'avant : PostgreSQL 18 range ses
+fichiers sous `18/docker`), et non plus dans le volume nommé
+`healthlog_postgres_data`. Raison : auditd surveille `/var/lib/docker` en récursif,
+chaque ouverture de fichier de la base y était enregistrée (README du rôle
+`security`). Dossier à `70:70` en `0700` (uid de `postgres` dans l'image
+alpine), créé par Ansible avant le premier démarrage. Pas dans borg : le dump
+reste la sauvegarde (le test de restauration et le mode `drill_mode` ne
+touchent que le dump, rien n'y change).
+
+**Migration au déploiement** (`tasks/migrate_postgres_volume.yml`) : seulement
+si le volume nommé existe et contient des données, et que `postgresql/` est
+absent ou vide. `dc@healthlog` est arrêté (appli et base, `compose stop` puis
+contrôle qu'aucun conteneur du projet ne tourne), le volume est copié avec
+`cp -a` dans `postgresql.migrating/`, comparé (même nombre d'entrées, un
+`PG_VERSION` présent), puis renommé en `postgresql/`. Le nouveau compose est
+posé ensuite et le service redémarre dessus. Un échec relance l'appli sur
+l'ancien compose et son volume, supprime la copie partielle et fait échouer
+le play : PostgreSQL ne démarre jamais sur un dossier vide ou à moitié copié.
+Un deuxième passage ne fait rien. Arrêt attendu : la durée de la copie (base
+de quelques dizaines de Mo : quelques secondes) plus l'arrêt et le démarrage
+des deux conteneurs, de l'ordre de la minute.
+
+**L'ancien volume n'est pas supprimé** : c'est le filet de retour arrière.
+
+- Retour arrière : remettre l'ancien compose (revert du commit, déployer :
+  le compose rend de nouveau `healthlog_postgres_data`) ; le volume porte les
+  données d'avant la migration, celles écrites depuis sont perdues (ou à
+  rejouer depuis `postgresql/`). Si `postgresql/` est non vide et qu'il faut
+  refaire la migration : `systemctl --user stop dc@healthlog`, `sudo rm -rf
+  /opt/apps/healthlog/postgresql`, redéployer le rôle migré.
+- Suppression, à lancer à la main une fois la base vérifiée (quelques jours,
+  une sauvegarde borg passée) : `docker volume rm healthlog_postgres_data`. Le
+  volume est sous `/var/lib/docker/volumes` : tant qu'il existe il n'est plus
+  écrit, donc sans effet sur auditd. Retirer ensuite
+  `tasks/migrate_postgres_volume.yml` et son `include_tasks` (PR à part).
 
 ## Restauration
 
