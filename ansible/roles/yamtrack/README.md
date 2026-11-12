@@ -7,8 +7,7 @@ VM docker, `dc@yamtrack`, deux conteneurs : `yamtrack` (nginx, gunicorn et
 celery sous supervisord, sur `newt` et sur le réseau interne `yamtrack`) et
 `yamtrack-redis` (réseau interne seulement). Derrière le SSO de Pangolin (rôle
 `yamtrack`, sans membre direct : l'accès vient du groupe Pocket ID `yamtrack`),
-puis le compte
-propre à Yamtrack. Amont actif (dernier envoi le jour de l'ajout).
+puis le compte propre à Yamtrack. Amont actif (dernier envoi le jour de l'ajout).
 
 ## Premier compte
 
