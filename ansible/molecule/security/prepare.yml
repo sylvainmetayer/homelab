@@ -48,6 +48,37 @@
       register: security_sysctl_guard
       changed_when: security_sysctl_guard.stdout == '1'
 
+    # Un service de poste de travail et son socket, comme cups ou avahi sur le
+    # Pi : le rôle doit les arrêter et les masquer tous les deux.
+    - name: Install a fake workstation service and its socket
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/molecule-workstation.{{ item.key }}"
+        mode: "0644"
+        content: "{{ item.value }}"
+      loop:
+        - key: service
+          value: |
+            [Service]
+            ExecStart=/bin/sleep infinity
+            [Install]
+            WantedBy=multi-user.target
+        - key: socket
+          value: |
+            [Socket]
+            ListenStream=/run/molecule-workstation.sock
+            [Install]
+            WantedBy=sockets.target
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Start the fake workstation service and its socket
+      ansible.builtin.systemd:
+        name: "molecule-workstation.{{ item }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop: [service, socket]
+
     - name: Create the SMTP sink directory
       ansible.builtin.file:
         path: /var/lib/molecule-smtp-sink

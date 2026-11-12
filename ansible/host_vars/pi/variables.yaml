@@ -69,6 +69,25 @@ security_devsec_sysctl_host:
 security_unattended_extra_origins:
   - "origin=Raspberry Pi Foundation,codename=${distro_codename}"
 
+# Services d'une image desktop, sans usage sur ce serveur (relevé du 12/11 :
+# cupsd sur 127.0.0.1:631, avahi sur 5353/udp de toutes les interfaces ;
+# cups-browsed a eu la CVE-2024-47176). Aucun rôle du dépôt ne s'en sert
+# (pas de mDNS : Blocky, Immich et Newt passent par des IP et des noms DNS,
+# pas d'impression : l'imprimante est une ressource privée Pangolin, ni de
+# Bluetooth). Avec leurs sockets et chemins, sinon l'unité se relance. À ne
+# jamais ajouter : NetworkManager (tient le réseau du Pi), wpa_supplicant.
+security_masked_services:
+  - cups.service
+  - cups.socket
+  - cups.path
+  - cups-browsed.service
+  - avahi-daemon.service
+  - avahi-daemon.socket
+  - bluetooth.service
+  - bluetooth.target
+  - ModemManager.service
+  - colord.service
+
 # Rapports (unattended-upgrades en échec, logwatch, cron) par msmtp, comme
 # Pangolin et flip : sans relais, logwatch tire exim4 et le courrier de root
 # reste non lu dans /var/mail/root.

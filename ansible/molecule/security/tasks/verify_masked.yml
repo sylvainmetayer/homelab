@@ -1,0 +1,24 @@
+---
+# Les unités de security_masked_services (converge.yml) : masquées, et celle
+# qui tournait arrêtée. Une unité absente est masquée sans erreur.
+- name: Read the masked services
+  ansible.builtin.command: systemctl is-enabled {{ item }}
+  register: security_verify_masked
+  loop:
+    - molecule-workstation.service
+    - molecule-workstation.socket
+    - molecule-absent.service
+  changed_when: false
+  failed_when: false
+
+- name: Read the fake workstation units
+  ansible.builtin.command: systemctl is-active molecule-workstation.service molecule-workstation.socket
+  register: security_verify_active
+  changed_when: false
+  failed_when: false
+
+- name: Assert the units are masked and stopped
+  ansible.builtin.assert:
+    that:
+      - security_verify_masked.results | map(attribute='stdout') | map('trim') | unique | list == ['masked']
+      - security_verify_active.stdout_lines == ['inactive', 'inactive']
