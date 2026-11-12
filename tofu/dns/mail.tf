@@ -6,8 +6,8 @@
 # - sylvainmetayer.fr : la boîte Infomaniak, et tout ce que les hôtes et les
 #   applis envoient (pangolin_smtp_user : msmtp, Pangolin, karakeep,
 #   dawarich, wishlist…). DKIM signé par Infomaniak (sélecteur
-#   20230615, posé hors Tofu par Infomaniak). DMARC à p=none le temps de lire
-#   les rapports.
+#   20230615, posé hors Tofu par Infomaniak). DMARC à quarantine pct=25 depuis
+#   le 2026-11-12 (cran suivant : pct=100, docs/runbooks/dmarc.md).
 # - sylvain.dev, metayer.dev : SimpleLogin (MX, DKIM dkim/dkim02/dkim03 en
 #   CNAME vers simplelogin.co, posés hors Tofu ; le SPF est ici). DMARC déjà à quarantine strict avant ce
 #   fichier : on n'ajoute que les rapports.
@@ -28,7 +28,7 @@ locals {
   # Politique DMARC de chaque zone. adkim/aspf = "s" exige le domaine exact
   # (pas un sous-domaine) dans DKIM d= et dans l'enveloppe.
   dmarc_policies = {
-    "sylvainmetayer.fr" = { p = "none", pct = 100, strict = false }
+    "sylvainmetayer.fr" = { p = "quarantine", pct = 25, strict = false }
     "sylvain.dev"       = { p = "quarantine", pct = 100, strict = true }
     "metayer.dev"       = { p = "quarantine", pct = 100, strict = true }
     "sylvain.cloud"     = { p = "reject", pct = 100, strict = true }
