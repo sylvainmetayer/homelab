@@ -39,7 +39,6 @@
     paths: "{{ healthlog_base_path }}/postgresql"
     file_type: any
     hidden: true
-    skip_missing: true
   register: healthlog_pg_dir_content
 
 - name: Migrate the named PostgreSQL volume to the bind mount
