@@ -30,7 +30,7 @@ le client RDP du navigateur (section « Limites » de
 [support-a-distance.md](support-a-distance.md)). Le presse-papiers ne passe
 pas par le client VNC du navigateur.
 
-Versions vérifiées le 08/11/2026 : Newt **1.20.0**, Pangolin 1.25.3, relais
+Versions vérifiées le 08/11/2026 : Newt **1.20.0**, Pangolin 1.25.3 (l'image est depuis en `ee-1.26.0`, à revérifier), relais
 du commit `ed9d923d`. Ce qui n'a été essayé que sur le poste de Sylvain
 (Fedora) est marqué **non testé** : à vérifier à la première installation, et
 à corriger ici.

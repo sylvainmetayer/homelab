@@ -45,7 +45,7 @@ homelab :
 
 Modèle : la ressource **`PC Sylvain (VNC)`**, créée par le code, a déjà les
 bons réglages ; l'ouvrir dans un autre onglet et recopier. Libellés de
-l'interface non vérifiés (Pangolin 1.25.3) : à corriger ici à la première
+l'interface non vérifiés (relevés sur Pangolin 1.25.3, l'image est en `ee-1.26.0` : à revérifier sur 1.26.0) : à corriger ici à la première
 utilisation.
 
 1. **Ressources → Ajouter**, ressource **publique**, type **VNC**.
